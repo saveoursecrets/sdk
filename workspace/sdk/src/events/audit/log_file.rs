@@ -1,9 +1,13 @@
 use async_trait::async_trait;
 use std::{
-    io::{Cursor, Read, Seek, SeekFrom, Write},
+    io::{Cursor, SeekFrom},
     path::{Path, PathBuf},
 };
-use tokio::io::AsyncWriteExt;
+
+use tokio::io::{
+    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
+    AsyncWriteExt,
+};
 
 use crate::{
     constants::AUDIT_IDENTITY,
@@ -15,7 +19,8 @@ use crate::{
 use super::{AuditEvent, AuditProvider};
 
 use binary_stream::{
-    BinaryReader, BinaryResult, BinaryWriter, Decode, Encode, Endian,
+    tokio::{BinaryReader, BinaryWriter, Decode, Encode},
+    BinaryResult, Endian,
 };
 
 /// Represents an audit log file.
@@ -57,60 +62,64 @@ impl AuditLogFile {
     }
 
     /// Read an event from a file.
-    pub fn read_event(
+    pub async fn read_event(
         &self,
-        file: &mut std::fs::File,
+        file: &mut vfs::File,
         record: &FileRecord,
     ) -> Result<AuditEvent> {
         let offset = record.offset();
         let row_len = offset.end - offset.start;
-        file.seek(SeekFrom::Start(offset.start))?;
+        file.seek(SeekFrom::Start(offset.start)).await?;
         let mut buf = vec![0u8; row_len as usize];
-        file.read_exact(&mut buf)?;
+        file.read_exact(&mut buf).await?;
 
+        /*
         let mut stream = Cursor::new(&buf);
         let mut reader = BinaryReader::new(&mut stream, Endian::Little);
         Ok(AuditLogFile::decode_row(&mut reader)?)
+        */
+
+        todo!();
     }
 
     /// Encode an audit log event record.
-    fn encode_row<W: Write + Seek>(
+    async fn encode_row<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         writer: &mut BinaryWriter<W>,
         event: &AuditEvent,
     ) -> BinaryResult<()> {
         // Set up the leading row length
-        let size_pos = writer.tell()?;
-        writer.write_u32(0)?;
+        let size_pos = writer.tell().await?;
+        writer.write_u32(0).await?;
 
         // Encode the event data for the row
-        event.encode(&mut *writer)?;
+        event.encode(&mut *writer).await?;
 
         // Backtrack to size_pos and write new length
-        let row_pos = writer.tell()?;
+        let row_pos = writer.tell().await?;
         let row_len = row_pos - (size_pos + 4);
-        writer.seek(size_pos)?;
-        writer.write_u32(row_len as u32)?;
-        writer.seek(row_pos)?;
+        writer.seek(size_pos).await?;
+        writer.write_u32(row_len as u32).await?;
+        writer.seek(row_pos).await?;
 
         // Write out the row len at the end of the record too
         // so we can support double ended iteration
-        writer.write_u32(row_len as u32)?;
+        writer.write_u32(row_len as u32).await?;
 
         Ok(())
     }
 
     /// Decode an audit log event record.
-    fn decode_row<R: Read + Seek>(
+    async fn decode_row<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         reader: &mut BinaryReader<R>,
     ) -> BinaryResult<AuditEvent> {
         // Read in the row length
-        let _ = reader.read_u32()?;
+        let _ = reader.read_u32().await?;
 
         let mut event: AuditEvent = Default::default();
-        event.decode(&mut *reader)?;
+        event.decode(&mut *reader).await?;
 
         // Read in the row length appended to the end of the record
-        let _ = reader.read_u32()?;
+        let _ = reader.read_u32().await?;
         Ok(event)
     }
 }
@@ -122,13 +131,13 @@ impl AuditProvider for AuditLogFile {
     async fn append_audit_events(
         &mut self,
         events: &[AuditEvent],
-    ) -> std::result::Result<(), Self::Error> {
+    ) -> Result<()> {
         let buffer: Vec<u8> = {
             let mut buffer = Vec::new();
             let mut stream = Cursor::new(&mut buffer);
             let mut writer = BinaryWriter::new(&mut stream, Endian::Little);
             for event in events {
-                AuditLogFile::encode_row(&mut writer, event)?;
+                AuditLogFile::encode_row(&mut writer, event).await?;
             }
             buffer
         };

@@ -2,40 +2,50 @@ use crate::{
     crypto::{AeadPack, Algorithm, Nonce, AES_GCM_256, X_CHACHA20_POLY1305},
     Error,
 };
-use binary_stream::{
-    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
+
+use tokio::io::{
+    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
+    AsyncWriteExt,
 };
 
-use std::io::{Read, Seek, Write};
+use async_trait::async_trait;
+use binary_stream::{
+    tokio::{BinaryReader, BinaryWriter, Decode, Encode},
+    BinaryError, BinaryResult,
+};
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for AeadPack {
-    fn encode<W: Write + Seek>(
+    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> BinaryResult<()> {
         match &self.nonce {
             Nonce::Nonce12(ref bytes) => {
-                writer.write_u8(12)?;
-                writer.write_bytes(bytes)?;
+                writer.write_u8(12).await?;
+                writer.write_bytes(bytes).await?;
             }
             Nonce::Nonce24(ref bytes) => {
-                writer.write_u8(24)?;
-                writer.write_bytes(bytes)?;
+                writer.write_u8(24).await?;
+                writer.write_bytes(bytes).await?;
             }
         }
-        writer.write_u32(self.ciphertext.len() as u32)?;
-        writer.write_bytes(&self.ciphertext)?;
+        writer.write_u32(self.ciphertext.len() as u32).await?;
+        writer.write_bytes(&self.ciphertext).await?;
         Ok(())
     }
 }
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for AeadPack {
-    fn decode<R: Read + Seek>(
+    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> BinaryResult<()> {
-        let nonce_size = reader.read_u8()?;
-        let nonce_buffer = reader.read_bytes(nonce_size as usize)?;
+        let nonce_size = reader.read_u8().await?;
+        let nonce_buffer = reader.read_bytes(nonce_size as usize).await?;
         match nonce_size {
             12 => {
                 self.nonce =
@@ -51,28 +61,32 @@ impl Decode for AeadPack {
                 )));
             }
         }
-        let len = reader.read_u32()?;
-        self.ciphertext = reader.read_bytes(len as usize)?;
+        let len = reader.read_u32().await?;
+        self.ciphertext = reader.read_bytes(len as usize).await?;
         Ok(())
     }
 }
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for Algorithm {
-    fn encode<W: Write + Seek>(
+    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> BinaryResult<()> {
-        writer.write_u8(*self.as_ref())?;
+        writer.write_u8(*self.as_ref()).await?;
         Ok(())
     }
 }
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for Algorithm {
-    fn decode<R: Read + Seek>(
+    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> BinaryResult<()> {
-        let id = reader.read_u8()?;
+        let id = reader.read_u8().await?;
         *self = match id {
             X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305(id),
             AES_GCM_256 => Algorithm::AesGcm256(id),

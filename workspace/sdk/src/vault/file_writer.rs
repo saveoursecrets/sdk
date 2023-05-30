@@ -24,10 +24,10 @@ use binary_stream::{
 use uuid::Uuid;
 
 use crate::{
-    async_stream_len,
     commit::CommitHash,
     crypto::AeadPack,
     encode,
+    encoding::stream_len,
     events::{ReadEvent, WriteEvent},
     vault::{
         secret::SecretId, Contents, Header, Summary, VaultAccess,
@@ -70,8 +70,8 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
 
     /// Check the identity bytes and return the byte offset of the
     /// beginning of the vault content area.
-    fn check_identity(&self) -> Result<u64> {
-        Header::read_content_offset(&self.file_path)
+    async fn check_identity(&self) -> Result<u64> {
+        Header::read_content_offset(&self.file_path).await
     }
 
     /// Write out the header preserving the existing content bytes.
@@ -80,7 +80,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         content_offset: u64,
         header: &Header,
     ) -> Result<()> {
-        let head = encode(header)?;
+        let head = encode(header).await?;
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -159,7 +159,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         &self,
         id: &SecretId,
     ) -> Result<(u64, Option<(u64, u32)>)> {
-        let content_offset = self.check_identity()?;
+        let content_offset = self.check_identity().await?;
 
         let mut stream = self.stream.lock().await;
         let mut reader = BinaryReader::new(&mut *stream, Endian::Little);
@@ -193,12 +193,12 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
 impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
     for VaultWriter<F>
 {
-    fn summary(&self) -> Result<Summary> {
-        Header::read_summary_file(&self.file_path)
+    async fn summary(&self) -> Result<Summary> {
+        Header::read_summary_file(&self.file_path).await
     }
 
-    fn vault_name(&self) -> Result<Cow<'_, str>> {
-        let header = Header::read_header_file(&self.file_path)?;
+    async fn vault_name(&self) -> Result<Cow<'_, str>> {
+        let header = Header::read_header_file(&self.file_path).await?;
         let name = header.name().to_string();
         Ok(Cow::Owned(name))
     }
@@ -207,8 +207,8 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         &mut self,
         name: String,
     ) -> Result<WriteEvent<'_>> {
-        let content_offset = self.check_identity()?;
-        let mut header = Header::read_header_file(&self.file_path)?;
+        let content_offset = self.check_identity().await?;
+        let mut header = Header::read_header_file(&self.file_path).await?;
         header.set_name(name.clone());
         self.write_header(content_offset, &header).await?;
         Ok(WriteEvent::SetVaultName(Cow::Owned(name)))
@@ -218,8 +218,8 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         &mut self,
         meta_data: Option<AeadPack>,
     ) -> Result<WriteEvent<'_>> {
-        let content_offset = self.check_identity()?;
-        let mut header = Header::read_header_file(&self.file_path)?;
+        let content_offset = self.check_identity().await?;
+        let mut header = Header::read_header_file(&self.file_path).await?;
         header.set_meta(meta_data.clone());
         self.write_header(content_offset, &header).await?;
         Ok(WriteEvent::SetVaultMeta(Cow::Owned(meta_data)))
@@ -240,15 +240,15 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<WriteEvent<'_>> {
-        let _summary = self.summary()?;
+        let _summary = self.summary().await?;
         let mut stream = self.stream.lock().await;
-        let length = async_stream_len(stream.deref_mut()).await?;
+        let length = stream_len(stream.deref_mut()).await?;
         let mut writer = BinaryWriter::new(&mut *stream, Endian::Little);
         let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row
         writer.seek(length).await?;
-        Contents::encode_row_async(&mut writer, &id, &row).await?;
+        Contents::encode_row(&mut writer, &id, &row).await?;
 
         drop(stream);
 
@@ -259,14 +259,14 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         &'a self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
-        let _summary = self.summary()?;
+        let _summary = self.summary().await?;
         let event = ReadEvent::ReadSecret(*id);
         let (_, row) = self.find_row(id).await?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().await;
             let mut reader = BinaryReader::new(&mut *stream, Endian::Little);
             reader.seek(row_offset).await?;
-            let (_, value) = Contents::decode_row_async(&mut reader).await?;
+            let (_, value) = Contents::decode_row(&mut reader).await?;
             Ok((Some(Cow::Owned(value)), event))
         } else {
             Ok((None, event))
@@ -279,7 +279,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<Option<WriteEvent<'_>>> {
-        let _summary = self.summary()?;
+        let _summary = self.summary().await?;
         let (_content_offset, row) = self.find_row(id).await?;
         if let Some((row_offset, row_len)) = row {
             // Prepare the row
@@ -288,12 +288,12 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
             let mut writer = BinaryWriter::new(&mut stream, Endian::Little);
 
             let row = VaultCommit(commit, secret);
-            Contents::encode_row_async(&mut writer, id, &row).await?;
+            Contents::encode_row(&mut writer, id, &row).await?;
 
             // Splice the row into the file
             let length = {
                 let mut stream = self.stream.lock().await;
-                async_stream_len(stream.deref_mut()).await?
+                stream_len(stream.deref_mut()).await?
             };
 
             let head = 0..row_offset;
@@ -313,12 +313,12 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         &mut self,
         id: &SecretId,
     ) -> Result<Option<WriteEvent<'_>>> {
-        let _summary = self.summary()?;
+        let _summary = self.summary().await?;
         let (_content_offset, row) = self.find_row(id).await?;
         if let Some((row_offset, row_len)) = row {
             let length = {
                 let mut stream = self.stream.lock().await;
-                async_stream_len(stream.deref_mut()).await?
+                stream_len(stream.deref_mut()).await?
             };
 
             let head = 0..row_offset;
@@ -367,7 +367,8 @@ mod tests {
         let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
         let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
-        let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+        let (commit, _) =
+            Vault::commit_hash(&meta_aead, &secret_aead).await?;
 
         if let WriteEvent::CreateSecret(secret_id, _) = vault_access
             .create(commit, VaultEntry(meta_aead, secret_aead))
@@ -451,7 +452,8 @@ mod tests {
 
         let updated_meta = vault.encrypt(&encryption_key, &meta_bytes)?;
         let updated_secret = vault.encrypt(&encryption_key, &secret_bytes)?;
-        let (commit, _) = Vault::commit_hash(&updated_meta, &updated_secret)?;
+        let (commit, _) =
+            Vault::commit_hash(&updated_meta, &updated_secret).await?;
         let _ = vault_access
             .update(
                 &secret_id,
@@ -463,7 +465,7 @@ mod tests {
         // Clean up the secret for next test execution
         let _ = vault_access.delete(&secret_id).await?;
 
-        let vault_name = vault_access.vault_name()?;
+        let vault_name = vault_access.vault_name().await?;
         assert_eq!(DEFAULT_VAULT_NAME, &vault_name);
 
         let new_name = String::from("New vault name");
@@ -517,7 +519,7 @@ mod tests {
         let _ = vault_access.delete(del_secret_id).await?;
 
         // Check the file identity is good after the deletion splice
-        assert!(Header::read_header_file(temp.path()).is_ok());
+        assert!(Header::read_header_file(temp.path()).await.is_ok());
 
         // Clean up other secrets
         for secret_id in secret_ids {
@@ -525,7 +527,7 @@ mod tests {
         }
 
         // Verify again to finish up
-        assert!(Header::read_header_file(temp.path()).is_ok());
+        assert!(Header::read_header_file(temp.path()).await.is_ok());
 
         temp.close()?;
 

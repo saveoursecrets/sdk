@@ -197,7 +197,7 @@ impl Gatekeeper {
         seed: Option<Seed>,
     ) -> Result<()> {
         // Initialize the private key and store the salt
-        let private_key = self.vault.initialize(password, seed)?;
+        let private_key = self.vault.initialize(password, seed).await?;
         self.private_key = Some(private_key);
 
         // Assign the label to the meta data
@@ -210,12 +210,12 @@ impl Gatekeeper {
     }
 
     /// Attempt to decrypt the index meta data and extract the label.
-    pub fn label(&self) -> Result<String> {
+    pub async fn label(&self) -> Result<String> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         if let Some(meta_aead) = self.vault.header().meta() {
             let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
-            let meta_data: VaultMeta = decode(&meta_blob)?;
+            let meta_data: VaultMeta = decode(&meta_blob).await?;
             Ok(meta_data.label().to_string())
         } else {
             Err(Error::VaultNotInit)
@@ -224,7 +224,7 @@ impl Gatekeeper {
 
     /// Attempt to decrypt the index meta data for the vault
     /// using the passphrase assigned to this gatekeeper.
-    pub fn vault_meta(&self) -> Result<VaultMeta> {
+    pub async fn vault_meta(&self) -> Result<VaultMeta> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
@@ -233,7 +233,7 @@ impl Gatekeeper {
                 .vault
                 .decrypt(private_key, meta_aead)
                 .map_err(|_| Error::PassphraseVerification)?;
-            let meta_data: VaultMeta = decode(&meta_blob)?;
+            let meta_data: VaultMeta = decode(&meta_blob).await?;
             Ok(meta_data)
         } else {
             Err(Error::VaultNotInit)
@@ -249,7 +249,7 @@ impl Gatekeeper {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
-        let meta_blob = encode(&meta_data)?;
+        let meta_blob = encode(&meta_data).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.set_vault_meta(Some(meta_aead.clone())).await?;
@@ -274,10 +274,10 @@ impl Gatekeeper {
             let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
                 value.as_ref();
             let meta_blob = from.decrypt(private_key, meta_aead)?;
-            let secret_meta: SecretMeta = decode(&meta_blob)?;
+            let secret_meta: SecretMeta = decode(&meta_blob).await?;
 
             let secret_blob = from.decrypt(private_key, secret_aead)?;
-            let secret: Secret = decode(&secret_blob)?;
+            let secret: Secret = decode(&secret_blob).await?;
             Ok(Some((secret_meta, secret)))
         } else {
             Ok(None)
@@ -307,13 +307,14 @@ impl Gatekeeper {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
-        let meta_blob = encode(&secret_meta)?;
+        let meta_blob = encode(&secret_meta).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
 
-        let secret_blob = encode(&secret)?;
+        let secret_blob = encode(&secret).await?;
         let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
 
-        let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+        let (commit, _) =
+            Vault::commit_hash(&meta_aead, &secret_aead).await?;
         let id = Uuid::new_v4();
 
         if let Some(mirror) = self.mirror.as_mut() {
@@ -382,13 +383,14 @@ impl Gatekeeper {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
-        let meta_blob = encode(&secret_meta)?;
+        let meta_blob = encode(&secret_meta).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
 
-        let secret_blob = encode(&secret)?;
+        let secret_blob = encode(&secret).await?;
         let secret_aead = self.vault.encrypt(private_key, &secret_blob)?;
 
-        let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+        let (commit, _) =
+            Vault::commit_hash(&meta_aead, &secret_aead).await?;
 
         if let Some(mirror) = self.mirror.as_mut() {
             mirror
@@ -428,23 +430,25 @@ impl Gatekeeper {
         Ok(event)
     }
 
+    /*
     /// Decrypt secret meta data.
-    pub fn decrypt_meta(&self, meta_aead: &AeadPack) -> Result<SecretMeta> {
+    pub async fn decrypt_meta(&self, meta_aead: &AeadPack) -> Result<SecretMeta> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
-        let secret_meta: SecretMeta = decode(&meta_blob)?;
+        let secret_meta: SecretMeta = decode(&meta_blob).await?;
         Ok(secret_meta)
     }
 
     /// Encrypt secret meta data.
-    pub fn encrypt_meta(&self, secret_meta: &SecretMeta) -> Result<AeadPack> {
+    pub async fn encrypt_meta(&self, secret_meta: &SecretMeta) -> Result<AeadPack> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
-        let meta_blob = encode(secret_meta)?;
+        let meta_blob = encode(secret_meta).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob)?;
         Ok(meta_aead)
     }
+    */
 
     /// Verify an encryption passphrase.
     pub fn verify(&self, passphrase: SecretString) -> Result<()> {
@@ -460,10 +464,10 @@ impl Gatekeeper {
             let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
                 value;
             let meta_blob = self.vault.decrypt(private_key, meta_aead)?;
-            let secret_meta: SecretMeta = decode(&meta_blob)?;
+            let secret_meta: SecretMeta = decode(&meta_blob).await?;
 
             let secret_blob = self.vault.decrypt(private_key, secret_aead)?;
-            let secret: Secret = decode(&secret_blob)?;
+            let secret: Secret = decode(&secret_blob).await?;
 
             writer.add(self.vault().id(), id, secret_meta, &secret);
         }
@@ -473,7 +477,10 @@ impl Gatekeeper {
     /// Unlock the vault by setting the private key from a passphrase.
     ///
     /// The private key is stored in memory by this gatekeeper.
-    pub fn unlock(&mut self, passphrase: SecretString) -> Result<VaultMeta> {
+    pub async fn unlock(
+        &mut self,
+        passphrase: SecretString,
+    ) -> Result<VaultMeta> {
         if let Some(salt) = self.vault.salt() {
             let salt = SecretKey::parse_salt(salt)?;
             let private_key = SecretKey::derive_32(
@@ -482,7 +489,7 @@ impl Gatekeeper {
                 self.vault.seed(),
             )?;
             self.private_key = Some(private_key);
-            self.vault_meta()
+            self.vault_meta().await
         } else {
             Err(Error::VaultNotInit)
         }

@@ -1,8 +1,12 @@
 //! Patch represents a changeset of events to apply to a vault.
 use std::{
-    fs::{File, OpenOptions},
-    io::{Seek, SeekFrom, Write},
+    io::SeekFrom,
     path::{Path, PathBuf},
+};
+
+use tokio::io::{
+    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
+    AsyncWriteExt,
 };
 
 use crate::{
@@ -10,6 +14,7 @@ use crate::{
     decode, encode,
     events::WriteEvent,
     formats::{patch_iter, FileRecord, ReadStreamIterator},
+    vfs::{self, File, OpenOptions},
     Result,
 };
 
@@ -25,23 +30,22 @@ pub struct PatchFile {
 
 impl PatchFile {
     /// Create a new patch cache provider.
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
 
-        if !file_path.exists() {
-            File::create(path.as_ref())?;
-        }
-
         let mut file = OpenOptions::new()
+            .create(true)
             .write(true)
             .append(true)
-            .open(path.as_ref())?;
+            .open(path.as_ref())
+            .await?;
 
-        let size = file.metadata()?.len();
+        let size = file.metadata().await?.len();
         if size == 0 {
             let patch: Patch = Default::default();
-            let buffer = encode(&patch)?;
-            file.write_all(&buffer)?;
+            let buffer = encode(&patch).await?;
+            file.write_all(&buffer).await?;
+            file.flush().await?;
         }
 
         Ok(Self { file, file_path })
@@ -53,9 +57,9 @@ impl PatchFile {
     }
 
     /// Read a patch from the file on disc.
-    pub(crate) fn read(&self) -> Result<Patch<'static>> {
-        let buffer = std::fs::read(&self.file_path)?;
-        let patch: Patch = decode(&buffer)?;
+    pub(crate) async fn read(&self) -> Result<Patch<'static>> {
+        let buffer = vfs::read(&self.file_path).await?;
+        let patch: Patch = decode(&buffer).await?;
         Ok(patch)
     }
 
@@ -72,13 +76,13 @@ impl PatchFile {
     /// beforehand the collection equals the passed events otherwise
     /// it will be any existing events loaded from disc with the given
     /// events appended.
-    pub fn append<'a>(
+    pub async fn append<'a>(
         &mut self,
         events: Vec<WriteEvent<'a>>,
     ) -> Result<Patch<'a>> {
         // Load any existing events in to memory
-        let mut all_events = if self.has_events()? {
-            let patch = self.read()?;
+        let mut all_events = if self.has_events().await? {
+            let patch = self.read().await?;
             patch.0
         } else {
             vec![]
@@ -86,9 +90,10 @@ impl PatchFile {
 
         // Append the incoming events to the file
         let append_patch = Patch(events);
-        let append_buffer = encode(&append_patch)?;
+        let append_buffer = encode(&append_patch).await?;
         let append_buffer = &append_buffer[PATCH_IDENTITY.len()..];
-        self.file.write_all(append_buffer)?;
+        self.file.write_all(append_buffer).await?;
+        self.file.flush().await?;
 
         // Append the given events on to any existing events
         // so we can return a new patch to the caller that contains
@@ -105,14 +110,14 @@ impl PatchFile {
     }
 
     /// Determine if the patch cache has any events.
-    pub fn has_events(&self) -> Result<bool> {
-        Ok(self.file_path.metadata()?.len() as usize > PATCH_IDENTITY.len())
+    pub async fn has_events(&self) -> Result<bool> {
+        Ok(self.file.metadata().await?.len() as usize > PATCH_IDENTITY.len())
     }
 
     /// Drain all events from the patch backing storage.
-    pub fn drain(&mut self) -> Result<Patch<'static>> {
-        let patch = self.read()?;
-        self.truncate()?;
+    pub async fn drain(&mut self) -> Result<Patch<'static>> {
+        let patch = self.read().await?;
+        self.truncate().await?;
         Ok(patch)
     }
 
@@ -121,17 +126,19 @@ impl PatchFile {
     /// This should be called when a client has successfully
     /// applied a patch to the remote and local event log files to
     /// remove any pending events.
-    pub fn truncate(&mut self) -> Result<()> {
+    pub async fn truncate(&mut self) -> Result<()> {
         // Workaround for set_len(0) failing with "Access Denied" on Windows
         // SEE: https://github.com/rust-lang/rust/issues/105437
         let _ = OpenOptions::new()
             .write(true)
             .truncate(true)
-            .open(&self.file_path);
-        self.file.seek(SeekFrom::Start(0))?;
+            .open(&self.file_path)
+            .await;
+        self.file.seek(SeekFrom::Start(0)).await?;
         let patch: Patch = Default::default();
-        let buffer = encode(&patch)?;
-        self.file.write_all(&buffer)?;
+        let buffer = encode(&patch).await?;
+        self.file.write_all(&buffer).await?;
+        self.file.flush().await?;
         Ok(())
     }
 }

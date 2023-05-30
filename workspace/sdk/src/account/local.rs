@@ -108,7 +108,7 @@ impl LocalAccounts {
             .ok_or_else(|| Error::NoVaultFile(id.to_string()))?;
 
         let buffer = vfs::read(&path).await?;
-        let vault: Vault = decode(&buffer)?;
+        let vault: Vault = decode(&buffer).await?;
         Ok((vault, path))
     }
 
@@ -123,7 +123,8 @@ impl LocalAccounts {
         while let Some(entry) = dir.next_entry().await? {
             if let Some(extension) = entry.path().extension() {
                 if extension == VAULT_EXT {
-                    let summary = Header::read_summary_file(entry.path())?;
+                    let summary =
+                        Header::read_summary_file(entry.path()).await?;
                     if !include_system && summary.flags().is_system() {
                         continue;
                     }
@@ -144,7 +145,8 @@ impl LocalAccounts {
                 (entry.path().extension(), entry.path().file_stem())
             {
                 if extension == VAULT_EXT {
-                    let summary = Header::read_summary_file(entry.path())?;
+                    let summary =
+                        Header::read_summary_file(entry.path()).await?;
                     keys.push(AccountInfo {
                         address: file_stem.to_string_lossy().parse()?,
                         label: summary.name().to_owned(),

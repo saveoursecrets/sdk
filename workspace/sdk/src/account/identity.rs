@@ -100,10 +100,12 @@ impl Identity {
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
         vault.set_name(name);
-        vault.initialize(master_passphrase.clone(), Some(generate_seed()))?;
+        vault
+            .initialize(master_passphrase.clone(), Some(generate_seed()))
+            .await?;
 
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(master_passphrase)?;
+        keeper.unlock(master_passphrase).await?;
 
         // Store the signing key
         let signer = SingleParty::new_random();
@@ -160,7 +162,7 @@ impl Identity {
         search_index: Option<Arc<RwLock<SearchIndex>>>,
         mirror: Option<VaultWriter<vfs::File>>,
     ) -> Result<UserIdentity> {
-        let vault: Vault = decode(buffer.as_ref())?;
+        let vault: Vault = decode(buffer.as_ref()).await?;
 
         if !vault.flags().contains(VaultFlags::IDENTITY) {
             return Err(Error::NotIdentityVault);
@@ -172,7 +174,7 @@ impl Identity {
             Gatekeeper::new(vault, search_index)
         };
 
-        keeper.unlock(master_passphrase)?;
+        keeper.unlock(master_passphrase).await?;
         // Must create the index so we can find by URN
         keeper.create_search_index().await?;
 

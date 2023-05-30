@@ -173,20 +173,21 @@ impl<R: Read + Seek> Reader<R> {
     /// This is necessary for an import process which would first
     /// need to determine the identity and which vaults might conflict
     /// with existing vaults.
-    pub fn inventory(&mut self) -> Result<Inventory> {
+    pub async fn inventory(&mut self) -> Result<Inventory> {
         let manifest = self
             .find_manifest()?
             .take()
             .ok_or(Error::NoArchiveManifest)?;
         let entry_name = format!("{}.{}", manifest.address, VAULT_EXT);
         let checksum = hex::decode(&manifest.checksum)?;
-        let (identity, _) = self.archive_entry(&entry_name, checksum)?;
+        let (identity, _) = self.archive_entry(&entry_name, checksum).await?;
 
         let mut vaults = Vec::with_capacity(manifest.vaults.len());
         for (k, v) in &manifest.vaults {
             let entry_name = format!("{}.{}", k, VAULT_EXT);
             let checksum = hex::decode(v)?;
-            let (summary, _) = self.archive_entry(&entry_name, checksum)?;
+            let (summary, _) =
+                self.archive_entry(&entry_name, checksum).await?;
             vaults.push(summary);
         }
         vaults.sort_by(|a, b| a.name().partial_cmp(b.name()).unwrap());
@@ -216,7 +217,7 @@ impl<R: Read + Seek> Reader<R> {
         }
     }
 
-    fn archive_entry(
+    async fn archive_entry(
         &mut self,
         name: &str,
         checksum: Vec<u8>,
@@ -229,7 +230,7 @@ impl<R: Read + Seek> Reader<R> {
         if checksum != digest.to_vec() {
             return Err(Error::ArchiveChecksumMismatch(name.to_string()));
         }
-        let summary = VaultHeader::read_summary_slice(&data)?;
+        let summary = VaultHeader::read_summary_slice(&data).await?;
         Ok((summary, data))
     }
 
@@ -287,20 +288,20 @@ impl<R: Read + Seek> Reader<R> {
     ///
     /// It also extracts the vault summaries so we are confident
     /// each buffer is a valid vault.
-    pub fn finish(
+    pub async fn finish(
         mut self,
     ) -> Result<(Address, ArchiveItem, Vec<ArchiveItem>)> {
         let manifest =
             self.manifest.take().ok_or(Error::NoArchiveManifest)?;
         let entry_name = format!("{}.{}", manifest.address, VAULT_EXT);
         let checksum = hex::decode(manifest.checksum)?;
-        let identity = self.archive_entry(&entry_name, checksum)?;
+        let identity = self.archive_entry(&entry_name, checksum).await?;
         let mut vaults = Vec::new();
 
         for (k, v) in manifest.vaults {
             let entry_name = format!("{}.{}", k, VAULT_EXT);
             let checksum = hex::decode(v)?;
-            vaults.push(self.archive_entry(&entry_name, checksum)?);
+            vaults.push(self.archive_entry(&entry_name, checksum).await?);
         }
         Ok((manifest.address, identity, vaults))
     }

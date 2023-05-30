@@ -138,7 +138,7 @@ impl AccountBuilder {
 
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
-        let buffer = encode(&identity_vault)?;
+        let buffer = encode(&identity_vault).await?;
         let user =
             Identity::login_buffer(buffer, passphrase.clone(), None, None)
                 .await?;
@@ -153,12 +153,14 @@ impl AccountBuilder {
             default_vault.set_name(name);
         }
         default_vault.set_default_flag(true);
-        default_vault.initialize(vault_passphrase.clone(), None)?;
+        default_vault
+            .initialize(vault_passphrase.clone(), None)
+            .await?;
 
         // Save the master passphrase in the default vault
         if save_passphrase {
             let mut keeper = Gatekeeper::new(default_vault, None);
-            keeper.unlock(vault_passphrase.clone())?;
+            keeper.unlock(vault_passphrase.clone()).await?;
 
             let secret = Secret::Account {
                 account: account_name,
@@ -176,7 +178,7 @@ impl AccountBuilder {
 
         // Store the vault passphrase in the identity vault
         let mut keeper = Gatekeeper::new(identity_vault, None);
-        keeper.unlock(passphrase)?;
+        keeper.unlock(passphrase).await?;
 
         DelegatedPassphrase::save_vault_passphrase(
             &mut keeper,
@@ -209,7 +211,7 @@ impl AccountBuilder {
             let mut vault: Vault = Default::default();
             vault.set_name(DEFAULT_ARCHIVE_VAULT_NAME.to_string());
             vault.set_archive_flag(true);
-            vault.initialize(archive_passphrase.clone(), None)?;
+            vault.initialize(archive_passphrase.clone(), None).await?;
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
@@ -231,7 +233,7 @@ impl AccountBuilder {
             vault.set_name(DEFAULT_AUTHENTICATOR_VAULT_NAME.to_string());
             vault.set_authenticator_flag(true);
             vault.set_no_sync_self_flag(true);
-            vault.initialize(auth_passphrase.clone(), None)?;
+            vault.initialize(auth_passphrase.clone(), None).await?;
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
@@ -252,7 +254,7 @@ impl AccountBuilder {
             let mut vault: Vault = Default::default();
             vault.set_name(DEFAULT_CONTACTS_VAULT_NAME.to_string());
             vault.set_contact_flag(true);
-            vault.initialize(auth_passphrase.clone(), None)?;
+            vault.initialize(auth_passphrase.clone(), None).await?;
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
@@ -286,7 +288,7 @@ impl AccountBuilder {
         // Persist the identity vault to disc, MUST re-encode the buffer
         // as we have modified the identity vault
         let identity_vault_file = StorageDirs::identity_vault(&address)?;
-        let buffer = encode(&identity_vault)?;
+        let buffer = encode(&identity_vault).await?;
         vfs::write(identity_vault_file, buffer).await?;
 
         // Ensure the files directory exists

@@ -86,7 +86,9 @@ impl<'a> ChangePassword<'a> {
         //
         // Must clear the existing salt so we can re-initialize.
         new_vault.header_mut().clear_salt();
-        new_vault.initialize(self.new_passphrase.clone(), self.seed)?;
+        new_vault
+            .initialize(self.new_passphrase.clone(), self.seed)
+            .await?;
 
         // Get a new secret key after we have initialized the new salt
         let new_private_key = self.new_private_key(&new_vault)?;
@@ -99,7 +101,7 @@ impl<'a> ChangePassword<'a> {
 
         let mut event_log_events = Vec::new();
 
-        let buffer = encode(&new_vault)?;
+        let buffer = encode(&new_vault).await?;
         let create_vault = WriteEvent::CreateVault(Cow::Owned(buffer));
         event_log_events.push(create_vault);
 
@@ -119,7 +121,8 @@ impl<'a> ChangePassword<'a> {
                 new_vault.encrypt(&new_private_key, &secret_blob)?;
 
             // Need a new commit hash as the contents have changed
-            let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+            let (commit, _) =
+                Vault::commit_hash(&meta_aead, &secret_aead).await?;
 
             // Insert into the new vault preserving the secret identifiers
             let sync_event = new_vault

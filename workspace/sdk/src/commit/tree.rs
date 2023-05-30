@@ -442,7 +442,8 @@ mod test {
             let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
             let secret_aead =
                 vault.encrypt(&encryption_key, &secret_bytes)?;
-            let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+            let (commit, _) =
+                Vault::commit_hash(&meta_aead, &secret_aead).await?;
             let _secret_id = match vault
                 .create(commit, VaultEntry(meta_aead, secret_aead))
                 .await?

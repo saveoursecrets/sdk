@@ -100,6 +100,9 @@ pub enum ChangeEvent {
 impl ChangeEvent {
     /// Convert from a sync event.
     pub fn from_sync_event(event: &Event<'_>) -> Option<Self> {
+        todo!();
+
+        /*
         match event {
             Event::Write(_, event) => match event {
                 WriteEvent::CreateVault(vault) => {
@@ -127,6 +130,7 @@ impl ChangeEvent {
             },
             _ => None,
         }
+        */
     }
 }
 
@@ -134,6 +138,9 @@ impl<'a> TryFrom<&WriteEvent<'a>> for ChangeEvent {
     type Error = Error;
 
     fn try_from(event: &WriteEvent<'a>) -> Result<Self> {
+        todo!();
+
+        /*
         match event {
             WriteEvent::CreateVault(vault) => {
                 let summary = Header::read_summary_slice(vault.as_ref())?;
@@ -155,6 +162,7 @@ impl<'a> TryFrom<&WriteEvent<'a>> for ChangeEvent {
             }
             _ => Err(Error::NoChangeEvent),
         }
+        */
     }
 }
 

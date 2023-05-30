@@ -231,7 +231,7 @@ impl Login {
             let search_index = Arc::new(RwLock::new(SearchIndex::new()));
             let mut device_keeper =
                 Gatekeeper::new(vault, Some(search_index));
-            device_keeper.unlock(device_passphrase)?;
+            device_keeper.unlock(device_passphrase).await?;
             device_keeper.create_search_index().await?;
             let index = device_keeper.index();
             let index_reader = index.read().await;
@@ -271,7 +271,7 @@ impl Login {
             vault.set_device_flag(true);
             vault.set_no_sync_self_flag(true);
             vault.set_no_sync_other_flag(true);
-            vault.initialize(device_passphrase.clone(), None)?;
+            vault.initialize(device_passphrase.clone(), None).await?;
 
             DelegatedPassphrase::save_vault_passphrase(
                 identity,
@@ -281,7 +281,7 @@ impl Login {
             .await?;
 
             let mut device_keeper = Gatekeeper::new(vault, None);
-            device_keeper.unlock(device_passphrase)?;
+            device_keeper.unlock(device_passphrase).await?;
 
             let key = ed25519::SingleParty::new_random();
             let public_id = key.address()?;
@@ -298,7 +298,7 @@ impl Login {
             let device_vault: Vault = device_keeper.into();
             let summary = device_vault.summary().clone();
 
-            let buffer = encode(&device_vault)?;
+            let buffer = encode(&device_vault).await?;
             let vaults_dir =
                 StorageDirs::local_vaults_dir(address.to_string())?;
             let mut device_vault_file =

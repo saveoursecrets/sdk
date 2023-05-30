@@ -86,7 +86,7 @@ pub async fn mock_vault_note<'a>(
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
-    let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+    let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead).await?;
     let event = vault
         .create(commit, VaultEntry(meta_aead, secret_aead))
         .await?;
@@ -112,7 +112,7 @@ pub async fn mock_vault_note_update<'a>(
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
-    let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+    let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead).await?;
     let event = vault
         .update(id, commit, VaultEntry(meta_aead, secret_aead))
         .await?;

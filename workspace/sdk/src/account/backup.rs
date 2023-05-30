@@ -336,7 +336,7 @@ impl AccountBackup {
         .build()
         .await?;
 
-        encode(&vault)
+        encode(&vault).await
     }
 
     /// Create a buffer for a zip archive including the
@@ -386,11 +386,11 @@ impl AccountBackup {
     }
 
     /// Read the inventory from an archive.
-    pub fn restore_archive_inventory<R: Read + Seek>(
+    pub async fn restore_archive_inventory<R: Read + Seek>(
         archive: R,
     ) -> Result<Inventory> {
         let mut reader = Reader::new(archive)?;
-        reader.inventory()
+        reader.inventory().await
     }
 
     /// Import from an archive.
@@ -427,18 +427,18 @@ impl AccountBackup {
                 let identity_vault_file =
                     StorageDirs::identity_vault(&address)?;
                 let identity_buffer = vfs::read(&identity_vault_file).await?;
-                let identity_vault: Vault = decode(&identity_buffer)?;
+                let identity_vault: Vault = decode(&identity_buffer).await?;
                 let mut identity_keeper =
                     Gatekeeper::new(identity_vault, None);
-                identity_keeper.unlock(passphrase.clone())?;
+                identity_keeper.unlock(passphrase.clone()).await?;
 
                 let search_index = Arc::new(RwLock::new(SearchIndex::new()));
-                let restored_identity: Vault = decode(&identity.1)?;
+                let restored_identity: Vault = decode(&identity.1).await?;
                 let mut restored_identity_keeper = Gatekeeper::new(
                     restored_identity,
                     Some(Arc::clone(&search_index)),
                 );
-                restored_identity_keeper.unlock(passphrase.clone())?;
+                restored_identity_keeper.unlock(passphrase.clone()).await?;
                 restored_identity_keeper.create_search_index().await?;
 
                 for (_, vault) in vaults {
@@ -458,7 +458,7 @@ impl AccountBackup {
                 }
 
                 // Must re-write the identity vault
-                let buffer = encode(identity_keeper.vault())?;
+                let buffer = encode(identity_keeper.vault()).await?;
                 vfs::write(identity_vault_file, buffer).await?;
             }
 
@@ -577,7 +577,7 @@ impl AccountBackup {
             }
         }
 
-        let (address, identity, vaults) = reader.finish()?;
+        let (address, identity, vaults) = reader.finish().await?;
 
         // Filter extracted vaults to those selected by the user
         let vaults = vaults
@@ -590,16 +590,16 @@ impl AccountBackup {
         // Check each target vault can be decoded
         let mut decoded: Vec<(Vec<u8>, Vault)> = Vec::new();
         for item in vaults {
-            let vault: Vault = decode(&item.1)?;
+            let vault: Vault = decode(&item.1).await?;
             decoded.push((item.1, vault));
         }
 
         // Check all the decoded vaults can be decrypted
         if let Some(passphrase) = &options.passphrase {
             // Check the identity vault can be unlocked
-            let vault: Vault = decode(&identity.1)?;
+            let vault: Vault = decode(&identity.1).await?;
             let mut keeper = Gatekeeper::new(vault, None);
-            keeper.unlock(passphrase.clone())?;
+            keeper.unlock(passphrase.clone()).await?;
 
             // Get the signing address from the identity vault and
             // verify it matches the manifest address

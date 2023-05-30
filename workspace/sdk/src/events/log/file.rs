@@ -32,7 +32,10 @@ use std::{
 
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-use binary_stream::{BinaryReader, Decode, Endian};
+use binary_stream::{
+    tokio::{BinaryReader, Decode},
+    Endian,
+};
 use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};
@@ -78,7 +81,7 @@ impl EventLogFile {
         last_commit: Option<CommitHash>,
     ) -> Result<(CommitHash, EventRecord)> {
         let time: Timestamp = Default::default();
-        let bytes = encode(&event)?;
+        let bytes = encode(&event).await?;
         let commit = CommitHash(CommitTree::hash(&bytes));
 
         let last_commit = if let Some(last_commit) = last_commit {
@@ -96,7 +99,8 @@ impl EventLogFile {
         let old_size = self.path().metadata()?.len();
 
         // Get the reduced set of events
-        let events = EventReducer::new().reduce(self).await?.compact()?;
+        let events =
+            EventReducer::new().reduce(self).await?.compact().await?;
         let temp = NamedTempFile::new()?;
 
         // Apply them to a temporary event log file
@@ -223,7 +227,7 @@ impl EventLogFile {
             let (commit, record) =
                 self.encode_event(event, last_commit_hash).await?;
             commits.push(commit);
-            let mut buf = encode(&record)?;
+            let mut buf = encode(&record).await?;
             last_commit_hash = Some(CommitHash(CommitTree::hash(&buf)));
             buffer.append(&mut buf);
         }
@@ -278,7 +282,7 @@ impl EventLogFile {
         event: WriteEvent<'_>,
     ) -> Result<CommitHash> {
         let (commit, record) = self.encode_event(event, None).await?;
-        let buffer = encode(&record)?;
+        let buffer = encode(&record).await?;
         self.file.write_all(&buffer).await?;
         self.file.flush().await?;
         self.tree.insert(*commit.as_ref());
@@ -305,7 +309,7 @@ impl EventLogFile {
         let mut reader = BinaryReader::new(&mut stream, Endian::Little);
         let mut event: WriteEvent = Default::default();
 
-        event.decode(&mut reader)?;
+        event.decode(&mut reader).await?;
         Ok(event)
     }
 

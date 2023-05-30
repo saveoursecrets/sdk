@@ -32,12 +32,14 @@ impl<'a> EventReducer<'a> {
     ///
     /// The truncated vault represents the header of the vault and
     /// has no contents.
-    pub fn split(vault: Vault) -> Result<(Vault, Vec<WriteEvent<'static>>)> {
+    pub async fn split(
+        vault: Vault,
+    ) -> Result<(Vault, Vec<WriteEvent<'static>>)> {
         let mut events = Vec::with_capacity(vault.len() + 1);
         let header = vault.header().clone();
         let head: Vault = header.into();
 
-        let buffer = encode(&head)?;
+        let buffer = encode(&head).await?;
         events.push(WriteEvent::CreateVault(Cow::Owned(buffer)));
         for (id, entry) in vault {
             let event = WriteEvent::CreateSecret(id, Cow::Owned(entry));
@@ -108,11 +110,11 @@ impl<'a> EventReducer<'a> {
     /// the new series of events have been applied so callers
     /// must generate a new commit tree once the new event log has
     /// been created.
-    pub fn compact(self) -> Result<Vec<WriteEvent<'a>>> {
+    pub async fn compact(self) -> Result<Vec<WriteEvent<'a>>> {
         if let Some(vault) = self.vault {
             let mut events = Vec::new();
 
-            let mut vault: Vault = decode(&vault)?;
+            let mut vault: Vault = decode(&vault).await?;
             if let Some(name) = self.vault_name {
                 vault.set_name(name.into_owned());
             }
@@ -121,7 +123,7 @@ impl<'a> EventReducer<'a> {
                 vault.header_mut().set_meta(meta.into_owned());
             }
 
-            let buffer = encode(&vault)?;
+            let buffer = encode(&vault).await?;
             events.push(WriteEvent::CreateVault(Cow::Owned(buffer)));
             for (id, entry) in self.secrets {
                 let entry = entry.into_owned();
@@ -134,9 +136,9 @@ impl<'a> EventReducer<'a> {
     }
 
     /// Consume this reducer and build a vault.
-    pub fn build(self) -> Result<Vault> {
+    pub async fn build(self) -> Result<Vault> {
         if let Some(vault) = self.vault {
-            let mut vault: Vault = decode(&vault)?;
+            let mut vault: Vault = decode(&vault).await?;
             if let Some(name) = self.vault_name {
                 vault.set_name(name.into_owned());
             }
