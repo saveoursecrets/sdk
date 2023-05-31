@@ -51,7 +51,7 @@ pub struct LocalProvider {
 impl LocalProvider {
     /// Create new node cache backed by files on disc.
     pub async fn new(dirs: StorageDirs) -> Result<LocalProvider> {
-        if !dirs.documents_dir().is_dir() {
+        if !vfs::metadata(dirs.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 dirs.documents_dir().to_path_buf(),
             ));

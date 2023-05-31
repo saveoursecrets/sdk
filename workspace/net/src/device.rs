@@ -186,7 +186,7 @@ impl TrustedDevice {
         device_dir: P,
     ) -> Result<Vec<TrustedDevice>> {
         let mut devices = Vec::new();
-        if !device_dir.as_ref().exists() {
+        if !vfs::try_exists(device_dir.as_ref()).await? {
             vfs::create_dir_all(device_dir.as_ref()).await?;
         }
 
@@ -207,7 +207,7 @@ impl TrustedDevice {
         let mut device_path = device_dir.as_ref().join(device_address);
         device_path.set_extension("json");
         if let Some(parent) = device_path.parent() {
-            if !parent.exists() {
+            if !vfs::try_exists(&parent).await? {
                 vfs::create_dir_all(parent).await?;
             }
         }

@@ -16,6 +16,7 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
         Summary, VaultRef,
     },
+    vfs,
 };
 
 use crate::{
@@ -739,7 +740,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 }
                 AddCommand::File {
                     file, name, tags, ..
-                } => add_file(file, name, tags)?,
+                } => add_file(file, name, tags).await?,
                 //AddCommand::Page { name, tags, .. } => add_page(name, tags)?,
             };
 
@@ -941,7 +942,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                                 human_bytes(content.size() as f64)
                             );
                             let file_path = read_line(Some("File path: "))?;
-                            Cow::Owned(read_file_secret(&file_path)?)
+                            Cow::Owned(read_file_secret(&file_path).await?)
                         }
                     } else {
                         editor::edit(&data.secret).await?
@@ -1150,7 +1151,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             )
             .await?;
             if resolved.verified {
-                if file.exists() && !force {
+                if !force && vfs::try_exists(&file).await? {
                     return Err(Error::FileExists(file));
                 }
 
@@ -1406,7 +1407,7 @@ async fn attachment(
                 attachment,
                 ..
             } => {
-                if file.exists() && !force {
+                if !force && vfs::try_exists(&file).await? {
                     return Err(Error::FileExists(file));
                 }
 

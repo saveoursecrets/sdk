@@ -369,7 +369,7 @@ async fn account_backup(
         .await
         .ok_or_else(|| Error::NoAccountFound)?;
 
-    if !force && output.exists() {
+    if !force && vfs::try_exists(&output).await? {
         return Err(Error::FileExists(output));
     }
 
@@ -382,7 +382,9 @@ async fn account_backup(
 
 /// Restore from a zip archive.
 async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
-    if !input.exists() || !input.is_file() {
+    if !vfs::try_exists(&input).await?
+        || !vfs::metadata(&input).await?.is_file()
+    {
         return Err(Error::NotFile(input));
     }
 
@@ -497,7 +499,7 @@ async fn migrate_export(
     output: PathBuf,
     force: bool,
 ) -> Result<bool> {
-    if !force && output.exists() {
+    if !force && vfs::try_exists(&output).await? {
         return Err(Error::FileExists(output));
     }
 
@@ -540,7 +542,7 @@ async fn contacts_export(
     output: PathBuf,
     force: bool,
 ) -> Result<()> {
-    if !force && output.exists() {
+    if !force && vfs::try_exists(&output).await? {
         return Err(Error::FileExists(output));
     }
     let mut owner = user.write().await;

@@ -102,7 +102,7 @@ impl FileStorage {
             .join(vault_id)
             .join(secret_id);
 
-        if !target.exists() {
+        if !vfs::try_exists(&target).await? {
             vfs::create_dir_all(&target).await?;
         }
 

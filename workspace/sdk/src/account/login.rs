@@ -120,10 +120,10 @@ impl AuthenticatedUser {
         // This can only happen if somebody has manually restored
         // items from the trash using `cp` and then decides to delete
         // the accout again, so the rule is last deleted account wins.
-        if deleted_identity_vault_file.exists() {
+        if vfs::try_exists(&deleted_identity_vault_file).await? {
             vfs::remove_file(&deleted_identity_vault_file).await?;
         }
-        if deleted_identity_data_dir.exists() {
+        if vfs::try_exists(&deleted_identity_data_dir).await? {
             vfs::remove_dir_all(&deleted_identity_data_dir).await?;
         }
 

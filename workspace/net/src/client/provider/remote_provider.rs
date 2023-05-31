@@ -62,7 +62,7 @@ impl RemoteProvider {
         client: RpcClient,
         dirs: StorageDirs,
     ) -> Result<RemoteProvider> {
-        if !dirs.documents_dir().is_dir() {
+        if !vfs::metadata(dirs.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 dirs.documents_dir().to_path_buf(),
             ));

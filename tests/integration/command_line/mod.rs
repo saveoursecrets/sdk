@@ -204,7 +204,7 @@ async fn integration_command_line() -> Result<()> {
         "target/debug/sos".to_owned()
     };
 
-    shell(&exe, &password)?;
+    shell(&exe, &password).await?;
 
     account::new(&exe, &password, ACCOUNT_NAME, None)?;
 
@@ -250,11 +250,11 @@ async fn integration_command_line() -> Result<()> {
     secret::mv(&exe, &address, &password, ACCOUNT_NAME, None)?;
     secret::comment(&exe, &address, &password, None)?;
     secret::archive_unarchive(&exe, &address, &password, None)?;
-    secret::download(&exe, &address, &password, ACCOUNT_NAME, None)?;
+    secret::download(&exe, &address, &password, ACCOUNT_NAME, None).await?;
 
     // TODO: update
 
-    secret::attach(&exe, &address, &password, ACCOUNT_NAME, None)?;
+    secret::attach(&exe, &address, &password, ACCOUNT_NAME, None).await?;
     secret::remove(&exe, &address, &password, None)?;
 
     account::delete(&exe, &address, &password, None)?;
@@ -294,7 +294,7 @@ fn login(
 }
 
 /// Run a shell session.
-fn shell(exe: &str, password: &SecretString) -> Result<()> {
+async fn shell(exe: &str, password: &SecretString) -> Result<()> {
     // Prepare variables for CI input
     helpers::set_note_ci_vars();
     let (account_password, _) = generate_passphrase()?;
@@ -548,7 +548,8 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         SHELL_ACCOUNT_NAME,
         Some((Arc::clone(&process), &prompt)),
-    )?;
+    )
+    .await?;
 
     // TODO: update
 
@@ -558,7 +559,8 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         SHELL_ACCOUNT_NAME,
         Some((Arc::clone(&process), &prompt)),
-    )?;
+    )
+    .await?;
     secret::remove(
         &exe,
         &address,

@@ -9,6 +9,7 @@ use sos_sdk::{
         Signer,
     },
     storage::StorageDirs,
+    vfs,
 };
 
 use web3_address::ethereum::Address;
@@ -85,7 +86,7 @@ async fn create_account(
     signer: BoxedEcdsaSigner,
     cache_dir: PathBuf,
 ) -> Result<(AccountCredentials, RemoteProvider)> {
-    if !destination.is_dir() {
+    if !vfs::metadata(&destination).await?.is_dir() {
         bail!("not a directory {}", destination.display());
     }
 

@@ -1,5 +1,5 @@
 //! Factory for creating providers.
-use sos_sdk::{signer::ecdsa::BoxedEcdsaSigner, storage::StorageDirs};
+use sos_sdk::{signer::ecdsa::BoxedEcdsaSigner, storage::StorageDirs, vfs};
 use std::{fmt, sync::Arc};
 use url::Url;
 use web3_address::ethereum::Address;
@@ -90,16 +90,11 @@ impl ProviderFactory {
                 } else {
                     StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?
                 };
-                Ok(Self::new_local_file_provider(signer, dir).await?)
-            }
-            /*
-            Self::Directory(dir) => {
-                if !dir.is_dir() {
+                if !vfs::metadata(&dir).await?.is_dir() {
                     return Err(Error::NotDirectory(dir.clone()));
                 }
-                Ok(Self::new_local_file_provider(signer, dir.clone()).await?)
+                Ok(Self::new_local_file_provider(signer, dir).await?)
             }
-            */
             Self::Remote(remote) => {
                 let dir =
                     StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;

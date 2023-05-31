@@ -94,7 +94,7 @@ pub trait BackendHandler {
     // TODO: support account deletion
 
     /// Determine if an account exists for the given address.
-    async fn account_exists(&self, owner: &Address) -> bool;
+    async fn account_exists(&self, owner: &Address) -> Result<bool>;
 
     /* VAULT */
 
@@ -224,13 +224,13 @@ impl FileSystemBackend {
 
     /// Read accounts and vault file paths into memory.
     pub async fn read_dir(&mut self) -> Result<()> {
-        if !self.directory.is_dir() {
+        if !vfs::metadata(&self.directory).await?.is_dir() {
             return Err(Error::NotDirectory(self.directory.clone()));
         }
         let mut dir = vfs::read_dir(&self.directory).await?;
         while let Some(entry) = dir.next_entry().await? {
             let path = entry.path();
-            if path.is_dir() {
+            if vfs::metadata(&path).await?.is_dir() {
                 if let Some(name) = path.file_stem() {
                     if let Ok(owner) =
                         name.to_string_lossy().parse::<Address>()
@@ -248,7 +248,7 @@ impl FileSystemBackend {
                                     let mut vault_path =
                                         event_log_path.to_path_buf();
                                     vault_path.set_extension(VAULT_EXT);
-                                    if !vault_path.exists() {
+                                    if !vfs::try_exists(&vault_path).await? {
                                         return Err(Error::NotFile(
                                             vault_path,
                                         ));
@@ -298,7 +298,7 @@ impl FileSystemBackend {
         vault: &[u8],
     ) -> Result<(PathBuf, EventLogFile)> {
         let event_log_path = self.event_log_file_path(owner, vault_id);
-        if event_log_path.exists() {
+        if vfs::try_exists(&event_log_path).await? {
             return Err(Error::FileExists(event_log_path));
         }
 
@@ -372,7 +372,7 @@ impl BackendHandler for FileSystemBackend {
         vault: &'a [u8],
     ) -> Result<(WriteEvent<'a>, CommitProof)> {
         let account_dir = self.directory.join(owner.to_string());
-        if account_dir.exists() {
+        if vfs::try_exists(&account_dir).await? {
             return Err(Error::DirectoryExists(account_dir));
         }
 
@@ -401,7 +401,7 @@ impl BackendHandler for FileSystemBackend {
         vault: &'a [u8],
     ) -> Result<(WriteEvent<'a>, CommitProof)> {
         let account_dir = self.directory.join(owner.to_string());
-        if !account_dir.is_dir() {
+        if !vfs::metadata(&account_dir).await?.is_dir() {
             return Err(Error::NotDirectory(account_dir));
         }
 
@@ -429,7 +429,7 @@ impl BackendHandler for FileSystemBackend {
         vault_id: &Uuid,
     ) -> Result<()> {
         let account_dir = self.directory.join(owner.to_string());
-        if !account_dir.is_dir() {
+        if !vfs::metadata(&account_dir).await?.is_dir() {
             return Err(Error::NotDirectory(account_dir));
         }
 
@@ -460,9 +460,10 @@ impl BackendHandler for FileSystemBackend {
         Ok(())
     }
 
-    async fn account_exists(&self, owner: &Address) -> bool {
+    async fn account_exists(&self, owner: &Address) -> Result<bool> {
         let account_dir = self.directory.join(owner.to_string());
-        self.accounts.get(owner).is_some() && account_dir.is_dir()
+        Ok(self.accounts.get(owner).is_some()
+            && vfs::metadata(&account_dir).await?.is_dir())
     }
 
     async fn set_vault_name(

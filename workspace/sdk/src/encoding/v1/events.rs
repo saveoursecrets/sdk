@@ -434,7 +434,7 @@ impl AuditLogFile {
         W: AsyncWriteExt + AsyncSeek + Unpin + Send,
     >(
         writer: &mut BinaryWriter<W>,
-        event: AuditEvent,
+        _event: AuditEvent,
     ) -> Result<()> {
         // Set up the leading row length
         let size_pos = writer.tell().await?;

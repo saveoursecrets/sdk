@@ -4,7 +4,7 @@ use crate::{Error, Result, TARGET};
 use sos_sdk::{
     events::{AuditData, AuditEvent, AuditLogFile},
     signer::ecdsa::Address,
-    vfs::File,
+    vfs::{self, File},
 };
 use std::{path::PathBuf, thread, time};
 
@@ -74,7 +74,7 @@ pub async fn monitor(
     json: bool,
     address: Vec<Address>,
 ) -> Result<()> {
-    if !audit_log.is_file() {
+    if !vfs::metadata(&audit_log).await?.is_file() {
         return Err(Error::NotFile(audit_log));
     }
 
@@ -120,7 +120,7 @@ async fn logs(
     reverse: bool,
     count: Option<usize>,
 ) -> Result<()> {
-    if !audit_log.is_file() {
+    if !vfs::metadata(&audit_log).await?.is_file() {
         return Err(Error::NotFile(audit_log));
     }
 

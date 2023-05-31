@@ -131,7 +131,7 @@ impl UserStorage {
         summary: &Summary,
     ) -> Result<()> {
         let folder_files = self.file_folder_location(summary.id())?;
-        if folder_files.exists() {
+        if vfs::try_exists(&folder_files).await? {
             vfs::remove_dir_all(&folder_files).await?;
         }
         Ok(())
@@ -325,7 +325,7 @@ impl UserStorage {
             .join(file_name);
 
         if let Some(parent) = new_path.parent() {
-            if !parent.exists() {
+            if !vfs::try_exists(parent).await? {
                 vfs::create_dir_all(parent).await?;
             }
         }

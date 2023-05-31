@@ -225,7 +225,7 @@ impl AccountBackup {
         let files = StorageDirs::files_dir(address.to_string())?;
         for entry in WalkDir::new(&files) {
             let entry = entry?;
-            if entry.path().is_file() {
+            if vfs::metadata(entry.path()).await?.is_file() {
                 let relative = entry.path().strip_prefix(&files)?;
 
                 let mut it = relative.iter();
@@ -343,7 +343,7 @@ impl AccountBackup {
     /// identity vault and all user vaults.
     pub async fn export_archive_buffer(address: &Address) -> Result<Vec<u8>> {
         let identity_path = StorageDirs::identity_vault(address.to_string())?;
-        if !identity_path.exists() {
+        if !vfs::try_exists(&identity_path).await? {
             return Err(Error::NotFile(identity_path));
         }
         let identity = vfs::read(identity_path).await?;
@@ -362,7 +362,7 @@ impl AccountBackup {
         let files = StorageDirs::files_dir(address.to_string())?;
         for entry in WalkDir::new(&files) {
             let entry = entry?;
-            if entry.path().is_file() {
+            if vfs::metadata(entry.path()).await?.is_file() {
                 let relative = PathBuf::from("files")
                     .join(entry.path().strip_prefix(&files)?);
                 let relative = relative.to_string_lossy().into_owned();

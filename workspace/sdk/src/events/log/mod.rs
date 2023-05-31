@@ -81,7 +81,7 @@ mod test {
 
     async fn mock_event_log_standalone() -> Result<(EventLogFile, SecretId)> {
         let path = PathBuf::from(MOCK_LOG);
-        if path.exists() {
+        if vfs::try_exists(&path).await? {
             vfs::remove_file(&path).await?;
         }
 

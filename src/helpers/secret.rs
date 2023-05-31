@@ -449,7 +449,7 @@ pub fn add_login(
     Ok(Some((secret_meta, secret)))
 }
 
-pub fn add_file(
+pub async fn add_file(
     path: String,
     name: Option<String>,
     tags: Option<String>,
@@ -472,7 +472,7 @@ pub fn add_file(
         name = file_name;
     }
 
-    let secret = read_file_secret(&path)?;
+    let secret = read_file_secret(&path).await?;
     let mut secret_meta = SecretMeta::new(name, secret.kind());
     if let Some(tags) = normalize_tags(tags) {
         secret_meta.set_tags(tags);
@@ -480,10 +480,10 @@ pub fn add_file(
     Ok(Some((secret_meta, secret)))
 }
 
-pub fn read_file_secret(path: &str) -> Result<Secret> {
+pub async fn read_file_secret(path: &str) -> Result<Secret> {
     let file = PathBuf::from(path);
 
-    if !file.is_file() {
+    if !vfs::metadata(&file).await?.is_file() {
         return Err(Error::NotFile(file));
     }
 

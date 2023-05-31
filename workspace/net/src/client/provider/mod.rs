@@ -339,7 +339,7 @@ pub trait StorageProvider: Sync + Send {
     ) -> Result<ReadEvent> {
         let vault_path = self.vault_path(summary);
         let vault = if self.state().mirror() {
-            if !vault_path.exists() {
+            if !vfs::try_exists(&vault_path).await? {
                 let vault = self.reduce_event_log(summary).await?;
                 let buffer = encode(&vault).await?;
                 self.write_vault_file(summary, &buffer).await?;
@@ -474,13 +474,13 @@ pub trait StorageProvider: Sync + Send {
 
         // Remove local vault mirror if it exists
         let vault_path = self.vault_path(summary);
-        if vault_path.exists() {
+        if vfs::try_exists(&vault_path).await? {
             vfs::remove_file(&vault_path).await?;
         }
 
         // Rename the local event log file so recovery is still possible
         let event_log_path = self.event_log_path(summary);
-        if event_log_path.exists() {
+        if vfs::try_exists(&event_log_path).await? {
             let mut event_log_path_backup = event_log_path.clone();
             event_log_path_backup.set_extension(EVENT_LOG_DELETED_EXT);
             vfs::rename(event_log_path, event_log_path_backup).await?;
@@ -495,7 +495,7 @@ pub trait StorageProvider: Sync + Send {
         // Move our cached vault to a backup
         let vault_path = self.vault_path(summary);
 
-        if vault_path.exists() {
+        if vfs::try_exists(&vault_path).await? {
             let mut vault_backup = vault_path.clone();
             vault_backup.set_extension(VAULT_BACKUP_EXT);
             vfs::rename(&vault_path, &vault_backup).await?;

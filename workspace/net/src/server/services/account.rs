@@ -39,6 +39,7 @@ impl Service for AccountService {
                     .handler()
                     .account_exists(caller.address())
                     .await
+                    .map_err(Box::from)?
                 {
                     return Ok((StatusCode::CONFLICT, request.id()).into());
                 }
@@ -86,6 +87,7 @@ impl Service for AccountService {
                     .handler()
                     .account_exists(caller.address())
                     .await
+                    .map_err(Box::from)?
                 {
                     return Ok((StatusCode::NOT_FOUND, request.id()).into());
                 }

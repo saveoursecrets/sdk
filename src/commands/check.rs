@@ -7,6 +7,7 @@ use sos_sdk::{
     hex,
     uuid::Uuid,
     vault::Header,
+    vfs,
 };
 
 use crate::{Error, Result};
@@ -60,7 +61,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 
 /// Verify the integrity of a vault.
 async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
-    if !file.is_file() {
+    if !vfs::metadata(&file).await?.is_file() {
         return Err(Error::NotFile(file));
     }
     vault_commit_tree_file(&file, true, |row_info| {
@@ -75,7 +76,7 @@ async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
 
 /// Verify the integrity of a log file.
 async fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
-    if !file.is_file() {
+    if !vfs::metadata(&file).await?.is_file() {
         return Err(Error::NotFile(file));
     }
     let tree = event_log_commit_tree_file(&file, true, |row_info| {
@@ -95,7 +96,7 @@ async fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
 
 /// Print a vault header.
 pub async fn header(vault: PathBuf) -> Result<()> {
-    if !vault.is_file() {
+    if !vfs::metadata(&vault).await?.is_file() {
         return Err(Error::NotFile(vault));
     }
 
@@ -106,7 +107,7 @@ pub async fn header(vault: PathBuf) -> Result<()> {
 
 /// Print the vault keys.
 pub async fn keys(vault: PathBuf) -> Result<()> {
-    if !vault.is_file() {
+    if !vfs::metadata(&vault).await?.is_file() {
         return Err(Error::NotFile(vault));
     }
 
