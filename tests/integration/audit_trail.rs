@@ -19,7 +19,7 @@ use sos_sdk::{
     vfs::{self, File},
 };
 
-use crate::test_utils::setup;
+use crate::test_utils::{setup, mock_note};
 
 #[tokio::test]
 #[serial]
@@ -56,13 +56,74 @@ async fn integration_audit_trail() -> Result<()> {
     let mut owner = UserStorage::new(&address, passphrase, factory).await?;
     owner.initialize_search_index().await?;
 
+    // Make changes to generate audit logs
+    let id = create_secret(&mut owner, &summary).await?;
+    let secret_data = read_secret(&mut owner, &summary, &id).await?;
+    let id = update_secret(&mut owner, &summary, &id, &secret_data).await?;
+    delete_secret(&mut owner, &summary, &id).await?;
+
+    // Read on the audit events
     let audit_log = owner.dirs().audit_file();
+        
     let events = read_audit_events(audit_log).await?;
+    let kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
+
+    println!("events {:#?}", kinds);
 
     // Reset the cache dir so we don't interfere
     // with other tests
     StorageDirs::clear_cache_dir();
 
+    Ok(())
+}
+
+async fn create_secret(
+    owner: &mut UserStorage,
+    default_folder: &Summary,
+) -> Result<SecretId> {
+    let (meta, secret) = mock_note("Audit note", "Note value");
+    let (id, _) = owner
+        .create_secret(meta, secret, Some(default_folder.clone()))
+        .await?;
+    Ok(id)
+}
+
+async fn read_secret(
+    owner: &mut UserStorage,
+    default_folder: &Summary,
+    id: &SecretId,
+) -> Result<SecretData> {
+    let (secret_data, _) =
+        owner.read_secret(id, Some(default_folder.clone())).await?;
+    Ok(secret_data)
+}
+
+async fn update_secret(
+    owner: &mut UserStorage,
+    default_folder: &Summary,
+    id: &SecretId,
+    secret_data: &SecretData,
+) -> Result<SecretId> {
+    let mut new_meta = secret_data.meta.clone();
+    new_meta.set_label("Audit note updated".to_string());
+    let (new_id, _) = owner
+        .update_secret(
+            id,
+            new_meta,
+            None,
+            Some(default_folder.clone()),
+            None,
+        )
+        .await?;
+    Ok(new_id)
+}
+
+async fn delete_secret(
+    owner: &mut UserStorage,
+    folder: &Summary,
+    id: &SecretId,
+) -> Result<()> {
+    owner.delete_secret(id, Some(folder.clone())).await?;
     Ok(())
 }
 
