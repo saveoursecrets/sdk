@@ -30,14 +30,14 @@ async fn create_archive(
 
     let identity = encode(&identity_vault).await?;
 
-    writer = writer.set_identity(&address, &identity)?;
+    writer = writer.set_identity(&address, &identity).await?;
 
     for vault in vaults {
         let buffer = encode(&vault).await?;
-        writer = writer.add_vault(*vault.id(), &buffer)?;
+        writer = writer.add_vault(*vault.id(), &buffer).await?;
     }
 
-    writer.finish()?;
+    writer.finish().await?;
 
     Ok((address, identity_vault, archive))
 }

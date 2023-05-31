@@ -55,7 +55,6 @@ ed25519-dalek = { version = "2.0.0-rc.2", features = ["rand_core"] }
 bs58 = "0.4"
 urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 unicode-segmentation = "1.10"
 mime_guess = { version = "2" }

@@ -1,6 +1,5 @@
 //! Create and manage local accounts.
 pub mod archive;
-pub mod archive2;
 mod backup;
 mod builder;
 mod identity;

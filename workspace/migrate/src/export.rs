@@ -4,11 +4,11 @@
 
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    io::{Seek, Write},
-};
-use zip::{write::FileOptions, CompressionMethod, ZipWriter};
+use std::collections::HashMap;
+
+use async_zip::{tokio::write::ZipFileWriter, Compression, ZipEntryBuilder};
+use tokio::io::AsyncWrite;
+use tokio_util::compat::Compat;
 
 use sos_sdk::{
     vault::{
@@ -20,32 +20,28 @@ use sos_sdk::{
 
 /// Migration encapsulates a collection of vaults
 /// and their unencrypted secrets.
-pub struct PublicExport<W: Write + Seek> {
-    builder: ZipWriter<W>,
+pub struct PublicExport<W: AsyncWrite + Unpin> {
+    writer: ZipFileWriter<W>,
     vault_ids: Vec<VaultId>,
 }
 
-impl<W: Write + Seek> PublicExport<W> {
+impl<W: AsyncWrite + Unpin> PublicExport<W> {
     /// Create a new public migration.
     pub fn new(inner: W) -> Self {
         Self {
-            builder: ZipWriter::new(inner),
+            writer: ZipFileWriter::with_tokio(inner),
             vault_ids: Vec::new(),
         }
     }
 
-    fn append_file_buffer(
+    async fn append_file_buffer(
         &mut self,
         path: &str,
         buffer: &[u8],
     ) -> Result<()> {
-        //let now = OffsetDateTime::now_utc();
-        let options = FileOptions::default()
-            .compression_method(CompressionMethod::Stored);
-        // FIXME:
-        //let options = options.last_modified_time(now.try_into()?);
-        self.builder.start_file(path, options)?;
-        self.builder.write_all(buffer)?;
+        // FIXME: set last modified time to now
+        let entry = ZipEntryBuilder::new(path.into(), Compression::Deflate);
+        self.writer.write_entry_whole(entry, buffer).await?;
         Ok(())
     }
 
@@ -69,16 +65,18 @@ impl<W: Write + Seek> PublicExport<W> {
         };
         let store_path = format!("{}/meta.json", base_path);
         let buffer = serde_json::to_vec_pretty(&store)?;
-        self.append_file_buffer(&store_path, buffer.as_slice())?;
+        self.append_file_buffer(&store_path, buffer.as_slice())
+            .await?;
 
         for id in access.vault().keys() {
             if let Some((meta, mut secret, _)) = access.read(id).await? {
                 // Move contents for file secrets
-                self.move_file_buffer(&file_path, &mut secret)?;
+                self.move_file_buffer(&file_path, &mut secret).await?;
 
                 // Move contents for file attachments
                 for field in secret.user_data_mut().fields_mut() {
-                    self.move_file_buffer(&file_path, field.secret_mut())?;
+                    self.move_file_buffer(&file_path, field.secret_mut())
+                        .await?;
                 }
 
                 let path = format!("{}/{}.json", base_path, id);
@@ -89,7 +87,7 @@ impl<W: Write + Seek> PublicExport<W> {
                 };
 
                 let buffer = serde_json::to_vec_pretty(&public_secret)?;
-                self.append_file_buffer(&path, buffer.as_slice())?;
+                self.append_file_buffer(&path, buffer.as_slice()).await?;
             }
         }
 
@@ -97,8 +95,9 @@ impl<W: Write + Seek> PublicExport<W> {
         Ok(())
     }
 
-    /// Take an embedded file secret and move the buffer to an entry in the archive.
-    fn move_file_buffer(
+    /// Take an embedded file secret and move the
+    /// buffer to an entry in the archive.
+    async fn move_file_buffer(
         &mut self,
         file_path: &str,
         secret: &mut Secret,
@@ -114,7 +113,8 @@ impl<W: Write + Seek> PublicExport<W> {
                 self.append_file_buffer(
                     &path,
                     buffer.expose_secret().as_slice(),
-                )?;
+                )
+                .await?;
 
                 // Clear the buffer so the export does not encode the bytes
                 // in the JSON document
@@ -125,24 +125,24 @@ impl<W: Write + Seek> PublicExport<W> {
     }
 
     /// Append additional files to the archive.
-    pub fn append_files(
+    pub async fn append_files(
         &mut self,
         files: HashMap<&str, &[u8]>,
     ) -> Result<()> {
         for (path, buffer) in files {
-            self.append_file_buffer(path, buffer)?;
+            self.append_file_buffer(path, buffer).await?;
         }
         Ok(())
     }
 
     /// Finish building the archive.
-    pub fn finish(mut self) -> Result<W> {
+    pub async fn finish(mut self) -> Result<Compat<W>> {
         // Add the collection of vault identifiers
         let path = "vaults.json";
         let buffer = serde_json::to_vec_pretty(&self.vault_ids)?;
-        self.append_file_buffer(path, buffer.as_slice())?;
+        self.append_file_buffer(path, buffer.as_slice()).await?;
 
-        Ok(self.builder.finish()?)
+        Ok(self.writer.close().await?)
     }
 }
 
@@ -183,7 +183,7 @@ mod test {
         vault::{Gatekeeper, Vault},
     };
 
-    async fn create_mock_migration<W: Write + Seek>(
+    async fn create_mock_migration<W: AsyncWrite + AsyncSeek + Unpin>(
         writer: W,
     ) -> Result<PublicExport<W>> {
         let (passphrase, _) = generate_passphrase()?;
@@ -218,7 +218,7 @@ mod test {
         let mut archive = Vec::new();
         let migration =
             create_mock_migration(Cursor::new(&mut archive)).await?;
-        let _ = migration.finish()?;
+        let _ = migration.finish().await?;
         Ok(())
     }
 }

@@ -2,14 +2,16 @@
 //! creating and managing local accounts.
 use std::{
     borrow::Cow,
-    fs::File,
-    io::{Cursor, Read, Seek},
+    io::Cursor,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
+use tokio::{
+    io::{AsyncRead, AsyncSeek},
+    sync::RwLock,
+};
 use web3_address::ethereum::Address;
 
 use uuid::Uuid;
@@ -31,7 +33,8 @@ use crate::{
         secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess, VaultId,
         VaultWriter,
     },
-    vfs, Error, Result,
+    vfs::{self, File},
+    Error, Result,
 };
 
 use secrecy::SecretString;
@@ -195,7 +198,7 @@ impl AccountBackup {
         let mut total_size: u64 = 0;
         let mut manifest = AccountManifest::new(*address);
         let path = StorageDirs::identity_vault(address.to_string())?;
-        let (size, checksum) = Self::read_file_entry(path, None)?;
+        let (size, checksum) = Self::read_file_entry(path, None).await?;
         let entry = ManifestEntry::Identity {
             id: Uuid::new_v4(),
             label: address.to_string(),
@@ -211,7 +214,7 @@ impl AccountBackup {
                 continue;
             }
 
-            let (size, checksum) = Self::read_file_entry(path, None)?;
+            let (size, checksum) = Self::read_file_entry(path, None).await?;
             let entry = ManifestEntry::Vault {
                 id: *summary.id(),
                 label: summary.name().to_owned(),
@@ -242,7 +245,8 @@ impl AccountBackup {
                     let (size, checksum) = Self::read_file_entry(
                         entry.path(),
                         Some(label.clone()),
-                    )?;
+                    )
+                    .await?;
                     let entry = ManifestEntry::File {
                         id: Uuid::new_v4(),
                         label,
@@ -287,20 +291,21 @@ impl AccountBackup {
         }
     }
 
-    fn read_file_entry<P: AsRef<Path>>(
+    async fn read_file_entry<P: AsRef<Path>>(
         path: P,
         file_name: Option<String>,
     ) -> Result<(u64, [u8; 32])> {
-        let mut file = File::open(path)?;
-        let size = file.metadata()?.len();
+        let file = File::open(path.as_ref()).await?;
+        let size = file.metadata().await?.len();
         // For files we already have the checksum encoded in the
         // file name so parse it from the file name
         let checksum = if let Some(file_name) = file_name {
             hex::decode(file_name.as_bytes())?
         // Otherwise for vaults read in the file data and compute
         } else {
+            let buffer = vfs::read(path.as_ref()).await?;
             let mut hasher = Sha256::new();
-            std::io::copy(&mut file, &mut hasher)?;
+            hasher.update(&buffer);
             hasher.finalize().to_vec()
         };
         Ok((size, checksum.as_slice().try_into()?))
@@ -352,11 +357,11 @@ impl AccountBackup {
 
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));
-        let mut writer = writer.set_identity(address, &identity)?;
+        let mut writer = writer.set_identity(address, &identity).await?;
 
         for (summary, path) in vaults {
             let buffer = vfs::read(path).await?;
-            writer = writer.add_vault(*summary.id(), &buffer)?;
+            writer = writer.add_vault(*summary.id(), &buffer).await?;
         }
 
         let files = StorageDirs::files_dir(address.to_string())?;
@@ -367,11 +372,11 @@ impl AccountBackup {
                     .join(entry.path().strip_prefix(&files)?);
                 let relative = relative.to_string_lossy().into_owned();
                 let buffer = vfs::read(entry.path()).await?;
-                writer = writer.add_file(&relative, &buffer)?;
+                writer = writer.add_file(&relative, &buffer).await?;
             }
         }
 
-        writer.finish()?;
+        writer.finish().await?;
         Ok(archive)
     }
 
@@ -386,15 +391,17 @@ impl AccountBackup {
     }
 
     /// Read the inventory from an archive.
-    pub async fn restore_archive_inventory<R: Read + Seek>(
+    pub async fn restore_archive_inventory<
+        R: AsyncRead + AsyncSeek + Unpin,
+    >(
         archive: R,
     ) -> Result<Inventory> {
-        let mut reader = Reader::new(archive)?;
+        let mut reader = Reader::new(archive).await?;
         reader.inventory().await
     }
 
     /// Import from an archive.
-    pub async fn restore_archive_buffer<R: Read + Seek>(
+    pub async fn restore_archive_buffer<R: AsyncRead + AsyncSeek + Unpin>(
         buffer: R,
         options: RestoreOptions,
         existing_account: bool,
@@ -548,11 +555,11 @@ impl AccountBackup {
 
     /// Helper to extract from an archive and verify the archive
     /// contents against the restore options.
-    pub async fn extract_verify_archive<R: Read + Seek>(
+    pub async fn extract_verify_archive<R: AsyncRead + AsyncSeek + Unpin>(
         archive: R,
         options: &RestoreOptions,
     ) -> Result<RestoreTargets> {
-        let mut reader = Reader::new(archive)?.prepare()?;
+        let mut reader = Reader::new(archive).await?.prepare().await?;
 
         if let Some(files_dir) = &options.files_dir {
             match files_dir {

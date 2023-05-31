@@ -3,20 +3,25 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
-    fs::File,
-    io::{Read, Seek, Write},
+    io::Read,
     path::{Path, PathBuf},
 };
 
-use time::OffsetDateTime;
-use zip::{write::FileOptions, CompressionMethod, ZipArchive, ZipWriter};
+use async_zip::{
+    tokio::{read::seek::ZipFileReader, write::ZipFileWriter},
+    Compression, ZipEntryBuilder,
+};
+
+use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 use web3_address::ethereum::Address;
 
 use crate::{
     constants::{ARCHIVE_MANIFEST, FILES_DIR, VAULT_EXT},
     vault::{Header as VaultHeader, Summary, VaultId},
-    vfs, Error, Result,
+    vfs::{self, File},
+    Error, Result,
 };
 
 /// Manifest used to determine if the archive is supported
@@ -37,28 +42,29 @@ pub struct Manifest {
 ///
 /// Creating archives assumes the vault buffers have already been
 /// verified to be valid vaults.
-pub struct Writer<W: Write + Seek> {
-    builder: ZipWriter<W>,
+pub struct Writer<W: AsyncWrite + Unpin> {
+    writer: ZipFileWriter<W>,
     manifest: Manifest,
 }
 
-impl<W: Write + Seek> Writer<W> {
+impl<W: AsyncWrite + Unpin> Writer<W> {
     /// Create a new writer.
     pub fn new(inner: W) -> Self {
         Self {
-            builder: ZipWriter::new(inner),
+            writer: ZipFileWriter::with_tokio(inner),
             manifest: Default::default(),
         }
     }
 
-    fn append_file_buffer(
+    async fn append_file_buffer(
         &mut self,
         path: &str,
         buffer: &[u8],
     ) -> Result<()> {
+        // FIXME: restore data/time
+
+        /*
         let now = OffsetDateTime::now_utc();
-        let options = FileOptions::default()
-            .compression_method(CompressionMethod::Deflated);
         let (hours, minutes, seconds) = now.time().as_hms();
         let dt = zip::DateTime::from_date_and_time(
             now.year().try_into()?,
@@ -69,14 +75,16 @@ impl<W: Write + Seek> Writer<W> {
             seconds,
         )
         .map_err(|_| Error::ZipDateTime)?;
-        let options = options.last_modified_time(dt);
-        self.builder.start_file(path, options)?;
-        self.builder.write_all(buffer)?;
+        */
+
+        //let options = options.last_modified_time(dt);
+        let entry = ZipEntryBuilder::new(path.into(), Compression::Deflate);
+        self.writer.write_entry_whole(entry, buffer).await?;
         Ok(())
     }
 
     /// Set the identity vault for the archive.
-    pub fn set_identity(
+    pub async fn set_identity(
         mut self,
         address: &Address,
         vault: &[u8],
@@ -90,13 +98,14 @@ impl<W: Write + Seek> Writer<W> {
         self.append_file_buffer(
             path.to_string_lossy().into_owned().as_ref(),
             vault,
-        )?;
+        )
+        .await?;
 
         Ok(self)
     }
 
     /// Add a vault to the archive.
-    pub fn add_vault(
+    pub async fn add_vault(
         mut self,
         vault_id: VaultId,
         vault: &[u8],
@@ -110,24 +119,28 @@ impl<W: Write + Seek> Writer<W> {
         self.append_file_buffer(
             path.to_string_lossy().into_owned().as_ref(),
             vault,
-        )?;
+        )
+        .await?;
 
         Ok(self)
     }
 
     /// Add a file to the archive.
-    pub fn add_file(mut self, path: &str, content: &[u8]) -> Result<Self> {
-        self.append_file_buffer(path, content)?;
+    pub async fn add_file(
+        mut self,
+        path: &str,
+        content: &[u8],
+    ) -> Result<Self> {
+        self.append_file_buffer(path, content).await?;
         Ok(self)
     }
 
     /// Add the manifest and finish building the tarball.
-    pub fn finish(mut self) -> Result<W> {
+    pub async fn finish(mut self) -> Result<Compat<W>> {
         let manifest = serde_json::to_vec_pretty(&self.manifest)?;
-
-        self.append_file_buffer(ARCHIVE_MANIFEST, manifest.as_slice())?;
-
-        Ok(self.builder.finish()?)
+        self.append_file_buffer(ARCHIVE_MANIFEST, manifest.as_slice())
+            .await?;
+        Ok(self.writer.close().await?)
     }
 }
 
@@ -148,16 +161,16 @@ pub struct Inventory {
 }
 
 /// Read from an archive.
-pub struct Reader<R: Read + Seek> {
-    archive: ZipArchive<R>,
+pub struct Reader<R: AsyncRead + AsyncSeek + Unpin> {
+    archive: ZipFileReader<R>,
     manifest: Option<Manifest>,
 }
 
-impl<R: Read + Seek> Reader<R> {
+impl<R: AsyncRead + AsyncSeek + Unpin> Reader<R> {
     /// Create a new reader.
-    pub fn new(inner: R) -> Result<Self> {
+    pub async fn new(inner: R) -> Result<Self> {
         Ok(Self {
-            archive: ZipArchive::new(inner)?,
+            archive: ZipFileReader::with_tokio(inner).await?,
             manifest: None,
         })
     }
@@ -175,7 +188,8 @@ impl<R: Read + Seek> Reader<R> {
     /// with existing vaults.
     pub async fn inventory(&mut self) -> Result<Inventory> {
         let manifest = self
-            .find_manifest()?
+            .find_manifest()
+            .await?
             .take()
             .ok_or(Error::NoArchiveManifest)?;
         let entry_name = format!("{}.{}", manifest.address, VAULT_EXT);
@@ -201,20 +215,34 @@ impl<R: Read + Seek> Reader<R> {
 
     /// Prepare the archive for reading by parsing the manifest file and
     /// reading the data for other tarball entries.
-    pub fn prepare(mut self) -> Result<Self> {
-        self.manifest = self.find_manifest()?;
+    pub async fn prepare(mut self) -> Result<Self> {
+        self.manifest = self.find_manifest().await?;
         Ok(self)
     }
 
-    fn find_manifest(&mut self) -> Result<Option<Manifest>> {
-        if let Ok(mut file) = self.archive.by_name(ARCHIVE_MANIFEST) {
-            let mut data = Vec::new();
-            std::io::copy(&mut file, &mut data)?;
-            let manifest_entry: Manifest = serde_json::from_slice(&data)?;
-            Ok(Some(manifest_entry))
-        } else {
-            Ok(None)
+    async fn by_name(&mut self, name: &str) -> Result<Option<Vec<u8>>> {
+        for index in 0..self.archive.file().entries().len() {
+            let entry = self.archive.file().entries().get(index).unwrap();
+            let file_name = entry.entry().filename();
+            let file_name = file_name.as_str()?;
+            if file_name == name {
+                let mut reader =
+                    self.archive.reader_with_entry(index).await?;
+
+                let mut buffer = Vec::new();
+                reader.read_to_end_checked(&mut buffer).await?;
+                return Ok(Some(buffer));
+            }
         }
+        Ok(None)
+    }
+
+    async fn find_manifest(&mut self) -> Result<Option<Manifest>> {
+        if let Some(buffer) = self.by_name(ARCHIVE_MANIFEST).await? {
+            let manifest_entry: Manifest = serde_json::from_slice(&buffer)?;
+            return Ok(Some(manifest_entry));
+        }
+        Ok(None)
     }
 
     async fn archive_entry(
@@ -222,10 +250,7 @@ impl<R: Read + Seek> Reader<R> {
         name: &str,
         checksum: Vec<u8>,
     ) -> Result<ArchiveItem> {
-        let mut file = self.archive.by_name(name)?;
-        let mut data = Vec::new();
-        std::io::copy(&mut file, &mut data)?;
-
+        let data = self.by_name(name).await?.unwrap();
         let digest = Sha256::digest(&data);
         if checksum != digest.to_vec() {
             return Err(Error::ArchiveChecksumMismatch(name.to_string()));
@@ -240,38 +265,45 @@ impl<R: Read + Seek> Reader<R> {
         target: P,
         selected: &[Summary],
     ) -> Result<()> {
-        for i in 0..self.archive.len() {
-            let mut file = self.archive.by_index(i)?;
-            if file.is_file() {
-                if let Some(name) = file.enclosed_name() {
-                    let path = PathBuf::from(name);
-                    let mut it = path.iter();
-                    if let (Some(first), Some(second)) =
-                        (it.next(), it.next())
-                    {
-                        if first == FILES_DIR {
-                            let vault_id: VaultId =
-                                second.to_string_lossy().parse()?;
+        for index in 0..self.archive.file().entries().len() {
+            let entry = self.archive.file().entries().get(index).unwrap();
+            let is_dir = entry.entry().dir()?;
 
-                            // Only restore files for the selected vaults
-                            if selected.iter().any(|s| s.id() == &vault_id) {
-                                // The given target path should already
-                                // include any files/ prefix so we need
-                                // to skip it
-                                let mut relative = PathBuf::new();
-                                for part in path.iter().skip(1) {
-                                    relative = relative.join(part);
-                                }
-                                let destination =
-                                    target.as_ref().join(relative);
-                                if let Some(parent) = destination.parent() {
-                                    if !vfs::try_exists(&parent).await? {
-                                        vfs::create_dir_all(parent).await?;
-                                    }
-                                }
-                                let mut output = File::create(destination)?;
-                                std::io::copy(&mut file, &mut output)?;
+            if !is_dir {
+                let file_name = entry.entry().filename();
+                let path = sanitize_file_path(file_name.as_str()?);
+                let mut it = path.iter();
+                if let (Some(first), Some(second)) = (it.next(), it.next()) {
+                    if first == FILES_DIR {
+                        let vault_id: VaultId =
+                            second.to_string_lossy().parse()?;
+
+                        // Only restore files for the selected vaults
+                        if selected.iter().any(|s| s.id() == &vault_id) {
+                            // The given target path should already
+                            // include any files/ prefix so we need
+                            // to skip it
+                            let mut relative = PathBuf::new();
+                            for part in path.iter().skip(1) {
+                                relative = relative.join(part);
                             }
+                            let destination = target.as_ref().join(relative);
+                            if let Some(parent) = destination.parent() {
+                                if !vfs::try_exists(&parent).await? {
+                                    vfs::create_dir_all(parent).await?;
+                                }
+                            }
+
+                            let mut reader = self
+                                .archive
+                                .reader_without_entry(index)
+                                .await?;
+                            let output = File::create(destination).await?;
+                            futures_util::io::copy(
+                                &mut reader,
+                                &mut output.compat_write(),
+                            )
+                            .await?;
                         }
                     }
                 }
@@ -307,6 +339,17 @@ impl<R: Read + Seek> Reader<R> {
     }
 }
 
+/// Returns a relative path without reserved names,
+/// redundant separators, ".", or "..".
+fn sanitize_file_path(path: &str) -> PathBuf {
+    // Replaces backwards slashes
+    path.replace('\\', "/")
+        // Sanitizes each component
+        .split('/')
+        .map(sanitize_filename::sanitize)
+        .collect()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -316,7 +359,7 @@ mod test {
     use std::io::Cursor;
 
     #[tokio::test]
-    async fn archive_buffer() -> Result<()> {
+    async fn archive_buffer_async() -> Result<()> {
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));
 
@@ -332,15 +375,20 @@ mod test {
         let vault_buffer = encode(&vault).await?;
 
         let zip = writer
-            .set_identity(&address, &identity)?
-            .add_vault(*vault.id(), &vault_buffer)?
-            .finish()?;
+            .set_identity(&address, &identity)
+            .await?
+            .add_vault(*vault.id(), &vault_buffer)
+            .await?
+            .finish()
+            .await?;
 
         let expected_vault_entries =
             vec![(vault.summary().clone(), vault_buffer)];
 
         // Decompress and extract
-        let mut reader = Reader::new(Cursor::new(zip.into_inner().clone()))?;
+        let cursor = zip.into_inner();
+        let mut reader =
+            Reader::new(Cursor::new(cursor.get_ref().clone())).await?;
         let inventory = reader.inventory().await?;
 
         assert_eq!(address, inventory.manifest.address);
@@ -348,7 +396,7 @@ mod test {
         assert_eq!(1, inventory.vaults.len());
 
         let (address_decoded, identity_entry, vault_entries) =
-            reader.prepare()?.finish().await?;
+            reader.prepare().await?.finish().await?;
 
         assert_eq!(address, address_decoded);
 

@@ -5552,8 +5552,10 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "async_zip",
  "csv",
  "dirs",
+ "futures-util",
  "hex",
  "logos",
  "parking_lot 0.12.1",
@@ -5567,9 +5569,9 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
+ "tokio-util",
  "url",
  "vcard4",
- "zip",
 ]
 
 [[package]]
@@ -5687,7 +5689,6 @@ dependencies = [
  "web3-address",
  "web3-signature",
  "zeroize",
- "zip",
  "zxcvbn",
 ]
 
@@ -7457,18 +7458,6 @@ dependencies = [
  "proc-macro2 1.0.56",
  "quote 1.0.26",
  "syn 2.0.15",
-]
-
-[[package]]
-name = "zip"
-version = "0.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0445d0fbc924bb93539b4316c11afb121ea39296f99a3c4c9edad09e3658cdef"
-dependencies = [
- "byteorder",
- "crc32fast",
- "crossbeam-utils",
- "flate2",
 ]
 
 [[package]]

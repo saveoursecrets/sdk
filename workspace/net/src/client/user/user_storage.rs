@@ -1,7 +1,7 @@
 //! Network aware user storage and search index.
 use std::{
     collections::HashMap,
-    io::{Read, Seek},
+    io::Read,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -21,13 +21,17 @@ use sos_sdk::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
         Gatekeeper, Summary, Vault, VaultAccess, VaultId, VaultWriter,
     },
-    vfs, Timestamp,
+    vfs::{self, File},
+    Timestamp,
 };
 
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use tokio::sync::RwLock;
+use tokio::{
+    io::{AsyncRead, AsyncSeek},
+    sync::RwLock,
+};
 
 use crate::client::{
     provider::{BoxedProvider, ProviderFactory},
@@ -1010,8 +1014,8 @@ impl UserStorage {
         let mut files = HashMap::new();
         let buffer = serde_json::to_vec_pretty(self.user.account())?;
         files.insert("account.json", buffer.as_slice());
-        migration.append_files(files)?;
-        migration.finish()?;
+        migration.append_files(files).await?;
+        migration.finish().await?;
 
         vfs::write(path.as_ref(), &archive).await?;
 
@@ -1284,7 +1288,9 @@ impl UserStorage {
     }
 
     /// Read the inventory from an archive.
-    pub async fn restore_archive_inventory<R: Read + Seek>(
+    pub async fn restore_archive_inventory<
+        R: AsyncRead + AsyncSeek + Unpin,
+    >(
         buffer: R,
     ) -> Result<Inventory> {
         let mut inventory =
@@ -1303,13 +1309,12 @@ impl UserStorage {
         path: P,
         options: RestoreOptions,
     ) -> Result<AccountInfo> {
-        // FIXME: use vfs::File here
-        let file = std::fs::File::open(path)?;
+        let file = File::open(path).await?;
         Self::restore_archive_reader(owner, file, options).await
     }
 
     /// Import from an archive buffer.
-    pub async fn restore_archive_reader<R: Read + Seek>(
+    pub async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
         mut owner: Option<&mut UserStorage>,
         buffer: R,
         mut options: RestoreOptions,

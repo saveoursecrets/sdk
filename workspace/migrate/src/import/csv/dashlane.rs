@@ -5,17 +5,20 @@ use secrecy::SecretString;
 use serde::Deserialize;
 use sos_sdk::{
     vault::{secret::IdentityKind, Vault},
+    vfs::File,
     Timestamp,
 };
 use std::{
     collections::HashSet,
-    fs::File,
-    io::{Read, Seek},
+    io::Cursor,
     path::{Path, PathBuf},
 };
 use time::{Date, Month};
 use url::Url;
 use vcard4::{property::DeliveryAddress, uriparse::URI as Uri, VcardBuilder};
+
+use async_zip::tokio::read::seek::ZipFileReader;
+use tokio::io::{AsyncRead, AsyncSeek};
 
 use super::{
     GenericContactRecord, GenericCsvConvert, GenericCsvEntry,
@@ -532,47 +535,79 @@ impl From<DashlaneContactRecord> for GenericContactRecord {
 }
 
 /// Parse records from a path.
-pub fn parse_path<P: AsRef<Path>>(path: P) -> Result<Vec<DashlaneRecord>> {
-    parse(File::open(path.as_ref())?)
+pub async fn parse_path<P: AsRef<Path>>(
+    path: P,
+) -> Result<Vec<DashlaneRecord>> {
+    parse(File::open(path.as_ref()).await?).await
 }
 
-fn parse<R: Read + Seek>(rdr: R) -> Result<Vec<DashlaneRecord>> {
+async fn read_entry<R: AsyncRead + AsyncSeek + Unpin>(
+    zip: &mut ZipFileReader<R>,
+    index: usize,
+) -> Result<Vec<u8>> {
+    let mut reader = zip.reader_with_entry(index).await?;
+    let mut buffer = Vec::new();
+    reader.read_to_end_checked(&mut buffer).await?;
+    Ok(buffer)
+}
+
+async fn parse<R: AsyncRead + AsyncSeek + Unpin>(
+    rdr: R,
+) -> Result<Vec<DashlaneRecord>> {
     let mut records = Vec::new();
-    let mut zip = zip::ZipArchive::new(rdr)?;
-    for i in 0..zip.len() {
-        let file = zip.by_index(i)?;
-        //println!("Filename: {}", file.name());
-        match file.name() {
+    let mut zip = ZipFileReader::with_tokio(rdr).await?;
+
+    for index in 0..zip.file().entries().len() {
+        let entry = zip.file().entries().get(index).unwrap();
+        let file_name = entry.entry().filename();
+        let file_name = file_name.as_str()?;
+
+        match file_name {
             "securenotes.csv" => {
-                let mut rdr = csv::Reader::from_reader(file);
+                let mut buffer = read_entry(&mut zip, index).await?;
+                let reader = Cursor::new(&mut buffer);
+
+                let mut rdr = csv::Reader::from_reader(reader);
                 for result in rdr.deserialize() {
                     let record: DashlaneNoteRecord = result?;
                     records.push(record.into());
                 }
             }
             "credentials.csv" => {
-                let mut rdr = csv::Reader::from_reader(file);
+                let mut buffer = read_entry(&mut zip, index).await?;
+                let reader = Cursor::new(&mut buffer);
+
+                let mut rdr = csv::Reader::from_reader(reader);
                 for result in rdr.deserialize() {
                     let record: DashlanePasswordRecord = result?;
                     records.push(record.into());
                 }
             }
             "ids.csv" => {
-                let mut rdr = csv::Reader::from_reader(file);
+                let mut buffer = read_entry(&mut zip, index).await?;
+                let reader = Cursor::new(&mut buffer);
+
+                let mut rdr = csv::Reader::from_reader(reader);
                 for result in rdr.deserialize() {
                     let record: DashlaneIdRecord = result?;
                     records.push(record.into());
                 }
             }
             "payments.csv" => {
-                let mut rdr = csv::Reader::from_reader(file);
+                let mut buffer = read_entry(&mut zip, index).await?;
+                let reader = Cursor::new(&mut buffer);
+
+                let mut rdr = csv::Reader::from_reader(reader);
                 for result in rdr.deserialize() {
                     let record: DashlanePaymentRecord = result?;
                     records.push(record.into());
                 }
             }
             "personalInfo.csv" => {
-                let mut rdr = csv::Reader::from_reader(file);
+                let mut buffer = read_entry(&mut zip, index).await?;
+                let reader = Cursor::new(&mut buffer);
+
+                let mut rdr = csv::Reader::from_reader(reader);
                 for result in rdr.deserialize() {
                     let record: DashlaneContactRecord = result?;
                     records.push(record.into());
@@ -581,7 +616,7 @@ fn parse<R: Read + Seek>(rdr: R) -> Result<Vec<DashlaneRecord>> {
             _ => {
                 eprintln!(
                     "unsupported dashlane file encountered {}",
-                    file.name()
+                    file_name
                 );
             }
         }
@@ -603,8 +638,11 @@ impl Convert for DashlaneCsvZip {
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
-        let records: Vec<GenericCsvEntry> =
-            parse_path(source)?.into_iter().map(|r| r.into()).collect();
+        let records: Vec<GenericCsvEntry> = parse_path(source)
+            .await?
+            .into_iter()
+            .map(|r| r.into())
+            .collect();
         GenericCsvConvert.convert(records, vault, password).await
     }
 }
@@ -624,9 +662,9 @@ mod test {
     use std::sync::Arc;
     use url::Url;
 
-    #[test]
-    fn dashlane_csv_parse() -> Result<()> {
-        let mut records = parse_path("fixtures/dashlane-export.zip")?;
+    #[tokio::test]
+    async fn dashlane_csv_parse() -> Result<()> {
+        let mut records = parse_path("fixtures/dashlane-export.zip").await?;
         assert_eq!(15, records.len());
 
         let first = records.remove(0);
