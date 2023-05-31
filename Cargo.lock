@@ -5093,6 +5093,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sanitize-filename"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08c502bdb638f1396509467cb0580ef3b29aa2a45c5d43e5d84928241280296c"
+dependencies = [
+ "lazy_static",
+ "regex",
+]
+
+[[package]]
 name = "schannel"
 version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5639,6 +5649,7 @@ dependencies = [
  "ed25519-dalek 2.0.0-rc.2",
  "filetime",
  "futures",
+ "futures-util",
  "getrandom 0.2.9",
  "hex",
  "http",
@@ -5652,6 +5663,7 @@ dependencies = [
  "rand 0.8.5",
  "rs_merkle",
  "rustc_version",
+ "sanitize-filename",
  "secrecy",
  "serde",
  "serde_json",
@@ -5663,6 +5675,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
+ "tokio-util",
  "totp-sos",
  "tracing",
  "unicode-segmentation",

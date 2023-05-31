@@ -62,6 +62,9 @@ mime_guess = { version = "2" }
 anyhow = {version = "1", optional = true }
 futures = "0.3"
 async_zip = { version = "0.0.15", default-features = false, features = ["deflate", "tokio"] }
+sanitize-filename = "0.4"
+tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
+futures-util = "0.3"
 
 [dependencies.binary-stream]
 version = "5.1.0"
