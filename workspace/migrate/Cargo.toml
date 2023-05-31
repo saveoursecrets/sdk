@@ -12,7 +12,6 @@ serde_json = "1"
 hex = { version = "0.4", features = ["serde"] }
 dirs = "4"
 url = { version = "2", features = ["serde"] }
-csv = "1"
 parking_lot = "0.12"
 vcard4 = { version = "0.4.4", features = ["serde"] }
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
@@ -21,6 +20,8 @@ tokio = { version = "1", default-features = false, features = ["sync"] }
 async_zip = { version = "0.0.15", default-features = false, features = ["deflate", "tokio"] }
 tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
 futures-util = "0.3"
+futures = "0.3"
+csv-async = { version = "1", features = ["tokio", "with_serde"] }
 
 [target.'cfg(target_os="macos")'.dependencies]
 security-framework = "2.8"

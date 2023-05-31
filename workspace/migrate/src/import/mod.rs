@@ -1,11 +1,30 @@
 //! Import secrets from other providers and software.
+use crate::{Error, Result};
+use futures::StreamExt;
+use serde::de::DeserializeOwned;
 use std::{fmt, path::PathBuf, str::FromStr};
-
-use crate::Error;
+use tokio::io::AsyncRead;
 
 pub mod csv;
 #[cfg(target_os = "macos")]
 pub mod keychain;
+
+pub(crate) async fn read_csv_records<
+    T: DeserializeOwned,
+    R: AsyncRead + Unpin + Send,
+>(
+    reader: R,
+) -> Result<Vec<T>> {
+    let mut rows = Vec::new();
+    let mut rdr =
+        csv_async::AsyncReaderBuilder::new().create_deserializer(reader);
+    let mut records = rdr.deserialize::<T>();
+    while let Some(record) = records.next().await {
+        let record = record?;
+        rows.push(record);
+    }
+    Ok(rows)
+}
 
 /// File formats supported for import.
 #[derive(Debug, Clone)]
@@ -43,7 +62,7 @@ impl fmt::Display for ImportFormat {
 
 impl FromStr for ImportFormat {
     type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
             "onepassword.csv" => Self::OnePasswordCsv,
             "dashlane.zip" => Self::DashlaneZip,

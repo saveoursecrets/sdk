@@ -25,7 +25,7 @@ use super::{
     GenericIdRecord, GenericNoteRecord, GenericPasswordRecord,
     GenericPaymentRecord, UNTITLED,
 };
-use crate::{Convert, Result};
+use crate::{import::read_csv_records, Convert, Result};
 
 /// Record used to deserialize dashlane CSV files.
 #[derive(Debug)]
@@ -566,52 +566,57 @@ async fn parse<R: AsyncRead + AsyncSeek + Unpin>(
             "securenotes.csv" => {
                 let mut buffer = read_entry(&mut zip, index).await?;
                 let reader = Cursor::new(&mut buffer);
-
-                let mut rdr = csv::Reader::from_reader(reader);
-                for result in rdr.deserialize() {
-                    let record: DashlaneNoteRecord = result?;
-                    records.push(record.into());
-                }
+                let mut items: Vec<DashlaneRecord> =
+                    read_csv_records::<DashlaneNoteRecord, _>(reader)
+                        .await?
+                        .into_iter()
+                        .map(|r| r.into())
+                        .collect();
+                records.append(&mut items);
             }
             "credentials.csv" => {
                 let mut buffer = read_entry(&mut zip, index).await?;
                 let reader = Cursor::new(&mut buffer);
-
-                let mut rdr = csv::Reader::from_reader(reader);
-                for result in rdr.deserialize() {
-                    let record: DashlanePasswordRecord = result?;
-                    records.push(record.into());
-                }
+                let mut items: Vec<DashlaneRecord> =
+                    read_csv_records::<DashlanePasswordRecord, _>(reader)
+                        .await?
+                        .into_iter()
+                        .map(|r| r.into())
+                        .collect();
+                records.append(&mut items);
             }
             "ids.csv" => {
                 let mut buffer = read_entry(&mut zip, index).await?;
                 let reader = Cursor::new(&mut buffer);
-
-                let mut rdr = csv::Reader::from_reader(reader);
-                for result in rdr.deserialize() {
-                    let record: DashlaneIdRecord = result?;
-                    records.push(record.into());
-                }
+                let mut items: Vec<DashlaneRecord> =
+                    read_csv_records::<DashlaneIdRecord, _>(reader)
+                        .await?
+                        .into_iter()
+                        .map(|r| r.into())
+                        .collect();
+                records.append(&mut items);
             }
             "payments.csv" => {
                 let mut buffer = read_entry(&mut zip, index).await?;
                 let reader = Cursor::new(&mut buffer);
-
-                let mut rdr = csv::Reader::from_reader(reader);
-                for result in rdr.deserialize() {
-                    let record: DashlanePaymentRecord = result?;
-                    records.push(record.into());
-                }
+                let mut items: Vec<DashlaneRecord> =
+                    read_csv_records::<DashlanePaymentRecord, _>(reader)
+                        .await?
+                        .into_iter()
+                        .map(|r| r.into())
+                        .collect();
+                records.append(&mut items);
             }
             "personalInfo.csv" => {
                 let mut buffer = read_entry(&mut zip, index).await?;
                 let reader = Cursor::new(&mut buffer);
-
-                let mut rdr = csv::Reader::from_reader(reader);
-                for result in rdr.deserialize() {
-                    let record: DashlaneContactRecord = result?;
-                    records.push(record.into());
-                }
+                let mut items: Vec<DashlaneRecord> =
+                    read_csv_records::<DashlaneContactRecord, _>(reader)
+                        .await?
+                        .into_iter()
+                        .map(|r| r.into())
+                        .collect();
+                records.append(&mut items);
             }
             _ => {
                 eprintln!(

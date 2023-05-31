@@ -5,20 +5,18 @@
 
 use secrecy::SecretString;
 use serde::Deserialize;
-use std::{
-    io::Read,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use url::Url;
 
 use async_trait::async_trait;
-use sos_sdk::vault::Vault;
+use sos_sdk::{vault::Vault, vfs};
+use tokio::io::AsyncRead;
 
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericNoteRecord,
     GenericPasswordRecord, UNTITLED,
 };
-use crate::{Convert, Result};
+use crate::{import::read_csv_records, Convert, Result};
 
 const TYPE_LOGIN: &str = "login";
 const TYPE_NOTE: &str = "note";
@@ -104,28 +102,17 @@ impl From<BitwardenPasswordRecord> for GenericCsvEntry {
 }
 
 /// Parse records from a reader.
-pub fn parse_reader<R: Read>(
+pub async fn parse_reader<R: AsyncRead + Unpin + Send>(
     reader: R,
 ) -> Result<Vec<BitwardenPasswordRecord>> {
-    parse(csv::Reader::from_reader(reader))
+    read_csv_records::<BitwardenPasswordRecord, _>(reader).await
 }
 
 /// Parse records from a path.
-pub fn parse_path<P: AsRef<Path>>(
+pub async fn parse_path<P: AsRef<Path>>(
     path: P,
 ) -> Result<Vec<BitwardenPasswordRecord>> {
-    parse(csv::Reader::from_path(path)?)
-}
-
-fn parse<R: Read>(
-    mut rdr: csv::Reader<R>,
-) -> Result<Vec<BitwardenPasswordRecord>> {
-    let mut records = Vec::new();
-    for result in rdr.deserialize() {
-        let record: BitwardenPasswordRecord = result?;
-        records.push(record);
-    }
-    Ok(records)
+    parse_reader(vfs::File::open(path).await?).await
 }
 
 /// Import a Bitwarden passwords CSV export into a vault.
@@ -142,7 +129,8 @@ impl Convert for BitwardenCsv {
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
-        let records: Vec<GenericCsvEntry> = parse_path(source)?
+        let records: Vec<GenericCsvEntry> = parse_path(source)
+            .await?
             .into_iter()
             .filter(|record| {
                 record.kind == TYPE_LOGIN || record.kind == TYPE_NOTE
@@ -168,9 +156,9 @@ mod test {
     use std::sync::Arc;
     use url::Url;
 
-    #[test]
-    fn bitwarden_passwords_csv_parse() -> Result<()> {
-        let mut records = parse_path("fixtures/bitwarden-export.csv")?;
+    #[tokio::test]
+    async fn bitwarden_passwords_csv_parse() -> Result<()> {
+        let mut records = parse_path("fixtures/bitwarden-export.csv").await?;
         assert_eq!(2, records.len());
 
         let first = records.remove(0);

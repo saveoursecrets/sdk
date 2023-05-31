@@ -175,6 +175,7 @@ mod test {
     use anyhow::Result;
 
     use std::io::Cursor;
+    use tokio::io::{AsyncSeek, AsyncWrite};
 
     use super::*;
     use sos_sdk::{

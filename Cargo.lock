@@ -813,6 +813,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
 
 [[package]]
+name = "bstr"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a246e68bb43f6cd9db24bea052a53e40405417c5fb372e3d1a8a7f770a564ef5"
+dependencies = [
+ "memchr",
+ "once_cell",
+ "regex-automata",
+ "serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1237,15 +1249,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "csv"
-version = "1.2.1"
+name = "csv-async"
+version = "1.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b015497079b9a9d69c02ad25de6c0a6edef051ea6360a327d0bd05802ef64ad"
+checksum = "71933d3f2d0481d5111cb2817b15b6961961458ec58adf8008194e6c850046f4"
 dependencies = [
+ "bstr",
+ "cfg-if 1.0.0",
  "csv-core",
+ "futures",
  "itoa",
  "ryu",
  "serde",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
@@ -5553,8 +5570,9 @@ dependencies = [
  "anyhow",
  "async-trait",
  "async_zip",
- "csv",
+ "csv-async",
  "dirs",
+ "futures",
  "futures-util",
  "hex",
  "logos",

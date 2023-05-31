@@ -2,19 +2,17 @@
 
 use secrecy::SecretString;
 use serde::Deserialize;
-use std::{
-    io::Read,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use url::Url;
 
 use async_trait::async_trait;
-use sos_sdk::vault::Vault;
+use sos_sdk::{vault::Vault, vfs};
+use tokio::io::AsyncRead;
 
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,
 };
-use crate::{Convert, Result};
+use crate::{import::read_csv_records, Convert, Result};
 
 /// Record for an entry in a Chrome passwords CSV export.
 #[derive(Deserialize)]
@@ -55,26 +53,17 @@ impl From<ChromePasswordRecord> for GenericCsvEntry {
 }
 
 /// Parse records from a reader.
-pub fn parse_reader<R: Read>(reader: R) -> Result<Vec<ChromePasswordRecord>> {
-    parse(csv::Reader::from_reader(reader))
+pub async fn parse_reader<R: AsyncRead + Unpin + Send>(
+    reader: R,
+) -> Result<Vec<ChromePasswordRecord>> {
+    read_csv_records::<ChromePasswordRecord, _>(reader).await
 }
 
 /// Parse records from a path.
-pub fn parse_path<P: AsRef<Path>>(
+pub async fn parse_path<P: AsRef<Path>>(
     path: P,
 ) -> Result<Vec<ChromePasswordRecord>> {
-    parse(csv::Reader::from_path(path)?)
-}
-
-fn parse<R: Read>(
-    mut rdr: csv::Reader<R>,
-) -> Result<Vec<ChromePasswordRecord>> {
-    let mut records = Vec::new();
-    for result in rdr.deserialize() {
-        let record: ChromePasswordRecord = result?;
-        records.push(record);
-    }
-    Ok(records)
+    parse_reader(vfs::File::open(path).await?).await
 }
 
 /// Import a Chrome passwords CSV export into a vault.
@@ -91,8 +80,11 @@ impl Convert for ChromePasswordCsv {
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
-        let records: Vec<GenericCsvEntry> =
-            parse_path(source)?.into_iter().map(|r| r.into()).collect();
+        let records: Vec<GenericCsvEntry> = parse_path(source)
+            .await?
+            .into_iter()
+            .map(|r| r.into())
+            .collect();
         GenericCsvConvert.convert(records, vault, password).await
     }
 }
@@ -112,9 +104,9 @@ mod test {
     use std::sync::Arc;
     use url::Url;
 
-    #[test]
-    fn chrome_passwords_csv_parse() -> Result<()> {
-        let mut records = parse_path("fixtures/chrome-export.csv")?;
+    #[tokio::test]
+    async fn chrome_passwords_csv_parse() -> Result<()> {
+        let mut records = parse_path("fixtures/chrome-export.csv").await?;
         assert_eq!(2, records.len());
 
         let first = records.remove(0);
