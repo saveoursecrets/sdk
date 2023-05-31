@@ -3,7 +3,7 @@ use crate::crypto::{
 };
 
 use std::io::{Error, ErrorKind, Result};
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use super::encoding_error;
 use async_trait::async_trait;
@@ -12,7 +12,7 @@ use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for AeadPack {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -35,7 +35,7 @@ impl Encode for AeadPack {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for AeadPack {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -74,7 +74,7 @@ impl Decode for AeadPack {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for Algorithm {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -86,7 +86,7 @@ impl Encode for Algorithm {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for Algorithm {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {

@@ -13,7 +13,7 @@ use crate::{
 };
 
 use std::io::{Error, ErrorKind, Result};
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
 
 use super::encoding_error;
 use async_trait::async_trait;
@@ -24,7 +24,7 @@ use uuid::Uuid;
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for EventKind {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -37,7 +37,7 @@ impl Encode for EventKind {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for EventKind {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -52,7 +52,7 @@ impl Decode for EventKind {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for EventRecord {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -93,7 +93,7 @@ impl Encode for EventRecord {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for EventRecord {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -137,7 +137,7 @@ impl Decode for EventRecord {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for AuditEvent {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -162,7 +162,7 @@ impl Encode for AuditEvent {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for AuditEvent {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -218,7 +218,7 @@ impl Decode for AuditEvent {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for AuditData {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -238,7 +238,7 @@ impl Encode for AuditData {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<'a> Encode for WriteEvent<'a> {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -283,7 +283,7 @@ impl<'a> Encode for WriteEvent<'a> {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<'a> Decode for WriteEvent<'a> {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -370,7 +370,7 @@ impl<'a> Decode for WriteEvent<'a> {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for EventLogFileRecord {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -394,7 +394,7 @@ impl Decode for EventLogFileRecord {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for FileRecord {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         _reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -405,7 +405,7 @@ impl Decode for FileRecord {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for VaultRecord {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -431,7 +431,7 @@ impl Decode for VaultRecord {
 impl AuditLogFile {
     /// Encode an audit log event record.
     pub(crate) async fn encode_row<
-        W: AsyncWriteExt + AsyncSeek + Unpin + Send,
+        W: AsyncWrite + AsyncSeek + Unpin + Send,
     >(
         writer: &mut BinaryWriter<W>,
         _event: AuditEvent,
@@ -459,7 +459,7 @@ impl AuditLogFile {
 
     /// Decode an audit log event record.
     pub(crate) async fn decode_row<
-        R: AsyncReadExt + AsyncSeek + Unpin + Send,
+        R: AsyncRead + AsyncSeek + Unpin + Send,
     >(
         reader: &mut BinaryReader<R>,
     ) -> Result<AuditEvent> {

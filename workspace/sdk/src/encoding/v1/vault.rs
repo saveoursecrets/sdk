@@ -16,15 +16,12 @@ use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
 use std::io::{Error, ErrorKind, Result};
-use tokio::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
-    AsyncWriteExt,
-};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for VaultMeta {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -37,7 +34,7 @@ impl Encode for VaultMeta {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for VaultMeta {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -51,7 +48,7 @@ impl Decode for VaultMeta {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for VaultEntry {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -64,7 +61,7 @@ impl Encode for VaultEntry {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for VaultEntry {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -80,7 +77,7 @@ impl Decode for VaultEntry {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for VaultCommit {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -105,7 +102,7 @@ impl Encode for VaultCommit {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for VaultCommit {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -131,7 +128,7 @@ impl Decode for VaultCommit {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for Auth {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -150,7 +147,7 @@ impl Encode for Auth {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for Auth {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -176,7 +173,7 @@ impl Decode for Auth {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for Summary {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -192,7 +189,7 @@ impl Encode for Summary {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for Summary {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -225,7 +222,7 @@ impl Decode for Summary {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for Header {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -260,7 +257,7 @@ impl Encode for Header {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for Header {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -343,7 +340,7 @@ impl Contents {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for Contents {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -357,7 +354,7 @@ impl Encode for Contents {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for Contents {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -376,7 +373,7 @@ impl Decode for Contents {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for Vault {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -389,7 +386,7 @@ impl Encode for Vault {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for Vault {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {

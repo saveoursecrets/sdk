@@ -18,7 +18,7 @@ use crate::{
     Timestamp,
 };
 
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use super::encoding_error;
 use async_trait::async_trait;
@@ -36,7 +36,7 @@ mod signer_kind {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for SecretMeta {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -66,7 +66,7 @@ impl Encode for SecretMeta {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for SecretMeta {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -105,7 +105,7 @@ impl Decode for SecretMeta {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for SecretSigner {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -132,7 +132,7 @@ impl Encode for SecretSigner {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for SecretSigner {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -167,7 +167,7 @@ impl Decode for SecretSigner {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for SecretRow {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -181,7 +181,7 @@ impl Encode for SecretRow {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for SecretRow {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -198,7 +198,7 @@ impl Decode for SecretRow {
     }
 }
 
-async fn write_user_data<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+async fn write_user_data<W: AsyncWrite + AsyncSeek + Unpin + Send>(
     user_data: &UserData,
     writer: &mut BinaryWriter<W>,
 ) -> Result<()> {
@@ -217,7 +217,7 @@ async fn write_user_data<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
     Ok(())
 }
 
-async fn read_user_data<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+async fn read_user_data<R: AsyncRead + AsyncSeek + Unpin + Send>(
     reader: &mut BinaryReader<R>,
 ) -> Result<UserData> {
     let mut user_data: UserData = Default::default();
@@ -242,7 +242,7 @@ async fn read_user_data<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for AgeVersion {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -256,7 +256,7 @@ impl Encode for AgeVersion {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for AgeVersion {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -279,7 +279,7 @@ impl Decode for AgeVersion {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for FileContent {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -320,7 +320,7 @@ impl Encode for FileContent {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for FileContent {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
@@ -378,7 +378,7 @@ impl Decode for FileContent {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Encode for Secret {
-    async fn encode<W: AsyncWriteExt + AsyncSeek + Unpin + Send>(
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
@@ -589,7 +589,7 @@ impl Encode for Secret {
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Decode for Secret {
-    async fn decode<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {

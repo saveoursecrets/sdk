@@ -150,7 +150,7 @@ pub async fn setup(num_clients: usize) -> Result<TestDirs> {
     vfs::create_dir_all(&target).await?;
 
     let server = target.join("server");
-    vfs::remove_dir_all(&server).await?;
+    let _ = vfs::remove_dir_all(&server).await;
 
     // Setup required sub-directories
     vfs::create_dir(&server).await?;
@@ -158,7 +158,7 @@ pub async fn setup(num_clients: usize) -> Result<TestDirs> {
     let mut clients = Vec::new();
     for index in 0..num_clients {
         let client = target.join(&format!("client{}", index + 1));
-        vfs::remove_dir_all(&client).await?;
+        let _ = vfs::remove_dir_all(&client).await;
         vfs::create_dir(&client).await?;
         clients.push(client);
     }

@@ -10,6 +10,7 @@ use sos_sdk::{encode, vault::Vault};
 #[tokio::test]
 #[serial]
 async fn integration_auth_session_negotiate() -> Result<()> {
+        
     let dirs = setup(1).await?;
 
     let (rx, _handle) = spawn()?;
