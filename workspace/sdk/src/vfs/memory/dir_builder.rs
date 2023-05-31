@@ -6,8 +6,8 @@ use std::{
 };
 
 use super::fs::{
-    has_parent, resolve, resolve_parent, root_fs_mut,
-    MemoryFd, Parent, PathTarget,
+    has_parent, resolve, resolve_parent, root_fs_mut, MemoryFd, Parent,
+    PathTarget,
 };
 
 /// A builder for creating directories in various manners.

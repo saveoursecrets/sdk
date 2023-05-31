@@ -161,6 +161,11 @@ impl UserStorage {
         })
     }
 
+    /// Reference to the user storage paths.
+    pub fn dirs(&self) -> &StorageDirs {
+        self.storage.dirs()
+    }
+
     /// Append to the audit log.
     async fn append_audit_logs(&self, events: Vec<AuditEvent>) -> Result<()> {
         let audit_log = self.storage.audit_log();
