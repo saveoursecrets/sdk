@@ -10,81 +10,81 @@ use sos_sdk::{
     vcard4,
 };
 
-use parking_lot::RwLock as SyncRwLock;
 use secrecy::SecretString;
+use tokio::sync::RwLock;
 
 use crate::client::Result;
 
 /// Modify and query a search index.
 pub struct UserIndex {
     /// Search index.
-    pub(super) search_index: Arc<SyncRwLock<SearchIndex>>,
+    pub(super) search_index: Arc<RwLock<SearchIndex>>,
 }
 
 impl UserIndex {
     /// Create a new user search index.
     pub fn new() -> Self {
         Self {
-            search_index: Arc::new(SyncRwLock::new(SearchIndex::new())),
+            search_index: Arc::new(RwLock::new(SearchIndex::new())),
         }
     }
 
     /// Get a reference to the search index.
-    pub fn search(&self) -> &Arc<SyncRwLock<SearchIndex>> {
+    pub fn search(&self) -> &Arc<RwLock<SearchIndex>> {
         &self.search_index
     }
 
     /// Clear the entire search index.
-    pub fn clear(&mut self) {
-        let mut writer = self.search_index.write();
+    pub async fn clear(&mut self) {
+        let mut writer = self.search_index.write().await;
         writer.remove_all();
     }
 
     /// Remove a folder from the search index.
-    pub fn remove_folder_from_search_index(&self, vault_id: &VaultId) {
+    pub async fn remove_folder_from_search_index(&self, vault_id: &VaultId) {
         // Clean entries from the search index
-        let mut writer = self.search_index.write();
+        let mut writer = self.search_index.write().await;
         writer.remove_vault(vault_id);
     }
 
     /// Add a folder to the search index.
-    pub fn add_folder_to_search_index(
+    pub async fn add_folder_to_search_index(
         &self,
         vault: Vault,
         passphrase: SecretString,
     ) -> Result<()> {
         let index = Arc::clone(&self.search_index);
         let mut keeper = Gatekeeper::new(vault, Some(index));
-        keeper.unlock(passphrase)?;
-        keeper.create_search_index()?;
+        keeper.unlock(passphrase).await?;
+        keeper.create_search_index().await?;
         keeper.lock();
         Ok(())
     }
 
     /// Get the search index document count statistics.
-    pub fn document_count(&self) -> DocumentCount {
-        let reader = self.search_index.read();
+    pub async fn document_count(&self) -> DocumentCount {
+        let reader = self.search_index.read().await;
         reader.statistics().count().clone()
     }
 
     /// Determine if a document exists in a folder.
-    pub fn document_exists_in_folder(
+    pub async fn document_exists_in_folder(
         &self,
         vault_id: &VaultId,
         label: &str,
         id: Option<&SecretId>,
     ) -> bool {
-        let reader = self.search_index.read();
+        let reader = self.search_index.read().await;
         reader.find_by_label(vault_id, label, id).is_some()
     }
 
     /// Query with document views.
-    pub fn query_view(
+    pub async fn query_view(
         &self,
         views: Vec<DocumentView>,
         archive: Option<ArchiveFilter>,
     ) -> Result<Vec<Document>> {
-        let index_reader = self.search_index.read();
+        let index_reader = self.search_index.read().await;
         let mut docs = Vec::with_capacity(index_reader.len());
         for doc in index_reader.values_iter() {
             for view in &views {
@@ -97,12 +97,12 @@ impl UserIndex {
     }
 
     /// Query the search index.
-    pub fn query_map(
+    pub async fn query_map(
         &self,
         query: &str,
         filter: QueryFilter,
     ) -> Result<Vec<Document>> {
-        let index_reader = self.search_index.read();
+        let index_reader = self.search_index.read().await;
         let mut docs = Vec::new();
         let tags: HashSet<_> = filter.tags.iter().cloned().collect();
         let predicate = self.query_predicate(filter, tags, None);

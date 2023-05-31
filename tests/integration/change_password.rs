@@ -17,11 +17,12 @@ use sos_sdk::{
     events::{ChangeEvent, ChangeNotification},
     passwd::diceware::generate_passphrase,
 };
+use tokio::sync::Mutex;
 
 #[tokio::test]
 #[serial]
 async fn integration_change_password() -> Result<()> {
-    let dirs = setup(1)?;
+    let dirs = setup(1).await?;
 
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
@@ -46,10 +47,10 @@ async fn integration_change_password() -> Result<()> {
         let (stream, session) = connect(server_url, signer).await?;
 
         // Wrap the stream to read change notifications
-        let mut stream = changes(stream, session);
+        let mut stream = changes(stream, Arc::new(Mutex::new(session)));
 
         while let Some(notification) = stream.next().await {
-            let notification = notification?;
+            let notification = notification?.await?;
 
             // Store change notifications so we can
             // assert at the end
@@ -65,7 +66,9 @@ async fn integration_change_password() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Use the new vault
-    node_cache.open_vault(&summary, encryption_passphrase.clone(), None)?;
+    node_cache
+        .open_vault(&summary, encryption_passphrase.clone(), None)
+        .await?;
 
     // Create some secrets
     let _notes = create_secrets(&mut node_cache, &summary).await?;
@@ -74,7 +77,7 @@ async fn integration_change_password() -> Result<()> {
     let keeper = node_cache.current().unwrap();
 
     let index = keeper.index();
-    let index_reader = index.read();
+    let index_reader = index.read().await;
     let meta = index_reader.values();
     assert_eq!(3, meta.len());
     drop(index_reader);

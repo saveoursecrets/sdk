@@ -1,7 +1,7 @@
 //! User device manager.
 use std::path::PathBuf;
 
-use sos_sdk::signer::ecdsa::Address;
+use sos_sdk::{signer::ecdsa::Address, storage::StorageDirs};
 
 use crate::client::Result;
 
@@ -18,14 +18,14 @@ pub struct DeviceManager {
 impl DeviceManager {
     /// Create a new devices manager.
     pub(super) fn new(address: &Address) -> Result<Self> {
-        use sos_sdk::storage::StorageDirs;
         let device_dir = StorageDirs::devices_dir(address.to_string())?;
         Ok(Self { device_dir })
     }
 
     /// Load trusted devices.
-    pub fn load(&self) -> Result<Vec<TrustedDevice>> {
-        let devices = device::TrustedDevice::load_devices(&self.device_dir)?;
+    pub async fn load(&self) -> Result<Vec<TrustedDevice>> {
+        let devices =
+            device::TrustedDevice::load_devices(&self.device_dir).await?;
         let mut trusted = Vec::new();
         for device in devices {
             trusted.push(device);
@@ -34,14 +34,15 @@ impl DeviceManager {
     }
 
     /// Add a trusted device.
-    pub fn add(&mut self, device: TrustedDevice) -> Result<()> {
-        device::TrustedDevice::add_device(&self.device_dir, device)?;
+    pub async fn add(&mut self, device: TrustedDevice) -> Result<()> {
+        device::TrustedDevice::add_device(&self.device_dir, device).await?;
         Ok(())
     }
 
     /// Remove a trusted device.
-    pub fn remove(&mut self, device: &TrustedDevice) -> Result<()> {
-        device::TrustedDevice::remove_device(&self.device_dir, device)?;
+    pub async fn remove(&mut self, device: &TrustedDevice) -> Result<()> {
+        device::TrustedDevice::remove_device(&self.device_dir, device)
+            .await?;
         Ok(())
     }
 }

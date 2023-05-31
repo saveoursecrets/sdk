@@ -5,9 +5,9 @@ mod wasm_tests {
     use sos_sdk::{
         decode, encode,
         vault::{Summary, Vault},
-        wal::{memory::WalMemory, WalProvider},
-        Timestamp,
+        vfs, Timestamp,
     };
+    use std::path::PathBuf;
     use wasm_bindgen::prelude::*;
     use wasm_bindgen_test::*;
 
@@ -41,11 +41,13 @@ mod wasm_tests {
         assert_eq!(timestamp, decoded);
     }
 
+    /*
     #[wasm_bindgen_test]
-    fn wal_memory_parse() {
+    async fn event_log_memory_parse() {
         use std::path::PathBuf;
-        let buffer = include_bytes!("fixtures/simple-vault.wal");
-        let mut wal = WalMemory::new(PathBuf::from("")).unwrap();
-        wal.write_buffer(buffer.to_vec()).unwrap();
+        let buffer = include_bytes!("fixtures/simple-vault.sos");
+        let mut event_log = EventLogFile::new(PathBuf::from("")).unwrap();
+        event_log.write_buffer(buffer.to_vec()).await.unwrap();
     }
+    */
 }

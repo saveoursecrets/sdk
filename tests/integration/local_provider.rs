@@ -8,12 +8,10 @@ use tempfile::tempdir;
 use secrecy::ExposeSecret;
 use sos_net::client::provider::{LocalProvider, StorageProvider};
 use sos_sdk::{
-    events::SyncEvent,
-    patch::PatchProvider,
+    events::WriteEvent,
     signer::{ecdsa::SingleParty, Signer},
     storage::StorageDirs,
     vault::secret::{Secret, SecretData},
-    wal::WalProvider,
 };
 
 macro_rules! commit_count {
@@ -25,15 +23,9 @@ macro_rules! commit_count {
     }};
 }
 
-async fn run_local_storage_tests<W, P>(
-    storage: &mut LocalProvider<W, P>,
-) -> Result<()>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
+async fn run_local_storage_tests(storage: &mut LocalProvider) -> Result<()> {
     // Create an account with default login vault
-    let (passphrase, _) = storage.create_account(None, None).await?;
+    let (_, passphrase, _) = storage.create_account(None, None).await?;
 
     let mut summaries = storage.vaults().to_vec();
     assert_eq!(1, summaries.len());
@@ -53,11 +45,13 @@ where
     commit_count!(storage, &summary, 2);
 
     // Open the vault
-    storage.open_vault(&summary, passphrase.clone(), None)?;
+    storage
+        .open_vault(&summary, passphrase.clone(), None)
+        .await?;
 
     let (meta, secret) = mock_note("Test Note", "Mock note content.");
     let event = storage.create_secret(meta, secret).await?;
-    let id = if let SyncEvent::CreateSecret(id, _) = event {
+    let id = if let WriteEvent::CreateSecret(id, _) = event {
         id
     } else {
         panic!("expecting sync create secret event");
@@ -92,7 +86,7 @@ where
     // Create another secret
     let (meta, secret) = mock_note("Alt Note", "Another mock note.");
     let event = storage.create_secret(meta, secret).await?;
-    let alt_id = if let SyncEvent::CreateSecret(id, _) = event {
+    let alt_id = if let WriteEvent::CreateSecret(id, _) = event {
         id
     } else {
         panic!("expecting sync create secret event");
@@ -116,17 +110,9 @@ where
     // one for vault creation and one for the
     // remaining secret
     commit_count!(storage, &summary, 2);
-    let history = storage.history(&summary)?;
+    let history = storage.history(&summary).await?;
     assert_eq!(2, history.len());
 
-    Ok(())
-}
-
-#[tokio::test]
-#[serial]
-async fn integration_local_provider_memory() -> Result<()> {
-    let mut storage = LocalProvider::new_memory_storage();
-    run_local_storage_tests(&mut storage).await?;
     Ok(())
 }
 
@@ -137,7 +123,7 @@ async fn integration_local_provider_file() -> Result<()> {
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
     let dirs = StorageDirs::new(dir.path(), &user_id);
-    let mut storage = LocalProvider::new_file_storage(dirs)?;
+    let mut storage = LocalProvider::new(dirs).await?;
     run_local_storage_tests(&mut storage).await?;
     Ok(())
 }

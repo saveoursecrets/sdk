@@ -4,13 +4,12 @@ use std::path::PathBuf;
 use url::Url;
 
 use sos_sdk::{
-    patch::PatchFile,
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
         Signer,
     },
     storage::StorageDirs,
-    wal::file::WalFile,
+    vfs,
 };
 
 use web3_address::ethereum::Address;
@@ -29,7 +28,7 @@ pub async fn signup(
 ) -> Result<(
     Address,
     AccountCredentials,
-    RemoteProvider<WalFile, PatchFile>,
+    RemoteProvider,
     BoxedEcdsaSigner,
 )> {
     let TestDirs {
@@ -66,12 +65,12 @@ pub async fn login(
     server: Url,
     cache_dir: PathBuf,
     signer: &BoxedEcdsaSigner,
-) -> Result<RemoteProvider<WalFile, PatchFile>> {
+) -> Result<RemoteProvider> {
     let address = signer.address()?;
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
     let client = RpcClient::new(server, signer.clone());
 
-    let mut cache = RemoteProvider::new_file_cache(client, dirs)?;
+    let mut cache = RemoteProvider::new(client, dirs).await?;
 
     // Prepare the client encrypted session channel
     cache.authenticate().await?;
@@ -86,8 +85,8 @@ async fn create_account(
     name: Option<String>,
     signer: BoxedEcdsaSigner,
     cache_dir: PathBuf,
-) -> Result<(AccountCredentials, RemoteProvider<WalFile, PatchFile>)> {
-    if !destination.is_dir() {
+) -> Result<(AccountCredentials, RemoteProvider)> {
+    if !vfs::metadata(&destination).await?.is_dir() {
         bail!("not a directory {}", destination.display());
     }
 
@@ -95,12 +94,12 @@ async fn create_account(
     let dirs = StorageDirs::new(cache_dir, &address.to_string());
     let client = RpcClient::new(server, signer.clone());
 
-    let mut cache = RemoteProvider::new_file_cache(client, dirs)?;
+    let mut cache = RemoteProvider::new(client, dirs).await?;
 
     // Prepare the client encrypted session channel
     cache.authenticate().await?;
 
-    let (encryption_passphrase, summary) =
+    let (_, encryption_passphrase, summary) =
         cache.create_account(name, None).await?;
 
     let address = signer.address()?;

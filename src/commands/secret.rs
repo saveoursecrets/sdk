@@ -16,6 +16,7 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
         Summary, VaultRef,
     },
+    vfs,
 };
 
 use crate::{
@@ -625,7 +626,7 @@ async fn resolve_verify<'a>(
 
     if !is_shell || should_open {
         let mut owner = user.write().await;
-        owner.open_folder(&summary)?;
+        owner.open_folder(&summary).await?;
     }
 
     let (secret_id, meta) =
@@ -695,7 +696,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
 
             let documents =
-                owner.index().query_view(views, archive_filter)?;
+                owner.index().query_view(views, archive_filter).await?;
             let docs: Vec<&Document> = documents.iter().collect();
             print_documents(&docs, verbose)?;
         }
@@ -727,7 +728,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             if !is_shell || folder.is_some() {
                 let mut owner = user.write().await;
-                owner.open_folder(&summary)?;
+                owner.open_folder(&summary).await?;
             }
 
             let mut owner = user.write().await;
@@ -739,7 +740,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 }
                 AddCommand::File {
                     file, name, tags, ..
-                } => add_file(file, name, tags)?,
+                } => add_file(file, name, tags).await?,
                 //AddCommand::Page { name, tags, .. } => add_page(name, tags)?,
             };
 
@@ -932,7 +933,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 let result =
                     if let Secret::File { content, .. } = &data.secret {
                         if content.mime().starts_with("text/") {
-                            editor::edit(&data.secret)?
+                            editor::edit(&data.secret).await?
                         } else {
                             println!(
                                 "Binary {} {} {}",
@@ -941,10 +942,10 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                                 human_bytes(content.size() as f64)
                             );
                             let file_path = read_line(Some("File path: "))?;
-                            Cow::Owned(read_file_secret(&file_path)?)
+                            Cow::Owned(read_file_secret(&file_path).await?)
                         }
                     } else {
-                        editor::edit(&data.secret)?
+                        editor::edit(&data.secret).await?
                     };
 
                 if let Cow::Owned(edited_secret) = result {
@@ -1100,7 +1101,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 } else {
                     let comment_text =
                         data.secret.user_data().comment().unwrap_or("");
-                    match editor::edit_text(comment_text)? {
+                    match editor::edit_text(comment_text).await? {
                         Cow::Owned(s) => (true, Some(s)),
                         Cow::Borrowed(_) => {
                             println!("No changes detected");
@@ -1150,7 +1151,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             )
             .await?;
             if resolved.verified {
-                if file.exists() && !force {
+                if !force && vfs::try_exists(&file).await? {
                     return Err(Error::FileExists(file));
                 }
 
@@ -1221,7 +1222,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     .await?;
                 println!("Restored from archive ✓");
                 if let Some(folder) = original_folder {
-                    owner.open_folder(&folder)?;
+                    owner.open_folder(&folder).await?;
                 }
             }
         }
@@ -1406,7 +1407,7 @@ async fn attachment(
                 attachment,
                 ..
             } => {
-                if file.exists() && !force {
+                if !force && vfs::try_exists(&file).await? {
                     return Err(Error::FileExists(file));
                 }
 

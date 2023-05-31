@@ -1,9 +1,8 @@
 use axum::http::StatusCode;
 
 use sos_sdk::{
-    audit::AuditEvent,
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS},
-    events::{ChangeEvent, ChangeNotification, EventKind},
+    events::{AuditEvent, ChangeEvent, ChangeNotification, Event, EventKind},
     rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
 };
@@ -40,11 +39,13 @@ impl Service for AccountService {
                     .handler()
                     .account_exists(caller.address())
                     .await
+                    .map_err(Box::from)?
                 {
                     return Ok((StatusCode::CONFLICT, request.id()).into());
                 }
 
-                let summary = Header::read_summary_slice(request.body())?;
+                let summary =
+                    Header::read_summary_slice(request.body()).await?;
 
                 let (sync_event, proof) = writer
                     .backend
@@ -70,11 +71,8 @@ impl Service for AccountService {
                     vec![ChangeEvent::CreateVault(summary)],
                 );
 
-                let log = AuditEvent::from_sync_event(
-                    &sync_event,
-                    *caller.address(),
-                    vault_id,
-                );
+                let event = Event::Write(vault_id, sync_event);
+                let log: AuditEvent = (caller.address(), &event).into();
 
                 append_audit_logs(&mut writer, vec![log])
                     .await
@@ -89,6 +87,7 @@ impl Service for AccountService {
                     .handler()
                     .account_exists(caller.address())
                     .await
+                    .map_err(Box::from)?
                 {
                     return Ok((StatusCode::NOT_FOUND, request.id()).into());
                 }

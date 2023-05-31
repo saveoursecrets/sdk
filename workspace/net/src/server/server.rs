@@ -20,7 +20,7 @@ use axum::{
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
 use serde::Serialize;
-use sos_sdk::{audit::AuditLogFile, crypto::channel::SessionManager};
+use sos_sdk::{crypto::channel::SessionManager, events::AuditLogFile};
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
@@ -171,7 +171,7 @@ impl Server {
             .route("/api/account", post(ServiceHandler::account))
             .route("/api/session", post(ServiceHandler::session))
             .route("/api/vault", post(ServiceHandler::vault))
-            .route("/api/wal", post(ServiceHandler::wal));
+            .route("/api/events", post(ServiceHandler::events));
 
         app = app
             .layer(cors)

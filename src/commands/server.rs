@@ -4,7 +4,7 @@ use sos_net::{
     },
     FileLocks,
 };
-use sos_sdk::{audit::AuditLogFile, crypto::channel::SessionManager};
+use sos_sdk::{crypto::channel::SessionManager, events::AuditLogFile};
 
 use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
@@ -23,7 +23,7 @@ pub async fn run(
     let name = env!("CARGO_PKG_NAME").to_string();
     let version = env!("CARGO_PKG_VERSION").to_string();
 
-    let mut config = ServerConfig::load(&config)?;
+    let mut config = ServerConfig::load(&config).await?;
 
     if let Some(reap_interval) = reap_interval {
         config.session.reap_interval = reap_interval;
@@ -53,7 +53,7 @@ pub async fn run(
     );
 
     // Set up the audit log
-    let audit_log = AuditLogFile::new(&audit_log_file)?;
+    let audit_log = AuditLogFile::new(&audit_log_file).await?;
 
     let state = Arc::new(RwLock::new(State {
         info: ServerInfo { name, version },

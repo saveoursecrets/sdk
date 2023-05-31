@@ -144,6 +144,7 @@ pub async fn run() -> Result<()> {
     if let Some(cache) = args.cache.take() {
         StorageDirs::set_cache_dir(cache);
     }
+    StorageDirs::skeleton().await?;
 
     #[cfg(any(test, debug_assertions))]
     if let Some(password) = args.password.take() {
@@ -155,11 +156,11 @@ pub async fn run() -> Result<()> {
         Command::Device { cmd } => device::run(cmd, factory).await?,
         Command::Folder { cmd } => folder::run(cmd, factory).await?,
         Command::Secret { cmd } => secret::run(cmd, factory).await?,
-        Command::Audit { cmd } => audit::run(cmd)?,
+        Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Changes { server, account } => {
             changes::run(server, account).await?
         }
-        Command::Check { cmd } => check::run(cmd)?,
+        Command::Check { cmd } => check::run(cmd).await?,
         Command::Shell { account, folder } => {
             shell::run(factory, account, folder).await?
         }

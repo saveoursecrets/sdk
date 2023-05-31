@@ -5,10 +5,9 @@ use axum::{
 };
 
 use sos_sdk::{
-    audit::{AuditEvent, AuditProvider},
     crypto::{channel::EncryptedChannel, AeadPack},
     decode, encode,
-    events::ChangeNotification,
+    events::{AuditEvent, AuditProvider, ChangeNotification},
     rpc::{Packet, RequestMessage, Service},
 };
 use web3_address::ethereum::Address;
@@ -45,7 +44,7 @@ async fn append_audit_logs<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
     events: Vec<AuditEvent>,
 ) -> crate::server::Result<()> {
-    writer.audit_log.append_audit_events(&events).await?;
+    writer.audit_log.append_audit_events(events).await?;
     Ok(())
 }
 
@@ -76,14 +75,14 @@ fn send_notification(
 }
 
 mod account;
+mod events;
 mod session;
 mod vault;
-mod wal;
 
 pub use account::AccountService;
+pub use events::EventLogService;
 pub use session::SessionService;
 pub use vault::VaultService;
-pub use wal::WalService;
 
 /// Execute a request message in the context of a service
 /// that does not require session authentication.
@@ -93,7 +92,7 @@ pub(crate) async fn public_service(
     body: Bytes,
 ) -> Result<(StatusCode, Bytes), StatusCode> {
     let packet: Packet<'_> =
-        decode(&body).map_err(|_| StatusCode::BAD_REQUEST)?;
+        decode(&body).await.map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let request: RequestMessage<'_> = packet
         .try_into()
@@ -105,6 +104,7 @@ pub(crate) async fn public_service(
         let status = reply.status();
         let response = Packet::new_response(reply);
         let body = encode(&response)
+            .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         (status, Bytes::from(body))
     } else {
@@ -136,8 +136,9 @@ pub(crate) async fn private_service(
         .ok_or(StatusCode::UNAUTHORIZED)?;
     let address = *session.identity();
 
-    let aead: AeadPack =
-        decode(&body).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let aead: AeadPack = decode(&body)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Verify the nonce is ahead of this nonce
     // otherwise we may have a possible replay attack
@@ -152,6 +153,7 @@ pub(crate) async fn private_service(
 
     // Parse the bearer token
     let token = authenticate::bearer(bearer, sign_bytes)
+        .await
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     // Attempt to impersonate the session identity
@@ -168,7 +170,7 @@ pub(crate) async fn private_service(
 
     // Decode the incoming packet and request message
     let packet: Packet<'_> =
-        decode(&body).map_err(|_| StatusCode::BAD_REQUEST)?;
+        decode(&body).await.map_err(|_| StatusCode::BAD_REQUEST)?;
     let request: RequestMessage<'_> = packet
         .try_into()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -189,6 +191,7 @@ pub(crate) async fn private_service(
 
         let response = Packet::new_response(reply);
         let body = encode(&response)
+            .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         // If we send an actual NOT_MODIFIED response then the
@@ -215,7 +218,8 @@ pub(crate) async fn private_service(
         .encrypt(&body)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let body =
-        encode(&aead).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let body = encode(&aead)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok((status, Bytes::from(body)))
 }

@@ -9,10 +9,9 @@
 //! passphrase.
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 
-use parking_lot::RwLock;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
-#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
 use urn::Urn;
@@ -29,13 +28,12 @@ use crate::{
     },
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
-        Gatekeeper, Vault, VaultAccess, VaultFlags,
+        Gatekeeper, Vault, VaultFlags,
     },
-    Error, Result,
+    vfs, Error, Result,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
-use crate::vault::VaultFileAccess;
+use crate::vault::VaultWriter;
 
 /// User identity containing the account signing keys.
 ///
@@ -95,17 +93,19 @@ impl Identity {
     /// Generates a new random single party signing key and
     /// stores it in the new vault along with an encryption
     /// passphrase to use for vaults accessed by this identity.
-    pub fn new_login_vault(
+    pub async fn new_login_vault(
         name: String,
         master_passphrase: SecretString,
     ) -> Result<(Address, Vault)> {
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
         vault.set_name(name);
-        vault.initialize(master_passphrase.clone(), Some(generate_seed()))?;
+        vault
+            .initialize(master_passphrase.clone(), Some(generate_seed()))
+            .await?;
 
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(master_passphrase)?;
+        keeper.unlock(master_passphrase).await?;
 
         // Store the signing key
         let signer = SingleParty::new_random();
@@ -120,7 +120,7 @@ impl Identity {
         let mut signer_meta =
             SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
-        keeper.create(signer_meta, signer_secret)?;
+        keeper.create(signer_meta, signer_secret).await?;
 
         // Store the AGE identity
         let age_secret = Secret::Age {
@@ -132,36 +132,37 @@ impl Identity {
         let mut age_meta =
             SecretMeta::new(urn.as_str().to_owned(), age_secret.kind());
         age_meta.set_urn(Some(urn));
-        keeper.create(age_meta, age_secret)?;
+        keeper.create(age_meta, age_secret).await?;
 
         Ok((address, keeper.into()))
     }
 
     /// Attempt to login using a file path.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn login_file<P: AsRef<Path>>(
+    pub async fn login_file<P: AsRef<Path>>(
         file: P,
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<UserIdentity> {
-        let mirror = Box::new(VaultFileAccess::new(file.as_ref())?);
-        let buffer = std::fs::read(file.as_ref())?;
+        let vault_file = VaultWriter::open(file.as_ref()).await?;
+        let mirror = VaultWriter::new(file.as_ref(), vault_file)?;
+        let buffer = vfs::read(file.as_ref()).await?;
         Identity::login_buffer(
             buffer,
             master_passphrase,
             search_index,
             Some(mirror),
         )
+        .await
     }
 
     /// Attempt to login using a buffer.
-    pub fn login_buffer<B: AsRef<[u8]>>(
+    pub async fn login_buffer<B: AsRef<[u8]>>(
         buffer: B,
         master_passphrase: SecretString,
         search_index: Option<Arc<RwLock<SearchIndex>>>,
-        mirror: Option<Box<dyn VaultAccess + Send + Sync>>,
+        mirror: Option<VaultWriter<vfs::File>>,
     ) -> Result<UserIdentity> {
-        let vault: Vault = decode(buffer.as_ref())?;
+        let vault: Vault = decode(buffer.as_ref()).await?;
 
         if !vault.flags().contains(VaultFlags::IDENTITY) {
             return Err(Error::NotIdentityVault);
@@ -173,19 +174,20 @@ impl Identity {
             Gatekeeper::new(vault, search_index)
         };
 
-        keeper.unlock(master_passphrase)?;
+        keeper.unlock(master_passphrase).await?;
         // Must create the index so we can find by URN
-        keeper.create_search_index()?;
+        keeper.create_search_index().await?;
 
         let index = keeper.index();
-        let reader = index.read();
+        let reader = index.read().await;
 
         let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
         let document = reader
             .find_by_urn(keeper.id(), &urn)
             .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
         let data = keeper
-            .read(document.id())?
+            .read(document.id())
+            .await?
             .ok_or(Error::NoSecretId(*keeper.id(), *document.id()))?;
 
         let (_, secret, _) = data;
@@ -204,7 +206,8 @@ impl Identity {
             .find_by_urn(keeper.id(), &urn)
             .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
         let data = keeper
-            .read(document.id())?
+            .read(document.id())
+            .await?
             .ok_or(Error::NoSecretId(*keeper.id(), *document.id()))?;
 
         let (_, secret, _) = data;
@@ -247,34 +250,37 @@ mod tests {
             secret::{Secret, SecretMeta},
             Gatekeeper, Vault, VaultFlags,
         },
-        Error,
+        vfs, Error,
     };
 
-    #[test]
-    fn identity_create_login() -> Result<()> {
+    #[tokio::test]
+    async fn identity_create_login() -> Result<()> {
         let (master_passphrase, _) = generate_passphrase()?;
         let auth_master_passphrase =
             SecretString::new(master_passphrase.expose_secret().to_owned());
         let (_address, vault) =
-            Identity::new_login_vault("Login".to_owned(), master_passphrase)?;
-        let buffer = encode(&vault)?;
+            Identity::new_login_vault("Login".to_owned(), master_passphrase)
+                .await?;
+        let buffer = encode(&vault).await?;
         let temp = NamedTempFile::new()?;
-        std::fs::write(temp.path(), buffer)?;
+        vfs::write(temp.path(), buffer).await?;
         let _ =
-            Identity::login_file(temp.path(), auth_master_passphrase, None)?;
+            Identity::login_file(temp.path(), auth_master_passphrase, None)
+                .await?;
         Ok(())
     }
 
-    #[test]
-    fn identity_not_identity_vault() -> Result<()> {
+    #[tokio::test]
+    async fn identity_not_identity_vault() -> Result<()> {
         let (master_passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
-        vault.initialize(master_passphrase.clone(), None)?;
-        let buffer = encode(&vault)?;
+        vault.initialize(master_passphrase.clone(), None).await?;
+        let buffer = encode(&vault).await?;
 
         let result =
-            Identity::login_buffer(buffer, master_passphrase, None, None);
+            Identity::login_buffer(buffer, master_passphrase, None, None)
+                .await;
         if let Err(Error::NotIdentityVault) = result {
             Ok(())
         } else {
@@ -282,17 +288,18 @@ mod tests {
         }
     }
 
-    #[test]
-    fn identity_no_identity_signer() -> Result<()> {
+    #[tokio::test]
+    async fn identity_no_identity_signer() -> Result<()> {
         let (master_passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.clone(), None)?;
-        let buffer = encode(&vault)?;
+        vault.initialize(master_passphrase.clone(), None).await?;
+        let buffer = encode(&vault).await?;
 
         let result =
-            Identity::login_buffer(buffer, master_passphrase, None, None);
+            Identity::login_buffer(buffer, master_passphrase, None, None)
+                .await;
         if let Err(Error::NoSecretUrn(_, _)) = result {
             Ok(())
         } else {
@@ -300,16 +307,16 @@ mod tests {
         }
     }
 
-    #[test]
-    fn identity_signer_kind() -> Result<()> {
+    #[tokio::test]
+    async fn identity_signer_kind() -> Result<()> {
         let (master_passphrase, _) = generate_passphrase()?;
 
         let mut vault: Vault = Default::default();
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.clone(), None)?;
+        vault.initialize(master_passphrase.clone(), None).await?;
 
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(master_passphrase.clone())?;
+        keeper.unlock(master_passphrase.clone()).await?;
 
         // Create a secret using the expected name but of the wrong kind
         let signer_secret = Secret::Note {
@@ -321,13 +328,14 @@ mod tests {
         let mut signer_meta =
             SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
-        keeper.create(signer_meta, signer_secret)?;
+        keeper.create(signer_meta, signer_secret).await?;
 
         let vault: Vault = keeper.into();
-        let buffer = encode(&vault)?;
+        let buffer = encode(&vault).await?;
 
         let result =
-            Identity::login_buffer(buffer, master_passphrase, None, None);
+            Identity::login_buffer(buffer, master_passphrase, None, None)
+                .await;
         if let Err(Error::WrongSecretKind(_, _)) = result {
             Ok(())
         } else {

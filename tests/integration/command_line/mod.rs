@@ -7,6 +7,7 @@ use sos_sdk::{
     passwd::diceware::generate_passphrase,
     secrecy::ExposeSecret,
     storage::StorageDirs,
+    vfs,
 };
 use std::{
     ops::DerefMut,
@@ -175,22 +176,19 @@ pub(crate) fn read_until_eof(
     Ok(())
 }
 
-#[test]
+#[tokio::test]
 #[serial]
-fn integration_command_line() -> Result<()> {
+async fn integration_command_line() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 
     let cache_dir = PathBuf::from("target/command_line_test");
-    if cache_dir.exists() {
-        std::fs::remove_dir_all(&cache_dir)?;
-    }
-    std::fs::create_dir_all(&cache_dir)?;
+    let _ = vfs::remove_dir_all(&cache_dir).await;
 
-    let cache_dir = cache_dir.canonicalize()?;
     // Set cache directory for child processes
     std::env::set_var("SOS_CACHE", cache_dir.clone());
     // Set so test functions can access
     StorageDirs::set_cache_dir(cache_dir);
+    StorageDirs::skeleton().await?;
 
     if is_ci() {
         std::env::set_var("SOS_YES", true.to_string());
@@ -206,7 +204,7 @@ fn integration_command_line() -> Result<()> {
         "target/debug/sos".to_owned()
     };
 
-    shell(&exe, &password)?;
+    shell(&exe, &password).await?;
 
     account::new(&exe, &password, ACCOUNT_NAME, None)?;
 
@@ -252,11 +250,11 @@ fn integration_command_line() -> Result<()> {
     secret::mv(&exe, &address, &password, ACCOUNT_NAME, None)?;
     secret::comment(&exe, &address, &password, None)?;
     secret::archive_unarchive(&exe, &address, &password, None)?;
-    secret::download(&exe, &address, &password, ACCOUNT_NAME, None)?;
+    secret::download(&exe, &address, &password, ACCOUNT_NAME, None).await?;
 
     // TODO: update
 
-    secret::attach(&exe, &address, &password, ACCOUNT_NAME, None)?;
+    secret::attach(&exe, &address, &password, ACCOUNT_NAME, None).await?;
     secret::remove(&exe, &address, &password, None)?;
 
     account::delete(&exe, &address, &password, None)?;
@@ -296,7 +294,7 @@ fn login(
 }
 
 /// Run a shell session.
-fn shell(exe: &str, password: &SecretString) -> Result<()> {
+async fn shell(exe: &str, password: &SecretString) -> Result<()> {
     // Prepare variables for CI input
     helpers::set_note_ci_vars();
     let (account_password, _) = generate_passphrase()?;
@@ -550,7 +548,8 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         SHELL_ACCOUNT_NAME,
         Some((Arc::clone(&process), &prompt)),
-    )?;
+    )
+    .await?;
 
     // TODO: update
 
@@ -560,7 +559,8 @@ fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         SHELL_ACCOUNT_NAME,
         Some((Arc::clone(&process), &prompt)),
-    )?;
+    )
+    .await?;
     secret::remove(
         &exe,
         &address,

@@ -4,7 +4,7 @@ use rexpect::spawn;
 use secrecy::SecretString;
 use sos_sdk::{
     constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
-    secrecy::ExposeSecret, storage::StorageDirs,
+    secrecy::ExposeSecret, storage::StorageDirs, vfs,
 };
 use std::{ops::DerefMut, path::PathBuf};
 
@@ -435,7 +435,7 @@ pub fn archive_unarchive(
     Ok(())
 }
 
-pub fn download(
+pub async fn download(
     exe: &str,
     address: &str,
     password: &SecretString,
@@ -462,7 +462,7 @@ pub fn download(
         ps.exp_regex("Download complete")?;
         Ok(())
     });
-    assert!(output.exists());
+    assert!(vfs::try_exists(&output).await?);
 
     let cmd = format!(
         "{} secret download -a {} --force {} {}",
@@ -481,12 +481,12 @@ pub fn download(
         ps.exp_regex("Download complete")?;
         Ok(())
     });
-    assert!(output.exists());
+    assert!(vfs::try_exists(&output).await?);
 
     Ok(())
 }
 
-pub fn attach(
+pub async fn attach(
     exe: &str,
     address: &str,
     password: &SecretString,
@@ -662,7 +662,7 @@ pub fn attach(
             Ok(())
         });
     }
-    assert!(output.exists());
+    assert!(vfs::try_exists(&output).await?);
 
     // Remove an attachment
     let cmd = format!(

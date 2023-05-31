@@ -6,10 +6,10 @@ use web3_address::ethereum::Address;
 
 use crate::{
     commit::CommitProof,
+    events::{Event, WriteEvent},
     vault::{secret::SecretId, Header, Summary, VaultId},
+    Error, Result,
 };
-
-use super::SyncEvent;
 
 /// Encapsulates a collection of change events.
 ///
@@ -99,28 +99,62 @@ pub enum ChangeEvent {
 
 impl ChangeEvent {
     /// Convert from a sync event.
-    pub fn from_sync_event(event: &SyncEvent<'_>) -> Option<Self> {
+    pub async fn from_sync_event(event: &Event<'_>) -> Option<Self> {
         match event {
-            SyncEvent::CreateVault(vault) => {
-                let summary = Header::read_summary_slice(vault)
-                    .expect("failed to read summary from vault");
-                Some(ChangeEvent::CreateVault(summary))
-            }
-            SyncEvent::DeleteVault => Some(ChangeEvent::DeleteVault),
-            SyncEvent::SetVaultName(name) => {
-                Some(ChangeEvent::SetVaultName(name.to_string()))
-            }
-            SyncEvent::SetVaultMeta(_) => Some(ChangeEvent::SetVaultMeta),
-            SyncEvent::CreateSecret(secret_id, _) => {
-                Some(ChangeEvent::CreateSecret(*secret_id))
-            }
-            SyncEvent::UpdateSecret(secret_id, _) => {
-                Some(ChangeEvent::UpdateSecret(*secret_id))
-            }
-            SyncEvent::DeleteSecret(secret_id) => {
-                Some(ChangeEvent::DeleteSecret(*secret_id))
-            }
+            Event::Write(_, event) => match event {
+                WriteEvent::CreateVault(vault) => {
+                    let summary = Header::read_summary_slice(vault)
+                        .await
+                        .expect("failed to read summary from vault");
+                    Some(ChangeEvent::CreateVault(summary))
+                }
+                WriteEvent::DeleteVault => Some(ChangeEvent::DeleteVault),
+                WriteEvent::SetVaultName(name) => {
+                    Some(ChangeEvent::SetVaultName(name.to_string()))
+                }
+                WriteEvent::SetVaultMeta(_) => {
+                    Some(ChangeEvent::SetVaultMeta)
+                }
+                WriteEvent::CreateSecret(secret_id, _) => {
+                    Some(ChangeEvent::CreateSecret(*secret_id))
+                }
+                WriteEvent::UpdateSecret(secret_id, _) => {
+                    Some(ChangeEvent::UpdateSecret(*secret_id))
+                }
+                WriteEvent::DeleteSecret(secret_id) => {
+                    Some(ChangeEvent::DeleteSecret(*secret_id))
+                }
+                _ => None,
+            },
             _ => None,
+        }
+    }
+
+    /// Convert from a write operation.
+    pub async fn try_from_write_event(
+        event: &WriteEvent<'_>,
+    ) -> Result<Self> {
+        match event {
+            WriteEvent::CreateVault(vault) => {
+                let summary =
+                    Header::read_summary_slice(vault.as_ref()).await?;
+                Ok(ChangeEvent::CreateVault(summary))
+            }
+            WriteEvent::DeleteVault => Ok(ChangeEvent::DeleteVault),
+            WriteEvent::SetVaultName(name) => {
+                Ok(ChangeEvent::SetVaultName(name.to_string()))
+            }
+            WriteEvent::SetVaultMeta(_) => Ok(ChangeEvent::SetVaultMeta),
+            WriteEvent::CreateSecret(secret_id, _) => {
+                Ok(ChangeEvent::CreateSecret(*secret_id))
+            }
+            WriteEvent::UpdateSecret(secret_id, _) => {
+                Ok(ChangeEvent::UpdateSecret(*secret_id))
+            }
+            WriteEvent::DeleteSecret(secret_id) => {
+                Ok(ChangeEvent::DeleteSecret(*secret_id))
+            }
+            _ => Err(Error::NoChangeEvent),
         }
     }
 }

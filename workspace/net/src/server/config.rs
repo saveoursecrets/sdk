@@ -6,6 +6,8 @@ use url::{Host, Url};
 use super::backend::{Backend, FileSystemBackend};
 use super::{Error, Result};
 
+use sos_sdk::vfs;
+
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(default)]
@@ -110,12 +112,12 @@ impl Default for StorageConfig {
 
 impl ServerConfig {
     /// Load a server config from a file path.
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
-        if !path.as_ref().exists() {
+    pub async fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
+        if !vfs::try_exists(path.as_ref()).await? {
             return Err(Error::NotFile(path.as_ref().to_path_buf()));
         }
 
-        let contents = std::fs::read_to_string(path.as_ref())?;
+        let contents = vfs::read_to_string(path.as_ref()).await?;
         let mut config: ServerConfig = toml::from_str(&contents)?;
         config.file = Some(path.as_ref().canonicalize()?);
 

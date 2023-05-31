@@ -60,10 +60,6 @@ pub mod ecdsa {
     use sha2::Sha256;
     use sha3::{Digest, Keccak256};
 
-    use binary_stream::{
-        BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-    };
-
     pub use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
     pub use web3_address::ethereum::Address;
     pub use web3_signature::Signature;
@@ -76,7 +72,7 @@ pub mod ecdsa {
 
     /// Signature that can be encoded and decoded to binary.
     #[derive(Default)]
-    pub struct BinarySignature(Signature);
+    pub struct BinarySignature(pub(crate) Signature);
 
     /// Recover the address from a signature.
     pub fn recover_address(
@@ -107,24 +103,6 @@ pub mod ecdsa {
         )?;
         let signed_address: Address = (&recovered_key).try_into()?;
         Ok((address == &signed_address, recovered_key))
-    }
-
-    impl Encode for BinarySignature {
-        fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-            // 65 byte signature
-            let buffer = self.0.to_bytes();
-            writer.write_bytes(buffer)?;
-            Ok(())
-        }
-    }
-
-    impl Decode for BinarySignature {
-        fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-            let buffer: [u8; 65] =
-                reader.read_bytes(65)?.as_slice().try_into()?;
-            self.0 = buffer.into();
-            Ok(())
-        }
     }
 
     impl From<Signature> for BinarySignature {

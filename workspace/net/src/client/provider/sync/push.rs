@@ -5,9 +5,10 @@ use http::StatusCode;
 
 use sos_sdk::{
     commit::{CommitProof, Comparison, SyncInfo, SyncKind},
-    patch::PatchProvider,
+    events::EventLogFile,
+    patch::PatchFile,
     vault::Summary,
-    wal::WalProvider,
+    vfs,
 };
 
 use crate::{client::provider::assert_proofs_eq, retry};
@@ -15,18 +16,14 @@ use crate::{client::provider::assert_proofs_eq, retry};
 use super::apply_patch_file;
 
 /// Upload changes to the remote server.
-pub async fn push<W, P>(
+pub async fn push(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut W,
-    patch_file: &mut P,
+    event_log_file: &mut EventLogFile,
+    patch_file: &mut PatchFile,
     force: bool,
-) -> Result<SyncInfo>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
-    let client_proof = wal_file.tree().head()?;
+) -> Result<SyncInfo> {
+    let client_proof = event_log_file.tree().head()?;
 
     let (status, (server_proof, _match_proof)) =
         retry!(|| client.status(summary.id(), None), client);
@@ -37,7 +34,7 @@ where
 
     let equals = client_proof.root() == server_proof.root();
 
-    let comparison = wal_file.tree().compare(&server_proof)?;
+    let comparison = event_log_file.tree().compare(&server_proof)?;
     let can_push_safely = matches!(comparison, Comparison::Contains(_, _));
 
     let status = if force {
@@ -58,11 +55,13 @@ where
 
     if force || !equals {
         if force || can_push_safely {
-            let result_proof = force_push(client, summary, wal_file).await?;
+            let result_proof =
+                force_push(client, summary, event_log_file).await?;
             info.after = Some(result_proof);
 
             // If we have unsaved staged events try to apply them
-            apply_patch_file(client, summary, wal_file, patch_file).await?;
+            apply_patch_file(client, summary, event_log_file, patch_file)
+                .await?;
 
             Ok(info)
         } else {
@@ -73,21 +72,22 @@ where
     }
 }
 
-pub async fn force_push<W>(
+pub async fn force_push(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &mut W,
-) -> Result<CommitProof>
-where
-    W: WalProvider + Send + Sync + 'static,
-{
+    event_log_file: &mut EventLogFile,
+) -> Result<CommitProof> {
     // TODO: load any unsaved events from the patch file and
-    // TODO: apply them to the WAL!
+    // TODO: apply them to the event log!
 
-    let client_proof = wal_file.tree().head()?;
-    let body = std::fs::read(wal_file.path())?;
+    let client_proof = event_log_file.tree().head()?;
+    let body = vfs::read(event_log_file.path()).await?;
     let (status, server_proof) = retry!(
-        || client.save_wal(summary.id(), client_proof.clone(), body.clone()),
+        || client.save_event_log(
+            summary.id(),
+            client_proof.clone(),
+            body.clone()
+        ),
         client
     );
 

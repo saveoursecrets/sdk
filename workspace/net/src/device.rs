@@ -6,11 +6,13 @@ use serde_json::Value;
 use std::{
     collections::HashMap,
     fmt,
-    fs::File,
     path::{Path, PathBuf},
 };
 
-use sos_sdk::time::OffsetDateTime;
+use sos_sdk::{
+    time::OffsetDateTime,
+    vfs::{self},
+};
 
 use crate::{Error, Result};
 
@@ -159,44 +161,45 @@ impl TrustedDevice {
     /// Add a device to the trusted devices for an account.
     ///
     /// If a device already exists it is overwritten.
-    pub fn add_device<P: AsRef<Path>>(
+    pub async fn add_device<P: AsRef<Path>>(
         device_dir: P,
         device: TrustedDevice,
     ) -> Result<()> {
-        let device_path = Self::device_path(device_dir, &device)?;
-        let mut file = File::create(device_path)?;
-        serde_json::to_writer_pretty(&mut file, &device)?;
+        let device_path = Self::device_path(device_dir, &device).await?;
+        let json = serde_json::to_vec_pretty(&device)?;
+        vfs::write(&device_path, &json).await?;
         Ok(())
     }
 
     /// Remove a device from the trusted devices for an account.
-    pub fn remove_device<P: AsRef<Path>>(
+    pub async fn remove_device<P: AsRef<Path>>(
         device_dir: P,
         device: &TrustedDevice,
     ) -> Result<()> {
-        let device_path = Self::device_path(device_dir, device)?;
-        std::fs::remove_file(device_path)?;
+        let device_path = Self::device_path(device_dir, device).await?;
+        vfs::remove_file(device_path).await?;
         Ok(())
     }
 
     /// Load all trusted devices for an account.
-    pub fn load_devices<P: AsRef<Path>>(
+    pub async fn load_devices<P: AsRef<Path>>(
         device_dir: P,
     ) -> Result<Vec<TrustedDevice>> {
         let mut devices = Vec::new();
-        if !device_dir.as_ref().exists() {
-            std::fs::create_dir_all(device_dir.as_ref())?;
+        if !vfs::try_exists(device_dir.as_ref()).await? {
+            vfs::create_dir_all(device_dir.as_ref()).await?;
         }
-        for entry in std::fs::read_dir(device_dir.as_ref())? {
-            let entry = entry?;
-            let file = File::open(entry.path())?;
-            let device: TrustedDevice = serde_json::from_reader(file)?;
+
+        let mut dir = vfs::read_dir(device_dir.as_ref()).await?;
+        while let Some(entry) = dir.next_entry().await? {
+            let buffer = vfs::read(entry.path()).await?;
+            let device: TrustedDevice = serde_json::from_slice(&buffer)?;
             devices.push(device);
         }
         Ok(devices)
     }
 
-    fn device_path<P: AsRef<Path>>(
+    async fn device_path<P: AsRef<Path>>(
         device_dir: P,
         device: &TrustedDevice,
     ) -> Result<PathBuf> {
@@ -204,8 +207,8 @@ impl TrustedDevice {
         let mut device_path = device_dir.as_ref().join(device_address);
         device_path.set_extension("json");
         if let Some(parent) = device_path.parent() {
-            if !parent.exists() {
-                std::fs::create_dir_all(parent)?;
+            if !vfs::try_exists(&parent).await? {
+                vfs::create_dir_all(parent).await?;
             }
         }
         Ok(device_path)

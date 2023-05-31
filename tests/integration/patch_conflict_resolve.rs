@@ -8,7 +8,7 @@ use sos_net::client::provider::StorageProvider;
 #[tokio::test]
 #[serial]
 async fn integration_patch_conflict_resolve() -> Result<()> {
-    let dirs = setup(2)?;
+    let dirs = setup(2).await?;
 
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
@@ -31,8 +31,12 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
     //let _ = client2.pull(&summary, true).await?;
 
     // Both client use the login vault
-    client1.open_vault(&summary, encryption_passphrase.clone(), None)?;
-    client2.open_vault(&summary, encryption_passphrase.clone(), None)?;
+    client1
+        .open_vault(&summary, encryption_passphrase.clone(), None)
+        .await?;
+    client2
+        .open_vault(&summary, encryption_passphrase.clone(), None)
+        .await?;
 
     // Create some secrets in client 1
     let _notes = create_secrets(&mut client1, &summary).await?;

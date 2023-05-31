@@ -1,26 +1,16 @@
-//! Iterate a WAL provider and reduce all the events
-//! so that a single vault can be built or a compacted
-//! WAL log can be created.
-//!
-//! The WAL must have a create vault event as the first record
-//! and create vault events after the first record are not permitted.
-//!
-//! Uses a simple last event wins strategy.
-//!
 use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     crypto::AeadPack,
     decode, encode,
-    events::SyncEvent,
+    events::{EventLogFile, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
-    wal::{WalItem, WalProvider},
     Error, Result,
 };
 
-/// Reducer for WAL events.
+/// Reduce log events to a vault.
 #[derive(Default)]
-pub struct WalReducer<'a> {
+pub struct EventReducer<'a> {
     /// Buffer for the create or last update vault event.
     vault: Option<Cow<'a, [u8]>>,
     /// Last encountered vault name.
@@ -31,26 +21,28 @@ pub struct WalReducer<'a> {
     secrets: HashMap<SecretId, Cow<'a, VaultCommit>>,
 }
 
-impl<'a> WalReducer<'a> {
+impl<'a> EventReducer<'a> {
     /// Create a new reducer.
     pub fn new() -> Self {
         Default::default()
     }
 
     /// Split a vault into a truncated vault and a collection
-    /// of WAL events that represent the vault.
+    /// of events that represent the vault.
     ///
     /// The truncated vault represents the header of the vault and
     /// has no contents.
-    pub fn split(vault: Vault) -> Result<(Vault, Vec<SyncEvent<'static>>)> {
+    pub async fn split(
+        vault: Vault,
+    ) -> Result<(Vault, Vec<WriteEvent<'static>>)> {
         let mut events = Vec::with_capacity(vault.len() + 1);
         let header = vault.header().clone();
-        let head = Vault::from(header);
+        let head: Vault = header.into();
 
-        let buffer = encode(&head)?;
-        events.push(SyncEvent::CreateVault(Cow::Owned(buffer)));
+        let buffer = encode(&head).await?;
+        events.push(WriteEvent::CreateVault(Cow::Owned(buffer)));
         for (id, entry) in vault {
-            let event = SyncEvent::CreateSecret(id, Cow::Owned(entry));
+            let event = WriteEvent::CreateSecret(id, Cow::Owned(entry));
             events.push(event);
         }
 
@@ -60,70 +52,67 @@ impl<'a> WalReducer<'a> {
     }
 
     /// Reduce the events in the given iterator.
-    pub fn reduce<T: WalItem>(
+    pub async fn reduce(
         mut self,
-        wal: &'a (impl WalProvider<Item = T> + 'a),
-    ) -> Result<Self> {
-        let mut it = wal.iter()?;
-        if let Some(first) = it.next() {
-            let log = first?;
-            let event = wal.event_data(&log)?;
+        event_log: &'a EventLogFile,
+    ) -> Result<EventReducer<'a>> {
+        let mut it = event_log.iter().await?;
+        if let Some(log) = it.next_entry().await? {
+            let event = event_log.event_data(&log).await?;
 
-            if let SyncEvent::CreateVault(vault) = event {
+            if let WriteEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
-                for record in it {
-                    let log = record?;
-                    let event = wal.event_data(&log)?;
+                while let Some(log) = it.next_entry().await? {
+                    let event = event_log.event_data(&log).await?;
                     match event {
-                        SyncEvent::Noop => unreachable!(),
-                        SyncEvent::CreateVault(_) => {
-                            return Err(Error::WalCreateEventOnlyFirst)
+                        WriteEvent::CreateVault(_) => {
+                            return Err(Error::CreateEventOnlyFirst)
                         }
-                        SyncEvent::SetVaultName(name) => {
+                        WriteEvent::SetVaultName(name) => {
                             self.vault_name = Some(name.clone());
                         }
-                        SyncEvent::SetVaultMeta(meta) => {
+                        WriteEvent::SetVaultMeta(meta) => {
                             self.vault_meta = Some(meta.clone());
                         }
-                        SyncEvent::CreateSecret(id, entry) => {
+                        WriteEvent::CreateSecret(id, entry) => {
                             self.secrets.insert(id, entry.clone());
                         }
-                        SyncEvent::UpdateSecret(id, entry) => {
+                        WriteEvent::UpdateSecret(id, entry) => {
                             self.secrets.insert(id, entry.clone());
                         }
-                        SyncEvent::DeleteSecret(id) => {
+                        WriteEvent::DeleteSecret(id) => {
                             self.secrets.remove(&id);
                         }
                         _ => {}
                     }
                 }
             } else {
-                return Err(Error::WalCreateEventMustBeFirst);
+                return Err(Error::CreateEventMustBeFirst);
             }
         }
 
         Ok(self)
     }
 
-    /// Create a series of new WAL events that represent
-    /// a compacted version of the WAL.
+    /// Create a series of new events that represent
+    /// a compacted version of the event log.
     ///
     /// This series of events can then be appended to a
-    /// new WAL log to create a compact version with
+    /// new event log to create a compact version with
     /// history pruned.
     ///
-    /// Note that using this to compact a WAL log is lossy;
-    /// log record timestamps will be reset.
+    /// Note that compaction is lossy; log record
+    /// timestamps are reset.
     ///
     /// The commit tree returned here will be invalid once
     /// the new series of events have been applied so callers
-    /// must generate a new commit tree once the new WAL log has
+    /// must generate a new commit tree once the new event log has
     /// been created.
-    pub fn compact(self) -> Result<Vec<SyncEvent<'a>>> {
+    pub async fn compact(self) -> Result<Vec<WriteEvent<'a>>> {
         if let Some(vault) = self.vault {
             let mut events = Vec::new();
 
-            let mut vault: Vault = decode(&vault)?;
+            let mut vault: Vault = decode(&vault).await?;
             if let Some(name) = self.vault_name {
                 vault.set_name(name.into_owned());
             }
@@ -132,11 +121,11 @@ impl<'a> WalReducer<'a> {
                 vault.header_mut().set_meta(meta.into_owned());
             }
 
-            let buffer = encode(&vault)?;
-            events.push(SyncEvent::CreateVault(Cow::Owned(buffer)));
+            let buffer = encode(&vault).await?;
+            events.push(WriteEvent::CreateVault(Cow::Owned(buffer)));
             for (id, entry) in self.secrets {
                 let entry = entry.into_owned();
-                events.push(SyncEvent::CreateSecret(id, Cow::Owned(entry)));
+                events.push(WriteEvent::CreateSecret(id, Cow::Owned(entry)));
             }
             Ok(events)
         } else {
@@ -145,9 +134,9 @@ impl<'a> WalReducer<'a> {
     }
 
     /// Consume this reducer and build a vault.
-    pub fn build(self) -> Result<Vault> {
+    pub async fn build(self) -> Result<Vault> {
         if let Some(vault) = self.vault {
-            let mut vault: Vault = decode(&vault)?;
+            let mut vault: Vault = decode(&vault).await?;
             if let Some(name) = self.vault_name {
                 vault.set_name(name.into_owned());
             }
@@ -174,36 +163,41 @@ mod test {
         commit::CommitHash,
         crypto::secret_key::SecretKey,
         decode,
+        events::{EventLogFile, WriteEvent},
         test_utils::*,
         vault::{
             secret::{Secret, SecretId, SecretMeta},
             VaultAccess, VaultCommit, VaultEntry,
         },
-        wal::file::WalFile,
     };
     use anyhow::Result;
     use secrecy::ExposeSecret;
     use tempfile::NamedTempFile;
 
-    fn mock_wal_file(
-    ) -> Result<(NamedTempFile, WalFile, Vec<CommitHash>, SecretKey, SecretId)>
-    {
+    async fn mock_event_log_file() -> Result<(
+        NamedTempFile,
+        EventLogFile,
+        Vec<CommitHash>,
+        SecretKey,
+        SecretId,
+    )> {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (_, mut vault, buffer) = mock_vault_file()?;
+        let (_, mut vault, buffer) = mock_vault_file().await?;
 
         let temp = NamedTempFile::new()?;
-        let mut wal = WalFile::new(temp.path())?;
+        let mut event_log = EventLogFile::new(temp.path()).await?;
 
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
-        commits.push(wal.append_event(event)?);
+        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
+        commits.push(event_log.append_event(event).await?);
 
         // Create a secret
         let (secret_id, _, _, _, event) =
-            mock_vault_note(&mut vault, &encryption_key, "foo", "bar")?;
-        commits.push(wal.append_event(event)?);
+            mock_vault_note(&mut vault, &encryption_key, "foo", "bar")
+                .await?;
+        commits.push(event_log.append_event(event).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -212,31 +206,38 @@ mod test {
             &secret_id,
             "bar",
             "qux",
-        )?;
+        )
+        .await?;
         if let Some(event) = event {
-            commits.push(wal.append_event(event)?);
+            commits.push(event_log.append_event(event).await?);
         }
 
         // Create another secret
         let (del_id, _, _, _, event) =
-            mock_vault_note(&mut vault, &encryption_key, "qux", "baz")?;
-        commits.push(wal.append_event(event)?);
+            mock_vault_note(&mut vault, &encryption_key, "qux", "baz")
+                .await?;
+        commits.push(event_log.append_event(event).await?);
 
-        let event = vault.delete(&del_id)?;
+        let event = vault.delete(&del_id).await?;
         if let Some(event) = event {
-            commits.push(wal.append_event(event)?);
+            commits.push(event_log.append_event(event).await?);
         }
 
-        Ok((temp, wal, commits, encryption_key, secret_id))
+        Ok((temp, event_log, commits, encryption_key, secret_id))
     }
 
-    #[test]
-    fn wal_reduce_build() -> Result<()> {
-        let (temp, wal, _, encryption_key, secret_id) = mock_wal_file()?;
+    #[tokio::test]
+    async fn event_log_reduce_build() -> Result<()> {
+        let (temp, event_log, _, encryption_key, secret_id) =
+            mock_event_log_file().await?;
 
-        assert_eq!(5, wal.tree().len());
+        assert_eq!(5, event_log.tree().len());
 
-        let vault = WalReducer::new().reduce(&wal)?.build()?;
+        let vault = EventReducer::new()
+            .reduce(&event_log)
+            .await?
+            .build()
+            .await?;
 
         assert_eq!(1, vault.len());
 
@@ -248,8 +249,8 @@ mod test {
         {
             let meta = vault.decrypt(&encryption_key, meta_aead)?;
             let secret = vault.decrypt(&encryption_key, secret_aead)?;
-            let meta: SecretMeta = decode(&meta)?;
-            let secret: Secret = decode(&secret)?;
+            let meta: SecretMeta = decode(&meta).await?;
+            let secret: Secret = decode(&secret).await?;
 
             assert_eq!("bar", meta.label());
             assert_eq!("qux", {
@@ -264,27 +265,37 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn wal_reduce_compact() -> Result<()> {
-        let (_temp, wal, _, _encryption_key, _secret_id) = mock_wal_file()?;
+    #[tokio::test]
+    async fn event_log_reduce_compact() -> Result<()> {
+        let (_temp, event_log, _, _encryption_key, _secret_id) =
+            mock_event_log_file().await?;
 
-        assert_eq!(5, wal.tree().len());
+        assert_eq!(5, event_log.tree().len());
 
         // Get a vault so we can assert on the compaction result
-        let vault = WalReducer::new().reduce(&wal)?.build()?;
+        let vault = EventReducer::new()
+            .reduce(&event_log)
+            .await?
+            .build()
+            .await?;
 
         // Get the compacted series of events
-        let events = WalReducer::new().reduce(&wal)?.compact()?;
+        let events = EventReducer::new()
+            .reduce(&event_log)
+            .await?
+            .compact()
+            .await?;
 
         assert_eq!(2, events.len());
 
         let compact_temp = NamedTempFile::new()?;
-        let mut compact = WalFile::new(compact_temp.path())?;
+        let mut compact = EventLogFile::new(compact_temp.path()).await?;
         for event in events {
-            compact.append_event(event)?;
+            compact.append_event(event).await?;
         }
 
-        let compact_vault = WalReducer::new().reduce(&compact)?.build()?;
+        let compact_vault =
+            EventReducer::new().reduce(&compact).await?.build().await?;
         assert_eq!(vault, compact_vault);
 
         Ok(())

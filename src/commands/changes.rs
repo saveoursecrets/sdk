@@ -7,6 +7,8 @@ use sos_net::client::{
 use sos_sdk::{
     account::AccountRef, signer::ecdsa::BoxedEcdsaSigner, url::Url,
 };
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::{helpers::account::sign_in, Result, TARGET};
 
@@ -16,9 +18,9 @@ async fn changes_stream(
     signer: BoxedEcdsaSigner,
 ) -> sos_net::client::Result<()> {
     let (stream, session) = connect(server, signer).await?;
-    let mut stream = changes(stream, session);
+    let mut stream = changes(stream, Arc::new(Mutex::new(session)));
     while let Some(notification) = stream.next().await {
-        let notification = notification?;
+        let notification = notification?.await?;
         tracing::info!(
             target: TARGET,
             changes = ?notification.changes(),
@@ -30,7 +32,7 @@ async fn changes_stream(
 
 /// Start a monitor listening for events on the SSE stream.
 pub async fn run(server: Url, account: AccountRef) -> Result<()> {
-    let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
+    let (owner, _) = sign_in(&account, ProviderFactory::Local(None)).await?;
     let signer = owner.user.identity().signer().clone();
     if let Err(e) = changes_stream(server, signer).await {
         tracing::error!(target: TARGET, "{}", e);

@@ -35,7 +35,7 @@ enum AccountPasswordOption {
 
 /// Choose an account.
 pub async fn choose_account() -> Result<Option<AccountInfo>> {
-    let mut accounts = LocalAccounts::list_accounts()?;
+    let mut accounts = LocalAccounts::list_accounts().await?;
     if accounts.is_empty() {
         Ok(None)
     } else if accounts.len() == 1 {
@@ -97,7 +97,7 @@ pub async fn resolve_account(
             return Some(account);
         }
 
-        if let Ok(mut accounts) = LocalAccounts::list_accounts() {
+        if let Ok(mut accounts) = LocalAccounts::list_accounts().await {
             if accounts.len() == 1 {
                 return Some(accounts.remove(0).into());
             }
@@ -153,7 +153,7 @@ pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
     };
 
     let summary = summary.ok_or(Error::NoVault)?;
-    owner.open_folder(&summary)?;
+    owner.open_folder(&summary).await?;
     Ok(())
 }
 
@@ -165,8 +165,8 @@ pub async fn verify(user: Owner) -> Result<bool> {
 }
 
 /// List local accounts.
-pub fn list_accounts(verbose: bool) -> Result<()> {
-    let accounts = LocalAccounts::list_accounts()?;
+pub async fn list_accounts(verbose: bool) -> Result<()> {
+    let accounts = LocalAccounts::list_accounts().await?;
     for account in accounts {
         if verbose {
             println!("{} {}", account.address(), account.label());
@@ -177,8 +177,10 @@ pub fn list_accounts(verbose: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn find_account(account: &AccountRef) -> Result<Option<AccountInfo>> {
-    let accounts = LocalAccounts::list_accounts()?;
+pub async fn find_account(
+    account: &AccountRef,
+) -> Result<Option<AccountInfo>> {
+    let accounts = LocalAccounts::list_accounts().await?;
     match account {
         AccountRef::Address(address) => {
             Ok(accounts.into_iter().find(|a| a.address() == address))
@@ -194,7 +196,8 @@ pub async fn sign_in(
     account: &AccountRef,
     factory: ProviderFactory,
 ) -> Result<(UserStorage, SecretString)> {
-    let account = find_account(account)?
+    let account = find_account(account)
+        .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
     let owner =
@@ -224,7 +227,7 @@ pub async fn new_account(
     folder_name: Option<String>,
 ) -> Result<()> {
     let account = AccountRef::Name(account_name.clone());
-    let account = find_account(&account)?;
+    let account = find_account(&account).await?;
 
     if account.is_some() {
         return Err(Error::AccountExists(account_name));
@@ -288,7 +291,8 @@ pub async fn new_account(
             .create_contacts(true)
             .create_file_password(true)
             .default_folder_name(folder_name)
-            .build()?;
+            .build()
+            .await?;
 
     let address = new_account.address;
 
@@ -322,12 +326,14 @@ pub async fn new_account(
             display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
 
-        let new_account = AccountBuilder::write(identity_vault, new_account)?;
+        let new_account =
+            AccountBuilder::write(identity_vault, new_account).await?;
 
         // Create local provider
-        let factory = ProviderFactory::Local;
-        let (mut provider, _) =
-            factory.create_provider(new_account.user.signer().clone())?;
+        let factory = ProviderFactory::Local(None);
+        let (mut provider, _) = factory
+            .create_provider(new_account.user.signer().clone())
+            .await?;
         provider.authenticate().await?;
 
         let _ = provider.import_new_account(&new_account).await?;

@@ -70,8 +70,9 @@ pub async fn upgrade(
         .into_vec()
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let aead: AeadPack =
-        decode(&buffer).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let aead: AeadPack = decode(&buffer)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Verify the nonce is ahead of this nonce
     // otherwise we may have a possible replay attack
@@ -86,6 +87,7 @@ pub async fn upgrade(
 
     // Parse the bearer token
     let token = authenticate::BearerToken::new(&query.bearer, &sign_bytes)
+        .await
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     // Attempt to impersonate the session identity
@@ -230,7 +232,7 @@ async fn write(
 
         drop(writer);
 
-        match encode(&aead) {
+        match encode(&aead).await {
             Ok(buffer) => {
                 if sender.send(Message::Binary(buffer)).await.is_err() {
                     disconnect(state, address, session_id).await;

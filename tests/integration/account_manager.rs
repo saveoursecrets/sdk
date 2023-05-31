@@ -3,7 +3,6 @@ use anyhow::Result;
 use serial_test::serial;
 use std::{io::Cursor, path::PathBuf, sync::Arc};
 
-use parking_lot::RwLock as SyncRwLock;
 use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{
     account::{
@@ -18,19 +17,21 @@ use sos_sdk::{
     storage::{FileStorage, StorageDirs},
     urn::Urn,
     vault::{secret::SecretId, Gatekeeper, VaultId},
+    vfs,
 };
+use tokio::sync::RwLock;
 
 use crate::test_utils::*;
 
 #[tokio::test]
 #[serial]
 async fn integration_account_manager() -> Result<()> {
-    let dirs = setup(1)?;
+    let dirs = setup(1).await?;
 
     let test_cache_dir = dirs.clients.get(0).unwrap();
     StorageDirs::set_cache_dir(test_cache_dir.clone());
-
     assert_eq!(StorageDirs::cache_dir(), Some(test_cache_dir.clone()));
+    StorageDirs::skeleton().await?;
 
     let account_name = "Mock account name".to_string();
     let folder_name = Some("Default folder".to_string());
@@ -44,36 +45,43 @@ async fn integration_account_manager() -> Result<()> {
             .create_contacts(true)
             .create_file_password(true)
             .default_folder_name(folder_name)
-            .finish()?;
+            .finish()
+            .await?;
 
     // Create local provider
-    let factory = ProviderFactory::Local;
-    let (mut provider, _) =
-        factory.create_provider(new_account.user.signer().clone())?;
+    let factory = ProviderFactory::Local(None);
+    let (mut provider, _) = factory
+        .create_provider(new_account.user.signer().clone())
+        .await?;
+
+    println!("importing new account...");
 
     let imported_account = provider.import_new_account(&new_account).await?;
+
+    println!("imported the account...");
 
     let NewAccount { address, .. } = new_account;
     let ImportedAccount { summary, .. } = imported_account;
 
-    let accounts = LocalAccounts::list_accounts()?;
+    let accounts = LocalAccounts::list_accounts().await?;
     assert_eq!(1, accounts.len());
 
-    let identity_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
+    let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
     let mut user = Login::sign_in(
         &address,
         passphrase.clone(),
         Arc::clone(&identity_index),
-    )?;
+    )
+    .await?;
 
-    user.rename_account("New account name".to_string())?;
+    user.rename_account("New account name".to_string()).await?;
     assert_eq!("New account name", user.identity().keeper().vault().name());
 
-    let vaults = LocalAccounts::list_local_vaults(&address, false)?;
+    let vaults = LocalAccounts::list_local_vaults(&address, false).await?;
     // Default, Contacts, Authenticator and Archive vaults
     assert_eq!(4, vaults.len());
 
-    let identity_reader = identity_index.read();
+    let identity_reader = identity_index.read().await;
 
     // Check we can find the signing key
     let signing_urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
@@ -92,19 +100,24 @@ async fn integration_account_manager() -> Result<()> {
         DelegatedPassphrase::find_vault_passphrase(
             user.identity().keeper(),
             summary.id(),
-        )?;
+        )
+        .await?;
 
-    let default_index = Arc::new(SyncRwLock::new(SearchIndex::new()));
+    let default_index = Arc::new(RwLock::new(SearchIndex::new()));
     let (default_vault, _) =
-        LocalAccounts::find_local_vault(&address, summary.id(), false)?;
+        LocalAccounts::find_local_vault(&address, summary.id(), false)
+            .await?;
     let mut default_vault_keeper =
         Gatekeeper::new(default_vault, Some(default_index));
-    default_vault_keeper.unlock(default_vault_passphrase.clone())?;
+    default_vault_keeper
+        .unlock(default_vault_passphrase.clone())
+        .await?;
 
     let file_passphrase =
         DelegatedPassphrase::find_file_encryption_passphrase(
             user.identity().keeper(),
-        )?;
+        )
+        .await?;
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
 
     // Encrypt
@@ -114,30 +127,35 @@ async fn integration_account_manager() -> Result<()> {
     let target = files_dir
         .join(vault_id.to_string())
         .join(secret_id.to_string());
-    std::fs::create_dir_all(&target)?;
+    vfs::create_dir_all(&target).await?;
     let (digest, _) = FileStorage::encrypt_file_passphrase(
         &source_file,
         &target,
         file_passphrase.clone(),
-    )?;
+    )
+    .await?;
 
     // Decrypt
     let destination = target.join(hex::encode(digest));
     let buffer =
-        FileStorage::decrypt_file_passphrase(destination, &file_passphrase)?;
+        FileStorage::decrypt_file_passphrase(destination, &file_passphrase)
+            .await?;
 
-    let expected = std::fs::read(source_file)?;
+    let expected = vfs::read(source_file).await?;
     assert_eq!(expected, buffer);
 
-    let mut archive_buffer = AccountBackup::export_archive_buffer(&address)?;
+    let mut archive_buffer =
+        AccountBackup::export_archive_buffer(&address).await?;
     let reader = Cursor::new(&mut archive_buffer);
-    let _inventory = AccountBackup::restore_archive_inventory(reader)?;
+    let _inventory = AccountBackup::restore_archive_inventory(reader).await?;
 
     // Restore from archive whilst signed in (with provider),
     // overwrites existing data (backup)
-    let factory = ProviderFactory::Local;
-    let (mut provider, _) =
-        factory.create_provider(user.identity().signer().clone())?;
+    let factory = ProviderFactory::Local(None);
+    let (mut provider, _) = factory
+        .create_provider(user.identity().signer().clone())
+        .await?;
+
     let options = RestoreOptions {
         selected: vaults.clone().into_iter().map(|v| v.0).collect(),
         passphrase: Some(passphrase.clone()),
@@ -146,12 +164,12 @@ async fn integration_account_manager() -> Result<()> {
 
     let reader = Cursor::new(&mut archive_buffer);
     let (targets, _) =
-        AccountBackup::restore_archive_buffer(reader, options, true)?;
+        AccountBackup::restore_archive_buffer(reader, options, true).await?;
 
     provider.restore_archive(&targets).await?;
 
     // Remove the account
-    user.delete_account()?;
+    user.delete_account().await?;
 
     // Restore when not signed in - the account must not exist,
     // equivalent to importing an account
@@ -161,7 +179,7 @@ async fn integration_account_manager() -> Result<()> {
         files_dir: Some(ExtractFilesLocation::Path(files_dir)),
     };
     let reader = Cursor::new(&mut archive_buffer);
-    AccountBackup::restore_archive_buffer(reader, options, false)?;
+    AccountBackup::restore_archive_buffer(reader, options, false).await?;
 
     // Reset the cache dir so we don't interfere
     // with other tests

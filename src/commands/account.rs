@@ -11,6 +11,7 @@ use sos_sdk::{
         ExtractFilesLocation, RestoreOptions,
     },
     storage::StorageDirs,
+    vfs,
 };
 
 use crate::{
@@ -186,7 +187,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             new_account(name, folder_name).await?;
         }
         Command::List { verbose } => {
-            list_accounts(verbose)?;
+            list_accounts(verbose).await?;
         }
         Command::Info {
             account,
@@ -249,7 +250,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 let contacts = owner
                     .contacts_folder()
                     .ok_or_else(|| Error::NoContactsFolder)?;
-                owner.open_folder(&contacts)?;
+                owner.open_folder(&contacts).await?;
                 current
             };
 
@@ -259,7 +260,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     tracing::info!(target: TARGET, "contacts exported ✓");
                     if let Some(folder) = original_folder {
                         let mut owner = user.write().await;
-                        owner.open_folder(&folder)?;
+                        owner.open_folder(&folder).await?;
                     }
                 }
                 ContactsCommand::Import { input } => {
@@ -267,7 +268,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     tracing::info!(target: TARGET, "contacts imported ✓");
                     if let Some(folder) = original_folder {
                         let mut owner = user.write().await;
-                        owner.open_folder(&folder)?;
+                        owner.open_folder(&folder).await?;
                     }
                 }
             }
@@ -281,7 +282,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         } => {
             let user = resolve_user(account.as_ref(), factory, true).await?;
             let owner = user.read().await;
-            let statistics = owner.statistics();
+            let statistics = owner.statistics().await;
 
             if json {
                 serde_json::to_writer_pretty(
@@ -338,7 +339,8 @@ async fn account_info(
     json: bool,
 ) -> Result<()> {
     let user =
-        resolve_user(account.as_ref(), ProviderFactory::Local, false).await?;
+        resolve_user(account.as_ref(), ProviderFactory::Local(None), false)
+            .await?;
     let owner = user.read().await;
     let data = owner.account_data()?;
 
@@ -367,27 +369,30 @@ async fn account_backup(
         .await
         .ok_or_else(|| Error::NoAccountFound)?;
 
-    if !force && output.exists() {
+    if !force && vfs::try_exists(&output).await? {
         return Err(Error::FileExists(output));
     }
 
-    let account = find_account(&account)?
+    let account = find_account(&account)
+        .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
-    AccountBackup::export_archive_file(&output, account.address())?;
+    AccountBackup::export_archive_file(&output, account.address()).await?;
     Ok(())
 }
 
 /// Restore from a zip archive.
 async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
-    if !input.exists() || !input.is_file() {
+    if !vfs::try_exists(&input).await?
+        || !vfs::metadata(&input).await?.is_file()
+    {
         return Err(Error::NotFile(input));
     }
 
-    let reader = std::fs::File::open(&input)?;
+    let reader = vfs::File::open(&input).await?;
     let inventory: Inventory =
-        AccountBackup::restore_archive_inventory(reader)?;
+        AccountBackup::restore_archive_inventory(reader).await?;
     let account_ref = AccountRef::Address(inventory.manifest.address);
-    let account = find_account(&account_ref)?;
+    let account = find_account(&account_ref).await?;
 
     let (provider, passphrase) = if let Some(account) = account {
         let confirmed = read_flag(Some(
@@ -398,7 +403,8 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         }
 
         let account = AccountRef::Name(account.label().to_owned());
-        let (owner, _) = sign_in(&account, ProviderFactory::Local).await?;
+        let (owner, _) =
+            sign_in(&account, ProviderFactory::Local(None)).await?;
         (Some(owner.storage), None)
     } else {
         (None, None)
@@ -411,13 +417,13 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         passphrase,
         files_dir: Some(ExtractFilesLocation::Path(files_dir)),
     };
-    let reader = std::fs::File::open(&input)?;
-
+    let reader = vfs::File::open(&input).await?;
     let (targets, account) = AccountBackup::restore_archive_buffer(
         reader,
         options,
         provider.is_some(),
-    )?;
+    )
+    .await?;
 
     if let Some(mut provider) = provider {
         provider.restore_archive(&targets).await?;
@@ -434,7 +440,7 @@ async fn account_rename(
 ) -> Result<()> {
     let user = resolve_user(account.as_ref(), factory, false).await?;
     let mut owner = user.write().await;
-    owner.user.rename_account(name)?;
+    owner.user.rename_account(name).await?;
     Ok(())
 }
 
@@ -477,7 +483,7 @@ async fn account_delete(
         owner.user.account().label(),
     );
     let result = if read_flag(Some(&prompt))? {
-        owner.delete_account()?;
+        owner.delete_account().await?;
         true
     } else {
         false
@@ -492,7 +498,7 @@ async fn migrate_export(
     output: PathBuf,
     force: bool,
 ) -> Result<bool> {
-    if !force && output.exists() {
+    if !force && vfs::try_exists(&output).await? {
         return Err(Error::FileExists(output));
     }
 
@@ -503,7 +509,7 @@ async fn migrate_export(
     );
 
     let result = if read_flag(Some(&prompt))? {
-        owner.export_unsafe_archive(output)?;
+        owner.export_unsafe_archive(output).await?;
         true
     } else {
         false
@@ -535,7 +541,7 @@ async fn contacts_export(
     output: PathBuf,
     force: bool,
 ) -> Result<()> {
-    if !force && output.exists() {
+    if !force && vfs::try_exists(&output).await? {
         return Err(Error::FileExists(output));
     }
     let mut owner = user.write().await;
@@ -546,7 +552,7 @@ async fn contacts_export(
 /// Import contacts from a vCard.
 async fn contacts_import(user: Owner, input: PathBuf) -> Result<()> {
     let mut owner = user.write().await;
-    let content = std::fs::read_to_string(&input)?;
+    let content = vfs::read_to_string(&input).await?;
     owner.import_vcard(&content, |_| {}).await?;
     Ok(())
 }

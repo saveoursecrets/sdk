@@ -16,6 +16,7 @@ use sos_sdk::{
         },
         Summary, VaultId,
     },
+    vfs,
 };
 
 use crate::client::{user::UserStorage, Error, Result};
@@ -51,7 +52,7 @@ pub struct FileStorageResult {
 
 impl UserStorage {
     /// Encrypt a file and move it to the external file storage location.
-    pub fn encrypt_file_storage<P: AsRef<Path>>(
+    pub async fn encrypt_file_storage<P: AsRef<Path>>(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
@@ -60,7 +61,8 @@ impl UserStorage {
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
             self.user.identity().keeper(),
-        )?;
+        )
+        .await?;
 
         // Encrypt and write to disc
         Ok(FileStorage::encrypt_file_storage(
@@ -69,11 +71,12 @@ impl UserStorage {
             self.user.identity().address().to_string(),
             vault_id.to_string(),
             secret_id.to_string(),
-        )?)
+        )
+        .await?)
     }
 
     /// Decrypt a file in the storage location and return the buffer.
-    pub fn decrypt_file_storage(
+    pub async fn decrypt_file_storage(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
@@ -82,7 +85,8 @@ impl UserStorage {
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
             self.user.identity().keeper(),
-        )?;
+        )
+        .await?;
 
         Ok(FileStorage::decrypt_file_storage(
             &password,
@@ -90,7 +94,8 @@ impl UserStorage {
             vault_id.to_string(),
             secret_id.to_string(),
             file_name,
-        )?)
+        )
+        .await?)
     }
 
     /// Expected location for the directory containing all the
@@ -126,8 +131,8 @@ impl UserStorage {
         summary: &Summary,
     ) -> Result<()> {
         let folder_files = self.file_folder_location(summary.id())?;
-        if folder_files.exists() {
-            std::fs::remove_dir_all(&folder_files)?;
+        if vfs::try_exists(&folder_files).await? {
+            vfs::remove_dir_all(&folder_files).await?;
         }
         Ok(())
     }
@@ -233,14 +238,14 @@ impl UserStorage {
 
         for checksum in checksums {
             let file_name = hex::encode(checksum);
-            self.delete_file(summary.id(), id, &file_name)?;
+            self.delete_file(summary.id(), id, &file_name).await?;
         }
 
         Ok(())
     }
 
     /// Delete a file from the storage location.
-    pub(crate) fn delete_file(
+    pub(crate) async fn delete_file(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
@@ -250,16 +255,16 @@ impl UserStorage {
         let secret_path = vault_path.join(secret_id.to_string());
         let path = secret_path.join(file_name);
 
-        std::fs::remove_file(path)?;
+        vfs::remove_file(path).await?;
 
         // Prune empty directories
         let secret_dir_is_empty = secret_path.read_dir()?.next().is_none();
         if secret_dir_is_empty {
-            std::fs::remove_dir(secret_path)?;
+            vfs::remove_dir(secret_path).await?;
         }
         let vault_dir_is_empty = vault_path.read_dir()?.next().is_none();
         if vault_dir_is_empty {
-            std::fs::remove_dir(vault_path)?;
+            vfs::remove_dir(vault_path).await?;
         }
 
         Ok(())
@@ -293,14 +298,15 @@ impl UserStorage {
                     old_secret_id,
                     new_secret_id,
                     &file_name,
-                )?;
+                )
+                .await?;
             }
         }
         Ok(())
     }
 
     /// Move the encrypted file for external file storage.
-    pub(crate) fn move_file(
+    pub(crate) async fn move_file(
         &self,
         old_vault_id: &VaultId,
         new_vault_id: &VaultId,
@@ -319,22 +325,22 @@ impl UserStorage {
             .join(file_name);
 
         if let Some(parent) = new_path.parent() {
-            if !parent.exists() {
-                std::fs::create_dir_all(parent)?;
+            if !vfs::try_exists(parent).await? {
+                vfs::create_dir_all(parent).await?;
             }
         }
 
-        std::fs::rename(old_path, new_path)?;
+        vfs::rename(old_path, new_path).await?;
 
         // Prune empty directories
         let secret_dir_is_empty =
             old_secret_path.read_dir()?.next().is_none();
         if secret_dir_is_empty {
-            std::fs::remove_dir(old_secret_path)?;
+            vfs::remove_dir(old_secret_path).await?;
         }
         let vault_dir_is_empty = old_vault_path.read_dir()?.next().is_none();
         if vault_dir_is_empty {
-            std::fs::remove_dir(old_vault_path)?;
+            vfs::remove_dir(old_vault_path).await?;
         }
 
         Ok(())
@@ -356,11 +362,9 @@ impl UserStorage {
             sources.unwrap_or_else(|| get_file_sources(&secret_data.secret));
         if !files.is_empty() {
             for source in files {
-                let encrypted_file = self.encrypt_file_storage(
-                    summary.id(),
-                    id,
-                    &source.path,
-                )?;
+                let encrypted_file = self
+                    .encrypt_file_storage(summary.id(), id, &source.path)
+                    .await?;
                 results.push(FileStorageResult {
                     source,
                     encrypted_file,

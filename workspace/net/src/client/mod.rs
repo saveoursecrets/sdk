@@ -4,7 +4,6 @@
 mod changes_listener;
 pub mod net;
 pub mod provider;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod user;
 
 mod error;

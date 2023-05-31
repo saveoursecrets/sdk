@@ -1,13 +1,16 @@
 use axum::http::StatusCode;
 use sos_sdk::{
-    audit::{AuditData, AuditEvent},
     commit::{CommitHash, CommitProof, Comparison},
-    constants::{WAL_LOAD, WAL_PATCH, WAL_SAVE, WAL_STATUS},
+    constants::{
+        EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
+    },
     decode,
-    events::{ChangeEvent, ChangeNotification, EventKind, SyncEvent},
+    events::{
+        AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
+        EventKind, WriteEvent,
+    },
     patch::Patch,
     rpc::{RequestMessage, ResponseMessage, Service},
-    wal::WalProvider,
 };
 use web3_address::ethereum::Address;
 
@@ -30,16 +33,16 @@ enum PatchResult {
     ),
 }
 
-/// WAL management service.
+/// Event log management service.
 ///
-/// * `Wal.load`: Load the WAL for a vault.
-/// * `Wal.patch`: Apply a patch to the WAL for a vault.
-/// * `Wal.save`: Save a WAL buffer.
+/// * `Events.load`: Load the events for a vault.
+/// * `Events.patch`: Apply a patch to the event log for a vault.
+/// * `Events.save`: Save an event log buffer.
 ///
-pub struct WalService;
+pub struct EventLogService;
 
 #[async_trait]
-impl Service for WalService {
+impl Service for EventLogService {
     type State = PrivateState;
 
     async fn handle<'a>(
@@ -50,7 +53,7 @@ impl Service for WalService {
         let (caller, state) = state;
 
         match request.method() {
-            WAL_LOAD => {
+            EVENT_LOG_LOAD => {
                 let (vault_id, commit_proof) =
                     request.parameters::<(Uuid, Option<CommitProof>)>()?;
 
@@ -58,7 +61,7 @@ impl Service for WalService {
                 let (exists, _) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), &vault_id)
+                    .event_log_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
                 drop(reader);
@@ -69,26 +72,28 @@ impl Service for WalService {
 
                 let reader = state.read().await;
 
-                let wal = reader
+                let event_log = reader
                     .backend
-                    .wal_read(caller.address(), &vault_id)
+                    .event_log_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
-                let proof = wal.tree().head().map_err(Box::from)?;
+                let proof = event_log.tree().head().map_err(Box::from)?;
 
                 tracing::debug!(root = %proof.root_hex(),
-                    "get_wal server root");
+                    "get_event_log server root");
 
                 // Client is asking for data from a specific commit hash
                 let result = if let Some(proof) = commit_proof {
                     //let proof: CommitProof = proof.into();
 
                     tracing::debug!(root = %proof.root_hex(),
-                        "get_wal client root");
+                        "get_event_log client root");
 
-                    let comparison =
-                        wal.tree().compare(&proof).map_err(Box::from)?;
+                    let comparison = event_log
+                        .tree()
+                        .compare(&proof)
+                        .map_err(Box::from)?;
 
                     match comparison {
                         Comparison::Equal => {
@@ -97,8 +102,10 @@ impl Service for WalService {
                         Comparison::Contains(_, mut leaves) => {
                             if leaves.len() == 1 {
                                 let leaf = leaves.remove(0);
-                                if let Some(partial) =
-                                    wal.diff(leaf).map_err(Box::from)?
+                                if let Some(partial) = event_log
+                                    .diff(leaf)
+                                    .await
+                                    .map_err(Box::from)?
                                 {
                                     Ok((StatusCode::OK, partial))
                                 // Could not find a record corresponding
@@ -115,11 +122,11 @@ impl Service for WalService {
                             Ok((StatusCode::CONFLICT, vec![]))
                         }
                     }
-                // Otherwise get the entire WAL buffer
+                // Otherwise get the entire event log buffer
                 } else if let Ok(buffer) = reader
                     .backend
                     .handler()
-                    .get_wal(caller.address(), &vault_id)
+                    .get_event_log(caller.address(), &vault_id)
                     .await
                 {
                     Ok((StatusCode::OK, buffer))
@@ -134,7 +141,7 @@ impl Service for WalService {
                         if status == StatusCode::OK {
                             let mut writer = state.write().await;
                             let log = AuditEvent::new(
-                                EventKind::ReadWal,
+                                EventKind::ReadEventLog,
                                 caller.address,
                                 Some(AuditData::Vault(vault_id)),
                             );
@@ -154,7 +161,7 @@ impl Service for WalService {
                     Err(status) => Ok((status, request.id()).into()),
                 }
             }
-            WAL_STATUS => {
+            EVENT_LOG_STATUS => {
                 let (vault_id, commit_proof) =
                     request.parameters::<(Uuid, Option<CommitProof>)>()?;
 
@@ -163,7 +170,7 @@ impl Service for WalService {
                 let (exists, _) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), &vault_id)
+                    .event_log_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -171,16 +178,19 @@ impl Service for WalService {
                     return Ok((StatusCode::NOT_FOUND, request.id()).into());
                 }
 
-                let wal = reader
+                let event_log = reader
                     .backend
-                    .wal_read(caller.address(), &vault_id)
+                    .event_log_read(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
-                let proof = wal.tree().head().map_err(Box::from)?;
+                let proof = event_log.tree().head().map_err(Box::from)?;
 
                 let match_proof = if let Some(client_proof) = commit_proof {
-                    wal.tree().contains(&client_proof).map_err(Box::from)?
+                    event_log
+                        .tree()
+                        .contains(&client_proof)
+                        .map_err(Box::from)?
                 } else {
                     None
                 };
@@ -189,7 +199,7 @@ impl Service for WalService {
                     (request.id(), (proof, match_proof)).try_into()?;
                 Ok(reply)
             }
-            WAL_PATCH => {
+            EVENT_LOG_PATCH => {
                 let (vault_id, commit_proof) =
                     request.parameters::<(Uuid, CommitProof)>()?;
 
@@ -197,7 +207,7 @@ impl Service for WalService {
                 let (exists, _) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), &vault_id)
+                    .event_log_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
                 drop(reader);
@@ -208,13 +218,13 @@ impl Service for WalService {
                 let result: sos_sdk::Result<PatchResult> = {
                     let mut writer = state.write().await;
 
-                    let wal = writer
+                    let event_log = writer
                         .backend
-                        .wal_write(caller.address(), &vault_id)
+                        .event_log_write(caller.address(), &vault_id)
                         .await
                         .map_err(Box::from)?;
 
-                    let comparison = wal
+                    let comparison = event_log
                         .tree()
                         .compare(&commit_proof)
                         .map_err(Box::from)?;
@@ -223,7 +233,9 @@ impl Service for WalService {
                         Comparison::Equal => {
                             // TODO: |_| StatusCode::BAD_REQUEST
                             let patch: Patch<'static> =
-                                decode(request.body()).map_err(Box::from)?;
+                                decode(request.body())
+                                    .await
+                                    .map_err(Box::from)?;
 
                             let change_set = patch.0;
 
@@ -232,7 +244,7 @@ impl Service for WalService {
                             // as well so summary listings are kept up to date
                             let vault_name =
                                 change_set.iter().find_map(|event| {
-                                    if let SyncEvent::SetVaultName(name) =
+                                    if let WriteEvent::SetVaultName(name) =
                                         event
                                     {
                                         Some(name.to_string())
@@ -241,40 +253,45 @@ impl Service for WalService {
                                     }
                                 });
 
+                            // Changes events for the SSE channel
+                            let mut change_events: Vec<ChangeEvent> =
+                                Vec::new();
+                            for event in change_set.iter() {
+                                let event =
+                                    ChangeEvent::try_from_write_event(event)
+                                        .await;
+                                if event.is_ok() {
+                                    change_events.push(event?);
+                                }
+                            }
+
                             // Audit log events
-                            let audit_logs = change_set
+                            let audit_logs: Vec<AuditEvent> = change_set
                                 .iter()
                                 .map(|event| {
-                                    AuditEvent::from_sync_event(
-                                        event,
-                                        caller.address,
-                                        vault_id,
-                                    )
+                                    let event = Event::Write(
+                                        vault_id.clone(),
+                                        event.clone(),
+                                    );
+                                    (caller.address(), &event).into()
                                 })
-                                .collect::<Vec<_>>();
+                                .collect();
 
-                            // Changes events for the SSE channel
-                            let change_events = change_set
-                                .iter()
-                                .filter_map(|event| {
-                                    ChangeEvent::from_sync_event(event)
-                                })
-                                .collect::<Vec<_>>();
-
-                            // Changes to apply to the WAL log
+                            // Changes to apply to the event log
                             let mut changes = Vec::new();
                             for event in change_set {
                                 changes.push(event);
                             }
 
-                            // Apply the change set of WAL events to the log
-                            let commits = wal
+                            // Apply the change set of event log events to the log
+                            let commits = event_log
                                 .apply(changes, None)
+                                .await
                                 .map_err(Box::from)?;
 
                             // Get a new commit proof for the last leaf hash
                             let proof =
-                                wal.tree().head().map_err(Box::from)?;
+                                event_log.tree().head().map_err(Box::from)?;
 
                             Ok(PatchResult::Success(
                                 caller.address,
@@ -287,10 +304,10 @@ impl Service for WalService {
                         }
                         Comparison::Contains(indices, _leaves) => {
                             let proof =
-                                wal.tree().head().map_err(Box::from)?;
-                            // Prepare the proof that this WAL contains the
+                                event_log.tree().head().map_err(Box::from)?;
+                            // Prepare the proof that this event log contains the
                             // matched leaf node
-                            let match_proof = wal
+                            let match_proof = event_log
                                 .tree()
                                 .proof(&indices)
                                 .map_err(Box::from)?;
@@ -301,7 +318,7 @@ impl Service for WalService {
                         }
                         Comparison::Unknown => {
                             let proof =
-                                wal.tree().head().map_err(Box::from)?;
+                                event_log.tree().head().map_err(Box::from)?;
                             Ok(PatchResult::Conflict(proof, None))
                         }
                     }
@@ -359,7 +376,7 @@ impl Service for WalService {
                         .try_into()?),
                 }
             }
-            WAL_SAVE => {
+            EVENT_LOG_SAVE => {
                 let (vault_id, commit_proof) =
                     request.parameters::<(Uuid, CommitProof)>()?;
 
@@ -367,7 +384,7 @@ impl Service for WalService {
                 let (exists, _) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), &vault_id)
+                    .event_log_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
                 drop(reader);
@@ -380,7 +397,7 @@ impl Service for WalService {
                 let server_proof = writer
                     .backend
                     .handler_mut()
-                    .replace_wal(
+                    .replace_event_log(
                         caller.address(),
                         &vault_id,
                         commit_proof.root,

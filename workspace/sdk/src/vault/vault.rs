@@ -1,15 +1,18 @@
 use rs_merkle::{algorithms::Sha256, Hasher};
 use serde::{Deserialize, Serialize};
 
+use async_trait::async_trait;
 use binary_stream::{
-    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-    Endian, FileStream, ReadStream, SeekStream, SliceStream, WriteStream,
+    tokio::{BinaryReader, Decode},
+    Endian,
 };
+
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 use bitflags::bitflags;
 use secrecy::{ExposeSecret, SecretString};
 use std::{
-    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, fs::File,
+    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, io::Cursor,
     path::Path, str::FromStr,
 };
 use urn::Urn;
@@ -17,17 +20,19 @@ use uuid::Uuid;
 
 use crate::{
     commit::CommitHash,
-    constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY, VAULT_VERSION},
+    constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY},
     crypto::{
         aesgcm256,
-        secret_key::{SecretKey, Seed, SEED_SIZE},
-        xchacha20poly1305, AeadPack, Algorithm, Nonce, ALGORITHMS,
+        secret_key::{SecretKey, Seed},
+        xchacha20poly1305, AeadPack, Algorithm, Nonce,
     },
     encode,
-    events::SyncEvent,
+    encoding::v1::VERSION,
+    events::{ReadEvent, WriteEvent},
     formats::FileIdentity,
     passwd::diceware::generate_passphrase,
     vault::secret::SecretId,
+    vfs::File,
     Error, Result, Timestamp,
 };
 
@@ -128,10 +133,10 @@ impl VaultFlags {
 #[serde(rename_all = "camelCase")]
 pub struct VaultMeta {
     /// Date created timestamp.
-    date_created: Timestamp,
+    pub(crate) date_created: Timestamp,
     /// Private human-friendly description of the vault.
     #[serde(skip_serializing_if = "String::is_empty")]
-    label: String,
+    pub(crate) label: String,
 }
 
 impl VaultMeta {
@@ -148,23 +153,6 @@ impl VaultMeta {
     /// Date this vault was initialized.
     pub fn date_created(&self) -> &Timestamp {
         &self.date_created
-    }
-}
-
-impl Encode for VaultMeta {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        self.date_created.encode(&mut *writer)?;
-        writer.write_string(&self.label)?;
-        Ok(())
-    }
-}
-
-impl Decode for VaultMeta {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let mut date_created: Timestamp = Default::default();
-        date_created.decode(&mut *reader)?;
-        self.label = reader.read_string()?;
-        Ok(())
     }
 }
 
@@ -202,65 +190,9 @@ impl FromStr for VaultRef {
 #[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct VaultEntry(pub AeadPack, pub AeadPack);
 
-impl Encode for VaultEntry {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        self.0.encode(&mut *writer)?;
-        self.1.encode(&mut *writer)?;
-        Ok(())
-    }
-}
-
-impl Decode for VaultEntry {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let mut meta: AeadPack = Default::default();
-        meta.decode(&mut *reader)?;
-        let mut secret: AeadPack = Default::default();
-        secret.decode(&mut *reader)?;
-        *self = VaultEntry(meta, secret);
-        Ok(())
-    }
-}
-
 /// Type to represent an encrypted secret with an associated commit hash.
 #[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct VaultCommit(pub CommitHash, pub VaultEntry);
-
-impl Encode for VaultCommit {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        writer.write_bytes(self.0.as_ref())?;
-
-        let size_pos = writer.tell()?;
-        writer.write_u32(0)?;
-
-        self.1.encode(&mut *writer)?;
-
-        // Encode the data length for lazy iteration
-        let row_pos = writer.tell()?;
-        let row_len = row_pos - (size_pos + 4);
-        writer.seek(size_pos)?;
-        writer.write_u32(row_len as u32)?;
-        writer.seek(row_pos)?;
-
-        Ok(())
-    }
-}
-
-impl Decode for VaultCommit {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let commit: [u8; 32] =
-            reader.read_bytes(32)?.as_slice().try_into()?;
-        let commit = CommitHash(commit);
-
-        // Read in the length of the data blob
-        let _ = reader.read_u32()?;
-
-        let mut group: VaultEntry = Default::default();
-        group.decode(&mut *reader)?;
-        self.0 = commit;
-        self.1 = group;
-        Ok(())
-    }
-}
 
 /// Trait that defines the operations on an encrypted vault.
 ///
@@ -270,96 +202,76 @@ impl Decode for VaultCommit {
 /// Use `Cow` smart pointers because when we are reading
 /// from an in-memory `Vault` we can return references whereas
 /// other containers such as file access would return owned data.
+///
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait VaultAccess {
     /// Get the vault summary.
-    fn summary(&self) -> Result<Summary>;
+    async fn summary(&self) -> Result<Summary>;
 
     /// Get the name of a vault.
-    fn vault_name(&self) -> Result<Cow<'_, str>>;
+    async fn vault_name(&self) -> Result<Cow<'_, str>>;
 
     /// Set the name of a vault.
-    fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>>;
+    async fn set_vault_name(
+        &mut self,
+        name: String,
+    ) -> Result<WriteEvent<'_>>;
 
     /// Set the vault meta data.
-    fn set_vault_meta(
+    async fn set_vault_meta(
         &mut self,
         meta_data: Option<AeadPack>,
-    ) -> Result<SyncEvent<'_>>;
+    ) -> Result<WriteEvent<'_>>;
 
     /// Add an encrypted secret to the vault.
-    fn create(
+    async fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<SyncEvent<'_>>;
+    ) -> Result<WriteEvent<'_>>;
 
     /// Insert an encrypted secret to the vault with the given id.
     ///
     /// Used internally to support consistent identifiers when
     /// mirroring in the `Gatekeeper` implementation.
     #[doc(hidden)]
-    fn insert(
+    async fn insert(
         &mut self,
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<SyncEvent<'_>>;
+    ) -> Result<WriteEvent<'_>>;
 
     /// Get an encrypted secret from the vault.
-    fn read<'a>(
+    async fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, SyncEvent<'_>)>;
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)>;
 
     /// Update an encrypted secret in the vault.
-    fn update(
+    async fn update(
         &mut self,
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<SyncEvent<'_>>>;
+    ) -> Result<Option<WriteEvent<'_>>>;
 
     /// Remove an encrypted secret from the vault.
-    fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent<'_>>>;
+    async fn delete(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent<'_>>>;
 }
 
 /// Authentication information.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Auth {
     /// Salt used to derive a secret key from the passphrase.
-    salt: Option<String>,
+    pub(crate) salt: Option<String>,
     /// Additional entropy to concatenate with the vault passphrase
     /// before deriving the secret key.
-    seed: Option<Seed>,
-}
-
-impl Encode for Auth {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        writer.write_bool(self.salt.is_some())?;
-        if let Some(salt) = &self.salt {
-            writer.write_string(salt)?;
-        }
-        writer.write_bool(self.seed.is_some())?;
-        if let Some(seed) = &self.seed {
-            writer.write_bytes(seed)?;
-        }
-        Ok(())
-    }
-}
-
-impl Decode for Auth {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let has_salt = reader.read_bool()?;
-        if has_salt {
-            self.salt = Some(reader.read_string()?);
-        }
-        let has_seed = reader.read_bool()?;
-        if has_seed {
-            self.seed =
-                Some(reader.read_bytes(SEED_SIZE)?.as_slice().try_into()?);
-        }
-        Ok(())
-    }
+    pub(crate) seed: Option<Seed>,
 }
 
 /// Summary holding basic file information such as version,
@@ -367,16 +279,16 @@ impl Decode for Auth {
 #[derive(Serialize, Deserialize, Debug, Hash, Eq, PartialEq, Clone)]
 pub struct Summary {
     /// Encoding version.
-    version: u16,
+    pub(crate) version: u16,
     /// Unique identifier for the vault.
-    id: VaultId,
+    pub(crate) id: VaultId,
     /// Vault name.
-    name: String,
+    pub(crate) name: String,
     /// Encryption algorithm.
     #[serde(skip)]
-    algorithm: Algorithm,
+    pub(crate) algorithm: Algorithm,
     /// Flags for the vault.
-    flags: VaultFlags,
+    pub(crate) flags: VaultFlags,
 }
 
 impl Ord for Summary {
@@ -404,7 +316,7 @@ impl fmt::Display for Summary {
 impl Default for Summary {
     fn default() -> Self {
         Self {
-            version: VAULT_VERSION,
+            version: VERSION,
             algorithm: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
@@ -422,7 +334,7 @@ impl Summary {
         flags: VaultFlags,
     ) -> Self {
         Self {
-            version: VAULT_VERSION,
+            version: VERSION,
             algorithm,
             id,
             name,
@@ -466,44 +378,12 @@ impl Summary {
     }
 }
 
-impl Encode for Summary {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        writer.write_u16(self.version)?;
-        self.algorithm.encode(&mut *writer)?;
-        writer.write_bytes(self.id.as_bytes())?;
-        writer.write_string(&self.name)?;
-        writer.write_u64(self.flags.bits())?;
-        Ok(())
-    }
-}
-
-impl Decode for Summary {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        self.version = reader.read_u16()?;
-        self.algorithm.decode(&mut *reader)?;
-
-        if !ALGORITHMS.contains(self.algorithm.as_ref()) {
-            return Err(BinaryError::Boxed(Box::from(
-                Error::UnknownAlgorithm(self.algorithm.into()),
-            )));
-        }
-
-        let uuid: [u8; 16] = reader.read_bytes(16)?.as_slice().try_into()?;
-        self.id = Uuid::from_bytes(uuid);
-        self.name = reader.read_string()?;
-        self.flags = VaultFlags::from_bits(reader.read_u64()?)
-            .ok_or(Error::InvalidVaultFlags)
-            .map_err(Box::from)?;
-        Ok(())
-    }
-}
-
 /// File header, identifier and version information
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Header {
-    summary: Summary,
-    meta: Option<AeadPack>,
-    auth: Auth,
+    pub(crate) summary: Summary,
+    pub(crate) meta: Option<AeadPack>,
+    pub(crate) auth: Auth,
 }
 
 impl Header {
@@ -519,6 +399,11 @@ impl Header {
             meta: None,
             auth: Default::default(),
         }
+    }
+
+    /// Get the vault identifier.
+    pub fn id(&self) -> &VaultId {
+        self.summary.id()
     }
 
     /// Clear an existing salt.
@@ -551,73 +436,83 @@ impl Header {
 
     /// Read the content offset for a vault file verifying
     /// the identity bytes first.
-    pub fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<u64> {
-        let mut stream = FileStream(File::open(path.as_ref())?);
-        Header::read_content_offset_stream(&mut stream)
+    pub async fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<u64> {
+        let mut stream = File::open(path.as_ref()).await?;
+        Header::read_content_offset_stream(&mut stream).await
     }
 
     /// Read the content offset for a vault slice verifying
     /// the identity bytes first.
-    pub fn read_content_offset_slice(buffer: &[u8]) -> Result<u64> {
-        let mut stream = SliceStream::new(buffer);
-        Header::read_content_offset_stream(&mut stream)
+    pub async fn read_content_offset_slice(buffer: &[u8]) -> Result<u64> {
+        let mut stream = Cursor::new(buffer);
+        Header::read_content_offset_stream(&mut stream).await
     }
 
     /// Read the content offset for a stream verifying
     /// the identity bytes first.
-    pub fn read_content_offset_stream(
-        stream: &mut dyn ReadStream,
+    pub async fn read_content_offset_stream<
+        R: AsyncReadExt + AsyncSeek + Unpin + Send,
+    >(
+        stream: R,
     ) -> Result<u64> {
         let mut reader = BinaryReader::new(stream, Endian::Little);
-        let identity = reader.read_bytes(VAULT_IDENTITY.len())?;
+        let identity = reader.read_bytes(VAULT_IDENTITY.len()).await?;
         FileIdentity::read_slice(&identity, &VAULT_IDENTITY)?;
-        let header_len = reader.read_u32()? as u64;
+        let header_len = reader.read_u32().await? as u64;
         let content_offset = VAULT_IDENTITY.len() as u64 + 4 + header_len;
         Ok(content_offset)
     }
 
     /// Read the summary for a vault from a file.
-    pub fn read_summary_file<P: AsRef<Path>>(file: P) -> Result<Summary> {
-        let mut stream = FileStream(File::open(file.as_ref())?);
-        Header::read_summary_stream(&mut stream)
+    pub async fn read_summary_file<P: AsRef<Path>>(
+        file: P,
+    ) -> Result<Summary> {
+        let mut stream = File::open(file.as_ref()).await?;
+        Header::read_summary_stream(&mut stream).await
     }
 
     /// Read the summary for a slice of bytes.
-    pub fn read_summary_slice(buffer: &[u8]) -> Result<Summary> {
-        let mut stream = SliceStream::new(buffer);
-        Header::read_summary_stream(&mut stream)
+    pub async fn read_summary_slice(buffer: &[u8]) -> Result<Summary> {
+        let mut stream = Cursor::new(buffer);
+        Header::read_summary_stream(&mut stream).await
     }
 
     /// Read the summary from a stream.
-    fn read_summary_stream(stream: &mut impl ReadStream) -> Result<Summary> {
+    async fn read_summary_stream<
+        R: AsyncReadExt + AsyncSeek + Unpin + Send,
+    >(
+        stream: R,
+    ) -> Result<Summary> {
         let mut reader = BinaryReader::new(stream, Endian::Little);
 
         // Read magic identity bytes
-        FileIdentity::read_identity(&mut reader, &VAULT_IDENTITY)?;
+        FileIdentity::read_identity(&mut reader, &VAULT_IDENTITY).await?;
 
         // Read in the header length
-        let _ = reader.read_u32()?;
+        let _ = reader.read_u32().await?;
 
         // Read the summary
         let mut summary: Summary = Default::default();
-        summary.decode(&mut reader)?;
+        summary.decode(&mut reader).await?;
 
         Ok(summary)
     }
 
     /// Read the header for a vault from a file.
-    pub fn read_header_file<P: AsRef<Path>>(file: P) -> Result<Header> {
-        let mut stream = FileStream(File::open(file.as_ref())?);
-        Header::read_header_stream(&mut stream)
+    pub async fn read_header_file<P: AsRef<Path>>(file: P) -> Result<Header> {
+        let mut stream = File::open(file.as_ref()).await?;
+        Header::read_header_stream(&mut stream).await
     }
 
     /// Read the header from a stream.
-    pub(crate) fn read_header_stream(
-        stream: &mut impl ReadStream,
+    pub(crate) async fn read_header_stream<
+        R: AsyncReadExt + AsyncSeek + Unpin + Send,
+    >(
+        stream: R,
     ) -> Result<Header> {
         let mut reader = BinaryReader::new(stream, Endian::Little);
         let mut header: Header = Default::default();
-        header.decode(&mut reader)?;
+        header.decode(&mut reader).await?;
         Ok(header)
     }
 }
@@ -628,165 +523,17 @@ impl fmt::Display for Header {
     }
 }
 
-impl Encode for Header {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        FileIdentity::write_identity(&mut *writer, &VAULT_IDENTITY)
-            .map_err(Box::from)?;
-
-        let size_pos = writer.tell()?;
-        writer.write_u32(0)?;
-
-        self.summary.encode(&mut *writer)?;
-
-        writer.write_bool(self.meta.is_some())?;
-        if let Some(meta) = &self.meta {
-            meta.encode(&mut *writer)?;
-        }
-
-        self.auth.encode(&mut *writer)?;
-
-        // Backtrack to size_pos and write new length
-        let header_pos = writer.tell()?;
-        let header_len = header_pos - (size_pos + 4);
-
-        writer.seek(size_pos)?;
-        writer.write_u32(header_len as u32)?;
-        writer.seek(header_pos)?;
-
-        Ok(())
-    }
-}
-
-impl Decode for Header {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        FileIdentity::read_identity(&mut *reader, &VAULT_IDENTITY)
-            .map_err(Box::from)?;
-
-        // Read in the header length
-        let _ = reader.read_u32()?;
-
-        self.summary.decode(&mut *reader)?;
-
-        let has_meta = reader.read_bool()?;
-        if has_meta {
-            self.meta = Some(Default::default());
-            if let Some(meta) = self.meta.as_mut() {
-                meta.decode(&mut *reader)?;
-            }
-        }
-
-        self.auth.decode(&mut *reader)?;
-        Ok(())
-    }
-}
-
 /// The vault contents
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    data: HashMap<SecretId, VaultCommit>,
-}
-
-impl Contents {
-    /// Encode a single row into a serializer.
-    pub fn encode_row(
-        writer: &mut BinaryWriter,
-        key: &SecretId,
-        row: &VaultCommit,
-    ) -> BinaryResult<()> {
-        let size_pos = writer.tell()?;
-        writer.write_u32(0)?;
-
-        writer.write_bytes(key.as_bytes())?;
-        row.encode(&mut *writer)?;
-
-        // Backtrack to size_pos and write new length
-        let row_pos = writer.tell()?;
-        let row_len = row_pos - (size_pos + 4);
-        writer.seek(size_pos)?;
-        writer.write_u32(row_len as u32)?;
-        writer.seek(row_pos)?;
-
-        // Write out the row len at the end of the record too
-        // so we can support double ended iteration
-        writer.write_u32(row_len as u32)?;
-
-        Ok(())
-    }
-
-    /// Decode a single row from a deserializer.
-    pub fn decode_row(
-        reader: &mut BinaryReader,
-    ) -> BinaryResult<(SecretId, VaultCommit)> {
-        // Read in the row length
-        let _ = reader.read_u32()?;
-
-        let uuid: [u8; 16] = reader.read_bytes(16)?.as_slice().try_into()?;
-        let uuid = Uuid::from_bytes(uuid);
-
-        let mut row: VaultCommit = Default::default();
-        row.decode(&mut *reader)?;
-
-        // Read in the row length suffix
-        let _ = reader.read_u32()?;
-
-        Ok((uuid, row))
-    }
-}
-
-impl Encode for Contents {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        //ser.writer.write_u32(self.data.len() as u32)?;
-        for (key, row) in &self.data {
-            Contents::encode_row(writer, key, row)?;
-        }
-        Ok(())
-    }
-}
-
-impl Decode for Contents {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        //let length = de.reader.read_u32()?;
-
-        /*
-        for _ in 0..length {
-            let (uuid, value) = Contents::decode_row(de)?;
-            self.data.insert(uuid, value);
-        }
-        */
-
-        let mut pos = reader.tell()?;
-        let len = reader.len()?;
-        while pos < len {
-            let (uuid, value) = Contents::decode_row(reader)?;
-            self.data.insert(uuid, value);
-            pos = reader.tell()?;
-        }
-
-        Ok(())
-    }
+    pub(crate) data: HashMap<SecretId, VaultCommit>,
 }
 
 /// Vault file storage.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Vault {
-    header: Header,
-    contents: Contents,
-}
-
-impl Encode for Vault {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        self.header.encode(writer)?;
-        self.contents.encode(writer)?;
-        Ok(())
-    }
-}
-
-impl Decode for Vault {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        self.header.decode(reader)?;
-        self.contents.decode(reader)?;
-        Ok(())
-    }
+    pub(crate) header: Header,
+    pub(crate) contents: Contents,
 }
 
 impl Vault {
@@ -810,7 +557,7 @@ impl Vault {
     }
 
     /// Create a new vault and encode it into a buffer.
-    pub fn new_buffer(
+    pub async fn new_buffer(
         name: Option<String>,
         passphrase: Option<SecretString>,
         seed: Option<Seed>,
@@ -826,13 +573,13 @@ impl Vault {
         if let Some(name) = name {
             vault.set_name(name);
         }
-        vault.initialize(passphrase.clone(), seed)?;
-        let buffer = encode(&vault)?;
+        vault.initialize(passphrase.clone(), seed).await?;
+        let buffer = encode(&vault).await?;
         Ok((passphrase, vault, buffer))
     }
 
     /// Initialize the vault with the given label and password.
-    pub fn initialize(
+    pub async fn initialize(
         &mut self,
         password: SecretString,
         seed: Option<Seed>,
@@ -847,8 +594,8 @@ impl Vault {
             )?;
 
             let default_meta: VaultMeta = Default::default();
-            let meta_aead =
-                self.encrypt(&private_key, &encode(&default_meta)?)?;
+            let vault_meta = encode(&default_meta).await?;
+            let meta_aead = self.encrypt(&private_key, &vault_meta)?;
             self.header.set_meta(Some(meta_aead));
 
             // Store the salt and seed so we can generate the same
@@ -1066,44 +813,24 @@ impl Vault {
             .collect::<HashMap<_, _>>()
     }
 
-    /// Encode a vault to binary.
-    pub fn encode(
-        stream: &mut impl WriteStream,
-        vault: &Vault,
-    ) -> Result<()> {
-        let mut writer = BinaryWriter::new(stream, Endian::Little);
-        vault.encode(&mut writer)?;
+    /// Write this vault to a file.
+    pub async fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let mut stream = File::create(path).await?;
+        let buffer = encode(self).await?;
+        stream.write_all(&buffer).await?;
+        stream.flush().await?;
         Ok(())
     }
 
-    /// Decode a vault from binary.
-    pub fn decode(stream: &mut impl ReadStream) -> Result<Vault> {
-        let mut vault: Vault = Default::default();
-        let mut reader = BinaryReader::new(stream, Endian::Little);
-        vault.decode(&mut reader)?;
-        Ok(vault)
-    }
-
-    /// Read a vault from a file.
-    pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Vault> {
-        let mut stream = FileStream(File::open(path)?);
-        Vault::decode(&mut stream)
-    }
-
-    /// Write this vault to a file.
-    pub fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        let mut stream = FileStream(File::create(path)?);
-        Vault::encode(&mut stream, self)
-    }
-
-    /// Compute the hash of the encoded encrypted buffer for the meta and secret data.
-    pub fn commit_hash(
+    /// Compute the hash of the encoded encrypted buffer
+    /// for the meta and secret data.
+    pub async fn commit_hash(
         meta_aead: &AeadPack,
         secret_aead: &AeadPack,
     ) -> Result<(CommitHash, Vec<u8>)> {
         // Compute the hash of the encrypted and encoded bytes
-        let encoded_meta = encode(meta_aead)?;
-        let encoded_data = encode(secret_aead)?;
+        let encoded_meta = encode(meta_aead).await?;
+        let encoded_data = encode(secret_aead).await?;
         let mut hash_bytes =
             Vec::with_capacity(encoded_meta.len() + encoded_data.len());
         hash_bytes.extend_from_slice(&encoded_meta);
@@ -1132,79 +859,87 @@ impl IntoIterator for Vault {
     }
 }
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl VaultAccess for Vault {
-    fn summary(&self) -> Result<Summary> {
+    async fn summary(&self) -> Result<Summary> {
         Ok(self.header.summary.clone())
     }
 
-    fn vault_name(&self) -> Result<Cow<'_, str>> {
+    async fn vault_name(&self) -> Result<Cow<'_, str>> {
         Ok(Cow::Borrowed(self.name()))
     }
 
-    fn set_vault_name(&mut self, name: String) -> Result<SyncEvent<'_>> {
+    async fn set_vault_name(
+        &mut self,
+        name: String,
+    ) -> Result<WriteEvent<'_>> {
         self.set_name(name.clone());
-        Ok(SyncEvent::SetVaultName(Cow::Owned(name)))
+        Ok(WriteEvent::SetVaultName(Cow::Owned(name)))
     }
 
-    fn set_vault_meta(
+    async fn set_vault_meta(
         &mut self,
         meta_data: Option<AeadPack>,
-    ) -> Result<SyncEvent<'_>> {
+    ) -> Result<WriteEvent<'_>> {
         self.header.set_meta(meta_data);
         let meta = self.header.meta().cloned();
-        Ok(SyncEvent::SetVaultMeta(Cow::Owned(meta)))
+        Ok(WriteEvent::SetVaultMeta(Cow::Owned(meta)))
     }
 
-    fn create(
+    async fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<SyncEvent<'_>> {
+    ) -> Result<WriteEvent<'_>> {
         let id = Uuid::new_v4();
-        self.insert(id, commit, secret)
+        self.insert(id, commit, secret).await
     }
 
-    fn insert(
+    async fn insert(
         &mut self,
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<SyncEvent<'_>> {
+    ) -> Result<WriteEvent<'_>> {
         let value = self
             .contents
             .data
             .entry(id)
             .or_insert(VaultCommit(commit, secret));
-        Ok(SyncEvent::CreateSecret(id, Cow::Borrowed(value)))
+        Ok(WriteEvent::CreateSecret(id, Cow::Borrowed(value)))
     }
 
-    fn read<'a>(
+    async fn read<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, SyncEvent<'_>)> {
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
         let result = self.contents.data.get(id).map(Cow::Borrowed);
-        Ok((result, SyncEvent::ReadSecret(*id)))
+        Ok((result, ReadEvent::ReadSecret(*id)))
     }
 
-    fn update(
+    async fn update(
         &mut self,
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<SyncEvent<'_>>> {
+    ) -> Result<Option<WriteEvent<'_>>> {
+        let _vault_id = *self.id();
         if let Some(value) = self.contents.data.get_mut(id) {
             *value = VaultCommit(commit, secret);
-
-            Ok(Some(SyncEvent::UpdateSecret(*id, Cow::Borrowed(value))))
+            Ok(Some(WriteEvent::UpdateSecret(*id, Cow::Borrowed(value))))
         } else {
             Ok(None)
         }
     }
 
-    fn delete(&mut self, id: &SecretId) -> Result<Option<SyncEvent<'_>>> {
+    async fn delete(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent<'_>>> {
         let entry = self.contents.data.remove(id);
         if entry.is_some() {
-            Ok(Some(SyncEvent::DeleteSecret(*id)))
+            Ok(Some(WriteEvent::DeleteSecret(*id)))
         } else {
             Ok(None)
         }
@@ -1216,26 +951,22 @@ mod tests {
     use super::*;
     use crate::vault::secret::*;
 
-    use crate::{decode, test_utils::*};
+    use crate::{decode, encode, test_utils::*};
 
     use anyhow::Result;
-    use binary_stream::MemoryStream;
     use secrecy::ExposeSecret;
 
-    #[test]
-    fn encode_decode_empty_vault() -> Result<()> {
+    #[tokio::test]
+    async fn encode_decode_empty_vault() -> Result<()> {
         let vault = mock_vault();
-        let mut stream = MemoryStream::new();
-        Vault::encode(&mut stream, &vault)?;
-
-        stream.seek(0)?;
-        let decoded = Vault::decode(&mut stream)?;
+        let buffer = encode(&vault).await?;
+        let decoded = decode(&buffer).await?;
         assert_eq!(vault, decoded);
         Ok(())
     }
 
-    #[test]
-    fn encode_decode_secret_note() -> Result<()> {
+    #[tokio::test]
+    async fn encode_decode_secret_note() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let mut vault = mock_vault();
 
@@ -1249,16 +980,14 @@ mod tests {
                 &encryption_key,
                 secret_label,
                 secret_note,
-            )?;
+            )
+            .await?;
 
-        let mut stream = MemoryStream::new();
-        Vault::encode(&mut stream, &vault)?;
-
-        stream.seek(0)?;
-        let decoded = Vault::decode(&mut stream)?;
+        let buffer = encode(&vault).await?;
+        let decoded: Vault = decode(&buffer).await?;
         assert_eq!(vault, decoded);
 
-        let (row, _) = decoded.read(&secret_id)?;
+        let (row, _) = decoded.read(&secret_id).await?;
 
         let value = row.unwrap();
         let VaultCommit(_, VaultEntry(row_meta, row_secret)) = value.as_ref();
@@ -1266,8 +995,8 @@ mod tests {
         let row_meta = vault.decrypt(&encryption_key, row_meta)?;
         let row_secret = vault.decrypt(&encryption_key, row_secret)?;
 
-        let row_meta: SecretMeta = decode(&row_meta)?;
-        let row_secret: Secret = decode(&row_secret)?;
+        let row_meta: SecretMeta = decode(&row_meta).await?;
+        let row_secret: Secret = decode(&row_secret).await?;
 
         assert_eq!(secret_meta, row_meta);
         assert_eq!(secret_value, row_secret);
@@ -1289,18 +1018,10 @@ mod file_tests {
     use crate::{decode, test_utils::*};
     use anyhow::Result;
 
-    #[test]
-    fn decode_file() -> Result<()> {
-        let (temp, _, _) = mock_vault_file()?;
-        let _vault = Vault::read_file(temp.path())?;
-        temp.close()?;
-        Ok(())
-    }
-
-    #[test]
-    fn decode_buffer() -> Result<()> {
-        let (_temp, _, buffer) = mock_vault_file()?;
-        let _vault: Vault = decode(&buffer)?;
+    #[tokio::test]
+    async fn decode_buffer() -> Result<()> {
+        let (_temp, _, buffer) = mock_vault_file().await?;
+        let _vault: Vault = decode(&buffer).await?;
         Ok(())
     }
 }

@@ -5,6 +5,7 @@
 //!
 //! Used to move between different software providers.
 
+use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_sdk::vault::Vault;
 
@@ -17,12 +18,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Trait for implementations that can convert data
 /// from a third-party provider.
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait Convert {
     /// Input type for the conversion.
     type Input;
 
     /// Write the input secrets type to the specified vault.
-    fn convert(
+    async fn convert(
         &self,
         source: Self::Input,
         vault: Vault,

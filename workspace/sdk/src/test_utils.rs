@@ -3,7 +3,7 @@ use crate::{
     commit::CommitHash,
     crypto::secret_key::SecretKey,
     encode,
-    events::SyncEvent,
+    events::WriteEvent,
     passwd::diceware::generate_passphrase,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta},
@@ -36,7 +36,7 @@ pub fn mock_vault() -> Vault {
 }
 
 /// Generate a mock secret note.
-pub fn mock_secret_note(
+pub async fn mock_secret_note(
     label: &str,
     text: &str,
 ) -> Result<(SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
@@ -45,13 +45,13 @@ pub fn mock_secret_note(
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
-    let meta_bytes = encode(&secret_meta)?;
-    let secret_bytes = encode(&secret_value)?;
+    let meta_bytes = encode(&secret_meta).await?;
+    let secret_bytes = encode(&secret_value).await?;
     Ok((secret_meta, secret_value, meta_bytes, secret_bytes))
 }
 
 /// Generate a mock secret file.
-pub fn mock_secret_file(
+pub async fn mock_secret_file(
     label: &str,
     name: &str,
     mime: &str,
@@ -68,28 +68,30 @@ pub fn mock_secret_file(
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
-    let meta_bytes = encode(&secret_meta)?;
-    let secret_bytes = encode(&secret_value)?;
+    let meta_bytes = encode(&secret_meta).await?;
+    let secret_bytes = encode(&secret_value).await?;
     Ok((secret_meta, secret_value, meta_bytes, secret_bytes))
 }
 
 /// Generate a mock secret note and add it to a vault.
-pub fn mock_vault_note<'a>(
+pub async fn mock_vault_note<'a>(
     vault: &'a mut Vault,
     encryption_key: &SecretKey,
     secret_label: &str,
     secret_note: &str,
-) -> Result<(Uuid, CommitHash, SecretMeta, Secret, SyncEvent<'a>)> {
+) -> Result<(Uuid, CommitHash, SecretMeta, Secret, WriteEvent<'a>)> {
     let (secret_meta, secret_value, meta_bytes, secret_bytes) =
-        mock_secret_note(secret_label, secret_note)?;
+        mock_secret_note(secret_label, secret_note).await?;
 
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
-    let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
-    let event = vault.create(commit, VaultEntry(meta_aead, secret_aead))?;
+    let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead).await?;
+    let event = vault
+        .create(commit, VaultEntry(meta_aead, secret_aead))
+        .await?;
     let secret_id = match &event {
-        SyncEvent::CreateSecret(secret_id, _) => *secret_id,
+        WriteEvent::CreateSecret(secret_id, _) => *secret_id,
         _ => unreachable!(),
     };
 
@@ -97,85 +99,86 @@ pub fn mock_vault_note<'a>(
 }
 
 /// Generate a mock secret note and update a vault entry.
-pub fn mock_vault_note_update<'a>(
+pub async fn mock_vault_note_update<'a>(
     vault: &'a mut Vault,
     encryption_key: &SecretKey,
     id: &SecretId,
     secret_label: &str,
     secret_note: &str,
-) -> Result<(CommitHash, SecretMeta, Secret, Option<SyncEvent<'a>>)> {
+) -> Result<(CommitHash, SecretMeta, Secret, Option<WriteEvent<'a>>)> {
     let (secret_meta, secret_value, meta_bytes, secret_bytes) =
-        mock_secret_note(secret_label, secret_note)?;
+        mock_secret_note(secret_label, secret_note).await?;
 
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
-    let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
-    let event =
-        vault.update(id, commit, VaultEntry(meta_aead, secret_aead))?;
+    let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead).await?;
+    let event = vault
+        .update(id, commit, VaultEntry(meta_aead, secret_aead))
+        .await?;
     Ok((commit, secret_meta, secret_value, event))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 mod file {
     use crate::{
-        commit::CommitHash,
-        crypto::secret_key::SecretKey,
-        encode,
-        events::SyncEvent,
-        vault::Vault,
-        wal::{file::WalFile, WalProvider},
+        commit::CommitHash, crypto::secret_key::SecretKey, encode,
+        events::EventLogFile, events::WriteEvent, vault::Vault,
     };
     use tempfile::NamedTempFile;
 
     use super::*;
 
     /// Create a mock vault in a temp file.
-    pub fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)> {
+    pub async fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)>
+    {
         let mut temp = NamedTempFile::new()?;
         let vault = mock_vault();
-        let buffer = encode(&vault)?;
+        let buffer = encode(&vault).await?;
         temp.write_all(&buffer)?;
         Ok((temp, vault, buffer))
     }
 
-    /// Create a mock WAL in a temp file.
-    pub fn mock_wal_file(
-    ) -> Result<(NamedTempFile, WalFile, Vec<CommitHash>, SecretKey)> {
+    /// Create a mock event log in a temp file.
+    pub async fn mock_event_log_file(
+    ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>, SecretKey)>
+    {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (_, mut vault, buffer) = mock_vault_file()?;
+        let (_, mut vault, buffer) = mock_vault_file().await?;
 
         let temp = NamedTempFile::new()?;
-        let mut wal = WalFile::new(temp.path())?;
+        let mut event_log = EventLogFile::new(temp.path()).await?;
 
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = SyncEvent::CreateVault(Cow::Owned(buffer));
-        commits.push(wal.append_event(event)?);
+        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
+        commits.push(event_log.append_event(event).await?);
 
         // Create a secret
         let (secret_id, _, _, _, event) = mock_vault_note(
             &mut vault,
             &encryption_key,
-            "WAL Note",
-            "This a WAL note secret.",
-        )?;
-        commits.push(wal.append_event(event)?);
+            "event log Note",
+            "This a event log note secret.",
+        )
+        .await?;
+        commits.push(event_log.append_event(event).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
             &mut vault,
             &encryption_key,
             &secret_id,
-            "WAL Note Edited",
-            "This a WAL note secret that was edited.",
-        )?;
+            "event log Note Edited",
+            "This a event log note secret that was edited.",
+        )
+        .await?;
         if let Some(event) = event {
-            commits.push(wal.append_event(event)?);
+            commits.push(event_log.append_event(event).await?);
         }
 
-        Ok((temp, wal, commits, encryption_key))
+        Ok((temp, event_log, commits, encryption_key))
     }
 }
 

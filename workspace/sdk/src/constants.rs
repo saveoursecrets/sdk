@@ -6,13 +6,16 @@
 /// for the macos and ios platforms.
 pub const BUNDLE_ID: &str = "com.saveoursecrets";
 
+/// File name for audit logs.
+pub const AUDIT_FILE_NAME: &str = "audit.dat";
+
 /// Constants for file identity.
 mod identity {
     /// Audit log identity magic bytes (SOSA).
     pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 
     /// Write-ahead log identity magic bytes (SOSW).
-    pub const WAL_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
+    pub const EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
 
     /// Patch file identity magic bytes (SOSP).
     pub const PATCH_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
@@ -29,11 +32,11 @@ mod identity {
 
 /// Constants for file extensions.
 mod extensions {
-    /// File extension used for WAL files.
-    pub const WAL_EXT: &str = "wal";
+    /// File extension used for event log files.
+    pub const EVENT_LOG_EXT: &str = "sos";
 
-    /// File extension used when deleting WAL files.
-    pub const WAL_DELETED_EXT: &str = "wal.deleted";
+    /// File extension used when deleting event log files.
+    pub const EVENT_LOG_DELETED_EXT: &str = "sos.deleted";
 
     /// File extension used for vault files.
     pub const VAULT_EXT: &str = "vault";
@@ -53,9 +56,6 @@ mod headers {
 
 /// Constants for vaults.
 mod vault {
-    /// Vault version identifier.
-    pub const VAULT_VERSION: u16 = 0;
-
     /// Default public name for a vault.
     pub const DEFAULT_VAULT_NAME: &str = "Documents";
 
@@ -114,17 +114,17 @@ mod rpc {
     /// Vault delete method call.
     pub const VAULT_DELETE: &str = "Vault.delete";
 
-    /// WAL load method call.
-    pub const WAL_LOAD: &str = "Wal.load";
+    /// event log load method call.
+    pub const EVENT_LOG_LOAD: &str = "Events.load";
 
-    /// WAL status method call.
-    pub const WAL_STATUS: &str = "Wal.status";
+    /// event log status method call.
+    pub const EVENT_LOG_STATUS: &str = "Events.status";
 
-    /// WAL patch method call.
-    pub const WAL_PATCH: &str = "Wal.patch";
+    /// event log patch method call.
+    pub const EVENT_LOG_PATCH: &str = "Events.patch";
 
-    /// WAL save method call.
-    pub const WAL_SAVE: &str = "Wal.save";
+    /// event log save method call.
+    pub const EVENT_LOG_SAVE: &str = "Events.save";
 }
 
 /// Constants for directory names.

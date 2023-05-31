@@ -108,7 +108,7 @@ features = [
   "identify",
 ]
 
-[dependencies.libp2p-quic]
+[target.'cfg(not(target_arch="wasm32"))'.dependencies.libp2p-quic]
 version = "0.7.0-alpha.3"
 git = "https://github.com/tmpfs/rust-libp2p"
 branch = "snow-hacks"
@@ -120,7 +120,6 @@ optional = true
 file-guard = "0.1"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 #parity-tokio-ipc = { version = "0.9", optional = true }
-#binary-stream = { version = "3.4", features = ["32bit"], optional = true }
 tokio-tungstenite = { version = "0.17.2", features = ["rustls-tls-native-roots"] }
 
 [target.'cfg(target_arch="wasm32")'.dependencies]

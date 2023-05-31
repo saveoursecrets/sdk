@@ -6,12 +6,14 @@ use std::{
     sync::RwLock,
 };
 
-use crate::constants::{
-    DEVICES_DIR, FILES_DIR, IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, TRASH_DIR,
-    VAULTS_DIR, VAULT_EXT, WAL_EXT,
+use crate::{
+    constants::{
+        AUDIT_FILE_NAME, DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR,
+        LOCAL_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
+    },
+    vfs,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
 static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
 
@@ -58,11 +60,21 @@ pub fn guess_mime<P: AsRef<Path>>(path: P) -> Result<String> {
 /// Encapsulates the paths for vault storage.
 #[derive(Default, Debug)]
 pub struct StorageDirs {
+    /// User identifier.
+    user_id: String,
     /// Top-level documents folder.
     documents_dir: PathBuf,
+    /// Directory for local storage.
+    local_dir: PathBuf,
+    /// File for local audit logs.
+    audit_file: PathBuf,
+    /// Trash for deleted data.
+    trash_dir: PathBuf,
     /// User segregated storage.
     user_dir: PathBuf,
-    /// Sub-directory for the vaults.
+    /// User file storage.
+    files_dir: PathBuf,
+    /// User vault storage.
     vaults_dir: PathBuf,
 }
 
@@ -71,25 +83,54 @@ impl StorageDirs {
     pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: &str) -> Self {
         let documents_dir = documents_dir.as_ref().to_path_buf();
         let local_dir = documents_dir.join(LOCAL_DIR);
+        let audit_file = local_dir.join(AUDIT_FILE_NAME);
+        let trash_dir = local_dir.join(TRASH_DIR);
         let user_dir = local_dir.join(user_id);
+        let files_dir = user_dir.join(FILES_DIR);
         let vaults_dir = user_dir.join(VAULTS_DIR);
+
         Self {
+            user_id: user_id.to_owned(),
             documents_dir,
+            local_dir,
+            audit_file,
+            trash_dir,
             user_dir,
+            files_dir,
             vaults_dir,
         }
     }
 
-    /// Ensure all the directories exist.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn ensure(&self) -> Result<()> {
-        std::fs::create_dir_all(&self.vaults_dir)?;
+    /// Ensure the skeleton directories exist.
+    pub async fn skeleton() -> Result<()> {
+        if let Some(cache_dir) = Self::cache_dir() {
+            vfs::create_dir_all(&cache_dir).await?;
+
+            let identity_dir = cache_dir.join(IDENTITY_DIR);
+            vfs::create_dir_all(&identity_dir).await?;
+        }
+        Ok(())
+    }
+
+    /// Ensure all the user directories exist.
+    pub async fn ensure(&self) -> Result<()> {
+        vfs::create_dir_all(&self.documents_dir).await?;
+        vfs::create_dir_all(&self.local_dir).await?;
+        vfs::create_dir_all(&self.trash_dir).await?;
+        vfs::create_dir_all(&self.user_dir).await?;
+        vfs::create_dir_all(&self.files_dir).await?;
+        vfs::create_dir_all(&self.vaults_dir).await?;
         Ok(())
     }
 
     /// Get the documents storage directory.
     pub fn documents_dir(&self) -> &PathBuf {
         &self.documents_dir
+    }
+
+    /// Audit file location.
+    pub fn audit_file(&self) -> &PathBuf {
+        &self.audit_file
     }
 
     /// Get the user storage directory.
@@ -102,8 +143,15 @@ impl StorageDirs {
         &self.vaults_dir
     }
 
+    /// Get the path to the identity vault file for this account.
+    pub fn identity(&self) -> Result<PathBuf> {
+        let identity_dir = Self::identity_dir()?;
+        let mut identity_vault_file = identity_dir.join(&self.user_id);
+        identity_vault_file.set_extension(VAULT_EXT);
+        Ok(identity_vault_file)
+    }
+
     /// Set an explicit cache directory.
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn set_cache_dir(path: PathBuf) {
         let mut writer = CACHE_DIR.write().unwrap();
         *writer = Some(path);
@@ -112,7 +160,6 @@ impl StorageDirs {
     /// Clear an explicit cache directory.
     ///
     /// Primarily used for testing purposes.
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn clear_cache_dir() {
         let mut writer = CACHE_DIR.write().unwrap();
         *writer = None;
@@ -127,7 +174,6 @@ impl StorageDirs {
     ///
     /// Finally if no environment variable or explicit directory has been
     /// set then a path will be computed by platform convention.
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn cache_dir() -> Option<PathBuf> {
         let dir = if let Ok(env_cache_dir) = std::env::var("SOS_CACHE_DIR") {
             Some(PathBuf::from(env_cache_dir))
@@ -140,53 +186,51 @@ impl StorageDirs {
             }
         };
 
-        // Try to ensure the directory exists
-        dir.map(|d| {
-            if !d.exists() {
-                let _ = std::fs::create_dir_all(&d);
-            }
-            d
-        })
+        dir
+    }
+
+    /// Get the path to the directory used to store identity vaults.
+    pub fn identity_dir() -> Result<PathBuf> {
+        let cache_dir = StorageDirs::cache_dir().ok_or(Error::NoCache)?;
+        let identity_dir = cache_dir.join(IDENTITY_DIR);
+        Ok(identity_dir)
     }
 
     /// Get the local cache directory.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated]
     pub fn local_dir() -> Result<PathBuf> {
         Ok(Self::cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR))
     }
 
     /// Get the trash directory.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated]
     pub fn trash_dir() -> Result<PathBuf> {
         let trash = Self::local_dir()?.join(TRASH_DIR);
-        if !trash.exists() {
-            std::fs::create_dir_all(&trash)?;
-        }
         Ok(trash)
     }
 
     /// Get the temporary directory.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated]
     pub fn temp_dir() -> Result<PathBuf> {
         Ok(Self::local_dir()?.join(TEMP_DIR))
     }
 
     /// Get the local directory for storing devices.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated]
     pub fn devices_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
         Ok(local_dir.join(address).join(DEVICES_DIR))
     }
 
     /// Get the local directory for storing vaults.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated]
     pub fn local_vaults_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
         Ok(local_dir.join(address).join(VAULTS_DIR))
     }
 
     /// Get the path to a vault file from it's identifier.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated]
     pub fn vault_path<A: AsRef<Path>, V: AsRef<Path>>(
         address: A,
         id: V,
@@ -198,36 +242,30 @@ impl StorageDirs {
     }
 
     /// Get the path to a log file from it's identifier.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated]
     pub fn log_path<A: AsRef<Path>, V: AsRef<Path>>(
         address: A,
         id: V,
     ) -> Result<PathBuf> {
         let vaults_dir = Self::local_vaults_dir(address)?;
         let mut vault_path = vaults_dir.join(id);
-        vault_path.set_extension(WAL_EXT);
+        vault_path.set_extension(EVENT_LOG_EXT);
         Ok(vault_path)
     }
 
     /// Get the path to the directory used to store files.
     ///
     /// Ensure it exists if it does not already exist.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated]
     pub fn files_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let local_dir = Self::local_dir()?;
         let files_dir = local_dir.join(address).join(FILES_DIR);
-        if !files_dir.exists() {
-            // Must also create parents as when we import
-            // an account from an archive the parent directories
-            // may not already exist
-            std::fs::create_dir_all(&files_dir)?;
-        }
         Ok(files_dir)
     }
 
     /// Get the expected location for the directory containing
     /// all the external files for a folder.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated]
     pub fn file_folder_location<A: AsRef<Path>, V: AsRef<Path>>(
         address: A,
         vault_id: V,
@@ -237,7 +275,7 @@ impl StorageDirs {
     }
 
     /// Get the expected location for a file.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated]
     pub fn file_location<
         A: AsRef<Path>,
         V: AsRef<Path>,
@@ -255,21 +293,8 @@ impl StorageDirs {
         Ok(path)
     }
 
-    /// Get the path to the directory used to store identity vaults.
-    ///
-    /// Ensure it exists if it does not already exist.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn identity_dir() -> Result<PathBuf> {
-        let cache_dir = StorageDirs::cache_dir().ok_or(Error::NoCache)?;
-        let identity_dir = cache_dir.join(IDENTITY_DIR);
-        if !identity_dir.exists() {
-            std::fs::create_dir(&identity_dir)?;
-        }
-        Ok(identity_dir)
-    }
-
     /// Get the path to the identity vault file for an account identifier.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated(note = "Use identity() instead")]
     pub fn identity_vault<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
         let identity_dir = Self::identity_dir()?;
         let mut identity_vault_file = identity_dir.join(address.as_ref());
@@ -317,7 +342,11 @@ fn default_storage_dir() -> Option<PathBuf> {
     })
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(target_arch = "wasm32")]
+fn default_storage_dir() -> Option<PathBuf> {
+    Some(PathBuf::from(""))
+}
+
 fn fallback_storage_dir() -> Option<PathBuf> {
     use crate::constants::BUNDLE_ID;
     dirs::data_local_dir().map(|dir| dir.join(BUNDLE_ID))

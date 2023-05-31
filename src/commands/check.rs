@@ -2,12 +2,12 @@ use clap::Subcommand;
 use std::path::PathBuf;
 
 use sos_sdk::{
-    commit::{vault_commit_tree_file, wal_commit_tree_file},
-    formats::vault_iter,
+    commit::{event_log_commit_tree_file, vault_commit_tree_file},
+    formats::vault_stream,
     hex,
     uuid::Uuid,
     vault::Header,
-    wal::WalItem,
+    vfs,
 };
 
 use crate::{Error, Result};
@@ -44,15 +44,15 @@ pub enum Command {
     },
 }
 
-pub fn run(cmd: Command) -> Result<()> {
+pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::Vault { file, verbose } => {
-            verify_vault(file, verbose)?;
+            verify_vault(file, verbose).await?;
         }
-        Command::Header { file } => header(file)?,
-        Command::Keys { file } => keys(file)?,
+        Command::Header { file } => header(file).await?,
+        Command::Keys { file } => keys(file).await?,
         Command::Log { verbose, file } => {
-            verify_log(file, verbose)?;
+            verify_log(file, verbose).await?;
         }
     }
 
@@ -60,29 +60,31 @@ pub fn run(cmd: Command) -> Result<()> {
 }
 
 /// Verify the integrity of a vault.
-fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
-    if !file.is_file() {
+async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
+    if !vfs::metadata(&file).await?.is_file() {
         return Err(Error::NotFile(file));
     }
     vault_commit_tree_file(&file, true, |row_info| {
         if verbose {
             println!("{}", hex::encode(row_info.commit()));
         }
-    })?;
+    })
+    .await?;
     println!("Verified ✓");
     Ok(())
 }
 
 /// Verify the integrity of a log file.
-fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
-    if !file.is_file() {
+async fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
+    if !vfs::metadata(&file).await?.is_file() {
         return Err(Error::NotFile(file));
     }
-    let tree = wal_commit_tree_file(&file, true, |row_info| {
+    let tree = event_log_commit_tree_file(&file, true, |row_info| {
         if verbose {
             println!("{}", hex::encode(row_info.commit()));
         }
-    })?;
+    })
+    .await?;
     if verbose {
         if let Some(root) = tree.root_hex() {
             println!("{}", root);
@@ -93,25 +95,24 @@ fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
 }
 
 /// Print a vault header.
-pub fn header(vault: PathBuf) -> Result<()> {
-    if !vault.is_file() {
+pub async fn header(vault: PathBuf) -> Result<()> {
+    if !vfs::metadata(&vault).await?.is_file() {
         return Err(Error::NotFile(vault));
     }
 
-    let header = Header::read_header_file(&vault)?;
+    let header = Header::read_header_file(&vault).await?;
     println!("{}", header);
     Ok(())
 }
 
 /// Print the vault keys.
-pub fn keys(vault: PathBuf) -> Result<()> {
-    if !vault.is_file() {
+pub async fn keys(vault: PathBuf) -> Result<()> {
+    if !vfs::metadata(&vault).await?.is_file() {
         return Err(Error::NotFile(vault));
     }
 
-    let it = vault_iter(&vault)?;
-    for record in it {
-        let record = record?;
+    let mut it = vault_stream(&vault).await?;
+    while let Some(record) = it.next_entry().await? {
         let id = Uuid::from_bytes(record.id());
         println!("{}", id);
     }

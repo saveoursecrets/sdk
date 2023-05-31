@@ -2,7 +2,7 @@
 //! creating and managing local accounts.
 use std::sync::Arc;
 
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 
 use urn::Urn;
 use web3_address::ethereum::Address;
@@ -19,8 +19,9 @@ use crate::{
     storage::StorageDirs,
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
-        Gatekeeper, Summary, Vault, VaultAccess, VaultFileAccess,
+        Gatekeeper, Summary, Vault, VaultAccess, VaultWriter,
     },
+    vfs,
 };
 
 use secrecy::{ExposeSecret, SecretString};
@@ -101,7 +102,7 @@ impl AuthenticatedUser {
     ///
     /// Moves the account identity vault and data directory to the
     /// trash directory.
-    pub fn delete_account(&self) -> Result<()> {
+    pub async fn delete_account(&self) -> Result<()> {
         let address = self.identity.address().to_string();
         let identity_vault_file = StorageDirs::identity_vault(&address)?;
 
@@ -119,21 +120,24 @@ impl AuthenticatedUser {
         // This can only happen if somebody has manually restored
         // items from the trash using `cp` and then decides to delete
         // the accout again, so the rule is last deleted account wins.
-        if deleted_identity_vault_file.exists() {
-            std::fs::remove_file(&deleted_identity_vault_file)?;
+        if vfs::try_exists(&deleted_identity_vault_file).await? {
+            vfs::remove_file(&deleted_identity_vault_file).await?;
         }
-        if deleted_identity_data_dir.exists() {
-            std::fs::remove_dir_all(&deleted_identity_data_dir)?;
+        if vfs::try_exists(&deleted_identity_data_dir).await? {
+            vfs::remove_dir_all(&deleted_identity_data_dir).await?;
         }
 
-        std::fs::rename(identity_vault_file, deleted_identity_vault_file)?;
-        std::fs::rename(identity_data_dir, deleted_identity_data_dir)?;
+        vfs::rename(identity_vault_file, deleted_identity_vault_file).await?;
+        vfs::rename(identity_data_dir, deleted_identity_data_dir).await?;
 
         Ok(())
     }
 
     /// Rename this account by changing the name of the identity vault.
-    pub fn rename_account(&mut self, account_name: String) -> Result<()> {
+    pub async fn rename_account(
+        &mut self,
+        account_name: String,
+    ) -> Result<()> {
         // Update in-memory vault
         self.identity
             .keeper_mut()
@@ -143,8 +147,10 @@ impl AuthenticatedUser {
         // Update vault file on disc
         let identity_vault_file =
             StorageDirs::identity_vault(self.identity.address().to_string())?;
-        let mut access = VaultFileAccess::new(identity_vault_file)?;
-        access.set_vault_name(account_name.clone())?;
+
+        let vault_file = VaultWriter::open(&identity_vault_file).await?;
+        let mut access = VaultWriter::new(identity_vault_file, vault_file)?;
+        access.set_vault_name(account_name.clone()).await?;
 
         // Update in-memory account information
         self.account.set_label(account_name);
@@ -164,12 +170,12 @@ pub struct Login;
 
 impl Login {
     /// Sign in a user.
-    pub fn sign_in(
+    pub async fn sign_in(
         address: &Address,
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
     ) -> Result<AuthenticatedUser> {
-        let accounts = LocalAccounts::list_accounts()?;
+        let accounts = LocalAccounts::list_accounts().await?;
         let account = accounts
             .into_iter()
             .find(|a| a.address() == address)
@@ -177,10 +183,12 @@ impl Login {
 
         let identity_path = StorageDirs::identity_vault(address.to_string())?;
         let mut identity =
-            Identity::login_file(identity_path, passphrase, Some(index))?;
+            Identity::login_file(identity_path, passphrase, Some(index))
+                .await?;
 
         // Lazily create or retrieve a device specific signing key
-        let device = Self::ensure_device_vault(address, &mut identity)?;
+        let device =
+            Self::ensure_device_vault(address, &mut identity).await?;
 
         Ok(AuthenticatedUser {
             account,
@@ -192,13 +200,13 @@ impl Login {
     /// Ensure that the account has a vault for storing device specific
     /// information such as the private key used to identify a machine
     /// on a peer to peer network.
-    fn ensure_device_vault(
+    async fn ensure_device_vault(
         address: &Address,
         user: &mut UserIdentity,
     ) -> Result<DeviceSigner> {
         let identity = user.keeper_mut();
 
-        let vaults = LocalAccounts::list_local_vaults(address, true)?;
+        let vaults = LocalAccounts::list_local_vaults(address, true).await?;
         let device_vault = vaults.into_iter().find_map(|(summary, _)| {
             if summary.flags().is_system() && summary.flags().is_device() {
                 Some(summary)
@@ -214,17 +222,19 @@ impl Login {
                 DelegatedPassphrase::find_vault_passphrase(
                     identity,
                     summary.id(),
-                )?;
+                )
+                .await?;
 
             let (vault, _) =
-                LocalAccounts::find_local_vault(address, summary.id(), true)?;
+                LocalAccounts::find_local_vault(address, summary.id(), true)
+                    .await?;
             let search_index = Arc::new(RwLock::new(SearchIndex::new()));
             let mut device_keeper =
                 Gatekeeper::new(vault, Some(search_index));
-            device_keeper.unlock(device_passphrase)?;
-            device_keeper.create_search_index()?;
+            device_keeper.unlock(device_passphrase).await?;
+            device_keeper.create_search_index().await?;
             let index = device_keeper.index();
-            let index_reader = index.read();
+            let index_reader = index.read().await;
             let document = index_reader
                 .find_by_urn(summary.id(), &urn)
                 .ok_or(Error::NoVaultEntry(urn.to_string()))?;
@@ -236,7 +246,7 @@ impl Login {
                     ..
                 },
                 _,
-            )) = device_keeper.read(document.id())?
+            )) = device_keeper.read(document.id()).await?
             {
                 let key: ed25519::SingleParty =
                     data.expose_secret().as_slice().try_into()?;
@@ -261,16 +271,17 @@ impl Login {
             vault.set_device_flag(true);
             vault.set_no_sync_self_flag(true);
             vault.set_no_sync_other_flag(true);
-            vault.initialize(device_passphrase.clone(), None)?;
+            vault.initialize(device_passphrase.clone(), None).await?;
 
             DelegatedPassphrase::save_vault_passphrase(
                 identity,
                 vault.id(),
                 device_passphrase.clone(),
-            )?;
+            )
+            .await?;
 
             let mut device_keeper = Gatekeeper::new(vault, None);
-            device_keeper.unlock(device_passphrase)?;
+            device_keeper.unlock(device_passphrase).await?;
 
             let key = ed25519::SingleParty::new_random();
             let public_id = key.address()?;
@@ -282,18 +293,18 @@ impl Login {
             let mut meta =
                 SecretMeta::new("Device Key".to_string(), secret.kind());
             meta.set_urn(Some(urn));
-            device_keeper.create(meta, secret)?;
+            device_keeper.create(meta, secret).await?;
 
             let device_vault: Vault = device_keeper.into();
             let summary = device_vault.summary().clone();
 
-            let buffer = encode(&device_vault)?;
+            let buffer = encode(&device_vault).await?;
             let vaults_dir =
                 StorageDirs::local_vaults_dir(address.to_string())?;
             let mut device_vault_file =
                 vaults_dir.join(summary.id().to_string());
             device_vault_file.set_extension(VAULT_EXT);
-            std::fs::write(device_vault_file, buffer)?;
+            vfs::write(device_vault_file, buffer).await?;
 
             Ok(DeviceSigner {
                 summary,

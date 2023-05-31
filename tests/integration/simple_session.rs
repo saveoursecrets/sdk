@@ -24,11 +24,12 @@ use sos_sdk::{
     storage::StorageDirs,
     vault::VaultRef,
 };
+use tokio::sync::Mutex;
 
 #[tokio::test]
 #[serial]
 async fn integration_simple_session() -> Result<()> {
-    let dirs = setup(1)?;
+    let dirs = setup(1).await?;
 
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
@@ -51,10 +52,10 @@ async fn integration_simple_session() -> Result<()> {
         let (stream, session) = connect(ws_url, signer).await?;
 
         // Wrap the stream to read change notifications
-        let mut stream = changes(stream, session);
+        let mut stream = changes(stream, Arc::new(Mutex::new(session)));
 
         while let Some(notification) = stream.next().await {
-            let notification = notification?;
+            let notification = notification?.await?;
 
             // Store change notifications so we can
             // assert at the end
@@ -82,7 +83,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Create a new vault
     let new_vault_name = String::from("My Vault");
-    let (new_passphrase, _) = node_cache
+    let (_, new_passphrase, _) = node_cache
         .create_vault(new_vault_name.clone(), None)
         .await?;
 
@@ -117,7 +118,9 @@ async fn integration_simple_session() -> Result<()> {
     assert_eq!(1, node_cache.vaults().len());
 
     // Use the new vault
-    node_cache.open_vault(&new_vault_summary, new_passphrase, None)?;
+    node_cache
+        .open_vault(&new_vault_summary, new_passphrase, None)
+        .await?;
 
     // Create some secrets
     let notes = create_secrets(&mut node_cache, &new_vault_summary).await?;
@@ -125,8 +128,8 @@ async fn integration_simple_session() -> Result<()> {
     // Ensure we have a commit tree
     assert!(node_cache.commit_tree(&new_vault_summary).is_some());
 
-    // Check the WAL history has the right length
-    let history = node_cache.history(&new_vault_summary)?;
+    // Check the event log history has the right length
+    let history = node_cache.history(&new_vault_summary).await?;
     assert_eq!(4, history.len());
 
     // Check the vault status
@@ -142,7 +145,7 @@ async fn integration_simple_session() -> Result<()> {
     // Check our new list of secrets has the right length
     let keeper = node_cache.current().unwrap();
     let index = keeper.index();
-    let index_reader = index.read();
+    let index_reader = index.read().await;
     let meta = index_reader.values();
     assert_eq!(2, meta.len());
     drop(index_reader);
@@ -162,8 +165,8 @@ async fn integration_simple_session() -> Result<()> {
     // Now force a push
     let _ = node_cache.push(&new_vault_summary, true).await?;
 
-    // Verify local WAL ingegrity
-    node_cache.verify(&new_vault_summary)?;
+    // Verify local event log ingegrity
+    node_cache.verify(&new_vault_summary).await?;
 
     // Close the vault
     node_cache.close_vault();

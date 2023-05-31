@@ -26,7 +26,7 @@ impl DelegatedPassphrase {
     }
 
     /// Save a vault passphrase into an identity vault.
-    pub fn save_vault_passphrase(
+    pub async fn save_vault_passphrase(
         identity: &mut Gatekeeper,
         vault_id: &VaultId,
         vault_passphrase: SecretString,
@@ -41,18 +41,18 @@ impl DelegatedPassphrase {
         let mut meta =
             SecretMeta::new(urn.as_str().to_owned(), secret.kind());
         meta.set_urn(Some(urn));
-        identity.create(meta, secret)?;
+        identity.create(meta, secret).await?;
         Ok(())
     }
 
     /// Remove a vault passphrase from an identity vault.
-    pub fn remove_vault_passphrase(
+    pub async fn remove_vault_passphrase(
         identity: &mut Gatekeeper,
         vault_id: &VaultId,
     ) -> Result<()> {
         let urn = Vault::vault_urn(vault_id)?;
         let index = identity.index();
-        let index_reader = index.read();
+        let index_reader = index.read().await;
         let document = index_reader
             .find_by_urn(identity.id(), &urn)
             .ok_or(Error::NoVaultEntry(urn.to_string()))?;
@@ -63,7 +63,7 @@ impl DelegatedPassphrase {
         // will write to the index
         drop(index_reader);
 
-        identity.delete(&id)?;
+        identity.delete(&id).await?;
 
         Ok(())
     }
@@ -73,19 +73,20 @@ impl DelegatedPassphrase {
     ///
     /// The identity vault must already be unlocked to extract
     /// the secret passphrase.
-    pub fn find_vault_passphrase(
+    pub async fn find_vault_passphrase(
         identity: &Gatekeeper,
         vault_id: &VaultId,
     ) -> Result<SecretString> {
         let urn = Vault::vault_urn(vault_id)?;
         let index = identity.index();
-        let index_reader = index.read();
+        let index_reader = index.read().await;
         let document = index_reader
             .find_by_urn(identity.id(), &urn)
             .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
 
         let (_, secret, _) = identity
-            .read(document.id())?
+            .read(document.id())
+            .await?
             .ok_or_else(|| Error::NoVaultEntry(document.id().to_string()))?;
 
         let passphrase = if let Secret::Password { password, .. } = secret {
@@ -98,18 +99,18 @@ impl DelegatedPassphrase {
     }
 
     /// Find the passphrase used for symmetric file encryption (AGE).
-    pub fn find_file_encryption_passphrase(
+    pub async fn find_file_encryption_passphrase(
         identity: &Gatekeeper,
     ) -> Result<SecretString> {
         let index = identity.index();
-        let reader = index.read();
+        let reader = index.read().await;
         let urn: Urn = FILE_PASSWORD_URN.parse()?;
         let document = reader
             .find_by_urn(identity.id(), &urn)
             .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
         let password =
             if let Some((_, Secret::Password { password, .. }, _)) =
-                identity.read(document.id())?
+                identity.read(document.id()).await?
             {
                 password
             } else {

@@ -1,23 +1,25 @@
 //! Helper that reads and writes the magic identity bytes for file formats.
-use binary_stream::{BinaryReader, BinaryWriter};
-use std::{fs::File, io::Read, path::Path};
+use binary_stream::tokio::{BinaryReader, BinaryWriter};
+use std::path::Path;
 
-use crate::{Error, Result};
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
+
+use crate::{vfs::File, Error, Result};
 
 /// Read and write the identity bytes for a file.
 pub struct FileIdentity;
 
 impl FileIdentity {
     /// Read the identity magic bytes from a file.
-    pub fn read_file<P: AsRef<Path>>(
+    pub async fn read_file<P: AsRef<Path>>(
         path: P,
         identity: &[u8],
     ) -> Result<File> {
-        let mut file = File::open(path.as_ref())?;
-        let len = file.metadata()?.len();
+        let mut file = File::open(path.as_ref()).await?;
+        let len = file.metadata().await?.len();
         if len >= identity.len() as u64 {
             let mut buffer = [0u8; 4];
-            file.read_exact(&mut buffer)?;
+            file.read_exact(&mut buffer).await?;
             for (index, ident) in identity.iter().enumerate() {
                 let byte = buffer[index];
                 if byte != *ident {
@@ -46,12 +48,12 @@ impl FileIdentity {
     }
 
     /// Read the identity magic bytes.
-    pub fn read_identity(
-        reader: &mut BinaryReader,
+    pub async fn read_identity<R: AsyncReadExt + AsyncSeek + Unpin + Send>(
+        reader: &mut BinaryReader<R>,
         identity: &[u8],
     ) -> Result<()> {
         for ident in identity {
-            let byte = reader.read_u8()?;
+            let byte = reader.read_u8().await?;
             if byte != *ident {
                 return Err(Error::BadIdentity(byte));
             }
@@ -60,11 +62,13 @@ impl FileIdentity {
     }
 
     /// Write the identity magic bytes.
-    pub fn write_identity(
-        writer: &mut BinaryWriter,
+    pub async fn write_identity<
+        W: AsyncWriteExt + AsyncSeek + Unpin + Send,
+    >(
+        writer: &mut BinaryWriter<W>,
         identity: &[u8],
     ) -> Result<()> {
-        writer.write_bytes(identity)?;
+        writer.write_bytes(identity).await?;
         Ok(())
     }
 }

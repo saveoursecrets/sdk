@@ -1,8 +1,6 @@
 //! Constants for supported symmetric ciphers.
 use crate::Error;
-use binary_stream::{
-    BinaryError, BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-};
+
 use std::{convert::AsRef, fmt, str::FromStr};
 
 /// Extended ChaCha20 Poly1305 cipher.
@@ -87,28 +85,5 @@ impl AsRef<u8> for Algorithm {
 impl Default for Algorithm {
     fn default() -> Self {
         Self::XChaCha20Poly1305(X_CHACHA20_POLY1305)
-    }
-}
-
-impl Encode for Algorithm {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        writer.write_u8(*self.as_ref())?;
-        Ok(())
-    }
-}
-
-impl Decode for Algorithm {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let id = reader.read_u8()?;
-        *self = match id {
-            X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305(id),
-            AES_GCM_256 => Algorithm::AesGcm256(id),
-            _ => {
-                return Err(BinaryError::Boxed(Box::from(
-                    Error::UnknownAlgorithm(id),
-                )));
-            }
-        };
-        Ok(())
     }
 }

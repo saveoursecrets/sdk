@@ -408,7 +408,7 @@ where
 mod test {
     use super::*;
     use crate::{
-        events::SyncEvent,
+        events::WriteEvent,
         test_utils::*,
         vault::{Vault, VaultAccess, VaultEntry},
     };
@@ -427,7 +427,7 @@ mod test {
         commit_tree
     }
 
-    fn mock_commit_tree() -> Result<CommitTree> {
+    async fn mock_commit_tree() -> Result<CommitTree> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let mut vault = mock_vault();
         let secrets = [
@@ -438,15 +438,17 @@ mod test {
 
         for (label, note) in secrets {
             let (_secret_meta, _secret_value, meta_bytes, secret_bytes) =
-                mock_secret_note(label, note)?;
+                mock_secret_note(label, note).await?;
             let meta_aead = vault.encrypt(&encryption_key, &meta_bytes)?;
             let secret_aead =
                 vault.encrypt(&encryption_key, &secret_bytes)?;
-            let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+            let (commit, _) =
+                Vault::commit_hash(&meta_aead, &secret_aead).await?;
             let _secret_id = match vault
-                .create(commit, VaultEntry(meta_aead, secret_aead))?
+                .create(commit, VaultEntry(meta_aead, secret_aead))
+                .await?
             {
-                SyncEvent::CreateSecret(secret_id, _) => secret_id,
+                WriteEvent::CreateSecret(secret_id, _) => secret_id,
                 _ => unreachable!(),
             };
         }
@@ -454,16 +456,16 @@ mod test {
         Ok(from_vault(&vault))
     }
 
-    #[test]
-    fn commit_tree_from_vault() -> Result<()> {
-        let commit_tree = mock_commit_tree()?;
+    #[tokio::test]
+    async fn commit_tree_from_vault() -> Result<()> {
+        let commit_tree = mock_commit_tree().await?;
         assert!(commit_tree.root().is_some());
         Ok(())
     }
 
-    #[test]
-    fn commit_proof_serde() -> Result<()> {
-        let commit_tree = mock_commit_tree()?;
+    #[tokio::test]
+    async fn commit_proof_serde() -> Result<()> {
+        let commit_tree = mock_commit_tree().await?;
         let proof = commit_tree.head()?;
 
         let json = serde_json::to_string_pretty(&proof)?;

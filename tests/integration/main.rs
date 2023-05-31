@@ -32,3 +32,6 @@ mod local_provider;
 mod patch_conflict_resolve;
 #[cfg(not(target_arch = "wasm32"))]
 mod simple_session;
+
+#[cfg(feature = "mem-fs")]
+mod memory_vfs;

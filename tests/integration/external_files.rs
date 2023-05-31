@@ -15,6 +15,7 @@ use sos_sdk::{
         },
         Summary,
     },
+    vfs,
 };
 
 use crate::test_utils::setup;
@@ -24,12 +25,12 @@ const ZERO_CHECKSUM: [u8; 32] = [0; 32];
 #[tokio::test]
 #[serial]
 async fn integration_external_files() -> Result<()> {
-    let dirs = setup(1)?;
+    let dirs = setup(1).await?;
 
     let test_cache_dir = dirs.clients.get(0).unwrap();
     StorageDirs::set_cache_dir(test_cache_dir.clone());
-
     assert_eq!(StorageDirs::cache_dir(), Some(test_cache_dir.clone()));
+    StorageDirs::skeleton().await?;
 
     let account_name = "External files test".to_string();
     let (passphrase, _) = generate_passphrase()?;
@@ -41,11 +42,13 @@ async fn integration_external_files() -> Result<()> {
             .create_authenticator(false)
             .create_contacts(false)
             .create_file_password(true)
-            .finish()?;
+            .finish()
+            .await?;
 
-    let factory = ProviderFactory::Local;
-    let (mut provider, _) =
-        factory.create_provider(new_account.user.signer().clone())?;
+    let factory = ProviderFactory::Local(None);
+    let (mut provider, _) = factory
+        .create_provider(new_account.user.signer().clone())
+        .await?;
 
     let imported_account = provider.import_new_account(&new_account).await?;
     let NewAccount { address, .. } = new_account;
@@ -192,11 +195,10 @@ async fn assert_create_file_secret(
         let file_name = hex::encode(checksum);
         let expected_file_path =
             owner.file_location(default_folder.id(), &id, &file_name)?;
+        assert!(vfs::try_exists(&expected_file_path).await?);
 
-        assert!(expected_file_path.exists());
-
-        let source_buffer = std::fs::read(file_path)?;
-        let encrypted_buffer = std::fs::read(&expected_file_path)?;
+        let source_buffer = vfs::read(file_path).await?;
+        let encrypted_buffer = vfs::read(&expected_file_path).await?;
 
         assert_ne!(source_buffer, encrypted_buffer);
 
@@ -238,12 +240,12 @@ async fn assert_update_file_secret(
         let file_name = hex::encode(checksum);
         let expected_file_path =
             owner.file_location(default_folder.id(), id, &file_name)?;
-        assert!(expected_file_path.exists());
+        assert!(vfs::try_exists(&expected_file_path).await?);
 
         let old_file_name = hex::encode(original_checksum);
         let old_file_path =
             owner.file_location(default_folder.id(), id, &old_file_name)?;
-        assert!(!old_file_path.exists());
+        assert!(!vfs::try_exists(&old_file_path).await?);
 
         *checksum
     } else {
@@ -291,11 +293,11 @@ async fn assert_move_file_secret(
         let file_name = hex::encode(checksum);
         let expected_file_path =
             owner.file_location(destination.id(), &new_id, &file_name)?;
-        assert!(expected_file_path.exists());
+        assert!(vfs::try_exists(&expected_file_path).await?);
 
         let old_file_path =
             owner.file_location(default_folder.id(), id, &file_name)?;
-        assert!(!old_file_path.exists());
+        assert!(!vfs::try_exists(&old_file_path).await?);
 
         *checksum
     } else {
@@ -317,7 +319,7 @@ async fn assert_delete_file_secret(
     let file_name = hex::encode(checksum);
     let deleted_file_path =
         owner.file_location(folder.id(), id, &file_name)?;
-    assert!(!deleted_file_path.exists());
+    assert!(!vfs::try_exists(&deleted_file_path).await?);
 
     Ok(())
 }
@@ -371,12 +373,12 @@ async fn assert_create_update_move_file_secret(
         let file_name = hex::encode(checksum);
         let expected_file_path =
             owner.file_location(destination.id(), new_id, &file_name)?;
-        assert!(expected_file_path.exists());
+        assert!(vfs::try_exists(&expected_file_path).await?);
 
         let old_file_name = hex::encode(original_checksum);
         let old_file_path =
             owner.file_location(default_folder.id(), &id, &old_file_name)?;
-        assert!(!old_file_path.exists());
+        assert!(!vfs::try_exists(&old_file_path).await?);
 
         *checksum
     } else {
@@ -396,7 +398,7 @@ async fn assert_delete_folder_file_secrets(
 
     let file_name = hex::encode(checksum);
     let file_path = owner.file_location(folder.id(), id, &file_name)?;
-    assert!(!file_path.exists());
+    assert!(!vfs::try_exists(&file_path).await?);
 
     Ok(())
 }
@@ -428,7 +430,7 @@ async fn assert_attach_file_secret(
         owner.read_secret(&id, Some(folder.clone())).await?;
 
     // We never modify the root secret so assert on every change
-    fn assert_root_file_secret(
+    async fn assert_root_file_secret(
         owner: &mut UserStorage,
         folder: &Summary,
         id: &SecretId,
@@ -454,7 +456,7 @@ async fn assert_attach_file_secret(
             let file_name = hex::encode(checksum);
             let file_path =
                 owner.file_location(folder.id(), id, &file_name)?;
-            assert!(file_path.exists());
+            assert!(vfs::try_exists(&file_path).await?);
         } else {
             panic!("expecting file secret variant");
         };
@@ -467,7 +469,8 @@ async fn assert_attach_file_secret(
     } = &secret_data.secret
     {
         let file_checksum = *checksum;
-        assert_root_file_secret(owner, folder, &id, &secret_data.secret)?;
+        assert_root_file_secret(owner, folder, &id, &secret_data.secret)
+            .await?;
 
         // Verify the attachment file exists
         let attached = secret_data
@@ -495,7 +498,7 @@ async fn assert_attach_file_secret(
             let file_name = hex::encode(checksum);
             let file_path =
                 owner.file_location(folder.id(), &id, &file_name)?;
-            assert!(file_path.exists());
+            assert!(vfs::try_exists(&file_path).await?);
 
             *checksum
         } else {
@@ -516,7 +519,8 @@ async fn assert_attach_file_secret(
             )
             .await?;
 
-        assert_root_file_secret(owner, folder, &id, &secret_data.secret)?;
+        assert_root_file_secret(owner, folder, &id, &secret_data.secret)
+            .await?;
 
         let (mut updated_secret_data, _) =
             owner.read_secret(&id, Some(folder.clone())).await?;
@@ -547,12 +551,12 @@ async fn assert_attach_file_secret(
             let file_name = hex::encode(checksum);
             let file_path =
                 owner.file_location(folder.id(), &id, &file_name)?;
-            assert!(file_path.exists());
+            assert!(vfs::try_exists(&file_path).await?);
 
             let old_file_name = hex::encode(attachment_checksum);
             let old_file_path =
                 owner.file_location(folder.id(), &id, &old_file_name)?;
-            assert!(!old_file_path.exists());
+            assert!(!vfs::try_exists(&old_file_path).await?);
 
             *checksum
         } else {
@@ -575,7 +579,8 @@ async fn assert_attach_file_secret(
             )
             .await?;
 
-        assert_root_file_secret(owner, folder, &id, &secret_data.secret)?;
+        assert_root_file_secret(owner, folder, &id, &secret_data.secret)
+            .await?;
 
         let (mut insert_attachment_secret_data, _) =
             owner.read_secret(&id, Some(folder.clone())).await?;
@@ -600,7 +605,7 @@ async fn assert_attach_file_secret(
             let file_name = hex::encode(checksum);
             let file_path =
                 owner.file_location(folder.id(), &id, &file_name)?;
-            assert!(file_path.exists());
+            assert!(vfs::try_exists(&file_path).await?);
 
             *checksum
         } else {
@@ -616,7 +621,7 @@ async fn assert_attach_file_secret(
             let file_name = hex::encode(checksum);
             let file_path =
                 owner.file_location(folder.id(), &id, &file_name)?;
-            assert!(file_path.exists());
+            assert!(vfs::try_exists(&file_path).await?);
         } else {
             panic!("expecting file secret variant (attachment)");
         };
@@ -634,7 +639,8 @@ async fn assert_attach_file_secret(
             )
             .await?;
 
-        assert_root_file_secret(owner, folder, &id, &secret_data.secret)?;
+        assert_root_file_secret(owner, folder, &id, &secret_data.secret)
+            .await?;
 
         let (delete_attachment_secret_data, _) =
             owner.read_secret(&id, Some(folder.clone())).await?;
@@ -654,7 +660,7 @@ async fn assert_attach_file_secret(
             let file_name = hex::encode(checksum);
             let file_path =
                 owner.file_location(folder.id(), &id, &file_name)?;
-            assert!(file_path.exists());
+            assert!(vfs::try_exists(&file_path).await?);
         } else {
             panic!("expecting file secret variant (attachment)");
         };
@@ -670,7 +676,7 @@ async fn assert_attach_file_secret(
     for checksum in checksums {
         let file_path =
             owner.file_location(folder.id(), &id, &hex::encode(checksum))?;
-        assert!(!file_path.exists());
+        assert!(!vfs::try_exists(&file_path).await?);
     }
 
     Ok(())

@@ -2,14 +2,16 @@
 //! creating and managing local accounts.
 use std::{
     borrow::Cow,
-    fs::File,
-    io::{Cursor, Read, Seek},
+    io::Cursor,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use tokio::{
+    io::{AsyncRead, AsyncSeek},
+    sync::RwLock,
+};
 use web3_address::ethereum::Address;
 
 use uuid::Uuid;
@@ -20,18 +22,18 @@ use crate::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
         AccountInfo, DelegatedPassphrase, Identity, LocalAccounts,
     },
-    constants::{VAULT_EXT, WAL_EXT},
+    constants::{EVENT_LOG_EXT, VAULT_EXT},
     decode, encode,
-    events::SyncEvent,
+    events::{EventLogFile, WriteEvent},
     passwd::ChangePassword,
     search::SearchIndex,
     sha2::{Digest, Sha256},
     storage::StorageDirs,
     vault::{
-        secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess,
-        VaultFileAccess, VaultId,
+        secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess, VaultId,
+        VaultWriter,
     },
-    wal::{file::WalFile, WalProvider},
+    vfs::{self, File},
     Error, Result,
 };
 
@@ -189,14 +191,14 @@ pub struct AccountBackup;
 
 impl AccountBackup {
     /// Build a manifest for an account.
-    pub fn manifest(
+    pub async fn manifest(
         address: &Address,
         options: AccountManifestOptions,
     ) -> Result<(AccountManifest, u64)> {
         let mut total_size: u64 = 0;
         let mut manifest = AccountManifest::new(*address);
         let path = StorageDirs::identity_vault(address.to_string())?;
-        let (size, checksum) = Self::read_file_entry(path, None)?;
+        let (size, checksum) = Self::read_file_entry(path, None).await?;
         let entry = ManifestEntry::Identity {
             id: Uuid::new_v4(),
             label: address.to_string(),
@@ -206,13 +208,13 @@ impl AccountBackup {
         manifest.entries.push(entry);
         total_size += size;
 
-        let vaults = LocalAccounts::list_local_vaults(address, false)?;
+        let vaults = LocalAccounts::list_local_vaults(address, false).await?;
         for (summary, path) in vaults {
             if options.no_sync_self && summary.flags().is_no_sync_self() {
                 continue;
             }
 
-            let (size, checksum) = Self::read_file_entry(path, None)?;
+            let (size, checksum) = Self::read_file_entry(path, None).await?;
             let entry = ManifestEntry::Vault {
                 id: *summary.id(),
                 label: summary.name().to_owned(),
@@ -226,7 +228,7 @@ impl AccountBackup {
         let files = StorageDirs::files_dir(address.to_string())?;
         for entry in WalkDir::new(&files) {
             let entry = entry?;
-            if entry.path().is_file() {
+            if vfs::metadata(entry.path()).await?.is_file() {
                 let relative = entry.path().strip_prefix(&files)?;
 
                 let mut it = relative.iter();
@@ -243,7 +245,8 @@ impl AccountBackup {
                     let (size, checksum) = Self::read_file_entry(
                         entry.path(),
                         Some(label.clone()),
-                    )?;
+                    )
+                    .await?;
                     let entry = ManifestEntry::File {
                         id: Uuid::new_v4(),
                         label,
@@ -288,20 +291,21 @@ impl AccountBackup {
         }
     }
 
-    fn read_file_entry<P: AsRef<Path>>(
+    async fn read_file_entry<P: AsRef<Path>>(
         path: P,
         file_name: Option<String>,
     ) -> Result<(u64, [u8; 32])> {
-        let mut file = File::open(path)?;
-        let size = file.metadata()?.len();
+        let file = File::open(path.as_ref()).await?;
+        let size = file.metadata().await?.len();
         // For files we already have the checksum encoded in the
         // file name so parse it from the file name
         let checksum = if let Some(file_name) = file_name {
             hex::decode(file_name.as_bytes())?
         // Otherwise for vaults read in the file data and compute
         } else {
+            let buffer = vfs::read(path.as_ref()).await?;
             let mut hasher = Sha256::new();
-            std::io::copy(&mut file, &mut hasher)?;
+            hasher.update(&buffer);
             hasher.finalize().to_vec()
         };
         Ok((size, checksum.as_slice().try_into()?))
@@ -312,7 +316,7 @@ impl AccountBackup {
     ///
     /// The identity vault must be unlocked so we can retrieve
     /// the passphrase for the target vault.
-    pub fn export_vault(
+    pub async fn export_vault(
         address: &Address,
         identity: &Gatekeeper,
         vault_id: &VaultId,
@@ -320,11 +324,12 @@ impl AccountBackup {
     ) -> Result<Vec<u8>> {
         // Get the current vault passphrase from the identity vault
         let current_passphrase =
-            DelegatedPassphrase::find_vault_passphrase(identity, vault_id)?;
+            DelegatedPassphrase::find_vault_passphrase(identity, vault_id)
+                .await?;
 
         // Find the local vault for the account
         let (vault, _) =
-            LocalAccounts::find_local_vault(address, vault_id, false)?;
+            LocalAccounts::find_local_vault(address, vault_id, false).await?;
 
         // Change the password before exporting
         let (_, vault, _) = ChangePassword::new(
@@ -333,67 +338,70 @@ impl AccountBackup {
             new_passphrase,
             None,
         )
-        .build()?;
+        .build()
+        .await?;
 
-        encode(&vault)
+        encode(&vault).await
     }
 
     /// Create a buffer for a zip archive including the
     /// identity vault and all user vaults.
-    pub fn export_archive_buffer(address: &Address) -> Result<Vec<u8>> {
+    pub async fn export_archive_buffer(address: &Address) -> Result<Vec<u8>> {
         let identity_path = StorageDirs::identity_vault(address.to_string())?;
-        if !identity_path.exists() {
+        if !vfs::try_exists(&identity_path).await? {
             return Err(Error::NotFile(identity_path));
         }
-        let identity = std::fs::read(identity_path)?;
+        let identity = vfs::read(identity_path).await?;
 
-        let vaults = LocalAccounts::list_local_vaults(address, false)?;
+        let vaults = LocalAccounts::list_local_vaults(address, false).await?;
 
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));
-        let mut writer = writer.set_identity(address, &identity)?;
+        let mut writer = writer.set_identity(address, &identity).await?;
 
         for (summary, path) in vaults {
-            let buffer = std::fs::read(path)?;
-            writer = writer.add_vault(*summary.id(), &buffer)?;
+            let buffer = vfs::read(path).await?;
+            writer = writer.add_vault(*summary.id(), &buffer).await?;
         }
 
         let files = StorageDirs::files_dir(address.to_string())?;
         for entry in WalkDir::new(&files) {
             let entry = entry?;
-            if entry.path().is_file() {
+            if vfs::metadata(entry.path()).await?.is_file() {
                 let relative = PathBuf::from("files")
                     .join(entry.path().strip_prefix(&files)?);
                 let relative = relative.to_string_lossy().into_owned();
-                let buffer = std::fs::read(entry.path())?;
-                writer = writer.add_file(&relative, &buffer)?;
+                let buffer = vfs::read(entry.path()).await?;
+                writer = writer.add_file(&relative, &buffer).await?;
             }
         }
 
-        writer.finish()?;
+        writer.finish().await?;
         Ok(archive)
     }
 
     /// Export an archive of the account to disc.
-    pub fn export_archive_file<P: AsRef<Path>>(
+    pub async fn export_archive_file<P: AsRef<Path>>(
         path: P,
         address: &Address,
     ) -> Result<()> {
-        let buffer = Self::export_archive_buffer(address)?;
-        std::fs::write(path.as_ref(), buffer)?;
+        let buffer = Self::export_archive_buffer(address).await?;
+        vfs::write(path.as_ref(), buffer).await?;
         Ok(())
     }
 
     /// Read the inventory from an archive.
-    pub fn restore_archive_inventory<R: Read + Seek>(
+    pub async fn restore_archive_inventory<
+        R: AsyncRead + AsyncSeek + Unpin,
+    >(
         archive: R,
     ) -> Result<Inventory> {
-        let mut reader = Reader::new(archive)?;
-        reader.inventory()
+        let mut reader = Reader::new(archive).await?;
+        reader.inventory().await
     }
 
     /// Import from an archive.
-    pub fn restore_archive_buffer<R: Read + Seek>(
+    pub async fn restore_archive_buffer<R: AsyncRead + AsyncSeek + Unpin>(
         buffer: R,
         options: RestoreOptions,
         existing_account: bool,
@@ -402,7 +410,8 @@ impl AccountBackup {
 
         // Signed in so use the existing provider
         let (targets, account) = if existing_account {
-            let targets = Self::extract_verify_archive(buffer, &options)?;
+            let targets =
+                Self::extract_verify_archive(buffer, &options).await?;
 
             let RestoreTargets {
                 address,
@@ -412,7 +421,7 @@ impl AccountBackup {
 
             // The GUI should check the identity already exists
             // but we will double check here to be safe
-            let keys = LocalAccounts::list_accounts()?;
+            let keys = LocalAccounts::list_accounts().await?;
             let existing_account =
                 keys.iter().find(|k| k.address() == address);
             let account = existing_account
@@ -424,49 +433,51 @@ impl AccountBackup {
             if let Some(passphrase) = &options.passphrase {
                 let identity_vault_file =
                     StorageDirs::identity_vault(&address)?;
-                let identity_buffer = std::fs::read(&identity_vault_file)?;
-                let identity_vault: Vault = decode(&identity_buffer)?;
+                let identity_buffer = vfs::read(&identity_vault_file).await?;
+                let identity_vault: Vault = decode(&identity_buffer).await?;
                 let mut identity_keeper =
                     Gatekeeper::new(identity_vault, None);
-                identity_keeper.unlock(passphrase.clone())?;
+                identity_keeper.unlock(passphrase.clone()).await?;
 
                 let search_index = Arc::new(RwLock::new(SearchIndex::new()));
-                let restored_identity: Vault = decode(&identity.1)?;
+                let restored_identity: Vault = decode(&identity.1).await?;
                 let mut restored_identity_keeper = Gatekeeper::new(
                     restored_identity,
                     Some(Arc::clone(&search_index)),
                 );
-                restored_identity_keeper.unlock(passphrase.clone())?;
-                restored_identity_keeper.create_search_index()?;
+                restored_identity_keeper.unlock(passphrase.clone()).await?;
+                restored_identity_keeper.create_search_index().await?;
 
                 for (_, vault) in vaults {
                     let vault_passphrase =
                         DelegatedPassphrase::find_vault_passphrase(
                             &restored_identity_keeper,
                             vault.id(),
-                        )?;
+                        )
+                        .await?;
 
                     DelegatedPassphrase::save_vault_passphrase(
                         &mut identity_keeper,
                         vault.id(),
                         vault_passphrase,
-                    )?;
+                    )
+                    .await?;
                 }
 
                 // Must re-write the identity vault
-                let buffer = encode(identity_keeper.vault())?;
-                std::fs::write(identity_vault_file, buffer)?;
+                let buffer = encode(identity_keeper.vault()).await?;
+                vfs::write(identity_vault_file, buffer).await?;
             }
 
             (targets, account)
         // No provider available so the user is not signed in
         } else {
             let restore_targets =
-                Self::extract_verify_archive(buffer, &options)?;
+                Self::extract_verify_archive(buffer, &options).await?;
 
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
-            let keys = LocalAccounts::list_accounts()?;
+            let keys = LocalAccounts::list_accounts().await?;
             let existing_account = keys
                 .iter()
                 .find(|k| k.address() == &restore_targets.address);
@@ -481,7 +492,8 @@ impl AccountBackup {
             // Write out the identity vault
             let identity_vault_file =
                 StorageDirs::identity_vault(&address_path)?;
-            std::fs::write(identity_vault_file, &restore_targets.identity.1)?;
+            vfs::write(identity_vault_file, &restore_targets.identity.1)
+                .await?;
 
             // Check if the identity name already exists
             // and rename the identity being imported if necessary
@@ -498,8 +510,12 @@ impl AccountBackup {
 
                 let identity_vault_file =
                     StorageDirs::identity_vault(&address_path)?;
-                let mut access = VaultFileAccess::new(identity_vault_file)?;
-                access.set_vault_name(name.clone())?;
+
+                let vault_file =
+                    VaultWriter::open(&identity_vault_file).await?;
+                let mut access =
+                    VaultWriter::new(identity_vault_file, vault_file)?;
+                access.set_vault_name(name.clone()).await?;
 
                 name
             } else {
@@ -508,25 +524,25 @@ impl AccountBackup {
 
             // Prepare the vaults directory
             let vaults_dir = StorageDirs::local_vaults_dir(&address_path)?;
-            std::fs::create_dir_all(&vaults_dir)?;
+            vfs::create_dir_all(&vaults_dir).await?;
 
-            // Write out each vault and the WAL log
+            // Write out each vault and the event log log
             for (buffer, vault) in &restore_targets.vaults {
                 let mut vault_path = vaults_dir.join(vault.id().to_string());
-                let mut wal_path = vault_path.clone();
+                let mut event_log_path = vault_path.clone();
                 vault_path.set_extension(VAULT_EXT);
-                wal_path.set_extension(WAL_EXT);
+                event_log_path.set_extension(EVENT_LOG_EXT);
 
                 // Write out the vault buffer
-                std::fs::write(&vault_path, buffer)?;
+                vfs::write(&vault_path, buffer).await?;
 
-                // Write out the WAL file
-                let mut wal_events = Vec::new();
+                // Write out the event log file
+                let mut event_log_events = Vec::new();
                 let create_vault =
-                    SyncEvent::CreateVault(Cow::Borrowed(buffer));
-                wal_events.push(create_vault);
-                let mut wal = WalFile::new(wal_path)?;
-                wal.apply(wal_events, None)?;
+                    WriteEvent::CreateVault(Cow::Borrowed(buffer));
+                event_log_events.push(create_vault);
+                let mut event_log = EventLogFile::new(event_log_path).await?;
+                event_log.apply(event_log_events, None).await?;
             }
 
             let account = AccountInfo::new(label, restore_targets.address);
@@ -539,35 +555,36 @@ impl AccountBackup {
 
     /// Helper to extract from an archive and verify the archive
     /// contents against the restore options.
-    pub fn extract_verify_archive<R: Read + Seek>(
+    pub async fn extract_verify_archive<R: AsyncRead + AsyncSeek + Unpin>(
         archive: R,
         options: &RestoreOptions,
     ) -> Result<RestoreTargets> {
-        let mut reader = Reader::new(archive)?.prepare()?;
+        let mut reader = Reader::new(archive).await?.prepare().await?;
 
         if let Some(files_dir) = &options.files_dir {
             match files_dir {
                 ExtractFilesLocation::Path(files_dir) => {
-                    reader.extract_files(
-                        files_dir,
-                        options.selected.as_slice(),
-                    )?;
+                    reader
+                        .extract_files(files_dir, options.selected.as_slice())
+                        .await?;
                 }
                 ExtractFilesLocation::Builder(builder) => {
                     if let Some(manifest) = reader.manifest() {
                         let address = manifest.address.to_string();
                         if let Some(files_dir) = builder(&address) {
-                            reader.extract_files(
-                                files_dir,
-                                options.selected.as_slice(),
-                            )?;
+                            reader
+                                .extract_files(
+                                    files_dir,
+                                    options.selected.as_slice(),
+                                )
+                                .await?;
                         }
                     }
                 }
             }
         }
 
-        let (address, identity, vaults) = reader.finish()?;
+        let (address, identity, vaults) = reader.finish().await?;
 
         // Filter extracted vaults to those selected by the user
         let vaults = vaults
@@ -580,16 +597,16 @@ impl AccountBackup {
         // Check each target vault can be decoded
         let mut decoded: Vec<(Vec<u8>, Vault)> = Vec::new();
         for item in vaults {
-            let vault: Vault = decode(&item.1)?;
+            let vault: Vault = decode(&item.1).await?;
             decoded.push((item.1, vault));
         }
 
         // Check all the decoded vaults can be decrypted
         if let Some(passphrase) = &options.passphrase {
             // Check the identity vault can be unlocked
-            let vault: Vault = decode(&identity.1)?;
+            let vault: Vault = decode(&identity.1).await?;
             let mut keeper = Gatekeeper::new(vault, None);
-            keeper.unlock(passphrase.clone())?;
+            keeper.unlock(passphrase.clone()).await?;
 
             // Get the signing address from the identity vault and
             // verify it matches the manifest address
@@ -598,7 +615,8 @@ impl AccountBackup {
                 passphrase.clone(),
                 None,
                 None,
-            )?;
+            )
+            .await?;
             if user.address() != &address {
                 return Err(Error::ArchiveAddressMismatch);
             }

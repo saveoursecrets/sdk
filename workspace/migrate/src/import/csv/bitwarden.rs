@@ -5,19 +5,18 @@
 
 use secrecy::SecretString;
 use serde::Deserialize;
-use std::{
-    io::Read,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use url::Url;
 
-use sos_sdk::vault::Vault;
+use async_trait::async_trait;
+use sos_sdk::{vault::Vault, vfs};
+use tokio::io::AsyncRead;
 
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericNoteRecord,
     GenericPasswordRecord, UNTITLED,
 };
-use crate::{Convert, Result};
+use crate::{import::read_csv_records, Convert, Result};
 
 const TYPE_LOGIN: &str = "login";
 const TYPE_NOTE: &str = "note";
@@ -103,50 +102,42 @@ impl From<BitwardenPasswordRecord> for GenericCsvEntry {
 }
 
 /// Parse records from a reader.
-pub fn parse_reader<R: Read>(
+pub async fn parse_reader<R: AsyncRead + Unpin + Send>(
     reader: R,
 ) -> Result<Vec<BitwardenPasswordRecord>> {
-    parse(csv::Reader::from_reader(reader))
+    read_csv_records::<BitwardenPasswordRecord, _>(reader).await
 }
 
 /// Parse records from a path.
-pub fn parse_path<P: AsRef<Path>>(
+pub async fn parse_path<P: AsRef<Path>>(
     path: P,
 ) -> Result<Vec<BitwardenPasswordRecord>> {
-    parse(csv::Reader::from_path(path)?)
-}
-
-fn parse<R: Read>(
-    mut rdr: csv::Reader<R>,
-) -> Result<Vec<BitwardenPasswordRecord>> {
-    let mut records = Vec::new();
-    for result in rdr.deserialize() {
-        let record: BitwardenPasswordRecord = result?;
-        records.push(record);
-    }
-    Ok(records)
+    parse_reader(vfs::File::open(path).await?).await
 }
 
 /// Import a Bitwarden passwords CSV export into a vault.
 pub struct BitwardenCsv;
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Convert for BitwardenCsv {
     type Input = PathBuf;
 
-    fn convert(
+    async fn convert(
         &self,
         source: Self::Input,
         vault: Vault,
         password: SecretString,
     ) -> crate::Result<Vault> {
-        let records: Vec<GenericCsvEntry> = parse_path(source)?
+        let records: Vec<GenericCsvEntry> = parse_path(source)
+            .await?
             .into_iter()
             .filter(|record| {
                 record.kind == TYPE_LOGIN || record.kind == TYPE_NOTE
             })
             .map(|r| r.into())
             .collect();
-        GenericCsvConvert.convert(records, vault, password)
+        GenericCsvConvert.convert(records, vault, password).await
     }
 }
 
@@ -155,7 +146,7 @@ mod test {
     use super::{parse_path, BitwardenCsv};
     use crate::Convert;
     use anyhow::Result;
-    use parking_lot::RwLock;
+    use tokio::sync::RwLock;
 
     use sos_sdk::{
         passwd::diceware::generate_passphrase,
@@ -165,9 +156,9 @@ mod test {
     use std::sync::Arc;
     use url::Url;
 
-    #[test]
-    fn bitwarden_passwords_csv_parse() -> Result<()> {
-        let mut records = parse_path("fixtures/bitwarden-export.csv")?;
+    #[tokio::test]
+    async fn bitwarden_passwords_csv_parse() -> Result<()> {
+        let mut records = parse_path("fixtures/bitwarden-export.csv").await?;
         assert_eq!(2, records.len());
 
         let first = records.remove(0);
@@ -186,25 +177,27 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn bitwarden_passwords_csv_convert() -> Result<()> {
+    #[tokio::test]
+    async fn bitwarden_passwords_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let mut vault: Vault = Default::default();
-        vault.initialize(passphrase.clone(), None)?;
+        vault.initialize(passphrase.clone(), None).await?;
 
-        let vault = BitwardenCsv.convert(
-            "fixtures/bitwarden-export.csv".into(),
-            vault,
-            passphrase.clone(),
-        )?;
+        let vault = BitwardenCsv
+            .convert(
+                "fixtures/bitwarden-export.csv".into(),
+                vault,
+                passphrase.clone(),
+            )
+            .await?;
 
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
-        keeper.unlock(passphrase)?;
-        keeper.create_search_index()?;
+        keeper.unlock(passphrase).await?;
+        keeper.create_search_index().await?;
 
-        let search = search_index.read();
+        let search = search_index.read().await;
         let first = search.find_by_label(keeper.id(), "Mock Login", None);
         assert!(first.is_some());
 

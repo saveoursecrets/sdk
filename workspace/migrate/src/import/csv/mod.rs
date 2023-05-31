@@ -7,12 +7,13 @@ pub mod firefox;
 pub mod macos;
 pub mod one_password;
 
-use parking_lot::RwLock;
+use async_trait::async_trait;
 use secrecy::SecretString;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
+use tokio::sync::RwLock;
 use url::Url;
 use vcard4::Vcard;
 
@@ -270,10 +271,12 @@ impl GenericPaymentRecord {
 /// Convert from generic password records.
 pub struct GenericCsvConvert;
 
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Convert for GenericCsvConvert {
     type Input = Vec<GenericCsvEntry>;
 
-    fn convert(
+    async fn convert(
         &self,
         source: Self::Input,
         vault: Vault,
@@ -283,27 +286,34 @@ impl Convert for GenericCsvConvert {
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
 
-        keeper.unlock(password)?;
+        keeper.unlock(password).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 
         for mut entry in source {
             // Handle duplicate labels by incrementing a counter
             let mut label = entry.label().to_owned();
-            let search = search_index.read();
-            if search
-                .find_by_label(keeper.vault().id(), &label, None)
-                .is_some()
-            {
-                duplicates
-                    .entry(label.clone())
-                    .and_modify(|counter| *counter += 1)
-                    .or_insert(1);
-                let counter = duplicates.get(&label).unwrap();
-                label = format!("{} {}", label, counter);
+
+            let rename_label = {
+                let search = search_index.read().await;
+                if search
+                    .find_by_label(keeper.vault().id(), &label, None)
+                    .is_some()
+                {
+                    duplicates
+                        .entry(label.clone())
+                        .and_modify(|counter| *counter += 1)
+                        .or_insert(1);
+                    let counter = duplicates.get(&label).unwrap();
+                    Some(format!("{} {}", label, counter))
+                } else {
+                    None
+                }
+            };
+
+            if let Some(renamed) = rename_label {
+                label = renamed;
             }
-            // Must drop before writing
-            drop(search);
 
             let tags = entry.tags().take();
             let note = entry.note().take();
@@ -313,7 +323,7 @@ impl Convert for GenericCsvConvert {
             if let Some(tags) = tags {
                 meta.set_tags(tags);
             }
-            keeper.create(meta, secret)?;
+            keeper.create(meta, secret).await?;
         }
 
         keeper.lock();

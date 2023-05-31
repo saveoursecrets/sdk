@@ -5,9 +5,9 @@ use http::StatusCode;
 
 use sos_sdk::{
     commit::{CommitPair, CommitRelationship, Comparison},
-    patch::PatchProvider,
+    events::EventLogFile,
+    patch::PatchFile,
     vault::Summary,
-    wal::WalProvider,
 };
 
 use crate::retry;
@@ -24,21 +24,17 @@ pub use pull::*;
 pub use push::*;
 pub use status::*;
 
-/// Get a comparison between a local WAL and remote WAL.
+/// Get a comparison between a local event log and remote event log.
 ///
 /// If a patch file has unsaved events then the number
 /// of pending events is returned along with the `CommitRelationship`.
-pub async fn status<W, P>(
+pub async fn status(
     client: &mut RpcClient,
     summary: &Summary,
-    wal_file: &W,
-    patch_file: &P,
-) -> Result<(CommitRelationship, Option<usize>)>
-where
-    W: WalProvider + Send + Sync + 'static,
-    P: PatchProvider + Send + Sync + 'static,
-{
-    let client_proof = wal_file.tree().head()?;
+    event_log_file: &EventLogFile,
+    patch_file: &PatchFile,
+) -> Result<(CommitRelationship, Option<usize>)> {
+    let client_proof = event_log_file.tree().head()?;
     let (status, (server_proof, match_proof)) = retry!(
         || client.status(summary.id(), Some(client_proof.clone())),
         client
@@ -62,7 +58,7 @@ where
         let (diff, _) = pair.remote.len().overflowing_sub(pair.local.len());
         CommitRelationship::Behind(pair, diff)
     } else {
-        let comparison = wal_file.tree().compare(&server_proof)?;
+        let comparison = event_log_file.tree().compare(&server_proof)?;
         let is_ahead = matches!(comparison, Comparison::Contains(_, _));
 
         if is_ahead {
@@ -74,8 +70,8 @@ where
         }
     };
 
-    let pending_events = if patch_file.has_events()? {
-        Some(patch_file.count_events()?)
+    let pending_events = if patch_file.has_events().await? {
+        Some(patch_file.count_events().await?)
     } else {
         None
     };

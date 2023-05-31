@@ -1,9 +1,11 @@
 use axum::http::StatusCode;
 
 use sos_sdk::{
-    audit::{AuditData, AuditEvent},
     constants::{VAULT_CREATE, VAULT_DELETE, VAULT_SAVE},
-    events::{ChangeEvent, ChangeNotification, EventKind},
+    events::{
+        AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
+        EventKind,
+    },
     rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
 };
@@ -36,13 +38,14 @@ impl Service for VaultService {
         match request.method() {
             VAULT_CREATE => {
                 // Check it looks like a vault payload
-                let summary = Header::read_summary_slice(request.body())?;
+                let summary =
+                    Header::read_summary_slice(request.body()).await?;
 
                 let reader = state.read().await;
                 let (exists, proof) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), summary.id())
+                    .event_log_exists(caller.address(), summary.id())
                     .await
                     .map_err(Box::from)?;
                 drop(reader);
@@ -56,7 +59,7 @@ impl Service for VaultService {
                     let (sync_event, proof) = writer
                         .backend
                         .handler_mut()
-                        .create_wal(
+                        .create_event_log(
                             caller.address(),
                             summary.id(),
                             request.body(),
@@ -77,11 +80,8 @@ impl Service for VaultService {
                         vec![ChangeEvent::CreateVault(summary)],
                     );
 
-                    let log = AuditEvent::from_sync_event(
-                        &sync_event,
-                        *caller.address(),
-                        vault_id,
-                    );
+                    let event = Event::Write(vault_id, sync_event);
+                    let log: AuditEvent = (caller.address(), &event).into();
 
                     append_audit_logs(&mut writer, vec![log])
                         .await
@@ -98,7 +98,7 @@ impl Service for VaultService {
                 let (exists, proof) = writer
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), &vault_id)
+                    .event_log_exists(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -112,7 +112,7 @@ impl Service for VaultService {
                 writer
                     .backend
                     .handler_mut()
-                    .delete_wal(caller.address(), &vault_id)
+                    .delete_event_log(caller.address(), &vault_id)
                     .await
                     .map_err(Box::from)?;
 
@@ -144,7 +144,8 @@ impl Service for VaultService {
                 let vault_id = request.parameters::<Uuid>()?;
 
                 // Check it looks like a vault payload
-                let summary = Header::read_summary_slice(request.body())?;
+                let summary =
+                    Header::read_summary_slice(request.body()).await?;
 
                 if &vault_id != summary.id() {
                     return Ok((StatusCode::BAD_REQUEST, request.id()).into());
@@ -154,7 +155,7 @@ impl Service for VaultService {
                 let (exists, _) = reader
                     .backend
                     .handler()
-                    .wal_exists(caller.address(), summary.id())
+                    .event_log_exists(caller.address(), summary.id())
                     .await
                     .map_err(Box::from)?;
 
@@ -183,11 +184,8 @@ impl Service for VaultService {
                     vec![ChangeEvent::UpdateVault],
                 );
 
-                let log = AuditEvent::from_sync_event(
-                    &sync_event,
-                    *caller.address(),
-                    *summary.id(),
-                );
+                let event = Event::Write(vault_id, sync_event);
+                let log: AuditEvent = (caller.address(), &event).into();
 
                 append_audit_logs(&mut writer, vec![log])
                     .await

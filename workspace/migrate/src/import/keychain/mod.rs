@@ -1,8 +1,9 @@
 //! Import from keychain access and passwords CSV.
+use async_trait::async_trait;
+pub use error::Error;
+
 pub mod error;
 pub mod parser;
-
-pub use error::Error;
 
 /// Result type for keychain access integration.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -26,7 +27,7 @@ use sos_sdk::{
     },
 };
 
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 
 use parser::{AttributeName, KeychainParser};
 use secrecy::{ExposeSecret, SecretString};
@@ -119,10 +120,34 @@ impl KeychainImport {
     }
 }
 
+async fn rename_label(
+    keeper: &mut Gatekeeper,
+    label: String,
+    duplicates: &mut HashMap<String, usize>,
+    search_index: Arc<RwLock<SearchIndex>>,
+) -> String {
+    let search = search_index.read().await;
+    if search
+        .find_by_label(keeper.vault().id(), &label, None)
+        .is_some()
+    {
+        duplicates
+            .entry(label.clone())
+            .and_modify(|counter| *counter += 1)
+            .or_insert(1);
+        let counter = duplicates.get(&label).unwrap();
+        format!("{} {}", label, counter)
+    } else {
+        label
+    }
+}
+
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Convert for KeychainImport {
     type Input = String;
 
-    fn convert(
+    async fn convert(
         &self,
         source: Self::Input,
         vault: Vault,
@@ -134,7 +159,7 @@ impl Convert for KeychainImport {
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
-        keeper.unlock(password)?;
+        keeper.unlock(password).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 
@@ -147,22 +172,14 @@ impl Convert for KeychainImport {
                 entry.data(),
             ) {
                 if let Some(generic_data) = entry.generic_data()? {
-                    let mut label = attr_service.as_str().to_owned();
-                    let search = search_index.read();
-                    if search
-                        .find_by_label(keeper.vault().id(), &label, None)
-                        .is_some()
-                    {
-                        duplicates
-                            .entry(label.clone())
-                            .and_modify(|counter| *counter += 1)
-                            .or_insert(1);
-                        let counter = duplicates.get(&label).unwrap();
-                        label = format!("{} {}", label, counter);
-                    }
-                    // Must drop before writing
-                    drop(search);
-
+                    let label = attr_service.as_str().to_owned();
+                    let label = rename_label(
+                        &mut keeper,
+                        label,
+                        &mut duplicates,
+                        Arc::clone(&search_index),
+                    )
+                    .await;
                     if entry.is_note() {
                         let text = generic_data.into_owned();
                         let secret = Secret::Note {
@@ -172,7 +189,7 @@ impl Convert for KeychainImport {
 
                         let meta = SecretMeta::new(label, secret.kind());
 
-                        keeper.create(meta, secret)?;
+                        keeper.create(meta, secret).await?;
                     } else if let Some((_, attr_account)) = entry
                         .find_attribute_by_name(
                             AttributeName::SecAccountItemAttr,
@@ -188,7 +205,7 @@ impl Convert for KeychainImport {
 
                         let meta = SecretMeta::new(label, secret.kind());
 
-                        keeper.create(meta, secret)?;
+                        keeper.create(meta, secret).await?;
                     }
                 }
             }

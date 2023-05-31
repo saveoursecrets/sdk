@@ -3,7 +3,7 @@
 use crate::{
     crypto::secret_key::{SecretKey, Seed},
     encode,
-    events::SyncEvent,
+    events::WriteEvent,
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
 };
@@ -65,9 +65,9 @@ impl<'a> ChangePassword<'a> {
     /// Yields the encrpytion passphrase for the new vault, the
     /// new computed vault and a collection of events that can
     /// be used to generate a fresh write-ahead log file.
-    pub fn build(
+    pub async fn build(
         self,
-    ) -> Result<(SecretString, Vault, Vec<SyncEvent<'static>>)> {
+    ) -> Result<(SecretString, Vault, Vec<WriteEvent<'static>>)> {
         // Decrypt current vault meta data blob
         let current_private_key = self.current_private_key()?;
         let vault_meta_aead =
@@ -86,7 +86,9 @@ impl<'a> ChangePassword<'a> {
         //
         // Must clear the existing salt so we can re-initialize.
         new_vault.header_mut().clear_salt();
-        new_vault.initialize(self.new_passphrase.clone(), self.seed)?;
+        new_vault
+            .initialize(self.new_passphrase.clone(), self.seed)
+            .await?;
 
         // Get a new secret key after we have initialized the new salt
         let new_private_key = self.new_private_key(&new_vault)?;
@@ -97,11 +99,11 @@ impl<'a> ChangePassword<'a> {
             new_vault.encrypt(&new_private_key, &vault_meta_blob)?;
         new_vault.header_mut().set_meta(Some(vault_meta_aead));
 
-        let mut wal_events = Vec::new();
+        let mut event_log_events = Vec::new();
 
-        let buffer = encode(&new_vault)?;
-        let create_vault = SyncEvent::CreateVault(Cow::Owned(buffer));
-        wal_events.push(create_vault);
+        let buffer = encode(&new_vault).await?;
+        let create_vault = WriteEvent::CreateVault(Cow::Owned(buffer));
+        event_log_events.push(create_vault);
 
         // Iterate the current vault and decrypt the secrets
         // inserting freshly encrypted content into the new vault
@@ -119,23 +121,20 @@ impl<'a> ChangePassword<'a> {
                 new_vault.encrypt(&new_private_key, &secret_blob)?;
 
             // Need a new commit hash as the contents have changed
-            let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead)?;
+            let (commit, _) =
+                Vault::commit_hash(&meta_aead, &secret_aead).await?;
 
             // Insert into the new vault preserving the secret identifiers
-            let sync_event = new_vault.insert(
-                *id,
-                commit,
-                VaultEntry(meta_aead, secret_aead),
-            )?;
+            let sync_event = new_vault
+                .insert(*id, commit, VaultEntry(meta_aead, secret_aead))
+                .await?;
 
-            let sync_event = sync_event.into_owned();
-            //let wal_event: SyncEvent<'static> = sync_event.try_into()?;
-            wal_events.push(sync_event);
+            event_log_events.push(sync_event.into_owned());
         }
 
-        wal_events.sort();
+        event_log_events.sort();
 
-        Ok((self.new_passphrase, new_vault, wal_events))
+        Ok((self.new_passphrase, new_vault, event_log_events))
     }
 }
 
@@ -146,14 +145,16 @@ mod test {
     use anyhow::Result;
     use secrecy::ExposeSecret;
 
-    #[test]
-    fn change_password() -> Result<()> {
+    #[tokio::test]
+    async fn change_password() -> Result<()> {
         let (_, _, current_passphrase) = mock_encryption_key()?;
         let mut mock_vault = mock_vault();
-        mock_vault.initialize(current_passphrase.clone(), None)?;
+        mock_vault
+            .initialize(current_passphrase.clone(), None)
+            .await?;
 
         let mut keeper = Gatekeeper::new(mock_vault, None);
-        keeper.unlock(current_passphrase.clone())?;
+        keeper.unlock(current_passphrase.clone()).await?;
 
         // Propagate some secrets
         let notes = vec![
@@ -163,8 +164,8 @@ mod test {
         ];
         for item in notes {
             let (secret_meta, secret_value, _, _) =
-                mock_secret_note(item.0, item.1)?;
-            keeper.create(secret_meta, secret_value)?;
+                mock_secret_note(item.0, item.1).await?;
+            keeper.create(secret_meta, secret_value).await?;
         }
 
         let expected_len = keeper.vault().len();
@@ -183,23 +184,26 @@ mod test {
             None,
         )
         .build()
+        .await
         .is_err());
 
         // Using a valid current passphrase should succeed
-        let (new_passphrase, new_vault, wal_events) = ChangePassword::new(
-            keeper.vault(),
-            current_passphrase,
-            new_passphrase,
-            None,
-        )
-        .build()?;
+        let (new_passphrase, new_vault, event_log_events) =
+            ChangePassword::new(
+                keeper.vault(),
+                current_passphrase,
+                new_passphrase,
+                None,
+            )
+            .build()
+            .await?;
 
         assert_eq!(
             expected_passphrase.expose_secret(),
             new_passphrase.expose_secret()
         );
         assert_eq!(expected_len, new_vault.len());
-        assert_eq!(expected_len + 1, wal_events.len());
+        assert_eq!(expected_len + 1, event_log_events.len());
 
         Ok(())
     }

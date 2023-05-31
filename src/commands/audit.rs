@@ -2,10 +2,11 @@ use clap::Subcommand;
 
 use crate::{Error, Result, TARGET};
 use sos_sdk::{
-    audit::{AuditData, AuditEvent, AuditLogFile},
+    events::{AuditData, AuditEvent, AuditLogFile},
     signer::ecdsa::Address,
+    vfs::{self, File},
 };
-use std::{fs::File, path::PathBuf, thread, time};
+use std::{path::PathBuf, thread, time};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -45,7 +46,7 @@ pub enum Command {
     },
 }
 
-pub fn run(cmd: Command) -> Result<()> {
+pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::Logs {
             audit_log,
@@ -54,36 +55,36 @@ pub fn run(cmd: Command) -> Result<()> {
             reverse,
             count,
         } => {
-            logs(audit_log, json, address, reverse, count)?;
+            logs(audit_log, json, address, reverse, count).await?;
         }
         Command::Monitor {
             audit_log,
             json,
             address,
         } => {
-            monitor(audit_log, json, address)?;
+            monitor(audit_log, json, address).await?;
         }
     }
     Ok(())
 }
 
 /// Monitor changes in an audit log file.
-pub fn monitor(
+pub async fn monitor(
     audit_log: PathBuf,
     json: bool,
     address: Vec<Address>,
 ) -> Result<()> {
-    if !audit_log.is_file() {
+    if !vfs::metadata(&audit_log).await?.is_file() {
         return Err(Error::NotFile(audit_log));
     }
 
     // File for iterating
-    let log_file = AuditLogFile::new(&audit_log)?;
+    let log_file = AuditLogFile::new(&audit_log).await?;
 
     // File for reading event data
-    let mut file = File::open(&audit_log)?;
+    let mut file = File::open(&audit_log).await?;
 
-    let mut it = log_file.iter()?;
+    let mut it = log_file.iter().await?;
     let mut offset = audit_log.metadata()?.len();
     // Push iteration constraint to the end of the file
     it.set_offset(offset);
@@ -94,9 +95,8 @@ pub fn monitor(
 
         let len = audit_log.metadata()?.len();
         if len > offset {
-            for record in it.by_ref() {
-                let record = record?;
-                let event = log_file.read_event(&mut file, &record)?;
+            while let Some(record) = it.next_entry().await? {
+                let event = log_file.read_event(&mut file, &record).await?;
                 if !address.is_empty() && !is_address_match(&event, &address)
                 {
                     continue;
@@ -113,42 +113,54 @@ pub fn monitor(
 }
 
 /// Print events in an audit log file.
-fn logs(
+async fn logs(
     audit_log: PathBuf,
     json: bool,
     address: Vec<Address>,
     reverse: bool,
     count: Option<usize>,
 ) -> Result<()> {
-    if !audit_log.is_file() {
+    if !vfs::metadata(&audit_log).await?.is_file() {
         return Err(Error::NotFile(audit_log));
     }
 
     // File for iterating
-    let log_file = AuditLogFile::new(&audit_log)?;
+    let log_file = AuditLogFile::new(&audit_log).await?;
 
     // File for reading event data
-    let mut file = File::open(&audit_log)?;
+    let mut file = File::open(&audit_log).await?;
 
     let count = count.unwrap_or(usize::MAX);
+    let mut c = 0;
 
     if reverse {
-        for record in log_file.iter()?.rev().take(count) {
-            let record = record?;
-            let event = log_file.read_event(&mut file, &record)?;
+        let mut it = log_file.iter().await?.rev();
+        while let Some(record) = it.next_entry().await? {
+            let event = log_file.read_event(&mut file, &record).await?;
             if !address.is_empty() && !is_address_match(&event, &address) {
                 continue;
             }
+
+            c += 1;
             print_event(event, json)?;
+
+            if c >= count {
+                break;
+            }
         }
     } else {
-        for record in log_file.iter()?.take(count) {
-            let record = record?;
-            let event = log_file.read_event(&mut file, &record)?;
+        let mut it = log_file.iter().await?;
+        while let Some(record) = it.next_entry().await? {
+            let event = log_file.read_event(&mut file, &record).await?;
             if !address.is_empty() && !is_address_match(&event, &address) {
                 continue;
             }
+            c += 1;
             print_event(event, json)?;
+
+            if c >= count {
+                break;
+            }
         }
     }
 

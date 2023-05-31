@@ -2,11 +2,7 @@ use clap::Subcommand;
 
 use human_bytes::human_bytes;
 use sos_net::client::provider::ProviderFactory;
-use sos_sdk::{
-    account::{AccountRef, DelegatedPassphrase},
-    hex,
-    vault::VaultRef,
-};
+use sos_sdk::{account::AccountRef, hex, vault::VaultRef};
 
 use crate::{
     helpers::{
@@ -230,11 +226,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let mut writer = user.write().await;
 
             if !is_shell {
-                let passphrase = DelegatedPassphrase::find_vault_passphrase(
-                    writer.user.identity().keeper(),
-                    summary.id(),
-                )?;
-                writer.storage.open_vault(&summary, passphrase, None)?;
+                writer.open_folder(&summary).await?;
             }
 
             let keeper =
@@ -299,12 +291,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             {
                 let mut writer = user.write().await;
                 if !is_shell {
-                    let passphrase =
-                        DelegatedPassphrase::find_vault_passphrase(
-                            writer.user.identity().keeper(),
-                            summary.id(),
-                        )?;
-                    writer.storage.open_vault(&summary, passphrase, None)?;
+                    writer.open_folder(&summary).await?;
                 }
             }
 
@@ -335,7 +322,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                         .storage
                         .current()
                         .ok_or(Error::NoVaultSelected)?;
-                    reader.storage.verify(keeper.summary())?;
+                    reader.storage.verify(keeper.summary()).await?;
                     println!("Verified ✓");
                 }
                 History::List { verbose, .. } => {
@@ -344,7 +331,8 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                         .storage
                         .current()
                         .ok_or(Error::NoVaultSelected)?;
-                    let records = reader.storage.history(keeper.summary())?;
+                    let records =
+                        reader.storage.history(keeper.summary()).await?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);
                         if verbose {

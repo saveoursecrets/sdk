@@ -1,5 +1,5 @@
 //! Factory for creating providers.
-use sos_sdk::{signer::ecdsa::BoxedEcdsaSigner, storage::StorageDirs};
+use sos_sdk::{signer::ecdsa::BoxedEcdsaSigner, storage::StorageDirs, vfs};
 use std::{fmt, sync::Arc};
 use url::Url;
 use web3_address::ethereum::Address;
@@ -12,10 +12,8 @@ use crate::client::{
 
 use tokio::sync::RwLock;
 
-#[cfg(not(target_arch = "wasm32"))]
 use crate::client::provider::LocalProvider;
 
-#[cfg(not(target_arch = "wasm32"))]
 use std::{path::PathBuf, str::FromStr};
 
 /// Provider that can be safely sent between threads.
@@ -24,58 +22,38 @@ pub type ArcProvider = Arc<RwLock<BoxedProvider>>;
 /// Factory for creating providers.
 #[derive(Debug, Clone)]
 pub enum ProviderFactory {
-    /// Provider storing data in memory.
-    Memory(Option<Url>),
-    /// Local provider using the default cache location.
-    #[cfg(not(target_arch = "wasm32"))]
-    Local,
-    /// Specific directory location.
-    #[cfg(not(target_arch = "wasm32"))]
-    Directory(PathBuf),
+    /// Local provider using the default cache location or
+    /// a specific location for files.
+    Local(Option<PathBuf>),
     /// Remote server with local disc storage.
-    #[cfg(not(target_arch = "wasm32"))]
     Remote(Url),
 }
 
 impl fmt::Display for ProviderFactory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Memory(remote) => {
-                if let Some(remote) = remote {
-                    write!(f, "mem+{}", remote)
+            Self::Local(dir) => {
+                let path = if let Some(path) = dir {
+                    path.to_path_buf()
                 } else {
-                    write!(f, "memory")
-                }
+                    PathBuf::new()
+                };
+                write!(f, "file://{}", path.display())
             }
-            #[cfg(not(target_arch = "wasm32"))]
-            Self::Local => write!(f, "local"),
-            #[cfg(not(target_arch = "wasm32"))]
-            Self::Directory(path) => write!(f, "{}", path.display()),
-            #[cfg(not(target_arch = "wasm32"))]
             Self::Remote(remote) => write!(f, "{}", remote),
         }
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl Default for ProviderFactory {
     fn default() -> Self {
-        Self::Local
-        //Self::Remote(Url::parse("http://localhost:5053").unwrap())
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-impl Default for ProviderFactory {
-    fn default() -> Self {
-        Self::Memory(Some(Url::parse("http://localhost:5053").unwrap()))
+        Self::Local(None)
     }
 }
 
 impl ProviderFactory {
     /// Create a new remote provider with local disc storage.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn new_remote_file_provider(
+    pub async fn new_remote_file_provider(
         signer: BoxedEcdsaSigner,
         cache_dir: PathBuf,
         server: Url,
@@ -84,88 +62,39 @@ impl ProviderFactory {
         let client = RpcClient::new(server, signer);
         let dirs = StorageDirs::new(cache_dir, &address.to_string());
         let provider: BoxedProvider =
-            Box::new(RemoteProvider::new_file_cache(client, dirs)?);
+            Box::new(RemoteProvider::new(client, dirs).await?);
         Ok((provider, address))
     }
 
     /// Create a new local provider.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn new_local_file_provider(
+    pub async fn new_local_file_provider(
         signer: BoxedEcdsaSigner,
         cache_dir: PathBuf,
     ) -> Result<(BoxedProvider, Address)> {
         let address = signer.address()?;
         let dirs = StorageDirs::new(cache_dir, &address.to_string());
         let provider: BoxedProvider =
-            Box::new(LocalProvider::new_file_storage(dirs)?);
-        Ok((provider, address))
-    }
-
-    /// Create a new local memory provider.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn new_local_memory_provider(
-        signer: BoxedEcdsaSigner,
-    ) -> Result<(BoxedProvider, Address)> {
-        let address = signer.address()?;
-        let provider: BoxedProvider =
-            Box::new(LocalProvider::new_memory_storage());
-        Ok((provider, address))
-    }
-
-    /// Create a new remote provider with in-memory storage.
-    pub fn new_remote_memory_provider(
-        signer: BoxedEcdsaSigner,
-        server: Url,
-    ) -> Result<(BoxedProvider, Address)> {
-        let address = signer.address()?;
-        let client = RpcClient::new(server, signer);
-        let provider: BoxedProvider =
-            Box::new(RemoteProvider::new_memory_cache(client));
+            Box::new(LocalProvider::new(dirs).await?);
         Ok((provider, address))
     }
 
     /// Create a provider.
-    pub fn create_provider(
+    pub async fn create_provider(
         &self,
         signer: BoxedEcdsaSigner,
     ) -> Result<(BoxedProvider, Address)> {
         match self {
-            #[cfg(target_arch = "wasm32")]
-            Self::Memory(remote) => {
-                if let Some(remote) = remote {
-                    Ok(Self::new_remote_memory_provider(
-                        signer,
-                        remote.clone(),
-                    )?)
+            Self::Local(dir) => {
+                let dir = if let Some(dir) = dir {
+                    dir.to_path_buf()
                 } else {
-                    Err(Error::InvalidProvider(self.to_string()))
-                }
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            Self::Memory(remote) => {
-                if let Some(remote) = remote {
-                    Ok(Self::new_remote_memory_provider(
-                        signer,
-                        remote.clone(),
-                    )?)
-                } else {
-                    Ok(Self::new_local_memory_provider(signer)?)
-                }
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            Self::Local => {
-                let dir =
-                    StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
-                Ok(Self::new_local_file_provider(signer, dir)?)
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            Self::Directory(dir) => {
-                if !dir.is_dir() {
+                    StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?
+                };
+                if !vfs::metadata(&dir).await?.is_dir() {
                     return Err(Error::NotDirectory(dir.clone()));
                 }
-                Ok(Self::new_local_file_provider(signer, dir.clone())?)
+                Ok(Self::new_local_file_provider(signer, dir).await?)
             }
-            #[cfg(not(target_arch = "wasm32"))]
             Self::Remote(remote) => {
                 let dir =
                     StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
@@ -173,46 +102,34 @@ impl ProviderFactory {
                     signer,
                     dir,
                     remote.clone(),
-                )?)
+                )
+                .await?)
             }
         }
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl FromStr for ProviderFactory {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        if s == "memory" {
-            Ok(Self::Memory(None))
-        } else if s == "local" {
-            Ok(Self::Local)
-        } else {
-            match s.parse::<Url>() {
-                Ok(url) => {
-                    let scheme = url.scheme();
-                    if scheme == "http" || scheme == "https" {
-                        Ok(Self::Remote(url))
-                    } else if scheme == "file" {
-                        let path = s.trim_start_matches("file://");
-                        Ok(Self::Directory(PathBuf::from(path)))
-                    } else if scheme == "mem+http" || scheme == "mem+https" {
-                        let scheme = scheme.trim_start_matches("mem+");
-                        let mut url = url.clone();
-                        let result = url.set_scheme(scheme);
-                        if result.is_err() {
-                            return Err(Error::InvalidProvider(
-                                s.to_string(),
-                            ));
-                        }
-                        Ok(Self::Memory(Some(url)))
+        match s.parse::<Url>() {
+            Ok(url) => {
+                let scheme = url.scheme();
+                if scheme == "http" || scheme == "https" {
+                    Ok(Self::Remote(url))
+                } else if scheme == "file" {
+                    let path = s.trim_start_matches("file://");
+                    if path.is_empty() {
+                        Ok(Self::Local(None))
                     } else {
-                        Err(Error::InvalidProvider(s.to_string()))
+                        Ok(Self::Local(Some(PathBuf::from(path))))
                     }
+                } else {
+                    Err(Error::InvalidProvider(s.to_string()))
                 }
-                Err(e) => Err(e.into()),
             }
+            Err(e) => Err(e.into()),
         }
     }
 }

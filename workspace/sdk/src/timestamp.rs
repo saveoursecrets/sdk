@@ -2,9 +2,7 @@
 //!
 //! Encoded as an i64 of the seconds since the UNIX epoch and
 //! a u32 nanosecond offset from the second.
-use binary_stream::{
-    BinaryReader, BinaryResult, BinaryWriter, Decode, Encode,
-};
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -24,7 +22,9 @@ use crate::Result;
 #[derive(
     Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq,
 )]
-pub struct Timestamp(#[serde(with = "time::serde::rfc3339")] OffsetDateTime);
+pub struct Timestamp(
+    #[serde(with = "time::serde::rfc3339")] pub(crate) OffsetDateTime,
+);
 
 impl Default for Timestamp {
     fn default() -> Self {
@@ -129,28 +129,6 @@ impl fmt::Display for Timestamp {
     }
 }
 
-impl Encode for Timestamp {
-    fn encode(&self, writer: &mut BinaryWriter) -> BinaryResult<()> {
-        let seconds = self.0.unix_timestamp();
-        let nanos = self.0.nanosecond();
-        writer.write_i64(seconds)?;
-        writer.write_u32(nanos)?;
-        Ok(())
-    }
-}
-
-impl Decode for Timestamp {
-    fn decode(&mut self, reader: &mut BinaryReader) -> BinaryResult<()> {
-        let seconds = reader.read_i64()?;
-        let nanos = reader.read_u32()?;
-
-        self.0 = OffsetDateTime::from_unix_timestamp(seconds)
-            .map_err(Box::from)?
-            + Duration::nanoseconds(nanos as i64);
-        Ok(())
-    }
-}
-
 impl From<OffsetDateTime> for Timestamp {
     fn from(value: OffsetDateTime) -> Self {
         Self(value)
@@ -179,11 +157,11 @@ mod test {
     use crate::{decode, encode};
     use anyhow::Result;
 
-    #[test]
-    fn timestamp_encode() -> Result<()> {
+    #[tokio::test]
+    async fn timestamp_encode() -> Result<()> {
         let timestamp: Timestamp = Default::default();
-        let buffer = encode(&timestamp)?;
-        let decoded: Timestamp = decode(&buffer)?;
+        let buffer = encode(&timestamp).await?;
+        let decoded: Timestamp = decode(&buffer).await?;
         assert_eq!(timestamp, decoded);
         Ok(())
     }

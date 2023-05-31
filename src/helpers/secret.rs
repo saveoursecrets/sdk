@@ -17,6 +17,7 @@ use sos_sdk::{
         secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
         Summary,
     },
+    vfs,
 };
 
 use crate::{
@@ -45,7 +46,7 @@ pub async fn resolve_secret(
     secret: &SecretRef,
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let owner = user.read().await;
-    let index_reader = owner.index().search().read();
+    let index_reader = owner.index().search().read().await;
     if let Some(Document {
         secret_id, meta, ..
     }) = index_reader.find_by_uuid_or_label(summary.id(), secret)
@@ -448,7 +449,7 @@ pub fn add_login(
     Ok(Some((secret_meta, secret)))
 }
 
-pub fn add_file(
+pub async fn add_file(
     path: String,
     name: Option<String>,
     tags: Option<String>,
@@ -471,7 +472,7 @@ pub fn add_file(
         name = file_name;
     }
 
-    let secret = read_file_secret(&path)?;
+    let secret = read_file_secret(&path).await?;
     let mut secret_meta = SecretMeta::new(name, secret.kind());
     if let Some(tags) = normalize_tags(tags) {
         secret_meta.set_tags(tags);
@@ -479,10 +480,10 @@ pub fn add_file(
     Ok(Some((secret_meta, secret)))
 }
 
-pub fn read_file_secret(path: &str) -> Result<Secret> {
+pub async fn read_file_secret(path: &str) -> Result<Secret> {
     let file = PathBuf::from(path);
 
-    if !file.is_file() {
+    if !vfs::metadata(&file).await?.is_file() {
         return Err(Error::NotFile(file));
     }
 
@@ -499,15 +500,17 @@ pub(crate) async fn download_file_secret(
         match content {
             FileContent::External { checksum, .. } => {
                 let file_name = hex::encode(checksum);
-                let buffer = owner.decrypt_file_storage(
-                    resolved.summary.id(),
-                    &resolved.secret_id,
-                    &file_name,
-                )?;
-                std::fs::write(file, buffer)?;
+                let buffer = owner
+                    .decrypt_file_storage(
+                        resolved.summary.id(),
+                        &resolved.secret_id,
+                        &file_name,
+                    )
+                    .await?;
+                vfs::write(file, buffer).await?;
             }
             FileContent::Embedded { buffer, .. } => {
-                std::fs::write(file, buffer.expose_secret())?;
+                vfs::write(file, buffer.expose_secret()).await?;
             }
         }
         println!("Download complete ✓");

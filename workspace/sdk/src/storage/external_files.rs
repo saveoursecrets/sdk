@@ -14,11 +14,11 @@ use age::Encryptor;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
-    io::Read,
+    io::{Cursor, Read},
     path::{Path, PathBuf},
 };
 
-use crate::{storage::StorageDirs, Error, Result};
+use crate::{storage::StorageDirs, vfs, Error, Result};
 
 /// Result of encrypting a file.
 #[derive(Debug, Clone)]
@@ -39,17 +39,17 @@ impl FileStorage {
     ///
     /// The file name is the Sha256 digest of the encrypted data
     /// encoded to hexdecimal.
-    pub fn encrypt_file_passphrase<S: AsRef<Path>, T: AsRef<Path>>(
+    pub async fn encrypt_file_passphrase<S: AsRef<Path>, T: AsRef<Path>>(
         source: S,
         target: T,
         passphrase: SecretString,
     ) -> Result<(Vec<u8>, u64)> {
-        let mut file = std::fs::File::open(source)?;
+        let mut buffer = Cursor::new(vfs::read(source).await?);
         let encryptor = Encryptor::with_user_passphrase(passphrase);
 
         let mut encrypted = Vec::new();
         let mut writer = encryptor.wrap_output(&mut encrypted)?;
-        std::io::copy(&mut file, &mut writer)?;
+        std::io::copy(&mut buffer, &mut writer)?;
         writer.finish()?;
 
         let mut hasher = Sha256::new();
@@ -59,18 +59,18 @@ impl FileStorage {
         let dest = PathBuf::from(target.as_ref()).join(file_name);
         let size = encrypted.len() as u64;
 
-        std::fs::write(dest, encrypted)?;
+        vfs::write(dest, encrypted).await?;
 
         Ok((digest.to_vec(), size))
     }
 
     /// Decrypt a file using AGE passphrase encryption.
-    pub fn decrypt_file_passphrase<P: AsRef<Path>>(
+    pub async fn decrypt_file_passphrase<P: AsRef<Path>>(
         path: P,
         passphrase: &SecretString,
     ) -> Result<Vec<u8>> {
-        let file = std::fs::File::open(path)?;
-        let decryptor = match age::Decryptor::new(file)? {
+        let mut buffer = Cursor::new(vfs::read(path).await?);
+        let decryptor = match age::Decryptor::new(&mut buffer)? {
             age::Decryptor::Passphrase(d) => d,
             _ => return Err(Error::NotPassphraseEncryption),
         };
@@ -78,7 +78,6 @@ impl FileStorage {
         let mut decrypted = vec![];
         let mut reader = decryptor.decrypt(passphrase, None)?;
         reader.read_to_end(&mut decrypted)?;
-
         Ok(decrypted)
     }
 
@@ -87,8 +86,7 @@ impl FileStorage {
     ///
     /// Returns an SHA256 digest of the encrypted data
     /// and the size of the original file.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn encrypt_file_storage<
+    pub async fn encrypt_file_storage<
         P: AsRef<Path>,
         A: AsRef<Path>,
         V: AsRef<Path>,
@@ -104,19 +102,18 @@ impl FileStorage {
             .join(vault_id)
             .join(secret_id);
 
-        if !target.exists() {
-            std::fs::create_dir_all(&target)?;
+        if !vfs::try_exists(&target).await? {
+            vfs::create_dir_all(&target).await?;
         }
 
         // Encrypt the file and write it to the storage location
         let (digest, size) =
-            Self::encrypt_file_passphrase(path, target, password)?;
+            Self::encrypt_file_passphrase(path, target, password).await?;
         Ok(EncryptedFile { digest, size })
     }
 
     /// Decrypt a file in the storage location and return the buffer.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn decrypt_file_storage<
+    pub async fn decrypt_file_storage<
         A: AsRef<Path>,
         V: AsRef<Path>,
         S: AsRef<Path>,
@@ -131,6 +128,6 @@ impl FileStorage {
         let path = StorageDirs::file_location(
             address, vault_id, secret_id, file_name,
         )?;
-        Self::decrypt_file_passphrase(path, password)
+        Self::decrypt_file_passphrase(path, password).await
     }
 }

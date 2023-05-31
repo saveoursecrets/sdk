@@ -10,8 +10,13 @@ categories = ["cryptography::cryptocurrencies", "authentication"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+mem-fs = []
+test-utils = ["dep:anyhow"]
+
 [dependencies]
 async-trait = "0.1"
+async-recursion = "1"
 aes-gcm = { version = "0.10.1", features = ["std"] }
 chacha20poly1305 = { version = "0.10.1", features = ["std"] }
 tracing = "0.1"
@@ -50,12 +55,20 @@ ed25519-dalek = { version = "2.0.0-rc.2", features = ["rand_core"] }
 bs58 = "0.4"
 urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
-binary-stream = { version = "3.4", features = ["32bit"] }
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
 time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 unicode-segmentation = "1.10"
 mime_guess = { version = "2" }
 anyhow = {version = "1", optional = true }
+futures = "0.3"
+async_zip = { version = "0.0.15", default-features = false, features = ["deflate", "tokio"] }
+sanitize-filename = "0.4"
+tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
+futures-util = "0.3"
+
+[dependencies.binary-stream]
+version = "5.1.0"
+features = ["32bit", "tokio"]
+#path = "../../../../binary-stream"
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"
@@ -64,12 +77,12 @@ git = "https://github.com/tmpfs/probly-search/"
 branch = "multi-field"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1", default-features = false, features = ["fs", "io-util"] }
+tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = {version = "0.2", features = ["js"]}
 uuid = { version = "1", features = ["serde", "v4", "js"] }
-tokio = { version = "1", default-features = false, features = ["rt"] }
+tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros"] }
 
 [dependencies.rs_merkle]
 version = "1.2"
@@ -77,21 +90,19 @@ git = "https://github.com/tmpfs/rs-merkle"
 branch = "sha2-update"
 #path = "../../../../forks/rs-merkle"
 
-
 [dependencies.chbs]
 version = "0.1.1"
 #git = "https://gitlab.com/timvisee/chbs.git"
 #rev = "1bb19733ac66cebf58b726d14770a616faba85dd"
 #branch = "wasm32"
 
-[features]
-test-utils = ["dep:anyhow"]
-
 [build-dependencies]
 rustc_version = "0.4.0"
 
 [dev-dependencies]
 anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+serial_test = "2"
 
 [package.metadata.release]
 tag = false
