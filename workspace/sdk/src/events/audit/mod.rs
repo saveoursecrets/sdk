@@ -29,7 +29,8 @@ bitflags! {
 }
 
 /// Trait for types that append to an audit log.
-#[async_trait]
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait AuditProvider {
     /// Error type for this implementation.
     type Error;
@@ -37,7 +38,7 @@ pub trait AuditProvider {
     /// Append audit log records to a destination.
     async fn append_audit_events(
         &mut self,
-        events: &[AuditEvent],
+        events: Vec<AuditEvent>,
     ) -> std::result::Result<(), Self::Error>;
 }
 

@@ -41,7 +41,7 @@ pub const READ_EVENT_LOG: u16 = 15;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub enum EventKind {
     /// No operation.
     Noop,

@@ -44,7 +44,7 @@ async fn append_audit_logs<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
     events: Vec<AuditEvent>,
 ) -> crate::server::Result<()> {
-    writer.audit_log.append_audit_events(&events).await?;
+    writer.audit_log.append_audit_events(events).await?;
     Ok(())
 }
 

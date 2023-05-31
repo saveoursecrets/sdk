@@ -159,10 +159,10 @@ impl UserStorage {
     }
 
     /// Append to the audit log.
-    async fn append_audit_logs(&self, events: &[AuditEvent]) -> Result<()> {
+    async fn append_audit_logs(&self, events: Vec<AuditEvent>) -> Result<()> {
         let audit_log = self.storage.audit_log();
         let mut writer = audit_log.write().await;
-        writer.append_audit_events(&events).await?;
+        writer.append_audit_events(events).await?;
         Ok(())
     }
 
@@ -312,7 +312,7 @@ impl UserStorage {
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent =
             (self.user.identity().address(), &event).into();
-        self.append_audit_logs(&[audit_event]).await?;
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(summary)
     }
@@ -333,7 +333,7 @@ impl UserStorage {
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent =
             (self.user.identity().address(), &event).into();
-        self.append_audit_logs(&[audit_event]).await?;
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
     }
@@ -363,7 +363,7 @@ impl UserStorage {
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent =
             (self.user.identity().address(), &event).into();
-        self.append_audit_logs(&[audit_event]).await?;
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
     }
@@ -540,7 +540,7 @@ impl UserStorage {
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent =
             (self.user.identity().address(), &event).into();
-        self.append_audit_logs(&[audit_event]).await?;
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(summary)
     }
@@ -570,7 +570,7 @@ impl UserStorage {
 
         let audit_event: AuditEvent =
             (self.user.identity().address(), &event).into();
-        self.append_audit_logs(&[audit_event]).await?;
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
     }
@@ -623,7 +623,7 @@ impl UserStorage {
         let event = Event::Write(*folder.id(), event);
         let audit_event: AuditEvent =
             (self.user.identity().address(), &event).into();
-        self.append_audit_logs(&[audit_event]).await?;
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok((id, event))
     }
@@ -645,7 +645,7 @@ impl UserStorage {
         let event = Event::Read(*folder.id(), event);
         let audit_event: AuditEvent =
             (self.user.identity().address(), &event).into();
-        self.append_audit_logs(&[audit_event]).await?;
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok((
             SecretData {
@@ -755,7 +755,7 @@ impl UserStorage {
         let event = Event::Write(*folder.id(), event);
         let audit_event: AuditEvent =
             (self.user.identity().address(), &event).into();
-        self.append_audit_logs(&[audit_event]).await?;
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(event)
     }
@@ -806,7 +806,7 @@ impl UserStorage {
             (self.user.identity().address(), &create_event).into();
         let audit_delete_event: AuditEvent =
             (self.user.identity().address(), &delete_event).into();
-        self.append_audit_logs(&[
+        self.append_audit_logs(vec![
             audit_read_event,
             audit_create_event,
             audit_delete_event,
@@ -852,7 +852,7 @@ impl UserStorage {
         let event = Event::Write(*folder.id(), event.into_owned());
         let audit_event: AuditEvent =
             (self.user.identity().address(), &event).into();
-        self.append_audit_logs(&[audit_event]).await?;
+        self.append_audit_logs(vec![audit_event]).await?;
         Ok(event)
     }
 
@@ -1079,7 +1079,7 @@ impl UserStorage {
 
         let audit_event: AuditEvent =
             (self.user.identity().address(), &event).into();
-        self.append_audit_logs(&[audit_event]).await?;
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(summary)
     }
@@ -1260,7 +1260,7 @@ impl UserStorage {
             let event = Event::Write(*contacts.id(), event);
             let audit_event: AuditEvent =
                 (self.user.identity().address(), &event).into();
-            self.append_audit_logs(&[audit_event]).await?;
+            self.append_audit_logs(vec![audit_event]).await?;
         }
 
         if let Some(folder) = current {
