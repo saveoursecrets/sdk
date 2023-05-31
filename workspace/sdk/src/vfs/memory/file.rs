@@ -6,16 +6,15 @@
 use self::State::*;
 use futures::ready;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 use tokio::{runtime::Handle, task::JoinHandle};
 
 use std::cmp;
 use std::fmt;
 use std::future::Future;
-use std::io::{self, prelude::*, Cursor, ErrorKind, Seek, SeekFrom};
+use std::io::{self, prelude::*, ErrorKind, Seek, SeekFrom};
 use std::path::Path;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::Context;
 use std::task::Poll;
 use std::task::Poll::*;
@@ -251,7 +250,7 @@ impl AsyncRead for File {
                     }
 
                     buf.ensure_capacity_for(dst);
-                    let mut std = me.std.clone();
+                    let std = me.std.clone();
 
                     inner.state = Busy(spawn_blocking(move || {
                         let mut std = std.lock();
@@ -321,7 +320,7 @@ impl AsyncSeek for File {
                     }
                 }
 
-                let mut std = me.std.clone();
+                let std = me.std.clone();
 
                 inner.state = Busy(spawn_blocking(move || {
                     let mut std = std.lock();
@@ -392,7 +391,7 @@ impl AsyncWrite for File {
 
                     let n = buf.copy_from(src);
 
-                    let mut std = me.std.clone();
+                    let std = me.std.clone();
 
                     let blocking_task_join_handle =
                         spawn_blocking(move || {

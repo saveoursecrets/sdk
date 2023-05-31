@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 
 use crate::{
     constants::{PATCH_EXT, PATCH_IDENTITY},

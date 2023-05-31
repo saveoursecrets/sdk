@@ -6,7 +6,7 @@ use std::{
 };
 
 use super::fs::{
-    has_parent, resolve, resolve_parent, root_fs_mut, Fd, MemoryDir,
+    has_parent, resolve, resolve_parent, root_fs_mut,
     MemoryFd, Parent, PathTarget,
 };
 
@@ -59,7 +59,6 @@ impl DirBuilder {
             for component in path.as_ref().components() {
                 match component {
                     Component::RootDir => {
-                        file_name = None;
                         continue;
                     }
                     Component::Normal(name) => {

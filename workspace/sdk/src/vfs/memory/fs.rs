@@ -6,23 +6,22 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex as SyncMutex;
 use std::path::MAIN_SEPARATOR;
 use std::{
-    borrow::Cow,
     collections::BTreeMap,
     ffi::{OsStr, OsString},
     fmt,
     io::{self, Cursor, Error, ErrorKind},
     iter::Enumerate,
-    path::{Component, Components, Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::Arc,
     vec::IntoIter,
 };
 
 use tokio::{
-    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWriteExt},
     sync::{Mutex, RwLock},
 };
 
-use super::{File, Metadata, OpenOptions, Permissions, Result};
+use super::{File, Metadata, Permissions, Result};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use super::meta_data::FileTime;
@@ -88,7 +87,7 @@ pub(super) enum Parent {
 impl Clone for Parent {
     fn clone(&self) -> Self {
         match self {
-            Self::Root(fs) => Self::Root(root_fs_mut()),
+            Self::Root(_) => Self::Root(root_fs_mut()),
             Self::Folder(fd) => Self::Folder(Arc::clone(fd)),
         }
     }
@@ -714,7 +713,7 @@ pub async fn try_exists(path: impl AsRef<Path>) -> Result<bool> {
 pub async fn canonicalize(path: impl AsRef<Path>) -> Result<PathBuf> {
     if let Some(target) = resolve(path.as_ref()).await {
         match target {
-            PathTarget::Root(fs) => {
+            PathTarget::Root(_) => {
                 Ok(PathBuf::from(MAIN_SEPARATOR.to_string()))
             }
             PathTarget::Descriptor(fd) => {
@@ -744,7 +743,7 @@ pub(super) async fn create_file(
         match target {
             PathTarget::Descriptor(file) => {
                 let mut file_fd = file.write().await;
-                if let Some(parent) = file_fd.parent() {
+                if let Some(_) = file_fd.parent() {
                     match &mut *file_fd {
                         MemoryFd::Dir(_) => {
                             Err(ErrorKind::PermissionDenied.into())

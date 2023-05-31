@@ -1,7 +1,6 @@
 //! Network aware user storage and search index.
 use std::{
     collections::HashMap,
-    io::Read,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -38,7 +37,7 @@ use crate::client::{
     Error, Result,
 };
 
-#[cfg(feature = "peer")]
+#[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
 use crate::peer::convert_libp2p_identity;
 
 #[cfg(feature = "device")]
@@ -83,7 +82,7 @@ pub struct AccountData {
     #[cfg(feature = "device")]
     /// Address of the device public key.
     pub device_address: String,
-    #[cfg(feature = "peer")]
+    #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
     #[serde_as(as = "DisplayFromStr")]
     /// The peer id for the libp2p network.
     pub peer_id: libp2p::PeerId,
@@ -123,7 +122,7 @@ pub struct UserStorage {
     #[cfg(feature = "device")]
     devices: DeviceManager,
     /// Key pair for peer to peer connections.
-    #[cfg(feature = "peer")]
+    #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
     pub peer_key: libp2p::identity::Keypair,
 }
 
@@ -143,7 +142,7 @@ impl UserStorage {
         let (mut storage, _) = factory.create_provider(signer).await?;
         storage.authenticate().await?;
 
-        #[cfg(feature = "peer")]
+        #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
         let peer_key = convert_libp2p_identity(user.device().signer())?;
 
         let files_dir =
@@ -157,7 +156,7 @@ impl UserStorage {
             index: UserIndex::new(),
             #[cfg(feature = "device")]
             devices: DeviceManager::new(address)?,
-            #[cfg(feature = "peer")]
+            #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
             peer_key,
         })
     }
@@ -221,7 +220,7 @@ impl UserStorage {
             folders: self.storage.state().summaries().to_vec(),
             #[cfg(feature = "device")]
             device_address: self.user.device().public_id().to_owned(),
-            #[cfg(feature = "peer")]
+            #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
             peer_id: libp2p::PeerId::from(&self.peer_key.public()),
         })
     }

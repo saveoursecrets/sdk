@@ -1,18 +1,11 @@
-use std::collections::VecDeque;
 use std::ffi::OsString;
-use std::future::Future;
 use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
-use std::sync::Arc;
 use std::task::Context;
 use std::task::Poll;
 
-use futures::ready;
-use tokio::task::JoinHandle;
-
 use super::{
-    fs::{resolve, Fd, MemoryDir, MemoryFd},
+    fs::{resolve, Fd, MemoryFd},
     metadata, FileType, Metadata, PathTarget,
 };
 
@@ -67,10 +60,10 @@ impl ReadDir {
     /// Polls for the next directory entry in the stream.
     pub fn poll_next_entry(
         &mut self,
-        cx: &mut Context<'_>,
+        _cx: &mut Context<'_>,
     ) -> Poll<io::Result<Option<DirEntry>>> {
         if let Some((name, path, fd)) = self.iter.next() {
-            let entry = DirEntry { path, name, fd };
+            let entry = DirEntry { path, name };
             Poll::Ready(Ok(Some(entry)))
         } else {
             Poll::Ready(Ok(None))
@@ -83,7 +76,6 @@ impl ReadDir {
 pub struct DirEntry {
     path: PathBuf,
     name: OsString,
-    fd: Fd,
 }
 
 impl DirEntry {
@@ -100,7 +92,6 @@ impl DirEntry {
 
     /// Returns the metadata for the file that this entry points at.
     pub async fn metadata(&self) -> io::Result<Metadata> {
-        let fd = self.fd.read().await;
         metadata(&self.path).await
     }
 

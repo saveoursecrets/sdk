@@ -109,7 +109,6 @@ impl ProviderFactory {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl FromStr for ProviderFactory {
     type Err = Error;
 

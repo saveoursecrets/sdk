@@ -6,8 +6,6 @@ use super::{
     File, PathTarget,
 };
 use bitflags::bitflags;
-use once_cell::sync::Lazy;
-use tokio::sync::{Mutex, RwLock};
 
 bitflags! {
     /// Bit flags for the open options.

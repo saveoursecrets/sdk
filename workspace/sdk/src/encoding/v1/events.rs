@@ -13,7 +13,7 @@ use crate::{
 };
 
 use std::io::{Error, ErrorKind, Result};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use super::encoding_error;
 use async_trait::async_trait;

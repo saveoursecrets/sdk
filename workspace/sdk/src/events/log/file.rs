@@ -26,7 +26,7 @@ use crate::{
 };
 
 use std::{
-    io::{Cursor, Read, Seek, SeekFrom, Write},
+    io::{Cursor, SeekFrom},
     path::{Path, PathBuf},
 };
 

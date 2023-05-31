@@ -1,7 +1,7 @@
 //! Implements random access to a single vault file on disc.
 use std::{
     borrow::Cow,
-    io::{Cursor, Read, Seek, SeekFrom, Write},
+    io::{Cursor, SeekFrom},
     ops::{DerefMut, Range},
     path::Path,
     path::PathBuf,

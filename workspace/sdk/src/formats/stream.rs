@@ -2,7 +2,7 @@
 use std::{io::SeekFrom, ops::Range, path::Path};
 
 use binary_stream::{
-    tokio::{BinaryReader, Decode},
+    tokio::BinaryReader,
     Endian,
 };
 
