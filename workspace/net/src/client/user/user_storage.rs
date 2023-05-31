@@ -555,6 +555,13 @@ impl UserStorage {
 
     /// Open a vault.
     pub async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
+        /// Bail early if the folder is already open 
+        if let Some(current) = self.storage.current() {
+            if current.id() == summary.id() {
+                return Ok(())
+            }
+        }
+
         let passphrase = DelegatedPassphrase::find_vault_passphrase(
             self.user.identity().keeper(),
             summary.id(),
@@ -642,6 +649,20 @@ impl UserStorage {
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<(SecretData, Event<'static>)> {
+        self.get_secret(secret_id, folder, true).await
+    }
+
+    /// Get a secret in the current open folder and 
+    /// optionally append to the audit log.
+    ///
+    /// Some internal operations needn't generate extra 
+    /// audit log records.
+    pub(crate) async fn get_secret(
+        &mut self,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+        audit: bool,
+    ) -> Result<(SecretData, Event<'static>)> {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
@@ -649,11 +670,14 @@ impl UserStorage {
 
         let (meta, secret, event) =
             self.storage.read_secret(secret_id).await?;
-
+            
         let event = Event::Read(*folder.id(), event);
-        let audit_event: AuditEvent =
-            (self.user.identity().address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+
+        if audit {
+            let audit_event: AuditEvent =
+                (self.user.identity().address(), &event).into();
+            self.append_audit_logs(vec![audit_event]).await?;
+        }
 
         Ok((
             SecretData {
@@ -698,7 +722,8 @@ impl UserStorage {
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder).await?;
 
-        let (old_secret_data, _) = self.read_secret(secret_id, None).await?;
+        let (old_secret_data, _) = 
+            self.get_secret(secret_id, None, false).await?;
 
         let secret_data = if let Some(secret) = secret {
             SecretData {
@@ -835,7 +860,7 @@ impl UserStorage {
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder).await?;
 
-        let (secret_data, _) = self.read_secret(secret_id, None).await?;
+        let (secret_data, _) = self.get_secret(secret_id, None, false).await?;
         let event = self.remove_secret(secret_id, None).await?;
         self.delete_files(&folder, &secret_data, None).await?;
 

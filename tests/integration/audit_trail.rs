@@ -68,7 +68,8 @@ async fn integration_audit_trail() -> Result<()> {
     let events = read_audit_events(audit_log).await?;
     let kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
 
-    println!("events {:#?}", kinds);
+    //println!("events {:#?}", events);
+    println!("kinds {:#?}", kinds);
 
     // Reset the cache dir so we don't interfere
     // with other tests
