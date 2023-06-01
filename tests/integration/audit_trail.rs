@@ -14,7 +14,7 @@ use sos_sdk::{
     passwd::diceware::generate_passphrase,
     storage::StorageDirs,
     vault::Summary,
-    vfs::File,
+    vfs::{self, File},
 };
 
 use crate::test_utils::{mock_note, setup};
@@ -42,7 +42,7 @@ async fn integration_audit_trail() -> Result<()> {
                     .save_passphrase(false)
                     .create_archive(true)
                     .create_authenticator(false)
-                    .create_contacts(false)
+                    .create_contacts(true)
                     .create_file_password(false)
             },
         )
@@ -68,6 +68,8 @@ async fn integration_audit_trail() -> Result<()> {
     // Created the default folder
     assert!(matches!(kinds.remove(0), EventKind::CreateVault));
     // Created the archive folder
+    assert!(matches!(kinds.remove(0), EventKind::CreateVault));
+    // Created the contacts folder
     assert!(matches!(kinds.remove(0), EventKind::CreateVault));
     // Opened the default folder for reading
     assert!(matches!(kinds.remove(0), EventKind::ReadVault));
@@ -106,6 +108,16 @@ async fn integration_audit_trail() -> Result<()> {
     // Imported an unsafe file
     assert!(matches!(kinds.remove(0), EventKind::ImportUnsafe));
     assert!(matches!(kinds.remove(0), EventKind::CreateVault));
+
+    // Create event for first contact
+    assert!(matches!(kinds.remove(0), EventKind::CreateSecret));
+    // Create event for second contact
+    assert!(matches!(kinds.remove(0), EventKind::CreateSecret));
+    // Contacts import event
+    assert!(matches!(kinds.remove(0), EventKind::ImportContacts));
+
+    // Contacts export event
+    assert!(matches!(kinds.remove(0), EventKind::ExportContacts));
 
     // Deleted the account
     assert!(matches!(kinds.remove(0), EventKind::DeleteAccount));
@@ -206,6 +218,13 @@ async fn simulate_session(
         folder_name: "Bitwarden folder".to_string(),
     };
     owner.import_file(import_target).await?;
+
+    let contacts = "tests/fixtures/contacts.vcf";
+    let vcard = vfs::read_to_string(contacts).await?;
+    owner.import_vcard(&vcard, |_| {}).await?;
+
+    let exported_contacts = "target/audit-trail-exported-contacts.vcf";
+    owner.export_all_vcards(exported_contacts).await?;
 
     // Delete the account
     owner.delete_account().await?;

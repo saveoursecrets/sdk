@@ -52,6 +52,10 @@ const IMPORT_BACKUP_ARCHIVE: u16 = 20;
 const EXPORT_UNSAFE: u16 = 21;
 /// Type identifier for importing unencrypted secrets.
 const IMPORT_UNSAFE: u16 = 22;
+/// Type identifier for exporting contacts.
+const EXPORT_CONTACTS: u16 = 23;
+/// Type identifier for importing contacts.
+const IMPORT_CONTACTS: u16 = 24;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -103,6 +107,10 @@ pub enum EventKind {
     ExportUnsafe,
     /// Event to import unencrypted secrets.
     ImportUnsafe,
+    /// Event to export contacts.
+    ExportContacts,
+    /// Event to import contacts.
+    ImportContacts,
 }
 
 impl Default for EventKind {
@@ -138,6 +146,8 @@ impl TryFrom<u16> for EventKind {
             IMPORT_BACKUP_ARCHIVE => EventKind::ImportBackupArchive,
             EXPORT_UNSAFE => EventKind::ExportUnsafe,
             IMPORT_UNSAFE => EventKind::ImportUnsafe,
+            EXPORT_CONTACTS => EventKind::ExportContacts,
+            IMPORT_CONTACTS => EventKind::ImportContacts,
             _ => return Err(Error::UnknownEventKind(value)),
         })
     }
@@ -169,6 +179,8 @@ impl From<&EventKind> for u16 {
             EventKind::ImportBackupArchive => IMPORT_BACKUP_ARCHIVE,
             EventKind::ExportUnsafe => EXPORT_UNSAFE,
             EventKind::ImportUnsafe => IMPORT_UNSAFE,
+            EventKind::ExportContacts => EXPORT_CONTACTS,
+            EventKind::ImportContacts => IMPORT_CONTACTS,
         }
     }
 }
@@ -200,6 +212,8 @@ impl fmt::Display for EventKind {
                 EventKind::ImportBackupArchive => "IMPORT_BACKUP_ARCHIVE",
                 EventKind::ExportUnsafe => "EXPORT_UNSAFE",
                 EventKind::ImportUnsafe => "IMPORT_UNSAFE",
+                EventKind::ExportContacts => "EXPORT_CONTACTS",
+                EventKind::ImportContacts => "IMPORT_CONTACTS",
             }
         })
     }

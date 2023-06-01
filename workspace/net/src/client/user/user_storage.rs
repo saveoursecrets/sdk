@@ -1306,13 +1306,27 @@ impl UserStorage {
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<()> {
-        let (data, _) = self.read_secret(secret_id, folder).await?;
+        let current_folder = folder
+            .as_ref()
+            .or_else(|| self.storage.current().map(|g| g.summary()))
+            .ok_or(Error::NoOpenFolder)?
+            .clone();
+
+        let (data, _) = self.get_secret(secret_id, folder, false).await?;
         if let Secret::Contact { vcard, .. } = &data.secret {
             let content = vcard.to_string();
             vfs::write(&path, content).await?;
         } else {
             return Err(Error::NotContact);
         }
+
+        let audit_event = AuditEvent::new(
+            EventKind::ExportContacts,
+            self.address().clone(),
+            Some(AuditData::Secret(*current_folder.id(), *secret_id)),
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
+
         Ok(())
     }
 
@@ -1350,6 +1364,14 @@ impl UserStorage {
             }
         }
         vfs::write(path, vcf.as_bytes()).await?;
+
+        let audit_event = AuditEvent::new(
+            EventKind::ExportContacts,
+            self.address().clone(),
+            None,
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
+
         Ok(())
     }
 
@@ -1360,13 +1382,14 @@ impl UserStorage {
         content: &str,
         progress: impl Fn(ContactImportProgress),
     ) -> Result<()> {
+        use sos_sdk::vcard4::parse;
+
         let current = self.storage.current().map(|g| g.summary().clone());
         let contacts = self
             .contacts_folder()
             .ok_or_else(|| Error::NoContactsFolder)?;
-        self.open_folder(&contacts).await?;
+        self.open_vault(&contacts, false).await?;
 
-        use sos_sdk::vcard4::parse;
         let cards = parse(content)?;
 
         progress(ContactImportProgress::Ready { total: cards.len() });
@@ -1389,17 +1412,19 @@ impl UserStorage {
             });
 
             let meta = SecretMeta::new(label, secret.kind());
-
-            let event =
-                self.storage.create_secret(meta, secret).await?.into_owned();
-            let event = Event::Write(*contacts.id(), event);
-            let audit_event: AuditEvent = (self.address(), &event).into();
-            self.append_audit_logs(vec![audit_event]).await?;
+            self.create_secret(meta, secret, None).await?;
         }
 
         if let Some(folder) = current {
-            self.open_folder(&folder).await?;
+            self.open_vault(&folder, false).await?;
         }
+
+        let audit_event = AuditEvent::new(
+            EventKind::ImportContacts,
+            self.address().clone(),
+            None,
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
     }
