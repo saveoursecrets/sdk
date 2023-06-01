@@ -56,7 +56,8 @@ async fn integration_account_manager() -> Result<()> {
 
     println!("importing new account...");
 
-    let imported_account = provider.import_new_account(&new_account).await?;
+    let (imported_account, _) =
+        provider.import_new_account(&new_account).await?;
 
     println!("imported the account...");
 

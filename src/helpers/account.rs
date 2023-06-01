@@ -3,7 +3,8 @@ use std::{borrow::Cow, sync::Arc};
 
 use sos_net::client::{provider::ProviderFactory, user::UserStorage};
 use sos_sdk::{
-    account::{AccountBuilder, AccountInfo, AccountRef, LocalAccounts},
+    account::{AccountInfo, AccountRef, LocalAccounts},
+    constants::DEFAULT_VAULT_NAME,
     passwd::diceware::generate_passphrase,
     secrecy::{ExposeSecret, SecretString},
     storage::StorageDirs,
@@ -201,7 +202,7 @@ pub async fn sign_in(
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
     let owner =
-        UserStorage::new(account.address(), passphrase.clone(), factory)
+        UserStorage::sign_in(account.address(), passphrase.clone(), factory)
             .await?;
     Ok((owner, passphrase))
 }
@@ -283,24 +284,15 @@ pub async fn new_account(
         AccountPasswordOption::Manual => choose_password()?,
     };
 
-    let (identity_vault, new_account) =
-        AccountBuilder::new(account_name.clone(), passphrase.clone())
-            .save_passphrase(true)
-            .create_archive(true)
-            .create_authenticator(true)
-            .create_contacts(true)
-            .create_file_password(true)
-            .default_folder_name(folder_name)
-            .build()
-            .await?;
-
-    let address = new_account.address;
+    let default_folder_name = folder_name
+        .as_ref()
+        .map(|s| &s[..])
+        .unwrap_or(DEFAULT_VAULT_NAME);
 
     let mut message = format!(
         r#"* Write identity vault "{}"
 * Create default folder "{}""#,
-        account_name,
-        new_account.default_vault.summary().name(),
+        account_name, default_folder_name,
     );
 
     if is_generated {
@@ -310,7 +302,7 @@ pub async fn new_account(
     let banner = Banner::new()
         .padding(Padding::one())
         .text(Cow::Borrowed("NEW ACCOUNT"))
-        .text(Cow::Owned(format!("{} ({})", account_name, address)))
+        .text(Cow::Owned(format!("{}", account_name)))
         .text(Cow::Borrowed(
             "Creating a new account will perform the following actions:",
         ))
@@ -326,17 +318,14 @@ pub async fn new_account(
             display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
 
-        let new_account =
-            AccountBuilder::write(identity_vault, new_account).await?;
-
-        // Create local provider
         let factory = ProviderFactory::Local(None);
-        let (mut provider, _) = factory
-            .create_provider(new_account.user.signer().clone())
-            .await?;
-        provider.authenticate().await?;
-
-        let _ = provider.import_new_account(&new_account).await?;
+        let (owner, _, _) = UserStorage::new_account(
+            account_name.clone(),
+            passphrase,
+            factory,
+        )
+        .await?;
+        let address = owner.address().to_string();
 
         let cache_dir = StorageDirs::cache_dir().ok_or(Error::NoCacheDir)?;
         let message = format!(

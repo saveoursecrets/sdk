@@ -371,9 +371,9 @@ mod test {
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[cfg(feature = "interactive-keychain-tests")]
-    fn keychain_import_autofill() -> Result<()> {
+    async fn keychain_import_autofill() -> Result<()> {
         let keychain = find_test_keychain()?;
         let password = SecretString::new("mock-password".to_owned());
         let data_dump =
@@ -384,23 +384,21 @@ mod test {
             SecretString::new("mock-vault-password".to_owned());
 
         let mut vault: Vault = Default::default();
-        vault.initialize(vault_password.clone(), None)?;
+        vault.initialize(vault_password.clone(), None).await?;
 
-        let vault = KeychainImport.convert(
-            data_dump.unwrap(),
-            vault,
-            vault_password.clone(),
-        )?;
+        let vault = KeychainImport
+            .convert(data_dump.unwrap(), vault, vault_password.clone())
+            .await?;
 
         assert_eq!(2, vault.len());
 
         // Assert on the data
         let keys: Vec<_> = vault.keys().copied().collect();
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(vault_password)?;
+        keeper.unlock(vault_password).await?;
 
         for key in &keys {
-            if let Some((_meta, secret, _)) = keeper.read(key)? {
+            if let Some((_meta, secret, _)) = keeper.read(key).await? {
                 match secret {
                     Secret::Note { text, .. } => {
                         assert_eq!(

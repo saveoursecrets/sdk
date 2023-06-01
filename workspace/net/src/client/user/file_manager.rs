@@ -428,29 +428,36 @@ impl UserStorage {
 
         // Ensure we update checksum for top-level file
         // when this is a file secret type
-        let new_secret = if let Secret::File { .. } = &secret_data.secret {
-            copy_file_secret(
-                &secret_data.secret,
-                file.as_ref().map(|f| f.encrypted_file.digest.clone()),
-                file.as_ref().map(|f| f.encrypted_file.size),
-                new_user_data,
-            )?
+        let (new_secret, changed) = if let Secret::File { .. } =
+            &secret_data.secret
+        {
+            (
+                copy_file_secret(
+                    &secret_data.secret,
+                    file.as_ref().map(|f| f.encrypted_file.digest.clone()),
+                    file.as_ref().map(|f| f.encrypted_file.size),
+                    new_user_data,
+                )?,
+                true,
+            )
         } else if let Some(new_user_data) = new_user_data {
             *secret_data.secret.user_data_mut() = new_user_data;
-            secret_data.secret
+            (secret_data.secret, true)
         } else {
-            secret_data.secret
+            (secret_data.secret, false)
         };
 
-        let secret_data = SecretData {
-            id: Some(*id),
-            meta: secret_data.meta,
-            secret: new_secret,
-        };
+        if changed {
+            let secret_data = SecretData {
+                id: Some(*id),
+                meta: secret_data.meta,
+                secret: new_secret,
+            };
 
-        // Update with new checksum(s)
-        self.write_secret(id, secret_data, Some(summary.clone()))
-            .await?;
+            // Update with new checksum(s)
+            self.write_secret(id, secret_data, Some(summary.clone()), false)
+                .await?;
+        }
 
         Ok(results)
     }

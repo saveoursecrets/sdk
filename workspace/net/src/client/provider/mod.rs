@@ -19,8 +19,8 @@ use sos_sdk::{
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{
-        AuditLogFile, ChangeAction, ChangeNotification, EventLogFile,
-        ReadEvent, WriteEvent,
+        AuditEvent, AuditLogFile, ChangeAction, ChangeNotification, Event,
+        EventKind, EventLogFile, ReadEvent, WriteEvent,
     },
     passwd::ChangePassword,
     patch::PatchFile,
@@ -109,15 +109,26 @@ pub trait StorageProvider: Sync + Send {
     async fn import_new_account(
         &mut self,
         account: &NewAccount,
-    ) -> Result<ImportedAccount> {
+    ) -> Result<(ImportedAccount, Vec<Event<'static>>)> {
+        let mut events = Vec::new();
+
+        events.push(Event::CreateAccount(AuditEvent::new(
+            EventKind::CreateAccount,
+            account.address.clone(),
+            None,
+        )));
+
         // Save the default vault
         let buffer = encode(&account.default_vault).await?;
 
-        let (_, summary) = self.create_account_from_buffer(buffer).await?;
+        let (event, summary) =
+            self.create_account_from_buffer(buffer).await?;
+        events.push(Event::Write(*summary.id(), event.into_owned()));
 
         let archive = if let Some(archive_vault) = &account.archive {
             let buffer = encode(archive_vault).await?;
-            let (_, summary) = self.import_vault(buffer).await?;
+            let (event, summary) = self.import_vault(buffer).await?;
+            events.push(Event::Write(*summary.id(), event.into_owned()));
             Some(summary)
         } else {
             None
@@ -126,7 +137,8 @@ pub trait StorageProvider: Sync + Send {
         let authenticator =
             if let Some(authenticator_vault) = &account.authenticator {
                 let buffer = encode(authenticator_vault).await?;
-                let (_, summary) = self.import_vault(buffer).await?;
+                let (event, summary) = self.import_vault(buffer).await?;
+                events.push(Event::Write(*summary.id(), event.into_owned()));
                 Some(summary)
             } else {
                 None
@@ -134,18 +146,22 @@ pub trait StorageProvider: Sync + Send {
 
         let contacts = if let Some(contact_vault) = &account.contacts {
             let buffer = encode(contact_vault).await?;
-            let (_, summary) = self.import_vault(buffer).await?;
+            let (event, summary) = self.import_vault(buffer).await?;
+            events.push(Event::Write(*summary.id(), event.into_owned()));
             Some(summary)
         } else {
             None
         };
 
-        Ok(ImportedAccount {
-            summary,
-            archive,
-            authenticator,
-            contacts,
-        })
+        Ok((
+            ImportedAccount {
+                summary,
+                archive,
+                authenticator,
+                contacts,
+            },
+            events,
+        ))
     }
 
     /// Restore vaults from an archive.

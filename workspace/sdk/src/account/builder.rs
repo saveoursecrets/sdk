@@ -25,7 +25,7 @@ use secrecy::SecretString;
 pub struct NewAccount {
     /// Address of the account signing key.
     pub address: Address,
-    /// Authenticated user.
+    /// Identity for the new user.
     pub user: UserIdentity,
     /// Default vault.
     pub default_vault: Vault,

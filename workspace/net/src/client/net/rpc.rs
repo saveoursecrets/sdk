@@ -311,9 +311,10 @@ impl RpcClient {
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<Vec<u8>>)>> {
         let vault_id = *vault_id;
         let url = self.server.join("api/events")?;
-        
+
         let id = self.next_id();
-        let body = new_rpc_call(id, EVENT_LOG_LOAD, (vault_id, proof)).await?;
+        let body =
+            new_rpc_call(id, EVENT_LOG_LOAD, (vault_id, proof)).await?;
         let (session_id, sign_bytes, body) =
             self.build_request(&body).await?;
 
@@ -342,10 +343,11 @@ impl RpcClient {
         let url = self.server.join("api/events")?;
 
         let id = self.next_id();
-        let body = new_rpc_call(id, EVENT_LOG_STATUS, (vault_id, proof)).await?;
+        let body =
+            new_rpc_call(id, EVENT_LOG_STATUS, (vault_id, proof)).await?;
         let (session_id, sign_bytes, body) =
             self.build_request(&body).await?;
-        
+
         let signature =
             encode_signature(self.signer.sign(&sign_bytes).await?).await?;
         let response =

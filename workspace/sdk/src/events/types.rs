@@ -6,75 +6,111 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Type identifier for a noop.
-pub const NOOP: u16 = 0;
+const NOOP: u16 = 0;
 /// Type identifier for the create account operation.
-pub const CREATE_ACCOUNT: u16 = 1;
+const CREATE_ACCOUNT: u16 = 1;
 /// Type identifier for the delete account operation.
-pub const DELETE_ACCOUNT: u16 = 2;
+const DELETE_ACCOUNT: u16 = 2;
 /// Type identifier for the login response operation.
 #[deprecated]
-pub const LOGIN_RESPONSE: u16 = 3;
+const LOGIN_RESPONSE: u16 = 3;
 /// Type identifier for the create vault operation.
-pub const CREATE_VAULT: u16 = 4;
+const CREATE_VAULT: u16 = 4;
 /// Type identifier for the read vault operation.
-pub const READ_VAULT: u16 = 5;
+const READ_VAULT: u16 = 5;
 /// Type identifier for the update vault operation.
-pub const UPDATE_VAULT: u16 = 6;
+const UPDATE_VAULT: u16 = 6;
 /// Type identifier for the delete vault operation.
-pub const DELETE_VAULT: u16 = 7;
+const DELETE_VAULT: u16 = 7;
 /// Type identifier for the get vault name operation.
-pub const GET_VAULT_NAME: u16 = 8;
+const GET_VAULT_NAME: u16 = 8;
 /// Type identifier for the set vault name operation.
-pub const SET_VAULT_NAME: u16 = 9;
+const SET_VAULT_NAME: u16 = 9;
 /// Type identifier for the set vault meta operation.
-pub const SET_VAULT_META: u16 = 10;
+const SET_VAULT_META: u16 = 10;
 /// Type identifier for the create secret operation.
-pub const CREATE_SECRET: u16 = 11;
+const CREATE_SECRET: u16 = 11;
 /// Type identifier for the read secret operation.
-pub const READ_SECRET: u16 = 12;
+const READ_SECRET: u16 = 12;
 /// Type identifier for the update secret operation.
-pub const UPDATE_SECRET: u16 = 13;
+const UPDATE_SECRET: u16 = 13;
 /// Type identifier for the delete secret operation.
-pub const DELETE_SECRET: u16 = 14;
-/// Type identifier for the read log event.
-pub const READ_EVENT_LOG: u16 = 15;
+const DELETE_SECRET: u16 = 14;
+/// Type identifier for the move secret operation.
+const MOVE_SECRET: u16 = 15;
+/// Type identifier for the read log event (remote only).
+const READ_EVENT_LOG: u16 = 16;
+/// Type identifier for the export vault operation.
+const EXPORT_VAULT: u16 = 17;
+/// Type identifier for the import vault operation.
+const IMPORT_VAULT: u16 = 18;
+/// Type identifier for export account archive.
+const EXPORT_BACKUP_ARCHIVE: u16 = 19;
+/// Type identifier for restore account archive.
+const IMPORT_BACKUP_ARCHIVE: u16 = 20;
+/// Type identifier for exporting unencrypted secrets.
+const EXPORT_UNSAFE: u16 = 21;
+/// Type identifier for importing unencrypted secrets.
+const IMPORT_UNSAFE: u16 = 22;
+/// Type identifier for exporting contacts.
+const EXPORT_CONTACTS: u16 = 23;
+/// Type identifier for importing contacts.
+const IMPORT_CONTACTS: u16 = 24;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub enum EventKind {
     /// No operation.
     Noop,
-    /// EventKind to create an account.
+    /// Event to create an account.
     CreateAccount,
-    /// EventKind to delete an account.
+    /// Event to delete an account.
     DeleteAccount,
-    /// EventKind to create a login response.
+    /// Event to create a login response.
     LoginResponse,
-    /// EventKind to create a vault.
+    /// Event to create a vault.
     CreateVault,
-    /// EventKind to read a vault.
+    /// Event to read a vault.
     ReadVault,
-    /// EventKind to update a vault.
+    /// Event to update a vault.
     UpdateVault,
-    /// EventKind to get vault name.
+    /// Event to get vault name.
     GetVaultName,
-    /// EventKind to set vault name.
+    /// Event to set vault name.
     SetVaultName,
-    /// EventKind to set vault meta data.
+    /// Event to set vault meta data.
     SetVaultMeta,
-    /// EventKind to delete a vault.
+    /// Event to delete a vault.
     DeleteVault,
-    /// EventKind to create a secret.
+    /// Event to create a secret.
     CreateSecret,
-    /// EventKind to read a secret.
+    /// Event to read a secret.
     ReadSecret,
-    /// EventKind to update a secret.
+    /// Event to update a secret.
     UpdateSecret,
-    /// EventKind to delete a secret.
+    /// Event to delete a secret.
     DeleteSecret,
-    /// EventKind to read a log.
+    /// Event to move a secret.
+    MoveSecret,
+    /// Event to read a log.
     ReadEventLog,
+    /// Event to export a vault.
+    ExportVault,
+    /// Event to import a vault.
+    ImportVault,
+    /// Event to export an account archive.
+    ExportBackupArchive,
+    /// Event to import an account archive.
+    ImportBackupArchive,
+    /// Event to export unencrypted secrets.
+    ExportUnsafe,
+    /// Event to import unencrypted secrets.
+    ImportUnsafe,
+    /// Event to export contacts.
+    ExportContacts,
+    /// Event to import contacts.
+    ImportContacts,
 }
 
 impl Default for EventKind {
@@ -86,25 +122,34 @@ impl Default for EventKind {
 impl TryFrom<u16> for EventKind {
     type Error = Error;
     fn try_from(value: u16) -> std::result::Result<Self, Self::Error> {
-        match value {
-            NOOP => Ok(EventKind::Noop),
-            CREATE_ACCOUNT => Ok(EventKind::CreateAccount),
-            DELETE_ACCOUNT => Ok(EventKind::DeleteAccount),
-            LOGIN_RESPONSE => Ok(EventKind::LoginResponse),
-            CREATE_VAULT => Ok(EventKind::CreateVault),
-            READ_VAULT => Ok(EventKind::ReadVault),
-            UPDATE_VAULT => Ok(EventKind::UpdateVault),
-            DELETE_VAULT => Ok(EventKind::DeleteVault),
-            GET_VAULT_NAME => Ok(EventKind::GetVaultName),
-            SET_VAULT_NAME => Ok(EventKind::SetVaultName),
-            SET_VAULT_META => Ok(EventKind::SetVaultMeta),
-            CREATE_SECRET => Ok(EventKind::CreateSecret),
-            READ_SECRET => Ok(EventKind::ReadSecret),
-            UPDATE_SECRET => Ok(EventKind::UpdateSecret),
-            DELETE_SECRET => Ok(EventKind::DeleteSecret),
-            READ_EVENT_LOG => Ok(EventKind::ReadEventLog),
-            _ => Err(Error::UnknownEventKind(value)),
-        }
+        Ok(match value {
+            NOOP => EventKind::Noop,
+            CREATE_ACCOUNT => EventKind::CreateAccount,
+            DELETE_ACCOUNT => EventKind::DeleteAccount,
+            LOGIN_RESPONSE => EventKind::LoginResponse,
+            CREATE_VAULT => EventKind::CreateVault,
+            READ_VAULT => EventKind::ReadVault,
+            UPDATE_VAULT => EventKind::UpdateVault,
+            DELETE_VAULT => EventKind::DeleteVault,
+            GET_VAULT_NAME => EventKind::GetVaultName,
+            SET_VAULT_NAME => EventKind::SetVaultName,
+            SET_VAULT_META => EventKind::SetVaultMeta,
+            CREATE_SECRET => EventKind::CreateSecret,
+            READ_SECRET => EventKind::ReadSecret,
+            UPDATE_SECRET => EventKind::UpdateSecret,
+            DELETE_SECRET => EventKind::DeleteSecret,
+            MOVE_SECRET => EventKind::MoveSecret,
+            READ_EVENT_LOG => EventKind::ReadEventLog,
+            EXPORT_VAULT => EventKind::ExportVault,
+            IMPORT_VAULT => EventKind::ImportVault,
+            EXPORT_BACKUP_ARCHIVE => EventKind::ExportBackupArchive,
+            IMPORT_BACKUP_ARCHIVE => EventKind::ImportBackupArchive,
+            EXPORT_UNSAFE => EventKind::ExportUnsafe,
+            IMPORT_UNSAFE => EventKind::ImportUnsafe,
+            EXPORT_CONTACTS => EventKind::ExportContacts,
+            IMPORT_CONTACTS => EventKind::ImportContacts,
+            _ => return Err(Error::UnknownEventKind(value)),
+        })
     }
 }
 
@@ -126,7 +171,16 @@ impl From<&EventKind> for u16 {
             EventKind::ReadSecret => READ_SECRET,
             EventKind::UpdateSecret => UPDATE_SECRET,
             EventKind::DeleteSecret => DELETE_SECRET,
+            EventKind::MoveSecret => MOVE_SECRET,
             EventKind::ReadEventLog => READ_EVENT_LOG,
+            EventKind::ExportVault => EXPORT_VAULT,
+            EventKind::ImportVault => IMPORT_VAULT,
+            EventKind::ExportBackupArchive => EXPORT_BACKUP_ARCHIVE,
+            EventKind::ImportBackupArchive => IMPORT_BACKUP_ARCHIVE,
+            EventKind::ExportUnsafe => EXPORT_UNSAFE,
+            EventKind::ImportUnsafe => IMPORT_UNSAFE,
+            EventKind::ExportContacts => EXPORT_CONTACTS,
+            EventKind::ImportContacts => IMPORT_CONTACTS,
         }
     }
 }
@@ -139,18 +193,27 @@ impl fmt::Display for EventKind {
                 EventKind::CreateAccount => "CREATE_ACCOUNT",
                 EventKind::DeleteAccount => "DELETE_ACCOUNT",
                 EventKind::LoginResponse => "LOGIN_RESPONSE",
-                EventKind::CreateVault => "CREATE_VAULT",
-                EventKind::ReadVault => "READ_VAULT",
-                EventKind::UpdateVault => "UPDATE_VAULT",
-                EventKind::DeleteVault => "DELETE_VAULT",
-                EventKind::GetVaultName => "GET_VAULT_NAME",
-                EventKind::SetVaultName => "SET_VAULT_NAME",
-                EventKind::SetVaultMeta => "SET_VAULT_META",
+                EventKind::CreateVault => "CREATE_FOLDER",
+                EventKind::ReadVault => "READ_FOLDER",
+                EventKind::UpdateVault => "UPDATE_FOLDER",
+                EventKind::DeleteVault => "DELETE_FOLDER",
+                EventKind::GetVaultName => "GET_FOLDER_NAME",
+                EventKind::SetVaultName => "SET_FOLDER_NAME",
+                EventKind::SetVaultMeta => "SET_FOLDER_META",
                 EventKind::CreateSecret => "CREATE_SECRET",
                 EventKind::ReadSecret => "READ_SECRET",
                 EventKind::UpdateSecret => "UPDATE_SECRET",
                 EventKind::DeleteSecret => "DELETE_SECRET",
+                EventKind::MoveSecret => "MOVE_SECRET",
                 EventKind::ReadEventLog => "READ_EVENT_LOG",
+                EventKind::ExportVault => "EXPORT_FOLDER",
+                EventKind::ImportVault => "IMPORT_FOLDER",
+                EventKind::ExportBackupArchive => "EXPORT_BACKUP_ARCHIVE",
+                EventKind::ImportBackupArchive => "IMPORT_BACKUP_ARCHIVE",
+                EventKind::ExportUnsafe => "EXPORT_UNSAFE",
+                EventKind::ImportUnsafe => "IMPORT_UNSAFE",
+                EventKind::ExportContacts => "EXPORT_CONTACTS",
+                EventKind::ImportContacts => "IMPORT_CONTACTS",
             }
         })
     }

@@ -7,14 +7,12 @@ mod meta_data;
 mod open_options;
 mod read_dir;
 
-pub use self::fs::*;
 pub use dir_builder::{create_dir, create_dir_all, DirBuilder};
 pub use file::File;
+pub use fs::{
+    canonicalize, copy, metadata, read, read_to_string, remove_dir,
+    remove_dir_all, remove_file, rename, set_permissions, try_exists, write,
+};
 pub use meta_data::{FileType, Metadata, Permissions};
 pub use open_options::OpenOptions;
-pub use read_dir::*;
-
-pub use std::path::PathBuf;
-
-/// Result type for the in-memory file system.
-pub type Result<T> = std::io::Result<T>;
+pub use read_dir::{read_dir, DirEntry};

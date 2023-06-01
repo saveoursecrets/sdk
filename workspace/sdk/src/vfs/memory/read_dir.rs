@@ -1,16 +1,16 @@
 use std::ffi::OsString;
-use std::io::{self, ErrorKind};
+use std::io::{ErrorKind, Result};
 use std::path::{Path, PathBuf};
 use std::task::Context;
 use std::task::Poll;
 
 use super::{
-    fs::{resolve, Fd, MemoryFd},
-    metadata, FileType, Metadata, PathTarget,
+    fs::{resolve, Fd, MemoryFd, PathTarget},
+    metadata, FileType, Metadata,
 };
 
 /// Returns a stream over the entries within a directory.
-pub async fn read_dir(path: impl AsRef<Path>) -> io::Result<ReadDir> {
+pub async fn read_dir(path: impl AsRef<Path>) -> Result<ReadDir> {
     if let Some(target) = resolve(path.as_ref()).await {
         let children = match target {
             PathTarget::Root(dir) => dir.files().clone(),
@@ -52,7 +52,7 @@ impl ReadDir {
     /// # Cancel safety
     ///
     /// This method is cancellation safe.
-    pub async fn next_entry(&mut self) -> io::Result<Option<DirEntry>> {
+    pub async fn next_entry(&mut self) -> Result<Option<DirEntry>> {
         use std::future::poll_fn;
         poll_fn(|cx| self.poll_next_entry(cx)).await
     }
@@ -61,7 +61,7 @@ impl ReadDir {
     pub fn poll_next_entry(
         &mut self,
         _cx: &mut Context<'_>,
-    ) -> Poll<io::Result<Option<DirEntry>>> {
+    ) -> Poll<Result<Option<DirEntry>>> {
         if let Some((name, path, fd)) = self.iter.next() {
             let entry = DirEntry { path, name };
             Poll::Ready(Ok(Some(entry)))
@@ -91,12 +91,12 @@ impl DirEntry {
     }
 
     /// Returns the metadata for the file that this entry points at.
-    pub async fn metadata(&self) -> io::Result<Metadata> {
+    pub async fn metadata(&self) -> Result<Metadata> {
         metadata(&self.path).await
     }
 
     /// Returns the file type for the file that this entry points at.
-    pub async fn file_type(&self) -> io::Result<FileType> {
+    pub async fn file_type(&self) -> Result<FileType> {
         Ok(self.metadata().await?.file_type())
     }
 }

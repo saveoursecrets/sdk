@@ -1,4 +1,5 @@
-use super::FileFlags;
+use super::fs::FileFlags;
+use std::io::Result;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::time::SystemTime;
@@ -140,19 +141,19 @@ impl Metadata {
 
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     /// Returns the last access time of this metadata.
-    pub fn accessed(&self) -> io::Result<SystemTime> {
+    pub fn accessed(&self) -> Result<SystemTime> {
         Ok(self.time.accessed)
     }
 
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     /// Returns the creation time listed in this metadata.
-    pub fn created(&self) -> io::Result<SystemTime> {
+    pub fn created(&self) -> Result<SystemTime> {
         Ok(self.time.created)
     }
 
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     /// Returns the last modification time listed in this metadata.
-    pub fn modified(&self) -> io::Result<SystemTime> {
+    pub fn modified(&self) -> Result<SystemTime> {
         Ok(self.time.modified)
     }
 }

@@ -7,12 +7,15 @@ use std::{
 
 use sos_sdk::{
     account::{
-        archive::Inventory, AccountBackup, AccountInfo, AuthenticatedUser,
-        DelegatedPassphrase, ExtractFilesLocation, LocalAccounts, Login,
-        RestoreOptions,
+        archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
+        AuthenticatedUser, DelegatedPassphrase, ExtractFilesLocation,
+        ImportedAccount, LocalAccounts, Login, NewAccount, RestoreOptions,
     },
     decode, encode,
-    events::{AuditEvent, AuditProvider, Event, WriteEvent},
+    events::{
+        AuditData, AuditEvent, AuditProvider, Event, EventKind, ReadEvent,
+        WriteEvent,
+    },
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     storage::StorageDirs,
@@ -127,8 +130,77 @@ pub struct UserStorage {
 }
 
 impl UserStorage {
+    /// Create a new account with the given
+    /// name, passphrase and provider.
+    ///
+    /// Uses standard flags for the account builder for
+    /// more control of the createed account use
+    /// `new_account_with_builder()`.
+    pub async fn new_account(
+        account_name: String,
+        passphrase: SecretString,
+        factory: ProviderFactory,
+    ) -> Result<(UserStorage, ImportedAccount, NewAccount)> {
+        Self::new_account_with_builder(
+            account_name,
+            passphrase,
+            factory,
+            |builder| {
+                builder
+                    .save_passphrase(true)
+                    .create_archive(true)
+                    .create_authenticator(true)
+                    .create_contacts(true)
+                    .create_file_password(true)
+            },
+        )
+        .await
+    }
+
+    /// Create a new account with the given
+    /// name, passphrase and provider and modify the
+    /// account builder.
+    pub async fn new_account_with_builder(
+        account_name: String,
+        passphrase: SecretString,
+        factory: ProviderFactory,
+        builder: impl Fn(AccountBuilder) -> AccountBuilder,
+    ) -> Result<(UserStorage, ImportedAccount, NewAccount)> {
+        let account_builder =
+            builder(AccountBuilder::new(account_name, passphrase.clone()));
+        let new_account = account_builder.finish().await?;
+        let (mut provider, _) = factory
+            .create_provider(new_account.user.signer().clone())
+            .await?;
+        provider.authenticate().await?;
+        let (imported_account, events) =
+            provider.import_new_account(&new_account).await?;
+
+        let owner = UserStorage::sign_in(
+            new_account.user.address(),
+            passphrase,
+            factory,
+        )
+        .await?;
+
+        let mut audit_events = Vec::new();
+        for event in events {
+            let audit_event: AuditEvent =
+                (new_account.user.address(), &event).into();
+            audit_events.push(audit_event);
+        }
+        owner.append_audit_logs(audit_events).await?;
+
+        Ok((owner, imported_account, new_account))
+    }
+
+    /// User identity address.
+    pub fn address(&self) -> &Address {
+        self.user.identity().address()
+    }
+
     /// Create new user storage by signing in to an account.
-    pub async fn new(
+    pub async fn sign_in(
         address: &Address,
         passphrase: SecretString,
         factory: ProviderFactory,
@@ -159,6 +231,11 @@ impl UserStorage {
             #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
             peer_key,
         })
+    }
+
+    /// Reference to the user storage paths.
+    pub fn dirs(&self) -> &StorageDirs {
+        self.storage.dirs()
     }
 
     /// Append to the audit log.
@@ -232,7 +309,9 @@ impl UserStorage {
 
     /// Delete the account for this user and sign out.
     pub async fn delete_account(&mut self) -> Result<()> {
-        self.user.delete_account().await?;
+        let event = self.user.delete_account().await?;
+        let audit_event: AuditEvent = (self.address(), &event).into();
+        self.append_audit_logs(vec![audit_event]).await?;
         self.sign_out().await;
         Ok(())
     }
@@ -313,8 +392,7 @@ impl UserStorage {
         .await?;
 
         let event = Event::Write(*summary.id(), event);
-        let audit_event: AuditEvent =
-            (self.user.identity().address(), &event).into();
+        let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(summary)
@@ -334,8 +412,7 @@ impl UserStorage {
         self.delete_folder_files(summary).await?;
 
         let event = Event::Write(*summary.id(), event);
-        let audit_event: AuditEvent =
-            (self.user.identity().address(), &event).into();
+        let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
@@ -364,8 +441,7 @@ impl UserStorage {
         access.set_vault_name(name).await?;
 
         let event = Event::Write(*summary.id(), event);
-        let audit_event: AuditEvent =
-            (self.user.identity().address(), &event).into();
+        let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
@@ -380,7 +456,7 @@ impl UserStorage {
         save_passphrase: bool,
     ) -> Result<()> {
         let buffer = AccountBackup::export_vault(
-            self.user.identity().address(),
+            self.address(),
             self.user.identity().keeper(),
             summary.id(),
             new_passphrase.clone(),
@@ -413,17 +489,29 @@ impl UserStorage {
             let meta = SecretMeta::new(label, secret.kind());
 
             let (vault, _) = LocalAccounts::find_local_vault(
-                self.user.identity().address(),
+                self.address(),
                 default_summary.id(),
                 false,
             )
             .await?;
 
-            self.create_secret(meta, secret, Some(vault.summary().clone()))
-                .await?;
+            self.add_secret(
+                meta,
+                secret,
+                Some(vault.summary().clone()),
+                false,
+            )
+            .await?;
         }
 
         vfs::write(path, buffer).await?;
+
+        let audit_event = AuditEvent::new(
+            EventKind::ExportVault,
+            self.address().clone(),
+            Some(AuditData::Vault(*summary.id())),
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
     }
@@ -443,11 +531,8 @@ impl UserStorage {
         vault.verify(passphrase.expose_secret())?;
 
         // Check for existing identifier
-        let vaults = LocalAccounts::list_local_vaults(
-            self.user.identity().address(),
-            false,
-        )
-        .await?;
+        let vaults =
+            LocalAccounts::list_local_vaults(self.address(), false).await?;
         let existing_id =
             vaults.iter().find(|(s, _)| s.id() == vault.summary().id());
 
@@ -498,7 +583,7 @@ impl UserStorage {
         let summary = vault.summary().clone();
 
         // Import the vault
-        let (event, _) = self.storage.import_vault(buffer).await?;
+        self.storage.import_vault(buffer).await?;
 
         // If we are overwriting then we must remove the existing
         // vault passphrase so we can save it using the passphrase
@@ -540,9 +625,11 @@ impl UserStorage {
             .add_folder_to_search_index(vault, passphrase)
             .await?;
 
-        let event = Event::Write(*summary.id(), event);
-        let audit_event: AuditEvent =
-            (self.user.identity().address(), &event).into();
+        let audit_event = AuditEvent::new(
+            EventKind::ImportVault,
+            self.address().clone(),
+            Some(AuditData::Vault(*summary.id())),
+        );
         self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(summary)
@@ -550,6 +637,21 @@ impl UserStorage {
 
     /// Open a vault.
     pub async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
+        self.open_vault(summary, true).await
+    }
+
+    async fn open_vault(
+        &mut self,
+        summary: &Summary,
+        audit: bool,
+    ) -> Result<()> {
+        // Bail early if the folder is already open
+        if let Some(current) = self.storage.current() {
+            if current.id() == summary.id() {
+                return Ok(());
+            }
+        }
+
         let passphrase = DelegatedPassphrase::find_vault_passphrase(
             self.user.identity().keeper(),
             summary.id(),
@@ -571,9 +673,10 @@ impl UserStorage {
             .await?;
         let event = Event::Read(*summary.id(), event);
 
-        let audit_event: AuditEvent =
-            (self.user.identity().address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+        if audit {
+            let audit_event: AuditEvent = (self.address(), &event).into();
+            self.append_audit_logs(vec![audit_event]).await?;
+        }
 
         Ok(())
     }
@@ -584,6 +687,16 @@ impl UserStorage {
         meta: SecretMeta,
         secret: Secret,
         folder: Option<Summary>,
+    ) -> Result<(SecretId, Event<'static>)> {
+        self.add_secret(meta, secret, folder, true).await
+    }
+
+    async fn add_secret(
+        &mut self,
+        meta: SecretMeta,
+        secret: Secret,
+        folder: Option<Summary>,
+        audit: bool,
     ) -> Result<(SecretId, Event<'static>)> {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
@@ -624,9 +737,10 @@ impl UserStorage {
         self.create_files(&current_folder, secret_data).await?;
 
         let event = Event::Write(*folder.id(), event);
-        let audit_event: AuditEvent =
-            (self.user.identity().address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+        if audit {
+            let audit_event: AuditEvent = (self.address(), &event).into();
+            self.append_audit_logs(vec![audit_event]).await?;
+        }
 
         Ok((id, event))
     }
@@ -636,19 +750,34 @@ impl UserStorage {
         &mut self,
         secret_id: &SecretId,
         folder: Option<Summary>,
-    ) -> Result<(SecretData, Event<'static>)> {
+    ) -> Result<(SecretData, ReadEvent)> {
+        self.get_secret(secret_id, folder, true).await
+    }
+
+    /// Get a secret in the current open folder and
+    /// optionally append to the audit log.
+    ///
+    /// Some internal operations needn't generate extra
+    /// audit log records.
+    pub(crate) async fn get_secret(
+        &mut self,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+        audit: bool,
+    ) -> Result<(SecretData, ReadEvent)> {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder).await?;
 
-        let (meta, secret, event) =
+        let (meta, secret, read_event) =
             self.storage.read_secret(secret_id).await?;
 
-        let event = Event::Read(*folder.id(), event);
-        let audit_event: AuditEvent =
-            (self.user.identity().address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+        if audit {
+            let event = Event::Read(*folder.id(), read_event.clone());
+            let audit_event: AuditEvent = (self.address(), &event).into();
+            self.append_audit_logs(vec![audit_event]).await?;
+        }
 
         Ok((
             SecretData {
@@ -656,7 +785,7 @@ impl UserStorage {
                 meta,
                 secret,
             },
-            event,
+            read_event,
         ))
     }
 
@@ -693,7 +822,8 @@ impl UserStorage {
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder).await?;
 
-        let (old_secret_data, _) = self.read_secret(secret_id, None).await?;
+        let (old_secret_data, _) =
+            self.get_secret(secret_id, None, false).await?;
 
         let secret_data = if let Some(secret) = secret {
             SecretData {
@@ -708,7 +838,7 @@ impl UserStorage {
         };
 
         let event = self
-            .write_secret(secret_id, secret_data.clone(), None)
+            .write_secret(secret_id, secret_data.clone(), None, true)
             .await?;
 
         // Must update the files before moving so checksums are correct
@@ -716,7 +846,7 @@ impl UserStorage {
             .await?;
 
         let id = if let Some(to) = destination.as_ref() {
-            let (new_id, _, _create_event, _) =
+            let (new_id, _) =
                 self.move_secret(secret_id, &folder, to).await?;
             new_id
         } else {
@@ -737,6 +867,7 @@ impl UserStorage {
         secret_id: &SecretId,
         secret_data: SecretData,
         folder: Option<Summary>,
+        audit: bool,
     ) -> Result<Event<'static>> {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
@@ -756,9 +887,10 @@ impl UserStorage {
             .into_owned();
 
         let event = Event::Write(*folder.id(), event);
-        let audit_event: AuditEvent =
-            (self.user.identity().address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+        if audit {
+            let audit_event: AuditEvent = (self.address(), &event).into();
+            self.append_audit_logs(vec![audit_event]).await?;
+        }
 
         Ok(event)
     }
@@ -769,28 +901,22 @@ impl UserStorage {
         secret_id: &SecretId,
         from: &Summary,
         to: &Summary,
-    ) -> Result<(SecretId, Event<'static>, Event<'static>, Event<'static>)>
-    {
-        self.open_folder(from).await?;
+    ) -> Result<(SecretId, Event<'static>)> {
+        self.open_vault(from, false).await?;
         let (secret_data, read_event) =
-            self.read_secret(secret_id, None).await?;
+            self.get_secret(secret_id, None, false).await?;
         let move_secret_data = secret_data.clone();
 
-        self.open_folder(to).await?;
+        self.open_vault(to, false).await?;
         let (new_id, create_event) = self
-            .create_secret(secret_data.meta, secret_data.secret, None)
+            .add_secret(secret_data.meta, secret_data.secret, None, false)
             .await?;
-        self.open_folder(from).await?;
+        self.open_vault(from, false).await?;
 
         // Note that we call `remove_secret()` and not `delete_secret()`
         // as we need the original external files for the
         // move_files operation.
-        let delete_event = self.remove_secret(secret_id, None).await?;
-
-        let (_, create_event) = create_event.into_owned();
-        let (_, delete_event) = delete_event.into_owned();
-        let create_event = Event::Write(*to.id(), create_event);
-        let delete_event = Event::Write(*from.id(), delete_event);
+        let delete_event = self.remove_secret(secret_id, None, false).await?;
 
         self.move_files(
             &move_secret_data,
@@ -802,21 +928,24 @@ impl UserStorage {
         )
         .await?;
 
-        // FIXME: combine this into a Move Event variant
-        let audit_read_event: AuditEvent =
-            (self.user.identity().address(), &read_event).into();
-        let audit_create_event: AuditEvent =
-            (self.user.identity().address(), &create_event).into();
-        let audit_delete_event: AuditEvent =
-            (self.user.identity().address(), &delete_event).into();
-        self.append_audit_logs(vec![
-            audit_read_event,
-            audit_create_event,
-            audit_delete_event,
-        ])
-        .await?;
+        let (_, create_event) = create_event.try_into()?;
+        let (_, delete_event) = delete_event.try_into()?;
 
-        Ok((new_id, read_event, create_event, delete_event))
+        let event = Event::MoveSecret(read_event, create_event, delete_event);
+
+        let audit_event = AuditEvent::new(
+            EventKind::MoveSecret,
+            self.address().clone(),
+            Some(AuditData::MoveSecret {
+                from_vault_id: *from.id(),
+                to_vault_id: *to.id(),
+                from_secret_id: *secret_id,
+                to_secret_id: new_id.clone(),
+            }),
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
+
+        Ok((new_id, event))
     }
 
     /// Delete a secret and remove any external files.
@@ -830,8 +959,9 @@ impl UserStorage {
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder).await?;
 
-        let (secret_data, _) = self.read_secret(secret_id, None).await?;
-        let event = self.remove_secret(secret_id, None).await?;
+        let (secret_data, _) =
+            self.get_secret(secret_id, None, false).await?;
+        let event = self.remove_secret(secret_id, None, true).await?;
         self.delete_files(&folder, &secret_data, None).await?;
 
         Ok(event)
@@ -844,6 +974,7 @@ impl UserStorage {
         &mut self,
         secret_id: &SecretId,
         folder: Option<Summary>,
+        audit: bool,
     ) -> Result<Event<'static>> {
         let folder = folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
@@ -853,9 +984,10 @@ impl UserStorage {
         let event = self.storage.delete_secret(secret_id).await?.into_owned();
 
         let event = Event::Write(*folder.id(), event.into_owned());
-        let audit_event: AuditEvent =
-            (self.user.identity().address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+        if audit {
+            let audit_event: AuditEvent = (self.address(), &event).into();
+            self.append_audit_logs(vec![audit_event]).await?;
+        }
         Ok(event)
     }
 
@@ -866,8 +998,7 @@ impl UserStorage {
         &mut self,
         from: &Summary,
         secret_id: &SecretId,
-    ) -> Result<(SecretId, Event<'static>, Event<'static>, Event<'static>)>
-    {
+    ) -> Result<(SecretId, Event<'static>)> {
         if from.flags().is_archive() {
             return Err(Error::AlreadyArchived);
         }
@@ -884,13 +1015,7 @@ impl UserStorage {
         from: &Summary,
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
-    ) -> Result<(
-        Summary,
-        SecretId,
-        Event<'static>,
-        Event<'static>,
-        Event<'static>,
-    )> {
+    ) -> Result<(Summary, SecretId, Event<'static>)> {
         if !from.flags().is_archive() {
             return Err(Error::NotArchived);
         }
@@ -908,8 +1033,8 @@ impl UserStorage {
         {
             to = contacts.unwrap();
         }
-        let (id, e1, e2, e3) = self.move_secret(secret_id, from, &to).await?;
-        Ok((to, id, e1, e2, e3))
+        let (id, event) = self.move_secret(secret_id, from, &to).await?;
+        Ok((to, id, event))
     }
 
     /// Search index reference.
@@ -956,7 +1081,7 @@ impl UserStorage {
         for summary in summaries {
             // Must open the vault so the provider state unlocks
             // the vault
-            self.open_folder(&summary).await?;
+            self.open_vault(&summary, false).await?;
 
             // Add the vault meta data to the search index
             self.storage.create_search_index().await?;
@@ -981,15 +1106,12 @@ impl UserStorage {
 
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
-        let vaults = LocalAccounts::list_local_vaults(
-            self.user.identity().address(),
-            false,
-        )
-        .await?;
+        let vaults =
+            LocalAccounts::list_local_vaults(self.address(), false).await?;
 
         for (summary, _) in vaults {
             let (vault, _) = LocalAccounts::find_local_vault(
-                self.user.identity().address(),
+                self.address(),
                 summary.id(),
                 false,
             )
@@ -1017,6 +1139,13 @@ impl UserStorage {
         migration.finish().await?;
 
         vfs::write(path.as_ref(), &archive).await?;
+
+        let audit_event = AuditEvent::new(
+            EventKind::ExportUnsafe,
+            self.address().clone(),
+            None,
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
     }
@@ -1080,9 +1209,14 @@ impl UserStorage {
             }
         };
 
-        let audit_event: AuditEvent =
-            (self.user.identity().address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+        let audit_event = AuditEvent::new(
+            EventKind::ImportUnsafe,
+            self.address().clone(),
+            None,
+        );
+        let create_event: AuditEvent = (self.address(), &event).into();
+        self.append_audit_logs(vec![audit_event, create_event])
+            .await?;
 
         Ok(summary)
     }
@@ -1095,11 +1229,8 @@ impl UserStorage {
         folder_name: String,
         converter: impl Convert<Input = PathBuf>,
     ) -> Result<(Event<'static>, Summary)> {
-        let vaults = LocalAccounts::list_local_vaults(
-            self.user.identity().address(),
-            false,
-        )
-        .await?;
+        let vaults =
+            LocalAccounts::list_local_vaults(self.address(), false).await?;
         let existing_name =
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 
@@ -1175,13 +1306,27 @@ impl UserStorage {
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<()> {
-        let (data, _) = self.read_secret(secret_id, folder).await?;
+        let current_folder = folder
+            .as_ref()
+            .or_else(|| self.storage.current().map(|g| g.summary()))
+            .ok_or(Error::NoOpenFolder)?
+            .clone();
+
+        let (data, _) = self.get_secret(secret_id, folder, false).await?;
         if let Secret::Contact { vcard, .. } = &data.secret {
             let content = vcard.to_string();
             vfs::write(&path, content).await?;
         } else {
             return Err(Error::NotContact);
         }
+
+        let audit_event = AuditEvent::new(
+            EventKind::ExportContacts,
+            self.address().clone(),
+            Some(AuditData::Secret(*current_folder.id(), *secret_id)),
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
+
         Ok(())
     }
 
@@ -1201,7 +1346,7 @@ impl UserStorage {
         )
         .await?;
         let (vault, _) = LocalAccounts::find_local_vault(
-            self.user.identity().address(),
+            self.address(),
             contacts.id(),
             false,
         )
@@ -1219,6 +1364,14 @@ impl UserStorage {
             }
         }
         vfs::write(path, vcf.as_bytes()).await?;
+
+        let audit_event = AuditEvent::new(
+            EventKind::ExportContacts,
+            self.address().clone(),
+            None,
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
+
         Ok(())
     }
 
@@ -1229,13 +1382,14 @@ impl UserStorage {
         content: &str,
         progress: impl Fn(ContactImportProgress),
     ) -> Result<()> {
+        use sos_sdk::vcard4::parse;
+
         let current = self.storage.current().map(|g| g.summary().clone());
         let contacts = self
             .contacts_folder()
             .ok_or_else(|| Error::NoContactsFolder)?;
-        self.open_folder(&contacts).await?;
+        self.open_vault(&contacts, false).await?;
 
-        use sos_sdk::vcard4::parse;
         let cards = parse(content)?;
 
         progress(ContactImportProgress::Ready { total: cards.len() });
@@ -1258,32 +1412,39 @@ impl UserStorage {
             });
 
             let meta = SecretMeta::new(label, secret.kind());
-
-            let event = self.storage.create_secret(meta, secret).await?;
-            let event = Event::Write(*contacts.id(), event);
-            let audit_event: AuditEvent =
-                (self.user.identity().address(), &event).into();
-            self.append_audit_logs(vec![audit_event]).await?;
+            self.create_secret(meta, secret, None).await?;
         }
 
         if let Some(folder) = current {
-            self.open_folder(&folder).await?;
+            self.open_vault(&folder, false).await?;
         }
+
+        let audit_event = AuditEvent::new(
+            EventKind::ImportContacts,
+            self.address().clone(),
+            None,
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
     }
 
     /// Create a backup archive containing the
     /// encrypted data for the account.
-    pub async fn export_archive_file<P: AsRef<Path>>(
+    pub async fn export_backup_archive<P: AsRef<Path>>(
         &self,
         path: P,
     ) -> Result<()> {
-        Ok(AccountBackup::export_archive_file(
-            path,
-            self.user.identity().address(),
-        )
-        .await?)
+        AccountBackup::export_archive_file(path, self.address()).await?;
+
+        let audit_event = AuditEvent::new(
+            EventKind::ExportBackupArchive,
+            self.address().clone(),
+            None,
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
+
+        Ok(())
     }
 
     /// Read the inventory from an archive.
@@ -1303,21 +1464,33 @@ impl UserStorage {
     }
 
     /// Import from an archive file.
-    pub async fn restore_archive_file<P: AsRef<Path>>(
+    pub async fn restore_backup_archive<P: AsRef<Path>>(
         owner: Option<&mut UserStorage>,
         path: P,
         options: RestoreOptions,
     ) -> Result<AccountInfo> {
         let file = File::open(path).await?;
-        Self::restore_archive_reader(owner, file, options).await
+        let (account, owner) =
+            Self::restore_archive_reader(owner, file, options).await?;
+
+        if let Some(owner) = owner {
+            let audit_event = AuditEvent::new(
+                EventKind::ImportBackupArchive,
+                owner.address().clone(),
+                None,
+            );
+            owner.append_audit_logs(vec![audit_event]).await?;
+        }
+
+        Ok(account)
     }
 
     /// Import from an archive buffer.
-    pub async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
+    async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
         mut owner: Option<&mut UserStorage>,
         buffer: R,
         mut options: RestoreOptions,
-    ) -> Result<AccountInfo> {
+    ) -> Result<(AccountInfo, Option<&mut UserStorage>)> {
         let files_dir = if let Some(owner) = owner.as_ref() {
             ExtractFilesLocation::Path(StorageDirs::files_dir(
                 owner.user.identity().address().to_string(),
@@ -1342,6 +1515,6 @@ impl UserStorage {
             owner.build_search_index().await?;
         }
 
-        Ok(account)
+        Ok((account, owner))
     }
 }

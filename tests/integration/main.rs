@@ -8,6 +8,9 @@ mod account_manager;
 mod archive_export_restore;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod audit_trail;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod auth_session_negotiate;
 
 #[cfg(not(target_arch = "wasm32"))]

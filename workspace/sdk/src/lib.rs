@@ -26,7 +26,7 @@ mod timestamp;
 pub mod vault;
 pub mod vfs;
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(all(not(doc), any(test, feature = "test-utils")))]
 pub mod test_utils;
 
 pub use encoding::{decode, encode};

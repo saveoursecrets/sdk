@@ -1,10 +1,7 @@
 //! File streams.
 use std::{io::SeekFrom, ops::Range, path::Path};
 
-use binary_stream::{
-    tokio::BinaryReader,
-    Endian,
-};
+use binary_stream::{tokio::BinaryReader, Endian};
 
 use crate::{
     encoding::stream_len,

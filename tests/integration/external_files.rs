@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use sos_net::client::{provider::ProviderFactory, user::UserStorage};
 use sos_sdk::{
-    account::{AccountBuilder, ImportedAccount, NewAccount},
+    account::ImportedAccount,
     hex,
     passwd::diceware::generate_passphrase,
     storage::StorageDirs,
@@ -34,27 +34,26 @@ async fn integration_external_files() -> Result<()> {
 
     let account_name = "External files test".to_string();
     let (passphrase, _) = generate_passphrase()?;
-
-    let new_account =
-        AccountBuilder::new(account_name.clone(), passphrase.clone())
-            .save_passphrase(true)
-            .create_archive(true)
-            .create_authenticator(false)
-            .create_contacts(false)
-            .create_file_password(true)
-            .finish()
-            .await?;
-
     let factory = ProviderFactory::Local(None);
-    let (mut provider, _) = factory
-        .create_provider(new_account.user.signer().clone())
+
+    let (mut owner, imported_account, _) =
+        UserStorage::new_account_with_builder(
+            account_name.clone(),
+            passphrase.clone(),
+            factory.clone(),
+            |builder| {
+                builder
+                    .save_passphrase(true)
+                    .create_archive(true)
+                    .create_authenticator(false)
+                    .create_contacts(false)
+                    .create_file_password(true)
+            },
+        )
         .await?;
 
-    let imported_account = provider.import_new_account(&new_account).await?;
-    let NewAccount { address, .. } = new_account;
     let ImportedAccount { summary, .. } = imported_account;
 
-    let mut owner = UserStorage::new(&address, passphrase, factory).await?;
     owner.initialize_search_index().await?;
 
     let (id, secret_data, original_checksum) =
@@ -264,7 +263,7 @@ async fn assert_move_file_secret(
     let new_folder_name = "Mock folder".to_string();
     let destination = owner.create_folder(new_folder_name).await?;
 
-    let (new_id, _, _, _) =
+    let (new_id, _) =
         owner.move_secret(id, default_folder, &destination).await?;
 
     let (moved_secret_data, _) = owner

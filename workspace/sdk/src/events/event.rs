@@ -2,18 +2,27 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::vault::VaultId;
+use crate::{vault::VaultId, Error, Result};
 
-use super::{EventKind, ReadEvent, WriteEvent};
+use super::{AuditEvent, EventKind, ReadEvent, WriteEvent};
 
 /// Events generated when reading or writing.
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum Event<'a> {
+    /// Create account event.
+    CreateAccount(AuditEvent),
+
     /// Read vault operations.
     Read(VaultId, ReadEvent),
 
     /// Write vault operations.
     Write(VaultId, WriteEvent<'a>),
+
+    /// Move secret operation.
+    MoveSecret(ReadEvent, WriteEvent<'a>, WriteEvent<'a>),
+
+    /// Delete account event.
+    DeleteAccount(AuditEvent),
 }
 
 impl Event<'_> {
@@ -28,20 +37,11 @@ impl Event<'_> {
     /// Get the event kind for this event.
     pub fn event_kind(&self) -> EventKind {
         match self {
+            Self::CreateAccount(event) => event.event_kind(),
             Self::Read(_, event) => event.event_kind(),
             Self::Write(_, event) => event.event_kind(),
-        }
-    }
-
-    /// Convert to an owned write event.
-    ///
-    /// # Panics
-    ///
-    /// If the event is not a write event.
-    pub fn into_owned(self) -> (VaultId, WriteEvent<'static>) {
-        match self {
-            Self::Write(vault_id, event) => (vault_id, event.into_owned()),
-            _ => panic!("not a write event"),
+            Self::MoveSecret(_, _, _) => EventKind::MoveSecret,
+            Self::DeleteAccount(event) => event.event_kind(),
         }
     }
 }
@@ -49,5 +49,18 @@ impl Event<'_> {
 impl From<(VaultId, WriteEvent<'static>)> for Event<'static> {
     fn from(value: (VaultId, WriteEvent<'static>)) -> Self {
         Self::Write(value.0, value.1)
+    }
+}
+
+// Convert to an owned write event.
+impl<'a> TryFrom<Event<'a>> for (VaultId, WriteEvent<'static>) {
+    type Error = Error;
+    fn try_from(value: Event<'a>) -> Result<Self> {
+        match value {
+            Event::Write(vault_id, event) => {
+                Ok((vault_id, event.into_owned()))
+            }
+            _ => panic!("not a write event"),
+        }
     }
 }

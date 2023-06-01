@@ -92,8 +92,8 @@ impl AuditProvider for AuditLogFile {
             }
             buffer
         };
-
         self.file.write_all(&buffer).await?;
+        self.file.flush().await?;
         Ok(())
     }
 }

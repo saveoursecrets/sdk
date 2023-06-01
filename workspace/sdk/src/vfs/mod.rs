@@ -1,10 +1,15 @@
-//! Virtual file system designed to match the `tokio::fs` module.
+//! Virtual file system.
 //!
-//! Using the memory VFS allows webassembly to support
-//! asynchronous file system access using a familiar API.
+//! The API is designed to match the `tokio::fs` module which in
+//! turn is based on `std::fs` so the API should be familiar.
 //!
 //! The default operating system VFS re-exports the
-//! `tokio::fs` module.
+//! `tokio::fs` module providing access to the operating system's
+//! file system.
+//!
+//! Using the memory VFS allows us to compile and target the
+//! `wasm32-unknown-unknown` platform with minimal changes to
+//! the code.
 //!
 //! The memory file system is enabled by default for
 //! `wasm32-unknown-unknown` or if the `mem-fs` feature
@@ -29,6 +34,9 @@
 //! implement in the future.
 //!
 //! The `readonly` flag on permissions is not supported yet.
+//!
+//! Created, accessed and modified times are not set
+//! yet for non-webassembly targets that support `SystemTime`.
 //!
 //! Symbolic links are not supported yet which means the `hard_link()`,
 //! `symlink()`, `symlink_metadata()`, `symlink_file()` and
