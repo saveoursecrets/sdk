@@ -45,9 +45,13 @@ const EXPORT_VAULT: u16 = 17;
 /// Type identifier for the import vault operation.
 const IMPORT_VAULT: u16 = 18;
 /// Type identifier for export account archive.
-const EXPORT_ACCOUNT_ARCHIVE: u16 = 19;
+const EXPORT_BACKUP_ARCHIVE: u16 = 19;
 /// Type identifier for restore account archive.
-const IMPORT_ACCOUNT_ARCHIVE: u16 = 20;
+const IMPORT_BACKUP_ARCHIVE: u16 = 20;
+/// Type identifier for exporting unencrypted secrets.
+const EXPORT_UNSAFE: u16 = 21;
+/// Type identifier for importing unencrypted secrets.
+const IMPORT_UNSAFE: u16 = 22;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -92,9 +96,13 @@ pub enum EventKind {
     /// Event to import a vault.
     ImportVault,
     /// Event to export an account archive.
-    ExportAccountArchive,
+    ExportBackupArchive,
     /// Event to import an account archive.
-    ImportAccountArchive,
+    ImportBackupArchive,
+    /// Event to export unencrypted secrets.
+    ExportUnsafe,
+    /// Event to import unencrypted secrets.
+    ImportUnsafe,
 }
 
 impl Default for EventKind {
@@ -106,30 +114,32 @@ impl Default for EventKind {
 impl TryFrom<u16> for EventKind {
     type Error = Error;
     fn try_from(value: u16) -> std::result::Result<Self, Self::Error> {
-        match value {
-            NOOP => Ok(EventKind::Noop),
-            CREATE_ACCOUNT => Ok(EventKind::CreateAccount),
-            DELETE_ACCOUNT => Ok(EventKind::DeleteAccount),
-            LOGIN_RESPONSE => Ok(EventKind::LoginResponse),
-            CREATE_VAULT => Ok(EventKind::CreateVault),
-            READ_VAULT => Ok(EventKind::ReadVault),
-            UPDATE_VAULT => Ok(EventKind::UpdateVault),
-            DELETE_VAULT => Ok(EventKind::DeleteVault),
-            GET_VAULT_NAME => Ok(EventKind::GetVaultName),
-            SET_VAULT_NAME => Ok(EventKind::SetVaultName),
-            SET_VAULT_META => Ok(EventKind::SetVaultMeta),
-            CREATE_SECRET => Ok(EventKind::CreateSecret),
-            READ_SECRET => Ok(EventKind::ReadSecret),
-            UPDATE_SECRET => Ok(EventKind::UpdateSecret),
-            DELETE_SECRET => Ok(EventKind::DeleteSecret),
-            MOVE_SECRET => Ok(EventKind::MoveSecret),
-            READ_EVENT_LOG => Ok(EventKind::ReadEventLog),
-            EXPORT_VAULT => Ok(EventKind::ExportVault),
-            IMPORT_VAULT => Ok(EventKind::ImportVault),
-            EXPORT_ACCOUNT_ARCHIVE => Ok(EventKind::ExportAccountArchive),
-            IMPORT_ACCOUNT_ARCHIVE => Ok(EventKind::ImportAccountArchive),
-            _ => Err(Error::UnknownEventKind(value)),
-        }
+        Ok(match value {
+            NOOP => EventKind::Noop,
+            CREATE_ACCOUNT => EventKind::CreateAccount,
+            DELETE_ACCOUNT => EventKind::DeleteAccount,
+            LOGIN_RESPONSE => EventKind::LoginResponse,
+            CREATE_VAULT => EventKind::CreateVault,
+            READ_VAULT => EventKind::ReadVault,
+            UPDATE_VAULT => EventKind::UpdateVault,
+            DELETE_VAULT => EventKind::DeleteVault,
+            GET_VAULT_NAME => EventKind::GetVaultName,
+            SET_VAULT_NAME => EventKind::SetVaultName,
+            SET_VAULT_META => EventKind::SetVaultMeta,
+            CREATE_SECRET => EventKind::CreateSecret,
+            READ_SECRET => EventKind::ReadSecret,
+            UPDATE_SECRET => EventKind::UpdateSecret,
+            DELETE_SECRET => EventKind::DeleteSecret,
+            MOVE_SECRET => EventKind::MoveSecret,
+            READ_EVENT_LOG => EventKind::ReadEventLog,
+            EXPORT_VAULT => EventKind::ExportVault,
+            IMPORT_VAULT => EventKind::ImportVault,
+            EXPORT_BACKUP_ARCHIVE => EventKind::ExportBackupArchive,
+            IMPORT_BACKUP_ARCHIVE => EventKind::ImportBackupArchive,
+            EXPORT_UNSAFE => EventKind::ExportUnsafe,
+            IMPORT_UNSAFE => EventKind::ImportUnsafe,
+            _ => return Err(Error::UnknownEventKind(value)),
+        })
     }
 }
 
@@ -155,8 +165,10 @@ impl From<&EventKind> for u16 {
             EventKind::ReadEventLog => READ_EVENT_LOG,
             EventKind::ExportVault => EXPORT_VAULT,
             EventKind::ImportVault => IMPORT_VAULT,
-            EventKind::ExportAccountArchive => EXPORT_ACCOUNT_ARCHIVE,
-            EventKind::ImportAccountArchive => IMPORT_ACCOUNT_ARCHIVE,
+            EventKind::ExportBackupArchive => EXPORT_BACKUP_ARCHIVE,
+            EventKind::ImportBackupArchive => IMPORT_BACKUP_ARCHIVE,
+            EventKind::ExportUnsafe => EXPORT_UNSAFE,
+            EventKind::ImportUnsafe => IMPORT_UNSAFE,
         }
     }
 }
@@ -184,8 +196,10 @@ impl fmt::Display for EventKind {
                 EventKind::ReadEventLog => "READ_EVENT_LOG",
                 EventKind::ExportVault => "EXPORT_FOLDER",
                 EventKind::ImportVault => "IMPORT_FOLDER",
-                EventKind::ExportAccountArchive => "EXPORT_ACCOUNT_ARCHIVE",
-                EventKind::ImportAccountArchive => "IMPORT_ACCOUNT_ARCHIVE",
+                EventKind::ExportBackupArchive => "EXPORT_BACKUP_ARCHIVE",
+                EventKind::ImportBackupArchive => "IMPORT_BACKUP_ARCHIVE",
+                EventKind::ExportUnsafe => "EXPORT_UNSAFE",
+                EventKind::ImportUnsafe => "IMPORT_UNSAFE",
             }
         })
     }

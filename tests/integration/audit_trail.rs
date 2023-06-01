@@ -2,18 +2,18 @@ use anyhow::Result;
 
 use secrecy::SecretString;
 use serial_test::serial;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use sos_net::client::{provider::ProviderFactory, user::UserStorage};
+use sos_net::{
+    client::{provider::ProviderFactory, user::UserStorage},
+    migrate::import::ImportTarget,
+};
 use sos_sdk::{
-    account::{ImportedAccount, NewAccount, RestoreOptions},
+    account::{ImportedAccount, RestoreOptions},
     events::{AuditEvent, AuditLogFile, EventKind},
     passwd::diceware::generate_passphrase,
     storage::StorageDirs,
-    vault::{
-        secret::{SecretData, SecretId},
-        Summary,
-    },
+    vault::Summary,
     vfs::File,
 };
 
@@ -96,9 +96,16 @@ async fn integration_audit_trail() -> Result<()> {
     assert!(matches!(kinds.remove(0), EventKind::DeleteVault));
 
     // Exported an account archive
-    assert!(matches!(kinds.remove(0), EventKind::ExportAccountArchive));
+    assert!(matches!(kinds.remove(0), EventKind::ExportBackupArchive));
     // Imported an account archive
-    assert!(matches!(kinds.remove(0), EventKind::ImportAccountArchive));
+    assert!(matches!(kinds.remove(0), EventKind::ImportBackupArchive));
+
+    // Exported an unsafe archive
+    assert!(matches!(kinds.remove(0), EventKind::ExportUnsafe));
+
+    // Imported an unsafe file
+    assert!(matches!(kinds.remove(0), EventKind::ImportUnsafe));
+    assert!(matches!(kinds.remove(0), EventKind::CreateVault));
 
     // Deleted the account
     assert!(matches!(kinds.remove(0), EventKind::DeleteAccount));
@@ -188,6 +195,17 @@ async fn simulate_session(
         restore_options,
     )
     .await?;
+
+    let unsafe_archive = "target/audit-trail-unsafe-archive.zip";
+    owner.export_unsafe_archive(unsafe_archive).await?;
+
+    let import_file = "workspace/migrate/fixtures/bitwarden-export.csv";
+    let import_target = ImportTarget {
+        format: "bitwarden.csv".parse()?,
+        path: PathBuf::from(import_file),
+        folder_name: "Bitwarden folder".to_string(),
+    };
+    owner.import_file(import_target).await?;
 
     // Delete the account
     owner.delete_account().await?;

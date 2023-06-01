@@ -2,10 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    vault::{secret::SecretId, VaultId},
-    Error, Result,
-};
+use crate::{vault::VaultId, Error, Result};
 
 use super::{AuditEvent, EventKind, ReadEvent, WriteEvent};
 

@@ -1140,6 +1140,13 @@ impl UserStorage {
 
         vfs::write(path.as_ref(), &archive).await?;
 
+        let audit_event = AuditEvent::new(
+            EventKind::ExportUnsafe,
+            self.address().clone(),
+            None,
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
+
         Ok(())
     }
 
@@ -1202,8 +1209,14 @@ impl UserStorage {
             }
         };
 
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+        let audit_event = AuditEvent::new(
+            EventKind::ImportUnsafe,
+            self.address().clone(),
+            None,
+        );
+        let create_event: AuditEvent = (self.address(), &event).into();
+        self.append_audit_logs(vec![audit_event, create_event])
+            .await?;
 
         Ok(summary)
     }
@@ -1400,7 +1413,7 @@ impl UserStorage {
         AccountBackup::export_archive_file(path, self.address()).await?;
 
         let audit_event = AuditEvent::new(
-            EventKind::ExportAccountArchive,
+            EventKind::ExportBackupArchive,
             self.address().clone(),
             None,
         );
@@ -1437,7 +1450,7 @@ impl UserStorage {
 
         if let Some(owner) = owner {
             let audit_event = AuditEvent::new(
-                EventKind::ImportAccountArchive,
+                EventKind::ImportBackupArchive,
                 owner.address().clone(),
                 None,
             );

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use sos_net::client::{provider::ProviderFactory, user::UserStorage};
 use sos_sdk::{
-    account::{ImportedAccount, NewAccount},
+    account::ImportedAccount,
     hex,
     passwd::diceware::generate_passphrase,
     storage::StorageDirs,
