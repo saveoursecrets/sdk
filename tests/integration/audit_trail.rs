@@ -6,7 +6,7 @@ use std::path::Path;
 use sos_net::client::{provider::ProviderFactory, user::UserStorage};
 use sos_sdk::{
     account::{ImportedAccount, NewAccount},
-    events::{AuditEvent, AuditLogFile},
+    events::{AuditEvent, AuditLogFile, EventKind},
     passwd::diceware::generate_passphrase,
     storage::StorageDirs,
     vault::{
@@ -31,7 +31,7 @@ async fn integration_audit_trail() -> Result<()> {
     let account_name = "Audit trail test".to_string();
     let (passphrase, _) = generate_passphrase()?;
     let factory = ProviderFactory::Local(None);
-    let (new_account, imported_account) =
+    let (mut owner, imported_account, _) =
         UserStorage::new_account_with_builder(
             account_name.clone(),
             passphrase.clone(),
@@ -39,7 +39,7 @@ async fn integration_audit_trail() -> Result<()> {
             |builder| {
                 builder
                     .save_passphrase(false)
-                    .create_archive(false)
+                    .create_archive(true)
                     .create_authenticator(false)
                     .create_contacts(false)
                     .create_file_password(false)
@@ -47,27 +47,49 @@ async fn integration_audit_trail() -> Result<()> {
         )
         .await?;
 
-    let NewAccount { address, .. } = new_account;
     let ImportedAccount { summary, .. } = imported_account;
 
-    let mut owner =
-        UserStorage::sign_in(&address, passphrase, factory).await?;
     owner.initialize_search_index().await?;
 
     // Make changes to generate audit logs
     let id = create_secret(&mut owner, &summary).await?;
+
     let secret_data = read_secret(&mut owner, &summary, &id).await?;
     let id = update_secret(&mut owner, &summary, &id, &secret_data).await?;
     delete_secret(&mut owner, &summary, &id).await?;
+    
+    // Create a new secret so we can archive it
+    let id = create_secret(&mut owner, &summary).await?;
+    // Archive the secret to generate move event
+    archive_secret(&mut owner, &summary, &id).await?;
 
     // Read on the audit events
     let audit_log = owner.dirs().audit_file();
 
     let events = read_audit_events(audit_log).await?;
-    let kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
+    let mut kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
 
     //println!("events {:#?}", events);
-    println!("kinds {:#?}", kinds);
+    //println!("kinds {:#?}", kinds);
+
+    // Created the default folder
+    assert!(matches!(kinds.remove(0), EventKind::CreateVault));
+    // Created the archive folder
+    assert!(matches!(kinds.remove(0), EventKind::CreateVault));
+    // Opened the default folder for reading
+    assert!(matches!(kinds.remove(0), EventKind::ReadVault));
+    // Created a secret
+    assert!(matches!(kinds.remove(0), EventKind::CreateSecret));
+    // Read a secret
+    assert!(matches!(kinds.remove(0), EventKind::ReadSecret));
+    // Update a secret
+    assert!(matches!(kinds.remove(0), EventKind::UpdateSecret));
+    // Deleted a secret
+    assert!(matches!(kinds.remove(0), EventKind::DeleteSecret));
+    // Created new secret
+    assert!(matches!(kinds.remove(0), EventKind::CreateSecret));
+    // Moved to archive
+    assert!(matches!(kinds.remove(0), EventKind::MoveSecret));
 
     // Reset the cache dir so we don't interfere
     // with other tests
@@ -117,6 +139,15 @@ async fn delete_secret(
     id: &SecretId,
 ) -> Result<()> {
     owner.delete_secret(id, Some(folder.clone())).await?;
+    Ok(())
+}
+
+async fn archive_secret(
+    owner: &mut UserStorage,
+    folder: &Summary,
+    id: &SecretId,
+) -> Result<()> {
+    owner.archive(folder, id).await?;
     Ok(())
 }
 

@@ -25,6 +25,8 @@ bitflags! {
         const DATA_VAULT =  0b00000010;
         /// Indicates the data has a secret identifier.
         const DATA_SECRET = 0b00000100;
+        /// Indicates the data has a move event.
+        const MOVE_SECRET = 0b00001000;
     }
 }
 
@@ -47,16 +49,17 @@ pub trait AuditProvider {
 /// An audit log record with no associated data is 36 bytes.
 ///
 /// When associated data is available an additional 16 bytes is used
-/// for events on a vault and 32 bytes for events on a secret.
+/// for events on a vault and 32 bytes for events on a secret and for a
+/// move event 64 bytes is used.
 ///
-/// The maximum size of a log record is thus 68 bytes.
+/// The maximum size of a log record is thus 100 bytes.
 ///
 /// * 2 bytes for bit flags.
 /// * 8 bytes for the timestamp seconds.
 /// * 4 bytes for the timestamp nanoseconds.
 /// * 2 bytes for the event kind identifier.
 /// * 20 bytes for the public address.
-/// * 16 or 32 bytes for the context data (one or two UUIDs).
+/// * 16, 32 or 64 bytes for the context data (one, two or four UUIDs).
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AuditEvent {
     /// The time the log was created.
@@ -116,6 +119,9 @@ impl AuditEvent {
                 AuditData::Secret(_, _) => {
                     flags.set(LogFlags::DATA_VAULT, true);
                     flags.set(LogFlags::DATA_SECRET, true);
+                }
+                AuditData::MoveSecret { .. } => {
+                    flags.set(LogFlags::MOVE_SECRET, true);
                 }
             }
             flags
@@ -190,6 +196,17 @@ impl<'a> From<(&Address, &Event<'a>)> for AuditEvent {
                 }
                 WriteEvent::Noop => unreachable!(),
             },
+            Event::MoveSecret {
+                from_vault_id,
+                from_secret_id,
+                to_vault_id,
+                to_secret_id,
+            } => AuditData::MoveSecret {
+                from_vault_id: *from_vault_id,
+                from_secret_id: *from_secret_id,
+                to_vault_id: *to_vault_id,
+                to_secret_id: *to_secret_id,
+            },
         };
         AuditEvent::new(event.event_kind(), *address, Some(audit_data))
     }
@@ -203,6 +220,17 @@ pub enum AuditData {
     Vault(VaultId),
     /// Data for an associated secret.
     Secret(VaultId, SecretId),
+    /// Data for a move secret event.
+    MoveSecret {
+        /// Moved from vault.
+        from_vault_id: VaultId,
+        /// Old secret identifier.
+        from_secret_id: SecretId,
+        /// Moved to vault.
+        to_vault_id: VaultId,
+        /// New secret identifier.
+        to_secret_id: SecretId,
+    },
 }
 
 impl Default for AuditData {

@@ -36,8 +36,10 @@ pub const READ_SECRET: u16 = 12;
 pub const UPDATE_SECRET: u16 = 13;
 /// Type identifier for the delete secret operation.
 pub const DELETE_SECRET: u16 = 14;
+/// Type identifier for the move secret operation.
+pub const MOVE_SECRET: u16 = 15;
 /// Type identifier for the read log event.
-pub const READ_EVENT_LOG: u16 = 15;
+pub const READ_EVENT_LOG: u16 = 16;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -45,35 +47,37 @@ pub const READ_EVENT_LOG: u16 = 15;
 pub enum EventKind {
     /// No operation.
     Noop,
-    /// EventKind to create an account.
+    /// Event to create an account.
     CreateAccount,
-    /// EventKind to delete an account.
+    /// Event to delete an account.
     DeleteAccount,
-    /// EventKind to create a login response.
+    /// Event to create a login response.
     LoginResponse,
-    /// EventKind to create a vault.
+    /// Event to create a vault.
     CreateVault,
-    /// EventKind to read a vault.
+    /// Event to read a vault.
     ReadVault,
-    /// EventKind to update a vault.
+    /// Event to update a vault.
     UpdateVault,
-    /// EventKind to get vault name.
+    /// Event to get vault name.
     GetVaultName,
-    /// EventKind to set vault name.
+    /// Event to set vault name.
     SetVaultName,
-    /// EventKind to set vault meta data.
+    /// Event to set vault meta data.
     SetVaultMeta,
-    /// EventKind to delete a vault.
+    /// Event to delete a vault.
     DeleteVault,
-    /// EventKind to create a secret.
+    /// Event to create a secret.
     CreateSecret,
-    /// EventKind to read a secret.
+    /// Event to read a secret.
     ReadSecret,
-    /// EventKind to update a secret.
+    /// Event to update a secret.
     UpdateSecret,
-    /// EventKind to delete a secret.
+    /// Event to delete a secret.
     DeleteSecret,
-    /// EventKind to read a log.
+    /// Event to move a secret.
+    MoveSecret,
+    /// Event to read a log.
     ReadEventLog,
 }
 
@@ -102,6 +106,7 @@ impl TryFrom<u16> for EventKind {
             READ_SECRET => Ok(EventKind::ReadSecret),
             UPDATE_SECRET => Ok(EventKind::UpdateSecret),
             DELETE_SECRET => Ok(EventKind::DeleteSecret),
+            MOVE_SECRET => Ok(EventKind::MoveSecret),
             READ_EVENT_LOG => Ok(EventKind::ReadEventLog),
             _ => Err(Error::UnknownEventKind(value)),
         }
@@ -126,6 +131,7 @@ impl From<&EventKind> for u16 {
             EventKind::ReadSecret => READ_SECRET,
             EventKind::UpdateSecret => UPDATE_SECRET,
             EventKind::DeleteSecret => DELETE_SECRET,
+            EventKind::MoveSecret => MOVE_SECRET,
             EventKind::ReadEventLog => READ_EVENT_LOG,
         }
     }
@@ -150,6 +156,7 @@ impl fmt::Display for EventKind {
                 EventKind::ReadSecret => "READ_SECRET",
                 EventKind::UpdateSecret => "UPDATE_SECRET",
                 EventKind::DeleteSecret => "DELETE_SECRET",
+                EventKind::MoveSecret => "MOVE_SECRET",
                 EventKind::ReadEventLog => "READ_EVENT_LOG",
             }
         })

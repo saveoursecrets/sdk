@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::vault::VaultId;
+use crate::vault::{secret::SecretId, VaultId};
 
 use super::{EventKind, ReadEvent, WriteEvent};
 
@@ -14,6 +14,18 @@ pub enum Event<'a> {
 
     /// Write vault operations.
     Write(VaultId, WriteEvent<'a>),
+
+    /// Move a secret between vaults.
+    MoveSecret {
+        /// Moved from vault.
+        from_vault_id: VaultId,
+        /// Old secret identifier.
+        from_secret_id: SecretId,
+        /// Moved to vault.
+        to_vault_id: VaultId,
+        /// New secret identifier.
+        to_secret_id: SecretId,
+    },
 }
 
 impl Event<'_> {
@@ -30,6 +42,7 @@ impl Event<'_> {
         match self {
             Self::Read(_, event) => event.event_kind(),
             Self::Write(_, event) => event.event_kind(),
+            Self::MoveSecret { .. } => EventKind::MoveSecret,
         }
     }
 

@@ -180,29 +180,65 @@ impl Decode for AuditEvent {
         self.address = address.into();
         // Data - context
         if let Some(flags) = LogFlags::from_bits(bits) {
-            if flags.contains(LogFlags::DATA)
-                && flags.contains(LogFlags::DATA_VAULT)
-            {
-                let vault_id: [u8; 16] = reader
-                    .read_bytes(16)
-                    .await?
-                    .as_slice()
-                    .try_into()
-                    .map_err(encoding_error)?;
-                if !flags.contains(LogFlags::DATA_SECRET) {
-                    self.data =
-                        Some(AuditData::Vault(Uuid::from_bytes(vault_id)));
-                } else {
-                    let secret_id: [u8; 16] = reader
+            if flags.contains(LogFlags::DATA) {
+                if flags.contains(LogFlags::DATA_VAULT) {
+                    let vault_id: [u8; 16] = reader
                         .read_bytes(16)
                         .await?
                         .as_slice()
                         .try_into()
                         .map_err(encoding_error)?;
-                    self.data = Some(AuditData::Secret(
-                        Uuid::from_bytes(vault_id),
-                        Uuid::from_bytes(secret_id),
-                    ));
+                    if !flags.contains(LogFlags::DATA_SECRET) {
+                        self.data = Some(AuditData::Vault(Uuid::from_bytes(
+                            vault_id,
+                        )));
+                    } else {
+                        let secret_id: [u8; 16] = reader
+                            .read_bytes(16)
+                            .await?
+                            .as_slice()
+                            .try_into()
+                            .map_err(encoding_error)?;
+                        self.data = Some(AuditData::Secret(
+                            Uuid::from_bytes(vault_id),
+                            Uuid::from_bytes(secret_id),
+                        ));
+                    }
+                } else if flags.contains(LogFlags::MOVE_SECRET) {
+                    let from_vault_id: [u8; 16] = reader
+                        .read_bytes(16)
+                        .await?
+                        .as_slice()
+                        .try_into()
+                        .map_err(encoding_error)?;
+
+                    let from_secret_id: [u8; 16] = reader
+                        .read_bytes(16)
+                        .await?
+                        .as_slice()
+                        .try_into()
+                        .map_err(encoding_error)?;
+
+                    let to_vault_id: [u8; 16] = reader
+                        .read_bytes(16)
+                        .await?
+                        .as_slice()
+                        .try_into()
+                        .map_err(encoding_error)?;
+
+                    let to_secret_id: [u8; 16] = reader
+                        .read_bytes(16)
+                        .await?
+                        .as_slice()
+                        .try_into()
+                        .map_err(encoding_error)?;
+
+                    self.data = Some(AuditData::MoveSecret {
+                        from_vault_id: Uuid::from_bytes(from_vault_id),
+                        from_secret_id: Uuid::from_bytes(from_secret_id),
+                        to_vault_id: Uuid::from_bytes(to_vault_id),
+                        to_secret_id: Uuid::from_bytes(to_secret_id),
+                    });
                 }
             }
         } else {
@@ -229,6 +265,17 @@ impl Encode for AuditData {
             AuditData::Secret(vault_id, secret_id) => {
                 writer.write_bytes(vault_id.as_bytes()).await?;
                 writer.write_bytes(secret_id.as_bytes()).await?;
+            }
+            AuditData::MoveSecret {
+                from_vault_id,
+                from_secret_id,
+                to_vault_id,
+                to_secret_id,
+            } => {
+                writer.write_bytes(from_vault_id.as_bytes()).await?;
+                writer.write_bytes(from_secret_id.as_bytes()).await?;
+                writer.write_bytes(to_vault_id.as_bytes()).await?;
+                writer.write_bytes(to_secret_id.as_bytes()).await?;
             }
         }
         Ok(())

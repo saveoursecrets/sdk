@@ -36,7 +36,7 @@ async fn integration_external_files() -> Result<()> {
     let (passphrase, _) = generate_passphrase()?;
     let factory = ProviderFactory::Local(None);
 
-    let (new_account, imported_account) =
+    let (mut owner, imported_account, _) =
         UserStorage::new_account_with_builder(
             account_name.clone(),
             passphrase.clone(),
@@ -52,11 +52,8 @@ async fn integration_external_files() -> Result<()> {
         )
         .await?;
 
-    let NewAccount { address, .. } = new_account;
     let ImportedAccount { summary, .. } = imported_account;
 
-    let mut owner =
-        UserStorage::sign_in(&address, passphrase, factory).await?;
     owner.initialize_search_index().await?;
 
     let (id, secret_data, original_checksum) =
@@ -266,7 +263,7 @@ async fn assert_move_file_secret(
     let new_folder_name = "Mock folder".to_string();
     let destination = owner.create_folder(new_folder_name).await?;
 
-    let (new_id, _, _, _) =
+    let (new_id, _) =
         owner.move_secret(id, default_folder, &destination).await?;
 
     let (moved_secret_data, _) = owner

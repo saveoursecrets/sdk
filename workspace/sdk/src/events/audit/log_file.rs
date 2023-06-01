@@ -88,7 +88,6 @@ impl AuditProvider for AuditLogFile {
             let mut stream = Cursor::new(&mut buffer);
             let mut writer = BinaryWriter::new(&mut stream, Endian::Little);
             for event in events {
-                println!("write audit event {}", event.event_kind());
                 AuditLogFile::encode_row(&mut writer, event).await?;
             }
             buffer

@@ -193,6 +193,24 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
                     event.address(),
                 );
             }
+            AuditData::MoveSecret {
+                from_vault_id,
+                from_secret_id,
+                to_vault_id,
+                to_secret_id,
+            } => {
+                tracing::info!(
+                    target: TARGET,
+                    from_vault = ?from_vault_id,
+                    from_secret = ?from_secret_id,
+                    to_vault = ?to_vault_id,
+                    to_secret = ?to_secret_id,
+                    "{} {} by {}",
+                    event.time().to_rfc3339()?,
+                    event.event_kind(),
+                    event.address(),
+                );
+            }
         }
     } else {
         tracing::info!(
