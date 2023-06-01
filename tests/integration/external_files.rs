@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use sos_net::client::{provider::ProviderFactory, user::UserStorage};
 use sos_sdk::{
-    account::{AccountBuilder, ImportedAccount, NewAccount},
+    account::{ImportedAccount, NewAccount},
     hex,
     passwd::diceware::generate_passphrase,
     storage::StorageDirs,
@@ -36,23 +36,27 @@ async fn integration_external_files() -> Result<()> {
     let (passphrase, _) = generate_passphrase()?;
     let factory = ProviderFactory::Local(None);
 
-    let (new_account, imported_account) = UserStorage::new_account_with_builder(
-        account_name.clone(),
-        passphrase.clone(),
-        factory.clone(),
-        |builder| {
-            builder.save_passphrase(true)
-                .create_archive(true)
-                .create_authenticator(false)
-                .create_contacts(false)
-                .create_file_password(true)
-        }
-    ).await?;
-    
+    let (new_account, imported_account) =
+        UserStorage::new_account_with_builder(
+            account_name.clone(),
+            passphrase.clone(),
+            factory.clone(),
+            |builder| {
+                builder
+                    .save_passphrase(true)
+                    .create_archive(true)
+                    .create_authenticator(false)
+                    .create_contacts(false)
+                    .create_file_password(true)
+            },
+        )
+        .await?;
+
     let NewAccount { address, .. } = new_account;
     let ImportedAccount { summary, .. } = imported_account;
 
-    let mut owner = UserStorage::sign_in(&address, passphrase, factory).await?;
+    let mut owner =
+        UserStorage::sign_in(&address, passphrase, factory).await?;
     owner.initialize_search_index().await?;
 
     let (id, secret_data, original_checksum) =

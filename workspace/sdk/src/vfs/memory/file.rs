@@ -13,17 +13,17 @@ use std::cmp;
 use std::fmt;
 use std::future::Future;
 use std::io::{self, prelude::*, ErrorKind, Seek, SeekFrom};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
 use std::task::Poll::*;
 
 use super::{
-    fs::{Fd, MemoryFd},
+    fs::{Fd, FileContent, MemoryFd},
     metadata,
     open_options::OpenFlags,
-    FileContent, Metadata, OpenOptions, PathBuf, Permissions,
+    Metadata, OpenOptions, Permissions,
 };
 
 pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>

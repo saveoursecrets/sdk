@@ -1,9 +1,9 @@
-use std::io::{self, ErrorKind};
+use std::io::{ErrorKind, Result};
 use std::{path::Path, sync::Arc};
 
 use super::{
-    fs::{create_file, resolve, MemoryFd},
-    File, PathTarget,
+    fs::{create_file, resolve, MemoryFd, PathTarget},
+    File,
 };
 use bitflags::bitflags;
 
@@ -67,7 +67,7 @@ impl OpenOptions {
     }
 
     /// Opens a file at `path` with the options specified by `self`.
-    pub async fn open(&self, path: impl AsRef<Path>) -> io::Result<File> {
+    pub async fn open(&self, path: impl AsRef<Path>) -> Result<File> {
         if let Some(target) = resolve(path.as_ref().to_path_buf()).await {
             match target {
                 PathTarget::Descriptor(file) => {

@@ -9,7 +9,7 @@ use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
     fmt,
-    io::{self, Cursor, Error, ErrorKind},
+    io::{self, Cursor, Error, ErrorKind, Result},
     iter::Enumerate,
     path::{Component, Path, PathBuf},
     sync::Arc,
@@ -21,7 +21,7 @@ use tokio::{
     sync::{Mutex, RwLock},
 };
 
-use super::{File, Metadata, Permissions, Result};
+use super::{File, Metadata, Permissions};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use super::meta_data::FileTime;

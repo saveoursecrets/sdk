@@ -1,4 +1,4 @@
-use super::FileFlags;
+use super::fs::FileFlags;
 use std::io::Result;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]

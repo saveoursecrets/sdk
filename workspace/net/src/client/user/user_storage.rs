@@ -130,8 +130,8 @@ impl UserStorage {
     /// Create a new account with the given
     /// name, passphrase and provider.
     ///
-    /// Uses standard flags for the account builder for 
-    /// more control of the createed account use 
+    /// Uses standard flags for the account builder for
+    /// more control of the createed account use
     /// `new_account_with_builder()`.
     pub async fn new_account(
         account_name: String,

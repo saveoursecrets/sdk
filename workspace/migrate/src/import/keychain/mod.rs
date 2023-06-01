@@ -386,11 +386,9 @@ mod test {
         let mut vault: Vault = Default::default();
         vault.initialize(vault_password.clone(), None).await?;
 
-        let vault = KeychainImport.convert(
-            data_dump.unwrap(),
-            vault,
-            vault_password.clone(),
-        ).await?;
+        let vault = KeychainImport
+            .convert(data_dump.unwrap(), vault, vault_password.clone())
+            .await?;
 
         assert_eq!(2, vault.len());
 

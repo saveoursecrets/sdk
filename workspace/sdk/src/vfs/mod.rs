@@ -30,6 +30,9 @@
 //!
 //! The `readonly` flag on permissions is not supported yet.
 //!
+//! Created, accessed and modified times are not set
+//! yet for non-webassembly targets that support `SystemTime`.
+//!
 //! Symbolic links are not supported yet which means the `hard_link()`,
 //! `symlink()`, `symlink_metadata()`, `symlink_file()` and
 //! `symlink_dir()` functions are not available.
