@@ -1945,10 +1945,8 @@ impl Default for Secret {
 
 /// Type identifiers for the secret enum variants.
 ///
-/// Used internally for encoding / decoding and client
-/// implementations may use these to determine the type
-/// of a secret.
-pub mod kind {
+/// Used internally for encoding / decoding.
+mod kind {
     /// Account password type.
     pub const ACCOUNT: u8 = 1;
     /// Note UTF-8 text type.
