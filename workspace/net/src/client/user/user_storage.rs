@@ -7,9 +7,9 @@ use std::{
 
 use sos_sdk::{
     account::{
-        archive::Inventory, AccountBackup, AccountInfo, AuthenticatedUser,
-        DelegatedPassphrase, ExtractFilesLocation, LocalAccounts, Login,
-        RestoreOptions,
+        archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
+        AuthenticatedUser, DelegatedPassphrase, ExtractFilesLocation,
+        ImportedAccount, LocalAccounts, Login, NewAccount, RestoreOptions,
     },
     decode, encode,
     events::{AuditEvent, AuditProvider, Event, WriteEvent},
@@ -127,8 +127,55 @@ pub struct UserStorage {
 }
 
 impl UserStorage {
+    /// Create a new account with the given
+    /// name, passphrase and provider.
+    ///
+    /// Uses standard flags for the account builder for 
+    /// more control of the createed account use 
+    /// `new_account_with_builder()`.
+    pub async fn new_account(
+        account_name: String,
+        passphrase: SecretString,
+        factory: ProviderFactory,
+    ) -> Result<(NewAccount, ImportedAccount)> {
+        Self::new_account_with_builder(
+            account_name,
+            passphrase,
+            factory,
+            |builder| {
+                builder
+                    .save_passphrase(true)
+                    .create_archive(true)
+                    .create_authenticator(true)
+                    .create_contacts(true)
+                    .create_file_password(true)
+            },
+        )
+        .await
+    }
+
+    /// Create a new account with the given
+    /// name, passphrase and provider and modify the
+    /// account builder.
+    pub async fn new_account_with_builder(
+        account_name: String,
+        passphrase: SecretString,
+        factory: ProviderFactory,
+        builder: impl Fn(AccountBuilder) -> AccountBuilder,
+    ) -> Result<(NewAccount, ImportedAccount)> {
+        let account_builder =
+            builder(AccountBuilder::new(account_name, passphrase));
+        let new_account = account_builder.finish().await?;
+        let (mut provider, _) = factory
+            .create_provider(new_account.user.signer().clone())
+            .await?;
+        let imported_account =
+            provider.import_new_account(&new_account).await?;
+        Ok((new_account, imported_account))
+    }
+
     /// Create new user storage by signing in to an account.
-    pub async fn new(
+    pub async fn sign_in(
         address: &Address,
         passphrase: SecretString,
         factory: ProviderFactory,
@@ -555,10 +602,10 @@ impl UserStorage {
 
     /// Open a vault.
     pub async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
-        /// Bail early if the folder is already open 
+        // Bail early if the folder is already open
         if let Some(current) = self.storage.current() {
             if current.id() == summary.id() {
-                return Ok(())
+                return Ok(());
             }
         }
 
@@ -652,10 +699,10 @@ impl UserStorage {
         self.get_secret(secret_id, folder, true).await
     }
 
-    /// Get a secret in the current open folder and 
+    /// Get a secret in the current open folder and
     /// optionally append to the audit log.
     ///
-    /// Some internal operations needn't generate extra 
+    /// Some internal operations needn't generate extra
     /// audit log records.
     pub(crate) async fn get_secret(
         &mut self,
@@ -670,7 +717,7 @@ impl UserStorage {
 
         let (meta, secret, event) =
             self.storage.read_secret(secret_id).await?;
-            
+
         let event = Event::Read(*folder.id(), event);
 
         if audit {
@@ -722,7 +769,7 @@ impl UserStorage {
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder).await?;
 
-        let (old_secret_data, _) = 
+        let (old_secret_data, _) =
             self.get_secret(secret_id, None, false).await?;
 
         let secret_data = if let Some(secret) = secret {
@@ -860,7 +907,8 @@ impl UserStorage {
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder).await?;
 
-        let (secret_data, _) = self.get_secret(secret_id, None, false).await?;
+        let (secret_data, _) =
+            self.get_secret(secret_id, None, false).await?;
         let event = self.remove_secret(secret_id, None).await?;
         self.delete_files(&folder, &secret_data, None).await?;
 

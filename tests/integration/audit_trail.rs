@@ -33,27 +33,24 @@ async fn integration_audit_trail() -> Result<()> {
 
     let account_name = "Audit trail test".to_string();
     let (passphrase, _) = generate_passphrase()?;
-
-    let new_account =
-        AccountBuilder::new(account_name.clone(), passphrase.clone())
-            .save_passphrase(true)
-            .create_archive(true)
-            .create_authenticator(false)
-            .create_contacts(false)
-            .create_file_password(true)
-            .finish()
-            .await?;
-
     let factory = ProviderFactory::Local(None);
-    let (mut provider, _) = factory
-        .create_provider(new_account.user.signer().clone())
-        .await?;
-
-    let imported_account = provider.import_new_account(&new_account).await?;
+    let (new_account, imported_account) = UserStorage::new_account_with_builder(
+        account_name.clone(),
+        passphrase.clone(),
+        factory.clone(),
+        |builder| {
+            builder.save_passphrase(false)
+                .create_archive(false)
+                .create_authenticator(false)
+                .create_contacts(false)
+                .create_file_password(false)
+        }
+    ).await?;
+    
     let NewAccount { address, .. } = new_account;
     let ImportedAccount { summary, .. } = imported_account;
 
-    let mut owner = UserStorage::new(&address, passphrase, factory).await?;
+    let mut owner = UserStorage::sign_in(&address, passphrase, factory).await?;
     owner.initialize_search_index().await?;
 
     // Make changes to generate audit logs

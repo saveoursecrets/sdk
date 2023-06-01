@@ -201,7 +201,7 @@ pub async fn sign_in(
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
     let owner =
-        UserStorage::new(account.address(), passphrase.clone(), factory)
+        UserStorage::sign_in(account.address(), passphrase.clone(), factory)
             .await?;
     Ok((owner, passphrase))
 }
