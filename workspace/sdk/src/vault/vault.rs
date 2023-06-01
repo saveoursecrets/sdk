@@ -310,8 +310,8 @@ impl fmt::Display for Summary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Version {} using {}\n{} {}",
-            self.version, self.algorithm, self.name, self.id
+            "Version {} using {} with {}\n{} {}",
+            self.version, self.algorithm, self.kdf, self.name, self.id
         )
     }
 }
