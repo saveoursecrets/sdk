@@ -63,6 +63,11 @@ pub enum Error {
     #[error("invalid algorithm {0}")]
     InvalidAlgorithm(String),
 
+    /// Error generated when a vault key derivation function string 
+    /// identifier is wrong.
+    #[error("invalid key derivation function {0}")]
+    InvalidKeyDerivationFunction(String),
+
     /// Error generated when the kind of a secret is unknown.
     #[error("unknown secret kind {0}")]
     UnknownSecretKind(u8),

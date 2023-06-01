@@ -32,8 +32,8 @@ impl fmt::Display for Algorithm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", {
             match self {
-                Self::XChaCha20Poly1305(_) => "X_CHACHA20_POLY1305",
-                Self::AesGcm256(_) => "AES_GCM_256",
+                Self::XChaCha20Poly1305(_) => "x_chacha20_poly1305",
+                Self::AesGcm256(_) => "aes_gcm_256",
             }
         })
     }

@@ -1,5 +1,6 @@
 use crate::crypto::{
     AeadPack, Algorithm, Nonce, AES_GCM_256, X_CHACHA20_POLY1305,
+    KeyDerivationFunction, ARGON_2,
 };
 
 use std::io::{Error, ErrorKind, Result};
@@ -98,6 +99,39 @@ impl Decode for Algorithm {
                 return Err(Error::new(
                     ErrorKind::Other,
                     format!("unknown algorithm {}", id),
+                ));
+            }
+        };
+        Ok(())
+    }
+}
+
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Encode for KeyDerivationFunction {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        writer.write_u8(*self.as_ref()).await?;
+        Ok(())
+    }
+}
+
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Decode for KeyDerivationFunction {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let id = reader.read_u8().await?;
+        *self = match id {
+            ARGON_2 => KeyDerivationFunction::Argon2(id),
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown key derivation function {}", id),
                 ));
             }
         };
