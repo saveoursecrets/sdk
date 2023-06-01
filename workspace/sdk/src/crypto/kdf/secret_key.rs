@@ -33,6 +33,7 @@ pub enum SecretKey {
 
 impl SecretKey {
     /// Create a new random 32 byte secret key.
+    #[cfg(test)]
     pub fn new_random_32() -> Self {
         let bytes: [u8; 32] = rand::thread_rng().gen();
         SecretKey::Key32(secrecy::Secret::new(bytes))

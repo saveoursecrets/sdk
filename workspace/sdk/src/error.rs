@@ -63,7 +63,7 @@ pub enum Error {
     #[error("invalid algorithm {0}")]
     InvalidAlgorithm(String),
 
-    /// Error generated when a vault key derivation function string 
+    /// Error generated when a vault key derivation function string
     /// identifier is wrong.
     #[error("invalid key derivation function {0}")]
     InvalidKeyDerivationFunction(String),

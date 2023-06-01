@@ -1,6 +1,6 @@
 use crate::crypto::{
-    AeadPack, Algorithm, Nonce, AES_GCM_256, X_CHACHA20_POLY1305,
-    KeyDerivationFunction, ARGON_2,
+    AeadPack, Algorithm, KeyDerivationFunction, Nonce, AES_GCM_256, ARGON_2,
+    X_CHACHA20_POLY1305,
 };
 
 use std::io::{Error, ErrorKind, Result};

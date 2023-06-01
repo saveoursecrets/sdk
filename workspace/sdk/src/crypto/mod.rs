@@ -7,14 +7,17 @@ pub mod aesgcm256;
 mod algorithms;
 pub mod channel;
 mod kdf;
-pub mod secret_key;
 pub mod xchacha20poly1305;
 
 pub use algorithms::{Algorithm, ALGORITHMS};
 pub(crate) use algorithms::{AES_GCM_256, X_CHACHA20_POLY1305};
 
+pub(crate) use kdf::ARGON_2;
 pub use kdf::{KeyDerivationFunction, KDFS};
-pub(crate) use kdf::{ARGON_2};
+
+// FIXME: remove this backwards compatible re-export
+#[deprecated]
+pub use kdf::secret_key;
 
 /// Enumeration of the sizes for nonces.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
