@@ -66,7 +66,7 @@ pub enum Error {
     /// Error generated when a vault key derivation function string
     /// identifier is wrong.
     #[error("invalid key derivation function {0}")]
-    InvalidKeyDerivationFunction(String),
+    InvalidKeyDerivation(String),
 
     /// Error generated when the kind of a secret is unknown.
     #[error("unknown secret kind {0}")]

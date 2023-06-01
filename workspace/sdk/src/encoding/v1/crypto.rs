@@ -1,6 +1,6 @@
 use crate::crypto::{
-    AeadPack, Algorithm, KeyDerivationFunction, Nonce, AES_GCM_256, ARGON_2,
-    X_CHACHA20_POLY1305,
+    AeadPack, Algorithm, KeyDerivation, Nonce, AES_GCM_256, ARGON_2_ID,
+    BALLOON_HASH, X_CHACHA20_POLY1305,
 };
 
 use std::io::{Error, ErrorKind, Result};
@@ -108,7 +108,7 @@ impl Decode for Algorithm {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for KeyDerivationFunction {
+impl Encode for KeyDerivation {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -120,14 +120,15 @@ impl Encode for KeyDerivationFunction {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for KeyDerivationFunction {
+impl Decode for KeyDerivation {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
         let id = reader.read_u8().await?;
         *self = match id {
-            ARGON_2 => KeyDerivationFunction::Argon2(id),
+            ARGON_2_ID => KeyDerivation::Argon2Id(id),
+            BALLOON_HASH => KeyDerivation::BalloonHash(id),
             _ => {
                 return Err(Error::new(
                     ErrorKind::Other,

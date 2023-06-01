@@ -18,7 +18,9 @@ use uuid::Uuid;
 use web3_address::ethereum::Address;
 use web3_signature::Signature;
 
-use super::{secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce};
+use super::{
+    csprng, secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce,
+};
 
 /// Generate a secret key suitable for symmetric encryption.
 fn derive_secret_key(
@@ -136,7 +138,7 @@ pub struct ServerSession {
 impl ServerSession {
     /// Create a new server session.
     pub fn new(identity: Address, duration_secs: u64) -> Self {
-        let rng = &mut rand::thread_rng();
+        let rng = &mut csprng();
         let challenge: [u8; 16] = rng.gen();
 
         Self {
@@ -145,7 +147,7 @@ impl ServerSession {
             duration_secs,
             identity_proof: None,
             expires: Instant::now() + Duration::from_secs(duration_secs),
-            secret: EphemeralSecret::random(&mut rand::thread_rng()),
+            secret: EphemeralSecret::random(&mut csprng()),
             private: None,
             nonce: U192::ZERO,
             keep_alive: false,
@@ -279,7 +281,7 @@ pub struct ClientSession {
 impl ClientSession {
     /// Create a new client session.
     pub fn new(signer: BoxedEcdsaSigner, id: Uuid) -> Result<Self> {
-        let secret = EphemeralSecret::random(&mut rand::thread_rng());
+        let secret = EphemeralSecret::random(&mut csprng());
         Ok(Self {
             signer,
             id,
@@ -406,7 +408,7 @@ mod test {
     use std::time::Duration;
 
     fn new_signer() -> BoxedEcdsaSigner {
-        let client_identity = SigningKey::random(&mut rand::thread_rng());
+        let client_identity = SigningKey::random(&mut csprng());
         Box::new(SingleParty(client_identity))
     }
 

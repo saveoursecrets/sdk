@@ -1,5 +1,5 @@
-//! Secret key type for deriving a private key from a passphrase.
-use crate::Result;
+//! Derived private key from a passphrase.
+use crate::{crypto::csprng, Result};
 use rand::Rng;
 use sha3::{Digest, Keccak256};
 
@@ -10,7 +10,7 @@ use argon2::{
 
 use secrecy::ExposeSecret;
 
-/// Encapsulates the bytes for a dervied symmetric secret key.
+/// Encapsulates the bytes for a derived symmetric secret key.
 ///
 /// Currently there is only a single variant but this type exists
 /// if we need to use different key sizes in the future.
@@ -23,13 +23,13 @@ impl DerivedPrivateKey {
     /// Create a new random 32 byte secret key.
     #[cfg(test)]
     pub fn new_random_32() -> Self {
-        let bytes: [u8; 32] = rand::thread_rng().gen();
+        let bytes: [u8; 32] = csprng().gen();
         DerivedPrivateKey::Key32(secrecy::Secret::new(bytes))
     }
 
     /// Generate a new salt string.
     pub fn generate_salt() -> SaltString {
-        SaltString::generate(&mut rand::thread_rng())
+        SaltString::generate(&mut csprng())
     }
 
     /// Parse a saved salt string.
@@ -38,9 +38,8 @@ impl DerivedPrivateKey {
     }
 }
 
-impl DerivedPrivateKey {
-    /// Get a slice of the private key byte array.
-    pub fn as_slice(&self) -> &[u8] {
+impl AsRef<[u8]> for DerivedPrivateKey {
+    fn as_ref(&self) -> &[u8] {
         match self {
             Self::Key32(ref bytes) => bytes.expose_secret(),
         }

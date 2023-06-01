@@ -1,5 +1,5 @@
 //! Constants for supported key derivation functions.
-use crate::{Error, Result};
+use crate::{crypto::csprng, Error, Result};
 use rand::Rng;
 use sha2::{Digest, Sha256};
 use std::{convert::AsRef, fmt, str::FromStr};
@@ -11,13 +11,9 @@ use argon2::{
 use balloon_hash::Balloon;
 
 /// Argon2 key derivation function.
-pub const ARGON_2: u8 = 0x01;
-
+pub(crate) const ARGON_2_ID: u8 = 1;
 /// Balloon hash key derivation function.
-pub const BALLOON_HASH: u8 = 0x02;
-
-/// Supported algorithms.
-pub const KDFS: [u8; 2] = [ARGON_2, BALLOON_HASH];
+pub(crate) const BALLOON_HASH: u8 = 2;
 
 mod derived_key;
 
@@ -34,90 +30,90 @@ pub type Seed = [u8; SEED_SIZE];
 
 /// Generate new random seed entropy.
 pub fn generate_seed() -> Seed {
-    let seed: Seed = rand::thread_rng().gen();
+    let seed: Seed = csprng().gen();
     seed
 }
 
 /// Supported key derivation functions.
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
-pub enum KeyDerivationFunction {
+pub enum KeyDerivation {
     /// Argon2 key derivation function.
-    Argon2(u8),
+    Argon2Id(u8),
     /// Balloon hash key derivation function.
     BalloonHash(u8),
 }
 
-impl KeyDerivationFunction {
+impl KeyDerivation {
     /// Get the deriver for this key derivation function.
-    pub fn deriver(&self) -> Box<dyn Deriver> {
+    pub fn deriver(&self) -> Box<dyn Deriver<Sha256>> {
         match self {
-            KeyDerivationFunction::Argon2(_) => Box::new(Argon2Deriver),
-            KeyDerivationFunction::BalloonHash(_) => {
-                Box::new(BalloonHashDeriver)
-            }
+            KeyDerivation::Argon2Id(_) => Box::new(Argon2IdDeriver),
+            KeyDerivation::BalloonHash(_) => Box::new(BalloonHashDeriver),
         }
     }
 }
 
-impl Default for KeyDerivationFunction {
+impl Default for KeyDerivation {
     fn default() -> Self {
-        Self::Argon2(ARGON_2)
+        Self::Argon2Id(ARGON_2_ID)
     }
 }
 
-impl fmt::Display for KeyDerivationFunction {
+impl fmt::Display for KeyDerivation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", {
             match self {
-                Self::Argon2(_) => "argon_2",
+                Self::Argon2Id(_) => "argon_2_id",
                 Self::BalloonHash(_) => "balloon_hash",
             }
         })
     }
 }
 
-impl FromStr for KeyDerivationFunction {
+impl FromStr for KeyDerivation {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
         match s {
-            "argon_2" => Ok(Self::Argon2(ARGON_2)),
+            "argon_2_id" => Ok(Self::Argon2Id(ARGON_2_ID)),
             "balloon_hash" => Ok(Self::BalloonHash(BALLOON_HASH)),
-            _ => Err(Error::InvalidKeyDerivationFunction(s.to_string())),
+            _ => Err(Error::InvalidKeyDerivation(s.to_string())),
         }
     }
 }
 
-impl From<KeyDerivationFunction> for u8 {
-    fn from(value: KeyDerivationFunction) -> Self {
+impl From<KeyDerivation> for u8 {
+    fn from(value: KeyDerivation) -> Self {
         match value {
-            KeyDerivationFunction::Argon2(id)
-            | KeyDerivationFunction::BalloonHash(id) => id,
+            KeyDerivation::Argon2Id(id) | KeyDerivation::BalloonHash(id) => {
+                id
+            }
         }
     }
 }
 
-impl TryFrom<u8> for KeyDerivationFunction {
+impl TryFrom<u8> for KeyDerivation {
     type Error = Error;
     fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
-        match value {
-            ARGON_2 => Ok(KeyDerivationFunction::Argon2(value)),
-            _ => Err(Error::InvalidKeyDerivationFunction(value.to_string())),
-        }
+        Ok(match value {
+            ARGON_2_ID => KeyDerivation::Argon2Id(value),
+            BALLOON_HASH => KeyDerivation::BalloonHash(value),
+            _ => return Err(Error::InvalidKeyDerivation(value.to_string())),
+        })
     }
 }
 
-impl AsRef<u8> for KeyDerivationFunction {
+impl AsRef<u8> for KeyDerivation {
     fn as_ref(&self) -> &u8 {
         match self {
-            KeyDerivationFunction::Argon2(ref id)
-            | KeyDerivationFunction::BalloonHash(ref id) => id,
+            KeyDerivation::Argon2Id(ref id)
+            | KeyDerivation::BalloonHash(ref id) => id,
         }
     }
 }
 
 /// Trait for types that can derive a private key.
-pub trait Deriver {
+pub trait Deriver<D: Digest> {
     /// Hash a password using the given salt.
     fn hash_password<'a>(
         &self,
@@ -142,17 +138,17 @@ pub trait Deriver {
         };
 
         let password_hash = self.hash_password(buffer.as_slice(), salt)?;
-        let hash = Sha256::digest(password_hash.to_string().as_bytes());
+        let hash = D::digest(password_hash.to_string().as_bytes());
         let hash: [u8; 32] = hash.as_slice().try_into()?;
         Ok(DerivedPrivateKey::Key32(secrecy::Secret::new(hash)))
     }
 }
 
-/// Derive a private key using the Argon2 
+/// Derive a private key using the Argon2
 /// key derivation function.
-pub struct Argon2Deriver;
+pub struct Argon2IdDeriver;
 
-impl Deriver for Argon2Deriver {
+impl Deriver<Sha256> for Argon2IdDeriver {
     fn hash_password<'a>(
         &self,
         password: &[u8],
@@ -163,11 +159,11 @@ impl Deriver for Argon2Deriver {
     }
 }
 
-/// Derive a private key using the Balloon Hash 
+/// Derive a private key using the Balloon Hash
 /// key derivation function.
 pub struct BalloonHashDeriver;
 
-impl Deriver for BalloonHashDeriver {
+impl Deriver<Sha256> for BalloonHashDeriver {
     fn hash_password<'a>(
         &self,
         password: &[u8],

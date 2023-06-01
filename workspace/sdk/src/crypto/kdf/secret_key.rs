@@ -1,5 +1,5 @@
 //! Secret key type for deriving a private key from a passphrase.
-use crate::Result;
+use crate::{crypto::csprng, Result};
 use rand::Rng;
 use sha3::{Digest, Keccak256};
 
@@ -18,7 +18,7 @@ pub type Seed = [u8; SEED_SIZE];
 
 /// Generate new random seed entropy.
 pub fn generate_seed() -> Seed {
-    let seed: Seed = rand::thread_rng().gen();
+    let seed: Seed = csprng().gen();
     seed
 }
 
@@ -35,13 +35,13 @@ impl SecretKey {
     /// Create a new random 32 byte secret key.
     #[cfg(test)]
     pub fn new_random_32() -> Self {
-        let bytes: [u8; 32] = rand::thread_rng().gen();
+        let bytes: [u8; 32] = csprng().gen();
         SecretKey::Key32(secrecy::Secret::new(bytes))
     }
 
     /// Generate a new salt string.
     pub fn generate_salt() -> SaltString {
-        SaltString::generate(&mut rand::thread_rng())
+        SaltString::generate(&mut csprng())
     }
 
     /// Parse a saved salt string.
@@ -74,9 +74,8 @@ impl SecretKey {
     }
 }
 
-impl SecretKey {
-    /// Get a slice of the private key byte array.
-    pub fn as_slice(&self) -> &[u8] {
+impl AsRef<[u8]> for SecretKey {
+    fn as_ref(&self) -> &[u8] {
         match self {
             Self::Key32(ref bytes) => bytes.expose_secret(),
         }
