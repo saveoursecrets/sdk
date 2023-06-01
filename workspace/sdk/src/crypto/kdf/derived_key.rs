@@ -1,13 +1,6 @@
 //! Derived private key from a passphrase.
 use crate::{crypto::csprng, Result};
-use rand::Rng;
-use sha3::{Digest, Keccak256};
-
-use argon2::{
-    password_hash::{PasswordHash, PasswordHasher, SaltString},
-    Argon2,
-};
-
+use argon2::password_hash::SaltString;
 use secrecy::ExposeSecret;
 
 /// Encapsulates the bytes for a derived symmetric secret key.
@@ -23,6 +16,7 @@ impl DerivedPrivateKey {
     /// Create a new random 32 byte secret key.
     #[cfg(test)]
     pub fn new_random_32() -> Self {
+        use rand::Rng;
         let bytes: [u8; 32] = csprng().gen();
         DerivedPrivateKey::Key32(secrecy::Secret::new(bytes))
     }

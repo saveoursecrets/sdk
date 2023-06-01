@@ -24,7 +24,7 @@ use crate::{
     crypto::{
         aesgcm256,
         secret_key::{SecretKey, Seed},
-        xchacha20poly1305, AeadPack, Algorithm, Nonce, KeyDerivation,
+        xchacha20poly1305, AeadPack, Algorithm, KeyDerivation, Nonce,
     },
     encode,
     encoding::v1::VERSION,

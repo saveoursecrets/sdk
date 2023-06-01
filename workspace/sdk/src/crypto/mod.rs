@@ -74,7 +74,7 @@ pub struct AeadPack {
 #[cfg(test)]
 mod tests {
     use super::xchacha20poly1305::*;
-    use crate::crypto::{secret_key::SecretKey, csprng};
+    use crate::crypto::{csprng, secret_key::SecretKey};
     use anyhow::Result;
 
     use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};

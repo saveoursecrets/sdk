@@ -68,7 +68,7 @@ mod test {
         vfs,
     };
 
-    const MOCK_LOG: &str = "target/mock-event-log-standalone.sos";
+    const MOCK_LOG: &str = "target/mock-event-log-standalone.events";
 
     async fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {
         let id = Uuid::new_v4();
