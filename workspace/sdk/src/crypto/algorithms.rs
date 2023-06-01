@@ -9,9 +9,6 @@ pub const X_CHACHA20_POLY1305: u8 = 0x01;
 /// AES-GCM 256 cipher.
 pub const AES_GCM_256: u8 = 0x02;
 
-/// Supported algorithms.
-pub const ALGORITHMS: [u8; 2] = [X_CHACHA20_POLY1305, AES_GCM_256];
-
 /// Supported cipher algorithms.
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Algorithm {

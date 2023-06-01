@@ -3,7 +3,7 @@ use uuid::Uuid;
 use crate::{
     commit::CommitHash,
     constants::VAULT_IDENTITY,
-    crypto::{secret_key::SEED_SIZE, AeadPack, ALGORITHMS},
+    crypto::{secret_key::SEED_SIZE, AeadPack},
     formats::FileIdentity,
     vault::{
         secret::SecretId, Auth, Contents, Header, Summary, Vault,
@@ -179,6 +179,7 @@ impl Encode for Summary {
     ) -> Result<()> {
         writer.write_u16(self.version).await?;
         self.algorithm.encode(&mut *writer).await?;
+        self.kdf.encode(&mut *writer).await?;
         writer.write_bytes(self.id.as_bytes()).await?;
         writer.write_string(&self.name).await?;
         writer.write_u64(self.flags.bits()).await?;
@@ -195,13 +196,7 @@ impl Decode for Summary {
     ) -> Result<()> {
         self.version = reader.read_u16().await?;
         self.algorithm.decode(&mut *reader).await?;
-
-        if !ALGORITHMS.contains(self.algorithm.as_ref()) {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!("unknown algorithm {}", self.algorithm),
-            ));
-        }
+        self.kdf.decode(&mut *reader).await?;
 
         let uuid: [u8; 16] = reader
             .read_bytes(16)

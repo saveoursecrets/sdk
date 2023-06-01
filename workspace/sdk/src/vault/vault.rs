@@ -24,7 +24,7 @@ use crate::{
     crypto::{
         aesgcm256,
         secret_key::{SecretKey, Seed},
-        xchacha20poly1305, AeadPack, Algorithm, Nonce,
+        xchacha20poly1305, AeadPack, Algorithm, Nonce, KeyDerivation,
     },
     encode,
     encoding::v1::VERSION,
@@ -287,6 +287,9 @@ pub struct Summary {
     /// Encryption algorithm.
     #[serde(skip)]
     pub(crate) algorithm: Algorithm,
+    /// Key derivation function.
+    #[serde(skip)]
+    pub(crate) kdf: KeyDerivation,
     /// Flags for the vault.
     pub(crate) flags: VaultFlags,
 }
@@ -318,6 +321,7 @@ impl Default for Summary {
         Self {
             version: VERSION,
             algorithm: Default::default(),
+            kdf: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
             flags: Default::default(),
@@ -331,11 +335,13 @@ impl Summary {
         id: VaultId,
         name: String,
         algorithm: Algorithm,
+        kdf: KeyDerivation,
         flags: VaultFlags,
     ) -> Self {
         Self {
             version: VERSION,
             algorithm,
+            kdf,
             id,
             name,
             flags,
@@ -392,10 +398,11 @@ impl Header {
         id: VaultId,
         name: String,
         algorithm: Algorithm,
+        kdf: KeyDerivation,
         flags: VaultFlags,
     ) -> Self {
         Self {
-            summary: Summary::new(id, name, algorithm, flags),
+            summary: Summary::new(id, name, algorithm, kdf, flags),
             meta: None,
             auth: Default::default(),
         }
@@ -542,10 +549,11 @@ impl Vault {
         id: VaultId,
         name: String,
         algorithm: Algorithm,
+        kdf: KeyDerivation,
         flags: VaultFlags,
     ) -> Self {
         Self {
-            header: Header::new(id, name, algorithm, flags),
+            header: Header::new(id, name, algorithm, kdf, flags),
             contents: Default::default(),
         }
     }

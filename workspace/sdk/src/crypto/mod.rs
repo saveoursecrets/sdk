@@ -9,7 +9,7 @@ pub mod channel;
 mod kdf;
 pub mod xchacha20poly1305;
 
-pub use algorithms::{Algorithm, ALGORITHMS};
+pub use algorithms::Algorithm;
 pub(crate) use algorithms::{AES_GCM_256, X_CHACHA20_POLY1305};
 
 pub use kdf::KeyDerivation;
@@ -74,7 +74,7 @@ pub struct AeadPack {
 #[cfg(test)]
 mod tests {
     use super::xchacha20poly1305::*;
-    use crate::crypto::secret_key::SecretKey;
+    use crate::crypto::{secret_key::SecretKey, csprng};
     use anyhow::Result;
 
     use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
