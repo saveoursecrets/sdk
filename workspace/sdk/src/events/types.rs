@@ -6,44 +6,44 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Type identifier for a noop.
-pub const NOOP: u16 = 0;
+const NOOP: u16 = 0;
 /// Type identifier for the create account operation.
-pub const CREATE_ACCOUNT: u16 = 1;
+const CREATE_ACCOUNT: u16 = 1;
 /// Type identifier for the delete account operation.
-pub const DELETE_ACCOUNT: u16 = 2;
+const DELETE_ACCOUNT: u16 = 2;
 /// Type identifier for the login response operation.
 #[deprecated]
-pub const LOGIN_RESPONSE: u16 = 3;
+const LOGIN_RESPONSE: u16 = 3;
 /// Type identifier for the create vault operation.
-pub const CREATE_VAULT: u16 = 4;
+const CREATE_VAULT: u16 = 4;
 /// Type identifier for the read vault operation.
-pub const READ_VAULT: u16 = 5;
+const READ_VAULT: u16 = 5;
 /// Type identifier for the update vault operation.
-pub const UPDATE_VAULT: u16 = 6;
+const UPDATE_VAULT: u16 = 6;
 /// Type identifier for the delete vault operation.
-pub const DELETE_VAULT: u16 = 7;
+const DELETE_VAULT: u16 = 7;
 /// Type identifier for the get vault name operation.
-pub const GET_VAULT_NAME: u16 = 8;
+const GET_VAULT_NAME: u16 = 8;
 /// Type identifier for the set vault name operation.
-pub const SET_VAULT_NAME: u16 = 9;
+const SET_VAULT_NAME: u16 = 9;
 /// Type identifier for the set vault meta operation.
-pub const SET_VAULT_META: u16 = 10;
+const SET_VAULT_META: u16 = 10;
 /// Type identifier for the create secret operation.
-pub const CREATE_SECRET: u16 = 11;
+const CREATE_SECRET: u16 = 11;
 /// Type identifier for the read secret operation.
-pub const READ_SECRET: u16 = 12;
+const READ_SECRET: u16 = 12;
 /// Type identifier for the update secret operation.
-pub const UPDATE_SECRET: u16 = 13;
+const UPDATE_SECRET: u16 = 13;
 /// Type identifier for the delete secret operation.
-pub const DELETE_SECRET: u16 = 14;
+const DELETE_SECRET: u16 = 14;
 /// Type identifier for the move secret operation.
-pub const MOVE_SECRET: u16 = 15;
+const MOVE_SECRET: u16 = 15;
 /// Type identifier for the read log event.
-pub const READ_EVENT_LOG: u16 = 16;
+const READ_EVENT_LOG: u16 = 16;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub enum EventKind {
     /// No operation.
     Noop,

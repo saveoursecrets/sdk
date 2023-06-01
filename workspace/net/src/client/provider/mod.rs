@@ -19,8 +19,8 @@ use sos_sdk::{
     crypto::secret_key::SecretKey,
     decode, encode,
     events::{
-        AuditLogFile, ChangeAction, ChangeNotification, Event, EventLogFile,
-        ReadEvent, WriteEvent,
+        AuditEvent, AuditLogFile, ChangeAction, ChangeNotification, Event,
+        EventKind, EventLogFile, ReadEvent, WriteEvent,
     },
     passwd::ChangePassword,
     patch::PatchFile,
@@ -111,6 +111,12 @@ pub trait StorageProvider: Sync + Send {
         account: &NewAccount,
     ) -> Result<(ImportedAccount, Vec<Event<'static>>)> {
         let mut events = Vec::new();
+
+        events.push(Event::CreateAccount(AuditEvent::new(
+            EventKind::CreateAccount,
+            account.address.clone(),
+            None,
+        )));
 
         // Save the default vault
         let buffer = encode(&account.default_vault).await?;

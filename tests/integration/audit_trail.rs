@@ -52,26 +52,18 @@ async fn integration_audit_trail() -> Result<()> {
     owner.initialize_search_index().await?;
 
     // Make changes to generate audit logs
-    let id = create_secret(&mut owner, &summary).await?;
+    simulate_session(&mut owner, &summary).await?;
 
-    let secret_data = read_secret(&mut owner, &summary, &id).await?;
-    let id = update_secret(&mut owner, &summary, &id, &secret_data).await?;
-    delete_secret(&mut owner, &summary, &id).await?;
-    
-    // Create a new secret so we can archive it
-    let id = create_secret(&mut owner, &summary).await?;
-    // Archive the secret to generate move event
-    archive_secret(&mut owner, &summary, &id).await?;
-
-    // Read on the audit events
+    // Read in the audit log events
     let audit_log = owner.dirs().audit_file();
-
     let events = read_audit_events(audit_log).await?;
     let mut kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
 
     //println!("events {:#?}", events);
     //println!("kinds {:#?}", kinds);
 
+    // Created the account
+    assert!(matches!(kinds.remove(0), EventKind::CreateAccount));
     // Created the default folder
     assert!(matches!(kinds.remove(0), EventKind::CreateVault));
     // Created the archive folder
@@ -91,6 +83,15 @@ async fn integration_audit_trail() -> Result<()> {
     // Moved to archive
     assert!(matches!(kinds.remove(0), EventKind::MoveSecret));
 
+    // Created a folder
+    assert!(matches!(kinds.remove(0), EventKind::CreateVault));
+
+    // Deleted the new folder
+    assert!(matches!(kinds.remove(0), EventKind::DeleteVault));
+
+    // Deleted the account
+    assert!(matches!(kinds.remove(0), EventKind::DeleteAccount));
+
     // Reset the cache dir so we don't interfere
     // with other tests
     StorageDirs::clear_cache_dir();
@@ -98,56 +99,49 @@ async fn integration_audit_trail() -> Result<()> {
     Ok(())
 }
 
-async fn create_secret(
+async fn simulate_session(
     owner: &mut UserStorage,
     default_folder: &Summary,
-) -> Result<SecretId> {
+) -> Result<()> {
+    // Create a secret
     let (meta, secret) = mock_note("Audit note", "Note value");
     let (id, _) = owner
         .create_secret(meta, secret, Some(default_folder.clone()))
         .await?;
-    Ok(id)
-}
-
-async fn read_secret(
-    owner: &mut UserStorage,
-    default_folder: &Summary,
-    id: &SecretId,
-) -> Result<SecretData> {
+    // Read the secret
     let (secret_data, _) =
-        owner.read_secret(id, Some(default_folder.clone())).await?;
-    Ok(secret_data)
-}
-
-async fn update_secret(
-    owner: &mut UserStorage,
-    default_folder: &Summary,
-    id: &SecretId,
-    secret_data: &SecretData,
-) -> Result<SecretId> {
+        owner.read_secret(&id, Some(default_folder.clone())).await?;
+    // Update the secret
     let mut new_meta = secret_data.meta.clone();
     new_meta.set_label("Audit note updated".to_string());
-    let (new_id, _) = owner
-        .update_secret(id, new_meta, None, Some(default_folder.clone()), None)
+    let (id, _) = owner
+        .update_secret(
+            &id,
+            new_meta,
+            None,
+            Some(default_folder.clone()),
+            None,
+        )
         .await?;
-    Ok(new_id)
-}
+    // Delete the secret
+    owner
+        .delete_secret(&id, Some(default_folder.clone()))
+        .await?;
+    // Create a new secret so we can archive it
+    let (meta, secret) =
+        mock_note("Audit note to archive", "Note value to archive");
+    let (id, _) = owner
+        .create_secret(meta, secret, Some(default_folder.clone()))
+        .await?;
+    // Archive the secret to generate move event
+    owner.archive(default_folder, &id).await?;
+    // Create a new folder
+    let new_folder = owner.create_folder("New folder".to_string()).await?;
+    // Delete the new folder
+    owner.delete_folder(&new_folder).await?;
+    // Delete the account
+    owner.delete_account().await?;
 
-async fn delete_secret(
-    owner: &mut UserStorage,
-    folder: &Summary,
-    id: &SecretId,
-) -> Result<()> {
-    owner.delete_secret(id, Some(folder.clone())).await?;
-    Ok(())
-}
-
-async fn archive_secret(
-    owner: &mut UserStorage,
-    folder: &Summary,
-    id: &SecretId,
-) -> Result<()> {
-    owner.archive(folder, id).await?;
     Ok(())
 }
 

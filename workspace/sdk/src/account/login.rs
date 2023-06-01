@@ -11,6 +11,7 @@ use crate::{
     account::{AccountInfo, DelegatedPassphrase, LocalAccounts},
     constants::{DEVICE_KEY_URN, VAULT_EXT},
     encode,
+    events::{AuditEvent, Event, EventKind},
     search::SearchIndex,
     signer::{
         ed25519::{self, BoxedEd25519Signer, VerifyingKey},
@@ -102,7 +103,7 @@ impl AuthenticatedUser {
     ///
     /// Moves the account identity vault and data directory to the
     /// trash directory.
-    pub async fn delete_account(&self) -> Result<()> {
+    pub async fn delete_account(&self) -> Result<Event<'static>> {
         let address = self.identity.address().to_string();
         let identity_vault_file = StorageDirs::identity_vault(&address)?;
 
@@ -130,7 +131,13 @@ impl AuthenticatedUser {
         vfs::rename(identity_vault_file, deleted_identity_vault_file).await?;
         vfs::rename(identity_data_dir, deleted_identity_data_dir).await?;
 
-        Ok(())
+        let event = Event::CreateAccount(AuditEvent::new(
+            EventKind::DeleteAccount,
+            self.identity.address().clone(),
+            None,
+        ));
+
+        Ok(event)
     }
 
     /// Rename this account by changing the name of the identity vault.

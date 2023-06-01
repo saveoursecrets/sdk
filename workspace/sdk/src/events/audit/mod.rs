@@ -60,21 +60,21 @@ pub trait AuditProvider {
 /// * 2 bytes for the event kind identifier.
 /// * 20 bytes for the public address.
 /// * 16, 32 or 64 bytes for the context data (one, two or four UUIDs).
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AuditEvent {
-    /// The time the log was created.
+    /// The time the event was created.
     pub(crate) time: Timestamp,
-    /// The event_kind being performed.
+    /// The event being logged.
     pub(crate) event_kind: EventKind,
-    /// The address of the client performing the event_kind.
+    /// The address of the client performing the event.
     pub(crate) address: Address,
-    /// Context data about the event_kind.
+    /// Context data about the event.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) data: Option<AuditData>,
 }
 
 impl AuditEvent {
-    /// Create a new audit log entry.
+    /// Create a new audit log event.
     pub fn new(
         event_kind: EventKind,
         address: Address,
@@ -99,8 +99,8 @@ impl AuditEvent {
     }
 
     /// Get the event kind for this audit event.
-    pub fn event_kind(&self) -> &EventKind {
-        &self.event_kind
+    pub fn event_kind(&self) -> EventKind {
+        self.event_kind
     }
 
     /// Get the data for this audit event.
@@ -171,49 +171,61 @@ impl AuditEvent {
 impl<'a> From<(&Address, &Event<'a>)> for AuditEvent {
     fn from(value: (&Address, &Event)) -> Self {
         let (address, event) = value;
-        let audit_data = match event {
-            Event::Read(vault_id, event) => match event {
-                ReadEvent::ReadVault => AuditData::Vault(*vault_id),
-                ReadEvent::ReadSecret(secret_id) => {
-                    AuditData::Secret(*vault_id, *secret_id)
+        match event {
+            Event::CreateAccount(event) => event.clone(),
+            Event::MoveSecret(_, _, _) => {
+                panic!("move secret audit event must be constructed")
+            }
+            Event::DeleteAccount(event) => event.clone(),
+            _ => {
+                let audit_data = match event {
+                    Event::Read(vault_id, event) => match event {
+                        ReadEvent::ReadVault => {
+                            Some(AuditData::Vault(*vault_id))
+                        }
+                        ReadEvent::ReadSecret(secret_id) => {
+                            Some(AuditData::Secret(*vault_id, *secret_id))
+                        }
+                        ReadEvent::Noop => None,
+                    },
+                    Event::Write(vault_id, event) => match event {
+                        WriteEvent::CreateVault(_)
+                        | WriteEvent::UpdateVault(_)
+                        | WriteEvent::DeleteVault
+                        | WriteEvent::SetVaultName(_)
+                        | WriteEvent::SetVaultMeta(_) => {
+                            Some(AuditData::Vault(*vault_id))
+                        }
+                        WriteEvent::CreateSecret(secret_id, _) => {
+                            Some(AuditData::Secret(*vault_id, *secret_id))
+                        }
+                        WriteEvent::UpdateSecret(secret_id, _) => {
+                            Some(AuditData::Secret(*vault_id, *secret_id))
+                        }
+                        WriteEvent::DeleteSecret(secret_id) => {
+                            Some(AuditData::Secret(*vault_id, *secret_id))
+                        }
+                        WriteEvent::Noop => None,
+                    },
+                    _ => None,
+                };
+
+                if let Some(audit_data) = audit_data {
+                    AuditEvent::new(
+                        event.event_kind(),
+                        *address,
+                        Some(audit_data),
+                    )
+                } else {
+                    unreachable!();
                 }
-                ReadEvent::Noop => unreachable!(),
-            },
-            Event::Write(vault_id, event) => match event {
-                WriteEvent::CreateVault(_)
-                | WriteEvent::UpdateVault(_)
-                | WriteEvent::DeleteVault
-                | WriteEvent::SetVaultName(_)
-                | WriteEvent::SetVaultMeta(_) => AuditData::Vault(*vault_id),
-                WriteEvent::CreateSecret(secret_id, _) => {
-                    AuditData::Secret(*vault_id, *secret_id)
-                }
-                WriteEvent::UpdateSecret(secret_id, _) => {
-                    AuditData::Secret(*vault_id, *secret_id)
-                }
-                WriteEvent::DeleteSecret(secret_id) => {
-                    AuditData::Secret(*vault_id, *secret_id)
-                }
-                WriteEvent::Noop => unreachable!(),
-            },
-            Event::MoveSecret {
-                from_vault_id,
-                from_secret_id,
-                to_vault_id,
-                to_secret_id,
-            } => AuditData::MoveSecret {
-                from_vault_id: *from_vault_id,
-                from_secret_id: *from_secret_id,
-                to_vault_id: *to_vault_id,
-                to_secret_id: *to_secret_id,
-            },
-        };
-        AuditEvent::new(event.event_kind(), *address, Some(audit_data))
+            }
+        }
     }
 }
 
 /// Associated data for an audit log record.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum AuditData {
     /// Data for an associated vault.
