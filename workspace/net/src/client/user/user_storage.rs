@@ -495,11 +495,23 @@ impl UserStorage {
             )
             .await?;
 
-            self.create_secret(meta, secret, Some(vault.summary().clone()))
-                .await?;
+            self.add_secret(
+                meta,
+                secret,
+                Some(vault.summary().clone()),
+                false,
+            )
+            .await?;
         }
 
         vfs::write(path, buffer).await?;
+
+        let audit_event = AuditEvent::new(
+            EventKind::ExportVault,
+            self.address().clone(),
+            Some(AuditData::Vault(*summary.id())),
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
     }
@@ -571,7 +583,7 @@ impl UserStorage {
         let summary = vault.summary().clone();
 
         // Import the vault
-        let (event, _) = self.storage.import_vault(buffer).await?;
+        self.storage.import_vault(buffer).await?;
 
         // If we are overwriting then we must remove the existing
         // vault passphrase so we can save it using the passphrase
@@ -613,8 +625,11 @@ impl UserStorage {
             .add_folder_to_search_index(vault, passphrase)
             .await?;
 
-        let event = Event::Write(*summary.id(), event);
-        let audit_event: AuditEvent = (self.address(), &event).into();
+        let audit_event = AuditEvent::new(
+            EventKind::ImportVault,
+            self.address().clone(),
+            Some(AuditData::Vault(*summary.id())),
+        );
         self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(summary)
@@ -1378,11 +1393,20 @@ impl UserStorage {
 
     /// Create a backup archive containing the
     /// encrypted data for the account.
-    pub async fn export_archive_file<P: AsRef<Path>>(
+    pub async fn export_backup_archive<P: AsRef<Path>>(
         &self,
         path: P,
     ) -> Result<()> {
-        Ok(AccountBackup::export_archive_file(path, self.address()).await?)
+        AccountBackup::export_archive_file(path, self.address()).await?;
+
+        let audit_event = AuditEvent::new(
+            EventKind::ExportAccountArchive,
+            self.address().clone(),
+            None,
+        );
+        self.append_audit_logs(vec![audit_event]).await?;
+
+        Ok(())
     }
 
     /// Read the inventory from an archive.
@@ -1402,21 +1426,33 @@ impl UserStorage {
     }
 
     /// Import from an archive file.
-    pub async fn restore_archive_file<P: AsRef<Path>>(
+    pub async fn restore_backup_archive<P: AsRef<Path>>(
         owner: Option<&mut UserStorage>,
         path: P,
         options: RestoreOptions,
     ) -> Result<AccountInfo> {
         let file = File::open(path).await?;
-        Self::restore_archive_reader(owner, file, options).await
+        let (account, owner) =
+            Self::restore_archive_reader(owner, file, options).await?;
+
+        if let Some(owner) = owner {
+            let audit_event = AuditEvent::new(
+                EventKind::ImportAccountArchive,
+                owner.address().clone(),
+                None,
+            );
+            owner.append_audit_logs(vec![audit_event]).await?;
+        }
+
+        Ok(account)
     }
 
     /// Import from an archive buffer.
-    pub async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
+    async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
         mut owner: Option<&mut UserStorage>,
         buffer: R,
         mut options: RestoreOptions,
-    ) -> Result<AccountInfo> {
+    ) -> Result<(AccountInfo, Option<&mut UserStorage>)> {
         let files_dir = if let Some(owner) = owner.as_ref() {
             ExtractFilesLocation::Path(StorageDirs::files_dir(
                 owner.user.identity().address().to_string(),
@@ -1441,6 +1477,6 @@ impl UserStorage {
             owner.build_search_index().await?;
         }
 
-        Ok(account)
+        Ok((account, owner))
     }
 }

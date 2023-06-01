@@ -38,8 +38,16 @@ const UPDATE_SECRET: u16 = 13;
 const DELETE_SECRET: u16 = 14;
 /// Type identifier for the move secret operation.
 const MOVE_SECRET: u16 = 15;
-/// Type identifier for the read log event.
+/// Type identifier for the read log event (remote only).
 const READ_EVENT_LOG: u16 = 16;
+/// Type identifier for the export vault operation.
+const EXPORT_VAULT: u16 = 17;
+/// Type identifier for the import vault operation.
+const IMPORT_VAULT: u16 = 18;
+/// Type identifier for export account archive.
+const EXPORT_ACCOUNT_ARCHIVE: u16 = 19;
+/// Type identifier for restore account archive.
+const IMPORT_ACCOUNT_ARCHIVE: u16 = 20;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -79,6 +87,14 @@ pub enum EventKind {
     MoveSecret,
     /// Event to read a log.
     ReadEventLog,
+    /// Event to export a vault.
+    ExportVault,
+    /// Event to import a vault.
+    ImportVault,
+    /// Event to export an account archive.
+    ExportAccountArchive,
+    /// Event to import an account archive.
+    ImportAccountArchive,
 }
 
 impl Default for EventKind {
@@ -108,6 +124,10 @@ impl TryFrom<u16> for EventKind {
             DELETE_SECRET => Ok(EventKind::DeleteSecret),
             MOVE_SECRET => Ok(EventKind::MoveSecret),
             READ_EVENT_LOG => Ok(EventKind::ReadEventLog),
+            EXPORT_VAULT => Ok(EventKind::ExportVault),
+            IMPORT_VAULT => Ok(EventKind::ImportVault),
+            EXPORT_ACCOUNT_ARCHIVE => Ok(EventKind::ExportAccountArchive),
+            IMPORT_ACCOUNT_ARCHIVE => Ok(EventKind::ImportAccountArchive),
             _ => Err(Error::UnknownEventKind(value)),
         }
     }
@@ -133,6 +153,10 @@ impl From<&EventKind> for u16 {
             EventKind::DeleteSecret => DELETE_SECRET,
             EventKind::MoveSecret => MOVE_SECRET,
             EventKind::ReadEventLog => READ_EVENT_LOG,
+            EventKind::ExportVault => EXPORT_VAULT,
+            EventKind::ImportVault => IMPORT_VAULT,
+            EventKind::ExportAccountArchive => EXPORT_ACCOUNT_ARCHIVE,
+            EventKind::ImportAccountArchive => IMPORT_ACCOUNT_ARCHIVE,
         }
     }
 }
@@ -145,19 +169,23 @@ impl fmt::Display for EventKind {
                 EventKind::CreateAccount => "CREATE_ACCOUNT",
                 EventKind::DeleteAccount => "DELETE_ACCOUNT",
                 EventKind::LoginResponse => "LOGIN_RESPONSE",
-                EventKind::CreateVault => "CREATE_VAULT",
-                EventKind::ReadVault => "READ_VAULT",
-                EventKind::UpdateVault => "UPDATE_VAULT",
-                EventKind::DeleteVault => "DELETE_VAULT",
-                EventKind::GetVaultName => "GET_VAULT_NAME",
-                EventKind::SetVaultName => "SET_VAULT_NAME",
-                EventKind::SetVaultMeta => "SET_VAULT_META",
+                EventKind::CreateVault => "CREATE_FOLDER",
+                EventKind::ReadVault => "READ_FOLDER",
+                EventKind::UpdateVault => "UPDATE_FOLDER",
+                EventKind::DeleteVault => "DELETE_FOLDER",
+                EventKind::GetVaultName => "GET_FOLDER_NAME",
+                EventKind::SetVaultName => "SET_FOLDER_NAME",
+                EventKind::SetVaultMeta => "SET_FOLDER_META",
                 EventKind::CreateSecret => "CREATE_SECRET",
                 EventKind::ReadSecret => "READ_SECRET",
                 EventKind::UpdateSecret => "UPDATE_SECRET",
                 EventKind::DeleteSecret => "DELETE_SECRET",
                 EventKind::MoveSecret => "MOVE_SECRET",
                 EventKind::ReadEventLog => "READ_EVENT_LOG",
+                EventKind::ExportVault => "EXPORT_FOLDER",
+                EventKind::ImportVault => "IMPORT_FOLDER",
+                EventKind::ExportAccountArchive => "EXPORT_ACCOUNT_ARCHIVE",
+                EventKind::ImportAccountArchive => "IMPORT_ACCOUNT_ARCHIVE",
             }
         })
     }

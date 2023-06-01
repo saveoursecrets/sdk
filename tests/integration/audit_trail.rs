@@ -1,11 +1,12 @@
 use anyhow::Result;
 
+use secrecy::SecretString;
 use serial_test::serial;
 use std::path::Path;
 
 use sos_net::client::{provider::ProviderFactory, user::UserStorage};
 use sos_sdk::{
-    account::{ImportedAccount, NewAccount},
+    account::{ImportedAccount, NewAccount, RestoreOptions},
     events::{AuditEvent, AuditLogFile, EventKind},
     passwd::diceware::generate_passphrase,
     storage::StorageDirs,
@@ -52,7 +53,7 @@ async fn integration_audit_trail() -> Result<()> {
     owner.initialize_search_index().await?;
 
     // Make changes to generate audit logs
-    simulate_session(&mut owner, &summary).await?;
+    simulate_session(&mut owner, &summary, passphrase).await?;
 
     // Read in the audit log events
     let audit_log = owner.dirs().audit_file();
@@ -83,11 +84,21 @@ async fn integration_audit_trail() -> Result<()> {
     // Moved to archive
     assert!(matches!(kinds.remove(0), EventKind::MoveSecret));
 
-    // Created a folder
+    // Created a new folder
     assert!(matches!(kinds.remove(0), EventKind::CreateVault));
-
+    // Renamed a folder
+    assert!(matches!(kinds.remove(0), EventKind::SetVaultName));
+    // Exported a folder
+    assert!(matches!(kinds.remove(0), EventKind::ExportVault));
+    // Imported a folder
+    assert!(matches!(kinds.remove(0), EventKind::ImportVault));
     // Deleted the new folder
     assert!(matches!(kinds.remove(0), EventKind::DeleteVault));
+
+    // Exported an account archive
+    assert!(matches!(kinds.remove(0), EventKind::ExportAccountArchive));
+    // Imported an account archive
+    assert!(matches!(kinds.remove(0), EventKind::ImportAccountArchive));
 
     // Deleted the account
     assert!(matches!(kinds.remove(0), EventKind::DeleteAccount));
@@ -102,6 +113,7 @@ async fn integration_audit_trail() -> Result<()> {
 async fn simulate_session(
     owner: &mut UserStorage,
     default_folder: &Summary,
+    passphrase: SecretString,
 ) -> Result<()> {
     // Create a secret
     let (meta, secret) = mock_note("Audit note", "Note value");
@@ -137,8 +149,46 @@ async fn simulate_session(
     owner.archive(default_folder, &id).await?;
     // Create a new folder
     let new_folder = owner.create_folder("New folder".to_string()).await?;
+    // Rename the folder
+    owner
+        .rename_folder(&new_folder, "New name".to_string())
+        .await?;
+
+    let exported_folder = "target/audit-trail-vault-export.vault";
+    let (export_passphrase, _) = generate_passphrase()?;
+    owner
+        .export_folder(
+            exported_folder,
+            &new_folder,
+            export_passphrase.clone(),
+            true,
+        )
+        .await?;
+
+    owner
+        .import_folder(exported_folder, export_passphrase.clone(), true)
+        .await?;
+
     // Delete the new folder
     owner.delete_folder(&new_folder).await?;
+
+    // Export an account backup archive
+    let archive = "target/audit-trail-exported-archive.zip";
+    owner.export_backup_archive(archive).await?;
+
+    let restore_options = RestoreOptions {
+        selected: vec![default_folder.clone()],
+        passphrase: Some(passphrase),
+        files_dir: None,
+    };
+
+    UserStorage::restore_backup_archive(
+        Some(owner),
+        archive,
+        restore_options,
+    )
+    .await?;
+
     // Delete the account
     owner.delete_account().await?;
 
