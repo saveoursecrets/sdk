@@ -5,6 +5,8 @@ use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 
 /// Encrypt plaintext as XChaCha20Poly1305 to an AeadPack.
+///
+/// If a nonce is not given a random nonce is generated.
 pub fn encrypt(
     key: &DerivedPrivateKey,
     plaintext: &[u8],

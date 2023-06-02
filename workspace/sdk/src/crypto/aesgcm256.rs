@@ -5,6 +5,8 @@ use super::{AeadPack, DerivedPrivateKey, Nonce};
 use crate::{Error, Result};
 
 /// Encrypt plaintext using the given key as 256 bit AES-GCM.
+///
+/// If a nonce is not given a random nonce is generated.
 pub fn encrypt(
     key: &DerivedPrivateKey,
     plaintext: &[u8],

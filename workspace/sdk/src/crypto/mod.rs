@@ -2,11 +2,11 @@
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 
-pub mod aesgcm256;
+pub(crate) mod aesgcm256;
 mod algorithms;
 pub mod channel;
 mod key_derivation;
-pub mod xchacha20poly1305;
+pub(crate) mod xchacha20poly1305;
 
 pub use algorithms::Algorithm;
 pub(crate) use algorithms::{AES_GCM_256, X_CHACHA20_POLY1305};
