@@ -6,15 +6,18 @@ pub(crate) mod aesgcm256;
 pub mod channel;
 mod cipher;
 mod key_derivation;
+mod private_key;
 pub(crate) mod xchacha20poly1305;
 
 pub use cipher::Cipher;
 pub(crate) use cipher::{AES_GCM_256, X_CHACHA20_POLY1305};
 
-pub use key_derivation::{DerivedPrivateKey, KeyDerivation, Seed};
+pub use key_derivation::{KeyDerivation, Seed};
 pub(crate) use key_derivation::{
     Deriver, ARGON_2_ID, BALLOON_HASH, SEED_SIZE,
 };
+
+pub use private_key::DerivedPrivateKey;
 
 /// Exposes the default cryptographically secure RNG.
 pub fn csprng() -> impl CryptoRng + Rng {

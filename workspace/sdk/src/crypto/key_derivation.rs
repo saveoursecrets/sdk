@@ -1,5 +1,5 @@
 //! Constants for supported key derivation functions.
-use crate::{crypto::csprng, Error, Result};
+use crate::{crypto::{csprng, DerivedPrivateKey}, Error, Result};
 use argon2::{
     password_hash::{PasswordHash, PasswordHasher, SaltString},
     Argon2,
@@ -164,33 +164,6 @@ impl Deriver<Sha256> for BalloonHashDeriver {
     ) -> Result<PasswordHash<'a>> {
         let balloon = Balloon::<Sha256>::default();
         Ok(balloon.hash_password(password, salt)?)
-    }
-}
-
-/// Encapsulates the bytes for a derived symmetric secret key.
-pub struct DerivedPrivateKey {
-    inner: SecretVec<u8>,
-}
-
-impl DerivedPrivateKey {
-    /// Create a new random 32-byte secret key.
-    #[cfg(test)]
-    pub fn generate() -> Self {
-        let bytes: [u8; 32] = csprng().gen();
-        Self {
-            inner: SecretVec::new(bytes.to_vec()),
-        }
-    }
-
-    /// Create a new derived private key.
-    pub(crate) fn new(inner: SecretVec<u8>) -> Self {
-        Self { inner }
-    }
-}
-
-impl AsRef<[u8]> for DerivedPrivateKey {
-    fn as_ref(&self) -> &[u8] {
-        self.inner.expose_secret()
     }
 }
 
