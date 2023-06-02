@@ -31,8 +31,9 @@ impl RequestClient {
         server: Url,
         signer: BoxedSigner,
     ) -> impl Future<Output = Result<Url>> + 'static {
+        use sos_sdk::crypto::csprng;
         async move {
-            let message: [u8; 32] = rand::thread_rng().gen();
+            let message: [u8; 32] = csprng().gen();
             let token = encode_signature(signer.sign(&message).await?)?;
             let message = hex::encode(&message);
             let mut url = server.join("/api/changes")?;

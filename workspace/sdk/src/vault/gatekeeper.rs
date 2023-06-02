@@ -1,6 +1,6 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
-    crypto::secret_key::{SecretKey, Seed},
+    crypto::{DerivedPrivateKey, KeyDerivation, Seed},
     decode, encode,
     events::{ReadEvent, WriteEvent},
     search::SearchIndex,
@@ -35,7 +35,7 @@ use uuid::Uuid;
 /// is used to encrypt the different chunks.
 pub struct Gatekeeper {
     /// The private key.
-    private_key: Option<SecretKey>,
+    private_key: Option<DerivedPrivateKey>,
     /// The underlying vault.
     vault: Vault,
     /// Mirror in-memory vault changes to a writer.
@@ -93,7 +93,7 @@ impl Gatekeeper {
     pub async fn replace_vault(
         &mut self,
         vault: Vault,
-        new_key: Option<SecretKey>,
+        new_key: Option<DerivedPrivateKey>,
     ) -> Result<()> {
         let derived_key = new_key.as_ref().or(self.private_key.as_ref());
 
@@ -259,7 +259,7 @@ impl Gatekeeper {
         &self,
         id: &SecretId,
         from: Option<&Vault>,
-        private_key: Option<&SecretKey>,
+        private_key: Option<&DerivedPrivateKey>,
     ) -> Result<Option<(SecretMeta, Secret)>> {
         let private_key = private_key
             .or(self.private_key.as_ref())
@@ -479,8 +479,9 @@ impl Gatekeeper {
         passphrase: SecretString,
     ) -> Result<VaultMeta> {
         if let Some(salt) = self.vault.salt() {
-            let salt = SecretKey::parse_salt(salt)?;
-            let private_key = SecretKey::derive_32(
+            let salt = KeyDerivation::parse_salt(salt)?;
+            let deriver = self.vault.deriver();
+            let private_key = deriver.derive(
                 passphrase.expose_secret(),
                 &salt,
                 self.vault.seed(),

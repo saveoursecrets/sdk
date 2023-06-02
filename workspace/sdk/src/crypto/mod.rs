@@ -1,15 +1,25 @@
 //! Cryptographic routines and types.
-
-use rand::Rng;
+use rand::{rngs::OsRng, CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 
 pub mod aesgcm256;
 mod algorithms;
 pub mod channel;
-pub mod secret_key;
+mod key_derivation;
 pub mod xchacha20poly1305;
 
-pub use algorithms::*;
+pub use algorithms::Algorithm;
+pub(crate) use algorithms::{AES_GCM_256, X_CHACHA20_POLY1305};
+
+pub use key_derivation::{DerivedPrivateKey, KeyDerivation, Seed};
+pub(crate) use key_derivation::{
+    Deriver, ARGON_2_ID, BALLOON_HASH, SEED_SIZE,
+};
+
+/// Exposes the default cryptographically secure RNG.
+pub fn csprng() -> impl CryptoRng + Rng {
+    OsRng
+}
 
 /// Enumeration of the sizes for nonces.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
@@ -23,13 +33,13 @@ pub enum Nonce {
 impl Nonce {
     /// Generate a new random 12 byte nonce.
     pub fn new_random_12() -> Nonce {
-        let val: [u8; 12] = rand::thread_rng().gen();
+        let val: [u8; 12] = csprng().gen();
         Nonce::Nonce12(val)
     }
 
     /// Generate a new random 24 byte nonce.
     pub fn new_random_24() -> Nonce {
-        let val: [u8; 24] = rand::thread_rng().gen();
+        let val: [u8; 24] = csprng().gen();
         Nonce::Nonce24(val)
     }
 }
@@ -61,7 +71,7 @@ pub struct AeadPack {
 #[cfg(test)]
 mod tests {
     use super::xchacha20poly1305::*;
-    use crate::crypto::secret_key::SecretKey;
+    use crate::crypto::{csprng, DerivedPrivateKey};
     use anyhow::Result;
 
     use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
@@ -70,7 +80,7 @@ mod tests {
 
     #[test]
     fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
-        let key = SecretKey::new_random_32();
+        let key = DerivedPrivateKey::generate();
         let value = b"plaintext message";
         let aead = encrypt(&key, value, None)?;
         let plaintext = decrypt(&key, &aead)?;
@@ -80,7 +90,7 @@ mod tests {
 
     #[test]
     fn xchacha20poly1305_encrypt_decrypt_tamper() {
-        let key = SecretKey::new_random_32();
+        let key = DerivedPrivateKey::generate();
         let value = b"plaintext message";
         let mut aead = encrypt(&key, value, None).unwrap();
 
@@ -94,7 +104,7 @@ mod tests {
     #[test]
     fn ecdsa_sign() -> Result<()> {
         // Generate a signature with recovery id
-        let signing_key = SigningKey::random(&mut rand::thread_rng());
+        let signing_key = SigningKey::random(&mut csprng());
         let message = b".well-known";
         let digest = Keccak256::digest(message);
         let (_signature, recid) = signing_key
@@ -109,7 +119,7 @@ mod tests {
 
     #[test]
     fn ecdsa_sign_recover() -> Result<()> {
-        let signing_key = SigningKey::random(&mut rand::thread_rng());
+        let signing_key = SigningKey::random(&mut csprng());
         let message = b".well-known";
         let digest = Keccak256::digest(message);
         let (signature, recid) = signing_key

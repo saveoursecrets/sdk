@@ -1,4 +1,5 @@
 //! Provides an encrypted channel using ECDSA and ECDH.
+use super::{csprng, xchacha20poly1305, AeadPack, DerivedPrivateKey, Nonce};
 use crate::{
     signer::ecdsa::{verify_signature_address, BoxedEcdsaSigner},
     Error, Result,
@@ -18,17 +19,15 @@ use uuid::Uuid;
 use web3_address::ethereum::Address;
 use web3_signature::Signature;
 
-use super::{secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce};
-
 /// Generate a secret key suitable for symmetric encryption.
 fn derive_secret_key(
     shared: &SharedSecret<Secp256k1>,
     salt: &[u8],
-) -> Result<SecretKey> {
+) -> Result<DerivedPrivateKey> {
     let hkdf = shared.extract::<Keccak256>(Some(salt));
     let mut okm = [0u8; 32];
     hkdf.expand(&[], &mut okm).expect("HKDF length is invalid");
-    Ok(SecretKey::Key32(secrecy::Secret::new(okm)))
+    Ok(DerivedPrivateKey::new(secrecy::Secret::new(okm.to_vec())))
 }
 
 /// Manages a collection of sessions.
@@ -126,7 +125,7 @@ pub struct ServerSession {
     /// Session secret.
     secret: EphemeralSecret,
     /// Derived private key for symmetric encryption.
-    private: Option<SecretKey>,
+    private: Option<DerivedPrivateKey>,
     /// Number once for session messages.
     nonce: U192,
     /// Determines if this session is allowed to expire.
@@ -136,7 +135,7 @@ pub struct ServerSession {
 impl ServerSession {
     /// Create a new server session.
     pub fn new(identity: Address, duration_secs: u64) -> Self {
-        let rng = &mut rand::thread_rng();
+        let rng = &mut csprng();
         let challenge: [u8; 16] = rng.gen();
 
         Self {
@@ -145,7 +144,7 @@ impl ServerSession {
             duration_secs,
             identity_proof: None,
             expires: Instant::now() + Duration::from_secs(duration_secs),
-            secret: EphemeralSecret::random(&mut rand::thread_rng()),
+            secret: EphemeralSecret::random(&mut csprng()),
             private: None,
             nonce: U192::ZERO,
             keep_alive: false,
@@ -243,7 +242,7 @@ impl ServerSession {
 }
 
 impl EncryptedChannel for ServerSession {
-    fn private_key(&self) -> Result<&SecretKey> {
+    fn private_key(&self) -> Result<&DerivedPrivateKey> {
         self.private.as_ref().ok_or(Error::NoSessionKey)
     }
 
@@ -271,7 +270,7 @@ pub struct ClientSession {
     /// Session secret.
     secret: EphemeralSecret,
     /// Derived private key for symmetric encryption.
-    private: Option<SecretKey>,
+    private: Option<DerivedPrivateKey>,
     /// Number once for session messages.
     nonce: U192,
 }
@@ -279,7 +278,7 @@ pub struct ClientSession {
 impl ClientSession {
     /// Create a new client session.
     pub fn new(signer: BoxedEcdsaSigner, id: Uuid) -> Result<Self> {
-        let secret = EphemeralSecret::random(&mut rand::thread_rng());
+        let secret = EphemeralSecret::random(&mut csprng());
         Ok(Self {
             signer,
             id,
@@ -301,7 +300,7 @@ impl ClientSession {
         &mut self,
         public_key_bytes: &[u8],
         challenge: [u8; 16],
-    ) -> Result<(Signature, SecretKey)> {
+    ) -> Result<(Signature, DerivedPrivateKey)> {
         let server_public = PublicKey::from_sec1_bytes(public_key_bytes)?;
         let shared = self.secret.diffie_hellman(&server_public);
         let signature = self.signer.sign(&challenge).await?;
@@ -327,13 +326,13 @@ impl ClientSession {
     }
 
     /// Complete the session negotiation.
-    pub fn finish(&mut self, key: SecretKey) {
+    pub fn finish(&mut self, key: DerivedPrivateKey) {
         self.private = Some(key);
     }
 }
 
 impl EncryptedChannel for ClientSession {
-    fn private_key(&self) -> Result<&SecretKey> {
+    fn private_key(&self) -> Result<&DerivedPrivateKey> {
         self.private.as_ref().ok_or(Error::NoSessionKey)
     }
 
@@ -352,7 +351,7 @@ impl EncryptedChannel for ClientSession {
 /// Cryptographic operations for both sides of session communication.
 pub trait EncryptedChannel {
     /// Get the private key for the session.
-    fn private_key(&self) -> Result<&SecretKey>;
+    fn private_key(&self) -> Result<&DerivedPrivateKey>;
 
     /// Increment and return the next sequential nonce.
     fn next_nonce(&mut self) -> Result<Nonce>;
@@ -406,7 +405,7 @@ mod test {
     use std::time::Duration;
 
     fn new_signer() -> BoxedEcdsaSigner {
-        let client_identity = SigningKey::random(&mut rand::thread_rng());
+        let client_identity = SigningKey::random(&mut csprng());
         Box::new(SingleParty(client_identity))
     }
 

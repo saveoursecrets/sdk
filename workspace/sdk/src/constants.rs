@@ -33,10 +33,10 @@ mod identity {
 /// Constants for file extensions.
 mod extensions {
     /// File extension used for event log files.
-    pub const EVENT_LOG_EXT: &str = "sos";
+    pub const EVENT_LOG_EXT: &str = "events";
 
     /// File extension used when deleting event log files.
-    pub const EVENT_LOG_DELETED_EXT: &str = "sos.deleted";
+    pub const EVENT_LOG_DELETED_EXT: &str = "events.deleted";
 
     /// File extension used for vault files.
     pub const VAULT_EXT: &str = "vault";

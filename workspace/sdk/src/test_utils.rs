@@ -1,7 +1,7 @@
 //! Test utility functions.
 use crate::{
     commit::CommitHash,
-    crypto::secret_key::SecretKey,
+    crypto::{DerivedPrivateKey, KeyDerivation},
     encode,
     events::WriteEvent,
     passwd::diceware::generate_passphrase,
@@ -20,12 +20,14 @@ use secrecy::{ExposeSecret, SecretString};
 use argon2::password_hash::SaltString;
 
 /// Generate a mock encyption key.
-pub fn mock_encryption_key() -> Result<(SecretKey, SaltString, SecretString)>
-{
-    let salt = SecretKey::generate_salt();
+pub fn mock_encryption_key(
+) -> Result<(DerivedPrivateKey, SaltString, SecretString)> {
+    let salt = KeyDerivation::generate_salt();
     let (passphrase, _) = generate_passphrase()?;
+    let kdf: KeyDerivation = Default::default();
+    let deriver = kdf.deriver();
     let encryption_key =
-        SecretKey::derive_32(passphrase.expose_secret(), &salt, None)?;
+        deriver.derive(passphrase.expose_secret(), &salt, None)?;
     Ok((encryption_key, salt, passphrase))
 }
 
@@ -76,7 +78,7 @@ pub async fn mock_secret_file(
 /// Generate a mock secret note and add it to a vault.
 pub async fn mock_vault_note<'a>(
     vault: &'a mut Vault,
-    encryption_key: &SecretKey,
+    encryption_key: &DerivedPrivateKey,
     secret_label: &str,
     secret_note: &str,
 ) -> Result<(Uuid, CommitHash, SecretMeta, Secret, WriteEvent<'a>)> {
@@ -84,6 +86,7 @@ pub async fn mock_vault_note<'a>(
         mock_secret_note(secret_label, secret_note).await?;
 
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
+
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
 
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead).await?;
@@ -101,7 +104,7 @@ pub async fn mock_vault_note<'a>(
 /// Generate a mock secret note and update a vault entry.
 pub async fn mock_vault_note_update<'a>(
     vault: &'a mut Vault,
-    encryption_key: &SecretKey,
+    encryption_key: &DerivedPrivateKey,
     id: &SecretId,
     secret_label: &str,
     secret_note: &str,
@@ -122,7 +125,7 @@ pub async fn mock_vault_note_update<'a>(
 #[cfg(not(target_arch = "wasm32"))]
 mod file {
     use crate::{
-        commit::CommitHash, crypto::secret_key::SecretKey, encode,
+        commit::CommitHash, crypto::DerivedPrivateKey, encode,
         events::EventLogFile, events::WriteEvent, vault::Vault,
     };
     use tempfile::NamedTempFile;
@@ -140,9 +143,12 @@ mod file {
     }
 
     /// Create a mock event log in a temp file.
-    pub async fn mock_event_log_file(
-    ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>, SecretKey)>
-    {
+    pub async fn mock_event_log_file() -> Result<(
+        NamedTempFile,
+        EventLogFile,
+        Vec<CommitHash>,
+        DerivedPrivateKey,
+    )> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file().await?;
 

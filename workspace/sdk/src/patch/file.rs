@@ -7,7 +7,7 @@ use std::{
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 
 use crate::{
-    constants::{PATCH_EXT, PATCH_IDENTITY},
+    constants::PATCH_IDENTITY,
     decode, encode,
     events::WriteEvent,
     formats::{patch_stream, FileRecord, FileStream},
@@ -46,11 +46,6 @@ impl PatchFile {
         }
 
         Ok(Self { file, file_path })
-    }
-
-    /// The file extension for patch files.
-    pub fn extension() -> &'static str {
-        PATCH_EXT
     }
 
     /// Read a patch from the file on disc.

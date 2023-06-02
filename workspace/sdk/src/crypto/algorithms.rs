@@ -1,16 +1,12 @@
 //! Constants for supported symmetric ciphers.
 use crate::Error;
-
 use std::{convert::AsRef, fmt, str::FromStr};
 
 /// Extended ChaCha20 Poly1305 cipher.
-pub const X_CHACHA20_POLY1305: u8 = 0x01;
+pub const X_CHACHA20_POLY1305: u8 = 1;
 
 /// AES-GCM 256 cipher.
-pub const AES_GCM_256: u8 = 0x02;
-
-/// Supported algorithms.
-pub const ALGORITHMS: [u8; 2] = [X_CHACHA20_POLY1305, AES_GCM_256];
+pub const AES_GCM_256: u8 = 2;
 
 /// Supported cipher algorithms.
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
@@ -32,8 +28,8 @@ impl fmt::Display for Algorithm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", {
             match self {
-                Self::XChaCha20Poly1305(_) => "X_CHACHA20_POLY1305",
-                Self::AesGcm256(_) => "AES_GCM_256",
+                Self::XChaCha20Poly1305(_) => "x_chacha20_poly1305",
+                Self::AesGcm256(_) => "aes_gcm_256",
             }
         })
     }

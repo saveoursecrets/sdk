@@ -136,11 +136,13 @@ dependencies = [
  "bech32",
  "chacha20poly1305 0.10.1",
  "cookie-factory",
+ "futures",
  "hkdf",
  "hmac 0.12.1",
  "i18n-embed",
  "i18n-embed-fl",
  "lazy_static",
+ "memchr",
  "nom",
  "pin-project",
  "rand 0.7.3",
@@ -621,6 +623,17 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower-service",
+]
+
+[[package]]
+name = "balloon-hash"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bf9e4f4da24116dc0e3ffef4afbabadb7fba375bf32ccf9a1da81a667bababc"
+dependencies = [
+ "crypto-bigint 0.5.2",
+ "digest 0.10.6",
+ "password-hash",
 ]
 
 [[package]]
@@ -5659,6 +5672,7 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "async_zip",
+ "balloon-hash",
  "binary-stream",
  "bitflags",
  "bs58",

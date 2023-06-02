@@ -4,7 +4,7 @@ use rand::Rng;
 use secrecy::{ExposeSecret, SecretString};
 use zxcvbn::{zxcvbn, Entropy};
 
-use crate::Result;
+use crate::{crypto::csprng, Result};
 
 /// Diceware helper functions for generating passphrases.
 pub mod diceware {
@@ -179,7 +179,7 @@ impl PasswordGen {
                 diceware::generate_passphrase_config(config)?;
             passphrase
         } else {
-            let rng = &mut rand::thread_rng();
+            let rng = &mut csprng();
             let len = self.characters.iter().fold(0, |acc, s| acc + s.len());
             let mut characters = Vec::with_capacity(len);
             for chars in &self.characters {
