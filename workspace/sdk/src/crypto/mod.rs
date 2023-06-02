@@ -78,27 +78,27 @@ mod tests {
     use sha2::Sha256;
     use sha3::{Digest, Keccak256};
 
-    #[test]
-    fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
+    #[tokio::test]
+    async fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
         let key = DerivedPrivateKey::generate();
         let value = b"plaintext message";
-        let aead = encrypt(&key, value, None)?;
-        let plaintext = decrypt(&key, &aead)?;
+        let aead = encrypt(&key, value, None).await?;
+        let plaintext = decrypt(&key, &aead).await?;
         assert_eq!(&plaintext, value);
         Ok(())
     }
 
-    #[test]
-    fn xchacha20poly1305_encrypt_decrypt_tamper() {
+    #[tokio::test]
+    async fn xchacha20poly1305_encrypt_decrypt_tamper() {
         let key = DerivedPrivateKey::generate();
         let value = b"plaintext message";
-        let mut aead = encrypt(&key, value, None).unwrap();
+        let mut aead = encrypt(&key, value, None).await.unwrap();
 
         // Flip all the bits
         aead.ciphertext = aead.ciphertext.iter().map(|b| !*b).collect();
 
         // Fails due to tampering
-        assert!(decrypt(&key, &aead).is_err());
+        assert!(decrypt(&key, &aead).await.is_err());
     }
 
     #[test]

@@ -22,7 +22,7 @@ pub enum Cipher {
 
 impl Cipher {
     /// Encrypt plaintext using this cipher.
-    pub fn encrypt(
+    pub async fn encrypt(
         &self,
         key: &DerivedPrivateKey,
         plaintext: &[u8],
@@ -30,26 +30,26 @@ impl Cipher {
         match self {
             Cipher::XChaCha20Poly1305 => {
                 let nonce = Nonce::new_random_24();
-                xchacha20poly1305::encrypt(key, plaintext, Some(nonce))
+                xchacha20poly1305::encrypt(key, plaintext, Some(nonce)).await
             }
             Cipher::AesGcm256 => {
                 let nonce = Nonce::new_random_12();
-                aesgcm256::encrypt(key, plaintext, Some(nonce))
+                aesgcm256::encrypt(key, plaintext, Some(nonce)).await
             }
         }
     }
 
     /// Decrypt ciphertext using this cipher.
-    pub fn decrypt(
+    pub async fn decrypt(
         &self,
         key: &DerivedPrivateKey,
         aead: &AeadPack,
     ) -> Result<Vec<u8>> {
         match self {
             Cipher::XChaCha20Poly1305 => {
-                xchacha20poly1305::decrypt(key, aead)
+                xchacha20poly1305::decrypt(key, aead).await
             }
-            Cipher::AesGcm256 => aesgcm256::decrypt(key, aead),
+            Cipher::AesGcm256 => aesgcm256::decrypt(key, aead).await,
         }
     }
 }

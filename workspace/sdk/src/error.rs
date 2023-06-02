@@ -449,4 +449,8 @@ pub enum Error {
     /// Error generated when determining application paths.
     #[error(transparent)]
     AppDirs(#[from] app_dirs2::AppDirsError),
+
+    /// Error generated when attempting to join a task.
+    #[error(transparent)]
+    Join(#[from] tokio::task::JoinError),
 }

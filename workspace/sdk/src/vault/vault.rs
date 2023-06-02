@@ -683,7 +683,7 @@ impl Vault {
         key: &DerivedPrivateKey,
         plaintext: &[u8],
     ) -> Result<AeadPack> {
-        self.cipher().encrypt(key, plaintext)
+        self.cipher().encrypt(key, plaintext).await
     }
 
     /// Decrypt ciphertext using the cipher assigned to this vault.
@@ -692,7 +692,7 @@ impl Vault {
         key: &DerivedPrivateKey,
         aead: &AeadPack,
     ) -> Result<Vec<u8>> {
-        self.cipher().decrypt(key, aead)
+        self.cipher().decrypt(key, aead).await
     }
 
     /// Choose a new identifier for this vault.

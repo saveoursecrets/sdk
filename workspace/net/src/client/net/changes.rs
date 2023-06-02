@@ -124,7 +124,7 @@ pub fn changes(
                     Message::Binary(buffer) => {
                         let aead: AeadPack = decode(&buffer).await?;
                         session.set_nonce(&aead.nonce);
-                        let message = session.decrypt(&aead)?;
+                        let message = session.decrypt(&aead).await?;
                         let notification: ChangeNotification =
                             serde_json::from_slice(&message)?;
                         Ok(notification)
