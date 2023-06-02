@@ -1,5 +1,5 @@
 use crate::crypto::{
-    AeadPack, Algorithm, KeyDerivation, Nonce, AES_GCM_256, ARGON_2_ID,
+    AeadPack, Cipher, KeyDerivation, Nonce, AES_GCM_256, ARGON_2_ID,
     BALLOON_HASH, X_CHACHA20_POLY1305,
 };
 
@@ -74,7 +74,7 @@ impl Decode for AeadPack {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for Algorithm {
+impl Encode for Cipher {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -87,19 +87,19 @@ impl Encode for Algorithm {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for Algorithm {
+impl Decode for Cipher {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
         let id = reader.read_u8().await?;
         *self = match id {
-            X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305,
-            AES_GCM_256 => Algorithm::AesGcm256,
+            X_CHACHA20_POLY1305 => Cipher::XChaCha20Poly1305,
+            AES_GCM_256 => Cipher::AesGcm256,
             _ => {
                 return Err(Error::new(
                     ErrorKind::Other,
-                    format!("unknown algorithm {}", id),
+                    format!("unknown cipher {}", id),
                 ));
             }
         };

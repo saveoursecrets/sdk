@@ -3,13 +3,13 @@ use rand::{rngs::OsRng, CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 
 pub(crate) mod aesgcm256;
-mod algorithms;
 pub mod channel;
+mod cipher;
 mod key_derivation;
 pub(crate) mod xchacha20poly1305;
 
-pub use algorithms::Algorithm;
-pub(crate) use algorithms::{AES_GCM_256, X_CHACHA20_POLY1305};
+pub use cipher::Cipher;
+pub(crate) use cipher::{AES_GCM_256, X_CHACHA20_POLY1305};
 
 pub use key_derivation::{DerivedPrivateKey, KeyDerivation, Seed};
 pub(crate) use key_derivation::{

@@ -22,7 +22,7 @@ use crate::{
     commit::CommitHash,
     constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY},
     crypto::{
-        AeadPack, Algorithm, DerivedPrivateKey, Deriver, KeyDerivation, Seed,
+        AeadPack, Cipher, DerivedPrivateKey, Deriver, KeyDerivation, Seed,
     },
     encode,
     encoding::v1::VERSION,
@@ -282,9 +282,9 @@ pub struct Summary {
     pub(crate) id: VaultId,
     /// Vault name.
     pub(crate) name: String,
-    /// Encryption algorithm.
+    /// Encryption cipher.
     #[serde(skip)]
-    pub(crate) algorithm: Algorithm,
+    pub(crate) cipher: Cipher,
     /// Key derivation function.
     #[serde(skip)]
     pub(crate) kdf: KeyDerivation,
@@ -309,7 +309,7 @@ impl fmt::Display for Summary {
         write!(
             f,
             "Version {} using {} with {}\n{} {}",
-            self.version, self.algorithm, self.kdf, self.name, self.id
+            self.version, self.cipher, self.kdf, self.name, self.id
         )
     }
 }
@@ -318,7 +318,7 @@ impl Default for Summary {
     fn default() -> Self {
         Self {
             version: VERSION,
-            algorithm: Default::default(),
+            cipher: Default::default(),
             kdf: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
@@ -332,13 +332,13 @@ impl Summary {
     pub fn new(
         id: VaultId,
         name: String,
-        algorithm: Algorithm,
+        cipher: Cipher,
         kdf: KeyDerivation,
         flags: VaultFlags,
     ) -> Self {
         Self {
             version: VERSION,
-            algorithm,
+            cipher,
             kdf,
             id,
             name,
@@ -351,9 +351,9 @@ impl Summary {
         &self.version
     }
 
-    /// Get the algorithm.
-    pub fn algorithm(&self) -> &Algorithm {
-        &self.algorithm
+    /// Get the cipher.
+    pub fn cipher(&self) -> &Cipher {
+        &self.cipher
     }
 
     /// Get the key derivation function.
@@ -400,12 +400,12 @@ impl Header {
     pub fn new(
         id: VaultId,
         name: String,
-        algorithm: Algorithm,
+        cipher: Cipher,
         kdf: KeyDerivation,
         flags: VaultFlags,
     ) -> Self {
         Self {
-            summary: Summary::new(id, name, algorithm, kdf, flags),
+            summary: Summary::new(id, name, cipher, kdf, flags),
             meta: None,
             auth: Default::default(),
         }
@@ -551,12 +551,12 @@ impl Vault {
     pub fn new(
         id: VaultId,
         name: String,
-        algorithm: Algorithm,
+        cipher: Cipher,
         kdf: KeyDerivation,
         flags: VaultFlags,
     ) -> Self {
         Self {
-            header: Header::new(id, name, algorithm, kdf, flags),
+            header: Header::new(id, name, cipher, kdf, flags),
             contents: Default::default(),
         }
     }
@@ -677,22 +677,22 @@ impl Vault {
         self.contents.data.get(id)
     }
 
-    /// Encrypt plaintext using the algorithm assigned to this vault.
+    /// Encrypt plaintext using the cipher assigned to this vault.
     pub fn encrypt(
         &self,
         key: &DerivedPrivateKey,
         plaintext: &[u8],
     ) -> Result<AeadPack> {
-        self.algorithm().encrypt(key, plaintext)
+        self.cipher().encrypt(key, plaintext)
     }
 
-    /// Decrypt ciphertext using the algorithm assigned to this vault.
+    /// Decrypt ciphertext using the cipher assigned to this vault.
     pub fn decrypt(
         &self,
         key: &DerivedPrivateKey,
         aead: &AeadPack,
     ) -> Result<Vec<u8>> {
-        self.algorithm().decrypt(key, aead)
+        self.cipher().decrypt(key, aead)
     }
 
     /// Choose a new identifier for this vault.
@@ -793,9 +793,9 @@ impl Vault {
         self.header.set_name(name);
     }
 
-    /// Get the encryption algorithm for this vault.
-    pub fn algorithm(&self) -> &Algorithm {
-        &self.header.summary.algorithm
+    /// Get the encryption cipher for this vault.
+    pub fn cipher(&self) -> &Cipher {
+        &self.header.summary.cipher
     }
 
     /// Get the vault header.

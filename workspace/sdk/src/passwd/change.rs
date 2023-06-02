@@ -78,7 +78,7 @@ impl<'a> ChangePassword<'a> {
 
         // Create new vault duplicated from the existing
         // vault header with zero secrets, this will inherit
-        // the vault name, algorithm etc.
+        // the vault name, cipher etc.
         let new_header = self.vault.header().clone();
         let mut new_vault: Vault = new_header.into();
 
