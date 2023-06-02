@@ -113,7 +113,8 @@ impl Encode for KeyDerivation {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        writer.write_u8(*self.as_ref()).await?;
+        let id: u8 = self.into();
+        writer.write_u8(id).await?;
         Ok(())
     }
 }
@@ -127,8 +128,8 @@ impl Decode for KeyDerivation {
     ) -> Result<()> {
         let id = reader.read_u8().await?;
         *self = match id {
-            ARGON_2_ID => KeyDerivation::Argon2Id(id),
-            BALLOON_HASH => KeyDerivation::BalloonHash(id),
+            ARGON_2_ID => KeyDerivation::Argon2Id,
+            BALLOON_HASH => KeyDerivation::BalloonHash,
             _ => {
                 return Err(Error::new(
                     ErrorKind::Other,
