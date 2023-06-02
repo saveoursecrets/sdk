@@ -15,10 +15,7 @@ pub enum PrivateKey {
     /// Private key used for symmetric ciphers.
     Symmetric(DerivedPrivateKey),
     /// Private key used for asymmetric ciphers.
-    Asymmetric {
-        identity: age::x25519::Identity,
-        recipients: Vec<age::x25519::Recipient>,
-    },
+    Asymmetric(age::x25519::Identity),
 }
 
 /// Encapsulates the bytes for a derived symmetric secret key.
@@ -47,4 +44,3 @@ impl AsRef<[u8]> for DerivedPrivateKey {
         self.inner.expose_secret()
     }
 }
-

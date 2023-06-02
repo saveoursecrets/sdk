@@ -1,5 +1,5 @@
 //! Encrypt and decrypt using 256 bit AES GSM.
-use super::{AeadPack, DerivedPrivateKey, Nonce};
+use crate::crypto::{AeadPack, Cipher, DerivedPrivateKey, Nonce};
 use crate::{Error, Result};
 use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce as AesNonce};
 
@@ -7,10 +7,13 @@ use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce as AesNonce};
 ///
 /// If a nonce is not given a random nonce is generated.
 pub async fn encrypt(
+    cipher: &Cipher,
     key: &DerivedPrivateKey,
     plaintext: &[u8],
     nonce: Option<Nonce>,
 ) -> Result<AeadPack> {
+    assert!(matches!(cipher, Cipher::AesGcm256));
+
     std::thread::scope(move |s| {
         let handle = s.spawn(move || {
             let nonce = nonce.unwrap_or_else(Nonce::new_random_12);
@@ -25,9 +28,12 @@ pub async fn encrypt(
 
 /// Decrypt ciphertext using the given key as 256 bit AES-GCM.
 pub async fn decrypt(
+    cipher: &Cipher,
     key: &DerivedPrivateKey,
     aead_pack: &AeadPack,
 ) -> Result<Vec<u8>> {
+    assert!(matches!(cipher, Cipher::AesGcm256));
+
     std::thread::scope(move |s| {
         let handle = s.spawn(move || {
             if let Nonce::Nonce12(ref nonce) = aead_pack.nonce {
@@ -46,15 +52,16 @@ pub async fn decrypt(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crypto::DerivedPrivateKey;
+    use crate::crypto::{Cipher, DerivedPrivateKey};
     use anyhow::Result;
 
     #[tokio::test]
     async fn aesgcm256_encrypt_decrypt() -> Result<()> {
         let key = DerivedPrivateKey::generate();
         let plaintext = b"super secret value";
-        let aead_pack = encrypt(&key, plaintext, None).await?;
-        let decrypted = decrypt(&key, &aead_pack).await?;
+        let aead_pack =
+            encrypt(&Cipher::AesGcm256, &key, plaintext, None).await?;
+        let decrypted = decrypt(&Cipher::AesGcm256, &key, &aead_pack).await?;
         assert_eq!(plaintext.to_vec(), decrypted);
         Ok(())
     }

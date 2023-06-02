@@ -1,5 +1,8 @@
 //! Constants for supported key derivation functions.
-use crate::{crypto::{csprng, DerivedPrivateKey}, Error, Result};
+use crate::{
+    crypto::{csprng, DerivedPrivateKey},
+    Error, Result,
+};
 use argon2::{
     password_hash::{PasswordHash, PasswordHasher, SaltString},
     Argon2,

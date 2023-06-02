@@ -1,6 +1,6 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
-    crypto::{DerivedPrivateKey, KeyDerivation, Seed},
+    crypto::{DerivedPrivateKey, KeyDerivation, PrivateKey, Seed},
     decode, encode,
     events::{ReadEvent, WriteEvent},
     search::SearchIndex,

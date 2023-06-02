@@ -1,5 +1,5 @@
 //! Provides an encrypted channel using ECDSA and ECDH.
-use super::{csprng, xchacha20poly1305, AeadPack, DerivedPrivateKey, Nonce};
+use super::{csprng, AeadPack, Cipher, DerivedPrivateKey, Nonce};
 use crate::{
     signer::ecdsa::{verify_signature_address, BoxedEcdsaSigner},
     Error, Result,
@@ -384,13 +384,15 @@ pub trait EncryptedChannel {
     async fn encrypt(&mut self, message: &[u8]) -> Result<AeadPack> {
         let nonce = self.next_nonce()?;
         let key = self.private_key()?;
-        xchacha20poly1305::encrypt(key, message, Some(nonce)).await
+        Cipher::XChaCha20Poly1305
+            .encrypt(key, message, Some(nonce))
+            .await
     }
 
     /// Decrypt a message.
     async fn decrypt(&self, aead: &AeadPack) -> Result<Vec<u8>> {
         let key = self.private_key()?;
-        xchacha20poly1305::decrypt(key, aead).await
+        Cipher::XChaCha20Poly1305.decrypt(key, aead).await
     }
 
     /// Determine if this session is ready.

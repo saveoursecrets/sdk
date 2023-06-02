@@ -1,6 +1,6 @@
 use crate::crypto::{
     AeadPack, Cipher, KeyDerivation, Nonce, AES_GCM_256, ARGON_2_ID,
-    BALLOON_HASH, X_CHACHA20_POLY1305,
+    BALLOON_HASH, X25519, X_CHACHA20_POLY1305,
 };
 
 use std::io::{Error, ErrorKind, Result};
@@ -81,6 +81,17 @@ impl Encode for Cipher {
     ) -> Result<()> {
         let id: u8 = self.into();
         writer.write_u8(id).await?;
+
+        match self {
+            Cipher::X25519(recipients) => {
+                writer.write_u16(recipients.len() as u16).await?;
+                for recipient in recipients {
+                    writer.write_string(recipient.to_string()).await?;
+                }
+            }
+            _ => {}
+        }
+
         Ok(())
     }
 }
@@ -96,6 +107,19 @@ impl Decode for Cipher {
         *self = match id {
             X_CHACHA20_POLY1305 => Cipher::XChaCha20Poly1305,
             AES_GCM_256 => Cipher::AesGcm256,
+            X25519 => {
+                let mut recipients: Vec<age::x25519::Recipient> = Vec::new();
+                let length = reader.read_u16().await?;
+                for _ in 0..length {
+                    let recipient = reader.read_string().await?;
+                    recipients.push(
+                        recipient
+                            .parse()
+                            .map_err(|e| Error::new(ErrorKind::Other, e))?,
+                    );
+                }
+                Cipher::X25519(recipients)
+            }
             _ => {
                 return Err(Error::new(
                     ErrorKind::Other,
