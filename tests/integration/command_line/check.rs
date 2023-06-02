@@ -1,7 +1,7 @@
 use super::*;
 use anyhow::Result;
 use rexpect::{session::PtySession, spawn, ReadUntil};
-use sos_sdk::{storage::StorageDirs, vault::VaultId};
+use sos_sdk::{storage::AppPaths, vault::VaultId};
 use std::{
     ops::DerefMut,
     sync::{Arc, Mutex},
@@ -13,7 +13,7 @@ pub fn vault(
     vault_id: &VaultId,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let vault_path = StorageDirs::vault_path(address, vault_id.to_string())?;
+    let vault_path = AppPaths::vault_path(address, vault_id.to_string())?;
 
     let cmd = format!("{} check vault {}", exe, vault_path.display());
     run!(repl, cmd, true, |ps: &mut PtySession,
@@ -41,7 +41,7 @@ pub fn keys(
     vault_id: &VaultId,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let vault_path = StorageDirs::vault_path(address, vault_id.to_string())?;
+    let vault_path = AppPaths::vault_path(address, vault_id.to_string())?;
     let cmd = format!("{} check keys {}", exe, vault_path.display());
     read_until_eof(cmd, None, repl)
 }
@@ -52,7 +52,7 @@ pub fn header(
     vault_id: &VaultId,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let vault_path = StorageDirs::vault_path(address, vault_id.to_string())?;
+    let vault_path = AppPaths::vault_path(address, vault_id.to_string())?;
     let cmd = format!("{} check header {}", exe, vault_path.display());
     read_until_eof(cmd, None, repl)
 }
@@ -63,7 +63,7 @@ pub fn log(
     vault_id: &VaultId,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let log_path = StorageDirs::log_path(address, vault_id.to_string())?;
+    let log_path = AppPaths::log_path(address, vault_id.to_string())?;
 
     let cmd = format!("{} check log {}", exe, log_path.display());
     read_until_eof(cmd, None, repl.clone())?;

@@ -10,7 +10,7 @@ use sos_sdk::{
         archive::Inventory, AccountBackup, AccountInfo, AccountRef,
         ExtractFilesLocation, RestoreOptions,
     },
-    storage::StorageDirs,
+    storage::AppPaths,
     vfs,
 };
 
@@ -411,7 +411,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     };
 
     let files_dir =
-        StorageDirs::files_dir(inventory.manifest.address.to_string())?;
+        AppPaths::files_dir(inventory.manifest.address.to_string())?;
     let options = RestoreOptions {
         selected: inventory.vaults,
         passphrase,

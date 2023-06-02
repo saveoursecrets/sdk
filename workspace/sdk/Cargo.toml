@@ -36,7 +36,7 @@ balloon-hash = { version = "0.4", features = ["std"]}
 # matches the version in k256
 sha3 = "0.10.6"
 sha2 = "0.10.6"
-dirs = "4"
+app_dirs2 = "2"
 uuid = { version = "1", features = ["serde", "v4"] }
 url = { version = "2", features = ["serde"] }
 bitflags = "1"

@@ -7,7 +7,7 @@ use sos_sdk::{
     constants::DEFAULT_VAULT_NAME,
     passwd::diceware::generate_passphrase,
     secrecy::{ExposeSecret, SecretString},
-    storage::StorageDirs,
+    storage::AppPaths,
     vault::{Summary, VaultRef},
 };
 use terminal_banner::{Banner, Padding};
@@ -162,7 +162,7 @@ pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
 pub async fn verify(user: Owner) -> Result<bool> {
     let passphrase = read_password(Some("Password: "))?;
     let owner = user.read().await;
-    Ok(owner.verify(passphrase))
+    Ok(owner.verify(passphrase).await)
 }
 
 /// List local accounts.
@@ -327,13 +327,13 @@ pub async fn new_account(
         .await?;
         let address = owner.address().to_string();
 
-        let cache_dir = StorageDirs::cache_dir().ok_or(Error::NoCacheDir)?;
+        let data_dir = AppPaths::data_dir()?;
         let message = format!(
             r#"* Account: {} ({})
 * Storage: {}"#,
             account_name,
             address,
-            cache_dir.display(),
+            data_dir.display(),
         );
 
         let banner = Banner::new()

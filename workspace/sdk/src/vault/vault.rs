@@ -22,8 +22,7 @@ use crate::{
     commit::CommitHash,
     constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY},
     crypto::{
-        aesgcm256, xchacha20poly1305, AeadPack, Algorithm, DerivedPrivateKey,
-        Deriver, KeyDerivation, Nonce, Seed,
+        AeadPack, Cipher, DerivedPrivateKey, Deriver, KeyDerivation, Seed,
     },
     encode,
     encoding::v1::VERSION,
@@ -283,9 +282,9 @@ pub struct Summary {
     pub(crate) id: VaultId,
     /// Vault name.
     pub(crate) name: String,
-    /// Encryption algorithm.
+    /// Encryption cipher.
     #[serde(skip)]
-    pub(crate) algorithm: Algorithm,
+    pub(crate) cipher: Cipher,
     /// Key derivation function.
     #[serde(skip)]
     pub(crate) kdf: KeyDerivation,
@@ -310,7 +309,7 @@ impl fmt::Display for Summary {
         write!(
             f,
             "Version {} using {} with {}\n{} {}",
-            self.version, self.algorithm, self.kdf, self.name, self.id
+            self.version, self.cipher, self.kdf, self.name, self.id
         )
     }
 }
@@ -319,7 +318,7 @@ impl Default for Summary {
     fn default() -> Self {
         Self {
             version: VERSION,
-            algorithm: Default::default(),
+            cipher: Default::default(),
             kdf: Default::default(),
             id: Uuid::new_v4(),
             name: DEFAULT_VAULT_NAME.to_string(),
@@ -333,13 +332,13 @@ impl Summary {
     pub fn new(
         id: VaultId,
         name: String,
-        algorithm: Algorithm,
+        cipher: Cipher,
         kdf: KeyDerivation,
         flags: VaultFlags,
     ) -> Self {
         Self {
             version: VERSION,
-            algorithm,
+            cipher,
             kdf,
             id,
             name,
@@ -352,9 +351,9 @@ impl Summary {
         &self.version
     }
 
-    /// Get the algorithm.
-    pub fn algorithm(&self) -> &Algorithm {
-        &self.algorithm
+    /// Get the cipher.
+    pub fn cipher(&self) -> &Cipher {
+        &self.cipher
     }
 
     /// Get the key derivation function.
@@ -401,12 +400,12 @@ impl Header {
     pub fn new(
         id: VaultId,
         name: String,
-        algorithm: Algorithm,
+        cipher: Cipher,
         kdf: KeyDerivation,
         flags: VaultFlags,
     ) -> Self {
         Self {
-            summary: Summary::new(id, name, algorithm, kdf, flags),
+            summary: Summary::new(id, name, cipher, kdf, flags),
             meta: None,
             auth: Default::default(),
         }
@@ -552,12 +551,12 @@ impl Vault {
     pub fn new(
         id: VaultId,
         name: String,
-        algorithm: Algorithm,
+        cipher: Cipher,
         kdf: KeyDerivation,
         flags: VaultFlags,
     ) -> Self {
         Self {
-            header: Header::new(id, name, algorithm, kdf, flags),
+            header: Header::new(id, name, cipher, kdf, flags),
             contents: Default::default(),
         }
     }
@@ -608,7 +607,7 @@ impl Vault {
 
             let default_meta: VaultMeta = Default::default();
             let vault_meta = encode(&default_meta).await?;
-            let meta_aead = self.encrypt(&private_key, &vault_meta)?;
+            let meta_aead = self.encrypt(&private_key, &vault_meta).await?;
             self.header.set_meta(Some(meta_aead));
 
             // Store the salt and seed so we can generate the same
@@ -678,22 +677,22 @@ impl Vault {
         self.contents.data.get(id)
     }
 
-    /// Encrypt plaintext using the algorithm assigned to this vault.
-    pub fn encrypt(
+    /// Encrypt plaintext using the cipher assigned to this vault.
+    pub async fn encrypt(
         &self,
         key: &DerivedPrivateKey,
         plaintext: &[u8],
     ) -> Result<AeadPack> {
-        self.algorithm().encrypt(key, plaintext)
+        self.cipher().encrypt(key, plaintext).await
     }
 
-    /// Decrypt ciphertext using the algorithm assigned to this vault.
-    pub fn decrypt(
+    /// Decrypt ciphertext using the cipher assigned to this vault.
+    pub async fn decrypt(
         &self,
         key: &DerivedPrivateKey,
         aead: &AeadPack,
     ) -> Result<Vec<u8>> {
-        self.algorithm().decrypt(key, aead)
+        self.cipher().decrypt(key, aead).await
     }
 
     /// Choose a new identifier for this vault.
@@ -708,7 +707,7 @@ impl Vault {
 
     /// Verify an encryption passphrase.
     // FIXME: use SecretString here
-    pub fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
+    pub async fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
@@ -717,6 +716,7 @@ impl Vault {
             deriver.derive(passphrase.as_ref(), &salt, self.seed())?;
         let _ = self
             .decrypt(&secret_key, meta_aead)
+            .await
             .map_err(|_| Error::PassphraseVerification)?;
         Ok(())
     }
@@ -794,9 +794,9 @@ impl Vault {
         self.header.set_name(name);
     }
 
-    /// Get the encryption algorithm for this vault.
-    pub fn algorithm(&self) -> &Algorithm {
-        &self.header.summary.algorithm
+    /// Get the encryption cipher for this vault.
+    pub fn cipher(&self) -> &Cipher {
+        &self.header.summary.cipher
     }
 
     /// Get the vault header.
@@ -1001,8 +1001,8 @@ mod tests {
         let value = row.unwrap();
         let VaultCommit(_, VaultEntry(row_meta, row_secret)) = value.as_ref();
 
-        let row_meta = vault.decrypt(&encryption_key, row_meta)?;
-        let row_secret = vault.decrypt(&encryption_key, row_secret)?;
+        let row_meta = vault.decrypt(&encryption_key, row_meta).await?;
+        let row_secret = vault.decrypt(&encryption_key, row_secret).await?;
 
         let row_meta: SecretMeta = decode(&row_meta).await?;
         let row_secret: Secret = decode(&row_secret).await?;

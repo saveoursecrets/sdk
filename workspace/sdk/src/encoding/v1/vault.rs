@@ -178,7 +178,7 @@ impl Encode for Summary {
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         writer.write_u16(self.version).await?;
-        self.algorithm.encode(&mut *writer).await?;
+        self.cipher.encode(&mut *writer).await?;
         self.kdf.encode(&mut *writer).await?;
         writer.write_bytes(self.id.as_bytes()).await?;
         writer.write_string(&self.name).await?;
@@ -195,7 +195,7 @@ impl Decode for Summary {
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
         self.version = reader.read_u16().await?;
-        self.algorithm.decode(&mut *reader).await?;
+        self.cipher.decode(&mut *reader).await?;
         self.kdf.decode(&mut *reader).await?;
 
         let uuid: [u8; 16] = reader

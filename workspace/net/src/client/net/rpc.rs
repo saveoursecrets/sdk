@@ -452,7 +452,7 @@ impl RpcClient {
         let session_id = *session.id();
 
         //let request = builder(id).await?;
-        let aead = session.encrypt(request)?;
+        let aead = session.encrypt(request).await?;
         let sign_bytes =
             session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
         let body = encode(&aead).await?;
@@ -518,7 +518,7 @@ impl RpcClient {
 
             let aead: AeadPack = decode(buffer).await?;
             session.set_nonce(&aead.nonce);
-            let buffer = session.decrypt(&aead)?;
+            let buffer = session.decrypt(&aead).await?;
 
             let reply: Packet<'static> = decode(&buffer).await?;
             let response: ResponseMessage<'static> = reply.try_into()?;

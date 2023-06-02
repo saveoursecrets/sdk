@@ -4,6 +4,7 @@ use crate::{
     signer::ecdsa::{verify_signature_address, BoxedEcdsaSigner},
     Error, Result,
 };
+use async_trait::async_trait;
 use crypto_bigint::{CheckedAdd, Encoding, U192};
 use k256::{
     ecdh::EphemeralSecret, elliptic_curve::ecdh::SharedSecret, EncodedPoint,
@@ -349,6 +350,8 @@ impl EncryptedChannel for ClientSession {
 }
 
 /// Cryptographic operations for both sides of session communication.
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait EncryptedChannel {
     /// Get the private key for the session.
     fn private_key(&self) -> Result<&DerivedPrivateKey>;
@@ -378,16 +381,16 @@ pub trait EncryptedChannel {
     }
 
     /// Encrypt a message.
-    fn encrypt(&mut self, message: &[u8]) -> Result<AeadPack> {
+    async fn encrypt(&mut self, message: &[u8]) -> Result<AeadPack> {
         let nonce = self.next_nonce()?;
         let key = self.private_key()?;
-        xchacha20poly1305::encrypt(key, message, Some(nonce))
+        xchacha20poly1305::encrypt(key, message, Some(nonce)).await
     }
 
     /// Decrypt a message.
-    fn decrypt(&self, aead: &AeadPack) -> Result<Vec<u8>> {
+    async fn decrypt(&self, aead: &AeadPack) -> Result<Vec<u8>> {
         let key = self.private_key()?;
-        xchacha20poly1305::decrypt(key, aead)
+        xchacha20poly1305::decrypt(key, aead).await
     }
 
     /// Determine if this session is ready.
@@ -446,9 +449,9 @@ mod test {
         // Encrypt on the client, send to the server and
         // decrypt on the server
         let message = b"client sent message";
-        let aead = client_session.encrypt(message)?;
+        let aead = client_session.encrypt(message).await?;
         server_session.set_nonce(&aead.nonce);
-        let bytes = server_session.decrypt(&aead)?;
+        let bytes = server_session.decrypt(&aead).await?;
 
         assert_eq!(message.as_ref(), &bytes);
         assert_eq!(U192::from(1u8), client_session.nonce);
@@ -457,9 +460,9 @@ mod test {
         // Encrypt on the server, send to the client and
         // decrypt on the client
         let message = b"server sent message";
-        let aead = server_session.encrypt(message)?;
+        let aead = server_session.encrypt(message).await?;
         client_session.set_nonce(&aead.nonce);
-        let bytes = client_session.decrypt(&aead)?;
+        let bytes = client_session.decrypt(&aead).await?;
 
         assert_eq!(message.as_ref(), &bytes);
         assert_eq!(U192::from(2u8), client_session.nonce);
@@ -468,9 +471,9 @@ mod test {
         // Encrypt on the client, send to the server and
         // decrypt on the server
         let message = b"client sent message with another nonce";
-        let aead = client_session.encrypt(message)?;
+        let aead = client_session.encrypt(message).await?;
         server_session.set_nonce(&aead.nonce);
-        let bytes = server_session.decrypt(&aead)?;
+        let bytes = server_session.decrypt(&aead).await?;
 
         assert_eq!(message.as_ref(), &bytes);
         assert_eq!(U192::from(3u8), client_session.nonce);
@@ -479,9 +482,9 @@ mod test {
         // Encrypt on the server, send to the client and
         // decrypt on the client
         let message = b"server sent message with another nonce";
-        let aead = server_session.encrypt(message)?;
+        let aead = server_session.encrypt(message).await?;
         client_session.set_nonce(&aead.nonce);
-        let bytes = client_session.decrypt(&aead)?;
+        let bytes = client_session.decrypt(&aead).await?;
 
         assert_eq!(message.as_ref(), &bytes);
         assert_eq!(U192::from(4u8), client_session.nonce);

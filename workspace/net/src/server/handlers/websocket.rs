@@ -221,7 +221,7 @@ async fn write(
             .get_mut(&session_id)
             .expect("failed to locate websocket session");
 
-        let aead = match session.encrypt(&msg) {
+        let aead = match session.encrypt(&msg).await {
             Ok(aead) => aead,
             Err(e) => {
                 drop(writer);

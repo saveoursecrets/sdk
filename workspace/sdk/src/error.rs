@@ -55,13 +55,13 @@ pub enum Error {
     #[error("buffer passed for identity check is too short")]
     IdentityLength,
 
-    /// Error generated when a vault algorithm identifier byte is wrong.
-    #[error("unknown algorithm {0}")]
-    UnknownAlgorithm(u8),
+    /// Error generated when a vault cipher identifier byte is wrong.
+    #[error("unknown cipher {0}")]
+    UnknownCipher(u8),
 
-    /// Error generated when a vault algorithm string identifier is wrong.
-    #[error("invalid algorithm {0}")]
-    InvalidAlgorithm(String),
+    /// Error generated when a vault cipher string identifier is wrong.
+    #[error("invalid cipher {0}")]
+    InvalidCipher(String),
 
     /// Error generated when a vault key derivation function string
     /// identifier is wrong.
@@ -81,7 +81,7 @@ pub enum Error {
     UnknownIdentityKind(u8),
 
     /// Error generated when an AeadPack contains a nonce that
-    /// is invalid for the decryption algorithm.
+    /// is invalid for the decryption cipher.
     #[error("invalid nonce")]
     InvalidNonce,
 
@@ -445,4 +445,12 @@ pub enum Error {
     /// Error generated when stripping a prefix from a path.
     #[error(transparent)]
     StripPrefix(#[from] std::path::StripPrefixError),
+
+    /// Error generated when determining application paths.
+    #[error(transparent)]
+    AppDirs(#[from] app_dirs2::AppDirsError),
+
+    /// Error generated when attempting to join a task.
+    #[error(transparent)]
+    Join(#[from] tokio::task::JoinError),
 }

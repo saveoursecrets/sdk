@@ -10,7 +10,7 @@ use sos_net::client::provider::{LocalProvider, StorageProvider};
 use sos_sdk::{
     events::WriteEvent,
     signer::{ecdsa::SingleParty, Signer},
-    storage::StorageDirs,
+    storage::UserPaths,
     vault::secret::{Secret, SecretData},
 };
 
@@ -122,7 +122,7 @@ async fn integration_local_provider_file() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
-    let dirs = StorageDirs::new(dir.path(), &user_id);
+    let dirs = UserPaths::new(dir.path(), &user_id);
     let mut storage = LocalProvider::new(dirs).await?;
     run_local_storage_tests(&mut storage).await?;
     Ok(())

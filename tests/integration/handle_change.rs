@@ -33,8 +33,8 @@ async fn integration_handle_change() -> Result<()> {
     } = credentials;
 
     // Set up another connected client to listen for changes
-    let cache_dir = dirs.clients.get(0).unwrap().to_path_buf();
-    let mut listener = login(server_url.clone(), cache_dir, &signer).await?;
+    let data_dir = dirs.clients.get(0).unwrap().to_path_buf();
+    let mut listener = login(server_url.clone(), data_dir, &signer).await?;
     let _ = listener.load_vaults().await?;
 
     // Both clients use the login vault

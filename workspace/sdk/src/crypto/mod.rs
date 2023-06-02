@@ -2,14 +2,14 @@
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 
-pub mod aesgcm256;
-mod algorithms;
+pub(crate) mod aesgcm256;
 pub mod channel;
+mod cipher;
 mod key_derivation;
-pub mod xchacha20poly1305;
+pub(crate) mod xchacha20poly1305;
 
-pub use algorithms::Algorithm;
-pub(crate) use algorithms::{AES_GCM_256, X_CHACHA20_POLY1305};
+pub use cipher::Cipher;
+pub(crate) use cipher::{AES_GCM_256, X_CHACHA20_POLY1305};
 
 pub use key_derivation::{DerivedPrivateKey, KeyDerivation, Seed};
 pub(crate) use key_derivation::{
@@ -24,7 +24,7 @@ pub fn csprng() -> impl CryptoRng + Rng {
 /// Enumeration of the sizes for nonces.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub enum Nonce {
-    /// Standard 12 byte nonce used by AES-GCM and ChaCha20Poly1305.
+    /// Standard 12 byte nonce used by AES-GCM.
     Nonce12([u8; 12]),
     /// Extended 24 byte nonce used by XChaCha20Poly1305.
     Nonce24([u8; 24]),
@@ -78,27 +78,27 @@ mod tests {
     use sha2::Sha256;
     use sha3::{Digest, Keccak256};
 
-    #[test]
-    fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
+    #[tokio::test]
+    async fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
         let key = DerivedPrivateKey::generate();
         let value = b"plaintext message";
-        let aead = encrypt(&key, value, None)?;
-        let plaintext = decrypt(&key, &aead)?;
+        let aead = encrypt(&key, value, None).await?;
+        let plaintext = decrypt(&key, &aead).await?;
         assert_eq!(&plaintext, value);
         Ok(())
     }
 
-    #[test]
-    fn xchacha20poly1305_encrypt_decrypt_tamper() {
+    #[tokio::test]
+    async fn xchacha20poly1305_encrypt_decrypt_tamper() {
         let key = DerivedPrivateKey::generate();
         let value = b"plaintext message";
-        let mut aead = encrypt(&key, value, None).unwrap();
+        let mut aead = encrypt(&key, value, None).await.unwrap();
 
         // Flip all the bits
         aead.ciphertext = aead.ciphertext.iter().map(|b| !*b).collect();
 
         // Fails due to tampering
-        assert!(decrypt(&key, &aead).is_err());
+        assert!(decrypt(&key, &aead).await.is_err());
     }
 
     #[test]

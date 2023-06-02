@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{
-    account::AccountRef, storage::StorageDirs, url::Url, vault::VaultRef,
+    account::AccountRef, storage::AppPaths, url::Url, vault::VaultRef,
 };
 use std::path::PathBuf;
 
@@ -142,9 +142,9 @@ pub async fn run() -> Result<()> {
     let factory = args.provider.unwrap_or_default();
 
     if let Some(cache) = args.cache.take() {
-        StorageDirs::set_cache_dir(cache);
+        AppPaths::set_data_dir(cache);
     }
-    StorageDirs::skeleton().await?;
+    AppPaths::scaffold().await?;
 
     #[cfg(any(test, debug_assertions))]
     if let Some(password) = args.password.take() {

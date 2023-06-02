@@ -82,7 +82,7 @@ pub async fn changes_uri(
 
     // Need to encode a message into the query string
     // so the server can validate the session request
-    let aead = session.encrypt(&[])?;
+    let aead = session.encrypt(&[]).await?;
 
     let sign_bytes = session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
     let bearer = encode_signature(signer.sign(&sign_bytes).await?).await?;

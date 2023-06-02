@@ -6,7 +6,7 @@ use sos_sdk::{
     constants::{DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_VAULT_NAME},
     passwd::diceware::generate_passphrase,
     secrecy::ExposeSecret,
-    storage::StorageDirs,
+    storage::AppPaths,
     vfs,
 };
 use std::{
@@ -181,14 +181,14 @@ pub(crate) fn read_until_eof(
 async fn integration_command_line() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 
-    let cache_dir = PathBuf::from("target/command_line_test");
-    let _ = vfs::remove_dir_all(&cache_dir).await;
+    let data_dir = PathBuf::from("target/command_line_test");
+    let _ = vfs::remove_dir_all(&data_dir).await;
 
     // Set cache directory for child processes
-    std::env::set_var("SOS_CACHE", cache_dir.clone());
+    std::env::set_var("SOS_CACHE", data_dir.clone());
     // Set so test functions can access
-    StorageDirs::set_cache_dir(cache_dir);
-    StorageDirs::skeleton().await?;
+    AppPaths::set_data_dir(data_dir);
+    AppPaths::scaffold().await?;
 
     if is_ci() {
         std::env::set_var("SOS_YES", true.to_string());
@@ -259,7 +259,7 @@ async fn integration_command_line() -> Result<()> {
 
     account::delete(&exe, &address, &password, None)?;
 
-    StorageDirs::clear_cache_dir();
+    AppPaths::clear_data_dir();
     std::env::remove_var("SOS_CACHE");
     std::env::remove_var("SOS_YES");
     std::env::remove_var("SOS_PASSWORD");

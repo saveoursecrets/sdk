@@ -13,7 +13,7 @@ use sos_sdk::{
     events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
     events::{EventLogFile, EventReducer},
     patch::PatchFile,
-    storage::StorageDirs,
+    storage::UserPaths,
     vault::{Header, Summary, Vault, VaultId},
     vfs,
 };
@@ -37,9 +37,7 @@ pub struct LocalProvider {
     state: ProviderState,
 
     /// Directories for file storage.
-    ///
-    /// For memory based storage the paths will be empty.
-    dirs: StorageDirs,
+    paths: UserPaths,
 
     /// Cache for event log and patch providers.
     cache: HashMap<VaultId, (EventLogFile, PatchFile)>,
@@ -50,23 +48,23 @@ pub struct LocalProvider {
 
 impl LocalProvider {
     /// Create new node cache backed by files on disc.
-    pub async fn new(dirs: StorageDirs) -> Result<LocalProvider> {
-        if !vfs::metadata(dirs.documents_dir()).await?.is_dir() {
+    pub async fn new(paths: UserPaths) -> Result<LocalProvider> {
+        if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
-                dirs.documents_dir().to_path_buf(),
+                paths.documents_dir().to_path_buf(),
             ));
         }
 
-        dirs.ensure().await?;
+        paths.ensure().await?;
 
         let audit_log = Arc::new(RwLock::new(
-            AuditLogFile::new(dirs.audit_file()).await?,
+            AuditLogFile::new(paths.audit_file()).await?,
         ));
 
         Ok(Self {
             state: ProviderState::new(true),
             cache: Default::default(),
-            dirs,
+            paths,
             audit_log,
         })
     }
@@ -161,7 +159,7 @@ impl StorageProvider for LocalProvider {
     }
 
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
-        let storage = self.dirs().vaults_dir();
+        let storage = self.paths().vaults_dir();
         let mut summaries = Vec::new();
         let mut contents = vfs::read_dir(&storage).await?;
         while let Some(entry) = contents.next_entry().await? {

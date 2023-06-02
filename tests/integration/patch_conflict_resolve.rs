@@ -25,8 +25,8 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
 
     // Set up another connected client using a different
     // cache directory and sharing the same credentials
-    let cache_dir = dirs.clients.get(1).unwrap().to_path_buf();
-    let mut client2 = login(server_url, cache_dir, &signer).await?;
+    let data_dir = dirs.clients.get(1).unwrap().to_path_buf();
+    let mut client2 = login(server_url, data_dir, &signer).await?;
     let _ = client2.load_vaults().await?;
     //let _ = client2.pull(&summary, true).await?;
 

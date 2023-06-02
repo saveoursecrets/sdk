@@ -11,7 +11,7 @@
 //! stored on disc.
 
 use crate::{
-    storage::StorageDirs,
+    storage::AppPaths,
     vfs::{self, File},
     Error, Result,
 };
@@ -19,10 +19,7 @@ use age::Encryptor;
 use futures::io::AsyncReadExt;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
-use std::{
-    io::Cursor,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use tokio_util::compat::TokioAsyncReadCompatExt;
 
 /// Result of encrypting a file.
@@ -49,7 +46,7 @@ impl FileStorage {
         target: T,
         passphrase: SecretString,
     ) -> Result<(Vec<u8>, u64)> {
-        let mut file = File::open(input.as_ref()).await?;
+        let file = File::open(input.as_ref()).await?;
         let encryptor = Encryptor::with_user_passphrase(passphrase);
 
         let mut encrypted = Vec::new();
@@ -103,9 +100,8 @@ impl FileStorage {
         vault_id: V,
         secret_id: S,
     ) -> Result<EncryptedFile> {
-        let target = StorageDirs::files_dir(address)?
-            .join(vault_id)
-            .join(secret_id);
+        let target =
+            AppPaths::files_dir(address)?.join(vault_id).join(secret_id);
 
         if !vfs::try_exists(&target).await? {
             vfs::create_dir_all(&target).await?;
@@ -130,9 +126,8 @@ impl FileStorage {
         secret_id: S,
         file_name: F,
     ) -> Result<Vec<u8>> {
-        let path = StorageDirs::file_location(
-            address, vault_id, secret_id, file_name,
-        )?;
+        let path =
+            AppPaths::file_location(address, vault_id, secret_id, file_name)?;
         Self::decrypt_file_passphrase(path, password).await
     }
 }

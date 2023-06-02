@@ -12,7 +12,7 @@ use sos_sdk::{
     account::{ImportedAccount, RestoreOptions},
     events::{AuditEvent, AuditLogFile, EventKind},
     passwd::diceware::generate_passphrase,
-    storage::StorageDirs,
+    storage::AppPaths,
     vault::Summary,
     vfs::{self, File},
 };
@@ -24,10 +24,10 @@ use crate::test_utils::{mock_note, setup};
 async fn integration_audit_trail() -> Result<()> {
     let dirs = setup(1).await?;
 
-    let test_cache_dir = dirs.clients.get(0).unwrap();
-    StorageDirs::set_cache_dir(test_cache_dir.clone());
-    assert_eq!(StorageDirs::cache_dir(), Some(test_cache_dir.clone()));
-    StorageDirs::skeleton().await?;
+    let test_data_dir = dirs.clients.get(0).unwrap();
+    AppPaths::set_data_dir(test_data_dir.clone());
+    assert_eq!(AppPaths::data_dir()?, test_data_dir.clone());
+    AppPaths::scaffold().await?;
 
     let account_name = "Audit trail test".to_string();
     let (passphrase, _) = generate_passphrase()?;
@@ -56,7 +56,7 @@ async fn integration_audit_trail() -> Result<()> {
     simulate_session(&mut owner, &summary, passphrase).await?;
 
     // Read in the audit log events
-    let audit_log = owner.dirs().audit_file();
+    let audit_log = owner.paths().audit_file();
     let events = read_audit_events(audit_log).await?;
     let mut kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
 
@@ -124,7 +124,7 @@ async fn integration_audit_trail() -> Result<()> {
 
     // Reset the cache dir so we don't interfere
     // with other tests
-    StorageDirs::clear_cache_dir();
+    AppPaths::clear_data_dir();
 
     Ok(())
 }

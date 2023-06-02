@@ -16,7 +16,7 @@ use sos_sdk::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
     constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
-    crypto::{DerivedPrivateKey, KeyDerivation},
+    crypto::KeyDerivation,
     decode, encode,
     events::{
         AuditEvent, AuditLogFile, ChangeAction, ChangeNotification, Event,
@@ -25,7 +25,7 @@ use sos_sdk::{
     passwd::ChangePassword,
     patch::PatchFile,
     search::SearchIndex,
-    storage::StorageDirs,
+    storage::UserPaths,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Summary, Vault, VaultId,
@@ -103,7 +103,7 @@ pub trait StorageProvider: Sync + Send {
     }
 
     /// Compute the storage directory for the user.
-    fn dirs(&self) -> &StorageDirs;
+    fn paths(&self) -> &UserPaths;
 
     /// Import the vaults for a new account.
     async fn import_new_account(
@@ -210,19 +210,19 @@ pub trait StorageProvider: Sync + Send {
     /// Get the path to a event log file.
     fn event_log_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), EVENT_LOG_EXT);
-        self.dirs().vaults_dir().join(file_name)
+        self.paths().vaults_dir().join(file_name)
     }
 
     /// Get the path to a vault file.
     fn vault_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), VAULT_EXT);
-        self.dirs().vaults_dir().join(file_name)
+        self.paths().vaults_dir().join(file_name)
     }
 
     /// Get the path to a patch file.
     fn patch_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), PATCH_EXT);
-        self.dirs().vaults_dir().join(file_name)
+        self.paths().vaults_dir().join(file_name)
     }
 
     /// Get the vault summaries for this storage.
@@ -684,8 +684,8 @@ macro_rules! provider_impl {
             Arc::clone(&self.audit_log)
         }
 
-        fn dirs(&self) -> &StorageDirs {
-            &self.dirs
+        fn paths(&self) -> &UserPaths {
+            &self.paths
         }
 
         fn close_vault(&mut self) {

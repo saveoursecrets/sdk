@@ -364,8 +364,9 @@ mod tests {
         let (secret_meta, secret_value, meta_bytes, secret_bytes) =
             mock_secret_note(secret_label, secret_note).await?;
 
-        let meta_aead = vault.encrypt(encryption_key, &meta_bytes)?;
-        let secret_aead = vault.encrypt(encryption_key, &secret_bytes)?;
+        let meta_aead = vault.encrypt(encryption_key, &meta_bytes).await?;
+        let secret_aead =
+            vault.encrypt(encryption_key, &secret_bytes).await?;
 
         let (commit, _) =
             Vault::commit_hash(&meta_aead, &secret_aead).await?;
@@ -450,8 +451,10 @@ mod tests {
         let (_, _, meta_bytes, secret_bytes) =
             mock_secret_note(updated_label, updated_note).await?;
 
-        let updated_meta = vault.encrypt(&encryption_key, &meta_bytes)?;
-        let updated_secret = vault.encrypt(&encryption_key, &secret_bytes)?;
+        let updated_meta =
+            vault.encrypt(&encryption_key, &meta_bytes).await?;
+        let updated_secret =
+            vault.encrypt(&encryption_key, &secret_bytes).await?;
         let (commit, _) =
             Vault::commit_hash(&updated_meta, &updated_secret).await?;
         let _ = vault_access

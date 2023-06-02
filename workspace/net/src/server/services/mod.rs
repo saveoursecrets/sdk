@@ -166,6 +166,7 @@ pub(crate) async fn private_service(
     session.set_nonce(&aead.nonce);
     let body = session
         .decrypt(&aead)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Decode the incoming packet and request message
@@ -216,6 +217,7 @@ pub(crate) async fn private_service(
         .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
     let aead = session
         .encrypt(&body)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let body = encode(&aead)

@@ -9,7 +9,7 @@ use std::{
 use sos_sdk::{
     account::DelegatedPassphrase,
     storage::EncryptedFile,
-    storage::{basename, FileStorage, StorageDirs},
+    storage::{basename, AppPaths, FileStorage},
     vault::{
         secret::{
             FileContent, Secret, SecretData, SecretId, SecretRow, UserData,
@@ -104,7 +104,7 @@ impl UserStorage {
         &self,
         vault_id: &VaultId,
     ) -> Result<PathBuf> {
-        Ok(StorageDirs::file_folder_location(
+        Ok(AppPaths::file_folder_location(
             self.user.identity().address().to_string(),
             vault_id.to_string(),
         )?)
@@ -117,7 +117,7 @@ impl UserStorage {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<PathBuf> {
-        Ok(StorageDirs::file_location(
+        Ok(AppPaths::file_location(
             self.user.identity().address().to_string(),
             vault_id.to_string(),
             secret_id.to_string(),
