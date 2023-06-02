@@ -357,6 +357,11 @@ impl Summary {
         &self.algorithm
     }
 
+    /// Get the key derivation function.
+    pub fn kdf(&self) -> &KeyDerivation {
+        &self.kdf
+    }
+
     /// Get the unique identifier.
     pub fn id(&self) -> &VaultId {
         &self.id
