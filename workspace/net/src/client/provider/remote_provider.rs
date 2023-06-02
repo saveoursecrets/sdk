@@ -42,9 +42,7 @@ pub struct RemoteProvider {
     state: ProviderState,
 
     /// Directories for file storage.
-    ///
-    /// For memory based storage the paths will be empty.
-    dirs: UserPaths,
+    paths: UserPaths,
 
     /// Data for the cache.
     cache: HashMap<Uuid, (EventLogFile, PatchFile)>,
@@ -60,25 +58,25 @@ impl RemoteProvider {
     /// Create new node cache backed by files on disc.
     pub async fn new(
         client: RpcClient,
-        dirs: UserPaths,
+        paths: UserPaths,
     ) -> Result<RemoteProvider> {
-        if !vfs::metadata(dirs.documents_dir()).await?.is_dir() {
+        if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
-                dirs.documents_dir().to_path_buf(),
+                paths.documents_dir().to_path_buf(),
             ));
         }
 
-        dirs.ensure().await?;
+        paths.ensure().await?;
 
         let audit_log = Arc::new(RwLock::new(
-            AuditLogFile::new(dirs.audit_file()).await?,
+            AuditLogFile::new(paths.audit_file()).await?,
         ));
 
         Ok(Self {
             state: ProviderState::new(true),
             cache: Default::default(),
             client,
-            dirs,
+            paths,
             audit_log,
         })
     }

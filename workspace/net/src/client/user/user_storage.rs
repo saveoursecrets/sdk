@@ -217,7 +217,8 @@ impl UserStorage {
         #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
         let peer_key = convert_libp2p_identity(user.device().signer())?;
 
-        let files_dir = storage.dirs().files_dir().clone();
+        let files_dir = storage.paths().files_dir().clone();
+        let devices_dir = storage.paths().devices_dir().clone();
         Ok(Self {
             user,
             storage,
@@ -225,15 +226,15 @@ impl UserStorage {
             files_dir,
             index: UserIndex::new(),
             #[cfg(feature = "device")]
-            devices: DeviceManager::new(address)?,
+            devices: DeviceManager::new(devices_dir)?,
             #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
             peer_key,
         })
     }
 
     /// Reference to the user storage paths.
-    pub fn dirs(&self) -> &UserPaths {
-        self.storage.dirs()
+    pub fn paths(&self) -> &UserPaths {
+        self.storage.paths()
     }
 
     /// Append to the audit log.
@@ -251,7 +252,7 @@ impl UserStorage {
     /// can be unlocked then we have verified that the other
     /// device knows the master password for this account.
     pub async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let identity_path = self.storage.dirs().identity()?;
+        let identity_path = self.storage.paths().identity()?;
         Ok(vfs::read(identity_path).await?)
     }
 
@@ -1490,7 +1491,7 @@ impl UserStorage {
         mut options: RestoreOptions,
     ) -> Result<(AccountInfo, Option<&mut UserStorage>)> {
         let files_dir = if let Some(owner) = owner.as_ref() {
-            ExtractFilesLocation::Path(owner.dirs().files_dir().clone())
+            ExtractFilesLocation::Path(owner.paths().files_dir().clone())
         } else {
             ExtractFilesLocation::Builder(Box::new(|address| {
                 AppPaths::files_dir(address).ok()

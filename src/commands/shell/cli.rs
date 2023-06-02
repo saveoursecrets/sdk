@@ -1,8 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
-use sos_sdk::{
-    account::AccountRef, storage::AppPaths, vault::VaultRef, vfs,
-};
+use sos_sdk::{account::AccountRef, storage::AppPaths, vault::VaultRef, vfs};
 use terminal_banner::{Banner, Padding};
 
 use sos_net::{
@@ -62,12 +60,12 @@ pub async fn run(
     mut account: Option<AccountRef>,
     folder: Option<VaultRef>,
 ) -> Result<()> {
-    let cache_dir = AppPaths::cache_dir().ok_or_else(|| Error::NoCache)?;
-    if !vfs::metadata(&cache_dir).await?.is_dir() {
-        return Err(Error::NotDirectory(cache_dir));
+    let data_dir = AppPaths::data_dir().map_err(|_| Error::NoCache)?;
+    if !vfs::metadata(&data_dir).await?.is_dir() {
+        return Err(Error::NotDirectory(data_dir));
     }
 
-    let cache_lock = cache_dir.join("client.lock");
+    let cache_lock = data_dir.join("client.lock");
     let mut locks = FileLocks::new();
     locks.add(&cache_lock)?;
 

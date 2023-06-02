@@ -27,9 +27,9 @@ const ZERO_CHECKSUM: [u8; 32] = [0; 32];
 async fn integration_external_files() -> Result<()> {
     let dirs = setup(1).await?;
 
-    let test_cache_dir = dirs.clients.get(0).unwrap();
-    AppPaths::set_cache_dir(test_cache_dir.clone());
-    assert_eq!(AppPaths::cache_dir(), Some(test_cache_dir.clone()));
+    let test_data_dir = dirs.clients.get(0).unwrap();
+    AppPaths::set_data_dir(test_data_dir.clone());
+    assert_eq!(AppPaths::data_dir()?, test_data_dir.clone());
     AppPaths::scaffold().await?;
 
     let account_name = "External files test".to_string();
@@ -101,7 +101,7 @@ async fn integration_external_files() -> Result<()> {
 
     // Reset the cache dir so we don't interfere
     // with other tests
-    AppPaths::clear_cache_dir();
+    AppPaths::clear_data_dir();
 
     Ok(())
 }

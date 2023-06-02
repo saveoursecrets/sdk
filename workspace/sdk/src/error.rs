@@ -445,4 +445,8 @@ pub enum Error {
     /// Error generated when stripping a prefix from a path.
     #[error(transparent)]
     StripPrefix(#[from] std::path::StripPrefixError),
+
+    /// Error generated when determining application paths.
+    #[error(transparent)]
+    AppDirs(#[from] app_dirs2::AppDirsError),
 }

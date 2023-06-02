@@ -306,8 +306,7 @@ impl Login {
             let summary = device_vault.summary().clone();
 
             let buffer = encode(&device_vault).await?;
-            let vaults_dir =
-                AppPaths::local_vaults_dir(address.to_string())?;
+            let vaults_dir = AppPaths::local_vaults_dir(address.to_string())?;
             let mut device_vault_file =
                 vaults_dir.join(summary.id().to_string());
             device_vault_file.set_extension(VAULT_EXT);

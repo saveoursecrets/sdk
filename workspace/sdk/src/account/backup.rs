@@ -431,8 +431,7 @@ impl AccountBackup {
             let address = address.to_string();
 
             if let Some(passphrase) = &options.passphrase {
-                let identity_vault_file =
-                    AppPaths::identity_vault(&address)?;
+                let identity_vault_file = AppPaths::identity_vault(&address)?;
                 let identity_buffer = vfs::read(&identity_vault_file).await?;
                 let identity_vault: Vault = decode(&identity_buffer).await?;
                 let mut identity_keeper =

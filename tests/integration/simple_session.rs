@@ -70,7 +70,7 @@ async fn integration_simple_session() -> Result<()> {
     // Give the websocket client some time to connect
     tokio::time::sleep(Duration::from_millis(250)).await;
 
-    let _ = AppPaths::cache_dir().unwrap();
+    let _ = AppPaths::data_dir()?;
 
     //assert_eq!(address, node_cache.address()?);
 

@@ -142,7 +142,7 @@ pub async fn run() -> Result<()> {
     let factory = args.provider.unwrap_or_default();
 
     if let Some(cache) = args.cache.take() {
-        AppPaths::set_cache_dir(cache);
+        AppPaths::set_data_dir(cache);
     }
     AppPaths::scaffold().await?;
 

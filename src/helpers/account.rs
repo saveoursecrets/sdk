@@ -327,13 +327,13 @@ pub async fn new_account(
         .await?;
         let address = owner.address().to_string();
 
-        let cache_dir = AppPaths::cache_dir().ok_or(Error::NoCacheDir)?;
+        let data_dir = AppPaths::data_dir()?;
         let message = format!(
             r#"* Account: {} ({})
 * Storage: {}"#,
             account_name,
             address,
-            cache_dir.display(),
+            data_dir.display(),
         );
 
         let banner = Banner::new()

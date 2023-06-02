@@ -1,18 +1,7 @@
 //! File system paths and encrypted file storage.
-use crate::{Error, Result};
-use once_cell::sync::Lazy;
-use std::{
-    path::{Path, PathBuf},
-    sync::RwLock,
-};
+use crate::Result;
 
-use crate::{
-    constants::{
-        AUDIT_FILE_NAME, DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR,
-        LOCAL_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
-    },
-    vfs,
-};
+use std::path::Path;
 
 mod app;
 mod external_files;

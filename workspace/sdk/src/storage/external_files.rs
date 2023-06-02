@@ -100,9 +100,8 @@ impl FileStorage {
         vault_id: V,
         secret_id: S,
     ) -> Result<EncryptedFile> {
-        let target = AppPaths::files_dir(address)?
-            .join(vault_id)
-            .join(secret_id);
+        let target =
+            AppPaths::files_dir(address)?.join(vault_id).join(secret_id);
 
         if !vfs::try_exists(&target).await? {
             vfs::create_dir_all(&target).await?;
@@ -127,9 +126,8 @@ impl FileStorage {
         secret_id: S,
         file_name: F,
     ) -> Result<Vec<u8>> {
-        let path = AppPaths::file_location(
-            address, vault_id, secret_id, file_name,
-        )?;
+        let path =
+            AppPaths::file_location(address, vault_id, secret_id, file_name)?;
         Self::decrypt_file_passphrase(path, password).await
     }
 }

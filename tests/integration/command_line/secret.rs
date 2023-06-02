@@ -442,8 +442,8 @@ pub async fn download(
     account_name: &str,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let cache_dir = AppPaths::cache_dir().unwrap();
-    let output = cache_dir.join(format!("sample-{}.heic", account_name));
+    let data_dir = AppPaths::data_dir()?;
+    let output = data_dir.join(format!("sample-{}.heic", account_name));
 
     let cmd = format!(
         "{} secret download -a {} {} {}",
@@ -493,10 +493,10 @@ pub async fn attach(
     account_name: &str,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let cache_dir = AppPaths::cache_dir().unwrap();
+    let data_dir = AppPaths::data_dir()?;
     let input = PathBuf::from("tests/fixtures/sample.heic").canonicalize()?;
     let output =
-        cache_dir.join(format!("sample-attachment-{}.heic", account_name));
+        data_dir.join(format!("sample-attachment-{}.heic", account_name));
 
     // Create file attachment
     let cmd = format!(

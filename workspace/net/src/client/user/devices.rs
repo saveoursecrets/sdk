@@ -1,9 +1,6 @@
 //! User device manager.
-use std::path::PathBuf;
-
-use sos_sdk::{signer::ecdsa::Address, storage::AppPaths};
-
 use crate::client::Result;
+use std::path::PathBuf;
 
 #[cfg(feature = "device")]
 use crate::device::{self, TrustedDevice};
@@ -17,8 +14,7 @@ pub struct DeviceManager {
 #[cfg(feature = "device")]
 impl DeviceManager {
     /// Create a new devices manager.
-    pub(super) fn new(address: &Address) -> Result<Self> {
-        let device_dir = AppPaths::devices_dir(address.to_string())?;
+    pub(super) fn new(device_dir: PathBuf) -> Result<Self> {
         Ok(Self { device_dir })
     }
 
