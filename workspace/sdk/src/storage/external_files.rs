@@ -19,10 +19,7 @@ use age::Encryptor;
 use futures::io::AsyncReadExt;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
-use std::{
-    io::Cursor,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use tokio_util::compat::TokioAsyncReadCompatExt;
 
 /// Result of encrypting a file.
@@ -49,7 +46,7 @@ impl FileStorage {
         target: T,
         passphrase: SecretString,
     ) -> Result<(Vec<u8>, u64)> {
-        let mut file = File::open(input.as_ref()).await?;
+        let file = File::open(input.as_ref()).await?;
         let encryptor = Encryptor::with_user_passphrase(passphrase);
 
         let mut encrypted = Vec::new();

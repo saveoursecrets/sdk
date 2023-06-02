@@ -1,4 +1,4 @@
-//! File system paths and encrypted file storage.
+//! File system paths for the application.
 use crate::{Error, Result};
 use once_cell::sync::Lazy;
 use std::{
@@ -8,8 +8,8 @@ use std::{
 
 use crate::{
     constants::{
-        AUDIT_FILE_NAME, DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR,
-        LOCAL_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
+        DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR, LOCAL_DIR,
+        TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
     },
     vfs,
 };
@@ -17,94 +17,11 @@ use crate::{
 static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
 
-mod app_dirs;
-mod external_files;
-mod user_dirs;
-
-pub use app_dirs::AppDirs;
-pub use external_files::{EncryptedFile, FileStorage};
-pub use user_dirs::UserDirs;
-
-/// Compute the file name from a path.
-///
-/// If no file name is available the returned value is the
-/// empty string.
-pub fn basename<P: AsRef<Path>>(path: P) -> String {
-    path.as_ref()
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .into_owned()
-}
-
-/// Guess the MIME type of a path.
-///
-/// This implementation supports some more types
-/// that are not in the the mime_guess library that
-/// we also want to recognize.
-pub fn guess_mime<P: AsRef<Path>>(path: P) -> Result<String> {
-    if let Some(extension) = path.as_ref().extension() {
-        let fixed = match extension.to_string_lossy().as_ref() {
-            "heic" => Some("image/heic".to_string()),
-            "heif" => Some("image/heif".to_string()),
-            "avif" => Some("image/avif".to_string()),
-            _ => None,
-        };
-
-        if let Some(fixed) = fixed {
-            return Ok(fixed);
-        }
-    }
-    let mime = mime_guess::from_path(&path)
-        .first_or(mime_guess::mime::APPLICATION_OCTET_STREAM)
-        .to_string();
-    Ok(mime)
-}
-
-/// Encapsulates the paths for a user account.
+/// Encapsulates the paths for an application.
 #[derive(Default, Debug)]
-pub struct StorageDirs {
-    /// User identifier.
-    user_id: String,
-    /// Top-level documents folder.
-    documents_dir: PathBuf,
-    /// Directory for local storage.
-    local_dir: PathBuf,
-    /// File for local audit logs.
-    audit_file: PathBuf,
-    /// Trash for deleted data.
-    trash_dir: PathBuf,
-    /// User segregated storage.
-    user_dir: PathBuf,
-    /// User file storage.
-    files_dir: PathBuf,
-    /// User vault storage.
-    vaults_dir: PathBuf,
-}
+pub struct AppDirs;
 
-impl StorageDirs {
-    /// Create new storage dirs.
-    pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: &str) -> Self {
-        let documents_dir = documents_dir.as_ref().to_path_buf();
-        let local_dir = documents_dir.join(LOCAL_DIR);
-        let audit_file = local_dir.join(AUDIT_FILE_NAME);
-        let trash_dir = local_dir.join(TRASH_DIR);
-        let user_dir = local_dir.join(user_id);
-        let files_dir = user_dir.join(FILES_DIR);
-        let vaults_dir = user_dir.join(VAULTS_DIR);
-
-        Self {
-            user_id: user_id.to_owned(),
-            documents_dir,
-            local_dir,
-            audit_file,
-            trash_dir,
-            user_dir,
-            files_dir,
-            vaults_dir,
-        }
-    }
-
+impl AppDirs {
     /// Ensure the skeleton directories exist.
     pub async fn skeleton() -> Result<()> {
         if let Some(cache_dir) = Self::cache_dir() {
@@ -114,45 +31,6 @@ impl StorageDirs {
             vfs::create_dir_all(&identity_dir).await?;
         }
         Ok(())
-    }
-
-    /// Ensure all the user directories exist.
-    pub async fn ensure(&self) -> Result<()> {
-        vfs::create_dir_all(&self.documents_dir).await?;
-        vfs::create_dir_all(&self.local_dir).await?;
-        vfs::create_dir_all(&self.trash_dir).await?;
-        vfs::create_dir_all(&self.user_dir).await?;
-        vfs::create_dir_all(&self.files_dir).await?;
-        vfs::create_dir_all(&self.vaults_dir).await?;
-        Ok(())
-    }
-
-    /// Get the documents storage directory.
-    pub fn documents_dir(&self) -> &PathBuf {
-        &self.documents_dir
-    }
-
-    /// Audit file location.
-    pub fn audit_file(&self) -> &PathBuf {
-        &self.audit_file
-    }
-
-    /// Get the user storage directory.
-    pub fn user_dir(&self) -> &PathBuf {
-        &self.user_dir
-    }
-
-    /// Get the user vaults storage directory.
-    pub fn vaults_dir(&self) -> &PathBuf {
-        &self.vaults_dir
-    }
-
-    /// Get the path to the identity vault file for this account.
-    pub fn identity(&self) -> Result<PathBuf> {
-        let identity_dir = Self::identity_dir()?;
-        let mut identity_vault_file = identity_dir.join(&self.user_id);
-        identity_vault_file.set_extension(VAULT_EXT);
-        Ok(identity_vault_file)
     }
 
     /// Set an explicit cache directory.
@@ -195,26 +73,23 @@ impl StorageDirs {
 
     /// Get the path to the directory used to store identity vaults.
     pub fn identity_dir() -> Result<PathBuf> {
-        let cache_dir = StorageDirs::cache_dir().ok_or(Error::NoCache)?;
+        let cache_dir = Self::cache_dir().ok_or(Error::NoCache)?;
         let identity_dir = cache_dir.join(IDENTITY_DIR);
         Ok(identity_dir)
     }
 
     /// Get the local cache directory.
-    #[deprecated]
     pub fn local_dir() -> Result<PathBuf> {
         Ok(Self::cache_dir().ok_or(Error::NoCache)?.join(LOCAL_DIR))
     }
 
     /// Get the trash directory.
-    #[deprecated]
     pub fn trash_dir() -> Result<PathBuf> {
         let trash = Self::local_dir()?.join(TRASH_DIR);
         Ok(trash)
     }
 
     /// Get the temporary directory.
-    #[deprecated]
     pub fn temp_dir() -> Result<PathBuf> {
         Ok(Self::local_dir()?.join(TEMP_DIR))
     }

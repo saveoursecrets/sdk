@@ -22,8 +22,7 @@ use crate::{
     commit::CommitHash,
     constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY},
     crypto::{
-        aesgcm256, xchacha20poly1305, AeadPack, Algorithm, DerivedPrivateKey,
-        Deriver, KeyDerivation, Nonce, Seed,
+        AeadPack, Algorithm, DerivedPrivateKey, Deriver, KeyDerivation, Seed,
     },
     encode,
     encoding::v1::VERSION,

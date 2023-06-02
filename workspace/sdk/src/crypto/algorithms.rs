@@ -3,7 +3,7 @@ use super::{
     aesgcm256, xchacha20poly1305, AeadPack, DerivedPrivateKey, Nonce,
 };
 use crate::{Error, Result};
-use std::{convert::AsRef, fmt, str::FromStr};
+use std::{fmt, str::FromStr};
 
 /// Extended ChaCha20 Poly1305 cipher.
 pub const X_CHACHA20_POLY1305: u8 = 1;

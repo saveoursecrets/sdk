@@ -16,7 +16,7 @@ use sos_sdk::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
     constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
-    crypto::{DerivedPrivateKey, KeyDerivation},
+    crypto::KeyDerivation,
     decode, encode,
     events::{
         AuditEvent, AuditLogFile, ChangeAction, ChangeNotification, Event,
