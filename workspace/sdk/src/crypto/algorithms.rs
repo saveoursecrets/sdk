@@ -1,13 +1,12 @@
 //! Constants for supported symmetric ciphers.
+use std::{convert::AsRef, fmt, str::FromStr};
 use crate::Error;
 
-use std::{convert::AsRef, fmt, str::FromStr};
-
 /// Extended ChaCha20 Poly1305 cipher.
-pub const X_CHACHA20_POLY1305: u8 = 0x01;
+pub const X_CHACHA20_POLY1305: u8 = 1;
 
 /// AES-GCM 256 cipher.
-pub const AES_GCM_256: u8 = 0x02;
+pub const AES_GCM_256: u8 = 2;
 
 /// Supported cipher algorithms.
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]

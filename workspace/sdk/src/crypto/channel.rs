@@ -17,20 +17,17 @@ use std::{
 use uuid::Uuid;
 use web3_address::ethereum::Address;
 use web3_signature::Signature;
-
-use super::{
-    csprng, secret_key::SecretKey, xchacha20poly1305, AeadPack, Nonce,
-};
+use super::{csprng, xchacha20poly1305, AeadPack, DerivedPrivateKey, Nonce};
 
 /// Generate a secret key suitable for symmetric encryption.
 fn derive_secret_key(
     shared: &SharedSecret<Secp256k1>,
     salt: &[u8],
-) -> Result<SecretKey> {
+) -> Result<DerivedPrivateKey> {
     let hkdf = shared.extract::<Keccak256>(Some(salt));
     let mut okm = [0u8; 32];
     hkdf.expand(&[], &mut okm).expect("HKDF length is invalid");
-    Ok(SecretKey::Key32(secrecy::Secret::new(okm)))
+    Ok(DerivedPrivateKey::new(secrecy::Secret::new(okm.to_vec())))
 }
 
 /// Manages a collection of sessions.
@@ -128,7 +125,7 @@ pub struct ServerSession {
     /// Session secret.
     secret: EphemeralSecret,
     /// Derived private key for symmetric encryption.
-    private: Option<SecretKey>,
+    private: Option<DerivedPrivateKey>,
     /// Number once for session messages.
     nonce: U192,
     /// Determines if this session is allowed to expire.
@@ -245,7 +242,7 @@ impl ServerSession {
 }
 
 impl EncryptedChannel for ServerSession {
-    fn private_key(&self) -> Result<&SecretKey> {
+    fn private_key(&self) -> Result<&DerivedPrivateKey> {
         self.private.as_ref().ok_or(Error::NoSessionKey)
     }
 
@@ -273,7 +270,7 @@ pub struct ClientSession {
     /// Session secret.
     secret: EphemeralSecret,
     /// Derived private key for symmetric encryption.
-    private: Option<SecretKey>,
+    private: Option<DerivedPrivateKey>,
     /// Number once for session messages.
     nonce: U192,
 }
@@ -303,7 +300,7 @@ impl ClientSession {
         &mut self,
         public_key_bytes: &[u8],
         challenge: [u8; 16],
-    ) -> Result<(Signature, SecretKey)> {
+    ) -> Result<(Signature, DerivedPrivateKey)> {
         let server_public = PublicKey::from_sec1_bytes(public_key_bytes)?;
         let shared = self.secret.diffie_hellman(&server_public);
         let signature = self.signer.sign(&challenge).await?;
@@ -329,13 +326,13 @@ impl ClientSession {
     }
 
     /// Complete the session negotiation.
-    pub fn finish(&mut self, key: SecretKey) {
+    pub fn finish(&mut self, key: DerivedPrivateKey) {
         self.private = Some(key);
     }
 }
 
 impl EncryptedChannel for ClientSession {
-    fn private_key(&self) -> Result<&SecretKey> {
+    fn private_key(&self) -> Result<&DerivedPrivateKey> {
         self.private.as_ref().ok_or(Error::NoSessionKey)
     }
 
@@ -354,7 +351,7 @@ impl EncryptedChannel for ClientSession {
 /// Cryptographic operations for both sides of session communication.
 pub trait EncryptedChannel {
     /// Get the private key for the session.
-    fn private_key(&self) -> Result<&SecretKey>;
+    fn private_key(&self) -> Result<&DerivedPrivateKey>;
 
     /// Increment and return the next sequential nonce.
     fn next_nonce(&mut self) -> Result<Nonce>;

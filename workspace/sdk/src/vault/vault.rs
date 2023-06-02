@@ -1,4 +1,3 @@
-use rs_merkle::{algorithms::Sha256, Hasher};
 use serde::{Deserialize, Serialize};
 
 use async_trait::async_trait;
@@ -11,6 +10,7 @@ use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 use bitflags::bitflags;
 use secrecy::{ExposeSecret, SecretString};
+use sha2::{Digest, Sha256};
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, io::Cursor,
     path::Path, str::FromStr,
@@ -22,9 +22,8 @@ use crate::{
     commit::CommitHash,
     constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY},
     crypto::{
-        aesgcm256,
-        secret_key::{SecretKey, Seed},
-        xchacha20poly1305, AeadPack, Algorithm, KeyDerivation, Nonce,
+        aesgcm256, xchacha20poly1305, AeadPack, Algorithm, DerivedPrivateKey,
+        Deriver, KeyDerivation, Nonce, Seed,
     },
     encode,
     encoding::v1::VERSION,
@@ -591,11 +590,12 @@ impl Vault {
         &mut self,
         password: SecretString,
         seed: Option<Seed>,
-    ) -> Result<SecretKey> {
+    ) -> Result<DerivedPrivateKey> {
         if self.header.auth.salt.is_none() {
-            let salt = SecretKey::generate_salt();
+            let salt = DerivedPrivateKey::generate_salt();
 
-            let private_key = SecretKey::derive_32(
+            let deriver = self.deriver();
+            let private_key = deriver.derive(
                 password.expose_secret(),
                 &salt,
                 seed.as_ref(),
@@ -615,6 +615,11 @@ impl Vault {
         } else {
             Err(Error::VaultAlreadyInit)
         }
+    }
+
+    /// Key derivation function deriver.
+    pub fn deriver(&self) -> Box<dyn Deriver<Sha256> + Send + 'static> {
+        self.header.summary.kdf.deriver()
     }
 
     /// Set whether this vault is a default vault.
@@ -671,7 +676,7 @@ impl Vault {
     /// Encrypt plaintext using the algorithm assigned to this vault.
     pub fn encrypt(
         &self,
-        key: &SecretKey,
+        key: &DerivedPrivateKey,
         plaintext: &[u8],
     ) -> Result<AeadPack> {
         match self.algorithm() {
@@ -689,7 +694,7 @@ impl Vault {
     /// Decrypt ciphertext using the algorithm assigned to this vault.
     pub fn decrypt(
         &self,
-        key: &SecretKey,
+        key: &DerivedPrivateKey,
         aead: &AeadPack,
     ) -> Result<Vec<u8>> {
         match self.algorithm() {
@@ -715,9 +720,10 @@ impl Vault {
     pub fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
-        let salt = SecretKey::parse_salt(salt)?;
+        let salt = DerivedPrivateKey::parse_salt(salt)?;
+        let deriver = self.deriver();
         let secret_key =
-            SecretKey::derive_32(passphrase.as_ref(), &salt, self.seed())?;
+            deriver.derive(passphrase.as_ref(), &salt, self.seed())?;
         let _ = self
             .decrypt(&secret_key, meta_aead)
             .map_err(|_| Error::PassphraseVerification)?;
@@ -843,7 +849,11 @@ impl Vault {
             Vec::with_capacity(encoded_meta.len() + encoded_data.len());
         hash_bytes.extend_from_slice(&encoded_meta);
         hash_bytes.extend_from_slice(&encoded_data);
-        let commit = CommitHash(Sha256::hash(hash_bytes.as_slice()));
+        let commit = CommitHash(
+            Sha256::digest(hash_bytes.as_slice())
+                .as_slice()
+                .try_into()?,
+        );
         Ok((commit, hash_bytes))
     }
 }

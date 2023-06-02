@@ -3,7 +3,7 @@ use uuid::Uuid;
 use crate::{
     commit::CommitHash,
     constants::VAULT_IDENTITY,
-    crypto::{secret_key::SEED_SIZE, AeadPack},
+    crypto::{AeadPack, SEED_SIZE},
     formats::FileIdentity,
     vault::{
         secret::SecretId, Auth, Contents, Header, Summary, Vault,

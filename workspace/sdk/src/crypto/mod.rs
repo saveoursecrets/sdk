@@ -1,23 +1,22 @@
 //! Cryptographic routines and types.
-
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 
 pub mod aesgcm256;
 mod algorithms;
 pub mod channel;
-mod kdf;
+mod key_derivation;
 pub mod xchacha20poly1305;
 
 pub use algorithms::Algorithm;
 pub(crate) use algorithms::{AES_GCM_256, X_CHACHA20_POLY1305};
 
-pub use kdf::KeyDerivation;
-pub(crate) use kdf::{ARGON_2_ID, BALLOON_HASH};
-
-// FIXME: remove this backwards compatible re-export
-#[deprecated]
-pub use kdf::secret_key;
+pub use key_derivation::{
+    generate_seed, DerivedPrivateKey, KeyDerivation, Seed,
+};
+pub(crate) use key_derivation::{
+    Deriver, ARGON_2_ID, BALLOON_HASH, SEED_SIZE,
+};
 
 /// Exposes the default cryptographically secure RNG.
 pub fn csprng() -> impl CryptoRng + Rng {
@@ -74,7 +73,7 @@ pub struct AeadPack {
 #[cfg(test)]
 mod tests {
     use super::xchacha20poly1305::*;
-    use crate::crypto::{csprng, secret_key::SecretKey};
+    use crate::crypto::{csprng, DerivedPrivateKey};
     use anyhow::Result;
 
     use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
@@ -83,7 +82,7 @@ mod tests {
 
     #[test]
     fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
-        let key = SecretKey::new_random_32();
+        let key = DerivedPrivateKey::generate();
         let value = b"plaintext message";
         let aead = encrypt(&key, value, None)?;
         let plaintext = decrypt(&key, &aead)?;
@@ -93,7 +92,7 @@ mod tests {
 
     #[test]
     fn xchacha20poly1305_encrypt_decrypt_tamper() {
-        let key = SecretKey::new_random_32();
+        let key = DerivedPrivateKey::generate();
         let value = b"plaintext message";
         let mut aead = encrypt(&key, value, None).unwrap();
 

@@ -19,7 +19,7 @@ use web3_address::ethereum::Address;
 
 use crate::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
-    crypto::secret_key::generate_seed,
+    crypto::generate_seed,
     decode,
     search::SearchIndex,
     signer::{
