@@ -1,5 +1,5 @@
 //! Factory for creating providers.
-use sos_sdk::{signer::ecdsa::BoxedEcdsaSigner, storage::StorageDirs, vfs};
+use sos_sdk::{signer::ecdsa::BoxedEcdsaSigner, storage::{AppPaths, UserPaths}, vfs};
 use std::{fmt, sync::Arc};
 use url::Url;
 use web3_address::ethereum::Address;
@@ -60,7 +60,7 @@ impl ProviderFactory {
     ) -> Result<(BoxedProvider, Address)> {
         let address = signer.address()?;
         let client = RpcClient::new(server, signer);
-        let dirs = StorageDirs::new(cache_dir, &address.to_string());
+        let dirs = UserPaths::new(cache_dir, &address.to_string());
         let provider: BoxedProvider =
             Box::new(RemoteProvider::new(client, dirs).await?);
         Ok((provider, address))
@@ -72,7 +72,7 @@ impl ProviderFactory {
         cache_dir: PathBuf,
     ) -> Result<(BoxedProvider, Address)> {
         let address = signer.address()?;
-        let dirs = StorageDirs::new(cache_dir, &address.to_string());
+        let dirs = UserPaths::new(cache_dir, &address.to_string());
         let provider: BoxedProvider =
             Box::new(LocalProvider::new(dirs).await?);
         Ok((provider, address))
@@ -88,7 +88,7 @@ impl ProviderFactory {
                 let dir = if let Some(dir) = dir {
                     dir.to_path_buf()
                 } else {
-                    StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?
+                    AppPaths::cache_dir().ok_or_else(|| Error::NoCache)?
                 };
                 if !vfs::metadata(&dir).await?.is_dir() {
                     return Err(Error::NotDirectory(dir.clone()));
@@ -97,7 +97,7 @@ impl ProviderFactory {
             }
             Self::Remote(remote) => {
                 let dir =
-                    StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
+                    AppPaths::cache_dir().ok_or_else(|| Error::NoCache)?;
                 Ok(Self::new_remote_file_provider(
                     signer,
                     dir,

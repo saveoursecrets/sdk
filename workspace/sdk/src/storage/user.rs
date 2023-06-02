@@ -1,20 +1,22 @@
 //! File system paths for a user account.
-use crate::Result;
-use std::path::{Path, PathBuf};
+use crate::{Error, Result};
+use std::{
+    path::{Path, PathBuf},
+};
 
 use crate::{
     constants::{
-        AUDIT_FILE_NAME, FILES_DIR, LOCAL_DIR, TRASH_DIR, VAULTS_DIR,
-        VAULT_EXT,
+        AUDIT_FILE_NAME, DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR,
+        LOCAL_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
     },
     vfs,
 };
 
-use super::AppDirs;
+use super::AppPaths;
 
 /// Encapsulates the paths for a user account.
 #[derive(Default, Debug)]
-pub struct UserDirs {
+pub struct UserPaths {
     /// User identifier.
     user_id: String,
     /// Top-level documents folder.
@@ -33,7 +35,7 @@ pub struct UserDirs {
     vaults_dir: PathBuf,
 }
 
-impl UserDirs {
+impl UserPaths {
     /// Create new storage dirs.
     pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: &str) -> Self {
         let documents_dir = documents_dir.as_ref().to_path_buf();
@@ -82,6 +84,11 @@ impl UserDirs {
         &self.user_dir
     }
 
+    /// Get the user files directory.
+    pub fn files_dir(&self) -> &PathBuf {
+        &self.files_dir
+    }
+
     /// Get the user vaults storage directory.
     pub fn vaults_dir(&self) -> &PathBuf {
         &self.vaults_dir
@@ -89,7 +96,7 @@ impl UserDirs {
 
     /// Get the path to the identity vault file for this account.
     pub fn identity(&self) -> Result<PathBuf> {
-        let identity_dir = AppDirs::identity_dir()?;
+        let identity_dir = AppPaths::identity_dir()?;
         let mut identity_vault_file = identity_dir.join(&self.user_id);
         identity_vault_file.set_extension(VAULT_EXT);
         Ok(identity_vault_file)

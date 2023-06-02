@@ -14,7 +14,7 @@ use sos_sdk::{
     hex,
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
-    storage::{FileStorage, StorageDirs},
+    storage::{FileStorage, AppPaths},
     urn::Urn,
     vault::{secret::SecretId, Gatekeeper, VaultId},
     vfs,
@@ -29,9 +29,9 @@ async fn integration_account_manager() -> Result<()> {
     let dirs = setup(1).await?;
 
     let test_cache_dir = dirs.clients.get(0).unwrap();
-    StorageDirs::set_cache_dir(test_cache_dir.clone());
-    assert_eq!(StorageDirs::cache_dir(), Some(test_cache_dir.clone()));
-    StorageDirs::skeleton().await?;
+    AppPaths::set_cache_dir(test_cache_dir.clone());
+    assert_eq!(AppPaths::cache_dir(), Some(test_cache_dir.clone()));
+    AppPaths::scaffold().await?;
 
     let account_name = "Mock account name".to_string();
     let folder_name = Some("Default folder".to_string());
@@ -122,7 +122,7 @@ async fn integration_account_manager() -> Result<()> {
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
 
     // Encrypt
-    let files_dir = StorageDirs::files_dir(address.to_string())?;
+    let files_dir = AppPaths::files_dir(address.to_string())?;
     let vault_id = VaultId::new_v4();
     let secret_id = SecretId::new_v4();
     let target = files_dir
@@ -184,7 +184,7 @@ async fn integration_account_manager() -> Result<()> {
 
     // Reset the cache dir so we don't interfere
     // with other tests
-    StorageDirs::clear_cache_dir();
+    AppPaths::clear_cache_dir();
 
     Ok(())
 }

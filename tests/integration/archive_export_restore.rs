@@ -13,7 +13,7 @@ use sos_sdk::{
     encode,
     events::WriteEvent,
     signer::{ecdsa::SingleParty, Signer},
-    storage::StorageDirs,
+    storage::UserPaths,
     vault::{Gatekeeper, Vault},
 };
 use web3_address::ethereum::Address;
@@ -51,7 +51,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
-    let dirs = StorageDirs::new(dir.path(), &user_id);
+    let dirs = UserPaths::new(dir.path(), &user_id);
     let passphrase = SecretString::new("mock-password".to_owned());
     let mut storage = LocalProvider::new(dirs).await?;
 

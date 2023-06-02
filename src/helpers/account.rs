@@ -7,7 +7,7 @@ use sos_sdk::{
     constants::DEFAULT_VAULT_NAME,
     passwd::diceware::generate_passphrase,
     secrecy::{ExposeSecret, SecretString},
-    storage::StorageDirs,
+    storage::AppPaths,
     vault::{Summary, VaultRef},
 };
 use terminal_banner::{Banner, Padding};
@@ -327,7 +327,7 @@ pub async fn new_account(
         .await?;
         let address = owner.address().to_string();
 
-        let cache_dir = StorageDirs::cache_dir().ok_or(Error::NoCacheDir)?;
+        let cache_dir = AppPaths::cache_dir().ok_or(Error::NoCacheDir)?;
         let message = format!(
             r#"* Account: {} ({})
 * Storage: {}"#,

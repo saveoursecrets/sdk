@@ -8,7 +8,7 @@ use sos_sdk::{
     account::ImportedAccount,
     hex,
     passwd::diceware::generate_passphrase,
-    storage::StorageDirs,
+    storage::AppPaths,
     vault::{
         secret::{
             FileContent, Secret, SecretData, SecretId, SecretMeta, SecretRow,
@@ -28,9 +28,9 @@ async fn integration_external_files() -> Result<()> {
     let dirs = setup(1).await?;
 
     let test_cache_dir = dirs.clients.get(0).unwrap();
-    StorageDirs::set_cache_dir(test_cache_dir.clone());
-    assert_eq!(StorageDirs::cache_dir(), Some(test_cache_dir.clone()));
-    StorageDirs::skeleton().await?;
+    AppPaths::set_cache_dir(test_cache_dir.clone());
+    assert_eq!(AppPaths::cache_dir(), Some(test_cache_dir.clone()));
+    AppPaths::scaffold().await?;
 
     let account_name = "External files test".to_string();
     let (passphrase, _) = generate_passphrase()?;
@@ -101,7 +101,7 @@ async fn integration_external_files() -> Result<()> {
 
     // Reset the cache dir so we don't interfere
     // with other tests
-    StorageDirs::clear_cache_dir();
+    AppPaths::clear_cache_dir();
 
     Ok(())
 }

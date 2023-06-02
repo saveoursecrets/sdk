@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use sos_sdk::{
-    account::AccountRef, storage::StorageDirs, vault::VaultRef, vfs,
+    account::AccountRef, storage::AppPaths, vault::VaultRef, vfs,
 };
 use terminal_banner::{Banner, Padding};
 
@@ -62,7 +62,7 @@ pub async fn run(
     mut account: Option<AccountRef>,
     folder: Option<VaultRef>,
 ) -> Result<()> {
-    let cache_dir = StorageDirs::cache_dir().ok_or_else(|| Error::NoCache)?;
+    let cache_dir = AppPaths::cache_dir().ok_or_else(|| Error::NoCache)?;
     if !vfs::metadata(&cache_dir).await?.is_dir() {
         return Err(Error::NotDirectory(cache_dir));
     }

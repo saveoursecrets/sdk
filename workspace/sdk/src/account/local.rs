@@ -7,7 +7,7 @@ use web3_address::ethereum::Address;
 use crate::{
     constants::VAULT_EXT,
     decode,
-    storage::StorageDirs,
+    storage::AppPaths,
     vault::{Header, Summary, Vault, VaultId},
     vfs,
 };
@@ -117,7 +117,7 @@ impl LocalAccounts {
         address: &Address,
         include_system: bool,
     ) -> Result<Vec<(Summary, PathBuf)>> {
-        let vaults_dir = StorageDirs::local_vaults_dir(address.to_string())?;
+        let vaults_dir = AppPaths::local_vaults_dir(address.to_string())?;
         let mut vaults = Vec::new();
         let mut dir = vfs::read_dir(vaults_dir).await?;
         while let Some(entry) = dir.next_entry().await? {
@@ -138,7 +138,7 @@ impl LocalAccounts {
     /// List account information for the identity vaults.
     pub async fn list_accounts() -> Result<Vec<AccountInfo>> {
         let mut keys = Vec::new();
-        let identity_dir = StorageDirs::identity_dir()?;
+        let identity_dir = AppPaths::identity_dir()?;
         let mut dir = vfs::read_dir(identity_dir).await?;
         while let Some(entry) = dir.next_entry().await? {
             if let (Some(extension), Some(file_stem)) =

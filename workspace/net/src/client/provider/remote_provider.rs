@@ -12,7 +12,7 @@ use sos_sdk::{
     events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
     events::{EventLogFile, EventReducer, ReadEvent},
     patch::PatchFile,
-    storage::StorageDirs,
+    storage::UserPaths,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary, Vault, VaultId,
@@ -44,7 +44,7 @@ pub struct RemoteProvider {
     /// Directories for file storage.
     ///
     /// For memory based storage the paths will be empty.
-    dirs: StorageDirs,
+    dirs: UserPaths,
 
     /// Data for the cache.
     cache: HashMap<Uuid, (EventLogFile, PatchFile)>,
@@ -60,7 +60,7 @@ impl RemoteProvider {
     /// Create new node cache backed by files on disc.
     pub async fn new(
         client: RpcClient,
-        dirs: StorageDirs,
+        dirs: UserPaths,
     ) -> Result<RemoteProvider> {
         if !vfs::metadata(dirs.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(

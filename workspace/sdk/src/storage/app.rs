@@ -5,25 +5,29 @@ use std::{
     path::{Path, PathBuf},
     sync::RwLock,
 };
+use app_dirs2::{AppInfo, AppDataType, get_app_root};
 
 use crate::{
     constants::{
+        APP_NAME, APP_AUTHOR,
         DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR, LOCAL_DIR,
         TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
     },
     vfs,
 };
 
+const APP_INFO: AppInfo = AppInfo{name: APP_NAME, author: APP_AUTHOR};
+
 static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
 
 /// Encapsulates the paths for an application.
 #[derive(Default, Debug)]
-pub struct AppDirs;
+pub struct AppPaths;
 
-impl AppDirs {
-    /// Ensure the skeleton directories exist.
-    pub async fn skeleton() -> Result<()> {
+impl AppPaths {
+    /// Ensure the root directories exist.
+    pub async fn scaffold() -> Result<()> {
         if let Some(cache_dir) = Self::cache_dir() {
             vfs::create_dir_all(&cache_dir).await?;
 
@@ -49,7 +53,7 @@ impl AppDirs {
 
     /// Get the default root directory used for caching client data.
     ///
-    /// If the `SOS_CACHE_DIR` environment variable is set it is used.
+    /// If the `SOS_DATA_DIR` environment variable is set it is used.
     ///
     /// Otherwise is an explicit directory has been set using `set_cache_dir()`
     /// then that will be used.
@@ -57,14 +61,14 @@ impl AppDirs {
     /// Finally if no environment variable or explicit directory has been
     /// set then a path will be computed by platform convention.
     pub fn cache_dir() -> Option<PathBuf> {
-        let dir = if let Ok(env_cache_dir) = std::env::var("SOS_CACHE_DIR") {
+        let dir = if let Ok(env_cache_dir) = std::env::var("SOS_DATA_DIR") {
             Some(PathBuf::from(env_cache_dir))
         } else {
             let reader = CACHE_DIR.read().unwrap();
             if reader.is_some() {
                 Some(reader.as_ref().unwrap().to_path_buf())
             } else {
-                default_storage_dir().or(fallback_storage_dir())
+                default_storage_dir()
             }
         };
 
@@ -108,30 +112,6 @@ impl AppDirs {
         Ok(local_dir.join(address).join(VAULTS_DIR))
     }
 
-    /// Get the path to a vault file from it's identifier.
-    #[deprecated]
-    pub fn vault_path<A: AsRef<Path>, V: AsRef<Path>>(
-        address: A,
-        id: V,
-    ) -> Result<PathBuf> {
-        let vaults_dir = Self::local_vaults_dir(address)?;
-        let mut vault_path = vaults_dir.join(id);
-        vault_path.set_extension(VAULT_EXT);
-        Ok(vault_path)
-    }
-
-    /// Get the path to a log file from it's identifier.
-    #[deprecated]
-    pub fn log_path<A: AsRef<Path>, V: AsRef<Path>>(
-        address: A,
-        id: V,
-    ) -> Result<PathBuf> {
-        let vaults_dir = Self::local_vaults_dir(address)?;
-        let mut vault_path = vaults_dir.join(id);
-        vault_path.set_extension(EVENT_LOG_EXT);
-        Ok(vault_path)
-    }
-
     /// Get the path to the directory used to store files.
     ///
     /// Ensure it exists if it does not already exist.
@@ -144,7 +124,6 @@ impl AppDirs {
 
     /// Get the expected location for the directory containing
     /// all the external files for a folder.
-    #[deprecated]
     pub fn file_folder_location<A: AsRef<Path>, V: AsRef<Path>>(
         address: A,
         vault_id: V,
@@ -154,7 +133,6 @@ impl AppDirs {
     }
 
     /// Get the expected location for a file.
-    #[deprecated]
     pub fn file_location<
         A: AsRef<Path>,
         V: AsRef<Path>,
@@ -180,53 +158,37 @@ impl AppDirs {
         identity_vault_file.set_extension(VAULT_EXT);
         Ok(identity_vault_file)
     }
+
+    /// Get the path to a vault file from it's identifier.
+    pub fn vault_path<A: AsRef<Path>, V: AsRef<Path>>(
+        address: A,
+        id: V,
+    ) -> Result<PathBuf> {
+        let vaults_dir = Self::local_vaults_dir(address)?;
+        let mut vault_path = vaults_dir.join(id);
+        vault_path.set_extension(VAULT_EXT);
+        Ok(vault_path)
+    }
+
+
+    /// Get the path to a log file from it's identifier.
+    pub fn log_path<A: AsRef<Path>, V: AsRef<Path>>(
+        address: A,
+        id: V,
+    ) -> Result<PathBuf> {
+        let vaults_dir = Self::local_vaults_dir(address)?;
+        let mut vault_path = vaults_dir.join(id);
+        vault_path.set_extension(EVENT_LOG_EXT);
+        Ok(vault_path)
+    }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(not(target_arch = "wasm"))]
 fn default_storage_dir() -> Option<PathBuf> {
-    use crate::constants::BUNDLE_ID;
-    dirs::home_dir().map(|v| {
-        v.join("Library")
-            .join("Containers")
-            .join(BUNDLE_ID)
-            .join("Data")
-            .join("Documents")
-    })
-}
-
-#[cfg(target_os = "ios")]
-fn default_storage_dir() -> Option<PathBuf> {
-    // FIXME: compute according to provider_path
-    fallback_storage_dir()
-}
-
-#[cfg(target_os = "android")]
-fn default_storage_dir() -> Option<PathBuf> {
-    // FIXME: compute according to provider_path
-    fallback_storage_dir()
-}
-
-#[cfg(target_os = "linux")]
-fn default_storage_dir() -> Option<PathBuf> {
-    // FIXME: compute according to provider_path
-    fallback_storage_dir()
-}
-
-#[cfg(target_os = "windows")]
-fn default_storage_dir() -> Option<PathBuf> {
-    use sos_sdk::constants::BUNDLE_ID;
-    dirs::home_dir().and_then(|v| {
-        let d = v.join("AppData").join("Local").join(BUNDLE_ID);
-        Some(d)
-    })
+    get_app_root(AppDataType::UserData, &APP_INFO).ok()
 }
 
 #[cfg(target_arch = "wasm32")]
 fn default_storage_dir() -> Option<PathBuf> {
     Some(PathBuf::from(""))
-}
-
-fn fallback_storage_dir() -> Option<PathBuf> {
-    use crate::constants::BUNDLE_ID;
-    dirs::data_local_dir().map(|dir| dir.join(BUNDLE_ID))
 }

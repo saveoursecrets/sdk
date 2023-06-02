@@ -8,7 +8,7 @@ use crate::{
         DEFAULT_CONTACTS_VAULT_NAME, FILE_PASSWORD_URN,
     },
     encode,
-    storage::StorageDirs,
+    storage::AppPaths,
     vault::{
         secret::{Secret, SecretMeta, UserData},
         Gatekeeper, Summary, Vault,
@@ -287,12 +287,12 @@ impl AccountBuilder {
         let address = account.address.to_string();
         // Persist the identity vault to disc, MUST re-encode the buffer
         // as we have modified the identity vault
-        let identity_vault_file = StorageDirs::identity_vault(&address)?;
+        let identity_vault_file = AppPaths::identity_vault(&address)?;
         let buffer = encode(&identity_vault).await?;
         vfs::write(identity_vault_file, buffer).await?;
 
         // Ensure the files directory exists
-        StorageDirs::files_dir(&address)?;
+        AppPaths::files_dir(&address)?;
 
         Ok(account)
     }

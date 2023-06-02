@@ -13,7 +13,7 @@ use sos_sdk::{
     events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
     events::{EventLogFile, EventReducer},
     patch::PatchFile,
-    storage::StorageDirs,
+    storage::UserPaths,
     vault::{Header, Summary, Vault, VaultId},
     vfs,
 };
@@ -39,7 +39,7 @@ pub struct LocalProvider {
     /// Directories for file storage.
     ///
     /// For memory based storage the paths will be empty.
-    dirs: StorageDirs,
+    dirs: UserPaths,
 
     /// Cache for event log and patch providers.
     cache: HashMap<VaultId, (EventLogFile, PatchFile)>,
@@ -50,7 +50,7 @@ pub struct LocalProvider {
 
 impl LocalProvider {
     /// Create new node cache backed by files on disc.
-    pub async fn new(dirs: StorageDirs) -> Result<LocalProvider> {
+    pub async fn new(dirs: UserPaths) -> Result<LocalProvider> {
         if !vfs::metadata(dirs.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 dirs.documents_dir().to_path_buf(),

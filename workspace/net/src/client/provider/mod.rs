@@ -25,7 +25,7 @@ use sos_sdk::{
     passwd::ChangePassword,
     patch::PatchFile,
     search::SearchIndex,
-    storage::StorageDirs,
+    storage::UserPaths,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Summary, Vault, VaultId,
@@ -103,7 +103,7 @@ pub trait StorageProvider: Sync + Send {
     }
 
     /// Compute the storage directory for the user.
-    fn dirs(&self) -> &StorageDirs;
+    fn dirs(&self) -> &UserPaths;
 
     /// Import the vaults for a new account.
     async fn import_new_account(
@@ -684,7 +684,7 @@ macro_rules! provider_impl {
             Arc::clone(&self.audit_log)
         }
 
-        fn dirs(&self) -> &StorageDirs {
+        fn dirs(&self) -> &UserPaths {
             &self.dirs
         }
 

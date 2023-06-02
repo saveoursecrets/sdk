@@ -21,7 +21,7 @@ use sos_sdk::{
     commit::CommitRelationship,
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
-    storage::StorageDirs,
+    storage::AppPaths,
     vault::VaultRef,
 };
 use tokio::sync::Mutex;
@@ -70,7 +70,7 @@ async fn integration_simple_session() -> Result<()> {
     // Give the websocket client some time to connect
     tokio::time::sleep(Duration::from_millis(250)).await;
 
-    let _ = StorageDirs::cache_dir().unwrap();
+    let _ = AppPaths::cache_dir().unwrap();
 
     //assert_eq!(address, node_cache.address()?);
 

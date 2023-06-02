@@ -18,7 +18,7 @@ use sos_sdk::{
     },
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
-    storage::StorageDirs,
+    storage::{AppPaths, UserPaths},
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
         Gatekeeper, Summary, Vault, VaultAccess, VaultId, VaultWriter,
@@ -217,9 +217,7 @@ impl UserStorage {
         #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
         let peer_key = convert_libp2p_identity(user.device().signer())?;
 
-        let files_dir =
-            StorageDirs::files_dir(user.identity().address().to_string())?;
-
+        let files_dir = storage.dirs().files_dir().clone();
         Ok(Self {
             user,
             storage,
@@ -234,7 +232,7 @@ impl UserStorage {
     }
 
     /// Reference to the user storage paths.
-    pub fn dirs(&self) -> &StorageDirs {
+    pub fn dirs(&self) -> &UserPaths {
         self.storage.dirs()
     }
 
@@ -1492,12 +1490,10 @@ impl UserStorage {
         mut options: RestoreOptions,
     ) -> Result<(AccountInfo, Option<&mut UserStorage>)> {
         let files_dir = if let Some(owner) = owner.as_ref() {
-            ExtractFilesLocation::Path(StorageDirs::files_dir(
-                owner.user.identity().address().to_string(),
-            )?)
+            ExtractFilesLocation::Path(owner.dirs().files_dir().clone())
         } else {
             ExtractFilesLocation::Builder(Box::new(|address| {
-                StorageDirs::files_dir(address).ok()
+                AppPaths::files_dir(address).ok()
             }))
         };
 

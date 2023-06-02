@@ -8,7 +8,7 @@ use sos_sdk::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
         Signer,
     },
-    storage::StorageDirs,
+    storage::UserPaths,
     vfs,
 };
 
@@ -67,7 +67,7 @@ pub async fn login(
     signer: &BoxedEcdsaSigner,
 ) -> Result<RemoteProvider> {
     let address = signer.address()?;
-    let dirs = StorageDirs::new(cache_dir, &address.to_string());
+    let dirs = UserPaths::new(cache_dir, &address.to_string());
     let client = RpcClient::new(server, signer.clone());
 
     let mut cache = RemoteProvider::new(client, dirs).await?;
@@ -91,7 +91,7 @@ async fn create_account(
     }
 
     let address = signer.address()?;
-    let dirs = StorageDirs::new(cache_dir, &address.to_string());
+    let dirs = UserPaths::new(cache_dir, &address.to_string());
     let client = RpcClient::new(server, signer.clone());
 
     let mut cache = RemoteProvider::new(client, dirs).await?;

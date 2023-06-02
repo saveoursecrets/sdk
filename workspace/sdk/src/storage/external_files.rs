@@ -11,7 +11,7 @@
 //! stored on disc.
 
 use crate::{
-    storage::StorageDirs,
+    storage::AppPaths,
     vfs::{self, File},
     Error, Result,
 };
@@ -100,7 +100,7 @@ impl FileStorage {
         vault_id: V,
         secret_id: S,
     ) -> Result<EncryptedFile> {
-        let target = StorageDirs::files_dir(address)?
+        let target = AppPaths::files_dir(address)?
             .join(vault_id)
             .join(secret_id);
 
@@ -127,7 +127,7 @@ impl FileStorage {
         secret_id: S,
         file_name: F,
     ) -> Result<Vec<u8>> {
-        let path = StorageDirs::file_location(
+        let path = AppPaths::file_location(
             address, vault_id, secret_id, file_name,
         )?;
         Self::decrypt_file_passphrase(path, password).await
