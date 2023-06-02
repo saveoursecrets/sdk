@@ -79,7 +79,8 @@ impl Encode for Algorithm {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        writer.write_u8(*self.as_ref()).await?;
+        let id: u8 = self.into();
+        writer.write_u8(id).await?;
         Ok(())
     }
 }
@@ -93,8 +94,8 @@ impl Decode for Algorithm {
     ) -> Result<()> {
         let id = reader.read_u8().await?;
         *self = match id {
-            X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305(id),
-            AES_GCM_256 => Algorithm::AesGcm256(id),
+            X_CHACHA20_POLY1305 => Algorithm::XChaCha20Poly1305,
+            AES_GCM_256 => Algorithm::AesGcm256,
             _ => {
                 return Err(Error::new(
                     ErrorKind::Other,

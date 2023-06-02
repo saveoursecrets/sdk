@@ -684,16 +684,7 @@ impl Vault {
         key: &DerivedPrivateKey,
         plaintext: &[u8],
     ) -> Result<AeadPack> {
-        match self.algorithm() {
-            Algorithm::XChaCha20Poly1305(_) => {
-                let nonce = Nonce::new_random_24();
-                xchacha20poly1305::encrypt(key, plaintext, Some(nonce))
-            }
-            Algorithm::AesGcm256(_) => {
-                let nonce = Nonce::new_random_12();
-                aesgcm256::encrypt(key, plaintext, Some(nonce))
-            }
-        }
+        self.algorithm().encrypt(key, plaintext)
     }
 
     /// Decrypt ciphertext using the algorithm assigned to this vault.
@@ -702,12 +693,7 @@ impl Vault {
         key: &DerivedPrivateKey,
         aead: &AeadPack,
     ) -> Result<Vec<u8>> {
-        match self.algorithm() {
-            Algorithm::XChaCha20Poly1305(_) => {
-                xchacha20poly1305::decrypt(key, aead)
-            }
-            Algorithm::AesGcm256(_) => aesgcm256::decrypt(key, aead),
-        }
+        self.algorithm().decrypt(key, aead)
     }
 
     /// Choose a new identifier for this vault.
