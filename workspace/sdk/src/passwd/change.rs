@@ -73,8 +73,10 @@ impl<'a> ChangePassword<'a> {
         let current_private_key = self.current_private_key()?;
         let vault_meta_aead =
             self.vault.header().meta().ok_or(Error::VaultNotInit)?;
-        let vault_meta_blob =
-            self.vault.decrypt(&current_private_key, vault_meta_aead)?;
+        let vault_meta_blob = self
+            .vault
+            .decrypt(&current_private_key, vault_meta_aead)
+            .await?;
 
         // Create new vault duplicated from the existing
         // vault header with zero secrets, this will inherit
@@ -96,8 +98,9 @@ impl<'a> ChangePassword<'a> {
 
         // Encrypt the vault meta data using the new private key
         // and update the new vault header
-        let vault_meta_aead =
-            new_vault.encrypt(&new_private_key, &vault_meta_blob)?;
+        let vault_meta_aead = new_vault
+            .encrypt(&new_private_key, &vault_meta_blob)
+            .await?;
         new_vault.header_mut().set_meta(Some(vault_meta_aead));
 
         let mut event_log_events = Vec::new();
@@ -112,14 +115,16 @@ impl<'a> ChangePassword<'a> {
             self.vault.iter()
         {
             let meta_blob =
-                self.vault.decrypt(&current_private_key, meta_aead)?;
-            let secret_blob =
-                self.vault.decrypt(&current_private_key, secret_aead)?;
+                self.vault.decrypt(&current_private_key, meta_aead).await?;
+            let secret_blob = self
+                .vault
+                .decrypt(&current_private_key, secret_aead)
+                .await?;
 
             let meta_aead =
-                new_vault.encrypt(&new_private_key, &meta_blob)?;
+                new_vault.encrypt(&new_private_key, &meta_blob).await?;
             let secret_aead =
-                new_vault.encrypt(&new_private_key, &secret_blob)?;
+                new_vault.encrypt(&new_private_key, &secret_blob).await?;
 
             // Need a new commit hash as the contents have changed
             let (commit, _) =

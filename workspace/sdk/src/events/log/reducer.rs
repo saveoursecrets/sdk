@@ -247,8 +247,8 @@ mod test {
         if let Some(VaultCommit(_, VaultEntry(meta_aead, secret_aead))) =
             entry
         {
-            let meta = vault.decrypt(&encryption_key, meta_aead)?;
-            let secret = vault.decrypt(&encryption_key, secret_aead)?;
+            let meta = vault.decrypt(&encryption_key, meta_aead).await?;
+            let secret = vault.decrypt(&encryption_key, secret_aead).await?;
             let meta: SecretMeta = decode(&meta).await?;
             let secret: Secret = decode(&secret).await?;
 

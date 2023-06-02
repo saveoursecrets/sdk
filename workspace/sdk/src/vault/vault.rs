@@ -607,7 +607,7 @@ impl Vault {
 
             let default_meta: VaultMeta = Default::default();
             let vault_meta = encode(&default_meta).await?;
-            let meta_aead = self.encrypt(&private_key, &vault_meta)?;
+            let meta_aead = self.encrypt(&private_key, &vault_meta).await?;
             self.header.set_meta(Some(meta_aead));
 
             // Store the salt and seed so we can generate the same
@@ -678,7 +678,7 @@ impl Vault {
     }
 
     /// Encrypt plaintext using the cipher assigned to this vault.
-    pub fn encrypt(
+    pub async fn encrypt(
         &self,
         key: &DerivedPrivateKey,
         plaintext: &[u8],
@@ -687,7 +687,7 @@ impl Vault {
     }
 
     /// Decrypt ciphertext using the cipher assigned to this vault.
-    pub fn decrypt(
+    pub async fn decrypt(
         &self,
         key: &DerivedPrivateKey,
         aead: &AeadPack,
@@ -707,7 +707,7 @@ impl Vault {
 
     /// Verify an encryption passphrase.
     // FIXME: use SecretString here
-    pub fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
+    pub async fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
@@ -716,6 +716,7 @@ impl Vault {
             deriver.derive(passphrase.as_ref(), &salt, self.seed())?;
         let _ = self
             .decrypt(&secret_key, meta_aead)
+            .await
             .map_err(|_| Error::PassphraseVerification)?;
         Ok(())
     }
@@ -1000,8 +1001,8 @@ mod tests {
         let value = row.unwrap();
         let VaultCommit(_, VaultEntry(row_meta, row_secret)) = value.as_ref();
 
-        let row_meta = vault.decrypt(&encryption_key, row_meta)?;
-        let row_secret = vault.decrypt(&encryption_key, row_secret)?;
+        let row_meta = vault.decrypt(&encryption_key, row_meta).await?;
+        let row_secret = vault.decrypt(&encryption_key, row_secret).await?;
 
         let row_meta: SecretMeta = decode(&row_meta).await?;
         let row_secret: Secret = decode(&row_secret).await?;

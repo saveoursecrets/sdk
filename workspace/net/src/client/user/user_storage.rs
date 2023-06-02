@@ -302,8 +302,8 @@ impl UserStorage {
     }
 
     /// Verify the master password for this account.
-    pub fn verify(&self, passphrase: SecretString) -> bool {
-        self.user.verify(passphrase)
+    pub async fn verify(&self, passphrase: SecretString) -> bool {
+        self.user.verify(passphrase).await
     }
 
     /// Delete the account for this user and sign out.
@@ -527,7 +527,7 @@ impl UserStorage {
         let mut vault: Vault = decode(&buffer).await?;
 
         // Need to verify the passphrase
-        vault.verify(passphrase.expose_secret())?;
+        vault.verify(passphrase.expose_secret()).await?;
 
         // Check for existing identifier
         let vaults =

@@ -94,8 +94,8 @@ impl AuthenticatedUser {
     }
 
     /// Verify the passphrase for this account.
-    pub fn verify(&self, passphrase: SecretString) -> bool {
-        let result = self.identity().keeper().verify(passphrase).ok();
+    pub async fn verify(&self, passphrase: SecretString) -> bool {
+        let result = self.identity().keeper().verify(passphrase).await.ok();
         result.is_some()
     }
 

@@ -24,7 +24,7 @@ pub fn csprng() -> impl CryptoRng + Rng {
 /// Enumeration of the sizes for nonces.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub enum Nonce {
-    /// Standard 12 byte nonce used by AES-GCM and ChaCha20Poly1305.
+    /// Standard 12 byte nonce used by AES-GCM.
     Nonce12([u8; 12]),
     /// Extended 24 byte nonce used by XChaCha20Poly1305.
     Nonce24([u8; 24]),
