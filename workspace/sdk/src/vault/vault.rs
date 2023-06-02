@@ -592,7 +592,7 @@ impl Vault {
         seed: Option<Seed>,
     ) -> Result<DerivedPrivateKey> {
         if self.header.auth.salt.is_none() {
-            let salt = DerivedPrivateKey::generate_salt();
+            let salt = KeyDerivation::generate_salt();
 
             let deriver = self.deriver();
             let private_key = deriver.derive(
@@ -720,7 +720,7 @@ impl Vault {
     pub fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
-        let salt = DerivedPrivateKey::parse_salt(salt)?;
+        let salt = KeyDerivation::parse_salt(salt)?;
         let deriver = self.deriver();
         let secret_key =
             deriver.derive(passphrase.as_ref(), &salt, self.seed())?;

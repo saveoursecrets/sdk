@@ -22,7 +22,7 @@ use argon2::password_hash::SaltString;
 /// Generate a mock encyption key.
 pub fn mock_encryption_key(
 ) -> Result<(DerivedPrivateKey, SaltString, SecretString)> {
-    let salt = DerivedPrivateKey::generate_salt();
+    let salt = KeyDerivation::generate_salt();
     let (passphrase, _) = generate_passphrase()?;
     let kdf: KeyDerivation = Default::default();
     let deriver = kdf.deriver();

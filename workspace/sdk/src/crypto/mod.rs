@@ -11,9 +11,7 @@ pub mod xchacha20poly1305;
 pub use algorithms::Algorithm;
 pub(crate) use algorithms::{AES_GCM_256, X_CHACHA20_POLY1305};
 
-pub use key_derivation::{
-    generate_seed, DerivedPrivateKey, KeyDerivation, Seed,
-};
+pub use key_derivation::{DerivedPrivateKey, KeyDerivation, Seed};
 pub(crate) use key_derivation::{
     Deriver, ARGON_2_ID, BALLOON_HASH, SEED_SIZE,
 };

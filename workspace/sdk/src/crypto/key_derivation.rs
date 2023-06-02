@@ -1,14 +1,14 @@
 //! Constants for supported key derivation functions.
 use crate::{crypto::csprng, Error, Result};
-use rand::Rng;
-use secrecy::{ExposeSecret, SecretVec};
-use sha2::{Digest, Sha256};
-use std::{convert::AsRef, fmt, str::FromStr};
 use argon2::{
     password_hash::{PasswordHash, PasswordHasher, SaltString},
     Argon2,
 };
 use balloon_hash::Balloon;
+use rand::Rng;
+use secrecy::{ExposeSecret, SecretVec};
+use sha2::{Digest, Sha256};
+use std::{convert::AsRef, fmt, str::FromStr};
 
 /// Argon2 key derivation function.
 pub(crate) const ARGON_2_ID: u8 = 1;
@@ -21,11 +21,6 @@ pub(crate) const SEED_SIZE: usize = 32;
 /// Type for additional passphrase seed entropy.
 pub type Seed = [u8; SEED_SIZE];
 
-/// Generate new random seed entropy.
-pub fn generate_seed() -> Seed {
-    csprng().gen()
-}
-
 /// Supported key derivation functions.
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub enum KeyDerivation {
@@ -36,12 +31,37 @@ pub enum KeyDerivation {
 }
 
 impl KeyDerivation {
+    /// Create a new Argon2ID key derivation function.
+    pub fn new_argon2_id() -> Self {
+        Self::Argon2Id(ARGON_2_ID)
+    }
+
+    /// Create a new Balloon Hash key derivation function.
+    pub fn new_balloon_hash() -> Self {
+        Self::BalloonHash(BALLOON_HASH)
+    }
+
     /// Get the deriver for this key derivation function.
     pub fn deriver(&self) -> Box<dyn Deriver<Sha256> + Send + 'static> {
         match self {
             KeyDerivation::Argon2Id(_) => Box::new(Argon2IdDeriver),
             KeyDerivation::BalloonHash(_) => Box::new(BalloonHashDeriver),
         }
+    }
+
+    /// Generate a new salt string.
+    pub fn generate_salt() -> SaltString {
+        SaltString::generate(&mut csprng())
+    }
+
+    /// Parse a saved salt string.
+    pub fn parse_salt<S: AsRef<str>>(salt: S) -> Result<SaltString> {
+        Ok(SaltString::from_b64(salt.as_ref())?)
+    }
+
+    /// Generate new random seed entropy.
+    pub fn generate_seed() -> Seed {
+        csprng().gen()
     }
 }
 
@@ -177,7 +197,6 @@ impl DerivedPrivateKey {
     /// Create a new random 32-byte secret key.
     #[cfg(test)]
     pub fn generate() -> Self {
-        use rand::Rng;
         let bytes: [u8; 32] = csprng().gen();
         Self {
             inner: SecretVec::new(bytes.to_vec()),
@@ -188,20 +207,39 @@ impl DerivedPrivateKey {
     pub(crate) fn new(inner: SecretVec<u8>) -> Self {
         Self { inner }
     }
-
-    /// Generate a new salt string.
-    pub fn generate_salt() -> SaltString {
-        SaltString::generate(&mut csprng())
-    }
-
-    /// Parse a saved salt string.
-    pub fn parse_salt<S: AsRef<str>>(salt: S) -> Result<SaltString> {
-        Ok(SaltString::from_b64(salt.as_ref())?)
-    }
 }
 
 impl AsRef<[u8]> for DerivedPrivateKey {
     fn as_ref(&self) -> &[u8] {
         self.inner.expose_secret()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::passwd::diceware::generate_passphrase;
+    use anyhow::Result;
+
+    fn assert_key_length(kdf: &KeyDerivation) -> Result<()> {
+        let salt = KeyDerivation::generate_salt();
+        let deriver = kdf.deriver();
+        let (passphrase, _) = generate_passphrase()?;
+        let private_key =
+            deriver.derive(passphrase.expose_secret(), &salt, None)?;
+        assert_eq!(32, private_key.as_ref().len());
+        Ok(())
+    }
+
+    #[test]
+    fn kdf_argon_2_id() -> Result<()> {
+        let kdf = KeyDerivation::new_argon2_id();
+        assert_key_length(&kdf)
+    }
+
+    #[test]
+    fn kdf_balloon_hash() -> Result<()> {
+        let kdf = KeyDerivation::new_balloon_hash();
+        assert_key_length(&kdf)
     }
 }

@@ -1,7 +1,7 @@
 //! Flow for changing a vault password.
 
 use crate::{
-    crypto::{DerivedPrivateKey, Seed},
+    crypto::{DerivedPrivateKey, KeyDerivation, Seed},
     encode,
     events::WriteEvent,
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
@@ -45,7 +45,7 @@ impl<'a> ChangePassword<'a> {
     fn current_private_key(&self) -> Result<DerivedPrivateKey> {
         let passphrase = self.current_passphrase.expose_secret();
         let salt = self.vault.salt().ok_or(Error::VaultNotInit)?;
-        let salt = DerivedPrivateKey::parse_salt(salt)?;
+        let salt = KeyDerivation::parse_salt(salt)?;
         let deriver = self.vault.deriver();
         let private_key =
             deriver.derive(passphrase, &salt, self.vault.seed())?;
@@ -55,7 +55,7 @@ impl<'a> ChangePassword<'a> {
     fn new_private_key(&self, vault: &Vault) -> Result<DerivedPrivateKey> {
         let passphrase = self.new_passphrase.expose_secret();
         let salt = vault.salt().ok_or(Error::VaultNotInit)?;
-        let salt = DerivedPrivateKey::parse_salt(salt)?;
+        let salt = KeyDerivation::parse_salt(salt)?;
         let deriver = vault.deriver();
         let private_key = deriver.derive(passphrase, &salt, vault.seed())?;
         Ok(private_key)

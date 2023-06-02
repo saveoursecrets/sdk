@@ -19,7 +19,7 @@ use web3_address::ethereum::Address;
 
 use crate::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
-    crypto::generate_seed,
+    crypto::KeyDerivation,
     decode,
     search::SearchIndex,
     signer::{
@@ -101,7 +101,10 @@ impl Identity {
         vault.flags_mut().set(VaultFlags::IDENTITY, true);
         vault.set_name(name);
         vault
-            .initialize(master_passphrase.clone(), Some(generate_seed()))
+            .initialize(
+                master_passphrase.clone(),
+                Some(KeyDerivation::generate_seed()),
+            )
             .await?;
 
         let mut keeper = Gatekeeper::new(vault, None);

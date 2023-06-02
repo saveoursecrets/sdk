@@ -1,6 +1,6 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
-    crypto::{DerivedPrivateKey, Seed},
+    crypto::{DerivedPrivateKey, KeyDerivation, Seed},
     decode, encode,
     events::{ReadEvent, WriteEvent},
     search::SearchIndex,
@@ -479,7 +479,7 @@ impl Gatekeeper {
         passphrase: SecretString,
     ) -> Result<VaultMeta> {
         if let Some(salt) = self.vault.salt() {
-            let salt = DerivedPrivateKey::parse_salt(salt)?;
+            let salt = KeyDerivation::parse_salt(salt)?;
             let deriver = self.vault.deriver();
             let private_key = deriver.derive(
                 passphrase.expose_secret(),

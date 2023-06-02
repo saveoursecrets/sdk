@@ -1,4 +1,5 @@
 //! Provides an encrypted channel using ECDSA and ECDH.
+use super::{csprng, xchacha20poly1305, AeadPack, DerivedPrivateKey, Nonce};
 use crate::{
     signer::ecdsa::{verify_signature_address, BoxedEcdsaSigner},
     Error, Result,
@@ -17,7 +18,6 @@ use std::{
 use uuid::Uuid;
 use web3_address::ethereum::Address;
 use web3_signature::Signature;
-use super::{csprng, xchacha20poly1305, AeadPack, DerivedPrivateKey, Nonce};
 
 /// Generate a secret key suitable for symmetric encryption.
 fn derive_secret_key(

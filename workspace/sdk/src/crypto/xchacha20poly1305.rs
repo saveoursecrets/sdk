@@ -1,8 +1,8 @@
 //! Encrypt and decrypt using XChacha20poly1305.
-use chacha20poly1305::aead::Aead;
-use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 use super::{AeadPack, DerivedPrivateKey, Nonce};
 use crate::{Error, Result};
+use chacha20poly1305::aead::Aead;
+use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 
 /// Encrypt plaintext as XChaCha20Poly1305 to an AeadPack.
 pub fn encrypt(
