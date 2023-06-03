@@ -102,7 +102,9 @@ impl StorageProvider for LocalProvider {
             AccessKey::Password(password) => {
                 builder.password(password.clone(), None).await?
             }
-            AccessKey::Identity(id) => builder.shared(id, vec![]).await?,
+            AccessKey::Identity(id) => {
+                builder.shared(id, vec![], true).await?
+            }
         };
 
         let buffer = encode(&vault).await?;

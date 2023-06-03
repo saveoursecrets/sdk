@@ -105,18 +105,12 @@ impl VaultBuilder {
     pub async fn shared(
         self,
         owner: &Identity,
-        mut recipients: Vec<Recipient>,
+        recipients: Vec<Recipient>,
+        read_only: bool,
     ) -> Result<Vault> {
         let (mut vault, meta) = self.prepare();
-        let owner_public = owner.to_public();
-        if recipients
-            .iter()
-            .find(|r| r.to_string() == owner_public.to_string())
-            .is_none()
-        {
-            recipients.push(owner_public);
-        }
-        let private_key = vault.asymmetric(owner, recipients).await?;
+        let private_key =
+            vault.asymmetric(owner, recipients, read_only).await?;
         encrypt_meta(&mut vault, &private_key, meta).await?;
         Ok(vault)
     }

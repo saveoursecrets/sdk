@@ -115,7 +115,7 @@ impl<'a> ChangePassword<'a> {
                 new_vault.symmetric(password.clone(), self.seed).await?;
             }
             AccessKey::Identity(id) => {
-                new_vault.asymmetric(id, vec![]).await?;
+                new_vault.asymmetric(id, vec![], true).await?;
             }
         }
 

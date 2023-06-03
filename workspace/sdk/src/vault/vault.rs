@@ -25,7 +25,7 @@ use crate::{
     crypto::{
         AccessKey, AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed,
     },
-    encode,
+    decode, encode,
     encoding::v1::VERSION,
     events::{ReadEvent, WriteEvent},
     formats::FileIdentity,
@@ -408,7 +408,7 @@ pub struct Header {
     /// the salt and seed entropy.
     pub(crate) auth: Auth,
     /// Recipients for a shared vault.
-    pub(crate) recipients: Vec<String>,
+    pub(crate) shared_access: SharedAccess,
 }
 
 impl Header {
@@ -424,7 +424,7 @@ impl Header {
             summary: Summary::new(id, name, cipher, kdf, flags),
             meta: None,
             auth: Default::default(),
-            recipients: vec![],
+            shared_access: Default::default(),
         }
     }
 
@@ -550,6 +550,39 @@ impl fmt::Display for Header {
     }
 }
 
+/// Access controls for shared vaults.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SharedAccess {
+    /// List of recipients for a shared vault.
+    ///
+    /// Every recipient is able to write to the shared vault.
+    WriteAccess(Vec<String>),
+    /// Private list of recipients managed by an owner.
+    ///
+    /// Only the owner can write to the vault, other recipients
+    /// can only read.
+    ReadOnly(AeadPack),
+}
+
+impl Default for SharedAccess {
+    fn default() -> Self {
+        Self::WriteAccess(vec![])
+    }
+}
+
+impl SharedAccess {
+    fn parse_recipients(access: &Vec<String>) -> Result<Vec<Recipient>> {
+        let mut recipients = Vec::new();
+        for recipient in access {
+            let recipient = recipient.parse().map_err(|s: &str| {
+                Error::InvalidX25519Identity(s.to_owned())
+            })?;
+            recipients.push(recipient);
+        }
+        Ok(recipients)
+    }
+}
+
 /// The vault contents
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Contents {
@@ -613,17 +646,38 @@ impl Vault {
     pub(crate) async fn asymmetric(
         &mut self,
         owner: &Identity,
-        recipients: Vec<Recipient>,
+        mut recipients: Vec<Recipient>,
+        read_only: bool,
     ) -> Result<PrivateKey> {
         if self.header.auth.salt.is_none() {
+            // Ensure the owner public key is always in the list
+            // of recipients
+            let owner_public = owner.to_public();
+            if recipients
+                .iter()
+                .find(|r| r.to_string() == owner_public.to_string())
+                .is_none()
+            {
+                recipients.push(owner_public);
+            }
+
             self.flags_mut().set(VaultFlags::SHARED, true);
 
             let salt = KeyDerivation::generate_salt();
             let private_key = PrivateKey::Asymmetric(owner.clone());
             self.header.summary.cipher = Cipher::X25519;
 
-            self.header.recipients =
+            let recipients: Vec<_> =
                 recipients.into_iter().map(|r| r.to_string()).collect();
+            self.header.shared_access = if read_only {
+                let access = SharedAccess::WriteAccess(recipients);
+                let buffer = encode(&access).await?;
+                let private_key = PrivateKey::Asymmetric(owner.clone());
+                let aead = self.encrypt(&private_key, &buffer).await?;
+                SharedAccess::ReadOnly(aead)
+            } else {
+                SharedAccess::WriteAccess(recipients)
+            };
 
             // Store the salt so we know that the vault has
             // already been initialized, for asymmetric encryption
@@ -703,14 +757,27 @@ impl Vault {
                 self.cipher().encrypt_symmetric(key, plaintext, None).await
             }
             Cipher::X25519 => {
-                let mut recipients = Vec::new();
-                for recipient in &self.header.recipients {
-                    let recipient =
-                        recipient.parse().map_err(|s: &str| {
-                            Error::InvalidX25519Identity(s.to_owned())
-                        })?;
-                    recipients.push(recipient);
-                }
+                let recipients = match &self.header.shared_access {
+                    SharedAccess::WriteAccess(access) => {
+                        SharedAccess::parse_recipients(access)?
+                    }
+                    SharedAccess::ReadOnly(aead) => {
+                        let buffer = self
+                            .decrypt(key, aead)
+                            .await
+                            .map_err(|_| Error::PermissionDenied)?;
+                        let shared_access: SharedAccess =
+                            decode(&buffer).await?;
+                        if let SharedAccess::WriteAccess(access) =
+                            &shared_access
+                        {
+                            SharedAccess::parse_recipients(access)?
+                        } else {
+                            return Err(Error::PermissionDenied);
+                        }
+                    }
+                };
+
                 self.cipher()
                     .encrypt_asymmetric(key, plaintext, recipients)
                     .await
@@ -1086,7 +1153,9 @@ mod tests {
         let mut recipients = Vec::new();
         recipients.push(other_1.to_public());
 
-        let vault = VaultBuilder::new().shared(&owner, recipients).await?;
+        let vault = VaultBuilder::new()
+            .shared(&owner, recipients, false)
+            .await?;
 
         // Owner adds a secret
         let mut keeper = Gatekeeper::new(vault, None);

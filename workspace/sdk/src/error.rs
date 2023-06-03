@@ -9,6 +9,14 @@ use crate::vault::{secret::SecretId, VaultId};
 /// Error thrown by the core library.
 #[derive(Debug, Error)]
 pub enum Error {
+    /// Permission denied.
+    ///
+    /// If a shared vault is set to private shared access and
+    /// somebody other than the owner attempts to write to encrypt
+    /// a shared entry this error is generated.
+    #[error("permission denied")]
+    PermissionDenied,
+
     /// Expected a request payload.
     #[error("expected a request payload")]
     RpcRequestPayload,
@@ -94,6 +102,10 @@ pub enum Error {
     /// Error generated when the kind of an identification secret is unknown.
     #[error("unknown identity kind {0}")]
     UnknownIdentityKind(u8),
+
+    /// Error generated when the kind of a shared access variant is unknown.
+    #[error("unknown shared access kind {0}")]
+    UnknownSharedAccessKind(u8),
 
     /// Error generated when an AeadPack contains a nonce that
     /// is invalid for the decryption cipher.
