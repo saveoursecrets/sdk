@@ -342,6 +342,7 @@ end tell
 mod test {
     use super::*;
     use anyhow::Result;
+    use sos_sdk::vault::VaultBuilder;
 
     fn find_test_keychain() -> Result<UserKeychain> {
         // NOTE: the keychain must be located in ~/Library/Keychains
@@ -383,8 +384,8 @@ mod test {
         let vault_password =
             SecretString::new("mock-vault-password".to_owned());
 
-        let mut vault: Vault = Default::default();
-        vault.initialize(vault_password.clone(), None).await?;
+        let vault = VaultBuilder::new()
+            .password(vault_password.clone(), None).await?;
 
         let vault = KeychainImport
             .convert(data_dump.unwrap(), vault, vault_password.clone())
