@@ -1,6 +1,6 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
-    crypto::{KeyDerivation, PrivateKey, Seed},
+    crypto::{KeyDerivation, PrivateKey},
     decode, encode,
     events::{ReadEvent, WriteEvent},
     search::SearchIndex,
@@ -203,16 +203,14 @@ impl Gatekeeper {
             Err(Error::VaultNotInit)
         }
     }
-
+    
     /// Set the meta data for the vault.
-    // TODO: rename to set_vault_meta() for consistency
-    async fn set_meta(
+    pub async fn set_vault_meta(
         &mut self,
         meta_data: VaultMeta,
     ) -> Result<WriteEvent<'_>> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
-
         let meta_blob = encode(&meta_data).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
         if let Some(mirror) = self.mirror.as_mut() {
@@ -466,7 +464,7 @@ mod tests {
     use super::*;
     use crate::{
         constants::DEFAULT_VAULT_NAME,
-        vault::{secret::Secret, Vault, VaultBuilder},
+        vault::{secret::Secret, VaultBuilder},
     };
     use anyhow::Result;
     use secrecy::SecretString;
