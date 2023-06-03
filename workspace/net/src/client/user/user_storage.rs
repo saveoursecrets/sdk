@@ -27,7 +27,7 @@ use sos_sdk::{
     Timestamp,
 };
 
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use tokio::{
@@ -302,7 +302,7 @@ impl UserStorage {
     }
 
     /// Verify the master password for this account.
-    pub async fn verify(&self, passphrase: SecretString) -> bool {
+    pub async fn verify(&self, passphrase: &SecretString) -> bool {
         self.user.verify(passphrase).await
     }
 
@@ -527,7 +527,7 @@ impl UserStorage {
         let mut vault: Vault = decode(&buffer).await?;
 
         // Need to verify the passphrase
-        vault.verify(passphrase.expose_secret()).await?;
+        vault.verify(&passphrase).await?;
 
         // Check for existing identifier
         let vaults =

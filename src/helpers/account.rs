@@ -162,7 +162,7 @@ pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
 pub async fn verify(user: Owner) -> Result<bool> {
     let passphrase = read_password(Some("Password: "))?;
     let owner = user.read().await;
-    Ok(owner.verify(passphrase).await)
+    Ok(owner.verify(&passphrase).await)
 }
 
 /// List local accounts.

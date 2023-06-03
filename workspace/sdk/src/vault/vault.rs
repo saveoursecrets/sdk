@@ -9,7 +9,7 @@ use binary_stream::{
 use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 use bitflags::bitflags;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, io::Cursor,
@@ -599,11 +599,8 @@ impl Vault {
             let salt = KeyDerivation::generate_salt();
 
             let deriver = self.deriver();
-            let private_key = deriver.derive(
-                password.expose_secret(),
-                &salt,
-                seed.as_ref(),
-            )?;
+            let private_key =
+                deriver.derive(&password, &salt, seed.as_ref())?;
 
             let default_meta: VaultMeta = Default::default();
             let vault_meta = encode(&default_meta).await?;
@@ -706,14 +703,12 @@ impl Vault {
     }
 
     /// Verify an encryption passphrase.
-    // FIXME: use SecretString here
-    pub async fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
+    pub async fn verify(&self, passphrase: &SecretString) -> Result<()> {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
         let deriver = self.deriver();
-        let secret_key =
-            deriver.derive(passphrase.as_ref(), &salt, self.seed())?;
+        let secret_key = deriver.derive(passphrase, &salt, self.seed())?;
         let _ = self
             .decrypt(&secret_key, meta_aead)
             .await

@@ -7,7 +7,7 @@ use crate::{
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
 };
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use std::borrow::Cow;
 
 /// Builder that changes a vault password.
@@ -43,21 +43,23 @@ impl<'a> ChangePassword<'a> {
     }
 
     fn current_private_key(&self) -> Result<DerivedPrivateKey> {
-        let passphrase = self.current_passphrase.expose_secret();
         let salt = self.vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
         let deriver = self.vault.deriver();
-        let private_key =
-            deriver.derive(passphrase, &salt, self.vault.seed())?;
+        let private_key = deriver.derive(
+            &self.current_passphrase,
+            &salt,
+            self.vault.seed(),
+        )?;
         Ok(private_key)
     }
 
     fn new_private_key(&self, vault: &Vault) -> Result<DerivedPrivateKey> {
-        let passphrase = self.new_passphrase.expose_secret();
         let salt = vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
         let deriver = vault.deriver();
-        let private_key = deriver.derive(passphrase, &salt, vault.seed())?;
+        let private_key =
+            deriver.derive(&self.new_passphrase, &salt, vault.seed())?;
         Ok(private_key)
     }
 

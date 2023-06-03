@@ -9,7 +9,7 @@ use argon2::{
 };
 use balloon_hash::Balloon;
 use rand::Rng;
-use secrecy::{ExposeSecret, SecretVec, SecretString};
+use secrecy::{ExposeSecret, SecretString};
 use sha2::{Digest, Sha256};
 use std::{convert::AsRef, fmt, str::FromStr};
 
@@ -119,16 +119,16 @@ pub trait Deriver<D: Digest> {
     /// optional seed entropy.
     fn derive(
         &self,
-        password: &str,
+        password: &SecretString,
         salt: &SaltString,
         seed: Option<&Seed>,
     ) -> Result<DerivedPrivateKey> {
         let buffer = if let Some(seed) = seed {
-            let mut buffer = password.as_bytes().to_vec();
+            let mut buffer = password.expose_secret().as_bytes().to_vec();
             buffer.extend_from_slice(seed.as_slice());
             buffer
         } else {
-            password.as_bytes().to_vec()
+            password.expose_secret().as_bytes().to_vec()
         };
 
         let password_hash = self.hash_password(buffer.as_slice(), salt)?;
@@ -180,8 +180,7 @@ mod test {
         let salt = KeyDerivation::generate_salt();
         let deriver = kdf.deriver();
         let (passphrase, _) = generate_passphrase()?;
-        let private_key =
-            deriver.derive(passphrase.expose_secret(), &salt, None)?;
+        let private_key = deriver.derive(&passphrase, &salt, None)?;
         assert_eq!(32, private_key.as_ref().len());
         Ok(())
     }

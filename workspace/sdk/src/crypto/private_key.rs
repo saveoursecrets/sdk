@@ -1,17 +1,14 @@
 //! Private key types.
-use argon2::{
-    password_hash::{PasswordHash, PasswordHasher, SaltString},
-    Argon2,
-};
-use balloon_hash::Balloon;
+use argon2::password_hash::SaltString;
+
 use rand::Rng;
 use secrecy::{ExposeSecret, SecretString, SecretVec};
-use sha2::{Digest, Sha256};
-use std::{convert::AsRef, fmt, str::FromStr};
+use sha2::Digest;
+use std::convert::AsRef;
 
 use crate::{
     crypto::{csprng, KeyDerivation, Seed},
-    Error, Result,
+    Result,
 };
 
 /// Access key is converted to a private key to access a vault.
@@ -31,13 +28,11 @@ impl AccessKey {
         seed: Option<&Seed>,
     ) -> Result<PrivateKey> {
         match self {
-            Self::Password(password) => {
+            Self::Password(ref password) => {
                 let deriver = kdf.deriver();
-                Ok(PrivateKey::Symmetric(deriver.derive(
-                    password.expose_secret(),
-                    salt,
-                    seed,
-                )?))
+                Ok(PrivateKey::Symmetric(
+                    deriver.derive(password, salt, seed)?,
+                ))
             }
             Self::Key(key) => Ok(PrivateKey::Asymmetric(key)),
         }

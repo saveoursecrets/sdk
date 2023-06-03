@@ -1,15 +1,15 @@
 //! Encrypt and decrypt using X25519 asymmetric encryption (AGE).
 use crate::crypto::{AeadPack, Cipher, Nonce, PrivateKey};
-use crate::{Error, Result};
+use crate::Result;
 
 /// Encrypt plaintext as XChaCha20Poly1305 to an AeadPack.
 ///
 /// If a nonce is not given a random nonce is generated.
 pub async fn encrypt(
     cipher: &Cipher,
-    key: &PrivateKey,
-    plaintext: &[u8],
-    nonce: Option<Nonce>,
+    _key: &PrivateKey,
+    _plaintext: &[u8],
+    _nonce: Option<Nonce>,
 ) -> Result<AeadPack> {
     assert!(matches!(cipher, Cipher::X25519(_)));
     todo!();
@@ -32,8 +32,8 @@ pub async fn encrypt(
 /// Decrypt ciphertext using XChaCha20Poly1305.
 pub async fn decrypt(
     cipher: &Cipher,
-    key: &PrivateKey,
-    aead_pack: &AeadPack,
+    _key: &PrivateKey,
+    _aead_pack: &AeadPack,
 ) -> Result<Vec<u8>> {
     assert!(matches!(cipher, Cipher::X25519(_)));
     todo!();
@@ -58,8 +58,7 @@ pub async fn decrypt(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::crypto::DerivedPrivateKey;
+
     use anyhow::Result;
 
     #[tokio::test]

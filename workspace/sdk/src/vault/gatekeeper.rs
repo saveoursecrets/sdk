@@ -1,6 +1,6 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
-    crypto::{DerivedPrivateKey, KeyDerivation, PrivateKey, Seed},
+    crypto::{DerivedPrivateKey, KeyDerivation, Seed},
     decode, encode,
     events::{ReadEvent, WriteEvent},
     search::SearchIndex,
@@ -12,7 +12,7 @@ use crate::{
     vfs, Error, Result,
 };
 //use parking_lot::RwLock;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -432,8 +432,8 @@ impl Gatekeeper {
     }
 
     /// Verify an encryption passphrase.
-    pub async fn verify(&self, passphrase: SecretString) -> Result<()> {
-        self.vault.verify(passphrase.expose_secret()).await
+    pub async fn verify(&self, passphrase: &SecretString) -> Result<()> {
+        self.vault.verify(passphrase).await
     }
 
     /// Add the meta data for the vault entries to a search index..
@@ -467,11 +467,8 @@ impl Gatekeeper {
         if let Some(salt) = self.vault.salt() {
             let salt = KeyDerivation::parse_salt(salt)?;
             let deriver = self.vault.deriver();
-            let private_key = deriver.derive(
-                passphrase.expose_secret(),
-                &salt,
-                self.vault.seed(),
-            )?;
+            let private_key =
+                deriver.derive(&passphrase, &salt, self.vault.seed())?;
             self.private_key = Some(private_key);
             self.vault_meta().await
         } else {

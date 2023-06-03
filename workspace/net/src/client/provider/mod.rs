@@ -33,7 +33,6 @@ use sos_sdk::{
     vfs, Timestamp,
 };
 
-use secrecy::ExposeSecret;
 use tokio::sync::RwLock;
 
 use sos_sdk::account::RestoreTargets;
@@ -274,7 +273,7 @@ pub trait StorageProvider: Sync + Send {
                         let salt = KeyDerivation::parse_salt(salt)?;
                         let deriver = vault.deriver();
                         let private_key = deriver.derive(
-                            new_passphrase.expose_secret(),
+                            &new_passphrase,
                             &salt,
                             keeper.vault().seed(),
                         )?;

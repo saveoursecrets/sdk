@@ -15,7 +15,7 @@ use std::{borrow::Cow, io::Write};
 use uuid::Uuid;
 
 use anyhow::Result;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 
 use argon2::password_hash::SaltString;
 
@@ -26,8 +26,7 @@ pub fn mock_encryption_key(
     let (passphrase, _) = generate_passphrase()?;
     let kdf: KeyDerivation = Default::default();
     let deriver = kdf.deriver();
-    let encryption_key =
-        deriver.derive(passphrase.expose_secret(), &salt, None)?;
+    let encryption_key = deriver.derive(&passphrase, &salt, None)?;
     Ok((encryption_key, salt, passphrase))
 }
 
