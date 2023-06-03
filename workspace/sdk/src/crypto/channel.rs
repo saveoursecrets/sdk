@@ -385,14 +385,14 @@ pub trait EncryptedChannel {
         let nonce = self.next_nonce()?;
         let key = self.private_key()?;
         Cipher::XChaCha20Poly1305
-            .encrypt(key, message, Some(nonce))
+            .encrypt_symmetric(key, message, Some(nonce))
             .await
     }
 
     /// Decrypt a message.
     async fn decrypt(&self, aead: &AeadPack) -> Result<Vec<u8>> {
         let key = self.private_key()?;
-        Cipher::XChaCha20Poly1305.decrypt(key, aead).await
+        Cipher::XChaCha20Poly1305.decrypt_symmetric(key, aead).await
     }
 
     /// Determine if this session is ready.

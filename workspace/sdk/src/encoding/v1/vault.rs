@@ -237,6 +237,11 @@ impl Encode for Header {
 
         self.auth.encode(&mut *writer).await?;
 
+        writer.write_u16(self.recipients.len() as u16).await?;
+        for recipient in &self.recipients {
+            writer.write_string(recipient).await?;
+        }
+
         // Backtrack to size_pos and write new length
         let header_pos = writer.tell().await?;
         let header_len = header_pos - (size_pos + 4);
@@ -276,6 +281,20 @@ impl Decode for Header {
         }
 
         self.auth.decode(&mut *reader).await?;
+
+        let length = reader.read_u16().await?;
+        for _ in 0..length {
+            let recipient = reader.read_string().await?;
+            let _: age::x25519::Recipient =
+                recipient.parse().map_err(|e: &str| {
+                    Error::new(
+                        ErrorKind::Other,
+                        crate::Error::InvalidX25519Identity(e.to_owned()),
+                    )
+                })?;
+            self.recipients.push(recipient);
+        }
+
         Ok(())
     }
 }

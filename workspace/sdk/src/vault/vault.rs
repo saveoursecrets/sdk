@@ -400,9 +400,15 @@ impl Summary {
 /// File header, identifier and version information
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Header {
+    /// Information about the vault.
     pub(crate) summary: Summary,
+    /// Encrypted meta data.
     pub(crate) meta: Option<AeadPack>,
+    /// Additional authentication information such as
+    /// the salt and seed entropy.
     pub(crate) auth: Auth,
+    /// Recipients for a shared vault.
+    pub(crate) recipients: Vec<String>,
 }
 
 impl Header {
@@ -418,6 +424,7 @@ impl Header {
             summary: Summary::new(id, name, cipher, kdf, flags),
             meta: None,
             auth: Default::default(),
+            recipients: vec![],
         }
     }
 
@@ -609,9 +616,14 @@ impl Vault {
         recipients: Vec<Recipient>,
     ) -> Result<PrivateKey> {
         if self.header.auth.salt.is_none() {
+            self.flags_mut().set(VaultFlags::SHARED, true);
+
             let salt = KeyDerivation::generate_salt();
             let private_key = PrivateKey::Asymmetric(owner.clone());
-            self.header.summary.cipher = Cipher::X25519(recipients);
+            self.header.summary.cipher = Cipher::X25519;
+
+            self.header.recipients =
+                recipients.into_iter().map(|r| r.to_string()).collect();
 
             // Store the salt so we know that the vault has
             // already been initialized, for asymmetric encryption
@@ -686,7 +698,24 @@ impl Vault {
         key: &PrivateKey,
         plaintext: &[u8],
     ) -> Result<AeadPack> {
-        self.cipher().encrypt(key, plaintext, None).await
+        match self.cipher() {
+            Cipher::XChaCha20Poly1305 | Cipher::AesGcm256 => {
+                self.cipher().encrypt_symmetric(key, plaintext, None).await
+            }
+            Cipher::X25519 => {
+                let mut recipients = Vec::new();
+                for recipient in &self.header.recipients {
+                    let recipient =
+                        recipient.parse().map_err(|s: &str| {
+                            Error::InvalidX25519Identity(s.to_owned())
+                        })?;
+                    recipients.push(recipient);
+                }
+                self.cipher()
+                    .encrypt_asymmetric(key, plaintext, recipients)
+                    .await
+            }
+        }
     }
 
     /// Decrypt ciphertext using the cipher assigned to this vault.
@@ -695,7 +724,14 @@ impl Vault {
         key: &PrivateKey,
         aead: &AeadPack,
     ) -> Result<Vec<u8>> {
-        self.cipher().decrypt(key, aead).await
+        match self.cipher() {
+            Cipher::XChaCha20Poly1305 | Cipher::AesGcm256 => {
+                self.cipher().decrypt_symmetric(key, aead).await
+            }
+            Cipher::X25519 => {
+                self.cipher().decrypt_asymmetric(key, aead).await
+            }
+        }
     }
 
     /// Choose a new identifier for this vault.
@@ -1067,6 +1103,10 @@ mod tests {
         // In the real world this exchange of the vault
         // would happen via a sync operation
         let vault: Vault = keeper.into();
+
+        // Ensure recipient information is encoded properly
+        let encoded = encode(&vault).await?;
+        let vault: Vault = decode(&encoded).await?;
 
         let mut keeper_1 = Gatekeeper::new(vault, None);
         keeper_1

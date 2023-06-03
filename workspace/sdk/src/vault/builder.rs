@@ -108,7 +108,6 @@ impl VaultBuilder {
         mut recipients: Vec<Recipient>,
     ) -> Result<Vault> {
         let (mut vault, meta) = self.prepare();
-        vault.flags_mut().set(VaultFlags::SHARED, true);
         let owner_public = owner.to_public();
         if recipients
             .iter()

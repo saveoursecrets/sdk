@@ -345,7 +345,7 @@ pub enum Error {
 
     /// Error generated when attempting to parse an AGE identity.
     #[error(r#"invalid x25519 identity "{0}""#)]
-    InvalidAgeIdentity(String),
+    InvalidX25519Identity(String),
 
     /// Error generated when an attachment could not be found.
     #[error(r#"attachment "{0}" not found"#)]

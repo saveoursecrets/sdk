@@ -858,7 +858,7 @@ impl Decode for Secret {
                 // Make sure it's a valid x25519 identity
                 let _: age::x25519::Identity =
                     id.parse().map_err(|s: &str| {
-                        encoding_error(crate::Error::InvalidAgeIdentity(
+                        encoding_error(crate::Error::InvalidX25519Identity(
                             s.to_string(),
                         ))
                     })?;

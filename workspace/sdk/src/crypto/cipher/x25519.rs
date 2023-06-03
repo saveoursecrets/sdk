@@ -1,12 +1,16 @@
 //! Encrypt and decrypt using X25519 asymmetric encryption (AGE).
 use crate::crypto::{AeadPack, Cipher, Nonce};
 use crate::{Error, Result};
-use age::x25519::Identity;
+use age::x25519::{Identity, Recipient};
 use futures::io::{AsyncReadExt, BufReader};
 
 /// Encrypt plaintext as X25519 to an AeadPack.
-pub async fn encrypt(cipher: &Cipher, plaintext: &[u8]) -> Result<AeadPack> {
-    if let Cipher::X25519(recipients) = cipher {
+pub async fn encrypt(
+    cipher: &Cipher,
+    plaintext: &[u8],
+    recipients: Vec<Recipient>,
+) -> Result<AeadPack> {
+    if let Cipher::X25519 = cipher {
         let recipients: Vec<_> = recipients
             .into_iter()
             .map(|r| {
@@ -27,7 +31,7 @@ pub async fn encrypt(cipher: &Cipher, plaintext: &[u8]) -> Result<AeadPack> {
             nonce: Nonce::new_random_12(),
         })
     } else {
-        let expected = Cipher::X25519(vec![]);
+        let expected = Cipher::X25519;
         Err(Error::BadCipher(expected.to_string(), cipher.to_string()))
     }
 }
@@ -38,7 +42,7 @@ pub async fn decrypt(
     identity: &Identity,
     aead: &AeadPack,
 ) -> Result<Vec<u8>> {
-    if let Cipher::X25519(_) = cipher {
+    if let Cipher::X25519 = cipher {
         let mut reader = BufReader::new(aead.ciphertext.as_slice());
         let decryptor = match age::Decryptor::new_async(&mut reader).await? {
             age::Decryptor::Recipients(d) => d,
@@ -51,7 +55,7 @@ pub async fn decrypt(
         reader.read_to_end(&mut plaintext).await?;
         Ok(plaintext)
     } else {
-        let expected = Cipher::X25519(vec![]);
+        let expected = Cipher::X25519;
         Err(Error::BadCipher(expected.to_string(), cipher.to_string()))
     }
 }
@@ -69,10 +73,10 @@ mod tests {
         let pub_1 = user_1.to_public();
         let pub_2 = user_2.to_public();
 
-        let cipher = Cipher::X25519(vec![pub_1, pub_2]);
-
+        let recipients = vec![pub_1, pub_2];
+        let cipher = Cipher::X25519;
         let plaintext = b"super secret value";
-        let aead = encrypt(&cipher, plaintext).await?;
+        let aead = encrypt(&cipher, plaintext, recipients).await?;
 
         let plain_1 = decrypt(&cipher, &user_1, &aead).await?;
         assert_eq!(plaintext.as_slice(), &plain_1);

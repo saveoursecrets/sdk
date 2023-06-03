@@ -105,7 +105,7 @@ impl DelegatedPassphrase {
             }
             Secret::Age { key, .. } => {
                 AccessKey::Identity(key.expose_secret().parse().map_err(
-                    |s: &str| Error::InvalidAgeIdentity(s.to_owned()),
+                    |s: &str| Error::InvalidX25519Identity(s.to_owned()),
                 )?)
             }
             _ => return Err(Error::VaultEntryKind(urn.to_string())),

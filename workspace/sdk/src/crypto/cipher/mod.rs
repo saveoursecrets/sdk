@@ -1,6 +1,7 @@
 //! Constants for supported symmetric ciphers.
 use super::{AeadPack, Nonce, PrivateKey};
 use crate::{Error, Result};
+use age::x25519::Recipient;
 use std::{
     fmt,
     hash::{Hash, Hasher},
@@ -21,70 +22,19 @@ pub const AES_GCM_256: u8 = 2;
 pub const X25519: u8 = 3;
 
 /// Supported cipher algorithms.
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum Cipher {
     /// Cipher for XChaCha20Poly1305 encryption.
     XChaCha20Poly1305,
     /// Cipher for AES-GCM 256 bit encryption.
     AesGcm256,
     /// X25519 asymmetric encryption using AGE.
-    X25519(Vec<age::x25519::Recipient>),
-}
-
-impl fmt::Debug for Cipher {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::XChaCha20Poly1305 => {
-                f.debug_struct("XChaCha20Poly1305").finish()
-            }
-            Self::AesGcm256 => f.debug_struct("AesGcm256").finish(),
-            Self::X25519(recipients) => {
-                let recipients: Vec<String> =
-                    recipients.into_iter().map(|r| r.to_string()).collect();
-                f.debug_struct("X25519")
-                    .field("recipients", &recipients)
-                    .finish()
-            }
-        }
-    }
-}
-
-impl PartialEq for Cipher {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::XChaCha20Poly1305, Self::XChaCha20Poly1305) => true,
-            (Self::AesGcm256, Self::AesGcm256) => true,
-            (Self::X25519(a), Self::X25519(b)) => {
-                let a: Vec<String> =
-                    a.into_iter().map(|r| r.to_string()).collect();
-                let b: Vec<String> =
-                    b.into_iter().map(|r| r.to_string()).collect();
-                a == b
-            }
-            _ => false,
-        }
-    }
-}
-
-impl Eq for Cipher {}
-
-impl Hash for Cipher {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            Self::XChaCha20Poly1305 => Self::XChaCha20Poly1305.hash(state),
-            Self::AesGcm256 => Self::AesGcm256.hash(state),
-            Self::X25519(recipients) => {
-                for recipient in recipients {
-                    recipient.to_string().hash(state);
-                }
-            }
-        }
-    }
+    X25519,
 }
 
 impl Cipher {
     /// Encrypt plaintext using this cipher.
-    pub async fn encrypt(
+    pub async fn encrypt_symmetric(
         &self,
         key: &PrivateKey,
         plaintext: &[u8],
@@ -104,17 +54,12 @@ impl Cipher {
                 }
                 _ => Err(Error::NotSymmetric),
             },
-            Cipher::X25519(_) => match key {
-                PrivateKey::Asymmetric(_) => {
-                    x25519::encrypt(self, plaintext).await
-                }
-                _ => Err(Error::NotAsymmetric),
-            },
+            _ => Err(Error::NotSymmetric),
         }
     }
 
     /// Decrypt ciphertext using this cipher.
-    pub async fn decrypt(
+    pub async fn decrypt_symmetric(
         &self,
         key: &PrivateKey,
         aead: &AeadPack,
@@ -132,12 +77,42 @@ impl Cipher {
                 }
                 _ => Err(Error::NotSymmetric),
             },
-            Cipher::X25519(_) => match key {
+            _ => Err(Error::NotSymmetric),
+        }
+    }
+
+    /// Encrypt plaintext using this cipher.
+    pub async fn encrypt_asymmetric(
+        &self,
+        key: &PrivateKey,
+        plaintext: &[u8],
+        recipients: Vec<Recipient>,
+    ) -> Result<AeadPack> {
+        match self {
+            Cipher::X25519 => match key {
+                PrivateKey::Asymmetric(_) => {
+                    x25519::encrypt(self, plaintext, recipients).await
+                }
+                _ => Err(Error::NotAsymmetric),
+            },
+            _ => Err(Error::NotAsymmetric),
+        }
+    }
+
+    /// Decrypt ciphertext using this cipher.
+    pub async fn decrypt_asymmetric(
+        &self,
+        key: &PrivateKey,
+        aead: &AeadPack,
+    ) -> Result<Vec<u8>> {
+        match self {
+            Cipher::X25519 => match key {
                 PrivateKey::Asymmetric(identity) => {
                     x25519::decrypt(self, identity, aead).await
                 }
                 _ => Err(Error::NotAsymmetric),
             },
+            _ => Err(Error::NotAsymmetric),
         }
     }
 }
@@ -154,7 +129,7 @@ impl fmt::Display for Cipher {
             match self {
                 Self::XChaCha20Poly1305 => "x_chacha20_poly1305",
                 Self::AesGcm256 => "aes_gcm_256",
-                Self::X25519(_) => "age_x25519",
+                Self::X25519 => "age_x25519",
             }
         })
     }
@@ -167,7 +142,7 @@ impl FromStr for Cipher {
         match s {
             "x_chacha20_poly1305" => Ok(Self::XChaCha20Poly1305),
             "aes_gcm_256" => Ok(Self::AesGcm256),
-            "age_x25519" => Ok(Self::X25519(vec![])),
+            "age_x25519" => Ok(Self::X25519),
             _ => Err(Error::InvalidCipher(s.to_string())),
         }
     }
@@ -178,7 +153,7 @@ impl From<&Cipher> for u8 {
         match value {
             Cipher::XChaCha20Poly1305 => X_CHACHA20_POLY1305,
             Cipher::AesGcm256 => AES_GCM_256,
-            Cipher::X25519(_) => X25519,
+            Cipher::X25519 => X25519,
         }
     }
 }
@@ -189,7 +164,7 @@ impl TryFrom<u8> for Cipher {
         match value {
             X_CHACHA20_POLY1305 => Ok(Cipher::XChaCha20Poly1305),
             AES_GCM_256 => Ok(Cipher::AesGcm256),
-            X25519 => Ok(Cipher::X25519(vec![])),
+            X25519 => Ok(Cipher::X25519),
             _ => Err(Error::InvalidCipher(value.to_string())),
         }
     }

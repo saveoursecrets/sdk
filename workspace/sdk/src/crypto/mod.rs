@@ -82,8 +82,8 @@ mod tests {
         let cipher = Cipher::XChaCha20Poly1305;
         let key = PrivateKey::Symmetric(DerivedPrivateKey::generate());
         let value = b"plaintext message";
-        let aead = cipher.encrypt(&key, value, None).await?;
-        let plaintext = cipher.decrypt(&key, &aead).await?;
+        let aead = cipher.encrypt_symmetric(&key, value, None).await?;
+        let plaintext = cipher.decrypt_symmetric(&key, &aead).await?;
         assert_eq!(&plaintext, value);
         Ok(())
     }
@@ -93,13 +93,14 @@ mod tests {
         let cipher = Cipher::XChaCha20Poly1305;
         let key = PrivateKey::Symmetric(DerivedPrivateKey::generate());
         let value = b"plaintext message";
-        let mut aead = cipher.encrypt(&key, value, None).await.unwrap();
+        let mut aead =
+            cipher.encrypt_symmetric(&key, value, None).await.unwrap();
 
         // Flip all the bits
         aead.ciphertext = aead.ciphertext.iter().map(|b| !*b).collect();
 
         // Fails due to tampering
-        assert!(cipher.decrypt(&key, &aead).await.is_err());
+        assert!(cipher.decrypt_symmetric(&key, &aead).await.is_err());
     }
 
     #[test]
