@@ -8,21 +8,28 @@ use binary_stream::{
 
 use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
+use age::x25519::{Identity, Recipient};
 use bitflags::bitflags;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
-    borrow::Cow, cmp::Ordering, collections::{HashMap, HashSet}, fmt, io::Cursor,
-    path::Path, str::FromStr,
+    borrow::Cow,
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    fmt,
+    io::Cursor,
+    path::Path,
+    str::FromStr,
 };
 use urn::Urn;
 use uuid::Uuid;
-use age::x25519::{Identity, Recipient};
 
 use crate::{
     commit::CommitHash,
     constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY},
-    crypto::{AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed},
+    crypto::{
+        AccessKey, AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed,
+    },
     encode,
     encoding::v1::VERSION,
     events::{ReadEvent, WriteEvent},
@@ -611,7 +618,7 @@ impl Vault {
             let private_key = PrivateKey::Asymmetric(owner.clone());
             self.header.summary.cipher = Cipher::X25519(recipients);
 
-            // Store the salt so we know that the vault has 
+            // Store the salt so we know that the vault has
             // already been initialized, for asymmetric encryption
             // it is not used
             self.header.auth.salt = Some(salt.to_string());
@@ -706,21 +713,28 @@ impl Vault {
         self.header.summary.id = Uuid::new_v4();
     }
 
-    /// Verify an encryption passphrase.
-    pub async fn verify(&self, passphrase: &SecretString) -> Result<()> {
+    /// Verify an access key.
+    pub async fn verify(&self, key: &AccessKey) -> Result<()> {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
-        let salt = KeyDerivation::parse_salt(salt)?;
-        let deriver = self.deriver();
-        let private_key = PrivateKey::Symmetric(deriver.derive(
-            passphrase,
-            &salt,
-            self.seed(),
-        )?);
+        let private_key = match key {
+            AccessKey::Password(password) => {
+                let salt = KeyDerivation::parse_salt(salt)?;
+                let deriver = self.deriver();
+                PrivateKey::Symmetric(deriver.derive(
+                    password,
+                    &salt,
+                    self.seed(),
+                )?)
+            }
+            AccessKey::Identity(id) => PrivateKey::Asymmetric(id.clone()),
+        };
+
         let _ = self
             .decrypt(&private_key, meta_aead)
             .await
             .map_err(|_| Error::PassphraseVerification)?;
+
         Ok(())
     }
 
@@ -800,6 +814,11 @@ impl Vault {
     /// Get the encryption cipher for this vault.
     pub fn cipher(&self) -> &Cipher {
         &self.header.summary.cipher
+    }
+
+    /// Get the key derivation function.
+    pub fn kdf(&self) -> &KeyDerivation {
+        &self.header.summary.kdf
     }
 
     /// Get the vault header.
@@ -963,8 +982,10 @@ mod tests {
     use super::*;
     use crate::vault::secret::*;
     use crate::{
-        decode, encode, passwd::diceware::generate_passphrase, test_utils::*,
-        vault::{VaultBuilder, Gatekeeper},
+        decode, encode,
+        passwd::diceware::generate_passphrase,
+        test_utils::*,
+        vault::{Gatekeeper, VaultBuilder},
     };
 
     use anyhow::Result;
@@ -1036,9 +1057,7 @@ mod tests {
         recipients.push(other_1.to_public());
         recipients.push(other_2.to_public());
 
-        let vault =
-            VaultBuilder::new()
-                .shared(&owner, recipients).await?;
+        let vault = VaultBuilder::new().shared(&owner, recipients).await?;
 
         let mut keeper = Gatekeeper::new(vault, None);
 

@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::Deserialize;
 use sos_sdk::{
+    crypto::AccessKey,
     vault::{secret::IdentityKind, Vault},
     vfs::File,
     Timestamp,
@@ -641,14 +642,14 @@ impl Convert for DashlaneCsvZip {
         &self,
         source: Self::Input,
         vault: Vault,
-        password: SecretString,
+        key: AccessKey,
     ) -> crate::Result<Vault> {
         let records: Vec<GenericCsvEntry> = parse_path(source)
             .await?
             .into_iter()
             .map(|r| r.into())
             .collect();
-        GenericCsvConvert.convert(records, vault, password).await
+        GenericCsvConvert.convert(records, vault, key).await
     }
 }
 
@@ -698,14 +699,14 @@ mod test {
             .convert(
                 "fixtures/dashlane-export.zip".into(),
                 vault,
-                passphrase.clone(),
+                passphrase.clone().into(),
             )
             .await?;
 
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
-        keeper.unlock(passphrase).await?;
+        keeper.unlock(passphrase.into()).await?;
         keeper.create_search_index().await?;
 
         let search = search_index.read().await;

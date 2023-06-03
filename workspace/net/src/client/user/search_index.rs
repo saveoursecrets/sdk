@@ -2,6 +2,7 @@
 use std::{collections::HashSet, sync::Arc};
 
 use sos_sdk::{
+    crypto::AccessKey,
     search::{Document, DocumentCount, SearchIndex},
     vault::{
         secret::{SecretId, SecretType},
@@ -51,11 +52,11 @@ impl UserIndex {
     pub async fn add_folder_to_search_index(
         &self,
         vault: Vault,
-        passphrase: SecretString,
+        key: AccessKey,
     ) -> Result<()> {
         let index = Arc::clone(&self.search_index);
         let mut keeper = Gatekeeper::new(vault, Some(index));
-        keeper.unlock(passphrase).await?;
+        keeper.unlock(key).await?;
         keeper.create_search_index().await?;
         keeper.lock();
         Ok(())

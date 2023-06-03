@@ -20,6 +20,7 @@ use std::{
 };
 
 use sos_sdk::{
+    crypto::AccessKey,
     search::SearchIndex,
     vault::{
         secret::{Secret, SecretMeta},
@@ -151,7 +152,7 @@ impl Convert for KeychainImport {
         &self,
         source: Self::Input,
         vault: Vault,
-        password: SecretString,
+        key: AccessKey,
     ) -> crate::Result<Vault> {
         let parser = KeychainParser::new(&source);
         let list = parser.parse()?;
@@ -159,7 +160,7 @@ impl Convert for KeychainImport {
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
-        keeper.unlock(password).await?;
+        keeper.unlock(key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 
@@ -385,7 +386,8 @@ mod test {
             SecretString::new("mock-vault-password".to_owned());
 
         let vault = VaultBuilder::new()
-            .password(vault_password.clone(), None).await?;
+            .password(vault_password.clone(), None)
+            .await?;
 
         let vault = KeychainImport
             .convert(data_dump.unwrap(), vault, vault_password.clone())

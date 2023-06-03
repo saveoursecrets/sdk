@@ -9,6 +9,7 @@ use sos_sdk::{
         CommitPair, CommitRelationship, CommitTree, SyncInfo, SyncKind,
     },
     constants::VAULT_EXT,
+    crypto::AccessKey,
     decode, encode,
     events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
     events::{EventLogFile, EventReducer},
@@ -80,17 +81,14 @@ impl StorageProvider for LocalProvider {
     async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
-        passphrase: Option<SecretString>,
+        key: Option<AccessKey>,
         is_account: bool,
-    ) -> Result<(WriteEvent<'static>, SecretString, Summary)> {
-        //let (passphrase, vault, buffer) =
-        //Vault::new_buffer(name, passphrase, None).await?;
-
-        let passphrase = if let Some(passphrase) = passphrase {
-            passphrase
+    ) -> Result<(WriteEvent<'static>, AccessKey, Summary)> {
+        let key = if let Some(key) = key {
+            key
         } else {
             let (passphrase, _) = generate_passphrase()?;
-            passphrase
+            AccessKey::Password(passphrase)
         };
 
         let mut builder = VaultBuilder::new();
@@ -100,7 +98,14 @@ impl StorageProvider for LocalProvider {
         if is_account {
             builder = builder.flags(VaultFlags::DEFAULT);
         }
-        let vault = builder.password(passphrase.clone(), None).await?;
+
+        let vault = match &key {
+            AccessKey::Password(password) => {
+                builder.password(password.clone(), None).await?
+            }
+            AccessKey::Identity(id) => builder.shared(id, vec![]).await?,
+        };
+
         let buffer = encode(&vault).await?;
 
         let summary = vault.summary().clone();
@@ -116,7 +121,7 @@ impl StorageProvider for LocalProvider {
         self.create_cache_entry(&summary, Some(vault)).await?;
 
         let event = WriteEvent::CreateVault(Cow::Owned(buffer));
-        Ok((event, passphrase, summary))
+        Ok((event, key, summary))
     }
 
     async fn import_vault(

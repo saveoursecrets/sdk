@@ -1,7 +1,7 @@
 //! Flow for changing a vault password.
 
 use crate::{
-    crypto::{KeyDerivation, PrivateKey, Seed},
+    crypto::{AccessKey, KeyDerivation, PrivateKey, Seed},
     encode,
     events::WriteEvent,
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
@@ -19,9 +19,9 @@ pub struct ChangePassword<'a> {
     /// The in-memory vault.
     vault: &'a Vault,
     /// Existing encryption passphrase.
-    current_passphrase: SecretString,
+    current_key: AccessKey,
     /// New encryption passphrase.
-    new_passphrase: SecretString,
+    new_key: AccessKey,
     /// Optional seed for the new passphrase.
     seed: Option<Seed>,
 }
@@ -30,14 +30,14 @@ impl<'a> ChangePassword<'a> {
     /// Create a new change password builder.
     pub fn new(
         vault: &'a Vault,
-        current_passphrase: SecretString,
-        new_passphrase: SecretString,
+        current_key: AccessKey,
+        new_key: AccessKey,
         seed: Option<Seed>,
     ) -> Self {
         Self {
             vault,
-            current_passphrase,
-            new_passphrase,
+            current_key,
+            new_key,
             seed,
         }
     }
@@ -45,22 +45,40 @@ impl<'a> ChangePassword<'a> {
     fn current_private_key(&self) -> Result<PrivateKey> {
         let salt = self.vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
+        self.current_key.clone().into_private(
+            self.vault.kdf(),
+            &salt,
+            self.vault.seed(),
+        )
+
+        /*
+        let salt = self.vault.salt().ok_or(Error::VaultNotInit)?;
+        let salt = KeyDerivation::parse_salt(salt)?;
         let deriver = self.vault.deriver();
         let derived_private_key = deriver.derive(
-            &self.current_passphrase,
+            &self.current_key,
             &salt,
             self.vault.seed(),
         )?;
         Ok(PrivateKey::Symmetric(derived_private_key))
+        */
     }
 
     fn new_private_key(&self, vault: &Vault) -> Result<PrivateKey> {
         let salt = vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
+        self.new_key
+            .clone()
+            .into_private(vault.kdf(), &salt, vault.seed())
+
+        /*
+        let salt = vault.salt().ok_or(Error::VaultNotInit)?;
+        let salt = KeyDerivation::parse_salt(salt)?;
         let deriver = vault.deriver();
         let derived_private_key =
-            deriver.derive(&self.new_passphrase, &salt, vault.seed())?;
+            deriver.derive(&self.new_key, &salt, vault.seed())?;
         Ok(PrivateKey::Symmetric(derived_private_key))
+            */
     }
 
     /// Build a new vault.
@@ -70,7 +88,7 @@ impl<'a> ChangePassword<'a> {
     /// be used to generate a fresh write-ahead log file.
     pub async fn build(
         self,
-    ) -> Result<(SecretString, Vault, Vec<WriteEvent<'static>>)> {
+    ) -> Result<(AccessKey, Vault, Vec<WriteEvent<'static>>)> {
         // Decrypt current vault meta data blob
         let current_private_key = self.current_private_key()?;
         let vault_meta_aead =
@@ -91,9 +109,15 @@ impl<'a> ChangePassword<'a> {
         //
         // Must clear the existing salt so we can re-initialize.
         new_vault.header_mut().clear_salt();
-        new_vault
-            .symmetric(self.new_passphrase.clone(), self.seed)
-            .await?;
+
+        match &self.new_key {
+            AccessKey::Password(password) => {
+                new_vault.symmetric(password.clone(), self.seed).await?;
+            }
+            AccessKey::Identity(id) => {
+                new_vault.asymmetric(id, vec![]).await?;
+            }
+        }
 
         // Get a new secret key after we have initialized the new salt
         let new_private_key = self.new_private_key(&new_vault)?;
@@ -142,7 +166,7 @@ impl<'a> ChangePassword<'a> {
 
         event_log_events.sort();
 
-        Ok((self.new_passphrase, new_vault, event_log_events))
+        Ok((self.new_key, new_vault, event_log_events))
     }
 }
 
@@ -150,6 +174,7 @@ impl<'a> ChangePassword<'a> {
 mod test {
     use super::ChangePassword;
     use crate::{
+        crypto::AccessKey,
         test_utils::*,
         vault::{Gatekeeper, VaultBuilder},
     };
@@ -158,13 +183,13 @@ mod test {
 
     #[tokio::test]
     async fn change_password() -> Result<()> {
-        let (_, _, current_passphrase) = mock_encryption_key()?;
+        let (_, _, current_key) = mock_encryption_key()?;
         let mock_vault = VaultBuilder::new()
-            .password(current_passphrase.clone(), None)
+            .password(current_key.clone(), None)
             .await?;
 
         let mut keeper = Gatekeeper::new(mock_vault, None);
-        keeper.unlock(current_passphrase.clone()).await?;
+        keeper.unlock(current_key.clone().into()).await?;
 
         // Propagate some secrets
         let notes = vec![
@@ -181,16 +206,17 @@ mod test {
         let expected_len = keeper.vault().len();
         assert_eq!(3, expected_len);
 
-        let (_, _, new_passphrase) = mock_encryption_key()?;
+        let (_, _, new_key) = mock_encryption_key()?;
 
-        let expected_passphrase = new_passphrase.clone();
+        let expected_passphrase = AccessKey::Password(new_key.clone());
 
         // Using an incorrect current passphrase should fail
-        let bad_passphrase = secrecy::Secret::new(String::from("oops"));
+        let bad_passphrase =
+            AccessKey::Password(secrecy::Secret::new(String::from("oops")));
         assert!(ChangePassword::new(
             keeper.vault(),
             bad_passphrase,
-            new_passphrase.clone(),
+            AccessKey::Password(new_key.clone()),
             None,
         )
         .build()
@@ -198,20 +224,16 @@ mod test {
         .is_err());
 
         // Using a valid current passphrase should succeed
-        let (new_passphrase, new_vault, event_log_events) =
-            ChangePassword::new(
-                keeper.vault(),
-                current_passphrase,
-                new_passphrase,
-                None,
-            )
-            .build()
-            .await?;
+        let (new_key, new_vault, event_log_events) = ChangePassword::new(
+            keeper.vault(),
+            AccessKey::Password(current_key),
+            AccessKey::Password(new_key),
+            None,
+        )
+        .build()
+        .await?;
 
-        assert_eq!(
-            expected_passphrase.expose_secret(),
-            new_passphrase.expose_secret()
-        );
+        assert_eq!(expected_passphrase, new_key);
         assert_eq!(expected_len, new_vault.len());
         assert_eq!(expected_len + 1, event_log_events.len());
 

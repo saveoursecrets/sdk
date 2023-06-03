@@ -10,6 +10,7 @@ use web3_address::ethereum::Address;
 use crate::{
     account::{AccountInfo, DelegatedPassphrase, LocalAccounts},
     constants::{DEVICE_KEY_URN, VAULT_EXT},
+    crypto::AccessKey,
     encode,
     events::{AuditEvent, Event, EventKind},
     search::SearchIndex,
@@ -95,8 +96,8 @@ impl AuthenticatedUser {
     }
 
     /// Verify the passphrase for this account.
-    pub async fn verify(&self, passphrase: &SecretString) -> bool {
-        let result = self.identity().keeper().verify(passphrase).await.ok();
+    pub async fn verify(&self, key: &AccessKey) -> bool {
+        let result = self.identity().keeper().verify(key).await.ok();
         result.is_some()
     }
 
@@ -239,7 +240,7 @@ impl Login {
             let search_index = Arc::new(RwLock::new(SearchIndex::new()));
             let mut device_keeper =
                 Gatekeeper::new(vault, Some(search_index));
-            device_keeper.unlock(device_passphrase).await?;
+            device_keeper.unlock(device_passphrase.into()).await?;
             device_keeper.create_search_index().await?;
             let index = device_keeper.index();
             let index_reader = index.read().await;
@@ -281,7 +282,7 @@ impl Login {
                         | VaultFlags::NO_SYNC_SELF
                         | VaultFlags::NO_SYNC_OTHER,
                 )
-                .password(device_passphrase.clone(), None)
+                .password(device_passphrase.clone().into(), None)
                 .await?;
 
             /*
@@ -297,12 +298,12 @@ impl Login {
             DelegatedPassphrase::save_vault_passphrase(
                 identity,
                 vault.id(),
-                device_passphrase.clone(),
+                device_passphrase.clone().into(),
             )
             .await?;
 
             let mut device_keeper = Gatekeeper::new(vault, None);
-            device_keeper.unlock(device_passphrase).await?;
+            device_keeper.unlock(device_passphrase.into()).await?;
 
             let key = ed25519::SingleParty::new_random();
             let public_id = key.address()?;

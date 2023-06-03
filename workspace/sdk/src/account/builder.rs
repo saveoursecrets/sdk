@@ -7,6 +7,7 @@ use crate::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
         DEFAULT_CONTACTS_VAULT_NAME, FILE_PASSWORD_URN,
     },
+    crypto::AccessKey,
     encode,
     storage::AppPaths,
     vault::{
@@ -158,7 +159,7 @@ impl AccountBuilder {
         // Save the master passphrase in the default vault
         if save_passphrase {
             let mut keeper = Gatekeeper::new(default_vault, None);
-            keeper.unlock(vault_passphrase.clone()).await?;
+            keeper.unlock(vault_passphrase.clone().into()).await?;
 
             let secret = Secret::Account {
                 account: account_name,
@@ -176,12 +177,12 @@ impl AccountBuilder {
 
         // Store the vault passphrase in the identity vault
         let mut keeper = Gatekeeper::new(identity_vault, None);
-        keeper.unlock(passphrase).await?;
+        keeper.unlock(passphrase.into()).await?;
 
         DelegatedPassphrase::save_vault_passphrase(
             &mut keeper,
             default_vault.id(),
-            vault_passphrase,
+            AccessKey::Password(vault_passphrase),
         )
         .await?;
 
@@ -215,7 +216,7 @@ impl AccountBuilder {
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
-                archive_passphrase,
+                AccessKey::Password(archive_passphrase),
             )
             .await?;
             Some(vault)
@@ -238,7 +239,7 @@ impl AccountBuilder {
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
-                auth_passphrase,
+                AccessKey::Password(auth_passphrase),
             )
             .await?;
             Some(vault)
@@ -261,7 +262,7 @@ impl AccountBuilder {
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
-                auth_passphrase,
+                AccessKey::Password(auth_passphrase),
             )
             .await?;
             Some(vault)

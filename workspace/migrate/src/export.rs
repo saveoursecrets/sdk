@@ -196,7 +196,7 @@ mod test {
 
         let mut migration = PublicExport::new(writer);
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(passphrase).await?;
+        keeper.unlock(passphrase.into()).await?;
 
         let (meta, secret, _, _) =
             mock_secret_note("Mock note", "Value for the mock note").await?;

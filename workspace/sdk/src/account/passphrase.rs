@@ -1,6 +1,7 @@
 //! Generate and manage delegated passwords stored in an identity vault.
 use crate::{
     constants::FILE_PASSWORD_URN,
+    crypto::AccessKey,
     passwd::diceware::generate_passphrase_words,
     vault::{
         secret::{Secret, SecretMeta},
@@ -8,7 +9,7 @@ use crate::{
     },
     Error, Result,
 };
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use urn::Urn;
 
 /// Number of words to use when generating passphrases for vaults.
@@ -29,19 +30,28 @@ impl DelegatedPassphrase {
     pub async fn save_vault_passphrase(
         identity: &mut Gatekeeper,
         vault_id: &VaultId,
-        vault_passphrase: SecretString,
+        key: AccessKey,
     ) -> Result<()> {
         let urn = Vault::vault_urn(vault_id)?;
 
-        let secret = Secret::Password {
-            name: None,
-            password: vault_passphrase,
-            user_data: Default::default(),
+        let secret = match key {
+            AccessKey::Password(vault_passphrase) => Secret::Password {
+                name: None,
+                password: vault_passphrase,
+                user_data: Default::default(),
+            },
+            AccessKey::Identity(id) => Secret::Age {
+                version: Default::default(),
+                key: id.to_string(),
+                user_data: Default::default(),
+            },
         };
+
         let mut meta =
             SecretMeta::new(urn.as_str().to_owned(), secret.kind());
         meta.set_urn(Some(urn));
         identity.create(meta, secret).await?;
+
         Ok(())
     }
 
@@ -76,7 +86,7 @@ impl DelegatedPassphrase {
     pub async fn find_vault_passphrase(
         identity: &Gatekeeper,
         vault_id: &VaultId,
-    ) -> Result<SecretString> {
+    ) -> Result<AccessKey> {
         let urn = Vault::vault_urn(vault_id)?;
         let index = identity.index();
         let index_reader = index.read().await;
@@ -89,13 +99,18 @@ impl DelegatedPassphrase {
             .await?
             .ok_or_else(|| Error::NoVaultEntry(document.id().to_string()))?;
 
-        let passphrase = if let Secret::Password { password, .. } = secret {
-            password
-        } else {
-            return Err(Error::VaultEntryKind(urn.to_string()));
+        let key = match secret {
+            Secret::Password { password, .. } => {
+                AccessKey::Password(password)
+            }
+            Secret::Age { key, .. } => {
+                AccessKey::Identity(key.expose_secret().parse().map_err(
+                    |s: &str| Error::InvalidAgeIdentity(s.to_owned()),
+                )?)
+            }
+            _ => return Err(Error::VaultEntryKind(urn.to_string())),
         };
-
-        Ok(passphrase)
+        Ok(key)
     }
 
     /// Find the passphrase used for symmetric file encryption (AGE).

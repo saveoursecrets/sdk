@@ -16,7 +16,7 @@ use sos_sdk::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
     constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
-    crypto::{KeyDerivation, PrivateKey},
+    crypto::{AccessKey, KeyDerivation, PrivateKey},
     decode, encode,
     events::{
         AuditEvent, AuditLogFile, ChangeAction, ChangeNotification, Event,
@@ -255,7 +255,7 @@ pub trait StorageProvider: Sync + Send {
     async fn refresh_vault(
         &mut self,
         summary: &Summary,
-        new_passphrase: Option<&SecretString>,
+        new_key: Option<&AccessKey>,
     ) -> Result<()> {
         let vault = self.reduce_event_log(summary).await?;
 
@@ -268,16 +268,25 @@ pub trait StorageProvider: Sync + Send {
         if let Some(keeper) = self.current_mut() {
             if keeper.id() == summary.id() {
                 // Update the in-memory version
-                let new_key = if let Some(new_passphrase) = new_passphrase {
+                let new_key = if let Some(new_key) = new_key {
                     if let Some(salt) = vault.salt() {
-                        let salt = KeyDerivation::parse_salt(salt)?;
-                        let deriver = vault.deriver();
-                        let derived_private_key = deriver.derive(
-                            &new_passphrase,
-                            &salt,
-                            keeper.vault().seed(),
-                        )?;
-                        Some(PrivateKey::Symmetric(derived_private_key))
+                        match new_key {
+                            AccessKey::Password(password) => {
+                                let salt = KeyDerivation::parse_salt(salt)?;
+                                let deriver = vault.deriver();
+                                let derived_private_key = deriver.derive(
+                                    &password,
+                                    &salt,
+                                    keeper.vault().seed(),
+                                )?;
+                                Some(PrivateKey::Symmetric(
+                                    derived_private_key,
+                                ))
+                            }
+                            AccessKey::Identity(id) => {
+                                Some(PrivateKey::Asymmetric(id.clone()))
+                            }
+                        }
                     } else {
                         None
                     }
@@ -295,19 +304,18 @@ pub trait StorageProvider: Sync + Send {
     async fn create_account(
         &mut self,
         name: Option<String>,
-        passphrase: Option<SecretString>,
-    ) -> Result<(WriteEvent<'static>, SecretString, Summary)> {
-        self.create_vault_or_account(name, passphrase, true).await
+        key: Option<AccessKey>,
+    ) -> Result<(WriteEvent<'static>, AccessKey, Summary)> {
+        self.create_vault_or_account(name, key, true).await
     }
 
     /// Create a new vault.
     async fn create_vault(
         &mut self,
         name: String,
-        passphrase: Option<SecretString>,
-    ) -> Result<(WriteEvent<'static>, SecretString, Summary)> {
-        self.create_vault_or_account(Some(name), passphrase, false)
-            .await
+        key: Option<AccessKey>,
+    ) -> Result<(WriteEvent<'static>, AccessKey, Summary)> {
+        self.create_vault_or_account(Some(name), key, false).await
     }
 
     /// Import a vault into an existing account.
@@ -326,9 +334,9 @@ pub trait StorageProvider: Sync + Send {
     async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
-        passphrase: Option<SecretString>,
+        key: Option<AccessKey>,
         _is_account: bool,
-    ) -> Result<(WriteEvent<'static>, SecretString, Summary)>;
+    ) -> Result<(WriteEvent<'static>, AccessKey, Summary)>;
 
     /// Remove a vault.
     async fn remove_vault(
@@ -350,7 +358,7 @@ pub trait StorageProvider: Sync + Send {
     async fn open_vault(
         &mut self,
         summary: &Summary,
-        passphrase: SecretString,
+        key: AccessKey,
         index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<ReadEvent> {
         let vault_path = self.vault_path(summary);
@@ -370,7 +378,7 @@ pub trait StorageProvider: Sync + Send {
         };
 
         self.state_mut()
-            .open_vault(passphrase, vault, vault_path, index)
+            .open_vault(key, vault, vault_path, index)
             .await?;
         Ok(ReadEvent::ReadVault)
     }
@@ -598,33 +606,27 @@ pub trait StorageProvider: Sync + Send {
     async fn change_password(
         &mut self,
         vault: &Vault,
-        current_passphrase: SecretString,
-        new_passphrase: SecretString,
-    ) -> Result<SecretString> {
-        let (new_passphrase, new_vault, event_log_events) =
-            ChangePassword::new(
-                vault,
-                current_passphrase,
-                new_passphrase,
-                None,
-            )
-            .build()
-            .await?;
+        current_key: AccessKey,
+        new_key: AccessKey,
+    ) -> Result<AccessKey> {
+        let (new_key, new_vault, event_log_events) =
+            ChangePassword::new(vault, current_key, new_key, None)
+                .build()
+                .await?;
 
         self.update_vault(vault.summary(), &new_vault, event_log_events)
             .await?;
 
         // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.summary(), Some(&new_passphrase))
-            .await?;
+        self.refresh_vault(vault.summary(), Some(&new_key)).await?;
 
         if let Some(keeper) = self.current_mut() {
             if keeper.summary().id() == vault.summary().id() {
-                keeper.unlock(new_passphrase.clone()).await?;
+                keeper.unlock(new_key.clone()).await?;
             }
         }
 
-        Ok(new_passphrase)
+        Ok(new_key)
     }
 
     /// Verify a event log log.

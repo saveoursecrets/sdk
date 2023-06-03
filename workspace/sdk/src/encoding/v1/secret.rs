@@ -853,7 +853,17 @@ impl Decode for Secret {
             SecretType::Age => {
                 let mut version: AgeVersion = Default::default();
                 version.decode(reader).await?;
-                let key = SecretString::new(reader.read_string().await?);
+                let id = reader.read_string().await?;
+
+                // Make sure it's a valid x25519 identity
+                let _: age::x25519::Identity =
+                    id.parse().map_err(|s: &str| {
+                        encoding_error(crate::Error::InvalidAgeIdentity(
+                            s.to_string(),
+                        ))
+                    })?;
+
+                let key = SecretString::new(id);
 
                 let user_data = read_user_data(reader).await?;
                 *self = Self::Age {

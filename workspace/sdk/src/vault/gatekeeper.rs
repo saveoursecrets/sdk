@@ -1,6 +1,6 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
-    crypto::{KeyDerivation, PrivateKey},
+    crypto::{AccessKey, KeyDerivation, PrivateKey},
     decode, encode,
     events::{ReadEvent, WriteEvent},
     search::SearchIndex,
@@ -395,8 +395,8 @@ impl Gatekeeper {
     }
 
     /// Verify an encryption passphrase.
-    pub async fn verify(&self, passphrase: &SecretString) -> Result<()> {
-        self.vault.verify(passphrase).await
+    pub async fn verify(&self, key: &AccessKey) -> Result<()> {
+        self.vault.verify(key).await
     }
 
     /// Add the meta data for the vault entries to a search index..
@@ -423,17 +423,23 @@ impl Gatekeeper {
     /// Unlock the vault by setting the private key from a passphrase.
     ///
     /// The private key is stored in memory by this gatekeeper.
-    pub async fn unlock(
-        &mut self,
-        passphrase: SecretString,
-    ) -> Result<VaultMeta> {
+    pub async fn unlock(&mut self, key: AccessKey) -> Result<VaultMeta> {
         if let Some(salt) = self.vault.salt() {
-            let salt = KeyDerivation::parse_salt(salt)?;
-            let deriver = self.vault.deriver();
-            let private_key =
-                deriver.derive(&passphrase, &salt, self.vault.seed())?;
-            self.private_key = Some(PrivateKey::Symmetric(private_key));
-            self.vault_meta().await
+            match key {
+                AccessKey::Password(passphrase) => {
+                    let salt = KeyDerivation::parse_salt(salt)?;
+                    let deriver = self.vault.deriver();
+                    let private_key = deriver.derive(
+                        &passphrase,
+                        &salt,
+                        self.vault.seed(),
+                    )?;
+                    self.private_key =
+                        Some(PrivateKey::Symmetric(private_key));
+                    self.vault_meta().await
+                }
+                _ => todo!(),
+            }
         } else {
             Err(Error::VaultNotInit)
         }
@@ -482,7 +488,7 @@ mod tests {
             .await?;
 
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(passphrase).await?;
+        keeper.unlock(passphrase.into()).await?;
 
         //// Decrypt the initialized meta data.
         let meta = keeper.vault_meta().await?;

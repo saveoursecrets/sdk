@@ -5,6 +5,7 @@ use sos_net::client::{provider::ProviderFactory, user::UserStorage};
 use sos_sdk::{
     account::{AccountInfo, AccountRef, LocalAccounts},
     constants::DEFAULT_VAULT_NAME,
+    crypto::AccessKey,
     passwd::diceware::generate_passphrase,
     secrecy::{ExposeSecret, SecretString},
     storage::AppPaths,
@@ -162,7 +163,7 @@ pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
 pub async fn verify(user: Owner) -> Result<bool> {
     let passphrase = read_password(Some("Password: "))?;
     let owner = user.read().await;
-    Ok(owner.verify(&passphrase).await)
+    Ok(owner.verify(&AccessKey::Password(passphrase)).await)
 }
 
 /// List local accounts.

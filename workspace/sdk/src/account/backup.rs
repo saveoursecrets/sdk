@@ -23,6 +23,7 @@ use crate::{
         AccountInfo, DelegatedPassphrase, Identity, LocalAccounts,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
+    crypto::AccessKey,
     decode, encode,
     events::{EventLogFile, WriteEvent},
     passwd::ChangePassword,
@@ -320,7 +321,7 @@ impl AccountBackup {
         address: &Address,
         identity: &Gatekeeper,
         vault_id: &VaultId,
-        new_passphrase: SecretString,
+        new_passphrase: AccessKey,
     ) -> Result<Vec<u8>> {
         // Get the current vault passphrase from the identity vault
         let current_passphrase =
@@ -436,7 +437,7 @@ impl AccountBackup {
                 let identity_vault: Vault = decode(&identity_buffer).await?;
                 let mut identity_keeper =
                     Gatekeeper::new(identity_vault, None);
-                identity_keeper.unlock(passphrase.clone()).await?;
+                identity_keeper.unlock(passphrase.clone().into()).await?;
 
                 let search_index = Arc::new(RwLock::new(SearchIndex::new()));
                 let restored_identity: Vault = decode(&identity.1).await?;
@@ -444,7 +445,9 @@ impl AccountBackup {
                     restored_identity,
                     Some(Arc::clone(&search_index)),
                 );
-                restored_identity_keeper.unlock(passphrase.clone()).await?;
+                restored_identity_keeper
+                    .unlock(passphrase.clone().into())
+                    .await?;
                 restored_identity_keeper.create_search_index().await?;
 
                 for (_, vault) in vaults {
@@ -605,7 +608,7 @@ impl AccountBackup {
             // Check the identity vault can be unlocked
             let vault: Vault = decode(&identity.1).await?;
             let mut keeper = Gatekeeper::new(vault, None);
-            keeper.unlock(passphrase.clone()).await?;
+            keeper.unlock(passphrase.clone().into()).await?;
 
             // Get the signing address from the identity vault and
             // verify it matches the manifest address

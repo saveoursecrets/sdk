@@ -11,6 +11,7 @@ use sos_sdk::{
         AuthenticatedUser, DelegatedPassphrase, ExtractFilesLocation,
         ImportedAccount, LocalAccounts, Login, NewAccount, RestoreOptions,
     },
+    crypto::AccessKey,
     decode, encode,
     events::{
         AuditData, AuditEvent, AuditProvider, Event, EventKind, ReadEvent,
@@ -302,9 +303,9 @@ impl UserStorage {
         })
     }
 
-    /// Verify the master password for this account.
-    pub async fn verify(&self, passphrase: &SecretString) -> bool {
-        self.user.verify(passphrase).await
+    /// Verify an access key for this account.
+    pub async fn verify(&self, key: &AccessKey) -> bool {
+        self.user.verify(key).await
     }
 
     /// Delete the account for this user and sign out.
@@ -379,15 +380,14 @@ impl UserStorage {
     /// Create a folder.
     pub async fn create_folder(&mut self, name: String) -> Result<Summary> {
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
-        let (event, _, summary) = self
-            .storage
-            .create_vault(name, Some(passphrase.clone()))
-            .await?;
+        let key = AccessKey::Password(passphrase);
+        let (event, _, summary) =
+            self.storage.create_vault(name, Some(key.clone())).await?;
 
         DelegatedPassphrase::save_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
             summary.id(),
-            passphrase,
+            key,
         )
         .await?;
 
@@ -452,18 +452,18 @@ impl UserStorage {
         &mut self,
         path: P,
         summary: &Summary,
-        new_passphrase: SecretString,
-        save_passphrase: bool,
+        new_key: AccessKey,
+        save_key: bool,
     ) -> Result<()> {
         let buffer = AccountBackup::export_vault(
             self.address(),
             self.user.identity().keeper(),
             summary.id(),
-            new_passphrase.clone(),
+            new_key.clone(),
         )
         .await?;
 
-        if save_passphrase {
+        if save_key {
             let default_summary = self
                 .default_folder()
                 .ok_or_else(|| Error::NoDefaultFolder)?;
@@ -483,7 +483,7 @@ impl UserStorage {
             let secret = Secret::Account {
                 account: format!("{}.vault", summary.id()),
                 url: None,
-                password: new_passphrase,
+                password: new_key.into(),
                 user_data: Default::default(),
             };
             let meta = SecretMeta::new(label, secret.kind());
@@ -520,7 +520,7 @@ impl UserStorage {
     pub async fn import_folder<P: AsRef<Path>>(
         &mut self,
         path: P,
-        passphrase: SecretString,
+        key: AccessKey,
         overwrite: bool,
     ) -> Result<Summary> {
         let buffer = vfs::read(path.as_ref()).await?;
@@ -528,7 +528,7 @@ impl UserStorage {
         let mut vault: Vault = decode(&buffer).await?;
 
         // Need to verify the passphrase
-        vault.verify(&passphrase).await?;
+        vault.verify(&key).await?;
 
         // Check for existing identifier
         let vaults =
@@ -599,7 +599,7 @@ impl UserStorage {
         DelegatedPassphrase::save_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
             summary.id(),
-            passphrase.clone(),
+            key.clone(),
         )
         .await?;
 
@@ -621,9 +621,7 @@ impl UserStorage {
         }
 
         // Ensure the imported secrets are in the search index
-        self.index
-            .add_folder_to_search_index(vault, passphrase)
-            .await?;
+        self.index.add_folder_to_search_index(vault, key).await?;
 
         let audit_event = AuditEvent::new(
             EventKind::ImportVault,
@@ -669,7 +667,7 @@ impl UserStorage {
         let index = Arc::clone(&self.index.search_index);
         let event = self
             .storage
-            .open_vault(summary, passphrase, Some(index))
+            .open_vault(summary, passphrase.into(), Some(index))
             .await?;
         let event = Event::Read(*summary.id(), event);
 
@@ -1124,7 +1122,7 @@ impl UserStorage {
                 .await?;
 
             let mut keeper = Gatekeeper::new(vault, None);
-            keeper.unlock(vault_passphrase).await?;
+            keeper.unlock(vault_passphrase.into()).await?;
 
             // Add the secrets for the vault to the migration
             migration.add(&keeper).await?;
@@ -1255,7 +1253,7 @@ impl UserStorage {
             .convert(
                 path.as_ref().to_path_buf(),
                 vault,
-                vault_passphrase.clone(),
+                vault_passphrase.clone().into(),
             )
             .await?;
 
@@ -1265,13 +1263,13 @@ impl UserStorage {
         DelegatedPassphrase::save_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
             vault.id(),
-            vault_passphrase.clone(),
+            vault_passphrase.clone().into(),
         )
         .await?;
 
         // Ensure the imported secrets are in the search index
         self.index_mut()
-            .add_folder_to_search_index(vault, vault_passphrase)
+            .add_folder_to_search_index(vault, vault_passphrase.into())
             .await?;
 
         let event = Event::Write(*summary.id(), event);
@@ -1356,7 +1354,7 @@ impl UserStorage {
         )
         .await?;
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(contacts_passphrase).await?;
+        keeper.unlock(contacts_passphrase.into()).await?;
 
         let mut vcf = String::new();
         let keys: Vec<&SecretId> = keeper.vault().keys().collect();

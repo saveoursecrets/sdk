@@ -107,7 +107,7 @@ impl Identity {
             .await?;
 
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(master_passphrase).await?;
+        keeper.unlock(master_passphrase.into()).await?;
 
         // Store the signing key
         let signer = SingleParty::new_random();
@@ -176,7 +176,7 @@ impl Identity {
             Gatekeeper::new(vault, search_index)
         };
 
-        keeper.unlock(master_passphrase).await?;
+        keeper.unlock(master_passphrase.into()).await?;
         // Must create the index so we can find by URN
         keeper.create_search_index().await?;
 
@@ -321,7 +321,7 @@ mod tests {
             .await?;
 
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(master_passphrase.clone()).await?;
+        keeper.unlock(master_passphrase.clone().into()).await?;
 
         // Create a secret using the expected name but of the wrong kind
         let signer_secret = Secret::Note {

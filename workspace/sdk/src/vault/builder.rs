@@ -1,13 +1,13 @@
-use std::collections::HashSet;
 use crate::{
     constants::DEFAULT_VAULT_NAME,
-    crypto::{Cipher, KeyDerivation, Seed, PrivateKey},
+    crypto::{Cipher, KeyDerivation, PrivateKey, Seed},
     encode,
     vault::{Vault, VaultAccess, VaultFlags, VaultId, VaultMeta},
     Result,
 };
 use age::x25519::{Identity, Recipient};
 use secrecy::SecretString;
+use std::collections::HashSet;
 
 /// Builder for a vault.
 pub struct VaultBuilder {
@@ -111,7 +111,11 @@ impl VaultBuilder {
         let (mut vault, meta) = self.prepare();
         vault.flags_mut().set(VaultFlags::SHARED, true);
         let owner_public = owner.to_public();
-        if recipients.iter().find(|r| r.to_string() == owner_public.to_string()).is_none() {
+        if recipients
+            .iter()
+            .find(|r| r.to_string() == owner_public.to_string())
+            .is_none()
+        {
             recipients.push(owner_public);
         }
         let private_key = vault.asymmetric(owner, recipients).await?;
@@ -121,7 +125,11 @@ impl VaultBuilder {
 }
 
 /// Encrypt the meta data and assign to the vault.
-async fn encrypt_meta(vault: &mut Vault, private_key: &PrivateKey, meta: VaultMeta) -> Result<()> {
+async fn encrypt_meta(
+    vault: &mut Vault,
+    private_key: &PrivateKey,
+    meta: VaultMeta,
+) -> Result<()> {
     let meta_blob = encode(&meta).await?;
     let meta_aead = vault.encrypt(private_key, &meta_blob).await?;
     vault.set_vault_meta(Some(meta_aead)).await?;

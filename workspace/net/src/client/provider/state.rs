@@ -3,6 +3,7 @@
 use super::{Error, Result};
 
 use sos_sdk::{
+    crypto::AccessKey,
     search::SearchIndex,
     secrecy::SecretString,
     vault::{Gatekeeper, Summary, Vault, VaultRef, VaultWriter},
@@ -100,7 +101,7 @@ impl ProviderState {
     /// Set the current vault and unlock it.
     pub async fn open_vault(
         &mut self,
-        passphrase: SecretString,
+        key: AccessKey,
         vault: Vault,
         vault_path: PathBuf,
         index: Option<Arc<RwLock<SearchIndex>>>,
@@ -114,7 +115,7 @@ impl ProviderState {
         };
 
         keeper
-            .unlock(passphrase)
+            .unlock(key)
             .await
             .map_err(|_| Error::VaultUnlockFail)?;
         self.current = Some(keeper);
