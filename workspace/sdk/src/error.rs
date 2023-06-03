@@ -318,6 +318,16 @@ pub enum Error {
     #[error("not Ed25519 signing key")]
     NotEd25519Key,
 
+    /// Error generated when attempting to use an asymmetric 
+    /// private key with a symmetric cipher.
+    #[error("symmetric private key required for symmetric cipher")]
+    NotSymmetric,
+
+    /// Error generated when attempting to use a symmetric 
+    /// private key with an asymmetric cipher.
+    #[error("asymmetric private key required for asymmetric cipher")]
+    NotAsymmetric,
+
     /// Error generated when an attachment could not be found.
     #[error(r#"attachment "{0}" not found"#)]
     AttachmentNotFound(SecretId),

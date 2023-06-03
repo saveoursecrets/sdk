@@ -96,17 +96,20 @@ impl Cipher {
                     xchacha20poly1305::encrypt(self, key, plaintext, nonce)
                         .await
                 }
-                _ => panic!("not symmetric key"),
+                _ => Err(Error::NotSymmetric),
             },
             Cipher::AesGcm256 => match key {
                 PrivateKey::Symmetric(key) => {
                     aesgcm256::encrypt(self, key, plaintext, nonce).await
                 }
-                _ => panic!("not symmetric key"),
+                _ => Err(Error::NotSymmetric),
             },
-            Cipher::X25519(_) => {
-                todo!();
-                //x25519::encrypt(self, key, plaintext, nonce).await
+            Cipher::X25519(_) => match key {
+                PrivateKey::Asymmetric(_) => {
+                    todo!();
+                    //x25519::encrypt(self, key, plaintext, nonce).await
+                }
+                _ => Err(Error::NotAsymmetric),
             }
         }
     }
@@ -122,17 +125,21 @@ impl Cipher {
                 PrivateKey::Symmetric(key) => {
                     xchacha20poly1305::decrypt(self, key, aead).await
                 }
-                _ => panic!("not symmetric key"),
+                _ => Err(Error::NotSymmetric),
             },
             Cipher::AesGcm256 => match key {
                 PrivateKey::Symmetric(key) => {
                     aesgcm256::decrypt(self, key, aead).await
                 }
-                _ => panic!("not symmetric key"),
+                _ => Err(Error::NotSymmetric),
             },
-            Cipher::X25519(_) => {
-                todo!();
-                //x25519::decrypt(self, key, aead).await
+            Cipher::X25519(_) => match key {
+                PrivateKey::Asymmetric(_) => {
+                    todo!();
+                    //x25519::decrypt(self, key, aead).await
+                }
+                _ => Err(Error::NotAsymmetric),
+
             }
         }
     }
