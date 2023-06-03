@@ -11,7 +11,7 @@ use crate::{
     Result,
 };
 
-/// Access key is converted to a private key to access a vault.
+/// Access key used to unlock a vault.
 pub enum AccessKey {
     /// Password access.
     Password(SecretString),
@@ -23,7 +23,7 @@ impl AccessKey {
     /// Convert this access key into a private key.
     pub fn into_private(
         self,
-        kdf: KeyDerivation,
+        kdf: &KeyDerivation,
         salt: &SaltString,
         seed: Option<&Seed>,
     ) -> Result<PrivateKey> {

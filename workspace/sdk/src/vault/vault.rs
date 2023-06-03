@@ -41,14 +41,16 @@ bitflags! {
     /// Bit flags for a vault.
     #[derive(Default, Serialize, Deserialize)]
     pub struct VaultFlags: u64 {
-        /// Indicates this vault should be treated as the default folder.
+        /// Indicates this vault should be treated as 
+        /// the default folder.
         const DEFAULT           =        0b0000000000000001;
-        /// Indicates this vault is an identity vault used to authenticate
-        /// a user.
+        /// Indicates this vault is an identity vault used 
+        /// to authenticate a user.
         const IDENTITY          =        0b0000000000000010;
         /// Indicates this vault is to be used as an archive.
         const ARCHIVE           =        0b0000000000000100;
-        /// Indicates this vault is to be used for two-factor authentication.
+        /// Indicates this vault is to be used for 
+        /// two-factor authentication.
         const AUTHENTICATOR     =        0b0000000000001000;
         /// Indicates this vault is to be used to store contacts.
         const CONTACT           =        0b0000000000010000;
@@ -71,9 +73,12 @@ bitflags! {
         ///
         /// This is useful for storing device specific keys.
         const NO_SYNC_SELF      =        0b0000000010000000;
-        /// Idnicates this vault should not be synced with
+        /// Indicates this vault should not be synced with
         /// devices owned by other accounts.
         const NO_SYNC_OTHER     =        0b0000000100000000;
+        /// Indicates this vault is shared using asymmetric 
+        /// encryption.
+        const SHARED            =        0b0000001000000000;
     }
 }
 
@@ -123,6 +128,11 @@ impl VaultFlags {
     /// with devices owned by other accounts.
     pub fn is_no_sync_other(&self) -> bool {
         self.contains(VaultFlags::NO_SYNC_OTHER)
+    }
+
+    /// Determine if this vault is shared.
+    pub fn is_shared(&self) -> bool {
+        self.contains(VaultFlags::SHARED)
     }
 }
 
