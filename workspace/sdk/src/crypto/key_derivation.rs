@@ -9,7 +9,7 @@ use argon2::{
 };
 use balloon_hash::Balloon;
 use rand::Rng;
-use secrecy::{ExposeSecret, SecretVec};
+use secrecy::{ExposeSecret, SecretVec, SecretString};
 use sha2::{Digest, Sha256};
 use std::{convert::AsRef, fmt, str::FromStr};
 
