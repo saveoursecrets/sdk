@@ -144,18 +144,18 @@ pub struct VaultMeta {
     pub(crate) date_created: Timestamp,
     /// Private human-friendly description of the vault.
     #[serde(skip_serializing_if = "String::is_empty")]
-    pub(crate) label: String,
+    pub(crate) description: String,
 }
 
 impl VaultMeta {
-    /// Get the vault label.
-    pub fn label(&self) -> &str {
-        &self.label
+    /// Get the vault description.
+    pub fn description(&self) -> &str {
+        &self.description
     }
 
-    /// Get the vault label.
-    pub fn set_label(&mut self, label: String) {
-        self.label = label;
+    /// Get the vault description.
+    pub fn set_description(&mut self, description: String) {
+        self.description = description;
     }
 
     /// Date this vault was initialized.

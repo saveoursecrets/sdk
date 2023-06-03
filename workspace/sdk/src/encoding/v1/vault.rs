@@ -26,7 +26,7 @@ impl Encode for VaultMeta {
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         self.date_created.encode(&mut *writer).await?;
-        writer.write_string(&self.label).await?;
+        writer.write_string(&self.description).await?;
         Ok(())
     }
 }
@@ -40,7 +40,7 @@ impl Decode for VaultMeta {
     ) -> Result<()> {
         let mut date_created: Timestamp = Default::default();
         date_created.decode(&mut *reader).await?;
-        self.label = reader.read_string().await?;
+        self.description = reader.read_string().await?;
         Ok(())
     }
 }

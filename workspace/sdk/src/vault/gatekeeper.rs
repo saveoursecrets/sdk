@@ -189,7 +189,7 @@ impl Gatekeeper {
     pub async fn initialize(
         &mut self,
         name: String,
-        label: String,
+        description: String,
         password: SecretString,
         seed: Option<Seed>,
     ) -> Result<()> {
@@ -197,31 +197,17 @@ impl Gatekeeper {
         let private_key = self.vault.initialize(password, seed).await?;
         self.private_key = Some(private_key);
 
-        // Assign the label to the meta data
+        // Assign the description to the meta data
         let mut init_meta_data: VaultMeta = Default::default();
-        init_meta_data.set_label(label);
+        init_meta_data.set_description(description);
         self.set_meta(init_meta_data).await?;
 
         self.vault.set_name(name);
         Ok(())
     }
-
-    /// Attempt to decrypt the index meta data and extract the label.
-    pub async fn label(&self) -> Result<String> {
-        let private_key =
-            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
-        if let Some(meta_aead) = self.vault.header().meta() {
-            let meta_blob =
-                self.vault.decrypt(private_key, meta_aead).await?;
-            let meta_data: VaultMeta = decode(&meta_blob).await?;
-            Ok(meta_data.label().to_string())
-        } else {
-            Err(Error::VaultNotInit)
-        }
-    }
-
-    /// Attempt to decrypt the index meta data for the vault
-    /// using the passphrase assigned to this gatekeeper.
+        
+    /// Attempt to decrypt the meta data for the vault
+    /// using the key assigned to this gatekeeper.
     pub async fn vault_meta(&self) -> Result<VaultMeta> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
@@ -513,15 +499,15 @@ mod tests {
         let mut keeper = Gatekeeper::new(vault, None);
 
         let name = String::from(DEFAULT_VAULT_NAME);
-        let label = String::from("Mock Vault Label");
+        let description = String::from("Mock Vault Description");
         keeper
-            .initialize(name, label.clone(), passphrase, None)
+            .initialize(name, description.clone(), passphrase, None)
             .await?;
 
         //// Decrypt the initialized meta data.
         let meta = keeper.vault_meta().await?;
 
-        assert_eq!(&label, meta.label());
+        assert_eq!(&description, meta.description());
 
         let secret_label = String::from("Mock Secret");
         let secret_value = String::from("Super Secret Note");
