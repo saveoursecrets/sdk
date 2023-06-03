@@ -1,10 +1,12 @@
+use std::collections::HashSet;
 use crate::{
     constants::DEFAULT_VAULT_NAME,
-    crypto::{Cipher, KeyDerivation, Seed},
+    crypto::{Cipher, KeyDerivation, Seed, PrivateKey},
     encode,
     vault::{Vault, VaultAccess, VaultFlags, VaultId, VaultMeta},
     Result,
 };
+use age::x25519::{Identity, Recipient};
 use secrecy::SecretString;
 
 /// Builder for a vault.
@@ -96,23 +98,32 @@ impl VaultBuilder {
     ) -> Result<Vault> {
         let (mut vault, meta) = self.prepare();
         let private_key = vault.symmetric(password.clone(), seed).await?;
-
-        let meta_blob = encode(&meta).await?;
-        let meta_aead = vault.encrypt(&private_key, &meta_blob).await?;
-        vault.set_vault_meta(Some(meta_aead)).await?;
-
+        encrypt_meta(&mut vault, &private_key, meta).await?;
         Ok(vault)
     }
 
     /// Build a shared vault.
     pub async fn shared(
         self,
-        _identity: age::x25519::Identity,
+        owner: &Identity,
+        mut recipients: Vec<Recipient>,
     ) -> Result<Vault> {
-        let (_vault, _meta) = self.prepare();
-        todo!();
-        //vault.initialize(password, seed).await?;
-        // FIXME: encrypt the meta data
-        //Ok(vault)
+        let (mut vault, meta) = self.prepare();
+        vault.flags_mut().set(VaultFlags::SHARED, true);
+        let owner_public = owner.to_public();
+        if recipients.iter().find(|r| r.to_string() == owner_public.to_string()).is_none() {
+            recipients.push(owner_public);
+        }
+        let private_key = vault.asymmetric(owner, recipients).await?;
+        encrypt_meta(&mut vault, &private_key, meta).await?;
+        Ok(vault)
     }
+}
+
+/// Encrypt the meta data and assign to the vault.
+async fn encrypt_meta(vault: &mut Vault, private_key: &PrivateKey, meta: VaultMeta) -> Result<()> {
+    let meta_blob = encode(&meta).await?;
+    let meta_aead = vault.encrypt(private_key, &meta_blob).await?;
+    vault.set_vault_meta(Some(meta_aead)).await?;
+    Ok(())
 }

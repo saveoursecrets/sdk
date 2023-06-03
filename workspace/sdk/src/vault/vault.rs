@@ -12,11 +12,12 @@ use bitflags::bitflags;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
-    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, io::Cursor,
+    borrow::Cow, cmp::Ordering, collections::{HashMap, HashSet}, fmt, io::Cursor,
     path::Path, str::FromStr,
 };
 use urn::Urn;
 use uuid::Uuid;
+use age::x25519::{Identity, Recipient};
 
 use crate::{
     commit::CommitHash,
@@ -574,30 +575,6 @@ impl Vault {
         Ok(vault_urn.parse()?)
     }
 
-    /*
-    /// Create a new vault and encode it into a buffer.
-    pub async fn new_buffer(
-        name: Option<String>,
-        passphrase: Option<SecretString>,
-        seed: Option<Seed>,
-    ) -> Result<(SecretString, Vault, Vec<u8>)> {
-        let passphrase = if let Some(passphrase) = passphrase {
-            passphrase
-        } else {
-            let (passphrase, _) = generate_passphrase()?;
-            passphrase
-        };
-
-        let mut vault: Vault = Default::default();
-        if let Some(name) = name {
-            vault.set_name(name);
-        }
-        vault.initialize(passphrase.clone(), seed).await?;
-        let buffer = encode(&vault).await?;
-        Ok((passphrase, vault, buffer))
-    }
-    */
-
     /// Initialize this vault using a password for
     /// a symmetric cipher.
     pub(crate) async fn symmetric(
@@ -607,21 +584,37 @@ impl Vault {
     ) -> Result<PrivateKey> {
         if self.header.auth.salt.is_none() {
             let salt = KeyDerivation::generate_salt();
-
             let deriver = self.deriver();
             let derived_private_key =
                 deriver.derive(&password, &salt, seed.as_ref())?;
             let private_key = PrivateKey::Symmetric(derived_private_key);
 
-            let default_meta: VaultMeta = Default::default();
-            let vault_meta = encode(&default_meta).await?;
-            let meta_aead = self.encrypt(&private_key, &vault_meta).await?;
-            self.header.set_meta(Some(meta_aead));
-
-            // Store the salt and seed so we can generate the same
+            // Store the salt and seed so we can derive the same
             // private key later
             self.header.auth.salt = Some(salt.to_string());
             self.header.auth.seed = seed;
+
+            Ok(private_key)
+        } else {
+            Err(Error::VaultAlreadyInit)
+        }
+    }
+
+    /// Initialize this vault using asymmetric encryption.
+    pub(crate) async fn asymmetric(
+        &mut self,
+        owner: &Identity,
+        recipients: Vec<Recipient>,
+    ) -> Result<PrivateKey> {
+        if self.header.auth.salt.is_none() {
+            let salt = KeyDerivation::generate_salt();
+            let private_key = PrivateKey::Asymmetric(owner.clone());
+            self.header.summary.cipher = Cipher::X25519(recipients);
+
+            // Store the salt so we know that the vault has 
+            // already been initialized, for asymmetric encryption
+            // it is not used
+            self.header.auth.salt = Some(salt.to_string());
 
             Ok(private_key)
         } else {
@@ -969,10 +962,9 @@ impl VaultAccess for Vault {
 mod tests {
     use super::*;
     use crate::vault::secret::*;
-
     use crate::{
         decode, encode, passwd::diceware::generate_passphrase, test_utils::*,
-        vault::VaultBuilder,
+        vault::{VaultBuilder, Gatekeeper},
     };
 
     use anyhow::Result;
@@ -1030,6 +1022,25 @@ mod tests {
             }
             _ => panic!("unexpected secret type"),
         }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn shared_folder() -> Result<()> {
+        let owner = age::x25519::Identity::generate();
+        let other_1 = age::x25519::Identity::generate();
+        let other_2 = age::x25519::Identity::generate();
+
+        let mut recipients = Vec::new();
+        recipients.push(other_1.to_public());
+        recipients.push(other_2.to_public());
+
+        let vault =
+            VaultBuilder::new()
+                .shared(&owner, recipients).await?;
+
+        let mut keeper = Gatekeeper::new(vault, None);
 
         Ok(())
     }
