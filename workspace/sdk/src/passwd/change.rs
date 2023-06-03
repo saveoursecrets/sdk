@@ -1,7 +1,7 @@
 //! Flow for changing a vault password.
 
 use crate::{
-    crypto::{DerivedPrivateKey, KeyDerivation, Seed},
+    crypto::{KeyDerivation, PrivateKey, Seed},
     encode,
     events::WriteEvent,
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
@@ -42,25 +42,25 @@ impl<'a> ChangePassword<'a> {
         }
     }
 
-    fn current_private_key(&self) -> Result<DerivedPrivateKey> {
+    fn current_private_key(&self) -> Result<PrivateKey> {
         let salt = self.vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
         let deriver = self.vault.deriver();
-        let private_key = deriver.derive(
+        let derived_private_key = deriver.derive(
             &self.current_passphrase,
             &salt,
             self.vault.seed(),
         )?;
-        Ok(private_key)
+        Ok(PrivateKey::Symmetric(derived_private_key))
     }
 
-    fn new_private_key(&self, vault: &Vault) -> Result<DerivedPrivateKey> {
+    fn new_private_key(&self, vault: &Vault) -> Result<PrivateKey> {
         let salt = vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
         let deriver = vault.deriver();
-        let private_key =
+        let derived_private_key =
             deriver.derive(&self.new_passphrase, &salt, vault.seed())?;
-        Ok(private_key)
+        Ok(PrivateKey::Symmetric(derived_private_key))
     }
 
     /// Build a new vault.
@@ -92,7 +92,7 @@ impl<'a> ChangePassword<'a> {
         // Must clear the existing salt so we can re-initialize.
         new_vault.header_mut().clear_salt();
         new_vault
-            .initialize(self.new_passphrase.clone(), self.seed)
+            .symmetric(self.new_passphrase.clone(), self.seed)
             .await?;
 
         // Get a new secret key after we have initialized the new salt
@@ -149,16 +149,18 @@ impl<'a> ChangePassword<'a> {
 #[cfg(test)]
 mod test {
     use super::ChangePassword;
-    use crate::{test_utils::*, vault::Gatekeeper};
+    use crate::{
+        test_utils::*,
+        vault::{Gatekeeper, VaultBuilder},
+    };
     use anyhow::Result;
     use secrecy::ExposeSecret;
 
     #[tokio::test]
     async fn change_password() -> Result<()> {
         let (_, _, current_passphrase) = mock_encryption_key()?;
-        let mut mock_vault = mock_vault();
-        mock_vault
-            .initialize(current_passphrase.clone(), None)
+        let mock_vault = VaultBuilder::new()
+            .password(current_passphrase.clone(), None)
             .await?;
 
         let mut keeper = Gatekeeper::new(mock_vault, None);

@@ -161,7 +161,7 @@ mod test {
     use super::*;
     use crate::{
         commit::CommitHash,
-        crypto::DerivedPrivateKey,
+        crypto::PrivateKey,
         decode,
         events::{EventLogFile, WriteEvent},
         test_utils::*,
@@ -178,7 +178,7 @@ mod test {
         NamedTempFile,
         EventLogFile,
         Vec<CommitHash>,
-        DerivedPrivateKey,
+        PrivateKey,
         SecretId,
     )> {
         let (encryption_key, _, _) = mock_encryption_key()?;

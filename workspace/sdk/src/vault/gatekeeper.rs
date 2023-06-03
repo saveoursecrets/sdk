@@ -1,6 +1,6 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
-    crypto::{DerivedPrivateKey, KeyDerivation, Seed},
+    crypto::{KeyDerivation, PrivateKey, Seed},
     decode, encode,
     events::{ReadEvent, WriteEvent},
     search::SearchIndex,
@@ -35,7 +35,7 @@ use uuid::Uuid;
 /// is used to encrypt the different chunks.
 pub struct Gatekeeper {
     /// The private key.
-    private_key: Option<DerivedPrivateKey>,
+    private_key: Option<PrivateKey>,
     /// The underlying vault.
     vault: Vault,
     /// Mirror in-memory vault changes to a writer.
@@ -93,7 +93,7 @@ impl Gatekeeper {
     pub async fn replace_vault(
         &mut self,
         vault: Vault,
-        new_key: Option<DerivedPrivateKey>,
+        new_key: Option<PrivateKey>,
     ) -> Result<()> {
         let derived_key = new_key.as_ref().or(self.private_key.as_ref());
 
@@ -194,7 +194,7 @@ impl Gatekeeper {
         seed: Option<Seed>,
     ) -> Result<()> {
         // Initialize the private key and store the salt
-        let private_key = self.vault.initialize(password, seed).await?;
+        let private_key = self.vault.symmetric(password, seed).await?;
         self.private_key = Some(private_key);
 
         // Assign the description to the meta data
@@ -205,7 +205,7 @@ impl Gatekeeper {
         self.vault.set_name(name);
         Ok(())
     }
-        
+
     /// Attempt to decrypt the meta data for the vault
     /// using the key assigned to this gatekeeper.
     pub async fn vault_meta(&self) -> Result<VaultMeta> {
@@ -247,7 +247,7 @@ impl Gatekeeper {
         &self,
         id: &SecretId,
         from: Option<&Vault>,
-        private_key: Option<&DerivedPrivateKey>,
+        private_key: Option<&PrivateKey>,
     ) -> Result<Option<(SecretMeta, Secret)>> {
         let private_key = private_key
             .or(self.private_key.as_ref())
@@ -455,7 +455,7 @@ impl Gatekeeper {
             let deriver = self.vault.deriver();
             let private_key =
                 deriver.derive(&passphrase, &salt, self.vault.seed())?;
-            self.private_key = Some(private_key);
+            self.private_key = Some(PrivateKey::Symmetric(private_key));
             self.vault_meta().await
         } else {
             Err(Error::VaultNotInit)

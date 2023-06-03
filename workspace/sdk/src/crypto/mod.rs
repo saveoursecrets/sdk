@@ -14,7 +14,7 @@ pub(crate) use key_derivation::{
     Deriver, ARGON_2_ID, BALLOON_HASH, SEED_SIZE,
 };
 pub use key_derivation::{KeyDerivation, Seed};
-pub use private_key::{DerivedPrivateKey, PrivateKey};
+pub use private_key::{AccessKey, DerivedPrivateKey, PrivateKey};
 
 /// Exposes the default cryptographically secure RNG.
 pub fn csprng() -> impl CryptoRng + Rng {
@@ -70,7 +70,7 @@ pub struct AeadPack {
 
 #[cfg(test)]
 mod tests {
-    use crate::crypto::{csprng, Cipher, DerivedPrivateKey};
+    use crate::crypto::{csprng, Cipher, DerivedPrivateKey, PrivateKey};
     use anyhow::Result;
 
     use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
@@ -80,7 +80,7 @@ mod tests {
     #[tokio::test]
     async fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
         let cipher = Cipher::XChaCha20Poly1305;
-        let key = DerivedPrivateKey::generate();
+        let key = PrivateKey::Symmetric(DerivedPrivateKey::generate());
         let value = b"plaintext message";
         let aead = cipher.encrypt(&key, value, None).await?;
         let plaintext = cipher.decrypt(&key, &aead).await?;
@@ -91,7 +91,7 @@ mod tests {
     #[tokio::test]
     async fn xchacha20poly1305_encrypt_decrypt_tamper() {
         let cipher = Cipher::XChaCha20Poly1305;
-        let key = DerivedPrivateKey::generate();
+        let key = PrivateKey::Symmetric(DerivedPrivateKey::generate());
         let value = b"plaintext message";
         let mut aead = cipher.encrypt(&key, value, None).await.unwrap();
 

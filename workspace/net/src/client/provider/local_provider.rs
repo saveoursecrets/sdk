@@ -12,9 +12,10 @@ use sos_sdk::{
     decode, encode,
     events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
     events::{EventLogFile, EventReducer},
+    passwd::diceware::generate_passphrase,
     patch::PatchFile,
     storage::UserPaths,
-    vault::{Header, Summary, Vault, VaultId},
+    vault::{Header, Summary, Vault, VaultBuilder, VaultFlags, VaultId},
     vfs,
 };
 
@@ -80,10 +81,28 @@ impl StorageProvider for LocalProvider {
         &mut self,
         name: Option<String>,
         passphrase: Option<SecretString>,
-        _is_account: bool,
+        is_account: bool,
     ) -> Result<(WriteEvent<'static>, SecretString, Summary)> {
-        let (passphrase, vault, buffer) =
-            Vault::new_buffer(name, passphrase, None).await?;
+        //let (passphrase, vault, buffer) =
+        //Vault::new_buffer(name, passphrase, None).await?;
+
+        let passphrase = if let Some(passphrase) = passphrase {
+            passphrase
+        } else {
+            let (passphrase, _) = generate_passphrase()?;
+            passphrase
+        };
+
+        let mut builder = VaultBuilder::new();
+        if let Some(name) = name {
+            builder = builder.public_name(name);
+        }
+        if is_account {
+            builder = builder.flags(VaultFlags::DEFAULT);
+        }
+        let vault = builder.password(passphrase.clone(), None).await?;
+        let buffer = encode(&vault).await?;
+
         let summary = vault.summary().clone();
 
         if self.state().mirror() {

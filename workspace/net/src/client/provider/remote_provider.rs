@@ -11,11 +11,12 @@ use sos_sdk::{
     decode, encode,
     events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
     events::{EventLogFile, EventReducer, ReadEvent},
+    passwd::diceware::generate_passphrase,
     patch::PatchFile,
     storage::UserPaths,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
-        Summary, Vault, VaultId,
+        Summary, Vault, VaultBuilder, VaultFlags, VaultId,
     },
     vfs,
 };
@@ -93,8 +94,27 @@ impl StorageProvider for RemoteProvider {
         passphrase: Option<SecretString>,
         is_account: bool,
     ) -> Result<(WriteEvent<'static>, SecretString, Summary)> {
+        /*
         let (passphrase, vault, buffer) =
             Vault::new_buffer(name, passphrase, None).await?;
+        */
+
+        let passphrase = if let Some(passphrase) = passphrase {
+            passphrase
+        } else {
+            let (passphrase, _) = generate_passphrase()?;
+            passphrase
+        };
+
+        let mut builder = VaultBuilder::new();
+        if let Some(name) = name {
+            builder = builder.public_name(name);
+        }
+        if is_account {
+            builder = builder.flags(VaultFlags::DEFAULT);
+        }
+        let vault = builder.password(passphrase.clone(), None).await?;
+        let buffer = encode(&vault).await?;
 
         let status = if is_account {
             let (status, _) = retry!(

@@ -1,13 +1,12 @@
 //! Private key types.
 use argon2::password_hash::SaltString;
 
-use rand::Rng;
 use secrecy::{ExposeSecret, SecretString, SecretVec};
-use sha2::Digest;
+
 use std::convert::AsRef;
 
 use crate::{
-    crypto::{csprng, KeyDerivation, Seed},
+    crypto::{KeyDerivation, Seed},
     Result,
 };
 
@@ -56,6 +55,8 @@ impl DerivedPrivateKey {
     /// Create a new random 32-byte secret key.
     #[cfg(test)]
     pub fn generate() -> Self {
+        use crate::crypto::csprng;
+        use rand::Rng;
         let bytes: [u8; 32] = csprng().gen();
         Self {
             inner: SecretVec::new(bytes.to_vec()),

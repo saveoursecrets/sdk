@@ -14,7 +14,7 @@ use sos_sdk::{
     events::WriteEvent,
     signer::{ecdsa::SingleParty, Signer},
     storage::UserPaths,
-    vault::{Gatekeeper, Vault},
+    vault::{Gatekeeper, Vault, VaultBuilder, VaultFlags},
 };
 use web3_address::ethereum::Address;
 
@@ -56,9 +56,11 @@ async fn integration_archive_local_provider() -> Result<()> {
     let mut storage = LocalProvider::new(dirs).await?;
 
     // Prepare a vault to add to the archive
-    let mut default_vault: Vault = Default::default();
-    default_vault.set_default_flag(true);
-    default_vault.initialize(passphrase.clone(), None).await?;
+    let default_vault = VaultBuilder::new()
+        .flags(VaultFlags::DEFAULT)
+        .password(passphrase.clone(), None)
+        .await?;
+
     let vault_id = *default_vault.id();
     let (meta, secret) = mock_note("Archived note", "Archived note value");
     let expected_meta = meta.clone();

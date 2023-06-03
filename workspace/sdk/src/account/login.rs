@@ -20,7 +20,8 @@ use crate::{
     storage::AppPaths,
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
-        Gatekeeper, Summary, Vault, VaultAccess, VaultWriter,
+        Gatekeeper, Summary, Vault, VaultAccess, VaultBuilder, VaultFlags,
+        VaultWriter,
     },
     vfs,
 };
@@ -272,6 +273,18 @@ impl Login {
                 DelegatedPassphrase::generate_vault_passphrase()?;
 
             // Prepare the device vault
+            let vault = VaultBuilder::new()
+                .public_name("Device".to_string())
+                .flags(
+                    VaultFlags::SYSTEM
+                        | VaultFlags::DEVICE
+                        | VaultFlags::NO_SYNC_SELF
+                        | VaultFlags::NO_SYNC_OTHER,
+                )
+                .password(device_passphrase.clone(), None)
+                .await?;
+
+            /*
             let mut vault: Vault = Default::default();
             vault.set_name("Device".to_string());
             vault.set_system_flag(true);
@@ -279,6 +292,7 @@ impl Login {
             vault.set_no_sync_self_flag(true);
             vault.set_no_sync_other_flag(true);
             vault.initialize(device_passphrase.clone(), None).await?;
+            */
 
             DelegatedPassphrase::save_vault_passphrase(
                 identity,

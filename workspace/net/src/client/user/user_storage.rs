@@ -21,7 +21,8 @@ use sos_sdk::{
     storage::{AppPaths, UserPaths},
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
-        Gatekeeper, Summary, Vault, VaultAccess, VaultId, VaultWriter,
+        Gatekeeper, Summary, Vault, VaultAccess, VaultBuilder, VaultId,
+        VaultWriter,
     },
     vfs::{self, File},
     Timestamp,
@@ -1236,14 +1237,18 @@ impl UserStorage {
         let vault_passphrase =
             DelegatedPassphrase::generate_vault_passphrase()?;
 
-        let mut vault: Vault = Default::default();
+        let vault_id = VaultId::new_v4();
         let name = if existing_name.is_some() {
-            format!("{} ({})", folder_name, vault.id())
+            format!("{} ({})", folder_name, vault_id)
         } else {
             folder_name
         };
-        vault.set_name(name);
-        vault.initialize(vault_passphrase.clone(), None).await?;
+
+        let vault = VaultBuilder::new()
+            .id(vault_id)
+            .public_name(name)
+            .password(vault_passphrase.clone(), None)
+            .await?;
 
         // Parse the CSV records into the vault
         let vault = converter

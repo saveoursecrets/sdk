@@ -16,7 +16,7 @@ use sos_sdk::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
     constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
-    crypto::KeyDerivation,
+    crypto::{KeyDerivation, PrivateKey},
     decode, encode,
     events::{
         AuditEvent, AuditLogFile, ChangeAction, ChangeNotification, Event,
@@ -272,12 +272,12 @@ pub trait StorageProvider: Sync + Send {
                     if let Some(salt) = vault.salt() {
                         let salt = KeyDerivation::parse_salt(salt)?;
                         let deriver = vault.deriver();
-                        let private_key = deriver.derive(
+                        let derived_private_key = deriver.derive(
                             &new_passphrase,
                             &salt,
                             keeper.vault().seed(),
                         )?;
-                        Some(private_key)
+                        Some(PrivateKey::Symmetric(derived_private_key))
                     } else {
                         None
                     }

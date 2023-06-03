@@ -662,7 +662,7 @@ mod test {
     use sos_sdk::{
         passwd::diceware::generate_passphrase,
         search::SearchIndex,
-        vault::{secret::Secret, Gatekeeper, Vault},
+        vault::{secret::Secret, Gatekeeper, VaultBuilder},
     };
     use std::sync::Arc;
     use url::Url;
@@ -690,8 +690,9 @@ mod test {
     #[tokio::test]
     async fn dashlane_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
-        let mut vault: Vault = Default::default();
-        vault.initialize(passphrase.clone(), None).await?;
+        let vault = VaultBuilder::new()
+            .password(passphrase.clone(), None)
+            .await?;
 
         let vault = DashlaneCsvZip
             .convert(

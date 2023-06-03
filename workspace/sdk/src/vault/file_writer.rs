@@ -341,7 +341,7 @@ mod tests {
     use crate::test_utils::*;
     use crate::{
         constants::DEFAULT_VAULT_NAME,
-        crypto::DerivedPrivateKey,
+        crypto::PrivateKey,
         events::WriteEvent,
         vault::{secret::*, Header, Vault, VaultAccess, VaultEntry},
     };
@@ -357,7 +357,7 @@ mod tests {
     >(
         vault_access: &mut VaultWriter<F>,
         vault: &Vault,
-        encryption_key: &DerivedPrivateKey,
+        encryption_key: &PrivateKey,
         secret_label: &str,
         secret_note: &str,
     ) -> Result<SecureNoteResult> {

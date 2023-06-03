@@ -21,14 +21,11 @@ use uuid::Uuid;
 use crate::{
     commit::CommitHash,
     constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY},
-    crypto::{
-        AeadPack, Cipher, DerivedPrivateKey, Deriver, KeyDerivation, Seed,
-    },
+    crypto::{AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed},
     encode,
     encoding::v1::VERSION,
     events::{ReadEvent, WriteEvent},
     formats::FileIdentity,
-    passwd::diceware::generate_passphrase,
     vault::secret::SecretId,
     vfs::File,
     Error, Result, Timestamp,
@@ -41,15 +38,15 @@ bitflags! {
     /// Bit flags for a vault.
     #[derive(Default, Serialize, Deserialize)]
     pub struct VaultFlags: u64 {
-        /// Indicates this vault should be treated as 
+        /// Indicates this vault should be treated as
         /// the default folder.
         const DEFAULT           =        0b0000000000000001;
-        /// Indicates this vault is an identity vault used 
+        /// Indicates this vault is an identity vault used
         /// to authenticate a user.
         const IDENTITY          =        0b0000000000000010;
         /// Indicates this vault is to be used as an archive.
         const ARCHIVE           =        0b0000000000000100;
-        /// Indicates this vault is to be used for 
+        /// Indicates this vault is to be used for
         /// two-factor authentication.
         const AUTHENTICATOR     =        0b0000000000001000;
         /// Indicates this vault is to be used to store contacts.
@@ -76,7 +73,7 @@ bitflags! {
         /// Indicates this vault should not be synced with
         /// devices owned by other accounts.
         const NO_SYNC_OTHER     =        0b0000000100000000;
-        /// Indicates this vault is shared using asymmetric 
+        /// Indicates this vault is shared using asymmetric
         /// encryption.
         const SHARED            =        0b0000001000000000;
     }
@@ -577,6 +574,7 @@ impl Vault {
         Ok(vault_urn.parse()?)
     }
 
+    /*
     /// Create a new vault and encode it into a buffer.
     pub async fn new_buffer(
         name: Option<String>,
@@ -598,19 +596,22 @@ impl Vault {
         let buffer = encode(&vault).await?;
         Ok((passphrase, vault, buffer))
     }
+    */
 
-    /// Initialize the vault with the given label and password.
-    pub async fn initialize(
+    /// Initialize this vault using a password for
+    /// a symmetric cipher.
+    pub(crate) async fn symmetric(
         &mut self,
         password: SecretString,
         seed: Option<Seed>,
-    ) -> Result<DerivedPrivateKey> {
+    ) -> Result<PrivateKey> {
         if self.header.auth.salt.is_none() {
             let salt = KeyDerivation::generate_salt();
 
             let deriver = self.deriver();
-            let private_key =
+            let derived_private_key =
                 deriver.derive(&password, &salt, seed.as_ref())?;
+            let private_key = PrivateKey::Symmetric(derived_private_key);
 
             let default_meta: VaultMeta = Default::default();
             let vault_meta = encode(&default_meta).await?;
@@ -687,7 +688,7 @@ impl Vault {
     /// Encrypt plaintext using the cipher assigned to this vault.
     pub async fn encrypt(
         &self,
-        key: &DerivedPrivateKey,
+        key: &PrivateKey,
         plaintext: &[u8],
     ) -> Result<AeadPack> {
         self.cipher().encrypt(key, plaintext, None).await
@@ -696,7 +697,7 @@ impl Vault {
     /// Decrypt ciphertext using the cipher assigned to this vault.
     pub async fn decrypt(
         &self,
-        key: &DerivedPrivateKey,
+        key: &PrivateKey,
         aead: &AeadPack,
     ) -> Result<Vec<u8>> {
         self.cipher().decrypt(key, aead).await
@@ -718,9 +719,13 @@ impl Vault {
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
         let deriver = self.deriver();
-        let secret_key = deriver.derive(passphrase, &salt, self.seed())?;
+        let private_key = PrivateKey::Symmetric(deriver.derive(
+            passphrase,
+            &salt,
+            self.seed(),
+        )?);
         let _ = self
-            .decrypt(&secret_key, meta_aead)
+            .decrypt(&private_key, meta_aead)
             .await
             .map_err(|_| Error::PassphraseVerification)?;
         Ok(())
@@ -965,14 +970,19 @@ mod tests {
     use super::*;
     use crate::vault::secret::*;
 
-    use crate::{decode, encode, test_utils::*};
+    use crate::{
+        decode, encode, passwd::diceware::generate_passphrase, test_utils::*,
+        vault::VaultBuilder,
+    };
 
     use anyhow::Result;
     use secrecy::ExposeSecret;
 
     #[tokio::test]
     async fn encode_decode_empty_vault() -> Result<()> {
-        let vault = mock_vault();
+        let (passphrase, _) = generate_passphrase()?;
+        let vault = VaultBuilder::new().password(passphrase, None).await?;
+
         let buffer = encode(&vault).await?;
         let decoded = decode(&buffer).await?;
         assert_eq!(vault, decoded);
@@ -981,10 +991,9 @@ mod tests {
 
     #[tokio::test]
     async fn encode_decode_secret_note() -> Result<()> {
-        let (encryption_key, _, _) = mock_encryption_key()?;
-        let mut vault = mock_vault();
-
-        // TODO: encode the salt into the header meta data
+        let (encryption_key, _, passphrase) = mock_encryption_key()?;
+        let mut vault =
+            VaultBuilder::new().password(passphrase, None).await?;
 
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";

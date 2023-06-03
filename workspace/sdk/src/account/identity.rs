@@ -28,7 +28,7 @@ use crate::{
     },
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
-        Gatekeeper, Vault, VaultFlags,
+        Gatekeeper, Vault, VaultBuilder, VaultFlags,
     },
     vfs, Error, Result,
 };
@@ -97,11 +97,10 @@ impl Identity {
         name: String,
         master_passphrase: SecretString,
     ) -> Result<(Address, Vault)> {
-        let mut vault: Vault = Default::default();
-        vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.set_name(name);
-        vault
-            .initialize(
+        let vault = VaultBuilder::new()
+            .public_name(name)
+            .flags(VaultFlags::IDENTITY)
+            .password(
                 master_passphrase.clone(),
                 Some(KeyDerivation::generate_seed()),
             )
@@ -251,7 +250,7 @@ mod tests {
         passwd::diceware::generate_passphrase,
         vault::{
             secret::{Secret, SecretMeta},
-            Gatekeeper, Vault, VaultFlags,
+            Gatekeeper, Vault, VaultBuilder, VaultFlags,
         },
         vfs, Error,
     };
@@ -276,9 +275,9 @@ mod tests {
     #[tokio::test]
     async fn identity_not_identity_vault() -> Result<()> {
         let (master_passphrase, _) = generate_passphrase()?;
-
-        let mut vault: Vault = Default::default();
-        vault.initialize(master_passphrase.clone(), None).await?;
+        let vault = VaultBuilder::new()
+            .password(master_passphrase.clone(), None)
+            .await?;
         let buffer = encode(&vault).await?;
 
         let result =
@@ -295,9 +294,11 @@ mod tests {
     async fn identity_no_identity_signer() -> Result<()> {
         let (master_passphrase, _) = generate_passphrase()?;
 
-        let mut vault: Vault = Default::default();
-        vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.clone(), None).await?;
+        let vault = VaultBuilder::new()
+            .flags(VaultFlags::IDENTITY)
+            .password(master_passphrase.clone(), None)
+            .await?;
+
         let buffer = encode(&vault).await?;
 
         let result =
@@ -314,9 +315,10 @@ mod tests {
     async fn identity_signer_kind() -> Result<()> {
         let (master_passphrase, _) = generate_passphrase()?;
 
-        let mut vault: Vault = Default::default();
-        vault.flags_mut().set(VaultFlags::IDENTITY, true);
-        vault.initialize(master_passphrase.clone(), None).await?;
+        let vault = VaultBuilder::new()
+            .flags(VaultFlags::IDENTITY)
+            .password(master_passphrase.clone(), None)
+            .await?;
 
         let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(master_passphrase.clone()).await?;

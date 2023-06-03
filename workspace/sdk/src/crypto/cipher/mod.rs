@@ -1,5 +1,5 @@
 //! Constants for supported symmetric ciphers.
-use super::{AeadPack, DerivedPrivateKey, Nonce};
+use super::{AeadPack, Nonce, PrivateKey};
 use crate::{Error, Result};
 use std::{
     fmt,
@@ -86,17 +86,24 @@ impl Cipher {
     /// Encrypt plaintext using this cipher.
     pub async fn encrypt(
         &self,
-        key: &DerivedPrivateKey,
+        key: &PrivateKey,
         plaintext: &[u8],
         nonce: Option<Nonce>,
     ) -> Result<AeadPack> {
         match self {
-            Cipher::XChaCha20Poly1305 => {
-                xchacha20poly1305::encrypt(self, key, plaintext, nonce).await
-            }
-            Cipher::AesGcm256 => {
-                aesgcm256::encrypt(self, key, plaintext, nonce).await
-            }
+            Cipher::XChaCha20Poly1305 => match key {
+                PrivateKey::Symmetric(key) => {
+                    xchacha20poly1305::encrypt(self, key, plaintext, nonce)
+                        .await
+                }
+                _ => panic!("not symmetric key"),
+            },
+            Cipher::AesGcm256 => match key {
+                PrivateKey::Symmetric(key) => {
+                    aesgcm256::encrypt(self, key, plaintext, nonce).await
+                }
+                _ => panic!("not symmetric key"),
+            },
             Cipher::X25519(_) => {
                 todo!();
                 //x25519::encrypt(self, key, plaintext, nonce).await
@@ -107,14 +114,22 @@ impl Cipher {
     /// Decrypt ciphertext using this cipher.
     pub async fn decrypt(
         &self,
-        key: &DerivedPrivateKey,
+        key: &PrivateKey,
         aead: &AeadPack,
     ) -> Result<Vec<u8>> {
         match self {
-            Cipher::XChaCha20Poly1305 => {
-                xchacha20poly1305::decrypt(self, key, aead).await
-            }
-            Cipher::AesGcm256 => aesgcm256::decrypt(self, key, aead).await,
+            Cipher::XChaCha20Poly1305 => match key {
+                PrivateKey::Symmetric(key) => {
+                    xchacha20poly1305::decrypt(self, key, aead).await
+                }
+                _ => panic!("not symmetric key"),
+            },
+            Cipher::AesGcm256 => match key {
+                PrivateKey::Symmetric(key) => {
+                    aesgcm256::decrypt(self, key, aead).await
+                }
+                _ => panic!("not symmetric key"),
+            },
             Cipher::X25519(_) => {
                 todo!();
                 //x25519::decrypt(self, key, aead).await

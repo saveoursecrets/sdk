@@ -1,5 +1,5 @@
 //! Provides an encrypted channel using ECDSA and ECDH.
-use super::{csprng, AeadPack, Cipher, DerivedPrivateKey, Nonce};
+use super::{csprng, AeadPack, Cipher, DerivedPrivateKey, Nonce, PrivateKey};
 use crate::{
     signer::ecdsa::{verify_signature_address, BoxedEcdsaSigner},
     Error, Result,
@@ -126,7 +126,7 @@ pub struct ServerSession {
     /// Session secret.
     secret: EphemeralSecret,
     /// Derived private key for symmetric encryption.
-    private: Option<DerivedPrivateKey>,
+    private: Option<PrivateKey>,
     /// Number once for session messages.
     nonce: U192,
     /// Determines if this session is allowed to expire.
@@ -191,7 +191,7 @@ impl ServerSession {
             PublicKey::from_sec1_bytes(public_key_bytes.as_ref())?;
         let shared = self.secret.diffie_hellman(&client_public);
         let key = derive_secret_key(&shared, self.challenge.as_ref())?;
-        self.private = Some(key);
+        self.private = Some(PrivateKey::Symmetric(key));
         Ok(())
     }
 
@@ -243,7 +243,7 @@ impl ServerSession {
 }
 
 impl EncryptedChannel for ServerSession {
-    fn private_key(&self) -> Result<&DerivedPrivateKey> {
+    fn private_key(&self) -> Result<&PrivateKey> {
         self.private.as_ref().ok_or(Error::NoSessionKey)
     }
 
@@ -270,8 +270,8 @@ pub struct ClientSession {
     challenge: Option<[u8; 16]>,
     /// Session secret.
     secret: EphemeralSecret,
-    /// Derived private key for symmetric encryption.
-    private: Option<DerivedPrivateKey>,
+    /// Private key for symmetric encryption.
+    private: Option<PrivateKey>,
     /// Number once for session messages.
     nonce: U192,
 }
@@ -301,13 +301,13 @@ impl ClientSession {
         &mut self,
         public_key_bytes: &[u8],
         challenge: [u8; 16],
-    ) -> Result<(Signature, DerivedPrivateKey)> {
+    ) -> Result<(Signature, PrivateKey)> {
         let server_public = PublicKey::from_sec1_bytes(public_key_bytes)?;
         let shared = self.secret.diffie_hellman(&server_public);
         let signature = self.signer.sign(&challenge).await?;
-        let key = derive_secret_key(&shared, challenge.as_ref())?;
+        let derived_key = derive_secret_key(&shared, challenge.as_ref())?;
         self.challenge = Some(challenge);
-        Ok((signature, key))
+        Ok((signature, PrivateKey::Symmetric(derived_key)))
     }
 
     /// Get the public key bytes.
@@ -327,13 +327,13 @@ impl ClientSession {
     }
 
     /// Complete the session negotiation.
-    pub fn finish(&mut self, key: DerivedPrivateKey) {
+    pub fn finish(&mut self, key: PrivateKey) {
         self.private = Some(key);
     }
 }
 
 impl EncryptedChannel for ClientSession {
-    fn private_key(&self) -> Result<&DerivedPrivateKey> {
+    fn private_key(&self) -> Result<&PrivateKey> {
         self.private.as_ref().ok_or(Error::NoSessionKey)
     }
 
@@ -354,7 +354,7 @@ impl EncryptedChannel for ClientSession {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait EncryptedChannel {
     /// Get the private key for the session.
-    fn private_key(&self) -> Result<&DerivedPrivateKey>;
+    fn private_key(&self) -> Result<&PrivateKey>;
 
     /// Increment and return the next sequential nonce.
     fn next_nonce(&mut self) -> Result<Nonce>;
