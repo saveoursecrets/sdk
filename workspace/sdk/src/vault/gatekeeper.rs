@@ -89,7 +89,7 @@ impl Gatekeeper {
     /// and update the search index if possible.
     ///
     /// When a password is being changed then we need to use
-    /// the new derived key for the vault.
+    /// the new private key for the vault.
     pub async fn replace_vault(
         &mut self,
         vault: Vault,
@@ -184,28 +184,7 @@ impl Gatekeeper {
         }
         self.vault.set_vault_name(name).await
     }
-
-    /// Initialize the vault with the given label and password.
-    pub async fn initialize(
-        &mut self,
-        name: String,
-        description: String,
-        password: SecretString,
-        seed: Option<Seed>,
-    ) -> Result<()> {
-        // Initialize the private key and store the salt
-        let private_key = self.vault.symmetric(password, seed).await?;
-        self.private_key = Some(private_key);
-
-        // Assign the description to the meta data
-        let mut init_meta_data: VaultMeta = Default::default();
-        init_meta_data.set_description(description);
-        self.set_meta(init_meta_data).await?;
-
-        self.vault.set_name(name);
-        Ok(())
-    }
-
+    
     /// Attempt to decrypt the meta data for the vault
     /// using the key assigned to this gatekeeper.
     pub async fn vault_meta(&self) -> Result<VaultMeta> {
@@ -487,7 +466,7 @@ mod tests {
     use super::*;
     use crate::{
         constants::DEFAULT_VAULT_NAME,
-        vault::{secret::Secret, Vault},
+        vault::{secret::Secret, Vault, VaultBuilder},
     };
     use anyhow::Result;
     use secrecy::SecretString;
@@ -495,14 +474,16 @@ mod tests {
     #[tokio::test]
     async fn gatekeeper_secret_note() -> Result<()> {
         let passphrase = SecretString::new("mock-passphrase".to_owned());
-        let vault: Vault = Default::default();
-        let mut keeper = Gatekeeper::new(vault, None);
-
         let name = String::from(DEFAULT_VAULT_NAME);
         let description = String::from("Mock Vault Description");
-        keeper
-            .initialize(name, description.clone(), passphrase, None)
+
+        let vault = VaultBuilder::new()
+            .public_name(name)
+            .description(description.clone())
+            .password(passphrase, None)
             .await?;
+
+        let mut keeper = Gatekeeper::new(vault, None);
 
         //// Decrypt the initialized meta data.
         let meta = keeper.vault_meta().await?;
