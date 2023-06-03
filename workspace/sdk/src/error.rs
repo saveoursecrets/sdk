@@ -38,6 +38,21 @@ pub enum Error {
     #[error("expected passphrase based encryption (AGE)")]
     NotPassphraseEncryption,
 
+    /// Error generated when decrypting via AGE and expecting recipient
+    /// based encryption.
+    #[error("expected recipient based encryption (AGE)")]
+    NotRecipientEncryption,
+
+    /// Error generated attempting to encrypt asymmetrically without
+    /// and recipients.
+    #[error("no encryption recipients")]
+    NoRecipients,
+
+    /// Error generated attempting to encrypt or decrypt with the
+    /// wrong cipher.
+    #[error(r#"bad cipher, expecting "{0}" but got "{1}""#)]
+    BadCipher(String, String),
+
     /// Error generated when a directory is expected.
     #[error("path {0} is not a directory")]
     NotDirectory(PathBuf),
@@ -318,12 +333,12 @@ pub enum Error {
     #[error("not Ed25519 signing key")]
     NotEd25519Key,
 
-    /// Error generated when attempting to use an asymmetric 
+    /// Error generated when attempting to use an asymmetric
     /// private key with a symmetric cipher.
     #[error("symmetric private key required for symmetric cipher")]
     NotSymmetric,
 
-    /// Error generated when attempting to use a symmetric 
+    /// Error generated when attempting to use a symmetric
     /// private key with an asymmetric cipher.
     #[error("asymmetric private key required for asymmetric cipher")]
     NotAsymmetric,

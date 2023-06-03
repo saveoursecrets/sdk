@@ -184,7 +184,7 @@ impl Gatekeeper {
         }
         self.vault.set_vault_name(name).await
     }
-    
+
     /// Attempt to decrypt the meta data for the vault
     /// using the key assigned to this gatekeeper.
     pub async fn vault_meta(&self) -> Result<VaultMeta> {
@@ -203,7 +203,7 @@ impl Gatekeeper {
             Err(Error::VaultNotInit)
         }
     }
-    
+
     /// Set the meta data for the vault.
     pub async fn set_vault_meta(
         &mut self,
@@ -478,10 +478,11 @@ mod tests {
         let vault = VaultBuilder::new()
             .public_name(name)
             .description(description.clone())
-            .password(passphrase, None)
+            .password(passphrase.clone(), None)
             .await?;
 
         let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(passphrase).await?;
 
         //// Decrypt the initialized meta data.
         let meta = keeper.vault_meta().await?;

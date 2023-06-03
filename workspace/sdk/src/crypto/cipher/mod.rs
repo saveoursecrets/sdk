@@ -106,11 +106,10 @@ impl Cipher {
             },
             Cipher::X25519(_) => match key {
                 PrivateKey::Asymmetric(_) => {
-                    todo!();
-                    //x25519::encrypt(self, key, plaintext, nonce).await
+                    x25519::encrypt(self, plaintext).await
                 }
                 _ => Err(Error::NotAsymmetric),
-            }
+            },
         }
     }
 
@@ -134,13 +133,11 @@ impl Cipher {
                 _ => Err(Error::NotSymmetric),
             },
             Cipher::X25519(_) => match key {
-                PrivateKey::Asymmetric(_) => {
-                    todo!();
-                    //x25519::decrypt(self, key, aead).await
+                PrivateKey::Asymmetric(identity) => {
+                    x25519::decrypt(self, identity, aead).await
                 }
                 _ => Err(Error::NotAsymmetric),
-
-            }
+            },
         }
     }
 }

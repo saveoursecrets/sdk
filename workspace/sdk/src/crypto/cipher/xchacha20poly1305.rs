@@ -13,19 +13,22 @@ pub async fn encrypt(
     plaintext: &[u8],
     nonce: Option<Nonce>,
 ) -> Result<AeadPack> {
-    assert!(matches!(cipher, Cipher::XChaCha20Poly1305));
-
-    std::thread::scope(move |s| {
-        let handle = s.spawn(move || {
-            let nonce = nonce.unwrap_or_else(Nonce::new_random_24);
-            let cipher_nonce = XNonce::from_slice(nonce.as_ref());
-            let cipher =
-                XChaCha20Poly1305::new(Key::from_slice(key.as_ref()));
-            let ciphertext = cipher.encrypt(cipher_nonce, plaintext)?;
-            Ok(AeadPack { ciphertext, nonce })
-        });
-        handle.join().unwrap()
-    })
+    if let Cipher::XChaCha20Poly1305 = cipher {
+        std::thread::scope(move |s| {
+            let handle = s.spawn(move || {
+                let nonce = nonce.unwrap_or_else(Nonce::new_random_24);
+                let cipher_nonce = XNonce::from_slice(nonce.as_ref());
+                let cipher =
+                    XChaCha20Poly1305::new(Key::from_slice(key.as_ref()));
+                let ciphertext = cipher.encrypt(cipher_nonce, plaintext)?;
+                Ok(AeadPack { ciphertext, nonce })
+            });
+            handle.join().unwrap()
+        })
+    } else {
+        let expected = Cipher::XChaCha20Poly1305;
+        Err(Error::BadCipher(expected.to_string(), cipher.to_string()))
+    }
 }
 
 /// Decrypt ciphertext using XChaCha20Poly1305.
@@ -34,22 +37,27 @@ pub async fn decrypt(
     key: &DerivedPrivateKey,
     aead_pack: &AeadPack,
 ) -> Result<Vec<u8>> {
-    assert!(matches!(cipher, Cipher::XChaCha20Poly1305));
-
-    std::thread::scope(move |s| {
-        let handle = s.spawn(move || {
-            if let Nonce::Nonce24(ref nonce) = aead_pack.nonce {
-                let cipher_nonce = XNonce::from_slice(nonce);
-                let cipher =
-                    XChaCha20Poly1305::new(Key::from_slice(key.as_ref()));
-                Ok(cipher
-                    .decrypt(cipher_nonce, aead_pack.ciphertext.as_ref())?)
-            } else {
-                Err(Error::InvalidNonce)
-            }
-        });
-        handle.join().unwrap()
-    })
+    if let Cipher::XChaCha20Poly1305 = cipher {
+        std::thread::scope(move |s| {
+            let handle = s.spawn(move || {
+                if let Nonce::Nonce24(ref nonce) = aead_pack.nonce {
+                    let cipher_nonce = XNonce::from_slice(nonce);
+                    let cipher =
+                        XChaCha20Poly1305::new(Key::from_slice(key.as_ref()));
+                    Ok(cipher.decrypt(
+                        cipher_nonce,
+                        aead_pack.ciphertext.as_ref(),
+                    )?)
+                } else {
+                    Err(Error::InvalidNonce)
+                }
+            });
+            handle.join().unwrap()
+        })
+    } else {
+        let expected = Cipher::XChaCha20Poly1305;
+        Err(Error::BadCipher(expected.to_string(), cipher.to_string()))
+    }
 }
 
 #[cfg(test)]
