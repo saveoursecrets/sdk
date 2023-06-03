@@ -7,7 +7,7 @@ use crate::{
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
 };
-use secrecy::SecretString;
+
 use std::borrow::Cow;
 
 /// Builder that changes a vault password.
@@ -179,7 +179,6 @@ mod test {
         vault::{Gatekeeper, VaultBuilder},
     };
     use anyhow::Result;
-    use secrecy::ExposeSecret;
 
     #[tokio::test]
     async fn change_password() -> Result<()> {

@@ -12,7 +12,7 @@ use crate::{
     vfs, Error, Result,
 };
 //use parking_lot::RwLock;
-use secrecy::SecretString;
+
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -438,7 +438,11 @@ impl Gatekeeper {
                         Some(PrivateKey::Symmetric(private_key));
                     self.vault_meta().await
                 }
-                _ => todo!(),
+                AccessKey::Identity(id) => {
+                    self.private_key =
+                        Some(PrivateKey::Asymmetric(id.clone()));
+                    self.vault_meta().await
+                }
             }
         } else {
             Err(Error::VaultNotInit)

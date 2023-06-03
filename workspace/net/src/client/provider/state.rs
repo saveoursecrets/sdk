@@ -5,7 +5,6 @@ use super::{Error, Result};
 use sos_sdk::{
     crypto::AccessKey,
     search::SearchIndex,
-    secrecy::SecretString,
     vault::{Gatekeeper, Summary, Vault, VaultRef, VaultWriter},
 };
 

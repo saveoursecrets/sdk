@@ -13,13 +13,8 @@ use bitflags::bitflags;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
-    borrow::Cow,
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-    fmt,
-    io::Cursor,
-    path::Path,
-    str::FromStr,
+    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, io::Cursor,
+    path::Path, str::FromStr,
 };
 use urn::Urn;
 use uuid::Uuid;
@@ -1051,15 +1046,38 @@ mod tests {
     async fn shared_folder() -> Result<()> {
         let owner = age::x25519::Identity::generate();
         let other_1 = age::x25519::Identity::generate();
-        let other_2 = age::x25519::Identity::generate();
 
         let mut recipients = Vec::new();
         recipients.push(other_1.to_public());
-        recipients.push(other_2.to_public());
 
         let vault = VaultBuilder::new().shared(&owner, recipients).await?;
 
+        // Owner adds a secret
         let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
+        let (meta, secret, _, _) =
+            mock_secret_note("Shared label", "Shared note").await?;
+        let event = keeper.create(meta.clone(), secret.clone()).await?;
+        let id = if let WriteEvent::CreateSecret(id, _) = event {
+            id
+        } else {
+            unreachable!();
+        };
+
+        // In the real world this exchange of the vault
+        // would happen via a sync operation
+        let vault: Vault = keeper.into();
+
+        let mut keeper_1 = Gatekeeper::new(vault, None);
+        keeper_1
+            .unlock(AccessKey::Identity(other_1.clone()))
+            .await?;
+        if let Some((read_meta, read_secret, _)) = keeper_1.read(&id).await? {
+            assert_eq!(meta, read_meta);
+            assert_eq!(secret, read_secret);
+        } else {
+            unreachable!();
+        }
 
         Ok(())
     }

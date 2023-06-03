@@ -5,7 +5,7 @@ use crate::client::net::{MaybeRetry, RpcClient};
 
 use async_trait::async_trait;
 use http::StatusCode;
-use secrecy::SecretString;
+
 use sos_sdk::{
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     crypto::AccessKey,

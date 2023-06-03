@@ -6,7 +6,7 @@
 //! Used to move between different software providers.
 
 use async_trait::async_trait;
-use secrecy::SecretString;
+
 use sos_sdk::{crypto::AccessKey, vault::Vault};
 
 mod error;

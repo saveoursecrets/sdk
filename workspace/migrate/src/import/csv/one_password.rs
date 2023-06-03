@@ -1,6 +1,5 @@
 //! Parser for the 1Password passwords CSV export.
 
-use secrecy::SecretString;
 use serde::{
     de::{self, Deserializer, Unexpected, Visitor},
     Deserialize,

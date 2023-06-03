@@ -3,7 +3,6 @@ use super::{Error, Result};
 
 use async_trait::async_trait;
 
-use secrecy::SecretString;
 use sos_sdk::{
     commit::{
         CommitPair, CommitRelationship, CommitTree, SyncInfo, SyncKind,

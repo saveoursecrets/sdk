@@ -11,7 +11,6 @@ use sos_sdk::{
     vcard4,
 };
 
-use secrecy::SecretString;
 use tokio::sync::RwLock;
 
 use crate::client::Result;

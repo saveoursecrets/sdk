@@ -343,7 +343,6 @@ end tell
 mod test {
     use super::*;
     use anyhow::Result;
-    use sos_sdk::vault::VaultBuilder;
 
     fn find_test_keychain() -> Result<UserKeychain> {
         // NOTE: the keychain must be located in ~/Library/Keychains

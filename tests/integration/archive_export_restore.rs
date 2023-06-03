@@ -66,7 +66,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     let expected_meta = meta.clone();
     let expected_secret = secret.clone();
     let mut keeper = Gatekeeper::new(default_vault, None);
-    keeper.unlock(passphrase.clone()).await?;
+    keeper.unlock(passphrase.clone().into()).await?;
     let secret_id = if let WriteEvent::CreateSecret(id, _) =
         keeper.create(meta, secret).await?
     {
@@ -105,7 +105,9 @@ async fn integration_archive_local_provider() -> Result<()> {
     assert_eq!(&vault_id, vault_summary.id());
 
     // Open the vault so we can check the secret has been restored
-    storage.open_vault(&vault_summary, passphrase, None).await?;
+    storage
+        .open_vault(&vault_summary, passphrase.into(), None)
+        .await?;
 
     if let Some((archive_meta, archive_secret, _)) =
         storage.current().as_ref().unwrap().read(&secret_id).await?

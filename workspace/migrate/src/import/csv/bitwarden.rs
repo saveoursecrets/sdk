@@ -3,7 +3,6 @@
 //! Unlike most of the other formats this format includes notes
 //! as well as passwords.
 
-use secrecy::SecretString;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use url::Url;

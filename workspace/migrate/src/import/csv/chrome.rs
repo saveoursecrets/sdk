@@ -1,6 +1,5 @@
 //! Parser for the Chrome passwords CSV export.
 
-use secrecy::SecretString;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use url::Url;

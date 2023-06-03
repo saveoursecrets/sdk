@@ -14,7 +14,6 @@ use sos_sdk::{
 
 use web3_address::ethereum::Address;
 
-use secrecy::ExposeSecret;
 use sos_net::client::{
     net::RpcClient,
     provider::{RemoteProvider, StorageProvider},
@@ -52,8 +51,6 @@ pub async fn signup(
         data_dir,
     )
     .await?;
-
-    assert!(!credentials.encryption_passphrase.expose_secret().is_empty());
 
     let _ = node_cache.load_vaults().await?;
 

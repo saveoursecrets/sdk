@@ -2,7 +2,6 @@
 
 use async_trait::async_trait;
 
-use secrecy::SecretString;
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},

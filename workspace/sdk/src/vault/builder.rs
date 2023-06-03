@@ -7,7 +7,6 @@ use crate::{
 };
 use age::x25519::{Identity, Recipient};
 use secrecy::SecretString;
-use std::collections::HashSet;
 
 /// Builder for a vault.
 pub struct VaultBuilder {
