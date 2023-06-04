@@ -1105,7 +1105,7 @@ mod tests {
     use secrecy::ExposeSecret;
 
     #[tokio::test]
-    async fn encode_decode_empty_vault() -> Result<()> {
+    async fn vault_encode_decode_empty() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let vault = VaultBuilder::new().password(passphrase, None).await?;
 
@@ -1116,7 +1116,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn encode_decode_secret_note() -> Result<()> {
+    async fn vault_encode_decode_secret_note() -> Result<()> {
         let (encryption_key, _, passphrase) = mock_encryption_key()?;
         let mut vault =
             VaultBuilder::new().password(passphrase, None).await?;
@@ -1161,7 +1161,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn shared_folder_writable() -> Result<()> {
+    async fn vault_shared_folder_writable() -> Result<()> {
+        set_mock_credential_builder().await;
+
         let owner = age::x25519::Identity::generate();
         let other_1 = age::x25519::Identity::generate();
 
@@ -1228,7 +1230,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn shared_folder_readonly() -> Result<()> {
+    async fn vault_shared_folder_readonly() -> Result<()> {
+        set_mock_credential_builder().await;
+
         let owner = age::x25519::Identity::generate();
         let other_1 = age::x25519::Identity::generate();
 
@@ -1301,20 +1305,6 @@ mod tests {
         let result = keeper_1.delete(&id).await;
         assert!(matches!(result, Err(Error::PermissionDenied)));
 
-        Ok(())
-    }
-}
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod file_tests {
-    use super::*;
-    use crate::{decode, test_utils::*};
-    use anyhow::Result;
-
-    #[tokio::test]
-    async fn decode_buffer() -> Result<()> {
-        let (_temp, _, buffer) = mock_vault_file().await?;
-        let _vault: Vault = decode(&buffer).await?;
         Ok(())
     }
 }

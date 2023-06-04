@@ -5862,6 +5862,7 @@ dependencies = [
  "futures",
  "http",
  "human_bytes",
+ "keyring",
  "log",
  "once_cell",
  "parking_lot 0.12.1",

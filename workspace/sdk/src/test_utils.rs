@@ -19,6 +19,20 @@ use secrecy::SecretString;
 
 use argon2::password_hash::SaltString;
 
+/// Set to use a mock credentials builder for the keyring integration.
+pub async fn set_mock_credential_builder() {
+    #[cfg(all(any(test, debug_assertions), feature = "keyring"))]
+    {
+
+        keyring::set_default_credential_builder(
+            keyring::mock::default_credential_builder());
+
+        let native_keyring = crate::get_native_keyring();
+        let mut keyring = native_keyring.lock().await;
+        keyring.set_enabled(true);
+    }
+}
+
 /// Generate a mock encyption key.
 pub fn mock_encryption_key() -> Result<(PrivateKey, SaltString, SecretString)>
 {

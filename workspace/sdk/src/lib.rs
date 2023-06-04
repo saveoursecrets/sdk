@@ -17,25 +17,10 @@ mod error;
 pub mod events;
 pub mod formats;
 
-/*
-macro_rules! keyring {
-    ($block:expr) => {
-        #[cfg(all(
-            not(test),
-            all(not(debug_assertions)),
-            feature = "keyring"
-        ))]
-        $block
-    };
-}
-
-pub(crate) use keyring;
-*/
-
-#[cfg(all(not(test), all(not(debug_assertions)), feature = "keyring"))]
+#[cfg(feature = "keyring")]
 mod keyring;
 
-#[cfg(all(not(test), all(not(debug_assertions)), feature = "keyring"))]
+#[cfg(feature = "keyring")]
 pub use self::keyring::{get_native_keyring, NativeKeyring};
 
 pub mod passwd;

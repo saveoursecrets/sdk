@@ -22,6 +22,8 @@ use sos_net::{
     FileLocks,
 };
 
+pub use sos_sdk::test_utils::set_mock_credential_builder;
+
 const ADDR: &str = "127.0.0.1:3505";
 const SERVER: &str = "http://localhost:3505";
 
@@ -144,6 +146,8 @@ pub struct TestDirs {
 }
 
 pub async fn setup(num_clients: usize) -> Result<TestDirs> {
+    set_mock_credential_builder().await;
+
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
     let target = current_dir.join("target/integration-test");

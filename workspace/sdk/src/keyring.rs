@@ -56,6 +56,7 @@ impl NativeKeyring {
         secret_name: &str,
         password: &SecretString,
     ) -> Result<()> {
+        println!("set_entry {}", self.enabled);
         if self.enabled {
             let service = self.service_name(secret_id);
             let entry_name = self.entry_name(secret_name);
