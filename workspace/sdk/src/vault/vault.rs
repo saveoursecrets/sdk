@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use async_trait::async_trait;
 use binary_stream::{
-    tokio::{BinaryReader, Decode},
+    futures::{BinaryReader, Decode},
     Endian,
 };
 

@@ -10,7 +10,7 @@ use crate::{
     Result,
 };
 
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt};
+use futures::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt};
 
 /// Generic iterator for files.
 pub struct FileStream<T, R>
