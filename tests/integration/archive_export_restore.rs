@@ -45,6 +45,8 @@ async fn create_archive(
 #[tokio::test]
 #[serial]
 async fn integration_archive_local_provider() -> Result<()> {
+    set_mock_credential_builder().await;
+
     // TODO: test creating external file storage
     // TODO: and extracting the archived files
 

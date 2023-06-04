@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 mem-fs = []
 test-utils = ["dep:anyhow"]
+keyring = ["dep:keyring"]
 
 [dependencies]
 async-trait = "0.1"
@@ -65,6 +66,7 @@ async_zip = { version = "0.0.15", default-features = false, features = ["deflate
 sanitize-filename = "0.4"
 tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
 futures-util = "0.3"
+keyring = {version = "2", optional = true }
 
 [dependencies.binary-stream]
 version = "5.1.0"

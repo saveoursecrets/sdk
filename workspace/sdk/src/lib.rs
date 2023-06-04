@@ -16,6 +16,13 @@ mod encoding;
 mod error;
 pub mod events;
 pub mod formats;
+
+#[cfg(feature = "keyring")]
+mod keyring;
+
+#[cfg(feature = "keyring")]
+pub use self::keyring::{get_native_keyring, NativeKeyring};
+
 pub mod passwd;
 pub mod patch;
 pub mod rpc;

@@ -17,10 +17,13 @@ members = [
 ]
 
 [features]
+default = ["keyring"]
 mem-fs = ["sos-sdk/mem-fs"]
+keyring  = ["sos-sdk/keyring"]
+test-utils = ["sos-sdk/test-utils"]
 
 [dependencies]
-sos-sdk = { path = "workspace/sdk" }
+sos-sdk = { path = "workspace/sdk", features = ["keyring"] }
 thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
@@ -60,6 +63,7 @@ secrecy = "0.8"
 http = "0.2"
 tempfile = "3.3"
 rexpect = "0.5"
+keyring = "2"
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3"

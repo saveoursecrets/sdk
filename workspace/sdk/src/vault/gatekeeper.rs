@@ -270,6 +270,29 @@ impl Gatekeeper {
         self.enforce_shared_readonly(private_key).await?;
 
         let vault_id = *self.vault().id();
+        let id = Uuid::new_v4();
+
+        #[cfg(feature = "keyring")]
+        {
+            if let Secret::Account {
+                account,
+                password,
+                url,
+                ..
+            } = &secret
+            {
+                let native_keyring = crate::get_native_keyring();
+                let keyring = native_keyring.lock().await;
+                let _ = keyring.create_entry(
+                    &id,
+                    secret_meta.label(),
+                    account,
+                    password,
+                    url.as_ref(),
+                );
+            }
+        }
+
         //let reader = self.index.read().await;
 
         /*
@@ -292,7 +315,6 @@ impl Gatekeeper {
 
         let (commit, _) =
             Vault::commit_hash(&meta_aead, &secret_aead).await?;
-        let id = Uuid::new_v4();
 
         if let Some(mirror) = self.mirror.as_mut() {
             mirror
@@ -342,6 +364,43 @@ impl Gatekeeper {
         self.enforce_shared_readonly(private_key).await?;
 
         let vault_id = *self.vault().id();
+
+        #[cfg(feature = "keyring")]
+        {
+            if let Secret::Account {
+                account,
+                password,
+                url,
+                ..
+            } = &secret
+            {
+                let native_keyring = crate::get_native_keyring();
+                let keyring = native_keyring.lock().await;
+
+                // Delete an existing entry first
+                if let Some((meta, secret)) =
+                    self.read_secret(id, None, None).await?
+                {
+                    if let Secret::Account { account, url, .. } = &secret {
+                        let _ = keyring.delete_entry(
+                            &id,
+                            meta.label(),
+                            account,
+                            url.as_ref(),
+                        );
+                    }
+                }
+
+                // Create the new entry
+                let _ = keyring.create_entry(
+                    &id,
+                    secret_meta.label(),
+                    account,
+                    password,
+                    url.as_ref(),
+                );
+            }
+        }
 
         /*
         let reader = self.index.read().await;
@@ -403,6 +462,24 @@ impl Gatekeeper {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         self.enforce_shared_readonly(private_key).await?;
+
+        #[cfg(feature = "keyring")]
+        {
+            if let Some((meta, secret)) =
+                self.read_secret(id, None, None).await?
+            {
+                if let Secret::Account { account, url, .. } = &secret {
+                    let native_keyring = crate::get_native_keyring();
+                    let keyring = native_keyring.lock().await;
+                    let _ = keyring.delete_entry(
+                        &id,
+                        meta.label(),
+                        account,
+                        url.as_ref(),
+                    );
+                }
+            }
+        }
 
         let vault_id = *self.vault().id();
         if let Some(mirror) = self.mirror.as_mut() {
@@ -492,6 +569,7 @@ impl From<Gatekeeper> for Vault {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::*;
     use crate::{
         constants::DEFAULT_VAULT_NAME,
         vault::{secret::Secret, VaultBuilder},
@@ -501,6 +579,8 @@ mod tests {
 
     #[tokio::test]
     async fn gatekeeper_secret_note() -> Result<()> {
+        set_mock_credential_builder().await;
+
         let passphrase = SecretString::new("mock-passphrase".to_owned());
         let name = String::from(DEFAULT_VAULT_NAME);
         let description = String::from("Mock Vault Description");
@@ -519,10 +599,10 @@ mod tests {
 
         assert_eq!(&description, meta.description());
 
-        let secret_label = String::from("Mock Secret");
-        let secret_value = String::from("Super Secret Note");
+        let secret_label = "Mock Secret".to_string();
+        let secret_value = "Super Secret Note".to_string();
         let secret = Secret::Note {
-            text: secrecy::Secret::new(secret_value),
+            text: SecretString::new(secret_value),
             user_data: Default::default(),
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
@@ -537,6 +617,68 @@ mod tests {
         } else {
             panic!("test create secret got wrong payload variant");
         }
+
+        keeper.lock();
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn gatekeeper_secret_account() -> Result<()> {
+        set_mock_credential_builder().await;
+
+        let passphrase = SecretString::new("mock-passphrase".to_owned());
+        let name = String::from(DEFAULT_VAULT_NAME);
+        let description = String::from("Mock Vault Description");
+
+        let vault = VaultBuilder::new()
+            .public_name(name)
+            .description(description.clone())
+            .password(passphrase.clone(), None)
+            .await?;
+
+        let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(passphrase.into()).await?;
+
+        //// Decrypt the initialized meta data.
+        let meta = keeper.vault_meta().await?;
+
+        assert_eq!(&description, meta.description());
+
+        let secret_label = "Mock Account Secret".to_string();
+        let secret_value = "super-secret-password".to_string();
+        let secret = Secret::Account {
+            account: "mock-username".to_string(),
+            password: SecretString::new(secret_value),
+            url: Some("https://example.com".parse()?),
+            user_data: Default::default(),
+        };
+        let secret_meta = SecretMeta::new(secret_label, secret.kind());
+
+        let id = if let WriteEvent::CreateSecret(secret_uuid, _) =
+            keeper.create(secret_meta.clone(), secret.clone()).await?
+        {
+            let (saved_secret_meta, saved_secret) =
+                keeper.read_secret(&secret_uuid, None, None).await?.unwrap();
+            assert_eq!(secret, saved_secret);
+            assert_eq!(secret_meta, saved_secret_meta);
+            secret_uuid
+        } else {
+            panic!("test create secret got wrong payload variant");
+        };
+
+        let new_secret_label = "Mock New Account".to_string();
+        let new_secret_value = "new-secret-password".to_string();
+        let new_secret = Secret::Account {
+            account: "mock-new-username".to_string(),
+            password: SecretString::new(new_secret_value),
+            url: Some("https://example.com/new".parse()?),
+            user_data: Default::default(),
+        };
+        let new_secret_meta =
+            SecretMeta::new(new_secret_label.clone(), new_secret.kind());
+
+        keeper.update(&id, new_secret_meta, new_secret).await?;
 
         keeper.lock();
 

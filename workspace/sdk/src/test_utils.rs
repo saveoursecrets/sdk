@@ -14,10 +14,27 @@ use sha3::{Digest, Sha3_256};
 use std::{borrow::Cow, io::Write};
 use uuid::Uuid;
 
+use crate::events::EventLogFile;
+use tempfile::NamedTempFile;
+
 use anyhow::Result;
 use secrecy::SecretString;
 
 use argon2::password_hash::SaltString;
+
+/// Set to use a mock credentials builder for the keyring integration.
+pub async fn set_mock_credential_builder() {
+    #[cfg(all(any(test, debug_assertions), feature = "keyring"))]
+    {
+        keyring::set_default_credential_builder(
+            keyring::mock::default_credential_builder(),
+        );
+
+        let native_keyring = crate::get_native_keyring();
+        let mut keyring = native_keyring.lock().await;
+        keyring.set_enabled(true);
+    }
+}
 
 /// Generate a mock encyption key.
 pub fn mock_encryption_key() -> Result<(PrivateKey, SaltString, SecretString)>
@@ -115,69 +132,54 @@ pub async fn mock_vault_note_update<'a>(
     Ok((commit, secret_meta, secret_value, event))
 }
 
-mod file {
-    use crate::{
-        commit::CommitHash, encode, events::EventLogFile, events::WriteEvent,
-        vault::Vault,
-    };
-    use tempfile::NamedTempFile;
+/// Create a mock vault in a temp file.
+pub async fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)> {
+    let mut temp = NamedTempFile::new()?;
+    let (passphrase, _) = generate_passphrase()?;
+    let vault = VaultBuilder::new().password(passphrase, None).await?;
 
-    use super::*;
-
-    /// Create a mock vault in a temp file.
-    pub async fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)>
-    {
-        let mut temp = NamedTempFile::new()?;
-        let (passphrase, _) = generate_passphrase()?;
-        let vault = VaultBuilder::new().password(passphrase, None).await?;
-
-        let buffer = encode(&vault).await?;
-        temp.write_all(&buffer)?;
-        Ok((temp, vault, buffer))
-    }
-
-    /// Create a mock event log in a temp file.
-    pub async fn mock_event_log_file(
-    ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>, PrivateKey)>
-    {
-        let (encryption_key, _, _) = mock_encryption_key()?;
-        let (_, mut vault, buffer) = mock_vault_file().await?;
-
-        let temp = NamedTempFile::new()?;
-        let mut event_log = EventLogFile::new(temp.path()).await?;
-
-        let mut commits = Vec::new();
-
-        // Create the vault
-        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
-        commits.push(event_log.append_event(event).await?);
-
-        // Create a secret
-        let (secret_id, _, _, _, event) = mock_vault_note(
-            &mut vault,
-            &encryption_key,
-            "event log Note",
-            "This a event log note secret.",
-        )
-        .await?;
-        commits.push(event_log.append_event(event).await?);
-
-        // Update the secret
-        let (_, _, _, event) = mock_vault_note_update(
-            &mut vault,
-            &encryption_key,
-            &secret_id,
-            "event log Note Edited",
-            "This a event log note secret that was edited.",
-        )
-        .await?;
-        if let Some(event) = event {
-            commits.push(event_log.append_event(event).await?);
-        }
-
-        Ok((temp, event_log, commits, encryption_key))
-    }
+    let buffer = encode(&vault).await?;
+    temp.write_all(&buffer)?;
+    Ok((temp, vault, buffer))
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use self::file::*;
+/// Create a mock event log in a temp file.
+pub async fn mock_event_log_file(
+) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>, PrivateKey)> {
+    let (encryption_key, _, _) = mock_encryption_key()?;
+    let (_, mut vault, buffer) = mock_vault_file().await?;
+
+    let temp = NamedTempFile::new()?;
+    let mut event_log = EventLogFile::new(temp.path()).await?;
+
+    let mut commits = Vec::new();
+
+    // Create the vault
+    let event = WriteEvent::CreateVault(Cow::Owned(buffer));
+    commits.push(event_log.append_event(event).await?);
+
+    // Create a secret
+    let (secret_id, _, _, _, event) = mock_vault_note(
+        &mut vault,
+        &encryption_key,
+        "event log Note",
+        "This a event log note secret.",
+    )
+    .await?;
+    commits.push(event_log.append_event(event).await?);
+
+    // Update the secret
+    let (_, _, _, event) = mock_vault_note_update(
+        &mut vault,
+        &encryption_key,
+        &secret_id,
+        "event log Note Edited",
+        "This a event log note secret that was edited.",
+    )
+    .await?;
+    if let Some(event) = event {
+        commits.push(event_log.append_event(event).await?);
+    }
+
+    Ok((temp, event_log, commits, encryption_key))
+}

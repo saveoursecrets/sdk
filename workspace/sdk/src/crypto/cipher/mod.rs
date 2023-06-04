@@ -2,11 +2,7 @@
 use super::{AeadPack, Nonce, PrivateKey};
 use crate::{Error, Result};
 use age::x25519::Recipient;
-use std::{
-    fmt,
-    hash::{Hash, Hasher},
-    str::FromStr,
-};
+use std::{fmt, str::FromStr};
 
 mod aesgcm256;
 mod x25519;

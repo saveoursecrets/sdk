@@ -47,7 +47,9 @@ async fn auth(
             Ok((owner, _)) => return Ok(owner),
             Err(e) => {
                 tracing::error!(target: TARGET, "{}", e);
-                if e.is_interrupted() {
+                if matches!(e, Error::NoAccount(_)) {
+                    std::process::exit(1);
+                } else if e.is_interrupted() {
                     std::process::exit(0);
                 }
             }
