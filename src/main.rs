@@ -4,11 +4,11 @@ use sos::{Result, TARGET};
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> Result<()> {
-    
     #[cfg(all(test, feature = "keyring"))]
     {
         keyring::set_default_credential_builder(
-            keyring::mock::default_credential_builder());
+            keyring::mock::default_credential_builder(),
+        );
     }
 
     #[cfg(all(not(debug_assertions), feature = "keyring"))]

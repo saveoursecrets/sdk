@@ -274,10 +274,22 @@ impl Gatekeeper {
 
         #[cfg(feature = "keyring")]
         {
-            if let Secret::Account { password, .. } = &secret {
+            if let Secret::Account {
+                account,
+                password,
+                url,
+                ..
+            } = &secret
+            {
                 let native_keyring = crate::get_native_keyring();
                 let keyring = native_keyring.lock().await;
-                let _ = keyring.set_entry(&id, secret_meta.label(), password);
+                let _ = keyring.create_entry(
+                    &id,
+                    secret_meta.label(),
+                    account,
+                    password,
+                    url.as_ref(),
+                );
             }
         }
 
@@ -355,10 +367,38 @@ impl Gatekeeper {
 
         #[cfg(feature = "keyring")]
         {
-            if let Secret::Account { password, .. } = &secret {
+            if let Secret::Account {
+                account,
+                password,
+                url,
+                ..
+            } = &secret
+            {
                 let native_keyring = crate::get_native_keyring();
                 let keyring = native_keyring.lock().await;
-                let _ = keyring.set_entry(&id, secret_meta.label(), password);
+
+                // Delete an existing entry first
+                if let Some((meta, secret)) =
+                    self.read_secret(id, None, None).await?
+                {
+                    if let Secret::Account { account, url, .. } = &secret {
+                        let _ = keyring.delete_entry(
+                            &id,
+                            meta.label(),
+                            account,
+                            url.as_ref(),
+                        );
+                    }
+                }
+
+                // Create the new entry
+                let _ = keyring.create_entry(
+                    &id,
+                    secret_meta.label(),
+                    account,
+                    password,
+                    url.as_ref(),
+                );
             }
         }
 
@@ -428,10 +468,15 @@ impl Gatekeeper {
             if let Some((meta, secret)) =
                 self.read_secret(id, None, None).await?
             {
-                if let Secret::Account { .. } = &secret {
+                if let Secret::Account { account, url, .. } = &secret {
                     let native_keyring = crate::get_native_keyring();
                     let keyring = native_keyring.lock().await;
-                    let _ = keyring.delete_entry(&id, meta.label());
+                    let _ = keyring.delete_entry(
+                        &id,
+                        meta.label(),
+                        account,
+                        url.as_ref(),
+                    );
                 }
             }
         }
@@ -524,13 +569,13 @@ impl From<Gatekeeper> for Vault {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::*;
     use crate::{
         constants::DEFAULT_VAULT_NAME,
         vault::{secret::Secret, VaultBuilder},
     };
     use anyhow::Result;
     use secrecy::SecretString;
-    use crate::test_utils::*;
 
     #[tokio::test]
     async fn gatekeeper_secret_note() -> Result<()> {
@@ -557,7 +602,7 @@ mod tests {
         let secret_label = "Mock Secret".to_string();
         let secret_value = "Super Secret Note".to_string();
         let secret = Secret::Note {
-            text: secrecy::Secret::new(secret_value),
+            text: SecretString::new(secret_value),
             user_data: Default::default(),
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
@@ -604,22 +649,36 @@ mod tests {
         let secret_value = "super-secret-password".to_string();
         let secret = Secret::Account {
             account: "mock-username".to_string(),
-            password: secrecy::Secret::new(secret_value),
-            url: None,
+            password: SecretString::new(secret_value),
+            url: Some("https://example.com".parse()?),
             user_data: Default::default(),
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        if let WriteEvent::CreateSecret(secret_uuid, _) =
+        let id = if let WriteEvent::CreateSecret(secret_uuid, _) =
             keeper.create(secret_meta.clone(), secret.clone()).await?
         {
             let (saved_secret_meta, saved_secret) =
                 keeper.read_secret(&secret_uuid, None, None).await?.unwrap();
             assert_eq!(secret, saved_secret);
             assert_eq!(secret_meta, saved_secret_meta);
+            secret_uuid
         } else {
             panic!("test create secret got wrong payload variant");
-        }
+        };
+
+        let new_secret_label = "Mock New Account".to_string();
+        let new_secret_value = "new-secret-password".to_string();
+        let new_secret = Secret::Account {
+            account: "mock-new-username".to_string(),
+            password: SecretString::new(new_secret_value),
+            url: Some("https://example.com/new".parse()?),
+            user_data: Default::default(),
+        };
+        let new_secret_meta =
+            SecretMeta::new(new_secret_label.clone(), new_secret.kind());
+
+        keeper.update(&id, new_secret_meta, new_secret).await?;
 
         keeper.lock();
 
