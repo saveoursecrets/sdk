@@ -270,6 +270,21 @@ impl Gatekeeper {
         self.enforce_shared_readonly(private_key).await?;
 
         let vault_id = *self.vault().id();
+        let id = Uuid::new_v4();
+
+        #[cfg(all(
+            not(test),
+            all(not(debug_assertions)),
+            feature = "keyring"
+        ))]
+        {
+            if let Secret::Account { password, .. } = &secret {
+                let native_keyring = crate::get_native_keyring();
+                let keyring = native_keyring.lock().await;
+                let _ = keyring.set_entry(&id, secret_meta.label(), password);
+            }
+        }
+
         //let reader = self.index.read().await;
 
         /*
@@ -292,7 +307,6 @@ impl Gatekeeper {
 
         let (commit, _) =
             Vault::commit_hash(&meta_aead, &secret_aead).await?;
-        let id = Uuid::new_v4();
 
         if let Some(mirror) = self.mirror.as_mut() {
             mirror
@@ -342,6 +356,19 @@ impl Gatekeeper {
         self.enforce_shared_readonly(private_key).await?;
 
         let vault_id = *self.vault().id();
+
+        #[cfg(all(
+            not(test),
+            all(not(debug_assertions)),
+            feature = "keyring"
+        ))]
+        {
+            if let Secret::Account { password, .. } = &secret {
+                let native_keyring = crate::get_native_keyring();
+                let keyring = native_keyring.lock().await;
+                let _ = keyring.set_entry(&id, secret_meta.label(), password);
+            }
+        }
 
         /*
         let reader = self.index.read().await;
@@ -403,6 +430,23 @@ impl Gatekeeper {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         self.enforce_shared_readonly(private_key).await?;
+
+        #[cfg(all(
+            not(test),
+            all(not(debug_assertions)),
+            feature = "keyring"
+        ))]
+        {
+            if let Some((meta, secret)) =
+                self.read_secret(id, None, None).await?
+            {
+                if let Secret::Account { .. } = &secret {
+                    let native_keyring = crate::get_native_keyring();
+                    let keyring = native_keyring.lock().await;
+                    let _ = keyring.delete_entry(&id, meta.label());
+                }
+            }
+        }
 
         let vault_id = *self.vault().id();
         if let Some(mirror) = self.mirror.as_mut() {

@@ -17,10 +17,12 @@ members = [
 ]
 
 [features]
+default = ["keyring"]
 mem-fs = ["sos-sdk/mem-fs"]
+keyring  = ["sos-sdk/keyring"]
 
 [dependencies]
-sos-sdk = { path = "workspace/sdk" }
+sos-sdk = { path = "workspace/sdk", features = ["keyring"] }
 thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
