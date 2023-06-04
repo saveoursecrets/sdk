@@ -44,7 +44,7 @@ bitflags = "1"
 pem = { version = "2", features = ["serde"] }
 secrecy = { version = "0.8", features = ["serde"] }
 crypto-bigint = "0.5"
-tempfile = "3"
+tempfile = "3.5"
 log = "0.4"
 http = "0.2"
 zxcvbn = "2"

@@ -58,7 +58,7 @@ futures = "0.3"
 pin-project-lite = "0.2"
 uuid = { version = "1", features = ["serde", "v4"] }
 hex = "0.4"
-tempfile = "3"
+tempfile = "3.5"
 dirs = "4"
 http = "0.2"
 bs58 = "0.4"
