@@ -97,7 +97,6 @@ impl StorageProvider for LocalProvider {
         if is_account {
             builder = builder.flags(VaultFlags::DEFAULT);
         }
-
         let vault = match &key {
             AccessKey::Password(password) => {
                 builder.password(password.clone(), None).await?

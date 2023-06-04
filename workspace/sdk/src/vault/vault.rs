@@ -1146,7 +1146,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn shared_folder() -> Result<()> {
+    async fn shared_folder_writable() -> Result<()> {
         let owner = age::x25519::Identity::generate();
         let other_1 = age::x25519::Identity::generate();
 
@@ -1184,6 +1184,27 @@ mod tests {
         if let Some((read_meta, read_secret, _)) = keeper_1.read(&id).await? {
             assert_eq!(meta, read_meta);
             assert_eq!(secret, read_secret);
+        } else {
+            unreachable!();
+        }
+
+        let (new_meta, new_secret, _, _) =
+            mock_secret_note("Shared label updated", "Shared note updated")
+                .await?;
+        keeper_1
+            .update(&id, new_meta.clone(), new_secret.clone())
+            .await?;
+
+        // In the real world this exchange of the vault
+        // would happen via a sync operation
+        let vault: Vault = keeper_1.into();
+
+        // Check the owner can see the updated secret
+        let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
+        if let Some((read_meta, read_secret, _)) = keeper.read(&id).await? {
+            assert_eq!(new_meta, read_meta);
+            assert_eq!(new_secret, read_secret);
         } else {
             unreachable!();
         }
