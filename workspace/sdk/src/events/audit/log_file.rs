@@ -16,7 +16,7 @@ use crate::{
 use super::{AuditEvent, AuditProvider};
 
 use binary_stream::{
-    tokio::{BinaryReader, BinaryWriter},
+    futures::{BinaryReader, BinaryWriter},
     Endian,
 };
 
@@ -69,7 +69,7 @@ impl AuditLogFile {
         file.read_exact(&mut buf).await?;
 
         let mut stream = BufReader::new(Cursor::new(&buf));
-        let mut reader = BinaryReader::new(&mut stream, Endian::Little);
+        let mut reader = BinaryReader::new(&mut stream, Endian::Little.into());
         Ok(AuditLogFile::decode_row(&mut reader).await?)
     }
 }
@@ -86,7 +86,7 @@ impl AuditProvider for AuditLogFile {
         let buffer: Vec<u8> = {
             let mut buffer = Vec::new();
             let mut stream = Cursor::new(&mut buffer);
-            let mut writer = BinaryWriter::new(&mut stream, Endian::Little);
+            let mut writer = BinaryWriter::new(&mut stream, Endian::Little.into());
             for event in events {
                 AuditLogFile::encode_row(&mut writer, event).await?;
             }

@@ -1,10 +1,8 @@
 use async_trait::async_trait;
-use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
+use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
 use std::io::Result;
-use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
-
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use rs_merkle::{algorithms::Sha256, MerkleProof};
-
 use super::encoding_error;
 use crate::commit::CommitProof;
 

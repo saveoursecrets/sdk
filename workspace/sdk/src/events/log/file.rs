@@ -33,7 +33,7 @@ use std::{
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use binary_stream::{
-    tokio::{BinaryReader, Decode},
+    futures::{BinaryReader, Decode},
     Endian,
 };
 use tempfile::NamedTempFile;
@@ -306,7 +306,7 @@ impl EventLogFile {
         file.read_exact(buffer.as_mut_slice()).await?;
 
         let mut stream = Cursor::new(&mut buffer);
-        let mut reader = BinaryReader::new(&mut stream, Endian::Little);
+        let mut reader = BinaryReader::new(&mut stream, Endian::Little.into());
         let mut event: WriteEvent = Default::default();
 
         event.decode(&mut reader).await?;

@@ -14,9 +14,9 @@ use crate::{
 
 use super::encoding_error;
 use async_trait::async_trait;
-use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
+use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
 use std::io::{Error, ErrorKind, Result};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

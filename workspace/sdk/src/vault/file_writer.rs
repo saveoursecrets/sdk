@@ -8,16 +8,19 @@ use std::{
 };
 
 use tokio::{
+    sync::Mutex,
+};
+
+use futures::{
     io::{
         AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
         AsyncWriteExt,
     },
-    sync::Mutex,
 };
 
 use async_trait::async_trait;
 use binary_stream::{
-    tokio::{BinaryReader, BinaryWriter},
+    futures::{BinaryReader, BinaryWriter},
     Endian,
 };
 
@@ -162,7 +165,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         let content_offset = self.check_identity().await?;
 
         let mut stream = self.stream.lock().await;
-        let mut reader = BinaryReader::new(&mut *stream, Endian::Little);
+        let mut reader = BinaryReader::new(&mut *stream, Endian::Little.into());
 
         reader.seek(content_offset).await?;
 
@@ -243,7 +246,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         let _summary = self.summary().await?;
         let mut stream = self.stream.lock().await;
         let length = stream_len(stream.deref_mut()).await?;
-        let mut writer = BinaryWriter::new(&mut *stream, Endian::Little);
+        let mut writer = BinaryWriter::new(&mut *stream, Endian::Little.into());
         let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row
@@ -264,7 +267,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         let (_, row) = self.find_row(id).await?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().await;
-            let mut reader = BinaryReader::new(&mut *stream, Endian::Little);
+            let mut reader = BinaryReader::new(&mut *stream, Endian::Little.into());
             reader.seek(row_offset).await?;
             let (_, value) = Contents::decode_row(&mut reader).await?;
             Ok((Some(Cow::Owned(value)), event))
@@ -285,7 +288,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
             // Prepare the row
             let mut buffer = Vec::new();
             let mut stream = Cursor::new(&mut buffer);
-            let mut writer = BinaryWriter::new(&mut stream, Endian::Little);
+            let mut writer = BinaryWriter::new(&mut stream, Endian::Little.into());
 
             let row = VaultCommit(commit, secret);
             Contents::encode_row(&mut writer, id, &row).await?;

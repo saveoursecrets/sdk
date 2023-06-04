@@ -482,7 +482,7 @@ impl Header {
     >(
         stream: R,
     ) -> Result<u64> {
-        let mut reader = BinaryReader::new(stream, Endian::Little);
+        let mut reader = BinaryReader::new(stream, Endian::Little.into());
         let identity = reader.read_bytes(VAULT_IDENTITY.len()).await?;
         FileIdentity::read_slice(&identity, &VAULT_IDENTITY)?;
         let header_len = reader.read_u32().await? as u64;
@@ -510,7 +510,7 @@ impl Header {
     >(
         stream: R,
     ) -> Result<Summary> {
-        let mut reader = BinaryReader::new(stream, Endian::Little);
+        let mut reader = BinaryReader::new(stream, Endian::Little.into());
 
         // Read magic identity bytes
         FileIdentity::read_identity(&mut reader, &VAULT_IDENTITY).await?;
@@ -537,7 +537,7 @@ impl Header {
     >(
         stream: R,
     ) -> Result<Header> {
-        let mut reader = BinaryReader::new(stream, Endian::Little);
+        let mut reader = BinaryReader::new(stream, Endian::Little.into());
         let mut header: Header = Default::default();
         header.decode(&mut reader).await?;
         Ok(header)

@@ -13,7 +13,7 @@ pub const VERSION: u16 = 1;
 
 use crate::Result;
 use binary_stream::{
-    tokio::{BinaryReader, BinaryWriter, Decode, Encode},
+    futures::{BinaryReader, BinaryWriter, Decode, Encode},
     Endian,
 };
 use std::io::{Cursor, SeekFrom};
@@ -52,7 +52,7 @@ async fn encode_endian(
 ) -> Result<Vec<u8>> {
     let mut buffer = Vec::new();
     let mut stream = Cursor::new(&mut buffer);
-    let mut writer = BinaryWriter::new(&mut stream, endian);
+    let mut writer = BinaryWriter::new(&mut stream, endian.into());
     encodable.encode(&mut writer).await?;
     Ok(buffer)
 }
@@ -62,7 +62,7 @@ async fn decode_endian<T: Decode + Default>(
     endian: Endian,
 ) -> Result<T> {
     let mut stream = Cursor::new(buffer);
-    let mut reader = BinaryReader::new(&mut stream, endian);
+    let mut reader = BinaryReader::new(&mut stream, endian.into());
     let mut decoded: T = T::default();
     decoded.decode(&mut reader).await?;
     Ok(decoded)

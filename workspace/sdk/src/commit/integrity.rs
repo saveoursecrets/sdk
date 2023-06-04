@@ -4,7 +4,7 @@ use crate::{
     formats::{vault_stream, EventLogFileRecord, FileItem, VaultRecord},
     vfs, Error, Result,
 };
-use binary_stream::{tokio::BinaryReader, Endian};
+use binary_stream::{futures::BinaryReader, Endian};
 
 use crate::events::EventLogFile;
 
@@ -37,7 +37,7 @@ where
     // Need an additional reader as we may also read in the
     // values for the rows
     let mut file = vfs::File::open(vault.as_ref()).await?;
-    let mut reader = BinaryReader::new(&mut file, Endian::Little);
+    let mut reader = BinaryReader::new(&mut file, Endian::Little.into());
     let mut it = vault_stream(vault.as_ref()).await?;
     while let Some(record) = it.next_entry().await? {
         if verify {
@@ -79,7 +79,7 @@ where
     // Need an additional reader as we may also read in the
     // values for the rows
     let mut file = vfs::File::open(event_log_file.as_ref()).await?;
-    let mut reader = BinaryReader::new(&mut file, Endian::Little);
+    let mut reader = BinaryReader::new(&mut file, Endian::Little.into());
 
     let event_log = EventLogFile::new(event_log_file.as_ref()).await?;
     let mut it = event_log.iter().await?;

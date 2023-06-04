@@ -13,11 +13,11 @@ use crate::{
 };
 
 use std::io::{Error, ErrorKind, Result};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use super::encoding_error;
 use async_trait::async_trait;
-use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
+use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
 
 use uuid::Uuid;
 

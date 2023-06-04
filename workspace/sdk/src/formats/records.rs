@@ -2,7 +2,7 @@
 use std::ops::Range;
 
 use crate::Timestamp;
-use binary_stream::tokio::Decode;
+use binary_stream::futures::Decode;
 
 /// Trait for types yielded by the file iterator.
 pub trait FileItem: Default + std::fmt::Debug + Decode {
