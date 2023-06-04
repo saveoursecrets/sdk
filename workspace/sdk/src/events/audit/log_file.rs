@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 use std::{
-    io::{Cursor, SeekFrom},
+    io::{SeekFrom},
     path::{Path, PathBuf},
 };
 
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
+use futures::io::{AsyncWriteExt as FuturesAsyncWriteExt, Cursor, BufWriter, BufReader};
 
 use crate::{
     constants::AUDIT_IDENTITY,
@@ -22,7 +24,7 @@ use binary_stream::{
 
 /// Represents an audit log file.
 pub struct AuditLogFile {
-    file: File,
+    file: Compat<File>,
     file_path: PathBuf,
 }
 
@@ -30,7 +32,7 @@ impl AuditLogFile {
     /// Create an audit log file.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
-        let file = AuditLogFile::create(path.as_ref()).await?;
+        let file = AuditLogFile::create(path.as_ref()).await?.compat_write();
         Ok(Self { file, file_path })
     }
 
@@ -85,7 +87,7 @@ impl AuditProvider for AuditLogFile {
     ) -> Result<()> {
         let buffer: Vec<u8> = {
             let mut buffer = Vec::new();
-            let mut stream = Cursor::new(&mut buffer);
+            let mut stream = BufWriter::new(Cursor::new(&mut buffer));
             let mut writer = BinaryWriter::new(&mut stream, Endian::Little.into());
             for event in events {
                 AuditLogFile::encode_row(&mut writer, event).await?;

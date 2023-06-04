@@ -1,22 +1,22 @@
 //! Implements random access to a single vault file on disc.
 use std::{
     borrow::Cow,
-    io::{Cursor, SeekFrom},
+    io::{SeekFrom},
     ops::{DerefMut, Range},
     path::Path,
     path::PathBuf,
 };
 
 use tokio::{
-    sync::Mutex,
-};
-
-use futures::{
     io::{
         AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
         AsyncWriteExt,
     },
+    sync::Mutex,
 };
+
+use futures::io::{BufWriter, Cursor};
+use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 use async_trait::async_trait;
 use binary_stream::{
@@ -46,7 +46,7 @@ where
     F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send,
 {
     file_path: PathBuf,
-    stream: Mutex<F>,
+    stream: Mutex<Compat<F>>,
 }
 
 impl VaultWriter<File> {
@@ -67,7 +67,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
     /// The underlying file should already exist and be a valid vault.
     pub fn new<P: AsRef<Path>>(path: P, file: F) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
-        let stream = Mutex::new(file);
+        let stream = Mutex::new(file.compat_write());
         Ok(Self { file_path, stream })
     }
 
@@ -287,11 +287,12 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         if let Some((row_offset, row_len)) = row {
             // Prepare the row
             let mut buffer = Vec::new();
-            let mut stream = Cursor::new(&mut buffer);
+            let mut stream = BufWriter::new(Cursor::new(&mut buffer));
             let mut writer = BinaryWriter::new(&mut stream, Endian::Little.into());
 
             let row = VaultCommit(commit, secret);
             Contents::encode_row(&mut writer, id, &row).await?;
+            writer.flush().await?;
 
             // Splice the row into the file
             let length = {

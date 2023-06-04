@@ -16,7 +16,8 @@ use binary_stream::{
     futures::{BinaryReader, BinaryWriter, Decode, Encode},
     Endian,
 };
-use std::io::{Cursor, SeekFrom};
+use std::io::SeekFrom;
+use futures::io::{BufReader, BufWriter, Cursor, AsyncSeek, AsyncSeekExt};
 
 pub(crate) fn encoding_error(
     e: impl std::error::Error + Send + Sync + 'static,
@@ -26,10 +27,9 @@ pub(crate) fn encoding_error(
 
 /// Get the length of this stream by seeking to the end
 /// and then restoring the previous cursor position.
-pub(crate) async fn stream_len<S: tokio::io::AsyncSeek + Unpin>(
+pub(crate) async fn stream_len<S: AsyncSeek + Unpin>(
     stream: &mut S,
 ) -> Result<u64> {
-    use tokio::io::AsyncSeekExt;
     let position = stream.stream_position().await?;
     let length = stream.seek(SeekFrom::End(0)).await?;
     stream.seek(SeekFrom::Start(position)).await?;
@@ -51,9 +51,10 @@ async fn encode_endian(
     endian: Endian,
 ) -> Result<Vec<u8>> {
     let mut buffer = Vec::new();
-    let mut stream = Cursor::new(&mut buffer);
+    let mut stream = BufWriter::new(Cursor::new(&mut buffer));
     let mut writer = BinaryWriter::new(&mut stream, endian.into());
     encodable.encode(&mut writer).await?;
+    writer.flush().await?;
     Ok(buffer)
 }
 
@@ -61,7 +62,7 @@ async fn decode_endian<T: Decode + Default>(
     buffer: &[u8],
     endian: Endian,
 ) -> Result<T> {
-    let mut stream = Cursor::new(buffer);
+    let mut stream = BufReader::new(Cursor::new(buffer));
     let mut reader = BinaryReader::new(&mut stream, endian.into());
     let mut decoded: T = T::default();
     decoded.decode(&mut reader).await?;

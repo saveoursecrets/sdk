@@ -394,6 +394,8 @@ impl Contents {
             .map_err(encoding_error)?;
         let uuid = Uuid::from_bytes(uuid);
 
+        println!("decoded uuid {} {}", uuid, reader.tell().await?);
+
         let mut row: VaultCommit = Default::default();
         row.decode(&mut *reader).await?;
 
@@ -428,7 +430,11 @@ impl Decode for Contents {
         let mut pos = reader.tell().await?;
         let len = reader.len().await?;
         while pos < len {
+            println!("decoding a row...");
             let (uuid, value) = Contents::decode_row(reader).await?;
+            
+            println!("got row {}", uuid);
+
             self.data.insert(uuid, value);
             pos = reader.tell().await?;
         }
@@ -457,7 +463,13 @@ impl Decode for Vault {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
+        
+        println!("decoding the vault...");
+
         self.header.decode(reader).await?;
+
+        println!("decoding the vault contents...");
+
         self.contents.decode(reader).await?;
         Ok(())
     }

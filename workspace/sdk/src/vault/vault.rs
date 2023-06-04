@@ -6,14 +6,16 @@ use binary_stream::{
     Endian,
 };
 
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
+use futures::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
+use tokio_util::compat::TokioAsyncReadCompatExt;
+use futures::io::{Cursor, BufReader};
 
 use age::x25519::{Identity, Recipient};
 use bitflags::bitflags;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
-    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, io::Cursor,
+    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, 
     path::Path, str::FromStr,
 };
 use urn::Urn;
@@ -464,14 +466,14 @@ impl Header {
     /// Read the content offset for a vault file verifying
     /// the identity bytes first.
     pub async fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<u64> {
-        let mut stream = File::open(path.as_ref()).await?;
+        let mut stream = File::open(path.as_ref()).await?.compat();
         Header::read_content_offset_stream(&mut stream).await
     }
 
     /// Read the content offset for a vault slice verifying
     /// the identity bytes first.
     pub async fn read_content_offset_slice(buffer: &[u8]) -> Result<u64> {
-        let mut stream = Cursor::new(buffer);
+        let mut stream = BufReader::new(Cursor::new(buffer));
         Header::read_content_offset_stream(&mut stream).await
     }
 
@@ -494,13 +496,13 @@ impl Header {
     pub async fn read_summary_file<P: AsRef<Path>>(
         file: P,
     ) -> Result<Summary> {
-        let mut stream = File::open(file.as_ref()).await?;
+        let mut stream = File::open(file.as_ref()).await?.compat();
         Header::read_summary_stream(&mut stream).await
     }
 
     /// Read the summary for a slice of bytes.
     pub async fn read_summary_slice(buffer: &[u8]) -> Result<Summary> {
-        let mut stream = Cursor::new(buffer);
+        let mut stream = BufReader::new(Cursor::new(buffer));
         Header::read_summary_stream(&mut stream).await
     }
 
@@ -527,7 +529,7 @@ impl Header {
 
     /// Read the header for a vault from a file.
     pub async fn read_header_file<P: AsRef<Path>>(file: P) -> Result<Header> {
-        let mut stream = File::open(file.as_ref()).await?;
+        let mut stream = File::open(file.as_ref()).await?.compat();
         Header::read_header_stream(&mut stream).await
     }
 
@@ -954,6 +956,7 @@ impl Vault {
 
     /// Write this vault to a file.
     pub async fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        use tokio::io::AsyncWriteExt;
         let mut stream = File::create(path).await?;
         let buffer = encode(self).await?;
         stream.write_all(&buffer).await?;
@@ -1133,7 +1136,13 @@ mod tests {
             .await?;
 
         let buffer = encode(&vault).await?;
+        
+        println!("encoded note {}", buffer.len());
+
         let decoded: Vault = decode(&buffer).await?;
+        
+        println!("decoded the note...");
+
         assert_eq!(vault, decoded);
 
         let (row, _) = decoded.read(&secret_id).await?;

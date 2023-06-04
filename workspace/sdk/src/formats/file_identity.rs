@@ -15,6 +15,7 @@ impl FileIdentity {
         path: P,
         identity: &[u8],
     ) -> Result<File> {
+        use tokio::io::AsyncReadExt;
         let mut file = File::open(path.as_ref()).await?;
         let len = file.metadata().await?.len();
         if len >= identity.len() as u64 {
