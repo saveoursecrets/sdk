@@ -6,8 +6,8 @@ use crate::{
     search::SearchIndex,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
-        Summary, Vault, VaultAccess, VaultCommit, VaultEntry, VaultId,
-        VaultMeta, VaultWriter,
+        SharedAccess, Summary, Vault, VaultAccess, VaultCommit, VaultEntry,
+        VaultId, VaultMeta, VaultWriter,
     },
     vfs, Error, Result,
 };
@@ -246,12 +246,29 @@ impl Gatekeeper {
         }
     }
 
+    /// Ensure that if shared access is set to readonly that
+    /// this user is allowed to write.
+    async fn enforce_shared_readonly(&self, key: &PrivateKey) -> Result<()> {
+        if let SharedAccess::ReadOnly(aead) = self.vault.shared_access() {
+            self.vault
+                .decrypt(key, aead)
+                .await
+                .map_err(|_| Error::PermissionDenied)?;
+        }
+        Ok(())
+    }
+
     /// Add a secret to the vault.
     pub async fn create(
         &mut self,
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<WriteEvent<'_>> {
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+
+        self.enforce_shared_readonly(private_key).await?;
+
         let vault_id = *self.vault().id();
         //let reader = self.index.read().await;
 
@@ -265,9 +282,6 @@ impl Gatekeeper {
             ));
         }
         */
-
-        let private_key =
-            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
         let meta_blob = encode(&secret_meta).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
@@ -322,6 +336,11 @@ impl Gatekeeper {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> Result<Option<WriteEvent<'_>>> {
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+
+        self.enforce_shared_readonly(private_key).await?;
+
         let vault_id = *self.vault().id();
 
         /*
@@ -342,9 +361,6 @@ impl Gatekeeper {
             ));
         }
         */
-
-        let private_key =
-            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
         let meta_blob = encode(&secret_meta).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
@@ -384,6 +400,10 @@ impl Gatekeeper {
         &mut self,
         id: &SecretId,
     ) -> Result<Option<WriteEvent<'_>>> {
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+        self.enforce_shared_readonly(private_key).await?;
+
         let vault_id = *self.vault().id();
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.delete(id).await?;

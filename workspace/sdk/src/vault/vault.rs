@@ -611,6 +611,11 @@ impl Vault {
         }
     }
 
+    /// Shared access.
+    pub fn shared_access(&self) -> &SharedAccess {
+        &self.header.shared_access
+    }
+
     /// Get the URN for a vault identifier.
     pub fn vault_urn(id: &VaultId) -> Result<Urn> {
         let vault_urn = format!("urn:sos:vault:{}", id);
@@ -669,11 +674,20 @@ impl Vault {
 
             let recipients: Vec<_> =
                 recipients.into_iter().map(|r| r.to_string()).collect();
+
             self.header.shared_access = if read_only {
                 let access = SharedAccess::WriteAccess(recipients);
                 let buffer = encode(&access).await?;
                 let private_key = PrivateKey::Asymmetric(owner.clone());
-                let aead = self.encrypt(&private_key, &buffer).await?;
+                let cipher = self.header.summary.cipher.clone();
+                let owner_recipients = vec![owner.to_public()];
+                let aead = cipher
+                    .encrypt_asymmetric(
+                        &private_key,
+                        &buffer,
+                        owner_recipients,
+                    )
+                    .await?;
                 SharedAccess::ReadOnly(aead)
             } else {
                 SharedAccess::WriteAccess(recipients)
@@ -1084,6 +1098,7 @@ mod tests {
         passwd::diceware::generate_passphrase,
         test_utils::*,
         vault::{Gatekeeper, VaultBuilder},
+        Error,
     };
 
     use anyhow::Result;
@@ -1208,6 +1223,83 @@ mod tests {
         } else {
             unreachable!();
         }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn shared_folder_readonly() -> Result<()> {
+        let owner = age::x25519::Identity::generate();
+        let other_1 = age::x25519::Identity::generate();
+
+        let mut recipients = Vec::new();
+        recipients.push(other_1.to_public());
+
+        let vault =
+            VaultBuilder::new().shared(&owner, recipients, true).await?;
+
+        // Owner adds a secret
+        let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
+        let (meta, secret, _, _) =
+            mock_secret_note("Shared label", "Shared note").await?;
+        let event = keeper.create(meta.clone(), secret.clone()).await?;
+        let id = if let WriteEvent::CreateSecret(id, _) = event {
+            id
+        } else {
+            unreachable!();
+        };
+
+        // Check the owner can update
+        let (new_meta, new_secret, _, _) =
+            mock_secret_note("Shared label updated", "Shared note updated")
+                .await?;
+        keeper
+            .update(&id, new_meta.clone(), new_secret.clone())
+            .await?;
+
+        // In the real world this exchange of the vault
+        // would happen via a sync operation
+        let vault: Vault = keeper.into();
+
+        // Ensure recipient information is encoded properly
+        let encoded = encode(&vault).await?;
+        let vault: Vault = decode(&encoded).await?;
+
+        let mut keeper_1 = Gatekeeper::new(vault, None);
+        keeper_1
+            .unlock(AccessKey::Identity(other_1.clone()))
+            .await?;
+
+        // Other recipient can read the secret
+        if let Some((read_meta, read_secret, _)) = keeper_1.read(&id).await? {
+            assert_eq!(new_meta, read_meta);
+            assert_eq!(new_secret, read_secret);
+        } else {
+            unreachable!();
+        }
+
+        //  If the other recipient tries to update
+        //  they get a permission denied error
+        let (updated_meta, updated_secret, _, _) = mock_secret_note(
+            "Shared label update denied",
+            "Shared note update denied",
+        )
+        .await?;
+        let result = keeper_1
+            .update(&id, updated_meta.clone(), updated_secret.clone())
+            .await;
+        assert!(matches!(result, Err(Error::PermissionDenied)));
+
+        // Trying to create a secret is also denied
+        let result = keeper_1
+            .create(updated_meta.clone(), updated_secret.clone())
+            .await;
+        assert!(matches!(result, Err(Error::PermissionDenied)));
+
+        // Trying to delete a secret is also denied
+        let result = keeper_1.delete(&id).await;
+        assert!(matches!(result, Err(Error::PermissionDenied)));
 
         Ok(())
     }
