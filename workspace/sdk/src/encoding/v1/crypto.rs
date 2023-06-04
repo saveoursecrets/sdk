@@ -1,6 +1,6 @@
 use crate::crypto::{
     AeadPack, Cipher, KeyDerivation, Nonce, AES_GCM_256, ARGON_2_ID,
-    BALLOON_HASH, X_CHACHA20_POLY1305,
+    BALLOON_HASH, X25519, X_CHACHA20_POLY1305,
 };
 
 use std::io::{Error, ErrorKind, Result};
@@ -96,6 +96,7 @@ impl Decode for Cipher {
         *self = match id {
             X_CHACHA20_POLY1305 => Cipher::XChaCha20Poly1305,
             AES_GCM_256 => Cipher::AesGcm256,
+            X25519 => Cipher::X25519,
             _ => {
                 return Err(Error::new(
                     ErrorKind::Other,

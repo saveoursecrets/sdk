@@ -179,13 +179,17 @@ async fn simulate_session(
         .export_folder(
             exported_folder,
             &new_folder,
-            export_passphrase.clone(),
+            export_passphrase.clone().into(),
             true,
         )
         .await?;
 
     owner
-        .import_folder(exported_folder, export_passphrase.clone(), true)
+        .import_folder(
+            exported_folder,
+            export_passphrase.clone().into(),
+            true,
+        )
         .await?;
 
     // Delete the new folder

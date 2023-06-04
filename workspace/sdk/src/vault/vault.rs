@@ -8,8 +8,9 @@ use binary_stream::{
 
 use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
+use age::x25519::{Identity, Recipient};
 use bitflags::bitflags;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, io::Cursor,
@@ -22,13 +23,12 @@ use crate::{
     commit::CommitHash,
     constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY},
     crypto::{
-        AeadPack, Cipher, DerivedPrivateKey, Deriver, KeyDerivation, Seed,
+        AccessKey, AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed,
     },
-    encode,
+    decode, encode,
     encoding::v1::VERSION,
     events::{ReadEvent, WriteEvent},
     formats::FileIdentity,
-    passwd::diceware::generate_passphrase,
     vault::secret::SecretId,
     vfs::File,
     Error, Result, Timestamp,
@@ -41,14 +41,16 @@ bitflags! {
     /// Bit flags for a vault.
     #[derive(Default, Serialize, Deserialize)]
     pub struct VaultFlags: u64 {
-        /// Indicates this vault should be treated as the default folder.
+        /// Indicates this vault should be treated as
+        /// the default folder.
         const DEFAULT           =        0b0000000000000001;
-        /// Indicates this vault is an identity vault used to authenticate
-        /// a user.
+        /// Indicates this vault is an identity vault used
+        /// to authenticate a user.
         const IDENTITY          =        0b0000000000000010;
         /// Indicates this vault is to be used as an archive.
         const ARCHIVE           =        0b0000000000000100;
-        /// Indicates this vault is to be used for two-factor authentication.
+        /// Indicates this vault is to be used for
+        /// two-factor authentication.
         const AUTHENTICATOR     =        0b0000000000001000;
         /// Indicates this vault is to be used to store contacts.
         const CONTACT           =        0b0000000000010000;
@@ -71,9 +73,12 @@ bitflags! {
         ///
         /// This is useful for storing device specific keys.
         const NO_SYNC_SELF      =        0b0000000010000000;
-        /// Idnicates this vault should not be synced with
+        /// Indicates this vault should not be synced with
         /// devices owned by other accounts.
         const NO_SYNC_OTHER     =        0b0000000100000000;
+        /// Indicates this vault is shared using asymmetric
+        /// encryption.
+        const SHARED            =        0b0000001000000000;
     }
 }
 
@@ -124,6 +129,11 @@ impl VaultFlags {
     pub fn is_no_sync_other(&self) -> bool {
         self.contains(VaultFlags::NO_SYNC_OTHER)
     }
+
+    /// Determine if this vault is shared.
+    pub fn is_shared(&self) -> bool {
+        self.contains(VaultFlags::SHARED)
+    }
 }
 
 /// Vault meta data.
@@ -134,18 +144,18 @@ pub struct VaultMeta {
     pub(crate) date_created: Timestamp,
     /// Private human-friendly description of the vault.
     #[serde(skip_serializing_if = "String::is_empty")]
-    pub(crate) label: String,
+    pub(crate) description: String,
 }
 
 impl VaultMeta {
-    /// Get the vault label.
-    pub fn label(&self) -> &str {
-        &self.label
+    /// Get the vault description.
+    pub fn description(&self) -> &str {
+        &self.description
     }
 
-    /// Get the vault label.
-    pub fn set_label(&mut self, label: String) {
-        self.label = label;
+    /// Get the vault description.
+    pub fn set_description(&mut self, description: String) {
+        self.description = description;
     }
 
     /// Date this vault was initialized.
@@ -390,9 +400,15 @@ impl Summary {
 /// File header, identifier and version information
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Header {
+    /// Information about the vault.
     pub(crate) summary: Summary,
+    /// Encrypted meta data.
     pub(crate) meta: Option<AeadPack>,
+    /// Additional authentication information such as
+    /// the salt and seed entropy.
     pub(crate) auth: Auth,
+    /// Recipients for a shared vault.
+    pub(crate) shared_access: SharedAccess,
 }
 
 impl Header {
@@ -408,6 +424,7 @@ impl Header {
             summary: Summary::new(id, name, cipher, kdf, flags),
             meta: None,
             auth: Default::default(),
+            shared_access: Default::default(),
         }
     }
 
@@ -533,6 +550,39 @@ impl fmt::Display for Header {
     }
 }
 
+/// Access controls for shared vaults.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SharedAccess {
+    /// List of recipients for a shared vault.
+    ///
+    /// Every recipient is able to write to the shared vault.
+    WriteAccess(Vec<String>),
+    /// Private list of recipients managed by an owner.
+    ///
+    /// Only the owner can write to the vault, other recipients
+    /// can only read.
+    ReadOnly(AeadPack),
+}
+
+impl Default for SharedAccess {
+    fn default() -> Self {
+        Self::WriteAccess(vec![])
+    }
+}
+
+impl SharedAccess {
+    fn parse_recipients(access: &Vec<String>) -> Result<Vec<Recipient>> {
+        let mut recipients = Vec::new();
+        for recipient in access {
+            let recipient = recipient.parse().map_err(|s: &str| {
+                Error::InvalidX25519Identity(s.to_owned())
+            })?;
+            recipients.push(recipient);
+        }
+        Ok(recipients)
+    }
+}
+
 /// The vault contents
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Contents {
@@ -561,59 +611,92 @@ impl Vault {
         }
     }
 
+    /// Shared access.
+    pub fn shared_access(&self) -> &SharedAccess {
+        &self.header.shared_access
+    }
+
     /// Get the URN for a vault identifier.
     pub fn vault_urn(id: &VaultId) -> Result<Urn> {
         let vault_urn = format!("urn:sos:vault:{}", id);
         Ok(vault_urn.parse()?)
     }
 
-    /// Create a new vault and encode it into a buffer.
-    pub async fn new_buffer(
-        name: Option<String>,
-        passphrase: Option<SecretString>,
-        seed: Option<Seed>,
-    ) -> Result<(SecretString, Vault, Vec<u8>)> {
-        let passphrase = if let Some(passphrase) = passphrase {
-            passphrase
-        } else {
-            let (passphrase, _) = generate_passphrase()?;
-            passphrase
-        };
-
-        let mut vault: Vault = Default::default();
-        if let Some(name) = name {
-            vault.set_name(name);
-        }
-        vault.initialize(passphrase.clone(), seed).await?;
-        let buffer = encode(&vault).await?;
-        Ok((passphrase, vault, buffer))
-    }
-
-    /// Initialize the vault with the given label and password.
-    pub async fn initialize(
+    /// Initialize this vault using a password for
+    /// a symmetric cipher.
+    pub(crate) async fn symmetric(
         &mut self,
         password: SecretString,
         seed: Option<Seed>,
-    ) -> Result<DerivedPrivateKey> {
+    ) -> Result<PrivateKey> {
         if self.header.auth.salt.is_none() {
             let salt = KeyDerivation::generate_salt();
-
             let deriver = self.deriver();
-            let private_key = deriver.derive(
-                password.expose_secret(),
-                &salt,
-                seed.as_ref(),
-            )?;
+            let derived_private_key =
+                deriver.derive(&password, &salt, seed.as_ref())?;
+            let private_key = PrivateKey::Symmetric(derived_private_key);
 
-            let default_meta: VaultMeta = Default::default();
-            let vault_meta = encode(&default_meta).await?;
-            let meta_aead = self.encrypt(&private_key, &vault_meta).await?;
-            self.header.set_meta(Some(meta_aead));
-
-            // Store the salt and seed so we can generate the same
+            // Store the salt and seed so we can derive the same
             // private key later
             self.header.auth.salt = Some(salt.to_string());
             self.header.auth.seed = seed;
+
+            Ok(private_key)
+        } else {
+            Err(Error::VaultAlreadyInit)
+        }
+    }
+
+    /// Initialize this vault using asymmetric encryption.
+    pub(crate) async fn asymmetric(
+        &mut self,
+        owner: &Identity,
+        mut recipients: Vec<Recipient>,
+        read_only: bool,
+    ) -> Result<PrivateKey> {
+        if self.header.auth.salt.is_none() {
+            // Ensure the owner public key is always in the list
+            // of recipients
+            let owner_public = owner.to_public();
+            if recipients
+                .iter()
+                .find(|r| r.to_string() == owner_public.to_string())
+                .is_none()
+            {
+                recipients.push(owner_public);
+            }
+
+            self.flags_mut().set(VaultFlags::SHARED, true);
+
+            let salt = KeyDerivation::generate_salt();
+            let private_key = PrivateKey::Asymmetric(owner.clone());
+            self.header.summary.cipher = Cipher::X25519;
+
+            let recipients: Vec<_> =
+                recipients.into_iter().map(|r| r.to_string()).collect();
+
+            self.header.shared_access = if read_only {
+                let access = SharedAccess::WriteAccess(recipients);
+                let buffer = encode(&access).await?;
+                let private_key = PrivateKey::Asymmetric(owner.clone());
+                let cipher = self.header.summary.cipher.clone();
+                let owner_recipients = vec![owner.to_public()];
+                let aead = cipher
+                    .encrypt_asymmetric(
+                        &private_key,
+                        &buffer,
+                        owner_recipients,
+                    )
+                    .await?;
+                SharedAccess::ReadOnly(aead)
+            } else {
+                SharedAccess::WriteAccess(recipients)
+            };
+
+            // Store the salt so we know that the vault has
+            // already been initialized, for asymmetric encryption
+            // it is not used
+            self.header.auth.salt = Some(salt.to_string());
 
             Ok(private_key)
         } else {
@@ -680,19 +763,56 @@ impl Vault {
     /// Encrypt plaintext using the cipher assigned to this vault.
     pub async fn encrypt(
         &self,
-        key: &DerivedPrivateKey,
+        key: &PrivateKey,
         plaintext: &[u8],
     ) -> Result<AeadPack> {
-        self.cipher().encrypt(key, plaintext).await
+        match self.cipher() {
+            Cipher::XChaCha20Poly1305 | Cipher::AesGcm256 => {
+                self.cipher().encrypt_symmetric(key, plaintext, None).await
+            }
+            Cipher::X25519 => {
+                let recipients = match &self.header.shared_access {
+                    SharedAccess::WriteAccess(access) => {
+                        SharedAccess::parse_recipients(access)?
+                    }
+                    SharedAccess::ReadOnly(aead) => {
+                        let buffer = self
+                            .decrypt(key, aead)
+                            .await
+                            .map_err(|_| Error::PermissionDenied)?;
+                        let shared_access: SharedAccess =
+                            decode(&buffer).await?;
+                        if let SharedAccess::WriteAccess(access) =
+                            &shared_access
+                        {
+                            SharedAccess::parse_recipients(access)?
+                        } else {
+                            return Err(Error::PermissionDenied);
+                        }
+                    }
+                };
+
+                self.cipher()
+                    .encrypt_asymmetric(key, plaintext, recipients)
+                    .await
+            }
+        }
     }
 
     /// Decrypt ciphertext using the cipher assigned to this vault.
     pub async fn decrypt(
         &self,
-        key: &DerivedPrivateKey,
+        key: &PrivateKey,
         aead: &AeadPack,
     ) -> Result<Vec<u8>> {
-        self.cipher().decrypt(key, aead).await
+        match self.cipher() {
+            Cipher::XChaCha20Poly1305 | Cipher::AesGcm256 => {
+                self.cipher().decrypt_symmetric(key, aead).await
+            }
+            Cipher::X25519 => {
+                self.cipher().decrypt_asymmetric(key, aead).await
+            }
+        }
     }
 
     /// Choose a new identifier for this vault.
@@ -705,19 +825,28 @@ impl Vault {
         self.header.summary.id = Uuid::new_v4();
     }
 
-    /// Verify an encryption passphrase.
-    // FIXME: use SecretString here
-    pub async fn verify<S: AsRef<str>>(&self, passphrase: S) -> Result<()> {
+    /// Verify an access key.
+    pub async fn verify(&self, key: &AccessKey) -> Result<()> {
         let salt = self.salt().ok_or(Error::VaultNotInit)?;
         let meta_aead = self.header().meta().ok_or(Error::VaultNotInit)?;
-        let salt = KeyDerivation::parse_salt(salt)?;
-        let deriver = self.deriver();
-        let secret_key =
-            deriver.derive(passphrase.as_ref(), &salt, self.seed())?;
+        let private_key = match key {
+            AccessKey::Password(password) => {
+                let salt = KeyDerivation::parse_salt(salt)?;
+                let deriver = self.deriver();
+                PrivateKey::Symmetric(deriver.derive(
+                    password,
+                    &salt,
+                    self.seed(),
+                )?)
+            }
+            AccessKey::Identity(id) => PrivateKey::Asymmetric(id.clone()),
+        };
+
         let _ = self
-            .decrypt(&secret_key, meta_aead)
+            .decrypt(&private_key, meta_aead)
             .await
             .map_err(|_| Error::PassphraseVerification)?;
+
         Ok(())
     }
 
@@ -797,6 +926,11 @@ impl Vault {
     /// Get the encryption cipher for this vault.
     pub fn cipher(&self) -> &Cipher {
         &self.header.summary.cipher
+    }
+
+    /// Get the key derivation function.
+    pub fn kdf(&self) -> &KeyDerivation {
+        &self.header.summary.kdf
     }
 
     /// Get the vault header.
@@ -959,15 +1093,22 @@ impl VaultAccess for Vault {
 mod tests {
     use super::*;
     use crate::vault::secret::*;
-
-    use crate::{decode, encode, test_utils::*};
+    use crate::{
+        decode, encode,
+        passwd::diceware::generate_passphrase,
+        test_utils::*,
+        vault::{Gatekeeper, VaultBuilder},
+        Error,
+    };
 
     use anyhow::Result;
     use secrecy::ExposeSecret;
 
     #[tokio::test]
     async fn encode_decode_empty_vault() -> Result<()> {
-        let vault = mock_vault();
+        let (passphrase, _) = generate_passphrase()?;
+        let vault = VaultBuilder::new().password(passphrase, None).await?;
+
         let buffer = encode(&vault).await?;
         let decoded = decode(&buffer).await?;
         assert_eq!(vault, decoded);
@@ -976,10 +1117,9 @@ mod tests {
 
     #[tokio::test]
     async fn encode_decode_secret_note() -> Result<()> {
-        let (encryption_key, _, _) = mock_encryption_key()?;
-        let mut vault = mock_vault();
-
-        // TODO: encode the salt into the header meta data
+        let (encryption_key, _, passphrase) = mock_encryption_key()?;
+        let mut vault =
+            VaultBuilder::new().password(passphrase, None).await?;
 
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
@@ -1016,6 +1156,150 @@ mod tests {
             }
             _ => panic!("unexpected secret type"),
         }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn shared_folder_writable() -> Result<()> {
+        let owner = age::x25519::Identity::generate();
+        let other_1 = age::x25519::Identity::generate();
+
+        let mut recipients = Vec::new();
+        recipients.push(other_1.to_public());
+
+        let vault = VaultBuilder::new()
+            .shared(&owner, recipients, false)
+            .await?;
+
+        // Owner adds a secret
+        let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
+        let (meta, secret, _, _) =
+            mock_secret_note("Shared label", "Shared note").await?;
+        let event = keeper.create(meta.clone(), secret.clone()).await?;
+        let id = if let WriteEvent::CreateSecret(id, _) = event {
+            id
+        } else {
+            unreachable!();
+        };
+
+        // In the real world this exchange of the vault
+        // would happen via a sync operation
+        let vault: Vault = keeper.into();
+
+        // Ensure recipient information is encoded properly
+        let encoded = encode(&vault).await?;
+        let vault: Vault = decode(&encoded).await?;
+
+        let mut keeper_1 = Gatekeeper::new(vault, None);
+        keeper_1
+            .unlock(AccessKey::Identity(other_1.clone()))
+            .await?;
+        if let Some((read_meta, read_secret, _)) = keeper_1.read(&id).await? {
+            assert_eq!(meta, read_meta);
+            assert_eq!(secret, read_secret);
+        } else {
+            unreachable!();
+        }
+
+        let (new_meta, new_secret, _, _) =
+            mock_secret_note("Shared label updated", "Shared note updated")
+                .await?;
+        keeper_1
+            .update(&id, new_meta.clone(), new_secret.clone())
+            .await?;
+
+        // In the real world this exchange of the vault
+        // would happen via a sync operation
+        let vault: Vault = keeper_1.into();
+
+        // Check the owner can see the updated secret
+        let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
+        if let Some((read_meta, read_secret, _)) = keeper.read(&id).await? {
+            assert_eq!(new_meta, read_meta);
+            assert_eq!(new_secret, read_secret);
+        } else {
+            unreachable!();
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn shared_folder_readonly() -> Result<()> {
+        let owner = age::x25519::Identity::generate();
+        let other_1 = age::x25519::Identity::generate();
+
+        let mut recipients = Vec::new();
+        recipients.push(other_1.to_public());
+
+        let vault =
+            VaultBuilder::new().shared(&owner, recipients, true).await?;
+
+        // Owner adds a secret
+        let mut keeper = Gatekeeper::new(vault, None);
+        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
+        let (meta, secret, _, _) =
+            mock_secret_note("Shared label", "Shared note").await?;
+        let event = keeper.create(meta.clone(), secret.clone()).await?;
+        let id = if let WriteEvent::CreateSecret(id, _) = event {
+            id
+        } else {
+            unreachable!();
+        };
+
+        // Check the owner can update
+        let (new_meta, new_secret, _, _) =
+            mock_secret_note("Shared label updated", "Shared note updated")
+                .await?;
+        keeper
+            .update(&id, new_meta.clone(), new_secret.clone())
+            .await?;
+
+        // In the real world this exchange of the vault
+        // would happen via a sync operation
+        let vault: Vault = keeper.into();
+
+        // Ensure recipient information is encoded properly
+        let encoded = encode(&vault).await?;
+        let vault: Vault = decode(&encoded).await?;
+
+        let mut keeper_1 = Gatekeeper::new(vault, None);
+        keeper_1
+            .unlock(AccessKey::Identity(other_1.clone()))
+            .await?;
+
+        // Other recipient can read the secret
+        if let Some((read_meta, read_secret, _)) = keeper_1.read(&id).await? {
+            assert_eq!(new_meta, read_meta);
+            assert_eq!(new_secret, read_secret);
+        } else {
+            unreachable!();
+        }
+
+        //  If the other recipient tries to update
+        //  they get a permission denied error
+        let (updated_meta, updated_secret, _, _) = mock_secret_note(
+            "Shared label update denied",
+            "Shared note update denied",
+        )
+        .await?;
+        let result = keeper_1
+            .update(&id, updated_meta.clone(), updated_secret.clone())
+            .await;
+        assert!(matches!(result, Err(Error::PermissionDenied)));
+
+        // Trying to create a secret is also denied
+        let result = keeper_1
+            .create(updated_meta.clone(), updated_secret.clone())
+            .await;
+        assert!(matches!(result, Err(Error::PermissionDenied)));
+
+        // Trying to delete a secret is also denied
+        let result = keeper_1.delete(&id).await;
+        assert!(matches!(result, Err(Error::PermissionDenied)));
 
         Ok(())
     }

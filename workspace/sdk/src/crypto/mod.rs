@@ -2,19 +2,19 @@
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 
-pub(crate) mod aesgcm256;
 pub mod channel;
 mod cipher;
 mod key_derivation;
-pub(crate) mod xchacha20poly1305;
+mod private_key;
 
 pub use cipher::Cipher;
-pub(crate) use cipher::{AES_GCM_256, X_CHACHA20_POLY1305};
+pub(crate) use cipher::{AES_GCM_256, X25519, X_CHACHA20_POLY1305};
 
-pub use key_derivation::{DerivedPrivateKey, KeyDerivation, Seed};
 pub(crate) use key_derivation::{
     Deriver, ARGON_2_ID, BALLOON_HASH, SEED_SIZE,
 };
+pub use key_derivation::{KeyDerivation, Seed};
+pub use private_key::{AccessKey, DerivedPrivateKey, PrivateKey};
 
 /// Exposes the default cryptographically secure RNG.
 pub fn csprng() -> impl CryptoRng + Rng {
@@ -70,8 +70,7 @@ pub struct AeadPack {
 
 #[cfg(test)]
 mod tests {
-    use super::xchacha20poly1305::*;
-    use crate::crypto::{csprng, DerivedPrivateKey};
+    use crate::crypto::{csprng, Cipher, DerivedPrivateKey, PrivateKey};
     use anyhow::Result;
 
     use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
@@ -80,25 +79,28 @@ mod tests {
 
     #[tokio::test]
     async fn xchacha20poly1305_encrypt_decrypt() -> Result<()> {
-        let key = DerivedPrivateKey::generate();
+        let cipher = Cipher::XChaCha20Poly1305;
+        let key = PrivateKey::Symmetric(DerivedPrivateKey::generate());
         let value = b"plaintext message";
-        let aead = encrypt(&key, value, None).await?;
-        let plaintext = decrypt(&key, &aead).await?;
+        let aead = cipher.encrypt_symmetric(&key, value, None).await?;
+        let plaintext = cipher.decrypt_symmetric(&key, &aead).await?;
         assert_eq!(&plaintext, value);
         Ok(())
     }
 
     #[tokio::test]
     async fn xchacha20poly1305_encrypt_decrypt_tamper() {
-        let key = DerivedPrivateKey::generate();
+        let cipher = Cipher::XChaCha20Poly1305;
+        let key = PrivateKey::Symmetric(DerivedPrivateKey::generate());
         let value = b"plaintext message";
-        let mut aead = encrypt(&key, value, None).await.unwrap();
+        let mut aead =
+            cipher.encrypt_symmetric(&key, value, None).await.unwrap();
 
         // Flip all the bits
         aead.ciphertext = aead.ciphertext.iter().map(|b| !*b).collect();
 
         // Fails due to tampering
-        assert!(decrypt(&key, &aead).await.is_err());
+        assert!(cipher.decrypt_symmetric(&key, &aead).await.is_err());
     }
 
     #[test]

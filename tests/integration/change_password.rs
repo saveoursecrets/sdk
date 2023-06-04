@@ -67,7 +67,7 @@ async fn integration_change_password() -> Result<()> {
 
     // Use the new vault
     node_cache
-        .open_vault(&summary, encryption_passphrase.clone(), None)
+        .open_vault(&summary, encryption_passphrase.clone().into(), None)
         .await?;
 
     // Create some secrets
@@ -88,7 +88,11 @@ async fn integration_change_password() -> Result<()> {
     let vault = keeper.vault().clone();
 
     node_cache
-        .change_password(&vault, encryption_passphrase, new_passphrase)
+        .change_password(
+            &vault,
+            encryption_passphrase.into(),
+            new_passphrase.into(),
+        )
         .await?;
 
     // Close the vault

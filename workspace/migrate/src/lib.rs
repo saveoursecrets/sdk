@@ -6,8 +6,8 @@
 //! Used to move between different software providers.
 
 use async_trait::async_trait;
-use secrecy::SecretString;
-use sos_sdk::vault::Vault;
+
+use sos_sdk::{crypto::AccessKey, vault::Vault};
 
 mod error;
 
@@ -29,7 +29,7 @@ pub trait Convert {
         &self,
         source: Self::Input,
         vault: Vault,
-        password: SecretString,
+        key: AccessKey,
     ) -> Result<Vault>;
 }
 

@@ -3,18 +3,19 @@ use super::{Error, Result};
 
 use async_trait::async_trait;
 
-use secrecy::SecretString;
 use sos_sdk::{
     commit::{
         CommitPair, CommitRelationship, CommitTree, SyncInfo, SyncKind,
     },
     constants::VAULT_EXT,
+    crypto::AccessKey,
     decode, encode,
     events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
     events::{EventLogFile, EventReducer},
+    passwd::diceware::generate_passphrase,
     patch::PatchFile,
     storage::UserPaths,
-    vault::{Header, Summary, Vault, VaultId},
+    vault::{Header, Summary, Vault, VaultBuilder, VaultFlags, VaultId},
     vfs,
 };
 
@@ -79,11 +80,34 @@ impl StorageProvider for LocalProvider {
     async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
-        passphrase: Option<SecretString>,
-        _is_account: bool,
-    ) -> Result<(WriteEvent<'static>, SecretString, Summary)> {
-        let (passphrase, vault, buffer) =
-            Vault::new_buffer(name, passphrase, None).await?;
+        key: Option<AccessKey>,
+        is_account: bool,
+    ) -> Result<(WriteEvent<'static>, AccessKey, Summary)> {
+        let key = if let Some(key) = key {
+            key
+        } else {
+            let (passphrase, _) = generate_passphrase()?;
+            AccessKey::Password(passphrase)
+        };
+
+        let mut builder = VaultBuilder::new();
+        if let Some(name) = name {
+            builder = builder.public_name(name);
+        }
+        if is_account {
+            builder = builder.flags(VaultFlags::DEFAULT);
+        }
+        let vault = match &key {
+            AccessKey::Password(password) => {
+                builder.password(password.clone(), None).await?
+            }
+            AccessKey::Identity(id) => {
+                builder.shared(id, vec![], true).await?
+            }
+        };
+
+        let buffer = encode(&vault).await?;
+
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
@@ -97,7 +121,7 @@ impl StorageProvider for LocalProvider {
         self.create_cache_entry(&summary, Some(vault)).await?;
 
         let event = WriteEvent::CreateVault(Cow::Owned(buffer));
-        Ok((event, passphrase, summary))
+        Ok((event, key, summary))
     }
 
     async fn import_vault(

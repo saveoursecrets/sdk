@@ -410,7 +410,7 @@ mod test {
     use crate::{
         events::WriteEvent,
         test_utils::*,
-        vault::{Vault, VaultAccess, VaultEntry},
+        vault::{Vault, VaultAccess, VaultBuilder, VaultEntry},
     };
     use anyhow::Result;
     use uuid::Uuid;
@@ -428,8 +428,10 @@ mod test {
     }
 
     async fn mock_commit_tree() -> Result<CommitTree> {
-        let (encryption_key, _, _) = mock_encryption_key()?;
-        let mut vault = mock_vault();
+        let (encryption_key, _, passphrase) = mock_encryption_key()?;
+        let mut vault =
+            VaultBuilder::new().password(passphrase, None).await?;
+
         let secrets = [
             ("Note one", "First note"),
             ("Note two", "Second note"),

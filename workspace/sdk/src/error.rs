@@ -9,6 +9,14 @@ use crate::vault::{secret::SecretId, VaultId};
 /// Error thrown by the core library.
 #[derive(Debug, Error)]
 pub enum Error {
+    /// Permission denied.
+    ///
+    /// If a shared vault is set to private shared access and
+    /// somebody other than the owner attempts to write to encrypt
+    /// a shared entry this error is generated.
+    #[error("permission denied")]
+    PermissionDenied,
+
     /// Expected a request payload.
     #[error("expected a request payload")]
     RpcRequestPayload,
@@ -37,6 +45,21 @@ pub enum Error {
     /// based encryption.
     #[error("expected passphrase based encryption (AGE)")]
     NotPassphraseEncryption,
+
+    /// Error generated when decrypting via AGE and expecting recipient
+    /// based encryption.
+    #[error("expected recipient based encryption (AGE)")]
+    NotRecipientEncryption,
+
+    /// Error generated attempting to encrypt asymmetrically without
+    /// and recipients.
+    #[error("no encryption recipients")]
+    NoRecipients,
+
+    /// Error generated attempting to encrypt or decrypt with the
+    /// wrong cipher.
+    #[error(r#"bad cipher, expecting "{0}" but got "{1}""#)]
+    BadCipher(String, String),
 
     /// Error generated when a directory is expected.
     #[error("path {0} is not a directory")]
@@ -79,6 +102,10 @@ pub enum Error {
     /// Error generated when the kind of an identification secret is unknown.
     #[error("unknown identity kind {0}")]
     UnknownIdentityKind(u8),
+
+    /// Error generated when the kind of a shared access variant is unknown.
+    #[error("unknown shared access kind {0}")]
+    UnknownSharedAccessKind(u8),
 
     /// Error generated when an AeadPack contains a nonce that
     /// is invalid for the decryption cipher.
@@ -317,6 +344,20 @@ pub enum Error {
     /// Error generated when an Ed25519 signing key is expected.
     #[error("not Ed25519 signing key")]
     NotEd25519Key,
+
+    /// Error generated when attempting to use an asymmetric
+    /// private key with a symmetric cipher.
+    #[error("symmetric private key required for symmetric cipher")]
+    NotSymmetric,
+
+    /// Error generated when attempting to use a symmetric
+    /// private key with an asymmetric cipher.
+    #[error("asymmetric private key required for asymmetric cipher")]
+    NotAsymmetric,
+
+    /// Error generated when attempting to parse an AGE identity.
+    #[error(r#"invalid x25519 identity "{0}""#)]
+    InvalidX25519Identity(String),
 
     /// Error generated when an attachment could not be found.
     #[error(r#"attachment "{0}" not found"#)]

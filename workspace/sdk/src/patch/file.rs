@@ -141,7 +141,7 @@ impl PatchFile {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{test_utils::*, vfs};
+    use crate::{test_utils::*, vault::VaultBuilder, vfs};
     use anyhow::Result;
     use tempfile::NamedTempFile;
 
@@ -150,8 +150,10 @@ mod test {
         let temp = NamedTempFile::new()?;
         let mut patch_file = PatchFile::new(temp.path()).await?;
 
-        let mut vault = mock_vault();
-        let (encryption_key, _, _) = mock_encryption_key()?;
+        let (encryption_key, _, passphrase) = mock_encryption_key()?;
+        let mut vault =
+            VaultBuilder::new().password(passphrase, None).await?;
+
         let (_, _, _, _, mock_event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")
                 .await?;

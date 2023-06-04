@@ -1,12 +1,11 @@
 //! Parser for the MacOS passwords CSV export.
 
-use secrecy::SecretString;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use url::Url;
 
 use async_trait::async_trait;
-use sos_sdk::{vault::Vault, vfs};
+use sos_sdk::{crypto::AccessKey, vault::Vault, vfs};
 use tokio::io::AsyncRead;
 
 use super::{
@@ -85,14 +84,14 @@ impl Convert for MacPasswordCsv {
         &self,
         source: Self::Input,
         vault: Vault,
-        password: SecretString,
+        key: AccessKey,
     ) -> crate::Result<Vault> {
         let records: Vec<GenericCsvEntry> = parse_path(source)
             .await?
             .into_iter()
             .map(|r| r.into())
             .collect();
-        GenericCsvConvert.convert(records, vault, password).await
+        GenericCsvConvert.convert(records, vault, key).await
     }
 }
 
@@ -106,7 +105,7 @@ mod test {
     use sos_sdk::{
         passwd::diceware::generate_passphrase,
         search::SearchIndex,
-        vault::{Gatekeeper, Vault},
+        vault::{Gatekeeper, VaultBuilder},
     };
     use std::sync::Arc;
     use url::Url;
@@ -140,21 +139,22 @@ mod test {
     #[tokio::test]
     async fn macos_passwords_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
-        let mut vault: Vault = Default::default();
-        vault.initialize(passphrase.clone(), None).await?;
+        let vault = VaultBuilder::new()
+            .password(passphrase.clone(), None)
+            .await?;
 
         let vault = MacPasswordCsv
             .convert(
                 "fixtures/macos-export.csv".into(),
                 vault,
-                passphrase.clone(),
+                passphrase.clone().into(),
             )
             .await?;
 
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
-        keeper.unlock(passphrase).await?;
+        keeper.unlock(passphrase.into()).await?;
         keeper.create_search_index().await?;
 
         let search = search_index.read().await;

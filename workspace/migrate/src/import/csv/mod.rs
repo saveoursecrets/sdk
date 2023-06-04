@@ -18,6 +18,7 @@ use url::Url;
 use vcard4::Vcard;
 
 use sos_sdk::{
+    crypto::AccessKey,
     search::SearchIndex,
     vault::{
         secret::{IdentityKind, Secret, SecretMeta},
@@ -280,13 +281,13 @@ impl Convert for GenericCsvConvert {
         &self,
         source: Self::Input,
         vault: Vault,
-        password: SecretString,
+        key: AccessKey,
     ) -> crate::Result<Vault> {
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper =
             Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
 
-        keeper.unlock(password).await?;
+        keeper.unlock(key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 

@@ -1,12 +1,15 @@
 //! Constants for supported key derivation functions.
-use crate::{crypto::csprng, Error, Result};
+use crate::{
+    crypto::{csprng, DerivedPrivateKey},
+    Error, Result,
+};
 use argon2::{
     password_hash::{PasswordHash, PasswordHasher, SaltString},
     Argon2,
 };
 use balloon_hash::Balloon;
 use rand::Rng;
-use secrecy::{ExposeSecret, SecretVec};
+use secrecy::{ExposeSecret, SecretString};
 use sha2::{Digest, Sha256};
 use std::{convert::AsRef, fmt, str::FromStr};
 
@@ -116,16 +119,16 @@ pub trait Deriver<D: Digest> {
     /// optional seed entropy.
     fn derive(
         &self,
-        password: &str,
+        password: &SecretString,
         salt: &SaltString,
         seed: Option<&Seed>,
     ) -> Result<DerivedPrivateKey> {
         let buffer = if let Some(seed) = seed {
-            let mut buffer = password.as_bytes().to_vec();
+            let mut buffer = password.expose_secret().as_bytes().to_vec();
             buffer.extend_from_slice(seed.as_slice());
             buffer
         } else {
-            password.as_bytes().to_vec()
+            password.expose_secret().as_bytes().to_vec()
         };
 
         let password_hash = self.hash_password(buffer.as_slice(), salt)?;
@@ -167,33 +170,6 @@ impl Deriver<Sha256> for BalloonHashDeriver {
     }
 }
 
-/// Encapsulates the bytes for a derived symmetric secret key.
-pub struct DerivedPrivateKey {
-    inner: SecretVec<u8>,
-}
-
-impl DerivedPrivateKey {
-    /// Create a new random 32-byte secret key.
-    #[cfg(test)]
-    pub fn generate() -> Self {
-        let bytes: [u8; 32] = csprng().gen();
-        Self {
-            inner: SecretVec::new(bytes.to_vec()),
-        }
-    }
-
-    /// Create a new derived private key.
-    pub(crate) fn new(inner: SecretVec<u8>) -> Self {
-        Self { inner }
-    }
-}
-
-impl AsRef<[u8]> for DerivedPrivateKey {
-    fn as_ref(&self) -> &[u8] {
-        self.inner.expose_secret()
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -204,8 +180,7 @@ mod test {
         let salt = KeyDerivation::generate_salt();
         let deriver = kdf.deriver();
         let (passphrase, _) = generate_passphrase()?;
-        let private_key =
-            deriver.derive(passphrase.expose_secret(), &salt, None)?;
+        let private_key = deriver.derive(&passphrase, &salt, None)?;
         assert_eq!(32, private_key.as_ref().len());
         Ok(())
     }

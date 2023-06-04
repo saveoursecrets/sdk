@@ -6,8 +6,8 @@ use crate::{
     crypto::{AeadPack, SEED_SIZE},
     formats::FileIdentity,
     vault::{
-        secret::SecretId, Auth, Contents, Header, Summary, Vault,
-        VaultCommit, VaultEntry, VaultFlags, VaultMeta,
+        secret::SecretId, Auth, Contents, Header, SharedAccess, Summary,
+        Vault, VaultCommit, VaultEntry, VaultFlags, VaultMeta,
     },
     Timestamp,
 };
@@ -26,7 +26,7 @@ impl Encode for VaultMeta {
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         self.date_created.encode(&mut *writer).await?;
-        writer.write_string(&self.label).await?;
+        writer.write_string(&self.description).await?;
         Ok(())
     }
 }
@@ -40,7 +40,7 @@ impl Decode for VaultMeta {
     ) -> Result<()> {
         let mut date_created: Timestamp = Default::default();
         date_created.decode(&mut *reader).await?;
-        self.label = reader.read_string().await?;
+        self.description = reader.read_string().await?;
         Ok(())
     }
 }
@@ -236,6 +236,7 @@ impl Encode for Header {
         }
 
         self.auth.encode(&mut *writer).await?;
+        self.shared_access.encode(&mut *writer).await?;
 
         // Backtrack to size_pos and write new length
         let header_pos = writer.tell().await?;
@@ -276,6 +277,77 @@ impl Decode for Header {
         }
 
         self.auth.decode(&mut *reader).await?;
+        self.shared_access.decode(&mut *reader).await?;
+
+        Ok(())
+    }
+}
+
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Encode for SharedAccess {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        match self {
+            SharedAccess::WriteAccess(recipients) => {
+                writer.write_u8(1).await?;
+                writer.write_u16(recipients.len() as u16).await?;
+                for recipient in recipients {
+                    writer.write_string(recipient).await?;
+                }
+            }
+            SharedAccess::ReadOnly(aead) => {
+                writer.write_u8(2).await?;
+                aead.encode(writer).await?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Decode for SharedAccess {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let id = reader.read_u8().await?;
+
+        match id {
+            1 => {
+                let mut recipients = Vec::new();
+                let length = reader.read_u16().await?;
+                for _ in 0..length {
+                    let recipient = reader.read_string().await?;
+                    let _: age::x25519::Recipient =
+                        recipient.parse().map_err(|e: &str| {
+                            Error::new(
+                                ErrorKind::Other,
+                                crate::Error::InvalidX25519Identity(
+                                    e.to_owned(),
+                                ),
+                            )
+                        })?;
+                    recipients.push(recipient);
+                }
+                *self = SharedAccess::WriteAccess(recipients);
+            }
+            2 => {
+                let mut aead: AeadPack = Default::default();
+                aead.decode(reader).await?;
+                *self = SharedAccess::ReadOnly(aead);
+            }
+            _ => {
+                return Err(encoding_error(
+                    crate::Error::UnknownSharedAccessKind(id),
+                ));
+            }
+        }
+
         Ok(())
     }
 }

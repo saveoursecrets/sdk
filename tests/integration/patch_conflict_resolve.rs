@@ -32,10 +32,10 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
 
     // Both client use the login vault
     client1
-        .open_vault(&summary, encryption_passphrase.clone(), None)
+        .open_vault(&summary, encryption_passphrase.clone().into(), None)
         .await?;
     client2
-        .open_vault(&summary, encryption_passphrase.clone(), None)
+        .open_vault(&summary, encryption_passphrase.clone().into(), None)
         .await?;
 
     // Create some secrets in client 1

@@ -7,11 +7,12 @@ use crate::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
         DEFAULT_CONTACTS_VAULT_NAME, FILE_PASSWORD_URN,
     },
+    crypto::AccessKey,
     encode,
     storage::AppPaths,
     vault::{
         secret::{Secret, SecretMeta, UserData},
-        Gatekeeper, Summary, Vault,
+        Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
     },
     vfs, Result,
 };
@@ -148,19 +149,17 @@ impl AccountBuilder {
             DelegatedPassphrase::generate_vault_passphrase()?;
 
         // Prepare the default vault
-        let mut default_vault: Vault = Default::default();
+        let mut builder = VaultBuilder::new().flags(VaultFlags::DEFAULT);
         if let Some(name) = default_folder_name.take() {
-            default_vault.set_name(name);
+            builder = builder.public_name(name);
         }
-        default_vault.set_default_flag(true);
-        default_vault
-            .initialize(vault_passphrase.clone(), None)
-            .await?;
+        let mut default_vault =
+            builder.password(vault_passphrase.clone(), None).await?;
 
         // Save the master passphrase in the default vault
         if save_passphrase {
             let mut keeper = Gatekeeper::new(default_vault, None);
-            keeper.unlock(vault_passphrase.clone()).await?;
+            keeper.unlock(vault_passphrase.clone().into()).await?;
 
             let secret = Secret::Account {
                 account: account_name,
@@ -178,12 +177,12 @@ impl AccountBuilder {
 
         // Store the vault passphrase in the identity vault
         let mut keeper = Gatekeeper::new(identity_vault, None);
-        keeper.unlock(passphrase).await?;
+        keeper.unlock(passphrase.into()).await?;
 
         DelegatedPassphrase::save_vault_passphrase(
             &mut keeper,
             default_vault.id(),
-            vault_passphrase,
+            AccessKey::Password(vault_passphrase),
         )
         .await?;
 
@@ -208,14 +207,16 @@ impl AccountBuilder {
                 DelegatedPassphrase::generate_vault_passphrase()?;
 
             // Prepare the archive vault
-            let mut vault: Vault = Default::default();
-            vault.set_name(DEFAULT_ARCHIVE_VAULT_NAME.to_string());
-            vault.set_archive_flag(true);
-            vault.initialize(archive_passphrase.clone(), None).await?;
+            let vault = VaultBuilder::new()
+                .public_name(DEFAULT_ARCHIVE_VAULT_NAME.to_string())
+                .flags(VaultFlags::ARCHIVE)
+                .password(archive_passphrase.clone(), None)
+                .await?;
+
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
-                archive_passphrase,
+                AccessKey::Password(archive_passphrase),
             )
             .await?;
             Some(vault)
@@ -229,15 +230,16 @@ impl AccountBuilder {
                 DelegatedPassphrase::generate_vault_passphrase()?;
 
             // Prepare the authenticator vault
-            let mut vault: Vault = Default::default();
-            vault.set_name(DEFAULT_AUTHENTICATOR_VAULT_NAME.to_string());
-            vault.set_authenticator_flag(true);
-            vault.set_no_sync_self_flag(true);
-            vault.initialize(auth_passphrase.clone(), None).await?;
+            let vault = VaultBuilder::new()
+                .public_name(DEFAULT_AUTHENTICATOR_VAULT_NAME.to_string())
+                .flags(VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC_SELF)
+                .password(auth_passphrase.clone(), None)
+                .await?;
+
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
-                auth_passphrase,
+                AccessKey::Password(auth_passphrase),
             )
             .await?;
             Some(vault)
@@ -251,14 +253,16 @@ impl AccountBuilder {
                 DelegatedPassphrase::generate_vault_passphrase()?;
 
             // Prepare the authenticator vault
-            let mut vault: Vault = Default::default();
-            vault.set_name(DEFAULT_CONTACTS_VAULT_NAME.to_string());
-            vault.set_contact_flag(true);
-            vault.initialize(auth_passphrase.clone(), None).await?;
+            let vault = VaultBuilder::new()
+                .public_name(DEFAULT_CONTACTS_VAULT_NAME.to_string())
+                .flags(VaultFlags::CONTACT)
+                .password(auth_passphrase.clone(), None)
+                .await?;
+
             DelegatedPassphrase::save_vault_passphrase(
                 &mut keeper,
                 vault.id(),
-                auth_passphrase,
+                AccessKey::Password(auth_passphrase),
             )
             .await?;
             Some(vault)

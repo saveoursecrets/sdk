@@ -134,7 +134,7 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
         Ok(self)
     }
 
-    /// Add the manifest and finish building the tarball.
+    /// Add the manifest and finish building the archive.
     pub async fn finish(mut self) -> Result<Compat<W>> {
         let manifest = serde_json::to_vec_pretty(&self.manifest)?;
         self.append_file_buffer(ARCHIVE_MANIFEST, manifest.as_slice())
@@ -212,8 +212,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> Reader<R> {
         })
     }
 
-    /// Prepare the archive for reading by parsing the manifest file and
-    /// reading the data for other tarball entries.
+    /// Prepare the archive for reading by parsing the manifest.
     pub async fn prepare(mut self) -> Result<Self> {
         self.manifest = self.find_manifest().await?;
         Ok(self)

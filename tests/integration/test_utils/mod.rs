@@ -1,13 +1,13 @@
 use anyhow::Result;
 use axum_server::Handle;
-use secrecy::SecretString;
+
 use std::{net::SocketAddr, path::PathBuf, sync::Arc, thread};
 use tokio::sync::{oneshot, RwLock};
 use url::Url;
 use web3_address::ethereum::Address;
 
 use sos_sdk::{
-    crypto::channel::SessionManager,
+    crypto::{channel::SessionManager, AccessKey},
     events::{AuditLogFile, WriteEvent},
     vault::{
         secret::{Secret, SecretId, SecretMeta},
@@ -32,7 +32,7 @@ pub use signup::{login, signup};
 /// Encapsulates the credentials for a new account signup.
 pub struct AccountCredentials {
     /// Passphrase for the vault encryption.
-    pub encryption_passphrase: SecretString,
+    pub encryption_passphrase: AccessKey,
     /// Address of the signing key.
     pub address: Address,
     /// Summary that represents the login vault
