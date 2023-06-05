@@ -6,7 +6,7 @@ use binary_stream::{
     Endian,
 };
 
-use futures::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
+use futures::io::{AsyncReadExt, AsyncSeek};
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use futures::io::{Cursor, BufReader};
 

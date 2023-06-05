@@ -10,7 +10,7 @@ use crate::{
     Result,
 };
 
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt};
+use tokio::io::{AsyncReadExt, AsyncSeek};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 use futures::io::{AsyncSeekExt as FuturesAsyncSeekExt};
 
