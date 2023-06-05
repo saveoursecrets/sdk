@@ -1,7 +1,7 @@
 //! Implements random access to a single vault file on disc.
 use std::{
     borrow::Cow,
-    io::{SeekFrom},
+    io::SeekFrom,
     ops::{DerefMut, Range},
     path::Path,
     path::PathBuf,
@@ -144,7 +144,6 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
 
         // Inject the content if necessary
         if let Some(content) = content {
-            //file.seek(SeekFrom::End(0))?;
             file.write_all(content).await?;
         }
 
@@ -169,7 +168,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         let mut stream = self.stream.lock().await;
         let mut reader = BinaryReader::new(&mut *stream, Endian::Little.into());
 
-        reader.seek(content_offset).await?;
+        reader.seek(SeekFrom::Start(content_offset)).await?;
 
         // Scan all the rows
         let mut current_pos = reader.tell().await?;
@@ -180,12 +179,12 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
             if id == &row_id {
                 // Need to backtrack as we just read the row length and UUID;
                 // calling decode_row() will try to read the length and UUID.
-                reader.seek(current_pos).await?;
+                reader.seek(SeekFrom::Start(current_pos)).await?;
                 return Ok((content_offset, Some((current_pos, row_len))));
             }
 
             // Move on to the next row
-            reader.seek(current_pos + 8 + row_len as u64).await?;
+            reader.seek(SeekFrom::Start(current_pos + 8 + row_len as u64)).await?;
             current_pos = reader.tell().await?;
         }
 
@@ -250,15 +249,11 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         
         println!("insert getting stream_len");
 
-        let length = stream_len(stream.deref_mut()).await?;
-
-        println!("insert got stream_len {}", length);
-
         let mut writer = BinaryWriter::new(&mut *stream, Endian::Little.into());
         let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row
-        writer.seek(length).await?;
+        writer.seek(SeekFrom::End(0)).await?;
         println!("after insert seek");
 
         println!("encoding the row...");
@@ -282,7 +277,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().await;
             let mut reader = BinaryReader::new(&mut *stream, Endian::Little.into());
-            reader.seek(row_offset).await?;
+            reader.seek(SeekFrom::Start(row_offset)).await?;
             let (_, value) = Contents::decode_row(&mut reader).await?;
             Ok((Some(Cow::Owned(value)), event))
         } else {
@@ -309,10 +304,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
             writer.flush().await?;
 
             // Splice the row into the file
-            let length = {
-                let mut stream = self.stream.lock().await;
-                stream_len(stream.deref_mut()).await?
-            };
+            let length = writer.len().await?;
 
             let head = 0..row_offset;
             // Row offset is before the row length u32 so we

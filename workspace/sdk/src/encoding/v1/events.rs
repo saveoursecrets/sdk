@@ -12,7 +12,7 @@ use crate::{
     Timestamp,
 };
 
-use std::io::{Error, ErrorKind, Result};
+use std::io::{Error, ErrorKind, Result, SeekFrom};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use super::encoding_error;
@@ -78,9 +78,9 @@ impl Encode for EventRecord {
         // Backtrack to size_pos and write new length
         let row_pos = writer.tell().await?;
         let row_len = row_pos - (size_pos + 4);
-        writer.seek(size_pos).await?;
+        writer.seek(SeekFrom::Start(size_pos)).await?;
         writer.write_u32(row_len as u32).await?;
-        writer.seek(row_pos).await?;
+        writer.seek(SeekFrom::Start(row_pos)).await?;
 
         // Write out the row len at the end of the record too
         // so we can support double ended iteration
@@ -493,9 +493,9 @@ impl AuditLogFile {
         // Backtrack to size_pos and write new length
         let row_pos = writer.tell().await?;
         let row_len = row_pos - (size_pos + 4);
-        writer.seek(size_pos).await?;
+        writer.seek(SeekFrom::Start(size_pos)).await?;
         writer.write_u32(row_len as u32).await?;
-        writer.seek(row_pos).await?;
+        writer.seek(SeekFrom::Start(row_pos)).await?;
 
         // Write out the row len at the end of the record too
         // so we can support double ended iteration

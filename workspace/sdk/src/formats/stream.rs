@@ -135,7 +135,7 @@ where
         
         let mut reader =
             BinaryReader::new(&mut self.read_stream, Endian::Little.into());
-        reader.seek(row_pos).await?;
+        reader.seek(SeekFrom::Start(row_pos)).await?;
         let row_len = reader.read_u32().await?;
 
         // Position of the end of the row
@@ -162,7 +162,7 @@ where
             BinaryReader::new(&mut self.read_stream, Endian::Little.into());
 
         // Read in the reverse iteration row length
-        reader.seek(row_pos - 4).await?;
+        reader.seek(SeekFrom::Start(row_pos - 4)).await?;
         let row_len = reader.read_u32().await?;
 
         // Position of the beginning of the row
@@ -171,7 +171,7 @@ where
 
         // Seek to the beginning of the row after the initial
         // row length so we can read in the row data
-        reader.seek(row_start + 4).await?;
+        reader.seek(SeekFrom::Start(row_start + 4)).await?;
         let row = FileStream::read_row(
             &mut reader,
             row_start..row_end,

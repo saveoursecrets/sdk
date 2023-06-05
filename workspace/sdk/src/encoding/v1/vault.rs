@@ -15,7 +15,7 @@ use crate::{
 use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
-use std::io::{Error, ErrorKind, Result};
+use std::io::{Error, ErrorKind, Result, SeekFrom};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
@@ -98,9 +98,9 @@ impl Encode for VaultCommit {
         // Encode the data length for lazy iteration
         let row_pos = writer.tell().await?;
         let row_len = row_pos - (size_pos + 4);
-        writer.seek(size_pos).await?;
+        writer.seek(SeekFrom::Start(size_pos)).await?;
         writer.write_u32(row_len as u32).await?;
-        writer.seek(row_pos).await?;
+        writer.seek(SeekFrom::Start(row_pos)).await?;
 
         Ok(())
     }
@@ -249,9 +249,9 @@ impl Encode for Header {
         let header_pos = writer.tell().await?;
         let header_len = header_pos - (size_pos + 4);
 
-        writer.seek(size_pos).await?;
+        writer.seek(SeekFrom::Start(size_pos)).await?;
         writer.write_u32(header_len as u32).await?;
-        writer.seek(header_pos).await?;
+        writer.seek(SeekFrom::Start(header_pos)).await?;
 
         Ok(())
     }
@@ -382,9 +382,9 @@ impl Contents {
         // Backtrack to size_pos and write new length
         let row_pos = writer.tell().await?;
         let row_len = row_pos - (size_pos + 4);
-        writer.seek(size_pos).await?;
+        writer.seek(SeekFrom::Start(size_pos)).await?;
         writer.write_u32(row_len as u32).await?;
-        writer.seek(row_pos).await?;
+        writer.seek(SeekFrom::Start(row_pos)).await?;
 
         // Write out the row len at the end of the record too
         // so we can support double ended iteration

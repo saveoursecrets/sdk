@@ -4,6 +4,7 @@ use crate::{
     formats::{vault_stream, EventLogFileRecord, FileItem, VaultRecord},
     vfs, Error, Result,
 };
+use std::io::SeekFrom;
 use binary_stream::{futures::BinaryReader, Endian};
 use tokio_util::compat::TokioAsyncReadCompatExt;
 
@@ -16,7 +17,7 @@ macro_rules! read_iterator_item {
     ($record:expr, $reader:expr) => {{
         let value = $record.value();
         let length = value.end - value.start;
-        $reader.seek(value.start).await?;
+        $reader.seek(SeekFrom::Start(value.start)).await?;
         $reader.read_bytes(length as usize).await?
     }};
 }
