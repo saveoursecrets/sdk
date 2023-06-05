@@ -91,6 +91,7 @@ impl AuditProvider for AuditLogFile {
             let mut writer = BinaryWriter::new(&mut stream, Endian::Little.into());
             for event in events {
                 AuditLogFile::encode_row(&mut writer, event).await?;
+                writer.flush().await?;
             }
             buffer
         };
