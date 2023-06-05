@@ -22,7 +22,9 @@ use crate::{
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use async_trait::async_trait;
-use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
+use binary_stream::futures::{
+    BinaryReader, BinaryWriter, Decodable, Encodable,
+};
 
 const EMBEDDED_FILE: u8 = 1;
 const EXTERNAL_FILE: u8 = 2;
@@ -35,7 +37,7 @@ mod signer_kind {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for SecretMeta {
+impl Encodable for SecretMeta {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -65,7 +67,7 @@ impl Encode for SecretMeta {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for SecretMeta {
+impl Decodable for SecretMeta {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -104,7 +106,7 @@ impl Decode for SecretMeta {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for SecretSigner {
+impl Encodable for SecretSigner {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -131,7 +133,7 @@ impl Encode for SecretSigner {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for SecretSigner {
+impl Decodable for SecretSigner {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -166,7 +168,7 @@ impl Decode for SecretSigner {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for SecretRow {
+impl Encodable for SecretRow {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -180,7 +182,7 @@ impl Encode for SecretRow {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for SecretRow {
+impl Decodable for SecretRow {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -241,7 +243,7 @@ async fn read_user_data<R: AsyncRead + AsyncSeek + Unpin + Send>(
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for AgeVersion {
+impl Encodable for AgeVersion {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -255,7 +257,7 @@ impl Encode for AgeVersion {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for AgeVersion {
+impl Decodable for AgeVersion {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -278,7 +280,7 @@ impl Decode for AgeVersion {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for FileContent {
+impl Encodable for FileContent {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -319,7 +321,7 @@ impl Encode for FileContent {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for FileContent {
+impl Decodable for FileContent {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -377,7 +379,7 @@ impl Decode for FileContent {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for Secret {
+impl Encodable for Secret {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -588,7 +590,7 @@ impl Encode for Secret {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for Secret {
+impl Decodable for Secret {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,

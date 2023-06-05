@@ -17,13 +17,15 @@ use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result, SeekFrom};
 
 use async_trait::async_trait;
-use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
+use binary_stream::futures::{
+    BinaryReader, BinaryWriter, Decodable, Encodable,
+};
 
 use uuid::Uuid;
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for EventKind {
+impl Encodable for EventKind {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -36,7 +38,7 @@ impl Encode for EventKind {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for EventKind {
+impl Decodable for EventKind {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -51,7 +53,7 @@ impl Decode for EventKind {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for EventRecord {
+impl Encodable for EventRecord {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -60,7 +62,7 @@ impl Encode for EventRecord {
         let size_pos = writer.stream_position().await?;
         writer.write_u32(0).await?;
 
-        // Encode the time component
+        // Encodable the time component
         self.0.encode(&mut *writer).await?;
 
         // Write the previous commit hash bytes
@@ -92,7 +94,7 @@ impl Encode for EventRecord {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for EventRecord {
+impl Decodable for EventRecord {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -100,7 +102,7 @@ impl Decode for EventRecord {
         // Read in the row length
         let _ = reader.read_u32().await?;
 
-        // Decode the time component
+        // Decodable the time component
         let mut time: Timestamp = Default::default();
         time.decode(&mut *reader).await?;
 
@@ -136,7 +138,7 @@ impl Decode for EventRecord {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for AuditEvent {
+impl Encodable for AuditEvent {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -161,7 +163,7 @@ impl Encode for AuditEvent {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for AuditEvent {
+impl Decodable for AuditEvent {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -253,7 +255,7 @@ impl Decode for AuditEvent {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for AuditData {
+impl Encodable for AuditData {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -284,7 +286,7 @@ impl Encode for AuditData {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<'a> Encode for WriteEvent<'a> {
+impl<'a> Encodable for WriteEvent<'a> {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -329,7 +331,7 @@ impl<'a> Encode for WriteEvent<'a> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<'a> Decode for WriteEvent<'a> {
+impl<'a> Decodable for WriteEvent<'a> {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -416,7 +418,7 @@ impl<'a> Decode for WriteEvent<'a> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for EventLogFileRecord {
+impl Decodable for EventLogFileRecord {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -440,7 +442,7 @@ impl Decode for EventLogFileRecord {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for FileRecord {
+impl Decodable for FileRecord {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         _reader: &mut BinaryReader<R>,
@@ -451,7 +453,7 @@ impl Decode for FileRecord {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for VaultRecord {
+impl Decodable for VaultRecord {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -476,7 +478,7 @@ impl Decode for VaultRecord {
 }
 
 impl AuditLogFile {
-    /// Encode an audit log event record.
+    /// Encodable an audit log event record.
     pub(crate) async fn encode_row<
         W: AsyncWrite + AsyncSeek + Unpin + Send,
     >(
@@ -487,7 +489,7 @@ impl AuditLogFile {
         let size_pos = writer.stream_position().await?;
         writer.write_u32(0).await?;
 
-        // Encode the event data for the row
+        // Encodable the event data for the row
         event.encode(&mut *writer).await?;
 
         // Backtrack to size_pos and write new length
@@ -504,7 +506,7 @@ impl AuditLogFile {
         Ok(())
     }
 
-    /// Decode an audit log event record.
+    /// Decodable an audit log event record.
     pub(crate) async fn decode_row<
         R: AsyncRead + AsyncSeek + Unpin + Send,
     >(

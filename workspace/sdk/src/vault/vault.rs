@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use async_trait::async_trait;
 use binary_stream::{
-    futures::{BinaryReader, Decode},
+    futures::{BinaryReader, Decodable},
     Endian,
 };
 
@@ -28,7 +28,7 @@ use crate::{
         AccessKey, AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed,
     },
     decode, encode,
-    encoding::{VERSION, encoding_options},
+    encoding::{encoding_options, VERSION},
     events::{ReadEvent, WriteEvent},
     formats::FileIdentity,
     vault::secret::SecretId,

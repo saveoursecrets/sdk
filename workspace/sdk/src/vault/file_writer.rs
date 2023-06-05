@@ -20,7 +20,7 @@ use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 use async_trait::async_trait;
 use binary_stream::{
-    futures::{BinaryReader, BinaryWriter, stream_length},
+    futures::{stream_length, BinaryReader, BinaryWriter},
     Endian,
 };
 
@@ -164,8 +164,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         let content_offset = self.check_identity().await?;
 
         let mut stream = self.stream.lock().await;
-        let mut reader =
-            BinaryReader::new(&mut *stream, encoding_options());
+        let mut reader = BinaryReader::new(&mut *stream, encoding_options());
         reader.seek(SeekFrom::Start(content_offset)).await?;
 
         // Scan all the rows
@@ -247,8 +246,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         let _summary = self.summary().await?;
         let mut stream = self.stream.lock().await;
 
-        let mut writer =
-            BinaryWriter::new(&mut *stream, encoding_options());
+        let mut writer = BinaryWriter::new(&mut *stream, encoding_options());
         let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row

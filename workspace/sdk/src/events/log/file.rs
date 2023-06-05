@@ -17,8 +17,8 @@
 use crate::{
     commit::{event_log_commit_tree_file, CommitHash, CommitTree},
     constants::EVENT_LOG_IDENTITY,
-    encoding::encoding_options,
     encode,
+    encoding::encoding_options,
     events::WriteEvent,
     formats::{event_log_stream, EventLogFileRecord, FileItem, FileStream},
     timestamp::Timestamp,
@@ -35,7 +35,7 @@ use futures::io::{BufReader, Cursor};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use binary_stream::{
-    futures::{BinaryReader, Decode},
+    futures::{BinaryReader, Decodable},
     Endian,
 };
 use tempfile::NamedTempFile;
@@ -308,8 +308,7 @@ impl EventLogFile {
         file.read_exact(buffer.as_mut_slice()).await?;
 
         let mut stream = BufReader::new(Cursor::new(&mut buffer));
-        let mut reader =
-            BinaryReader::new(&mut stream, encoding_options());
+        let mut reader = BinaryReader::new(&mut stream, encoding_options());
         let mut event: WriteEvent = Default::default();
 
         event.decode(&mut reader).await?;

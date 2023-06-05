@@ -1,7 +1,10 @@
 //! File streams.
 use std::{io::SeekFrom, ops::Range, path::Path};
 
-use binary_stream::{futures::{BinaryReader, stream_length}, Endian};
+use binary_stream::{
+    futures::{stream_length, BinaryReader},
+    Endian,
+};
 
 use crate::{
     encoding::encoding_options,

@@ -2,10 +2,10 @@
 use std::ops::Range;
 
 use crate::Timestamp;
-use binary_stream::futures::Decode;
+use binary_stream::futures::Decodable;
 
 /// Trait for types yielded by the file iterator.
-pub trait FileItem: Default + std::fmt::Debug + Decode {
+pub trait FileItem: Default + std::fmt::Debug + Decodable {
     /// Get the byte offset for the record.
     fn offset(&self) -> &Range<u64>;
 

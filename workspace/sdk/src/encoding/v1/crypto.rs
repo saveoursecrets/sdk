@@ -1,19 +1,21 @@
 use crate::{
-    encoding::encoding_error,
     crypto::{
         AeadPack, Cipher, KeyDerivation, Nonce, AES_GCM_256, ARGON_2_ID,
         BALLOON_HASH, X25519, X_CHACHA20_POLY1305,
     },
+    encoding::encoding_error,
 };
 
 use async_trait::async_trait;
-use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
+use binary_stream::futures::{
+    BinaryReader, BinaryWriter, Decodable, Encodable,
+};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result};
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for AeadPack {
+impl Encodable for AeadPack {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -36,7 +38,7 @@ impl Encode for AeadPack {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for AeadPack {
+impl Decodable for AeadPack {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -75,7 +77,7 @@ impl Decode for AeadPack {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for Cipher {
+impl Encodable for Cipher {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -88,7 +90,7 @@ impl Encode for Cipher {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for Cipher {
+impl Decodable for Cipher {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -111,7 +113,7 @@ impl Decode for Cipher {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for KeyDerivation {
+impl Encodable for KeyDerivation {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -124,7 +126,7 @@ impl Encode for KeyDerivation {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for KeyDerivation {
+impl Decodable for KeyDerivation {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,

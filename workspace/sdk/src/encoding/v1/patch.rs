@@ -1,12 +1,13 @@
 //! Patch represents a changeset of events to apply to a vault.
 use crate::{
-    constants::PATCH_IDENTITY, events::WriteEvent, formats::FileIdentity,
-    encoding::encoding_error,
-    patch::Patch,
+    constants::PATCH_IDENTITY, encoding::encoding_error, events::WriteEvent,
+    formats::FileIdentity, patch::Patch,
 };
 
 use async_trait::async_trait;
-use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
+use binary_stream::futures::{
+    BinaryReader, BinaryWriter, Decodable, Encodable,
+};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Result, SeekFrom};
 
@@ -19,7 +20,7 @@ impl Patch<'_> {
         let size_pos = writer.stream_position().await?;
         writer.write_u32(0).await?;
 
-        // Encode the event data for the row
+        // Encodable the event data for the row
         event.encode(&mut *writer).await?;
 
         // Backtrack to size_pos and write new length
@@ -53,7 +54,7 @@ impl Patch<'_> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for Patch<'_> {
+impl Encodable for Patch<'_> {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -68,7 +69,7 @@ impl Encode for Patch<'_> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for Patch<'_> {
+impl Decodable for Patch<'_> {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,

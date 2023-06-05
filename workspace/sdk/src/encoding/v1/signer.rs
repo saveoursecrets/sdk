@@ -1,15 +1,14 @@
-use crate::{
-    encoding::encoding_error,
-    signer::ecdsa::BinarySignature,
-};
+use crate::{encoding::encoding_error, signer::ecdsa::BinarySignature};
 use async_trait::async_trait;
-use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
+use binary_stream::futures::{
+    BinaryReader, BinaryWriter, Decodable, Encodable,
+};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for BinarySignature {
+impl Encodable for BinarySignature {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -23,7 +22,7 @@ impl Encode for BinarySignature {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for BinarySignature {
+impl Decodable for BinarySignature {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
