@@ -5,14 +5,10 @@ pub use v1::*;
 
 use crate::Result;
 use binary_stream::{
-    futures::{BinaryReader, BinaryWriter, Decodable, Encodable},
+    futures::{Decodable, Encodable},
     Endian, Options,
 };
-use futures::io::{
-    AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, BufReader, BufWriter,
-    Cursor,
-};
-use std::io::SeekFrom;
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 pub(crate) fn encoding_error(
     e: impl std::error::Error + Send + Sync + 'static,

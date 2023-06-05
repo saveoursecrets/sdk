@@ -34,10 +34,7 @@ use std::{
 use futures::io::{BufReader, Cursor};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-use binary_stream::{
-    futures::{BinaryReader, Decodable},
-    Endian,
-};
+use binary_stream::futures::{BinaryReader, Decodable};
 use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};

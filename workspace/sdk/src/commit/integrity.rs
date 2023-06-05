@@ -5,7 +5,7 @@ use crate::{
     formats::{vault_stream, EventLogFileRecord, FileItem, VaultRecord},
     vfs, Error, Result,
 };
-use binary_stream::{futures::BinaryReader, Endian};
+use binary_stream::futures::BinaryReader;
 use std::io::SeekFrom;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 

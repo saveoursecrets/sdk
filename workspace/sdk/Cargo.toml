@@ -71,7 +71,7 @@ keyring = {version = "2", optional = true }
 [dependencies.binary-stream]
 version = "8.0.0"
 features = ["async"]
-path = "../../../../binary-stream"
+#path = "../../../../binary-stream"
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"

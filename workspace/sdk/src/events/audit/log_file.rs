@@ -20,10 +20,7 @@ use crate::{
 
 use super::{AuditEvent, AuditProvider};
 
-use binary_stream::{
-    futures::{BinaryReader, BinaryWriter},
-    Endian,
-};
+use binary_stream::futures::{BinaryReader, BinaryWriter};
 
 /// Represents an audit log file.
 pub struct AuditLogFile {

@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use async_trait::async_trait;
-use binary_stream::{
-    futures::{BinaryReader, Decodable},
-    Endian,
-};
+use binary_stream::futures::{BinaryReader, Decodable};
 
 use futures::io::{AsyncReadExt, AsyncSeek};
 use futures::io::{BufReader, Cursor};

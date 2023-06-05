@@ -19,10 +19,7 @@ use futures::io::{BufWriter, Cursor};
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 use async_trait::async_trait;
-use binary_stream::{
-    futures::{stream_length, BinaryReader, BinaryWriter},
-    Endian,
-};
+use binary_stream::futures::{stream_length, BinaryReader, BinaryWriter};
 
 use uuid::Uuid;
 
@@ -368,7 +365,7 @@ mod tests {
         secret_label: &str,
         secret_note: &str,
     ) -> Result<(CommitHash, VaultEntry)> {
-        let (secret_meta, secret_value, meta_bytes, secret_bytes) =
+        let (_secret_meta, _secret_value, meta_bytes, secret_bytes) =
             mock_secret_note(secret_label, secret_note).await?;
 
         let meta_aead = vault.encrypt(encryption_key, &meta_bytes).await?;
@@ -408,7 +405,7 @@ mod tests {
     #[tokio::test]
     async fn vault_encode_decode_row() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (temp, vault, _) = mock_vault_file().await?;
+        let (_temp, vault, _) = mock_vault_file().await?;
 
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
@@ -432,7 +429,7 @@ mod tests {
         let mut stream = BufReader::new(Cursor::new(&mut buffer));
         let mut reader = BinaryReader::new(&mut stream, encoding_options());
 
-        let (secret_id, decoded_row) =
+        let (_secret_id, decoded_row) =
             Contents::decode_row(&mut reader).await?;
         assert_eq!(row, decoded_row);
 
