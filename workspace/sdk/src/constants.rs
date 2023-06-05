@@ -1,7 +1,7 @@
 //! Constants for file formats, folder names etc.
 
 /// Application name.
-pub const APP_NAME: &str = "sos";
+pub const APP_NAME: &str = "SaveOurSecrets";
 
 /// Application author.
 pub const APP_AUTHOR: &str = "SaveOurSecrets";
