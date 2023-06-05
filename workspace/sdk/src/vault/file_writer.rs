@@ -124,6 +124,8 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
             .open(&self.file_path)
             .await?;
 
+        println!("Trying to seek in splice..");
+
         // Read the tail into memory
         file.seek(SeekFrom::Start(tail.start)).await?;
         let mut end = Vec::new();
@@ -245,15 +247,27 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
     ) -> Result<WriteEvent<'_>> {
         let _summary = self.summary().await?;
         let mut stream = self.stream.lock().await;
+        
+        println!("insert getting stream_len");
+
         let length = stream_len(stream.deref_mut()).await?;
+
+        println!("insert got stream_len {}", length);
+
         let mut writer = BinaryWriter::new(&mut *stream, Endian::Little.into());
         let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row
         writer.seek(length).await?;
+        println!("after insert seek");
+
+        println!("encoding the row...");
+
         Contents::encode_row(&mut writer, &id, &row).await?;
 
-        drop(stream);
+        println!("after encoding the row...");
+
+        writer.flush().await?;
 
         Ok(WriteEvent::CreateSecret(id, Cow::Owned(row)))
     }
@@ -375,6 +389,8 @@ mod tests {
         let (commit, _) =
             Vault::commit_hash(&meta_aead, &secret_aead).await?;
 
+        println!("trying to create...");
+
         if let WriteEvent::CreateSecret(secret_id, _) = vault_access
             .create(commit, VaultEntry(meta_aead, secret_aead))
             .await?
@@ -399,10 +415,16 @@ mod tests {
         let vault_file = VaultWriter::open(temp.path()).await?;
         let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;
 
+        println!("created writer...");
+
         // Missing row should not exist
         let missing_id = Uuid::new_v4();
+
+        println!("first read...");
         let (row, _) = vault_access.read(&missing_id).await?;
         assert!(row.is_none());
+
+        println!("after first read...");
 
         // Create a secret note
         let secret_label = "Test note";
@@ -422,12 +444,19 @@ mod tests {
         )
         .await?;
 
+        println!("after create secure note");
+
         // Verify the secret exists
+        println!("second read...");
         let (row, _) = vault_access.read(&secret_id).await?;
         assert!(row.is_some());
 
+        println!("trying to delete...");
+
         // Delete the secret
         let _ = vault_access.delete(&secret_id).await?;
+
+        println!("after deleted...");
 
         // Verify it does not exist after deletion
         let (row, _) = vault_access.read(&secret_id).await?;

@@ -189,7 +189,7 @@ mod test {
     async fn event_log_diff() -> Result<()> {
         let partial =
             PathBuf::from("target/mock-event-log-partial.event_log");
-        let _ = vfs::remove_file(&partial).await?;
+        let _ = vfs::remove_file(&partial).await;
 
         let (mut server, client, id) = mock_event_log_server_client().await?;
 

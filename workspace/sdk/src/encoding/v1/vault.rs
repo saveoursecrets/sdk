@@ -83,10 +83,17 @@ impl Encode for VaultCommit {
     ) -> Result<()> {
         writer.write_bytes(self.0.as_ref()).await?;
 
+        println!("row trying to tell...");
+
         let size_pos = writer.tell().await?;
+        
+        println!("row called tell!!!!");
+
         writer.write_u32(0).await?;
 
         self.1.encode(&mut *writer).await?;
+
+        println!("encoding row now backtracking...");
 
         // Encode the data length for lazy iteration
         let row_pos = writer.tell().await?;
@@ -362,8 +369,15 @@ impl Contents {
         let size_pos = writer.tell().await?;
         writer.write_u32(0).await?;
 
+        println!("wrote length placeholder...");
+
         writer.write_bytes(key.as_bytes()).await?;
+    
+        println!("encoding the row...");
+
         row.encode(&mut *writer).await?;
+
+        println!("row trying to backtrack");
 
         // Backtrack to size_pos and write new length
         let row_pos = writer.tell().await?;

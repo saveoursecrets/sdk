@@ -69,9 +69,9 @@ futures-util = "0.3"
 keyring = {version = "2", optional = true }
 
 [dependencies.binary-stream]
-version = "7.0.0"
+version = "7.1.0"
 features = ["async"]
-#path = "../../../../binary-stream"
+path = "../../../../binary-stream"
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"
