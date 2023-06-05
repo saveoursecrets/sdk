@@ -4,6 +4,7 @@ use crate::{
     commit::CommitHash,
     constants::VAULT_IDENTITY,
     crypto::{AeadPack, SEED_SIZE},
+    encoding::encoding_error,
     formats::FileIdentity,
     vault::{
         secret::SecretId, Auth, Contents, Header, SharedAccess, Summary,
@@ -12,7 +13,6 @@ use crate::{
     Timestamp,
 };
 
-use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};

@@ -4,11 +4,11 @@ use std::{borrow::Cow, io::Result};
 
 use crate::{
     constants::RPC_IDENTITY,
+    encoding::encoding_error,
     formats::FileIdentity,
     rpc::{Packet, Payload, RequestMessage, ResponseMessage},
 };
 
-use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};

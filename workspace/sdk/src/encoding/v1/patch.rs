@@ -1,10 +1,10 @@
 //! Patch represents a changeset of events to apply to a vault.
 use crate::{
     constants::PATCH_IDENTITY, events::WriteEvent, formats::FileIdentity,
+    encoding::encoding_error,
     patch::Patch,
 };
 
-use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};

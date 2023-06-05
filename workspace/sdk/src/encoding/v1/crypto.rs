@@ -1,9 +1,11 @@
-use crate::crypto::{
-    AeadPack, Cipher, KeyDerivation, Nonce, AES_GCM_256, ARGON_2_ID,
-    BALLOON_HASH, X25519, X_CHACHA20_POLY1305,
+use crate::{
+    encoding::encoding_error,
+    crypto::{
+        AeadPack, Cipher, KeyDerivation, Nonce, AES_GCM_256, ARGON_2_ID,
+        BALLOON_HASH, X25519, X_CHACHA20_POLY1305,
+    },
 };
 
-use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};

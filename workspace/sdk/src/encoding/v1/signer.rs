@@ -1,5 +1,7 @@
-use super::encoding_error;
-use crate::signer::ecdsa::BinarySignature;
+use crate::{
+    encoding::encoding_error,
+    signer::ecdsa::BinarySignature,
+};
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};

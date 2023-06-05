@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use crate::{
     commit::CommitHash,
     crypto::AeadPack,
+    encoding::encoding_error,
     events::{
         AuditData, AuditEvent, AuditLogFile, EventKind, EventRecord,
         LogFlags, WriteEvent,
@@ -15,7 +16,6 @@ use crate::{
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result, SeekFrom};
 
-use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
 

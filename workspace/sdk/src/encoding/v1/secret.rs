@@ -11,6 +11,7 @@ use uuid::Uuid;
 use vcard4::{self};
 
 use crate::{
+    encoding::encoding_error,
     vault::secret::{
         AgeVersion, FileContent, IdentityKind, Secret, SecretFlags,
         SecretMeta, SecretRow, SecretSigner, SecretType, UserData,
@@ -20,7 +21,6 @@ use crate::{
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
-use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
 
