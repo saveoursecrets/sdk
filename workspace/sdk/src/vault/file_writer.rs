@@ -74,7 +74,6 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
     /// Check the identity bytes and return the byte offset of the
     /// beginning of the vault content area.
     async fn check_identity(&self) -> Result<u64> {
-        println!("checking the identity...!!!");
         Header::read_content_offset(&self.file_path).await
     }
 
@@ -84,9 +83,6 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         content_offset: u64,
         header: &Header,
     ) -> Result<()> {
-            
-        println!("writing header...");
-
         let head = encode(header).await?;
         let mut file = OpenOptions::new()
             .read(true)
@@ -122,16 +118,11 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         tail: Range<u64>,
         content: Option<&[u8]>,
     ) -> Result<()> {
-        
-        println!("splcing...");
-
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)
             .open(&self.file_path)
             .await?;
-
-        println!("Trying to seek in splice..");
 
         // Read the tail into memory
         file.seek(SeekFrom::Start(tail.start)).await?;
@@ -252,16 +243,15 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
     ) -> Result<WriteEvent<'_>> {
         let _summary = self.summary().await?;
         let mut stream = self.stream.lock().await;
-        
-        println!("insert getting stream_len");
 
-        let mut writer = BinaryWriter::new(&mut *stream, Endian::Little.into());
+        let mut writer = BinaryWriter::new(
+            &mut *stream, Endian::Little.into());
         let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row
         writer.seek(SeekFrom::End(0)).await?;
 
-        println!("encoding the row...");
+        println!("encoding the row {}", writer.tell().await?);
         Contents::encode_row(&mut writer, &id, &row).await?;
         println!("after encoding the row...");
 
@@ -445,6 +435,8 @@ mod tests {
     async fn vault_file_access() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (temp, vault, _) = mock_vault_file().await?;
+
+        //println!("temp.path: {:#?}", temp.path());
 
         let vault_file = VaultWriter::open(temp.path()).await?;
         let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;
