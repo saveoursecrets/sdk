@@ -251,9 +251,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         // Seek to the end of the file and append the row
         writer.seek(SeekFrom::End(0)).await?;
 
-        println!("encoding the row {}", writer.tell().await?);
         Contents::encode_row(&mut writer, &id, &row).await?;
-        println!("after encoding the row...");
 
         writer.flush().await?;
 
@@ -390,8 +388,6 @@ mod tests {
             
         let (commit, entry) = get_vault_entry(vault, encryption_key, secret_label, secret_note).await?;
         
-        println!("trying to create...");
-
         if let WriteEvent::CreateSecret(secret_id, _) = vault_access
             .create(commit, entry)
             .await?
@@ -436,8 +432,6 @@ mod tests {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (temp, vault, _) = mock_vault_file().await?;
 
-        //println!("temp.path: {:#?}", temp.path());
-
         let vault_file = VaultWriter::open(temp.path()).await?;
         let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;
         
@@ -457,8 +451,6 @@ mod tests {
             secret_note,
         )
         .await?;
-
-        println!("after create secure note");
 
         // Verify the secret exists
         let (row, _) = vault_access.read(&secret_id).await?;

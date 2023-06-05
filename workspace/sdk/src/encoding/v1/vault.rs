@@ -84,17 +84,11 @@ impl Encode for VaultCommit {
         // Write the UUID
         writer.write_bytes(self.0.as_ref()).await?;
 
-        println!("row trying to tell...");
-
         let size_pos = writer.tell().await?;
         
-        println!("row called tell!!!!");
-
         writer.write_u32(0).await?;
 
         self.1.encode(&mut *writer).await?;
-
-        println!("encoding row now backtracking...");
 
         // Encode the data length for lazy iteration
         let row_pos = writer.tell().await?;
@@ -370,15 +364,9 @@ impl Contents {
         let size_pos = writer.tell().await?;
         writer.write_u32(0).await?;
 
-        println!("wrote length placeholder {}", size_pos);
-
         writer.write_bytes(key.as_bytes()).await?;
     
-        println!("encoding the row...");
-
         row.encode(&mut *writer).await?;
-
-        println!("row trying to backtrack");
 
         // Backtrack to size_pos and write new length
         let row_pos = writer.tell().await?;
@@ -443,11 +431,7 @@ impl Decode for Contents {
         let mut pos = reader.tell().await?;
         let len = reader.len().await?;
         while pos < len {
-            println!("decoding a row...");
             let (uuid, value) = Contents::decode_row(reader).await?;
-            
-            println!("got row {}", uuid);
-
             self.data.insert(uuid, value);
             pos = reader.tell().await?;
         }
@@ -476,13 +460,7 @@ impl Decode for Vault {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        
-        println!("decoding the vault...");
-
         self.header.decode(reader).await?;
-
-        println!("decoding the vault contents...");
-
         self.contents.decode(reader).await?;
         Ok(())
     }

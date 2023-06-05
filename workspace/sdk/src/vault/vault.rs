@@ -1137,12 +1137,7 @@ mod tests {
 
         let buffer = encode(&vault).await?;
         
-        println!("encoded note {}", buffer.len());
-
         let decoded: Vault = decode(&buffer).await?;
-        
-        println!("decoded the note...");
-
         assert_eq!(vault, decoded);
 
         let (row, _) = decoded.read(&secret_id).await?;
