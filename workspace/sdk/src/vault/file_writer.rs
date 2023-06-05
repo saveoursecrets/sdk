@@ -169,7 +169,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         reader.seek(SeekFrom::Start(content_offset)).await?;
 
         // Scan all the rows
-        let mut current_pos = reader.tell().await?;
+        let mut current_pos = reader.stream_position().await?;
         while let Ok(row_len) = reader.read_u32().await {
             let row_id: [u8; 16] =
                 reader.read_bytes(16).await?.as_slice().try_into()?;
@@ -185,7 +185,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
             reader
                 .seek(SeekFrom::Start(current_pos + 8 + row_len as u64))
                 .await?;
-            current_pos = reader.tell().await?;
+            current_pos = reader.stream_position().await?;
         }
 
         Ok((content_offset, None))

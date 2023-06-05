@@ -118,7 +118,7 @@ where
             // The byte range for the row value.
             let value_len = reader.read_u32().await?;
 
-            let begin = reader.tell().await?;
+            let begin = reader.stream_position().await?;
             let end = begin + value_len as u64;
             row.set_value(begin..end);
         } else {

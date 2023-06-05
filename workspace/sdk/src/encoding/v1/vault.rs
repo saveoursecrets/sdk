@@ -84,14 +84,14 @@ impl Encode for VaultCommit {
         // Write the UUID
         writer.write_bytes(self.0.as_ref()).await?;
 
-        let size_pos = writer.tell().await?;
+        let size_pos = writer.stream_position().await?;
 
         writer.write_u32(0).await?;
 
         self.1.encode(&mut *writer).await?;
 
         // Encode the data length for lazy iteration
-        let row_pos = writer.tell().await?;
+        let row_pos = writer.stream_position().await?;
         let row_len = row_pos - (size_pos + 4);
         writer.seek(SeekFrom::Start(size_pos)).await?;
         writer.write_u32(row_len as u32).await?;
@@ -227,7 +227,7 @@ impl Encode for Header {
             .await
             .map_err(encoding_error)?;
 
-        let size_pos = writer.tell().await?;
+        let size_pos = writer.stream_position().await?;
         writer.write_u32(0).await?;
 
         self.summary.encode(&mut *writer).await?;
@@ -241,7 +241,7 @@ impl Encode for Header {
         self.shared_access.encode(&mut *writer).await?;
 
         // Backtrack to size_pos and write new length
-        let header_pos = writer.tell().await?;
+        let header_pos = writer.stream_position().await?;
         let header_len = header_pos - (size_pos + 4);
 
         writer.seek(SeekFrom::Start(size_pos)).await?;
@@ -361,7 +361,7 @@ impl Contents {
         key: &SecretId,
         row: &VaultCommit,
     ) -> Result<()> {
-        let size_pos = writer.tell().await?;
+        let size_pos = writer.stream_position().await?;
         writer.write_u32(0).await?;
 
         writer.write_bytes(key.as_bytes()).await?;
@@ -369,7 +369,7 @@ impl Contents {
         row.encode(&mut *writer).await?;
 
         // Backtrack to size_pos and write new length
-        let row_pos = writer.tell().await?;
+        let row_pos = writer.stream_position().await?;
         let row_len = row_pos - (size_pos + 4);
         writer.seek(SeekFrom::Start(size_pos)).await?;
         writer.write_u32(row_len as u32).await?;
@@ -428,12 +428,12 @@ impl Decode for Contents {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        let mut pos = reader.tell().await?;
+        let mut pos = reader.stream_position().await?;
         let len = reader.len().await?;
         while pos < len {
             let (uuid, value) = Contents::decode_row(reader).await?;
             self.data.insert(uuid, value);
-            pos = reader.tell().await?;
+            pos = reader.stream_position().await?;
         }
 
         Ok(())

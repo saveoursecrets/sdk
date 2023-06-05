@@ -57,7 +57,7 @@ impl Encode for EventRecord {
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         // Prepare the bytes for the row length
-        let size_pos = writer.tell().await?;
+        let size_pos = writer.stream_position().await?;
         writer.write_u32(0).await?;
 
         // Encode the time component
@@ -76,7 +76,7 @@ impl Encode for EventRecord {
         writer.write_bytes(&self.3).await?;
 
         // Backtrack to size_pos and write new length
-        let row_pos = writer.tell().await?;
+        let row_pos = writer.stream_position().await?;
         let row_len = row_pos - (size_pos + 4);
         writer.seek(SeekFrom::Start(size_pos)).await?;
         writer.write_u32(row_len as u32).await?;
@@ -484,14 +484,14 @@ impl AuditLogFile {
         event: AuditEvent,
     ) -> Result<()> {
         // Set up the leading row length
-        let size_pos = writer.tell().await?;
+        let size_pos = writer.stream_position().await?;
         writer.write_u32(0).await?;
 
         // Encode the event data for the row
         event.encode(&mut *writer).await?;
 
         // Backtrack to size_pos and write new length
-        let row_pos = writer.tell().await?;
+        let row_pos = writer.stream_position().await?;
         let row_len = row_pos - (size_pos + 4);
         writer.seek(SeekFrom::Start(size_pos)).await?;
         writer.write_u32(row_len as u32).await?;

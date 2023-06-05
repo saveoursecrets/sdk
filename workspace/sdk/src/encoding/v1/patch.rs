@@ -16,14 +16,14 @@ impl Patch<'_> {
         event: &WriteEvent<'_>,
     ) -> Result<()> {
         // Set up the leading row length
-        let size_pos = writer.tell().await?;
+        let size_pos = writer.stream_position().await?;
         writer.write_u32(0).await?;
 
         // Encode the event data for the row
         event.encode(&mut *writer).await?;
 
         // Backtrack to size_pos and write new length
-        let row_pos = writer.tell().await?;
+        let row_pos = writer.stream_position().await?;
         let row_len = row_pos - (size_pos + 4);
         writer.seek(SeekFrom::Start(size_pos)).await?;
         writer.write_u32(row_len as u32).await?;
@@ -76,12 +76,12 @@ impl Decode for Patch<'_> {
         FileIdentity::read_identity(reader, &PATCH_IDENTITY)
             .await
             .map_err(encoding_error)?;
-        let mut pos = reader.tell().await?;
+        let mut pos = reader.stream_position().await?;
         let len = reader.len().await?;
         while pos < len {
             let event = Patch::decode_row(reader).await?;
             self.0.push(event);
-            pos = reader.tell().await?;
+            pos = reader.stream_position().await?;
         }
         Ok(())
     }
