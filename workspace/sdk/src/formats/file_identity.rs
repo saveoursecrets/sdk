@@ -1,8 +1,8 @@
 //! Helper that reads and writes the magic identity bytes for file formats.
-use binary_stream::tokio::{BinaryReader, BinaryWriter};
+use binary_stream::futures::{BinaryReader, BinaryWriter};
 use std::path::Path;
 
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
+use futures::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 use crate::{vfs::File, Error, Result};
 
@@ -15,6 +15,7 @@ impl FileIdentity {
         path: P,
         identity: &[u8],
     ) -> Result<File> {
+        use tokio::io::AsyncReadExt;
         let mut file = File::open(path.as_ref()).await?;
         let len = file.metadata().await?.len();
         if len >= identity.len() as u64 {

@@ -1,7 +1,7 @@
 //! Implements random access to a single vault file on disc.
 use std::{
     borrow::Cow,
-    io::{Cursor, SeekFrom},
+    io::SeekFrom,
     ops::{DerefMut, Range},
     path::Path,
     path::PathBuf,
@@ -15,11 +15,11 @@ use tokio::{
     sync::Mutex,
 };
 
+use futures::io::{BufWriter, Cursor};
+use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
+
 use async_trait::async_trait;
-use binary_stream::{
-    tokio::{BinaryReader, BinaryWriter},
-    Endian,
-};
+use binary_stream::futures::{stream_length, BinaryReader, BinaryWriter};
 
 use uuid::Uuid;
 
@@ -27,7 +27,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     encode,
-    encoding::stream_len,
+    encoding::encoding_options,
     events::{ReadEvent, WriteEvent},
     vault::{
         secret::SecretId, Contents, Header, Summary, VaultAccess,
@@ -43,7 +43,7 @@ where
     F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send,
 {
     file_path: PathBuf,
-    stream: Mutex<F>,
+    stream: Mutex<Compat<F>>,
 }
 
 impl VaultWriter<File> {
@@ -64,7 +64,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
     /// The underlying file should already exist and be a valid vault.
     pub fn new<P: AsRef<Path>>(path: P, file: F) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
-        let stream = Mutex::new(file);
+        let stream = Mutex::new(file.compat_write());
         Ok(Self { file_path, stream })
     }
 
@@ -139,7 +139,6 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
 
         // Inject the content if necessary
         if let Some(content) = content {
-            //file.seek(SeekFrom::End(0))?;
             file.write_all(content).await?;
         }
 
@@ -162,12 +161,11 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         let content_offset = self.check_identity().await?;
 
         let mut stream = self.stream.lock().await;
-        let mut reader = BinaryReader::new(&mut *stream, Endian::Little);
-
-        reader.seek(content_offset).await?;
+        let mut reader = BinaryReader::new(&mut *stream, encoding_options());
+        reader.seek(SeekFrom::Start(content_offset)).await?;
 
         // Scan all the rows
-        let mut current_pos = reader.tell().await?;
+        let mut current_pos = reader.stream_position().await?;
         while let Ok(row_len) = reader.read_u32().await {
             let row_id: [u8; 16] =
                 reader.read_bytes(16).await?.as_slice().try_into()?;
@@ -175,13 +173,15 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
             if id == &row_id {
                 // Need to backtrack as we just read the row length and UUID;
                 // calling decode_row() will try to read the length and UUID.
-                reader.seek(current_pos).await?;
+                reader.seek(SeekFrom::Start(current_pos)).await?;
                 return Ok((content_offset, Some((current_pos, row_len))));
             }
 
             // Move on to the next row
-            reader.seek(current_pos + 8 + row_len as u64).await?;
-            current_pos = reader.tell().await?;
+            reader
+                .seek(SeekFrom::Start(current_pos + 8 + row_len as u64))
+                .await?;
+            current_pos = reader.stream_position().await?;
         }
 
         Ok((content_offset, None))
@@ -242,15 +242,16 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
     ) -> Result<WriteEvent<'_>> {
         let _summary = self.summary().await?;
         let mut stream = self.stream.lock().await;
-        let length = stream_len(stream.deref_mut()).await?;
-        let mut writer = BinaryWriter::new(&mut *stream, Endian::Little);
+
+        let mut writer = BinaryWriter::new(&mut *stream, encoding_options());
         let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row
-        writer.seek(length).await?;
+        writer.seek(SeekFrom::End(0)).await?;
+
         Contents::encode_row(&mut writer, &id, &row).await?;
 
-        drop(stream);
+        writer.flush().await?;
 
         Ok(WriteEvent::CreateSecret(id, Cow::Owned(row)))
     }
@@ -264,8 +265,9 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         let (_, row) = self.find_row(id).await?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().await;
-            let mut reader = BinaryReader::new(&mut *stream, Endian::Little);
-            reader.seek(row_offset).await?;
+            let mut reader =
+                BinaryReader::new(&mut *stream, encoding_options());
+            reader.seek(SeekFrom::Start(row_offset)).await?;
             let (_, value) = Contents::decode_row(&mut reader).await?;
             Ok((Some(Cow::Owned(value)), event))
         } else {
@@ -284,17 +286,16 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         if let Some((row_offset, row_len)) = row {
             // Prepare the row
             let mut buffer = Vec::new();
-            let mut stream = Cursor::new(&mut buffer);
-            let mut writer = BinaryWriter::new(&mut stream, Endian::Little);
+            let mut stream = BufWriter::new(Cursor::new(&mut buffer));
+            let mut writer =
+                BinaryWriter::new(&mut stream, encoding_options());
 
             let row = VaultCommit(commit, secret);
             Contents::encode_row(&mut writer, id, &row).await?;
+            writer.flush().await?;
 
             // Splice the row into the file
-            let length = {
-                let mut stream = self.stream.lock().await;
-                stream_len(stream.deref_mut()).await?
-            };
+            let length = writer.len().await?;
 
             let head = 0..row_offset;
             // Row offset is before the row length u32 so we
@@ -318,7 +319,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         if let Some((row_offset, row_len)) = row {
             let length = {
                 let mut stream = self.stream.lock().await;
-                stream_len(stream.deref_mut()).await?
+                stream_length(stream.deref_mut()).await?
             };
 
             let head = 0..row_offset;
@@ -340,28 +341,31 @@ mod tests {
     use super::VaultWriter;
     use crate::test_utils::*;
     use crate::{
+        commit::CommitHash,
         constants::DEFAULT_VAULT_NAME,
         crypto::PrivateKey,
+        encoding::encoding_options,
         events::WriteEvent,
-        vault::{secret::*, Header, Vault, VaultAccess, VaultEntry},
+        vault::{
+            secret::*, Contents, Header, Vault, VaultAccess, VaultCommit,
+            VaultEntry,
+        },
     };
     use anyhow::Result;
     use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
+    use binary_stream::futures::{BinaryReader, BinaryWriter};
+    use futures::io::{BufReader, BufWriter, Cursor};
+
     use uuid::Uuid;
 
-    type SecureNoteResult = (SecretId, SecretMeta, Secret, Vec<u8>, Vec<u8>);
-
-    async fn create_secure_note<
-        F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send,
-    >(
-        vault_access: &mut VaultWriter<F>,
+    async fn get_vault_entry(
         vault: &Vault,
         encryption_key: &PrivateKey,
         secret_label: &str,
         secret_note: &str,
-    ) -> Result<SecureNoteResult> {
-        let (secret_meta, secret_value, meta_bytes, secret_bytes) =
+    ) -> Result<(CommitHash, VaultEntry)> {
+        let (_secret_meta, _secret_value, meta_bytes, secret_bytes) =
             mock_secret_note(secret_label, secret_note).await?;
 
         let meta_aead = vault.encrypt(encryption_key, &meta_bytes).await?;
@@ -371,20 +375,65 @@ mod tests {
         let (commit, _) =
             Vault::commit_hash(&meta_aead, &secret_aead).await?;
 
-        if let WriteEvent::CreateSecret(secret_id, _) = vault_access
-            .create(commit, VaultEntry(meta_aead, secret_aead))
-            .await?
+        let entry = VaultEntry(meta_aead, secret_aead);
+
+        Ok((commit, entry))
+    }
+
+    async fn create_secure_note<
+        F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send,
+    >(
+        vault_access: &mut VaultWriter<F>,
+        vault: &Vault,
+        encryption_key: &PrivateKey,
+        secret_label: &str,
+        secret_note: &str,
+    ) -> Result<SecretId> {
+        let (commit, entry) =
+            get_vault_entry(vault, encryption_key, secret_label, secret_note)
+                .await?;
+
+        if let WriteEvent::CreateSecret(secret_id, _) =
+            vault_access.create(commit, entry).await?
         {
-            Ok((
-                secret_id,
-                secret_meta,
-                secret_value,
-                meta_bytes,
-                secret_bytes,
-            ))
+            Ok(secret_id)
         } else {
             panic!("expecting create secret payload");
         }
+    }
+
+    #[tokio::test]
+    async fn vault_encode_decode_row() -> Result<()> {
+        let (encryption_key, _, _) = mock_encryption_key()?;
+        let (_temp, vault, _) = mock_vault_file().await?;
+
+        let secret_label = "Test note";
+        let secret_note = "Super secret note for you to read.";
+        let (commit, entry) = get_vault_entry(
+            &vault,
+            &encryption_key,
+            secret_label,
+            secret_note,
+        )
+        .await?;
+
+        let secret_id = SecretId::new_v4();
+        let row = VaultCommit(commit, entry);
+
+        let mut buffer = Vec::new();
+        let mut stream = BufWriter::new(Cursor::new(&mut buffer));
+        let mut writer = BinaryWriter::new(&mut stream, encoding_options());
+        Contents::encode_row(&mut writer, &secret_id, &row).await?;
+        writer.flush().await?;
+
+        let mut stream = BufReader::new(Cursor::new(&mut buffer));
+        let mut reader = BinaryReader::new(&mut stream, encoding_options());
+
+        let (_secret_id, decoded_row) =
+            Contents::decode_row(&mut reader).await?;
+        assert_eq!(row, decoded_row);
+
+        Ok(())
     }
 
     #[tokio::test]
@@ -403,13 +452,7 @@ mod tests {
         // Create a secret note
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
-        let (
-            secret_id,
-            _secret_meta,
-            _secret_value,
-            _meta_bytes,
-            _secret_bytes,
-        ) = create_secure_note(
+        let secret_id = create_secure_note(
             &mut vault_access,
             &vault,
             &encryption_key,
@@ -430,13 +473,7 @@ mod tests {
         assert!(row.is_none());
 
         // Create a new secure note so we can update it
-        let (
-            secret_id,
-            _secret_meta,
-            _secret_value,
-            _meta_bytes,
-            _secret_bytes,
-        ) = create_secure_note(
+        let secret_id = create_secure_note(
             &mut vault_access,
             &vault,
             &encryption_key,
@@ -501,13 +538,7 @@ mod tests {
 
         let mut secret_ids = Vec::new();
         for note_data in secrets {
-            let (
-                secret_id,
-                _secret_meta,
-                _secret_value,
-                _meta_bytes,
-                _secret_bytes,
-            ) = create_secure_note(
+            let secret_id = create_secure_note(
                 &mut vault_access,
                 &vault,
                 &encryption_key,

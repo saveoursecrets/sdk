@@ -1,6 +1,6 @@
 //! Event log file.
 //!
-//! Event logd consist of a 4 identity bytes followed by one or more
+//! Event logs consist of a 4 identity bytes followed by one or more
 //! rows of log records.
 //!
 //! Each row contains the row length prepended and appended so that
@@ -18,6 +18,7 @@ use crate::{
     commit::{event_log_commit_tree_file, CommitHash, CommitTree},
     constants::EVENT_LOG_IDENTITY,
     encode,
+    encoding::encoding_options,
     events::WriteEvent,
     formats::{event_log_stream, EventLogFileRecord, FileItem, FileStream},
     timestamp::Timestamp,
@@ -26,16 +27,14 @@ use crate::{
 };
 
 use std::{
-    io::{Cursor, SeekFrom},
+    io::SeekFrom,
     path::{Path, PathBuf},
 };
 
+use futures::io::{BufReader, Cursor};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-use binary_stream::{
-    tokio::{BinaryReader, Decode},
-    Endian,
-};
+use binary_stream::futures::{BinaryReader, Decodable};
 use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};
@@ -305,8 +304,8 @@ impl EventLogFile {
         let mut buffer = vec![0; (value.end - value.start) as usize];
         file.read_exact(buffer.as_mut_slice()).await?;
 
-        let mut stream = Cursor::new(&mut buffer);
-        let mut reader = BinaryReader::new(&mut stream, Endian::Little);
+        let mut stream = BufReader::new(Cursor::new(&mut buffer));
+        let mut reader = BinaryReader::new(&mut stream, encoding_options());
         let mut event: WriteEvent = Default::default();
 
         event.decode(&mut reader).await?;

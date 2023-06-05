@@ -344,6 +344,9 @@ mod test {
     use super::*;
     use anyhow::Result;
 
+    #[cfg(feature = "interactive-keychain-tests")]
+    use sos_sdk::{crypto::AccessKey, vault::VaultBuilder};
+
     fn find_test_keychain() -> Result<UserKeychain> {
         // NOTE: the keychain must be located in ~/Library/Keychains
         // NOTE: otherwise searching fails to find any items
@@ -389,7 +392,11 @@ mod test {
             .await?;
 
         let vault = KeychainImport
-            .convert(data_dump.unwrap(), vault, vault_password.clone())
+            .convert(
+                data_dump.unwrap(),
+                vault,
+                AccessKey::Password(vault_password.clone()),
+            )
             .await?;
 
         assert_eq!(2, vault.len());
@@ -397,7 +404,7 @@ mod test {
         // Assert on the data
         let keys: Vec<_> = vault.keys().copied().collect();
         let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(vault_password).await?;
+        keeper.unlock(AccessKey::Password(vault_password)).await?;
 
         for key in &keys {
             if let Some((_meta, secret, _)) = keeper.read(key).await? {

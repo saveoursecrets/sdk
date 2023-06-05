@@ -44,7 +44,7 @@ bitflags = "1"
 pem = { version = "2", features = ["serde"] }
 secrecy = { version = "0.8", features = ["serde"] }
 crypto-bigint = "0.5"
-tempfile = "3"
+tempfile = "3.5"
 log = "0.4"
 http = "0.2"
 zxcvbn = "2"
@@ -69,8 +69,8 @@ futures-util = "0.3"
 keyring = {version = "2", optional = true }
 
 [dependencies.binary-stream]
-version = "5.1.0"
-features = ["32bit", "tokio"]
+version = "8.0.0"
+features = ["async"]
 #path = "../../../../binary-stream"
 
 [dependencies.probly-search]
@@ -85,7 +85,7 @@ tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-u
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = {version = "0.2", features = ["js"]}
 uuid = { version = "1", features = ["serde", "v4", "js"] }
-tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros"] }
+tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros", "io-util"] }
 
 [dependencies.rs_merkle]
 version = "1.2"

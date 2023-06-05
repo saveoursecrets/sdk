@@ -1,10 +1,13 @@
 //! Functions to build commit trees and run integrity checks.
 use crate::{
     commit::CommitTree,
+    encoding::encoding_options,
     formats::{vault_stream, EventLogFileRecord, FileItem, VaultRecord},
     vfs, Error, Result,
 };
-use binary_stream::{tokio::BinaryReader, Endian};
+use binary_stream::futures::BinaryReader;
+use std::io::SeekFrom;
+use tokio_util::compat::TokioAsyncReadCompatExt;
 
 use crate::events::EventLogFile;
 
@@ -15,7 +18,7 @@ macro_rules! read_iterator_item {
     ($record:expr, $reader:expr) => {{
         let value = $record.value();
         let length = value.end - value.start;
-        $reader.seek(value.start).await?;
+        $reader.seek(SeekFrom::Start(value.start)).await?;
         $reader.read_bytes(length as usize).await?
     }};
 }
@@ -36,8 +39,8 @@ where
     let mut tree = CommitTree::new();
     // Need an additional reader as we may also read in the
     // values for the rows
-    let mut file = vfs::File::open(vault.as_ref()).await?;
-    let mut reader = BinaryReader::new(&mut file, Endian::Little);
+    let mut file = vfs::File::open(vault.as_ref()).await?.compat();
+    let mut reader = BinaryReader::new(&mut file, encoding_options());
     let mut it = vault_stream(vault.as_ref()).await?;
     while let Some(record) = it.next_entry().await? {
         if verify {
@@ -78,8 +81,8 @@ where
 
     // Need an additional reader as we may also read in the
     // values for the rows
-    let mut file = vfs::File::open(event_log_file.as_ref()).await?;
-    let mut reader = BinaryReader::new(&mut file, Endian::Little);
+    let mut file = vfs::File::open(event_log_file.as_ref()).await?.compat();
+    let mut reader = BinaryReader::new(&mut file, encoding_options());
 
     let event_log = EventLogFile::new(event_log_file.as_ref()).await?;
     let mut it = event_log.iter().await?;

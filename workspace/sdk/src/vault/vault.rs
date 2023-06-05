@@ -1,20 +1,19 @@
 use serde::{Deserialize, Serialize};
 
 use async_trait::async_trait;
-use binary_stream::{
-    tokio::{BinaryReader, Decode},
-    Endian,
-};
+use binary_stream::futures::{BinaryReader, Decodable};
 
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
+use futures::io::{AsyncReadExt, AsyncSeek};
+use futures::io::{BufReader, Cursor};
+use tokio_util::compat::TokioAsyncReadCompatExt;
 
 use age::x25519::{Identity, Recipient};
 use bitflags::bitflags;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
-    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, io::Cursor,
-    path::Path, str::FromStr,
+    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, path::Path,
+    str::FromStr,
 };
 use urn::Urn;
 use uuid::Uuid;
@@ -26,7 +25,7 @@ use crate::{
         AccessKey, AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed,
     },
     decode, encode,
-    encoding::v1::VERSION,
+    encoding::{encoding_options, VERSION},
     events::{ReadEvent, WriteEvent},
     formats::FileIdentity,
     vault::secret::SecretId,
@@ -464,14 +463,14 @@ impl Header {
     /// Read the content offset for a vault file verifying
     /// the identity bytes first.
     pub async fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<u64> {
-        let mut stream = File::open(path.as_ref()).await?;
+        let mut stream = File::open(path.as_ref()).await?.compat();
         Header::read_content_offset_stream(&mut stream).await
     }
 
     /// Read the content offset for a vault slice verifying
     /// the identity bytes first.
     pub async fn read_content_offset_slice(buffer: &[u8]) -> Result<u64> {
-        let mut stream = Cursor::new(buffer);
+        let mut stream = BufReader::new(Cursor::new(buffer));
         Header::read_content_offset_stream(&mut stream).await
     }
 
@@ -482,7 +481,7 @@ impl Header {
     >(
         stream: R,
     ) -> Result<u64> {
-        let mut reader = BinaryReader::new(stream, Endian::Little);
+        let mut reader = BinaryReader::new(stream, encoding_options());
         let identity = reader.read_bytes(VAULT_IDENTITY.len()).await?;
         FileIdentity::read_slice(&identity, &VAULT_IDENTITY)?;
         let header_len = reader.read_u32().await? as u64;
@@ -494,13 +493,13 @@ impl Header {
     pub async fn read_summary_file<P: AsRef<Path>>(
         file: P,
     ) -> Result<Summary> {
-        let mut stream = File::open(file.as_ref()).await?;
+        let mut stream = File::open(file.as_ref()).await?.compat();
         Header::read_summary_stream(&mut stream).await
     }
 
     /// Read the summary for a slice of bytes.
     pub async fn read_summary_slice(buffer: &[u8]) -> Result<Summary> {
-        let mut stream = Cursor::new(buffer);
+        let mut stream = BufReader::new(Cursor::new(buffer));
         Header::read_summary_stream(&mut stream).await
     }
 
@@ -510,7 +509,7 @@ impl Header {
     >(
         stream: R,
     ) -> Result<Summary> {
-        let mut reader = BinaryReader::new(stream, Endian::Little);
+        let mut reader = BinaryReader::new(stream, encoding_options());
 
         // Read magic identity bytes
         FileIdentity::read_identity(&mut reader, &VAULT_IDENTITY).await?;
@@ -527,7 +526,7 @@ impl Header {
 
     /// Read the header for a vault from a file.
     pub async fn read_header_file<P: AsRef<Path>>(file: P) -> Result<Header> {
-        let mut stream = File::open(file.as_ref()).await?;
+        let mut stream = File::open(file.as_ref()).await?.compat();
         Header::read_header_stream(&mut stream).await
     }
 
@@ -537,7 +536,7 @@ impl Header {
     >(
         stream: R,
     ) -> Result<Header> {
-        let mut reader = BinaryReader::new(stream, Endian::Little);
+        let mut reader = BinaryReader::new(stream, encoding_options());
         let mut header: Header = Default::default();
         header.decode(&mut reader).await?;
         Ok(header)
@@ -954,6 +953,7 @@ impl Vault {
 
     /// Write this vault to a file.
     pub async fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        use tokio::io::AsyncWriteExt;
         let mut stream = File::create(path).await?;
         let buffer = encode(self).await?;
         stream.write_all(&buffer).await?;
@@ -1133,6 +1133,7 @@ mod tests {
             .await?;
 
         let buffer = encode(&vault).await?;
+
         let decoded: Vault = decode(&buffer).await?;
         assert_eq!(vault, decoded);
 

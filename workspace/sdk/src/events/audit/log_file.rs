@@ -1,13 +1,18 @@
 use async_trait::async_trait;
 use std::{
-    io::{Cursor, SeekFrom},
+    io::SeekFrom,
     path::{Path, PathBuf},
 };
 
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
+use futures::io::{
+    AsyncWriteExt as FuturesAsyncWriteExt, BufReader, BufWriter, Cursor,
+};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 use crate::{
     constants::AUDIT_IDENTITY,
+    encoding::encoding_options,
     formats::{audit_stream, FileItem, FileRecord, FileStream},
     vfs::{self, File},
     Result,
@@ -15,14 +20,11 @@ use crate::{
 
 use super::{AuditEvent, AuditProvider};
 
-use binary_stream::{
-    tokio::{BinaryReader, BinaryWriter},
-    Endian,
-};
+use binary_stream::futures::{BinaryReader, BinaryWriter};
 
 /// Represents an audit log file.
 pub struct AuditLogFile {
-    file: File,
+    file: Compat<File>,
     file_path: PathBuf,
 }
 
@@ -30,7 +32,7 @@ impl AuditLogFile {
     /// Create an audit log file.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
-        let file = AuditLogFile::create(path.as_ref()).await?;
+        let file = AuditLogFile::create(path.as_ref()).await?.compat_write();
         Ok(Self { file, file_path })
     }
 
@@ -69,7 +71,7 @@ impl AuditLogFile {
         file.read_exact(&mut buf).await?;
 
         let mut stream = BufReader::new(Cursor::new(&buf));
-        let mut reader = BinaryReader::new(&mut stream, Endian::Little);
+        let mut reader = BinaryReader::new(&mut stream, encoding_options());
         Ok(AuditLogFile::decode_row(&mut reader).await?)
     }
 }
@@ -85,10 +87,12 @@ impl AuditProvider for AuditLogFile {
     ) -> Result<()> {
         let buffer: Vec<u8> = {
             let mut buffer = Vec::new();
-            let mut stream = Cursor::new(&mut buffer);
-            let mut writer = BinaryWriter::new(&mut stream, Endian::Little);
+            let mut stream = BufWriter::new(Cursor::new(&mut buffer));
+            let mut writer =
+                BinaryWriter::new(&mut stream, encoding_options());
             for event in events {
                 AuditLogFile::encode_row(&mut writer, event).await?;
+                writer.flush().await?;
             }
             buffer
         };

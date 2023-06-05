@@ -4,18 +4,20 @@ use std::{borrow::Cow, io::Result};
 
 use crate::{
     constants::RPC_IDENTITY,
+    encoding::encoding_error,
     formats::FileIdentity,
     rpc::{Packet, Payload, RequestMessage, ResponseMessage},
 };
 
-use super::encoding_error;
 use async_trait::async_trait;
-use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use binary_stream::futures::{
+    BinaryReader, BinaryWriter, Decodable, Encodable,
+};
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for Packet<'_> {
+impl Encodable for Packet<'_> {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -28,7 +30,7 @@ impl Encode for Packet<'_> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for Packet<'_> {
+impl Decodable for Packet<'_> {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -45,7 +47,7 @@ impl Decode for Packet<'_> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for Payload<'_> {
+impl Encodable for Payload<'_> {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -63,7 +65,7 @@ impl Encode for Payload<'_> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for Payload<'_> {
+impl Decodable for Payload<'_> {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -84,7 +86,7 @@ impl Decode for Payload<'_> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for RequestMessage<'_> {
+impl Encodable for RequestMessage<'_> {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -114,7 +116,7 @@ impl Encode for RequestMessage<'_> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for RequestMessage<'_> {
+impl Decodable for RequestMessage<'_> {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -145,7 +147,7 @@ impl Decode for RequestMessage<'_> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for ResponseMessage<'_> {
+impl Encodable for ResponseMessage<'_> {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -186,7 +188,7 @@ impl Encode for ResponseMessage<'_> {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for ResponseMessage<'_> {
+impl Decodable for ResponseMessage<'_> {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,

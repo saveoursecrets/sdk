@@ -1,14 +1,15 @@
-use super::encoding_error;
-use crate::Timestamp;
+use crate::{encoding::encoding_error, Timestamp};
 use async_trait::async_trait;
-use binary_stream::tokio::{BinaryReader, BinaryWriter, Decode, Encode};
+use binary_stream::futures::{
+    BinaryReader, BinaryWriter, Decodable, Encodable,
+};
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 use time::{Duration, OffsetDateTime};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Encode for Timestamp {
+impl Encodable for Timestamp {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -23,7 +24,7 @@ impl Encode for Timestamp {
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Decode for Timestamp {
+impl Decodable for Timestamp {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,

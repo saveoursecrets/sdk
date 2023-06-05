@@ -1,16 +1,18 @@
 //! File streams.
 use std::{io::SeekFrom, ops::Range, path::Path};
 
-use binary_stream::{tokio::BinaryReader, Endian};
+use binary_stream::futures::{stream_length, BinaryReader};
 
 use crate::{
-    encoding::stream_len,
+    encoding::encoding_options,
     formats::{FileIdentity, FileItem},
     vfs::File,
     Result,
 };
 
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt};
+use futures::io::AsyncSeekExt as FuturesAsyncSeekExt;
+use tokio::io::{AsyncReadExt, AsyncSeek};
+use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
 /// Generic iterator for files.
 pub struct FileStream<T, R>
@@ -38,7 +40,7 @@ where
     /// but sometimes need to read the row data too.
     data_length_prefix: bool,
     /// The read stream.
-    read_stream: Box<R>,
+    read_stream: Compat<R>,
     /// Byte offset for forward iteration.
     forward: Option<u64>,
     /// Byte offset for backward iteration.
@@ -58,7 +60,7 @@ impl<T: FileItem> FileStream<T, File> {
         header_offset: Option<u64>,
     ) -> Result<Self> {
         FileIdentity::read_file(file_path.as_ref(), identity).await?;
-        let mut read_stream = Box::new(File::open(file_path.as_ref()).await?);
+        let mut read_stream = File::open(file_path.as_ref()).await?.compat();
 
         let header_offset = header_offset.unwrap_or(identity.len() as u64);
         read_stream.seek(SeekFrom::Start(header_offset)).await?;
@@ -104,7 +106,7 @@ where
 
     /// Helper to decode the row file record.
     async fn read_row(
-        reader: &mut BinaryReader<R>,
+        reader: &mut BinaryReader<&mut Compat<R>>,
         offset: Range<u64>,
         is_prefix: bool,
     ) -> Result<T> {
@@ -116,7 +118,7 @@ where
             // The byte range for the row value.
             let value_len = reader.read_u32().await?;
 
-            let begin = reader.tell().await?;
+            let begin = reader.stream_position().await?;
             let end = begin + value_len as u64;
             row.set_value(begin..end);
         } else {
@@ -132,8 +134,8 @@ where
         let row_pos = self.forward.unwrap();
 
         let mut reader =
-            BinaryReader::new(&mut *self.read_stream, Endian::Little);
-        reader.seek(row_pos).await?;
+            BinaryReader::new(&mut self.read_stream, encoding_options());
+        reader.seek(SeekFrom::Start(row_pos)).await?;
         let row_len = reader.read_u32().await?;
 
         // Position of the end of the row
@@ -157,10 +159,10 @@ where
         let row_pos = self.backward.unwrap();
 
         let mut reader =
-            BinaryReader::new(&mut *self.read_stream, Endian::Little);
+            BinaryReader::new(&mut self.read_stream, encoding_options());
 
         // Read in the reverse iteration row length
-        reader.seek(row_pos - 4).await?;
+        reader.seek(SeekFrom::Start(row_pos - 4)).await?;
         let row_len = reader.read_u32().await?;
 
         // Position of the beginning of the row
@@ -169,7 +171,7 @@ where
 
         // Seek to the beginning of the row after the initial
         // row length so we can read in the row data
-        reader.seek(row_start + 4).await?;
+        reader.seek(SeekFrom::Start(row_start + 4)).await?;
         let row = FileStream::read_row(
             &mut reader,
             row_start..row_end,
@@ -192,7 +194,7 @@ where
             }
         }
 
-        let len = stream_len(&mut self.read_stream).await?;
+        let len = stream_length(&mut self.read_stream).await?;
         if len > offset {
             // Got to EOF
             if let Some(lpos) = self.forward {
@@ -220,7 +222,7 @@ where
             }
         }
 
-        let len = stream_len(&mut self.read_stream).await?;
+        let len = stream_length(&mut self.read_stream).await?;
         if len > 4 {
             // Got to EOF
             if let Some(rpos) = self.backward {
