@@ -1,10 +1,10 @@
 //! File streams.
 use std::{io::SeekFrom, ops::Range, path::Path};
 
-use binary_stream::{futures::BinaryReader, Endian};
+use binary_stream::{futures::{BinaryReader, stream_length}, Endian};
 
 use crate::{
-    encoding::{stream_len, encoding_options},
+    encoding::encoding_options,
     formats::{FileIdentity, FileItem},
     vfs::File,
     Result,
@@ -194,7 +194,7 @@ where
             }
         }
 
-        let len = stream_len(&mut self.read_stream).await?;
+        let len = stream_length(&mut self.read_stream).await?;
         if len > offset {
             // Got to EOF
             if let Some(lpos) = self.forward {
@@ -222,7 +222,7 @@ where
             }
         }
 
-        let len = stream_len(&mut self.read_stream).await?;
+        let len = stream_length(&mut self.read_stream).await?;
         if len > 4 {
             // Got to EOF
             if let Some(rpos) = self.backward {

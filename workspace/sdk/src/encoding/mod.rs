@@ -19,17 +19,6 @@ pub(crate) fn encoding_error(
     std::io::Error::new(std::io::ErrorKind::Other, e)
 }
 
-/// Get the length of this stream by seeking to the end
-/// and then restoring the previous cursor position.
-pub(crate) async fn stream_len<S: AsyncSeek + Unpin>(
-    stream: &mut S,
-) -> Result<u64> {
-    let position = stream.stream_position().await?;
-    let length = stream.seek(SeekFrom::End(0)).await?;
-    stream.seek(SeekFrom::Start(position)).await?;
-    Ok(length)
-}
-
 /// Standard encoding options.
 pub fn encoding_options() -> Options {
     Options {

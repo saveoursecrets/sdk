@@ -20,7 +20,7 @@ use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 use async_trait::async_trait;
 use binary_stream::{
-    futures::{BinaryReader, BinaryWriter},
+    futures::{BinaryReader, BinaryWriter, stream_length},
     Endian,
 };
 
@@ -30,7 +30,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     encode,
-    encoding::{encoding_options, stream_len},
+    encoding::encoding_options,
     events::{ReadEvent, WriteEvent},
     vault::{
         secret::SecretId, Contents, Header, Summary, VaultAccess,
@@ -324,7 +324,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         if let Some((row_offset, row_len)) = row {
             let length = {
                 let mut stream = self.stream.lock().await;
-                stream_len(stream.deref_mut()).await?
+                stream_length(stream.deref_mut()).await?
             };
 
             let head = 0..row_offset;
