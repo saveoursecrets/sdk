@@ -164,7 +164,8 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         let content_offset = self.check_identity().await?;
 
         let mut stream = self.stream.lock().await;
-        let mut reader = BinaryReader::new(&mut *stream, Endian::Little.into());
+        let mut reader =
+            BinaryReader::new(&mut *stream, Endian::Little.into());
         reader.seek(SeekFrom::Start(content_offset)).await?;
 
         // Scan all the rows
@@ -181,7 +182,9 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
             }
 
             // Move on to the next row
-            reader.seek(SeekFrom::Start(current_pos + 8 + row_len as u64)).await?;
+            reader
+                .seek(SeekFrom::Start(current_pos + 8 + row_len as u64))
+                .await?;
             current_pos = reader.tell().await?;
         }
 
@@ -244,8 +247,8 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         let _summary = self.summary().await?;
         let mut stream = self.stream.lock().await;
 
-        let mut writer = BinaryWriter::new(
-            &mut *stream, Endian::Little.into());
+        let mut writer =
+            BinaryWriter::new(&mut *stream, Endian::Little.into());
         let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row
@@ -267,7 +270,8 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         let (_, row) = self.find_row(id).await?;
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().await;
-            let mut reader = BinaryReader::new(&mut *stream, Endian::Little.into());
+            let mut reader =
+                BinaryReader::new(&mut *stream, Endian::Little.into());
             reader.seek(SeekFrom::Start(row_offset)).await?;
             let (_, value) = Contents::decode_row(&mut reader).await?;
             Ok((Some(Cow::Owned(value)), event))
@@ -288,7 +292,8 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
             // Prepare the row
             let mut buffer = Vec::new();
             let mut stream = BufWriter::new(Cursor::new(&mut buffer));
-            let mut writer = BinaryWriter::new(&mut stream, Endian::Little.into());
+            let mut writer =
+                BinaryWriter::new(&mut stream, Endian::Little.into());
 
             let row = VaultCommit(commit, secret);
             Contents::encode_row(&mut writer, id, &row).await?;
@@ -341,17 +346,20 @@ mod tests {
     use super::VaultWriter;
     use crate::test_utils::*;
     use crate::{
-        constants::DEFAULT_VAULT_NAME,
         commit::CommitHash,
+        constants::DEFAULT_VAULT_NAME,
         crypto::PrivateKey,
         events::WriteEvent,
-        vault::{secret::*, Header, Vault, VaultAccess, VaultEntry, VaultCommit, Contents},
+        vault::{
+            secret::*, Contents, Header, Vault, VaultAccess, VaultCommit,
+            VaultEntry,
+        },
     };
     use anyhow::Result;
     use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
-    use futures::io::{Cursor, BufWriter, BufReader};
-    use binary_stream::futures::{BinaryWriter, BinaryReader};
+    use binary_stream::futures::{BinaryReader, BinaryWriter};
+    use futures::io::{BufReader, BufWriter, Cursor};
 
     use uuid::Uuid;
 
@@ -385,12 +393,12 @@ mod tests {
         secret_label: &str,
         secret_note: &str,
     ) -> Result<SecretId> {
-            
-        let (commit, entry) = get_vault_entry(vault, encryption_key, secret_label, secret_note).await?;
-        
-        if let WriteEvent::CreateSecret(secret_id, _) = vault_access
-            .create(commit, entry)
-            .await?
+        let (commit, entry) =
+            get_vault_entry(vault, encryption_key, secret_label, secret_note)
+                .await?;
+
+        if let WriteEvent::CreateSecret(secret_id, _) =
+            vault_access.create(commit, entry).await?
         {
             Ok(secret_id)
         } else {
@@ -406,7 +414,12 @@ mod tests {
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
         let (commit, entry) = get_vault_entry(
-            &vault, &encryption_key, secret_label, secret_note).await?;
+            &vault,
+            &encryption_key,
+            secret_label,
+            secret_note,
+        )
+        .await?;
 
         let secret_id = SecretId::new_v4();
         let row = VaultCommit(commit, entry);
@@ -416,12 +429,12 @@ mod tests {
         let mut writer = BinaryWriter::new(&mut stream, Default::default());
         Contents::encode_row(&mut writer, &secret_id, &row).await?;
         writer.flush().await?;
-        
+
         let mut stream = BufReader::new(Cursor::new(&mut buffer));
         let mut reader = BinaryReader::new(&mut stream, Default::default());
-            
-        let (secret_id, decoded_row) = Contents::decode_row(
-            &mut reader).await?;
+
+        let (secret_id, decoded_row) =
+            Contents::decode_row(&mut reader).await?;
         assert_eq!(row, decoded_row);
 
         Ok(())
@@ -434,7 +447,7 @@ mod tests {
 
         let vault_file = VaultWriter::open(temp.path()).await?;
         let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;
-        
+
         // Missing row should not exist
         let missing_id = Uuid::new_v4();
         let (row, _) = vault_access.read(&missing_id).await?;

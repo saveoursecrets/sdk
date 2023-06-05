@@ -7,8 +7,8 @@ use crate::{
 use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
-use std::io::{Result, SeekFrom};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use std::io::{Result, SeekFrom};
 
 impl Patch<'_> {
     async fn encode_row<W: AsyncWrite + AsyncSeek + Unpin + Send>(

@@ -390,7 +390,11 @@ mod test {
             .await?;
 
         let vault = KeychainImport
-            .convert(data_dump.unwrap(), vault, AccessKey::Password(vault_password.clone()))
+            .convert(
+                data_dump.unwrap(),
+                vault,
+                AccessKey::Password(vault_password.clone()),
+            )
             .await?;
 
         assert_eq!(2, vault.len());

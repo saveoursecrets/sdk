@@ -26,12 +26,12 @@ use crate::{
 };
 
 use std::{
-    io::{SeekFrom},
+    io::SeekFrom,
     path::{Path, PathBuf},
 };
 
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use futures::io::{BufReader, Cursor};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use binary_stream::{
     futures::{BinaryReader, Decode},
@@ -307,7 +307,8 @@ impl EventLogFile {
         file.read_exact(buffer.as_mut_slice()).await?;
 
         let mut stream = BufReader::new(Cursor::new(&mut buffer));
-        let mut reader = BinaryReader::new(&mut stream, Endian::Little.into());
+        let mut reader =
+            BinaryReader::new(&mut stream, Endian::Little.into());
         let mut event: WriteEvent = Default::default();
 
         event.decode(&mut reader).await?;

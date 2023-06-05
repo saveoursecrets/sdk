@@ -4,8 +4,8 @@ use crate::{
     formats::{vault_stream, EventLogFileRecord, FileItem, VaultRecord},
     vfs, Error, Result,
 };
-use std::io::SeekFrom;
 use binary_stream::{futures::BinaryReader, Endian};
+use std::io::SeekFrom;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 
 use crate::events::EventLogFile;

@@ -16,8 +16,8 @@ use binary_stream::{
     futures::{BinaryReader, BinaryWriter, Decode, Encode},
     Endian,
 };
+use futures::io::{AsyncSeek, AsyncSeekExt, BufReader, BufWriter, Cursor};
 use std::io::SeekFrom;
-use futures::io::{BufReader, BufWriter, Cursor, AsyncSeek, AsyncSeekExt};
 
 pub(crate) fn encoding_error(
     e: impl std::error::Error + Send + Sync + 'static,

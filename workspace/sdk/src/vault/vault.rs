@@ -7,16 +7,16 @@ use binary_stream::{
 };
 
 use futures::io::{AsyncReadExt, AsyncSeek};
+use futures::io::{BufReader, Cursor};
 use tokio_util::compat::TokioAsyncReadCompatExt;
-use futures::io::{Cursor, BufReader};
 
 use age::x25519::{Identity, Recipient};
 use bitflags::bitflags;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
-    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, 
-    path::Path, str::FromStr,
+    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, path::Path,
+    str::FromStr,
 };
 use urn::Urn;
 use uuid::Uuid;
@@ -1136,7 +1136,7 @@ mod tests {
             .await?;
 
         let buffer = encode(&vault).await?;
-        
+
         let decoded: Vault = decode(&buffer).await?;
         assert_eq!(vault, decoded);
 

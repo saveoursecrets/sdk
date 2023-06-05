@@ -2,9 +2,9 @@ use super::encoding_error;
 use crate::Timestamp;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 use time::{Duration, OffsetDateTime};
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

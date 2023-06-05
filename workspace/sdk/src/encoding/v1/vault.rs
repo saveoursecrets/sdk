@@ -15,8 +15,8 @@ use crate::{
 use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
-use std::io::{Error, ErrorKind, Result, SeekFrom};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use std::io::{Error, ErrorKind, Result, SeekFrom};
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -85,7 +85,7 @@ impl Encode for VaultCommit {
         writer.write_bytes(self.0.as_ref()).await?;
 
         let size_pos = writer.tell().await?;
-        
+
         writer.write_u32(0).await?;
 
         self.1.encode(&mut *writer).await?;
@@ -365,7 +365,7 @@ impl Contents {
         writer.write_u32(0).await?;
 
         writer.write_bytes(key.as_bytes()).await?;
-    
+
         row.encode(&mut *writer).await?;
 
         // Backtrack to size_pos and write new length

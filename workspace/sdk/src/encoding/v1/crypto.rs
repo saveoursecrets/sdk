@@ -3,11 +3,11 @@ use crate::crypto::{
     BALLOON_HASH, X25519, X_CHACHA20_POLY1305,
 };
 
-use std::io::{Error, ErrorKind, Result};
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use std::io::{Error, ErrorKind, Result};
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

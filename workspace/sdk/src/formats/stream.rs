@@ -10,9 +10,9 @@ use crate::{
     Result,
 };
 
+use futures::io::AsyncSeekExt as FuturesAsyncSeekExt;
 use tokio::io::{AsyncReadExt, AsyncSeek};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
-use futures::io::{AsyncSeekExt as FuturesAsyncSeekExt};
 
 /// Generic iterator for files.
 pub struct FileStream<T, R>
@@ -132,7 +132,7 @@ where
     /// Attempt to read the next log row.
     async fn read_row_next(&mut self) -> Result<T> {
         let row_pos = self.forward.unwrap();
-        
+
         let mut reader =
             BinaryReader::new(&mut self.read_stream, Endian::Little.into());
         reader.seek(SeekFrom::Start(row_pos)).await?;

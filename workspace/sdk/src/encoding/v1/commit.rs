@@ -1,10 +1,10 @@
-use async_trait::async_trait;
-use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
-use std::io::Result;
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use rs_merkle::{algorithms::Sha256, MerkleProof};
 use super::encoding_error;
 use crate::commit::CommitProof;
+use async_trait::async_trait;
+use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use rs_merkle::{algorithms::Sha256, MerkleProof};
+use std::io::Result;
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

@@ -12,8 +12,8 @@ use crate::{
     Timestamp,
 };
 
-use std::io::{Error, ErrorKind, Result, SeekFrom};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use std::io::{Error, ErrorKind, Result, SeekFrom};
 
 use super::encoding_error;
 use async_trait::async_trait;
