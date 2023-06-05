@@ -4,7 +4,7 @@ use std::{io::SeekFrom, ops::Range, path::Path};
 use binary_stream::{futures::BinaryReader, Endian};
 
 use crate::{
-    encoding::stream_len,
+    encoding::{stream_len, encoding_options},
     formats::{FileIdentity, FileItem},
     vfs::File,
     Result,
@@ -134,7 +134,7 @@ where
         let row_pos = self.forward.unwrap();
 
         let mut reader =
-            BinaryReader::new(&mut self.read_stream, Endian::Little.into());
+            BinaryReader::new(&mut self.read_stream, encoding_options());
         reader.seek(SeekFrom::Start(row_pos)).await?;
         let row_len = reader.read_u32().await?;
 
@@ -159,7 +159,7 @@ where
         let row_pos = self.backward.unwrap();
 
         let mut reader =
-            BinaryReader::new(&mut self.read_stream, Endian::Little.into());
+            BinaryReader::new(&mut self.read_stream, encoding_options());
 
         // Read in the reverse iteration row length
         reader.seek(SeekFrom::Start(row_pos - 4)).await?;

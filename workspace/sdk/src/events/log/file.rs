@@ -1,6 +1,6 @@
 //! Event log file.
 //!
-//! Event logd consist of a 4 identity bytes followed by one or more
+//! Event logs consist of a 4 identity bytes followed by one or more
 //! rows of log records.
 //!
 //! Each row contains the row length prepended and appended so that
@@ -17,6 +17,7 @@
 use crate::{
     commit::{event_log_commit_tree_file, CommitHash, CommitTree},
     constants::EVENT_LOG_IDENTITY,
+    encoding::encoding_options,
     encode,
     events::WriteEvent,
     formats::{event_log_stream, EventLogFileRecord, FileItem, FileStream},
@@ -308,7 +309,7 @@ impl EventLogFile {
 
         let mut stream = BufReader::new(Cursor::new(&mut buffer));
         let mut reader =
-            BinaryReader::new(&mut stream, Endian::Little.into());
+            BinaryReader::new(&mut stream, encoding_options());
         let mut event: WriteEvent = Default::default();
 
         event.decode(&mut reader).await?;

@@ -30,7 +30,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     encode,
-    encoding::stream_len,
+    encoding::{encoding_options, stream_len},
     events::{ReadEvent, WriteEvent},
     vault::{
         secret::SecretId, Contents, Header, Summary, VaultAccess,
@@ -165,7 +165,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
 
         let mut stream = self.stream.lock().await;
         let mut reader =
-            BinaryReader::new(&mut *stream, Endian::Little.into());
+            BinaryReader::new(&mut *stream, encoding_options());
         reader.seek(SeekFrom::Start(content_offset)).await?;
 
         // Scan all the rows
@@ -248,7 +248,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         let mut stream = self.stream.lock().await;
 
         let mut writer =
-            BinaryWriter::new(&mut *stream, Endian::Little.into());
+            BinaryWriter::new(&mut *stream, encoding_options());
         let row = VaultCommit(commit, secret);
 
         // Seek to the end of the file and append the row
@@ -271,7 +271,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         if let Some((row_offset, _)) = row {
             let mut stream = self.stream.lock().await;
             let mut reader =
-                BinaryReader::new(&mut *stream, Endian::Little.into());
+                BinaryReader::new(&mut *stream, encoding_options());
             reader.seek(SeekFrom::Start(row_offset)).await?;
             let (_, value) = Contents::decode_row(&mut reader).await?;
             Ok((Some(Cow::Owned(value)), event))
@@ -293,7 +293,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
             let mut buffer = Vec::new();
             let mut stream = BufWriter::new(Cursor::new(&mut buffer));
             let mut writer =
-                BinaryWriter::new(&mut stream, Endian::Little.into());
+                BinaryWriter::new(&mut stream, encoding_options());
 
             let row = VaultCommit(commit, secret);
             Contents::encode_row(&mut writer, id, &row).await?;
@@ -349,6 +349,7 @@ mod tests {
         commit::CommitHash,
         constants::DEFAULT_VAULT_NAME,
         crypto::PrivateKey,
+        encoding::encoding_options,
         events::WriteEvent,
         vault::{
             secret::*, Contents, Header, Vault, VaultAccess, VaultCommit,
@@ -426,12 +427,12 @@ mod tests {
 
         let mut buffer = Vec::new();
         let mut stream = BufWriter::new(Cursor::new(&mut buffer));
-        let mut writer = BinaryWriter::new(&mut stream, Default::default());
+        let mut writer = BinaryWriter::new(&mut stream, encoding_options());
         Contents::encode_row(&mut writer, &secret_id, &row).await?;
         writer.flush().await?;
 
         let mut stream = BufReader::new(Cursor::new(&mut buffer));
-        let mut reader = BinaryReader::new(&mut stream, Default::default());
+        let mut reader = BinaryReader::new(&mut stream, encoding_options());
 
         let (secret_id, decoded_row) =
             Contents::decode_row(&mut reader).await?;

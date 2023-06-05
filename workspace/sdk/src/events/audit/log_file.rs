@@ -12,6 +12,7 @@ use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 use crate::{
     constants::AUDIT_IDENTITY,
+    encoding::encoding_options,
     formats::{audit_stream, FileItem, FileRecord, FileStream},
     vfs::{self, File},
     Result,
@@ -74,7 +75,7 @@ impl AuditLogFile {
 
         let mut stream = BufReader::new(Cursor::new(&buf));
         let mut reader =
-            BinaryReader::new(&mut stream, Endian::Little.into());
+            BinaryReader::new(&mut stream, encoding_options());
         Ok(AuditLogFile::decode_row(&mut reader).await?)
     }
 }
@@ -92,7 +93,7 @@ impl AuditProvider for AuditLogFile {
             let mut buffer = Vec::new();
             let mut stream = BufWriter::new(Cursor::new(&mut buffer));
             let mut writer =
-                BinaryWriter::new(&mut stream, Endian::Little.into());
+                BinaryWriter::new(&mut stream, encoding_options());
             for event in events {
                 AuditLogFile::encode_row(&mut writer, event).await?;
                 writer.flush().await?;
