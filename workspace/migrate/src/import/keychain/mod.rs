@@ -343,6 +343,8 @@ end tell
 mod test {
     use super::*;
     use anyhow::Result;
+
+    #[cfg(feature = "interactive-keychain-tests")]
     use sos_sdk::{crypto::AccessKey, vault::VaultBuilder};
 
     fn find_test_keychain() -> Result<UserKeychain> {
