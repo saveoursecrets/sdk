@@ -16,7 +16,7 @@ use super::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter, Decode, Encode};
 use std::io::{Error, ErrorKind, Result, SeekFrom};
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite, AsyncSeekExt};
 
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -81,6 +81,7 @@ impl Encode for VaultCommit {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
+        // Write the UUID
         writer.write_bytes(self.0.as_ref()).await?;
 
         println!("row trying to tell...");
@@ -369,7 +370,7 @@ impl Contents {
         let size_pos = writer.tell().await?;
         writer.write_u32(0).await?;
 
-        println!("wrote length placeholder...");
+        println!("wrote length placeholder {}", size_pos);
 
         writer.write_bytes(key.as_bytes()).await?;
     
@@ -407,8 +408,6 @@ impl Contents {
             .try_into()
             .map_err(encoding_error)?;
         let uuid = Uuid::from_bytes(uuid);
-
-        println!("decoded uuid {} {}", uuid, reader.tell().await?);
 
         let mut row: VaultCommit = Default::default();
         row.decode(&mut *reader).await?;

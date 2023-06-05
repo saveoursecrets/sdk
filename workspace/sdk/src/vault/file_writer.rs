@@ -74,6 +74,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
     /// Check the identity bytes and return the byte offset of the
     /// beginning of the vault content area.
     async fn check_identity(&self) -> Result<u64> {
+        println!("checking the identity...!!!");
         Header::read_content_offset(&self.file_path).await
     }
 
@@ -83,6 +84,9 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         content_offset: u64,
         header: &Header,
     ) -> Result<()> {
+            
+        println!("writing header...");
+
         let head = encode(header).await?;
         let mut file = OpenOptions::new()
             .read(true)
@@ -118,6 +122,9 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         tail: Range<u64>,
         content: Option<&[u8]>,
     ) -> Result<()> {
+        
+        println!("splcing...");
+
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -167,7 +174,6 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
 
         let mut stream = self.stream.lock().await;
         let mut reader = BinaryReader::new(&mut *stream, Endian::Little.into());
-
         reader.seek(SeekFrom::Start(content_offset)).await?;
 
         // Scan all the rows
@@ -254,12 +260,9 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
 
         // Seek to the end of the file and append the row
         writer.seek(SeekFrom::End(0)).await?;
-        println!("after insert seek");
 
         println!("encoding the row...");
-
         Contents::encode_row(&mut writer, &id, &row).await?;
-
         println!("after encoding the row...");
 
         writer.flush().await?;
@@ -351,26 +354,25 @@ mod tests {
     use crate::test_utils::*;
     use crate::{
         constants::DEFAULT_VAULT_NAME,
+        commit::CommitHash,
         crypto::PrivateKey,
         events::WriteEvent,
-        vault::{secret::*, Header, Vault, VaultAccess, VaultEntry},
+        vault::{secret::*, Header, Vault, VaultAccess, VaultEntry, VaultCommit, Contents},
     };
     use anyhow::Result;
     use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
+    use futures::io::{Cursor, BufWriter, BufReader};
+    use binary_stream::futures::{BinaryWriter, BinaryReader};
+
     use uuid::Uuid;
 
-    type SecureNoteResult = (SecretId, SecretMeta, Secret, Vec<u8>, Vec<u8>);
-
-    async fn create_secure_note<
-        F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send,
-    >(
-        vault_access: &mut VaultWriter<F>,
+    async fn get_vault_entry(
         vault: &Vault,
         encryption_key: &PrivateKey,
         secret_label: &str,
         secret_note: &str,
-    ) -> Result<SecureNoteResult> {
+    ) -> Result<(CommitHash, VaultEntry)> {
         let (secret_meta, secret_value, meta_bytes, secret_bytes) =
             mock_secret_note(secret_label, secret_note).await?;
 
@@ -381,22 +383,62 @@ mod tests {
         let (commit, _) =
             Vault::commit_hash(&meta_aead, &secret_aead).await?;
 
+        let entry = VaultEntry(meta_aead, secret_aead);
+
+        Ok((commit, entry))
+    }
+
+    async fn create_secure_note<
+        F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send,
+    >(
+        vault_access: &mut VaultWriter<F>,
+        vault: &Vault,
+        encryption_key: &PrivateKey,
+        secret_label: &str,
+        secret_note: &str,
+    ) -> Result<SecretId> {
+            
+        let (commit, entry) = get_vault_entry(vault, encryption_key, secret_label, secret_note).await?;
+        
         println!("trying to create...");
 
         if let WriteEvent::CreateSecret(secret_id, _) = vault_access
-            .create(commit, VaultEntry(meta_aead, secret_aead))
+            .create(commit, entry)
             .await?
         {
-            Ok((
-                secret_id,
-                secret_meta,
-                secret_value,
-                meta_bytes,
-                secret_bytes,
-            ))
+            Ok(secret_id)
         } else {
             panic!("expecting create secret payload");
         }
+    }
+
+    #[tokio::test]
+    async fn vault_encode_decode_row() -> Result<()> {
+        let (encryption_key, _, _) = mock_encryption_key()?;
+        let (temp, vault, _) = mock_vault_file().await?;
+
+        let secret_label = "Test note";
+        let secret_note = "Super secret note for you to read.";
+        let (commit, entry) = get_vault_entry(
+            &vault, &encryption_key, secret_label, secret_note).await?;
+
+        let secret_id = SecretId::new_v4();
+        let row = VaultCommit(commit, entry);
+
+        let mut buffer = Vec::new();
+        let mut stream = BufWriter::new(Cursor::new(&mut buffer));
+        let mut writer = BinaryWriter::new(&mut stream, Default::default());
+        Contents::encode_row(&mut writer, &secret_id, &row).await?;
+        writer.flush().await?;
+        
+        let mut stream = BufReader::new(Cursor::new(&mut buffer));
+        let mut reader = BinaryReader::new(&mut stream, Default::default());
+            
+        let (secret_id, decoded_row) = Contents::decode_row(
+            &mut reader).await?;
+        assert_eq!(row, decoded_row);
+
+        Ok(())
     }
 
     #[tokio::test]
@@ -406,28 +448,16 @@ mod tests {
 
         let vault_file = VaultWriter::open(temp.path()).await?;
         let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;
-
-        println!("created writer...");
-
+        
         // Missing row should not exist
         let missing_id = Uuid::new_v4();
-
-        println!("first read...");
         let (row, _) = vault_access.read(&missing_id).await?;
         assert!(row.is_none());
-
-        println!("after first read...");
 
         // Create a secret note
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
-        let (
-            secret_id,
-            _secret_meta,
-            _secret_value,
-            _meta_bytes,
-            _secret_bytes,
-        ) = create_secure_note(
+        let secret_id = create_secure_note(
             &mut vault_access,
             &vault,
             &encryption_key,
@@ -439,29 +469,18 @@ mod tests {
         println!("after create secure note");
 
         // Verify the secret exists
-        println!("second read...");
         let (row, _) = vault_access.read(&secret_id).await?;
         assert!(row.is_some());
 
-        println!("trying to delete...");
-
         // Delete the secret
         let _ = vault_access.delete(&secret_id).await?;
-
-        println!("after deleted...");
 
         // Verify it does not exist after deletion
         let (row, _) = vault_access.read(&secret_id).await?;
         assert!(row.is_none());
 
         // Create a new secure note so we can update it
-        let (
-            secret_id,
-            _secret_meta,
-            _secret_value,
-            _meta_bytes,
-            _secret_bytes,
-        ) = create_secure_note(
+        let secret_id = create_secure_note(
             &mut vault_access,
             &vault,
             &encryption_key,
@@ -526,13 +545,7 @@ mod tests {
 
         let mut secret_ids = Vec::new();
         for note_data in secrets {
-            let (
-                secret_id,
-                _secret_meta,
-                _secret_value,
-                _meta_bytes,
-                _secret_bytes,
-            ) = create_secure_note(
+            let secret_id = create_secure_note(
                 &mut vault_access,
                 &vault,
                 &encryption_key,
