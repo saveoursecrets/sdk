@@ -5817,7 +5817,6 @@ dependencies = [
  "futures",
  "hex",
  "http",
- "hyper",
  "if-addrs 0.10.1",
  "libp2p",
  "libp2p-quic",
