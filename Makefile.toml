@@ -152,18 +152,3 @@ args = ["clean", "--target-dir", "target/cover"]
 
 [tasks.cover]
 dependencies = ["clean-cover", "clean-coverage", "coverage", "genhtml", "clean-profraw"]
-
-[tasks.brew]
-script = '''
-cd target && rm -rf homebrew && mkdir homebrew && cd homebrew
-mkdir -p arm x86
-for bin in ${BINARIES}; do
-  cp ../x86_64-apple-darwin/release/$bin ./x86
-  cp ../aarch64-apple-darwin/release/$bin ./arm
-done
-
-TARBALL=sos-tools-macos-release-${CARGO_MAKE_CRATE_VERSION}.tar.gz
-tar -czvf ../${TARBALL} ./x86 ./arm;
-shasum -a 256 ../${TARBALL}
-'''
-dependencies = ["release-macos-arm", "release-macos-x86"]
