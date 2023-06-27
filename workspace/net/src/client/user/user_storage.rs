@@ -516,7 +516,7 @@ impl UserStorage {
         Ok(())
     }
 
-    /// Import a folder (vault).
+    /// Import a folder (vault) from a file.
     pub async fn import_folder<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -524,7 +524,16 @@ impl UserStorage {
         overwrite: bool,
     ) -> Result<Summary> {
         let buffer = vfs::read(path.as_ref()).await?;
+        self.import_folder_buffer(&buffer, key, overwrite).await
+    }
 
+    /// Import a folder (vault) from a buffer.
+    pub async fn import_folder_buffer(
+        &mut self,
+        buffer: &[u8],
+        key: AccessKey,
+        overwrite: bool,
+    ) -> Result<Summary> {
         let mut vault: Vault = decode(&buffer).await?;
 
         // Need to verify the passphrase
@@ -577,7 +586,7 @@ impl UserStorage {
                 // Need to update the buffer as we changed the data
                 encode(&vault).await?
             } else {
-                buffer
+                buffer.to_vec()
             };
 
         let summary = vault.summary().clone();
