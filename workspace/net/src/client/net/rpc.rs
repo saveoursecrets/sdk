@@ -59,7 +59,7 @@ pub struct RpcClient {
     server_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
-    protocol: ProtocolState,
+    protocol: Option<ProtocolState>,
     client: reqwest::Client,
     id: AtomicU64,
     #[deprecated]
@@ -87,7 +87,7 @@ impl RpcClient {
             server_public_key,
             signer,
             keypair,
-            protocol,
+            protocol: Some(protocol),
             client,
             session: None,
             id: AtomicU64::from(1),
@@ -118,10 +118,16 @@ impl RpcClient {
     }
 
     /// Determine if this client's session is ready for use.
+    #[deprecated(note="use is_transport_ready()")]
     pub async fn is_ready(&self) -> Result<bool> {
         let lock = self.session.as_ref().ok_or(Error::NoSession)?;
         let session = lock.read().await;
         Ok(session.ready())
+    }
+    
+    /// Determine if the noise transport is ready.
+    pub fn is_transport_ready(&self) -> bool {
+        matches!(self.protocol, Some(ProtocolState::Transport(_)))
     }
 
     /// Get the next request identifier.
@@ -131,7 +137,9 @@ impl RpcClient {
 
     /// Perform the handshake for the noise protocol.
     pub async fn handshake(&mut self) -> Result<()> {
-        if let ProtocolState::Handshake(initiator) = &mut self.protocol {
+        let (len, body) = if let Some(ProtocolState::Handshake(initiator)) =
+            self.protocol.as_mut()
+        {
             let mut message = [0u8; 1024];
             let len = initiator.write_message(&[], &mut message)?;
 
@@ -145,19 +153,34 @@ impl RpcClient {
             )?;
             let packet = Packet::new_request(request);
             let body = encode(&packet).await?;
-
-            let (_session_id, sign_bytes, body) = body!(
-                self,
-                id,
-                HANDSHAKE_INITIATE,
-                len,
-                Cow::Borrowed(&message)
-            );
-
             let response = self.client.post(url).body(body).send().await?;
 
-            todo!("send initiator message to the server");
-        }
+            let (_status, result, body) = self
+                .read_response::<usize>(
+                    response.status(),
+                    &response.bytes().await?,
+                )
+                .await?;
+            (result?, body)
+        } else {
+            // TODO: better error handling here
+            panic!("not handshake state");
+        };
+
+        let transport = if let Some(ProtocolState::Handshake(mut initiator)) =
+            self.protocol.take()
+        {
+            let mut reply = [0u8; 1024];
+            initiator.read_message(&body[..len], &mut reply)?;
+
+            let transport = initiator.into_transport_mode()?;
+            transport
+        } else {
+            unreachable!();
+        };
+
+        self.protocol = Some(ProtocolState::Transport(transport));
+
         Ok(())
     }
 

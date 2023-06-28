@@ -4,7 +4,10 @@ use sos_net::{
     },
     FileLocks,
 };
-use sos_sdk::{crypto::channel::SessionManager, events::AuditLogFile};
+use sos_sdk::{
+    crypto::channel::{ServerTransportManager, SessionManager},
+    events::AuditLogFile,
+};
 
 use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
@@ -34,6 +37,7 @@ pub async fn run(
     }
 
     let sessions = SessionManager::new(config.session.duration);
+    let transports = ServerTransportManager::new(config.session.duration);
 
     //println!("Config {:#?}", config);
 
@@ -62,6 +66,7 @@ pub async fn run(
         backend,
         audit_log,
         sockets: Default::default(),
+        transports,
         sessions,
     }));
 

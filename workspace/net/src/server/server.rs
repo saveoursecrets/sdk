@@ -21,7 +21,9 @@ use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
 use serde::Serialize;
 use sos_sdk::{
-    crypto::channel::SessionManager, events::AuditLogFile, mpc::Keypair,
+    crypto::channel::{ServerTransportManager, SessionManager},
+    events::AuditLogFile,
+    mpc::Keypair,
 };
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
@@ -56,7 +58,11 @@ pub struct State {
     pub backend: Backend,
     /// Audit log file
     pub audit_log: AuditLogFile,
+    /// Server transport manager.
+    pub transports: ServerTransportManager,
+
     /// Session manager.
+    #[deprecated]
     pub sessions: SessionManager,
     /// Map of websocket  channels by authenticated
     /// client address.

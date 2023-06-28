@@ -1,16 +1,17 @@
 use sos_sdk::{
     constants::HANDSHAKE_INITIATE,
+    crypto::channel::ServerTransport,
     mpc::{snow, PATTERN},
     rpc::{RequestMessage, ResponseMessage, Service},
 };
 
-use axum::http::StatusCode;
+use crate::server::State;
 use async_trait::async_trait;
-use std::{sync::Arc, borrow::Cow};
+use axum::http::StatusCode;
+use std::{borrow::Cow, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use web3_signature::Signature;
-use crate::server::State;
 
 /// Handshake service.
 ///
@@ -31,7 +32,7 @@ impl Service for HandshakeService {
             HANDSHAKE_INITIATE => {
                 let mut writer = state.write().await;
 
-                let (client_public_key, len) = 
+                let (client_public_key, len) =
                     request.parameters::<(Vec<u8>, usize)>()?;
                 let handshake = request.body();
 
@@ -42,19 +43,22 @@ impl Service for HandshakeService {
 
                 let mut message = [0u8; 1024];
                 responder.read_message(&handshake[..len], &mut message)?;
-                
+
                 let mut reply = [0u8; 1024];
                 let len = responder.write_message(&[], &mut reply)?;
 
-                let responder = responder.into_transport_mode();
+                let transport = responder.into_transport_mode()?;
+                let duration = writer.config.session.duration;
+                writer.transports.add_session(
+                    client_public_key,
+                    ServerTransport::new(duration, transport),
+                );
 
-                todo!("save responder protocol state");
-
-                let reply: ResponseMessage<'_> =
-                    ResponseMessage::new(request.id(),
+                let reply: ResponseMessage<'_> = ResponseMessage::new(
+                    request.id(),
                     StatusCode::OK,
                     Some(Ok(len)),
-                    Cow::Borrowed(&reply),
+                    Cow::Owned(reply.to_vec()),
                 )?;
                 Ok(reply)
             }
