@@ -52,8 +52,7 @@ impl Patch<'_> {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for Patch<'_> {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -67,8 +66,7 @@ impl Encodable for Patch<'_> {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for Patch<'_> {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
