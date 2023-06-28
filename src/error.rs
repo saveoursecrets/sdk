@@ -162,6 +162,9 @@ pub enum Error {
 
     #[error(transparent)]
     Mpc(#[from] sos_sdk::mpc::Error),
+
+    #[error(transparent)]
+    Hex(#[from] sos_sdk::hex::FromHexError),
 }
 
 impl Error {

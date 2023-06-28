@@ -31,7 +31,12 @@ pub enum ProviderFactory {
     /// a specific location for files.
     Local(Option<PathBuf>),
     /// Remote server with local disc storage.
-    Remote(Url),
+    Remote {
+        /// Server URL.
+        server: Url,
+        /// Public key of the server.
+        server_public_key: Vec<u8>,
+    },
 }
 
 impl fmt::Display for ProviderFactory {
@@ -45,7 +50,7 @@ impl fmt::Display for ProviderFactory {
                 };
                 write!(f, "file://{}", path.display())
             }
-            Self::Remote(remote) => write!(f, "{}", remote),
+            Self::Remote { server, .. } => write!(f, "{}", server),
         }
     }
 }
@@ -63,9 +68,10 @@ impl ProviderFactory {
         keypair: Keypair,
         data_dir: PathBuf,
         server: Url,
+        server_public_key: Vec<u8>,
     ) -> Result<(BoxedProvider, Address)> {
         let address = signer.address()?;
-        let client = RpcClient::new(server, signer, keypair);
+        let client = RpcClient::new(server, server_public_key, signer, keypair)?;
         let dirs = UserPaths::new(data_dir, &address.to_string());
         let provider: BoxedProvider =
             Box::new(RemoteProvider::new(client, dirs).await?);
@@ -102,13 +108,14 @@ impl ProviderFactory {
                 }
                 Ok(Self::new_local_file_provider(signer, dir).await?)
             }
-            Self::Remote(remote) => {
+            Self::Remote { server, server_public_key } => {
                 let dir = AppPaths::data_dir().map_err(|_| Error::NoCache)?;
                 Ok(Self::new_remote_file_provider(
                     signer,
                     keypair,
                     dir,
-                    remote.clone(),
+                    server.clone(),
+                    server_public_key.clone(),
                 )
                 .await?)
             }
@@ -124,7 +131,12 @@ impl FromStr for ProviderFactory {
             Ok(url) => {
                 let scheme = url.scheme();
                 if scheme == "http" || scheme == "https" {
-                    Ok(Self::Remote(url))
+                    todo!("parse public key from server url");
+                    /*
+                    Ok(Self::Remote {
+                        server: url,
+                    })
+                    */
                 } else if scheme == "file" {
                     let path = s.trim_start_matches("file://");
                     if path.is_empty() {
@@ -146,12 +158,14 @@ impl FromStr for ProviderFactory {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn spawn_changes_listener(
     server: Url,
+    server_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
     cache: ArcProvider,
 ) {
     use crate::client::changes_listener::ChangesListener;
-    let listener = ChangesListener::new(server, signer, keypair);
+    let listener = ChangesListener::new(
+        server, server_public_key, signer, keypair);
     listener.spawn(move |notification| {
         let cache = Arc::clone(&cache);
         async move {

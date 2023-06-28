@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{
     account::AccountRef, storage::AppPaths, url::Url, vault::VaultRef,
+    hex,
 };
 use std::path::PathBuf;
 
@@ -98,6 +99,9 @@ pub enum Command {
         #[clap(short, long)]
         server: Url,
 
+        /// Public key of the remote server.
+        public_key: String,
+
         /// Account name or address.
         #[clap(short, long)]
         account: AccountRef,
@@ -175,8 +179,9 @@ pub async fn run() -> Result<()> {
         } => generate_keypair::run(file, force, public_key).await?,
         Command::Secret { cmd } => secret::run(cmd, factory).await?,
         Command::Audit { cmd } => audit::run(cmd).await?,
-        Command::Changes { server, account } => {
-            changes::run(server, account).await?
+        Command::Changes { server, public_key, account } => {
+            let server_public_key = hex::decode(&public_key)?;
+            changes::run(server, server_public_key, account).await?
         }
         Command::Check { cmd } => check::run(cmd).await?,
         Command::Shell { account, folder } => {

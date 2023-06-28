@@ -24,6 +24,7 @@ const INTERVAL_MS: u64 = 15000;
 #[derive(Clone)]
 pub struct ChangesListener {
     remote: Url,
+    remote_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
 }
@@ -32,11 +33,13 @@ impl ChangesListener {
     /// Create a new changes listener.
     pub fn new(
         remote: Url,
+        remote_public_key: Vec<u8>,
         signer: BoxedEcdsaSigner,
         keypair: Keypair,
     ) -> Self {
         Self {
             remote,
+            remote_public_key,
             signer,
             keypair,
         }
@@ -82,6 +85,7 @@ impl ChangesListener {
     async fn stream(&self) -> Result<(WsStream, ClientSession)> {
         connect(
             self.remote.clone(),
+            self.remote_public_key.clone(),
             self.signer.clone(),
             self.keypair.clone(),
         )

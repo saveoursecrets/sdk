@@ -13,7 +13,7 @@ use sos_sdk::{
         AeadPack,
     },
     decode, encode,
-    mpc::Keypair,
+    mpc::{Keypair, snow, PATTERN, ProtocolState},
     patch::Patch,
     rpc::{Packet, RequestMessage, ResponseMessage},
     signer::ecdsa::BoxedEcdsaSigner,
@@ -56,29 +56,42 @@ async fn new_rpc_call<T: Serialize>(
 /// Client implementation for RPC requests.
 pub struct RpcClient {
     server: Url,
+    server_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
+    protocol: ProtocolState,
     client: reqwest::Client,
-    session: Option<RwLock<ClientSession>>,
     id: AtomicU64,
+    #[deprecated]
+    session: Option<RwLock<ClientSession>>,
 }
 
 impl RpcClient {
     /// Create a new request client.
     pub fn new(
         server: Url,
+        server_public_key: Vec<u8>,
         signer: BoxedEcdsaSigner,
         keypair: Keypair,
-    ) -> Self {
+    ) -> Result<Self> {
         let client = reqwest::Client::new();
-        Self {
+
+        let mut initiator = snow::Builder::new(PATTERN.parse()?)
+            .local_private_key(keypair.private_key())
+            .remote_public_key(&server_public_key)
+            .build_initiator()?;
+        let protocol = ProtocolState::Handshake(Box::new(initiator));
+
+        Ok(Self {
             server,
+            server_public_key,
             signer,
             keypair,
+            protocol,
             client,
             session: None,
             id: AtomicU64::from(1),
-        }
+        })
     }
 
     /// Get the signer for this client.
@@ -116,8 +129,19 @@ impl RpcClient {
         self.id.fetch_add(1, Ordering::SeqCst)
     }
 
+    /// Perform the handshake for the noise protocol.
+    pub async fn handshake(&mut self) -> Result<()> {
+        if let ProtocolState::Handshake(initiator) = &mut self.protocol {
+            let mut message = [0u8; 1024];
+            let len = initiator.write_message(&[], &mut message)?;
+            todo!("send initiator message to the server");
+        }
+        Ok(())
+    }
+
     /// Attempt to authenticate to the remote node and store
     /// the client session.
+    #[deprecated(note="use noise handshake()")]
     pub async fn authenticate(&mut self) -> Result<()> {
         let session = self.new_session().await?;
         self.session = Some(RwLock::new(session));

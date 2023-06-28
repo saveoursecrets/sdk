@@ -62,6 +62,7 @@ impl IntoClientRequest for WebSocketRequest {
 /// Create the websocket connection and listen for events.
 pub async fn connect(
     remote: Url,
+    remote_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
 ) -> Result<(WsStream, ClientSession)> {
@@ -71,7 +72,7 @@ pub async fn connect(
 
     //let endpoint = changes_endpoint_url(&remote)?;
 
-    let client = RpcClient::new(remote, signer, keypair);
+    let client = RpcClient::new(remote, remote_public_key, signer, keypair)?;
     let mut session = client.new_session().await?;
 
     let host = endpoint.host_str().unwrap().to_string();

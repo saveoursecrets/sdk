@@ -70,7 +70,7 @@ pub async fn login(
 ) -> Result<RemoteProvider> {
     let address = signer.address()?;
     let dirs = UserPaths::new(data_dir, &address.to_string());
-    let client = RpcClient::new(server, signer.clone(), keypair);
+    let client = RpcClient::new(server, signer.clone(), keypair)?;
 
     let mut cache = RemoteProvider::new(client, dirs).await?;
 
@@ -95,7 +95,7 @@ async fn create_account(
 
     let address = signer.address()?;
     let dirs = UserPaths::new(data_dir, &address.to_string());
-    let client = RpcClient::new(server, signer.clone(), keypair);
+    let client = RpcClient::new(server, signer.clone(), keypair)?;
 
     let mut cache = RemoteProvider::new(client, dirs).await?;
 
