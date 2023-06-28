@@ -6,7 +6,7 @@ use url::{Host, Url};
 use super::backend::{Backend, FileSystemBackend};
 use super::{Error, Result};
 
-use sos_sdk::{vfs, mpc};
+use sos_sdk::{vfs, mpc::{decode_keypair, Keypair}};
 
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -115,7 +115,7 @@ impl Default for StorageConfig {
 
 impl ServerConfig {
     /// Load a server config from a file path.
-    pub async fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn load<P: AsRef<Path>>(path: P) -> Result<(Self, Keypair)> {
         if !vfs::try_exists(path.as_ref()).await? {
             return Err(Error::NotFile(path.as_ref().to_path_buf()));
         }
@@ -135,7 +135,7 @@ impl ServerConfig {
         }
 
         let contents = vfs::read_to_string(&config.key).await?;
-        let keypair = mpc::decode_keypair(contents)?;
+        let keypair = decode_keypair(contents)?;
 
         if let Some(tls) = config.tls.as_mut() {
             if tls.cert.is_relative() {
@@ -149,7 +149,7 @@ impl ServerConfig {
             tls.key = tls.key.canonicalize()?;
         }
 
-        Ok(config)
+        Ok((config, keypair))
     }
 
     /// Parent directory of the configuration file.

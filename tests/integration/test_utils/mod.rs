@@ -69,7 +69,7 @@ impl MockServer {
 
         tracing::info!("start mock server {:#?}", addr);
 
-        let config = ServerConfig::load("tests/config.toml").await?;
+        let (config, keypair) = ServerConfig::load("tests/config.toml").await?;
 
         let mut backend = config.backend().await?;
 
@@ -82,6 +82,7 @@ impl MockServer {
         let audit_log = AuditLogFile::new(config.audit_file()).await?;
 
         let state = Arc::new(RwLock::new(State {
+            keypair,
             info: ServerInfo {
                 name: String::from("integration-test"),
                 version: String::from("0.0.0"),

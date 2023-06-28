@@ -23,7 +23,7 @@ pub async fn run(
     let name = env!("CARGO_PKG_NAME").to_string();
     let version = env!("CARGO_PKG_VERSION").to_string();
 
-    let mut config = ServerConfig::load(&config).await?;
+    let (mut config, keypair) = ServerConfig::load(&config).await?;
 
     if let Some(reap_interval) = reap_interval {
         config.session.reap_interval = reap_interval;
@@ -56,6 +56,7 @@ pub async fn run(
     let audit_log = AuditLogFile::new(&audit_log_file).await?;
 
     let state = Arc::new(RwLock::new(State {
+        keypair,
         info: ServerInfo { name, version },
         config,
         backend,
