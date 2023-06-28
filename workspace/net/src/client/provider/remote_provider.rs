@@ -122,10 +122,8 @@ impl StorageProvider for RemoteProvider {
         let buffer = encode(&vault).await?;
 
         let status = if is_account {
-            let (status, _) = retry!(
-                || self.client.create_account(buffer.clone()),
-                self.client
-            );
+            let (status, _) =
+                self.client.create_account(buffer.clone()).await?;
             status
         } else {
             let (status, _) = retry!(
@@ -191,10 +189,7 @@ impl StorageProvider for RemoteProvider {
         let vault: Vault = decode(&buffer).await?;
         let summary = vault.summary().clone();
 
-        let (status, _) = retry!(
-            || self.client.create_account(buffer.clone()),
-            self.client
-        );
+        let (status, _) = self.client.create_account(buffer.clone()).await?;
 
         status
             .is_success()
@@ -212,6 +207,10 @@ impl StorageProvider for RemoteProvider {
         self.create_cache_entry(&summary, Some(vault)).await?;
 
         Ok((WriteEvent::CreateVault(Cow::Owned(buffer)), summary))
+    }
+
+    async fn handshake(&mut self) -> Result<()> {
+        Ok(self.client.handshake().await?)
     }
 
     async fn authenticate(&mut self) -> Result<()> {

@@ -13,9 +13,12 @@ use sos_sdk::{
         AeadPack,
     },
     decode, encode,
-    mpc::{snow, Keypair, ProtocolState, PATTERN},
+    mpc::{
+        channel::{decrypt_server_channel, encrypt_server_channel},
+        snow, Keypair, ProtocolState, SealedEnvelope, PATTERN,
+    },
     patch::Patch,
-    rpc::{Packet, RequestMessage, ResponseMessage},
+    rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
     signer::ecdsa::BoxedEcdsaSigner,
     vault::Summary,
 };
@@ -40,6 +43,18 @@ macro_rules! body {
         $client.build_request(&body).await?
     }};
 }
+
+/*
+macro_rules! body2 {
+    ($client:expr, $id:expr, $method:expr, $params:expr, $body:expr) => {{
+        let request =
+            RequestMessage::new(Some($id), $method, $params, $body)?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
+        $client.build_request2(&body).await?
+    }};
+}
+*/
 
 /// Create an RPC call without a body.
 async fn new_rpc_call<T: Serialize>(
@@ -118,13 +133,13 @@ impl RpcClient {
     }
 
     /// Determine if this client's session is ready for use.
-    #[deprecated(note="use is_transport_ready()")]
+    #[deprecated(note = "use is_transport_ready()")]
     pub async fn is_ready(&self) -> Result<bool> {
         let lock = self.session.as_ref().ok_or(Error::NoSession)?;
         let session = lock.read().await;
         Ok(session.ready())
     }
-    
+
     /// Determine if the noise transport is ready.
     pub fn is_transport_ready(&self) -> bool {
         matches!(self.protocol, Some(ProtocolState::Transport(_)))
@@ -244,28 +259,37 @@ impl RpcClient {
 
     /// Create a new account.
     pub async fn create_account(
-        &self,
+        &mut self,
         vault: Vec<u8>,
-    ) -> Result<MaybeRetry<Option<CommitProof>>> {
+    ) -> Result<(StatusCode, CommitProof)> {
         let url = self.server.join("api/account")?;
 
         let id = self.next_id();
-        let (session_id, sign_bytes, body) =
-            body!(self, id, ACCOUNT_CREATE, (), Cow::Owned(vault));
-
+        let request = RequestMessage::new(
+            Some(id),
+            ACCOUNT_CREATE,
+            (),
+            Cow::Owned(vault),
+        )?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
-        let response =
-            self.send_request(url, session_id, signature, body).await?;
+            encode_signature(self.signer.sign(&body).await?).await?;
 
-        let maybe_retry = self
-            .read_encrypted_response::<CommitProof>(
+        let body = self.build_request2(&body).await?;
+
+        let response = self.send_request2(url, signature, body).await?;
+        let status = response.status();
+        let (proof, _) = self
+            .read_protocol_response::<CommitProof>(
                 response.status(),
                 &response.bytes().await?,
             )
             .await?;
 
-        maybe_retry.map(|result, _| Ok(result.ok()))
+        println!("created account {:#?}", status);
+
+        Ok((status, proof))
     }
 
     /// List vaults for an account.
@@ -536,6 +560,18 @@ impl RpcClient {
         Ok((session_id, sign_bytes, body))
     }
 
+    /// Build an encrypted request.
+    async fn build_request2(&mut self, request: &[u8]) -> Result<Vec<u8>> {
+        let protocol = self.protocol.as_mut().ok_or(Error::NoSession)?;
+        let envelope =
+            encrypt_server_channel(protocol, request, false).await?;
+        let payload = ServerEnvelope {
+            public_key: self.keypair.public_key().to_vec(),
+            envelope,
+        };
+        Ok(encode(&payload).await?)
+    }
+
     /// Send an encrypted session request.
     async fn send_request(
         &self,
@@ -549,6 +585,23 @@ impl RpcClient {
             .post(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
             .header(X_SESSION, session_id.to_string())
+            .body(body)
+            .send()
+            .await?;
+        Ok(response)
+    }
+
+    /// Send an encrypted session request.
+    async fn send_request2(
+        &self,
+        url: Url,
+        signature: String,
+        body: Vec<u8>,
+    ) -> Result<reqwest::Response> {
+        let response = self
+            .client
+            .post(url)
+            .header(AUTHORIZATION, bearer_prefix(&signature))
             .body(body)
             .send()
             .await?;
@@ -608,6 +661,29 @@ impl RpcClient {
             let (_, status, result, body) = response.take::<T>()?;
             let result = result.ok_or(Error::NoReturnValue)?;
             Ok(RetryResponse::Complete(status, result, body))
+        } else {
+            Err(Error::ResponseCode(http_status.into()))
+        }
+    }
+
+    /// Read an encrypted response to an RPC call.
+    async fn read_protocol_response<T: DeserializeOwned>(
+        &mut self,
+        http_status: StatusCode,
+        buffer: &[u8],
+    ) -> Result<(T, Vec<u8>)> {
+        if http_status.is_success() || http_status == StatusCode::CONFLICT {
+            let protocol = self.protocol.as_mut().ok_or(Error::NoSession)?;
+            let message: ServerEnvelope = decode(buffer).await?;
+            let (encoding, buffer) =
+                decrypt_server_channel(protocol, message.envelope).await?;
+
+            let reply: Packet<'static> = decode(&buffer).await?;
+            let response: ResponseMessage<'static> = reply.try_into()?;
+
+            let (_, _status, result, body) = response.take::<T>()?;
+            let result = result.ok_or(Error::NoReturnValue)?;
+            Ok((result?, body))
         } else {
             Err(Error::ResponseCode(http_status.into()))
         }

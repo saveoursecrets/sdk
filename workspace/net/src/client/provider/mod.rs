@@ -195,6 +195,11 @@ pub trait StorageProvider: Sync + Send {
         Ok(())
     }
 
+    /// Handshake with a remote server.
+    async fn handshake(&mut self) -> Result<()> {
+        Ok(())
+    }
+
     /// Attempt to open an authenticated, encrypted session.
     ///
     /// Must be called before using any other methods that

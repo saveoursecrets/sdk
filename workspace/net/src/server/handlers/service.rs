@@ -45,32 +45,29 @@ impl ServiceHandler {
     pub(crate) async fn account(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
-        TypedHeader(session_id): TypedHeader<Session>,
         body: Bytes,
     ) -> Result<(StatusCode, Bytes), StatusCode> {
         let service = AccountService {};
-        private_service(service, state, bearer, session_id.id(), body).await
+        private_service(service, state, bearer, body).await
     }
 
     /// Handle requests for the vault service.
     pub(crate) async fn vault(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
-        TypedHeader(session_id): TypedHeader<Session>,
         body: Bytes,
     ) -> Result<(StatusCode, Bytes), StatusCode> {
         let service = VaultService {};
-        private_service(service, state, bearer, session_id.id(), body).await
+        private_service(service, state, bearer, body).await
     }
 
     /// Handle requests for the events service.
     pub(crate) async fn events(
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
-        TypedHeader(session_id): TypedHeader<Session>,
         body: Bytes,
     ) -> Result<(StatusCode, Bytes), StatusCode> {
         let service = EventLogService {};
-        private_service(service, state, bearer, session_id.id(), body).await
+        private_service(service, state, bearer, body).await
     }
 }

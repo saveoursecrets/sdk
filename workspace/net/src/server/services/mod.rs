@@ -8,7 +8,8 @@ use sos_sdk::{
     crypto::{channel::EncryptedChannel, AeadPack},
     decode, encode,
     events::{AuditEvent, AuditProvider, ChangeNotification},
-    rpc::{Packet, RequestMessage, Service},
+    mpc::channel::{decrypt_server_channel, encrypt_server_channel},
+    rpc::{Packet, RequestMessage, ServerEnvelope, Service},
 };
 use web3_address::ethereum::Address;
 
@@ -21,6 +22,7 @@ use crate::server::{authenticate, State};
 /// Type to represent the caller of a service request.
 pub struct Caller {
     address: Address,
+    #[deprecated]
     session_id: Uuid,
 }
 
@@ -31,6 +33,7 @@ impl Caller {
     }
 
     /// Get the session id of the caller.
+    #[deprecated]
     pub fn session_id(&self) -> &Uuid {
         &self.session_id
     }
@@ -124,106 +127,108 @@ pub(crate) async fn private_service(
     service: impl Service<State = PrivateState> + Sync + Send,
     state: Arc<RwLock<State>>,
     bearer: Authorization<Bearer>,
-    session_id: &Uuid,
     body: Bytes,
 ) -> Result<(StatusCode, Bytes), StatusCode> {
-    let mut writer = state.write().await;
-    let session = writer
-        .sessions
-        .get_mut(session_id)
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-    session
-        .valid()
-        .then_some(())
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-    let address = *session.identity();
+    let (server_public_key, client_public_key, request, token) = {
+        let mut writer = state.write().await;
 
-    let aead: AeadPack = decode(&body)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // Verify the nonce is ahead of this nonce
-    // otherwise we may have a possible replay attack
-    session
-        .verify_nonce(&aead.nonce)
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    // Verify the signature for the message
-    let sign_bytes = session
-        .sign_bytes::<sha3::Keccak256>(&aead.nonce)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // Parse the bearer token
-    let token = authenticate::bearer(bearer, sign_bytes)
-        .await
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    // Attempt to impersonate the session identity
-    if &token.address != session.identity() {
-        return Err(StatusCode::BAD_REQUEST);
-    }
-
-    // Decrypt the incoming data ensuring we update
-    // our session nonce for any reply
-    session.set_nonce(&aead.nonce);
-    let body = session
-        .decrypt(&aead)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // Decode the incoming packet and request message
-    let packet: Packet<'_> =
-        decode(&body).await.map_err(|_| StatusCode::BAD_REQUEST)?;
-    let request: RequestMessage<'_> = packet
-        .try_into()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // Refresh the session on activity
-    session.refresh();
-    drop(writer);
-
-    // Get a reply from the target service
-    let owner = Caller {
-        address,
-        session_id: *session_id,
-    };
-    let reply = service.serve((owner, Arc::clone(&state)), request).await;
-
-    let (status, body) = if let Some(reply) = reply {
-        let mut status = reply.status();
-
-        let response = Packet::new_response(reply);
-        let body = encode(&response)
+        let message: ServerEnvelope = decode(&body)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        // If we send an actual NOT_MODIFIED response then the
-        // client will not receive any body content so we have
-        // to mutate the actual HTTP response and let the client
-        // act on the inner status code
-        if status == StatusCode::NOT_MODIFIED {
-            status = StatusCode::OK;
-        }
+        let server_public_key = writer.keypair.public_key().to_vec();
+        let client_public_key = message.public_key.clone();
 
-        (status, body)
-    } else {
-        // Got a notification request without a message `id`
-        // so we send NO_CONTENT
-        (StatusCode::NO_CONTENT, vec![])
+        let transport = writer
+            .transports
+            .get_mut(&message.public_key)
+            .ok_or(StatusCode::UNAUTHORIZED)?;
+
+        transport
+            .valid()
+            .then_some(())
+            .ok_or(StatusCode::UNAUTHORIZED)?;
+
+        let (encoding, body) = decrypt_server_channel(
+            transport.protocol_mut(),
+            message.envelope,
+        )
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        // Parse the bearer token
+        let token = authenticate::bearer(bearer, &body)
+            .await
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+        // Decode the incoming packet and request message
+        let packet: Packet<'_> =
+            decode(&body).await.map_err(|_| StatusCode::BAD_REQUEST)?;
+        let request: RequestMessage<'_> = packet
+            .try_into()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        // Refresh the transport on activity
+        transport.refresh();
+        drop(writer);
+
+        (server_public_key, client_public_key, request, token)
     };
 
-    let mut writer = state.write().await;
-    let session = writer
-        .sessions
-        .get_mut(session_id)
-        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-    let aead = session
-        .encrypt(&body)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // Get a reply from the target service
+    let owner = Caller {
+        address: token.address,
+        // FIXME: remove this
+        session_id: Uuid::new_v4(),
+    };
+    let reply = service.serve((owner, Arc::clone(&state)), request).await;
 
-    let body = encode(&aead)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let (status, body) = {
+        let (status, body) = if let Some(reply) = reply {
+            let mut status = reply.status();
+
+            let response = Packet::new_response(reply);
+            let body = encode(&response)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+            // If we send an actual NOT_MODIFIED response then the
+            // client will not receive any body content so we have
+            // to mutate the actual HTTP response and let the client
+            // act on the inner status code
+            if status == StatusCode::NOT_MODIFIED {
+                status = StatusCode::OK;
+            }
+
+            (status, body)
+        } else {
+            // Got a notification request without a message `id`
+            // so we send NO_CONTENT
+            (StatusCode::NO_CONTENT, vec![])
+        };
+
+        let mut writer = state.write().await;
+        let transport = writer
+            .transports
+            .get_mut(&client_public_key)
+            .ok_or(StatusCode::UNAUTHORIZED)?;
+
+        let envelope =
+            encrypt_server_channel(transport.protocol_mut(), &body, false)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let message = ServerEnvelope {
+            public_key: server_public_key,
+            envelope,
+        };
+
+        let body = encode(&message)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        (status, body)
+    };
+
     Ok((status, Bytes::from(body)))
 }

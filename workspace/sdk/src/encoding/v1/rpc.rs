@@ -6,7 +6,8 @@ use crate::{
     constants::RPC_IDENTITY,
     encoding::encoding_error,
     formats::FileIdentity,
-    rpc::{Packet, Payload, RequestMessage, ResponseMessage},
+    mpc::SealedEnvelope,
+    rpc::{Packet, Payload, RequestMessage, ResponseMessage, ServerEnvelope},
 };
 
 use async_trait::async_trait;
@@ -14,6 +15,37 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+
+#[async_trait]
+impl Encodable for ServerEnvelope {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        writer.write_u16(self.public_key.len() as u16).await?;
+        writer.write_bytes(&self.public_key).await?;
+        self.envelope.encode(writer).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for ServerEnvelope {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let len = reader.read_u16().await?;
+        let public_key = reader.read_bytes(len as usize).await?;
+
+        let mut envelope: SealedEnvelope = Default::default();
+        envelope.decode(reader).await?;
+
+        self.public_key = public_key;
+        self.envelope = envelope;
+        Ok(())
+    }
+}
 
 #[async_trait]
 impl Encodable for Packet<'_> {

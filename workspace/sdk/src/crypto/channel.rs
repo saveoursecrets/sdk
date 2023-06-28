@@ -1,7 +1,7 @@
 //! Provides an encrypted channel using ECDSA and ECDH.
 use super::{csprng, AeadPack, Cipher, DerivedPrivateKey, Nonce, PrivateKey};
 use crate::{
-    mpc::snow::TransportState,
+    mpc::ProtocolState,
     signer::ecdsa::{verify_signature_address, BoxedEcdsaSigner},
     Error, Result,
 };
@@ -411,17 +411,17 @@ pub struct ServerTransport {
     /// Determines if this session is allowed to expire.
     keep_alive: bool,
     /// Noise transport.
-    transport: TransportState,
+    protocol: ProtocolState,
 }
 
 impl ServerTransport {
     /// Create a new server session.
-    pub fn new(duration_secs: u64, transport: TransportState) -> Self {
+    pub fn new(duration_secs: u64, protocol: ProtocolState) -> Self {
         Self {
             duration_secs,
             expires: Instant::now() + Duration::from_secs(duration_secs),
             keep_alive: false,
-            transport,
+            protocol,
         }
     }
 
@@ -452,6 +452,11 @@ impl ServerTransport {
     /// Determine if this session is still valid.
     pub fn valid(&self) -> bool {
         Instant::now() < self.expires
+    }
+
+    /// Mutable reference to the transport protocol.
+    pub fn protocol_mut(&mut self) -> &mut ProtocolState {
+        &mut self.protocol
     }
 }
 

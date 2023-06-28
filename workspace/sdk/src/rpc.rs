@@ -3,7 +3,7 @@
 //! Message identifiers have the same semantics as JSON-RPC;
 //! if a request does not have an `id` than no reply is expected
 //! otherwise a service must reply.
-use crate::{Error, Result};
+use crate::{mpc::SealedEnvelope, Error, Result};
 
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
@@ -11,6 +11,15 @@ use serde_json::Value;
 use std::borrow::Cow;
 
 use async_trait::async_trait;
+
+/// Encrypted envelope sent to a remote server.
+#[derive(Default)]
+pub struct ServerEnvelope {
+    /// Client public key.
+    pub public_key: Vec<u8>,
+    /// Encrypted payload.
+    pub envelope: SealedEnvelope,
+}
 
 /// Packet including identity bytes.
 #[derive(Default)]

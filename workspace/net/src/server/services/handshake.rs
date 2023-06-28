@@ -1,7 +1,7 @@
 use sos_sdk::{
     constants::HANDSHAKE_INITIATE,
     crypto::channel::ServerTransport,
-    mpc::{snow, PATTERN},
+    mpc::{snow, ProtocolState, PATTERN},
     rpc::{RequestMessage, ResponseMessage, Service},
 };
 
@@ -51,7 +51,10 @@ impl Service for HandshakeService {
                 let duration = writer.config.session.duration;
                 writer.transports.add_session(
                     client_public_key,
-                    ServerTransport::new(duration, transport),
+                    ServerTransport::new(
+                        duration,
+                        ProtocolState::Transport(transport),
+                    ),
                 );
 
                 let reply: ResponseMessage<'_> = ResponseMessage::new(

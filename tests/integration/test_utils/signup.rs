@@ -56,6 +56,8 @@ pub async fn signup(
     )
     .await?;
 
+    println!("signup loading vaults..");
+
     let _ = node_cache.load_vaults().await?;
 
     Ok((address, credentials, node_cache, signer, keypair))
@@ -110,7 +112,7 @@ async fn create_account(
     let mut cache = RemoteProvider::new(client, dirs).await?;
 
     // Prepare the client encrypted session channel
-    cache.authenticate().await?;
+    cache.handshake().await?;
 
     let (_, encryption_passphrase, summary) =
         cache.create_account(name, None).await?;

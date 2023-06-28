@@ -66,7 +66,7 @@ async_zip = { version = "0.0.15", default-features = false, features = ["deflate
 sanitize-filename = "0.4"
 tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
 futures-util = "0.3"
-mpc-protocol = "0.4"
+mpc-protocol = "0.4.1"
 keyring = {version = "2", optional = true }
 
 [dependencies.binary-stream]

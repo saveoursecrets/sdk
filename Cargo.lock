@@ -3454,15 +3454,16 @@ dependencies = [
 
 [[package]]
 name = "mpc-protocol"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "388abafcaa7553fbd0c887a1477f79873f5f2007f331ad5ca760efebb3592360"
+checksum = "9d301cfb46638ae262d437379375274b396b4347e4f8838cba2b8358e61af779"
 dependencies = [
  "async-trait",
  "binary-stream",
  "futures",
  "hex",
  "http",
+ "log",
  "pem 2.0.1",
  "serde",
  "snow",
