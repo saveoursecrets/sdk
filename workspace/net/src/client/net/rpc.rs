@@ -5,15 +5,15 @@ use sos_sdk::{
     commit::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, EVENT_LOG_LOAD, EVENT_LOG_PATCH,
-        EVENT_LOG_SAVE, EVENT_LOG_STATUS, SESSION_OFFER, SESSION_VERIFY,
-        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, X_SESSION,
+        EVENT_LOG_SAVE, EVENT_LOG_STATUS, HANDSHAKE_INITIATE, SESSION_OFFER,
+        SESSION_VERIFY, VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, X_SESSION,
     },
     crypto::{
         channel::{ClientSession, EncryptedChannel},
         AeadPack,
     },
     decode, encode,
-    mpc::{Keypair, snow, PATTERN, ProtocolState},
+    mpc::{snow, Keypair, ProtocolState, PATTERN},
     patch::Patch,
     rpc::{Packet, RequestMessage, ResponseMessage},
     signer::ecdsa::BoxedEcdsaSigner,
@@ -134,6 +134,28 @@ impl RpcClient {
         if let ProtocolState::Handshake(initiator) = &mut self.protocol {
             let mut message = [0u8; 1024];
             let len = initiator.write_message(&[], &mut message)?;
+
+            let url = self.server.join("api/handshake")?;
+            let id = self.next_id();
+            let request = RequestMessage::new(
+                Some(id),
+                HANDSHAKE_INITIATE,
+                (self.keypair.public_key(), len),
+                Cow::Borrowed(&message),
+            )?;
+            let packet = Packet::new_request(request);
+            let body = encode(&packet).await?;
+
+            let (_session_id, sign_bytes, body) = body!(
+                self,
+                id,
+                HANDSHAKE_INITIATE,
+                len,
+                Cow::Borrowed(&message)
+            );
+
+            let response = self.client.post(url).body(body).send().await?;
+
             todo!("send initiator message to the server");
         }
         Ok(())
@@ -141,7 +163,7 @@ impl RpcClient {
 
     /// Attempt to authenticate to the remote node and store
     /// the client session.
-    #[deprecated(note="use noise handshake()")]
+    #[deprecated(note = "use noise handshake()")]
     pub async fn authenticate(&mut self) -> Result<()> {
         let session = self.new_session().await?;
         self.session = Some(RwLock::new(session));

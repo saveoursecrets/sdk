@@ -9,11 +9,11 @@ use web3_address::ethereum::Address;
 use sos_sdk::{
     crypto::{channel::SessionManager, AccessKey},
     events::{AuditLogFile, WriteEvent},
+    hex,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary,
     },
-    hex,
     vfs,
 };
 

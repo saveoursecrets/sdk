@@ -59,8 +59,9 @@ async fn integration_handle_change() -> Result<()> {
     tokio::task::spawn(async move {
         // Create the websocket connection
         let keypair = generate_keypair()?;
-        let (stream, session) = connect(
-            server_url, server_public_key()?, signer, keypair).await?;
+        let (stream, session) =
+            connect(server_url, server_public_key()?, signer, keypair)
+                .await?;
 
         // Wrap the stream to read change notifications
         let mut stream = changes(stream, Arc::new(Mutex::new(session)));

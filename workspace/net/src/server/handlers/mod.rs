@@ -7,10 +7,10 @@ use axum::{
 
 //use axum_macros::debug_handler;
 
+use super::State;
 use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use super::State;
 
 pub(crate) mod service;
 pub(crate) mod websocket;

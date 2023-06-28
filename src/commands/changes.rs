@@ -20,7 +20,8 @@ async fn changes_stream(
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
 ) -> sos_net::client::Result<()> {
-    let (stream, session) = connect(server, server_public_key, signer, keypair).await?;
+    let (stream, session) =
+        connect(server, server_public_key, signer, keypair).await?;
     let mut stream = changes(stream, Arc::new(Mutex::new(session)));
     while let Some(notification) = stream.next().await {
         let notification = notification?.await?;
@@ -37,12 +38,14 @@ async fn changes_stream(
 pub async fn run(
     server: Url,
     server_public_key: Vec<u8>,
-    account: AccountRef) -> Result<()> {
+    account: AccountRef,
+) -> Result<()> {
     let (owner, _) = sign_in(&account, ProviderFactory::Local(None)).await?;
     let signer = owner.user.identity().signer().clone();
     let keypair = owner.user.keypair().clone();
-    if let Err(e) = changes_stream(
-        server, server_public_key, signer, keypair).await {
+    if let Err(e) =
+        changes_stream(server, server_public_key, signer, keypair).await
+    {
         tracing::error!(target: TARGET, "{}", e);
         std::process::exit(1);
     }

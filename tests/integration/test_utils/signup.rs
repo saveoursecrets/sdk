@@ -20,7 +20,7 @@ use sos_net::client::{
     provider::{RemoteProvider, StorageProvider},
 };
 
-use super::{AccountCredentials, server_public_key};
+use super::{server_public_key, AccountCredentials};
 
 pub async fn signup(
     dirs: &TestDirs,
@@ -71,7 +71,11 @@ pub async fn login(
     let address = signer.address()?;
     let dirs = UserPaths::new(data_dir, &address.to_string());
     let client = RpcClient::new(
-        server, server_public_key()?, signer.clone(), keypair)?;
+        server,
+        server_public_key()?,
+        signer.clone(),
+        keypair,
+    )?;
 
     let mut cache = RemoteProvider::new(client, dirs).await?;
 
@@ -100,7 +104,8 @@ async fn create_account(
         server,
         server_public_key()?,
         signer.clone(),
-        keypair)?;
+        keypair,
+    )?;
 
     let mut cache = RemoteProvider::new(client, dirs).await?;
 

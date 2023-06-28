@@ -49,12 +49,8 @@ async fn integration_simple_session() -> Result<()> {
     let ws_url = server_url.clone();
     tokio::task::spawn(async move {
         // Create the websocket connection
-        let (stream, session) = connect(
-            ws_url,
-            server_public_key()?,
-            signer,
-            keypair,
-        ).await?;
+        let (stream, session) =
+            connect(ws_url, server_public_key()?, signer, keypair).await?;
 
         // Wrap the stream to read change notifications
         let mut stream = changes(stream, Arc::new(Mutex::new(session)));

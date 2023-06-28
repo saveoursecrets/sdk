@@ -71,7 +71,8 @@ impl ProviderFactory {
         server_public_key: Vec<u8>,
     ) -> Result<(BoxedProvider, Address)> {
         let address = signer.address()?;
-        let client = RpcClient::new(server, server_public_key, signer, keypair)?;
+        let client =
+            RpcClient::new(server, server_public_key, signer, keypair)?;
         let dirs = UserPaths::new(data_dir, &address.to_string());
         let provider: BoxedProvider =
             Box::new(RemoteProvider::new(client, dirs).await?);
@@ -108,7 +109,10 @@ impl ProviderFactory {
                 }
                 Ok(Self::new_local_file_provider(signer, dir).await?)
             }
-            Self::Remote { server, server_public_key } => {
+            Self::Remote {
+                server,
+                server_public_key,
+            } => {
                 let dir = AppPaths::data_dir().map_err(|_| Error::NoCache)?;
                 Ok(Self::new_remote_file_provider(
                     signer,
@@ -164,8 +168,8 @@ pub fn spawn_changes_listener(
     cache: ArcProvider,
 ) {
     use crate::client::changes_listener::ChangesListener;
-    let listener = ChangesListener::new(
-        server, server_public_key, signer, keypair);
+    let listener =
+        ChangesListener::new(server, server_public_key, signer, keypair);
     listener.spawn(move |notification| {
         let cache = Arc::clone(&cache);
         async move {

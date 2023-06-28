@@ -14,7 +14,7 @@ use crate::server::{
     headers::Session,
     services::{
         private_service, public_service, AccountService, EventLogService,
-        SessionService, VaultService, HandshakeService,
+        HandshakeService, SessionService, VaultService,
     },
     State,
 };
