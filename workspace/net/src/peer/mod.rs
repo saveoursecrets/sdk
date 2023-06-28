@@ -34,7 +34,7 @@ pub fn convert_libp2p_identity(
     encoded.extend_from_slice(secret_key_bytes.as_slice());
     encoded.extend_from_slice(public_key_bytes.as_slice());
 
-    Ok(ed25519::Keypair::decode(&mut encoded)?.into())
+    Ok(ed25519::Keypair::try_from_bytes(&mut encoded)?.into())
 }
 
 /// Extracts a listen connection from a multiaddr.
@@ -50,7 +50,7 @@ pub fn listen_from_multiaddr(addr: &Multiaddr) -> Result<Multiaddr> {
 /// Extracts a peer identifier from a multiaddr.
 pub fn peer_id_from_multihash(addr: &Multiaddr) -> Result<PeerId> {
     match addr.iter().last() {
-        Some(Protocol::P2p(hash)) => Ok(PeerId::from_multihash(hash)
+        Some(Protocol::P2p(hash)) => Ok(PeerId::from_multihash(hash.into())
             .map_err(|_| Error::NoMultiAddrPeerId)?),
         _ => Err(Error::NoMultiAddrPeerId),
     }

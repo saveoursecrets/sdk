@@ -17,8 +17,8 @@ pub(crate) fn build(
     let tcp_transport =
         tcp::tokio::Transport::new(tcp::Config::default().nodelay(true))
             .upgrade(upgrade::Version::V1)
-            .authenticate(noise::NoiseAuthenticated::xx(local_key)?)
-            .multiplex(yamux::YamuxConfig::default())
+            .authenticate(noise::Config::new(local_key)?)
+            .multiplex(yamux::Config::default())
             .timeout(std::time::Duration::from_secs(20))
             .boxed();
     let quic_transport =

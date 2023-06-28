@@ -15,7 +15,7 @@ use super::protocol::RpcExchangeCodec;
 // NOTE: macro expects std::result::Result.
 
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "ComposedEvent")]
+#[behaviour(to_swarm = "ComposedEvent")]
 pub(crate) struct ComposedBehaviour {
     pub(crate) request_response:
         request_response::Behaviour<RpcExchangeCodec>,

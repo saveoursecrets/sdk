@@ -6,12 +6,15 @@ use url::{Host, Url};
 use super::backend::{Backend, FileSystemBackend};
 use super::{Error, Result};
 
-use sos_sdk::vfs;
+use sos_sdk::{vfs, mpc};
 
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ServerConfig {
+    /// Path to the server key.
+    pub key: PathBuf,
+
     /// Audit log file.
     pub audit: AuditConfig,
 
@@ -122,6 +125,17 @@ impl ServerConfig {
         config.file = Some(path.as_ref().canonicalize()?);
 
         let dir = config.directory();
+
+        if config.key.is_relative() {
+            config.key = dir.join(&config.key).canonicalize()?;
+        }
+
+        if !vfs::try_exists(&config.key).await? {
+            return Err(Error::KeyNotFound(config.key.clone()));
+        }
+
+        let contents = vfs::read_to_string(&config.key).await?;
+        let keypair = mpc::decode_keypair(contents)?;
 
         if let Some(tls) = config.tls.as_mut() {
             if tls.cert.is_relative() {
