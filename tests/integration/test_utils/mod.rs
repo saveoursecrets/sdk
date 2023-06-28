@@ -13,6 +13,7 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretMeta},
         Summary,
     },
+    hex,
     vfs,
 };
 
@@ -24,10 +25,16 @@ use sos_net::{
 
 const ADDR: &str = "127.0.0.1:3505";
 const SERVER: &str = "http://localhost:3505";
+const SERVER_PUBLIC_KEY: &str = include_str!("../../server_public_key.txt");
 
 mod signup;
 
 pub use signup::{login, signup};
+
+/// Read the test server public key.
+pub fn server_public_key() -> Result<Vec<u8>> {
+    Ok(hex::decode(SERVER_PUBLIC_KEY)?)
+}
 
 /// Set to use a mock credentials builder for the keyring integration.
 pub async fn set_mock_credential_builder() {

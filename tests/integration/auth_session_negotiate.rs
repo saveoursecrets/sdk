@@ -19,9 +19,14 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     let (_address, _credentials, _, signer, keypair) =
         signup(&dirs, 0).await?;
-    let mut client = RpcClient::new(server_url, signer, keypair)?;
+    let mut client = RpcClient::new(
+        server_url,
+        server_public_key()?,
+        signer,
+        keypair,
+    )?;
 
-    client.authenticate().await?;
+    client.handshake().await?;
 
     // Should have a valid session now
     assert!(client.has_session());

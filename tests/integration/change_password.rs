@@ -44,7 +44,12 @@ async fn integration_change_password() -> Result<()> {
     // Spawn a task to handle change notifications
     tokio::task::spawn(async move {
         // Create the websocket connection
-        let (stream, session) = connect(server_url, signer, keypair).await?;
+        let (stream, session) = connect(
+            server_url,
+            server_public_key()?,
+            signer,
+            keypair,
+        ).await?;
 
         // Wrap the stream to read change notifications
         let mut stream = changes(stream, Arc::new(Mutex::new(session)));
