@@ -1,8 +1,7 @@
 use sos_sdk::{
-    constants::{SESSION_OFFER, SESSION_VERIFY},
+    constants::HANDSHAKE_INITIATE,
     rpc::{RequestMessage, ResponseMessage, Service},
 };
-use web3_address::ethereum::Address;
 
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -12,16 +11,14 @@ use web3_signature::Signature;
 
 use crate::server::State;
 
-/// Session negotiation service.
+/// Handshake service.
 ///
-/// * `Session.offer`: Create a session offer.
-/// * `Session.verify`: Verify client identity.
+/// * `Handshake.initiate`: Client handshake initiation.
 ///
-#[deprecated]
-pub struct SessionService;
+pub struct HandshakeService;
 
 #[async_trait]
-impl Service for SessionService {
+impl Service for HandshakeService {
     type State = Arc<RwLock<State>>;
 
     async fn handle<'a>(
@@ -30,8 +27,10 @@ impl Service for SessionService {
         request: RequestMessage<'a>,
     ) -> sos_sdk::Result<ResponseMessage<'a>> {
         match request.method() {
-            SESSION_OFFER => {
+            HANDSHAKE_INITIATE => {
                 let mut writer = state.write().await;
+                todo!();
+                /*
                 let address = request.parameters::<Address>()?;
                 let (session_id, server_session) =
                     writer.sessions.offer(address);
@@ -45,21 +44,7 @@ impl Service for SessionService {
                 let reply: ResponseMessage<'_> =
                     (request.id(), value).try_into()?;
                 Ok(reply)
-            }
-            SESSION_VERIFY => {
-                let (session_id, signature, public_key) =
-                    request.parameters::<(Uuid, Signature, Vec<u8>)>()?;
-
-                let mut writer = state.write().await;
-                let session = writer
-                    .sessions
-                    .verify_identity(&session_id, signature)
-                    .map_err(Box::from)?;
-                session.compute_ecdh(&public_key).map_err(Box::from)?;
-
-                let reply: ResponseMessage<'_> =
-                    (request.id(), ()).try_into()?;
-                Ok(reply)
+                */
             }
             _ => Err(sos_sdk::Error::RpcUnknownMethod(
                 request.method().to_owned(),

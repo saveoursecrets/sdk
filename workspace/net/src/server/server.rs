@@ -172,6 +172,7 @@ impl Server {
             .route("/", get(home))
             .route("/api", get(api))
             .route("/api/changes", get(upgrade))
+            .route("/api/handshake", post(ServiceHandler::handshake))
             .route("/api/account", post(ServiceHandler::account))
             .route("/api/session", post(ServiceHandler::session))
             .route("/api/vault", post(ServiceHandler::vault))

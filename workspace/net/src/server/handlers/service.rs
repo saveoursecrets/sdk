@@ -14,7 +14,7 @@ use crate::server::{
     headers::Session,
     services::{
         private_service, public_service, AccountService, EventLogService,
-        SessionService, VaultService,
+        SessionService, VaultService, HandshakeService,
     },
     State,
 };
@@ -22,7 +22,17 @@ use crate::server::{
 // Handlers for account events.
 pub(crate) struct ServiceHandler;
 impl ServiceHandler {
+    /// Handle requests for the noise protocol handshake.
+    pub(crate) async fn handshake(
+        Extension(state): Extension<Arc<RwLock<State>>>,
+        body: Bytes,
+    ) -> Result<(StatusCode, Bytes), StatusCode> {
+        let service = HandshakeService {};
+        public_service(service, state, body).await
+    }
+
     /// Handle requests for the session service.
+    #[deprecated]
     pub(crate) async fn session(
         Extension(state): Extension<Arc<RwLock<State>>>,
         body: Bytes,
