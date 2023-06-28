@@ -4,6 +4,7 @@ pub mod changes;
 pub mod check;
 pub mod device;
 pub mod folder;
+pub mod generate_keypair;
 pub mod rendezvous;
 pub mod secret;
 pub mod server;

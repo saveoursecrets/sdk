@@ -104,6 +104,11 @@ pub enum Error {
     #[error("passphrase is not valid")]
     InvalidPassphrase,
 
+    /// Error generated when a file exists and the --force flag
+    /// should be used to overwrite the destination.
+    #[error("file {0} already exists, use --force to overwrite")]
+    FileExistsUseForce(PathBuf),
+
     /// Error generated converting to fixed length slice.
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
@@ -154,6 +159,9 @@ pub enum Error {
 
     #[error(transparent)]
     Clipboard(#[from] arboard::Error),
+
+    #[error(transparent)]
+    Mpc(#[from] sos_sdk::mpc::Error),
 }
 
 impl Error {
