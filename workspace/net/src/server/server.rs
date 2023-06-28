@@ -20,7 +20,9 @@ use axum::{
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
 use serde::Serialize;
-use sos_sdk::{crypto::channel::SessionManager, events::AuditLogFile, mpc::Keypair};
+use sos_sdk::{
+    crypto::channel::SessionManager, events::AuditLogFile, mpc::Keypair,
+};
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
@@ -44,7 +46,7 @@ async fn session_reaper(state: Arc<RwLock<State>>, interval_secs: u64) {
 
 /// Server state.
 pub struct State {
-    /// Server keypair. 
+    /// Server keypair.
     pub keypair: Keypair,
     /// The server configuration.
     pub config: ServerConfig,

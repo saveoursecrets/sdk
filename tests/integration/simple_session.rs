@@ -36,7 +36,7 @@ async fn integration_simple_session() -> Result<()> {
 
     let server_url = server();
 
-    let (address, credentials, mut node_cache, signer) =
+    let (address, credentials, mut node_cache, signer, keypair) =
         signup(&dirs, 0).await?;
     let AccountCredentials { summary, .. } = credentials;
     let login_vault_id = *summary.id();
@@ -49,7 +49,7 @@ async fn integration_simple_session() -> Result<()> {
     let ws_url = server_url.clone();
     tokio::task::spawn(async move {
         // Create the websocket connection
-        let (stream, session) = connect(ws_url, signer).await?;
+        let (stream, session) = connect(ws_url, signer, keypair).await?;
 
         // Wrap the stream to read change notifications
         let mut stream = changes(stream, Arc::new(Mutex::new(session)));

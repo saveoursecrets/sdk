@@ -79,6 +79,11 @@ mod vault {
     /// Login vault signing key name.
     pub const LOGIN_SIGNING_KEY_URN: &str = "urn:sos:identity:signer";
 
+    /// Login vault noise protocol keypair.
+    ///
+    /// This key is used to secure communication with remote servers.
+    pub const LOGIN_NOISE_KEY_URN: &str = "urn:sos:identity:noise";
+
     /// Login vault AGE key name.
     ///
     /// This key is used to encrypt files for specific recipients.

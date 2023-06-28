@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use url::Url;
 
 use sos_sdk::{
+    mpc::{generate_keypair, Keypair},
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
         Signer,
@@ -29,6 +30,7 @@ pub async fn signup(
     AccountCredentials,
     RemoteProvider,
     BoxedEcdsaSigner,
+    Keypair,
 )> {
     let TestDirs {
         target: destination,
@@ -41,6 +43,7 @@ pub async fn signup(
     let server = server();
     let name = None;
     let signer = Box::new(SingleParty::new_random());
+    let keypair = generate_keypair()?;
     let address = signer.address()?;
 
     let (credentials, mut node_cache) = create_account(
@@ -48,13 +51,14 @@ pub async fn signup(
         destination.to_path_buf(),
         name,
         signer.clone(),
+        keypair.clone(),
         data_dir,
     )
     .await?;
 
     let _ = node_cache.load_vaults().await?;
 
-    Ok((address, credentials, node_cache, signer))
+    Ok((address, credentials, node_cache, signer, keypair))
 }
 
 /// Login to a remote provider account.
@@ -62,10 +66,11 @@ pub async fn login(
     server: Url,
     data_dir: PathBuf,
     signer: &BoxedEcdsaSigner,
+    keypair: Keypair,
 ) -> Result<RemoteProvider> {
     let address = signer.address()?;
     let dirs = UserPaths::new(data_dir, &address.to_string());
-    let client = RpcClient::new(server, signer.clone());
+    let client = RpcClient::new(server, signer.clone(), keypair);
 
     let mut cache = RemoteProvider::new(client, dirs).await?;
 
@@ -81,6 +86,7 @@ async fn create_account(
     destination: PathBuf,
     name: Option<String>,
     signer: BoxedEcdsaSigner,
+    keypair: Keypair,
     data_dir: PathBuf,
 ) -> Result<(AccountCredentials, RemoteProvider)> {
     if !vfs::metadata(&destination).await?.is_dir() {
@@ -89,7 +95,7 @@ async fn create_account(
 
     let address = signer.address()?;
     let dirs = UserPaths::new(data_dir, &address.to_string());
-    let client = RpcClient::new(server, signer.clone());
+    let client = RpcClient::new(server, signer.clone(), keypair);
 
     let mut cache = RemoteProvider::new(client, dirs).await?;
 

@@ -1,5 +1,6 @@
 //! Factory for creating providers.
 use sos_sdk::{
+    mpc::Keypair,
     signer::ecdsa::BoxedEcdsaSigner,
     storage::{AppPaths, UserPaths},
     vfs,
@@ -59,11 +60,12 @@ impl ProviderFactory {
     /// Create a new remote provider with local disc storage.
     pub async fn new_remote_file_provider(
         signer: BoxedEcdsaSigner,
+        keypair: Keypair,
         data_dir: PathBuf,
         server: Url,
     ) -> Result<(BoxedProvider, Address)> {
         let address = signer.address()?;
-        let client = RpcClient::new(server, signer);
+        let client = RpcClient::new(server, signer, keypair);
         let dirs = UserPaths::new(data_dir, &address.to_string());
         let provider: BoxedProvider =
             Box::new(RemoteProvider::new(client, dirs).await?);
@@ -86,6 +88,7 @@ impl ProviderFactory {
     pub async fn create_provider(
         &self,
         signer: BoxedEcdsaSigner,
+        keypair: Keypair,
     ) -> Result<(BoxedProvider, Address)> {
         match self {
             Self::Local(dir) => {
@@ -103,6 +106,7 @@ impl ProviderFactory {
                 let dir = AppPaths::data_dir().map_err(|_| Error::NoCache)?;
                 Ok(Self::new_remote_file_provider(
                     signer,
+                    keypair,
                     dir,
                     remote.clone(),
                 )
@@ -143,10 +147,11 @@ impl FromStr for ProviderFactory {
 pub fn spawn_changes_listener(
     server: Url,
     signer: BoxedEcdsaSigner,
+    keypair: Keypair,
     cache: ArcProvider,
 ) {
     use crate::client::changes_listener::ChangesListener;
-    let listener = ChangesListener::new(server, signer);
+    let listener = ChangesListener::new(server, signer, keypair);
     listener.spawn(move |notification| {
         let cache = Arc::clone(&cache);
         async move {

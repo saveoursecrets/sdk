@@ -13,6 +13,7 @@ use sos_sdk::{
         AeadPack,
     },
     decode, encode,
+    mpc::Keypair,
     patch::Patch,
     rpc::{Packet, RequestMessage, ResponseMessage},
     signer::ecdsa::BoxedEcdsaSigner,
@@ -56,6 +57,7 @@ async fn new_rpc_call<T: Serialize>(
 pub struct RpcClient {
     server: Url,
     signer: BoxedEcdsaSigner,
+    keypair: Keypair,
     client: reqwest::Client,
     session: Option<RwLock<ClientSession>>,
     id: AtomicU64,
@@ -63,11 +65,16 @@ pub struct RpcClient {
 
 impl RpcClient {
     /// Create a new request client.
-    pub fn new(server: Url, signer: BoxedEcdsaSigner) -> Self {
+    pub fn new(
+        server: Url,
+        signer: BoxedEcdsaSigner,
+        keypair: Keypair,
+    ) -> Self {
         let client = reqwest::Client::new();
         Self {
             server,
             signer,
+            keypair,
             client,
             session: None,
             id: AtomicU64::from(1),

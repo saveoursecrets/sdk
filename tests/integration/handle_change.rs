@@ -11,7 +11,7 @@ use sos_net::client::{
     net::changes::{changes, connect},
     provider::StorageProvider,
 };
-use sos_sdk::commit::CommitProof;
+use sos_sdk::{commit::CommitProof, mpc::generate_keypair};
 use tokio::sync::Mutex;
 
 #[tokio::test]
@@ -25,7 +25,8 @@ async fn integration_handle_change() -> Result<()> {
     let server_url = server();
 
     // Signup a new account
-    let (_, credentials, mut creator, signer) = signup(&dirs, 0).await?;
+    let (_, credentials, mut creator, signer, keypair) =
+        signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,
@@ -34,7 +35,8 @@ async fn integration_handle_change() -> Result<()> {
 
     // Set up another connected client to listen for changes
     let data_dir = dirs.clients.get(0).unwrap().to_path_buf();
-    let mut listener = login(server_url.clone(), data_dir, &signer).await?;
+    let mut listener =
+        login(server_url.clone(), data_dir, &signer, keypair).await?;
     let _ = listener.load_vaults().await?;
 
     // Both clients use the login vault
@@ -56,7 +58,8 @@ async fn integration_handle_change() -> Result<()> {
     // Spawn a task to handle change notifications
     tokio::task::spawn(async move {
         // Create the websocket connection
-        let (stream, session) = connect(server_url, signer).await?;
+        let keypair = generate_keypair()?;
+        let (stream, session) = connect(server_url, signer, keypair).await?;
 
         // Wrap the stream to read change notifications
         let mut stream = changes(stream, Arc::new(Mutex::new(session)));

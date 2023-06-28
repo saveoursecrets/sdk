@@ -18,9 +18,12 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
+    constants::{
+        LOGIN_AGE_KEY_URN, LOGIN_NOISE_KEY_URN, LOGIN_SIGNING_KEY_URN,
+    },
     crypto::KeyDerivation,
     decode,
+    mpc::{decode_keypair, encode_keypair, generate_keypair, Keypair},
     search::SearchIndex,
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
@@ -44,6 +47,8 @@ pub struct UserIdentity {
     address: Address,
     /// Private signing key for the identity.
     signer: BoxedEcdsaSigner,
+    /// Keypair for the noise protocol.
+    keypair: Keypair,
     /// Gatekeeper for the identity vault.
     keeper: Gatekeeper,
     /// AGE identity keypair.
@@ -62,6 +67,11 @@ impl UserIdentity {
     /// Signing key for this user.
     pub fn signer(&self) -> &BoxedEcdsaSigner {
         &self.signer
+    }
+
+    /// Noise protocol keypair.
+    pub fn keypair(&self) -> &Keypair {
+        &self.keypair
     }
 
     /// Reference to the gatekeeper for the identity vault.
@@ -135,6 +145,20 @@ impl Identity {
             SecretMeta::new(urn.as_str().to_owned(), age_secret.kind());
         age_meta.set_urn(Some(urn));
         keeper.create(age_meta, age_secret).await?;
+
+        // Store the noise keypair
+        let keypair = generate_keypair()?;
+        let encoded = encode_keypair(&keypair);
+        let certificates = pem::parse_many(encoded.as_bytes())?;
+        let noise_secret = Secret::Pem {
+            certificates,
+            user_data: Default::default(),
+        };
+        let urn: Urn = LOGIN_NOISE_KEY_URN.parse()?;
+        let mut noise_meta =
+            SecretMeta::new(urn.as_str().to_owned(), noise_secret.kind());
+        noise_meta.set_urn(Some(urn));
+        keeper.create(noise_meta, noise_secret).await?;
 
         Ok((address, keeper.into()))
     }
@@ -225,9 +249,32 @@ impl Identity {
         };
         let shared = identity
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
+
+        let urn: Urn = LOGIN_NOISE_KEY_URN.parse()?;
+        let document = reader
+            .find_by_urn(keeper.id(), &urn)
+            .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
+        let data = keeper
+            .read(document.id())
+            .await?
+            .ok_or(Error::NoSecretId(*keeper.id(), *document.id()))?;
+
+        let (_, secret, _) = data;
+
+        let keypair = if let Secret::Pem { certificates, .. } = secret {
+            let encoded = pem::encode_many(certificates.as_slice());
+            let keypair = decode_keypair(&encoded)?;
+            Some(keypair)
+        } else {
+            None
+        };
+        let keypair = keypair
+            .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
+
         Ok(UserIdentity {
             address,
             signer,
+            keypair,
             shared_public: shared.to_public(),
             shared_private: shared,
             keeper,

@@ -5,7 +5,8 @@ use sos_net::client::{
     provider::ProviderFactory,
 };
 use sos_sdk::{
-    account::AccountRef, signer::ecdsa::BoxedEcdsaSigner, url::Url,
+    account::AccountRef, mpc::Keypair, signer::ecdsa::BoxedEcdsaSigner,
+    url::Url,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -16,8 +17,9 @@ use crate::{helpers::account::sign_in, Result, TARGET};
 async fn changes_stream(
     server: Url,
     signer: BoxedEcdsaSigner,
+    keypair: Keypair,
 ) -> sos_net::client::Result<()> {
-    let (stream, session) = connect(server, signer).await?;
+    let (stream, session) = connect(server, signer, keypair).await?;
     let mut stream = changes(stream, Arc::new(Mutex::new(session)));
     while let Some(notification) = stream.next().await {
         let notification = notification?.await?;
@@ -34,7 +36,8 @@ async fn changes_stream(
 pub async fn run(server: Url, account: AccountRef) -> Result<()> {
     let (owner, _) = sign_in(&account, ProviderFactory::Local(None)).await?;
     let signer = owner.user.identity().signer().clone();
-    if let Err(e) = changes_stream(server, signer).await {
+    let keypair = owner.user.keypair().clone();
+    if let Err(e) = changes_stream(server, signer, keypair).await {
         tracing::error!(target: TARGET, "{}", e);
         std::process::exit(1);
     }

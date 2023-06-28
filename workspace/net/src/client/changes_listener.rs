@@ -14,7 +14,7 @@ use super::{
 };
 
 use sos_sdk::{
-    crypto::channel::ClientSession, events::ChangeNotification,
+    crypto::channel::ClientSession, events::ChangeNotification, mpc::Keypair,
     signer::ecdsa::BoxedEcdsaSigner,
 };
 
@@ -25,12 +25,21 @@ const INTERVAL_MS: u64 = 15000;
 pub struct ChangesListener {
     remote: Url,
     signer: BoxedEcdsaSigner,
+    keypair: Keypair,
 }
 
 impl ChangesListener {
     /// Create a new changes listener.
-    pub fn new(remote: Url, signer: BoxedEcdsaSigner) -> Self {
-        Self { remote, signer }
+    pub fn new(
+        remote: Url,
+        signer: BoxedEcdsaSigner,
+        keypair: Keypair,
+    ) -> Self {
+        Self {
+            remote,
+            signer,
+            keypair,
+        }
     }
 
     /// Spawn a thread to listen for changes and apply incoming
@@ -71,7 +80,12 @@ impl ChangesListener {
     }
 
     async fn stream(&self) -> Result<(WsStream, ClientSession)> {
-        connect(self.remote.clone(), self.signer.clone()).await
+        connect(
+            self.remote.clone(),
+            self.signer.clone(),
+            self.keypair.clone(),
+        )
+        .await
     }
 
     async fn connect<F>(

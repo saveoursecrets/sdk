@@ -2,12 +2,13 @@
 use async_trait::async_trait;
 use futures::prelude::*;
 use libp2p::{
-    core::upgrade::{
-        read_length_prefixed, write_length_prefixed,
-    },
+    core::upgrade::{read_length_prefixed, write_length_prefixed},
     request_response::Codec,
 };
-use std::{io::{self, ErrorKind}, convert::AsRef};
+use std::{
+    convert::AsRef,
+    io::{self, ErrorKind},
+};
 
 use sos_sdk::{
     decode, encode,

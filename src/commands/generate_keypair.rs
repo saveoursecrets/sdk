@@ -3,8 +3,12 @@
 use std::path::PathBuf;
 //use tokio::{fs, io::AsyncWriteExt};
 
-use sos_sdk::{mpc::{encode_keypair, generate_keypair}, hex, vfs};
-use crate::{Result, Error};
+use crate::{Error, Result};
+use sos_sdk::{
+    hex,
+    mpc::{encode_keypair, generate_keypair},
+    vfs,
+};
 
 /// Generate keypair and write to file.
 pub async fn run(

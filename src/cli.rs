@@ -7,9 +7,9 @@ use std::path::PathBuf;
 
 use super::{
     commands::{
-        account, audit, changes, check, device, folder, rendezvous, secret,
-        server, shell, AccountCommand, AuditCommand, CheckCommand,
-        DeviceCommand, FolderCommand, SecretCommand, generate_keypair,
+        account, audit, changes, check, device, folder, generate_keypair,
+        rendezvous, secret, server, shell, AccountCommand, AuditCommand,
+        CheckCommand, DeviceCommand, FolderCommand, SecretCommand,
     },
     Result,
 };
@@ -172,12 +172,7 @@ pub async fn run() -> Result<()> {
             file,
             force,
             public_key,
-        } => {
-            generate_keypair::run(
-                file, force, public_key,
-            )
-            .await?
-        }
+        } => generate_keypair::run(file, force, public_key).await?,
         Command::Secret { cmd } => secret::run(cmd, factory).await?,
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Changes { server, account } => {

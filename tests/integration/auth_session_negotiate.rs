@@ -17,9 +17,9 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     let server_url = server();
 
-    let (_address, _credentials, _, signer) = signup(&dirs, 0).await?;
-
-    let mut client = RpcClient::new(server_url, signer);
+    let (_address, _credentials, _, signer, keypair) =
+        signup(&dirs, 0).await?;
+    let mut client = RpcClient::new(server_url, signer, keypair);
 
     client.authenticate().await?;
 

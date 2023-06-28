@@ -13,6 +13,7 @@ use crate::{
     crypto::AccessKey,
     encode,
     events::{AuditEvent, Event, EventKind},
+    mpc::Keypair,
     search::SearchIndex,
     signer::{
         ed25519::{self, BoxedEd25519Signer, VerifyingKey},
@@ -83,6 +84,11 @@ impl AuthenticatedUser {
     /// User identity reference.
     pub fn identity(&self) -> &UserIdentity {
         &self.identity
+    }
+
+    /// Noise protocol keypair.
+    pub fn keypair(&self) -> &Keypair {
+        self.identity.keypair()
     }
 
     /// Mutable user identity.

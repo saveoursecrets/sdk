@@ -24,6 +24,7 @@ use sos_sdk::{
     },
     decode,
     events::ChangeNotification,
+    mpc::Keypair,
     signer::ecdsa::BoxedEcdsaSigner,
 };
 
@@ -62,6 +63,7 @@ impl IntoClientRequest for WebSocketRequest {
 pub async fn connect(
     remote: Url,
     signer: BoxedEcdsaSigner,
+    keypair: Keypair,
 ) -> Result<(WsStream, ClientSession)> {
     let origin = remote.origin();
 
@@ -69,22 +71,8 @@ pub async fn connect(
 
     //let endpoint = changes_endpoint_url(&remote)?;
 
-    let client = RpcClient::new(remote, signer);
+    let client = RpcClient::new(remote, signer, keypair);
     let mut session = client.new_session().await?;
-
-    /*
-    // Need to encode a message into the query string
-    // so the server can validate the session request
-    let aead = session.encrypt(&[])?;
-
-    let sign_bytes = session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
-    let bearer = encode_signature(client.signer().sign(&sign_bytes).await?).await?;
-
-    let message = encode(&aead)?;
-
-    let host = endpoint.host_str().unwrap().to_string();
-    let uri = websocket_uri(endpoint, message, bearer, *session.id());
-    */
 
     let host = endpoint.host_str().unwrap().to_string();
     let uri = changes_uri(&endpoint, client.signer(), &mut session).await?;

@@ -171,8 +171,12 @@ impl UserStorage {
         let account_builder =
             builder(AccountBuilder::new(account_name, passphrase.clone()));
         let new_account = account_builder.finish().await?;
+
         let (mut provider, _) = factory
-            .create_provider(new_account.user.signer().clone())
+            .create_provider(
+                new_account.user.signer().clone(),
+                new_account.user.keypair().clone(),
+            )
             .await?;
         provider.authenticate().await?;
         let (imported_account, events) =
@@ -213,7 +217,9 @@ impl UserStorage {
 
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
-        let (mut storage, _) = factory.create_provider(signer).await?;
+        let (mut storage, _) = factory
+            .create_provider(signer, user.keypair().clone())
+            .await?;
         storage.authenticate().await?;
 
         #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
