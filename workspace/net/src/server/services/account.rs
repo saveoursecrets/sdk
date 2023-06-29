@@ -65,7 +65,7 @@ impl Service for AccountService {
 
                 let notification = ChangeNotification::new(
                     caller.address(),
-                    caller.session_id(),
+                    caller.public_key(),
                     &vault_id,
                     proof,
                     vec![ChangeEvent::CreateVault(summary)],

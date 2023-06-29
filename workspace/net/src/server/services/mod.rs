@@ -21,8 +21,7 @@ use crate::server::{authenticate, State};
 /// Type to represent the caller of a service request.
 pub struct Caller {
     address: Address,
-    #[deprecated]
-    session_id: Uuid,
+    public_key: Vec<u8>,
 }
 
 impl Caller {
@@ -31,10 +30,9 @@ impl Caller {
         &self.address
     }
 
-    /// Get the session id of the caller.
-    #[deprecated]
-    pub fn session_id(&self) -> &Uuid {
-        &self.session_id
+    /// Get the public key of the caller.
+    pub fn public_key(&self) -> &[u8] {
+        &self.public_key
     }
 }
 
@@ -175,8 +173,7 @@ pub(crate) async fn private_service(
     // Get a reply from the target service
     let owner = Caller {
         address: token.address,
-        // FIXME: remove this
-        session_id: Uuid::new_v4(),
+        public_key: client_public_key.clone(),
     };
 
     tracing::debug!(method = ?request.method(), "serve");
