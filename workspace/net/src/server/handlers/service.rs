@@ -11,7 +11,6 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::server::{
-    headers::Session,
     services::{
         private_service, public_service, AccountService, EventLogService,
         HandshakeService, VaultService,

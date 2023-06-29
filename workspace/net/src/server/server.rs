@@ -5,7 +5,6 @@ use super::{
         service::ServiceHandler,
         websocket::{upgrade, WebSocketConnection},
     },
-    headers::X_SESSION,
     Backend, Result, ServerConfig,
 };
 use axum::{
@@ -165,7 +164,6 @@ impl Server {
             .allow_headers(vec![
                 AUTHORIZATION,
                 CONTENT_TYPE,
-                X_SESSION.clone(),
             ])
             .expose_headers(vec![])
             .allow_origin(origins);

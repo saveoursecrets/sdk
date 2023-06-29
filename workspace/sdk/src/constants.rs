@@ -56,12 +56,6 @@ mod extensions {
     pub const PATCH_EXT: &str = "patch";
 }
 
-/// Constants for header names.
-mod headers {
-    /// Constant for the session identifier header.
-    pub const X_SESSION: &str = "x-session";
-}
-
 /// Constants for vaults.
 mod vault {
     /// Default public name for a vault.
@@ -180,7 +174,6 @@ mod scheme {
 pub use archive::*;
 pub use extensions::*;
 pub use folders::*;
-pub use headers::*;
 pub use identity::*;
 pub use mime::*;
 pub use rpc::*;
