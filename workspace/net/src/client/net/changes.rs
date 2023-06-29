@@ -65,32 +65,28 @@ pub async fn connect(
     remote_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
-) -> Result<(WsStream, ClientSession)> {
+) -> Result<WsStream> {
     let origin = remote.origin();
-
     let endpoint = remote.clone();
-
-    //let endpoint = changes_endpoint_url(&remote)?;
-
-    let client = RpcClient::new(remote, remote_public_key, signer, keypair)?;
-    let mut session = client.new_session().await?;
+    let public_key = keypair.public_key().to_vec();
+    let mut client = RpcClient::new(remote, remote_public_key, signer, keypair)?;
+    client.handshake().await?;
 
     let host = endpoint.host_str().unwrap().to_string();
-    let uri = changes_uri(&endpoint, client.signer(), &mut session).await?;
+    let uri = changes_uri(
+        &endpoint, client.signer(), &public_key).await?;
 
     tracing::debug!(uri = %uri);
     tracing::debug!(origin = ?origin);
 
     let request = WebSocketRequest { host, uri, origin };
-
     let (ws_stream, _) = connect_async(request).await?;
-    Ok((ws_stream, session))
+    Ok(ws_stream)
 }
 
 /// Read change notifications from a websocket stream.
 pub fn changes(
     stream: WsStream,
-    session: Arc<Mutex<ClientSession>>,
 ) -> Map<
     SplitStream<WsStream>,
     impl FnMut(
@@ -106,17 +102,20 @@ pub fn changes(
             Pin<Box<dyn Future<Output = Result<ChangeNotification>> + Send>>,
         > {
             let message = message?;
-            let message_session = Arc::clone(&session);
             Ok(Box::pin(async move {
-                let mut session = message_session.lock().await;
                 match message {
                     Message::Binary(buffer) => {
+
+                        todo!("decrypt change notification packet");
+
+                        /*
                         let aead: AeadPack = decode(&buffer).await?;
                         session.set_nonce(&aead.nonce);
                         let message = session.decrypt(&aead).await?;
                         let notification: ChangeNotification =
                             serde_json::from_slice(&message)?;
                         Ok(notification)
+                        */
                     }
                     _ => unreachable!("bad websocket message type"),
                 }

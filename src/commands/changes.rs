@@ -20,9 +20,9 @@ async fn changes_stream(
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
 ) -> sos_net::client::Result<()> {
-    let (stream, session) =
+    let stream =
         connect(server, server_public_key, signer, keypair).await?;
-    let mut stream = changes(stream, Arc::new(Mutex::new(session)));
+    let mut stream = changes(stream);
     while let Some(notification) = stream.next().await {
         let notification = notification?.await?;
         tracing::info!(

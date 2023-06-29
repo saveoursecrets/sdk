@@ -36,16 +36,16 @@ pub(crate) fn bearer_prefix(signature: &str) -> String {
 /// Get the URI for a websocket connection.
 fn websocket_uri(
     endpoint: Url,
-    request: Vec<u8>,
+    //request: Vec<u8>,
     bearer: String,
-    session: Uuid,
+    public_key: &[u8],
 ) -> String {
     format!(
-        "{}?request={}&bearer={}&session={}",
+        "{}?bearer={}&public_key={}",
         endpoint,
-        bs58::encode(&request).into_string(),
+        //bs58::encode(&request).into_string(),
         bearer,
-        session,
+        hex::encode(public_key),
     )
 }
 
@@ -76,20 +76,11 @@ fn changes_endpoint_url(remote: &Url) -> Result<Url> {
 pub async fn changes_uri(
     remote: &Url,
     signer: &BoxedEcdsaSigner,
-    session: &mut ClientSession,
+    public_key: &[u8],
 ) -> Result<String> {
     let endpoint = changes_endpoint_url(remote)?;
-
-    // Need to encode a message into the query string
-    // so the server can validate the session request
-    let aead = session.encrypt(&[]).await?;
-
-    let sign_bytes = session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
-    let bearer = encode_signature(signer.sign(&sign_bytes).await?).await?;
-
-    let message = encode(&aead).await?;
-
-    let uri = websocket_uri(endpoint, message, bearer, *session.id());
-
+    let bearer = encode_signature(signer.sign(&public_key).await?).await?;
+    //let message = encode(&aead).await?;
+    let uri = websocket_uri(endpoint, bearer, public_key);
     Ok(uri)
 }

@@ -218,10 +218,6 @@ impl StorageProvider for RemoteProvider {
         Ok(self.client.handshake().await?)
     }
 
-    async fn authenticate(&mut self) -> Result<()> {
-        Ok(self.client.authenticate().await?)
-    }
-
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
         let (_, summaries) =
             retry!(|| self.client.list_vaults(), self.client);
@@ -441,12 +437,17 @@ impl StorageProvider for RemoteProvider {
         &mut self,
         change: ChangeNotification,
     ) -> Result<(bool, HashSet<ChangeAction>)> {
+        /*
         // Was this change notification triggered by us?
         let self_change = match self.client.session_id().await {
             Ok(id) => &id == change.session_id(),
             // Maybe the session is no longer available
             Err(_) => false,
         };
+        */
+            
+        // FIXME: restore this check without session_id().
+        let self_change = false;
 
         let actions = sync::handle_change(self, change).await?;
         Ok((self_change, actions))

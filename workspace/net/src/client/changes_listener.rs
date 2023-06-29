@@ -67,13 +67,12 @@ impl ChangesListener {
     async fn listen<F>(
         &self,
         stream: WsStream,
-        session: ClientSession,
         handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
         F: Future<Output = ()> + 'static,
     {
-        let mut stream = changes(stream, Arc::new(Mutex::new(session)));
+        let mut stream = changes(stream);
         while let Some(notification) = stream.next().await {
             let notification = notification?.await?;
             let future = handler(notification);
@@ -82,7 +81,7 @@ impl ChangesListener {
         Ok(())
     }
 
-    async fn stream(&self) -> Result<(WsStream, ClientSession)> {
+    async fn stream(&self) -> Result<WsStream> {
         connect(
             self.remote.clone(),
             self.remote_public_key.clone(),
@@ -100,8 +99,8 @@ impl ChangesListener {
         F: Future<Output = ()> + 'static,
     {
         match self.stream().await {
-            Ok((stream, session)) => {
-                self.listen(stream, session, handler).await
+            Ok(stream) => {
+                self.listen(stream, handler).await
             }
             Err(_) => self.delay_connect(handler).await,
         }

@@ -34,16 +34,6 @@ use crate::client::{Error, Result};
 
 use super::{bearer_prefix, encode_signature, AUTHORIZATION};
 
-macro_rules! body {
-    ($client:expr, $id:expr, $method:expr, $params:expr, $body:expr) => {{
-        let request =
-            RequestMessage::new(Some($id), $method, $params, $body)?;
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
-        $client.build_request(&body).await?
-    }};
-}
-
 /// Create an RPC call without a body.
 async fn new_rpc_call<T: Serialize>(
     id: u64,
@@ -64,8 +54,6 @@ pub struct RpcClient {
     protocol: RwLock<Option<ProtocolState>>,
     client: reqwest::Client,
     id: AtomicU64,
-    #[deprecated]
-    session: Option<RwLock<ClientSession>>,
 }
 
 impl RpcClient {
@@ -85,7 +73,6 @@ impl RpcClient {
             keypair,
             protocol,
             client,
-            session: None,
             id: AtomicU64::from(1),
         })
     }
@@ -110,29 +97,6 @@ impl RpcClient {
     /// Get the URL for the remote node.
     pub fn remote(&self) -> &Url {
         &self.server
-    }
-
-    /// Determine if this client has a session set.
-    #[deprecated]
-    pub fn has_session(&self) -> bool {
-        self.session.is_some()
-    }
-
-    /// Get the session identifier.
-    #[deprecated]
-    pub async fn session_id(&self) -> Result<Uuid> {
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let reader = lock.read().await;
-        let id = *reader.id();
-        Ok(id)
-    }
-
-    /// Determine if this client's session is ready for use.
-    #[deprecated(note = "use is_transport_ready()")]
-    pub async fn is_ready(&self) -> Result<bool> {
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let session = lock.read().await;
-        Ok(session.ready())
     }
 
     /// Determine if the noise transport is ready.
@@ -206,65 +170,6 @@ impl RpcClient {
         *writer = Some(ProtocolState::Transport(transport));
 
         Ok(())
-    }
-
-    /// Attempt to authenticate to the remote node and store
-    /// the client session.
-    #[deprecated(note = "use noise handshake()")]
-    pub async fn authenticate(&mut self) -> Result<()> {
-        let session = self.new_session().await?;
-        self.session = Some(RwLock::new(session));
-        Ok(())
-    }
-
-    /// Negotiate a new session.
-    #[deprecated]
-    pub async fn new_session(&self) -> Result<ClientSession> {
-        let url = self.server.join("api/session")?;
-
-        // Offer
-        let address = self.signer.address()?;
-        let body =
-            new_rpc_call(self.next_id(), SESSION_OFFER, address).await?;
-
-        let response =
-            self.client.post(url.clone()).body(body).send().await?;
-
-        let (_status, result, _) = self
-            .read_response::<(Uuid, [u8; 16], Vec<u8>)>(
-                response.status(),
-                &response.bytes().await?,
-            )
-            .await?;
-        let result = result?;
-
-        let (session_id, challenge, public_key) = result;
-
-        // Verify
-        let mut session =
-            ClientSession::new(self.signer.clone(), session_id)?;
-        let (signature, client_key) =
-            session.sign(&public_key, challenge).await?;
-
-        let body = new_rpc_call(
-            self.next_id(),
-            SESSION_VERIFY,
-            (session_id, signature, session.public_key()),
-        )
-        .await?;
-
-        let response = self.client.post(url).body(body).send().await?;
-
-        // Check we got a success response; no error indicates success
-        let (_status, result, _) = self
-            .read_response::<()>(response.status(), &response.bytes().await?)
-            .await?;
-        result?;
-
-        // Store the session for later requests
-        session.finish(client_key);
-
-        Ok(session)
     }
 
     /// Create a new account.
@@ -565,27 +470,6 @@ impl RpcClient {
     }
 
     /// Build an encrypted request.
-    async fn build_request(
-        &self,
-        request: &[u8],
-    ) -> Result<(Uuid, [u8; 32], Vec<u8>)> {
-        //let id = self.next_id();
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let mut session = lock.write().await;
-        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
-        let session_id = *session.id();
-
-        //let request = builder(id).await?;
-        let aead = session.encrypt(request).await?;
-        let sign_bytes =
-            session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
-        let body = encode(&aead).await?;
-
-        Ok((session_id, sign_bytes, body))
-    }
-
-    /// Build an encrypted request.
     async fn build_request2(&self, request: &[u8]) -> Result<Vec<u8>> {
         let mut writer = self.protocol.write().await;
         let protocol = writer.as_mut().ok_or(Error::NoSession)?;
@@ -596,25 +480,6 @@ impl RpcClient {
             envelope,
         };
         Ok(encode(&payload).await?)
-    }
-
-    /// Send an encrypted session request.
-    async fn send_request(
-        &self,
-        url: Url,
-        session_id: Uuid,
-        signature: String,
-        body: Vec<u8>,
-    ) -> Result<reqwest::Response> {
-        let response = self
-            .client
-            .post(url)
-            .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(X_SESSION, session_id.to_string())
-            .body(body)
-            .send()
-            .await?;
-        Ok(response)
     }
 
     /// Send an encrypted session request.
@@ -650,47 +515,6 @@ impl RpcClient {
         let (_, status, result, body) = response.take::<T>()?;
         let result = result.ok_or(Error::NoReturnValue)?;
         Ok((status, result, body))
-    }
-
-    /// Read an encrypted response to an RPC call.
-    #[deprecated]
-    async fn read_encrypted_response<T: DeserializeOwned>(
-        &self,
-        http_status: StatusCode,
-        buffer: &[u8],
-    ) -> Result<RetryResponse<T>> {
-        //) -> Result<(StatusCode, sos_sdk::Result<T>, Vec<u8>)> {
-        // Unauthorized means the session could not be found
-        // or has expired
-        if http_status == StatusCode::UNAUTHORIZED {
-            //Err(Error::NotAuthorized)
-            Ok(RetryResponse::Retry(http_status))
-        } else if http_status.is_success()
-            || http_status == StatusCode::CONFLICT
-        {
-            let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-            let mut session = lock.write().await;
-            session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
-            let aead: AeadPack = decode(buffer).await?;
-            session.set_nonce(&aead.nonce);
-            let buffer = session.decrypt(&aead).await?;
-
-            let reply: Packet<'static> = decode(&buffer).await?;
-            let response: ResponseMessage<'static> = reply.try_into()?;
-
-            // We must return the inner status code as the server mutates
-            // some status codes (eg: NOT_MODIFIED -> OK) so that the client
-            // will read the body of the response.
-            //
-            // Callers need to respond to the actual NOT_MODIFIED status.
-
-            let (_, status, result, body) = response.take::<T>()?;
-            let result = result.ok_or(Error::NoReturnValue)?;
-            Ok(RetryResponse::Complete(status, result, body))
-        } else {
-            Err(Error::ResponseCode(http_status.into()))
-        }
     }
 
     /// Read an encrypted response to an RPC call.

@@ -11,7 +11,7 @@ macro_rules! retry {
 
         match maybe_retry {
             MaybeRetry::Retry(status) => {
-                if status == StatusCode::UNAUTHORIZED && $client.has_session()
+                if status == StatusCode::UNAUTHORIZED && $client.is_transport_ready().await
                 {
                     tracing::debug!("renew client session");
                     $client.handshake().await?;
