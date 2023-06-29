@@ -13,7 +13,7 @@ use url::Url;
 use sos_net::client::{
     net::{
         changes::{changes, connect},
-        RequestClient,
+        RpcClient,
     },
     provider::StorageProvider,
 };
@@ -76,7 +76,7 @@ async fn integration_simple_session() -> Result<()> {
     //assert_eq!(address, node_cache.address()?);
 
     // Check the /api route
-    let server_info = RequestClient::server_info(server_url.clone()).await?;
+    let server_info = RpcClient::server_info(server_url.clone()).await?;
     assert!(server_info.status().is_success());
 
     // Trigger server code path for the / URL
@@ -229,7 +229,7 @@ async fn integration_simple_session() -> Result<()> {
 
 async fn home(server: &Url) -> Result<()> {
     let url = server.clone();
-    let response = RequestClient::get(url).await?;
+    let response = RpcClient::get(url).await?;
     assert!(response.status().is_success());
     Ok(())
 }

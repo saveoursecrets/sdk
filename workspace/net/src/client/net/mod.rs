@@ -15,10 +15,7 @@ use super::Result;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod changes;
 
-pub mod request;
-pub mod rpc;
-
-pub use request::RequestClient;
+mod rpc;
 pub use rpc::{MaybeRetry, RpcClient};
 
 const AUTHORIZATION: &str = "authorization";

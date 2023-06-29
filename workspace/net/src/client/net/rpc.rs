@@ -77,6 +77,19 @@ impl RpcClient {
         })
     }
 
+    /// Generic GET function.
+    pub async fn get(url: Url) -> Result<reqwest::Response> {
+        let client = reqwest::Client::new();
+        Ok(client.get(url).send().await?)
+    }
+
+    /// Get the server information.
+    pub async fn server_info(server: Url) -> Result<reqwest::Response> {
+        let client = reqwest::Client::new();
+        let url = server.join("api")?;
+        Ok(client.get(url).send().await?)
+    }
+
     fn new_handshake(
         keypair: &Keypair,
         server_public_key: &[u8],
