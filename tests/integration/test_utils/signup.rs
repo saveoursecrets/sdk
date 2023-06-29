@@ -56,8 +56,6 @@ pub async fn signup(
     )
     .await?;
 
-    println!("loading vaults in the signup...");
-
     let _ = node_cache.load_vaults().await?;
 
     Ok((address, credentials, node_cache, signer, keypair))

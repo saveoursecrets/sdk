@@ -23,26 +23,24 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     let mut client =
         RpcClient::new(server_url, server_public_key()?, signer, keypair)?;
 
-    //client.handshake().await?;
+    client.handshake().await?;
 
     // Noise protocol transport should be ready
-    //assert!(client.is_transport_ready().await);
+    assert!(client.is_transport_ready().await);
 
-    /*
     let vault: Vault = Default::default();
     let body = encode(&vault).await?;
-
+    
     // Try to create a new account
-    let (status, _) = client.create_account(body).await?;
+    let (status, _) = client.create_account(body).await?.unwrap();
     assert_eq!(StatusCode::CONFLICT, status);
-    */
 
-    /*
     // List vaults for the account
     let (_, summaries) = client.list_vaults().await?.unwrap();
     // New account with a single vault
     assert_eq!(1, summaries.len());
 
+    /*
     let mut vault: Vault = Default::default();
     vault.set_name(String::from("Mock vault"));
     let body = encode(&vault).await?;

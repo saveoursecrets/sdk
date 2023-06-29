@@ -284,7 +284,7 @@ impl RpcClient {
     pub async fn create_account(
         &self,
         vault: Vec<u8>,
-    ) -> Result<MaybeRetry<CommitProof>> {
+    ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/account")?;
 
         let id = self.next_id();
@@ -301,7 +301,6 @@ impl RpcClient {
 
         let body = self.build_request2(&body).await?;
         let response = self.send_request2(url, signature, body).await?;
-        let status = response.status();
         let maybe_retry = self
             .read_protocol_response::<CommitProof>(
                 response.status(),
@@ -309,30 +308,26 @@ impl RpcClient {
             )
             .await?;
 
-        maybe_retry.map(|result, _| Ok(result?))
+        maybe_retry.map(|result, _| Ok(result.ok()))
     }
 
     /// List vaults for an account.
     pub async fn list_vaults(&self) -> Result<MaybeRetry<Vec<Summary>>> {
         let url = self.server.join("api/account")?;
-
         let id = self.next_id();
         let body = new_rpc_call(id, ACCOUNT_LIST_VAULTS, ()).await?;
-        let (session_id, sign_bytes, body) =
-            self.build_request(&body).await?;
-
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
+            encode_signature(self.signer.sign(&body).await?).await?;
+        let body =
+            self.build_request2(&body).await?;
         let response =
-            self.send_request(url, session_id, signature, body).await?;
-
+            self.send_request2(url, signature, body).await?;
         let maybe_retry = self
-            .read_encrypted_response::<Vec<Summary>>(
+            .read_protocol_response::<Vec<Summary>>(
                 response.status(),
                 &response.bytes().await?,
             )
             .await?;
-
         maybe_retry.map(|result, _| Ok(result?))
     }
 
@@ -344,21 +339,22 @@ impl RpcClient {
         let url = self.server.join("api/vault")?;
 
         let id = self.next_id();
-        let (session_id, sign_bytes, body) =
-            body!(self, id, VAULT_CREATE, (), Cow::Owned(vault));
 
+        let request =
+            RequestMessage::new(
+                Some(id), VAULT_CREATE, (), Cow::Owned(vault))?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
+            encode_signature(self.signer.sign(&body).await?).await?;
         let response =
-            self.send_request(url, session_id, signature, body).await?;
-
+            self.send_request2(url, signature, body).await?;
         let maybe_retry = self
-            .read_encrypted_response::<Option<CommitProof>>(
+            .read_protocol_response::<Option<CommitProof>>(
                 response.status(),
                 &response.bytes().await?,
             )
             .await?;
-
         maybe_retry.map(|result, _| Ok(result?))
     }
 
