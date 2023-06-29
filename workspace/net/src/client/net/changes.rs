@@ -18,10 +18,6 @@ use tokio::{net::TcpStream, sync::Mutex};
 use url::{Origin, Url};
 
 use sos_sdk::{
-    crypto::{
-        channel::{ClientSession, EncryptedChannel},
-        AeadPack,
-    },
     decode,
     events::ChangeNotification,
     mpc::Keypair,

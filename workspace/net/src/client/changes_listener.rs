@@ -14,7 +14,7 @@ use super::{
 };
 
 use sos_sdk::{
-    crypto::channel::ClientSession, events::ChangeNotification, mpc::Keypair,
+    events::ChangeNotification, mpc::Keypair,
     signer::ecdsa::BoxedEcdsaSigner,
 };
 

@@ -5,7 +5,6 @@ use axum::{
 };
 
 use sos_sdk::{
-    crypto::{channel::EncryptedChannel, AeadPack},
     decode, encode,
     events::{AuditEvent, AuditProvider, ChangeNotification},
     mpc::channel::{decrypt_server_channel, encrypt_server_channel},

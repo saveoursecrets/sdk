@@ -8,10 +8,6 @@ use sos_sdk::{
         EVENT_LOG_SAVE, EVENT_LOG_STATUS, HANDSHAKE_INITIATE,
         VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
     },
-    crypto::{
-        channel::{ClientSession, EncryptedChannel},
-        AeadPack,
-    },
     decode, encode,
     mpc::{
         channel::{decrypt_server_channel, encrypt_server_channel},

@@ -18,7 +18,6 @@ use tokio::sync::{
 };
 
 use sos_sdk::{
-    crypto::{channel::EncryptedChannel, AeadPack},
     decode, encode,
 };
 use uuid::Uuid;
