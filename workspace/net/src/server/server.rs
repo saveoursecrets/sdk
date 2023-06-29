@@ -37,11 +37,11 @@ async fn session_reaper(state: Arc<RwLock<State>>, interval_secs: u64) {
     let mut stream = IntervalStream::new(interval);
     while (stream.next().await).is_some() {
         let mut writer = state.write().await;
-        let expired_sessions = writer.sessions.expired_keys();
+        let expired_transports = writer.transports.expired_keys();
         tracing::debug!(
-            expired_sessions = %expired_sessions.len());
-        for key in expired_sessions {
-            writer.sessions.remove_session(&key);
+            expired_transports = %expired_transports.len());
+        for key in expired_transports {
+            writer.transports.remove_session(&key);
         }
     }
 }
@@ -60,10 +60,6 @@ pub struct State {
     pub audit_log: AuditLogFile,
     /// Server transport manager.
     pub transports: ServerTransportManager,
-
-    /// Session manager.
-    #[deprecated]
-    pub sessions: SessionManager,
     /// Map of websocket  channels by authenticated
     /// client address.
     pub sockets: HashMap<Address, WebSocketConnection>,

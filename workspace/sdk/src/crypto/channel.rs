@@ -475,15 +475,15 @@ impl ServerTransportManager {
         }
     }
 
-    /// Get the keys of sessions that have expired.
+    /// Get the keys of transports that have expired.
     ///
-    /// Sessions that have been marked with the keep alive
+    /// Transports that have been marked with the keep alive
     /// flag are not included.
-    pub fn expired_keys(&self) -> Vec<&[u8]> {
+    pub fn expired_keys(&self) -> Vec<Vec<u8>> {
         self.sessions
             .iter()
             .filter(|(_, v)| v.expired() && !v.keep_alive())
-            .map(|(k, _)| k.as_slice())
+            .map(|(k, _)| k.to_vec())
             .collect::<Vec<_>>()
     }
 

@@ -16,9 +16,9 @@ use super::Result;
 /// An RPC message and authorization encoded in a query string.
 #[derive(Debug, Deserialize)]
 pub struct QueryMessage {
-    pub session: Uuid,
-    pub request: String,
+    //pub request: String,
     pub bearer: String,
+    pub public_key: String,
 }
 
 #[derive(Debug)]

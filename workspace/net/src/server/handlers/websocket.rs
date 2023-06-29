@@ -55,17 +55,19 @@ pub async fn upgrade(
 
     let mut writer = state.write().await;
 
-    let session_id = query.session;
+    let public_key = hex::decode(&query.public_key)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let session = writer
-        .sessions
-        .get_mut(&session_id)
+    let transport = writer
+        .transports
+        .get_mut(&public_key)
         .ok_or(StatusCode::UNAUTHORIZED)?;
-    session
+    transport
         .valid()
         .then_some(())
         .ok_or(StatusCode::UNAUTHORIZED)?;
-
+    
+    /*
     let buffer = bs58::decode(&query.request)
         .into_vec()
         .map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -79,24 +81,27 @@ pub async fn upgrade(
     session
         .verify_nonce(&aead.nonce)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
+    */
 
     // Verify the signature for the message
-    let sign_bytes = session
-        .sign_bytes::<sha3::Keccak256>(&aead.nonce)
+    let sign_bytes = hex::decode(&query.public_key)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Parse the bearer token
     let token = authenticate::BearerToken::new(&query.bearer, &sign_bytes)
         .await
         .map_err(|_| StatusCode::BAD_REQUEST)?;
-
+    
+    /*
     // Attempt to impersonate the session identity
     if &token.address != session.identity() {
         return Err(StatusCode::BAD_REQUEST);
     }
+    */
 
     let address = token.address;
-
+    
+    /*
     // Update the server nonce
     session.set_nonce(&aead.nonce);
 
@@ -106,6 +111,10 @@ pub async fn upgrade(
 
     // Refresh the session on activity
     session.refresh();
+    */
+
+    // Refresh the transport on activity
+    transport.refresh();
 
     let conn = if let Some(conn) = writer.sockets.get_mut(&token.address) {
         conn
@@ -132,20 +141,20 @@ pub async fn upgrade(
     drop(writer);
 
     Ok(ws.on_upgrade(move |socket| {
-        handle_socket(socket, state, address, session_id, rx)
+        handle_socket(socket, state, address, public_key, rx)
     }))
 }
 
 async fn disconnect(
     state: Arc<RwLock<State>>,
     address: Address,
-    session_id: Uuid,
+    public_key: Vec<u8>,
 ) {
     let mut writer = state.write().await;
 
     // Sessions for websocket connections have the keep alive
     // flag so we must remove them on disconnect
-    writer.sessions.remove_session(&session_id);
+    writer.transports.remove_session(&public_key);
 
     let clients = if let Some(conn) = writer.sockets.get_mut(&address) {
         conn.clients -= 1;
@@ -165,7 +174,7 @@ async fn handle_socket(
     socket: WebSocket,
     state: Arc<RwLock<State>>,
     address: Address,
-    session_id: Uuid,
+    public_key: Vec<u8>,
     outgoing: Receiver<Vec<u8>>,
 ) {
     let (writer, reader) = socket.split();
@@ -174,16 +183,16 @@ async fn handle_socket(
         Arc::clone(&state),
         address,
         outgoing,
-        session_id,
+        public_key.clone(),
     ));
-    tokio::spawn(read(reader, Arc::clone(&state), address, session_id));
+    tokio::spawn(read(reader, Arc::clone(&state), address, public_key));
 }
 
 async fn read(
     mut receiver: SplitStream<WebSocket>,
     state: Arc<RwLock<State>>,
     address: Address,
-    session_id: Uuid,
+    public_key: Vec<u8>,
 ) -> Result<()> {
     while let Some(msg) = receiver.next().await {
         match msg {
@@ -193,12 +202,12 @@ async fn read(
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
                 Message::Close(_) => {
-                    disconnect(state, address, session_id).await;
+                    disconnect(state, address, public_key).await;
                     return Ok(());
                 }
             },
             Err(e) => {
-                disconnect(state, address, session_id).await;
+                disconnect(state, address, public_key).await;
                 return Err(e.into());
             }
         }
@@ -211,16 +220,19 @@ async fn write(
     state: Arc<RwLock<State>>,
     address: Address,
     mut outgoing: Receiver<Vec<u8>>,
-    session_id: Uuid,
+    public_key: Vec<u8>,
 ) -> Result<()> {
     // Receive change notifications and send them over the websocket
     while let Ok(msg) = outgoing.recv().await {
         let mut writer = state.write().await;
-        let session = writer
-            .sessions
-            .get_mut(&session_id)
+        let transport = writer
+            .transports
+            .get_mut(&public_key)
             .expect("failed to locate websocket session");
 
+        todo!("encrypt and encode websocket message over noise transport");
+        
+        /*
         let aead = match session.encrypt(&msg).await {
             Ok(aead) => aead,
             Err(e) => {
@@ -229,22 +241,25 @@ async fn write(
                 return Err(e.into());
             }
         };
+        */
 
         drop(writer);
-
+        
+        /*
         match encode(&aead).await {
             Ok(buffer) => {
                 if sender.send(Message::Binary(buffer)).await.is_err() {
-                    disconnect(state, address, session_id).await;
+                    disconnect(state, address, public_key).await;
                     return Ok(());
                 }
             }
             Err(e) => {
                 tracing::error!("{}", e);
-                disconnect(state, address, session_id).await;
+                disconnect(state, address, public_key).await;
                 return Err(e.into());
             }
         }
+        */
     }
     Ok(())
 }

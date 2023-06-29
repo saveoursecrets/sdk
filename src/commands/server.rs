@@ -5,7 +5,7 @@ use sos_net::{
     FileLocks,
 };
 use sos_sdk::{
-    crypto::channel::{ServerTransportManager, SessionManager},
+    crypto::channel::ServerTransportManager,
     events::AuditLogFile,
 };
 
@@ -36,9 +36,7 @@ pub async fn run(
         config.session.duration = session_duration;
     }
 
-    let sessions = SessionManager::new(config.session.duration);
     let transports = ServerTransportManager::new(config.session.duration);
-
     //println!("Config {:#?}", config);
 
     let mut backend = config.backend().await?;
@@ -67,7 +65,6 @@ pub async fn run(
         audit_log,
         sockets: Default::default(),
         transports,
-        sessions,
     }));
 
     let handle = Handle::new();
