@@ -29,7 +29,7 @@ web3-address = { version = "0.6", features = ["ethereum"] }
 serde = { version = "1", features = ["derive"] }
 hex = { version = "0.4", features = ["serde"] }
 serde_json = "1"
-k256 = { version = "0.13.1", features = ["ecdsa", "ecdh"] }
+k256 = { version = "0.13.1", features = ["ecdsa"] }
 subtle = "2"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 argon2 = { version = "0.5", features = ["std"]}
