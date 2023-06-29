@@ -214,8 +214,8 @@ impl StorageProvider for RemoteProvider {
         Ok((WriteEvent::CreateVault(Cow::Owned(buffer)), summary))
     }
 
-    async fn authenticate(&mut self) -> Result<()> {
-        Ok(self.client.authenticate().await?)
+    async fn handshake(&mut self) -> Result<()> {
+        Ok(self.client.handshake().await?)
     }
 
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
@@ -438,12 +438,7 @@ impl StorageProvider for RemoteProvider {
         change: ChangeNotification,
     ) -> Result<(bool, HashSet<ChangeAction>)> {
         // Was this change notification triggered by us?
-        let self_change = match self.client.session_id().await {
-            Ok(id) => &id == change.session_id(),
-            // Maybe the session is no longer available
-            Err(_) => false,
-        };
-
+        let self_change = self.client.public_key() == change.public_key();
         let actions = sync::handle_change(self, change).await?;
         Ok((self_change, actions))
     }

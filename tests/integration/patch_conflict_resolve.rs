@@ -4,6 +4,7 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use sos_net::client::provider::StorageProvider;
+use sos_sdk::mpc::generate_keypair;
 
 #[tokio::test]
 #[serial]
@@ -26,7 +27,8 @@ async fn integration_patch_conflict_resolve() -> Result<()> {
     // Set up another connected client using a different
     // cache directory and sharing the same credentials
     let data_dir = dirs.clients.get(1).unwrap().to_path_buf();
-    let mut client2 = login(server_url, data_dir, &signer).await?;
+    let mut client2 =
+        login(server_url, data_dir, &signer, generate_keypair()?).await?;
     let _ = client2.load_vaults().await?;
     //let _ = client2.pull(&summary, true).await?;
 

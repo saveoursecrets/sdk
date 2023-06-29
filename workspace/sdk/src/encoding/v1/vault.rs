@@ -20,8 +20,7 @@ use binary_stream::futures::{
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result, SeekFrom};
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for VaultMeta {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -33,8 +32,7 @@ impl Encodable for VaultMeta {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for VaultMeta {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
@@ -47,8 +45,7 @@ impl Decodable for VaultMeta {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for VaultEntry {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -60,8 +57,7 @@ impl Encodable for VaultEntry {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for VaultEntry {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
@@ -76,8 +72,7 @@ impl Decodable for VaultEntry {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for VaultCommit {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -103,8 +98,7 @@ impl Encodable for VaultCommit {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for VaultCommit {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
@@ -129,8 +123,7 @@ impl Decodable for VaultCommit {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for Auth {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -148,8 +141,7 @@ impl Encodable for Auth {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for Auth {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
@@ -174,8 +166,7 @@ impl Decodable for Auth {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for Summary {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -191,8 +182,7 @@ impl Encodable for Summary {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for Summary {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
@@ -218,8 +208,7 @@ impl Decodable for Summary {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for Header {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -254,8 +243,7 @@ impl Encodable for Header {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for Header {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
@@ -287,8 +275,7 @@ impl Decodable for Header {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for SharedAccess {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -312,8 +299,7 @@ impl Encodable for SharedAccess {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for SharedAccess {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
@@ -409,8 +395,7 @@ impl Contents {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for Contents {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -423,8 +408,7 @@ impl Encodable for Contents {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for Contents {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
@@ -442,8 +426,7 @@ impl Decodable for Contents {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for Vault {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -455,8 +438,7 @@ impl Encodable for Vault {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for Vault {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,

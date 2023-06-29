@@ -18,10 +18,8 @@ use tokio::sync::{
 };
 
 use sos_sdk::{
-    crypto::{channel::EncryptedChannel, AeadPack},
-    decode, encode,
+    encode, mpc::channel::encrypt_server_channel, rpc::ServerEnvelope,
 };
-use uuid::Uuid;
 use web3_address::ethereum::Address;
 
 use crate::server::{
@@ -54,58 +52,33 @@ pub async fn upgrade(
     tracing::debug!("websocket upgrade request");
 
     let mut writer = state.write().await;
+    let server_public_key = writer.keypair.public_key().to_vec();
+    let client_public_key = hex::decode(&query.public_key)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let session_id = query.session;
-
-    let session = writer
-        .sessions
-        .get_mut(&session_id)
+    let transport = writer
+        .transports
+        .get_mut(&client_public_key)
         .ok_or(StatusCode::UNAUTHORIZED)?;
-    session
+    transport
         .valid()
         .then_some(())
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    let buffer = bs58::decode(&query.request)
-        .into_vec()
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    let aead: AeadPack = decode(&buffer)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // Verify the nonce is ahead of this nonce
-    // otherwise we may have a possible replay attack
-    session
-        .verify_nonce(&aead.nonce)
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    // Verify the signature for the message
-    let sign_bytes = session
-        .sign_bytes::<sha3::Keccak256>(&aead.nonce)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
     // Parse the bearer token
-    let token = authenticate::BearerToken::new(&query.bearer, &sign_bytes)
-        .await
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    // Attempt to impersonate the session identity
-    if &token.address != session.identity() {
-        return Err(StatusCode::BAD_REQUEST);
-    }
+    let token =
+        authenticate::BearerToken::new(&query.bearer, &client_public_key)
+            .await
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let address = token.address;
 
-    // Update the server nonce
-    session.set_nonce(&aead.nonce);
-
     // Prevent this session from expiring because
     // we need it to last as long as the socket connection
-    session.set_keep_alive(true);
+    transport.set_keep_alive(true);
 
-    // Refresh the session on activity
-    session.refresh();
+    // Refresh the transport on activity
+    transport.refresh();
 
     let conn = if let Some(conn) = writer.sockets.get_mut(&token.address) {
         conn
@@ -132,20 +105,27 @@ pub async fn upgrade(
     drop(writer);
 
     Ok(ws.on_upgrade(move |socket| {
-        handle_socket(socket, state, address, session_id, rx)
+        handle_socket(
+            socket,
+            state,
+            rx,
+            address,
+            server_public_key,
+            client_public_key,
+        )
     }))
 }
 
 async fn disconnect(
     state: Arc<RwLock<State>>,
     address: Address,
-    session_id: Uuid,
+    public_key: Vec<u8>,
 ) {
     let mut writer = state.write().await;
 
     // Sessions for websocket connections have the keep alive
     // flag so we must remove them on disconnect
-    writer.sessions.remove_session(&session_id);
+    writer.transports.remove_channel(&public_key);
 
     let clients = if let Some(conn) = writer.sockets.get_mut(&address) {
         conn.clients -= 1;
@@ -164,9 +144,10 @@ async fn disconnect(
 async fn handle_socket(
     socket: WebSocket,
     state: Arc<RwLock<State>>,
-    address: Address,
-    session_id: Uuid,
     outgoing: Receiver<Vec<u8>>,
+    address: Address,
+    server_public_key: Vec<u8>,
+    client_public_key: Vec<u8>,
 ) {
     let (writer, reader) = socket.split();
     tokio::spawn(write(
@@ -174,16 +155,22 @@ async fn handle_socket(
         Arc::clone(&state),
         address,
         outgoing,
-        session_id,
+        server_public_key,
+        client_public_key.clone(),
     ));
-    tokio::spawn(read(reader, Arc::clone(&state), address, session_id));
+    tokio::spawn(read(
+        reader,
+        Arc::clone(&state),
+        address,
+        client_public_key,
+    ));
 }
 
 async fn read(
     mut receiver: SplitStream<WebSocket>,
     state: Arc<RwLock<State>>,
     address: Address,
-    session_id: Uuid,
+    public_key: Vec<u8>,
 ) -> Result<()> {
     while let Some(msg) = receiver.next().await {
         match msg {
@@ -193,12 +180,12 @@ async fn read(
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
                 Message::Close(_) => {
-                    disconnect(state, address, session_id).await;
+                    disconnect(state, address, public_key).await;
                     return Ok(());
                 }
             },
             Err(e) => {
-                disconnect(state, address, session_id).await;
+                disconnect(state, address, public_key).await;
                 return Err(e.into());
             }
         }
@@ -211,37 +198,38 @@ async fn write(
     state: Arc<RwLock<State>>,
     address: Address,
     mut outgoing: Receiver<Vec<u8>>,
-    session_id: Uuid,
+    server_public_key: Vec<u8>,
+    client_public_key: Vec<u8>,
 ) -> Result<()> {
     // Receive change notifications and send them over the websocket
     while let Ok(msg) = outgoing.recv().await {
         let mut writer = state.write().await;
-        let session = writer
-            .sessions
-            .get_mut(&session_id)
+        let transport = writer
+            .transports
+            .get_mut(&client_public_key)
             .expect("failed to locate websocket session");
 
-        let aead = match session.encrypt(&msg).await {
-            Ok(aead) => aead,
-            Err(e) => {
-                drop(writer);
-                disconnect(state, address, session_id).await;
-                return Err(e.into());
-            }
+        let envelope =
+            encrypt_server_channel(transport.protocol_mut(), &msg, false)
+                .await?;
+
+        let message = ServerEnvelope {
+            public_key: server_public_key.clone(),
+            envelope,
         };
 
         drop(writer);
 
-        match encode(&aead).await {
+        match encode(&message).await {
             Ok(buffer) => {
                 if sender.send(Message::Binary(buffer)).await.is_err() {
-                    disconnect(state, address, session_id).await;
+                    disconnect(state, address, client_public_key).await;
                     return Ok(());
                 }
             }
             Err(e) => {
                 tracing::error!("{}", e);
-                disconnect(state, address, session_id).await;
+                disconnect(state, address, client_public_key).await;
                 return Err(e.into());
             }
         }

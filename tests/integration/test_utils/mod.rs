@@ -7,8 +7,9 @@ use url::Url;
 use web3_address::ethereum::Address;
 
 use sos_sdk::{
-    crypto::{channel::SessionManager, AccessKey},
+    crypto::AccessKey,
     events::{AuditLogFile, WriteEvent},
+    hex,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary,
@@ -18,16 +19,25 @@ use sos_sdk::{
 
 use sos_net::{
     client::provider::{RemoteProvider, StorageProvider},
-    server::{BackendHandler, Server, ServerConfig, ServerInfo, State},
+    server::{
+        BackendHandler, Server, ServerConfig, ServerInfo, State,
+        TransportManager,
+    },
     FileLocks,
 };
 
 const ADDR: &str = "127.0.0.1:3505";
 const SERVER: &str = "http://localhost:3505";
+const SERVER_PUBLIC_KEY: &str = include_str!("../../server_public_key.txt");
 
 mod signup;
 
 pub use signup::{login, signup};
+
+/// Read the test server public key.
+pub fn server_public_key() -> Result<Vec<u8>> {
+    Ok(hex::decode(SERVER_PUBLIC_KEY)?)
+}
 
 /// Set to use a mock credentials builder for the keyring integration.
 pub async fn set_mock_credential_builder() {
@@ -69,7 +79,8 @@ impl MockServer {
 
         tracing::info!("start mock server {:#?}", addr);
 
-        let config = ServerConfig::load("tests/config.toml").await?;
+        let (config, keypair) =
+            ServerConfig::load("tests/config.toml").await?;
 
         let mut backend = config.backend().await?;
 
@@ -82,6 +93,7 @@ impl MockServer {
         let audit_log = AuditLogFile::new(config.audit_file()).await?;
 
         let state = Arc::new(RwLock::new(State {
+            keypair,
             info: ServerInfo {
                 name: String::from("integration-test"),
                 version: String::from("0.0.0"),
@@ -90,7 +102,7 @@ impl MockServer {
             backend,
             audit_log,
             sockets: Default::default(),
-            sessions: SessionManager::new(300),
+            transports: TransportManager::new(3000),
         }));
 
         let server = Server::new();

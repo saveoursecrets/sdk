@@ -7,8 +7,7 @@ use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 use time::{Duration, OffsetDateTime};
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for Timestamp {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -22,8 +21,7 @@ impl Encodable for Timestamp {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for Timestamp {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,

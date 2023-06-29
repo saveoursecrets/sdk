@@ -357,7 +357,7 @@ impl Service for EventLogService {
 
                         let notification = ChangeNotification::new(
                             &address,
-                            caller.session_id(),
+                            caller.public_key(),
                             &vault_id,
                             proof,
                             change_events,

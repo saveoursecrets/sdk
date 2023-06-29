@@ -195,13 +195,8 @@ pub trait StorageProvider: Sync + Send {
         Ok(())
     }
 
-    /// Attempt to open an authenticated, encrypted session.
-    ///
-    /// Must be called before using any other methods that
-    /// communicate over the network to prepare the client session.
-    ///
-    /// For a local provider this is a noop.
-    async fn authenticate(&mut self) -> Result<()> {
+    /// Initiate noise protocol handshake with a remote server.
+    async fn handshake(&mut self) -> Result<()> {
         Ok(())
     }
 

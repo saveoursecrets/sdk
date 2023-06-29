@@ -63,7 +63,6 @@ http = "0.2"
 bs58 = "0.4"
 secrecy = "0.8"
 log = "0.4"
-crypto-bigint = "0.4.8"
 sha3 = "0.10"
 once_cell = "1"
 parking_lot = "0.12"
@@ -88,10 +87,7 @@ void = { version = "1", optional = true }
 either = { version = "1.8", optional = true }
 
 [dependencies.libp2p]
-version = "0.51"
-git = "https://github.com/tmpfs/rust-libp2p"
-branch = "snow-hacks"
-#path = "../../../../forks/libp2p/libp2p"
+version = "0.52"
 optional = true
 features = [
   "tokio", 
@@ -106,13 +102,10 @@ features = [
   "identify",
 ]
 
-[target.'cfg(not(target_arch="wasm32"))'.dependencies.libp2p-quic]
-version = "0.7.0-alpha.3"
-git = "https://github.com/tmpfs/rust-libp2p"
-branch = "snow-hacks"
-#path = "../../../../forks/libp2p/transports/quic"
-features = ["tokio"]
+[dependencies.libp2p-quic]
+version = "0.8.0-alpha"
 optional = true
+features = ["tokio"]
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 file-guard = "0.1"

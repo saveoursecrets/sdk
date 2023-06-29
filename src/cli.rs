@@ -1,15 +1,15 @@
 use clap::{Parser, Subcommand};
 use sos_net::client::provider::ProviderFactory;
 use sos_sdk::{
-    account::AccountRef, storage::AppPaths, url::Url, vault::VaultRef,
+    account::AccountRef, hex, storage::AppPaths, url::Url, vault::VaultRef,
 };
 use std::path::PathBuf;
 
 use super::{
     commands::{
-        account, audit, changes, check, device, folder, rendezvous, secret,
-        server, shell, AccountCommand, AuditCommand, CheckCommand,
-        DeviceCommand, FolderCommand, SecretCommand,
+        account, audit, changes, check, device, folder, generate_keypair,
+        rendezvous, secret, server, shell, AccountCommand, AuditCommand,
+        CheckCommand, DeviceCommand, FolderCommand, SecretCommand,
     },
     Result,
 };
@@ -68,6 +68,19 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: FolderCommand,
     },
+    /// Generate PEM-encoded noise protocol keypair.
+    Keypair {
+        /// Force overwrite if the file exists.
+        #[clap(short, long)]
+        force: bool,
+
+        /// Write hex-encoded public key to a file.
+        #[clap(long)]
+        public_key: Option<PathBuf>,
+
+        /// Write keypair to this file.
+        file: PathBuf,
+    },
     /// Create, edit and delete secrets.
     Secret {
         #[clap(subcommand)]
@@ -84,6 +97,9 @@ pub enum Command {
         /// Server URL.
         #[clap(short, long)]
         server: Url,
+
+        /// Public key of the remote server.
+        public_key: String,
 
         /// Account name or address.
         #[clap(short, long)]
@@ -104,7 +120,7 @@ pub enum Command {
         #[clap(short, long, default_value = "0.0.0.0:3505")]
         bind: String,
     },
-    /// Storage web service.
+    /// Mirror web service.
     Server {
         /// Override the audit log file path.
         #[clap(short, long)]
@@ -155,10 +171,20 @@ pub async fn run() -> Result<()> {
         Command::Account { cmd } => account::run(cmd, factory).await?,
         Command::Device { cmd } => device::run(cmd, factory).await?,
         Command::Folder { cmd } => folder::run(cmd, factory).await?,
+        Command::Keypair {
+            file,
+            force,
+            public_key,
+        } => generate_keypair::run(file, force, public_key).await?,
         Command::Secret { cmd } => secret::run(cmd, factory).await?,
         Command::Audit { cmd } => audit::run(cmd).await?,
-        Command::Changes { server, account } => {
-            changes::run(server, account).await?
+        Command::Changes {
+            server,
+            public_key,
+            account,
+        } => {
+            let server_public_key = hex::decode(&public_key)?;
+            changes::run(server, server_public_key, account).await?
         }
         Command::Check { cmd } => check::run(cmd).await?,
         Command::Shell { account, folder } => {

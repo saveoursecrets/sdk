@@ -20,21 +20,16 @@ use libp2p::{
     identity,
     kad::{record::store::MemoryStore, Kademlia},
     multiaddr::Protocol,
-    rendezvous::{
-        self, client::RegisterError, Cookie, Namespace, Registration,
-    },
+    rendezvous::{self, Cookie, Namespace, Registration},
     request_response::{self, ProtocolSupport, RequestId, ResponseChannel},
-    swarm::{
-        AddressScore, ConnectionHandlerUpgrErr, Swarm, SwarmBuilder,
-        SwarmEvent,
-    },
+    swarm::{Swarm, SwarmBuilder, SwarmEvent},
     PeerId,
 };
 
 use super::{
     behaviour::*,
     events::{ChangeEvent, MessageEvent, NetworkEvent},
-    protocol::{RpcExchangeCodec, RpcExchangeProtocol},
+    protocol::RpcExchangeProtocol,
     transport,
 };
 
@@ -45,13 +40,7 @@ type PendingRequests = HashMap<
 
 type PeerEvent = SwarmEvent<
     ComposedEvent,
-    Either<
-        Either<
-            Either<ConnectionHandlerUpgrErr<io::Error>, io::Error>,
-            void::Void,
-        >,
-        io::Error,
-    >,
+    Either<Either<Either<void::Void, io::Error>, void::Void>, io::Error>,
 >;
 
 /// Location of a rendezvous server.
@@ -120,8 +109,10 @@ pub async fn new(
         ComposedBehaviour {
             kademlia: Kademlia::new(peer_id, MemoryStore::new(peer_id)),
             request_response: request_response::Behaviour::new(
-                RpcExchangeCodec(),
-                iter::once((RpcExchangeProtocol(), ProtocolSupport::Full)),
+                iter::once((
+                    RpcExchangeProtocol::default(),
+                    ProtocolSupport::Full,
+                )),
                 Default::default(),
             ),
             rendezvous: rendezvous::client::Behaviour::new(local_key.clone()),
@@ -134,7 +125,7 @@ pub async fn new(
     )
     .build();
 
-    swarm.add_external_address(location.addr.clone(), AddressScore::Infinite);
+    swarm.add_external_address(location.addr.clone());
     swarm.dial(location.addr.clone())?;
 
     let (command_sender, command_receiver) = mpsc::channel(0);
@@ -456,11 +447,13 @@ impl EventLoop {
                     pending.send(Ok(())).expect("sender channel to be open");
                 }
             }
-            rendezvous::client::Event::RegisterFailed(error) => {
-                tracing::error!("failed to register {}", error);
-                if let RegisterError::Remote { namespace, .. } = error {
-                    self.pending_register.remove(&namespace);
-                }
+            rendezvous::client::Event::RegisterFailed {
+                namespace,
+                error,
+                ..
+            } => {
+                tracing::error!("failed to register {:#?}", error);
+                self.pending_register.remove(&namespace);
             }
             rendezvous::client::Event::DiscoverFailed {
                 error,
@@ -496,7 +489,7 @@ impl EventLoop {
                                 address
                             );
 
-                            let p2p_suffix = Protocol::P2p(*peer.as_ref());
+                            let p2p_suffix = Protocol::P2p(peer);
                             let address_with_p2p = if !address.ends_with(
                                 &Multiaddr::empty().with(p2p_suffix.clone()),
                             ) {
@@ -581,7 +574,7 @@ impl EventLoop {
                 }
             }
             SwarmEvent::IncomingConnectionError { .. } => {}
-            SwarmEvent::Dialing(_peer_id) => {}
+            SwarmEvent::Dialing { .. } => {}
 
             /*
             SwarmEvent::Behaviour(ComposedEvent::Kademlia(
@@ -718,11 +711,11 @@ impl EventLoop {
                         .send(Err(Error::RegisterRunning))
                         .expect("sender channel to be open")
                 } else {
-                    self.swarm.behaviour_mut().rendezvous.register(
-                        namespace.clone(),
-                        self.location.id,
-                        ttl,
-                    );
+                    self.swarm
+                        .behaviour_mut()
+                        .rendezvous
+                        .register(namespace.clone(), self.location.id, ttl)
+                        .unwrap();
 
                     self.pending_register.insert(namespace, sender);
                 }

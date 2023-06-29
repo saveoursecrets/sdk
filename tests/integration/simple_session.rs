@@ -13,7 +13,7 @@ use url::Url;
 use sos_net::client::{
     net::{
         changes::{changes, connect},
-        RequestClient,
+        RpcClient,
     },
     provider::StorageProvider,
 };
@@ -21,10 +21,10 @@ use sos_sdk::{
     commit::CommitRelationship,
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
+    mpc::generate_keypair,
     storage::AppPaths,
     vault::VaultRef,
 };
-use tokio::sync::Mutex;
 
 #[tokio::test]
 #[serial]
@@ -49,10 +49,16 @@ async fn integration_simple_session() -> Result<()> {
     let ws_url = server_url.clone();
     tokio::task::spawn(async move {
         // Create the websocket connection
-        let (stream, session) = connect(ws_url, signer).await?;
+        let (stream, client) = connect(
+            ws_url,
+            server_public_key()?,
+            signer,
+            generate_keypair()?,
+        )
+        .await?;
 
         // Wrap the stream to read change notifications
-        let mut stream = changes(stream, Arc::new(Mutex::new(session)));
+        let mut stream = changes(stream, client);
 
         while let Some(notification) = stream.next().await {
             let notification = notification?.await?;
@@ -75,7 +81,7 @@ async fn integration_simple_session() -> Result<()> {
     //assert_eq!(address, node_cache.address()?);
 
     // Check the /api route
-    let server_info = RequestClient::server_info(server_url.clone()).await?;
+    let server_info = RpcClient::server_info(server_url.clone()).await?;
     assert!(server_info.status().is_success());
 
     // Trigger server code path for the / URL
@@ -228,7 +234,7 @@ async fn integration_simple_session() -> Result<()> {
 
 async fn home(server: &Url) -> Result<()> {
     let url = server.clone();
-    let response = RequestClient::get(url).await?;
+    let response = RpcClient::get(url).await?;
     assert!(response.status().is_success());
     Ok(())
 }

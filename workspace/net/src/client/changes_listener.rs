@@ -5,17 +5,19 @@ use std::{future::Future, sync::Arc, thread};
 use async_recursion::async_recursion;
 use futures::StreamExt;
 use std::time::Duration;
-use tokio::{sync::Mutex, time::sleep};
+use tokio::time::sleep;
 use url::Url;
 
 use super::{
-    net::changes::{changes, connect, WsStream},
+    net::{
+        changes::{changes, connect, WsStream},
+        RpcClient,
+    },
     Error, Result,
 };
 
 use sos_sdk::{
-    crypto::channel::ClientSession, events::ChangeNotification,
-    signer::ecdsa::BoxedEcdsaSigner,
+    events::ChangeNotification, mpc::Keypair, signer::ecdsa::BoxedEcdsaSigner,
 };
 
 const INTERVAL_MS: u64 = 15000;
@@ -24,13 +26,25 @@ const INTERVAL_MS: u64 = 15000;
 #[derive(Clone)]
 pub struct ChangesListener {
     remote: Url,
+    remote_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
+    keypair: Keypair,
 }
 
 impl ChangesListener {
     /// Create a new changes listener.
-    pub fn new(remote: Url, signer: BoxedEcdsaSigner) -> Self {
-        Self { remote, signer }
+    pub fn new(
+        remote: Url,
+        remote_public_key: Vec<u8>,
+        signer: BoxedEcdsaSigner,
+        keypair: Keypair,
+    ) -> Self {
+        Self {
+            remote,
+            remote_public_key,
+            signer,
+            keypair,
+        }
     }
 
     /// Spawn a thread to listen for changes and apply incoming
@@ -55,13 +69,13 @@ impl ChangesListener {
     async fn listen<F>(
         &self,
         stream: WsStream,
-        session: ClientSession,
+        client: Arc<RpcClient>,
         handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
         F: Future<Output = ()> + 'static,
     {
-        let mut stream = changes(stream, Arc::new(Mutex::new(session)));
+        let mut stream = changes(stream, client);
         while let Some(notification) = stream.next().await {
             let notification = notification?.await?;
             let future = handler(notification);
@@ -70,8 +84,14 @@ impl ChangesListener {
         Ok(())
     }
 
-    async fn stream(&self) -> Result<(WsStream, ClientSession)> {
-        connect(self.remote.clone(), self.signer.clone()).await
+    async fn stream(&self) -> Result<(WsStream, Arc<RpcClient>)> {
+        connect(
+            self.remote.clone(),
+            self.remote_public_key.clone(),
+            self.signer.clone(),
+            self.keypair.clone(),
+        )
+        .await
     }
 
     async fn connect<F>(
@@ -82,8 +102,8 @@ impl ChangesListener {
         F: Future<Output = ()> + 'static,
     {
         match self.stream().await {
-            Ok((stream, session)) => {
-                self.listen(stream, session, handler).await
+            Ok((stream, client)) => {
+                self.listen(stream, client, handler).await
             }
             Err(_) => self.delay_connect(handler).await,
         }

@@ -7,8 +7,7 @@ use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use rs_merkle::{algorithms::Sha256, MerkleProof};
 use std::io::Result;
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Encodable for CommitProof {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -26,8 +25,7 @@ impl Encodable for CommitProof {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Decodable for CommitProof {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,

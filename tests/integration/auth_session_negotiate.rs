@@ -5,7 +5,7 @@ use crate::test_utils::*;
 
 use http::StatusCode;
 use sos_net::client::net::RpcClient;
-use sos_sdk::{encode, vault::Vault};
+use sos_sdk::{encode, mpc::generate_keypair, vault::Vault};
 
 #[tokio::test]
 #[serial]
@@ -19,13 +19,17 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     let (_address, _credentials, _, signer) = signup(&dirs, 0).await?;
 
-    let mut client = RpcClient::new(server_url, signer);
+    let mut client = RpcClient::new(
+        server_url,
+        server_public_key()?,
+        signer,
+        generate_keypair()?,
+    )?;
 
-    client.authenticate().await?;
+    client.handshake().await?;
 
-    // Should have a valid session now
-    assert!(client.has_session());
-    assert!(client.is_ready().await?);
+    // Noise protocol transport should be ready
+    assert!(client.is_transport_ready().await);
 
     let vault: Vault = Default::default();
     let body = encode(&vault).await?;
@@ -44,9 +48,12 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     let body = encode(&vault).await?;
 
     let (status, proof) = client.create_vault(body).await?.unwrap();
-
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
+
+    // Verify new summaries length
+    let (_, summaries) = client.list_vaults().await?.unwrap();
+    assert_eq!(2, summaries.len());
 
     // Update and save a vault
     let name = "New vault name";
@@ -56,11 +63,8 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 
-    // Verify new summaries length
-    let (_, summaries) = client.list_vaults().await?.unwrap();
-    assert_eq!(2, summaries.len());
-
     // Check the list of summaries includes one with the updated name
+    let (_, summaries) = client.list_vaults().await?.unwrap();
     let new_vault_summary = summaries.iter().find(|s| s.name() == name);
     assert!(new_vault_summary.is_some());
 
@@ -77,9 +81,8 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     let del_vault_summary = summaries.iter().find(|s| s.id() == vault.id());
     assert!(del_vault_summary.is_none());
 
-    let login = summaries.get(0).unwrap();
-
     // Load the entire event log buffer
+    let login = summaries.get(0).unwrap();
     let (status, (proof, buffer)) =
         client.load_event_log(login.id(), None).await?.unwrap();
     assert_eq!(StatusCode::OK, status);

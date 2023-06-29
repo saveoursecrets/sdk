@@ -2,7 +2,6 @@
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 
-pub mod channel;
 mod cipher;
 mod key_derivation;
 mod private_key;

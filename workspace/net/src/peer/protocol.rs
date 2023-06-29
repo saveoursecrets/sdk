@@ -2,12 +2,13 @@
 use async_trait::async_trait;
 use futures::prelude::*;
 use libp2p::{
-    core::upgrade::{
-        read_length_prefixed, write_length_prefixed, ProtocolName,
-    },
+    core::upgrade::{read_length_prefixed, write_length_prefixed},
     request_response::Codec,
 };
-use std::io::{self, ErrorKind};
+use std::{
+    convert::AsRef,
+    io::{self, ErrorKind},
+};
 
 use sos_sdk::{
     decode, encode,
@@ -18,17 +19,35 @@ const MAX_BUFFER_READ: usize = 16_777_216;
 
 /// Protocol for RPC messages.
 #[derive(Debug, Clone)]
-pub struct RpcExchangeProtocol();
+pub struct RpcExchangeProtocol {
+    name: String,
+}
+
+impl Default for RpcExchangeProtocol {
+    fn default() -> Self {
+        Self {
+            name: "/sos-rpc/1.0.0".to_owned(),
+        }
+    }
+}
+
+impl AsRef<str> for RpcExchangeProtocol {
+    fn as_ref(&self) -> &str {
+        &self.name
+    }
+}
 
 /// Codec for RPC messages.
-#[derive(Clone)]
-pub struct RpcExchangeCodec();
+#[derive(Default, Clone)]
+pub struct RpcExchangeCodec;
 
+/*
 impl ProtocolName for RpcExchangeProtocol {
     fn protocol_name(&self) -> &[u8] {
         "/sos-rpc/1.0.0".as_bytes()
     }
 }
+*/
 
 #[async_trait]
 impl Codec for RpcExchangeCodec {

@@ -2,4 +2,5 @@
 target
 *.bak
 *.profraw
-# workspace/server/public
+*.pem
+tests/server_public_key.txt

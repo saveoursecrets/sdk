@@ -89,6 +89,12 @@ The minimum supported Rust version (MSRV) is 1.68.2; to view the API documentati
 
 ### Test
 
+Generate a keypair for the server first:
+
+```
+cargo run -- keypair --public-key tests/server_public_key.txt tests/test.pem
+```
+
 * Run all tests: `cargo make test`
 * Unit tests: `cargo make unit`
 * Integration tests: `cargo make integration`

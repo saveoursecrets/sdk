@@ -5,40 +5,33 @@ use sos_sdk::{
     commit::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, EVENT_LOG_LOAD, EVENT_LOG_PATCH,
-        EVENT_LOG_SAVE, EVENT_LOG_STATUS, SESSION_OFFER, SESSION_VERIFY,
-        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE, X_SESSION,
-    },
-    crypto::{
-        channel::{ClientSession, EncryptedChannel},
-        AeadPack,
+        EVENT_LOG_SAVE, EVENT_LOG_STATUS, HANDSHAKE_INITIATE, VAULT_CREATE,
+        VAULT_DELETE, VAULT_SAVE,
     },
     decode, encode,
+    mpc::{
+        channel::{decrypt_server_channel, encrypt_server_channel},
+        snow, Keypair, ProtocolState, PATTERN,
+    },
     patch::Patch,
-    rpc::{Packet, RequestMessage, ResponseMessage},
+    rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
     signer::ecdsa::BoxedEcdsaSigner,
     vault::Summary,
 };
 use std::{
     borrow::Cow,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
 };
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use url::Url;
 use uuid::Uuid;
 
 use crate::client::{Error, Result};
 
 use super::{bearer_prefix, encode_signature, AUTHORIZATION};
-
-macro_rules! body {
-    ($client:expr, $id:expr, $method:expr, $params:expr, $body:expr) => {{
-        let request =
-            RequestMessage::new(Some($id), $method, $params, $body)?;
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
-        $client.build_request(&body).await?
-    }};
-}
 
 /// Create an RPC call without a body.
 async fn new_rpc_call<T: Serialize>(
@@ -48,30 +41,65 @@ async fn new_rpc_call<T: Serialize>(
 ) -> Result<Vec<u8>> {
     let request = RequestMessage::new_call(Some(id), method, params)?;
     let packet = Packet::new_request(request);
-    let body = encode(&packet).await?;
-    Ok(body)
+    Ok(encode(&packet).await?)
 }
 
 /// Client implementation for RPC requests.
+#[derive(Clone)]
 pub struct RpcClient {
     server: Url,
+    server_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
+    keypair: Keypair,
+    protocol: Arc<RwLock<Option<ProtocolState>>>,
     client: reqwest::Client,
-    session: Option<RwLock<ClientSession>>,
-    id: AtomicU64,
+    id: Arc<Mutex<AtomicU64>>,
 }
 
 impl RpcClient {
-    /// Create a new request client.
-    pub fn new(server: Url, signer: BoxedEcdsaSigner) -> Self {
+    /// Create a new client.
+    pub fn new(
+        server: Url,
+        server_public_key: Vec<u8>,
+        signer: BoxedEcdsaSigner,
+        keypair: Keypair,
+    ) -> Result<Self> {
         let client = reqwest::Client::new();
-        Self {
+        let protocol = Self::new_handshake(&keypair, &server_public_key)?;
+        Ok(Self {
             server,
+            server_public_key,
             signer,
+            keypair,
+            protocol,
             client,
-            session: None,
-            id: AtomicU64::from(1),
-        }
+            id: Arc::new(Mutex::new(AtomicU64::from(1))),
+        })
+    }
+
+    /// Generic GET function.
+    pub async fn get(url: Url) -> Result<reqwest::Response> {
+        let client = reqwest::Client::new();
+        Ok(client.get(url).send().await?)
+    }
+
+    /// Get the server information.
+    pub async fn server_info(server: Url) -> Result<reqwest::Response> {
+        let client = reqwest::Client::new();
+        let url = server.join("api")?;
+        Ok(client.get(url).send().await?)
+    }
+
+    fn new_handshake(
+        keypair: &Keypair,
+        server_public_key: &[u8],
+    ) -> Result<Arc<RwLock<Option<ProtocolState>>>> {
+        let initiator = snow::Builder::new(PATTERN.parse()?)
+            .local_private_key(keypair.private_key())
+            .remote_public_key(server_public_key)
+            .build_initiator()?;
+        let protocol = ProtocolState::Handshake(Box::new(initiator));
+        Ok(Arc::new(RwLock::new(Some(protocol))))
     }
 
     /// Get the signer for this client.
@@ -84,86 +112,83 @@ impl RpcClient {
         &self.server
     }
 
-    /// Determine if this client has a session set.
-    pub fn has_session(&self) -> bool {
-        self.session.is_some()
+    /// Get the noise protocol public key.
+    pub fn public_key(&self) -> &[u8] {
+        self.keypair.public_key()
     }
 
-    /// Get the session identifier.
-    pub async fn session_id(&self) -> Result<Uuid> {
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let reader = lock.read().await;
-        let id = *reader.id();
-        Ok(id)
-    }
-
-    /// Determine if this client's session is ready for use.
-    pub async fn is_ready(&self) -> Result<bool> {
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let session = lock.read().await;
-        Ok(session.ready())
+    /// Determine if the noise transport is ready.
+    pub async fn is_transport_ready(&self) -> bool {
+        let reader = self.protocol.read().await;
+        matches!(&*reader, Some(ProtocolState::Transport(_)))
     }
 
     /// Get the next request identifier.
-    fn next_id(&self) -> u64 {
-        self.id.fetch_add(1, Ordering::SeqCst)
+    async fn next_id(&self) -> u64 {
+        let id = self.id.lock().await;
+        id.fetch_add(1, Ordering::SeqCst)
     }
 
-    /// Attempt to authenticate to the remote node and store
-    /// the client session.
-    pub async fn authenticate(&mut self) -> Result<()> {
-        let session = self.new_session().await?;
-        self.session = Some(RwLock::new(session));
+    /// Perform the handshake for the noise protocol.
+    pub async fn handshake(&mut self) -> Result<()> {
+        // If we are already in a transport state, discard
+        // the transport and perform a new handshake
+        if self.is_transport_ready().await {
+            self.protocol =
+                Self::new_handshake(&self.keypair, &self.server_public_key)?;
+        }
+
+        // Prepare the handshake initiator
+        let (len, body) = {
+            let mut writer = self.protocol.write().await;
+            if let Some(ProtocolState::Handshake(initiator)) = writer.as_mut()
+            {
+                let mut message = [0u8; 1024];
+                let len = initiator.write_message(&[], &mut message)?;
+
+                let url = self.server.join("api/handshake")?;
+                let id = self.next_id().await;
+                let request = RequestMessage::new(
+                    Some(id),
+                    HANDSHAKE_INITIATE,
+                    (self.keypair.public_key(), len),
+                    Cow::Borrowed(&message),
+                )?;
+                let packet = Packet::new_request(request);
+                let body = encode(&packet).await?;
+                let response =
+                    self.client.post(url).body(body).send().await?;
+
+                let (_status, result, body) = self
+                    .read_response::<usize>(
+                        response.status(),
+                        &response.bytes().await?,
+                    )
+                    .await?;
+                (result?, body)
+            } else {
+                unreachable!();
+            }
+        };
+
+        // Move into transport state
+        let transport = {
+            let mut writer = self.protocol.write().await;
+            if let Some(ProtocolState::Handshake(mut initiator)) =
+                writer.take()
+            {
+                let mut reply = [0u8; 1024];
+                initiator.read_message(&body[..len], &mut reply)?;
+                let transport = initiator.into_transport_mode()?;
+                transport
+            } else {
+                unreachable!();
+            }
+        };
+        let mut writer = self.protocol.write().await;
+        *writer = Some(ProtocolState::Transport(transport));
+
         Ok(())
-    }
-
-    /// Negotiate a new session.
-    pub async fn new_session(&self) -> Result<ClientSession> {
-        let url = self.server.join("api/session")?;
-
-        // Offer
-        let address = self.signer.address()?;
-        let body =
-            new_rpc_call(self.next_id(), SESSION_OFFER, address).await?;
-
-        let response =
-            self.client.post(url.clone()).body(body).send().await?;
-
-        let (_status, result, _) = self
-            .read_response::<(Uuid, [u8; 16], Vec<u8>)>(
-                response.status(),
-                &response.bytes().await?,
-            )
-            .await?;
-        let result = result?;
-
-        let (session_id, challenge, public_key) = result;
-
-        // Verify
-        let mut session =
-            ClientSession::new(self.signer.clone(), session_id)?;
-        let (signature, client_key) =
-            session.sign(&public_key, challenge).await?;
-
-        let body = new_rpc_call(
-            self.next_id(),
-            SESSION_VERIFY,
-            (session_id, signature, session.public_key()),
-        )
-        .await?;
-
-        let response = self.client.post(url).body(body).send().await?;
-
-        // Check we got a success response; no error indicates success
-        let (_status, result, _) = self
-            .read_response::<()>(response.status(), &response.bytes().await?)
-            .await?;
-        result?;
-
-        // Store the session for later requests
-        session.finish(client_key);
-
-        Ok(session)
     }
 
     /// Create a new account.
@@ -173,15 +198,20 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/account")?;
 
-        let id = self.next_id();
-        let (session_id, sign_bytes, body) =
-            body!(self, id, ACCOUNT_CREATE, (), Cow::Owned(vault));
-
+        let id = self.next_id().await;
+        let request = RequestMessage::new(
+            Some(id),
+            ACCOUNT_CREATE,
+            (),
+            Cow::Owned(vault),
+        )?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
-        let response =
-            self.send_request(url, session_id, signature, body).await?;
+            encode_signature(self.signer.sign(&body).await?).await?;
 
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
         let maybe_retry = self
             .read_encrypted_response::<CommitProof>(
                 response.status(),
@@ -195,24 +225,18 @@ impl RpcClient {
     /// List vaults for an account.
     pub async fn list_vaults(&self) -> Result<MaybeRetry<Vec<Summary>>> {
         let url = self.server.join("api/account")?;
-
-        let id = self.next_id();
+        let id = self.next_id().await;
         let body = new_rpc_call(id, ACCOUNT_LIST_VAULTS, ()).await?;
-        let (session_id, sign_bytes, body) =
-            self.build_request(&body).await?;
-
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
-        let response =
-            self.send_request(url, session_id, signature, body).await?;
-
+            encode_signature(self.signer.sign(&body).await?).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
         let maybe_retry = self
             .read_encrypted_response::<Vec<Summary>>(
                 response.status(),
                 &response.bytes().await?,
             )
             .await?;
-
         maybe_retry.map(|result, _| Ok(result?))
     }
 
@@ -222,15 +246,20 @@ impl RpcClient {
         vault: Vec<u8>,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/vault")?;
-
-        let id = self.next_id();
-        let (session_id, sign_bytes, body) =
-            body!(self, id, VAULT_CREATE, (), Cow::Owned(vault));
-
+        let id = self.next_id().await;
+        let request = RequestMessage::new(
+            Some(id),
+            VAULT_CREATE,
+            (),
+            Cow::Owned(vault),
+        )?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
-        let response =
-            self.send_request(url, session_id, signature, body).await?;
+            encode_signature(self.signer.sign(&body).await?).await?;
+        let body = self.encrypt_request(&body).await?;
+
+        let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
@@ -238,7 +267,6 @@ impl RpcClient {
                 &response.bytes().await?,
             )
             .await?;
-
         maybe_retry.map(|result, _| Ok(result?))
     }
 
@@ -250,15 +278,13 @@ impl RpcClient {
         let vault_id = *vault_id;
         let url = self.server.join("api/vault")?;
 
-        let id = self.next_id();
+        let id = self.next_id().await;
         let body = new_rpc_call(id, VAULT_DELETE, vault_id).await?;
-        let (session_id, sign_bytes, body) =
-            self.build_request(&body).await?;
-
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
-        let response =
-            self.send_request(url, session_id, signature, body).await?;
+            encode_signature(self.signer.sign(&body).await?).await?;
+
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
@@ -283,14 +309,24 @@ impl RpcClient {
         let vault_id = *vault_id;
         let url = self.server.join("api/vault")?;
 
-        let id = self.next_id();
-        let (session_id, sign_bytes, body) =
-            body!(self, id, VAULT_SAVE, vault_id, Cow::Owned(vault));
+        let id = self.next_id().await;
 
+        //let (session_id, sign_bytes, body) =
+        //body!(self, id, VAULT_SAVE, vault_id, Cow::Owned(vault));
+
+        let request = RequestMessage::new(
+            Some(id),
+            VAULT_SAVE,
+            vault_id,
+            Cow::Owned(vault),
+        )?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
-        let response =
-            self.send_request(url, session_id, signature, body).await?;
+            encode_signature(self.signer.sign(&body).await?).await?;
+
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
@@ -309,20 +345,14 @@ impl RpcClient {
         vault_id: &Uuid,
         proof: Option<CommitProof>,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<Vec<u8>>)>> {
-        let vault_id = *vault_id;
         let url = self.server.join("api/events")?;
-
-        let id = self.next_id();
+        let id = self.next_id().await;
         let body =
             new_rpc_call(id, EVENT_LOG_LOAD, (vault_id, proof)).await?;
-        let (session_id, sign_bytes, body) =
-            self.build_request(&body).await?;
-
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
-        let response =
-            self.send_request(url, session_id, signature, body).await?;
-
+            encode_signature(self.signer.sign(&body).await?).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
         let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
@@ -339,20 +369,14 @@ impl RpcClient {
         vault_id: &Uuid,
         proof: Option<CommitProof>,
     ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
-        let vault_id = *vault_id;
         let url = self.server.join("api/events")?;
-
-        let id = self.next_id();
+        let id = self.next_id().await;
         let body =
             new_rpc_call(id, EVENT_LOG_STATUS, (vault_id, proof)).await?;
-        let (session_id, sign_bytes, body) =
-            self.build_request(&body).await?;
-
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
-        let response =
-            self.send_request(url, session_id, signature, body).await?;
-
+            encode_signature(self.signer.sign(&body).await?).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
         let maybe_retry = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
                 response.status(),
@@ -374,10 +398,11 @@ impl RpcClient {
         proof: CommitProof,
         patch: Patch<'static>,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<CommitProof>)>> {
-        let body = encode(&patch).await?;
         let url = self.server.join("api/events")?;
 
-        let id = self.next_id();
+        let id = self.next_id().await;
+
+        /*
         let (session_id, sign_bytes, body) = body!(
             self,
             id,
@@ -385,11 +410,23 @@ impl RpcClient {
             (vault_id, proof),
             Cow::Owned(body)
         );
+        */
 
+        let body = encode(&patch).await?;
+        let request = RequestMessage::new(
+            Some(id),
+            EVENT_LOG_PATCH,
+            (vault_id, proof),
+            Cow::Owned(body),
+        )?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
-        let response =
-            self.send_request(url, session_id, signature, body).await?;
+            encode_signature(self.signer.sign(&body).await?).await?;
+
+        let body = self.encrypt_request(&body).await?;
+
+        let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
@@ -412,10 +449,12 @@ impl RpcClient {
         proof: CommitProof,
         body: Vec<u8>,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
-        let vault_id = *vault_id;
+        //let vault_id = *vault_id;
         let url = self.server.join("api/events")?;
 
-        let id = self.next_id();
+        let id = self.next_id().await;
+
+        /*
         let (session_id, sign_bytes, body) = body!(
             self,
             id,
@@ -423,11 +462,22 @@ impl RpcClient {
             (vault_id, proof),
             Cow::Owned(body)
         );
+        */
+
+        let request = RequestMessage::new(
+            Some(id),
+            EVENT_LOG_SAVE,
+            (vault_id, proof),
+            Cow::Owned(body),
+        )?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
 
         let signature =
-            encode_signature(self.signer.sign(&sign_bytes).await?).await?;
-        let response =
-            self.send_request(url, session_id, signature, body).await?;
+            encode_signature(self.signer.sign(&body).await?).await?;
+
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
             .read_encrypted_response::<CommitProof>(
@@ -440,31 +490,22 @@ impl RpcClient {
     }
 
     /// Build an encrypted request.
-    async fn build_request(
-        &self,
-        request: &[u8],
-    ) -> Result<(Uuid, [u8; 32], Vec<u8>)> {
-        //let id = self.next_id();
-        let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-        let mut session = lock.write().await;
-        session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
-        let session_id = *session.id();
-
-        //let request = builder(id).await?;
-        let aead = session.encrypt(request).await?;
-        let sign_bytes =
-            session.sign_bytes::<sha3::Keccak256>(&aead.nonce)?;
-        let body = encode(&aead).await?;
-
-        Ok((session_id, sign_bytes, body))
+    async fn encrypt_request(&self, request: &[u8]) -> Result<Vec<u8>> {
+        let mut writer = self.protocol.write().await;
+        let protocol = writer.as_mut().ok_or(Error::NoSession)?;
+        let envelope =
+            encrypt_server_channel(protocol, request, false).await?;
+        let payload = ServerEnvelope {
+            public_key: self.keypair.public_key().to_vec(),
+            envelope,
+        };
+        Ok(encode(&payload).await?)
     }
 
     /// Send an encrypted session request.
     async fn send_request(
         &self,
         url: Url,
-        session_id: Uuid,
         signature: String,
         body: Vec<u8>,
     ) -> Result<reqwest::Response> {
@@ -472,7 +513,6 @@ impl RpcClient {
             .client
             .post(url)
             .header(AUTHORIZATION, bearer_prefix(&signature))
-            .header(X_SESSION, session_id.to_string())
             .body(body)
             .send()
             .await?;
@@ -503,38 +543,33 @@ impl RpcClient {
         http_status: StatusCode,
         buffer: &[u8],
     ) -> Result<RetryResponse<T>> {
-        //) -> Result<(StatusCode, sos_sdk::Result<T>, Vec<u8>)> {
-        // Unauthorized means the session could not be found
-        // or has expired
         if http_status == StatusCode::UNAUTHORIZED {
-            //Err(Error::NotAuthorized)
             Ok(RetryResponse::Retry(http_status))
         } else if http_status.is_success()
             || http_status == StatusCode::CONFLICT
         {
-            let lock = self.session.as_ref().ok_or(Error::NoSession)?;
-            let mut session = lock.write().await;
-            session.ready().then_some(()).ok_or(Error::InvalidSession)?;
-
-            let aead: AeadPack = decode(buffer).await?;
-            session.set_nonce(&aead.nonce);
-            let buffer = session.decrypt(&aead).await?;
-
+            let buffer = self.decrypt_server_envelope(buffer).await?;
             let reply: Packet<'static> = decode(&buffer).await?;
             let response: ResponseMessage<'static> = reply.try_into()?;
-
-            // We must return the inner status code as the server mutates
-            // some status codes (eg: NOT_MODIFIED -> OK) so that the client
-            // will read the body of the response.
-            //
-            // Callers need to respond to the actual NOT_MODIFIED status.
-
             let (_, status, result, body) = response.take::<T>()?;
             let result = result.ok_or(Error::NoReturnValue)?;
             Ok(RetryResponse::Complete(status, result, body))
         } else {
             Err(Error::ResponseCode(http_status.into()))
         }
+    }
+
+    pub(crate) async fn decrypt_server_envelope(
+        &self,
+        buffer: &[u8],
+    ) -> Result<Vec<u8>> {
+        let mut writer = self.protocol.write().await;
+        let protocol = writer.as_mut().ok_or(Error::NoSession)?;
+        let message: ServerEnvelope = decode(buffer).await?;
+        let (encoding, buffer) =
+            decrypt_server_channel(protocol, message.envelope).await?;
+        assert!(matches!(encoding, sos_sdk::mpc::Encoding::Blob));
+        Ok(buffer)
     }
 }
 
@@ -578,7 +613,7 @@ impl<T> MaybeRetry<T> {
 
     /// Unwrap as a completed request.
     ///
-    /// Panices if the request should be retried.
+    /// Panics if the request should be retried.
     pub fn unwrap(self) -> (StatusCode, T) {
         match self {
             MaybeRetry::Complete(status, result) => (status, result),

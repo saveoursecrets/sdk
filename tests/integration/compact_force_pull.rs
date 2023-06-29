@@ -11,8 +11,7 @@ use sos_net::client::{
     net::changes::{changes, connect},
     provider::StorageProvider,
 };
-use sos_sdk::commit::CommitProof;
-use tokio::sync::Mutex;
+use sos_sdk::{commit::CommitProof, mpc::generate_keypair};
 
 #[tokio::test]
 #[serial]
@@ -36,7 +35,9 @@ async fn integration_compact_force_pull() -> Result<()> {
 
     // Set up another connected client to listen for changes
     let data_dir = dirs.clients.get(0).unwrap().to_path_buf();
-    let mut listener = login(server_url.clone(), data_dir, &signer).await?;
+    let mut listener =
+        login(server_url.clone(), data_dir, &signer, generate_keypair()?)
+            .await?;
     let _ = listener.load_vaults().await?;
 
     // Both clients use the login vault
@@ -57,10 +58,13 @@ async fn integration_compact_force_pull() -> Result<()> {
     // Spawn a task to handle change notifications
     tokio::task::spawn(async move {
         // Create the websocket connection
-        let (stream, session) = connect(server_url, signer).await?;
+        let keypair = generate_keypair()?;
+        let (stream, client) =
+            connect(server_url, server_public_key()?, signer, keypair)
+                .await?;
 
         // Wrap the stream to read change notifications
-        let mut stream = changes(stream, Arc::new(Mutex::new(session)));
+        let mut stream = changes(stream, client);
 
         while let Some(notification) = stream.next().await {
             let notification = notification?.await?;

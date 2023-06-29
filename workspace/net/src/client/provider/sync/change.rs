@@ -48,6 +48,7 @@ pub async fn handle_change(
                     let tree = provider
                         .commit_tree(summary)
                         .ok_or(sos_sdk::Error::NoRootCommit)?;
+
                     let head = tree.head()?;
 
                     tracing::debug!(

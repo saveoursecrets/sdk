@@ -5,8 +5,7 @@ use super::{
         service::ServiceHandler,
         websocket::{upgrade, WebSocketConnection},
     },
-    headers::X_SESSION,
-    Backend, Result, ServerConfig,
+    Backend, Result, ServerConfig, TransportManager,
 };
 use axum::{
     extract::Extension,
@@ -20,7 +19,7 @@ use axum::{
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
 use serde::Serialize;
-use sos_sdk::{crypto::channel::SessionManager, events::AuditLogFile};
+use sos_sdk::{events::AuditLogFile, mpc::Keypair};
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
@@ -33,17 +32,19 @@ async fn session_reaper(state: Arc<RwLock<State>>, interval_secs: u64) {
     let mut stream = IntervalStream::new(interval);
     while (stream.next().await).is_some() {
         let mut writer = state.write().await;
-        let expired_sessions = writer.sessions.expired_keys();
+        let expired_transports = writer.transports.expired_keys();
         tracing::debug!(
-            expired_sessions = %expired_sessions.len());
-        for key in expired_sessions {
-            writer.sessions.remove_session(&key);
+            expired_transports = %expired_transports.len());
+        for key in expired_transports {
+            writer.transports.remove_channel(&key);
         }
     }
 }
 
 /// Server state.
 pub struct State {
+    /// Server keypair.
+    pub keypair: Keypair,
     /// The server configuration.
     pub config: ServerConfig,
     /// Server information.
@@ -52,8 +53,8 @@ pub struct State {
     pub backend: Backend,
     /// Audit log file
     pub audit_log: AuditLogFile,
-    /// Session manager.
-    pub sessions: SessionManager,
+    /// Server transport manager.
+    pub transports: TransportManager,
     /// Map of websocket  channels by authenticated
     /// client address.
     pub sockets: HashMap<Address, WebSocketConnection>,
@@ -156,11 +157,7 @@ impl Server {
         let cors = CorsLayer::new()
             .allow_methods(vec![Method::GET, Method::POST])
             .allow_credentials(true)
-            .allow_headers(vec![
-                AUTHORIZATION,
-                CONTENT_TYPE,
-                X_SESSION.clone(),
-            ])
+            .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE])
             .expose_headers(vec![])
             .allow_origin(origins);
 
@@ -168,8 +165,8 @@ impl Server {
             .route("/", get(home))
             .route("/api", get(api))
             .route("/api/changes", get(upgrade))
+            .route("/api/handshake", post(ServiceHandler::handshake))
             .route("/api/account", post(ServiceHandler::account))
-            .route("/api/session", post(ServiceHandler::session))
             .route("/api/vault", post(ServiceHandler::vault))
             .route("/api/events", post(ServiceHandler::events));
 

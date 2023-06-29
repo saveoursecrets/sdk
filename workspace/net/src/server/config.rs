@@ -6,12 +6,18 @@ use url::{Host, Url};
 use super::backend::{Backend, FileSystemBackend};
 use super::{Error, Result};
 
-use sos_sdk::vfs;
+use sos_sdk::{
+    mpc::{decode_keypair, Keypair},
+    vfs,
+};
 
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ServerConfig {
+    /// Path to the server key.
+    pub key: PathBuf,
+
     /// Audit log file.
     pub audit: AuditConfig,
 
@@ -112,7 +118,7 @@ impl Default for StorageConfig {
 
 impl ServerConfig {
     /// Load a server config from a file path.
-    pub async fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn load<P: AsRef<Path>>(path: P) -> Result<(Self, Keypair)> {
         if !vfs::try_exists(path.as_ref()).await? {
             return Err(Error::NotFile(path.as_ref().to_path_buf()));
         }
@@ -122,6 +128,17 @@ impl ServerConfig {
         config.file = Some(path.as_ref().canonicalize()?);
 
         let dir = config.directory();
+
+        if config.key.is_relative() {
+            config.key = dir.join(&config.key).canonicalize()?;
+        }
+
+        if !vfs::try_exists(&config.key).await? {
+            return Err(Error::KeyNotFound(config.key.clone()));
+        }
+
+        let contents = vfs::read_to_string(&config.key).await?;
+        let keypair = decode_keypair(contents)?;
 
         if let Some(tls) = config.tls.as_mut() {
             if tls.cert.is_relative() {
@@ -135,7 +152,7 @@ impl ServerConfig {
             tls.key = tls.key.canonicalize()?;
         }
 
-        Ok(config)
+        Ok((config, keypair))
     }
 
     /// Parent directory of the configuration file.

@@ -1,7 +1,6 @@
 //! Events emitted over the server-sent events channel to
 //! notify connected clients that changes have been made.
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use web3_address::ethereum::Address;
 
 use crate::{
@@ -19,8 +18,8 @@ use crate::{
 pub struct ChangeNotification {
     /// The owner address.
     address: Address,
-    /// The session identifier.
-    session_id: Uuid,
+    /// The public key of the caller.
+    public_key: Vec<u8>,
     /// The vault identifier.
     vault_id: VaultId,
     /// The commit proof.
@@ -33,14 +32,14 @@ impl ChangeNotification {
     /// Create a new change notification.
     pub fn new(
         address: &Address,
-        session_id: &Uuid,
+        public_key: &[u8],
         vault_id: &VaultId,
         proof: CommitProof,
         changes: Vec<ChangeEvent>,
     ) -> Self {
         Self {
             address: *address,
-            session_id: *session_id,
+            public_key: public_key.to_vec(),
             vault_id: *vault_id,
             proof,
             changes,
@@ -52,9 +51,9 @@ impl ChangeNotification {
         &self.address
     }
 
-    /// The session identifier that made the change.
-    pub fn session_id(&self) -> &Uuid {
-        &self.session_id
+    /// The public key that made the change.
+    pub fn public_key(&self) -> &[u8] {
+        &self.public_key
     }
 
     /// The identifier of the vault that was modified.
