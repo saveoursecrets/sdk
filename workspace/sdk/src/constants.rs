@@ -103,12 +103,6 @@ mod rpc {
     /// Noise protocol handshake initiation.
     pub const HANDSHAKE_INITIATE: &str = "Handshake.initiate";
 
-    /// Session offer method call.
-    pub const SESSION_OFFER: &str = "Session.offer";
-
-    /// Session verify method call.
-    pub const SESSION_VERIFY: &str = "Session.verify";
-
     /// Account create method call.
     pub const ACCOUNT_CREATE: &str = "Account.create";
 

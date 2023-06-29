@@ -5,8 +5,8 @@ use sos_sdk::{
     commit::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, EVENT_LOG_LOAD, EVENT_LOG_PATCH,
-        EVENT_LOG_SAVE, EVENT_LOG_STATUS, HANDSHAKE_INITIATE, SESSION_OFFER,
-        SESSION_VERIFY, VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
+        EVENT_LOG_SAVE, EVENT_LOG_STATUS, HANDSHAKE_INITIATE,
+        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
     },
     crypto::{
         channel::{ClientSession, EncryptedChannel},
