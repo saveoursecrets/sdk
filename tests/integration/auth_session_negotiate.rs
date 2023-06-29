@@ -30,7 +30,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     let vault: Vault = Default::default();
     let body = encode(&vault).await?;
-    
+
     // Try to create a new account
     let (status, _) = client.create_account(body).await?.unwrap();
     assert_eq!(StatusCode::CONFLICT, status);
@@ -40,15 +40,17 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     // New account with a single vault
     assert_eq!(1, summaries.len());
 
-    /*
     let mut vault: Vault = Default::default();
     vault.set_name(String::from("Mock vault"));
     let body = encode(&vault).await?;
 
     let (status, proof) = client.create_vault(body).await?.unwrap();
-
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
+
+    // Verify new summaries length
+    let (_, summaries) = client.list_vaults().await?.unwrap();
+    assert_eq!(2, summaries.len());
 
     // Update and save a vault
     let name = "New vault name";
@@ -58,11 +60,8 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 
-    // Verify new summaries length
-    let (_, summaries) = client.list_vaults().await?.unwrap();
-    assert_eq!(2, summaries.len());
-
     // Check the list of summaries includes one with the updated name
+    let (_, summaries) = client.list_vaults().await?.unwrap();
     let new_vault_summary = summaries.iter().find(|s| s.name() == name);
     assert!(new_vault_summary.is_some());
 
@@ -79,9 +78,8 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     let del_vault_summary = summaries.iter().find(|s| s.id() == vault.id());
     assert!(del_vault_summary.is_none());
 
-    let login = summaries.get(0).unwrap();
-
     // Load the entire event log buffer
+    let login = summaries.get(0).unwrap();
     let (status, (proof, buffer)) =
         client.load_event_log(login.id(), None).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
@@ -94,7 +92,6 @@ async fn integration_auth_session_negotiate() -> Result<()> {
         client.status(login.id(), None).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(match_proof.is_none());
-    */
 
     Ok(())
 }

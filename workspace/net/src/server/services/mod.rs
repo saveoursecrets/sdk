@@ -181,6 +181,8 @@ pub(crate) async fn private_service(
         // FIXME: remove this
         session_id: Uuid::new_v4(),
     };
+
+    tracing::debug!(method = ?request.method(), "serve");
     let reply = service.serve((owner, Arc::clone(&state)), request).await;
 
     let (status, body) = {
