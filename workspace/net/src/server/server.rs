@@ -20,7 +20,7 @@ use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
 use serde::Serialize;
 use sos_sdk::{
-    crypto::channel::{ServerTransportManager, SessionManager},
+    crypto::channel::ServerTransportManager,
     events::AuditLogFile,
     mpc::Keypair,
 };
