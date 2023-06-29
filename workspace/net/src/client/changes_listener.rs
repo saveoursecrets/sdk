@@ -5,11 +5,11 @@ use std::{future::Future, sync::Arc, thread};
 use async_recursion::async_recursion;
 use futures::StreamExt;
 use std::time::Duration;
-use tokio::{sync::Mutex, time::sleep};
+use tokio::time::sleep;
 use url::Url;
 
 use super::{
-    net::changes::{changes, connect, WsStream},
+    net::{changes::{changes, connect, WsStream}, RpcClient},
     Error, Result,
 };
 
@@ -66,12 +66,13 @@ impl ChangesListener {
     async fn listen<F>(
         &self,
         stream: WsStream,
+        client: Arc<RpcClient>,
         handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
         F: Future<Output = ()> + 'static,
     {
-        let mut stream = changes(stream);
+        let mut stream = changes(stream, client);
         while let Some(notification) = stream.next().await {
             let notification = notification?.await?;
             let future = handler(notification);
@@ -80,7 +81,7 @@ impl ChangesListener {
         Ok(())
     }
 
-    async fn stream(&self) -> Result<WsStream> {
+    async fn stream(&self) -> Result<(WsStream, Arc<RpcClient>)> {
         connect(
             self.remote.clone(),
             self.remote_public_key.clone(),
@@ -98,7 +99,7 @@ impl ChangesListener {
         F: Future<Output = ()> + 'static,
     {
         match self.stream().await {
-            Ok(stream) => self.listen(stream, handler).await,
+            Ok((stream, client)) => self.listen(stream, client, handler).await,
             Err(_) => self.delay_connect(handler).await,
         }
     }

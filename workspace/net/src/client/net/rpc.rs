@@ -396,7 +396,6 @@ impl RpcClient {
         proof: CommitProof,
         patch: Patch<'static>,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<CommitProof>)>> {
-        let body = encode(&patch).await?;
         let url = self.server.join("api/events")?;
 
         let id = self.next_id().await;
@@ -411,6 +410,7 @@ impl RpcClient {
         );
         */
 
+        let body = encode(&patch).await?;
         let request = RequestMessage::new(
             Some(id),
             EVENT_LOG_PATCH,
@@ -423,6 +423,11 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.encrypt_request(&body).await?;
+        
+        println!("sending patch body to the server {}", hex::encode(self.keypair.public_key()));
+
+        println!("sending with length {}", body.len());
+
         let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
@@ -488,6 +493,11 @@ impl RpcClient {
 
     /// Build an encrypted request.
     async fn encrypt_request(&self, request: &[u8]) -> Result<Vec<u8>> {
+        
+        println!("encrypting request, length: {}", request.len());
+
+        println!("encrypt with private key {:#?}", hex::encode(self.keypair.private_key()));
+
         let mut writer = self.protocol.write().await;
         let protocol = writer.as_mut().ok_or(Error::NoSession)?;
         let envelope =
@@ -545,22 +555,26 @@ impl RpcClient {
         } else if http_status.is_success()
             || http_status == StatusCode::CONFLICT
         {
-            let mut writer = self.protocol.write().await;
-            let protocol = writer.as_mut().ok_or(Error::NoSession)?;
-            let message: ServerEnvelope = decode(buffer).await?;
-            let (encoding, buffer) =
-                decrypt_server_channel(protocol, message.envelope).await?;
-
+            let buffer = self.decrypt_server_envelope(buffer).await?;
             let reply: Packet<'static> = decode(&buffer).await?;
             let response: ResponseMessage<'static> = reply.try_into()?;
-
             let (_, status, result, body) = response.take::<T>()?;
             let result = result.ok_or(Error::NoReturnValue)?;
-
             Ok(RetryResponse::Complete(status, result, body))
         } else {
             Err(Error::ResponseCode(http_status.into()))
         }
+    }
+
+    pub(crate) async fn decrypt_server_envelope(
+        &self, buffer: &[u8]) -> Result<Vec<u8>> {
+        let mut writer = self.protocol.write().await;
+        let protocol = writer.as_mut().ok_or(Error::NoSession)?;
+        let message: ServerEnvelope = decode(buffer).await?;
+        let (encoding, buffer) =
+            decrypt_server_channel(protocol, message.envelope).await?;
+        assert!(matches!(encoding, sos_sdk::mpc::Encoding::Blob));
+        Ok(buffer)
     }
 }
 

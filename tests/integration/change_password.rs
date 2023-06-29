@@ -17,7 +17,6 @@ use sos_sdk::{
     events::{ChangeEvent, ChangeNotification},
     passwd::diceware::generate_passphrase,
 };
-use tokio::sync::Mutex;
 
 #[tokio::test]
 #[serial]
@@ -44,12 +43,12 @@ async fn integration_change_password() -> Result<()> {
     // Spawn a task to handle change notifications
     tokio::task::spawn(async move {
         // Create the websocket connection
-        let (stream, session) =
+        let (stream, client) =
             connect(server_url, server_public_key()?, signer, keypair)
                 .await?;
 
         // Wrap the stream to read change notifications
-        let mut stream = changes(stream, Arc::new(Mutex::new(session)));
+        let mut stream = changes(stream, client);
 
         while let Some(notification) = stream.next().await {
             let notification = notification?.await?;

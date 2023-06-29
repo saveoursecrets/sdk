@@ -8,8 +8,6 @@ use sos_sdk::{
     account::AccountRef, mpc::Keypair, signer::ecdsa::BoxedEcdsaSigner,
     url::Url,
 };
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::{helpers::account::sign_in, Result, TARGET};
 
@@ -20,8 +18,8 @@ async fn changes_stream(
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
 ) -> sos_net::client::Result<()> {
-    let stream = connect(server, server_public_key, signer, keypair).await?;
-    let mut stream = changes(stream);
+    let (stream, client) = connect(server, server_public_key, signer, keypair).await?;
+    let mut stream = changes(stream, client);
     while let Some(notification) = stream.next().await {
         let notification = notification?.await?;
         tracing::info!(

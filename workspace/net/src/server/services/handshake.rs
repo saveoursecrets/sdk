@@ -4,7 +4,7 @@ use sos_sdk::{
     rpc::{RequestMessage, ResponseMessage, Service},
 };
 
-use crate::server::{State, TransportChannel};
+use crate::server::State;
 use async_trait::async_trait;
 use axum::http::StatusCode;
 use std::{borrow::Cow, sync::Arc};
@@ -45,13 +45,19 @@ impl Service for HandshakeService {
                 let len = responder.write_message(&[], &mut reply)?;
 
                 let transport = responder.into_transport_mode()?;
-                let duration = writer.config.session.duration;
+                //let duration = writer.config.session.duration;
+
+                let channel = writer.transports.new_channel(
+                    ProtocolState::Transport(transport));
                 writer.transports.add_channel(
                     client_public_key,
+                    channel,
+                    /*
                     TransportChannel::new(
                         duration,
                         ProtocolState::Transport(transport),
                     ),
+                    */
                 );
 
                 let reply: ResponseMessage<'_> = ResponseMessage::new(

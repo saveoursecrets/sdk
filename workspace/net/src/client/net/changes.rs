@@ -13,12 +13,12 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
-use tokio::{net::TcpStream, sync::Mutex};
+use tokio::net::TcpStream;
 
 use url::{Origin, Url};
 
 use sos_sdk::{
-    decode, events::ChangeNotification, mpc::Keypair,
+    events::ChangeNotification, mpc::Keypair,
     signer::ecdsa::BoxedEcdsaSigner,
 };
 
@@ -59,10 +59,13 @@ pub async fn connect(
     remote_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
-) -> Result<WsStream> {
+) -> Result<(WsStream, Arc<RpcClient>)> {
     let origin = remote.origin();
     let endpoint = remote.clone();
     let public_key = keypair.public_key().to_vec();
+        
+    println!("websocket connecting with {}", hex::encode(&public_key));
+
     let mut client =
         RpcClient::new(remote, remote_public_key, signer, keypair)?;
     client.handshake().await?;
@@ -75,12 +78,13 @@ pub async fn connect(
 
     let request = WebSocketRequest { host, uri, origin };
     let (ws_stream, _) = connect_async(request).await?;
-    Ok(ws_stream)
+    Ok((ws_stream, Arc::new(client)))
 }
 
 /// Read change notifications from a websocket stream.
 pub fn changes(
     stream: WsStream,
+    client: Arc<RpcClient>,
 ) -> Map<
     SplitStream<WsStream>,
     impl FnMut(
@@ -95,10 +99,22 @@ pub fn changes(
             Pin<Box<dyn Future<Output = Result<ChangeNotification>> + Send>>,
         > {
             let message = message?;
+            let rpc = Arc::clone(&client);
             Ok(Box::pin(async move {
                 match message {
                     Message::Binary(buffer) => {
-                        todo!("decrypt change notification packet");
+                        let buffer = rpc.decrypt_server_envelope(&buffer).await?;
+                        let notification: ChangeNotification =
+                            serde_json::from_slice(&buffer)?;
+                        Ok(notification)
+
+                        //let message: ServerEnvelope = decode(buffer).await?;
+                        
+                        /*
+                        let (encoding, buffer) =
+                            decrypt_server_channel(
+                                protocol, message.envelope).await?;
+                        */
 
                         /*
                         let aead: AeadPack = decode(&buffer).await?;

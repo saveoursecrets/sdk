@@ -24,7 +24,6 @@ use sos_sdk::{
     storage::AppPaths,
     vault::VaultRef,
 };
-use tokio::sync::Mutex;
 
 #[tokio::test]
 #[serial]
@@ -49,11 +48,11 @@ async fn integration_simple_session() -> Result<()> {
     let ws_url = server_url.clone();
     tokio::task::spawn(async move {
         // Create the websocket connection
-        let (stream, session) =
+        let (stream, client) =
             connect(ws_url, server_public_key()?, signer, keypair).await?;
 
         // Wrap the stream to read change notifications
-        let mut stream = changes(stream, Arc::new(Mutex::new(session)));
+        let mut stream = changes(stream, client);
 
         while let Some(notification) = stream.next().await {
             let notification = notification?.await?;

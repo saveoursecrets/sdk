@@ -18,7 +18,7 @@ use tokio::sync::{
 };
 
 use sos_sdk::{
-    decode, encode, mpc::channel::encrypt_server_channel, rpc::ServerEnvelope,
+    encode, mpc::channel::encrypt_server_channel, rpc::ServerEnvelope,
 };
 use web3_address::ethereum::Address;
 
