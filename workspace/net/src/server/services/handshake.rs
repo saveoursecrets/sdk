@@ -47,8 +47,9 @@ impl Service for HandshakeService {
                 let transport = responder.into_transport_mode()?;
                 //let duration = writer.config.session.duration;
 
-                let channel = writer.transports.new_channel(
-                    ProtocolState::Transport(transport));
+                let channel = writer
+                    .transports
+                    .new_channel(ProtocolState::Transport(transport));
                 writer.transports.add_channel(
                     client_public_key,
                     channel,

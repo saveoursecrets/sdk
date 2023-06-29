@@ -30,7 +30,6 @@ pub async fn signup(
     AccountCredentials,
     RemoteProvider,
     BoxedEcdsaSigner,
-    Keypair,
 )> {
     let TestDirs {
         target: destination,
@@ -51,14 +50,14 @@ pub async fn signup(
         destination.to_path_buf(),
         name,
         signer.clone(),
-        keypair.clone(),
+        keypair,
         data_dir,
     )
     .await?;
 
     let _ = node_cache.load_vaults().await?;
 
-    Ok((address, credentials, node_cache, signer, keypair))
+    Ok((address, credentials, node_cache, signer))
 }
 
 /// Login to a remote provider account.

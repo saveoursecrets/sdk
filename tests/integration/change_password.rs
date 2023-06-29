@@ -29,7 +29,7 @@ async fn integration_change_password() -> Result<()> {
 
     let server_url = server();
 
-    let (address, credentials, mut node_cache, signer, keypair) =
+    let (address, credentials, mut node_cache, signer) =
         signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
@@ -44,9 +44,13 @@ async fn integration_change_password() -> Result<()> {
     // Spawn a task to handle change notifications
     tokio::task::spawn(async move {
         // Create the websocket connection
-        let (stream, client) =
-            connect(server_url, server_public_key()?, signer, generate_keypair()?)
-                .await?;
+        let (stream, client) = connect(
+            server_url,
+            server_public_key()?,
+            signer,
+            generate_keypair()?,
+        )
+        .await?;
 
         // Wrap the stream to read change notifications
         let mut stream = changes(stream, client);

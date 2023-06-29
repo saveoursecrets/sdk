@@ -5,7 +5,7 @@ use crate::test_utils::*;
 
 use http::StatusCode;
 use sos_net::client::net::RpcClient;
-use sos_sdk::{encode, vault::Vault};
+use sos_sdk::{encode, mpc::generate_keypair, vault::Vault};
 
 #[tokio::test]
 #[serial]
@@ -17,11 +17,14 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     let server_url = server();
 
-    let (_address, _credentials, _, signer, keypair) =
-        signup(&dirs, 0).await?;
+    let (_address, _credentials, _, signer) = signup(&dirs, 0).await?;
 
-    let mut client =
-        RpcClient::new(server_url, server_public_key()?, signer, keypair)?;
+    let mut client = RpcClient::new(
+        server_url,
+        server_public_key()?,
+        signer,
+        generate_keypair()?,
+    )?;
 
     client.handshake().await?;
 

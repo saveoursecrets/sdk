@@ -26,8 +26,7 @@ async fn integration_compact_force_pull() -> Result<()> {
     let server_url = server();
 
     // Signup a new account
-    let (_, credentials, mut creator, signer, keypair) =
-        signup(&dirs, 0).await?;
+    let (_, credentials, mut creator, signer) = signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,
@@ -37,7 +36,8 @@ async fn integration_compact_force_pull() -> Result<()> {
     // Set up another connected client to listen for changes
     let data_dir = dirs.clients.get(0).unwrap().to_path_buf();
     let mut listener =
-        login(server_url.clone(), data_dir, &signer, keypair).await?;
+        login(server_url.clone(), data_dir, &signer, generate_keypair()?)
+            .await?;
     let _ = listener.load_vaults().await?;
 
     // Both clients use the login vault

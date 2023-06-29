@@ -218,11 +218,8 @@ impl UserStorage {
 
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
-        let (mut storage, _) = factory
-            .create_provider(
-                signer,
-                generate_keypair()?,
-            ).await?;
+        let (mut storage, _) =
+            factory.create_provider(signer, generate_keypair()?).await?;
         storage.handshake().await?;
 
         #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]

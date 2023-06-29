@@ -18,8 +18,7 @@ use tokio::net::TcpStream;
 use url::{Origin, Url};
 
 use sos_sdk::{
-    events::ChangeNotification, mpc::Keypair,
-    signer::ecdsa::BoxedEcdsaSigner,
+    events::ChangeNotification, mpc::Keypair, signer::ecdsa::BoxedEcdsaSigner,
 };
 
 use crate::client::{net::RpcClient, Result};
@@ -63,7 +62,7 @@ pub async fn connect(
     let origin = remote.origin();
     let endpoint = remote.clone();
     let public_key = keypair.public_key().to_vec();
-        
+
     let mut client =
         RpcClient::new(remote, remote_public_key, signer, keypair)?;
     client.handshake().await?;
@@ -101,13 +100,14 @@ pub fn changes(
             Ok(Box::pin(async move {
                 match message {
                     Message::Binary(buffer) => {
-                        let buffer = rpc.decrypt_server_envelope(&buffer).await?;
+                        let buffer =
+                            rpc.decrypt_server_envelope(&buffer).await?;
                         let notification: ChangeNotification =
                             serde_json::from_slice(&buffer)?;
                         Ok(notification)
 
                         //let message: ServerEnvelope = decode(buffer).await?;
-                        
+
                         /*
                         let (encoding, buffer) =
                             decrypt_server_channel(

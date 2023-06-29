@@ -5,9 +5,8 @@ use sos_net::client::{
     provider::ProviderFactory,
 };
 use sos_sdk::{
-    account::AccountRef, mpc::Keypair, signer::ecdsa::BoxedEcdsaSigner,
-    mpc::generate_keypair,
-    url::Url,
+    account::AccountRef, mpc::generate_keypair, mpc::Keypair,
+    signer::ecdsa::BoxedEcdsaSigner, url::Url,
 };
 
 use crate::{helpers::account::sign_in, Result, TARGET};
@@ -19,7 +18,8 @@ async fn changes_stream(
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
 ) -> sos_net::client::Result<()> {
-    let (stream, client) = connect(server, server_public_key, signer, keypair).await?;
+    let (stream, client) =
+        connect(server, server_public_key, signer, keypair).await?;
     let mut stream = changes(stream, client);
     while let Some(notification) = stream.next().await {
         let notification = notification?.await?;

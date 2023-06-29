@@ -18,9 +18,7 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    constants::{
-        LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
-    },
+    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     crypto::KeyDerivation,
     decode,
     mpc::{decode_keypair, encode_keypair, generate_keypair, Keypair},

@@ -24,8 +24,7 @@ async fn integration_handle_change() -> Result<()> {
     let server_url = server();
 
     // Signup a new account
-    let (_, credentials, mut creator, signer, keypair) =
-        signup(&dirs, 0).await?;
+    let (_, credentials, mut creator, signer) = signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,
@@ -35,7 +34,8 @@ async fn integration_handle_change() -> Result<()> {
     // Set up another connected client to listen for changes
     let data_dir = dirs.clients.get(0).unwrap().to_path_buf();
     let mut listener =
-        login(server_url.clone(), data_dir, &signer, keypair).await?;
+        login(server_url.clone(), data_dir, &signer, generate_keypair()?)
+            .await?;
     let _ = listener.load_vaults().await?;
 
     // Both clients use the login vault
@@ -46,7 +46,7 @@ async fn integration_handle_change() -> Result<()> {
     listener
         .open_vault(&summary, encryption_passphrase.clone().into(), None)
         .await?;
-    
+
     let listener_cache = Arc::new(RwLock::new(listener));
     let listener_summary = summary.clone();
 
@@ -57,13 +57,13 @@ async fn integration_handle_change() -> Result<()> {
     // Spawn a task to handle change notifications
     tokio::task::spawn(async move {
         // Create the websocket connection
-        let (stream, client) =
-            connect(
-                server_url,
-                server_public_key()?,
-                signer,
-                generate_keypair()?,
-            ).await?;
+        let (stream, client) = connect(
+            server_url,
+            server_public_key()?,
+            signer,
+            generate_keypair()?,
+        )
+        .await?;
 
         // Wrap the stream to read change notifications
         let mut stream = changes(stream, client);
@@ -71,10 +71,7 @@ async fn integration_handle_change() -> Result<()> {
         while let Some(notification) = stream.next().await {
             let notification = notification?.await?;
             let mut writer = listener_cache.write().await;
-            writer
-                .handle_change(notification)
-                .await
-                .expect("failed to handle change");
+            writer.handle_change(notification).await?;
 
             let head = writer
                 .commit_tree(&listener_summary)
@@ -96,8 +93,6 @@ async fn integration_handle_change() -> Result<()> {
     // Give the websocket client some time to connect
     tokio::time::sleep(Duration::from_millis(250)).await;
 
-    //creator.handshake().await?;
-
     // Create some secrets in the creator
     // to trigger a change notification
     let _notes = create_secrets(&mut creator, &summary).await?;
@@ -110,6 +105,7 @@ async fn integration_handle_change() -> Result<()> {
 
     // Verify our spawned task handled the notification
     let updated_head = listener_change.read().await;
+
     assert_eq!(&creator_head, updated_head.as_ref().unwrap());
 
     // Close the creator vault

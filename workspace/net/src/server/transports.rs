@@ -77,13 +77,10 @@ impl TransportManager {
             duration_secs,
         }
     }
-    
+
     /// Create a new channel.
     pub fn new_channel(&self, protocol: ProtocolState) -> TransportChannel {
-        TransportChannel::new(
-            self.duration_secs,
-            protocol,
-        )
+        TransportChannel::new(self.duration_secs, protocol)
     }
 
     /// Get the keys of transports that have expired.

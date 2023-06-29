@@ -9,7 +9,10 @@ use tokio::time::sleep;
 use url::Url;
 
 use super::{
-    net::{changes::{changes, connect, WsStream}, RpcClient},
+    net::{
+        changes::{changes, connect, WsStream},
+        RpcClient,
+    },
     Error, Result,
 };
 
@@ -99,7 +102,9 @@ impl ChangesListener {
         F: Future<Output = ()> + 'static,
     {
         match self.stream().await {
-            Ok((stream, client)) => self.listen(stream, client, handler).await,
+            Ok((stream, client)) => {
+                self.listen(stream, client, handler).await
+            }
             Err(_) => self.delay_connect(handler).await,
         }
     }

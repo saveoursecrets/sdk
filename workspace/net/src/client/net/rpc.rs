@@ -258,7 +258,7 @@ impl RpcClient {
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
-        
+
         let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
@@ -425,7 +425,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.encrypt_request(&body).await?;
-        
+
         let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
@@ -560,7 +560,9 @@ impl RpcClient {
     }
 
     pub(crate) async fn decrypt_server_envelope(
-        &self, buffer: &[u8]) -> Result<Vec<u8>> {
+        &self,
+        buffer: &[u8],
+    ) -> Result<Vec<u8>> {
         let mut writer = self.protocol.write().await;
         let protocol = writer.as_mut().ok_or(Error::NoSession)?;
         let message: ServerEnvelope = decode(buffer).await?;
