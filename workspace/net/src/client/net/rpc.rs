@@ -20,9 +20,12 @@ use sos_sdk::{
 };
 use std::{
     borrow::Cow,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
 };
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use url::Url;
 use uuid::Uuid;
 
@@ -42,18 +45,19 @@ async fn new_rpc_call<T: Serialize>(
 }
 
 /// Client implementation for RPC requests.
+#[derive(Clone)]
 pub struct RpcClient {
     server: Url,
     server_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
-    protocol: RwLock<Option<ProtocolState>>,
+    protocol: Arc<RwLock<Option<ProtocolState>>>,
     client: reqwest::Client,
-    id: AtomicU64,
+    id: Arc<Mutex<AtomicU64>>,
 }
 
 impl RpcClient {
-    /// Create a new request client.
+    /// Create a new client.
     pub fn new(
         server: Url,
         server_public_key: Vec<u8>,
@@ -69,7 +73,7 @@ impl RpcClient {
             keypair,
             protocol,
             client,
-            id: AtomicU64::from(1),
+            id: Arc::new(Mutex::new(AtomicU64::from(1))),
         })
     }
 
@@ -89,13 +93,13 @@ impl RpcClient {
     fn new_handshake(
         keypair: &Keypair,
         server_public_key: &[u8],
-    ) -> Result<RwLock<Option<ProtocolState>>> {
+    ) -> Result<Arc<RwLock<Option<ProtocolState>>>> {
         let initiator = snow::Builder::new(PATTERN.parse()?)
             .local_private_key(keypair.private_key())
             .remote_public_key(server_public_key)
             .build_initiator()?;
         let protocol = ProtocolState::Handshake(Box::new(initiator));
-        Ok(RwLock::new(Some(protocol)))
+        Ok(Arc::new(RwLock::new(Some(protocol))))
     }
 
     /// Get the signer for this client.
@@ -120,8 +124,9 @@ impl RpcClient {
     }
 
     /// Get the next request identifier.
-    fn next_id(&self) -> u64 {
-        self.id.fetch_add(1, Ordering::SeqCst)
+    async fn next_id(&self) -> u64 {
+        let id = self.id.lock().await;
+        id.fetch_add(1, Ordering::SeqCst)
     }
 
     /// Perform the handshake for the noise protocol.
@@ -142,7 +147,7 @@ impl RpcClient {
                 let len = initiator.write_message(&[], &mut message)?;
 
                 let url = self.server.join("api/handshake")?;
-                let id = self.next_id();
+                let id = self.next_id().await;
                 let request = RequestMessage::new(
                     Some(id),
                     HANDSHAKE_INITIATE,
@@ -193,7 +198,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/account")?;
 
-        let id = self.next_id();
+        let id = self.next_id().await;
         let request = RequestMessage::new(
             Some(id),
             ACCOUNT_CREATE,
@@ -220,7 +225,7 @@ impl RpcClient {
     /// List vaults for an account.
     pub async fn list_vaults(&self) -> Result<MaybeRetry<Vec<Summary>>> {
         let url = self.server.join("api/account")?;
-        let id = self.next_id();
+        let id = self.next_id().await;
         let body = new_rpc_call(id, ACCOUNT_LIST_VAULTS, ()).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
@@ -241,7 +246,7 @@ impl RpcClient {
         vault: Vec<u8>,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/vault")?;
-        let id = self.next_id();
+        let id = self.next_id().await;
         let request = RequestMessage::new(
             Some(id),
             VAULT_CREATE,
@@ -271,7 +276,7 @@ impl RpcClient {
         let vault_id = *vault_id;
         let url = self.server.join("api/vault")?;
 
-        let id = self.next_id();
+        let id = self.next_id().await;
         let body = new_rpc_call(id, VAULT_DELETE, vault_id).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
@@ -302,7 +307,7 @@ impl RpcClient {
         let vault_id = *vault_id;
         let url = self.server.join("api/vault")?;
 
-        let id = self.next_id();
+        let id = self.next_id().await;
 
         //let (session_id, sign_bytes, body) =
         //body!(self, id, VAULT_SAVE, vault_id, Cow::Owned(vault));
@@ -339,7 +344,7 @@ impl RpcClient {
         proof: Option<CommitProof>,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<Vec<u8>>)>> {
         let url = self.server.join("api/events")?;
-        let id = self.next_id();
+        let id = self.next_id().await;
         let body =
             new_rpc_call(id, EVENT_LOG_LOAD, (vault_id, proof)).await?;
         let signature =
@@ -363,7 +368,7 @@ impl RpcClient {
         proof: Option<CommitProof>,
     ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
         let url = self.server.join("api/events")?;
-        let id = self.next_id();
+        let id = self.next_id().await;
         let body =
             new_rpc_call(id, EVENT_LOG_STATUS, (vault_id, proof)).await?;
         let signature =
@@ -394,7 +399,7 @@ impl RpcClient {
         let body = encode(&patch).await?;
         let url = self.server.join("api/events")?;
 
-        let id = self.next_id();
+        let id = self.next_id().await;
 
         /*
         let (session_id, sign_bytes, body) = body!(
@@ -444,7 +449,7 @@ impl RpcClient {
         //let vault_id = *vault_id;
         let url = self.server.join("api/events")?;
 
-        let id = self.next_id();
+        let id = self.next_id().await;
 
         /*
         let (session_id, sign_bytes, body) = body!(

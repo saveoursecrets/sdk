@@ -5,8 +5,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use super::{Error, Result};
-
 /// Noise transport channel for a client.
 pub struct TransportChannel {
     /// Expiry time.
