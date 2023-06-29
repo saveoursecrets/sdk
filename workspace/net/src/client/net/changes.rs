@@ -18,9 +18,7 @@ use tokio::{net::TcpStream, sync::Mutex};
 use url::{Origin, Url};
 
 use sos_sdk::{
-    decode,
-    events::ChangeNotification,
-    mpc::Keypair,
+    decode, events::ChangeNotification, mpc::Keypair,
     signer::ecdsa::BoxedEcdsaSigner,
 };
 
@@ -65,12 +63,12 @@ pub async fn connect(
     let origin = remote.origin();
     let endpoint = remote.clone();
     let public_key = keypair.public_key().to_vec();
-    let mut client = RpcClient::new(remote, remote_public_key, signer, keypair)?;
+    let mut client =
+        RpcClient::new(remote, remote_public_key, signer, keypair)?;
     client.handshake().await?;
 
     let host = endpoint.host_str().unwrap().to_string();
-    let uri = changes_uri(
-        &endpoint, client.signer(), &public_key).await?;
+    let uri = changes_uri(&endpoint, client.signer(), &public_key).await?;
 
     tracing::debug!(uri = %uri);
     tracing::debug!(origin = ?origin);
@@ -100,7 +98,6 @@ pub fn changes(
             Ok(Box::pin(async move {
                 match message {
                     Message::Binary(buffer) => {
-
                         todo!("decrypt change notification packet");
 
                         /*

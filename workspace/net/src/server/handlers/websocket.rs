@@ -18,9 +18,7 @@ use tokio::sync::{
 };
 
 use sos_sdk::{
-    decode, encode,
-    rpc::ServerEnvelope,
-    mpc::channel::encrypt_server_channel,
+    decode, encode, mpc::channel::encrypt_server_channel, rpc::ServerEnvelope,
 };
 use web3_address::ethereum::Address;
 
@@ -66,15 +64,15 @@ pub async fn upgrade(
         .valid()
         .then_some(())
         .ok_or(StatusCode::UNAUTHORIZED)?;
-    
+
     // Parse the bearer token
-    let token = authenticate::BearerToken::new(
-        &query.bearer, &client_public_key)
-        .await
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-    
+    let token =
+        authenticate::BearerToken::new(&query.bearer, &client_public_key)
+            .await
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
+
     let address = token.address;
-    
+
     // Prevent this session from expiring because
     // we need it to last as long as the socket connection
     transport.set_keep_alive(true);
@@ -107,7 +105,14 @@ pub async fn upgrade(
     drop(writer);
 
     Ok(ws.on_upgrade(move |socket| {
-        handle_socket(socket, state, rx, address, server_public_key, client_public_key)
+        handle_socket(
+            socket,
+            state,
+            rx,
+            address,
+            server_public_key,
+            client_public_key,
+        )
     }))
 }
 
@@ -120,7 +125,7 @@ async fn disconnect(
 
     // Sessions for websocket connections have the keep alive
     // flag so we must remove them on disconnect
-    writer.transports.remove_session(&public_key);
+    writer.transports.remove_channel(&public_key);
 
     let clients = if let Some(conn) = writer.sockets.get_mut(&address) {
         conn.clients -= 1;
@@ -153,7 +158,12 @@ async fn handle_socket(
         server_public_key,
         client_public_key.clone(),
     ));
-    tokio::spawn(read(reader, Arc::clone(&state), address, client_public_key));
+    tokio::spawn(read(
+        reader,
+        Arc::clone(&state),
+        address,
+        client_public_key,
+    ));
 }
 
 async fn read(

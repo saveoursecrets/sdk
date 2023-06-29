@@ -1,7 +1,6 @@
 //! Events emitted over the server-sent events channel to
 //! notify connected clients that changes have been made.
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use web3_address::ethereum::Address;
 
 use crate::{

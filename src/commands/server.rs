@@ -1,13 +1,11 @@
 use sos_net::{
     server::{
         BackendHandler, Result, Server, ServerConfig, ServerInfo, State,
+        TransportManager,
     },
     FileLocks,
 };
-use sos_sdk::{
-    crypto::channel::ServerTransportManager,
-    events::AuditLogFile,
-};
+use sos_sdk::events::AuditLogFile;
 
 use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
@@ -36,7 +34,7 @@ pub async fn run(
         config.session.duration = session_duration;
     }
 
-    let transports = ServerTransportManager::new(config.session.duration);
+    let transports = TransportManager::new(config.session.duration);
     //println!("Config {:#?}", config);
 
     let mut backend = config.backend().await?;

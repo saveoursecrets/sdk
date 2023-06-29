@@ -7,10 +7,7 @@ use url::Url;
 use web3_address::ethereum::Address;
 
 use sos_sdk::{
-    crypto::{
-        channel::{ServerTransportManager, SessionManager},
-        AccessKey,
-    },
+    crypto::AccessKey,
     events::{AuditLogFile, WriteEvent},
     hex,
     vault::{
@@ -22,7 +19,10 @@ use sos_sdk::{
 
 use sos_net::{
     client::provider::{RemoteProvider, StorageProvider},
-    server::{BackendHandler, Server, ServerConfig, ServerInfo, State},
+    server::{
+        BackendHandler, Server, ServerConfig, ServerInfo, State,
+        TransportManager,
+    },
     FileLocks,
 };
 
@@ -102,8 +102,7 @@ impl MockServer {
             backend,
             audit_log,
             sockets: Default::default(),
-            transports: ServerTransportManager::new(300),
-            sessions: SessionManager::new(300),
+            transports: TransportManager::new(300),
         }));
 
         let server = Server::new();

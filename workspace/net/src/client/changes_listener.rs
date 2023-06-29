@@ -14,8 +14,7 @@ use super::{
 };
 
 use sos_sdk::{
-    events::ChangeNotification, mpc::Keypair,
-    signer::ecdsa::BoxedEcdsaSigner,
+    events::ChangeNotification, mpc::Keypair, signer::ecdsa::BoxedEcdsaSigner,
 };
 
 const INTERVAL_MS: u64 = 15000;
@@ -99,9 +98,7 @@ impl ChangesListener {
         F: Future<Output = ()> + 'static,
     {
         match self.stream().await {
-            Ok(stream) => {
-                self.listen(stream, handler).await
-            }
+            Ok(stream) => self.listen(stream, handler).await,
             Err(_) => self.delay_connect(handler).await,
         }
     }

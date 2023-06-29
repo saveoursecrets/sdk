@@ -5,8 +5,8 @@ use sos_sdk::{
     commit::CommitProof,
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, EVENT_LOG_LOAD, EVENT_LOG_PATCH,
-        EVENT_LOG_SAVE, EVENT_LOG_STATUS, HANDSHAKE_INITIATE,
-        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
+        EVENT_LOG_SAVE, EVENT_LOG_STATUS, HANDSHAKE_INITIATE, VAULT_CREATE,
+        VAULT_DELETE, VAULT_SAVE,
     },
     decode, encode,
     mpc::{
@@ -395,7 +395,7 @@ impl RpcClient {
         let url = self.server.join("api/events")?;
 
         let id = self.next_id();
-    
+
         /*
         let (session_id, sign_bytes, body) = body!(
             self,
@@ -418,8 +418,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.encrypt_request(&body).await?;
-        let response =
-            self.send_request(url, signature, body).await?;
+        let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
@@ -470,8 +469,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.encrypt_request(&body).await?;
-        let response =
-            self.send_request(url, signature, body).await?;
+        let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
             .read_encrypted_response::<CommitProof>(

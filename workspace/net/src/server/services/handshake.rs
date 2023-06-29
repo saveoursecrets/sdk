@@ -1,11 +1,10 @@
 use sos_sdk::{
     constants::HANDSHAKE_INITIATE,
-    crypto::channel::ServerTransport,
     mpc::{snow, ProtocolState, PATTERN},
     rpc::{RequestMessage, ResponseMessage, Service},
 };
 
-use crate::server::State;
+use crate::server::{State, TransportChannel};
 use async_trait::async_trait;
 use axum::http::StatusCode;
 use std::{borrow::Cow, sync::Arc};
@@ -47,9 +46,9 @@ impl Service for HandshakeService {
 
                 let transport = responder.into_transport_mode()?;
                 let duration = writer.config.session.duration;
-                writer.transports.add_session(
+                writer.transports.add_channel(
                     client_public_key,
-                    ServerTransport::new(
+                    TransportChannel::new(
                         duration,
                         ProtocolState::Transport(transport),
                     ),

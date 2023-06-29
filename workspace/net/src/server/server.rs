@@ -5,7 +5,7 @@ use super::{
         service::ServiceHandler,
         websocket::{upgrade, WebSocketConnection},
     },
-    Backend, Result, ServerConfig,
+    Backend, Result, ServerConfig, TransportManager,
 };
 use axum::{
     extract::Extension,
@@ -19,11 +19,7 @@ use axum::{
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
 use serde::Serialize;
-use sos_sdk::{
-    crypto::channel::ServerTransportManager,
-    events::AuditLogFile,
-    mpc::Keypair,
-};
+use sos_sdk::{events::AuditLogFile, mpc::Keypair};
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
@@ -40,7 +36,7 @@ async fn session_reaper(state: Arc<RwLock<State>>, interval_secs: u64) {
         tracing::debug!(
             expired_transports = %expired_transports.len());
         for key in expired_transports {
-            writer.transports.remove_session(&key);
+            writer.transports.remove_channel(&key);
         }
     }
 }
@@ -58,7 +54,7 @@ pub struct State {
     /// Audit log file
     pub audit_log: AuditLogFile,
     /// Server transport manager.
-    pub transports: ServerTransportManager,
+    pub transports: TransportManager,
     /// Map of websocket  channels by authenticated
     /// client address.
     pub sockets: HashMap<Address, WebSocketConnection>,
@@ -161,10 +157,7 @@ impl Server {
         let cors = CorsLayer::new()
             .allow_methods(vec![Method::GET, Method::POST])
             .allow_credentials(true)
-            .allow_headers(vec![
-                AUTHORIZATION,
-                CONTENT_TYPE,
-            ])
+            .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE])
             .expose_headers(vec![])
             .allow_origin(origins);
 
