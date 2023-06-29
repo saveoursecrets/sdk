@@ -26,7 +26,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     //client.handshake().await?;
 
     // Noise protocol transport should be ready
-    //assert!(client.is_transport_ready());
+    //assert!(client.is_transport_ready().await);
 
     /*
     let vault: Vault = Default::default();

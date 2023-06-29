@@ -122,8 +122,10 @@ impl StorageProvider for RemoteProvider {
         let buffer = encode(&vault).await?;
 
         let status = if is_account {
-            let (status, _) =
-                self.client.create_account(buffer.clone()).await?;
+            let (status, _) = retry!(
+                || self.client.create_account(buffer.clone()),
+                self.client
+            );
             status
         } else {
             let (status, _) = retry!(
@@ -189,7 +191,10 @@ impl StorageProvider for RemoteProvider {
         let vault: Vault = decode(&buffer).await?;
         let summary = vault.summary().clone();
 
-        let (status, _) = self.client.create_account(buffer.clone()).await?;
+        let (status, _) = retry!(
+            || self.client.create_account(buffer.clone()),
+            self.client
+        );
 
         status
             .is_success()

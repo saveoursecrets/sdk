@@ -178,7 +178,7 @@ impl UserStorage {
                 new_account.user.keypair().clone(),
             )
             .await?;
-        provider.authenticate().await?;
+        provider.handshake().await?;
         let (imported_account, events) =
             provider.import_new_account(&new_account).await?;
 
@@ -220,7 +220,7 @@ impl UserStorage {
         let (mut storage, _) = factory
             .create_provider(signer, user.keypair().clone())
             .await?;
-        storage.authenticate().await?;
+        storage.handshake().await?;
 
         #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
         let peer_key = convert_libp2p_identity(user.device().signer())?;

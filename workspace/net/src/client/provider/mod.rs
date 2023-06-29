@@ -206,6 +206,7 @@ pub trait StorageProvider: Sync + Send {
     /// communicate over the network to prepare the client session.
     ///
     /// For a local provider this is a noop.
+    #[deprecated]
     async fn authenticate(&mut self) -> Result<()> {
         Ok(())
     }

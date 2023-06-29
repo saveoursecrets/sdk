@@ -74,7 +74,7 @@ pub struct RpcClient {
     server_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
-    protocol: Option<ProtocolState>,
+    protocol: RwLock<Option<ProtocolState>>,
     client: reqwest::Client,
     id: AtomicU64,
     #[deprecated]
@@ -90,23 +90,29 @@ impl RpcClient {
         keypair: Keypair,
     ) -> Result<Self> {
         let client = reqwest::Client::new();
-
-        let mut initiator = snow::Builder::new(PATTERN.parse()?)
-            .local_private_key(keypair.private_key())
-            .remote_public_key(&server_public_key)
-            .build_initiator()?;
-        let protocol = ProtocolState::Handshake(Box::new(initiator));
-
+        let protocol = Self::new_handshake(&keypair, &server_public_key)?;
         Ok(Self {
             server,
             server_public_key,
             signer,
             keypair,
-            protocol: Some(protocol),
+            protocol,
             client,
             session: None,
             id: AtomicU64::from(1),
         })
+    }
+
+    fn new_handshake(
+        keypair: &Keypair,
+        server_public_key: &[u8],
+    ) -> Result<RwLock<Option<ProtocolState>>> {
+        let mut initiator = snow::Builder::new(PATTERN.parse()?)
+            .local_private_key(keypair.private_key())
+            .remote_public_key(server_public_key)
+            .build_initiator()?;
+        let protocol = ProtocolState::Handshake(Box::new(initiator));
+        Ok(RwLock::new(Some(protocol)))
     }
 
     /// Get the signer for this client.
@@ -120,11 +126,13 @@ impl RpcClient {
     }
 
     /// Determine if this client has a session set.
+    #[deprecated]
     pub fn has_session(&self) -> bool {
         self.session.is_some()
     }
 
     /// Get the session identifier.
+    #[deprecated]
     pub async fn session_id(&self) -> Result<Uuid> {
         let lock = self.session.as_ref().ok_or(Error::NoSession)?;
         let reader = lock.read().await;
@@ -141,8 +149,9 @@ impl RpcClient {
     }
 
     /// Determine if the noise transport is ready.
-    pub fn is_transport_ready(&self) -> bool {
-        matches!(self.protocol, Some(ProtocolState::Transport(_)))
+    pub async fn is_transport_ready(&self) -> bool {
+        let reader = self.protocol.read().await;
+        matches!(&*reader, Some(ProtocolState::Transport(_)))
     }
 
     /// Get the next request identifier.
@@ -152,49 +161,62 @@ impl RpcClient {
 
     /// Perform the handshake for the noise protocol.
     pub async fn handshake(&mut self) -> Result<()> {
-        let (len, body) = if let Some(ProtocolState::Handshake(initiator)) =
-            self.protocol.as_mut()
-        {
-            let mut message = [0u8; 1024];
-            let len = initiator.write_message(&[], &mut message)?;
+        // If we are already in a transport state, discard
+        // the transport and perform a new handshake
+        if self.is_transport_ready().await {
+            self.protocol =
+                Self::new_handshake(&self.keypair, &self.server_public_key)?;
+        }
 
-            let url = self.server.join("api/handshake")?;
-            let id = self.next_id();
-            let request = RequestMessage::new(
-                Some(id),
-                HANDSHAKE_INITIATE,
-                (self.keypair.public_key(), len),
-                Cow::Borrowed(&message),
-            )?;
-            let packet = Packet::new_request(request);
-            let body = encode(&packet).await?;
-            let response = self.client.post(url).body(body).send().await?;
+        // Prepare the handshake initiator
+        let (len, body) = {
+            let mut writer = self.protocol.write().await;
+            if let Some(ProtocolState::Handshake(initiator)) = writer.as_mut()
+            {
+                let mut message = [0u8; 1024];
+                let len = initiator.write_message(&[], &mut message)?;
 
-            let (_status, result, body) = self
-                .read_response::<usize>(
-                    response.status(),
-                    &response.bytes().await?,
-                )
-                .await?;
-            (result?, body)
-        } else {
-            // TODO: better error handling here
-            panic!("not handshake state");
+                let url = self.server.join("api/handshake")?;
+                let id = self.next_id();
+                let request = RequestMessage::new(
+                    Some(id),
+                    HANDSHAKE_INITIATE,
+                    (self.keypair.public_key(), len),
+                    Cow::Borrowed(&message),
+                )?;
+                let packet = Packet::new_request(request);
+                let body = encode(&packet).await?;
+                let response =
+                    self.client.post(url).body(body).send().await?;
+
+                let (_status, result, body) = self
+                    .read_response::<usize>(
+                        response.status(),
+                        &response.bytes().await?,
+                    )
+                    .await?;
+                (result?, body)
+            } else {
+                unreachable!();
+            }
         };
 
-        let transport = if let Some(ProtocolState::Handshake(mut initiator)) =
-            self.protocol.take()
-        {
-            let mut reply = [0u8; 1024];
-            initiator.read_message(&body[..len], &mut reply)?;
-
-            let transport = initiator.into_transport_mode()?;
-            transport
-        } else {
-            unreachable!();
+        // Move into transport state
+        let transport = {
+            let mut writer = self.protocol.write().await;
+            if let Some(ProtocolState::Handshake(mut initiator)) =
+                writer.take()
+            {
+                let mut reply = [0u8; 1024];
+                initiator.read_message(&body[..len], &mut reply)?;
+                let transport = initiator.into_transport_mode()?;
+                transport
+            } else {
+                unreachable!();
+            }
         };
-
-        self.protocol = Some(ProtocolState::Transport(transport));
+        let mut writer = self.protocol.write().await;
+        *writer = Some(ProtocolState::Transport(transport));
 
         Ok(())
     }
@@ -209,6 +231,7 @@ impl RpcClient {
     }
 
     /// Negotiate a new session.
+    #[deprecated]
     pub async fn new_session(&self) -> Result<ClientSession> {
         let url = self.server.join("api/session")?;
 
@@ -259,9 +282,9 @@ impl RpcClient {
 
     /// Create a new account.
     pub async fn create_account(
-        &mut self,
+        &self,
         vault: Vec<u8>,
-    ) -> Result<(StatusCode, CommitProof)> {
+    ) -> Result<MaybeRetry<CommitProof>> {
         let url = self.server.join("api/account")?;
 
         let id = self.next_id();
@@ -277,19 +300,16 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.build_request2(&body).await?;
-
         let response = self.send_request2(url, signature, body).await?;
         let status = response.status();
-        let (proof, _) = self
+        let maybe_retry = self
             .read_protocol_response::<CommitProof>(
                 response.status(),
                 &response.bytes().await?,
             )
             .await?;
 
-        println!("created account {:#?}", status);
-
-        Ok((status, proof))
+        maybe_retry.map(|result, _| Ok(result?))
     }
 
     /// List vaults for an account.
@@ -561,8 +581,9 @@ impl RpcClient {
     }
 
     /// Build an encrypted request.
-    async fn build_request2(&mut self, request: &[u8]) -> Result<Vec<u8>> {
-        let protocol = self.protocol.as_mut().ok_or(Error::NoSession)?;
+    async fn build_request2(&self, request: &[u8]) -> Result<Vec<u8>> {
+        let mut writer = self.protocol.write().await;
+        let protocol = writer.as_mut().ok_or(Error::NoSession)?;
         let envelope =
             encrypt_server_channel(protocol, request, false).await?;
         let payload = ServerEnvelope {
@@ -668,10 +689,57 @@ impl RpcClient {
 
     /// Read an encrypted response to an RPC call.
     async fn read_protocol_response<T: DeserializeOwned>(
-        &mut self,
+        &self,
         http_status: StatusCode,
         buffer: &[u8],
-    ) -> Result<(T, Vec<u8>)> {
+    ) -> Result<RetryResponse<T>> {
+        if http_status == StatusCode::UNAUTHORIZED {
+            Ok(RetryResponse::Retry(http_status))
+        } else if http_status.is_success()
+            || http_status == StatusCode::CONFLICT
+        {
+            /*
+            let lock = self.session.as_ref().ok_or(Error::NoSession)?;
+            let mut session = lock.write().await;
+            session.ready().then_some(()).ok_or(Error::InvalidSession)?;
+
+            let aead: AeadPack = decode(buffer).await?;
+            session.set_nonce(&aead.nonce);
+            let buffer = session.decrypt(&aead).await?;
+
+            let reply: Packet<'static> = decode(&buffer).await?;
+            let response: ResponseMessage<'static> = reply.try_into()?;
+
+            // We must return the inner status code as the server mutates
+            // some status codes (eg: NOT_MODIFIED -> OK) so that the client
+            // will read the body of the response.
+            //
+            // Callers need to respond to the actual NOT_MODIFIED status.
+
+            let (_, status, result, body) = response.take::<T>()?;
+            let result = result.ok_or(Error::NoReturnValue)?;
+            Ok(RetryResponse::Complete(status, result, body))
+            */
+
+            let mut writer = self.protocol.write().await;
+            let protocol = writer.as_mut().ok_or(Error::NoSession)?;
+            let message: ServerEnvelope = decode(buffer).await?;
+            let (encoding, buffer) =
+                decrypt_server_channel(protocol, message.envelope).await?;
+
+            let reply: Packet<'static> = decode(&buffer).await?;
+            let response: ResponseMessage<'static> = reply.try_into()?;
+
+            let (_, status, result, body) = response.take::<T>()?;
+            let result = result.ok_or(Error::NoReturnValue)?;
+            //Ok((result?, body))
+
+            Ok(RetryResponse::Complete(status, result, body))
+        } else {
+            Err(Error::ResponseCode(http_status.into()))
+        }
+
+        /*
         if http_status.is_success() || http_status == StatusCode::CONFLICT {
             let protocol = self.protocol.as_mut().ok_or(Error::NoSession)?;
             let message: ServerEnvelope = decode(buffer).await?;
@@ -687,6 +755,7 @@ impl RpcClient {
         } else {
             Err(Error::ResponseCode(http_status.into()))
         }
+        */
     }
 }
 

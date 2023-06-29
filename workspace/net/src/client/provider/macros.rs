@@ -14,7 +14,7 @@ macro_rules! retry {
                 if status == StatusCode::UNAUTHORIZED && $client.has_session()
                 {
                     tracing::debug!("renew client session");
-                    $client.authenticate().await?;
+                    $client.handshake().await?;
                     let future = $future();
                     let maybe_retry = future.await?;
                     match maybe_retry {
