@@ -180,7 +180,6 @@ impl Server {
             .route("/api/changes", get(upgrade))
             .route("/api/handshake", post(ServiceHandler::handshake))
             .route("/api/account", post(ServiceHandler::account))
-            .route("/api/session", post(ServiceHandler::session))
             .route("/api/vault", post(ServiceHandler::vault))
             .route("/api/events", post(ServiceHandler::events));
 

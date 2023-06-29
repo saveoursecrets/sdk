@@ -80,13 +80,11 @@ fn send_notification(
 mod account;
 mod events;
 mod handshake;
-mod session;
 mod vault;
 
 pub use account::AccountService;
 pub use events::EventLogService;
 pub use handshake::HandshakeService;
-pub use session::SessionService;
 pub use vault::VaultService;
 
 /// Execute a request message in the context of a service

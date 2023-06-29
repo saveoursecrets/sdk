@@ -96,7 +96,6 @@ pub fn changes(
     >,
 > {
     let (_, read) = stream.split();
-
     read.map(
         move |message| -> Result<
             Pin<Box<dyn Future<Output = Result<ChangeNotification>> + Send>>,
