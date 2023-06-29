@@ -14,7 +14,6 @@ use web3_address::ethereum::Address;
 
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockWriteGuard};
-use uuid::Uuid;
 
 use crate::server::{authenticate, State};
 

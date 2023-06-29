@@ -20,7 +20,6 @@ use tokio::sync::{
 use sos_sdk::{
     decode, encode,
 };
-use uuid::Uuid;
 use web3_address::ethereum::Address;
 
 use crate::server::{

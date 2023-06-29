@@ -11,7 +11,7 @@ use sos_sdk::{
     decode, encode,
     mpc::{
         channel::{decrypt_server_channel, encrypt_server_channel},
-        snow, Keypair, ProtocolState, SealedEnvelope, PATTERN,
+        snow, Keypair, ProtocolState, PATTERN,
     },
     patch::Patch,
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
@@ -90,7 +90,7 @@ impl RpcClient {
         keypair: &Keypair,
         server_public_key: &[u8],
     ) -> Result<RwLock<Option<ProtocolState>>> {
-        let mut initiator = snow::Builder::new(PATTERN.parse()?)
+        let initiator = snow::Builder::new(PATTERN.parse()?)
             .local_private_key(keypair.private_key())
             .remote_public_key(server_public_key)
             .build_initiator()?;
@@ -106,6 +106,11 @@ impl RpcClient {
     /// Get the URL for the remote node.
     pub fn remote(&self) -> &Url {
         &self.server
+    }
+
+    /// Get the noise protocol public key.
+    pub fn public_key(&self) -> &[u8] {
+        self.keypair.public_key()
     }
 
     /// Determine if the noise transport is ready.
@@ -200,10 +205,10 @@ impl RpcClient {
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
 
-        let body = self.build_request2(&body).await?;
-        let response = self.send_request2(url, signature, body).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
         let maybe_retry = self
-            .read_protocol_response::<CommitProof>(
+            .read_encrypted_response::<CommitProof>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -219,10 +224,10 @@ impl RpcClient {
         let body = new_rpc_call(id, ACCOUNT_LIST_VAULTS, ()).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
-        let body = self.build_request2(&body).await?;
-        let response = self.send_request2(url, signature, body).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
         let maybe_retry = self
-            .read_protocol_response::<Vec<Summary>>(
+            .read_encrypted_response::<Vec<Summary>>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -247,10 +252,10 @@ impl RpcClient {
         let body = encode(&packet).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
-        let body = self.build_request2(&body).await?;
-        let response = self.send_request2(url, signature, body).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
         let maybe_retry = self
-            .read_protocol_response::<Option<CommitProof>>(
+            .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -271,11 +276,11 @@ impl RpcClient {
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
 
-        let body = self.build_request2(&body).await?;
-        let response = self.send_request2(url, signature, body).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
-            .read_protocol_response::<Option<CommitProof>>(
+            .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -313,11 +318,11 @@ impl RpcClient {
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
 
-        let body = self.build_request2(&body).await?;
-        let response = self.send_request2(url, signature, body).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
-            .read_protocol_response::<Option<CommitProof>>(
+            .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -339,10 +344,10 @@ impl RpcClient {
             new_rpc_call(id, EVENT_LOG_LOAD, (vault_id, proof)).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
-        let body = self.build_request2(&body).await?;
-        let response = self.send_request2(url, signature, body).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
         let maybe_retry = self
-            .read_protocol_response::<Option<CommitProof>>(
+            .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -363,10 +368,10 @@ impl RpcClient {
             new_rpc_call(id, EVENT_LOG_STATUS, (vault_id, proof)).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
-        let body = self.build_request2(&body).await?;
-        let response = self.send_request2(url, signature, body).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
         let maybe_retry = self
-            .read_protocol_response::<(CommitProof, Option<CommitProof>)>(
+            .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -412,12 +417,12 @@ impl RpcClient {
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
 
-        let body = self.build_request2(&body).await?;
+        let body = self.encrypt_request(&body).await?;
         let response =
-            self.send_request2(url, signature, body).await?;
+            self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
-            .read_protocol_response::<(CommitProof, Option<CommitProof>)>(
+            .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -464,12 +469,12 @@ impl RpcClient {
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
 
-        let body = self.build_request2(&body).await?;
+        let body = self.encrypt_request(&body).await?;
         let response =
-            self.send_request2(url, signature, body).await?;
+            self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
-            .read_protocol_response::<CommitProof>(
+            .read_encrypted_response::<CommitProof>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -479,7 +484,7 @@ impl RpcClient {
     }
 
     /// Build an encrypted request.
-    async fn build_request2(&self, request: &[u8]) -> Result<Vec<u8>> {
+    async fn encrypt_request(&self, request: &[u8]) -> Result<Vec<u8>> {
         let mut writer = self.protocol.write().await;
         let protocol = writer.as_mut().ok_or(Error::NoSession)?;
         let envelope =
@@ -492,7 +497,7 @@ impl RpcClient {
     }
 
     /// Send an encrypted session request.
-    async fn send_request2(
+    async fn send_request(
         &self,
         url: Url,
         signature: String,
@@ -527,7 +532,7 @@ impl RpcClient {
     }
 
     /// Read an encrypted response to an RPC call.
-    async fn read_protocol_response<T: DeserializeOwned>(
+    async fn read_encrypted_response<T: DeserializeOwned>(
         &self,
         http_status: StatusCode,
         buffer: &[u8],

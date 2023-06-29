@@ -10,8 +10,6 @@ use async_trait::async_trait;
 use axum::http::StatusCode;
 use std::{borrow::Cow, sync::Arc};
 use tokio::sync::RwLock;
-use uuid::Uuid;
-use web3_signature::Signature;
 
 /// Handshake service.
 ///

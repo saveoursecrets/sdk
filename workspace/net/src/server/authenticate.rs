@@ -7,7 +7,6 @@ use sos_sdk::{
     decode,
     signer::ecdsa::{recover_address, BinarySignature},
 };
-use uuid::Uuid;
 use web3_address::ethereum::Address;
 use web3_signature::Signature;
 

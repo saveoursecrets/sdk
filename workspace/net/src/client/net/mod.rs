@@ -6,7 +6,6 @@ use sos_sdk::{
 };
 
 use url::Url;
-use uuid::Uuid;
 use web3_signature::Signature;
 
 use super::Result;
