@@ -19,6 +19,8 @@ use tokio::sync::{
 
 use sos_sdk::{
     decode, encode,
+    rpc::ServerEnvelope,
+    mpc::channel::encrypt_server_channel,
 };
 use web3_address::ethereum::Address;
 
@@ -52,64 +54,30 @@ pub async fn upgrade(
     tracing::debug!("websocket upgrade request");
 
     let mut writer = state.write().await;
-
-    let public_key = hex::decode(&query.public_key)
+    let server_public_key = writer.keypair.public_key().to_vec();
+    let client_public_key = hex::decode(&query.public_key)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let transport = writer
         .transports
-        .get_mut(&public_key)
+        .get_mut(&client_public_key)
         .ok_or(StatusCode::UNAUTHORIZED)?;
     transport
         .valid()
         .then_some(())
         .ok_or(StatusCode::UNAUTHORIZED)?;
     
-    /*
-    let buffer = bs58::decode(&query.request)
-        .into_vec()
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    let aead: AeadPack = decode(&buffer)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // Verify the nonce is ahead of this nonce
-    // otherwise we may have a possible replay attack
-    session
-        .verify_nonce(&aead.nonce)
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-    */
-
-    // Verify the signature for the message
-    let sign_bytes = hex::decode(&query.public_key)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
     // Parse the bearer token
-    let token = authenticate::BearerToken::new(&query.bearer, &sign_bytes)
+    let token = authenticate::BearerToken::new(
+        &query.bearer, &client_public_key)
         .await
         .map_err(|_| StatusCode::BAD_REQUEST)?;
     
-    /*
-    // Attempt to impersonate the session identity
-    if &token.address != session.identity() {
-        return Err(StatusCode::BAD_REQUEST);
-    }
-    */
-
     let address = token.address;
     
-    /*
-    // Update the server nonce
-    session.set_nonce(&aead.nonce);
-
     // Prevent this session from expiring because
     // we need it to last as long as the socket connection
-    session.set_keep_alive(true);
-
-    // Refresh the session on activity
-    session.refresh();
-    */
+    transport.set_keep_alive(true);
 
     // Refresh the transport on activity
     transport.refresh();
@@ -139,7 +107,7 @@ pub async fn upgrade(
     drop(writer);
 
     Ok(ws.on_upgrade(move |socket| {
-        handle_socket(socket, state, address, public_key, rx)
+        handle_socket(socket, state, rx, address, server_public_key, client_public_key)
     }))
 }
 
@@ -171,9 +139,10 @@ async fn disconnect(
 async fn handle_socket(
     socket: WebSocket,
     state: Arc<RwLock<State>>,
-    address: Address,
-    public_key: Vec<u8>,
     outgoing: Receiver<Vec<u8>>,
+    address: Address,
+    server_public_key: Vec<u8>,
+    client_public_key: Vec<u8>,
 ) {
     let (writer, reader) = socket.split();
     tokio::spawn(write(
@@ -181,9 +150,10 @@ async fn handle_socket(
         Arc::clone(&state),
         address,
         outgoing,
-        public_key.clone(),
+        server_public_key,
+        client_public_key.clone(),
     ));
-    tokio::spawn(read(reader, Arc::clone(&state), address, public_key));
+    tokio::spawn(read(reader, Arc::clone(&state), address, client_public_key));
 }
 
 async fn read(
@@ -218,46 +188,41 @@ async fn write(
     state: Arc<RwLock<State>>,
     address: Address,
     mut outgoing: Receiver<Vec<u8>>,
-    public_key: Vec<u8>,
+    server_public_key: Vec<u8>,
+    client_public_key: Vec<u8>,
 ) -> Result<()> {
     // Receive change notifications and send them over the websocket
     while let Ok(msg) = outgoing.recv().await {
         let mut writer = state.write().await;
         let transport = writer
             .transports
-            .get_mut(&public_key)
+            .get_mut(&client_public_key)
             .expect("failed to locate websocket session");
 
-        todo!("encrypt and encode websocket message over noise transport");
-        
-        /*
-        let aead = match session.encrypt(&msg).await {
-            Ok(aead) => aead,
-            Err(e) => {
-                drop(writer);
-                disconnect(state, address, session_id).await;
-                return Err(e.into());
-            }
+        let envelope =
+            encrypt_server_channel(transport.protocol_mut(), &msg, false)
+                .await?;
+
+        let message = ServerEnvelope {
+            public_key: server_public_key.clone(),
+            envelope,
         };
-        */
 
         drop(writer);
-        
-        /*
-        match encode(&aead).await {
+
+        match encode(&message).await {
             Ok(buffer) => {
                 if sender.send(Message::Binary(buffer)).await.is_err() {
-                    disconnect(state, address, public_key).await;
+                    disconnect(state, address, client_public_key).await;
                     return Ok(());
                 }
             }
             Err(e) => {
                 tracing::error!("{}", e);
-                disconnect(state, address, public_key).await;
+                disconnect(state, address, client_public_key).await;
                 return Err(e.into());
             }
         }
-        */
     }
     Ok(())
 }

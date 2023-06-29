@@ -6,20 +6,10 @@ use crate::{
     Error, Result,
 };
 use async_trait::async_trait;
-use crypto_bigint::{CheckedAdd, Encoding, U192};
-use k256::{
-    EncodedPoint,
-    PublicKey, Secp256k1,
-};
-use rand::Rng;
-use sha3::{Digest, Keccak256};
 use std::{
     collections::HashMap,
     time::{Duration, Instant},
 };
-use uuid::Uuid;
-use web3_address::ethereum::Address;
-use web3_signature::Signature;
 
 /// Represents a server transport.
 pub struct ServerTransport {

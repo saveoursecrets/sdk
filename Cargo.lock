@@ -616,7 +616,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1bf9e4f4da24116dc0e3ffef4afbabadb7fba375bf32ccf9a1da81a667bababc"
 dependencies = [
- "crypto-bigint 0.5.2",
+ "crypto-bigint",
  "digest 0.10.7",
  "password-hash",
 ]
@@ -1162,16 +1162,6 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
 name = "crypto-bigint"
-version = "0.4.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef2b4b23cddf68b89b8f8069890e8c270d54e2d5fe1b143820234805e4cb17ef"
-dependencies = [
- "rand_core 0.6.4",
- "subtle",
-]
-
-[[package]]
-name = "crypto-bigint"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf4c2f4e1afd912bc40bfd6fed5d9dc1f288e0ba01bfcc835cc5bc3eb13efe15"
@@ -1670,7 +1660,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "968405c8fdc9b3bf4df0a6638858cc0b52462836ab6b1c87377785dd09cf1c0b"
 dependencies = [
  "base16ct",
- "crypto-bigint 0.5.2",
+ "crypto-bigint",
  "digest 0.10.7",
  "ff",
  "generic-array",
@@ -5352,7 +5342,6 @@ dependencies = [
  "axum-macros",
  "axum-server",
  "bs58 0.4.0",
- "crypto-bigint 0.4.9",
  "dirs",
  "either",
  "file-guard",
@@ -5413,7 +5402,6 @@ dependencies = [
  "bs58 0.4.0",
  "chacha20poly1305 0.10.1",
  "chbs",
- "crypto-bigint 0.5.2",
  "ed25519-dalek 2.0.0-pre.0",
  "filetime",
  "futures",
