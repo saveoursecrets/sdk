@@ -21,6 +21,7 @@ use sos_sdk::{
     commit::CommitRelationship,
     constants::DEFAULT_VAULT_NAME,
     events::{ChangeEvent, ChangeNotification},
+    mpc::generate_keypair,
     storage::AppPaths,
     vault::VaultRef,
 };
@@ -49,7 +50,11 @@ async fn integration_simple_session() -> Result<()> {
     tokio::task::spawn(async move {
         // Create the websocket connection
         let (stream, client) =
-            connect(ws_url, server_public_key()?, signer, keypair).await?;
+            connect(
+                ws_url,
+                server_public_key()?,
+                signer,
+                generate_keypair()?).await?;
 
         // Wrap the stream to read change notifications
         let mut stream = changes(stream, client);

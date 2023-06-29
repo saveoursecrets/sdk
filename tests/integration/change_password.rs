@@ -15,6 +15,7 @@ use sos_net::client::{
 };
 use sos_sdk::{
     events::{ChangeEvent, ChangeNotification},
+    mpc::generate_keypair,
     passwd::diceware::generate_passphrase,
 };
 
@@ -44,7 +45,7 @@ async fn integration_change_password() -> Result<()> {
     tokio::task::spawn(async move {
         // Create the websocket connection
         let (stream, client) =
-            connect(server_url, server_public_key()?, signer, keypair)
+            connect(server_url, server_public_key()?, signer, generate_keypair()?)
                 .await?;
 
         // Wrap the stream to read change notifications

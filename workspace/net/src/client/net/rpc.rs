@@ -258,7 +258,9 @@ impl RpcClient {
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
+        
         let response = self.send_request(url, signature, body).await?;
+
         let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
@@ -424,10 +426,6 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         
-        println!("sending patch body to the server {}", hex::encode(self.keypair.public_key()));
-
-        println!("sending with length {}", body.len());
-
         let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
@@ -493,11 +491,6 @@ impl RpcClient {
 
     /// Build an encrypted request.
     async fn encrypt_request(&self, request: &[u8]) -> Result<Vec<u8>> {
-        
-        println!("encrypting request, length: {}", request.len());
-
-        println!("encrypt with private key {:#?}", hex::encode(self.keypair.private_key()));
-
         let mut writer = self.protocol.write().await;
         let protocol = writer.as_mut().ok_or(Error::NoSession)?;
         let envelope =

@@ -64,8 +64,6 @@ pub async fn connect(
     let endpoint = remote.clone();
     let public_key = keypair.public_key().to_vec();
         
-    println!("websocket connecting with {}", hex::encode(&public_key));
-
     let mut client =
         RpcClient::new(remote, remote_public_key, signer, keypair)?;
     client.handshake().await?;

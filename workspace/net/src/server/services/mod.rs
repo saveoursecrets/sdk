@@ -125,19 +125,12 @@ pub(crate) async fn private_service(
 ) -> Result<(StatusCode, Bytes), StatusCode> {
     let (server_public_key, client_public_key, request, token) = {
         let mut writer = state.write().await;
-
-        println!("private_service got body of length {}", body.len());
-
         let message: ServerEnvelope = decode(&body)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let server_public_key = writer.keypair.public_key().to_vec();
         let client_public_key = message.public_key.clone();
-
-        println!("private_service using client key {}",
-            hex::encode(&client_public_key));
-
         let transport = writer
             .transports
             .get_mut(&message.public_key)
@@ -148,16 +141,12 @@ pub(crate) async fn private_service(
             .then_some(())
             .ok_or(StatusCode::UNAUTHORIZED)?;
 
-        println!("private_service trying to decrypt the message");
-
         let (encoding, body) = decrypt_server_channel(
             transport.protocol_mut(),
             message.envelope,
         )
         .await
         .map_err(|e| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-        println!("private_service decrypted the message....");
 
         assert!(matches!(encoding, sos_sdk::mpc::Encoding::Blob));
 
@@ -179,8 +168,6 @@ pub(crate) async fn private_service(
 
         (server_public_key, client_public_key, request, token)
     };
-
-    println!("trying to service the request...");
 
     // Get a reply from the target service
     let owner = Caller {

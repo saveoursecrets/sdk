@@ -102,7 +102,7 @@ impl MockServer {
             backend,
             audit_log,
             sockets: Default::default(),
-            transports: TransportManager::new(300),
+            transports: TransportManager::new(3000),
         }));
 
         let server = Server::new();
@@ -241,12 +241,8 @@ pub async fn create_secrets(
 
     assert_eq!(3, keeper.vault().len());
 
-    println!("sending patch to the server...");
-
     // Send the patch to the remote server
     provider.patch(summary, create_events).await?;
-
-    println!("after applying patch to the server...");
 
     Ok(results)
 }
