@@ -6,6 +6,7 @@ use sos_net::client::{
 };
 use sos_sdk::{
     account::AccountRef, mpc::Keypair, signer::ecdsa::BoxedEcdsaSigner,
+    mpc::generate_keypair,
     url::Url,
 };
 
@@ -39,7 +40,7 @@ pub async fn run(
 ) -> Result<()> {
     let (owner, _) = sign_in(&account, ProviderFactory::Local(None)).await?;
     let signer = owner.user.identity().signer().clone();
-    let keypair = owner.user.keypair().clone();
+    let keypair = generate_keypair()?;
     if let Err(e) =
         changes_stream(server, server_public_key, signer, keypair).await
     {

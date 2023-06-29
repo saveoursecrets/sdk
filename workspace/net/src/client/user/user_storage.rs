@@ -17,6 +17,7 @@ use sos_sdk::{
         AuditData, AuditEvent, AuditProvider, Event, EventKind, ReadEvent,
         WriteEvent,
     },
+    mpc::generate_keypair,
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     storage::{AppPaths, UserPaths},
@@ -175,7 +176,7 @@ impl UserStorage {
         let (mut provider, _) = factory
             .create_provider(
                 new_account.user.signer().clone(),
-                new_account.user.keypair().clone(),
+                generate_keypair()?,
             )
             .await?;
         provider.handshake().await?;
@@ -218,8 +219,10 @@ impl UserStorage {
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
         let (mut storage, _) = factory
-            .create_provider(signer, user.keypair().clone())
-            .await?;
+            .create_provider(
+                signer,
+                generate_keypair()?,
+            ).await?;
         storage.handshake().await?;
 
         #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]

@@ -12,6 +12,7 @@ use sos_sdk::{
     },
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     hex,
+    mpc::generate_keypair,
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
     storage::{AppPaths, FileStorage},
@@ -51,7 +52,7 @@ async fn integration_account_manager() -> Result<()> {
     // Create local provider
     let factory = ProviderFactory::Local(None);
     let signer = new_account.user.signer().clone();
-    let keypair = new_account.user.keypair().clone();
+    let keypair = generate_keypair()?;
     let (mut provider, _) = factory.create_provider(signer, keypair).await?;
 
     let (imported_account, _) =
@@ -150,7 +151,7 @@ async fn integration_account_manager() -> Result<()> {
     // overwrites existing data (backup)
     let factory = ProviderFactory::Local(None);
     let signer = user.identity().signer().clone();
-    let keypair = user.identity().keypair().clone();
+    let keypair = generate_keypair()?;
     let (mut provider, _) = factory.create_provider(signer, keypair).await?;
 
     let options = RestoreOptions {

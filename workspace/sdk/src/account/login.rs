@@ -86,11 +86,6 @@ impl AuthenticatedUser {
         &self.identity
     }
 
-    /// Noise protocol keypair.
-    pub fn keypair(&self) -> &Keypair {
-        self.identity.keypair()
-    }
-
     /// Mutable user identity.
     pub fn identity_mut(&mut self) -> &mut UserIdentity {
         &mut self.identity
