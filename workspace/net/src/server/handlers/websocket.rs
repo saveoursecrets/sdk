@@ -7,14 +7,15 @@ use axum::{
     response::Response,
 };
 use futures::{
+    select,
     stream::{SplitSink, SplitStream},
-    SinkExt, StreamExt,
+    FutureExt, SinkExt, StreamExt,
 };
 
 use std::sync::Arc;
 use tokio::sync::{
     broadcast::{self, Receiver, Sender},
-    RwLock,
+    mpsc, RwLock,
 };
 
 use sos_sdk::{
@@ -80,6 +81,8 @@ pub async fn upgrade(
     // Refresh the transport on activity
     transport.refresh();
 
+    let (close_tx, close_rx) = mpsc::channel::<Message>(32);
+
     let conn = if let Some(conn) = writer.sockets.get_mut(&token.address) {
         conn
     } else {
@@ -112,6 +115,8 @@ pub async fn upgrade(
             address,
             server_public_key,
             client_public_key,
+            close_tx,
+            close_rx,
         )
     }))
 }
@@ -148,29 +153,34 @@ async fn handle_socket(
     address: Address,
     server_public_key: Vec<u8>,
     client_public_key: Vec<u8>,
+    close_tx: mpsc::Sender<Message>,
+    close_rx: mpsc::Receiver<Message>,
 ) {
     let (writer, reader) = socket.split();
     tokio::spawn(write(
-        writer,
         Arc::clone(&state),
         address,
-        outgoing,
         server_public_key,
         client_public_key.clone(),
+        writer,
+        outgoing,
+        close_rx,
     ));
     tokio::spawn(read(
-        reader,
         Arc::clone(&state),
         address,
         client_public_key,
+        reader,
+        close_tx,
     ));
 }
 
 async fn read(
-    mut receiver: SplitStream<WebSocket>,
     state: Arc<RwLock<State>>,
     address: Address,
     public_key: Vec<u8>,
+    mut receiver: SplitStream<WebSocket>,
+    close_tx: mpsc::Sender<Message>,
 ) -> Result<()> {
     while let Some(msg) = receiver.next().await {
         match msg {
@@ -179,8 +189,8 @@ async fn read(
                 Message::Binary(_) => {}
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
-                Message::Close(_) => {
-                    disconnect(state, address, public_key).await;
+                Message::Close(frame) => {
+                    let _ = close_tx.send(Message::Close(frame)).await;
                     return Ok(());
                 }
             },
@@ -194,45 +204,75 @@ async fn read(
 }
 
 async fn write(
-    mut sender: SplitSink<WebSocket, Message>,
     state: Arc<RwLock<State>>,
     address: Address,
-    mut outgoing: Receiver<Vec<u8>>,
     server_public_key: Vec<u8>,
     client_public_key: Vec<u8>,
+    mut sender: SplitSink<WebSocket, Message>,
+    mut outgoing: Receiver<Vec<u8>>,
+    mut close_rx: mpsc::Receiver<Message>,
 ) -> Result<()> {
-    // Receive change notifications and send them over the websocket
-    while let Ok(msg) = outgoing.recv().await {
-        let mut writer = state.write().await;
-        let transport = writer
-            .transports
-            .get_mut(&client_public_key)
-            .expect("failed to locate websocket session");
-
-        let envelope =
-            encrypt_server_channel(transport.protocol_mut(), &msg, false)
-                .await?;
-
-        let message = ServerEnvelope {
-            public_key: server_public_key.clone(),
-            envelope,
-        };
-
-        drop(writer);
-
-        match encode(&message).await {
-            Ok(buffer) => {
-                if sender.send(Message::Binary(buffer)).await.is_err() {
-                    disconnect(state, address, client_public_key).await;
-                    return Ok(());
+    loop {
+        select! {
+            event = close_rx.recv().fuse() => {
+                match event {
+                    Some(msg) => {
+                        let _ = sender.send(msg).await;
+                        return Ok(())
+                    }
+                    _ => {}
                 }
             }
-            Err(e) => {
-                tracing::error!("{}", e);
-                disconnect(state, address, client_public_key).await;
-                return Err(e.into());
-            }
+            event = outgoing.recv().fuse() => {
+                match event {
+                    Ok(msg) => {
+                        let mut writer = state.write().await;
+                        let transport = writer
+                            .transports
+                            .get_mut(&client_public_key)
+                            .expect("failed to locate websocket session");
+
+                        let envelope =
+                            encrypt_server_channel(
+                                transport.protocol_mut(),
+                                &msg,
+                                false,
+                            ).await?;
+
+                        let message = ServerEnvelope {
+                            public_key: server_public_key.clone(),
+                            envelope,
+                        };
+
+                        drop(writer);
+
+                        match encode(&message).await {
+                            Ok(buffer) => {
+                                if sender.send(Message::Binary(buffer)).await.is_err() {
+                                    disconnect(
+                                        state,
+                                        address,
+                                        client_public_key,
+                                    ).await;
+                                    return Ok(());
+                                }
+                            }
+                            Err(e) => {
+                                tracing::error!("{}", e);
+                                disconnect(
+                                    state,
+                                    address,
+                                    client_public_key,
+                                ).await;
+                                return Err(e.into());
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            },
         }
     }
+
     Ok(())
 }
