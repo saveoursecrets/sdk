@@ -745,7 +745,9 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             };
 
             if let Some((meta, secret)) = result {
-                owner.create_secret(meta, secret, None).await?;
+                owner
+                    .create_secret(meta, secret, Default::default())
+                    .await?;
                 println!("Secret created ✓");
             }
         }
@@ -906,7 +908,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                             &resolved.secret_id,
                             resolved.meta,
                             None,
-                            None,
+                            Default::default(),
                             None,
                         )
                         .await?;
@@ -954,7 +956,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                             &resolved.secret_id,
                             data.meta,
                             Some(edited_secret),
-                            None,
+                            Default::default(),
                             None,
                         )
                         .await?;
@@ -988,7 +990,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                         &resolved.secret_id,
                         resolved.meta,
                         None,
-                        None,
+                        Default::default(),
                         None,
                     )
                     .await?;
@@ -1018,7 +1020,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                         &resolved.secret_id,
                         resolved.meta,
                         None,
-                        None,
+                        Default::default(),
                         None,
                     )
                     .await?;
@@ -1046,7 +1048,12 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
                 owner
-                    .move_secret(&resolved.secret_id, &resolved.summary, &to)
+                    .move_secret(
+                        &resolved.secret_id,
+                        &resolved.summary,
+                        &to,
+                        Default::default(),
+                    )
                     .await?;
                 println!("Secret moved ✓");
             }
@@ -1070,7 +1077,12 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 );
                 if read_flag(Some(&prompt))? {
                     let mut owner = resolved.user.write().await;
-                    owner.delete_secret(&resolved.secret_id, None).await?;
+                    owner
+                        .delete_secret(
+                            &resolved.secret_id,
+                            Default::default(),
+                        )
+                        .await?;
                     println!("Secret deleted ✓");
                 }
             }
@@ -1128,7 +1140,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                             &resolved.secret_id,
                             resolved.meta,
                             Some(data.secret),
-                            None,
+                            Default::default(),
                             None,
                         )
                         .await?;
@@ -1180,7 +1192,11 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
                 owner
-                    .archive(&resolved.summary, &resolved.secret_id)
+                    .archive(
+                        &resolved.summary,
+                        &resolved.secret_id,
+                        Default::default(),
+                    )
                     .await?;
                 println!("Moved to archive ✓");
             }
@@ -1218,6 +1234,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                         &resolved.summary,
                         &resolved.secret_id,
                         &resolved.meta,
+                        Default::default(),
                     )
                     .await?;
                 println!("Restored from archive ✓");
@@ -1440,7 +1457,7 @@ async fn attachment(
                     &resolved.secret_id,
                     resolved.meta,
                     Some(new_secret),
-                    None,
+                    Default::default(),
                     None,
                 )
                 .await?;

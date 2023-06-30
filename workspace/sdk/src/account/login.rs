@@ -13,7 +13,6 @@ use crate::{
     crypto::AccessKey,
     encode,
     events::{AuditEvent, Event, EventKind},
-    mpc::Keypair,
     search::SearchIndex,
     signer::{
         ed25519::{self, BoxedEd25519Signer, VerifyingKey},

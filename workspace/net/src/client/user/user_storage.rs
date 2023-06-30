@@ -35,7 +35,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use tokio::{
     io::{AsyncRead, AsyncSeek},
-    sync::RwLock,
+    sync::{mpsc, RwLock},
 };
 
 use crate::client::{
@@ -55,7 +55,30 @@ use sos_migrate::{
     Convert,
 };
 
-use super::search_index::UserIndex;
+use super::{file_manager::FileProgress, search_index::UserIndex};
+
+/// Options used when creating, deleting and updating
+/// secrets.
+#[derive(Default)]
+pub struct SecretOptions {
+    /// Target folder for the secret operation.
+    ///
+    /// If not target folder is given the current open folder
+    /// will be used. When no folder is open and the target
+    /// folder is not given an error will be returned.
+    pub folder: Option<Summary>,
+    /// Channel for file progress operations.
+    pub file_progress: Option<mpsc::Sender<FileProgress>>,
+}
+
+impl From<Summary> for SecretOptions {
+    fn from(value: Summary) -> Self {
+        Self {
+            folder: Some(value),
+            file_progress: None,
+        }
+    }
+}
 
 #[cfg(feature = "contacts")]
 /// Progress event when importing contacts.
@@ -504,7 +527,7 @@ impl UserStorage {
             self.add_secret(
                 meta,
                 secret,
-                Some(vault.summary().clone()),
+                vault.summary().clone().into(),
                 false,
             )
             .await?;
@@ -699,19 +722,20 @@ impl UserStorage {
         &mut self,
         meta: SecretMeta,
         secret: Secret,
-        folder: Option<Summary>,
+        options: SecretOptions,
     ) -> Result<(SecretId, Event<'static>)> {
-        self.add_secret(meta, secret, folder, true).await
+        self.add_secret(meta, secret, options, true).await
     }
 
     async fn add_secret(
         &mut self,
         meta: SecretMeta,
         secret: Secret,
-        folder: Option<Summary>,
+        mut options: SecretOptions,
         audit: bool,
     ) -> Result<(SecretId, Event<'static>)> {
-        let folder = folder
+        let folder = options
+            .folder
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder).await?;
@@ -747,7 +771,12 @@ impl UserStorage {
             .map(|g| g.summary().clone())
             .ok_or(Error::NoOpenFolder)?;
 
-        self.create_files(&current_folder, secret_data).await?;
+        self.create_files(
+            &current_folder,
+            secret_data,
+            &mut options.file_progress,
+        )
+        .await?;
 
         let event = Event::Write(*folder.id(), event);
         if audit {
@@ -812,13 +841,19 @@ impl UserStorage {
         secret_id: &SecretId,
         meta: SecretMeta,
         path: P,
-        folder: Option<Summary>,
+        options: SecretOptions,
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Event<'static>)> {
         let path = path.as_ref().to_path_buf();
         let secret: Secret = path.try_into()?;
-        self.update_secret(secret_id, meta, Some(secret), folder, destination)
-            .await
+        self.update_secret(
+            secret_id,
+            meta,
+            Some(secret),
+            options,
+            destination,
+        )
+        .await
     }
 
     /// Update a secret in the current open folder or a specific folder.
@@ -827,10 +862,13 @@ impl UserStorage {
         secret_id: &SecretId,
         meta: SecretMeta,
         secret: Option<Secret>,
-        folder: Option<Summary>,
+        //folder: Option<Summary>,
+        mut options: SecretOptions,
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Event<'static>)> {
-        let folder = folder
+        let folder = options
+            .folder
+            .take()
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder).await?;
@@ -855,12 +893,18 @@ impl UserStorage {
             .await?;
 
         // Must update the files before moving so checksums are correct
-        self.update_files(&folder, &folder, &old_secret_data, secret_data)
-            .await?;
+        self.update_files(
+            &folder,
+            &folder,
+            &old_secret_data,
+            secret_data,
+            &mut options.file_progress,
+        )
+        .await?;
 
         let id = if let Some(to) = destination.as_ref() {
             let (new_id, _) =
-                self.move_secret(secret_id, &folder, to).await?;
+                self.move_secret(secret_id, &folder, to, options).await?;
             new_id
         } else {
             *secret_id
@@ -914,6 +958,7 @@ impl UserStorage {
         secret_id: &SecretId,
         from: &Summary,
         to: &Summary,
+        mut options: SecretOptions,
     ) -> Result<(SecretId, Event<'static>)> {
         self.open_vault(from, false).await?;
         let (secret_data, read_event) =
@@ -922,7 +967,12 @@ impl UserStorage {
 
         self.open_vault(to, false).await?;
         let (new_id, create_event) = self
-            .add_secret(secret_data.meta, secret_data.secret, None, false)
+            .add_secret(
+                secret_data.meta,
+                secret_data.secret,
+                Default::default(),
+                false,
+            )
             .await?;
         self.open_vault(from, false).await?;
 
@@ -938,6 +988,7 @@ impl UserStorage {
             secret_id,
             &new_id,
             None,
+            &mut options.file_progress,
         )
         .await?;
 
@@ -965,9 +1016,11 @@ impl UserStorage {
     pub async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
-        folder: Option<Summary>,
+        mut options: SecretOptions,
     ) -> Result<Event<'static>> {
-        let folder = folder
+        let folder = options
+            .folder
+            .take()
             .or_else(|| self.storage.current().map(|g| g.summary().clone()))
             .ok_or(Error::NoOpenFolder)?;
         self.open_folder(&folder).await?;
@@ -975,7 +1028,13 @@ impl UserStorage {
         let (secret_data, _) =
             self.get_secret(secret_id, None, false).await?;
         let event = self.remove_secret(secret_id, None, true).await?;
-        self.delete_files(&folder, &secret_data, None).await?;
+        self.delete_files(
+            &folder,
+            &secret_data,
+            None,
+            &mut options.file_progress,
+        )
+        .await?;
 
         Ok(event)
     }
@@ -1011,13 +1070,14 @@ impl UserStorage {
         &mut self,
         from: &Summary,
         secret_id: &SecretId,
+        options: SecretOptions,
     ) -> Result<(SecretId, Event<'static>)> {
         if from.flags().is_archive() {
             return Err(Error::AlreadyArchived);
         }
         self.open_folder(from).await?;
         let to = self.archive_folder().ok_or_else(|| Error::NoArchive)?;
-        self.move_secret(secret_id, from, &to).await
+        self.move_secret(secret_id, from, &to, options).await
     }
 
     /// Move a secret out of the archive.
@@ -1028,6 +1088,7 @@ impl UserStorage {
         from: &Summary,
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
+        options: SecretOptions,
     ) -> Result<(Summary, SecretId, Event<'static>)> {
         if !from.flags().is_archive() {
             return Err(Error::NotArchived);
@@ -1046,7 +1107,8 @@ impl UserStorage {
         {
             to = contacts.unwrap();
         }
-        let (id, event) = self.move_secret(secret_id, from, &to).await?;
+        let (id, event) =
+            self.move_secret(secret_id, from, &to, options).await?;
         Ok((to, id, event))
     }
 
@@ -1429,7 +1491,7 @@ impl UserStorage {
             });
 
             let meta = SecretMeta::new(label, secret.kind());
-            self.create_secret(meta, secret, None).await?;
+            self.create_secret(meta, secret, Default::default()).await?;
         }
 
         if let Some(folder) = current {

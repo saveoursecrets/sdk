@@ -16,8 +16,11 @@ pub use sos_migrate::{
     Convert,
 };
 
+pub use file_manager::FileProgress;
 pub use search_index::{ArchiveFilter, DocumentView, QueryFilter, UserIndex};
-pub use user_storage::{AccountData, UserStatistics, UserStorage};
+pub use user_storage::{
+    AccountData, SecretOptions, UserStatistics, UserStorage,
+};
 
 #[cfg(feature = "contacts")]
 pub use user_storage::ContactImportProgress;

@@ -137,7 +137,7 @@ async fn simulate_session(
     // Create a secret
     let (meta, secret) = mock_note("Audit note", "Note value");
     let (id, _) = owner
-        .create_secret(meta, secret, Some(default_folder.clone()))
+        .create_secret(meta, secret, default_folder.clone().into())
         .await?;
     // Read the secret
     let (secret_data, _) =
@@ -150,22 +150,24 @@ async fn simulate_session(
             &id,
             new_meta,
             None,
-            Some(default_folder.clone()),
+            default_folder.clone().into(),
             None,
         )
         .await?;
     // Delete the secret
     owner
-        .delete_secret(&id, Some(default_folder.clone()))
+        .delete_secret(&id, default_folder.clone().into())
         .await?;
     // Create a new secret so we can archive it
     let (meta, secret) =
         mock_note("Audit note to archive", "Note value to archive");
     let (id, _) = owner
-        .create_secret(meta, secret, Some(default_folder.clone()))
+        .create_secret(meta, secret, default_folder.clone().into())
         .await?;
     // Archive the secret to generate move event
-    owner.archive(default_folder, &id).await?;
+    owner
+        .archive(default_folder, &id, Default::default())
+        .await?;
     // Create a new folder
     let new_folder = owner.create_folder("New folder".to_string()).await?;
     // Rename the folder

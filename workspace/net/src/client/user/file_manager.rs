@@ -2,7 +2,7 @@
 //! as secrets are created, updated and moved.
 
 use std::{
-    collections::HashSet,
+    collections::HashMap,
     path::{Path, PathBuf},
 };
 
@@ -18,8 +18,29 @@ use sos_sdk::{
     },
     vfs,
 };
+use tokio::sync::mpsc;
 
 use crate::client::{user::UserStorage, Error, Result};
+
+/// File progress operations.
+#[derive(Debug)]
+pub enum FileProgress {
+    /// File is being written.
+    Write {
+        /// File name.
+        name: String,
+    },
+    /// File is being moved.
+    Move {
+        /// File name.
+        name: String,
+    },
+    /// File is being deleted.
+    Delete {
+        /// File name.
+        name: String,
+    },
+}
 
 /// Diff of file secrets.
 #[derive(Debug)]
@@ -32,7 +53,7 @@ struct FileStorageDiff<'a> {
 
 /// Source path to a file.
 #[derive(Debug, Clone)]
-struct FileSource {
+pub struct FileSource {
     /// Path to the source file.
     path: PathBuf,
     /// Name of the file.
@@ -142,8 +163,10 @@ impl UserStorage {
         &mut self,
         summary: &Summary,
         secret_data: SecretData,
+        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileStorageResult>> {
-        self.write_update_checksum(summary, secret_data, None).await
+        self.write_update_checksum(summary, secret_data, None, file_progress)
+            .await
     }
 
     /// Update external files when a file secret is updated.
@@ -153,6 +176,7 @@ impl UserStorage {
         new_summary: &Summary,
         old_secret: &SecretData,
         new_secret: SecretData,
+        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileStorageResult>> {
         let mut results = Vec::new();
 
@@ -173,8 +197,13 @@ impl UserStorage {
 
         // Delete any attachments that no longer exist
         if !deleted.is_empty() {
-            self.delete_files(old_summary, old_secret, Some(deleted))
-                .await?;
+            self.delete_files(
+                old_summary,
+                old_secret,
+                Some(deleted),
+                file_progress,
+            )
+            .await?;
         }
 
         // Move unchanged files
@@ -186,6 +215,7 @@ impl UserStorage {
                 old_secret_id,
                 new_secret_id,
                 Some(unchanged_files),
+                file_progress,
             )
             .await?;
         }
@@ -197,6 +227,7 @@ impl UserStorage {
                     new_summary,
                     new_secret,
                     Some(changed_files),
+                    file_progress,
                 )
                 .await?;
             results.extend_from_slice(&written);
@@ -211,6 +242,7 @@ impl UserStorage {
         summary: &Summary,
         secret_data: &SecretData,
         targets: Option<Vec<&Secret>>,
+        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<()> {
         let id = secret_data.id.as_ref().ok_or_else(|| Error::NoSecretId)?;
         let targets = targets.unwrap_or_else(|| {
@@ -225,18 +257,23 @@ impl UserStorage {
         //
         // However we don't want to treat this as an error condition
         // so remove duplicate checksums before deletion.
-        let mut checksums = HashSet::new();
+        let mut checksums = HashMap::new();
         for target in targets {
             if let Secret::File {
-                content: FileContent::External { checksum, .. },
+                content: FileContent::External { checksum, name, .. },
                 ..
             } = target
             {
-                checksums.insert(checksum);
+                checksums.insert(checksum, name.to_owned());
             }
         }
 
-        for checksum in checksums {
+        for (checksum, name) in checksums {
+            if let Some(file_progress) = file_progress.as_mut() {
+                let _ =
+                    file_progress.send(FileProgress::Delete { name }).await;
+            }
+
             let file_name = hex::encode(checksum);
             self.delete_file(summary.id(), id, &file_name).await?;
         }
@@ -279,6 +316,7 @@ impl UserStorage {
         old_secret_id: &SecretId,
         new_secret_id: &SecretId,
         targets: Option<Vec<&Secret>>,
+        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<()> {
         let targets = targets.unwrap_or_else(|| {
             get_external_file_secrets(&secret_data.secret)
@@ -286,10 +324,18 @@ impl UserStorage {
 
         for target in targets {
             if let Secret::File {
-                content: FileContent::External { checksum, .. },
+                content: FileContent::External { checksum, name, .. },
                 ..
             } = target
             {
+                if let Some(file_progress) = file_progress.as_mut() {
+                    let _ = file_progress
+                        .send(FileProgress::Move {
+                            name: name.to_owned(),
+                        })
+                        .await;
+                }
+
                 let file_name = hex::encode(checksum);
 
                 self.move_file(
@@ -353,6 +399,7 @@ impl UserStorage {
         summary: &Summary,
         mut secret_data: SecretData,
         sources: Option<Vec<FileSource>>,
+        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileStorageResult>> {
         let mut results = Vec::new();
 
@@ -362,6 +409,13 @@ impl UserStorage {
             sources.unwrap_or_else(|| get_file_sources(&secret_data.secret));
         if !files.is_empty() {
             for source in files {
+                if let Some(file_progress) = file_progress.as_mut() {
+                    let _ = file_progress
+                        .send(FileProgress::Write {
+                            name: source.name.clone(),
+                        })
+                        .await;
+                }
                 let encrypted_file = self
                     .encrypt_file_storage(summary.id(), id, &source.path)
                     .await?;
