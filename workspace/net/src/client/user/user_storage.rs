@@ -55,10 +55,7 @@ use sos_migrate::{
     Convert,
 };
 
-use super::{
-    file_manager::FileProgress,
-    search_index::UserIndex,
-};
+use super::{file_manager::FileProgress, search_index::UserIndex};
 
 /// Options used when creating, deleting and updating
 /// secrets.
@@ -69,9 +66,9 @@ pub struct SecretOptions {
     /// If not target folder is given the current open folder
     /// will be used. When no folder is open and the target
     /// folder is not given an error will be returned.
-    folder: Option<Summary>,
+    pub folder: Option<Summary>,
     /// Channel for file progress operations.
-    file_progress: Option<mpsc::Sender<FileProgress>>,
+    pub file_progress: Option<mpsc::Sender<FileProgress>>,
 }
 
 impl From<Summary> for SecretOptions {

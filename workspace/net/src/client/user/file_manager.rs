@@ -23,27 +23,22 @@ use tokio::sync::mpsc;
 use crate::client::{user::UserStorage, Error, Result};
 
 /// File progress operations.
+#[derive(Debug)]
 pub enum FileProgress {
     /// File is being written.
     Write {
         /// File name.
         name: String,
-        /// File size,
-        size: u64,
     },
     /// File is being moved.
     Move {
         /// File name.
         name: String,
-        /// File size,
-        size: u64,
     },
     /// File is being deleted.
     Delete {
         /// File name.
         name: String,
-        /// File size.
-        size: u64,
     },
 }
 
@@ -63,8 +58,6 @@ pub struct FileSource {
     path: PathBuf,
     /// Name of the file.
     name: String,
-    /// Size of the file.
-    size: u64,
     /// Field index for attachments.
     field_index: Option<usize>,
 }
@@ -172,12 +165,8 @@ impl UserStorage {
         secret_data: SecretData,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileStorageResult>> {
-        self.write_update_checksum(
-            summary,
-            secret_data,
-            None,
-            file_progress,
-        ).await
+        self.write_update_checksum(summary, secret_data, None, file_progress)
+            .await
     }
 
     /// Update external files when a file secret is updated.
@@ -271,21 +260,18 @@ impl UserStorage {
         let mut checksums = HashMap::new();
         for target in targets {
             if let Secret::File {
-                content: FileContent::External { checksum, name, size, .. },
+                content: FileContent::External { checksum, name, .. },
                 ..
             } = target
             {
-                checksums.insert(checksum, (name.to_owned(), *size));
+                checksums.insert(checksum, name.to_owned());
             }
         }
 
-        for (checksum, (name, size)) in checksums {
+        for (checksum, name) in checksums {
             if let Some(file_progress) = file_progress.as_mut() {
-                let _ = file_progress
-                    .send(FileProgress::Delete {
-                        name,
-                        size,
-                    }).await;
+                let _ =
+                    file_progress.send(FileProgress::Delete { name }).await;
             }
 
             let file_name = hex::encode(checksum);
@@ -338,17 +324,16 @@ impl UserStorage {
 
         for target in targets {
             if let Secret::File {
-                content: FileContent::External { checksum, name, size, .. },
+                content: FileContent::External { checksum, name, .. },
                 ..
             } = target
             {
-
                 if let Some(file_progress) = file_progress.as_mut() {
                     let _ = file_progress
                         .send(FileProgress::Move {
                             name: name.to_owned(),
-                            size: *size,
-                        }).await;
+                        })
+                        .await;
                 }
 
                 let file_name = hex::encode(checksum);
@@ -428,8 +413,8 @@ impl UserStorage {
                     let _ = file_progress
                         .send(FileProgress::Write {
                             name: source.name.clone(),
-                            size: source.size,
-                        }).await;
+                        })
+                        .await;
                 }
                 let encrypted_file = self
                     .encrypt_file_storage(summary.id(), id, &source.path)
@@ -539,7 +524,7 @@ fn get_file_sources(secret: &Secret) -> Vec<FileSource> {
         field_index: Option<usize>,
     ) {
         if let Secret::File {
-            content: FileContent::External { path, size, .. },
+            content: FileContent::External { path, .. },
             ..
         } = secret
         {
@@ -548,7 +533,6 @@ fn get_file_sources(secret: &Secret) -> Vec<FileSource> {
                 files.push(FileSource {
                     path: path.clone().unwrap(),
                     name,
-                    size: *size,
                     field_index,
                 });
             }

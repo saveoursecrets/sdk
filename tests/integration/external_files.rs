@@ -1,9 +1,12 @@
 use anyhow::Result;
 
 use serial_test::serial;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
-use sos_net::client::{provider::ProviderFactory, user::UserStorage};
+use sos_net::client::{
+    provider::ProviderFactory,
+    user::{FileProgress, SecretOptions, UserStorage},
+};
 use sos_sdk::{
     account::ImportedAccount,
     hex,
@@ -17,6 +20,8 @@ use sos_sdk::{
     },
     vfs,
 };
+
+use tokio::sync::{mpsc, Mutex};
 
 use crate::test_utils::setup;
 
@@ -56,8 +61,28 @@ async fn integration_external_files() -> Result<()> {
 
     owner.initialize_search_index().await?;
 
+    let operations: Arc<Mutex<Vec<FileProgress>>> =
+        Arc::new(Mutex::new(Vec::new()));
+    let (progress_tx, mut progress_rx) = mpsc::channel::<FileProgress>(32);
+
+    let operations_log = Arc::clone(&operations);
+    tokio::task::spawn(async move {
+        while let Some(msg) = progress_rx.recv().await {
+            let mut writer = operations_log.lock().await;
+            writer.push(msg);
+        }
+    });
+
     let (id, secret_data, original_checksum) =
-        assert_create_file_secret(&mut owner, &summary).await?;
+        assert_create_file_secret(&mut owner, &summary, progress_tx.clone())
+            .await?;
+
+    let mut progress: Vec<_> = {
+        let mut writer = operations.lock().await;
+        writer.drain(..).collect()
+    };
+    assert_eq!(1, progress.len());
+    assert!(matches!(progress.remove(0), FileProgress::Write { .. }));
 
     let (new_id, _new_secret_data, updated_checksum) =
         assert_update_file_secret(
@@ -66,8 +91,18 @@ async fn integration_external_files() -> Result<()> {
             &id,
             &secret_data,
             &original_checksum,
+            progress_tx.clone(),
         )
         .await?;
+
+    // Update reports Delete and Write progress events
+    let mut progress: Vec<_> = {
+        let mut writer = operations.lock().await;
+        writer.drain(..).collect()
+    };
+    assert_eq!(2, progress.len());
+    assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
+    assert!(matches!(progress.remove(0), FileProgress::Write { .. }));
 
     let (destination, moved_id, _moved_secret_data, moved_checksum) =
         assert_move_file_secret(
@@ -75,20 +110,51 @@ async fn integration_external_files() -> Result<()> {
             &summary,
             &new_id,
             &updated_checksum,
+            progress_tx.clone(),
         )
         .await?;
+
+    let mut progress: Vec<_> = {
+        let mut writer = operations.lock().await;
+        writer.drain(..).collect()
+    };
+    assert_eq!(1, progress.len());
+    assert!(matches!(progress.remove(0), FileProgress::Move { .. }));
 
     assert_delete_file_secret(
         &mut owner,
         &destination,
         &moved_id,
         &moved_checksum,
+        progress_tx.clone(),
     )
     .await?;
 
-    let (destination, id, checksum) =
-        assert_create_update_move_file_secret(&mut owner, &summary).await?;
+    let mut progress: Vec<_> = {
+        let mut writer = operations.lock().await;
+        writer.drain(..).collect()
+    };
+    assert_eq!(1, progress.len());
+    assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
 
+    let (destination, id, checksum) = assert_create_update_move_file_secret(
+        &mut owner,
+        &summary,
+        progress_tx.clone(),
+    )
+    .await?;
+
+    let mut progress: Vec<_> = {
+        let mut writer = operations.lock().await;
+        writer.drain(..).collect()
+    };
+    assert_eq!(4, progress.len());
+    assert!(matches!(progress.remove(0), FileProgress::Write { .. }));
+    assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
+    assert!(matches!(progress.remove(0), FileProgress::Write { .. }));
+    assert!(matches!(progress.remove(0), FileProgress::Move { .. }));
+
+    // NOTE: deleting a folder does not dispatch FileProgress events
     assert_delete_folder_file_secrets(
         &mut owner,
         &destination,
@@ -97,7 +163,22 @@ async fn integration_external_files() -> Result<()> {
     )
     .await?;
 
-    assert_attach_file_secret(&mut owner, &summary).await?;
+    assert_attach_file_secret(&mut owner, &summary, progress_tx.clone())
+        .await?;
+
+    let mut progress: Vec<_> = {
+        let mut writer = operations.lock().await;
+        writer.drain(..).collect()
+    };
+    assert_eq!(8, progress.len());
+    assert!(matches!(progress.remove(0), FileProgress::Write { .. }));
+    assert!(matches!(progress.remove(0), FileProgress::Write { .. }));
+    assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
+    assert!(matches!(progress.remove(0), FileProgress::Write { .. }));
+    assert!(matches!(progress.remove(0), FileProgress::Write { .. }));
+    assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
+    assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
+    assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
 
     // Reset the cache dir so we don't interfere
     // with other tests
@@ -124,13 +205,16 @@ fn get_text_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
 async fn create_file_secret(
     owner: &mut UserStorage,
     default_folder: &Summary,
+    progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(SecretId, SecretData, PathBuf)> {
     let (meta, secret, file_path) = get_image_secret()?;
 
     // Create the file secret in the default folder
-    let (id, _) = owner
-        .create_secret(meta, secret, default_folder.clone().into())
-        .await?;
+    let options = SecretOptions {
+        folder: Some(default_folder.clone()),
+        file_progress: Some(progress_tx),
+    };
+    let (id, _) = owner.create_secret(meta, secret, options).await?;
     let (secret_data, _) =
         owner.read_secret(&id, Some(default_folder.clone())).await?;
 
@@ -142,6 +226,7 @@ async fn update_file_secret(
     default_folder: &Summary,
     secret_data: &SecretData,
     destination: Option<&Summary>,
+    progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<SecretData> {
     let id = secret_data.id.as_ref().unwrap();
 
@@ -153,7 +238,10 @@ async fn update_file_secret(
             id,
             new_meta,
             "tests/fixtures/test-file.txt",
-            Default::default(),
+            SecretOptions {
+                folder: None,
+                file_progress: Some(progress_tx),
+            },
             destination,
         )
         .await?;
@@ -170,9 +258,10 @@ async fn update_file_secret(
 async fn assert_create_file_secret(
     owner: &mut UserStorage,
     default_folder: &Summary,
+    progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(SecretId, SecretData, [u8; 32])> {
     let (id, secret_data, file_path) =
-        create_file_secret(owner, default_folder).await?;
+        create_file_secret(owner, default_folder, progress_tx).await?;
 
     let checksum = if let Secret::File {
         content:
@@ -215,9 +304,16 @@ async fn assert_update_file_secret(
     id: &SecretId,
     secret_data: &SecretData,
     original_checksum: &[u8; 32],
+    progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(SecretId, SecretData, [u8; 32])> {
-    let new_secret_data =
-        update_file_secret(owner, default_folder, secret_data, None).await?;
+    let new_secret_data = update_file_secret(
+        owner,
+        default_folder,
+        secret_data,
+        None,
+        progress_tx,
+    )
+    .await?;
 
     let checksum = if let Secret::File {
         content:
@@ -259,12 +355,22 @@ async fn assert_move_file_secret(
     default_folder: &Summary,
     id: &SecretId,
     updated_checksum: &[u8; 32],
+    progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(Summary, SecretId, SecretData, [u8; 32])> {
     let new_folder_name = "Mock folder".to_string();
     let destination = owner.create_folder(new_folder_name).await?;
 
-    let (new_id, _) =
-        owner.move_secret(id, default_folder, &destination, Default::default()).await?;
+    let (new_id, _) = owner
+        .move_secret(
+            id,
+            default_folder,
+            &destination,
+            SecretOptions {
+                folder: None,
+                file_progress: Some(progress_tx),
+            },
+        )
+        .await?;
 
     let (moved_secret_data, _) = owner
         .read_secret(&new_id, Some(destination.clone()))
@@ -311,8 +417,13 @@ async fn assert_delete_file_secret(
     folder: &Summary,
     id: &SecretId,
     checksum: &[u8; 32],
+    progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<()> {
-    owner.delete_secret(id, folder.clone().into()).await?;
+    let options = SecretOptions {
+        folder: Some(folder.clone()),
+        file_progress: Some(progress_tx),
+    };
+    owner.delete_secret(id, options).await?;
 
     // Check deleting the secret also removed the external file
     let file_name = hex::encode(checksum);
@@ -326,9 +437,11 @@ async fn assert_delete_file_secret(
 async fn assert_create_update_move_file_secret(
     owner: &mut UserStorage,
     default_folder: &Summary,
+    progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(Summary, SecretId, [u8; 32])> {
     let (id, secret_data, _) =
-        create_file_secret(owner, default_folder).await?;
+        create_file_secret(owner, default_folder, progress_tx.clone())
+            .await?;
 
     let original_checksum = if let Secret::File {
         content: FileContent::External { checksum, .. },
@@ -348,6 +461,7 @@ async fn assert_create_update_move_file_secret(
         default_folder,
         &secret_data,
         Some(&destination),
+        progress_tx,
     )
     .await?;
     let new_id = new_secret_data.id.as_ref().unwrap();
@@ -405,8 +519,10 @@ async fn assert_delete_folder_file_secrets(
 async fn assert_attach_file_secret(
     owner: &mut UserStorage,
     folder: &Summary,
+    progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<()> {
-    let (id, mut secret_data, _) = create_file_secret(owner, folder).await?;
+    let (id, mut secret_data, _) =
+        create_file_secret(owner, folder, progress_tx.clone()).await?;
 
     // Add an attachment
     let (meta, secret, _) = get_text_secret()?;
@@ -419,7 +535,10 @@ async fn assert_attach_file_secret(
             &id,
             secret_data.meta,
             Some(secret_data.secret),
-            folder.clone().into(),
+            SecretOptions {
+                folder: Some(folder.clone()),
+                file_progress: Some(progress_tx.clone()),
+            },
             None,
         )
         .await?;
@@ -513,7 +632,10 @@ async fn assert_attach_file_secret(
                 &id,
                 secret_data.meta.clone(),
                 Some(secret_data.secret.clone()),
-                folder.clone().into(),
+                SecretOptions {
+                    folder: Some(folder.clone()),
+                    file_progress: Some(progress_tx.clone()),
+                },
                 None,
             )
             .await?;
@@ -573,7 +695,10 @@ async fn assert_attach_file_secret(
                 &id,
                 updated_secret_data.meta,
                 Some(updated_secret_data.secret),
-                folder.clone().into(),
+                SecretOptions {
+                    folder: Some(folder.clone()),
+                    file_progress: Some(progress_tx.clone()),
+                },
                 None,
             )
             .await?;
@@ -633,7 +758,10 @@ async fn assert_attach_file_secret(
                 &id,
                 insert_attachment_secret_data.meta,
                 Some(insert_attachment_secret_data.secret),
-                folder.clone().into(),
+                SecretOptions {
+                    folder: Some(folder.clone()),
+                    file_progress: Some(progress_tx.clone()),
+                },
                 None,
             )
             .await?;
@@ -670,7 +798,15 @@ async fn assert_attach_file_secret(
     };
 
     // Now delete the secret and check all the files are gone
-    owner.delete_secret(&id, folder.clone().into()).await?;
+    owner
+        .delete_secret(
+            &id,
+            SecretOptions {
+                folder: Some(folder.clone()),
+                file_progress: Some(progress_tx.clone()),
+            },
+        )
+        .await?;
 
     for checksum in checksums {
         let file_path =

@@ -165,7 +165,9 @@ async fn simulate_session(
         .create_secret(meta, secret, default_folder.clone().into())
         .await?;
     // Archive the secret to generate move event
-    owner.archive(default_folder, &id, Default::default()).await?;
+    owner
+        .archive(default_folder, &id, Default::default())
+        .await?;
     // Create a new folder
     let new_folder = owner.create_folder("New folder".to_string()).await?;
     // Rename the folder
