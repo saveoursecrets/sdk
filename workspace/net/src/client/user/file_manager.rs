@@ -9,7 +9,7 @@ use std::{
 use sos_sdk::{
     account::DelegatedPassphrase,
     storage::EncryptedFile,
-    storage::{basename, AppPaths, FileStorage},
+    storage::{basename, AppPaths, FileStorage, FileStorageSync},
     vault::{
         secret::{
             FileContent, Secret, SecretData, SecretId, SecretRow, UserData,
@@ -86,14 +86,13 @@ impl UserStorage {
         .await?;
 
         // Encrypt and write to disc
-        Ok(FileStorage::encrypt_file_storage(
+        Ok(FileStorageSync::encrypt_file_storage(
             password,
             source,
             self.user.identity().address().to_string(),
             vault_id.to_string(),
             secret_id.to_string(),
-        )
-        .await?)
+        )?)
     }
 
     /// Decrypt a file in the storage location and return the buffer.

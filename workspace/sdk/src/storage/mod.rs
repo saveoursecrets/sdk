@@ -5,11 +5,22 @@ use std::path::Path;
 
 mod app;
 mod external_files;
+mod external_files_sync;
 mod user;
 
 pub use app::AppPaths;
-pub use external_files::{EncryptedFile, FileStorage};
+pub use external_files::FileStorage;
+pub use external_files_sync::FileStorageSync;
 pub use user::UserPaths;
+
+/// Result of encrypting a file.
+#[derive(Debug, Clone)]
+pub struct EncryptedFile {
+    /// Size of the encrypted data in bytes.
+    pub size: u64,
+    /// Sha256 digest of the encrypted buffer.
+    pub digest: Vec<u8>,
+}
 
 /// Compute the file name from a path.
 ///
