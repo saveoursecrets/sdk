@@ -146,7 +146,7 @@ pub(crate) async fn private_service(
             message.envelope,
         )
         .await
-        .map_err(|e| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         assert!(matches!(encoding, sos_sdk::mpc::Encoding::Blob));
 

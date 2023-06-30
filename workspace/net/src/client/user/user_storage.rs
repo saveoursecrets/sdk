@@ -56,7 +56,7 @@ use sos_migrate::{
 };
 
 use super::{
-    file_manager::{FileProgress, FileSource},
+    file_manager::FileProgress,
     search_index::UserIndex,
 };
 
