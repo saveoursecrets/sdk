@@ -129,7 +129,7 @@ async fn create_file_secret(
 
     // Create the file secret in the default folder
     let (id, _) = owner
-        .create_secret(meta, secret, Some(default_folder.clone()))
+        .create_secret(meta, secret, default_folder.clone().into())
         .await?;
     let (secret_data, _) =
         owner.read_secret(&id, Some(default_folder.clone())).await?;
@@ -153,7 +153,7 @@ async fn update_file_secret(
             id,
             new_meta,
             "tests/fixtures/test-file.txt",
-            None,
+            Default::default(),
             destination,
         )
         .await?;
@@ -264,7 +264,7 @@ async fn assert_move_file_secret(
     let destination = owner.create_folder(new_folder_name).await?;
 
     let (new_id, _) =
-        owner.move_secret(id, default_folder, &destination).await?;
+        owner.move_secret(id, default_folder, &destination, Default::default()).await?;
 
     let (moved_secret_data, _) = owner
         .read_secret(&new_id, Some(destination.clone()))
@@ -312,7 +312,7 @@ async fn assert_delete_file_secret(
     id: &SecretId,
     checksum: &[u8; 32],
 ) -> Result<()> {
-    owner.delete_secret(id, Some(folder.clone())).await?;
+    owner.delete_secret(id, folder.clone().into()).await?;
 
     // Check deleting the secret also removed the external file
     let file_name = hex::encode(checksum);
@@ -419,7 +419,7 @@ async fn assert_attach_file_secret(
             &id,
             secret_data.meta,
             Some(secret_data.secret),
-            Some(folder.clone()),
+            folder.clone().into(),
             None,
         )
         .await?;
@@ -513,7 +513,7 @@ async fn assert_attach_file_secret(
                 &id,
                 secret_data.meta.clone(),
                 Some(secret_data.secret.clone()),
-                Some(folder.clone()),
+                folder.clone().into(),
                 None,
             )
             .await?;
@@ -573,7 +573,7 @@ async fn assert_attach_file_secret(
                 &id,
                 updated_secret_data.meta,
                 Some(updated_secret_data.secret),
-                Some(folder.clone()),
+                folder.clone().into(),
                 None,
             )
             .await?;
@@ -633,7 +633,7 @@ async fn assert_attach_file_secret(
                 &id,
                 insert_attachment_secret_data.meta,
                 Some(insert_attachment_secret_data.secret),
-                Some(folder.clone()),
+                folder.clone().into(),
                 None,
             )
             .await?;
@@ -670,7 +670,7 @@ async fn assert_attach_file_secret(
     };
 
     // Now delete the secret and check all the files are gone
-    owner.delete_secret(&id, Some(folder.clone())).await?;
+    owner.delete_secret(&id, folder.clone().into()).await?;
 
     for checksum in checksums {
         let file_path =
