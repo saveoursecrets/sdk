@@ -18,8 +18,19 @@ use sos_sdk::{
     },
     vfs,
 };
+use tokio::sync::mpsc;
 
 use crate::client::{user::UserStorage, Error, Result};
+
+/// File progress operations.
+pub enum FileProgress {
+    /// File is being created.
+    Create(FileSource),
+    /// File is being updated.
+    Update(FileSource),
+    /// File is being deleted.
+    Delete(FileSource),
+}
 
 /// Diff of file secrets.
 #[derive(Debug)]
@@ -32,7 +43,7 @@ struct FileStorageDiff<'a> {
 
 /// Source path to a file.
 #[derive(Debug, Clone)]
-struct FileSource {
+pub struct FileSource {
     /// Path to the source file.
     path: PathBuf,
     /// Name of the file.
@@ -142,6 +153,7 @@ impl UserStorage {
         &mut self,
         summary: &Summary,
         secret_data: SecretData,
+        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileStorageResult>> {
         self.write_update_checksum(summary, secret_data, None).await
     }
@@ -153,6 +165,7 @@ impl UserStorage {
         new_summary: &Summary,
         old_secret: &SecretData,
         new_secret: SecretData,
+        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileStorageResult>> {
         let mut results = Vec::new();
 
@@ -173,8 +186,13 @@ impl UserStorage {
 
         // Delete any attachments that no longer exist
         if !deleted.is_empty() {
-            self.delete_files(old_summary, old_secret, Some(deleted))
-                .await?;
+            self.delete_files(
+                old_summary,
+                old_secret,
+                Some(deleted),
+                file_progress,
+            )
+            .await?;
         }
 
         // Move unchanged files
@@ -186,6 +204,7 @@ impl UserStorage {
                 old_secret_id,
                 new_secret_id,
                 Some(unchanged_files),
+                file_progress,
             )
             .await?;
         }
@@ -211,6 +230,7 @@ impl UserStorage {
         summary: &Summary,
         secret_data: &SecretData,
         targets: Option<Vec<&Secret>>,
+        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<()> {
         let id = secret_data.id.as_ref().ok_or_else(|| Error::NoSecretId)?;
         let targets = targets.unwrap_or_else(|| {
@@ -279,6 +299,7 @@ impl UserStorage {
         old_secret_id: &SecretId,
         new_secret_id: &SecretId,
         targets: Option<Vec<&Secret>>,
+        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<()> {
         let targets = targets.unwrap_or_else(|| {
             get_external_file_secrets(&secret_data.secret)
