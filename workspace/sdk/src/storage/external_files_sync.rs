@@ -1,14 +1,9 @@
-//! Manages encryption and decryption for files.
+//! Sync workaround for the futures::io::copy() bug, 
+//! see: https://github.com/fzyzcjy/flutter_rust_bridge/discussions/1267
 //!
-//! Also responsible for reading and writing external
-//! file references to disc.
-//!
-//! Secrets of type file store the file data externally for
-//! performance reasons and reference the external files
-//! by vault identifier, secret identifier and file name.
-//!
-//! The file name is the hex-encoded digest of the encrypted data
-//! stored on disc.
+//! Hopefully one day we can remove this and use the newer FileStorage 
+//! which works fine when executing natively but not when executed
+//! via flutter_rust_bridge.
 
 use age::Encryptor;
 use secrecy::SecretString;
@@ -23,6 +18,7 @@ use crate::{storage::AppPaths, Error, Result};
 use super::EncryptedFile;
 
 /// Manage encrypted file storage.
+#[doc(hidden)]
 pub struct FileStorageSync;
 
 impl FileStorageSync {
@@ -80,7 +76,6 @@ impl FileStorageSync {
     ///
     /// Returns an SHA256 digest of the encrypted data
     /// and the size of the original file.
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn encrypt_file_storage<
         P: AsRef<Path>,
         A: AsRef<Path>,
@@ -108,7 +103,6 @@ impl FileStorageSync {
     }
 
     /// Decrypt a file in the storage location and return the buffer.
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn decrypt_file_storage<
         A: AsRef<Path>,
         V: AsRef<Path>,
