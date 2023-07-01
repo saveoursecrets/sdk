@@ -1,7 +1,7 @@
-//! Sync workaround for the futures::io::copy() bug, 
+//! Sync workaround for the futures::io::copy() bug,
 //! see: https://github.com/fzyzcjy/flutter_rust_bridge/discussions/1267
 //!
-//! Hopefully one day we can remove this and use the newer FileStorage 
+//! Hopefully one day we can remove this and use the newer FileStorage
 //! which works fine when executing natively but not when executed
 //! via flutter_rust_bridge.
 
@@ -88,9 +88,8 @@ impl FileStorageSync {
         vault_id: V,
         secret_id: S,
     ) -> Result<EncryptedFile> {
-        let target = AppPaths::files_dir(address)?
-            .join(vault_id)
-            .join(secret_id);
+        let target =
+            AppPaths::files_dir(address)?.join(vault_id).join(secret_id);
 
         if !target.exists() {
             std::fs::create_dir_all(&target)?;
@@ -115,9 +114,8 @@ impl FileStorageSync {
         secret_id: S,
         file_name: F,
     ) -> Result<Vec<u8>> {
-        let path = AppPaths::file_location(
-            address, vault_id, secret_id, file_name,
-        )?;
+        let path =
+            AppPaths::file_location(address, vault_id, secret_id, file_name)?;
         Self::decrypt_file_passphrase(path, password)
     }
 }

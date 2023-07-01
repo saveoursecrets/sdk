@@ -60,6 +60,10 @@ impl AppPaths {
     ///
     /// Finally if no environment variable or explicit directory has been
     /// set then a path will be computed by platform convention.
+    ///
+    /// When running in with `debug_assertions` a `debug` path is appended 
+    /// so that we can use different storage locations for debug and 
+    /// release builds.
     pub fn data_dir() -> Result<PathBuf> {
         let dir = if let Ok(env_data_dir) = std::env::var("SOS_DATA_DIR") {
             Ok(PathBuf::from(env_data_dir))
@@ -71,7 +75,11 @@ impl AppPaths {
                 default_storage_dir()
             }
         };
-        dir
+        if cfg!(debug_assertions) {
+            dir.map(|dir| dir.join("debug"))
+        } else {
+            dir
+        }
     }
 
     /// Get the path to the directory used to store identity vaults.
