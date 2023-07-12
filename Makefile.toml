@@ -12,6 +12,11 @@ BINARIES = "sos"
 # tests take a while due to so many exec calls
 RUST_TEST_TIME_INTEGRATION = "120000,240000"
 
+[tasks.debian-dist]
+script = '''
+cargo deb
+'''
+
 [tasks.fix-all]
 workspace = true
 command = "cargo"
@@ -102,10 +107,6 @@ args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-net", "--no-de
 command = "cargo"
 args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-sdk"]
 dependencies = ["check-wasm-node-client"]
-
-[tasks.server-release]
-command = "cargo"
-args = ["build", "--release", "--target", "${BUILD_TARGET}", "-p", "sos-server"]
 
 [tasks.dist]
 command = "cargo"

@@ -6,6 +6,7 @@ rust-version = "1.68.2"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
 license = "GPL-3.0"
+authors = ["saveoursecrets-developers <dev@saveoursecrets.com>"]
 default-run = "sos"
 categories = ["command-line-utilities", "cryptography::cryptocurrencies", "authentication"]
 
@@ -74,6 +75,10 @@ log = "0.4"
 [[bin]]
 name = "sos"
 path = "src/main.rs"
+
+[package.metadata.deb]
+name = "sos"
+copyright = "Save Our Secrets Pte Ltd"
 
 [workspace.metadata.release]
 allow-branch = ["main"]

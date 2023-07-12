@@ -3,4 +3,7 @@ target
 *.bak
 *.profraw
 *.pem
+*.deb
+*.buildinfo
+*.changes
 tests/server_public_key.txt
