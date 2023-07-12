@@ -10,7 +10,6 @@ authors = ["saveoursecrets-developers <dev@saveoursecrets.com>"]
 default-run = "sos"
 categories = ["command-line-utilities", "cryptography::cryptocurrencies", "authentication"]
 
-
 [workspace]
 members = [
   "workspace/migrate",
