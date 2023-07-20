@@ -26,7 +26,7 @@ async fn integration_audit_trail() -> Result<()> {
 
     let test_data_dir = dirs.clients.get(0).unwrap();
     AppPaths::set_data_dir(test_data_dir.clone());
-    assert_eq!(AppPaths::data_dir()?, test_data_dir.clone());
+    assert_eq!(AppPaths::data_dir()?, test_data_dir.clone().join("debug"));
     AppPaths::scaffold().await?;
 
     let account_name = "Audit trail test".to_string();
