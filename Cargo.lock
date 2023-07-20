@@ -3393,12 +3393,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "micromath"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39617bc909d64b068dcffd0e3e31679195b5576d0c83fadc52690268cc2b2b55"
-
-[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4193,7 +4187,8 @@ dependencies = [
 [[package]]
 name = "probly-search"
 version = "2.0.0-alpha-2"
-source = "git+https://github.com/tmpfs/probly-search/?branch=multi-field#ce881dba3e8a1a1fac94d9cefe9dc36c319bcf62"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56f2d7ac679439ab7ac58c3e0a7224dbb72bd58c5d05af2e88967eaf48e10990"
 dependencies = [
  "hashbrown 0.12.3",
  "typed-generational-arena",
@@ -4625,10 +4620,10 @@ dependencies = [
 
 [[package]]
 name = "rs_merkle"
-version = "1.2.0"
-source = "git+https://github.com/tmpfs/rs-merkle?branch=sha2-update#b2f0557d5497b4d9b83ec2e835958902be41720d"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05225752ca6ede4cb1b73aa37ce3904affd042e98f28246f56f438ebfd47a810"
 dependencies = [
- "micromath",
  "sha2 0.10.7",
 ]
 

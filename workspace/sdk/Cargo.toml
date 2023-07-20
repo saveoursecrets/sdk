@@ -76,8 +76,8 @@ features = ["async"]
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"
 #path = "../../../../forks/probly-search"
-git = "https://github.com/tmpfs/probly-search/"
-branch = "multi-field"
+#git = "https://github.com/tmpfs/probly-search/"
+#branch = "multi-field"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
@@ -89,15 +89,12 @@ tokio = { version = "1", default-features = false, features = ["rt", "sync", "ma
 
 [dependencies.rs_merkle]
 version = "1.2"
-git = "https://github.com/tmpfs/rs-merkle"
-branch = "sha2-update"
+#git = "https://github.com/tmpfs/rs-merkle"
+#branch = "sha2-update"
 #path = "../../../../forks/rs-merkle"
 
 [dependencies.chbs]
 version = "0.1.1"
-#git = "https://gitlab.com/timvisee/chbs.git"
-#rev = "1bb19733ac66cebf58b726d14770a616faba85dd"
-#branch = "wasm32"
 
 [build-dependencies]
 rustc_version = "0.4.0"
