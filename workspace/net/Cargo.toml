@@ -2,9 +2,10 @@
 name = "sos-net"
 version = "0.5.0"
 edition = "2021"
-description = "Networking library for the SOS SDK."
+description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "GPL-3.0"
+repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
 default = ["peer"]
@@ -38,9 +39,6 @@ device = [
 ]
 
 [dependencies]
-sos-sdk = { path = "../sdk", version = "0.5" }
-sos-migrate = { path = "../migrate", version = "0.5", optional = true }
-
 thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -85,6 +83,15 @@ if-addrs = { version = "0.10.1", optional = true }
 # peer
 void = { version = "1", optional = true }
 either = { version = "1.8", optional = true }
+
+[dependencies.sos-sdk]
+version = "0.5"
+#path = "../sdk"
+
+[dependencies.sos-migrate]
+version = "0.5"
+optional = true
+#path = "../migrate"
 
 [dependencies.libp2p]
 version = "0.52"

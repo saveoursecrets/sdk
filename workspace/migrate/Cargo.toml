@@ -2,9 +2,12 @@
 name = "sos-migrate"
 version = "0.5.0"
 edition = "2021"
+description = "Migration library for the Save Our Secrets SDK."
+homepage = "https://saveoursecrets.com"
+license = "GPL-3.0"
+repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
-sos-sdk = { path = "../sdk", version = "0.5" }
 thiserror = "1"
 secrecy = { version = "0.8", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
@@ -23,15 +26,23 @@ futures-util = "0.3"
 futures = "0.3"
 csv-async = { version = "1", features = ["tokio", "with_serde"] }
 
+[dependencies.sos-sdk]
+version = "0.5"
+#path = "../sdk"
+
 [target.'cfg(target_os="macos")'.dependencies]
 security-framework = "2.8"
 logos = "0.12"
 plist = "1"
 
 [dev-dependencies]
-sos-sdk = { path = "../sdk", version = "0.5", features = ["test-utils"] }
 anyhow = "1"
 tokio = { version = "1", default-features = false, features = ["rt", "macros"] }
+
+[dev-dependencies.sos-sdk]
+version = "0.5"
+features = ["test-utils"]
+#path = "../sdk"
 
 [features]
 interactive-keychain-tests = []

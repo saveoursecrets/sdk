@@ -6,6 +6,7 @@ description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
 license = "GPL-3.0"
 categories = ["cryptography::cryptocurrencies", "authentication"]
+repository = "https://github.com/saveoursecrets/sdk"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
