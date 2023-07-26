@@ -62,62 +62,57 @@ jobs:
           echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
           echo "SEMVER=$VERSION" >> $GITHUB_ENV
 
-      - name: Test variables
+      - name: Install release tools
+        uses: jaxxstorm/action-install-gh-release@v1.10.0
+        with:
+          token: ${{ secrets.GH_RELEASE_DOWNLOAD }}
+          repo: saveoursecrets/release-tools
+          platform: ${{ matrix.download_platform }}
+          arch: ${{ matrix.download_arch }}
+
+      - name: Install musl tools
+        if: matrix.binary_target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get install musl-tools
+      - name: Update rust
         run: |
-          echo $BINARY_NAME
-          echo $SEMVER
+          rustup override set stable
+          rustup update stable
+          rustup target add ${{ matrix.binary_target }}
+      - name: Build Binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.binary_target }}
 
-      #- name: Install release tools
-        #uses: jaxxstorm/action-install-gh-release@v1.10.0
-        #with:
-          #token: ${{ secrets.GH_RELEASE_DOWNLOAD }}
-          #repo: saveoursecrets/release-tools
-          #platform: ${{ matrix.download_platform }}
-          #arch: ${{ matrix.download_arch }}
+      - name: Archive Release
+        uses: thedoctor0/zip-release@0.7.1
+        with:
+          type: 'zip'
+          filename: ${{ env.ZIP_FILE }}
+          directory: ${{ env.BIN_DIR }}
+          path: ${{ env.BINARY_NAME }}
 
-      #- name: Install musl tools
-        #if: matrix.binary_target == 'x86_64-unknown-linux-musl'
-        #run: sudo apt-get install musl-tools
-      #- name: Update rust
-        #run: |
-          #rustup override set stable
-          #rustup update stable
-          #rustup target add ${{ matrix.binary_target }}
-      #- name: Build Binary
-        #uses: actions-rs/cargo@v1
-        #with:
-          #command: build
-          #args: --release --target ${{ matrix.binary_target }}
+      - name: Upload Binaries to Github Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
+          tag: ${{ github.ref }}
+          overwrite: true
 
-      #- name: Archive Release
-        #uses: thedoctor0/zip-release@0.7.1
-        #with:
-          #type: 'zip'
-          #filename: ${{ env.ZIP_FILE }}
-          #directory: ${{ env.BIN_DIR }}
-          #path: ${{ env.BINARY_NAME }}
-
-      #- name: Upload Binaries to Github Release
-        #uses: svenstaro/upload-release-action@v2
-        #with:
-          #repo_token: ${{ secrets.GITHUB_TOKEN }}
-          #file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
-          #tag: ${{ github.ref }}
-          #overwrite: true
-
-      #- name: Upload Binaries to S3 Bucket
-        #shell: bash
-        #env:
-          #AWS_PROFILE: ${{ vars.AWS_RELEASE_PROFILE }}
-          #AWS_ACCESS_KEY_ID: ${{ secrets.AWS_RELEASE_ACCESS_KEY }}
-          #AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}
-        #run: |
-          #release-artifact upload \
-            #--bucket sandbox.saveoursecrets.com \
-            #--region ap-southeast-1 \
-            #--semver $SEMVER \
-            #--distro ${{ matrix.distro }} \
-            #--arch ${{ matrix.arch }} \
-            #--collection cli \
-            #--latest \
-            #$BIN_DIR/$ZIP_FILE
+      - name: Upload Binaries to S3 Bucket
+        shell: bash
+        env:
+          AWS_PROFILE: ${{ vars.AWS_RELEASE_PROFILE }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_RELEASE_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}
+        run: |
+          release-artifact upload \
+            --bucket sandbox.saveoursecrets.com \
+            --region ap-southeast-1 \
+            --semver $SEMVER \
+            --distro ${{ matrix.distro }} \
+            --arch ${{ matrix.arch }} \
+            --collection cli \
+            --latest \
+            $BIN_DIR/$ZIP_FILE
