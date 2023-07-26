@@ -24,32 +24,44 @@ jobs:
           - os: macos-latest
             binary_target: aarch64-apple-darwin
     steps:
-    - name: Install musl tools
-      if: matrix.binary_target == 'x86_64-unknown-linux-musl'
-      run: sudo apt-get install musl-tools
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Update rust
-      run: |
-        rustup override set stable
-        rustup update stable
-        rustup target add ${{ matrix.binary_target }}
-    - name: Build Binary
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release --target ${{ matrix.binary_target }}
-    - name: Archive Release
-      uses: thedoctor0/zip-release@0.7.1
-      with:
-        type: 'zip'
-        filename: '${{ matrix.binary_target }}.zip'
-        directory: 'target/${{ matrix.binary_target }}/release'
-        path: 'sos'
-    - name: Upload Binaries
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: 'target/${{ matrix.binary_target }}/release/${{ matrix.binary_target }}.zip'
-        tag: ${{ github.ref }}
-        overwrite: true
+      - name: Set binary name
+        if: matrix.binary_target != 'x86_64-pc-windows-msvc'
+        run: |
+          echo "BINARY_NAME=sos" >> $GITHUB_ENV
+      - name: Set binary name (Windows)
+        if: matrix.binary_target == 'x86_64-pc-windows-msvc'
+        shell: bash
+        run: |
+          echo "BINARY_NAME=sos.exe" >> $GITHUB_ENV
+
+      - name: Install musl tools
+        if: matrix.binary_target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get install musl-tools
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Update rust
+        run: |
+          rustup override set stable
+          rustup update stable
+          rustup target add ${{ matrix.binary_target }}
+      - name: Build Binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.binary_target }}
+
+      - name: Archive Release
+        uses: thedoctor0/zip-release@0.7.1
+        with:
+          type: 'zip'
+          filename: '${{ matrix.binary_target }}.zip'
+          directory: 'target/${{ matrix.binary_target }}/release'
+          path: ${{ env.BINARY_NAME }}
+
+      - name: Upload Binaries
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: 'target/${{ matrix.binary_target }}/release/${{ matrix.binary_target }}.zip'
+          tag: ${{ github.ref }}
+          overwrite: true
