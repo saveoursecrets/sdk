@@ -1,0 +1,121 @@
+name: Publish
+on:
+  push:
+    tags:
+      - "v*.*.*"
+env:
+  CLICOLOR_FORCE: 1
+  RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
+  RELEASE_REGION: ${{ vars.RELEASE_REGION }}
+jobs:
+  build:
+    name: Publish for ${{ matrix.binary_target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary_target: x86_64-unknown-linux-gnu
+            platform: unknown-linux-gnu
+            arch: x86_64
+            distro: linux
+          - os: ubuntu-latest
+            binary_target: x86_64-unknown-linux-musl
+            platform: unknown-linux-musl
+            arch: x86_64
+            distro: linux
+          - os: windows-latest
+            binary_target: x86_64-pc-windows-msvc
+            platform: pc-windows-msvc
+            arch: x86_64
+            distro: windows
+          - os: macos-latest
+            binary_target: x86_64-apple-darwin
+            platform: apple-darwin
+            arch: x86_64
+            distro: macos
+          - os: macos-latest
+            binary_target: aarch64-apple-darwin
+            platform: apple-darwin
+            arch: aarch64
+            distro: macos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # Prepare
+      - name: Set environment variables
+        if: matrix.binary_target != 'x86_64-pc-windows-msvc'
+        run: |
+          VERSION=$(cargo pkgid | cut -f2 -d '@')
+          echo "BINARY_NAME=sos" >> $GITHUB_ENV
+          echo "BIN_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
+          echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
+          echo "SEMVER=$VERSION" >> $GITHUB_ENV
+      - name: Set environment variables (Windows)
+        if: matrix.binary_target == 'x86_64-pc-windows-msvc'
+        shell: bash
+        run: |
+          VERSION=$(cargo pkgid | cut -f2 -d '@')
+          echo "BINARY_NAME=sos.exe" >> $GITHUB_ENV
+          echo "BIN_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
+          echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
+          echo "SEMVER=$VERSION" >> $GITHUB_ENV
+
+      # Install
+      - name: Install release tools
+        uses: jaxxstorm/action-install-gh-release@v1.10.0
+        with:
+          token: ${{ secrets.GH_RELEASE_DOWNLOAD }}
+          repo: saveoursecrets/release-tools
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
+
+      - name: Install musl tools
+        if: matrix.binary_target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get install musl-tools
+      - name: Update rust
+        run: |
+          rustup override set stable
+          rustup update stable
+          rustup target add ${{ matrix.binary_target }}
+
+      # Build
+      - name: Build Binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --locked --target ${{ matrix.binary_target }}
+      - name: Archive Release
+        uses: thedoctor0/zip-release@0.7.1
+        with:
+          type: 'zip'
+          filename: ${{ env.ZIP_FILE }}
+          directory: ${{ env.BIN_DIR }}
+          path: ${{ env.BINARY_NAME }}
+
+      # Publish
+      - name: Upload Binaries to Github Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
+          tag: ${{ github.ref }}
+          overwrite: true
+      - name: Upload Binaries to S3 Bucket
+        shell: bash
+        env:
+          AWS_REGION: ${{ env.RELEASE_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_RELEASE_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}
+        run: |
+          release-artifact upload \
+            --bucket $RELEASE_BUCKET \
+            --semver $SEMVER \
+            --distro ${{ matrix.distro }} \
+            --arch ${{ matrix.arch }} \
+            --collection cli \
+            --latest \
+            $BIN_DIR/$ZIP_FILE
+
