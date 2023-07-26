@@ -98,16 +98,6 @@ jobs:
           file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
           tag: ${{ github.ref }}
           overwrite: true
-
-      - name: Create AWS credentials
-        shell: bash
-        run: |
-          AWS_PATH=$HOME/.aws/credentials
-          mkdir -p $HOME/.aws
-          echo "[sos-release]" > $AWS_PATH
-          echo "aws_access_key_id = ${{ secrets.AWS_RELEASE_ACCESS_KEY }}" >> $AWS_PATH
-          echo "aws_secret_access_key = ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}" >> $AWS_PATH
-
       - name: Upload Binaries to S3 Bucket
         shell: bash
         env:
