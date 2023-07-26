@@ -16,18 +16,23 @@ jobs:
           - os: ubuntu-latest
             binary_target: x86_64-unknown-linux-gnu
             download_platform: unknown-linux-gnu
+            download_arch: x86_64
           - os: ubuntu-latest
             binary_target: x86_64-unknown-linux-musl
             download_platform: unknown-linux-musl
+            download_arch: x86_64
           - os: windows-latest
             binary_target: x86_64-pc-windows-msvc
             download_platform: pc-windows-msvc
+            download_arch: x86_64
           - os: macos-latest
             binary_target: x86_64-apple-darwin
             download_platform: apple-darwin
+            download_arch: x86_64
           - os: macos-latest
             binary_target: aarch64-apple-darwin
             download_platform: apple-darwin
+            download_arch: aarch64
     steps:
       - name: Set binary name
         if: matrix.binary_target != 'x86_64-pc-windows-msvc'
@@ -45,6 +50,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           repo: saveoursecrets/release-tools
           platform: ${{ matrix.download_platform }}
+          arch: ${{ matrix.download_arch }}
 
       - name: Install musl tools
         if: matrix.binary_target == 'x86_64-unknown-linux-musl'
