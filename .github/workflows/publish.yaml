@@ -37,6 +37,7 @@ jobs:
       - name: Install release tools
         uses: jaxxstorm/action-install-gh-release@v1.10.0
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           repo: saveoursecrets/release-tools
 
       - name: Install musl tools
