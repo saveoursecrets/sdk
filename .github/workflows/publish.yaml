@@ -5,8 +5,8 @@ on:
       #- "v*.*.*"
 env:
   CLICOLOR_FORCE: 1
-  RELEASE_BUCKET: sandbox.saveoursecrets.com
-  RELEASE_REGION: ap-southeast-1
+  RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
+  RELEASE_REGION: ${{ vars.RELEASE_REGION }}
 jobs:
   build:
     name: Publish for ${{ matrix.binary_target }}
@@ -110,14 +110,13 @@ jobs:
 
       - name: Upload Binaries to S3 Bucket
         shell: bash
-        #env:
-          #AWS_PROFILE: ${{ vars.AWS_RELEASE_PROFILE }}
-          #AWS_ACCESS_KEY_ID: ${{ secrets.AWS_RELEASE_ACCESS_KEY }}
-          #AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}
+        env:
+          AWS_REGION: ${{ env.RELEASE_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_RELEASE_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}
         run: |
           release-artifact upload \
             --bucket $RELEASE_BUCKET \
-            --region $RELEASE_REGION \
             --semver $SEMVER \
             --distro ${{ matrix.distro }} \
             --arch ${{ matrix.arch }} \
