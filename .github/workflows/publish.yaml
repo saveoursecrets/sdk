@@ -34,6 +34,11 @@ jobs:
         run: |
           echo "BINARY_NAME=sos.exe" >> $GITHUB_ENV
 
+      - name: Install release tools
+        uses: jaxxstorm/action-install-gh-release@v1.10.0
+        with:
+          repo: saveoursecrets/release-tools
+
       - name: Install musl tools
         if: matrix.binary_target == 'x86_64-unknown-linux-musl'
         run: sudo apt-get install musl-tools
