@@ -75,6 +75,7 @@ jobs:
         run: |
           mkdir -p $BIN_DIR
           touch $BIN_DIR/$ZIP_FILE
+          ls -la $BIN_DIR/$ZIP_FILE
           which release-artifact
 
       #- name: Install musl tools
@@ -122,4 +123,4 @@ jobs:
             --arch ${{ matrix.arch }} \
             --collection cli \
             --latest \
-            $BIN_DIR/$ZIP_FILE
+            ${{ env.BIN_DIR}}/${{ env.ZIP_FILE }}
