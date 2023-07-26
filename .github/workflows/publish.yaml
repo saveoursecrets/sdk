@@ -1,8 +1,8 @@
 name: Publish
 on:
   push:
-    #tags:
-      #- "v*.*.*"
+    tags:
+      - "v*.*.*"
 env:
   CLICOLOR_FORCE: 1
   RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
@@ -20,29 +20,31 @@ jobs:
             platform: unknown-linux-gnu
             arch: x86_64
             distro: linux
-          #- os: ubuntu-latest
-            #binary_target: x86_64-unknown-linux-musl
-            #platform: unknown-linux-musl
-            #arch: x86_64
-            #distro: linux
-          #- os: windows-latest
-            #binary_target: x86_64-pc-windows-msvc
-            #platform: pc-windows-msvc
-            #arch: x86_64
-            #distro: windows
-          #- os: macos-latest
-            #binary_target: x86_64-apple-darwin
-            #platform: apple-darwin
-            #arch: x86_64
-            #distro: macos
-          #- os: macos-latest
-            #binary_target: aarch64-apple-darwin
-            #platform: apple-darwin
-            #arch: aarch64
-            #distro: macos
+          - os: ubuntu-latest
+            binary_target: x86_64-unknown-linux-musl
+            platform: unknown-linux-musl
+            arch: x86_64
+            distro: linux
+          - os: windows-latest
+            binary_target: x86_64-pc-windows-msvc
+            platform: pc-windows-msvc
+            arch: x86_64
+            distro: windows
+          - os: macos-latest
+            binary_target: x86_64-apple-darwin
+            platform: apple-darwin
+            arch: x86_64
+            distro: macos
+          - os: macos-latest
+            binary_target: aarch64-apple-darwin
+            platform: apple-darwin
+            arch: aarch64
+            distro: macos
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      # Prepare
       - name: Set environment variables
         if: matrix.binary_target != 'x86_64-pc-windows-msvc'
         run: |
@@ -61,6 +63,7 @@ jobs:
           echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
           echo "SEMVER=$VERSION" >> $GITHUB_ENV
 
+      # Install
       - name: Install release tools
         uses: jaxxstorm/action-install-gh-release@v1.10.0
         with:
@@ -77,12 +80,13 @@ jobs:
           rustup override set stable
           rustup update stable
           rustup target add ${{ matrix.binary_target }}
+
+      # Build
       - name: Build Binary
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target ${{ matrix.binary_target }}
-
+          args: --release --locked --target ${{ matrix.binary_target }}
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
         with:
@@ -91,6 +95,7 @@ jobs:
           directory: ${{ env.BIN_DIR }}
           path: ${{ env.BINARY_NAME }}
 
+      # Publish
       - name: Upload Binaries to Github Release
         uses: svenstaro/upload-release-action@v2
         with:
