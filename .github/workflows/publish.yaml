@@ -70,35 +70,41 @@ jobs:
           platform: ${{ matrix.platform }}
           arch: ${{ matrix.arch }}
 
-      - name: Install musl tools
-        if: matrix.binary_target == 'x86_64-unknown-linux-musl'
-        run: sudo apt-get install musl-tools
-      - name: Update rust
+      - name: Create test artifact
+        shell: bash
         run: |
-          rustup override set stable
-          rustup update stable
-          rustup target add ${{ matrix.binary_target }}
-      - name: Build Binary
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target ${{ matrix.binary_target }}
+          mkdir -p $BIN_DIR
+          touch $BIN_DIR/$ZIP_FILE
 
-      - name: Archive Release
-        uses: thedoctor0/zip-release@0.7.1
-        with:
-          type: 'zip'
-          filename: ${{ env.ZIP_FILE }}
-          directory: ${{ env.BIN_DIR }}
-          path: ${{ env.BINARY_NAME }}
+      #- name: Install musl tools
+        #if: matrix.binary_target == 'x86_64-unknown-linux-musl'
+        #run: sudo apt-get install musl-tools
+      #- name: Update rust
+        #run: |
+          #rustup override set stable
+          #rustup update stable
+          #rustup target add ${{ matrix.binary_target }}
+      #- name: Build Binary
+        #uses: actions-rs/cargo@v1
+        #with:
+          #command: build
+          #args: --release --target ${{ matrix.binary_target }}
 
-      - name: Upload Binaries to Github Release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
-          tag: ${{ github.ref }}
-          overwrite: true
+      #- name: Archive Release
+        #uses: thedoctor0/zip-release@0.7.1
+        #with:
+          #type: 'zip'
+          #filename: ${{ env.ZIP_FILE }}
+          #directory: ${{ env.BIN_DIR }}
+          #path: ${{ env.BINARY_NAME }}
+
+      #- name: Upload Binaries to Github Release
+        #uses: svenstaro/upload-release-action@v2
+        #with:
+          #repo_token: ${{ secrets.GITHUB_TOKEN }}
+          #file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
+          #tag: ${{ github.ref }}
+          #overwrite: true
 
       - name: Upload Binaries to S3 Bucket
         shell: bash
