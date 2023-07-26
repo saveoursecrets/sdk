@@ -1,0 +1,55 @@
+name: Publish
+on:
+  push:
+    #tags:
+      #- "v*.*.*"
+env:
+  CLICOLOR_FORCE: 1
+jobs:
+  build:
+    name: Publish for ${{ matrix.binary_target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary_target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            binary_target: x86_64-unknown-linux-musl
+          - os: windows-latest
+            binary_target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            binary_target: x86_64-apple-darwin
+          - os: macos-latest
+            binary_target: aarch64-apple-darwin
+    steps:
+    - name: Install musl tools
+      if: matrix.binary_target == 'x86_64-unknown-linux-musl'
+      run: sudo apt-get install musl-tools
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Update rust
+      run: |
+        rustup override set stable
+        rustup update stable
+        rustup target add ${{ matrix.binary_target }}
+    - name: Build Binary
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target ${{ matrix.binary_target }}
+    - name: Archive Release
+      uses: thedoctor0/zip-release@0.7.1
+      with:
+        type: 'zip'
+        filename: '${{ matrix.binary_target }}.zip'
+        directory: 'target/${{ matrix.binary_target }}/release'
+        path: 'sos'
+    - name: Upload Binaries
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: 'target/${{ matrix.binary_target }}/release/${{ matrix.binary_target }}.zip'
+        tag: ${{ github.ref }}
+        overwrite: true
