@@ -70,7 +70,7 @@ jobs:
           token: ${{ secrets.GH_RELEASE_DOWNLOAD }}
           repo: saveoursecrets/release-tools
           platform: ${{ matrix.platform }}
-          arch: ${{ matrix.arch }}
+          arch: x86_64
 
       - name: Install musl tools
         if: matrix.binary_target == 'x86_64-unknown-linux-musl'
