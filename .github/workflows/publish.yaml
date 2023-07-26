@@ -4,9 +4,9 @@ on:
     tags:
       - "v*.*.*"
 env:
-  CLICOLOR_FORCE: 1
   RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
   RELEASE_REGION: ${{ vars.RELEASE_REGION }}
+
 jobs:
   build:
     name: Publish for ${{ matrix.binary_target }}
@@ -20,26 +20,31 @@ jobs:
             platform: unknown-linux-gnu
             arch: x86_64
             distro: linux
+            variant: none
           - os: ubuntu-latest
             binary_target: x86_64-unknown-linux-musl
             platform: unknown-linux-musl
             arch: x86_64
             distro: linux
+            variant: musl
           - os: windows-latest
             binary_target: x86_64-pc-windows-msvc
             platform: pc-windows-msvc
             arch: x86_64
             distro: windows
+            variant: none
           - os: macos-latest
             binary_target: x86_64-apple-darwin
             platform: apple-darwin
             arch: x86_64
             distro: macos
+            variant: none
           - os: macos-latest
             binary_target: aarch64-apple-darwin
             platform: apple-darwin
             arch: aarch64
             distro: macos
+            variant: none
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -116,6 +121,8 @@ jobs:
             --distro ${{ matrix.distro }} \
             --arch ${{ matrix.arch }} \
             --collection cli \
+            --variant ${{ matrix.variant }} \
+            --commit ${{ github.sha }} \
             --latest \
             $BIN_DIR/$ZIP_FILE
 
