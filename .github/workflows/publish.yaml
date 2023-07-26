@@ -59,6 +59,7 @@ jobs:
 
       - name: Test variables
         run: |
+          echo $BINARY_NAME
           echo $SEMVER
 
       #- name: Install release tools
