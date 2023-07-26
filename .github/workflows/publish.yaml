@@ -5,6 +5,8 @@ on:
       #- "v*.*.*"
 env:
   CLICOLOR_FORCE: 1
+  RELEASE_BUCKET: sandbox.saveoursecrets.com
+  RELEASE_REGION: ap-southeast-1
 jobs:
   build:
     name: Publish for ${{ matrix.binary_target }}
@@ -45,9 +47,6 @@ jobs:
         if: matrix.binary_target != 'x86_64-pc-windows-msvc'
         run: |
           VERSION=$(cargo pkgid | cut -f2 -d '@')
-          
-          echo "version"
-
           echo "BINARY_NAME=sos" >> $GITHUB_ENV
           echo "BIN_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
           echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
@@ -70,43 +69,35 @@ jobs:
           platform: ${{ matrix.platform }}
           arch: ${{ matrix.arch }}
 
-      - name: Create test artifact
-        shell: bash
+      - name: Install musl tools
+        if: matrix.binary_target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get install musl-tools
+      - name: Update rust
         run: |
-          mkdir -p $BIN_DIR
-          touch $BIN_DIR/$ZIP_FILE
-          ls -la $BIN_DIR/$ZIP_FILE
-          which release-artifact
+          rustup override set stable
+          rustup update stable
+          rustup target add ${{ matrix.binary_target }}
+      - name: Build Binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.binary_target }}
 
-      #- name: Install musl tools
-        #if: matrix.binary_target == 'x86_64-unknown-linux-musl'
-        #run: sudo apt-get install musl-tools
-      #- name: Update rust
-        #run: |
-          #rustup override set stable
-          #rustup update stable
-          #rustup target add ${{ matrix.binary_target }}
-      #- name: Build Binary
-        #uses: actions-rs/cargo@v1
-        #with:
-          #command: build
-          #args: --release --target ${{ matrix.binary_target }}
+      - name: Archive Release
+        uses: thedoctor0/zip-release@0.7.1
+        with:
+          type: 'zip'
+          filename: ${{ env.ZIP_FILE }}
+          directory: ${{ env.BIN_DIR }}
+          path: ${{ env.BINARY_NAME }}
 
-      #- name: Archive Release
-        #uses: thedoctor0/zip-release@0.7.1
-        #with:
-          #type: 'zip'
-          #filename: ${{ env.ZIP_FILE }}
-          #directory: ${{ env.BIN_DIR }}
-          #path: ${{ env.BINARY_NAME }}
-
-      #- name: Upload Binaries to Github Release
-        #uses: svenstaro/upload-release-action@v2
-        #with:
-          #repo_token: ${{ secrets.GITHUB_TOKEN }}
-          #file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
-          #tag: ${{ github.ref }}
-          #overwrite: true
+      - name: Upload Binaries to Github Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
+          tag: ${{ github.ref }}
+          overwrite: true
 
       - name: Upload Binaries to S3 Bucket
         shell: bash
@@ -116,11 +107,12 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}
         run: |
           release-artifact upload \
-            --bucket sandbox.saveoursecrets.com \
-            --region ap-southeast-1 \
+            --bucket $RELEASE_BUCKET \
+            --region $RELEASE_REGION \
             --semver $SEMVER \
             --distro ${{ matrix.distro }} \
             --arch ${{ matrix.arch }} \
             --collection cli \
             --latest \
-            ${{ env.BIN_DIR}}/${{ env.ZIP_FILE }}
+            $BIN_DIR/$ZIP_FILE
+
