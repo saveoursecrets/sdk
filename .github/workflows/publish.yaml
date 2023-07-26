@@ -15,28 +15,28 @@ jobs:
         include:
           - os: ubuntu-latest
             binary_target: x86_64-unknown-linux-gnu
-            download_platform: unknown-linux-gnu
-            download_arch: x86_64
+            platform: unknown-linux-gnu
+            arch: x86_64
             distro: linux
           #- os: ubuntu-latest
             #binary_target: x86_64-unknown-linux-musl
-            #download_platform: unknown-linux-musl
-            #download_arch: x86_64
+            #platform: unknown-linux-musl
+            #arch: x86_64
             #distro: linux
           #- os: windows-latest
             #binary_target: x86_64-pc-windows-msvc
-            #download_platform: pc-windows-msvc
-            #download_arch: x86_64
+            #platform: pc-windows-msvc
+            #arch: x86_64
             #distro: windows
           #- os: macos-latest
             #binary_target: x86_64-apple-darwin
-            #download_platform: apple-darwin
-            #download_arch: x86_64
+            #platform: apple-darwin
+            #arch: x86_64
             #distro: macos
           #- os: macos-latest
             #binary_target: aarch64-apple-darwin
-            #download_platform: apple-darwin
-            #download_arch: aarch64
+            #platform: apple-darwin
+            #arch: aarch64
             #distro: macos
     steps:
       - name: Checkout
@@ -67,8 +67,8 @@ jobs:
         with:
           token: ${{ secrets.GH_RELEASE_DOWNLOAD }}
           repo: saveoursecrets/release-tools
-          platform: ${{ matrix.download_platform }}
-          arch: ${{ matrix.download_arch }}
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
 
       - name: Install musl tools
         if: matrix.binary_target == 'x86_64-unknown-linux-musl'
