@@ -15,14 +15,19 @@ jobs:
         include:
           - os: ubuntu-latest
             binary_target: x86_64-unknown-linux-gnu
+            download_platform: unknown-linux-gnu
           - os: ubuntu-latest
             binary_target: x86_64-unknown-linux-musl
+            download_platform: unknown-linux-musl
           - os: windows-latest
             binary_target: x86_64-pc-windows-msvc
+            download_platform: pc-windows-msvc
           - os: macos-latest
             binary_target: x86_64-apple-darwin
+            download_platform: apple-darwin
           - os: macos-latest
             binary_target: aarch64-apple-darwin
+            download_platform: apple-darwin
     steps:
       - name: Set binary name
         if: matrix.binary_target != 'x86_64-pc-windows-msvc'
@@ -39,6 +44,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repo: saveoursecrets/release-tools
+          platform: ${{ matrix.download_platform }}
 
       - name: Install musl tools
         if: matrix.binary_target == 'x86_64-unknown-linux-musl'
