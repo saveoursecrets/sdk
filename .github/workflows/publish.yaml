@@ -39,10 +39,15 @@ jobs:
             #download_arch: aarch64
             #distro: macos
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: Set environment variables
         if: matrix.binary_target != 'x86_64-pc-windows-msvc'
         run: |
           VERSION=$(cargo pkgid | cut -f2 -d '@')
+          
+          echo "version"
+
           echo "BINARY_NAME=sos" >> $GITHUB_ENV
           echo "BIN_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
           echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
@@ -73,8 +78,6 @@ jobs:
       #- name: Install musl tools
         #if: matrix.binary_target == 'x86_64-unknown-linux-musl'
         #run: sudo apt-get install musl-tools
-      #- name: Checkout
-        #uses: actions/checkout@v2
       #- name: Update rust
         #run: |
           #rustup override set stable
