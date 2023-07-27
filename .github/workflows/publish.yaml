@@ -100,18 +100,11 @@ jobs:
             - deps
             - examples
             - incremental
-            - *.d
-            - *.rlib
-            - *.pdb
+            - '*.d'
+            - '*.rlib'
+            - '*.pdb'
 
       # Publish
-      - name: Upload Binaries to Github Release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
-          tag: ${{ github.ref }}
-          overwrite: true
       - name: Upload Binaries to S3 Bucket
         shell: bash
         env:
@@ -136,4 +129,10 @@ jobs:
             --latest \
             --sign \
             $BIN_DIR/$ZIP_FILE
-
+      - name: Upload Binaries to Github Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
+          tag: ${{ github.ref }}
+          overwrite: true
