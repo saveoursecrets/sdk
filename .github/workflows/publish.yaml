@@ -122,7 +122,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}
 
           AWS_SIGN_REGION: ${{ env.RELEASE_REGION }}
-          AWS_SIGN_ACCESS_KEY_ID: ${{ secrets.AWS_SIGN_ACCESS_KEY }}
+          AWS_SIGN_ACCESS_KEY_ID: ${{ secrets.AWS_SIGN_ACCESS_KEY_ID }}
           AWS_SIGN_SECRET_ACCESS_KEY: ${{ secrets.AWS_SIGN_SECRET_ACCESS_KEY }}
           AWS_SIGN_KEY_ID: ${{ secrets.AWS_SIGN_KEY_ID }}
 
