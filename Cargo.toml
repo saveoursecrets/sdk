@@ -87,7 +87,15 @@ log = "0.4"
 
 [[bin]]
 name = "sos"
-path = "src/main.rs"
+path = "src/bin/sos.rs"
+
+[[bin]]
+name = "sos-server"
+path = "src/bin/sos_server.rs"
+
+[[bin]]
+name = "sos-rendezvous"
+path = "src/bin/sos_rendezvous.rs"
 
 [package.metadata.deb]
 name = "sos"

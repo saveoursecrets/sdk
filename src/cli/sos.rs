@@ -5,11 +5,11 @@ use sos_sdk::{
 };
 use std::path::PathBuf;
 
-use super::{
+use crate::{
     commands::{
         account, audit, changes, check, device, folder, generate_keypair,
-        rendezvous, secret, server, shell, AccountCommand, AuditCommand,
-        CheckCommand, DeviceCommand, FolderCommand, SecretCommand,
+        secret, shell, AccountCommand, AuditCommand, CheckCommand,
+        DeviceCommand, FolderCommand, SecretCommand,
     },
     Result,
 };
@@ -110,38 +110,6 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: CheckCommand,
     },
-    /// Peer to peer rendezvous server.
-    Rendezvous {
-        /// Hex encoded 32 byte Ed25519 secret key.
-        #[clap(short, long, env = "SOS_IDENTITY", hide_env_values = true)]
-        identity: Option<String>,
-
-        /// Bind address.
-        #[clap(short, long, default_value = "0.0.0.0:3505")]
-        bind: String,
-    },
-    /// Mirror web service.
-    Server {
-        /// Override the audit log file path.
-        #[clap(short, long)]
-        audit_log: Option<PathBuf>,
-
-        /// Override the reap interval for expired sessions in seconds.
-        #[clap(long)]
-        reap_interval: Option<u64>,
-
-        /// Override the default session duration in seconds.
-        #[clap(long)]
-        session_duration: Option<u64>,
-
-        /// Bind to host:port.
-        #[clap(short, long, default_value = "0.0.0.0:5053")]
-        bind: String,
-
-        /// Config file to load.
-        #[clap(short, long)]
-        config: PathBuf,
-    },
     /// Interactive login shell.
     Shell {
         /// Folder name or identifier.
@@ -189,25 +157,6 @@ pub async fn run() -> Result<()> {
         Command::Check { cmd } => check::run(cmd).await?,
         Command::Shell { account, folder } => {
             shell::run(factory, account, folder).await?
-        }
-        Command::Server {
-            audit_log,
-            reap_interval,
-            session_duration,
-            bind,
-            config,
-        } => {
-            server::run(
-                audit_log,
-                reap_interval,
-                session_duration,
-                bind,
-                config,
-            )
-            .await?
-        }
-        Command::Rendezvous { identity, bind } => {
-            rendezvous::run(identity, bind).await?
         }
     }
     Ok(())
