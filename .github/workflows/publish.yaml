@@ -1,9 +1,8 @@
 name: Publish
 on:
-  pull_request:
-  #push:
-    #tags:
-      #- "v*.*.*"
+  push:
+    tags:
+      - "v*.*.*"
 env:
   RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
   RELEASE_REGION: ${{ vars.RELEASE_REGION }}
