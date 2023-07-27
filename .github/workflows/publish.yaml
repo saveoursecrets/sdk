@@ -16,42 +16,47 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            binary_target: x86_64-unknown-linux-gnu
-            platform: unknown-linux-gnu
-            arch: x86_64
-            distro: linux
-            variant: none
-          - os: ubuntu-latest
-            binary_target: x86_64-unknown-linux-musl
-            platform: unknown-linux-musl
-            arch: x86_64
-            distro: linux
-            variant: musl
-          - os: windows-latest
-            binary_target: x86_64-pc-windows-msvc
-            platform: pc-windows-msvc
-            arch: x86_64
-            distro: windows
-            variant: none
+          #- os: ubuntu-latest
+            #binary_target: x86_64-unknown-linux-gnu
+            #platform: unknown-linux-gnu
+            #arch: x86_64
+            #distro: linux
+            #variant: none
+          #- os: ubuntu-latest
+            #binary_target: x86_64-unknown-linux-musl
+            #platform: unknown-linux-musl
+            #arch: x86_64
+            #distro: linux
+            #variant: musl
+          #- os: windows-latest
+            #binary_target: x86_64-pc-windows-msvc
+            #platform: pc-windows-msvc
+            #arch: x86_64
+            #distro: windows
+            #variant: none
           - os: macos-latest
             binary_target: x86_64-apple-darwin
             platform: apple-darwin
             arch: x86_64
             distro: macos
             variant: none
-          - os: macos-latest
-            binary_target: aarch64-apple-darwin
-            platform: apple-darwin
-            arch: aarch64
-            distro: macos
-            variant: none
+          #- os: macos-latest
+            #binary_target: aarch64-apple-darwin
+            #platform: apple-darwin
+            #arch: aarch64
+            #distro: macos
+            #variant: none
     steps:
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.1.1
       - name: Check Cosign install
         run: cosign version
+
+      - name: Prepare Apple certificate
+        if: matrix.distro == 'macos'
+        run: |
+
 
       - name: Checkout
         uses: actions/checkout@v2
@@ -93,11 +98,7 @@ jobs:
       - name: Gather executables
         shell: bash
         run: |
-          ./scripts/find-executables.sh
-          mkdir -p $BIN_DIR
-          mv $EXES $BIN_DIR
-          cp LICENSE COPYRIGHT $BIN_DIR
-          ls -la $BIN_DIR
+          ./scripts/prepare-archive.sh $(./scripts/find-executables.sh "$BUILD_DIR")
 
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
