@@ -6,4 +6,6 @@ target
 *.deb
 *.buildinfo
 *.changes
+*.sig
+*.bundle
 tests/server_public_key.txt
