@@ -87,13 +87,22 @@ jobs:
         with:
           command: build
           args: --release --locked --target ${{ matrix.binary_target }}
+
+      - name: Gather executables
+        shell: bash
+        run: |
+          mkdir -p target/bin
+          cd target/bin
+          EXES=$(find $BIN_DIR -maxdepth 1 -type f -executable -print | xargs)
+          mv $EXES .
+          ls -la .
+
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
         with:
           type: 'zip'
           filename: ${{ env.ZIP_FILE }}
-          directory: ${{ env.BIN_DIR }}
-          exclusions: '*.d *.rlib *.pdb .cargo-lock .fingerprint build deps examples incremental'
+          directory: target/bin
 
       # Publish
       - name: Upload Binaries to S3 Bucket
@@ -120,6 +129,7 @@ jobs:
             --latest \
             --sign \
             $BIN_DIR/$ZIP_FILE
+
       - name: Upload Binaries to Github Release
         uses: svenstaro/upload-release-action@v2
         with:
