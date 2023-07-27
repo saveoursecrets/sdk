@@ -93,16 +93,7 @@ jobs:
           type: 'zip'
           filename: ${{ env.ZIP_FILE }}
           directory: ${{ env.BIN_DIR }}
-          exclusions:
-            - '.cargo-lock'
-            - '.fingerprint'
-            - 'build'
-            - 'deps'
-            - 'examples'
-            - 'incremental'
-            - '*.d'
-            - '*.rlib'
-            - '*.pdb'
+          exclusions: '*.d *.rlib *.pdb .cargo-lock .fingerprint build deps examples incremental'
 
       # Publish
       - name: Upload Binaries to S3 Bucket
