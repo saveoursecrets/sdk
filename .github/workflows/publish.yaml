@@ -21,30 +21,30 @@ jobs:
             arch: x86_64
             distro: linux
             variant: none
-          #- os: ubuntu-latest
-            #binary_target: x86_64-unknown-linux-musl
-            #platform: unknown-linux-musl
-            #arch: x86_64
-            #distro: linux
-            #variant: musl
-          #- os: windows-latest
-            #binary_target: x86_64-pc-windows-msvc
-            #platform: pc-windows-msvc
-            #arch: x86_64
-            #distro: windows
-            #variant: none
-          #- os: macos-latest
-            #binary_target: x86_64-apple-darwin
-            #platform: apple-darwin
-            #arch: x86_64
-            #distro: macos
-            #variant: none
-          #- os: macos-latest
-            #binary_target: aarch64-apple-darwin
-            #platform: apple-darwin
-            #arch: aarch64
-            #distro: macos
-            #variant: none
+          - os: ubuntu-latest
+            binary_target: x86_64-unknown-linux-musl
+            platform: unknown-linux-musl
+            arch: x86_64
+            distro: linux
+            variant: musl
+          - os: windows-latest
+            binary_target: x86_64-pc-windows-msvc
+            platform: pc-windows-msvc
+            arch: x86_64
+            distro: windows
+            variant: none
+          - os: macos-latest
+            binary_target: x86_64-apple-darwin
+            platform: apple-darwin
+            arch: x86_64
+            distro: macos
+            variant: none
+          - os: macos-latest
+            binary_target: aarch64-apple-darwin
+            platform: apple-darwin
+            arch: aarch64
+            distro: macos
+            variant: none
     steps:
 
       - name: Install Cosign
@@ -59,7 +59,7 @@ jobs:
       - name: Set environment variables
         run: |
           VERSION=$(cargo pkgid | cut -f2 -d '@')
-          echo "BIN_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
+          echo "BUILD_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
           echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
           echo "SEMVER=$VERSION" >> $GITHUB_ENV
 
@@ -92,7 +92,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p target/bin
-          EXES=$(find $BIN_DIR -maxdepth 1 -type f -executable -print | xargs)
+          EXES=$(find $BUILD_DIR -maxdepth 1 -type f -executable -print | xargs)
           mv $EXES target/bin/
           cp LICENSE COPYRIGHT target/bin
           ls -la target/bin
@@ -105,7 +105,7 @@ jobs:
           directory: target/bin
 
       # Publish
-      - name: Upload Binaries to S3 Bucket
+      - name: Upload Archive to S3 Bucket
         shell: bash
         env:
           AWS_REGION: ${{ env.RELEASE_REGION }}
@@ -128,12 +128,12 @@ jobs:
             --commit ${{ github.sha }} \
             --latest \
             --sign \
-            $BIN_DIR/$ZIP_FILE
+            target/bin/$ZIP_FILE
 
-      - name: Upload Binaries to Github Release
+      - name: Upload Archive to Github Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
+          file: 'target/bin/${{ env.ZIP_FILE }}'
           tag: ${{ github.ref }}
           overwrite: true
