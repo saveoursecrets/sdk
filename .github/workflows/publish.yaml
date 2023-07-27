@@ -92,10 +92,10 @@ jobs:
         shell: bash
         run: |
           mkdir -p target/bin
-          cd target/bin
           EXES=$(find $BIN_DIR -maxdepth 1 -type f -executable -print | xargs)
-          mv $EXES .
-          ls -la .
+          mv $EXES target/bin/
+          cp LICENSE COPYRIGHT target/bin
+          ls -la target/bin
 
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
