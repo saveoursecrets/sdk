@@ -46,6 +46,12 @@ jobs:
             distro: macos
             variant: none
     steps:
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.1.1
+      - name: Check Cosign install
+        run: cosign version
+
       - name: Checkout
         uses: actions/checkout@v2
 
@@ -114,6 +120,12 @@ jobs:
           AWS_REGION: ${{ env.RELEASE_REGION }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_RELEASE_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}
+
+          AWS_SIGN_REGION: ${{ env.RELEASE_REGION }}
+          AWS_SIGN_ACCESS_KEY_ID: ${{ secrets.AWS_SIGN_ACCESS_KEY }}
+          AWS_SIGN_SECRET_ACCESS_KEY: ${{ secrets.AWS_SIGN_SECRET_ACCESS_KEY }}
+          AWS_SIGN_KEY_ID: ${{ secrets.AWS_SIGN_KEY_ID }}
+
         run: |
           release-artifact upload \
             --bucket $RELEASE_BUCKET \
@@ -124,5 +136,6 @@ jobs:
             --variant ${{ matrix.variant }} \
             --commit ${{ github.sha }} \
             --latest \
+            --sign \
             $BIN_DIR/$ZIP_FILE
 
