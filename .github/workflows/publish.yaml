@@ -94,12 +94,12 @@ jobs:
           filename: ${{ env.ZIP_FILE }}
           directory: ${{ env.BIN_DIR }}
           exclusions:
-            - .cargo-lock
-            - .fingerprint
-            - build
-            - deps
-            - examples
-            - incremental
+            - '.cargo-lock'
+            - '.fingerprint'
+            - 'build'
+            - 'deps'
+            - 'examples'
+            - 'incremental'
             - '*.d'
             - '*.rlib'
             - '*.pdb'
