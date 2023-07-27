@@ -6,6 +6,7 @@ on:
 env:
   RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
   RELEASE_REGION: ${{ vars.RELEASE_REGION }}
+  BIN_DIR: target/bin
 
 jobs:
   build:
@@ -57,6 +58,7 @@ jobs:
 
       # Prepare
       - name: Set environment variables
+        shell: bash
         run: |
           VERSION=$(cargo pkgid | cut -f2 -d '@')
           echo "BUILD_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
@@ -91,11 +93,11 @@ jobs:
       - name: Gather executables
         shell: bash
         run: |
-          mkdir -p target/bin
-          EXES=$(find $BUILD_DIR -maxdepth 1 -type f -executable -print | xargs)
-          mv $EXES target/bin/
-          cp LICENSE COPYRIGHT target/bin
-          ls -la target/bin
+          ./scripts/find-executables.sh
+          mkdir -p $BIN_DIR
+          mv $EXES $BIN_DIR
+          cp LICENSE COPYRIGHT $BIN_DIR
+          ls -la $BIN_DIR
 
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
