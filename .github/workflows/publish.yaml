@@ -1,8 +1,9 @@
 name: Publish
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  pull_request:
+  #push:
+    #tags:
+      #- "v*.*.*"
 env:
   RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
   RELEASE_REGION: ${{ vars.RELEASE_REGION }}
@@ -21,30 +22,30 @@ jobs:
             arch: x86_64
             distro: linux
             variant: none
-          - os: ubuntu-latest
-            binary_target: x86_64-unknown-linux-musl
-            platform: unknown-linux-musl
-            arch: x86_64
-            distro: linux
-            variant: musl
-          - os: windows-latest
-            binary_target: x86_64-pc-windows-msvc
-            platform: pc-windows-msvc
-            arch: x86_64
-            distro: windows
-            variant: none
-          - os: macos-latest
-            binary_target: x86_64-apple-darwin
-            platform: apple-darwin
-            arch: x86_64
-            distro: macos
-            variant: none
-          - os: macos-latest
-            binary_target: aarch64-apple-darwin
-            platform: apple-darwin
-            arch: aarch64
-            distro: macos
-            variant: none
+          #- os: ubuntu-latest
+            #binary_target: x86_64-unknown-linux-musl
+            #platform: unknown-linux-musl
+            #arch: x86_64
+            #distro: linux
+            #variant: musl
+          #- os: windows-latest
+            #binary_target: x86_64-pc-windows-msvc
+            #platform: pc-windows-msvc
+            #arch: x86_64
+            #distro: windows
+            #variant: none
+          #- os: macos-latest
+            #binary_target: x86_64-apple-darwin
+            #platform: apple-darwin
+            #arch: x86_64
+            #distro: macos
+            #variant: none
+          #- os: macos-latest
+            #binary_target: aarch64-apple-darwin
+            #platform: apple-darwin
+            #arch: aarch64
+            #distro: macos
+            #variant: none
     steps:
 
       - name: Install Cosign
@@ -57,19 +58,8 @@ jobs:
 
       # Prepare
       - name: Set environment variables
-        if: matrix.binary_target != 'x86_64-pc-windows-msvc'
         run: |
           VERSION=$(cargo pkgid | cut -f2 -d '@')
-          echo "BINARY_NAME=sos" >> $GITHUB_ENV
-          echo "BIN_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
-          echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
-          echo "SEMVER=$VERSION" >> $GITHUB_ENV
-      - name: Set environment variables (Windows)
-        if: matrix.binary_target == 'x86_64-pc-windows-msvc'
-        shell: bash
-        run: |
-          VERSION=$(cargo pkgid | cut -f2 -d '@')
-          echo "BINARY_NAME=sos.exe" >> $GITHUB_ENV
           echo "BIN_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
           echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
           echo "SEMVER=$VERSION" >> $GITHUB_ENV
@@ -104,7 +94,16 @@ jobs:
           type: 'zip'
           filename: ${{ env.ZIP_FILE }}
           directory: ${{ env.BIN_DIR }}
-          path: ${{ env.BINARY_NAME }}
+          exclusions:
+            - .cargo-lock
+            - .fingerprint
+            - build
+            - deps
+            - examples
+            - incremental
+            - *.d
+            - *.rlib
+            - *.pdb
 
       # Publish
       - name: Upload Binaries to Github Release
