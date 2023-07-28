@@ -128,6 +128,10 @@ impl ServerConfig {
         config.file = Some(path.as_ref().canonicalize()?);
 
         let dir = config.directory();
+        
+        if config.key.to_string_lossy().is_empty() {
+            return Err(Error::KeyNotFound(config.key.clone()));
+        }
 
         if config.key.is_relative() {
             config.key = dir.join(&config.key).canonicalize()?;
