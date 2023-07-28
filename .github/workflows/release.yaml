@@ -1,0 +1,63 @@
+name: Release Artifacts
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
+  RELEASE_REGION: ${{ vars.RELEASE_REGION }}
+
+jobs:
+  publish:
+    uses: ./.github/workflows/publish.yaml
+    secrets: inherit
+
+  release-artifacts:
+    #if: ${{ false }}
+    runs-on: ubuntu-latest
+    needs:
+      - publish
+    steps:
+
+      - uses: actions/checkout@v3
+      - name: Set environment variables
+        shell: bash
+        run: |
+          VERSION=$(cargo pkgid | cut -f2 -d '@')
+          echo "SEMVER=$VERSION" >> $GITHUB_ENV
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.1.1
+      - name: Check Cosign install
+        run: cosign version
+
+      - name: Install release tools
+        uses: jaxxstorm/action-install-gh-release@v1.10.0
+        with:
+          token: ${{ secrets.GH_RELEASE_DOWNLOAD }}
+          repo: saveoursecrets/release-tools
+          platform: 'linux'
+          arch: 'x86_64'
+
+
+      - name: Download artifacts
+        env:
+          AWS_REGION: ${{ env.RELEASE_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_RELEASE_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}
+        run: |
+          mkdir -p target/artifacts
+          release-artifact download \
+            --bucket $RELEASE_BUCKET \
+            --directory target/artifacts \
+            cli/linux/$SEMVER/x86_64/saveoursecrets.zip
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          files: |
+            target/artifacts/*
+            LICENSE

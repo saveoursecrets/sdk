@@ -1,8 +1,8 @@
 name: Publish
+
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  workflow_call:
+
 env:
   RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
   RELEASE_REGION: ${{ vars.RELEASE_REGION }}
@@ -16,12 +16,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          #- os: ubuntu-latest
-            #binary_target: x86_64-unknown-linux-gnu
-            #platform: unknown-linux-gnu
-            #arch: x86_64
-            #distro: linux
-            #variant: none
+          - os: ubuntu-latest
+            binary_target: x86_64-unknown-linux-gnu
+            platform: unknown-linux-gnu
+            arch: x86_64
+            distro: linux
+            variant: none
           #- os: ubuntu-latest
             #binary_target: x86_64-unknown-linux-musl
             #platform: unknown-linux-musl
@@ -34,12 +34,12 @@ jobs:
             #arch: x86_64
             #distro: windows
             #variant: none
-          - os: macos-latest
-            binary_target: x86_64-apple-darwin
-            platform: apple-darwin
-            arch: x86_64
-            distro: macos
-            variant: none
+          #- os: macos-latest
+            #binary_target: x86_64-apple-darwin
+            #platform: apple-darwin
+            #arch: x86_64
+            #distro: macos
+            #variant: none
           #- os: macos-latest
             #binary_target: aarch64-apple-darwin
             #platform: apple-darwin
@@ -53,9 +53,9 @@ jobs:
       - name: Check Cosign install
         run: cosign version
 
-      - name: Prepare Apple certificate
-        if: matrix.distro == 'macos'
-        run: |
+      #- name: Prepare Apple certificate
+        #if: matrix.distro == 'macos'
+        #run: |
 
 
       - name: Checkout
@@ -98,7 +98,7 @@ jobs:
       - name: Gather executables
         shell: bash
         run: |
-          ./scripts/prepare-archive.sh $(./scripts/find-executables.sh "$BUILD_DIR")
+          ./scripts/prepare-executables.sh $(./scripts/find-executables.sh "$BUILD_DIR")
 
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
