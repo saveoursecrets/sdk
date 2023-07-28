@@ -64,3 +64,4 @@ jobs:
           files: |
             target/artifacts/*
             LICENSE
+            COPYRIGHT
