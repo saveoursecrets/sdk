@@ -47,19 +47,7 @@ jobs:
             distro: macos
             variant: none
     steps:
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.1.1
-      - name: Check Cosign install
-        run: cosign version
-
-      #- name: Prepare Apple certificate
-        #if: matrix.distro == 'macos'
-        #run: |
-
-
-      - name: Checkout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       # Prepare
       - name: Set environment variables
@@ -79,6 +67,15 @@ jobs:
           platform: ${{ matrix.platform }}
           arch: x86_64
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.1.1
+      - name: Check cosign install
+        run: cosign version
+
+      #- name: Prepare Apple certificate
+        #if: matrix.distro == 'macos'
+        #run: |
+
       - name: Install musl tools
         if: matrix.binary_target == 'x86_64-unknown-linux-musl'
         run: sudo apt-get install musl-tools
@@ -89,7 +86,7 @@ jobs:
           rustup target add ${{ matrix.binary_target }}
 
       # Build
-      - name: Build Binary
+      - name: Build binaries
         uses: actions-rs/cargo@v1
         with:
           command: build
@@ -100,7 +97,7 @@ jobs:
         run: |
           ./scripts/prepare-executables.sh $(./scripts/find-executables.sh "$BUILD_DIR")
 
-      - name: Archive Release
+      - name: Archive release
         uses: thedoctor0/zip-release@0.7.1
         with:
           type: 'zip'
@@ -108,7 +105,7 @@ jobs:
           directory: target/bin
 
       # Publish
-      - name: Upload Archive to S3 Bucket
+      - name: Upload archive to S3 bucket
         shell: bash
         env:
           AWS_REGION: ${{ env.RELEASE_REGION }}

@@ -20,22 +20,18 @@ jobs:
     needs:
       - publish
     steps:
-
       - uses: actions/checkout@v3
       - name: Set environment variables
         run: |
           VERSION=$(cargo pkgid | cut -f2 -d '@')
           echo "SEMVER=$VERSION" >> $GITHUB_ENV
-
       - name: Fetch release signing key
         run: |
           curl -OL https://releases.saveoursecrets.com/signing-key.pub
-
-      - name: Install Cosign
+      - name: Install cosign
         uses: sigstore/cosign-installer@v3.1.1
-      - name: Check Cosign install
+      - name: Check cosign install
         run: cosign version
-
       - name: Install release tools
         uses: jaxxstorm/action-install-gh-release@v1.10.0
         with:
@@ -43,7 +39,6 @@ jobs:
           repo: saveoursecrets/release-tools
           platform: 'linux'
           arch: 'x86_64'
-
       - name: Download artifacts
         env:
           AWS_REGION: ${{ env.RELEASE_REGION }}
@@ -59,7 +54,6 @@ jobs:
             cli/windows/$SEMVER/x86_64/saveoursecrets.zip \
             cli/macos/$SEMVER/x86_64/saveoursecrets.zip \
             cli/macos/$SEMVER/aarch64/saveoursecrets.zip
-
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
