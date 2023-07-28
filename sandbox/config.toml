@@ -1,3 +1,5 @@
+key = "./server_identity.pem"
+
 [audit]
 file = "audit.dat"
 
@@ -16,4 +18,4 @@ origins = [
 #key = "key.pem"
 
 [storage]
-url = "file://."
+url = "file://./accounts"

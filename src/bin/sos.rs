@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer().without_time())
         .init();
 
-    if let Err(e) = sos::cli::run().await {
+    if let Err(e) = sos::cli::sos::run().await {
         tracing::error!(target: TARGET, "{}", e);
     }
 

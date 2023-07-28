@@ -35,7 +35,6 @@ pub async fn run(
     }
 
     let transports = TransportManager::new(config.session.duration);
-    //println!("Config {:#?}", config);
 
     let mut backend = config.backend().await?;
 

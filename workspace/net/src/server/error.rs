@@ -17,7 +17,7 @@ pub enum Error {
     NotDirectory(PathBuf),
 
     /// Error generated when a key file does not exist.
-    #[error("key file {0} does not exist")]
+    #[error("key file '{0}' does not exist")]
     KeyNotFound(PathBuf),
 
     /// Error generated when a directory already exists.

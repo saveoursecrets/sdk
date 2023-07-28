@@ -1,11 +1,12 @@
 name: Publish
+
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  workflow_call:
+
 env:
   RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
   RELEASE_REGION: ${{ vars.RELEASE_REGION }}
+  BIN_DIR: target/bin
 
 jobs:
   build:
@@ -52,25 +53,20 @@ jobs:
       - name: Check Cosign install
         run: cosign version
 
+      #- name: Prepare Apple certificate
+        #if: matrix.distro == 'macos'
+        #run: |
+
+
       - name: Checkout
         uses: actions/checkout@v2
 
       # Prepare
       - name: Set environment variables
-        if: matrix.binary_target != 'x86_64-pc-windows-msvc'
-        run: |
-          VERSION=$(cargo pkgid | cut -f2 -d '@')
-          echo "BINARY_NAME=sos" >> $GITHUB_ENV
-          echo "BIN_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
-          echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
-          echo "SEMVER=$VERSION" >> $GITHUB_ENV
-      - name: Set environment variables (Windows)
-        if: matrix.binary_target == 'x86_64-pc-windows-msvc'
         shell: bash
         run: |
           VERSION=$(cargo pkgid | cut -f2 -d '@')
-          echo "BINARY_NAME=sos.exe" >> $GITHUB_ENV
-          echo "BIN_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
+          echo "BUILD_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
           echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
           echo "SEMVER=$VERSION" >> $GITHUB_ENV
 
@@ -98,23 +94,21 @@ jobs:
         with:
           command: build
           args: --release --locked --target ${{ matrix.binary_target }}
+
+      - name: Gather executables
+        shell: bash
+        run: |
+          ./scripts/prepare-executables.sh $(./scripts/find-executables.sh "$BUILD_DIR")
+
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
         with:
           type: 'zip'
           filename: ${{ env.ZIP_FILE }}
-          directory: ${{ env.BIN_DIR }}
-          path: ${{ env.BINARY_NAME }}
+          directory: target/bin
 
       # Publish
-      - name: Upload Binaries to Github Release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: '${{ env.BIN_DIR }}/${{ env.ZIP_FILE }}'
-          tag: ${{ github.ref }}
-          overwrite: true
-      - name: Upload Binaries to S3 Bucket
+      - name: Upload Archive to S3 Bucket
         shell: bash
         env:
           AWS_REGION: ${{ env.RELEASE_REGION }}
@@ -137,5 +131,4 @@ jobs:
             --commit ${{ github.sha }} \
             --latest \
             --sign \
-            $BIN_DIR/$ZIP_FILE
-
+            target/bin/$ZIP_FILE
