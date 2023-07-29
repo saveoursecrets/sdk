@@ -54,6 +54,6 @@ jobs:
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
-        path: '.homebrew'
+        #path: '.homebrew'
         title: 'Update release to ${{ env.SEMVER }}'
         branch: '${{ env.SEMVER }}'
