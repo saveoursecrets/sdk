@@ -1,9 +1,7 @@
 name: Homebrew
 
-on: [pull_request]
-
-#on:
-  #workflow_call:
+on:
+  workflow_call:
 
 jobs:
   homebrew:
