@@ -47,5 +47,8 @@ jobs:
 
           cp -f sos-build.rb Formula/sos.rb
 
+          git config --local user.email "homebrew-release-bot@noreply.saveoursecrets.com"
+          git config --local user.name "homebrew-release[bot]"
+
           git add Formula/sos.rb
           git commit -a -m "Update formula for $SEMVER release."
