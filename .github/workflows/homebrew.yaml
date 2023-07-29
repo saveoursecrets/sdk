@@ -52,8 +52,9 @@ jobs:
           git add Formula/sos.rb
           git commit -a -m "Update formula for $SEMVER release."
 
-      #- name: Create Pull Request
-        #uses: peter-evans/create-pull-request@v5
-        #path: '.homebrew'
-        #title: 'Update release to ${{ env.SEMVER }}'
-        #branch: '${{ env.SEMVER }}'
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          path: '.homebrew'
+          title: 'Update release to ${{ env.SEMVER }}'
+          branch: '${{ env.SEMVER }}'
