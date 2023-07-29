@@ -1,13 +1,8 @@
-# Save Our Secrets Library
+# Save Our Secrets SDK
 
 > Save our Secrets (SOS) is a cross-platform, distributed, encrypted database with a focus on security, integrity and redundancy. It can be used to store private secrets such as account passwords, notes, certificates and encryption keys.
 
-This repository contains the core library code and several command line interface (CLI) tools.
-
-* [Design](#design) Brief overview of the design
-* [Layout](#repository-layout) Guide to the repository layout
-* [Development](#development) Set up a development environment
-* [Getting Started](#getting-started) Getting started guide for developers 
+This repository contains the software development kit (SDK) and several command line interface (CLI) tools.
 
 ## Design
 
