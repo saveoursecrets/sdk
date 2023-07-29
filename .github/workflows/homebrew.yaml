@@ -37,9 +37,15 @@ jobs:
           echo $X86_SHA
 
           cd .homebrew
-          ls -la
 
           VERSION=$SEMVER \
             ARM_SHA=$ARM_SHA \
             X86_SHA=$X86_SHA \
             ./build.sh
+
+          cat sos-build.rb
+
+          cp -f sos-build.rb Formula/sos.rb
+
+          git add Formula/sos.rb
+          git commit -a -m "Update formula for $SEMVER release."
