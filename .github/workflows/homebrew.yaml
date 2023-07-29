@@ -54,15 +54,8 @@ jobs:
           git commit -a -m "Update formula for $SEMVER release."
 
           git branch
-
-          git push origin "v$SEMVER"
-
-      #- name: Push changes
-        #uses: ad-m/github-push-action@master
-        #with:
-          #github_token: ${{ secrets.GITHUB_TOKEN }}
-          #directory: '.homebrew'
-          #branch: 'v${{ env.SEMVER }}'
+          git push origin "v$SEMVER" --force
+          git checkout main
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
