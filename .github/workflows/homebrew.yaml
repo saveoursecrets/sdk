@@ -1,0 +1,36 @@
+name: Homebrew
+
+on:
+  pull_request:
+  #workflow_call:
+
+env:
+
+jobs:
+  homebrew:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set environment variables
+        run: |
+          VERSION=$(cargo pkgid | cut -f2 -d '@')
+          DOMAIN="https://releases.saveoursecrets.com"
+
+          curl -OL $DOMAIN/cli/macos/$VERSION/aarch64/saveoursecrets.zip.sha256.txt
+          ARM_SHA=$(cat saveoursecrets.zip.sha256.txt)
+
+          curl -OL $DOMAIN/cli/macos/$VERSION/x86_64/saveoursecrets.zip.sha256.txt
+          X86_SHA=$(cat saveoursecrets.zip.sha256.txt)
+
+          echo "SEMVER=$VERSION" >> $GITHUB_ENV
+          echo "ARM_SHA=$ARM_SHA" >> $GITHUB_ENV
+          echo "X86_SHA=$X86_SHA" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v3
+        with:
+          repository: 'saveoursecrets/homebrew-sos'
+          path: '.homebrew'
+
+      - name: Execute homebrew build.sh
+        run: |
+          ls -la

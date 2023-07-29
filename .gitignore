@@ -8,4 +8,5 @@ target
 *.changes
 *.sig
 *.bundle
+.homebrew
 tests/server_public_key.txt
