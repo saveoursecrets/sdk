@@ -37,15 +37,12 @@ jobs:
           echo $X86_SHA
 
           cd .homebrew
-
           git checkout -b "$SEMVER"
 
           VERSION=$SEMVER \
             ARM_SHA=$ARM_SHA \
             X86_SHA=$X86_SHA \
             ./build.sh
-
-          cat sos-build.rb
 
           cp -f sos-build.rb Formula/sos.rb
 
@@ -54,9 +51,9 @@ jobs:
           
           git add Formula/sos.rb
           git commit -a -m "Update formula for $SEMVER release."
-          git tag $SEMVER --force
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
-        path: .homebrew
+        path: '.homebrew'
         title: 'Update release to ${{ env.SEMVER }}'
+        branch: '${{ env.SEMVER }}'
