@@ -50,4 +50,4 @@ jobs:
           git add Formula/sos.rb
           git commit -a -m "Update formula for $SEMVER release."
           git tag "v$SEMVER" --force
-          git push origin main --tags
+          git push origin main --tags --force
