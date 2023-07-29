@@ -38,7 +38,6 @@ jobs:
           echo $X86_SHA
 
           cd .homebrew
-          git checkout -b "v$SEMVER"
 
           VERSION=$SEMVER \
             ARM_SHA=$ARM_SHA \
@@ -52,15 +51,5 @@ jobs:
 
           git add Formula/sos.rb
           git commit -a -m "Update formula for $SEMVER release."
-
-          git branch
-          git push origin "v$SEMVER" --force
-          git checkout main
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          path: '.homebrew'
-          token: ${{ secrets.HOMEBREW_PUSH }}
-          title: 'Update release to ${{ env.SEMVER }}'
-          branch: 'v${{ env.SEMVER }}'
+          git tag "v$SEMVER" --force
+          git push origin main --tags
