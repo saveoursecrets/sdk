@@ -14,11 +14,16 @@ jobs:
     uses: ./.github/workflows/publish.yaml
     secrets: inherit
 
+  homebrew:
+    uses: ./.github/workflows/homebrew.yaml
+    secrets: inherit
+
   release-artifacts:
     #if: ${{ false }}
     runs-on: ubuntu-latest
     needs:
       - publish
+      - homebrew
     steps:
       - uses: actions/checkout@v3
       - name: Set environment variables
