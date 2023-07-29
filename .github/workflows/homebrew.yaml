@@ -38,6 +38,8 @@ jobs:
 
           cd .homebrew
 
+          git checkout -b "$SEMVER"
+
           VERSION=$SEMVER \
             ARM_SHA=$ARM_SHA \
             X86_SHA=$X86_SHA \
@@ -49,6 +51,12 @@ jobs:
 
           git config --local user.email "homebrew-release-bot@noreply.saveoursecrets.com"
           git config --local user.name "homebrew-release[bot]"
-
+          
           git add Formula/sos.rb
           git commit -a -m "Update formula for $SEMVER release."
+          git tag $SEMVER --force
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        path: .homebrew
+        title: 'Update release to ${{ env.SEMVER }}'
