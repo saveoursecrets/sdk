@@ -108,14 +108,9 @@ command = "cargo"
 args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-sdk"]
 dependencies = ["check-wasm-node-client"]
 
-[tasks.dist]
-command = "cargo"
-args = ["build", "--bins", "--release", "--target", "${BUILD_TARGET}", "--workspace", "--exclude", "sos-server"]
-dependencies = ["clean", "server-release"]
-
 [tasks.dev-server]
 script = '''
-cd workspace/server && cargo run -- -c ../../sandbox/config.toml
+cargo run --bin sos-server -- -c ../../sandbox/config.toml
 '''
 
 [tasks.dev-certs]
