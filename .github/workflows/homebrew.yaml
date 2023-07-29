@@ -55,11 +55,15 @@ jobs:
           git checkout main
           git symbolic-ref HEAD --short
 
-          git push origin $SEMVER
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ env.SEMVER }}
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           path: '.homebrew'
           title: 'Update release to ${{ env.SEMVER }}'
-          branch: '${{ env.SEMVER }}'
+          branch: ${{ env.SEMVER }}
