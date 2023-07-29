@@ -32,4 +32,14 @@ jobs:
 
       - name: Execute homebrew build.sh
         run: |
+          echo $SEMVER
+          echo $ARM_SHA
+          echo $X86_SHA
+
+          cd .homebrew
           ls -la
+
+          VERSION=$SEMVER \
+            ARM_SHA=$ARM_SHA \
+            X86_SHA=$X86_SHA \
+            ./build.sh
