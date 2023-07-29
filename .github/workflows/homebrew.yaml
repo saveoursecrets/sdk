@@ -52,6 +52,8 @@ jobs:
           git add Formula/sos.rb
           git commit -a -m "Update formula for $SEMVER release."
 
+          git checkout main
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
