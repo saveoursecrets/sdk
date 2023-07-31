@@ -121,6 +121,7 @@ jobs:
           release-artifact upload \
             --bucket $RELEASE_BUCKET \
             --semver $SEMVER \
+            --channel ${{ vars.DISTRIBUTION_CHANNEL }} \
             --distro ${{ matrix.distro }} \
             --arch ${{ matrix.arch }} \
             --collection cli \
