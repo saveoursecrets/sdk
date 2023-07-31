@@ -16,10 +16,10 @@ jobs:
           VERSION=$(cargo pkgid | cut -f2 -d '@')
           DOMAIN="https://releases.saveoursecrets.com"
 
-          curl -OL $DOMAIN/cli/macos/$VERSION/aarch64/saveoursecrets.zip.sha256.txt
+          curl -OL $DOMAIN/$CHANNEL/cli/macos/$VERSION/aarch64/saveoursecrets.zip.sha256.txt
           ARM_SHA=$(cat saveoursecrets.zip.sha256.txt)
 
-          curl -OL $DOMAIN/cli/macos/$VERSION/x86_64/saveoursecrets.zip.sha256.txt
+          curl -OL $DOMAIN/$CHANNEL/cli/macos/$VERSION/x86_64/saveoursecrets.zip.sha256.txt
           X86_SHA=$(cat saveoursecrets.zip.sha256.txt)
 
           echo "SEMVER=$VERSION"  >> $GITHUB_ENV

@@ -17,6 +17,8 @@ jobs:
 
   homebrew:
     uses: ./.github/workflows/homebrew.yaml
+    needs:
+      - publish
     secrets: inherit
 
   release-artifacts:
