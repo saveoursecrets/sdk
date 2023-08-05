@@ -3884,7 +3884,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1358bd1558bd2a083fed428ffeda486fbfb323e698cdda7794259d592ca72db"
 dependencies = [
  "aliasable",
- "ouroboros_macro",
+ "ouroboros_macro 0.15.6",
+]
+
+[[package]]
+name = "ouroboros"
+version = "0.17.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2ba07320d39dfea882faa70554b4bd342a5f273ed59ba7c1c6b4c840492c954"
+dependencies = [
+ "aliasable",
+ "ouroboros_macro 0.17.2",
+ "static_assertions",
 ]
 
 [[package]]
@@ -3898,6 +3909,19 @@ dependencies = [
  "proc-macro2 1.0.63",
  "quote 1.0.28",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "ouroboros_macro"
+version = "0.17.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec4c6225c69b4ca778c0aea097321a64c421cf4577b331c61b229267edabb6f8"
+dependencies = [
+ "heck",
+ "proc-macro-error",
+ "proc-macro2 1.0.63",
+ "quote 1.0.28",
+ "syn 2.0.22",
 ]
 
 [[package]]
@@ -5378,7 +5402,7 @@ dependencies = [
  "libp2p-quic",
  "log",
  "once_cell",
- "ouroboros",
+ "ouroboros 0.17.2",
  "parking_lot",
  "pin-project-lite",
  "rand 0.8.5",
@@ -5433,7 +5457,7 @@ dependencies = [
  "libp2p-quic",
  "log",
  "once_cell",
- "ouroboros",
+ "ouroboros 0.15.6",
  "parking_lot",
  "pin-project-lite",
  "rand 0.8.5",
