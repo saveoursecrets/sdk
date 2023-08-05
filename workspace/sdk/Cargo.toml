@@ -105,9 +105,5 @@ anyhow = "1"
 tokio = { version = "1", features = ["full"] }
 serial_test = "2"
 
-[package.metadata.release]
-#tag = false
-shared-version = true
-
 [package.metadata.docs.rs]
 all-features = true
