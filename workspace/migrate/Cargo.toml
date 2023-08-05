@@ -51,7 +51,7 @@ interactive-keychain-tests = []
 rustc_version = "0.4.0"
 
 [package.metadata.release]
-tag = false
+#tag = false
 shared-version = true
 
 [package.metadata.docs.rs]
