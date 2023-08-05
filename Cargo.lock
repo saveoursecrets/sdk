@@ -3,12 +3,6 @@
 version = 3
 
 [[package]]
-name = "Inflector"
-version = "0.11.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
-
-[[package]]
 name = "addr2line"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3968,36 +3962,13 @@ dependencies = [
 
 [[package]]
 name = "ouroboros"
-version = "0.15.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1358bd1558bd2a083fed428ffeda486fbfb323e698cdda7794259d592ca72db"
-dependencies = [
- "aliasable",
- "ouroboros_macro 0.15.6",
-]
-
-[[package]]
-name = "ouroboros"
 version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2ba07320d39dfea882faa70554b4bd342a5f273ed59ba7c1c6b4c840492c954"
 dependencies = [
  "aliasable",
- "ouroboros_macro 0.17.2",
+ "ouroboros_macro",
  "static_assertions",
-]
-
-[[package]]
-name = "ouroboros_macro"
-version = "0.15.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f7d21ccd03305a674437ee1248f3ab5d4b1db095cf1caf49f1713ddf61956b7"
-dependencies = [
- "Inflector",
- "proc-macro-error",
- "proc-macro2 1.0.66",
- "quote 1.0.32",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -5434,7 +5405,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "shell-words",
- "sos-net 0.5.1",
+ "sos-net 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "sos-sdk 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "terminal-banner",
@@ -5511,10 +5482,9 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3148a5639dc00e85c7a539b157d710d6c63d44ce2a872c63ae14236f246a66fd"
+version = "0.5.2"
 dependencies = [
+ "anyhow",
  "async-recursion",
  "async-stream",
  "async-trait",
@@ -5533,7 +5503,7 @@ dependencies = [
  "libp2p-quic",
  "log",
  "once_cell",
- "ouroboros 0.15.6",
+ "ouroboros",
  "parking_lot",
  "pin-project-lite",
  "rand 0.8.5",
@@ -5567,8 +5537,9 @@ dependencies = [
 [[package]]
 name = "sos-net"
 version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc6756d5a521fcbc82813e6a7ea96135376e5144524f40c21def788ca9838532"
 dependencies = [
- "anyhow",
  "async-recursion",
  "async-stream",
  "async-trait",
@@ -5587,7 +5558,7 @@ dependencies = [
  "libp2p-quic",
  "log",
  "once_cell",
- "ouroboros 0.17.2",
+ "ouroboros",
  "parking_lot",
  "pin-project-lite",
  "rand 0.8.5",
