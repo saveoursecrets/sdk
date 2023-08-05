@@ -76,7 +76,12 @@ impl AppPaths {
             }
         };
         if cfg!(debug_assertions) {
-            dir.map(|dir| dir.join("debug"))
+            let sub_dir = if std::env::var("SOS_TEST").is_ok() {
+                "test"
+            } else {
+                "debug"
+            };
+            dir.map(|dir| dir.join(sub_dir))
         } else {
             dir
         }

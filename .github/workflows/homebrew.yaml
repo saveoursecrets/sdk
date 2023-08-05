@@ -3,6 +3,9 @@ name: Homebrew
 on:
   workflow_call:
 
+env:
+  CHANNEL: ${{ vars.DISTRIBUTION_CHANNEL }}
+
 jobs:
   homebrew:
     runs-on: ubuntu-latest
@@ -13,10 +16,10 @@ jobs:
           VERSION=$(cargo pkgid | cut -f2 -d '@')
           DOMAIN="https://releases.saveoursecrets.com"
 
-          curl -OL $DOMAIN/cli/macos/$VERSION/aarch64/saveoursecrets.zip.sha256.txt
+          curl -OL $DOMAIN/$CHANNEL/cli/macos/$VERSION/aarch64/saveoursecrets.zip.sha256.txt
           ARM_SHA=$(cat saveoursecrets.zip.sha256.txt)
 
-          curl -OL $DOMAIN/cli/macos/$VERSION/x86_64/saveoursecrets.zip.sha256.txt
+          curl -OL $DOMAIN/$CHANNEL/cli/macos/$VERSION/x86_64/saveoursecrets.zip.sha256.txt
           X86_SHA=$(cat saveoursecrets.zip.sha256.txt)
 
           echo "SEMVER=$VERSION"  >> $GITHUB_ENV
@@ -31,16 +34,13 @@ jobs:
 
       - name: Execute homebrew build.sh
         run: |
+          echo $CHANNEL
           echo $SEMVER
           echo $ARM_SHA
           echo $X86_SHA
 
           cd .homebrew
-
-          VERSION=$SEMVER \
-            ARM_SHA=$ARM_SHA \
-            X86_SHA=$X86_SHA \
-            ./build.sh
+          VERSION=$SEMVER ./build.sh
 
           cp -f sos-build.rb Formula/sos.rb
 

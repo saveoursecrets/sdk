@@ -8,6 +8,7 @@ on:
 env:
   RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
   RELEASE_REGION: ${{ vars.RELEASE_REGION }}
+  CHANNEL: ${{ vars.DISTRIBUTION_CHANNEL }}
 
 jobs:
   publish:
@@ -16,6 +17,8 @@ jobs:
 
   homebrew:
     uses: ./.github/workflows/homebrew.yaml
+    needs:
+      - publish
     secrets: inherit
 
   release-artifacts:
@@ -54,11 +57,11 @@ jobs:
           release-artifact download \
             --bucket $RELEASE_BUCKET \
             --directory target/artifacts \
-            cli/linux/$SEMVER/x86_64/saveoursecrets.zip \
-            cli/linux/$SEMVER/x86_64/musl/saveoursecrets.zip \
-            cli/windows/$SEMVER/x86_64/saveoursecrets.zip \
-            cli/macos/$SEMVER/x86_64/saveoursecrets.zip \
-            cli/macos/$SEMVER/aarch64/saveoursecrets.zip
+            $CHANNEL/cli/linux/$SEMVER/x86_64/saveoursecrets.zip \
+            $CHANNEL/cli/linux/$SEMVER/x86_64/musl/saveoursecrets.zip \
+            $CHANNEL/cli/windows/$SEMVER/x86_64/saveoursecrets.zip \
+            $CHANNEL/cli/macos/$SEMVER/x86_64/saveoursecrets.zip \
+            $CHANNEL/cli/macos/$SEMVER/aarch64/saveoursecrets.zip
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
