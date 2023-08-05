@@ -107,4 +107,3 @@ sign-tag = true
 sign-commit = true
 pre-release-hook = ["cargo", "audit"]
 pre-release-commit-message = "Release {{version}}"
-post-release-commit-message = "Start next version {{next_version}}"
