@@ -92,6 +92,12 @@ mod vault {
 mod mime {
     /// Mime type for vaults.
     pub const MIME_TYPE_VAULT: &str = "application/sos+vault";
+
+    /// Mime type for event logs.
+    pub const MIME_TYPE_EVENT: &str = "application/sos+event";
+
+    /// Mime type for patches.
+    pub const MIME_TYPE_PATCH: &str = "application/sos+patch";
 }
 
 mod rpc {
