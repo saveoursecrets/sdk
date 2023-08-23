@@ -9,7 +9,7 @@ mod reducer;
 pub use file::EventLogFile;
 pub use reducer::EventReducer;
 
-/// Record for a row in the write ahead log.
+/// Record for a row in the event log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct EventRecord(
     pub(crate) Timestamp,
