@@ -57,7 +57,7 @@ impl EventLogFile {
         })
     }
 
-    /// Create the write ahead log file.
+    /// Create the event log file.
     async fn create<P: AsRef<Path>>(path: P) -> Result<File> {
         let mut file = OpenOptions::new()
             .create(true)

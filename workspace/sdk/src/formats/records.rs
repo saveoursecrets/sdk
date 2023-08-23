@@ -89,7 +89,7 @@ impl VaultRecord {
     }
 }
 
-/// Reference to a row in the write ahead log.
+/// Reference to a row in the event log.
 #[derive(Default, Debug, Eq)]
 pub struct EventLogFileRecord {
     /// Byte offset for the record.
