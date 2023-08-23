@@ -13,7 +13,7 @@ use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 use crate::{
     constants::AUDIT_IDENTITY,
     encoding::encoding_options,
-    formats::{audit_stream, FileItem, FileRecord, FileStream},
+    formats::{audit_stream, FileItem, FileRecord, FormatStream},
     vfs::{self, File},
     Result,
 };
@@ -37,7 +37,9 @@ impl AuditLogFile {
     }
 
     /// Get an audit log file iterator.
-    pub async fn iter(&self) -> Result<FileStream<FileRecord, File>> {
+    pub async fn iter(
+        &self,
+    ) -> Result<FormatStream<FileRecord, Compat<File>>> {
         audit_stream(&self.file_path).await
     }
 

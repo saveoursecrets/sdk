@@ -1,6 +1,6 @@
+use crate::{commands::server, Result};
 use clap::Parser;
 use std::path::PathBuf;
-use crate::{commands::server, Result};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]

@@ -5,7 +5,7 @@ mod stream;
 
 pub use file_identity::FileIdentity;
 pub use records::{EventLogFileRecord, FileItem, FileRecord, VaultRecord};
-pub use stream::FileStream;
+pub use stream::FormatStream;
 
 use crate::{
     constants::{
@@ -17,13 +17,36 @@ use crate::{
 };
 use std::path::Path;
 
+use futures::io::{BufReader, Cursor};
+use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
+
+type Buffer = BufReader<Cursor<Vec<u8>>>;
+
 /// Get a stream for a vault file.
 pub async fn vault_stream<P: AsRef<Path>>(
     path: P,
-) -> Result<FileStream<VaultRecord, File>> {
+) -> Result<FormatStream<VaultRecord, Compat<File>>> {
+    FileIdentity::read_file(path.as_ref(), &VAULT_IDENTITY).await?;
+    let read_stream = File::open(path.as_ref()).await?.compat();
     let content_offset = Header::read_content_offset(path.as_ref()).await?;
-    FileStream::<VaultRecord, File>::new_file(
-        path.as_ref(),
+    FormatStream::<VaultRecord, Compat<File>>::new_file(
+        read_stream,
+        &VAULT_IDENTITY,
+        true,
+        Some(content_offset),
+    )
+    .await
+}
+
+/// Get a stream for a vault file buffer.
+pub async fn vault_stream_buffer(
+    buffer: Vec<u8>,
+) -> Result<FormatStream<VaultRecord, Buffer>> {
+    FileIdentity::read_slice(&buffer, &VAULT_IDENTITY)?;
+    let content_offset = Header::read_content_offset_slice(&buffer).await?;
+    let read_stream = BufReader::new(Cursor::new(buffer));
+    FormatStream::<VaultRecord, Buffer>::new_buffer(
+        read_stream,
         &VAULT_IDENTITY,
         true,
         Some(content_offset),
@@ -34,9 +57,26 @@ pub async fn vault_stream<P: AsRef<Path>>(
 /// Get a stream for a event log file.
 pub async fn event_log_stream<P: AsRef<Path>>(
     path: P,
-) -> Result<FileStream<EventLogFileRecord, File>> {
-    FileStream::<EventLogFileRecord, File>::new_file(
-        path.as_ref(),
+) -> Result<FormatStream<EventLogFileRecord, Compat<File>>> {
+    FileIdentity::read_file(path.as_ref(), &EVENT_LOG_IDENTITY).await?;
+    let read_stream = File::open(path.as_ref()).await?.compat();
+    FormatStream::<EventLogFileRecord, Compat<File>>::new_file(
+        read_stream,
+        &EVENT_LOG_IDENTITY,
+        true,
+        None,
+    )
+    .await
+}
+
+/// Get a stream for a vault file buffer.
+pub async fn event_log_stream_buffer(
+    buffer: Vec<u8>,
+) -> Result<FormatStream<EventLogFileRecord, Buffer>> {
+    FileIdentity::read_slice(&buffer, &EVENT_LOG_IDENTITY)?;
+    let read_stream = BufReader::new(Cursor::new(buffer));
+    FormatStream::<EventLogFileRecord, Buffer>::new_buffer(
+        read_stream,
         &EVENT_LOG_IDENTITY,
         true,
         None,
@@ -47,9 +87,26 @@ pub async fn event_log_stream<P: AsRef<Path>>(
 /// Get a stream for a patch file.
 pub async fn patch_stream<P: AsRef<Path>>(
     path: P,
-) -> Result<FileStream<FileRecord, File>> {
-    FileStream::<FileRecord, File>::new_file(
-        path.as_ref(),
+) -> Result<FormatStream<FileRecord, Compat<File>>> {
+    FileIdentity::read_file(path.as_ref(), &PATCH_IDENTITY).await?;
+    let read_stream = File::open(path.as_ref()).await?.compat();
+    FormatStream::<FileRecord, Compat<File>>::new_file(
+        read_stream,
+        &PATCH_IDENTITY,
+        false,
+        None,
+    )
+    .await
+}
+
+/// Get a stream for a patch file buffer.
+pub async fn patch_stream_buffer(
+    buffer: Vec<u8>,
+) -> Result<FormatStream<FileRecord, Buffer>> {
+    FileIdentity::read_slice(&buffer, &PATCH_IDENTITY)?;
+    let read_stream = BufReader::new(Cursor::new(buffer));
+    FormatStream::<FileRecord, Buffer>::new_buffer(
+        read_stream,
         &PATCH_IDENTITY,
         false,
         None,
@@ -60,9 +117,26 @@ pub async fn patch_stream<P: AsRef<Path>>(
 /// Get a stream for an audit file.
 pub async fn audit_stream<P: AsRef<Path>>(
     path: P,
-) -> Result<FileStream<FileRecord, File>> {
-    FileStream::<FileRecord, File>::new_file(
-        path.as_ref(),
+) -> Result<FormatStream<FileRecord, Compat<File>>> {
+    FileIdentity::read_file(path.as_ref(), &AUDIT_IDENTITY).await?;
+    let read_stream = File::open(path.as_ref()).await?.compat();
+    FormatStream::<FileRecord, Compat<File>>::new_file(
+        read_stream,
+        &AUDIT_IDENTITY,
+        false,
+        None,
+    )
+    .await
+}
+
+/// Get a stream for an audit file buffer.
+pub async fn audit_stream_buffer(
+    buffer: Vec<u8>,
+) -> Result<FormatStream<FileRecord, Buffer>> {
+    FileIdentity::read_slice(&buffer, &AUDIT_IDENTITY)?;
+    let read_stream = BufReader::new(Cursor::new(buffer));
+    FormatStream::<FileRecord, Buffer>::new_buffer(
+        read_stream,
         &AUDIT_IDENTITY,
         false,
         None,

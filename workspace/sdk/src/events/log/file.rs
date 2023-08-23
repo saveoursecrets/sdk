@@ -20,7 +20,7 @@ use crate::{
     encode,
     encoding::encoding_options,
     events::WriteEvent,
-    formats::{event_log_stream, EventLogFileRecord, FileItem, FileStream},
+    formats::{event_log_stream, EventLogFileRecord, FileItem, FormatStream},
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
     Error, Result,
@@ -33,6 +33,7 @@ use std::{
 
 use futures::io::{BufReader, Cursor};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio_util::compat::Compat;
 
 use binary_stream::futures::{BinaryReader, Decodable};
 use tempfile::NamedTempFile;
@@ -336,7 +337,9 @@ impl EventLogFile {
     }
 
     /// Get an iterator of the log records.
-    pub async fn iter(&self) -> Result<FileStream<EventLogFileRecord, File>> {
+    pub async fn iter(
+        &self,
+    ) -> Result<FormatStream<EventLogFileRecord, Compat<File>>> {
         event_log_stream(&self.file_path).await
     }
 

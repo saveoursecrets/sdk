@@ -10,15 +10,20 @@ use crate::{
     Result,
 };
 
-use futures::io::AsyncSeekExt as FuturesAsyncSeekExt;
-use tokio::io::{AsyncReadExt, AsyncSeek};
+use futures::io::{
+    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt as FuturesAsyncSeekExt,
+    BufReader, Cursor,
+};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
-/// Generic iterator for files.
-pub struct FileStream<T, R>
+/// Generic iterator for file formats.
+///
+/// Supports files and in-memory buffers and can iterate lazily 
+/// in both directions.
+pub struct FormatStream<T, R>
 where
     T: FileItem,
-    R: AsyncReadExt + AsyncSeek + Unpin + Send,
+    R: AsyncRead + AsyncSeek + Unpin + Send,
 {
     /// Offset from the beginning of the stream where
     /// iteration should start and reverse iteration
@@ -40,7 +45,7 @@ where
     /// but sometimes need to read the row data too.
     data_length_prefix: bool,
     /// The read stream.
-    read_stream: Compat<R>,
+    read_stream: R,
     /// Byte offset for forward iteration.
     forward: Option<u64>,
     /// Byte offset for backward iteration.
@@ -51,17 +56,14 @@ where
     marker: std::marker::PhantomData<T>,
 }
 
-impl<T: FileItem> FileStream<T, File> {
+impl<T: FileItem> FormatStream<T, Compat<File>> {
     /// Create a new file iterator.
-    pub async fn new_file<P: AsRef<Path>>(
-        file_path: P,
+    pub async fn new_file(
+        mut read_stream: Compat<File>,
         identity: &'static [u8],
         data_length_prefix: bool,
         header_offset: Option<u64>,
     ) -> Result<Self> {
-        FileIdentity::read_file(file_path.as_ref(), identity).await?;
-        let mut read_stream = File::open(file_path.as_ref()).await?.compat();
-
         let header_offset = header_offset.unwrap_or(identity.len() as u64);
         read_stream.seek(SeekFrom::Start(header_offset)).await?;
 
@@ -77,10 +79,33 @@ impl<T: FileItem> FileStream<T, File> {
     }
 }
 
-impl<T, R> FileStream<T, R>
+impl<T: FileItem> FormatStream<T, BufReader<Cursor<Vec<u8>>>> {
+    /// Create a new buffer iterator.
+    pub async fn new_buffer(
+        mut read_stream: BufReader<Cursor<Vec<u8>>>,
+        identity: &'static [u8],
+        data_length_prefix: bool,
+        header_offset: Option<u64>,
+    ) -> Result<Self> {
+        let header_offset = header_offset.unwrap_or(identity.len() as u64);
+        read_stream.seek(SeekFrom::Start(header_offset)).await?;
+
+        Ok(Self {
+            header_offset,
+            data_length_prefix,
+            read_stream,
+            forward: None,
+            backward: None,
+            reverse: false,
+            marker: std::marker::PhantomData,
+        })
+    }
+}
+
+impl<T, R> FormatStream<T, R>
 where
     T: FileItem,
-    R: AsyncReadExt + AsyncSeek + Unpin + Send,
+    R: AsyncRead + AsyncSeek + Unpin + Send,
 {
     /// Iterate in reverse order.
     pub fn rev(mut self) -> Self {
@@ -106,7 +131,7 @@ where
 
     /// Helper to decode the row file record.
     async fn read_row(
-        reader: &mut BinaryReader<&mut Compat<R>>,
+        reader: &mut BinaryReader<&mut R>,
         offset: Range<u64>,
         is_prefix: bool,
     ) -> Result<T> {
@@ -141,7 +166,7 @@ where
         // Position of the end of the row
         let row_end = row_pos + (row_len as u64 + 8);
 
-        let row = FileStream::read_row(
+        let row = FormatStream::read_row(
             &mut reader,
             row_pos..row_end,
             self.data_length_prefix,
@@ -172,7 +197,7 @@ where
         // Seek to the beginning of the row after the initial
         // row length so we can read in the row data
         reader.seek(SeekFrom::Start(row_start + 4)).await?;
-        let row = FileStream::read_row(
+        let row = FormatStream::read_row(
             &mut reader,
             row_start..row_end,
             self.data_length_prefix,

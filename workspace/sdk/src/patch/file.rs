@@ -10,10 +10,11 @@ use crate::{
     constants::PATCH_IDENTITY,
     decode, encode,
     events::WriteEvent,
-    formats::{patch_stream, FileRecord, FileStream},
+    formats::{patch_stream, FileRecord, FormatStream},
     vfs::{self, File, OpenOptions},
     Result,
 };
+use tokio_util::compat::Compat;
 
 use super::Patch;
 
@@ -56,7 +57,9 @@ impl PatchFile {
     }
 
     /// Get an iterator for the patch file.
-    pub async fn iter(&self) -> Result<FileStream<FileRecord, File>> {
+    pub async fn iter(
+        &self,
+    ) -> Result<FormatStream<FileRecord, Compat<File>>> {
         patch_stream(&self.file_path).await
     }
 
