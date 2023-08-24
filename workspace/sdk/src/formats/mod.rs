@@ -20,7 +20,7 @@ use std::path::Path;
 use futures::io::{BufReader, Cursor};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
-type Buffer = BufReader<Cursor<Vec<u8>>>;
+type Buffer<'a> = BufReader<Cursor<&'a [u8]>>;
 
 /// Get a stream for a vault file.
 pub async fn vault_stream<P: AsRef<Path>>(
@@ -39,13 +39,13 @@ pub async fn vault_stream<P: AsRef<Path>>(
 }
 
 /// Get a stream for a vault file buffer.
-pub async fn vault_stream_buffer(
-    buffer: Vec<u8>,
-) -> Result<FormatStream<VaultRecord, Buffer>> {
+pub async fn vault_stream_buffer<'a>(
+    buffer: &'a [u8],
+) -> Result<FormatStream<VaultRecord, Buffer<'a>>> {
     FileIdentity::read_slice(&buffer, &VAULT_IDENTITY)?;
     let content_offset = Header::read_content_offset_slice(&buffer).await?;
     let read_stream = BufReader::new(Cursor::new(buffer));
-    FormatStream::<VaultRecord, Buffer>::new_buffer(
+    FormatStream::<VaultRecord, Buffer<'a>>::new_buffer(
         read_stream,
         &VAULT_IDENTITY,
         true,
@@ -70,12 +70,12 @@ pub async fn event_log_stream<P: AsRef<Path>>(
 }
 
 /// Get a stream for a vault file buffer.
-pub async fn event_log_stream_buffer(
-    buffer: Vec<u8>,
-) -> Result<FormatStream<EventLogFileRecord, Buffer>> {
+pub async fn event_log_stream_buffer<'a>(
+    buffer: &'a [u8],
+) -> Result<FormatStream<EventLogFileRecord, Buffer<'a>>> {
     FileIdentity::read_slice(&buffer, &EVENT_LOG_IDENTITY)?;
     let read_stream = BufReader::new(Cursor::new(buffer));
-    FormatStream::<EventLogFileRecord, Buffer>::new_buffer(
+    FormatStream::<EventLogFileRecord, Buffer<'a>>::new_buffer(
         read_stream,
         &EVENT_LOG_IDENTITY,
         true,
@@ -100,12 +100,12 @@ pub async fn patch_stream<P: AsRef<Path>>(
 }
 
 /// Get a stream for a patch file buffer.
-pub async fn patch_stream_buffer(
-    buffer: Vec<u8>,
-) -> Result<FormatStream<FileRecord, Buffer>> {
+pub async fn patch_stream_buffer<'a>(
+    buffer: &'a [u8],
+) -> Result<FormatStream<FileRecord, Buffer<'a>>> {
     FileIdentity::read_slice(&buffer, &PATCH_IDENTITY)?;
     let read_stream = BufReader::new(Cursor::new(buffer));
-    FormatStream::<FileRecord, Buffer>::new_buffer(
+    FormatStream::<FileRecord, Buffer<'a>>::new_buffer(
         read_stream,
         &PATCH_IDENTITY,
         false,
@@ -130,12 +130,12 @@ pub async fn audit_stream<P: AsRef<Path>>(
 }
 
 /// Get a stream for an audit file buffer.
-pub async fn audit_stream_buffer(
-    buffer: Vec<u8>,
-) -> Result<FormatStream<FileRecord, Buffer>> {
+pub async fn audit_stream_buffer<'a>(
+    buffer: &'a [u8],
+) -> Result<FormatStream<FileRecord, Buffer<'a>>> {
     FileIdentity::read_slice(&buffer, &AUDIT_IDENTITY)?;
     let read_stream = BufReader::new(Cursor::new(buffer));
-    FormatStream::<FileRecord, Buffer>::new_buffer(
+    FormatStream::<FileRecord, Buffer<'a>>::new_buffer(
         read_stream,
         &AUDIT_IDENTITY,
         false,

@@ -79,14 +79,14 @@ impl<T: FileItem> FormatStream<T, Compat<File>> {
     }
 }
 
-impl<T: FileItem> FormatStream<T, BufReader<Cursor<Vec<u8>>>> {
+impl<'a, T: FileItem> FormatStream<T, BufReader<Cursor<&'a [u8]>>> {
     /// Create a new buffer iterator.
     pub async fn new_buffer(
-        mut read_stream: BufReader<Cursor<Vec<u8>>>,
+        mut read_stream: BufReader<Cursor<&'a [u8]>>,
         identity: &'static [u8],
         data_length_prefix: bool,
         header_offset: Option<u64>,
-    ) -> Result<Self> {
+    ) -> Result<FormatStream<T, BufReader<Cursor<&'a [u8]>>>> {
         let header_offset = header_offset.unwrap_or(identity.len() as u64);
         read_stream.seek(SeekFrom::Start(header_offset)).await?;
 
