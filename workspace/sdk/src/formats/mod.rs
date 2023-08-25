@@ -27,7 +27,8 @@ pub type Buffer<'a> = BufReader<Cursor<&'a [u8]>>;
 pub type EventLogFileStream = FormatStream<EventLogFileRecord, Compat<File>>;
 
 /// Type for a stream of event log records from a buffer.
-pub type EventLogBufferStream<'a> = FormatStream<EventLogFileRecord, Buffer<'a>>;
+pub type EventLogBufferStream<'a> =
+    FormatStream<EventLogFileRecord, Buffer<'a>>;
 
 /// Get a stream for a vault file.
 pub async fn vault_stream<P: AsRef<Path>>(

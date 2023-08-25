@@ -7,11 +7,11 @@ use std::{
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 
 use crate::{
+    commit::CommitHash,
     constants::PATCH_IDENTITY,
     decode, encode,
-    events::{WriteEvent, EventLogFile},
+    events::{EventLogFile, WriteEvent},
     formats::{patch_stream, EventLogFileRecord, EventLogFileStream},
-    commit::CommitHash,
     vfs::{self, File, OpenOptions},
     Result,
 };
@@ -31,7 +31,6 @@ pub struct PatchFile {
 impl PatchFile {
     /// Create a new patch cache provider.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-
         /*
         let file_path = path.as_ref().to_path_buf();
 
@@ -53,7 +52,9 @@ impl PatchFile {
         Ok(Self { file, file_path })
         */
 
-        Ok(Self { log_file: EventLogFile::new_patch(path).await? })
+        Ok(Self {
+            log_file: EventLogFile::new_patch(path).await?,
+        })
     }
 
     /// Read a patch from the file on disc.
@@ -64,9 +65,7 @@ impl PatchFile {
     }
 
     /// Get an iterator for the patch file.
-    pub async fn iter(
-        &self,
-    ) -> Result<EventLogFileStream> {
+    pub async fn iter(&self) -> Result<EventLogFileStream> {
         patch_stream(&self.log_file.file_path).await
     }
 
@@ -81,7 +80,6 @@ impl PatchFile {
         events: Vec<WriteEvent<'a>>,
         last_commit: Option<CommitHash>,
     ) -> Result<Patch> {
-
         // Load any existing events in to memory
         let mut all_events = if self.has_events().await? {
             let patch = self.read().await?;
@@ -89,7 +87,7 @@ impl PatchFile {
         } else {
             vec![]
         };
-        
+
         let mut last_commit_hash = last_commit;
         let mut records = Vec::new();
         for event in &events {
@@ -98,13 +96,13 @@ impl PatchFile {
             records.push(record);
             last_commit_hash = Some(commit);
         }
-        
+
         // In-memory records for the patch
         let append_patch = Patch(records);
 
         // Append the incoming events to the file
         self.log_file.apply(events, None).await?;
-    
+
         // Append the given events on to any existing events
         // so we can return a new patch to the caller that contains
         // all the outstanding events
@@ -126,7 +124,8 @@ impl PatchFile {
 
     /// Determine if the patch cache has any events.
     pub async fn has_events(&self) -> Result<bool> {
-        Ok(self.log_file.file.metadata().await?.len() as usize > PATCH_IDENTITY.len())
+        Ok(self.log_file.file.metadata().await?.len() as usize
+            > PATCH_IDENTITY.len())
     }
 
     /// Drain all events from the patch backing storage.

@@ -1,7 +1,10 @@
 //! Patch represents a changeset of events to apply to a vault.
 use crate::{
-    constants::PATCH_IDENTITY, encoding::encoding_error, events::EventRecord,
-    formats::{FileIdentity, EventLogFileRecord}, patch::Patch,
+    constants::PATCH_IDENTITY,
+    encoding::encoding_error,
+    events::EventRecord,
+    formats::{EventLogFileRecord, FileIdentity},
+    patch::Patch,
 };
 
 use async_trait::async_trait;
@@ -19,7 +22,7 @@ impl Encodable for Patch {
     ) -> Result<()> {
         writer.write_bytes(PATCH_IDENTITY).await?;
         for event in self.0.iter() {
-            event.encode(writer).await?;           
+            event.encode(writer).await?;
         }
         Ok(())
     }

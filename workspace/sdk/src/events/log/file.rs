@@ -20,7 +20,10 @@ use crate::{
     encode,
     encoding::encoding_options,
     events::WriteEvent,
-    formats::{event_log_stream, patch_stream, EventLogFileRecord, FileItem, EventLogFileStream},
+    formats::{
+        event_log_stream, patch_stream, EventLogFileRecord,
+        EventLogFileStream, FileItem,
+    },
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
     Error, Result,
@@ -51,8 +54,9 @@ pub struct EventLogFile {
 impl EventLogFile {
     /// Create a new event log file.
     pub async fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        let file = EventLogFile::create(
-            file_path.as_ref(), &EVENT_LOG_IDENTITY).await?;
+        let file =
+            EventLogFile::create(file_path.as_ref(), &EVENT_LOG_IDENTITY)
+                .await?;
         Ok(Self {
             file,
             file_path: file_path.as_ref().to_path_buf(),
@@ -63,8 +67,8 @@ impl EventLogFile {
 
     /// Create a new patch file.
     pub async fn new_patch<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        let file = EventLogFile::create(
-            file_path.as_ref(), &PATCH_IDENTITY).await?;
+        let file =
+            EventLogFile::create(file_path.as_ref(), &PATCH_IDENTITY).await?;
         Ok(Self {
             file,
             file_path: file_path.as_ref().to_path_buf(),
@@ -74,7 +78,10 @@ impl EventLogFile {
     }
 
     /// Create the event log file.
-    async fn create<P: AsRef<Path>>(path: P, identity: &[u8]) -> Result<File> {
+    async fn create<P: AsRef<Path>>(
+        path: P,
+        identity: &[u8],
+    ) -> Result<File> {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -235,7 +242,6 @@ impl EventLogFile {
         events: Vec<WriteEvent<'_>>,
         expect: Option<CommitHash>,
     ) -> Result<Vec<CommitHash>> {
-        
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
         let mut last_commit_hash = None;
@@ -353,9 +359,7 @@ impl EventLogFile {
     }
 
     /// Get an iterator of the log records.
-    pub async fn iter(
-        &self,
-    ) -> Result<EventLogFileStream> {
+    pub async fn iter(&self) -> Result<EventLogFileStream> {
         if self.identity == EVENT_LOG_IDENTITY {
             event_log_stream(&self.file_path).await
         } else {

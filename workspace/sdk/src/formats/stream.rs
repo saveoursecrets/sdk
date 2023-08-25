@@ -18,7 +18,7 @@ use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
 /// Generic iterator for file formats.
 ///
-/// Supports files and in-memory buffers and can iterate lazily 
+/// Supports files and in-memory buffers and can iterate lazily
 /// in both directions.
 pub struct FormatStream<T, R>
 where
