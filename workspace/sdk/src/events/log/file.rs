@@ -16,11 +16,11 @@
 //!
 use crate::{
     commit::{event_log_commit_tree_file, CommitHash, CommitTree},
-    constants::EVENT_LOG_IDENTITY,
+    constants::{EVENT_LOG_IDENTITY, PATCH_IDENTITY},
     encode,
     encoding::encoding_options,
     events::WriteEvent,
-    formats::{event_log_stream, EventLogFileRecord, FileItem, FormatStream},
+    formats::{event_log_stream, patch_stream, EventLogFileRecord, FileItem, EventLogFileStream},
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
     Error, Result,
@@ -42,24 +42,39 @@ use super::{EventRecord, EventReducer};
 
 /// An event log that appends to a file.
 pub struct EventLogFile {
-    file_path: PathBuf,
-    file: File,
-    tree: CommitTree,
+    pub(crate) file_path: PathBuf,
+    pub(crate) file: File,
+    pub(crate) tree: CommitTree,
+    identity: [u8; 4],
 }
 
 impl EventLogFile {
-    /// Create a new log file.
+    /// Create a new event log file.
     pub async fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        let file = EventLogFile::create(file_path.as_ref()).await?;
+        let file = EventLogFile::create(
+            file_path.as_ref(), &EVENT_LOG_IDENTITY).await?;
         Ok(Self {
             file,
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
+            identity: EVENT_LOG_IDENTITY,
+        })
+    }
+
+    /// Create a new patch file.
+    pub async fn new_patch<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        let file = EventLogFile::create(
+            file_path.as_ref(), &PATCH_IDENTITY).await?;
+        Ok(Self {
+            file,
+            file_path: file_path.as_ref().to_path_buf(),
+            tree: Default::default(),
+            identity: PATCH_IDENTITY,
         })
     }
 
     /// Create the event log file.
-    async fn create<P: AsRef<Path>>(path: P) -> Result<File> {
+    async fn create<P: AsRef<Path>>(path: P, identity: &[u8]) -> Result<File> {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -69,19 +84,19 @@ impl EventLogFile {
 
         let size = file.metadata().await?.len();
         if size == 0 {
-            file.write_all(&EVENT_LOG_IDENTITY).await?;
+            file.write_all(identity).await?;
             file.flush().await?;
         }
         Ok(file)
     }
 
-    async fn encode_event(
+    pub(crate) async fn encode_event(
         &self,
-        event: WriteEvent<'_>,
+        event: &WriteEvent<'_>,
         last_commit: Option<CommitHash>,
     ) -> Result<(CommitHash, EventRecord)> {
         let time: Timestamp = Default::default();
-        let bytes = encode(&event).await?;
+        let bytes = encode(event).await?;
         let commit = CommitHash(CommitTree::hash(&bytes));
 
         let last_commit = if let Some(last_commit) = last_commit {
@@ -140,7 +155,7 @@ impl EventLogFile {
     /// The buffer should start with the event log identity bytes.
     pub async fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
         // Get buffer of log records after the identity bytes
-        let buffer = &buffer[EVENT_LOG_IDENTITY.len()..];
+        let buffer = &buffer[self.identity.len()..];
 
         let mut file = OpenOptions::new()
             .write(true)
@@ -162,7 +177,7 @@ impl EventLogFile {
 
     /// Get the tail after the given item until the end of the log.
     pub async fn tail(&self, item: EventLogFileRecord) -> Result<Vec<u8>> {
-        let mut partial = EVENT_LOG_IDENTITY.to_vec();
+        let mut partial = self.identity.to_vec();
         let start = item.offset().end as usize;
         let mut file = File::open(&self.file_path).await?;
         let end = file.metadata().await?.len() as usize;
@@ -220,12 +235,13 @@ impl EventLogFile {
         events: Vec<WriteEvent<'_>>,
         expect: Option<CommitHash>,
     ) -> Result<Vec<CommitHash>> {
+        
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
         let mut last_commit_hash = None;
         for event in events {
             let (commit, record) =
-                self.encode_event(event, last_commit_hash).await?;
+                self.encode_event(&event, last_commit_hash).await?;
             commits.push(commit);
             let mut buf = encode(&record).await?;
             last_commit_hash = Some(CommitHash(CommitTree::hash(&buf)));
@@ -281,7 +297,7 @@ impl EventLogFile {
         &mut self,
         event: WriteEvent<'_>,
     ) -> Result<CommitHash> {
-        let (commit, record) = self.encode_event(event, None).await?;
+        let (commit, record) = self.encode_event(&event, None).await?;
         let buffer = encode(&record).await?;
         self.file.write_all(&buffer).await?;
         self.file.flush().await?;
@@ -330,7 +346,7 @@ impl EventLogFile {
     /// Clear all events from this log file.
     pub async fn clear(&mut self) -> Result<()> {
         self.file = File::create(&self.file_path).await?;
-        self.file.write_all(&EVENT_LOG_IDENTITY).await?;
+        self.file.write_all(&self.identity).await?;
         self.file.flush().await?;
         self.tree = CommitTree::new();
         Ok(())
@@ -339,8 +355,12 @@ impl EventLogFile {
     /// Get an iterator of the log records.
     pub async fn iter(
         &self,
-    ) -> Result<FormatStream<EventLogFileRecord, Compat<File>>> {
-        event_log_stream(&self.file_path).await
+    ) -> Result<EventLogFileStream> {
+        if self.identity == EVENT_LOG_IDENTITY {
+            event_log_stream(&self.file_path).await
+        } else {
+            patch_stream(&self.file_path).await
+        }
     }
 
     /// Get the last commit hash.

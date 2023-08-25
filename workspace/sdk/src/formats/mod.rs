@@ -20,7 +20,14 @@ use std::path::Path;
 use futures::io::{BufReader, Cursor};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
-type Buffer<'a> = BufReader<Cursor<&'a [u8]>>;
+/// Type of a in-memory buffer for a stream.
+pub type Buffer<'a> = BufReader<Cursor<&'a [u8]>>;
+
+/// Type for a stream of event log records from a file.
+pub type EventLogFileStream = FormatStream<EventLogFileRecord, Compat<File>>;
+
+/// Type for a stream of event log records from a buffer.
+pub type EventLogBufferStream<'a> = FormatStream<EventLogFileRecord, Buffer<'a>>;
 
 /// Get a stream for a vault file.
 pub async fn vault_stream<P: AsRef<Path>>(
@@ -57,7 +64,7 @@ pub async fn vault_stream_buffer<'a>(
 /// Get a stream for a event log file.
 pub async fn event_log_stream<P: AsRef<Path>>(
     path: P,
-) -> Result<FormatStream<EventLogFileRecord, Compat<File>>> {
+) -> Result<EventLogFileStream> {
     FileIdentity::read_file(path.as_ref(), &EVENT_LOG_IDENTITY).await?;
     let read_stream = File::open(path.as_ref()).await?.compat();
     FormatStream::<EventLogFileRecord, Compat<File>>::new_file(
@@ -72,7 +79,7 @@ pub async fn event_log_stream<P: AsRef<Path>>(
 /// Get a stream for a vault file buffer.
 pub async fn event_log_stream_buffer<'a>(
     buffer: &'a [u8],
-) -> Result<FormatStream<EventLogFileRecord, Buffer<'a>>> {
+) -> Result<EventLogBufferStream<'a>> {
     FileIdentity::read_slice(&buffer, &EVENT_LOG_IDENTITY)?;
     let read_stream = BufReader::new(Cursor::new(buffer));
     FormatStream::<EventLogFileRecord, Buffer<'a>>::new_buffer(
@@ -87,10 +94,10 @@ pub async fn event_log_stream_buffer<'a>(
 /// Get a stream for a patch file.
 pub async fn patch_stream<P: AsRef<Path>>(
     path: P,
-) -> Result<FormatStream<FileRecord, Compat<File>>> {
+) -> Result<EventLogFileStream> {
     FileIdentity::read_file(path.as_ref(), &PATCH_IDENTITY).await?;
     let read_stream = File::open(path.as_ref()).await?.compat();
-    FormatStream::<FileRecord, Compat<File>>::new_file(
+    FormatStream::<EventLogFileRecord, Compat<File>>::new_file(
         read_stream,
         &PATCH_IDENTITY,
         false,
@@ -102,10 +109,10 @@ pub async fn patch_stream<P: AsRef<Path>>(
 /// Get a stream for a patch file buffer.
 pub async fn patch_stream_buffer<'a>(
     buffer: &'a [u8],
-) -> Result<FormatStream<FileRecord, Buffer<'a>>> {
+) -> Result<EventLogBufferStream<'a>> {
     FileIdentity::read_slice(&buffer, &PATCH_IDENTITY)?;
     let read_stream = BufReader::new(Cursor::new(buffer));
-    FormatStream::<FileRecord, Buffer<'a>>::new_buffer(
+    FormatStream::<EventLogFileRecord, Buffer<'a>>::new_buffer(
         read_stream,
         &PATCH_IDENTITY,
         false,

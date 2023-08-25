@@ -9,8 +9,9 @@ use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use crate::{
     constants::PATCH_IDENTITY,
     decode, encode,
-    events::WriteEvent,
-    formats::{patch_stream, FileRecord, FormatStream},
+    events::{WriteEvent, EventLogFile},
+    formats::{patch_stream, EventLogFileRecord, EventLogFileStream},
+    commit::CommitHash,
     vfs::{self, File, OpenOptions},
     Result,
 };
@@ -22,13 +23,16 @@ use super::Patch;
 /// by clients to store changes that have not yet been applied
 /// to a remote server.
 pub struct PatchFile {
-    file: File,
-    file_path: PathBuf,
+    //file: File,
+    //file_path: PathBuf,
+    log_file: EventLogFile,
 }
 
 impl PatchFile {
     /// Create a new patch cache provider.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+
+        /*
         let file_path = path.as_ref().to_path_buf();
 
         let mut file = OpenOptions::new()
@@ -47,11 +51,14 @@ impl PatchFile {
         }
 
         Ok(Self { file, file_path })
+        */
+
+        Ok(Self { log_file: EventLogFile::new_patch(path).await? })
     }
 
     /// Read a patch from the file on disc.
-    pub(crate) async fn read(&self) -> Result<Patch<'static>> {
-        let buffer = vfs::read(&self.file_path).await?;
+    pub(crate) async fn read(&self) -> Result<Patch> {
+        let buffer = vfs::read(&self.log_file.file_path).await?;
         let patch: Patch = decode(&buffer).await?;
         Ok(patch)
     }
@@ -59,8 +66,8 @@ impl PatchFile {
     /// Get an iterator for the patch file.
     pub async fn iter(
         &self,
-    ) -> Result<FormatStream<FileRecord, Compat<File>>> {
-        patch_stream(&self.file_path).await
+    ) -> Result<EventLogFileStream> {
+        patch_stream(&self.log_file.file_path).await
     }
 
     /// Append some events to this patch cache.
@@ -72,7 +79,9 @@ impl PatchFile {
     pub async fn append<'a>(
         &mut self,
         events: Vec<WriteEvent<'a>>,
-    ) -> Result<Patch<'a>> {
+        last_commit: Option<CommitHash>,
+    ) -> Result<Patch> {
+
         // Load any existing events in to memory
         let mut all_events = if self.has_events().await? {
             let patch = self.read().await?;
@@ -80,14 +89,22 @@ impl PatchFile {
         } else {
             vec![]
         };
+        
+        let mut last_commit_hash = last_commit;
+        let mut records = Vec::new();
+        for event in &events {
+            let (commit, record) =
+                self.log_file.encode_event(event, last_commit_hash).await?;
+            records.push(record);
+            last_commit_hash = Some(commit);
+        }
+        
+        // In-memory records for the patch
+        let append_patch = Patch(records);
 
         // Append the incoming events to the file
-        let append_patch = Patch(events);
-        let append_buffer = encode(&append_patch).await?;
-        let append_buffer = &append_buffer[PATCH_IDENTITY.len()..];
-        self.file.write_all(append_buffer).await?;
-        self.file.flush().await?;
-
+        self.log_file.apply(events, None).await?;
+    
         // Append the given events on to any existing events
         // so we can return a new patch to the caller that contains
         // all the outstanding events
@@ -109,11 +126,11 @@ impl PatchFile {
 
     /// Determine if the patch cache has any events.
     pub async fn has_events(&self) -> Result<bool> {
-        Ok(self.file.metadata().await?.len() as usize > PATCH_IDENTITY.len())
+        Ok(self.log_file.file.metadata().await?.len() as usize > PATCH_IDENTITY.len())
     }
 
     /// Drain all events from the patch backing storage.
-    pub async fn drain(&mut self) -> Result<Patch<'static>> {
+    pub async fn drain(&mut self) -> Result<Patch> {
         let patch = self.read().await?;
         self.truncate().await?;
         Ok(patch)
@@ -130,13 +147,13 @@ impl PatchFile {
         let _ = OpenOptions::new()
             .write(true)
             .truncate(true)
-            .open(&self.file_path)
+            .open(&self.log_file.file_path)
             .await;
-        self.file.seek(SeekFrom::Start(0)).await?;
+        self.log_file.file.seek(SeekFrom::Start(0)).await?;
         let patch: Patch = Default::default();
         let buffer = encode(&patch).await?;
-        self.file.write_all(&buffer).await?;
-        self.file.flush().await?;
+        self.log_file.file.write_all(&buffer).await?;
+        self.log_file.file.flush().await?;
         Ok(())
     }
 }
@@ -165,8 +182,7 @@ mod test {
         assert_eq!(4, vfs::metadata(temp.path()).await?.len());
 
         let events = vec![mock_event.clone()];
-
-        let patch = patch_file.append(events).await?;
+        let patch = patch_file.append(events, None).await?;
 
         let new_len = vfs::metadata(temp.path()).await?.len();
         assert!(new_len > 4);
@@ -174,7 +190,7 @@ mod test {
         assert!(patch_file.has_events().await?);
 
         let more_events = vec![mock_event.clone()];
-        let next_patch = patch_file.append(more_events).await?;
+        let next_patch = patch_file.append(more_events, None).await?;
         let more_len = vfs::metadata(temp.path()).await?.len();
         assert!(more_len > new_len);
         assert_eq!(2, next_patch.0.len());
