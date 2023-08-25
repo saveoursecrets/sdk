@@ -1,7 +1,7 @@
 //! Patch represents a changeset of events to apply to a vault.
 use std::{
     io::SeekFrom,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
@@ -11,11 +11,10 @@ use crate::{
     constants::PATCH_IDENTITY,
     decode, encode,
     events::{EventLogFile, WriteEvent},
-    formats::{patch_stream, EventLogFileRecord, EventLogFileStream},
-    vfs::{self, File, OpenOptions},
+    formats::{patch_stream, EventLogFileStream},
+    vfs::{self, OpenOptions},
     Result,
 };
-use tokio_util::compat::Compat;
 
 use super::Patch;
 
@@ -23,35 +22,12 @@ use super::Patch;
 /// by clients to store changes that have not yet been applied
 /// to a remote server.
 pub struct PatchFile {
-    //file: File,
-    //file_path: PathBuf,
     log_file: EventLogFile,
 }
 
 impl PatchFile {
     /// Create a new patch cache provider.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        /*
-        let file_path = path.as_ref().to_path_buf();
-
-        let mut file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .append(true)
-            .open(path.as_ref())
-            .await?;
-
-        let size = file.metadata().await?.len();
-        if size == 0 {
-            let patch: Patch = Default::default();
-            let buffer = encode(&patch).await?;
-            file.write_all(&buffer).await?;
-            file.flush().await?;
-        }
-
-        Ok(Self { file, file_path })
-        */
-
         Ok(Self {
             log_file: EventLogFile::new_patch(path).await?,
         })

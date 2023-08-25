@@ -36,7 +36,6 @@ use std::{
 
 use futures::io::{BufReader, Cursor};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
-use tokio_util::compat::Compat;
 
 use binary_stream::futures::{BinaryReader, Decodable};
 use tempfile::NamedTempFile;
@@ -97,7 +96,8 @@ impl EventLogFile {
         Ok(file)
     }
 
-    pub(crate) async fn encode_event(
+    /// Encode an event into a record.
+    pub async fn encode_event(
         &self,
         event: &WriteEvent<'_>,
         last_commit: Option<CommitHash>,

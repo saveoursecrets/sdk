@@ -3,7 +3,7 @@ use crate::{
     constants::PATCH_IDENTITY,
     encoding::encoding_error,
     events::EventRecord,
-    formats::{EventLogFileRecord, FileIdentity},
+    formats::FileIdentity,
     patch::Patch,
 };
 
@@ -12,7 +12,7 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use std::io::{Result, SeekFrom};
+use std::io::Result;
 
 #[async_trait]
 impl Encodable for Patch {

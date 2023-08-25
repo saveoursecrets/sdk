@@ -1,20 +1,20 @@
 //! File streams.
-use std::{io::SeekFrom, ops::Range, path::Path};
+use std::{io::SeekFrom, ops::Range};
 
 use binary_stream::futures::{stream_length, BinaryReader};
 
 use crate::{
     encoding::encoding_options,
-    formats::{FileIdentity, FileItem},
+    formats::FileItem,
     vfs::File,
     Result,
 };
 
 use futures::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt as FuturesAsyncSeekExt,
+    AsyncRead, AsyncSeek, AsyncSeekExt as FuturesAsyncSeekExt,
     BufReader, Cursor,
 };
-use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
+use tokio_util::compat::Compat;
 
 /// Generic iterator for file formats.
 ///
