@@ -4,15 +4,12 @@ use std::{io::SeekFrom, ops::Range};
 use binary_stream::futures::{stream_length, BinaryReader};
 
 use crate::{
-    encoding::encoding_options,
-    formats::FileItem,
-    vfs::File,
-    Result,
+    encoding::encoding_options, formats::FileItem, vfs::File, Result,
 };
 
 use futures::io::{
-    AsyncRead, AsyncSeek, AsyncSeekExt as FuturesAsyncSeekExt,
-    BufReader, Cursor,
+    AsyncRead, AsyncSeek, AsyncSeekExt as FuturesAsyncSeekExt, BufReader,
+    Cursor,
 };
 use tokio_util::compat::Compat;
 

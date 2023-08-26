@@ -1,10 +1,7 @@
 //! Patch represents a changeset of events to apply to a vault.
 use crate::{
-    constants::PATCH_IDENTITY,
-    encoding::encoding_error,
-    events::EventRecord,
-    formats::FileIdentity,
-    patch::Patch,
+    constants::PATCH_IDENTITY, encoding::encoding_error, events::EventRecord,
+    formats::FileIdentity, patch::Patch,
 };
 
 use async_trait::async_trait;

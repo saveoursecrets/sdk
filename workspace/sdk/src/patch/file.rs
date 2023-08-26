@@ -1,8 +1,5 @@
 //! Patch represents a changeset of events to apply to a vault.
-use std::{
-    io::SeekFrom,
-    path::Path,
-};
+use std::{io::SeekFrom, path::Path};
 
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 
