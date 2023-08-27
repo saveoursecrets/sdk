@@ -2,6 +2,7 @@
 use super::{AeadPack, Nonce, PrivateKey};
 use crate::{Error, Result};
 use age::x25519::Recipient;
+use serde::{Serialize, Deserialize};
 use std::{fmt, str::FromStr};
 
 mod aesgcm256;
@@ -18,7 +19,7 @@ pub const AES_GCM_256: u8 = 2;
 pub const X25519: u8 = 3;
 
 /// Supported cipher algorithms.
-#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+#[derive(Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize)]
 pub enum Cipher {
     /// Cipher for XChaCha20Poly1305 encryption.
     XChaCha20Poly1305,

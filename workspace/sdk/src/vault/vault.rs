@@ -292,10 +292,8 @@ pub struct Summary {
     /// Vault name.
     pub(crate) name: String,
     /// Encryption cipher.
-    #[serde(skip)]
     pub(crate) cipher: Cipher,
     /// Key derivation function.
-    #[serde(skip)]
     pub(crate) kdf: KeyDerivation,
     /// Flags for the vault.
     pub(crate) flags: VaultFlags,

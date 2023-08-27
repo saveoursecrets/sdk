@@ -7,6 +7,7 @@ use argon2::{
     password_hash::{PasswordHash, PasswordHasher, SaltString},
     Argon2,
 };
+use serde::{Serialize, Deserialize};
 use balloon_hash::Balloon;
 use rand::Rng;
 use secrecy::{ExposeSecret, SecretString};
@@ -24,7 +25,7 @@ pub(crate) const SEED_SIZE: usize = 32;
 pub type Seed = [u8; SEED_SIZE];
 
 /// Supported key derivation functions.
-#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub enum KeyDerivation {
     /// Argon2 key derivation function.
     Argon2Id,
