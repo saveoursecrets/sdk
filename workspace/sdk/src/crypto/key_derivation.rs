@@ -7,10 +7,10 @@ use argon2::{
     password_hash::{PasswordHash, PasswordHasher, SaltString},
     Argon2,
 };
-use serde::{Serialize, Deserialize};
 use balloon_hash::Balloon;
 use rand::Rng;
 use secrecy::{ExposeSecret, SecretString};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{convert::AsRef, fmt, str::FromStr};
 

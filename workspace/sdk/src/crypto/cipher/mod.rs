@@ -2,7 +2,7 @@
 use super::{AeadPack, Nonce, PrivateKey};
 use crate::{Error, Result};
 use age::x25519::Recipient;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
 mod aesgcm256;
