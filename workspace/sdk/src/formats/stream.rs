@@ -1,24 +1,21 @@
 //! File streams.
-use std::{io::SeekFrom, ops::Range, path::Path};
+use std::{io::SeekFrom, ops::Range};
 
 use binary_stream::futures::{stream_length, BinaryReader};
 
 use crate::{
-    encoding::encoding_options,
-    formats::{FileIdentity, FileItem},
-    vfs::File,
-    Result,
+    encoding::encoding_options, formats::FileItem, vfs::File, Result,
 };
 
 use futures::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt as FuturesAsyncSeekExt,
-    BufReader, Cursor,
+    AsyncRead, AsyncSeek, AsyncSeekExt as FuturesAsyncSeekExt, BufReader,
+    Cursor,
 };
-use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
+use tokio_util::compat::Compat;
 
 /// Generic iterator for file formats.
 ///
-/// Supports files and in-memory buffers and can iterate lazily 
+/// Supports files and in-memory buffers and can iterate lazily
 /// in both directions.
 pub struct FormatStream<T, R>
 where

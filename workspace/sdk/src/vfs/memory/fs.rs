@@ -54,7 +54,7 @@ static FS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 #[cfg(debug_assertions)]
 /// Debug the root of the file system.
 pub(super) fn debug_root() {
-    println!("{:#?}", root_fs());
+    eprintln!("{:#?}", root_fs());
 }
 */
 

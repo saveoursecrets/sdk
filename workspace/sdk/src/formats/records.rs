@@ -90,7 +90,7 @@ impl VaultRecord {
 }
 
 /// Reference to a row in the event log.
-#[derive(Default, Debug, Eq)]
+#[derive(Default, Debug, Clone, Eq)]
 pub struct EventLogFileRecord {
     /// Byte offset for the record.
     offset: Range<u64>,
