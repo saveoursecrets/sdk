@@ -12,7 +12,7 @@
 use crate::{
     crypto::{csprng, AeadPack, Cipher, KeyDerivation, PrivateKey, Seed},
     decode, encode,
-    signer::{ecdsa::SingleParty, Signer},
+    signer::{ecdsa::{SingleParty, Address}, Signer},
     vault::VaultId,
     Error, Result,
 };
@@ -75,6 +75,7 @@ impl RecoveryOptions {
 /// recovery data.
 #[derive(Default)]
 pub struct RecoveryShares {
+    /// Secret shares.
     pub shares: Vec<Vec<u8>>,
 }
 
@@ -85,6 +86,7 @@ pub struct RecoveryPack {
     pub(crate) salt: String,
     pub(crate) seed: Seed,
     pub(crate) data: AeadPack,
+    pub(crate) address: Address,
 }
 
 impl RecoveryPack {
@@ -95,6 +97,7 @@ impl RecoveryPack {
         signer: &SingleParty,
         options: RecoveryOptions,
     ) -> Result<(RecoveryPack, RecoveryShares)> {
+        let address = signer.address()?;
         let signer_bytes = signer.to_bytes();
         let signer_hex = hex::encode(signer_bytes);
         let password = SecretString::new(signer_hex);
@@ -130,6 +133,7 @@ impl RecoveryPack {
                 salt: salt.to_string(),
                 seed,
                 data: encrypted_data,
+                address,
             },
             RecoveryShares { shares: key_shares },
         ))
