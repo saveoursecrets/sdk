@@ -16,11 +16,19 @@ use crate::{
     vault::VaultId,
     Error, Result,
 };
+
+use uuid::Uuid;
 use k256::{elliptic_curve::PrimeField, NonZeroScalar, Scalar, SecretKey};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use vsss_rs::{combine_shares, shamir};
+
+/// Type for recovery group identifiers.
+pub type RecoveryGroupId = Uuid;
+
+/// Type for recovery pack identifiers.
+pub type RecoveryPackId = Uuid;
 
 /// Recovery data maps vault identifiers to the
 /// vault passwords.
@@ -82,6 +90,7 @@ pub struct RecoveryShares {
 /// Encrypted recovery data.
 #[derive(Default, Serialize, Deserialize)]
 pub struct RecoveryPack {
+    pub(crate) id: RecoveryPackId,
     pub(crate) options: RecoveryOptions,
     pub(crate) salt: String,
     pub(crate) seed: Seed,
@@ -90,6 +99,11 @@ pub struct RecoveryPack {
 }
 
 impl RecoveryPack {
+    /// Unique identifier for this pack.
+    pub fn id(&self) -> &RecoveryPackId {
+        &self.id
+    }
+
     /// Create a new recovery pack encrypting the
     /// data using the given signing key.
     pub async fn encrypt(
@@ -129,6 +143,7 @@ impl RecoveryPack {
 
         Ok((
             Self {
+                id: RecoveryPackId::new_v4(),
                 options,
                 salt: salt.to_string(),
                 seed,
@@ -184,6 +199,7 @@ pub struct RecoveryParticipant<T> {
 /// Recovery group information.
 #[derive(Serialize, Deserialize)]
 pub struct RecoveryGroup<T> {
+    id: RecoveryGroupId,
     participants: Vec<RecoveryParticipant<T>>,
     options: RecoveryOptions,
     pack: RecoveryPack,
@@ -193,6 +209,11 @@ pub struct RecoveryGroup<T> {
 }
 
 impl<T> RecoveryGroup<T> {
+    /// Unique identifier for this group.
+    pub fn id(&self) -> &RecoveryGroupId {
+        &self.id
+    }
+
     /// Recovery secret shares.
     pub fn secret_shares(&self) -> &RecoveryShares {
         &self.shares
@@ -315,6 +336,7 @@ impl<T> RecoveryGroupBuilder<T> {
             RecoveryPack::encrypt(&self.data, &signer, self.options.clone())
                 .await?;
         Ok(RecoveryGroup {
+            id: RecoveryGroupId::new_v4(),
             participants: self.participants,
             options: self.options,
             pack,

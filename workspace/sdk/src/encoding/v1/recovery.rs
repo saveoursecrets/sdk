@@ -86,6 +86,7 @@ impl Encodable for RecoveryPack {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
+        writer.write_bytes(self.id.as_bytes()).await?;
         self.options.encode(&mut *writer).await?;
         writer.write_string(&self.salt).await?;
         writer.write_bytes(&self.seed).await?;
@@ -100,6 +101,13 @@ impl Decodable for RecoveryPack {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
+        let uuid: [u8; 16] = reader
+            .read_bytes(16)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
+        self.id = Uuid::from_bytes(uuid);
         self.options.decode(&mut *reader).await?;
         self.salt = reader.read_string().await?;
         self.seed = reader
@@ -108,7 +116,6 @@ impl Decodable for RecoveryPack {
             .as_slice()
             .try_into()
             .map_err(encoding_error)?;
-
         self.data.decode(&mut *reader).await?;
         Ok(())
     }
