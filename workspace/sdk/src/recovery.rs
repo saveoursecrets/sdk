@@ -187,24 +187,31 @@ pub struct RecoveryGroup<T> {
     participants: Vec<RecoveryParticipant<T>>,
     options: RecoveryOptions,
     pack: RecoveryPack,
+    public: bool,
     #[serde(skip)]
     shares: RecoveryShares,
 }
 
 impl<T> RecoveryGroup<T> {
-    /// The recovery secret shares.
+    /// Recovery secret shares.
     pub fn secret_shares(&self) -> &RecoveryShares {
         &self.shares
     }
 
-    /// The limit on secret shares.
+    /// Limit on secret shares.
     pub fn limit(&self) -> u8 {
         self.options.limit
     }
 
-    /// The threshold of secret shares required for recovery.
+    /// Threshold of secret shares required for recovery.
     pub fn threshold(&self) -> u8 {
         self.options.threshold
+    }
+
+    /// Whether this recovery group contains participants 
+    /// other than the account owner.
+    pub fn public(&self) -> bool {
+        self.public
     }
 
     /// Builder for a recovery group.
@@ -215,6 +222,7 @@ impl<T> RecoveryGroup<T> {
             signer: None,
             data: Default::default(),
             threshold: None,
+            public: false,
         }
     }
 }
@@ -235,6 +243,7 @@ pub struct RecoveryGroupBuilder<T> {
     signer: Option<SingleParty>,
     data: RecoveryData,
     threshold: Option<u8>,
+    public: bool,
 }
 
 impl<T> RecoveryGroupBuilder<T> {
@@ -249,6 +258,13 @@ impl<T> RecoveryGroupBuilder<T> {
             panic!("too many recovery group participants");
         }
         self.options.limit = self.participants.len() as u8;
+        self
+    }
+
+    /// Indicate whether this recovery group contains 
+    /// participants other than the account owner.
+    pub fn public(mut self, public: bool) -> Self {
+        self.public = public;
         self
     }
 
@@ -303,6 +319,7 @@ impl<T> RecoveryGroupBuilder<T> {
             options: self.options,
             pack,
             shares,
+            public: self.public,
         })
     }
 }
