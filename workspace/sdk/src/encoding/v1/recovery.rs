@@ -58,8 +58,8 @@ impl Encodable for RecoveryOptions {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        writer.write_u16(self.limit).await?;
-        writer.write_u16(self.threshold).await?;
+        writer.write_u8(self.limit).await?;
+        writer.write_u8(self.threshold).await?;
         self.cipher.encode(&mut *writer).await?;
         self.kdf.encode(&mut *writer).await?;
         Ok(())
@@ -72,8 +72,8 @@ impl Decodable for RecoveryOptions {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        self.limit = reader.read_u16().await?;
-        self.threshold = reader.read_u16().await?;
+        self.limit = reader.read_u8().await?;
+        self.threshold = reader.read_u8().await?;
         self.cipher.decode(&mut *reader).await?;
         self.kdf.decode(&mut *reader).await?;
         Ok(())

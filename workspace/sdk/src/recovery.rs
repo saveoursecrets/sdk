@@ -1,35 +1,30 @@
 //! Types for encrypting recovery data and splitting the secrets
 //! for social recovery.
 //!
-//! Recovery data maps vault identifiers to passwords. Recovery data is 
-//! encrypted using the private account signing key and the signing key 
-//! is then split using Shamir's secret sharing (SSS) so that the 
+//! Recovery data maps vault identifiers to passwords. Recovery data is
+//! encrypted using the private account signing key and the signing key
+//! is then split using Shamir's secret sharing (SSS) so that the
 //! recovery shares can be distributed amongst trusted parties.
 //!
-//! This module does not contain any networking or logic for 
+//! This module does not contain any networking or logic for
 //! secret share distribution.
 
 use crate::{
-    crypto::{
-        csprng, AeadPack, Cipher, KeyDerivation,
-        PrivateKey, Seed,
-    },
+    crypto::{csprng, AeadPack, Cipher, KeyDerivation, PrivateKey, Seed},
     decode, encode,
     signer::{ecdsa::SingleParty, Signer},
     vault::VaultId,
     Error, Result,
 };
-use k256::{
-    elliptic_curve::PrimeField, NonZeroScalar, Scalar,
-    SecretKey,
-};
+use k256::{elliptic_curve::PrimeField, NonZeroScalar, Scalar, SecretKey};
 use secrecy::SecretString;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use vsss_rs::{combine_shares, shamir};
 
 /// Recovery data maps vault identifiers to the
 /// vault passwords.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RecoveryData {
     vaults: HashMap<VaultId, SecretString>,
 }
@@ -47,23 +42,23 @@ impl RecoveryData {
 }
 
 /// Recovery options.
-#[derive(Default)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct RecoveryOptions {
     /// Cipher for encryption and decryption.
     pub(crate) cipher: Cipher,
     /// Key derivation function.
     pub(crate) kdf: KeyDerivation,
     /// Threshold for secret recovery.
-    pub(crate) threshold: u16,
+    pub(crate) threshold: u8,
     /// Number of secret shares to split.
-    pub(crate) limit: u16,
+    pub(crate) limit: u8,
 }
 
 impl RecoveryOptions {
     /// Create new recovery options.
     pub fn new(
-        threshold: u16,
-        limit: u16,
+        threshold: u8,
+        limit: u8,
         cipher: Option<Cipher>,
         kdf: Option<KeyDerivation>,
     ) -> Self {
@@ -78,12 +73,13 @@ impl RecoveryOptions {
 
 /// Shares in the secret used to encrypt the
 /// recovery data.
+#[derive(Default)]
 pub struct RecoveryShares {
     pub shares: Vec<Vec<u8>>,
 }
 
 /// Encrypted recovery data.
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct RecoveryPack {
     pub(crate) options: RecoveryOptions,
     pub(crate) salt: String,
@@ -175,15 +171,152 @@ impl RecoveryPack {
     }
 }
 
+/// Participant in a recovery group.
+#[derive(Serialize, Deserialize)]
+pub struct RecoveryParticipant<T> {
+    user_info: T,
+}
+
+/// Recovery group information.
+#[derive(Serialize, Deserialize)]
+pub struct RecoveryGroup<T> {
+    participants: Vec<RecoveryParticipant<T>>,
+    options: RecoveryOptions,
+    pack: RecoveryPack,
+    #[serde(skip)]
+    shares: RecoveryShares,
+}
+
+impl<T> RecoveryGroup<T> {
+    /// The recovery secret shares.
+    pub fn secret_shares(&self) -> &RecoveryShares {
+        &self.shares
+    }
+
+    /// The limit on secret shares.
+    pub fn limit(&self) -> u8 {
+        self.options.limit
+    }
+
+    /// The threshold of secret shares required for recovery.
+    pub fn threshold(&self) -> u8 {
+        self.options.threshold
+    }
+
+    /// Builder for a recovery group.
+    pub fn builder() -> RecoveryGroupBuilder<T> {
+        RecoveryGroupBuilder {
+            participants: Vec::new(),
+            options: Default::default(),
+            signer: None,
+            data: Default::default(),
+            threshold: None,
+        }
+    }
+}
+
+impl<T> From<RecoveryGroup<T>> for RecoveryPack {
+    fn from(value: RecoveryGroup<T>) -> Self {
+        value.pack
+    }
+}
+
+/// Recovery group builder.
+///
+/// Unless explicitly set the threshold will default to the number 
+/// of participants.
+pub struct RecoveryGroupBuilder<T> {
+    participants: Vec<RecoveryParticipant<T>>,
+    options: RecoveryOptions,
+    signer: Option<SingleParty>,
+    data: RecoveryData,
+    threshold: Option<u8>,
+}
+
+impl<T> RecoveryGroupBuilder<T> {
+    /// Add a participant to the recovery group.
+    ///
+    /// # Panics
+    ///
+    /// If the number of participants exceeds `u8::MAX`.
+    pub fn add_participant(mut self, user: RecoveryParticipant<T>) -> Self {
+        self.participants.push(user);
+        if self.participants.len() > u8::MAX as usize {
+            panic!("too many recovery group participants");
+        }
+        self.options.limit = self.participants.len() as u8;
+        self
+    }
+
+    /// Set the recovery group data.
+    pub fn data(mut self, data: RecoveryData) -> Self {
+        self.data = data;
+        self
+    }
+
+    /// Set the threshold for recovery.
+    pub fn threshold(mut self, threshold: u8) -> Self {
+        self.threshold = Some(threshold);
+        self
+    }
+
+    /// Set the cipher used to encrypt the recovery pack.
+    pub fn cipher(mut self, cipher: Cipher) -> Self {
+        self.options.cipher = cipher;
+        self
+    }
+
+    /// Set the key derivation function used when
+    /// encrypting the recovery pack.
+    pub fn kdf(mut self, kdf: KeyDerivation) -> Self {
+        self.options.kdf = kdf;
+        self
+    }
+
+    /// Set the account signing key.
+    pub fn signer(mut self, signer: SingleParty) -> Self {
+        self.signer = Some(signer);
+        self
+    }
+
+    /// Build the recovery group.
+    pub async fn build(mut self) -> Result<RecoveryGroup<T>> {
+        let threshold = self
+            .threshold
+            .unwrap_or_else(|| self.participants.len() as u8);
+
+        if threshold < 2 {
+            return Err(Error::RecoveryThreshold(threshold));
+        }
+        self.options.threshold = threshold;
+
+        let signer = self.signer.take().ok_or_else(|| Error::NoSigner)?;
+        let (pack, shares) =
+            RecoveryPack::encrypt(&self.data, &signer, self.options.clone())
+                .await?;
+        Ok(RecoveryGroup {
+            participants: self.participants,
+            options: self.options,
+            pack,
+            shares,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{vault::VaultId, encode, decode};
+    use crate::{decode, encode, vault::VaultId};
     use anyhow::Result;
     use secrecy::ExposeSecret;
+    use serde::{Deserialize, Serialize};
 
-    #[tokio::test]
-    pub async fn recovery_symmetric() -> Result<()> {
+    #[derive(Serialize, Deserialize)]
+    pub struct MockUserInfo {
+        email: String,
+    }
+
+    fn mock_data() -> (VaultId, &'static str, RecoveryData) {
         let mock_id = VaultId::new_v4();
         let mock_password = "mock-password";
         let mut data: RecoveryData = Default::default();
@@ -191,7 +324,12 @@ mod tests {
             mock_id.clone(),
             SecretString::new(mock_password.to_string()),
         );
+        (mock_id, mock_password, data)
+    }
 
+    #[tokio::test]
+    pub async fn recovery_symmetric() -> Result<()> {
+        let (mock_id, mock_password, data) = mock_data();
         let signer = SingleParty::new_random();
         let threshold = 2;
         let limit = 3;
@@ -200,7 +338,7 @@ mod tests {
         let (pack, recovery) =
             RecoveryPack::encrypt(&data, &signer, options).await?;
         assert_eq!(3, recovery.shares.len());
-        
+
         // Verify encoding and decoding
         let encoded_pack = encode(&pack).await?;
         let pack: RecoveryPack = decode(&encoded_pack).await?;
@@ -217,6 +355,51 @@ mod tests {
         };
         let (recovered_signer, recovered_data) =
             pack.decrypt(&recovery_shares).await?;
+        let recovered_password =
+            recovered_data.vaults().get(&mock_id).unwrap();
+        assert_eq!(signer.to_bytes(), recovered_signer.to_bytes());
+        assert_eq!(mock_password, recovered_password.expose_secret());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    pub async fn recovery_group() -> Result<()> {
+        let (mock_id, mock_password, data) = mock_data();
+        let signer = SingleParty::new_random();
+        let group = RecoveryGroup::<MockUserInfo>::builder()
+            .add_participant(RecoveryParticipant {
+                user_info: MockUserInfo {
+                    email: "user1@example.com".to_string(),
+                },
+            })
+            .add_participant(RecoveryParticipant {
+                user_info: MockUserInfo {
+                    email: "user2@example.com".to_string(),
+                },
+            })
+            .add_participant(RecoveryParticipant {
+                user_info: MockUserInfo {
+                    email: "user3@example.com".to_string(),
+                },
+            })
+            .threshold(2)
+            .signer(signer.clone())
+            .data(data.clone())
+            .build()
+            .await?;
+
+        assert_eq!(3, group.limit());
+        assert_eq!(2, group.threshold());
+
+        let recovery_shares = RecoveryShares {
+            shares: group.secret_shares().shares[0..2].to_vec(),
+        };
+        
+        let pack: RecoveryPack = group.into();
+        let (recovered_signer, recovered_data) =
+            pack.decrypt(&recovery_shares).await?;
+
         let recovered_password =
             recovered_data.vaults().get(&mock_id).unwrap();
         assert_eq!(signer.to_bytes(), recovered_signer.to_bytes());

@@ -56,6 +56,14 @@ pub enum Error {
     #[error("no encryption recipients")]
     NoRecipients,
 
+    /// Error generated when a signing key is required.
+    #[error("no signer")]
+    NoSigner,
+
+    /// Error generated when a recovery group threshold is too small.
+    #[error("recovery group threshold '{0}' is too small, must be >= 2")]
+    RecoveryThreshold(u8),
+
     /// Error generated attempting to encrypt or decrypt with the
     /// wrong cipher.
     #[error(r#"bad cipher, expecting "{0}" but got "{1}""#)]
