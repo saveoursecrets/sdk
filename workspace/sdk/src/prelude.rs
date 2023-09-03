@@ -10,3 +10,6 @@ pub use crate::signer::ecdsa::Address;
 pub use crate::vault::secret::*;
 pub use crate::vault::*;
 pub use crate::{decode, encode, Timestamp};
+
+#[cfg(feature = "recovery")]
+pub use crate::recovery::*;

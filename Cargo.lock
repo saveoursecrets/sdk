@@ -1717,6 +1717,7 @@ dependencies = [
  "ff",
  "generic-array",
  "group",
+ "hkdf",
  "pkcs8",
  "rand_core 0.6.4",
  "sec1",
@@ -5656,7 +5657,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "aes-gcm 0.10.2",
  "age",
@@ -5711,6 +5712,7 @@ dependencies = [
  "urn",
  "uuid",
  "vcard4",
+ "vsss-rs",
  "walkdir",
  "web3-address",
  "web3-signature",
@@ -5908,6 +5910,26 @@ dependencies = [
  "proc-macro2 1.0.66",
  "quote 1.0.32",
  "syn 2.0.28",
+]
+
+[[package]]
+name = "thiserror-impl-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58e6318948b519ba6dc2b442a6d0b904ebfb8d411a3ad3e07843615a72249758"
+dependencies = [
+ "proc-macro2 1.0.66",
+ "quote 1.0.32",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "thiserror-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3ad459d94dd517257cc96add8a43190ee620011bb6e6cdc82dafd97dfafafea"
+dependencies = [
+ "thiserror-impl-no-std",
 ]
 
 [[package]]
@@ -6610,6 +6632,22 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+
+[[package]]
+name = "vsss-rs"
+version = "3.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f368a01a79af8f2fa45e20a2a478a9799c631c4a7c598563e2c94b2211f750cb"
+dependencies = [
+ "elliptic-curve",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+ "serde",
+ "subtle",
+ "thiserror-no-std",
+ "zeroize",
+]
 
 [[package]]
 name = "waker-fn"

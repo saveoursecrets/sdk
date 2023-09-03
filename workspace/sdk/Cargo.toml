@@ -12,9 +12,11 @@ repository = "https://github.com/saveoursecrets/sdk"
 crate-type = ["cdylib", "rlib"]
 
 [features]
+default = ["recovery"]
 mem-fs = []
 test-utils = ["dep:anyhow"]
 keyring = ["dep:keyring"]
+recovery = ["dep:vsss-rs"]
 
 [dependencies]
 async-trait = "0.1"
@@ -67,7 +69,9 @@ sanitize-filename = "0.4"
 tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
 futures-util = "0.3"
 mpc-protocol = "0.4.1"
+
 keyring = {version = "2", optional = true }
+vsss-rs = {version = "3", optional = true }
 
 [dependencies.binary-stream]
 version = "8.0.0"
