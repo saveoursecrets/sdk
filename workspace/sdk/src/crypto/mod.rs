@@ -1,6 +1,7 @@
 //! Cryptographic routines and types.
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 
 mod cipher;
 mod key_derivation;
@@ -21,12 +22,19 @@ pub fn csprng() -> impl CryptoRng + Rng {
 }
 
 /// Enumeration of the sizes for nonces.
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub enum Nonce {
     /// Standard 12 byte nonce used by AES-GCM.
-    Nonce12([u8; 12]),
+    Nonce12(
+        #[serde_as(as = "Base64")]
+        [u8; 12]
+    ),
     /// Extended 24 byte nonce used by XChaCha20Poly1305.
-    Nonce24([u8; 24]),
+    Nonce24(
+        #[serde_as(as = "Base64")]
+        [u8; 24]
+    ),
 }
 
 impl Nonce {
@@ -59,11 +67,13 @@ impl AsRef<[u8]> for Nonce {
 }
 
 /// Encrypted data with the nonce.
+#[serde_as]
 #[derive(Serialize, Deserialize, Default, Debug, Eq, PartialEq, Clone)]
 pub struct AeadPack {
     /// Number once value.
     pub nonce: Nonce,
     /// Encrypted cipher text.
+    #[serde_as(as = "Base64")]
     pub ciphertext: Vec<u8>,
 }
 

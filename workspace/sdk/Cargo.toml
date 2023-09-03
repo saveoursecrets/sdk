@@ -37,6 +37,7 @@ subtle = "2"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
+serde_with = { version = "3", features = ["base64"] }
 # matches the version in k256
 sha3 = "0.10.6"
 sha2 = "0.10.6"
