@@ -232,12 +232,15 @@ impl Service for EventLogService {
                     match comparison {
                         Comparison::Equal => {
                             // TODO: |_| StatusCode::BAD_REQUEST
-                            let patch: Patch<'static> =
+                            let patch: Patch =
                                 decode(request.body())
                                     .await
                                     .map_err(Box::from)?;
 
-                            let change_set = patch.0;
+                            let mut change_set = Vec::new();
+                            for record in &patch.0 {
+                                change_set.push(record.decode_event().await?);
+                            }
 
                             // Setting vault name requires special handling
                             // as we need to update the vault header on disc

@@ -36,7 +36,7 @@ pub(crate) async fn apply_patch(
     patch_file: &mut PatchFile,
     events: Vec<WriteEvent<'static>>,
 ) -> Result<StatusCode> {
-    let patch = patch_file.append(events).await?;
+    let patch = patch_file.append(events, None).await?;
 
     let client_proof = event_log_file.tree().head()?;
 
@@ -44,7 +44,7 @@ pub(crate) async fn apply_patch(
         || client.apply_patch(
             *summary.id(),
             client_proof.clone(),
-            patch.clone().into_owned(),
+            patch.clone(),
         ),
         client
     );
@@ -56,7 +56,7 @@ pub(crate) async fn apply_patch(
             // Apply changes to the local event log file
             let mut changes = Vec::new();
             for event in patch.0 {
-                changes.push(event);
+                changes.push(event.decode_event().await?);
             }
 
             // Pass the expected root hash so changes are reverted
@@ -79,11 +79,15 @@ pub(crate) async fn apply_patch(
             // indicates that we are behind the remote so we
             // can try to pull again and try to patch afterwards
             if match_proof.is_some() {
+                let mut events = Vec::new();
+                for record in &patch.0 {
+                    events.push(record.decode_event().await?);
+                }
                 Err(Error::ConflictBehind {
                     summary: summary.clone(),
                     local: client_proof.into(),
                     remote: server_proof.into(),
-                    events: patch.0.clone(),
+                    events,
                 })
 
                 /*
@@ -164,7 +168,11 @@ pub async fn apply_patch_file(
         // Must drain() the patch file as calling
         // patch_vault() will append them again in
         // case of failure
-        let events = patch_file.drain().await?.0;
+        let records = patch_file.drain().await?.0;
+        let mut events = Vec::new();
+        for record in records {
+            events.push(record.decode_event().await?);
+        }
 
         tracing::debug!(events = events.len(), "apply patch file events");
 
