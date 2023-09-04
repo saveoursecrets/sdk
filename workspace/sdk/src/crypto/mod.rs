@@ -26,15 +26,9 @@ pub fn csprng() -> impl CryptoRng + Rng {
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub enum Nonce {
     /// Standard 12 byte nonce used by AES-GCM.
-    Nonce12(
-        #[serde_as(as = "Base64")]
-        [u8; 12]
-    ),
+    Nonce12(#[serde_as(as = "Base64")] [u8; 12]),
     /// Extended 24 byte nonce used by XChaCha20Poly1305.
-    Nonce24(
-        #[serde_as(as = "Base64")]
-        [u8; 24]
-    ),
+    Nonce24(#[serde_as(as = "Base64")] [u8; 24]),
 }
 
 impl Nonce {

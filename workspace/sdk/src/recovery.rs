@@ -12,16 +12,19 @@
 use crate::{
     crypto::{csprng, AeadPack, Cipher, KeyDerivation, PrivateKey, Seed},
     decode, encode,
-    signer::{ecdsa::{SingleParty, Address}, Signer},
+    signer::{
+        ecdsa::{Address, SingleParty},
+        Signer,
+    },
     vault::VaultId,
     Error, Result,
 };
 
-use uuid::Uuid;
 use k256::{elliptic_curve::PrimeField, NonZeroScalar, Scalar, SecretKey};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 use vsss_rs::{combine_shares, shamir};
 
 /// Type for recovery group identifiers.
@@ -92,6 +95,7 @@ pub struct RecoveryShares {
 pub struct RecoveryPack {
     pub(crate) id: RecoveryPackId,
     pub(crate) options: RecoveryOptions,
+    pub(crate) vaults: Vec<VaultId>,
     pub(crate) salt: String,
     pub(crate) seed: Seed,
     pub(crate) data: AeadPack,
@@ -124,6 +128,8 @@ impl RecoveryPack {
             Some(&seed),
         )?);
 
+        let vaults: Vec<VaultId> = data.vaults.keys().map(|k| *k).collect();
+
         let encoded = encode(data).await?;
         let encrypted_data = options
             .cipher
@@ -145,6 +151,7 @@ impl RecoveryPack {
             Self {
                 id: RecoveryPackId::new_v4(),
                 options,
+                vaults,
                 salt: salt.to_string(),
                 seed,
                 data: encrypted_data,
@@ -229,7 +236,7 @@ impl<T> RecoveryGroup<T> {
         self.options.threshold
     }
 
-    /// Whether this recovery group contains participants 
+    /// Whether this recovery group contains participants
     /// other than the account owner.
     pub fn public(&self) -> bool {
         self.public
@@ -256,7 +263,7 @@ impl<T> From<RecoveryGroup<T>> for RecoveryPack {
 
 /// Recovery group builder.
 ///
-/// Unless explicitly set the threshold will default to the number 
+/// Unless explicitly set the threshold will default to the number
 /// of participants.
 pub struct RecoveryGroupBuilder<T> {
     participants: Vec<RecoveryParticipant<T>>,
@@ -282,7 +289,7 @@ impl<T> RecoveryGroupBuilder<T> {
         self
     }
 
-    /// Indicate whether this recovery group contains 
+    /// Indicate whether this recovery group contains
     /// participants other than the account owner.
     pub fn public(mut self, public: bool) -> Self {
         self.public = public;
@@ -438,7 +445,7 @@ mod tests {
         let recovery_shares = RecoveryShares {
             shares: group.secret_shares().shares[0..2].to_vec(),
         };
-        
+
         let pack: RecoveryPack = group.into();
         let (recovered_signer, recovered_data) =
             pack.decrypt(&recovery_shares).await?;
