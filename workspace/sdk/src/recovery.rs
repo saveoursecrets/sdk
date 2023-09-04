@@ -204,6 +204,12 @@ pub struct RecoveryParticipant<T> {
 }
 
 impl<T> RecoveryParticipant<T> {
+    
+    /// Create a new recovery participant.
+    pub fn new(user_info: T) -> Self {
+        Self { user_info }
+    }
+
     /// User information for the participant.
     pub fn info(&self) -> &T {
         &self.user_info
@@ -437,21 +443,21 @@ mod tests {
         let (mock_id, mock_password, data) = mock_data();
         let signer = SingleParty::new_random();
         let (group, secret_shares) = RecoveryGroup::<MockUserInfo>::builder()
-            .add_participant(RecoveryParticipant {
-                user_info: MockUserInfo {
+            .add_participant(RecoveryParticipant::new(
+                MockUserInfo {
                     email: "user1@example.com".to_string(),
                 },
-            })
-            .add_participant(RecoveryParticipant {
-                user_info: MockUserInfo {
+            ))
+            .add_participant(RecoveryParticipant::new(
+                MockUserInfo {
                     email: "user2@example.com".to_string(),
                 },
-            })
-            .add_participant(RecoveryParticipant {
-                user_info: MockUserInfo {
+            ))
+            .add_participant(RecoveryParticipant::new(
+                MockUserInfo {
                     email: "user3@example.com".to_string(),
                 },
-            })
+            ))
             .threshold(2)
             .signer(signer.clone())
             .data(data.clone())
