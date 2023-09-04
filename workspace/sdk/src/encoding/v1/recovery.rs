@@ -87,6 +87,10 @@ impl Encodable for RecoveryPack {
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         writer.write_bytes(self.id.as_bytes()).await?;
+        writer.write_u32(self.vaults.len() as u32).await?;
+        for id in &self.vaults {
+            writer.write_bytes(id.as_bytes()).await?;
+        }
         self.options.encode(&mut *writer).await?;
         writer.write_string(&self.salt).await?;
         writer.write_bytes(&self.seed).await?;
@@ -108,6 +112,18 @@ impl Decodable for RecoveryPack {
             .try_into()
             .map_err(encoding_error)?;
         self.id = Uuid::from_bytes(uuid);
+        
+        let len = reader.read_u32().await? as usize;
+        for _ in 0..len {
+            let uuid: [u8; 16] = reader
+                .read_bytes(16)
+                .await?
+                .as_slice()
+                .try_into()
+                .map_err(encoding_error)?;
+            self.vaults.push(Uuid::from_bytes(uuid));
+        }
+
         self.options.decode(&mut *reader).await?;
         self.salt = reader.read_string().await?;
         self.seed = reader
