@@ -203,6 +203,13 @@ pub struct RecoveryParticipant<T> {
     user_info: T,
 }
 
+impl<T> RecoveryParticipant<T> {
+    /// User information for the participant.
+    pub fn info(&self) -> &T {
+        &self.user_info
+    }
+}
+
 /// Recovery group information.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RecoveryGroup<T> {
