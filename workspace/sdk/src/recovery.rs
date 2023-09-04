@@ -219,6 +219,11 @@ impl<T> RecoveryGroup<T> {
         &self.id
     }
 
+    /// Address of the account.
+    pub fn address(&self) -> &Address {
+        &self.pack.address
+    }
+
     /// Limit on secret shares.
     pub fn limit(&self) -> u8 {
         self.options.limit
