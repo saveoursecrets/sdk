@@ -53,7 +53,7 @@ impl RecoveryData {
 }
 
 /// Recovery options.
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct RecoveryOptions {
     /// Cipher for encryption and decryption.
     pub(crate) cipher: Cipher,
@@ -91,7 +91,7 @@ pub struct RecoveryShares {
 }
 
 /// Encrypted recovery data.
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct RecoveryPack {
     pub(crate) id: RecoveryPackId,
     pub(crate) options: RecoveryOptions,
@@ -198,32 +198,25 @@ impl RecoveryPack {
 }
 
 /// Participant in a recovery group.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RecoveryParticipant<T> {
     user_info: T,
 }
 
 /// Recovery group information.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RecoveryGroup<T> {
     id: RecoveryGroupId,
     participants: Vec<RecoveryParticipant<T>>,
     options: RecoveryOptions,
     pack: RecoveryPack,
     public: bool,
-    #[serde(skip)]
-    shares: RecoveryShares,
 }
 
 impl<T> RecoveryGroup<T> {
     /// Unique identifier for this group.
     pub fn id(&self) -> &RecoveryGroupId {
         &self.id
-    }
-
-    /// Recovery secret shares.
-    pub fn secret_shares(&self) -> &RecoveryShares {
-        &self.shares
     }
 
     /// Limit on secret shares.
@@ -328,7 +321,7 @@ impl<T> RecoveryGroupBuilder<T> {
     }
 
     /// Build the recovery group.
-    pub async fn build(mut self) -> Result<RecoveryGroup<T>> {
+    pub async fn build(mut self) -> Result<(RecoveryGroup<T>, RecoveryShares)> {
         let threshold = self
             .threshold
             .unwrap_or_else(|| self.participants.len() as u8);
@@ -342,14 +335,13 @@ impl<T> RecoveryGroupBuilder<T> {
         let (pack, shares) =
             RecoveryPack::encrypt(&self.data, &signer, self.options.clone())
                 .await?;
-        Ok(RecoveryGroup {
+        Ok((RecoveryGroup {
             id: RecoveryGroupId::new_v4(),
             participants: self.participants,
             options: self.options,
             pack,
-            shares,
             public: self.public,
-        })
+        }, shares))
     }
 }
 
@@ -417,7 +409,7 @@ mod tests {
     pub async fn recovery_group() -> Result<()> {
         let (mock_id, mock_password, data) = mock_data();
         let signer = SingleParty::new_random();
-        let group = RecoveryGroup::<MockUserInfo>::builder()
+        let (group, secret_shares) = RecoveryGroup::<MockUserInfo>::builder()
             .add_participant(RecoveryParticipant {
                 user_info: MockUserInfo {
                     email: "user1@example.com".to_string(),
@@ -443,7 +435,7 @@ mod tests {
         assert_eq!(2, group.threshold());
 
         let recovery_shares = RecoveryShares {
-            shares: group.secret_shares().shares[0..2].to_vec(),
+            shares: secret_shares.shares[0..2].to_vec(),
         };
 
         let pack: RecoveryPack = group.into();
