@@ -111,6 +111,21 @@ impl RecoveryPack {
         &self.id
     }
 
+    /// Recovery options.
+    pub fn options(&self) -> &RecoveryOptions {
+        &self.options
+    }
+
+    /// Account address for this recovery pack.
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+
+    /// Identifiers for vaults that are included in the recovery pack.
+    pub fn vaults(&self) -> &[VaultId] {
+        self.vaults.as_slice()
+    }
+
     /// Create a new recovery pack encrypting the
     /// data using the given signing key.
     pub async fn encrypt(
@@ -222,6 +237,7 @@ impl<T> RecoveryParticipant<T> {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RecoveryGroup<T> {
     id: RecoveryGroupId,
+    name: String,
     participants: Vec<RecoveryParticipant<T>>,
     options: RecoveryOptions,
     pack: RecoveryPack,
@@ -232,6 +248,11 @@ impl<T> RecoveryGroup<T> {
     /// Unique identifier for this group.
     pub fn id(&self) -> &RecoveryGroupId {
         &self.id
+    }
+
+    /// Name of the recovery group.
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// Collection of recovery group participants.
@@ -268,6 +289,7 @@ impl<T> RecoveryGroup<T> {
     /// Builder for a recovery group.
     pub fn builder() -> RecoveryGroupBuilder<T> {
         RecoveryGroupBuilder {
+            name: String::from("Untitled"),
             participants: Vec::new(),
             options: Default::default(),
             signer: None,
@@ -289,6 +311,7 @@ impl<T> From<RecoveryGroup<T>> for RecoveryPack {
 /// Unless explicitly set the threshold will default to the number
 /// of participants.
 pub struct RecoveryGroupBuilder<T> {
+    name: String,
     participants: Vec<RecoveryParticipant<T>>,
     options: RecoveryOptions,
     signer: Option<SingleParty>,
@@ -309,6 +332,12 @@ impl<T> RecoveryGroupBuilder<T> {
             panic!("too many recovery group participants");
         }
         self.options.limit = self.participants.len() as u8;
+        self
+    }
+
+    /// Set the recovery group name.
+    pub fn name(mut self, name: String) -> Self {
+        self.name = name;
         self
     }
 
@@ -370,6 +399,7 @@ impl<T> RecoveryGroupBuilder<T> {
         Ok((
             RecoveryGroup {
                 id: RecoveryGroupId::new_v4(),
+                name: self.name,
                 participants: self.participants,
                 options: self.options,
                 pack,
