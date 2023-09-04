@@ -1,6 +1,8 @@
 //! Write ahead log types and traits.
 use crate::{
     commit::CommitHash, formats::EventLogFileRecord, timestamp::Timestamp,
+    events::WriteEvent,
+    Result, decode,
 };
 
 mod file;
@@ -37,6 +39,12 @@ impl EventRecord {
     /// Get the event bytes the record.
     pub fn event_bytes(&self) -> &[u8] {
         self.3.as_slice()
+    }
+    
+    /// Decode this event record into a write event.
+    pub async fn decode_event(&self) -> Result<WriteEvent<'static>> {
+        let event: WriteEvent<'static> = decode(&self.3).await?;
+        Ok(event)
     }
 }
 
