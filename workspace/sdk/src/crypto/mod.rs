@@ -24,6 +24,7 @@ pub fn csprng() -> impl CryptoRng + Rng {
 /// Enumeration of the sizes for nonces.
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum Nonce {
     /// Standard 12 byte nonce used by AES-GCM.
     Nonce12(#[serde_as(as = "Base64")] [u8; 12]),
