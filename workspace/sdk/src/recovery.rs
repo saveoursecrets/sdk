@@ -219,6 +219,11 @@ impl<T> RecoveryGroup<T> {
         &self.id
     }
 
+    /// Collection of recovery group participants.
+    pub fn participants(&self) -> &[RecoveryParticipant<T>] {
+        self.participants.as_slice()
+    }
+
     /// Recovery pack.
     pub fn recovery_pack(&self) -> &RecoveryPack {
         &self.pack
