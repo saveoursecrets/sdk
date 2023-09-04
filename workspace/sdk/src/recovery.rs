@@ -23,6 +23,7 @@ use crate::{
 use k256::{elliptic_curve::PrimeField, NonZeroScalar, Scalar, SecretKey};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 use std::collections::HashMap;
 use uuid::Uuid;
 use vsss_rs::{combine_shares, shamir};
@@ -91,12 +92,14 @@ pub struct RecoveryShares {
 }
 
 /// Encrypted recovery data.
+#[serde_as]
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct RecoveryPack {
     pub(crate) id: RecoveryPackId,
     pub(crate) options: RecoveryOptions,
     pub(crate) vaults: Vec<VaultId>,
     pub(crate) salt: String,
+    #[serde_as(as = "Base64")]
     pub(crate) seed: Seed,
     pub(crate) data: AeadPack,
     pub(crate) address: Address,
@@ -204,7 +207,6 @@ pub struct RecoveryParticipant<T> {
 }
 
 impl<T> RecoveryParticipant<T> {
-    
     /// Create a new recovery participant.
     pub fn new(user_info: T) -> Self {
         Self { user_info }
@@ -443,21 +445,15 @@ mod tests {
         let (mock_id, mock_password, data) = mock_data();
         let signer = SingleParty::new_random();
         let (group, secret_shares) = RecoveryGroup::<MockUserInfo>::builder()
-            .add_participant(RecoveryParticipant::new(
-                MockUserInfo {
-                    email: "user1@example.com".to_string(),
-                },
-            ))
-            .add_participant(RecoveryParticipant::new(
-                MockUserInfo {
-                    email: "user2@example.com".to_string(),
-                },
-            ))
-            .add_participant(RecoveryParticipant::new(
-                MockUserInfo {
-                    email: "user3@example.com".to_string(),
-                },
-            ))
+            .add_participant(RecoveryParticipant::new(MockUserInfo {
+                email: "user1@example.com".to_string(),
+            }))
+            .add_participant(RecoveryParticipant::new(MockUserInfo {
+                email: "user2@example.com".to_string(),
+            }))
+            .add_participant(RecoveryParticipant::new(MockUserInfo {
+                email: "user3@example.com".to_string(),
+            }))
             .threshold(2)
             .signer(signer.clone())
             .data(data.clone())

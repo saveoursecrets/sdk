@@ -232,10 +232,9 @@ impl Service for EventLogService {
                     match comparison {
                         Comparison::Equal => {
                             // TODO: |_| StatusCode::BAD_REQUEST
-                            let patch: Patch =
-                                decode(request.body())
-                                    .await
-                                    .map_err(Box::from)?;
+                            let patch: Patch = decode(request.body())
+                                .await
+                                .map_err(Box::from)?;
 
                             let mut change_set = Vec::new();
                             for record in &patch.0 {
