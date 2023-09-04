@@ -112,7 +112,7 @@ impl Decodable for RecoveryPack {
             .try_into()
             .map_err(encoding_error)?;
         self.id = Uuid::from_bytes(uuid);
-        
+
         let len = reader.read_u32().await? as usize;
         for _ in 0..len {
             let uuid: [u8; 16] = reader

@@ -219,6 +219,11 @@ impl<T> RecoveryGroup<T> {
         &self.id
     }
 
+    /// Recovery pack.
+    pub fn recovery_pack(&self) -> &RecoveryPack {
+        &self.pack
+    }
+
     /// Address of the account.
     pub fn address(&self) -> &Address {
         &self.pack.address
@@ -326,7 +331,9 @@ impl<T> RecoveryGroupBuilder<T> {
     }
 
     /// Build the recovery group.
-    pub async fn build(mut self) -> Result<(RecoveryGroup<T>, RecoveryShares)> {
+    pub async fn build(
+        mut self,
+    ) -> Result<(RecoveryGroup<T>, RecoveryShares)> {
         let threshold = self
             .threshold
             .unwrap_or_else(|| self.participants.len() as u8);
@@ -340,13 +347,16 @@ impl<T> RecoveryGroupBuilder<T> {
         let (pack, shares) =
             RecoveryPack::encrypt(&self.data, &signer, self.options.clone())
                 .await?;
-        Ok((RecoveryGroup {
-            id: RecoveryGroupId::new_v4(),
-            participants: self.participants,
-            options: self.options,
-            pack,
-            public: self.public,
-        }, shares))
+        Ok((
+            RecoveryGroup {
+                id: RecoveryGroupId::new_v4(),
+                participants: self.participants,
+                options: self.options,
+                pack,
+                public: self.public,
+            },
+            shares,
+        ))
     }
 }
 
