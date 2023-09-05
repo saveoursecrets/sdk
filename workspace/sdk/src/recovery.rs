@@ -57,13 +57,13 @@ impl RecoveryData {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct RecoveryOptions {
     /// Cipher for encryption and decryption.
-    pub(crate) cipher: Cipher,
+    pub cipher: Cipher,
     /// Key derivation function.
-    pub(crate) kdf: KeyDerivation,
+    pub kdf: KeyDerivation,
     /// Threshold for secret recovery.
-    pub(crate) threshold: u8,
+    pub threshold: u8,
     /// Number of secret shares to split.
-    pub(crate) limit: u8,
+    pub limit: u8,
 }
 
 impl RecoveryOptions {
