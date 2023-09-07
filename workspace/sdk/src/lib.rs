@@ -55,6 +55,7 @@ pub use secrecy;
 pub use sha2;
 pub use sha3;
 pub use time;
+pub use totp_sos as totp;
 pub use url;
 pub use urn;
 pub use uuid;
