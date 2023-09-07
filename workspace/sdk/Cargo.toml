@@ -51,7 +51,8 @@ tempfile = "3.5"
 log = "0.4"
 http = "0.2"
 zxcvbn = "2"
-totp-sos = { version = "3", features = ["serde"] }
+totp-rs = { version = "5", git = "https://github.com/tmpfs/totp-rs", branch = "qr", features = ["qr", "serde_support"] }
+#totp-sos = { version = "3", features = ["serde"] }
 vcard4 = { version = "0.4.4", features = ["serde"] }
 parking_lot = "0.12"
 once_cell = "1"

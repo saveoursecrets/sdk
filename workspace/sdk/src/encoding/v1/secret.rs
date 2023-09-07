@@ -4,7 +4,7 @@ use std::{
     collections::HashMap,
     io::{Error, ErrorKind, Result},
 };
-use totp_sos::TOTP;
+use totp_rs::TOTP;
 use url::Url;
 
 use uuid::Uuid;
