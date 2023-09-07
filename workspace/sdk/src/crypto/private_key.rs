@@ -115,6 +115,12 @@ impl DerivedPrivateKey {
     }
 }
 
+impl From<Vec<u8>> for DerivedPrivateKey {
+    fn from(value: Vec<u8>) -> Self {
+        Self::new(SecretVec::new(value))
+    }
+}
+
 impl AsRef<[u8]> for DerivedPrivateKey {
     fn as_ref(&self) -> &[u8] {
         self.inner.expose_secret()
