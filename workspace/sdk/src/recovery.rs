@@ -81,7 +81,7 @@ impl RecoveryOptions {
             kdf: kdf.unwrap_or_default(),
         }
     }
-    
+
     /// Encryption cipher algorithm.
     pub fn cipher(&self) -> &Cipher {
         &self.cipher

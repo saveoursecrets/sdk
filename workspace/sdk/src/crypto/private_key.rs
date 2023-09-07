@@ -100,7 +100,6 @@ pub struct DerivedPrivateKey {
 
 impl DerivedPrivateKey {
     /// Create a new random 32-byte secret key.
-    #[cfg(test)]
     pub fn generate() -> Self {
         use crate::crypto::csprng;
         use rand::Rng;
