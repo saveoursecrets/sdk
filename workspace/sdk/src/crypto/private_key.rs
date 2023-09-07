@@ -109,15 +109,26 @@ impl DerivedPrivateKey {
         }
     }
 
+    /// Convert from a PEM-encoded key.
+    pub fn from_pem(key: &str) -> Result<Self> {
+        let pem = pem::parse(key)?;
+        let contents = pem.contents();
+        Ok(Self {
+            inner: SecretVec::new(contents.to_vec()),
+        })
+    }
+
+    /// Convert this key to a PEM-encoded string.
+    pub fn to_pem(&self) -> String {
+        pem::encode(&pem::Pem::new(
+            "PRIVATE KEY",
+            self.inner.expose_secret().as_slice(),
+        ))
+    }
+
     /// Create a new derived private key.
     pub(crate) fn new(inner: SecretVec<u8>) -> Self {
         Self { inner }
-    }
-}
-
-impl From<Vec<u8>> for DerivedPrivateKey {
-    fn from(value: Vec<u8>) -> Self {
-        Self::new(SecretVec::new(value))
     }
 }
 
