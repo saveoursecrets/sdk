@@ -396,7 +396,7 @@ impl RpcClient {
         &self,
         vault_id: Uuid, /* WARN: must not be reference */
         proof: CommitProof,
-        patch: Patch<'static>,
+        patch: Patch,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<CommitProof>)>> {
         let url = self.server.join("api/events")?;
 

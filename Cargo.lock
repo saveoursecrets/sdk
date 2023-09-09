@@ -1717,6 +1717,7 @@ dependencies = [
  "ff",
  "generic-array",
  "group",
+ "hkdf",
  "pkcs8",
  "rand_core 0.6.4",
  "sec1",
@@ -2702,6 +2703,7 @@ checksum = "d5477fe2230a79769d8dc68e0eabf5437907c0457a5614a9e8dddb67f65eb65d"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.0",
+ "serde",
 ]
 
 [[package]]
@@ -4365,6 +4367,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "qrcodegen"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4339fc7a1021c9c1621d87f5e3505f2805c8c105420ba2f2a4df86814590c142"
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5171,7 +5179,24 @@ dependencies = [
  "indexmap 1.9.3",
  "serde",
  "serde_json",
- "serde_with_macros",
+ "serde_with_macros 2.3.3",
+ "time",
+]
+
+[[package]]
+name = "serde_with"
+version = "3.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ca3b16a3d82c4088f343b7480a93550b3eabe1a358569c2dfe38bbcead07237"
+dependencies = [
+ "base64 0.21.2",
+ "chrono",
+ "hex",
+ "indexmap 1.9.3",
+ "indexmap 2.0.0",
+ "serde",
+ "serde_json",
+ "serde_with_macros 3.3.0",
  "time",
 ]
 
@@ -5180,6 +5205,18 @@ name = "serde_with_macros"
 version = "2.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "881b6f881b17d13214e5d494c939ebab463d01264ce1811e9d4ac3a882e7695f"
+dependencies = [
+ "darling 0.20.3",
+ "proc-macro2 1.0.66",
+ "quote 1.0.32",
+ "syn 2.0.28",
+]
+
+[[package]]
+name = "serde_with_macros"
+version = "3.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e6be15c453eb305019bfa438b1593c731f36a289a7853f7707ee29e870b3b3c"
 dependencies = [
  "darling 0.20.3",
  "proc-macro2 1.0.66",
@@ -5471,7 +5508,7 @@ dependencies = [
  "security-framework",
  "serde",
  "serde_json",
- "sos-sdk 0.5.0",
+ "sos-sdk 0.5.8",
  "thiserror",
  "time",
  "tokio",
@@ -5513,7 +5550,7 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
- "serde_with",
+ "serde_with 2.3.3",
  "sha3",
  "sos-migrate 0.5.0",
  "sos-sdk 0.5.0",
@@ -5567,10 +5604,10 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
- "serde_with",
+ "serde_with 2.3.3",
  "sha3",
- "sos-migrate 0.5.0",
- "sos-sdk 0.5.0",
+ "sos-migrate 0.5.3",
+ "sos-sdk 0.5.8",
  "tempfile",
  "thiserror",
  "tokio",
@@ -5656,7 +5693,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "aes-gcm 0.10.2",
  "age",
@@ -5695,6 +5732,7 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
+ "serde_with 3.3.0",
  "serial_test",
  "sha2 0.10.7",
  "sha3",
@@ -5704,13 +5742,14 @@ dependencies = [
  "time",
  "tokio",
  "tokio-util",
- "totp-sos",
+ "totp-rs",
  "tracing",
  "unicode-segmentation",
  "url",
  "urn",
  "uuid",
  "vcard4",
+ "vsss-rs",
  "walkdir",
  "web3-address",
  "web3-signature",
@@ -5908,6 +5947,26 @@ dependencies = [
  "proc-macro2 1.0.66",
  "quote 1.0.32",
  "syn 2.0.28",
+]
+
+[[package]]
+name = "thiserror-impl-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58e6318948b519ba6dc2b442a6d0b904ebfb8d411a3ad3e07843615a72249758"
+dependencies = [
+ "proc-macro2 1.0.66",
+ "quote 1.0.32",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "thiserror-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3ad459d94dd517257cc96add8a43190ee620011bb6e6cdc82dafd97dfafafea"
+dependencies = [
+ "thiserror-impl-no-std",
 ]
 
 [[package]]
@@ -6140,6 +6199,24 @@ dependencies = [
  "serde_spanned",
  "toml_datetime",
  "winnow",
+]
+
+[[package]]
+name = "totp-rs"
+version = "5.2.0"
+source = "git+https://github.com/tmpfs/totp-rs?branch=qr#0d2f985bb2c805b8a53e447b3e8b5f78d5563047"
+dependencies = [
+ "base32",
+ "base64 0.21.2",
+ "constant_time_eq",
+ "hmac",
+ "image",
+ "qrcodegen",
+ "serde",
+ "sha1",
+ "sha2 0.10.7",
+ "url",
+ "urlencoding",
 ]
 
 [[package]]
@@ -6610,6 +6687,22 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+
+[[package]]
+name = "vsss-rs"
+version = "3.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f368a01a79af8f2fa45e20a2a478a9799c631c4a7c598563e2c94b2211f750cb"
+dependencies = [
+ "elliptic-curve",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+ "serde",
+ "subtle",
+ "thiserror-no-std",
+ "zeroize",
+]
 
 [[package]]
 name = "waker-fn"

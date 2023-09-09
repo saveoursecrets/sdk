@@ -16,7 +16,7 @@ use std::{
     path::PathBuf,
     str::FromStr,
 };
-use totp_sos::TOTP;
+use totp_rs::TOTP;
 use url::Url;
 use urn::Urn;
 use uuid::Uuid;

@@ -2,6 +2,8 @@ mod commit;
 mod crypto;
 mod events;
 mod patch;
+#[cfg(feature = "recovery")]
+mod recovery;
 mod rpc;
 mod secret;
 mod signer;

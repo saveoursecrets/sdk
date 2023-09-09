@@ -26,6 +26,10 @@ pub use self::keyring::{get_native_keyring, NativeKeyring};
 pub mod passwd;
 pub mod patch;
 pub mod prelude;
+
+#[cfg(feature = "recovery")]
+pub mod recovery;
+
 pub mod rpc;
 pub mod search;
 pub mod signer;
@@ -51,6 +55,7 @@ pub use secrecy;
 pub use sha2;
 pub use sha3;
 pub use time;
+pub use totp_rs as totp;
 pub use url;
 pub use urn;
 pub use uuid;

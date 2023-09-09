@@ -100,7 +100,6 @@ pub struct DerivedPrivateKey {
 
 impl DerivedPrivateKey {
     /// Create a new random 32-byte secret key.
-    #[cfg(test)]
     pub fn generate() -> Self {
         use crate::crypto::csprng;
         use rand::Rng;
@@ -108,6 +107,23 @@ impl DerivedPrivateKey {
         Self {
             inner: SecretVec::new(bytes.to_vec()),
         }
+    }
+
+    /// Convert from a PEM-encoded key.
+    pub fn from_pem(key: &str) -> Result<Self> {
+        let pem = pem::parse(key)?;
+        let contents = pem.contents();
+        Ok(Self {
+            inner: SecretVec::new(contents.to_vec()),
+        })
+    }
+
+    /// Convert this key to a PEM-encoded string.
+    pub fn to_pem(&self) -> String {
+        pem::encode(&pem::Pem::new(
+            "PRIVATE KEY",
+            self.inner.expose_secret().as_slice(),
+        ))
     }
 
     /// Create a new derived private key.

@@ -12,9 +12,11 @@ repository = "https://github.com/saveoursecrets/sdk"
 crate-type = ["cdylib", "rlib"]
 
 [features]
+default = ["recovery"]
 mem-fs = []
 test-utils = ["dep:anyhow"]
 keyring = ["dep:keyring"]
+recovery = ["dep:vsss-rs"]
 
 [dependencies]
 async-trait = "0.1"
@@ -35,6 +37,7 @@ subtle = "2"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
+serde_with = { version = "3", features = ["base64"] }
 # matches the version in k256
 sha3 = "0.10.6"
 sha2 = "0.10.6"
@@ -48,7 +51,8 @@ tempfile = "3.5"
 log = "0.4"
 http = "0.2"
 zxcvbn = "2"
-totp-sos = { version = "3", features = ["serde"] }
+totp-rs = { version = "5", git = "https://github.com/tmpfs/totp-rs", branch = "qr", features = ["qr", "serde_support"] }
+#totp-sos = { version = "3", features = ["serde"] }
 vcard4 = { version = "0.4.4", features = ["serde"] }
 parking_lot = "0.12"
 once_cell = "1"
@@ -67,7 +71,9 @@ sanitize-filename = "0.4"
 tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
 futures-util = "0.3"
 mpc-protocol = "0.4.1"
+
 keyring = {version = "2", optional = true }
+vsss-rs = {version = "3", optional = true }
 
 [dependencies.binary-stream]
 version = "8.0.0"
