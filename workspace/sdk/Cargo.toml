@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.5.8"
+version = "0.5.9"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -51,7 +51,7 @@ tempfile = "3.5"
 log = "0.4"
 http = "0.2"
 zxcvbn = "2"
-totp-rs = { version = "5", git = "https://github.com/tmpfs/totp-rs", branch = "qr", features = ["qr", "serde_support"] }
+totp-rs = { version = "5.3", features = ["qr", "serde_support"] }
 #totp-sos = { version = "3", features = ["serde"] }
 vcard4 = { version = "0.4.4", features = ["serde"] }
 parking_lot = "0.12"
