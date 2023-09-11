@@ -1,6 +1,7 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::module_inception)]
 #![deny(missing_docs)]
+#![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Networking library for the SOS SDK.
 

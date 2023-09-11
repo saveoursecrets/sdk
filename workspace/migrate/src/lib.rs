@@ -1,4 +1,5 @@
 #![deny(missing_docs)]
+#![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Library to export secrets unencrypted for migration
 //! or to import unencrypted data.
