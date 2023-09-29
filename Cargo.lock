@@ -5453,7 +5453,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "shell-words",
- "sos-net 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-net 0.5.4",
  "sos-sdk 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "terminal-banner",
@@ -5531,8 +5531,9 @@ dependencies = [
 [[package]]
 name = "sos-net"
 version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dad6236f3db54c50b1fc94281299a70c66c854320d217cfc85e8af49dcaa5300"
 dependencies = [
- "anyhow",
  "async-recursion",
  "async-stream",
  "async-trait",
@@ -5584,10 +5585,9 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dad6236f3db54c50b1fc94281299a70c66c854320d217cfc85e8af49dcaa5300"
+version = "0.5.5"
 dependencies = [
+ "anyhow",
  "async-recursion",
  "async-stream",
  "async-trait",

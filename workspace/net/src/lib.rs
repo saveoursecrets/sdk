@@ -28,3 +28,6 @@ pub use file_locks::FileLocks;
 
 #[cfg(feature = "migrate")]
 pub use sos_migrate as migrate;
+
+#[cfg(feature = "client")]
+pub use reqwest;
