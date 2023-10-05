@@ -168,7 +168,7 @@ impl AccountBuilder {
                 user_data: UserData::new_comment(address.to_string()),
             };
             let mut meta =
-                SecretMeta::new("Master Password".to_string(), secret.kind());
+                SecretMeta::new("Account Password".to_string(), secret.kind());
             meta.set_favorite(true);
             keeper.create(meta, secret).await?;
 
