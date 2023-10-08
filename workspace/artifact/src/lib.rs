@@ -5,6 +5,8 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 
+pub use semver;
+
 mod artifact;
 mod error;
 mod release;
