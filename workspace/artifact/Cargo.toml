@@ -1,6 +1,6 @@
 [package]
 name = "sos-artifact"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Types for release artifact meta data"
 homepage = "https://saveoursecrets.com"
@@ -13,3 +13,8 @@ time = { version = "0.3.19", features = ["serde-human-readable"] }
 serde = { version = "1", features = ["derive"] }
 semver = { version = "1", features = ["serde"] }
 hex = { version = "0.4", features = ["serde"] }
+url = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+anyhow = "1"
+serde_json = "1"
