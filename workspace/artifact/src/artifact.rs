@@ -28,8 +28,10 @@ pub struct Artifact {
     /// File size of the artifact.
     pub size: u64,
     /// URL to a release artifact.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub artifact: Option<Url>,
     /// URL to the app on the Play or App store.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub store: Option<Url>,
 }
 
