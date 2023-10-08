@@ -36,24 +36,24 @@ pub enum Error {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Artifact {
     /// Distro channel name.
-    distro: Distro,
+    pub distro: Distro,
     /// Processor architecture.
     #[serde(skip_serializing_if = "Option::is_none")]
-    arch: Option<String>,
+    pub arch: Option<String>,
     /// File name.
-    name: String,
+    pub name: String,
     /// Build version.
-    version: semver::Version,
+    pub version: semver::Version,
     /// Hash digest.
     #[serde(with = "hex::serde")]
-    sha256: Vec<u8>,
+    pub sha256: Vec<u8>,
     /// Date and time.
-    timestamp: OffsetDateTime,
+    pub timestamp: OffsetDateTime,
     /// Commit hash.
     #[serde(skip_serializing_if = "Option::is_none")]
-    commit: Option<String>,
+    pub commit: Option<String>,
     /// File size of the artifact.
-    size: u64,
+    pub size: u64,
 }
 
 /// Distribution channel.
