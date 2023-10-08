@@ -5114,6 +5114,9 @@ name = "semver"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0293b4b29daaf487284529cc2f5675b8e57c61f70167ba415a463651fd6a918"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "serde"
@@ -5453,7 +5456,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "shell-words",
- "sos-net 0.5.4",
+ "sos-net 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "sos-sdk 0.5.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "terminal-banner",
@@ -5470,33 +5473,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos-migrate"
-version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "541d217cb034fea4a509171e4f7cc80ee977a30d0f280e6dc3009375b49f70e4"
+name = "sos-artifact"
+version = "0.1.0"
 dependencies = [
- "async-trait",
- "async_zip",
- "csv-async",
- "dirs",
- "futures",
- "futures-util",
  "hex",
- "logos",
- "parking_lot",
- "plist",
- "rustc_version",
- "secrecy",
- "security-framework",
+ "semver",
  "serde",
- "serde_json",
- "sos-sdk 0.5.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "time",
- "tokio",
- "tokio-util",
- "url",
- "vcard4",
 ]
 
 [[package]]
@@ -5529,63 +5513,38 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos-net"
-version = "0.5.4"
+name = "sos-migrate"
+version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dad6236f3db54c50b1fc94281299a70c66c854320d217cfc85e8af49dcaa5300"
+checksum = "c90f6ba7bbf2695d20c0b60632e701bc41c5c5c06abf89964d701d63132d6436"
 dependencies = [
- "async-recursion",
- "async-stream",
  "async-trait",
- "axum",
- "axum-macros",
- "axum-server",
- "bs58 0.4.0",
+ "async_zip",
+ "csv-async",
  "dirs",
- "either",
- "file-guard",
  "futures",
+ "futures-util",
  "hex",
- "http",
- "if-addrs 0.10.1",
- "libp2p",
- "libp2p-quic",
- "log",
- "once_cell",
- "ouroboros",
+ "logos",
  "parking_lot",
- "pin-project-lite",
- "rand 0.8.5",
- "reqwest",
+ "plist",
  "rustc_version",
  "secrecy",
+ "security-framework",
  "serde",
  "serde_json",
- "serde_with 2.3.3",
- "sha3",
- "sos-migrate 0.5.5",
  "sos-sdk 0.5.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "tempfile",
  "thiserror",
+ "time",
  "tokio",
- "tokio-stream",
- "tokio-tungstenite",
- "toml 0.5.11",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
+ "tokio-util",
  "url",
- "uuid",
- "void",
- "web3-address",
- "web3-signature",
- "whoami",
+ "vcard4",
 ]
 
 [[package]]
 name = "sos-net"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -5617,7 +5576,62 @@ dependencies = [
  "serde_json",
  "serde_with 2.3.3",
  "sha3",
- "sos-migrate 0.5.5",
+ "sos-migrate 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "toml 0.5.11",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "void",
+ "web3-address",
+ "web3-signature",
+ "whoami",
+]
+
+[[package]]
+name = "sos-net"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ba9c6b2e18a2cf48175ec3058f5e1968bce6a2b14d0d5754d5beff2a1983712"
+dependencies = [
+ "async-recursion",
+ "async-stream",
+ "async-trait",
+ "axum",
+ "axum-macros",
+ "axum-server",
+ "bs58 0.4.0",
+ "dirs",
+ "either",
+ "file-guard",
+ "futures",
+ "hex",
+ "http",
+ "if-addrs 0.10.1",
+ "libp2p",
+ "libp2p-quic",
+ "log",
+ "once_cell",
+ "ouroboros",
+ "parking_lot",
+ "pin-project-lite",
+ "rand 0.8.5",
+ "reqwest",
+ "rustc_version",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "serde_with 2.3.3",
+ "sha3",
+ "sos-migrate 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "sos-sdk 0.5.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "thiserror",

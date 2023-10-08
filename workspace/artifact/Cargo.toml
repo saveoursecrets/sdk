@@ -1,0 +1,15 @@
+[package]
+name = "sos-artifact"
+version = "0.1.0"
+edition = "2021"
+description = "Types for release artifact meta data"
+homepage = "https://saveoursecrets.com"
+license = "GPL-3.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[dependencies]
+thiserror = "1"
+time = { version = "0.3.19", features = ["serde-human-readable"] }
+serde = { version = "1", features = ["derive"] }
+semver = { version = "1", features = ["serde"] }
+hex = { version = "0.4", features = ["serde"] }
