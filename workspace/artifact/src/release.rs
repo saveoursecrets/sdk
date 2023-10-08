@@ -2,7 +2,7 @@
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use url::Url;
-use crate::artifact::{Channel, Artifact};
+use crate::{Channel, Artifact, Distro};
 
 /// Release information.
 #[derive(Debug, Serialize, Deserialize)]
@@ -32,6 +32,19 @@ pub struct ChannelRelease {
     pub android: Artifact,
     /// Release information for iOS.
     pub ios: IosRelease,
+}
+
+impl ChannelRelease {
+    /// Find an artifact by distro.
+    pub fn find_by_distro(&self, distro: &Distro) -> Option<&Artifact> {
+        match distro {
+            Distro::MacOS => Some(&self.macos),
+            Distro::Debian => Some(&self.linux.debian),
+            Distro::Windows => Some(&self.windows),
+            Distro::Android => Some(&self.android),
+            _ => None,
+        }
+    }
 }
 
 /// Release information for the linux platform.
