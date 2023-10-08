@@ -5,14 +5,14 @@ use url::Url;
 use crate::artifact::{Channel, Artifact};
 
 /// Release information.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReleaseInfo {
     /// GUI release information.
     pub gui: GuiReleaseInfo,
 }
 
 /// Release information for the GUI.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GuiReleaseInfo {
     /// Release channels for the GUI.
     #[serde(flatten)]
@@ -20,7 +20,7 @@ pub struct GuiReleaseInfo {
 }
 
 /// Release information for a single channel.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ChannelRelease {
     /// Release artifact for MacOS.
     pub macos: Artifact,
@@ -35,14 +35,14 @@ pub struct ChannelRelease {
 }
 
 /// Release information for the linux platform.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LinuxRelease {
     /// Release information for debian distros.
     pub debian: Artifact,
 }
 
 /// Release information for the iOS platform.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct IosRelease {
     /// URL to the app store installer.
     pub store: Url,
