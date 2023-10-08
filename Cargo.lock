@@ -5474,7 +5474,7 @@ dependencies = [
 
 [[package]]
 name = "sos-artifact"
-version = "0.6.0"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "hex",

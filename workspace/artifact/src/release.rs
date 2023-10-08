@@ -39,6 +39,7 @@ impl ChannelRelease {
     pub fn find_by_distro(&self, distro: &Distro) -> Option<&Artifact> {
         match distro {
             Distro::MacOS => Some(&self.macos),
+            Distro::Linux => Some(&self.linux.debian),
             Distro::Debian => Some(&self.linux.debian),
             Distro::Windows => Some(&self.windows),
             Distro::Android => Some(&self.android),
