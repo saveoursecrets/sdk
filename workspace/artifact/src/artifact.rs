@@ -5,6 +5,15 @@ use serde::{Serialize, Deserialize};
 use url::Url;
 use crate::Error;
 
+/// File stem for release artifacts.
+pub const FILE_STEM: &str = "saveoursecrets";
+
+/// Extension appended for signature files.
+pub const SIG_EXT: &str = "sig.txt";
+
+/// Extension appended for SHA256 checksum files.
+pub const SHA_EXT: &str = "sha256.txt";
+
 /// Artifact meta data represents a file.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Artifact {
