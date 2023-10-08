@@ -1,7 +1,6 @@
 //! Types for the public releases information.
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
-use url::Url;
 use crate::{Channel, Artifact, Distro};
 
 /// Release information.
@@ -31,7 +30,7 @@ pub struct ChannelRelease {
     /// Release artifact for Android.
     pub android: Artifact,
     /// Release information for iOS.
-    pub ios: IosRelease,
+    pub ios: Artifact,
 }
 
 impl ChannelRelease {
@@ -43,6 +42,7 @@ impl ChannelRelease {
             Distro::Debian => Some(&self.linux.debian),
             Distro::Windows => Some(&self.windows),
             Distro::Android => Some(&self.android),
+            Distro::iOS => Some(&self.ios),
             _ => None,
         }
     }
@@ -53,13 +53,6 @@ impl ChannelRelease {
 pub struct LinuxRelease {
     /// Release information for debian distros.
     pub debian: Artifact,
-}
-
-/// Release information for the iOS platform.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct IosRelease {
-    /// URL to the app store installer.
-    pub store: Url,
 }
 
 #[cfg(test)]
@@ -116,6 +109,13 @@ mod test {
         "store": "https://play.google.com/store/apps/details?id=com.saveoursecrets"
       },
       "ios": {
+        "distro": "ios",
+        "name": "saveoursecrets.ipa",
+        "version": "1.0.0-beta1+83",
+        "sha256": "",
+        "timestamp": "2023-10-07 07:17:27.64777 +00:00:00",
+        "commit": "cbae2ed875037917d74298e1e608baac984b5d95",
+        "size": 0,
         "store": "https://appstore.com/saveoursecrets"
       }
     }
