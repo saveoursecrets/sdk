@@ -147,6 +147,13 @@ mod test {
 
         // Duplicate the server events on the client
         println!("Creating new event log file {:#?}", client_file);
+
+        for entry in std::fs::read_dir(std::env::current_dir()?)? {
+            let entry = entry?;
+            let path = entry.path();
+            println!("entry {:#?}", path);
+        }
+
         let mut client = EventLogFile::new(&client_file).await?;
         println!("Created event log file...");
         let mut it = server.iter().await?;
