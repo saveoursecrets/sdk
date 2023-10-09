@@ -6,6 +6,7 @@ on:
 
 env:
   RUST_TEST_TIME_INTEGRATION: "120000,240000"
+  RUST_BACKTRACE: 1
 
 jobs:
   check:
@@ -39,19 +40,18 @@ jobs:
         run: |
           cp workspace/migrate/fixtures/sos-mock.keychain-db ~/Library/Keychains/
 
+      - name: Check code
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all --locked --target ${{ matrix.binary_target }}
+
       - name: Generate test server key
         shell: bash
         run: |
           cargo run -- keypair \
             tests/test.pem \
             --public-key tests/server_public_key.txt
-
-
-      - name: Check code
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all --locked --target ${{ matrix.binary_target }}
 
       - name: Unit tests
         uses: actions-rs/cargo@v1
