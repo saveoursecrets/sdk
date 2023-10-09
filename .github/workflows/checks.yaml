@@ -16,10 +16,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            binary_target: x86_64-unknown-linux-gnu
-          - os: windows-latest
-            binary_target: x86_64-pc-windows-msvc
+          #- os: ubuntu-latest
+            #binary_target: x86_64-unknown-linux-gnu
+          #- os: windows-latest
+            #binary_target: x86_64-pc-windows-msvc
           - os: macos-latest
             binary_target: x86_64-apple-darwin
 
