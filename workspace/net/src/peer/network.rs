@@ -123,6 +123,7 @@ pub async fn new(
         },
         peer_id,
     )
+    .idle_connection_timeout(Duration::from_secs(u64::MAX))
     .build();
 
     swarm.add_external_address(location.addr.clone());
