@@ -21,7 +21,7 @@ pub enum Error {
     /// Supported values are currently `gui` and `cli`.
     #[error("unknown collection '{0}'")]
     UnknownCollection(String),
-    
+
     /// Error when a distribution channel is invalid.
     #[error("unknown distribution channel '{0}'")]
     UnknownChannel(String),

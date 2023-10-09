@@ -1,9 +1,12 @@
 //! Types for release artifact meta data.
+use crate::Error;
+use serde::{
+    de::{self, Deserializer, Visitor},
+    Deserialize, Serialize, Serializer,
+};
 use std::{fmt, str::FromStr};
 use time::OffsetDateTime;
-use serde::{Serialize, Deserialize};
 use url::Url;
-use crate::Error;
 
 /// File stem for release artifacts.
 pub const FILE_STEM: &str = "saveoursecrets";
@@ -156,8 +159,7 @@ impl FromStr for Collection {
 }
 
 /// Distribution platform.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Platform {
     /// Linux.
     Linux(Distro),
@@ -209,9 +211,46 @@ impl FromStr for Platform {
     }
 }
 
+impl Serialize for Platform {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for Platform {
+    fn deserialize<D>(deserializer: D) -> Result<Platform, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(PlatformVisitor)
+    }
+}
+
+struct PlatformVisitor;
+
+impl<'de> Visitor<'de> for PlatformVisitor {
+    type Value = Platform;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a valid platform identifier")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        let platform: Platform = value.parse().map_err(E::custom)?;
+        Ok(platform)
+    }
+}
 
 /// Distribution for the Linux platform.
-#[derive(Default, Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(
+    Default, Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum Distro {
     /// Unknown distro.
