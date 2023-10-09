@@ -2,10 +2,10 @@
 use futures::StreamExt;
 use libp2p::{
     identify, identity, rendezvous,
-    swarm::{keep_alive, SwarmBuilder, SwarmEvent},
+    swarm::{SwarmBuilder, SwarmEvent},
     PeerId,
 };
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
 use super::{
     Result,
@@ -52,10 +52,10 @@ impl Server {
                 rendezvous: rendezvous::server::Behaviour::new(
                     rendezvous::server::Config::default(),
                 ),
-                keep_alive: keep_alive::Behaviour,
             },
             PeerId::from(self.identity.public()),
         )
+        .idle_connection_timeout(Duration::from_secs(u64::MAX))
         .build();
 
         tracing::info!("{}", swarm.local_peer_id());

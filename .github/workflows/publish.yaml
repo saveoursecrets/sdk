@@ -13,7 +13,7 @@ jobs:
     name: Publish for ${{ matrix.binary_target }}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - os: ubuntu-latest
@@ -34,13 +34,13 @@ jobs:
             arch: x86_64
             distro: windows
             variant: none
-          - os: macos-latest
+          - os: macos-latest-xl
             binary_target: x86_64-apple-darwin
             platform: apple-darwin
             arch: x86_64
             distro: macos
             variant: none
-          - os: macos-latest
+          - os: macos-latest-xl
             binary_target: aarch64-apple-darwin
             platform: apple-darwin
             arch: aarch64
@@ -48,6 +48,14 @@ jobs:
             variant: none
     steps:
       - uses: actions/checkout@v3
+      - name: ⚡ Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       # Prepare
       - name: Set environment variables

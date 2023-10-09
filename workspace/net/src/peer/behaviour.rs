@@ -4,7 +4,7 @@ use libp2p::{
     identify,
     kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
     rendezvous, request_response,
-    swarm::{keep_alive, NetworkBehaviour},
+    swarm::{NetworkBehaviour},
 };
 
 use sos_sdk::rpc::{RequestMessage, ResponseMessage};
@@ -77,5 +77,4 @@ impl From<identify::Event> for ComposedEvent {
 pub(crate) struct RendezvousBehaviour {
     pub(crate) identify: identify::Behaviour,
     pub(crate) rendezvous: rendezvous::server::Behaviour,
-    pub(crate) keep_alive: keep_alive::Behaviour,
 }

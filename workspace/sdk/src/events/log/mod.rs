@@ -115,18 +115,30 @@ mod test {
 
     async fn mock_event_log_server_client(
     ) -> Result<(EventLogFile, EventLogFile, SecretId)> {
+        
+        // Required for CI which is setting the current 
+        // working directory to the workspace member rather
+        // than using the top-level working directory
+        if !vfs::try_exists("target").await? {
+            vfs::create_dir("target").await?;
+        }
+
         let server_file =
             PathBuf::from("target/mock-event-log-server.event_log");
         let client_file =
             PathBuf::from("target/mock-event-log-client.event_log");
-        let _ = vfs::remove_file(&server_file).await;
-        let _ = vfs::remove_file(&client_file).await;
+        if vfs::try_exists(&server_file).await? {
+            let _ = vfs::remove_file(&server_file).await;
+        }
+        if vfs::try_exists(&client_file).await? {
+            let _ = vfs::remove_file(&client_file).await;
+        }
 
         let vault: Vault = Default::default();
         let vault_buffer = encode(&vault).await?;
 
         let (id, data) = mock_secret().await?;
-
+        
         // Create a simple event log
         let mut server = EventLogFile::new(&server_file).await?;
         server
@@ -196,7 +208,10 @@ mod test {
     async fn event_log_diff() -> Result<()> {
         let partial =
             PathBuf::from("target/mock-event-log-partial.event_log");
-        let _ = vfs::remove_file(&partial).await;
+
+        if vfs::try_exists(&partial).await? {
+            let _ = vfs::remove_file(&partial).await;
+        }
 
         let (mut server, client, id) = mock_event_log_server_client().await?;
 

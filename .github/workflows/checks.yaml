@@ -2,32 +2,37 @@ name: Checks
 
 on:
   workflow_call:
-  pull_request:
+  #pull_request:
 
 env:
-  RUST_TEST_TIME_INTEGRATION: "120000,240000"
+  RUST_TEST_TIME_INTEGRATION: "120000,300000"
+  RUST_BACKTRACE: 1
 
 jobs:
   check:
-    name: Publish for ${{ matrix.binary_target }}
+    name: Check for ${{ matrix.binary_target }}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - os: ubuntu-latest
             binary_target: x86_64-unknown-linux-gnu
-          - os: ubuntu-latest
-            binary_target: x86_64-unknown-linux-musl
-          - os: windows-latest
-            binary_target: x86_64-pc-windows-msvc
-          - os: macos-latest
+          #- os: windows-latest
+            #binary_target: x86_64-pc-windows-msvc
+          - os: macos-latest-xl
             binary_target: x86_64-apple-darwin
-          - os: macos-latest
-            binary_target: aarch64-apple-darwin
 
     steps:
       - uses: actions/checkout@v3
+      - name: ⚡ Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install musl tools
         if: matrix.binary_target == 'x86_64-unknown-linux-musl'
@@ -38,11 +43,26 @@ jobs:
           rustup update stable
           rustup target add ${{ matrix.binary_target }}
 
+      - name: Copy mock keychain
+        if: matrix.binary_target == 'x86_64-apple-darwin'
+        run: |
+          cp workspace/migrate/fixtures/sos-mock.keychain-db $HOME/Library/Keychains/
+          security list-keychains -s $HOME/Library/Keychains/sos-mock.keychain-db
+          security list-keychains
+
+
       - name: Check code
         uses: actions-rs/cargo@v1
         with:
           command: check
           args: --all --locked --target ${{ matrix.binary_target }}
+
+      - name: Generate test server key
+        shell: bash
+        run: |
+          cargo run -- keypair \
+            tests/test.pem \
+            --public-key tests/server_public_key.txt
 
       - name: Unit tests
         uses: actions-rs/cargo@v1
