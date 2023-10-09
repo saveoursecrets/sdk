@@ -47,32 +47,31 @@ jobs:
         if: matrix.binary_target == 'x86_64-apple-darwin'
         run: |
           cp workspace/migrate/fixtures/sos-mock.keychain-db $HOME/Library/Keychains/
-          ls -la $HOME/Library/Keychains
           security list-keychains -s $HOME/Library/Keychains/sos-mock.keychain-db
           security list-keychains
 
 
-      #- name: Check code
-        #uses: actions-rs/cargo@v1
-        #with:
-          #command: check
-          #args: --all --locked --target ${{ matrix.binary_target }}
+      - name: Check code
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all --locked --target ${{ matrix.binary_target }}
 
-      #- name: Generate test server key
-        #shell: bash
-        #run: |
-          #cargo run -- keypair \
-            #tests/test.pem \
-            #--public-key tests/server_public_key.txt
+      - name: Generate test server key
+        shell: bash
+        run: |
+          cargo run -- keypair \
+            tests/test.pem \
+            --public-key tests/server_public_key.txt
 
-      #- name: Unit tests
-        #uses: actions-rs/cargo@v1
-        #with:
-          #command: test
-          #args: --all --lib --locked --target ${{ matrix.binary_target }}
+      - name: Unit tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all --lib --locked --target ${{ matrix.binary_target }}
 
-      #- name: Integration tests
-        #uses: actions-rs/cargo@v1
-        #with:
-          #command: test
-          #args: --all --locked --target ${{ matrix.binary_target }} integration
+      - name: Integration tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all --locked --target ${{ matrix.binary_target }} integration
