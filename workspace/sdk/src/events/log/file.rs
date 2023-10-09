@@ -86,7 +86,6 @@ impl EventLogFile {
 
         let mut file = OpenOptions::new()
             .create(true)
-            .write(true)
             .append(true)
             .open(path.as_ref())
             .await?;
