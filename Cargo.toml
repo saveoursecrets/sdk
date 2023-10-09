@@ -99,10 +99,6 @@ path = "src/bin/sos_server.rs"
 name = "sos-rendezvous"
 path = "src/bin/sos_rendezvous.rs"
 
-[[bin]]
-name = "sos-generate-keypair"
-path = "src/bin/sos_generate_keypair.rs"
-
 [package.metadata.deb]
 name = "sos"
 copyright = "Save Our Secrets Pte Ltd"
