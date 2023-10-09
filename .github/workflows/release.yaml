@@ -12,7 +12,7 @@ env:
 
 jobs:
   check:
-    uses: ./.github/workflows/check.yaml
+    uses: ./.github/workflows/checks.yaml
 
   publish:
     uses: ./.github/workflows/publish.yaml
