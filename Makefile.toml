@@ -17,9 +17,11 @@ script = '''
 cargo deb
 '''
 
+# NOTE: we use the --release flag to prevent a stack overflow on
+# windows, see: https://github.com/clap-rs/clap/issues/5134
 [tasks.gen-test-key]
 script = '''
-cargo run -- keypair tests/test.pem --public-key tests/server_public_key.txt
+cargo run --release -- keypair tests/test.pem --public-key tests/server_public_key.txt
 '''
 
 [tasks.fix-all]
