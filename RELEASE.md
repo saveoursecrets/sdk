@@ -18,9 +18,15 @@ Check the security audits.
 cargo audit
 ```
 
-To publish a new release create a version tag and push it:
+Publish the crate.
 
 ```
-git tag v0.5.4
-git push origin v0.5.4
+cargo publish
+```
+
+Publish the release artifacts.
+
+```
+git tag v0.5.5
+git push origin v0.5.5
 ```
