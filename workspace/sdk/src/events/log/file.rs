@@ -81,6 +81,9 @@ impl EventLogFile {
         path: P,
         identity: &[u8],
     ) -> Result<File> {
+        
+        println!("Creating new event log file {:#?}", path.as_ref());
+
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
