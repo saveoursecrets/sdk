@@ -39,12 +39,12 @@ jobs:
         run: |
           cp workspace/migrate/fixtures/sos-mock.keychain-db ~/Library/Keychains/
 
-      - name: Generate test server keys
+      - name: Generate test server key
         run: |
-          cargo install mpc-relay
-          mpc-relay generate-keypair \
+          cargo run -- keypair \
             tests/test.pem \
             --public-key tests/server_public_key.txt
+
 
       - name: Check code
         uses: actions-rs/cargo@v1
