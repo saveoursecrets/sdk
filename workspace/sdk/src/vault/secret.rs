@@ -2294,7 +2294,7 @@ END:VCARD"#;
 
     #[tokio::test]
     async fn secret_encode_totp() -> Result<()> {
-        use totp_sos::{Algorithm, TOTP};
+        use totp_rs::{Algorithm, TOTP};
 
         let totp = TOTP::new(
             Algorithm::SHA1,
@@ -2302,8 +2302,8 @@ END:VCARD"#;
             1,
             30,
             "MockSecretWhichMustBeAtLeast80Bytes".as_bytes().to_vec(),
-            "mock@example.com".to_string(),
             Some("MockIssuer".to_string()),
+            "mock@example.com".to_string(),
         )
         .unwrap();
 

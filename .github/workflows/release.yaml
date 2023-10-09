@@ -11,8 +11,13 @@ env:
   CHANNEL: ${{ vars.DISTRIBUTION_CHANNEL }}
 
 jobs:
+  check:
+    uses: ./.github/workflows/check.yaml
+
   publish:
     uses: ./.github/workflows/publish.yaml
+    needs:
+      - check
     secrets: inherit
 
   homebrew:

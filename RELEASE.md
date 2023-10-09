@@ -6,6 +6,12 @@ Bump the version and make sure the lock file is up to date after the version cha
 cargo build
 ```
 
+Check the security audits.
+
+```
+cargo audit
+```
+
 To publish a new release create a version tag and push it:
 
 ```
