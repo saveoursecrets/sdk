@@ -40,6 +40,7 @@ jobs:
           cp workspace/migrate/fixtures/sos-mock.keychain-db ~/Library/Keychains/
 
       - name: Generate test server key
+        shell: bash
         run: |
           cargo run -- keypair \
             tests/test.pem \
