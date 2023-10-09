@@ -55,7 +55,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --all --locked --target ${{ matrix.binary_target }}
+          args: --all --locked --target ${{ matrix.binary_target }} --all-features
 
       - name: Generate test server key
         shell: bash
