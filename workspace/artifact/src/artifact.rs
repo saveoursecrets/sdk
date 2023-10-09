@@ -20,8 +20,7 @@ pub struct Artifact {
     /// Distro channel name.
     pub distro: Distro,
     /// Processor architecture.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub arch: Option<String>,
+    pub arch: Arch,
     /// File name.
     pub name: String,
     /// Build version.
@@ -78,6 +77,45 @@ impl FromStr for Channel {
             "stable" => Self::Stable,
             "beta" => Self::Beta,
             _ => return Err(Error::UnknownChannel(s.to_owned())),
+        })
+    }
+}
+
+/// Processor architecture.
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Arch {
+    /// Universal binary (MacOS, iOS and Android).
+    Universal,
+    /// Intel 64 bit chips.
+    X86_64,
+    /// 64 bit ARM chips.
+    Aarch64,
+}
+
+impl fmt::Display for Arch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Universal => "universal",
+                Self::X86_64 => "x86_64",
+                Self::Aarch64 => "aarch64",
+            }
+        )
+    }
+}
+
+impl FromStr for Arch {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "universal" => Self::Universal,
+            "x86_64" => Self::X86_64,
+            "aarch64" => Self::Aarch64,
+            _ => return Err(Error::UnknownArch(s.to_owned())),
         })
     }
 }
