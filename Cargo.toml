@@ -78,8 +78,10 @@ serial_test = "2"
 secrecy = "0.8"
 http = "0.2"
 tempfile = "3.5"
-rexpect = "0.5"
 keyring = "2"
+
+[target.'cfg(not(target_os = "windows"))'.dev-dependencies]
+rexpect = "0.5"
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3"
