@@ -62,7 +62,7 @@ impl ReadDir {
         &mut self,
         _cx: &mut Context<'_>,
     ) -> Poll<Result<Option<DirEntry>>> {
-        if let Some((name, path, fd)) = self.iter.next() {
+        if let Some((name, path, _fd)) = self.iter.next() {
             let entry = DirEntry { path, name };
             Poll::Ready(Ok(Some(entry)))
         } else {

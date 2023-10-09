@@ -76,7 +76,7 @@ impl DirBuilder {
                             PathTarget::Descriptor(parent) => {
                                 let fd = parent.read().await;
                                 match &*fd {
-                                    MemoryFd::Dir(dir) => {
+                                    MemoryFd::Dir(_dir) => {
                                         current = Parent::Folder(Arc::clone(
                                             &parent,
                                         ));

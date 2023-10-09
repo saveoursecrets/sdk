@@ -224,7 +224,7 @@ impl File {
     }
 
     /// Changes the permissions on the underlying file.
-    pub async fn set_permissions(&self, perm: Permissions) -> io::Result<()> {
+    pub async fn set_permissions(&self, _perm: Permissions) -> io::Result<()> {
         unimplemented!();
     }
 }
@@ -521,12 +521,14 @@ struct Buf {
 pub(crate) const MAX_BUF: usize = 2 * 1024 * 1024;
 
 impl Buf {
+    /*
     pub(crate) fn with_capacity(n: usize) -> Buf {
         Buf {
             buf: Vec::with_capacity(n),
             pos: 0,
         }
     }
+    */
 
     pub(crate) fn is_empty(&self) -> bool {
         self.len() == 0
