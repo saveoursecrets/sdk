@@ -8,7 +8,7 @@ env:
   RUST_TEST_TIME_INTEGRATION: "120000,240000"
 
 jobs:
-  build:
+  check:
     name: Publish for ${{ matrix.binary_target }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -32,6 +32,11 @@ jobs:
       - name: Install musl tools
         if: matrix.binary_target == 'x86_64-unknown-linux-musl'
         run: sudo apt-get install musl-tools
+      - name: Update rust
+        run: |
+          rustup override set stable
+          rustup update stable
+          rustup target add ${{ matrix.binary_target }}
 
       - name: Check code
         uses: actions-rs/cargo@v1
