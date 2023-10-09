@@ -116,7 +116,9 @@ mod test {
     async fn mock_event_log_server_client(
     ) -> Result<(EventLogFile, EventLogFile, SecretId)> {
         
-        // Required for CI
+        // Required for CI which is setting the current 
+        // working directory to the workspace member rather
+        // than using the top-level working directory
         if !vfs::try_exists("target").await? {
             vfs::create_dir("target").await?;
         }
@@ -137,14 +139,6 @@ mod test {
 
         let (id, data) = mock_secret().await?;
         
-        /*
-        for entry in std::fs::read_dir(std::env::current_dir()?)? {
-            let entry = entry?;
-            let path = entry.path();
-            println!("entry {:#?}", path);
-        }
-        */
-
         // Create a simple event log
         let mut server = EventLogFile::new(&server_file).await?;
         server
