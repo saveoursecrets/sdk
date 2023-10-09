@@ -34,13 +34,13 @@ jobs:
             arch: x86_64
             distro: windows
             variant: none
-          - os: macos-latest
+          - os: macos-latest-xl
             binary_target: x86_64-apple-darwin
             platform: apple-darwin
             arch: x86_64
             distro: macos
             variant: none
-          - os: macos-latest
+          - os: macos-latest-xl
             binary_target: aarch64-apple-darwin
             platform: apple-darwin
             arch: aarch64
