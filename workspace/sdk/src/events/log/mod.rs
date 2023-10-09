@@ -115,6 +115,12 @@ mod test {
 
     async fn mock_event_log_server_client(
     ) -> Result<(EventLogFile, EventLogFile, SecretId)> {
+        
+        // Required for CI
+        if vfs::try_exists("target").await? {
+            vfs::create_dir("target").await?;
+        }
+
         let server_file =
             PathBuf::from("target/mock-event-log-server.event_log");
         let client_file =
