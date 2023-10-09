@@ -117,7 +117,7 @@ mod test {
     ) -> Result<(EventLogFile, EventLogFile, SecretId)> {
         
         // Required for CI
-        if vfs::try_exists("target").await? {
+        if !vfs::try_exists("target").await? {
             vfs::create_dir("target").await?;
         }
 
@@ -136,17 +136,17 @@ mod test {
         let vault_buffer = encode(&vault).await?;
 
         let (id, data) = mock_secret().await?;
-
+        
+        /*
         for entry in std::fs::read_dir(std::env::current_dir()?)? {
             let entry = entry?;
             let path = entry.path();
             println!("entry {:#?}", path);
         }
+        */
 
         // Create a simple event log
-        println!("Creating new event log server file {:#?}", server_file);
         let mut server = EventLogFile::new(&server_file).await?;
-        println!("Created event log file...");
         server
             .apply(
                 vec![
@@ -158,10 +158,7 @@ mod test {
             .await?;
 
         // Duplicate the server events on the client
-        println!("Creating new event log file {:#?}", client_file);
-
         let mut client = EventLogFile::new(&client_file).await?;
-        println!("Created event log file...");
         let mut it = server.iter().await?;
         while let Some(record) = it.next_entry().await? {
             let event = server.event_data(&record).await?;
