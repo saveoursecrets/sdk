@@ -17,8 +17,8 @@ pub const SHA_EXT: &str = "sha256.txt";
 /// Artifact meta data represents a file.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Artifact {
-    /// Distro channel name.
-    pub distro: Distro,
+    /// Platform channel name.
+    pub distro: Platform,
     /// Processor architecture.
     pub arch: Arch,
     /// File name.
@@ -156,15 +156,11 @@ impl FromStr for Collection {
 }
 
 /// Distribution platform.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Distro {
+pub enum Platform {
     /// Linux.
-    Linux,
-    /// Debian Linux.
-    Debian,
-    /// RedHat Linux (Fedora, CentOS etc).
-    RedHat,
+    Linux(Distro),
     /// Windows.
     Windows,
     /// MacOS.
@@ -176,19 +172,62 @@ pub enum Distro {
     Android,
 }
 
+impl fmt::Display for Platform {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Linux(distro) => match distro {
+                    Distro::Debian => "debian",
+                    Distro::RedHat => "redhat",
+                },
+                Self::Windows => "windows",
+                Self::MacOS => "macos",
+                Self::iOS => "ios",
+                Self::Android => "android",
+            }
+        )
+    }
+}
+
+impl FromStr for Platform {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "linux" => Self::Linux(Default::default()),
+            "debian" => Self::Linux(Distro::Debian),
+            "redhat" => Self::Linux(Distro::RedHat),
+            "windows" => Self::Windows,
+            "macos" => Self::MacOS,
+            "ios" => Self::iOS,
+            "android" => Self::Android,
+            _ => return Err(Error::UnknownPlatform(s.to_owned())),
+        })
+    }
+}
+
+
+/// Distribution for the Linux platform.
+#[derive(Default, Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Distro {
+    /// Debian Linux.
+    #[default]
+    Debian,
+    /// RedHat Linux (Fedora, CentOS etc).
+    RedHat,
+}
+
 impl fmt::Display for Distro {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                Self::Linux => "linux",
                 Self::Debian => "debian",
                 Self::RedHat => "redhat",
-                Self::Windows => "windows",
-                Self::MacOS => "macos",
-                Self::iOS => "ios",
-                Self::Android => "android",
             }
         )
     }
@@ -199,13 +238,8 @@ impl FromStr for Distro {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
-            "linux" => Self::Linux,
             "debian" => Self::Debian,
             "redhat" => Self::RedHat,
-            "windows" => Self::Windows,
-            "macos" => Self::MacOS,
-            "ios" => Self::iOS,
-            "android" => Self::Android,
             _ => return Err(Error::UnknownDistro(s.to_owned())),
         })
     }

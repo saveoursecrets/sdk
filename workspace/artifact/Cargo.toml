@@ -1,6 +1,6 @@
 [package]
 name = "sos-artifact"
-version = "0.7.3"
+version = "0.8.0"
 edition = "2021"
 description = "Types for release artifact meta data"
 homepage = "https://saveoursecrets.com"

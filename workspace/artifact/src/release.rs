@@ -1,7 +1,7 @@
 //! Types for the public releases information.
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
-use crate::{Channel, Artifact, Distro};
+use crate::{Channel, Artifact, Platform, Arch};
 
 /// Release information.
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,44 +15,39 @@ pub struct ReleaseInfo {
 pub struct GuiReleaseInfo {
     /// Release channels for the GUI.
     #[serde(flatten)]
-    pub channels: HashMap<Channel, ChannelRelease>,
+    pub channels: HashMap<Channel, PlatformRelease>,
 }
 
-/// Release information for a single channel.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ChannelRelease {
-    /// Release artifact for MacOS.
-    pub macos: Artifact,
-    /// Release artifacts for Linux.
-    pub linux: LinuxRelease,
-    /// Release artifact for Windows.
-    pub windows: Artifact,
-    /// Release artifact for Android.
-    pub android: Artifact,
-    /// Release information for iOS.
-    pub ios: Artifact,
-}
-
-impl ChannelRelease {
+impl GuiReleaseInfo {
     /// Find an artifact by distro.
-    pub fn find_by_distro(&self, distro: &Distro) -> Option<&Artifact> {
-        match distro {
-            Distro::MacOS => Some(&self.macos),
-            Distro::Linux => Some(&self.linux.debian),
-            Distro::Debian => Some(&self.linux.debian),
-            Distro::Windows => Some(&self.windows),
-            Distro::Android => Some(&self.android),
-            Distro::iOS => Some(&self.ios),
-            _ => None,
+    pub fn find(&self,
+        channel: &Channel,
+        platform: &Platform,
+        arch: &Arch) -> Option<&Artifact> {
+        if let Some(channel) = self.channels.get(channel) {
+            if let Some(releases) = channel.platforms.get(platform) {
+                releases.iter().find(|r| &r.arch == arch)
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
 }
 
-/// Release information for the linux platform.
+/// Release information for a platform.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LinuxRelease {
-    /// Release information for debian distros.
-    pub debian: Artifact,
+pub struct PlatformRelease {
+    /// Release channels for the GUI.
+    #[serde(flatten)]
+    pub platforms: HashMap<Platform, Vec<Artifact>>,
+}
+
+/// Release information for a platform.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Release {
+    artifact: Artifact,
 }
 
 #[cfg(test)]
