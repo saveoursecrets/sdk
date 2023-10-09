@@ -132,7 +132,9 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
+        println!("Creating new event log server file {:#?}", client_file);
         let mut server = EventLogFile::new(&server_file).await?;
+        println!("Created event log file...");
         server
             .apply(
                 vec![
@@ -144,7 +146,9 @@ mod test {
             .await?;
 
         // Duplicate the server events on the client
+        println!("Creating new event log file {:#?}", client_file);
         let mut client = EventLogFile::new(&client_file).await?;
+        println!("Created event log file...");
         let mut it = server.iter().await?;
         while let Some(record) = it.next_entry().await? {
             let event = server.event_data(&record).await?;
