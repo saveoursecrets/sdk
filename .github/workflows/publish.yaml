@@ -13,7 +13,7 @@ jobs:
     name: Publish for ${{ matrix.binary_target }}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - os: ubuntu-latest

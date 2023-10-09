@@ -2,7 +2,7 @@ name: Checks
 
 on:
   workflow_call:
-  pull_request:
+  #pull_request:
 
 env:
   RUST_TEST_TIME_INTEGRATION: "120000,300000"
@@ -13,7 +13,7 @@ jobs:
     name: Check for ${{ matrix.binary_target }}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - os: ubuntu-latest
@@ -21,7 +21,7 @@ jobs:
           #- os: windows-latest
             #binary_target: x86_64-pc-windows-msvc
           - os: macos-latest-xl
-            binary_target: aarch64-apple-darwin
+            binary_target: x86_64-apple-darwin
 
     steps:
       - uses: actions/checkout@v3
