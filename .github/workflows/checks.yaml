@@ -46,7 +46,8 @@ jobs:
       - name: Copy mock keychain
         if: matrix.binary_target == 'x86_64-apple-darwin'
         run: |
-          cp workspace/migrate/fixtures/sos-mock.keychain-db ~/Library/Keychains/
+          cp workspace/migrate/fixtures/sos-mock.keychain-db $HOME/Library/Keychains/
+          ls -la $HOME/Library/Keychains
 
       - name: Check code
         uses: actions-rs/cargo@v1
