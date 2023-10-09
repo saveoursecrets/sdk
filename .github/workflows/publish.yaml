@@ -122,7 +122,7 @@ jobs:
             --bucket $RELEASE_BUCKET \
             --semver $SEMVER \
             --channel ${{ vars.DISTRIBUTION_CHANNEL }} \
-            --distro ${{ matrix.distro }} \
+            --platform ${{ matrix.distro }} \
             --arch ${{ matrix.arch }} \
             --collection cli \
             --variant ${{ matrix.variant }} \
