@@ -39,6 +39,7 @@ unicode-width = "0.1"
 parking_lot = "0.12"
 once_cell = "1"
 async-recursion = "1"
+mpc-protocol = "0.4"
 
 [dependencies.sos-sdk]
 version = "0.5.11"
@@ -97,6 +98,10 @@ path = "src/bin/sos_server.rs"
 [[bin]]
 name = "sos-rendezvous"
 path = "src/bin/sos_rendezvous.rs"
+
+[[bin]]
+name = "sos-generate-keypair"
+path = "src/bin/sos_generate_keypair.rs"
 
 [package.metadata.deb]
 name = "sos"

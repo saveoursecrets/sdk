@@ -17,6 +17,11 @@ script = '''
 cargo deb
 '''
 
+[tasks.gen-test-key]
+script = '''
+cargo run -- keypair tests/test.pem --public-key tests/server_public_key.txt
+'''
+
 [tasks.fix-all]
 workspace = true
 command = "cargo"

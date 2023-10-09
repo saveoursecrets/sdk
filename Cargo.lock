@@ -5427,6 +5427,7 @@ dependencies = [
  "human_bytes",
  "keyring",
  "log",
+ "mpc-protocol",
  "once_cell",
  "parking_lot",
  "rexpect",
