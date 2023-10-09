@@ -45,7 +45,7 @@ app_dirs2 = "2"
 uuid = { version = "1", features = ["serde", "v4"] }
 url = { version = "2", features = ["serde"] }
 bitflags = "1"
-pem = { version = "2", features = ["serde"] }
+pem = { version = "3", features = ["serde"] }
 secrecy = { version = "0.8", features = ["serde"] }
 tempfile = "3.5"
 log = "0.4"

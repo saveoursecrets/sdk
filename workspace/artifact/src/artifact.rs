@@ -179,6 +179,7 @@ impl fmt::Display for Platform {
             "{}",
             match self {
                 Self::Linux(distro) => match distro {
+                    Distro::Unknown => "linux",
                     Distro::Debian => "debian",
                     Distro::RedHat => "redhat",
                 },
@@ -196,7 +197,7 @@ impl FromStr for Platform {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
-            "linux" => Self::Linux(Default::default()),
+            "linux" => Self::Linux(Distro::Unknown),
             "debian" => Self::Linux(Distro::Debian),
             "redhat" => Self::Linux(Distro::RedHat),
             "windows" => Self::Windows,
@@ -213,8 +214,10 @@ impl FromStr for Platform {
 #[derive(Default, Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Distro {
-    /// Debian Linux.
+    /// Unknown distro.
     #[default]
+    Unknown,
+    /// Debian Linux.
     Debian,
     /// RedHat Linux (Fedora, CentOS etc).
     RedHat,
@@ -226,6 +229,7 @@ impl fmt::Display for Distro {
             f,
             "{}",
             match self {
+                Self::Unknown => "linux",
                 Self::Debian => "debian",
                 Self::RedHat => "redhat",
             }
