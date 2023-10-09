@@ -9,7 +9,7 @@ env:
 
 jobs:
   check:
-    name: Publish for ${{ matrix.binary_target }}
+    name: Check for ${{ matrix.binary_target }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
