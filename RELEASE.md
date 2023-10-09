@@ -1,9 +1,15 @@
 # Release
 
+Check all the tests first.
+
+```
+cargo make test
+```
+
 Bump the version and make sure the lock file is up to date after the version change.
 
 ```
-cargo build
+cargo generate-lockfile
 ```
 
 Check the security audits.
