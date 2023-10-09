@@ -81,16 +81,11 @@ impl EventLogFile {
         path: P,
         identity: &[u8],
     ) -> Result<File> {
-        
-        println!("Creating new event log file {:#?}", path.as_ref());
-
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(path.as_ref())
             .await?;
-
-        println!("EventLogFile::new {}", path.as_ref().exists());
 
         let size = file.metadata().await?.len();
         if size == 0 {
