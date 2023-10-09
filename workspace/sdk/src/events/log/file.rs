@@ -88,6 +88,8 @@ impl EventLogFile {
             .open(path.as_ref())
             .await?;
 
+        println!("EventLogFile::new {}", path.as_ref().exists());
+
         let size = file.metadata().await?.len();
         if size == 0 {
             file.write_all(identity).await?;

@@ -132,7 +132,7 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        println!("Creating new event log server file {:#?}", client_file);
+        println!("Creating new event log server file {:#?}", server_file);
         let mut server = EventLogFile::new(&server_file).await?;
         println!("Created event log file...");
         server
