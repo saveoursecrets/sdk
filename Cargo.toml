@@ -47,14 +47,14 @@ features = ["keyring"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
-axum-server = { version = "0.4", features = ["tls-rustls"] }
+axum-server = { version = "0.5", features = ["tls-rustls"] }
 tokio = { version = "1", features = ["full"] }
 arboard = "3"
 rustyline = "11"
 rustyline-derive = "0.8"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.sos-net]
-version = "0.5.6" 
+version = "0.5.7" 
 features = ["full"]
 #path = "workspace/net"
 
@@ -62,7 +62,7 @@ features = ["full"]
 tokio = { version = "1", features = ["rt", "time", "sync"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.sos-net]
-version = "0.5.6"
+version = "0.5.7"
 default-features = false
 features = ["client"]
 #path = "workspace/net"

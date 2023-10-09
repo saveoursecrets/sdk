@@ -1,5 +1,11 @@
 # Release
 
+Bump the version and make sure the lock file is up to date after the version change.
+
+```
+cargo build
+```
+
 To publish a new release create a version tag and push it:
 
 ```
