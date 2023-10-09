@@ -624,7 +624,13 @@ impl BackendHandler for FileSystemBackend {
         vfs::remove_file(&original_event_log).await?;
 
         // Move the temp file with the new contents into place
-        vfs::rename(&temp_path, &original_event_log).await?;
+        //
+        // NOTE: we would prefer to rename but on linux we 
+        // NOTE: can hit ErrorKind::CrossesDevices
+        //
+        // But it's a nightly only variant so can't use it yet to 
+        // determine whether to rename or copy.
+        vfs::copy(&temp_path, &original_event_log).await?;
 
         let event_log = self.event_log_write(owner, vault_id).await?;
         *event_log = EventLogFile::new(&original_event_log).await?;

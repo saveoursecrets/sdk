@@ -139,7 +139,13 @@ impl EventLogFile {
         // Remove the existing event log file
         vfs::remove_file(self.path()).await?;
         // Move the temp file into place
-        vfs::rename(temp.path(), self.path()).await?;
+        //
+        // NOTE: we would prefer to rename but on linux we 
+        // NOTE: can hit ErrorKind::CrossesDevices
+        //
+        // But it's a nightly only variant so can't use it yet to 
+        // determine whether to rename or copy.
+        vfs::copy(temp.path(), self.path()).await?;
 
         let mut new_event_log = Self::new(self.path()).await?;
         new_event_log.load_tree().await?;
