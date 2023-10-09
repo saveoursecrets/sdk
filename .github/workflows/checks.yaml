@@ -4,6 +4,9 @@ on:
   workflow_call:
   pull_request:
 
+env:
+  RUST_TEST_TIME_INTEGRATION: "120000,240000"
+
 jobs:
   build:
     name: Publish for ${{ matrix.binary_target }}
@@ -41,3 +44,9 @@ jobs:
         with:
           command: test
           args: --all --lib --locked --target ${{ matrix.binary_target }}
+
+      - name: Integration tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all --locked --target ${{ matrix.binary_target }} integration
