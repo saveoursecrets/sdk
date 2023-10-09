@@ -119,8 +119,12 @@ mod test {
             PathBuf::from("target/mock-event-log-server.event_log");
         let client_file =
             PathBuf::from("target/mock-event-log-client.event_log");
-        let _ = vfs::remove_file(&server_file).await;
-        let _ = vfs::remove_file(&client_file).await;
+        if let Ok(true) = vfs::try_exists(&server_file).await {
+            let _ = vfs::remove_file(&server_file).await;
+        }
+        if let Ok(true) = vfs::try_exists(&client_file).await {
+            let _ = vfs::remove_file(&client_file).await;
+        }
 
         let vault: Vault = Default::default();
         let vault_buffer = encode(&vault).await?;
@@ -196,7 +200,10 @@ mod test {
     async fn event_log_diff() -> Result<()> {
         let partial =
             PathBuf::from("target/mock-event-log-partial.event_log");
-        let _ = vfs::remove_file(&partial).await;
+
+        if let Ok(true) = vfs::try_exists(&partial).await {
+            let _ = vfs::remove_file(&partial).await;
+        }
 
         let (mut server, client, id) = mock_event_log_server_client().await?;
 

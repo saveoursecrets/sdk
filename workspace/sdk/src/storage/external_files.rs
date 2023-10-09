@@ -136,7 +136,11 @@ mod test {
         let (passphrase, _) = generate_passphrase()?;
         let input = "fixtures/sample.heic";
         let output = "target/file-encrypt-decrypt";
-        vfs::remove_dir_all(output).await?;
+
+        if let Ok(true) = vfs::try_exists(output).await {
+            vfs::remove_dir_all(output).await?;
+        }
+
         vfs::create_dir_all(output).await?;
 
         let encrypted = FileStorage::encrypt_file_passphrase(

@@ -386,7 +386,7 @@ mod test {
         // Decompress and extract
         let cursor = zip.into_inner();
         let mut reader =
-            Reader::new(Cursor::new(cursor.get_ref().clone())).await?;
+            Reader::new(Cursor::new(cursor.get_ref())).await?;
         let inventory = reader.inventory().await?;
 
         assert_eq!(address, inventory.manifest.address);
