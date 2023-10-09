@@ -17,8 +17,8 @@ pub const SHA_EXT: &str = "sha256.txt";
 /// Artifact meta data represents a file.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Artifact {
-    /// Platform channel name.
-    pub distro: Platform,
+    /// Platform name.
+    pub platform: Platform,
     /// Processor architecture.
     pub arch: Arch,
     /// File name.
