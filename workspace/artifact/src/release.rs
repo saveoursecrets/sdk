@@ -37,6 +37,18 @@ impl GuiReleaseInfo {
             None
         }
     }
+
+    /// Get the meta data for a channel.
+    pub fn meta(
+        &self,
+        channel: &Channel,
+    ) -> Option<&ReleaseMeta> {
+        if let Some(channel) = self.channels.get(channel) {
+            Some(&channel.meta)
+        } else {
+            None
+        }
+    }
 }
 
 /// Release notes download information.
