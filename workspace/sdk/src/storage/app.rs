@@ -64,6 +64,10 @@ impl AppPaths {
     /// When running in with `debug_assertions` a `debug` path is appended
     /// so that we can use different storage locations for debug and
     /// release builds.
+    ///
+    /// If the `SOS_TEST` environment variable is set then we use 
+    /// `test` rather than `debug` as the nested directory so that 
+    /// test data does not collide with debug data.
     pub fn data_dir() -> Result<PathBuf> {
         let dir = if let Ok(env_data_dir) = std::env::var("SOS_DATA_DIR") {
             Ok(PathBuf::from(env_data_dir))
@@ -178,8 +182,8 @@ impl AppPaths {
         Ok(vault_path)
     }
 
-    /// Get the path to a log file from it's identifier.
-    pub fn log_path<A: AsRef<Path>, V: AsRef<Path>>(
+    /// Get the path to an event log file from it's identifier.
+    pub fn event_log_path<A: AsRef<Path>, V: AsRef<Path>>(
         address: A,
         id: V,
     ) -> Result<PathBuf> {

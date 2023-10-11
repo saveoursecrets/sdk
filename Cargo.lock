@@ -167,9 +167,9 @@ dependencies = [
 
 [[package]]
 name = "aho-corasick"
-version = "1.1.1"
+version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea5d730647d4fadd988536d06fecce94b7b4f2a7efdae548f1cf4b63205518ab"
+checksum = "b2969dcb958b36655471fc61f7e416fa76033bdd4bfed0678d8fee1e2d07a1f0"
 dependencies = [
  "memchr",
 ]
@@ -451,7 +451,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "event-listener 3.0.0",
  "futures-lite",
- "rustix 0.38.17",
+ "rustix 0.38.18",
  "windows-sys 0.48.0",
 ]
 
@@ -468,9 +468,9 @@ dependencies = [
 
 [[package]]
 name = "async-signal"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1079d27511f6c038736279421774ef4ad4bdd2e300825f4a48c4cc463a57cedf"
+checksum = "d2a5415b7abcdc9cd7d63d6badba5288b2ca017e3fbd4173b8f405449f1a2399"
 dependencies = [
  "async-io",
  "async-lock",
@@ -478,7 +478,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "futures-core",
  "futures-io",
- "rustix 0.38.17",
+ "rustix 0.38.18",
  "signal-hook-registry",
  "slab",
  "windows-sys 0.48.0",
@@ -852,12 +852,12 @@ dependencies = [
 
 [[package]]
 name = "bstr"
-version = "1.6.2"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c2f7349907b712260e64b0afe2f84692af14a454be26187d9df565c7f69266a"
+checksum = "c79ad7fb2dd38f3dabd76b09c6a5a20c038fc0213ef1e9afd30eb777f120f019"
 dependencies = [
  "memchr",
- "regex-automata 0.3.9",
+ "regex-automata 0.4.1",
  "serde",
 ]
 
@@ -1873,7 +1873,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ef033ed5e9bad94e55838ca0ca906db0e043f517adda0c8b79c7a8c66c93c1b5"
 dependencies = [
  "cfg-if 1.0.0",
- "rustix 0.38.17",
+ "rustix 0.38.18",
  "windows-sys 0.48.0",
 ]
 
@@ -4616,14 +4616,14 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.9.6"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebee201405406dbf528b8b672104ae6d6d63e6d118cb10e4d51abbc7b58044ff"
+checksum = "d119d7c7ca818f8a53c300863d4f87566aac09943aef5b355bb83969dae75d87"
 dependencies = [
- "aho-corasick 1.1.1",
+ "aho-corasick 1.1.2",
  "memchr",
- "regex-automata 0.3.9",
- "regex-syntax 0.7.5",
+ "regex-automata 0.4.1",
+ "regex-syntax 0.8.0",
 ]
 
 [[package]]
@@ -4637,13 +4637,13 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.3.9"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59b23e92ee4318893fa3fe3e6fb365258efbfe6ac6ab30f090cdcbb7aa37efa9"
+checksum = "465c6fc0621e4abc4187a2bda0937bfd4f722c2730b29562e19689ea796c9a4b"
 dependencies = [
- "aho-corasick 1.1.1",
+ "aho-corasick 1.1.2",
  "memchr",
- "regex-syntax 0.7.5",
+ "regex-syntax 0.8.0",
 ]
 
 [[package]]
@@ -4654,9 +4654,9 @@ checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
-version = "0.7.5"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dbb5fb1acd8a1a18b3dd5be62d25485eb770e05afb408a9627d14d451bae12da"
+checksum = "c3cbb081b9784b07cceb8824c8583f86db4814d172ab043f3c23f7dc600bf83d"
 
 [[package]]
 name = "reqwest"
@@ -4869,9 +4869,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.17"
+version = "0.38.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f25469e9ae0f3d0047ca8b93fc56843f38e6774f0914a107ff8b41be8be8e0b7"
+checksum = "5a74ee2d7c2581cd139b42447d7d9389b889bdaad3a73f1ebb16f2a3237bb19c"
 dependencies = [
  "bitflags 2.4.0",
  "errno",
@@ -5131,9 +5131,9 @@ checksum = "1ef965a420fe14fdac7dd018862966a4c14094f900e1650bbc71ddd7d580c8af"
 
 [[package]]
 name = "semver"
-version = "1.0.19"
+version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad977052201c6de01a8ef2aa3378c4bd23217a056337d1d6da40468d267a4fb0"
+checksum = "836fa6a3e1e547f9a2c4040802ec865b5d85f4014efe00555d7090a3dcaa1090"
 dependencies = [
  "serde",
 ]
@@ -5425,7 +5425,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "anyhow",
  "arboard",
@@ -5447,8 +5447,8 @@ dependencies = [
  "serde_json",
  "serial_test",
  "shell-words",
- "sos-net 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "sos-sdk 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-net 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "terminal-banner",
  "thiserror",
@@ -5479,7 +5479,7 @@ dependencies = [
 
 [[package]]
 name = "sos-migrate"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5497,7 +5497,7 @@ dependencies = [
  "security-framework",
  "serde",
  "serde_json",
- "sos-sdk 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "time",
  "tokio",
@@ -5508,9 +5508,9 @@ dependencies = [
 
 [[package]]
 name = "sos-migrate"
-version = "0.5.8"
+version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5c58362f1c09214d93efd2069c6d7f205f09d66ec9bd4a72beed641830cc369"
+checksum = "75cb00329c12ed8553c3090bcb7e8bea3169d7561ff5abb8cd594330ad1cb1b9"
 dependencies = [
  "async-trait",
  "async_zip",
@@ -5527,7 +5527,7 @@ dependencies = [
  "security-framework",
  "serde",
  "serde_json",
- "sos-sdk 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "time",
  "tokio",
@@ -5538,7 +5538,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -5570,8 +5570,8 @@ dependencies = [
  "serde_json",
  "serde_with 2.3.3",
  "sha3",
- "sos-migrate 0.5.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "sos-sdk 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-migrate 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "thiserror",
  "tokio",
@@ -5592,9 +5592,9 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.5.9"
+version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b459b8859bc6833659a410a4664f52129bb51b3a4dee0725b54eae2a92256c11"
+checksum = "1522f938fc8ae4ebf351a95a7cb865814b6becc2bf2679826fa3690c83ecc6b4"
 dependencies = [
  "async-recursion",
  "async-stream",
@@ -5625,8 +5625,8 @@ dependencies = [
  "serde_json",
  "serde_with 2.3.3",
  "sha3",
- "sos-migrate 0.5.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "sos-sdk 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-migrate 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "thiserror",
  "tokio",
@@ -5647,7 +5647,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.5.13"
+version = "0.5.14"
 dependencies = [
  "aes-gcm 0.10.3",
  "age",
@@ -5713,9 +5713,9 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.5.13"
+version = "0.5.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f07c32297e2069c4e89d8dcf43f14c50db40ede9ef7de933c6c435299cba255"
+checksum = "4b1664c8877c6b1283c527a63361d8657b36cfb793912e8d9b9539d6b5005910"
 dependencies = [
  "aes-gcm 0.10.3",
  "age",
@@ -5745,7 +5745,7 @@ dependencies = [
  "mpc-protocol",
  "once_cell",
  "parking_lot",
- "pem 2.0.1",
+ "pem 3.0.2",
  "probly-search",
  "rand 0.8.5",
  "rs_merkle",
@@ -5905,7 +5905,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "fastrand 2.0.1",
  "redox_syscall 0.3.5",
- "rustix 0.38.17",
+ "rustix 0.38.18",
  "windows-sys 0.48.0",
 ]
 
@@ -5934,7 +5934,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21bebf2b7c9e0a515f6e0f8c51dc0f8e4696391e6f1ff30379559f8365fb0df7"
 dependencies = [
- "rustix 0.38.17",
+ "rustix 0.38.18",
  "windows-sys 0.48.0",
 ]
 
@@ -6077,9 +6077,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.32.0"
+version = "1.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17ed6077ed6cd6c74735e21f37eb16dc3935f96878b1fe961074089cc80893f9"
+checksum = "4f38200e3ef7995e5ef13baec2f432a6da0aa9ac495b2c0e8f3b7eec2c92d653"
 dependencies = [
  "backtrace",
  "bytes",
