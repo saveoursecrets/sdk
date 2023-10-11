@@ -151,6 +151,9 @@ mod folders {
 
     /// Directory to store deleted files.
     pub const TRASH_DIR: &str = "trash";
+
+    /// Directory to store log files.
+    pub const LOGS_DIR: &str = "logs";
 }
 
 mod archive {

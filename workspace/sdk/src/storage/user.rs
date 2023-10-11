@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     constants::{
         AUDIT_FILE_NAME, DEVICES_DIR, FILES_DIR, LOCAL_DIR, TRASH_DIR,
-        VAULTS_DIR, VAULT_EXT,
+        VAULTS_DIR, VAULT_EXT, LOGS_DIR,
     },
     vfs,
 };
@@ -33,6 +33,8 @@ pub struct UserPaths {
     vaults_dir: PathBuf,
     /// User devices storage.
     devices_dir: PathBuf,
+    /// Log file storage.
+    logs_dir: PathBuf,
 }
 
 impl UserPaths {
@@ -46,6 +48,7 @@ impl UserPaths {
         let files_dir = user_dir.join(FILES_DIR);
         let vaults_dir = user_dir.join(VAULTS_DIR);
         let devices_dir = user_dir.join(DEVICES_DIR);
+        let logs_dir = user_dir.join(LOGS_DIR);
 
         Self {
             user_id: user_id.to_owned(),
@@ -57,6 +60,7 @@ impl UserPaths {
             files_dir,
             vaults_dir,
             devices_dir,
+            logs_dir,
         }
     }
 
@@ -69,6 +73,7 @@ impl UserPaths {
         vfs::create_dir_all(&self.files_dir).await?;
         vfs::create_dir_all(&self.vaults_dir).await?;
         vfs::create_dir_all(&self.devices_dir).await?;
+        vfs::create_dir_all(&self.logs_dir).await?;
         Ok(())
     }
 
