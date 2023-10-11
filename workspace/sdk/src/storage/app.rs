@@ -100,6 +100,11 @@ impl AppPaths {
         Ok(identity_dir)
     }
 
+    /// Get the app logs directory.
+    pub fn logs_dir() -> Result<PathBuf> {
+        Ok(Self::data_dir()?.join(LOGS_DIR))
+    }
+
     /// Get the local cache directory.
     pub fn local_dir() -> Result<PathBuf> {
         Ok(Self::data_dir()?.join(LOCAL_DIR))
