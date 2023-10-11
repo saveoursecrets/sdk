@@ -5447,8 +5447,8 @@ dependencies = [
  "serde_json",
  "serial_test",
  "shell-words",
- "sos-net 0.5.12 (registry+https://github.com/rust-lang/crates.io-index)",
- "sos-sdk 0.5.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-net 0.5.12",
+ "sos-sdk 0.5.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "terminal-banner",
  "thiserror",
@@ -5479,7 +5479,7 @@ dependencies = [
 
 [[package]]
 name = "sos-migrate"
-version = "0.5.11"
+version = "0.5.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5497,7 +5497,7 @@ dependencies = [
  "security-framework",
  "serde",
  "serde_json",
- "sos-sdk 0.5.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "time",
  "tokio",
@@ -5508,9 +5508,9 @@ dependencies = [
 
 [[package]]
 name = "sos-migrate"
-version = "0.5.11"
+version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e510a87abeade0fa15ce775c660d489fbf584c2adf3c86dfec89ab4e78a3e675"
+checksum = "57eca9bba8661581999305784a6949e5fe149b0f60b08974bcb39c1d14570945"
 dependencies = [
  "async-trait",
  "async_zip",
@@ -5527,67 +5527,13 @@ dependencies = [
  "security-framework",
  "serde",
  "serde_json",
- "sos-sdk 0.5.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "time",
  "tokio",
  "tokio-util",
  "url",
  "vcard4",
-]
-
-[[package]]
-name = "sos-net"
-version = "0.5.12"
-dependencies = [
- "anyhow",
- "async-recursion",
- "async-stream",
- "async-trait",
- "axum",
- "axum-macros",
- "axum-server",
- "bs58 0.4.0",
- "dirs",
- "either",
- "file-guard",
- "futures",
- "hex",
- "http",
- "if-addrs 0.10.2",
- "libp2p",
- "libp2p-quic",
- "log",
- "once_cell",
- "ouroboros",
- "parking_lot",
- "pin-project-lite",
- "rand 0.8.5",
- "reqwest",
- "rustc_version",
- "secrecy",
- "serde",
- "serde_json",
- "serde_with 2.3.3",
- "sha3",
- "sos-migrate 0.5.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "sos-sdk 0.5.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "tempfile",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tokio-tungstenite",
- "toml 0.5.11",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
- "void",
- "web3-address",
- "web3-signature",
- "whoami",
 ]
 
 [[package]]
@@ -5625,8 +5571,62 @@ dependencies = [
  "serde_json",
  "serde_with 2.3.3",
  "sha3",
- "sos-migrate 0.5.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "sos-sdk 0.5.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-migrate 0.5.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "toml 0.5.11",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "void",
+ "web3-address",
+ "web3-signature",
+ "whoami",
+]
+
+[[package]]
+name = "sos-net"
+version = "0.5.13"
+dependencies = [
+ "anyhow",
+ "async-recursion",
+ "async-stream",
+ "async-trait",
+ "axum",
+ "axum-macros",
+ "axum-server",
+ "bs58 0.4.0",
+ "dirs",
+ "either",
+ "file-guard",
+ "futures",
+ "hex",
+ "http",
+ "if-addrs 0.10.2",
+ "libp2p",
+ "libp2p-quic",
+ "log",
+ "once_cell",
+ "ouroboros",
+ "parking_lot",
+ "pin-project-lite",
+ "rand 0.8.5",
+ "reqwest",
+ "rustc_version",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "serde_with 2.3.3",
+ "sha3",
+ "sos-migrate 0.5.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "thiserror",
  "tokio",
@@ -5647,7 +5647,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.5.16"
+version = "0.5.17"
 dependencies = [
  "aes-gcm 0.10.3",
  "age",
@@ -5713,9 +5713,9 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.5.16"
+version = "0.5.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7a871982234a55ce57e69e8ac622ecf6295ed3408489ea2e12db3139e7b34de"
+checksum = "9fdc60ad437bc175abc20d163d57ba8dd0c8502ea8974df3923f4d7d98558e8b"
 dependencies = [
  "aes-gcm 0.10.3",
  "age",
