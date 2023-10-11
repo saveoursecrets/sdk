@@ -63,7 +63,7 @@ use super::{file_manager::FileProgress, search_index::UserIndex};
 pub struct SecretOptions {
     /// Target folder for the secret operation.
     ///
-    /// If not target folder is given the current open folder
+    /// If no target folder is given the current open folder
     /// will be used. When no folder is open and the target
     /// folder is not given an error will be returned.
     pub folder: Option<Summary>,
