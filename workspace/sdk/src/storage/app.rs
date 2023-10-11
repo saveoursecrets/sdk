@@ -10,7 +10,7 @@ use std::{
 use crate::{
     constants::{
         APP_AUTHOR, APP_NAME, DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR,
-        IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
+        IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT, LOGS_DIR,
     },
     vfs,
 };
@@ -34,6 +34,8 @@ impl AppPaths {
         vfs::create_dir_all(&data_dir).await?;
         let identity_dir = data_dir.join(IDENTITY_DIR);
         vfs::create_dir_all(&identity_dir).await?;
+        let logs_dir = data_dir.join(LOGS_DIR);
+        vfs::create_dir_all(&logs_dir).await?;
         Ok(())
     }
 
