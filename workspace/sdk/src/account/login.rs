@@ -131,7 +131,10 @@ impl AuthenticatedUser {
         }
 
         vfs::rename(identity_vault_file, deleted_identity_vault_file).await?;
-        vfs::rename(identity_data_dir, deleted_identity_data_dir).await?;
+
+        if cfg!(not(windows)) {
+            vfs::rename(identity_data_dir, deleted_identity_data_dir).await?;
+        }
 
         let event = Event::CreateAccount(AuditEvent::new(
             EventKind::DeleteAccount,
