@@ -167,6 +167,7 @@ impl Decodable for AuditEvent {
         // Time - the when
         let mut timestamp: Timestamp = Default::default();
         timestamp.decode(&mut *reader).await?;
+        self.time = timestamp;
         // EventKind - the what
         self.event_kind.decode(&mut *reader).await?;
         // Address - by whom

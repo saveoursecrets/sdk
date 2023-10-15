@@ -1,8 +1,8 @@
 //! Types for the public releases information.
 use crate::{Arch, Artifact, Channel, Platform};
 use serde::{Deserialize, Serialize};
-use url::Url;
 use std::collections::HashMap;
+use url::Url;
 
 /// Release information.
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,10 +39,7 @@ impl GuiReleaseInfo {
     }
 
     /// Get the meta data for a channel.
-    pub fn meta(
-        &self,
-        channel: &Channel,
-    ) -> Option<&ReleaseMeta> {
+    pub fn meta(&self, channel: &Channel) -> Option<&ReleaseMeta> {
         if let Some(channel) = self.channels.get(channel) {
             Some(&channel.meta)
         } else {
@@ -74,7 +71,7 @@ pub struct ReleaseMeta {
 /// Release information for a platform.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlatformRelease {
-    /// Release meta data. 
+    /// Release meta data.
     pub meta: ReleaseMeta,
     /// Release channels for the GUI.
     pub platforms: HashMap<Platform, Vec<Artifact>>,

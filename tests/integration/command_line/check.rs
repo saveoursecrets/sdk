@@ -63,7 +63,7 @@ pub fn log(
     vault_id: &VaultId,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let log_path = AppPaths::log_path(address, vault_id.to_string())?;
+    let log_path = AppPaths::event_log_path(address, vault_id.to_string())?;
 
     let cmd = format!("{} check log {}", exe, log_path.display());
     read_until_eof(cmd, None, repl.clone())?;

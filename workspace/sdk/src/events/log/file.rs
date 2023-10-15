@@ -134,10 +134,10 @@ impl EventLogFile {
         vfs::remove_file(self.path()).await?;
         // Move the temp file into place
         //
-        // NOTE: we would prefer to rename but on linux we 
+        // NOTE: we would prefer to rename but on linux we
         // NOTE: can hit ErrorKind::CrossesDevices
         //
-        // But it's a nightly only variant so can't use it yet to 
+        // But it's a nightly only variant so can't use it yet to
         // determine whether to rename or copy.
         vfs::copy(temp.path(), self.path()).await?;
 

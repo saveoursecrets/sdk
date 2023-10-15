@@ -10,7 +10,8 @@ use std::{
 use crate::{
     constants::{
         APP_AUTHOR, APP_NAME, DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR,
-        IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
+        IDENTITY_DIR, LOCAL_DIR, LOGS_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR,
+        VAULT_EXT,
     },
     vfs,
 };
@@ -34,6 +35,8 @@ impl AppPaths {
         vfs::create_dir_all(&data_dir).await?;
         let identity_dir = data_dir.join(IDENTITY_DIR);
         vfs::create_dir_all(&identity_dir).await?;
+        let logs_dir = data_dir.join(LOGS_DIR);
+        vfs::create_dir_all(&logs_dir).await?;
         Ok(())
     }
 
@@ -64,6 +67,10 @@ impl AppPaths {
     /// When running in with `debug_assertions` a `debug` path is appended
     /// so that we can use different storage locations for debug and
     /// release builds.
+    ///
+    /// If the `SOS_TEST` environment variable is set then we use
+    /// `test` rather than `debug` as the nested directory so that
+    /// test data does not collide with debug data.
     pub fn data_dir() -> Result<PathBuf> {
         let dir = if let Ok(env_data_dir) = std::env::var("SOS_DATA_DIR") {
             Ok(PathBuf::from(env_data_dir))
@@ -92,6 +99,11 @@ impl AppPaths {
         let data_dir = Self::data_dir()?;
         let identity_dir = data_dir.join(IDENTITY_DIR);
         Ok(identity_dir)
+    }
+
+    /// Get the app logs directory.
+    pub fn logs_dir() -> Result<PathBuf> {
+        Ok(Self::data_dir()?.join(LOGS_DIR))
     }
 
     /// Get the local cache directory.
@@ -178,8 +190,8 @@ impl AppPaths {
         Ok(vault_path)
     }
 
-    /// Get the path to a log file from it's identifier.
-    pub fn log_path<A: AsRef<Path>, V: AsRef<Path>>(
+    /// Get the path to an event log file from it's identifier.
+    pub fn event_log_path<A: AsRef<Path>, V: AsRef<Path>>(
         address: A,
         id: V,
     ) -> Result<PathBuf> {
