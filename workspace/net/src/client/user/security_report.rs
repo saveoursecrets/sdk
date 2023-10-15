@@ -1,27 +1,20 @@
 //! Generate a security report for all passwords.
 
 use crate::client::{user::UserStorage, Result};
-use futures::Future;
 use serde::{Deserialize, Serialize};
 use sos_sdk::vault::{
     secret::{Secret, SecretId, SecretType},
     Summary, VaultId,
 };
-use std::pin::Pin;
 
 /// Options for security report generation.
-pub struct SecurityReportOptions<T> {
+pub struct SecurityReportOptions {
     /// Exclude these folders from report generation.
     pub excludes: Vec<VaultId>,
-    /// Handler that accepts a list of SHA-1 hashes of the passwords
-    /// and can perform a check to see if they exist in a
-    /// database of breached passwords.
-    pub database_handler:
-        Box<dyn Fn(Vec<Vec<u8>>) -> Pin<Box<dyn Future<Output = Vec<T>>>>>,
 }
 
 /// List of records for a generated security report.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SecurityReport<T> {
     /// Report row records.
@@ -31,7 +24,7 @@ pub struct SecurityReport<T> {
 }
 
 /// Security report record.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SecurityReportRecord {
     /// Vault identifier.
@@ -48,7 +41,7 @@ pub struct SecurityReportRecord {
 }
 
 /// Password report.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PasswordReport {
     /// The entropy score.
@@ -61,10 +54,15 @@ pub struct PasswordReport {
 
 impl UserStorage {
     /// Generate a security report.
-    pub async fn generate_security_report<T>(
+    pub async fn generate_security_report<T, H, F>(
         &mut self,
-        options: SecurityReportOptions<T>,
-    ) -> Result<SecurityReport<T>> {
+        options: SecurityReportOptions,
+        database_handler: H,
+    ) -> Result<SecurityReport<T>>
+    where
+        H: Fn(Vec<Vec<u8>>) -> F,
+        F: std::future::Future<Output = Vec<T>>,
+    {
         let mut records = Vec::new();
         let mut hashes = Vec::new();
         let folders = self.list_folders().await?;
@@ -140,7 +138,7 @@ impl UserStorage {
             self.open_vault(&current, false).await?;
         }
 
-        let database_checks = (options.database_handler)(hashes).await;
+        let database_checks = (database_handler)(hashes).await;
         Ok(SecurityReport {
             records,
             database_checks,
