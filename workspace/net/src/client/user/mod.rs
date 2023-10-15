@@ -5,6 +5,7 @@ mod devices;
 
 mod file_manager;
 mod search_index;
+mod security_report;
 mod user_storage;
 
 #[cfg(feature = "device")]

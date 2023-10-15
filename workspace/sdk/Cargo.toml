@@ -39,8 +39,9 @@ argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
 serde_with = { version = "3", features = ["base64"] }
 # matches the version in k256
-sha3 = "0.10.6"
+sha1 = "0.10.6"
 sha2 = "0.10.6"
+sha3 = "0.10.6"
 app_dirs2 = "2"
 uuid = { version = "1", features = ["serde", "v4"] }
 url = { version = "2", features = ["serde"] }
