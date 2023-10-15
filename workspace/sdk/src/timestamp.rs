@@ -59,9 +59,7 @@ impl Timestamp {
 
     /// Format as a simple date YYYY-MM-DD.
     pub fn format_simple_date(&self) -> Result<String> {
-        let format = format_description::parse(
-            "[year]-[month]-[day]",
-        )?;
+        let format = format_description::parse("[year]-[month]-[day]")?;
         Ok(self.0.format(&format)?)
     }
 

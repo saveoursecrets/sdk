@@ -4,7 +4,7 @@ use libp2p::{
     identify,
     kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
     rendezvous, request_response,
-    swarm::{NetworkBehaviour},
+    swarm::NetworkBehaviour,
 };
 
 use sos_sdk::rpc::{RequestMessage, ResponseMessage};

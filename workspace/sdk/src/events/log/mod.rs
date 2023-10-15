@@ -115,8 +115,7 @@ mod test {
 
     async fn mock_event_log_server_client(
     ) -> Result<(EventLogFile, EventLogFile, SecretId)> {
-        
-        // Required for CI which is setting the current 
+        // Required for CI which is setting the current
         // working directory to the workspace member rather
         // than using the top-level working directory
         if !vfs::try_exists("target").await? {
@@ -138,7 +137,7 @@ mod test {
         let vault_buffer = encode(&vault).await?;
 
         let (id, data) = mock_secret().await?;
-        
+
         // Create a simple event log
         let mut server = EventLogFile::new(&server_file).await?;
         server

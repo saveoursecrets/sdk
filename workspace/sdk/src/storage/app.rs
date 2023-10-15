@@ -10,7 +10,8 @@ use std::{
 use crate::{
     constants::{
         APP_AUTHOR, APP_NAME, DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR,
-        IDENTITY_DIR, LOCAL_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT, LOGS_DIR,
+        IDENTITY_DIR, LOCAL_DIR, LOGS_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR,
+        VAULT_EXT,
     },
     vfs,
 };
@@ -67,8 +68,8 @@ impl AppPaths {
     /// so that we can use different storage locations for debug and
     /// release builds.
     ///
-    /// If the `SOS_TEST` environment variable is set then we use 
-    /// `test` rather than `debug` as the nested directory so that 
+    /// If the `SOS_TEST` environment variable is set then we use
+    /// `test` rather than `debug` as the nested directory so that
     /// test data does not collide with debug data.
     pub fn data_dir() -> Result<PathBuf> {
         let dir = if let Ok(env_data_dir) = std::env::var("SOS_DATA_DIR") {

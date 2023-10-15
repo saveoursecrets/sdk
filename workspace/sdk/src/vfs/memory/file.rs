@@ -224,7 +224,10 @@ impl File {
     }
 
     /// Changes the permissions on the underlying file.
-    pub async fn set_permissions(&self, _perm: Permissions) -> io::Result<()> {
+    pub async fn set_permissions(
+        &self,
+        _perm: Permissions,
+    ) -> io::Result<()> {
         unimplemented!();
     }
 }

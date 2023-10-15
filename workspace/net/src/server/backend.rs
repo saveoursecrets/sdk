@@ -625,10 +625,10 @@ impl BackendHandler for FileSystemBackend {
 
         // Move the temp file with the new contents into place
         //
-        // NOTE: we would prefer to rename but on linux we 
+        // NOTE: we would prefer to rename but on linux we
         // NOTE: can hit ErrorKind::CrossesDevices
         //
-        // But it's a nightly only variant so can't use it yet to 
+        // But it's a nightly only variant so can't use it yet to
         // determine whether to rename or copy.
         vfs::copy(&temp_path, &original_event_log).await?;
 
