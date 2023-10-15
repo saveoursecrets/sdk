@@ -1,15 +1,11 @@
 //! Generate a security report for all passwords.
 
-use crate::client::{user::UserStorage, Error, Result};
+use crate::client::{user::UserStorage, Result};
 use futures::Future;
 use serde::{Deserialize, Serialize};
-use sos_sdk::{
-    passwd::generator::measure_entropy,
-    vault::{
-        secret::{Secret, SecretId, SecretType},
-        Summary, VaultId,
-    },
-    zxcvbn::Entropy,
+use sos_sdk::vault::{
+    secret::{Secret, SecretId, SecretType},
+    Summary, VaultId,
 };
 use std::pin::Pin;
 
@@ -78,7 +74,10 @@ impl UserStorage {
             .collect();
 
         // Store current open vault so we can restore afterwards
-        let current = self.storage.current();
+        let current = self
+            .storage
+            .current()
+            .map(|keeper| keeper.vault().summary().clone());
 
         for target in targets {
             self.open_vault(&target, false).await?;
@@ -134,6 +133,11 @@ impl UserStorage {
                 hashes.push(sha1);
                 records.push(record);
             }
+        }
+
+        // Restore the original open vault
+        if let Some(current) = current {
+            self.open_vault(&current, false).await?;
         }
 
         let database_checks = (options.database_handler)(hashes).await;
