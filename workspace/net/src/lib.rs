@@ -31,3 +31,5 @@ pub use sos_migrate as migrate;
 
 #[cfg(feature = "client")]
 pub use reqwest;
+
+pub use sos_sdk as sdk;
