@@ -2,9 +2,12 @@
 
 use crate::client::{user::UserStorage, Result};
 use serde::{Deserialize, Serialize};
-use sos_sdk::vault::{
-    secret::{Secret, SecretId, SecretType},
-    Summary, VaultId,
+use sos_sdk::{
+    vault::{
+        secret::{Secret, SecretId, SecretType},
+        Summary, VaultId,
+    },
+    zxcvbn::Entropy,
 };
 
 /// Options for security report generation.
@@ -14,8 +17,6 @@ pub struct SecurityReportOptions {
 }
 
 /// List of records for a generated security report.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SecurityReport<T> {
     /// Report row records.
     pub records: Vec<SecurityReportRecord>,
@@ -24,32 +25,16 @@ pub struct SecurityReport<T> {
 }
 
 /// Security report record.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SecurityReportRecord {
-    /// Vault identifier.
-    pub vault_id: VaultId,
+    /// Folder summary.
+    pub folder: Summary,
     /// Secret identifier.
     pub secret_id: SecretId,
     /// Owner information when the password
     /// belongs to a parent secret (custom field).
     pub owner: Option<(SecretId, usize)>,
-    /// Report on password entropy and user defined
-    /// reporting information (eg: haveibeenpwned lookup).
-    #[serde(flatten)]
-    pub report: PasswordReport,
-}
-
-/// Password report.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PasswordReport {
-    /// The entropy score.
-    pub score: u8,
-    /// The estimated number of guesses needed to crack the password.
-    pub guesses: u64,
-    /// The order of magnitude of guesses.
-    pub guesses_log10: f64,
+    /// Password entropy information.
+    pub entropy: Entropy,
 }
 
 impl UserStorage {
@@ -115,17 +100,11 @@ impl UserStorage {
             for (secret_id, check, owner) in password_hashes {
                 let (entropy, sha1) = check;
 
-                let report = PasswordReport {
-                    score: entropy.score(),
-                    guesses: entropy.guesses(),
-                    guesses_log10: entropy.guesses_log10(),
-                };
-
                 let record = SecurityReportRecord {
-                    vault_id: *vault.id(),
+                    folder: target.clone(),
                     secret_id,
                     owner,
-                    report,
+                    entropy,
                 };
 
                 hashes.push(sha1);

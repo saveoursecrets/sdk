@@ -82,8 +82,8 @@ async fn integration_security_report() -> Result<()> {
         .find(|r| r.secret_id == mock_ids.strong_id)
         .unwrap();
 
-    assert!(weak_record.report.score < 3);
-    assert!(strong_record.report.score >= 3);
+    assert!(weak_record.entropy.score() < 3);
+    assert!(strong_record.entropy.score() >= 3);
 
     // Delete the account
     owner.delete_account().await?;
