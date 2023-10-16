@@ -16,7 +16,7 @@ use sos_sdk::{
     passwd::diceware::generate_passphrase,
     storage::AppPaths,
     vault::{
-        secret::{Secret, SecretId, SecretMeta},
+        secret::{Secret, SecretId, SecretMeta, UserData, SecretRow},
         Summary,
     },
     vfs::{self, File},
@@ -60,14 +60,18 @@ async fn integration_security_report() -> Result<()> {
     // Make changes to generate data
     let mock_ids = simulate_session(&mut owner, &summary, passphrase).await?;
 
-    let report_options = SecurityReportOptions { excludes: vec![] };
+    let report_options = SecurityReportOptions { 
+        excludes: vec![],
+        database_handler: Some(
+            |hashes: Vec<Vec<u8>>| async move {
+                hashes.into_iter().map(|hash| true).collect()
+            },
+        ),
+    };
     let report =
         owner
             .generate_security_report::<bool, _, _>(
                 report_options,
-                |hashes| async move {
-                    hashes.into_iter().map(|hash| true).collect()
-                },
             )
             .await?;
 
@@ -81,9 +85,15 @@ async fn integration_security_report() -> Result<()> {
         .iter()
         .find(|r| r.secret_id == mock_ids.strong_id)
         .unwrap();
+    let field_record = report
+        .records
+        .iter()
+        .find(|r| r.secret_id == mock_ids.field_id)
+        .unwrap();
 
     assert!(weak_record.entropy.score() < 3);
     assert!(strong_record.entropy.score() >= 3);
+    assert!(field_record.entropy.score() >= 3);
 
     // Delete the account
     owner.delete_account().await?;
@@ -98,6 +108,7 @@ async fn integration_security_report() -> Result<()> {
 struct MockSecretIds {
     weak_id: SecretId,
     strong_id: SecretId,
+    field_id: SecretId,
 }
 
 async fn simulate_session(
@@ -119,13 +130,28 @@ async fn simulate_session(
         .create_secret(weak_meta, weak_secret, default_folder.clone().into())
         .await?;
 
+    // Create a password custom field.
+    let field_id = SecretId::new_v4();
+    let (password, _) = generate_passphrase()?;
+    let field_secret = Secret::Password {
+        password,
+        name: None,
+        user_data: Default::default(),
+    };
+    let field_meta =
+        SecretMeta::new("Field password".to_string(), field_secret.kind());
+    let mut user_data: UserData = Default::default();
+    user_data.fields_mut().push(
+        SecretRow::new(field_id, field_meta, field_secret),
+    );
+
     // Create a strong account secret
     let (password, _) = generate_passphrase()?;
     let strong_secret = Secret::Account {
         account: "string@example.com".to_string(),
         password,
         url: None,
-        user_data: Default::default(),
+        user_data,
     };
     let strong_meta =
         SecretMeta::new("Strong password".to_string(), strong_secret.kind());
@@ -138,5 +164,5 @@ async fn simulate_session(
         )
         .await?;
 
-    Ok(MockSecretIds { weak_id, strong_id })
+    Ok(MockSecretIds { weak_id, strong_id, field_id })
 }

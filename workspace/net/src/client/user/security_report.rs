@@ -11,9 +11,20 @@ use sos_sdk::{
 };
 
 /// Options for security report generation.
-pub struct SecurityReportOptions {
+pub struct SecurityReportOptions<T, H, F>
+where
+    H: Fn(Vec<Vec<u8>>) -> F,
+    F: std::future::Future<Output = Vec<T>>,
+{
     /// Exclude these folders from report generation.
     pub excludes: Vec<VaultId>,
+    /// Database handler that can check for breaches
+    /// based on the password hashes (SHA-1).
+    ///
+    /// The handler is passed a list of passwords hashes 
+    /// and must return a list of `T` the same length as 
+    /// the input.
+    pub database_handler: Option<H>,
 }
 
 /// List of records for a generated security report.
@@ -41,8 +52,7 @@ impl UserStorage {
     /// Generate a security report.
     pub async fn generate_security_report<T, H, F>(
         &mut self,
-        options: SecurityReportOptions,
-        database_handler: H,
+        options: SecurityReportOptions<T, H, F>,
     ) -> Result<SecurityReport<T>>
     where
         H: Fn(Vec<Vec<u8>>) -> F,
@@ -117,7 +127,12 @@ impl UserStorage {
             self.open_vault(&current, false).await?;
         }
 
-        let database_checks = (database_handler)(hashes).await;
+        let database_checks =
+            if let Some(database_handler) = options.database_handler {
+                (database_handler)(hashes).await
+            } else {
+                vec![]
+            };
         Ok(SecurityReport {
             records,
             database_checks,

@@ -20,8 +20,7 @@ pub use sos_migrate::{
 pub use file_manager::FileProgress;
 pub use search_index::{ArchiveFilter, DocumentView, QueryFilter, UserIndex};
 pub use security_report::{
-    SecurityReport, SecurityReportOptions,
-    SecurityReportRecord,
+    SecurityReport, SecurityReportOptions, SecurityReportRecord,
 };
 pub use user_storage::{
     AccountData, SecretOptions, UserStatistics, UserStorage,
