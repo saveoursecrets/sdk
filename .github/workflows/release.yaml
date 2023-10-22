@@ -9,6 +9,7 @@ env:
   BUCKET: ${{ vars.RELEASE_BUCKET }} 
   RELEASE_REGION: ${{ vars.RELEASE_REGION }}
   CHANNEL: ${{ vars.DISTRIBUTION_CHANNEL }}
+  RELEASES_CLOUDFRONT_ID: ${{ vars.RELEASES_CLOUDFRONT_ID }}
 
 jobs:
   #checks:
@@ -88,3 +89,15 @@ jobs:
             --channel $CHANNEL \
             --collection cli \
             --semver $SEMVER
+      - name: Index releases archive
+        env:
+          AWS_REGION: ${{ vars.RELEASE_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_RELEASE_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}
+        run: |
+          index-html s3 \
+            --bucket $BUCKET \
+            --page-title Releases && \
+          aws cloudfront create-invalidation \
+            --distribution-id $RELEASES_CLOUDFRONT_ID \
+            --paths '/*'
