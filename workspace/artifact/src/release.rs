@@ -5,21 +5,23 @@ use std::collections::HashMap;
 use url::Url;
 
 /// Release information.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ReleaseInfo {
     /// GUI release information.
-    pub gui: GuiReleaseInfo,
+    pub gui: ReleaseCollection,
+    /// CLI release information.
+    pub cli: ReleaseCollection,
 }
 
-/// Release information for the GUI.
+/// Release information for a collection.
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct GuiReleaseInfo {
-    /// Release channels for the GUI.
+pub struct ReleaseCollection {
+    /// Release channels for a collection.
     #[serde(flatten)]
     pub channels: HashMap<Channel, PlatformRelease>,
 }
 
-impl GuiReleaseInfo {
+impl ReleaseCollection {
     /// Find an artifact by distro.
     pub fn find(
         &self,
@@ -90,97 +92,11 @@ mod test {
     use anyhow::Result;
     use time::OffsetDateTime;
 
-    static JSON: &str = r#"
-{
-  "gui": {
-    "beta": {
-      "meta": {
-        "version": "1.0.0-beta+87",
-        "notes": {
-          "text": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/release-notes.txt",
-          "markdown": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/release-notes.md",
-          "html": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/release-notes.html"
-        }
-      },
-      "platforms": {
-        "macos": [
-          {
-            "platform": "macos",
-            "arch": "universal",
-            "name": "saveoursecrets.pkg",
-            "version": "1.0.0-beta+87",
-            "sha256": "4ba319beb284bc557f9b51def8d1dc2b15dfdf6273a8bd88a2153b8c1be1b5e6",
-            "timestamp": "2023-10-09 10:45:31.958386 +00:00:00",
-            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
-            "size": 39424923,
-            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/macos/universal/saveoursecrets.pkg"
-          }
-        ],
-        "debian": [
-          {
-            "platform": "debian",
-            "arch": "x86_64",
-            "name": "saveoursecrets.deb",
-            "version": "1.0.0-beta+87",
-            "sha256": "e586f7a52a46980a9d3050eee492fe0f33f5a26012fa1ab4f956d4f2c648076f",
-            "timestamp": "2023-10-09 10:44:14.403563787 +00:00:00",
-            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
-            "size": 17865892,
-            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/debian/x86_64/saveoursecrets.deb"
-          }
-        ],
-        "windows": [
-          {
-            "platform": "windows",
-            "arch": "x86_64",
-            "name": "saveoursecrets.msix",
-            "version": "1.0.0-beta+87",
-            "sha256": "02419bfcd8af8d712ecb979aba0ffc60c52be2d8fa74785a79fef9f0f5a680d3",
-            "timestamp": "2023-10-09 10:56:26.3850014 +00:00:00",
-            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
-            "size": 22763771,
-            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/windows/x86_64/saveoursecrets.msix"
-          }
-        ],
-        "android": [
-          {
-            "platform": "android",
-            "arch": "universal",
-            "name": "saveoursecrets.apk",
-            "version": "1.0.0-beta+87",
-            "sha256": "ee620681fd4e6a0f45f8385b9e17a8030e4efa27c8b7b0f573721318a25c462c",
-            "timestamp": "2023-10-09 10:41:41.668717765 +00:00:00",
-            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
-            "size": 76830841,
-            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/android/universal/saveoursecrets.apk",
-            "store": "https://play.google.com/store/apps/details?id=com.saveoursecrets"
-          }
-        ],
-        "ios": [
-          {
-            "platform": "ios",
-            "arch": "universal",
-            "name": "saveoursecrets.ipa",
-            "version": "1.0.0-beta+87",
-            "sha256": "2854aa7deaed63db34722de998b79f44f97bc6ab2915e177cf78cb313ea14302",
-            "timestamp": "2023-10-09 10:57:19.820767 +00:00:00",
-            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
-            "size": 116151448,
-            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/ios/universal/saveoursecrets.ipa",
-            "store": "https://appstore.com/saveoursecrets"
-          }
-        ]
-      }
-    }
-  }
-}
-"#;
+    static JSON: &str = include_str!("releases.json");
 
     #[test]
     fn test_serde() -> Result<()> {
-        let mut info = ReleaseInfo {
-            gui: Default::default(),
-        };
+        let mut info: ReleaseInfo = Default::default();
 
         info.gui.channels.insert(
             Channel::Beta,
@@ -228,6 +144,14 @@ mod test {
             &Arch::Universal,
         );
         assert!(artifact.is_some());
+
+        let artifact = &info.cli.find(
+            &Channel::Beta,
+            &Platform::MacOS,
+            &Arch::Aarch64,
+        );
+        assert!(artifact.is_some());
+
         Ok(())
     }
 }

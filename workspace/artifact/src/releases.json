@@ -1,0 +1,147 @@
+{
+  "gui": {
+    "beta": {
+      "meta": {
+        "version": "1.0.0-beta+87",
+        "notes": {
+          "text": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/release-notes.txt",
+          "markdown": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/release-notes.md",
+          "html": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/release-notes.html"
+        }
+      },
+      "platforms": {
+        "macos": [
+          {
+            "platform": "macos",
+            "arch": "universal",
+            "name": "saveoursecrets.pkg",
+            "version": "1.0.0-beta+87",
+            "sha256": "4ba319beb284bc557f9b51def8d1dc2b15dfdf6273a8bd88a2153b8c1be1b5e6",
+            "timestamp": "2023-10-09 10:45:31.958386 +00:00:00",
+            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
+            "size": 39424923,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/macos/universal/saveoursecrets.pkg"
+          }
+        ],
+        "debian": [
+          {
+            "platform": "debian",
+            "arch": "x86_64",
+            "name": "saveoursecrets.deb",
+            "version": "1.0.0-beta+87",
+            "sha256": "e586f7a52a46980a9d3050eee492fe0f33f5a26012fa1ab4f956d4f2c648076f",
+            "timestamp": "2023-10-09 10:44:14.403563787 +00:00:00",
+            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
+            "size": 17865892,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/debian/x86_64/saveoursecrets.deb"
+          }
+        ],
+        "windows": [
+          {
+            "platform": "windows",
+            "arch": "x86_64",
+            "name": "saveoursecrets.msix",
+            "version": "1.0.0-beta+87",
+            "sha256": "02419bfcd8af8d712ecb979aba0ffc60c52be2d8fa74785a79fef9f0f5a680d3",
+            "timestamp": "2023-10-09 10:56:26.3850014 +00:00:00",
+            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
+            "size": 22763771,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/windows/x86_64/saveoursecrets.msix"
+          }
+        ],
+        "android": [
+          {
+            "platform": "android",
+            "arch": "universal",
+            "name": "saveoursecrets.apk",
+            "version": "1.0.0-beta+87",
+            "sha256": "ee620681fd4e6a0f45f8385b9e17a8030e4efa27c8b7b0f573721318a25c462c",
+            "timestamp": "2023-10-09 10:41:41.668717765 +00:00:00",
+            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
+            "size": 76830841,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/android/universal/saveoursecrets.apk",
+            "store": "https://play.google.com/store/apps/details?id=com.saveoursecrets"
+          }
+        ],
+        "ios": [
+          {
+            "platform": "ios",
+            "arch": "universal",
+            "name": "saveoursecrets.ipa",
+            "version": "1.0.0-beta+87",
+            "sha256": "2854aa7deaed63db34722de998b79f44f97bc6ab2915e177cf78cb313ea14302",
+            "timestamp": "2023-10-09 10:57:19.820767 +00:00:00",
+            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
+            "size": 116151448,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/ios/universal/saveoursecrets.ipa",
+            "store": "https://appstore.com/saveoursecrets"
+          }
+        ]
+      }
+    }
+  },
+  "cli": {
+    "beta": {
+      "meta": {
+        "version": "0.6.0",
+        "notes": {
+          "text": "https://releases.saveoursecrets.com/beta/cli/0.6.0/release-notes.txt",
+          "markdown": "https://releases.saveoursecrets.com/beta/cli/0.6.0/release-notes.md",
+          "html": "https://releases.saveoursecrets.com/beta/cli/0.6.0/release-notes.html"
+        }
+      },
+      "platforms": {
+        "macos": [
+          {
+            "platform": "macos",
+            "arch": "aarch64",
+            "name": "saveoursecrets.zip",
+            "version": "0.6.0",
+            "sha256": "623b576a8186ab0f90abda2c4bce12834aa9d82daaf0c7aa8cf2721564da27fb",
+            "timestamp": "2023-10-22 00:46:16.904309 +00:00:00",
+            "commit": "0057051a6a0a3f45d59e14e98b9fbd6f06fe591d",
+            "size": 18492024,
+            "artifact": "https://releases.saveoursecrets.com/beta/cli/0.6.0/macos/aarch64/saveoursecrets.zip"
+          },
+          {
+            "platform": "macos",
+            "arch": "x86_64",
+            "name": "saveoursecrets.zip",
+            "version": "0.6.0",
+            "sha256": "5a1955a180382e31aaec2f5f74b3fadf67277b571f7d06b0b530baf90eca0695",
+            "timestamp": "2023-10-22 00:45:46.269364 +00:00:00",
+            "commit": "0057051a6a0a3f45d59e14e98b9fbd6f06fe591d",
+            "size": 19281045,
+            "artifact": "https://releases.saveoursecrets.com/beta/cli/0.6.0/macos/x86_64/saveoursecrets.zip"
+          }
+        ],
+        "linux": [
+          {
+            "platform": "linux",
+            "arch": "x86_64",
+            "name": "saveoursecrets.zip",
+            "version": "0.6.0",
+            "sha256": "ce81f6cd6b82ff5d5c0578a11258cca10efc5ed10d741186fd8831feebfe15ad",
+            "timestamp": "2023-10-22 00:49:58.711326456 +00:00:00",
+            "commit": "0057051a6a0a3f45d59e14e98b9fbd6f06fe591d",
+            "size": 26532326,
+            "artifact": "https://releases.saveoursecrets.com/beta/cli/0.6.0/linux/x86_64/saveoursecrets.zip"
+          }
+        ],
+        "windows": [
+          {
+            "platform": "windows",
+            "arch": "x86_64",
+            "name": "saveoursecrets.zip",
+            "version": "0.6.0",
+            "sha256": "4bcaf0d2c48b384dfb94bcea3023358abd2f5c0bc2794c58ac1759603d4b59cf",
+            "timestamp": "2023-10-22 00:58:02.030116 +00:00:00",
+            "commit": "0057051a6a0a3f45d59e14e98b9fbd6f06fe591d",
+            "size": 16216395,
+            "artifact": "https://releases.saveoursecrets.com/beta/cli/0.6.0/windows/x86_64/saveoursecrets.zip"
+          }
+        ]
+      }
+    }
+  }
+}
