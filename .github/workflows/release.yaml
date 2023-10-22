@@ -11,27 +11,28 @@ env:
   CHANNEL: ${{ vars.DISTRIBUTION_CHANNEL }}
 
 jobs:
-  check:
-    uses: ./.github/workflows/checks.yaml
+  #checks:
+    #uses: ./.github/workflows/checks.yaml
 
-  publish:
-    uses: ./.github/workflows/publish.yaml
-    needs:
-      - check
-    secrets: inherit
+  #publish:
+    #uses: ./.github/workflows/publish.yaml
+    #needs:
+      #- check
+    #secrets: inherit
 
-  homebrew:
-    uses: ./.github/workflows/homebrew.yaml
-    needs:
-      - publish
-    secrets: inherit
+  #homebrew:
+    #uses: ./.github/workflows/homebrew.yaml
+    #needs:
+      #- publish
+    #secrets: inherit
 
   release-artifacts:
     #if: ${{ false }}
     runs-on: ubuntu-latest
-    needs:
-      - publish
-      - homebrew
+    #needs:
+      #- checks
+      #- publish
+      #- homebrew
     steps:
       - uses: actions/checkout@v3
       - name: Set environment variables
@@ -62,11 +63,11 @@ jobs:
           release-artifact download \
             --bucket $RELEASE_BUCKET \
             --directory target/artifacts \
-            $CHANNEL/cli/linux/$SEMVER/x86_64/saveoursecrets.zip \
-            $CHANNEL/cli/linux/$SEMVER/x86_64/musl/saveoursecrets.zip \
-            $CHANNEL/cli/windows/$SEMVER/x86_64/saveoursecrets.zip \
-            $CHANNEL/cli/macos/$SEMVER/x86_64/saveoursecrets.zip \
-            $CHANNEL/cli/macos/$SEMVER/aarch64/saveoursecrets.zip
+            $CHANNEL/cli/$SEMVER/linux/x86_64/saveoursecrets.zip \
+            $CHANNEL/cli/$SEMVER/linux/x86_64/musl/saveoursecrets.zip \
+            $CHANNEL/cli/$SEMVER/windows/x86_64/saveoursecrets.zip \
+            $CHANNEL/cli/$SEMVER/macos/x86_64/saveoursecrets.zip \
+            $CHANNEL/cli/$SEMVER/macos/aarch64/saveoursecrets.zip
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
