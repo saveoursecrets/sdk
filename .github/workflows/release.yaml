@@ -6,33 +6,33 @@ on:
       - "v*.*.*"
 
 env:
-  RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }} 
+  BUCKET: ${{ vars.RELEASE_BUCKET }} 
   RELEASE_REGION: ${{ vars.RELEASE_REGION }}
   CHANNEL: ${{ vars.DISTRIBUTION_CHANNEL }}
 
 jobs:
-  checks:
-    uses: ./.github/workflows/checks.yaml
+  #checks:
+    #uses: ./.github/workflows/checks.yaml
 
-  publish:
-    uses: ./.github/workflows/publish.yaml
-    needs:
-      - check
-    secrets: inherit
+  #publish:
+    #uses: ./.github/workflows/publish.yaml
+    #needs:
+      #- check
+    #secrets: inherit
 
-  homebrew:
-    uses: ./.github/workflows/homebrew.yaml
-    needs:
-      - publish
-    secrets: inherit
+  #homebrew:
+    #uses: ./.github/workflows/homebrew.yaml
+    #needs:
+      #- publish
+    #secrets: inherit
 
   release-artifacts:
     #if: ${{ false }}
     runs-on: ubuntu-latest
-    needs:
-      - checks
-      - publish
-      - homebrew
+    #needs:
+      #- checks
+      #- publish
+      #- homebrew
     steps:
       - uses: actions/checkout@v3
       - name: Set environment variables
@@ -61,7 +61,7 @@ jobs:
         run: |
           mkdir -p target/artifacts
           release-artifact download \
-            --bucket $RELEASE_BUCKET \
+            --bucket $BUCKET \
             --directory target/artifacts \
             $CHANNEL/cli/$SEMVER/linux/x86_64/saveoursecrets.zip \
             $CHANNEL/cli/$SEMVER/linux/x86_64/musl/saveoursecrets.zip \
@@ -76,3 +76,15 @@ jobs:
             target/artifacts/*
             LICENSE
             COPYRIGHT
+      - name: Update release notes
+        env:
+          SOS_GH_RELEASE_NOTES_TOKEN: ${{ secrets.SOS_GH_RELEASE_NOTES_TOKEN }}
+          AWS_REGION: ${{ env.RELEASE_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_RELEASE_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_RELEASE_SECRET_ACCESS_KEY }}
+        run: |
+          release-notes \
+            --bucket $BUCKET \
+            --channel $CHANNEL \
+            --collection cli \
+            --semver $SEMVER
