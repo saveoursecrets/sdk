@@ -676,7 +676,7 @@ impl UserStorage {
         self.open_vault(summary, true).await
     }
 
-    async fn open_vault(
+    pub(crate) async fn open_vault(
         &mut self,
         summary: &Summary,
         audit: bool,

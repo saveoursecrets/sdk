@@ -61,6 +61,7 @@ pub use url;
 pub use urn;
 pub use uuid;
 pub use vcard4;
+pub use zxcvbn;
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;

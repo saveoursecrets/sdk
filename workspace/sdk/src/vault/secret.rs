@@ -21,8 +21,10 @@ use url::Url;
 use urn::Urn;
 use uuid::Uuid;
 use vcard4::{self, Vcard};
+use zxcvbn::Entropy;
 
 use crate::{
+    passwd::generator::measure_entropy,
     signer::{
         ecdsa::{self, BoxedEcdsaSigner},
         ed25519::{self, BoxedEd25519Signer},
@@ -1450,6 +1452,44 @@ impl fmt::Debug for Secret {
 }
 
 impl Secret {
+    /// Measure entropy for a password and compute a SHA-1 checksum.
+    ///
+    /// Only applies to account and password types, other
+    /// types will yield `None.`
+    pub fn check_password(
+        secret: &Secret,
+    ) -> Result<Option<(Entropy, Vec<u8>)>> {
+        use sha1::{Digest, Sha1};
+        match secret {
+            Secret::Account {
+                account, password, ..
+            } => {
+                let entropy =
+                    measure_entropy(password.expose_secret(), &[account])?;
+
+                let hash = Sha1::digest(password.expose_secret().as_bytes());
+                Ok(Some((entropy, hash.to_vec())))
+            }
+            Secret::Password { password, name, .. } => {
+                let inputs = if let Some(name) = name {
+                    vec![&name.expose_secret()[..]]
+                } else {
+                    vec![]
+                };
+
+                let entropy = measure_entropy(
+                    password.expose_secret(),
+                    inputs.as_slice(),
+                )?;
+
+                let hash = Sha1::digest(password.expose_secret().as_bytes());
+
+                Ok(Some((entropy, hash.to_vec())))
+            }
+            _ => Ok(None),
+        }
+    }
+
     /// Plain text unencrypted display for secrets
     /// that can be represented as UTF-8 text.
     ///

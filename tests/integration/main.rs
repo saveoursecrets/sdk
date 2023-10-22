@@ -33,6 +33,10 @@ mod local_provider;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod patch_conflict_resolve;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod security_report;
+
 #[cfg(not(target_arch = "wasm32"))]
 mod simple_session;
 
