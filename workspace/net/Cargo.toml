@@ -20,7 +20,7 @@ full = [
 client = [
   "reqwest",
 ]
-peer = ["libp2p", "libp2p-quic", "either", "void"]
+peer = ["libp2p", "libp2p-quic", "either", "void", "libp2p-kad", "libp2p-noise", "libp2p-yamux", "libp2p-tls"]
 server = [
   "toml",
   "axum",
@@ -86,12 +86,12 @@ either = { version = "1.8", optional = true }
 
 [dependencies.sos-sdk]
 version = "0.5.17"
-path = "../sdk"
+#path = "../sdk"
 
 [dependencies.sos-migrate]
 version = "0.5.12"
 optional = true
-path = "../migrate"
+#path = "../migrate"
 
 [dependencies.libp2p]
 version = "0.52.3"
@@ -102,12 +102,30 @@ features = [
   "noise",
   "macros",
   "tcp",
+  "quic",
+  "dns",
   "yamux",
   "kad",
   "request-response",
   "rendezvous",
   "identify",
 ]
+
+[dependencies.libp2p-noise]
+version = "0.43"
+optional = true
+
+[dependencies.libp2p-yamux]
+version = "0.44"
+optional = true
+
+[dependencies.libp2p-tls]
+version = "0.2"
+optional = true
+
+[dependencies.libp2p-kad]
+version = "0.44"
+optional = true
 
 [dependencies.libp2p-quic]
 version = "0.9.2"

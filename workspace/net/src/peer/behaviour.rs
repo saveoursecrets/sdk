@@ -2,10 +2,10 @@
 
 use libp2p::{
     identify,
-    kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
     rendezvous, request_response,
     swarm::NetworkBehaviour,
 };
+use libp2p_kad::{Event as KademliaEvent, Behaviour as Kademlia, store::MemoryStore};
 
 use sos_sdk::rpc::{RequestMessage, ResponseMessage};
 

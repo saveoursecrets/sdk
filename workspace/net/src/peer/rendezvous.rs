@@ -2,16 +2,15 @@
 use futures::StreamExt;
 use libp2p::{
     identify, identity, rendezvous,
-    swarm::{SwarmBuilder, SwarmEvent},
-    PeerId,
+    swarm::SwarmEvent,
+    SwarmBuilder,
 };
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 
 use super::{
     Result,
     {
         behaviour::{RendezvousBehaviour, RendezvousBehaviourEvent},
-        transport,
     },
 };
 
@@ -41,23 +40,30 @@ impl Server {
 
     /// Start the rendezvous service running.
     pub async fn run(&self) -> Result<()> {
-        let mut swarm = SwarmBuilder::with_tokio_executor(
-            transport::build(&self.identity)?,
-            RendezvousBehaviour {
-                identify: identify::Behaviour::new(identify::Config::new(
-                    "sos-rendezvous/1.0.0".to_string(),
-                    //format!("{}/{}", self.name, self.version),
-                    self.identity.public(),
-                )),
-                rendezvous: rendezvous::server::Behaviour::new(
-                    rendezvous::server::Config::default(),
-                ),
-            },
-            PeerId::from(self.identity.public()),
-        )
-        .idle_connection_timeout(Duration::from_secs(u64::MAX))
-        .build();
 
+        let behavior = RendezvousBehaviour {
+            identify: identify::Behaviour::new(identify::Config::new(
+                "sos-rendezvous/1.0.0".to_string(),
+                //format!("{}/{}", self.name, self.version),
+                self.identity.public(),
+            )),
+            rendezvous: rendezvous::server::Behaviour::new(
+                rendezvous::server::Config::default(),
+            ),
+        };
+
+        let mut swarm = SwarmBuilder::with_existing_identity(self.identity.clone())
+        .with_tokio()
+        .with_tcp(
+             libp2p::tcp::Config::default().nodelay(true),
+             (libp2p_tls::Config::new, libp2p_noise::Config::new),
+             libp2p_yamux::Config::default,
+         )?
+        .with_quic()
+        .with_dns()?
+        .with_behaviour(|_key| behavior).unwrap()
+        .build();
+        
         tracing::info!("{}", swarm.local_peer_id());
 
         let addr =

@@ -18,19 +18,19 @@ use libp2p::{
     core::Multiaddr,
     identify::{self, Event as IdentifyEvent},
     identity,
-    kad::{record::store::MemoryStore, Kademlia},
     multiaddr::Protocol,
     rendezvous::{self, Cookie, Namespace, Registration},
     request_response::{self, ProtocolSupport, RequestId, ResponseChannel},
-    swarm::{Swarm, SwarmBuilder, SwarmEvent},
+    swarm::SwarmEvent,
+    Swarm, SwarmBuilder,
     PeerId,
 };
+use libp2p_kad::{Behaviour as Kademlia, store::MemoryStore};
 
 use super::{
     behaviour::*,
     events::{ChangeEvent, MessageEvent, NetworkEvent},
     protocol::RpcExchangeProtocol,
-    transport,
 };
 
 type PendingRequests = HashMap<
@@ -104,26 +104,32 @@ pub async fn new(
 ) -> Result<(Client, impl Stream<Item = NetworkEvent> + Unpin, EventLoop)> {
     let peer_id = local_key.public().to_peer_id();
 
-    let mut swarm = SwarmBuilder::with_tokio_executor(
-        transport::build(&local_key)?,
-        ComposedBehaviour {
-            kademlia: Kademlia::new(peer_id, MemoryStore::new(peer_id)),
-            request_response: request_response::Behaviour::new(
-                iter::once((
-                    RpcExchangeProtocol::default(),
-                    ProtocolSupport::Full,
-                )),
-                Default::default(),
-            ),
-            rendezvous: rendezvous::client::Behaviour::new(local_key.clone()),
-            identify: identify::Behaviour::new(identify::Config::new(
-                "sos-rendezvous/1.0.0".to_string(),
-                local_key.public(),
+    let behavior = ComposedBehaviour {
+        kademlia: Kademlia::new(peer_id, MemoryStore::new(peer_id)),
+        request_response: request_response::Behaviour::new(
+            iter::once((
+                RpcExchangeProtocol::default(),
+                ProtocolSupport::Full,
             )),
-        },
-        peer_id,
-    )
-    .idle_connection_timeout(Duration::from_secs(u64::MAX))
+            Default::default(),
+        ),
+        rendezvous: rendezvous::client::Behaviour::new(local_key.clone()),
+        identify: identify::Behaviour::new(identify::Config::new(
+            "sos-rendezvous/1.0.0".to_string(),
+            local_key.public(),
+        )),
+    };
+
+    let mut swarm = SwarmBuilder::with_existing_identity(local_key)
+    .with_tokio()
+    .with_tcp(
+        libp2p::tcp::Config::default().nodelay(true),
+        (libp2p_tls::Config::new, libp2p_noise::Config::new),
+        libp2p_yamux::Config::default,
+     )?
+    .with_quic()
+    .with_dns()?
+    .with_behaviour(|_key| behavior).unwrap()
     .build();
 
     swarm.add_external_address(location.addr.clone());

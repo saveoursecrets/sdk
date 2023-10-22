@@ -9,7 +9,6 @@ pub mod events;
 pub mod network;
 pub mod protocol;
 pub mod rendezvous;
-mod transport;
 
 // Re-exports
 pub use error::Error;
