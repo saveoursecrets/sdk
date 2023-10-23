@@ -1,5 +1,4 @@
 //! Generate a security report for all passwords.
-
 use crate::client::{user::UserStorage, Result};
 use serde::{Deserialize, Serialize};
 use sos_sdk::vault::{
@@ -24,6 +23,25 @@ where
     pub database_handler: Option<H>,
 }
 
+/// Row for security report output.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecurityReportRow<T> {
+    /// Folder identifier.
+    pub folder_id: VaultId,
+    /// Secret identifier.
+    pub secret_id: SecretId,
+    /// Owner secret identifier (when custom field).
+    pub owner_id: Option<SecretId>,
+    /// Field index (when custom field).
+    pub field_index: Option<usize>,
+    /// Password security report.
+    #[serde(flatten)]
+    pub report: PasswordReport,
+    /// Result of a database check.
+    pub database_check: T,
+}
+
 /// List of records for a generated security report.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,6 +50,27 @@ pub struct SecurityReport<T> {
     pub records: Vec<SecurityReportRecord>,
     /// Caller reports.
     pub database_checks: Vec<T>,
+}
+
+impl<T> From<SecurityReport<T>> for Vec<SecurityReportRow<T>> {
+    fn from(value: SecurityReport<T>) -> Self {
+        let mut out = Vec::new();
+        for (record, database_check) in
+            value.records.into_iter().zip(value.database_checks.into_iter())
+        {
+            out.push(
+                SecurityReportRow {
+                    folder_id: *record.folder.id(),
+                    secret_id: record.secret_id,
+                    owner_id: record.owner.map(|(id, _)| id),
+                    field_index: record.owner.map(|(_, index)| index),
+                    report: record.report,
+                    database_check,
+                }
+            );
+        }
+        out
+    }
 }
 
 /// Security report record.
