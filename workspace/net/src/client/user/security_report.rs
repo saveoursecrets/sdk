@@ -10,7 +10,7 @@ use sos_sdk::vault::{
 /// Options for security report generation.
 pub struct SecurityReportOptions<T, H, F>
 where
-    H: Fn(Vec<Vec<u8>>) -> F,
+    H: Fn(Vec<String>) -> F,
     F: std::future::Future<Output = Vec<T>>,
 {
     /// Exclude these folders from report generation.
@@ -72,7 +72,7 @@ impl UserStorage {
         options: SecurityReportOptions<T, H, F>,
     ) -> Result<SecurityReport<T>>
     where
-        H: Fn(Vec<Vec<u8>>) -> F,
+        H: Fn(Vec<String>) -> F,
         F: std::future::Future<Output = Vec<T>>,
     {
         let mut records = Vec::new();
@@ -150,7 +150,7 @@ impl UserStorage {
                     report,
                 };
 
-                hashes.push(sha1);
+                hashes.push(hex::encode(sha1));
                 records.push(record);
             }
         }

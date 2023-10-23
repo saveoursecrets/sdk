@@ -60,7 +60,7 @@ async fn integration_security_report() -> Result<()> {
     let report_options = SecurityReportOptions { 
         excludes: vec![],
         database_handler: Some(
-            |hashes: Vec<Vec<u8>>| async move {
+            |hashes: Vec<String>| async move {
                 hashes.into_iter().map(|_| true).collect()
             },
         ),

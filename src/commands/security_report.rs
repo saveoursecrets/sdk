@@ -1,5 +1,4 @@
 use sos_net::{
-    reqwest,
     client::{provider::ProviderFactory, user::SecurityReportOptions, hashcheck},
     sdk::account::AccountRef,
 };
@@ -29,8 +28,11 @@ pub async fn run(
     let report_options = SecurityReportOptions { 
         excludes: vec![],
         database_handler: Some(
-            |hashes: Vec<Vec<u8>>| async move {
-                hashcheck::batch(hashes, None).await?
+            |hashes: Vec<String>| async move {
+                match hashcheck::batch(&hashes, None).await {
+                    Ok(res) => res,
+                    Err(_) => hashes.into_iter().map(|_| false).collect(),
+                }
             },
         ),
     };

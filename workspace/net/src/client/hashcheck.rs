@@ -25,7 +25,7 @@ pub async fn single(
 
 /// Check a collection of SHA1 hashes.
 pub async fn batch(
-    hashes: Vec<String>,
+    hashes: &[String],
     host: Option<String>,
 ) -> Result<Vec<bool>> {
     let host = host.unwrap_or_else(|| ENDPOINT.to_owned());
