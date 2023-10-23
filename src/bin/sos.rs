@@ -13,7 +13,7 @@ async fn main() -> Result<()> {
 
     #[cfg(all(not(debug_assertions), feature = "keyring"))]
     {
-        let native_keyring = sos_sdk::get_native_keyring();
+        let native_keyring = sos_net::sdk::get_native_keyring();
         let mut keyring = native_keyring.lock().await;
         keyring.set_enabled(true);
     }

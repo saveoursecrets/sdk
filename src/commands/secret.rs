@@ -8,15 +8,15 @@ use terminal_banner::{Banner, Padding};
 use sos_net::client::{
     provider::ProviderFactory,
     user::{ArchiveFilter, DocumentView},
-};
-use sos_sdk::{
-    account::AccountRef,
-    search::Document,
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
-        Summary, VaultRef,
+    sdk::{
+        account::AccountRef,
+        search::Document,
+        vault::{
+            secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
+            Summary, VaultRef,
+        },
+        vfs,
     },
-    vfs,
 };
 
 use crate::{

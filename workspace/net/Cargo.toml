@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.5.15"
+version = "0.5.16"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -20,7 +20,16 @@ full = [
 client = [
   "reqwest",
 ]
-peer = ["libp2p", "libp2p-quic", "either", "void", "libp2p-kad", "libp2p-noise", "libp2p-yamux", "libp2p-tls"]
+peer = [
+  "libp2p",
+  "libp2p-quic",
+  "either",
+  "void",
+  "libp2p-kad",
+  "libp2p-noise",
+  "libp2p-yamux",
+  "libp2p-tls"
+]
 server = [
   "toml",
   "axum",
@@ -37,6 +46,11 @@ device = [
   "if-addrs",
   "whoami",
 ]
+keyring = [
+  "sos-sdk/keyring",
+]
+mem-fs = ["sos-sdk/mem-fs"]
+test-utils = ["sos-sdk/test-utils"]
 
 [dependencies]
 thiserror = "1"

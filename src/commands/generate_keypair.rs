@@ -4,7 +4,7 @@ use std::path::PathBuf;
 //use tokio::{fs, io::AsyncWriteExt};
 
 use crate::{Error, Result};
-use sos_sdk::{
+use sos_net::sdk::{
     hex,
     mpc::{encode_keypair, generate_keypair},
     vfs,

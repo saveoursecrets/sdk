@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
-use sos_net::client::provider::ProviderFactory;
-use sos_sdk::{
-    account::AccountRef, hex, storage::AppPaths, url::Url, vault::VaultRef,
+use sos_net::{
+    client::provider::ProviderFactory,
+    sdk::{
+        account::AccountRef, hex, storage::AppPaths, url::Url, vault::VaultRef,
+    },
 };
 use std::path::PathBuf;
 

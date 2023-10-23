@@ -4,14 +4,14 @@ use std::{path::PathBuf, sync::Arc};
 use sos_net::{
     client::provider::ProviderFactory,
     migrate::import::{ImportFormat, ImportTarget},
-};
-use sos_sdk::{
-    account::{
-        archive::Inventory, AccountBackup, AccountInfo, AccountRef,
-        ExtractFilesLocation, RestoreOptions,
+    sdk::{
+        account::{
+            archive::Inventory, AccountBackup, AccountInfo, AccountRef,
+            ExtractFilesLocation, RestoreOptions,
+        },
+        storage::AppPaths,
+        vfs,
     },
-    storage::AppPaths,
-    vfs,
 };
 
 use crate::{

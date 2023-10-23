@@ -1,8 +1,10 @@
 use clap::Subcommand;
 
 use human_bytes::human_bytes;
-use sos_net::client::provider::ProviderFactory;
-use sos_sdk::{account::AccountRef, hex, vault::VaultRef};
+use sos_net::{
+    client::provider::ProviderFactory,
+    sdk::{account::AccountRef, hex, vault::VaultRef},
+};
 
 use crate::{
     helpers::{

@@ -2,8 +2,10 @@ use std::{ffi::OsString, sync::Arc};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
-use sos_net::client::provider::ProviderFactory;
-use sos_sdk::{account::AccountRef, vault::VaultRef};
+use sos_net::{
+    client::provider::ProviderFactory,
+    sdk::{account::AccountRef, vault::VaultRef},
+};
 
 use crate::{
     commands::{AccountCommand, CheckCommand, FolderCommand, SecretCommand},

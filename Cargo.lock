@@ -5539,8 +5539,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "shell-words",
- "sos-net 0.5.13",
- "sos-sdk 0.5.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-net 0.5.15",
  "tempfile",
  "terminal-banner",
  "thiserror",
@@ -5630,9 +5629,9 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.5.13"
+version = "0.5.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18426024230a60d1e324d0d978a1f4d171d6e87d667adfe1cd040bee153c00f6"
+checksum = "4a661113b8fb86a032730c24986dc80ece537f24c713ba067c6a3b91a00ecc2b"
 dependencies = [
  "async-recursion",
  "async-stream",
@@ -5649,7 +5648,11 @@ dependencies = [
  "http",
  "if-addrs 0.10.2",
  "libp2p",
+ "libp2p-kad",
+ "libp2p-noise",
  "libp2p-quic",
+ "libp2p-tls",
+ "libp2p-yamux",
  "log",
  "once_cell",
  "ouroboros",
@@ -5685,7 +5688,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.5.14"
+version = "0.5.16"
 dependencies = [
  "anyhow",
  "async-recursion",

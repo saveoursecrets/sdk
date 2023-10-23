@@ -1,4 +1,4 @@
-use sos_sdk::{vault::secret::SecretRef, vcard4};
+use sos_net::sdk::{vault::secret::SecretRef, vcard4};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -120,7 +120,7 @@ pub enum Error {
     Json(#[from] serde_json::Error),
 
     #[error(transparent)]
-    Core(#[from] sos_sdk::Error),
+    Core(#[from] sos_net::sdk::Error),
 
     #[error(transparent)]
     Node(#[from] sos_net::Error),
@@ -129,7 +129,7 @@ pub enum Error {
     NodeClient(#[from] sos_net::client::Error),
 
     #[error(transparent)]
-    UrlParse(#[from] sos_sdk::url::ParseError),
+    UrlParse(#[from] sos_net::sdk::url::ParseError),
 
     #[error(transparent)]
     Clap(#[from] clap::Error),
@@ -161,10 +161,10 @@ pub enum Error {
     Clipboard(#[from] arboard::Error),
 
     #[error(transparent)]
-    Mpc(#[from] sos_sdk::mpc::Error),
+    Mpc(#[from] sos_net::sdk::mpc::Error),
 
     #[error(transparent)]
-    Hex(#[from] sos_sdk::hex::FromHexError),
+    Hex(#[from] sos_net::sdk::hex::FromHexError),
 }
 
 impl Error {

@@ -11,7 +11,7 @@ use std::{
 };
 
 use secrecy::ExposeSecret;
-use sos_sdk::{
+use sos_net::sdk::{
     secrecy,
     sha3::{Digest, Keccak256},
     vault::secret::{FileContent, Secret},

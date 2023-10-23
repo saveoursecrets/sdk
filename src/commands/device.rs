@@ -5,8 +5,8 @@ use tokio::sync::RwLock;
 use sos_net::{
     client::{provider::ProviderFactory, user::UserStorage},
     device::TrustedDevice,
+    sdk::account::AccountRef,
 };
-use sos_sdk::account::AccountRef;
 
 use crate::{
     helpers::{account::resolve_user, readline::read_flag},
