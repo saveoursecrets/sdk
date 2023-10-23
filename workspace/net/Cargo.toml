@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.5.14"
+version = "0.5.15"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -94,7 +94,7 @@ optional = true
 #path = "../migrate"
 
 [dependencies.libp2p]
-version = "0.52.3"
+version = "0.52.4"
 optional = true
 features = [
   "tokio", 

@@ -7,7 +7,6 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretType},
         Summary, VaultId,
     },
-    zxcvbn::Entropy,
 };
 
 /// Options for security report generation.
