@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.5.18"
+version = "0.5.19"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
