@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 rust-version = "1.68.2"
 description = "Distributed, encrypted database for private secrets."
@@ -8,7 +8,11 @@ homepage = "https://saveoursecrets.com"
 license = "GPL-3.0"
 authors = ["saveoursecrets-developers <dev@saveoursecrets.com>"]
 default-run = "sos"
-categories = ["command-line-utilities", "cryptography::cryptocurrencies", "authentication"]
+categories = [
+  "command-line-utilities",
+  "cryptography::cryptocurrencies",
+  "authentication"
+]
 
 [workspace]
 members = [
@@ -54,18 +58,18 @@ rustyline = "11"
 rustyline-derive = "0.8"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.sos-net]
-version = "0.5.17" 
+version = "0.5.19" 
 features = ["full"]
-path = "workspace/net"
+#path = "workspace/net"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { version = "1", features = ["rt", "time", "sync"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.sos-net]
-version = "0.5.17"
+version = "0.5.19"
 default-features = false
 features = ["client"]
-path = "workspace/net"
+#path = "workspace/net"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow = "1"
