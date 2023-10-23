@@ -2,11 +2,9 @@
 
 use crate::client::{user::UserStorage, Result};
 use serde::{Deserialize, Serialize};
-use sos_sdk::{
-    vault::{
-        secret::{Secret, SecretId, SecretType},
-        Summary, VaultId,
-    },
+use sos_sdk::vault::{
+    secret::{Secret, SecretId, SecretType},
+    Summary, VaultId,
 };
 
 /// Options for security report generation.
@@ -20,8 +18,8 @@ where
     /// Database handler that can check for breaches
     /// based on the password hashes (SHA-1).
     ///
-    /// The handler is passed a list of passwords hashes 
-    /// and must return a list of `T` the same length as 
+    /// The handler is passed a list of passwords hashes
+    /// and must return a list of `T` the same length as
     /// the input.
     pub database_handler: Option<H>,
 }

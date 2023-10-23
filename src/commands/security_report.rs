@@ -1,6 +1,6 @@
-//use human_bytes::human_bytes;
 use sos_net::{
-    client::{provider::ProviderFactory, user::SecurityReportOptions},
+    reqwest,
+    client::{provider::ProviderFactory, user::SecurityReportOptions, hashcheck},
     sdk::account::AccountRef,
 };
 
@@ -11,8 +11,16 @@ use crate::{
     Result,
 };
 
+/// Formats for writing reports.
+#[derive(Default)]
+pub enum SecurityReportFormat {
+    #[default]
+    Json,
+}
+
 pub async fn run(
     account: Option<AccountRef>,
+    format: SecurityReportFormat,
     factory: ProviderFactory,
 ) -> Result<()> {
     let user = resolve_user(account.as_ref(), factory, false).await?;
@@ -22,7 +30,7 @@ pub async fn run(
         excludes: vec![],
         database_handler: Some(
             |hashes: Vec<Vec<u8>>| async move {
-                hashes.into_iter().map(|_| true).collect()
+                hashcheck::batch(hashes, None).await?
             },
         ),
     };
@@ -32,8 +40,14 @@ pub async fn run(
                 report_options,
             )
             .await?;
+    
+    let contents = match format {
+        SecurityReportFormat::Json => {
+            serde_json::to_string_pretty(&report)?
+        }
+    };
 
-    println!("{:#?}", report);
+    println!("{}", contents);
 
     Ok(())
 }

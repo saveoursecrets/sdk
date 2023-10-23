@@ -2,6 +2,7 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 mod changes_listener;
+pub mod hashcheck;
 pub mod net;
 pub mod provider;
 pub mod user;

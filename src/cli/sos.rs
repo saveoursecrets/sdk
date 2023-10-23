@@ -155,7 +155,7 @@ pub async fn run() -> Result<()> {
         } => generate_keypair::run(file, force, public_key).await?,
         Command::SecurityReport {
             account,
-        } => security_report::run(account, factory).await?,
+        } => security_report::run(account, Default::default(), factory).await?,
         Command::Secret { cmd } => secret::run(cmd, factory).await?,
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Changes {
