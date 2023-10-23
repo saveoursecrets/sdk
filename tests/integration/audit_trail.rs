@@ -7,14 +7,14 @@ use std::path::{Path, PathBuf};
 use sos_net::{
     client::{provider::ProviderFactory, user::UserStorage},
     migrate::import::ImportTarget,
-};
-use sos_sdk::{
-    account::{ImportedAccount, RestoreOptions},
-    events::{AuditEvent, AuditLogFile, EventKind},
-    passwd::diceware::generate_passphrase,
-    storage::AppPaths,
-    vault::Summary,
-    vfs::{self, File},
+    sdk::{
+        account::{ImportedAccount, RestoreOptions},
+        events::{AuditEvent, AuditLogFile, EventKind},
+        passwd::diceware::generate_passphrase,
+        storage::AppPaths,
+        vault::Summary,
+        vfs::{self, File},
+    },
 };
 
 use crate::test_utils::{mock_note, setup};

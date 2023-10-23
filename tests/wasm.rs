@@ -2,7 +2,7 @@
 mod wasm_tests {
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-    use sos_sdk::{
+    use sos_net::sdk::{
         decode, encode,
         vault::{Summary, Vault},
         vfs, Timestamp,

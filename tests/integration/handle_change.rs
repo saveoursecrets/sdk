@@ -7,11 +7,13 @@ use futures::stream::StreamExt;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
-use sos_net::client::{
-    net::changes::{changes, connect},
-    provider::StorageProvider,
+use sos_net::{
+    client::{
+        net::changes::{changes, connect},
+        provider::StorageProvider,
+    },
+    sdk::{commit::CommitProof, mpc::generate_keypair},
 };
-use sos_sdk::{commit::CommitProof, mpc::generate_keypair};
 
 #[tokio::test]
 #[serial]

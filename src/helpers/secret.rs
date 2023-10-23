@@ -8,7 +8,7 @@ use human_bytes::human_bytes;
 use terminal_banner::{Banner, Padding};
 
 use secrecy::{ExposeSecret, SecretString};
-use sos_sdk::{
+use sos_net::sdk::{
     hex,
     search::Document,
     secrecy,

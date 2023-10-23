@@ -1,13 +1,16 @@
 use clap::{Parser, Subcommand};
-use sos_net::client::provider::ProviderFactory;
-use sos_sdk::{
-    account::AccountRef, hex, storage::AppPaths, url::Url, vault::VaultRef,
+use sos_net::{
+    client::provider::ProviderFactory,
+    sdk::{
+        account::AccountRef, hex, storage::AppPaths, url::Url, vault::VaultRef,
+    },
 };
 use std::path::PathBuf;
 
 use crate::{
     commands::{
         account, audit, changes, check, device, folder, generate_keypair,
+        security_report::{self, SecurityReportFormat},
         secret, shell, AccountCommand, AuditCommand, CheckCommand,
         DeviceCommand, FolderCommand, SecretCommand,
     },
@@ -81,6 +84,23 @@ pub enum Command {
         /// Write keypair to this file.
         file: PathBuf,
     },
+    /// Generate a security report.
+    SecurityReport {
+        /// Force overwrite if the file exists.
+        #[clap(short, long)]
+        force: bool,
+
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+
+        /// Output format: csv or json.
+        #[clap(short, long, default_value = "csv")]
+        output_format: SecurityReportFormat,
+
+        /// Write report to this file.
+        file: PathBuf,
+    },
     /// Create, edit and delete secrets.
     Secret {
         #[clap(subcommand)]
@@ -144,6 +164,12 @@ pub async fn run() -> Result<()> {
             force,
             public_key,
         } => generate_keypair::run(file, force, public_key).await?,
+        Command::SecurityReport {
+            account,
+            force,
+            output_format,
+            file,
+        } => security_report::run(account, force, output_format, file, factory).await?,
         Command::Secret { cmd } => secret::run(cmd, factory).await?,
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Changes {

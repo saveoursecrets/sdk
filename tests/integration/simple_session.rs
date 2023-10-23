@@ -10,20 +10,22 @@ use std::{
 };
 use url::Url;
 
-use sos_net::client::{
-    net::{
-        changes::{changes, connect},
-        RpcClient,
+use sos_net::{
+    client::{
+        net::{
+            changes::{changes, connect},
+            RpcClient,
+        },
+        provider::StorageProvider,
     },
-    provider::StorageProvider,
-};
-use sos_sdk::{
-    commit::CommitRelationship,
-    constants::DEFAULT_VAULT_NAME,
-    events::{ChangeEvent, ChangeNotification},
-    mpc::generate_keypair,
-    storage::AppPaths,
-    vault::VaultRef,
+    sdk::{
+        commit::CommitRelationship,
+        constants::DEFAULT_VAULT_NAME,
+        events::{ChangeEvent, ChangeNotification},
+        mpc::generate_keypair,
+        storage::AppPaths,
+        vault::VaultRef,
+    },
 };
 
 #[tokio::test]

@@ -3,22 +3,24 @@ use anyhow::Result;
 use serial_test::serial;
 use std::{io::Cursor, path::PathBuf, sync::Arc};
 
-use sos_net::client::provider::ProviderFactory;
-use sos_sdk::{
-    account::{
-        AccountBackup, AccountBuilder, DelegatedPassphrase,
-        ExtractFilesLocation, ImportedAccount, LocalAccounts, Login,
-        NewAccount, RestoreOptions,
+use sos_net::{
+    client::provider::ProviderFactory,
+    sdk::{
+        account::{
+            AccountBackup, AccountBuilder, DelegatedPassphrase,
+            ExtractFilesLocation, ImportedAccount, LocalAccounts, Login,
+            NewAccount, RestoreOptions,
+        },
+        constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
+        hex,
+        mpc::generate_keypair,
+        passwd::diceware::generate_passphrase,
+        search::SearchIndex,
+        storage::{AppPaths, FileStorage},
+        urn::Urn,
+        vault::{secret::SecretId, Gatekeeper, VaultId},
+        vfs,
     },
-    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
-    hex,
-    mpc::generate_keypair,
-    passwd::diceware::generate_passphrase,
-    search::SearchIndex,
-    storage::{AppPaths, FileStorage},
-    urn::Urn,
-    vault::{secret::SecretId, Gatekeeper, VaultId},
-    vfs,
 };
 use tokio::sync::RwLock;
 

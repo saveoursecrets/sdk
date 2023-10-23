@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.5.13"
+version = "0.5.18"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -16,11 +16,21 @@ full = [
   "migrate",
   "contacts",
   "device",
+  "security-report",
 ]
 client = [
   "reqwest",
 ]
-peer = ["libp2p", "libp2p-quic", "either", "void", "libp2p-kad", "libp2p-noise", "libp2p-yamux", "libp2p-tls"]
+peer = [
+  "libp2p",
+  "libp2p-quic",
+  "either",
+  "void",
+  "libp2p-kad",
+  "libp2p-noise",
+  "libp2p-yamux",
+  "libp2p-tls"
+]
 server = [
   "toml",
   "axum",
@@ -37,6 +47,12 @@ device = [
   "if-addrs",
   "whoami",
 ]
+security-report = []
+keyring = [
+  "sos-sdk/keyring",
+]
+mem-fs = ["sos-sdk/mem-fs"]
+test-utils = ["sos-sdk/test-utils"]
 
 [dependencies]
 thiserror = "1"
@@ -85,16 +101,16 @@ void = { version = "1", optional = true }
 either = { version = "1.8", optional = true }
 
 [dependencies.sos-sdk]
-version = "0.5.17"
+version = "0.5.19"
 #path = "../sdk"
 
 [dependencies.sos-migrate]
-version = "0.5.12"
+version = "0.5.14"
 optional = true
 #path = "../migrate"
 
 [dependencies.libp2p]
-version = "0.52.3"
+version = "0.52.4"
 optional = true
 features = [
   "tokio", 

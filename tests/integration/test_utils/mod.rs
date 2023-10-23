@@ -6,17 +6,6 @@ use tokio::sync::{oneshot, RwLock};
 use url::Url;
 use web3_address::ethereum::Address;
 
-use sos_sdk::{
-    crypto::AccessKey,
-    events::{AuditLogFile, WriteEvent},
-    hex,
-    vault::{
-        secret::{Secret, SecretId, SecretMeta},
-        Summary,
-    },
-    vfs,
-};
-
 use sos_net::{
     client::provider::{RemoteProvider, StorageProvider},
     server::{
@@ -24,6 +13,16 @@ use sos_net::{
         TransportManager,
     },
     FileLocks,
+    sdk::{
+        crypto::AccessKey,
+        events::{AuditLogFile, WriteEvent},
+        hex,
+        vault::{
+            secret::{Secret, SecretId, SecretMeta},
+            Summary,
+        },
+        vfs,
+    },
 };
 
 const ADDR: &str = "127.0.0.1:3505";
@@ -46,7 +45,7 @@ pub async fn set_mock_credential_builder() {
         keyring::set_default_credential_builder(
             keyring::mock::default_credential_builder(),
         );
-        let native_keyring = sos_sdk::get_native_keyring();
+        let native_keyring = sos_net::sdk::get_native_keyring();
         let mut keyring = native_keyring.lock().await;
         keyring.set_enabled(true);
     }

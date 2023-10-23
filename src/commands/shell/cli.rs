@@ -1,11 +1,11 @@
 use std::{borrow::Cow, sync::Arc};
 
-use sos_sdk::{account::AccountRef, storage::AppPaths, vault::VaultRef, vfs};
 use terminal_banner::{Banner, Padding};
 
 use sos_net::{
     client::{provider::ProviderFactory, user::UserStorage},
     FileLocks,
+    sdk::{account::AccountRef, storage::AppPaths, vault::VaultRef, vfs},
 };
 
 use tokio::sync::RwLock;

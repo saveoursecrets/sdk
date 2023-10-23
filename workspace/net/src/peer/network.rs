@@ -22,10 +22,9 @@ use libp2p::{
     rendezvous::{self, Cookie, Namespace, Registration},
     request_response::{self, ProtocolSupport, RequestId, ResponseChannel},
     swarm::SwarmEvent,
-    Swarm, SwarmBuilder,
-    PeerId,
+    PeerId, Swarm, SwarmBuilder,
 };
-use libp2p_kad::{Behaviour as Kademlia, store::MemoryStore};
+use libp2p_kad::{store::MemoryStore, Behaviour as Kademlia};
 
 use super::{
     behaviour::*,
@@ -121,16 +120,17 @@ pub async fn new(
     };
 
     let mut swarm = SwarmBuilder::with_existing_identity(local_key)
-    .with_tokio()
-    .with_tcp(
-        libp2p::tcp::Config::default().nodelay(true),
-        (libp2p_tls::Config::new, libp2p_noise::Config::new),
-        libp2p_yamux::Config::default,
-     )?
-    .with_quic()
-    .with_dns()?
-    .with_behaviour(|_key| behavior).unwrap()
-    .build();
+        .with_tokio()
+        .with_tcp(
+            libp2p::tcp::Config::default().nodelay(true),
+            (libp2p_tls::Config::new, libp2p_noise::Config::new),
+            libp2p_yamux::Config::default,
+        )?
+        .with_quic()
+        .with_dns()?
+        .with_behaviour(|_key| behavior)
+        .unwrap()
+        .build();
 
     swarm.add_external_address(location.addr.clone());
     swarm.dial(location.addr.clone())?;

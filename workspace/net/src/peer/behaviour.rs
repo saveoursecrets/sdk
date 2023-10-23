@@ -1,11 +1,11 @@
 //! Peer network behaviours.
 
 use libp2p::{
-    identify,
-    rendezvous, request_response,
-    swarm::NetworkBehaviour,
+    identify, rendezvous, request_response, swarm::NetworkBehaviour,
 };
-use libp2p_kad::{Event as KademliaEvent, Behaviour as Kademlia, store::MemoryStore};
+use libp2p_kad::{
+    store::MemoryStore, Behaviour as Kademlia, Event as KademliaEvent,
+};
 
 use sos_sdk::rpc::{RequestMessage, ResponseMessage};
 

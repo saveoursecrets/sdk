@@ -1,19 +1,15 @@
 //! Generate a security report for all passwords.
-
 use crate::client::{user::UserStorage, Result};
 use serde::{Deserialize, Serialize};
-use sos_sdk::{
-    vault::{
-        secret::{Secret, SecretId, SecretType},
-        Summary, VaultId,
-    },
-    zxcvbn::Entropy,
+use sos_sdk::vault::{
+    secret::{Secret, SecretId, SecretType},
+    Summary, VaultId,
 };
 
 /// Options for security report generation.
 pub struct SecurityReportOptions<T, H, F>
 where
-    H: Fn(Vec<Vec<u8>>) -> F,
+    H: Fn(Vec<String>) -> F,
     F: std::future::Future<Output = Vec<T>>,
 {
     /// Exclude these folders from report generation.
@@ -21,13 +17,42 @@ where
     /// Database handler that can check for breaches
     /// based on the password hashes (SHA-1).
     ///
-    /// The handler is passed a list of passwords hashes 
-    /// and must return a list of `T` the same length as 
+    /// The handler is passed a list of passwords hashes
+    /// and must return a list of `T` the same length as
     /// the input.
     pub database_handler: Option<H>,
 }
 
+/// Row for security report output.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecurityReportRow<T> {
+    /// Folder name.
+    pub folder_name: String,
+    /// Folder identifier.
+    pub folder_id: VaultId,
+    /// Secret identifier.
+    pub secret_id: SecretId,
+    /// Owner secret identifier (when custom field).
+    pub owner_id: Option<SecretId>,
+    /// Field index (when custom field).
+    pub field_index: Option<usize>,
+    /// The entropy score.
+    pub score: u8,
+    /// The estimated number of guesses needed to crack the password.
+    pub guesses: u64,
+    /// The order of magnitude of guesses.
+    pub guesses_log10: f64,
+    /// Determines if the password is empty.
+    pub is_empty: bool,
+    /// Result of a database check.
+    #[serde(rename = "breached")]
+    pub database_check: T,
+}
+
 /// List of records for a generated security report.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SecurityReport<T> {
     /// Report row records.
     pub records: Vec<SecurityReportRecord>,
@@ -35,7 +60,34 @@ pub struct SecurityReport<T> {
     pub database_checks: Vec<T>,
 }
 
+impl<T> From<SecurityReport<T>> for Vec<SecurityReportRow<T>> {
+    fn from(value: SecurityReport<T>) -> Self {
+        let mut out = Vec::new();
+        for (record, database_check) in
+            value.records.into_iter().zip(value.database_checks.into_iter())
+        {
+            out.push(
+                SecurityReportRow {
+                    folder_name: record.folder.name().to_owned(),
+                    folder_id: *record.folder.id(),
+                    secret_id: record.secret_id,
+                    owner_id: record.owner.map(|(id, _)| id),
+                    field_index: record.owner.map(|(_, index)| index),
+                    score: record.report.score,
+                    guesses: record.report.guesses,
+                    guesses_log10: record.report.guesses_log10,
+                    is_empty: record.report.is_empty,
+                    database_check,
+                }
+            );
+        }
+        out
+    }
+}
+
 /// Security report record.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SecurityReportRecord {
     /// Folder summary.
     pub folder: Summary,
@@ -44,8 +96,24 @@ pub struct SecurityReportRecord {
     /// Owner information when the password
     /// belongs to a parent secret (custom field).
     pub owner: Option<(SecretId, usize)>,
-    /// Password entropy information.
-    pub entropy: Entropy,
+    /// Report on password entropy and user defined
+    /// reporting information (eg: haveibeenpwned lookup).
+    #[serde(flatten)]
+    pub report: PasswordReport,
+}
+
+/// Password report.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PasswordReport {
+    /// The entropy score.
+    pub score: u8,
+    /// The estimated number of guesses needed to crack the password.
+    pub guesses: u64,
+    /// The order of magnitude of guesses.
+    pub guesses_log10: f64,
+    /// Determines if the password is empty.
+    pub is_empty: bool,
 }
 
 impl UserStorage {
@@ -55,7 +123,7 @@ impl UserStorage {
         options: SecurityReportOptions<T, H, F>,
     ) -> Result<SecurityReport<T>>
     where
-        H: Fn(Vec<Vec<u8>>) -> F,
+        H: Fn(Vec<String>) -> F,
         F: std::future::Future<Output = Vec<T>>,
     {
         let mut records = Vec::new();
@@ -110,14 +178,30 @@ impl UserStorage {
             for (secret_id, check, owner) in password_hashes {
                 let (entropy, sha1) = check;
 
+                let report = if let Some(entropy) = entropy {
+                    PasswordReport {
+                        score: entropy.score(),
+                        guesses: entropy.guesses(),
+                        guesses_log10: entropy.guesses_log10(),
+                        is_empty: false,
+                    }
+                } else {
+                    PasswordReport {
+                        score: 0,
+                        guesses: 0,
+                        guesses_log10: 0.0,
+                        is_empty: true,
+                    }
+                };
+
                 let record = SecurityReportRecord {
                     folder: target.clone(),
                     secret_id,
                     owner,
-                    entropy,
+                    report,
                 };
 
-                hashes.push(sha1);
+                hashes.push(hex::encode(sha1));
                 records.push(record);
             }
         }

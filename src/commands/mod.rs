@@ -7,6 +7,7 @@ pub mod folder;
 pub mod generate_keypair;
 pub mod rendezvous;
 pub mod secret;
+pub mod security_report;
 pub mod server;
 pub mod shell;
 
