@@ -63,6 +63,8 @@ pub struct PasswordReport {
     pub guesses: u64,
     /// The order of magnitude of guesses.
     pub guesses_log10: f64,
+    /// Determines if the password is empty.
+    pub is_empty: bool,
 }
 
 impl UserStorage {
@@ -127,10 +129,20 @@ impl UserStorage {
             for (secret_id, check, owner) in password_hashes {
                 let (entropy, sha1) = check;
 
-                let report = PasswordReport {
-                    score: entropy.score(),
-                    guesses: entropy.guesses(),
-                    guesses_log10: entropy.guesses_log10(),
+                let report = if let Some(entropy) = entropy {
+                    PasswordReport {
+                        score: entropy.score(),
+                        guesses: entropy.guesses(),
+                        guesses_log10: entropy.guesses_log10(),
+                        is_empty: false,
+                    }
+                } else {
+                    PasswordReport {
+                        score: 0,
+                        guesses: 0,
+                        guesses_log10: 0.0,
+                        is_empty: true,
+                    }
                 };
 
                 let record = SecurityReportRecord {

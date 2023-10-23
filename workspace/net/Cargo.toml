@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.5.16"
+version = "0.5.17"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -99,11 +99,11 @@ void = { version = "1", optional = true }
 either = { version = "1.8", optional = true }
 
 [dependencies.sos-sdk]
-version = "0.5.18"
+version = "0.5.19"
 #path = "../sdk"
 
 [dependencies.sos-migrate]
-version = "0.5.13"
+version = "0.5.14"
 optional = true
 #path = "../migrate"
 
