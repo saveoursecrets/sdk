@@ -1,9 +1,12 @@
 //! Generate a security report for all passwords.
 use crate::client::{user::UserStorage, Result};
 use serde::{Deserialize, Serialize};
-use sos_sdk::vault::{
-    secret::{Secret, SecretId, SecretType},
-    Summary, VaultId,
+use sos_sdk::{
+    vault::{
+        secret::{Secret, SecretId, SecretType},
+        Summary, VaultId,
+    },
+    zxcvbn::Entropy,
 };
 
 /// Options for security report generation.
@@ -43,16 +46,12 @@ pub struct SecurityReportRow<T> {
     pub guesses: u64,
     /// The order of magnitude of guesses.
     pub guesses_log10: f64,
-    /// Determines if the password is empty.
-    pub is_empty: bool,
     /// Result of a database check.
     #[serde(rename = "breached")]
     pub database_check: T,
 }
 
 /// List of records for a generated security report.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SecurityReport<T> {
     /// Report row records.
     pub records: Vec<SecurityReportRecord>,
@@ -68,16 +67,25 @@ impl<T> From<SecurityReport<T>> for Vec<SecurityReportRow<T>> {
             .into_iter()
             .zip(value.database_checks.into_iter())
         {
+            let score =
+                record.entropy.as_ref().map(|e| e.score()).unwrap_or(0);
+            let guesses =
+                record.entropy.as_ref().map(|e| e.guesses()).unwrap_or(0);
+            let guesses_log10 = record
+                .entropy
+                .as_ref()
+                .map(|e| e.guesses_log10())
+                .unwrap_or(0.0);
+
             out.push(SecurityReportRow {
                 folder_name: record.folder.name().to_owned(),
                 folder_id: *record.folder.id(),
                 secret_id: record.secret_id,
                 owner_id: record.owner.map(|(id, _)| id),
                 field_index: record.owner.map(|(_, index)| index),
-                score: record.report.score,
-                guesses: record.report.guesses,
-                guesses_log10: record.report.guesses_log10,
-                is_empty: record.report.is_empty,
+                score,
+                guesses,
+                guesses_log10,
                 database_check,
             });
         }
@@ -86,8 +94,6 @@ impl<T> From<SecurityReport<T>> for Vec<SecurityReportRow<T>> {
 }
 
 /// Security report record.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SecurityReportRecord {
     /// Folder summary.
     pub folder: Summary,
@@ -96,22 +102,16 @@ pub struct SecurityReportRecord {
     /// Owner information when the password
     /// belongs to a parent secret (custom field).
     pub owner: Option<(SecretId, usize)>,
-    /// Report on password entropy and user defined
-    /// reporting information (eg: haveibeenpwned lookup).
-    #[serde(flatten)]
-    pub report: PasswordReport,
+    /// Report on password entropy.
+    ///
+    /// Will be `None` when the password is empty.
+    pub entropy: Option<Entropy>,
 }
 
 /// Password report.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct PasswordReport {
     /// The entropy score.
-    pub score: u8,
-    /// The estimated number of guesses needed to crack the password.
-    pub guesses: u64,
-    /// The order of magnitude of guesses.
-    pub guesses_log10: f64,
+    pub entropy: Entropy,
     /// Determines if the password is empty.
     pub is_empty: bool,
 }
@@ -178,27 +178,11 @@ impl UserStorage {
             for (secret_id, check, owner) in password_hashes {
                 let (entropy, sha1) = check;
 
-                let report = if let Some(entropy) = entropy {
-                    PasswordReport {
-                        score: entropy.score(),
-                        guesses: entropy.guesses(),
-                        guesses_log10: entropy.guesses_log10(),
-                        is_empty: false,
-                    }
-                } else {
-                    PasswordReport {
-                        score: 0,
-                        guesses: 0,
-                        guesses_log10: 0.0,
-                        is_empty: true,
-                    }
-                };
-
                 let record = SecurityReportRecord {
                     folder: target.clone(),
                     secret_id,
                     owner,
-                    report,
+                    entropy,
                 };
 
                 hashes.push(hex::encode(sha1));
