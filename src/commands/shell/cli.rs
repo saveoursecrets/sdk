@@ -4,8 +4,8 @@ use terminal_banner::{Banner, Padding};
 
 use sos_net::{
     client::{provider::ProviderFactory, user::UserStorage},
-    FileLocks,
     sdk::{account::AccountRef, storage::AppPaths, vault::VaultRef, vfs},
+    FileLocks,
 };
 
 use tokio::sync::RwLock;

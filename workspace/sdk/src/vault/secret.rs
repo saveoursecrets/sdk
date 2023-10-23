@@ -1465,14 +1465,16 @@ impl Secret {
                 account, password, ..
             } => {
                 let hash = Sha1::digest(password.expose_secret().as_bytes());
-                
+
                 // Zxcvbn cannot handle empty passwords but we
                 // need to handle this gracefully
                 if password.expose_secret().is_empty() {
                     Ok(Some((None, hash.to_vec())))
                 } else {
-                    let entropy =
-                        measure_entropy(password.expose_secret(), &[account])?;
+                    let entropy = measure_entropy(
+                        password.expose_secret(),
+                        &[account],
+                    )?;
                     Ok(Some((Some(entropy), hash.to_vec())))
                 }
             }

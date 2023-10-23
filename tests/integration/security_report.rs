@@ -13,7 +13,7 @@ use sos_net::{
         passwd::diceware::generate_passphrase,
         storage::AppPaths,
         vault::{
-            secret::{Secret, SecretId, SecretMeta, UserData, SecretRow},
+            secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
             Summary,
         },
     },
@@ -57,20 +57,15 @@ async fn integration_security_report() -> Result<()> {
     // Make changes to generate data
     let mock_ids = simulate_session(&mut owner, &summary, passphrase).await?;
 
-    let report_options = SecurityReportOptions { 
+    let report_options = SecurityReportOptions {
         excludes: vec![],
-        database_handler: Some(
-            |hashes: Vec<String>| async move {
-                hashes.into_iter().map(|_| true).collect()
-            },
-        ),
+        database_handler: Some(|hashes: Vec<String>| async move {
+            hashes.into_iter().map(|_| true).collect()
+        }),
     };
-    let report =
-        owner
-            .generate_security_report::<bool, _, _>(
-                report_options,
-            )
-            .await?;
+    let report = owner
+        .generate_security_report::<bool, _, _>(report_options)
+        .await?;
 
     let weak_record = report
         .records
@@ -138,9 +133,11 @@ async fn simulate_session(
     let field_meta =
         SecretMeta::new("Field password".to_string(), field_secret.kind());
     let mut user_data: UserData = Default::default();
-    user_data.fields_mut().push(
-        SecretRow::new(field_id, field_meta, field_secret),
-    );
+    user_data.fields_mut().push(SecretRow::new(
+        field_id,
+        field_meta,
+        field_secret,
+    ));
 
     // Create a strong account secret
     let (password, _) = generate_passphrase()?;
@@ -161,5 +158,9 @@ async fn simulate_session(
         )
         .await?;
 
-    Ok(MockSecretIds { weak_id, strong_id, field_id })
+    Ok(MockSecretIds {
+        weak_id,
+        strong_id,
+        field_id,
+    })
 }

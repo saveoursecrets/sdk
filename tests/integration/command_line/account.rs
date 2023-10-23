@@ -5,7 +5,8 @@ use secrecy::SecretString;
 use sos_net::{
     migrate::import::ImportFormat,
     sdk::{
-        constants::DEFAULT_VAULT_NAME, secrecy::ExposeSecret, storage::AppPaths,
+        constants::DEFAULT_VAULT_NAME, secrecy::ExposeSecret,
+        storage::AppPaths,
     },
 };
 use std::{

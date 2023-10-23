@@ -15,7 +15,8 @@ use sos_net::{
         storage::AppPaths,
         vault::{
             secret::{
-                FileContent, Secret, SecretData, SecretId, SecretMeta, SecretRow,
+                FileContent, Secret, SecretData, SecretId, SecretMeta,
+                SecretRow,
             },
             Summary,
         },

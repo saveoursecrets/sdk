@@ -8,11 +8,6 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::provider::{RemoteProvider, StorageProvider},
-    server::{
-        BackendHandler, Server, ServerConfig, ServerInfo, State,
-        TransportManager,
-    },
-    FileLocks,
     sdk::{
         crypto::AccessKey,
         events::{AuditLogFile, WriteEvent},
@@ -23,6 +18,11 @@ use sos_net::{
         },
         vfs,
     },
+    server::{
+        BackendHandler, Server, ServerConfig, ServerInfo, State,
+        TransportManager,
+    },
+    FileLocks,
 };
 
 const ADDR: &str = "127.0.0.1:3505";

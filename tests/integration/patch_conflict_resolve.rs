@@ -4,8 +4,7 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use sos_net::{
-    client::provider::StorageProvider,
-    sdk::mpc::generate_keypair,
+    client::provider::StorageProvider, sdk::mpc::generate_keypair,
 };
 
 #[tokio::test]

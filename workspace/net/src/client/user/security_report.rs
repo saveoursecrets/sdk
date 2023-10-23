@@ -63,23 +63,23 @@ pub struct SecurityReport<T> {
 impl<T> From<SecurityReport<T>> for Vec<SecurityReportRow<T>> {
     fn from(value: SecurityReport<T>) -> Self {
         let mut out = Vec::new();
-        for (record, database_check) in
-            value.records.into_iter().zip(value.database_checks.into_iter())
+        for (record, database_check) in value
+            .records
+            .into_iter()
+            .zip(value.database_checks.into_iter())
         {
-            out.push(
-                SecurityReportRow {
-                    folder_name: record.folder.name().to_owned(),
-                    folder_id: *record.folder.id(),
-                    secret_id: record.secret_id,
-                    owner_id: record.owner.map(|(id, _)| id),
-                    field_index: record.owner.map(|(_, index)| index),
-                    score: record.report.score,
-                    guesses: record.report.guesses,
-                    guesses_log10: record.report.guesses_log10,
-                    is_empty: record.report.is_empty,
-                    database_check,
-                }
-            );
+            out.push(SecurityReportRow {
+                folder_name: record.folder.name().to_owned(),
+                folder_id: *record.folder.id(),
+                secret_id: record.secret_id,
+                owner_id: record.owner.map(|(id, _)| id),
+                field_index: record.owner.map(|(_, index)| index),
+                score: record.report.score,
+                guesses: record.report.guesses,
+                guesses_log10: record.report.guesses_log10,
+                is_empty: record.report.is_empty,
+                database_check,
+            });
         }
         out
     }

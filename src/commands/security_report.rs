@@ -1,15 +1,14 @@
-use std::{fmt, str::FromStr, path::PathBuf};
 use sos_net::{
-    client::{provider::ProviderFactory, user::{SecurityReportOptions, SecurityReportRow}, hashcheck},
+    client::{
+        hashcheck,
+        provider::ProviderFactory,
+        user::{SecurityReportOptions, SecurityReportRow},
+    },
     sdk::account::AccountRef,
 };
+use std::{fmt, path::PathBuf, str::FromStr};
 
-use crate::{
-    helpers::{
-        account::resolve_user,
-    },
-    Error, Result,
-};
+use crate::{helpers::account::resolve_user, Error, Result};
 
 /// Formats for writing reports.
 #[derive(Default, Debug, Clone)]
@@ -23,10 +22,14 @@ pub enum SecurityReportFormat {
 
 impl fmt::Display for SecurityReportFormat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            Self::Csv => "csv",
-            Self::Json => "json",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Csv => "csv",
+                Self::Json => "json",
+            }
+        )
     }
 }
 
@@ -46,6 +49,7 @@ pub async fn run(
     account: Option<AccountRef>,
     force: bool,
     format: SecurityReportFormat,
+    include_all: bool,
     path: PathBuf,
     factory: ProviderFactory,
 ) -> Result<()> {
@@ -56,30 +60,32 @@ pub async fn run(
     let user = resolve_user(account.as_ref(), factory, false).await?;
     let mut owner = user.write().await;
 
-    let report_options = SecurityReportOptions { 
+    let report_options = SecurityReportOptions {
         excludes: vec![],
-        database_handler: Some(
-            |hashes: Vec<String>| async move {
-                match hashcheck::batch(&hashes, None).await {
-                    Ok(res) => res,
-                    Err(_) => hashes.into_iter().map(|_| false).collect(),
-                }
-            },
-        ),
+        database_handler: Some(|hashes: Vec<String>| async move {
+            match hashcheck::batch(&hashes, None).await {
+                Ok(res) => res,
+                Err(_) => hashes.into_iter().map(|_| false).collect(),
+            }
+        }),
     };
-    let report =
-        owner
-            .generate_security_report::<bool, _, _>(
-                report_options,
-            )
-            .await?;
+    let report = owner
+        .generate_security_report::<bool, _, _>(report_options)
+        .await?;
 
     let rows: Vec<SecurityReportRow<bool>> = report.into();
+    let rows = if include_all {
+        rows
+    } else {
+        rows.into_iter()
+            .filter(|row| row.score < 3 || row.database_check)
+            .collect()
+    };
 
     match format {
         SecurityReportFormat::Csv => {
             let mut out = csv_async::AsyncSerializer::from_writer(
-                tokio::fs::File::create(&path).await?
+                tokio::fs::File::create(&path).await?,
             );
             for row in rows {
                 out.serialize(&row).await?;

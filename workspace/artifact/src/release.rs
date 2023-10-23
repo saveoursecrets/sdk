@@ -145,11 +145,10 @@ mod test {
         );
         assert!(artifact.is_some());
 
-        let artifact = &info.cli.find(
-            &Channel::Beta,
-            &Platform::MacOS,
-            &Arch::Aarch64,
-        );
+        let artifact =
+            &info
+                .cli
+                .find(&Channel::Beta, &Platform::MacOS, &Arch::Aarch64);
         assert!(artifact.is_some());
 
         Ok(())

@@ -2,7 +2,8 @@ use clap::{Parser, Subcommand};
 use sos_net::{
     client::provider::ProviderFactory,
     sdk::{
-        account::AccountRef, hex, storage::AppPaths, url::Url, vault::VaultRef,
+        account::AccountRef, hex, storage::AppPaths, url::Url,
+        vault::VaultRef,
     },
 };
 use std::path::PathBuf;
@@ -10,9 +11,10 @@ use std::path::PathBuf;
 use crate::{
     commands::{
         account, audit, changes, check, device, folder, generate_keypair,
+        secret,
         security_report::{self, SecurityReportFormat},
-        secret, shell, AccountCommand, AuditCommand, CheckCommand,
-        DeviceCommand, FolderCommand, SecretCommand,
+        shell, AccountCommand, AuditCommand, CheckCommand, DeviceCommand,
+        FolderCommand, SecretCommand,
     },
     Result,
 };
@@ -85,6 +87,13 @@ pub enum Command {
         file: PathBuf,
     },
     /// Generate a security report.
+    ///
+    /// Inspect all passwords in an account and report
+    /// passwords with an entropy score less than 3 or
+    /// passwords that are breached.
+    ///
+    /// Use the --include-all option to include passwords
+    /// that appear to be safe in the report.
     SecurityReport {
         /// Force overwrite if the file exists.
         #[clap(short, long)]
@@ -93,6 +102,10 @@ pub enum Command {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
+
+        /// Include all passwords.
+        #[clap(short, long)]
+        include_all: bool,
 
         /// Output format: csv or json.
         #[clap(short, long, default_value = "csv")]
@@ -168,8 +181,19 @@ pub async fn run() -> Result<()> {
             account,
             force,
             output_format,
+            include_all,
             file,
-        } => security_report::run(account, force, output_format, file, factory).await?,
+        } => {
+            security_report::run(
+                account,
+                force,
+                output_format,
+                include_all,
+                file,
+                factory,
+            )
+            .await?
+        }
         Command::Secret { cmd } => secret::run(cmd, factory).await?,
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Changes {
