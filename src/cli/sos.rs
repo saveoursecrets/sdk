@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use crate::{
     commands::{
         account, audit, changes, check, device, folder, generate_keypair,
-        security_report,
+        security_report::{self, SecurityReportFormat},
         secret, shell, AccountCommand, AuditCommand, CheckCommand,
         DeviceCommand, FolderCommand, SecretCommand,
     },
@@ -86,9 +86,20 @@ pub enum Command {
     },
     /// Generate a security report.
     SecurityReport {
+        /// Force overwrite if the file exists.
+        #[clap(short, long)]
+        force: bool,
+
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
+
+        /// Output format: csv or json.
+        #[clap(short, long, default_value = "csv")]
+        output_format: SecurityReportFormat,
+
+        /// Write report to this file.
+        file: PathBuf,
     },
     /// Create, edit and delete secrets.
     Secret {
@@ -155,7 +166,10 @@ pub async fn run() -> Result<()> {
         } => generate_keypair::run(file, force, public_key).await?,
         Command::SecurityReport {
             account,
-        } => security_report::run(account, Default::default(), factory).await?,
+            force,
+            output_format,
+            file,
+        } => security_report::run(account, force, output_format, file, factory).await?,
         Command::Secret { cmd } => secret::run(cmd, factory).await?,
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Changes {

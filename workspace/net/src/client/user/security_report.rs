@@ -27,6 +27,8 @@ where
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SecurityReportRow<T> {
+    /// Folder name.
+    pub folder_name: String,
     /// Folder identifier.
     pub folder_id: VaultId,
     /// Secret identifier.
@@ -35,10 +37,16 @@ pub struct SecurityReportRow<T> {
     pub owner_id: Option<SecretId>,
     /// Field index (when custom field).
     pub field_index: Option<usize>,
-    /// Password security report.
-    #[serde(flatten)]
-    pub report: PasswordReport,
+    /// The entropy score.
+    pub score: u8,
+    /// The estimated number of guesses needed to crack the password.
+    pub guesses: u64,
+    /// The order of magnitude of guesses.
+    pub guesses_log10: f64,
+    /// Determines if the password is empty.
+    pub is_empty: bool,
     /// Result of a database check.
+    #[serde(rename = "breached")]
     pub database_check: T,
 }
 
@@ -60,11 +68,15 @@ impl<T> From<SecurityReport<T>> for Vec<SecurityReportRow<T>> {
         {
             out.push(
                 SecurityReportRow {
+                    folder_name: record.folder.name().to_owned(),
                     folder_id: *record.folder.id(),
                     secret_id: record.secret_id,
                     owner_id: record.owner.map(|(id, _)| id),
                     field_index: record.owner.map(|(_, index)| index),
-                    report: record.report,
+                    score: record.report.score,
+                    guesses: record.report.guesses,
+                    guesses_log10: record.report.guesses_log10,
+                    is_empty: record.report.is_empty,
                     database_check,
                 }
             );

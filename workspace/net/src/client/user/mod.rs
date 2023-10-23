@@ -24,7 +24,7 @@ pub use search_index::{ArchiveFilter, DocumentView, QueryFilter, UserIndex};
 #[cfg(feature = "security-report")]
 pub use security_report::{
     PasswordReport, SecurityReport, SecurityReportOptions,
-    SecurityReportRecord,
+    SecurityReportRecord, SecurityReportRow,
 };
 pub use user_storage::{
     AccountData, SecretOptions, UserStatistics, UserStorage,

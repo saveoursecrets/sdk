@@ -109,6 +109,9 @@ pub enum Error {
     #[error("file {0} already exists, use --force to overwrite")]
     FileExistsUseForce(PathBuf),
 
+    #[error("unknown report format '{0}'")]
+    UnknownReportFormat(String),
+
     /// Error generated converting to fixed length slice.
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
@@ -165,6 +168,9 @@ pub enum Error {
 
     #[error(transparent)]
     Hex(#[from] sos_net::sdk::hex::FromHexError),
+
+    #[error(transparent)]
+    Csv(#[from] csv_async::Error),
 }
 
 impl Error {

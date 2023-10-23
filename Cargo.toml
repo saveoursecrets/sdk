@@ -24,7 +24,11 @@ mem-fs = ["sos-net/mem-fs"]
 keyring  = ["sos-net/keyring"]
 test-utils = ["sos-net/test-utils"]
 
+[workspace.dependencies]
+csv-async = { version = "1", features = ["tokio", "with_serde"] }
+
 [dependencies]
+csv-async.workspace = true
 thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }

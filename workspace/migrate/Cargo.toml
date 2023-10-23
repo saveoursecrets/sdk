@@ -8,6 +8,7 @@ license = "GPL-3.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
+csv-async.workspace = true
 thiserror = "1"
 secrecy = { version = "0.8", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
@@ -24,7 +25,6 @@ async_zip = { version = "0.0.15", default-features = false, features = ["deflate
 tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
 futures-util = "0.3"
 futures = "0.3"
-csv-async = { version = "1", features = ["tokio", "with_serde"] }
 
 [dependencies.sos-sdk]
 version = "0.5.19"
