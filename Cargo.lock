@@ -5571,35 +5571,6 @@ dependencies = [
 [[package]]
 name = "sos-migrate"
 version = "0.5.13"
-dependencies = [
- "anyhow",
- "async-trait",
- "async_zip",
- "csv-async",
- "dirs",
- "futures",
- "futures-util",
- "hex",
- "logos",
- "parking_lot",
- "plist",
- "rustc_version",
- "secrecy",
- "security-framework",
- "serde",
- "serde_json",
- "sos-sdk 0.5.18 (registry+https://github.com/rust-lang/crates.io-index)",
- "thiserror",
- "time",
- "tokio",
- "tokio-util",
- "url",
- "vcard4",
-]
-
-[[package]]
-name = "sos-migrate"
-version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "303ae07d26ad2249edab2c5bb9814a128d8ad85c1e5db4c9b7a5c80606b82db8"
 dependencies = [
@@ -5618,7 +5589,36 @@ dependencies = [
  "security-framework",
  "serde",
  "serde_json",
- "sos-sdk 0.5.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-util",
+ "url",
+ "vcard4",
+]
+
+[[package]]
+name = "sos-migrate"
+version = "0.5.14"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "async_zip",
+ "csv-async",
+ "dirs",
+ "futures",
+ "futures-util",
+ "hex",
+ "logos",
+ "parking_lot",
+ "plist",
+ "rustc_version",
+ "secrecy",
+ "security-framework",
+ "serde",
+ "serde_json",
+ "sos-sdk 0.5.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "time",
  "tokio",
@@ -5665,8 +5665,8 @@ dependencies = [
  "serde_json",
  "serde_with 2.3.3",
  "sha3",
- "sos-migrate 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "sos-sdk 0.5.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-migrate 0.5.13",
+ "sos-sdk 0.5.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "thiserror",
  "tokio",
@@ -5724,8 +5724,8 @@ dependencies = [
  "serde_json",
  "serde_with 2.3.3",
  "sha3",
- "sos-migrate 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "sos-sdk 0.5.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-migrate 0.5.13",
+ "sos-sdk 0.5.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "thiserror",
  "tokio",
@@ -5746,7 +5746,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.5.18"
+version = "0.5.19"
 dependencies = [
  "aes-gcm 0.10.3",
  "age",
@@ -5813,9 +5813,9 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.5.18"
+version = "0.5.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "524375540c99ea15b2825da8501943dff057bc67ba5cfe9850ac9864a1c56b8d"
+checksum = "aa58fe2af53bb70d7f88365db482d83fd156d536289d3bc1280976a9425e6c67"
 dependencies = [
  "aes-gcm 0.10.3",
  "age",
