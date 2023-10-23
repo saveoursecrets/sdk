@@ -2,7 +2,7 @@ use anyhow::Result;
 use rexpect::{session::PtySession, spawn, ReadUntil};
 use secrecy::SecretString;
 use serial_test::serial;
-use sos_sdk::{
+use sos_net::sdk::{
     constants::{DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_VAULT_NAME},
     passwd::diceware::generate_passphrase,
     secrecy::ExposeSecret,

@@ -2,24 +2,21 @@ use anyhow::Result;
 
 use secrecy::SecretString;
 use serial_test::serial;
-use std::path::{Path, PathBuf};
 
 use sos_net::{
     client::{
         provider::ProviderFactory,
         user::{SecurityReportOptions, UserStorage},
     },
-    migrate::import::ImportTarget,
-};
-use sos_sdk::{
-    account::ImportedAccount,
-    passwd::diceware::generate_passphrase,
-    storage::AppPaths,
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, UserData, SecretRow},
-        Summary,
+    sdk::{
+        account::ImportedAccount,
+        passwd::diceware::generate_passphrase,
+        storage::AppPaths,
+        vault::{
+            secret::{Secret, SecretId, SecretMeta, UserData, SecretRow},
+            Summary,
+        },
     },
-    vfs::{self, File},
 };
 
 use crate::test_utils::setup;
@@ -64,7 +61,7 @@ async fn integration_security_report() -> Result<()> {
         excludes: vec![],
         database_handler: Some(
             |hashes: Vec<Vec<u8>>| async move {
-                hashes.into_iter().map(|hash| true).collect()
+                hashes.into_iter().map(|_| true).collect()
             },
         ),
     };
@@ -114,7 +111,7 @@ struct MockSecretIds {
 async fn simulate_session(
     owner: &mut UserStorage,
     default_folder: &Summary,
-    passphrase: SecretString,
+    _passphrase: SecretString,
 ) -> Result<MockSecretIds> {
     // Create a weak account secret
     let weak_secret = Secret::Account {

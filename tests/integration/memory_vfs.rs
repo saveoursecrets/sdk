@@ -3,7 +3,7 @@ use anyhow::Result;
 use std::ffi::OsString;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
-use sos_sdk::vfs::{self, File, FileType, OpenOptions, Permissions};
+use sos_net::sdk::vfs::{self, File, FileType, OpenOptions, Permissions};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[tokio::test]

@@ -2,7 +2,7 @@ use super::*;
 use anyhow::Result;
 use rexpect::{session::PtySession, spawn};
 use secrecy::SecretString;
-use sos_sdk::secrecy::ExposeSecret;
+use sos_net::sdk::secrecy::ExposeSecret;
 use std::{
     ops::DerefMut,
     sync::{Arc, Mutex},

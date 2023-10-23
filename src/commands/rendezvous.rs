@@ -1,6 +1,6 @@
 use sos_net::{
     peer::{libp2p::identity::Keypair, rendezvous::Server, Result},
-    sdk:hex,
+    sdk::hex,
 };
 use std::{net::SocketAddr, str::FromStr};
 

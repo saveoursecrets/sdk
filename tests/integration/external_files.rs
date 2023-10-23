@@ -3,22 +3,24 @@ use anyhow::Result;
 use serial_test::serial;
 use std::{path::PathBuf, sync::Arc};
 
-use sos_net::client::{
-    provider::ProviderFactory,
-    user::{FileProgress, SecretOptions, UserStorage},
-};
-use sos_sdk::{
-    account::ImportedAccount,
-    hex,
-    passwd::diceware::generate_passphrase,
-    storage::AppPaths,
-    vault::{
-        secret::{
-            FileContent, Secret, SecretData, SecretId, SecretMeta, SecretRow,
-        },
-        Summary,
+use sos_net::{
+    client::{
+        provider::ProviderFactory,
+        user::{FileProgress, SecretOptions, UserStorage},
     },
-    vfs,
+    sdk::{
+        account::ImportedAccount,
+        hex,
+        passwd::diceware::generate_passphrase,
+        storage::AppPaths,
+        vault::{
+            secret::{
+                FileContent, Secret, SecretData, SecretId, SecretMeta, SecretRow,
+            },
+            Summary,
+        },
+        vfs,
+    },
 };
 
 use tokio::sync::{mpsc, Mutex};

@@ -1,8 +1,10 @@
 //! Listen for changes events on the server sent events channel.
 use futures::stream::StreamExt;
-use sos_net::client::{
-    net::changes::{changes, connect},
-    provider::ProviderFactory,
+use sos_net::{
+    client::{
+        net::changes::{changes, connect},
+        provider::ProviderFactory,
+    },
     sdk::{
         account::AccountRef, mpc::generate_keypair, mpc::Keypair,
         signer::ecdsa::BoxedEcdsaSigner, url::Url,

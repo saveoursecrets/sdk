@@ -3,8 +3,10 @@ use serial_test::serial;
 
 use crate::test_utils::*;
 
-use sos_net::client::provider::StorageProvider;
-use sos_sdk::mpc::generate_keypair;
+use sos_net::{
+    client::provider::StorageProvider,
+    sdk::mpc::generate_keypair,
+};
 
 #[tokio::test]
 #[serial]

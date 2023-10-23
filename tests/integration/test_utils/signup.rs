@@ -3,21 +3,22 @@ use anyhow::{bail, Result};
 use std::path::PathBuf;
 use url::Url;
 
-use sos_sdk::{
-    mpc::{generate_keypair, Keypair},
-    signer::{
-        ecdsa::{BoxedEcdsaSigner, SingleParty},
-        Signer,
-    },
-    storage::UserPaths,
-    vfs,
-};
-
 use web3_address::ethereum::Address;
 
-use sos_net::client::{
-    net::RpcClient,
-    provider::{RemoteProvider, StorageProvider},
+use sos_net::{
+    client::{
+        net::RpcClient,
+        provider::{RemoteProvider, StorageProvider},
+    },
+    sdk::{
+        mpc::{generate_keypair, Keypair},
+        signer::{
+            ecdsa::{BoxedEcdsaSigner, SingleParty},
+            Signer,
+        },
+        storage::UserPaths,
+        vfs,
+    },
 };
 
 use super::{server_public_key, AccountCredentials};

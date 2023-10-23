@@ -5,9 +5,11 @@ use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 use futures::future::LocalBoxFuture;
 use terminal_banner::{Banner, Padding};
 
-use sos_net::client::{
-    provider::ProviderFactory,
-    user::{ArchiveFilter, DocumentView},
+use sos_net::{
+    client::{
+        provider::ProviderFactory,
+        user::{ArchiveFilter, DocumentView},
+    },
     sdk::{
         account::AccountRef,
         search::Document,

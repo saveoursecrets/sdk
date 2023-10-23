@@ -7,14 +7,16 @@ use crate::test_utils::*;
 use secrecy::SecretString;
 use tempfile::tempdir;
 
-use sos_net::client::provider::{LocalProvider, StorageProvider};
-use sos_sdk::{
-    account::{archive::Writer, AccountBackup, Identity, RestoreOptions},
-    encode,
-    events::WriteEvent,
-    signer::{ecdsa::SingleParty, Signer},
-    storage::UserPaths,
-    vault::{Gatekeeper, Vault, VaultBuilder, VaultFlags},
+use sos_net::{
+    client::provider::{LocalProvider, StorageProvider},
+    sdk::{
+        account::{archive::Writer, AccountBackup, Identity, RestoreOptions},
+        encode,
+        events::WriteEvent,
+        signer::{ecdsa::SingleParty, Signer},
+        storage::UserPaths,
+        vault::{Gatekeeper, Vault, VaultBuilder, VaultFlags},
+    },
 };
 use web3_address::ethereum::Address;
 

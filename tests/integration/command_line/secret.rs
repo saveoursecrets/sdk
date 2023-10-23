@@ -2,7 +2,7 @@ use super::*;
 use anyhow::Result;
 use rexpect::spawn;
 use secrecy::SecretString;
-use sos_sdk::{
+use sos_net::sdk::{
     constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
     secrecy::ExposeSecret, storage::AppPaths, vfs,
 };
