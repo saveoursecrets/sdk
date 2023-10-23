@@ -28,6 +28,8 @@ where
 }
 
 /// List of records for a generated security report.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SecurityReport<T> {
     /// Report row records.
     pub records: Vec<SecurityReportRecord>,
@@ -36,6 +38,8 @@ pub struct SecurityReport<T> {
 }
 
 /// Security report record.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SecurityReportRecord {
     /// Folder summary.
     pub folder: Summary,
@@ -44,8 +48,22 @@ pub struct SecurityReportRecord {
     /// Owner information when the password
     /// belongs to a parent secret (custom field).
     pub owner: Option<(SecretId, usize)>,
-    /// Password entropy information.
-    pub entropy: Entropy,
+    /// Report on password entropy and user defined
+    /// reporting information (eg: haveibeenpwned lookup).
+    #[serde(flatten)]
+    pub report: PasswordReport,
+}
+
+/// Password report.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PasswordReport {
+    /// The entropy score.
+    pub score: u8,
+    /// The estimated number of guesses needed to crack the password.
+    pub guesses: u64,
+    /// The order of magnitude of guesses.
+    pub guesses_log10: f64,
 }
 
 impl UserStorage {
@@ -110,11 +128,17 @@ impl UserStorage {
             for (secret_id, check, owner) in password_hashes {
                 let (entropy, sha1) = check;
 
+                let report = PasswordReport {
+                    score: entropy.score(),
+                    guesses: entropy.guesses(),
+                    guesses_log10: entropy.guesses_log10(),
+                };
+
                 let record = SecurityReportRecord {
                     folder: target.clone(),
                     secret_id,
                     owner,
-                    entropy,
+                    report,
                 };
 
                 hashes.push(sha1);
