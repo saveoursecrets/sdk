@@ -23,7 +23,7 @@ use sos_sdk::{
     storage::{AppPaths, UserPaths},
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
-        Gatekeeper, Summary, Vault, VaultAccess, VaultBuilder, VaultId,
+        Summary, Vault, VaultAccess, VaultId,
         VaultWriter,
     },
     vfs::{self, File},
@@ -249,6 +249,7 @@ impl UserStorage {
         let peer_key = convert_libp2p_identity(user.device().signer())?;
 
         let files_dir = storage.paths().files_dir().clone();
+        #[cfg(feature = "device")]
         let devices_dir = storage.paths().devices_dir().clone();
         Ok(Self {
             user,
@@ -1178,6 +1179,7 @@ impl UserStorage {
     ) -> Result<()> {
         use sos_migrate::export::PublicExport;
         use std::io::Cursor;
+        use sos_sdk::vault::Gatekeeper;
 
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
@@ -1304,6 +1306,8 @@ impl UserStorage {
         folder_name: String,
         converter: impl Convert<Input = PathBuf>,
     ) -> Result<(Event<'static>, Summary)> {
+        use sos_sdk::vault::VaultBuilder;
+
         let vaults =
             LocalAccounts::list_local_vaults(self.address(), false).await?;
         let existing_name =
@@ -1415,6 +1419,8 @@ impl UserStorage {
         &mut self,
         path: P,
     ) -> Result<()> {
+        use sos_sdk::vault::Gatekeeper;
+
         let contacts = self
             .contacts_folder()
             .ok_or_else(|| Error::NoContactsFolder)?;

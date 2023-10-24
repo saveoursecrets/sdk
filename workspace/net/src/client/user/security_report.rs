@@ -36,8 +36,8 @@ pub struct SecurityReportRow<T> {
     pub folder_id: VaultId,
     /// Secret identifier.
     pub secret_id: SecretId,
-    /// Owner secret identifier (when custom field).
-    pub owner_id: Option<SecretId>,
+    /// Custom field identifier.
+    pub field_id: Option<SecretId>,
     /// Field index (when custom field).
     pub field_index: Option<usize>,
     /// The entropy score.
@@ -81,8 +81,8 @@ impl<T> From<SecurityReport<T>> for Vec<SecurityReportRow<T>> {
                 folder_name: record.folder.name().to_owned(),
                 folder_id: *record.folder.id(),
                 secret_id: record.secret_id,
-                owner_id: record.owner.map(|(id, _)| id),
-                field_index: record.owner.map(|(_, index)| index),
+                field_id: record.field.map(|(id, _)| id),
+                field_index: record.field.map(|(_, index)| index),
                 score,
                 guesses,
                 guesses_log10,
@@ -99,21 +99,13 @@ pub struct SecurityReportRecord {
     pub folder: Summary,
     /// Secret identifier.
     pub secret_id: SecretId,
-    /// Owner information when the password
+    /// Field information when the password
     /// belongs to a parent secret (custom field).
-    pub owner: Option<(SecretId, usize)>,
+    pub field: Option<(SecretId, usize)>,
     /// Report on password entropy.
     ///
     /// Will be `None` when the password is empty.
     pub entropy: Option<Entropy>,
-}
-
-/// Password report.
-pub struct PasswordReport {
-    /// The entropy score.
-    pub entropy: Entropy,
-    /// Determines if the password is empty.
-    pub is_empty: bool,
 }
 
 impl UserStorage {
@@ -160,9 +152,9 @@ impl UserStorage {
                                 Secret::check_password(field.secret())?;
                             if let Some(check) = check {
                                 password_hashes.push((
-                                    *field.id(),
+                                    *secret_id,
                                     check,
-                                    Some((*secret_id, index)),
+                                    Some((*field.id(), index)),
                                 ));
                             }
                         }
@@ -175,13 +167,13 @@ impl UserStorage {
                 }
             }
 
-            for (secret_id, check, owner) in password_hashes {
+            for (secret_id, check, field) in password_hashes {
                 let (entropy, sha1) = check;
 
                 let record = SecurityReportRecord {
                     folder: target.clone(),
                     secret_id,
-                    owner,
+                    field,
                     entropy,
                 };
 
