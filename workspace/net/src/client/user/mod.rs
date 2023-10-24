@@ -23,8 +23,8 @@ pub use search_index::{ArchiveFilter, DocumentView, QueryFilter, UserIndex};
 
 #[cfg(feature = "security-report")]
 pub use security_report::{
-    SecurityReport, SecurityReportOptions,
-    SecurityReportRecord, SecurityReportRow,
+    SecurityReport, SecurityReportOptions, SecurityReportRecord,
+    SecurityReportRow,
 };
 pub use user_storage::{
     AccountData, SecretOptions, UserStatistics, UserStorage,

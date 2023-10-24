@@ -38,8 +38,6 @@ pub struct SecurityReportRow<T> {
     pub secret_id: SecretId,
     /// Custom field identifier.
     pub field_id: Option<SecretId>,
-    /// Field index (when custom field).
-    pub field_index: Option<usize>,
     /// The entropy score.
     pub score: u8,
     /// The estimated number of guesses needed to crack the password.
@@ -81,8 +79,7 @@ impl<T> From<SecurityReport<T>> for Vec<SecurityReportRow<T>> {
                 folder_name: record.folder.name().to_owned(),
                 folder_id: *record.folder.id(),
                 secret_id: record.secret_id,
-                field_id: record.field.map(|(id, _)| id),
-                field_index: record.field.map(|(_, index)| index),
+                field_id: record.field,
                 score,
                 guesses,
                 guesses_log10,
@@ -99,9 +96,8 @@ pub struct SecurityReportRecord {
     pub folder: Summary,
     /// Secret identifier.
     pub secret_id: SecretId,
-    /// Field information when the password
-    /// belongs to a parent secret (custom field).
-    pub field: Option<(SecretId, usize)>,
+    /// Field identifier when the password is a custom field.
+    pub field: Option<SecretId>,
     /// Report on password entropy.
     ///
     /// Will be `None` when the password is empty.
@@ -142,9 +138,7 @@ impl UserStorage {
                 if let Some((_meta, secret, _)) =
                     keeper.read(secret_id).await?
                 {
-                    for (index, field) in
-                        secret.user_data().fields().iter().enumerate()
-                    {
+                    for field in secret.user_data().fields() {
                         if field.meta().kind() == &SecretType::Account
                             || field.meta().kind() == &SecretType::Password
                         {
@@ -154,7 +148,7 @@ impl UserStorage {
                                 password_hashes.push((
                                     *secret_id,
                                     check,
-                                    Some((*field.id(), index)),
+                                    Some(*field.id()),
                                 ));
                             }
                         }

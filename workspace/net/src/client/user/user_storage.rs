@@ -23,8 +23,7 @@ use sos_sdk::{
     storage::{AppPaths, UserPaths},
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
-        Summary, Vault, VaultAccess, VaultId,
-        VaultWriter,
+        Summary, Vault, VaultAccess, VaultId, VaultWriter,
     },
     vfs::{self, File},
     Timestamp,
@@ -1178,8 +1177,8 @@ impl UserStorage {
         path: P,
     ) -> Result<()> {
         use sos_migrate::export::PublicExport;
-        use std::io::Cursor;
         use sos_sdk::vault::Gatekeeper;
+        use std::io::Cursor;
 
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
