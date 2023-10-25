@@ -5541,7 +5541,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "shell-words",
- "sos-net",
+ "sos-net 0.5.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "terminal-banner",
  "thiserror",
@@ -5631,9 +5631,68 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.5.22"
+version = "0.5.23"
 dependencies = [
  "anyhow",
+ "async-recursion",
+ "async-stream",
+ "async-trait",
+ "axum",
+ "axum-macros",
+ "axum-server",
+ "bs58 0.4.0",
+ "dirs",
+ "either",
+ "file-guard",
+ "futures",
+ "hex",
+ "http",
+ "if-addrs 0.10.2",
+ "libp2p",
+ "libp2p-kad",
+ "libp2p-noise",
+ "libp2p-quic",
+ "libp2p-tls",
+ "libp2p-yamux",
+ "log",
+ "once_cell",
+ "ouroboros",
+ "parking_lot",
+ "pin-project-lite",
+ "rand 0.8.5",
+ "reqwest",
+ "rustc_version",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "serde_with 2.3.3",
+ "sha3",
+ "sos-migrate 0.5.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.5.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "toml 0.5.11",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "void",
+ "web3-address",
+ "web3-signature",
+ "whoami",
+]
+
+[[package]]
+name = "sos-net"
+version = "0.5.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12753c45ce24c2f5308ca1fda781578b794911bc76d2975629ac62aa2f0b01d1"
+dependencies = [
  "async-recursion",
  "async-stream",
  "async-trait",
