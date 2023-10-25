@@ -10,7 +10,11 @@ use sos_sdk::{
 };
 
 /// Specific target for a security report.
-pub struct SecurityReportTarget(VaultId, SecretId, Option<SecretId>);
+pub struct SecurityReportTarget(
+    pub VaultId,
+    pub SecretId,
+    pub Option<SecretId>,
+);
 
 /// Options for security report generation.
 pub struct SecurityReportOptions<T, H, F>
