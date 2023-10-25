@@ -67,6 +67,23 @@ pub struct SecurityReportRow<T> {
     pub database_check: T,
 }
 
+impl SecurityReportRow<bool> {
+    /// Determine if this row is deemed to be secure.
+    ///
+    /// A report is deemed to be secure when the entropy
+    /// score is greater than or equal to 3 and the password
+    /// hash has not been detected as appearing in a database
+    /// of breached passwords.
+    pub fn is_secure(&self) -> bool {
+        self.score >= 3 && !self.database_check
+    }
+
+    /// Determine if this row is deemed to be insecure.
+    pub fn is_insecure(&self) -> bool {
+        !self.is_secure()
+    }
+}
+
 /// List of records for a generated security report.
 pub struct SecurityReport<T> {
     /// Report row records.
