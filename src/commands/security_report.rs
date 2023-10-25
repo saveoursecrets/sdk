@@ -68,6 +68,7 @@ pub async fn run(
                 Err(_) => hashes.into_iter().map(|_| false).collect(),
             }
         }),
+        target: None,
     };
     let report = owner
         .generate_security_report::<bool, _, _>(report_options)

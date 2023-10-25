@@ -62,6 +62,7 @@ async fn integration_security_report() -> Result<()> {
         database_handler: Some(|hashes: Vec<String>| async move {
             hashes.into_iter().map(|_| true).collect()
         }),
+        target: None,
     };
     let report = owner
         .generate_security_report::<bool, _, _>(report_options)
@@ -80,7 +81,10 @@ async fn integration_security_report() -> Result<()> {
     let field_record = report
         .records
         .iter()
-        .find(|r| r.secret_id == mock_ids.field_id)
+        .find(|r| {
+            r.secret_id == mock_ids.field_id.0
+                && r.field_id == Some(mock_ids.field_id.1)
+        })
         .unwrap();
 
     assert!(weak_record.entropy.as_ref().unwrap().score() < 3);
@@ -100,7 +104,7 @@ async fn integration_security_report() -> Result<()> {
 struct MockSecretIds {
     weak_id: SecretId,
     strong_id: SecretId,
-    field_id: SecretId,
+    field_id: (SecretId, SecretId),
 }
 
 async fn simulate_session(
@@ -161,6 +165,6 @@ async fn simulate_session(
     Ok(MockSecretIds {
         weak_id,
         strong_id,
-        field_id,
+        field_id: (strong_id, field_id),
     })
 }
