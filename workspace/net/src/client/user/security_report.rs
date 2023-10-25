@@ -4,10 +4,13 @@ use serde::{Deserialize, Serialize};
 use sos_sdk::{
     vault::{
         secret::{Secret, SecretId, SecretType},
-        Summary, VaultId,
+        Gatekeeper, Summary, VaultId,
     },
     zxcvbn::Entropy,
 };
+
+/// Specific target for a security report.
+pub struct SecurityReportTarget(VaultId, SecretId, Option<SecretId>);
 
 /// Options for security report generation.
 pub struct SecurityReportOptions<T, H, F>
@@ -24,6 +27,17 @@ where
     /// and must return a list of `T` the same length as
     /// the input.
     pub database_handler: Option<H>,
+
+    /// Target for report generation.
+    ///
+    /// This is useful when providing a UI to resolve
+    /// security report issues and changes have been
+    /// made; the caller can generate a new report
+    /// for the changed item and decide if the item
+    /// is now deemed safe.
+    ///
+    /// When a target is given excludes are ignored.
+    pub target: Option<SecurityReportTarget>,
 }
 
 /// Row for security report output.
@@ -79,7 +93,7 @@ impl<T> From<SecurityReport<T>> for Vec<SecurityReportRow<T>> {
                 folder_name: record.folder.name().to_owned(),
                 folder_id: *record.folder.id(),
                 secret_id: record.secret_id,
-                field_id: record.field,
+                field_id: record.field_id,
                 score,
                 guesses,
                 guesses_log10,
@@ -97,11 +111,49 @@ pub struct SecurityReportRecord {
     /// Secret identifier.
     pub secret_id: SecretId,
     /// Field identifier when the password is a custom field.
-    pub field: Option<SecretId>,
+    pub field_id: Option<SecretId>,
     /// Report on password entropy.
     ///
     /// Will be `None` when the password is empty.
     pub entropy: Option<Entropy>,
+}
+
+async fn secret_security_report(
+    secret_id: &SecretId,
+    keeper: &Gatekeeper,
+    password_hashes: &mut Vec<(
+        SecretId,
+        (Option<Entropy>, Vec<u8>),
+        Option<SecretId>,
+    )>,
+    target_field: Option<&SecretId>,
+) -> Result<()> {
+    if let Some((_meta, secret, _)) = keeper.read(secret_id).await? {
+        for field in secret.user_data().fields().iter().filter(|field| {
+            if let Some(field_id) = target_field {
+                return field_id == field.id();
+            }
+            true
+        }) {
+            if field.meta().kind() == &SecretType::Account
+                || field.meta().kind() == &SecretType::Password
+            {
+                let check = Secret::check_password(field.secret())?;
+                if let Some(check) = check {
+                    password_hashes.push((
+                        *secret_id,
+                        check,
+                        Some(*field.id()),
+                    ));
+                }
+            }
+        }
+        let check = Secret::check_password(&secret)?;
+        if let Some(check) = check {
+            password_hashes.push((*secret_id, check, None));
+        }
+    }
+    Ok(())
 }
 
 impl UserStorage {
@@ -119,7 +171,12 @@ impl UserStorage {
         let folders = self.list_folders().await?;
         let targets: Vec<Summary> = folders
             .into_iter()
-            .filter(|folder| !options.excludes.contains(folder.id()))
+            .filter(|folder| {
+                if let Some(target) = &options.target {
+                    return folder.id() == &target.0;
+                }
+                !options.excludes.contains(folder.id())
+            })
             .collect();
 
         // Store current open vault so we can restore afterwards
@@ -133,41 +190,39 @@ impl UserStorage {
 
             let keeper = self.storage.current().unwrap();
             let vault = keeper.vault();
-            let mut password_hashes = Vec::new();
-            for secret_id in vault.keys() {
-                if let Some((_meta, secret, _)) =
-                    keeper.read(secret_id).await?
-                {
-                    for field in secret.user_data().fields() {
-                        if field.meta().kind() == &SecretType::Account
-                            || field.meta().kind() == &SecretType::Password
-                        {
-                            let check =
-                                Secret::check_password(field.secret())?;
-                            if let Some(check) = check {
-                                password_hashes.push((
-                                    *secret_id,
-                                    check,
-                                    Some(*field.id()),
-                                ));
-                            }
-                        }
-                    }
+            let mut password_hashes: Vec<(
+                SecretId,
+                (Option<Entropy>, Vec<u8>),
+                Option<SecretId>,
+            )> = Vec::new();
 
-                    let check = Secret::check_password(&secret)?;
-                    if let Some(check) = check {
-                        password_hashes.push((*secret_id, check, None));
-                    }
+            if let Some(target) = &options.target {
+                secret_security_report(
+                    &target.1,
+                    keeper,
+                    &mut password_hashes,
+                    target.2.as_ref(),
+                )
+                .await?;
+            } else {
+                for secret_id in vault.keys() {
+                    secret_security_report(
+                        secret_id,
+                        keeper,
+                        &mut password_hashes,
+                        None,
+                    )
+                    .await?;
                 }
             }
 
-            for (secret_id, check, field) in password_hashes {
+            for (secret_id, check, field_id) in password_hashes {
                 let (entropy, sha1) = check;
 
                 let record = SecurityReportRecord {
                     folder: target.clone(),
                     secret_id,
-                    field,
+                    field_id,
                     entropy,
                 };
 

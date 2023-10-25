@@ -60,7 +60,7 @@ rustyline-derive = "0.8"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.sos-net]
 version = "0.5.22" 
 features = ["full"]
-#path = "workspace/net"
+path = "workspace/net"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { version = "1", features = ["rt", "time", "sync"] }
@@ -69,7 +69,7 @@ tokio = { version = "1", features = ["rt", "time", "sync"] }
 version = "0.5.22"
 default-features = false
 features = ["client"]
-#path = "workspace/net"
+path = "workspace/net"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow = "1"
