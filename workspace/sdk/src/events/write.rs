@@ -38,8 +38,7 @@ pub enum WriteEvent<'a> {
     /// Event used to indicate the vault meta data was set.
     SetVaultMeta(Cow<'a, Option<AeadPack>>),
 
-    /// Event used to indicate a secret should be
-    /// created in a remote destination.
+    /// Event used to indicate a secret was created.
     CreateSecret(SecretId, Cow<'a, VaultCommit>),
 
     /// Event used to indicate a secret was updated.
