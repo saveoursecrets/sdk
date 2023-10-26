@@ -2,6 +2,7 @@ use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     crypto::AeadPack,
+    commit::CommitHash,
     decode, encode,
     events::{EventLogFile, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
@@ -19,6 +20,8 @@ pub struct EventReducer<'a> {
     vault_meta: Option<Cow<'a, Option<AeadPack>>>,
     /// Map of the reduced secrets.
     secrets: HashMap<SecretId, Cow<'a, VaultCommit>>,
+    /// Reduce events until a particular commit.
+    until_commit: Option<CommitHash>,
 }
 
 impl<'a> EventReducer<'a> {
@@ -62,6 +65,15 @@ impl<'a> EventReducer<'a> {
 
             if let WriteEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
+                
+                // If we are only reading until the first commit 
+                // hash return early.
+                if let Some(until) = &self.until_commit {
+                    if until.0 == log.commit() {
+                        return Ok(self)
+                    }
+                }
+
                 while let Some(log) = it.next_entry().await? {
                     let event = event_log.event_data(&log).await?;
                     match event {
@@ -85,10 +97,19 @@ impl<'a> EventReducer<'a> {
                         }
                         _ => {}
                     }
+                    
+                    // If we are reading to a particular commit hash
+                    // we are done.
+                    if let Some(until) = &self.until_commit {
+                        if until.0 == log.commit() {
+                            break;
+                        }
+                    }
                 }
             } else {
                 return Err(Error::CreateEventMustBeFirst);
             }
+
         }
 
         Ok(self)
