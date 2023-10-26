@@ -1641,7 +1641,7 @@ impl UserStorage {
     /// history at a particular point in time.
     pub async fn detached_view(
         &self,
-        summary: Summary,
+        summary: &Summary,
         commit: CommitHash,
     ) -> Result<DetachedView> {
         let cache = self.storage.cache();
@@ -1664,7 +1664,7 @@ impl UserStorage {
     }
 
     /// Get the root commit hash for a folder.
-    pub fn root_commit(&self, summary: Summary) -> Result<CommitHash> {
+    pub fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
         let cache = self.storage.cache();
         let (log_file, _) = cache
             .get(summary.id())
