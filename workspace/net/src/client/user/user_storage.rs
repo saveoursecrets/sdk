@@ -1662,4 +1662,17 @@ impl UserStorage {
         keeper.create_search_index().await?;
         Ok(DetachedView { keeper })
     }
+
+    /// Get the root commit hash for a folder.
+    pub fn root_commit(&self, summary: Summary) -> Result<CommitHash> {
+        let cache = self.storage.cache();
+        let (log_file, _) = cache
+            .get(summary.id())
+            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
+        Ok(log_file
+            .tree()
+            .root()
+            .map(CommitHash)
+            .ok_or_else(|| Error::NoRootCommit)?)
+    }
 }
