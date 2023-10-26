@@ -30,6 +30,14 @@ impl<'a> EventReducer<'a> {
         Default::default()
     }
 
+    /// Create a new reducer until a commit.
+    pub fn new_until_commit(until: CommitHash) -> Self {
+        Self {
+            until_commit: Some(until),
+            ..Default::default()
+        }
+    }
+
     /// Split a vault into a truncated vault and a collection
     /// of events that represent the vault.
     ///

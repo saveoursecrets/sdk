@@ -11,11 +11,12 @@ use sos_sdk::{
         AuthenticatedUser, DelegatedPassphrase, ExtractFilesLocation,
         ImportedAccount, LocalAccounts, Login, NewAccount, RestoreOptions,
     },
+    commit::CommitHash,
     crypto::AccessKey,
     decode, encode,
     events::{
         AuditData, AuditEvent, AuditProvider, Event, EventKind, ReadEvent,
-        WriteEvent,
+        WriteEvent, EventReducer,
     },
     mpc::generate_keypair,
     search::{DocumentCount, SearchIndex},
@@ -23,7 +24,7 @@ use sos_sdk::{
     storage::{AppPaths, UserPaths},
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
-        Summary, Vault, VaultAccess, VaultId, VaultWriter,
+        Gatekeeper, Summary, Vault, VaultAccess, VaultId, VaultWriter,
     },
     vfs::{self, File},
     Timestamp,
@@ -55,6 +56,20 @@ use sos_migrate::{
 };
 
 use super::{file_manager::FileProgress, search_index::UserIndex};
+
+/// Read-only view of a vault created from a specific
+/// event log commit.
+pub struct DetachedView {
+    search: Arc<RwLock<SearchIndex>>,
+    keeper: Gatekeeper,
+}
+
+impl DetachedView {
+    /// Read-only access to the vault.
+    pub fn keeper(&self) -> &Gatekeeper {
+        &self.keeper
+    }
+}
 
 /// Options used when creating, deleting and updating
 /// secrets.
@@ -1598,5 +1613,31 @@ impl UserStorage {
         }
 
         Ok((account, owner))
+    }
+
+    /// Create a detached view of an event log until a
+    /// particular commit.
+    ///
+    /// This is useful for time travel; browsing the event 
+    /// history at a particular point in time.
+    pub async fn create_detached_view(
+        &self,
+        summary: Summary,
+        commit: CommitHash,
+    ) -> Result<DetachedView> {
+        let cache = self.storage.cache();
+        let (log_file, _) = cache
+            .get(summary.id())
+            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
+        
+        let vault = EventReducer::new_until_commit(commit)
+            .reduce(log_file).await?
+            .build().await?;
+        
+        let search = Arc::new(RwLock::new(SearchIndex::new()));
+        let mut keeper = Gatekeeper::new(vault, Some(Arc::clone(&search)));
+        keeper.create_search_index().await?;
+
+        Ok(DetachedView { search, keeper })
     }
 }
