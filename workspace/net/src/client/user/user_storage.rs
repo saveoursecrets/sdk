@@ -150,22 +150,24 @@ pub struct UserStorage {
     /// Authenticated user.
     user: AuthenticatedUser,
     /// Storage provider.
-    pub storage: BoxedProvider,
+    storage: BoxedProvider,
+
     /// Factory user to create the storage provider.
+    #[allow(dead_code)]
     factory: ProviderFactory,
 
     /// Search index.
     index: UserIndex,
 
     /// File storage directory.
-    pub(crate) files_dir: PathBuf,
+    files_dir: PathBuf,
 
     /// Devices for this user.
     #[cfg(feature = "device")]
     devices: DeviceManager,
     /// Key pair for peer to peer connections.
     #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
-    pub peer_key: libp2p::identity::Keypair,
+    peer_key: libp2p::identity::Keypair,
 }
 
 impl UserStorage {
@@ -199,6 +201,22 @@ impl UserStorage {
     /// Authenticated user information.
     pub fn user(&self) -> &AuthenticatedUser {
         &self.user
+    }
+
+    /// Storage provider.
+    pub fn storage(&self) -> &BoxedProvider {
+        &self.storage
+    }
+
+    /// File storage directory.
+    pub fn files_dir(&self) -> &PathBuf {
+        &self.files_dir
+    }
+
+    /// Key pair for peer to peer connections.
+    #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
+    pub fn peer_key(&self) -> &libp2p::identity::Keypair {
+        &self.peer_key
     }
 
     /// Create a new account with the given

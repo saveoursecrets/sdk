@@ -287,7 +287,7 @@ impl UserStorage {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<()> {
-        let vault_path = self.files_dir.join(vault_id.to_string());
+        let vault_path = self.files_dir().join(vault_id.to_string());
         let secret_path = vault_path.join(secret_id.to_string());
         let path = secret_path.join(file_name);
 
@@ -359,12 +359,12 @@ impl UserStorage {
         new_secret_id: &SecretId,
         file_name: &str,
     ) -> Result<()> {
-        let old_vault_path = self.files_dir.join(old_vault_id.to_string());
+        let old_vault_path = self.files_dir().join(old_vault_id.to_string());
         let old_secret_path = old_vault_path.join(old_secret_id.to_string());
         let old_path = old_secret_path.join(file_name);
 
         let new_path = self
-            .files_dir
+            .files_dir()
             .join(new_vault_id.to_string())
             .join(new_secret_id.to_string())
             .join(file_name);
