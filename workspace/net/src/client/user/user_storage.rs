@@ -152,7 +152,7 @@ pub struct UserStorage {
     /// Storage provider.
     pub storage: BoxedProvider,
     /// Factory user to create the storage provider.
-    pub factory: ProviderFactory,
+    factory: ProviderFactory,
 
     /// Search index.
     index: UserIndex,
