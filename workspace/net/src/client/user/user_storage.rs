@@ -1620,7 +1620,7 @@ impl UserStorage {
     ///
     /// This is useful for time travel; browsing the event 
     /// history at a particular point in time.
-    pub async fn create_detached_view(
+    pub async fn detached_view(
         &self,
         summary: Summary,
         commit: CommitHash,
@@ -1637,7 +1637,6 @@ impl UserStorage {
         let search = Arc::new(RwLock::new(SearchIndex::new()));
         let mut keeper = Gatekeeper::new(vault, Some(Arc::clone(&search)));
         keeper.create_search_index().await?;
-
         Ok(DetachedView { search, keeper })
     }
 }
