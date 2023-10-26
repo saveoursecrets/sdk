@@ -15,8 +15,8 @@ use sos_sdk::{
     crypto::AccessKey,
     decode, encode,
     events::{
-        AuditData, AuditEvent, AuditProvider, Event, EventKind, ReadEvent,
-        WriteEvent, EventReducer,
+        AuditData, AuditEvent, AuditProvider, Event, EventKind, EventReducer,
+        ReadEvent, WriteEvent,
     },
     mpc::generate_keypair,
     search::{DocumentCount, SearchIndex},
@@ -60,7 +60,6 @@ use super::{file_manager::FileProgress, search_index::UserIndex};
 /// Read-only view of a vault created from a specific
 /// event log commit.
 pub struct DetachedView {
-    search: Arc<RwLock<SearchIndex>>,
     keeper: Gatekeeper,
 }
 
@@ -149,7 +148,7 @@ pub struct UserStatistics {
 /// Authenticated user with storage provider.
 pub struct UserStorage {
     /// Authenticated user.
-    pub user: AuthenticatedUser,
+    user: AuthenticatedUser,
     /// Storage provider.
     pub storage: BoxedProvider,
     /// Factory user to create the storage provider.
@@ -195,6 +194,11 @@ impl UserStorage {
             },
         )
         .await
+    }
+
+    /// Authenticated user information.
+    pub fn user(&self) -> &AuthenticatedUser {
+        &self.user
     }
 
     /// Create a new account with the given
@@ -1192,7 +1196,6 @@ impl UserStorage {
         path: P,
     ) -> Result<()> {
         use sos_migrate::export::PublicExport;
-        use sos_sdk::vault::Gatekeeper;
         use std::io::Cursor;
 
         let mut archive = Vec::new();
@@ -1433,8 +1436,6 @@ impl UserStorage {
         &mut self,
         path: P,
     ) -> Result<()> {
-        use sos_sdk::vault::Gatekeeper;
-
         let contacts = self
             .contacts_folder()
             .ok_or_else(|| Error::NoContactsFolder)?;
@@ -1618,7 +1619,7 @@ impl UserStorage {
     /// Create a detached view of an event log until a
     /// particular commit.
     ///
-    /// This is useful for time travel; browsing the event 
+    /// This is useful for time travel; browsing the event
     /// history at a particular point in time.
     pub async fn detached_view(
         &self,
@@ -1629,14 +1630,18 @@ impl UserStorage {
         let (log_file, _) = cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
-        
+
         let vault = EventReducer::new_until_commit(commit)
-            .reduce(log_file).await?
-            .build().await?;
-        
-        let search = Arc::new(RwLock::new(SearchIndex::new()));
-        let mut keeper = Gatekeeper::new(vault, Some(Arc::clone(&search)));
+            .reduce(log_file)
+            .await?
+            .build()
+            .await?;
+
+        let mut keeper = Gatekeeper::new(
+            vault,
+            Some(Arc::new(RwLock::new(SearchIndex::new()))),
+        );
         keeper.create_search_index().await?;
-        Ok(DetachedView { search, keeper })
+        Ok(DetachedView { keeper })
     }
 }

@@ -1,8 +1,8 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
-    crypto::AeadPack,
     commit::CommitHash,
+    crypto::AeadPack,
     decode, encode,
     events::{EventLogFile, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
@@ -73,12 +73,12 @@ impl<'a> EventReducer<'a> {
 
             if let WriteEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
-                
-                // If we are only reading until the first commit 
+
+                // If we are only reading until the first commit
                 // hash return early.
                 if let Some(until) = &self.until_commit {
                     if until.0 == log.commit() {
-                        return Ok(self)
+                        return Ok(self);
                     }
                 }
 
@@ -105,7 +105,7 @@ impl<'a> EventReducer<'a> {
                         }
                         _ => {}
                     }
-                    
+
                     // If we are reading to a particular commit hash
                     // we are done.
                     if let Some(until) = &self.until_commit {
@@ -117,7 +117,6 @@ impl<'a> EventReducer<'a> {
             } else {
                 return Err(Error::CreateEventMustBeFirst);
             }
-
         }
 
         Ok(self)
