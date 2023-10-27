@@ -1649,6 +1649,12 @@ impl UserStorage {
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
 
+        let passphrase = DelegatedPassphrase::find_vault_passphrase(
+            self.user.identity().keeper(),
+            summary.id(),
+        )
+        .await?;
+        
         let vault = EventReducer::new_until_commit(commit)
             .reduce(log_file)
             .await?
@@ -1659,6 +1665,7 @@ impl UserStorage {
             vault,
             Some(Arc::new(RwLock::new(SearchIndex::new()))),
         );
+        keeper.unlock(passphrase).await?;
         keeper.create_search_index().await?;
         Ok(DetachedView { keeper })
     }
