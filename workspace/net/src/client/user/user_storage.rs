@@ -190,7 +190,7 @@ impl UserStorage {
                 builder
                     .save_passphrase(true)
                     .create_archive(true)
-                    .create_authenticator(true)
+                    .create_authenticator(false)
                     .create_contacts(true)
                     .create_file_password(true)
             },
