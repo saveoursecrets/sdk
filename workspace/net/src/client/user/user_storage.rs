@@ -11,11 +11,12 @@ use sos_sdk::{
         AuthenticatedUser, DelegatedPassphrase, ExtractFilesLocation,
         ImportedAccount, LocalAccounts, Login, NewAccount, RestoreOptions,
     },
+    commit::CommitHash,
     crypto::AccessKey,
     decode, encode,
     events::{
-        AuditData, AuditEvent, AuditProvider, Event, EventKind, ReadEvent,
-        WriteEvent,
+        AuditData, AuditEvent, AuditProvider, Event, EventKind, EventReducer,
+        ReadEvent, WriteEvent,
     },
     mpc::generate_keypair,
     search::{DocumentCount, SearchIndex},
@@ -23,7 +24,7 @@ use sos_sdk::{
     storage::{AppPaths, UserPaths},
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
-        Summary, Vault, VaultAccess, VaultId, VaultWriter,
+        Gatekeeper, Summary, Vault, VaultAccess, VaultId, VaultWriter,
     },
     vfs::{self, File},
     Timestamp,
@@ -55,6 +56,19 @@ use sos_migrate::{
 };
 
 use super::{file_manager::FileProgress, search_index::UserIndex};
+
+/// Read-only view of a vault created from a specific
+/// event log commit.
+pub struct DetachedView {
+    keeper: Gatekeeper,
+}
+
+impl DetachedView {
+    /// Read-only access to the vault.
+    pub fn keeper(&self) -> &Gatekeeper {
+        &self.keeper
+    }
+}
 
 /// Options used when creating, deleting and updating
 /// secrets.
@@ -134,24 +148,26 @@ pub struct UserStatistics {
 /// Authenticated user with storage provider.
 pub struct UserStorage {
     /// Authenticated user.
-    pub user: AuthenticatedUser,
+    user: AuthenticatedUser,
     /// Storage provider.
-    pub storage: BoxedProvider,
+    storage: BoxedProvider,
+
     /// Factory user to create the storage provider.
-    pub factory: ProviderFactory,
+    #[allow(dead_code)]
+    factory: ProviderFactory,
 
     /// Search index.
     index: UserIndex,
 
     /// File storage directory.
-    pub(crate) files_dir: PathBuf,
+    files_dir: PathBuf,
 
     /// Devices for this user.
     #[cfg(feature = "device")]
     devices: DeviceManager,
     /// Key pair for peer to peer connections.
     #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
-    pub peer_key: libp2p::identity::Keypair,
+    peer_key: libp2p::identity::Keypair,
 }
 
 impl UserStorage {
@@ -174,12 +190,33 @@ impl UserStorage {
                 builder
                     .save_passphrase(true)
                     .create_archive(true)
-                    .create_authenticator(true)
+                    .create_authenticator(false)
                     .create_contacts(true)
                     .create_file_password(true)
             },
         )
         .await
+    }
+
+    /// Authenticated user information.
+    pub fn user(&self) -> &AuthenticatedUser {
+        &self.user
+    }
+
+    /// Storage provider.
+    pub fn storage(&self) -> &BoxedProvider {
+        &self.storage
+    }
+
+    /// File storage directory.
+    pub fn files_dir(&self) -> &PathBuf {
+        &self.files_dir
+    }
+
+    /// Key pair for peer to peer connections.
+    #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
+    pub fn peer_key(&self) -> &libp2p::identity::Keypair {
+        &self.peer_key
     }
 
     /// Create a new account with the given
@@ -1177,7 +1214,6 @@ impl UserStorage {
         path: P,
     ) -> Result<()> {
         use sos_migrate::export::PublicExport;
-        use sos_sdk::vault::Gatekeeper;
         use std::io::Cursor;
 
         let mut archive = Vec::new();
@@ -1418,8 +1454,6 @@ impl UserStorage {
         &mut self,
         path: P,
     ) -> Result<()> {
-        use sos_sdk::vault::Gatekeeper;
-
         let contacts = self
             .contacts_folder()
             .ok_or_else(|| Error::NoContactsFolder)?;
@@ -1598,5 +1632,54 @@ impl UserStorage {
         }
 
         Ok((account, owner))
+    }
+
+    /// Create a detached view of an event log until a
+    /// particular commit.
+    ///
+    /// This is useful for time travel; browsing the event
+    /// history at a particular point in time.
+    pub async fn detached_view(
+        &self,
+        summary: &Summary,
+        commit: CommitHash,
+    ) -> Result<DetachedView> {
+        let cache = self.storage.cache();
+        let (log_file, _) = cache
+            .get(summary.id())
+            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
+
+        let passphrase = DelegatedPassphrase::find_vault_passphrase(
+            self.user.identity().keeper(),
+            summary.id(),
+        )
+        .await?;
+
+        let vault = EventReducer::new_until_commit(commit)
+            .reduce(log_file)
+            .await?
+            .build()
+            .await?;
+
+        let mut keeper = Gatekeeper::new(
+            vault,
+            Some(Arc::new(RwLock::new(SearchIndex::new()))),
+        );
+        keeper.unlock(passphrase).await?;
+        keeper.create_search_index().await?;
+        Ok(DetachedView { keeper })
+    }
+
+    /// Get the root commit hash for a folder.
+    pub fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
+        let cache = self.storage.cache();
+        let (log_file, _) = cache
+            .get(summary.id())
+            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
+        Ok(log_file
+            .tree()
+            .root()
+            .map(CommitHash)
+            .ok_or_else(|| Error::NoRootCommit)?)
     }
 }

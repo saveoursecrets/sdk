@@ -1,6 +1,7 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
+    commit::CommitHash,
     crypto::AeadPack,
     decode, encode,
     events::{EventLogFile, WriteEvent},
@@ -19,12 +20,22 @@ pub struct EventReducer<'a> {
     vault_meta: Option<Cow<'a, Option<AeadPack>>>,
     /// Map of the reduced secrets.
     secrets: HashMap<SecretId, Cow<'a, VaultCommit>>,
+    /// Reduce events until a particular commit.
+    until_commit: Option<CommitHash>,
 }
 
 impl<'a> EventReducer<'a> {
     /// Create a new reducer.
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Create a new reducer until a commit.
+    pub fn new_until_commit(until: CommitHash) -> Self {
+        Self {
+            until_commit: Some(until),
+            ..Default::default()
+        }
     }
 
     /// Split a vault into a truncated vault and a collection
@@ -62,6 +73,15 @@ impl<'a> EventReducer<'a> {
 
             if let WriteEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
+
+                // If we are only reading until the first commit
+                // hash return early.
+                if let Some(until) = &self.until_commit {
+                    if until.0 == log.commit() {
+                        return Ok(self);
+                    }
+                }
+
                 while let Some(log) = it.next_entry().await? {
                     let event = event_log.event_data(&log).await?;
                     match event {
@@ -84,6 +104,14 @@ impl<'a> EventReducer<'a> {
                             self.secrets.remove(&id);
                         }
                         _ => {}
+                    }
+
+                    // If we are reading to a particular commit hash
+                    // we are done.
+                    if let Some(until) = &self.until_commit {
+                        if until.0 == log.commit() {
+                            break;
+                        }
                     }
                 }
             } else {

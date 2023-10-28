@@ -81,7 +81,7 @@ impl UserStorage {
     ) -> Result<EncryptedFile> {
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
-            self.user.identity().keeper(),
+            self.user().identity().keeper(),
         )
         .await?;
 
@@ -89,7 +89,7 @@ impl UserStorage {
         Ok(FileStorageSync::encrypt_file_storage(
             password,
             source,
-            self.user.identity().address().to_string(),
+            self.address().to_string(),
             vault_id.to_string(),
             secret_id.to_string(),
         )?)
@@ -104,13 +104,13 @@ impl UserStorage {
     ) -> Result<Vec<u8>> {
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
-            self.user.identity().keeper(),
+            self.user().identity().keeper(),
         )
         .await?;
 
         Ok(FileStorage::decrypt_file_storage(
             &password,
-            self.user.identity().address().to_string(),
+            self.address().to_string(),
             vault_id.to_string(),
             secret_id.to_string(),
             file_name,
@@ -125,7 +125,7 @@ impl UserStorage {
         vault_id: &VaultId,
     ) -> Result<PathBuf> {
         Ok(AppPaths::file_folder_location(
-            self.user.identity().address().to_string(),
+            self.address().to_string(),
             vault_id.to_string(),
         )?)
     }
@@ -138,7 +138,7 @@ impl UserStorage {
         file_name: &str,
     ) -> Result<PathBuf> {
         Ok(AppPaths::file_location(
-            self.user.identity().address().to_string(),
+            self.address().to_string(),
             vault_id.to_string(),
             secret_id.to_string(),
             file_name,
@@ -287,7 +287,7 @@ impl UserStorage {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<()> {
-        let vault_path = self.files_dir.join(vault_id.to_string());
+        let vault_path = self.files_dir().join(vault_id.to_string());
         let secret_path = vault_path.join(secret_id.to_string());
         let path = secret_path.join(file_name);
 
@@ -359,12 +359,12 @@ impl UserStorage {
         new_secret_id: &SecretId,
         file_name: &str,
     ) -> Result<()> {
-        let old_vault_path = self.files_dir.join(old_vault_id.to_string());
+        let old_vault_path = self.files_dir().join(old_vault_id.to_string());
         let old_secret_path = old_vault_path.join(old_secret_id.to_string());
         let old_path = old_secret_path.join(file_name);
 
         let new_path = self
-            .files_dir
+            .files_dir()
             .join(new_vault_id.to_string())
             .join(new_secret_id.to_string())
             .join(file_name);

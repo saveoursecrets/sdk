@@ -202,14 +202,14 @@ impl UserStorage {
 
         // Store current open vault so we can restore afterwards
         let current = self
-            .storage
+            .storage()
             .current()
             .map(|keeper| keeper.vault().summary().clone());
 
         for target in targets {
             self.open_vault(&target, false).await?;
 
-            let keeper = self.storage.current().unwrap();
+            let keeper = self.storage().current().unwrap();
             let vault = keeper.vault();
             let mut password_hashes: Vec<(
                 SecretId,
