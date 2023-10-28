@@ -1654,7 +1654,7 @@ impl UserStorage {
             summary.id(),
         )
         .await?;
-        
+
         let vault = EventReducer::new_until_commit(commit)
             .reduce(log_file)
             .await?
