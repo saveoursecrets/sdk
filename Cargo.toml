@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 rust-version = "1.68.2"
 description = "Distributed, encrypted database for private secrets."
@@ -23,9 +23,8 @@ members = [
 ]
 
 [features]
-default = ["keyring"]
+default = []
 mem-fs = ["sos-net/mem-fs"]
-keyring  = ["sos-net/keyring"]
 test-utils = ["sos-net/test-utils"]
 
 [workspace.dependencies]
@@ -58,7 +57,7 @@ rustyline = "11"
 rustyline-derive = "0.8"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.sos-net]
-version = "0.5.26" 
+version = "0.6" 
 features = ["full"]
 #path = "workspace/net"
 
@@ -66,7 +65,7 @@ features = ["full"]
 tokio = { version = "1", features = ["rt", "time", "sync"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.sos-net]
-version = "0.5.26"
+version = "0.6"
 default-features = false
 features = ["client"]
 #path = "workspace/net"
@@ -81,7 +80,6 @@ serial_test = "2"
 secrecy = "0.8"
 http = "0.2"
 tempfile = "3.5"
-keyring = "2"
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 rexpect = "0.5"

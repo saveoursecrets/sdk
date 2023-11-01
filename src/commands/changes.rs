@@ -41,7 +41,7 @@ pub async fn run(
     account: AccountRef,
 ) -> Result<()> {
     let (owner, _) = sign_in(&account, ProviderFactory::Local(None)).await?;
-    let signer = owner.user.identity().signer().clone();
+    let signer = owner.user().identity().signer().clone();
     let keypair = generate_keypair()?;
     if let Err(e) =
         changes_stream(server, server_public_key, signer, keypair).await

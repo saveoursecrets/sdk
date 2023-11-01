@@ -172,7 +172,8 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
 
             let mut owner = user.write().await;
-            let is_current = if let Some(current) = owner.storage.current() {
+            let is_current = if let Some(current) = owner.storage().current()
+            {
                 current.id() == summary.id()
             } else {
                 false
@@ -195,7 +196,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         Command::List { account, verbose } => {
             let user = resolve_user(account.as_ref(), factory, false).await?;
             let mut writer = user.write().await;
-            let folders = writer.storage.load_vaults().await?;
+            let folders = writer.storage_mut().load_vaults().await?;
             for summary in folders {
                 if verbose {
                     println!("{} {}", summary.id(), summary.name());
@@ -232,7 +233,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
 
             let keeper =
-                writer.storage.current().ok_or(Error::NoVaultSelected)?;
+                writer.storage().current().ok_or(Error::NoVaultSelected)?;
             for uuid in keeper.vault().keys() {
                 println!("{}", uuid);
             }
@@ -244,7 +245,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 .ok_or_else(|| Error::NoFolderFound)?;
 
             let reader = user.read().await;
-            if let Some(tree) = reader.storage.commit_tree(&summary) {
+            if let Some(tree) = reader.storage().commit_tree(&summary) {
                 if let Some(leaves) = tree.leaves() {
                     for leaf in &leaves {
                         println!("{}", hex::encode(leaf));
@@ -301,7 +302,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 History::Compact { .. } => {
                     let reader = user.read().await;
                     let keeper = reader
-                        .storage
+                        .storage()
                         .current()
                         .ok_or(Error::NoVaultSelected)?;
                     let summary = keeper.summary().clone();
@@ -313,7 +314,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     if read_flag(prompt)? {
                         let mut writer = user.write().await;
                         let (old_size, new_size) =
-                            writer.storage.compact(&summary).await?;
+                            writer.storage_mut().compact(&summary).await?;
                         println!("Old: {}", human_bytes(old_size as f64));
                         println!("New: {}", human_bytes(new_size as f64));
                     }
@@ -321,20 +322,20 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 History::Check { .. } => {
                     let reader = user.read().await;
                     let keeper = reader
-                        .storage
+                        .storage()
                         .current()
                         .ok_or(Error::NoVaultSelected)?;
-                    reader.storage.verify(keeper.summary()).await?;
+                    reader.storage().verify(keeper.summary()).await?;
                     println!("Verified ✓");
                 }
                 History::List { verbose, .. } => {
                     let reader = user.read().await;
                     let keeper = reader
-                        .storage
+                        .storage()
                         .current()
                         .ok_or(Error::NoVaultSelected)?;
                     let records =
-                        reader.storage.history(keeper.summary()).await?;
+                        reader.storage().history(keeper.summary()).await?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);
                         if verbose {

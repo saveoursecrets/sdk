@@ -38,19 +38,6 @@ pub fn server_public_key() -> Result<Vec<u8>> {
     Ok(hex::decode(SERVER_PUBLIC_KEY)?)
 }
 
-/// Set to use a mock credentials builder for the keyring integration.
-pub async fn set_mock_credential_builder() {
-    #[cfg(all(any(test, debug_assertions), feature = "keyring"))]
-    {
-        keyring::set_default_credential_builder(
-            keyring::mock::default_credential_builder(),
-        );
-        let native_keyring = sos_net::sdk::get_native_keyring();
-        let mut keyring = native_keyring.lock().await;
-        keyring.set_enabled(true);
-    }
-}
-
 /// Encapsulates the credentials for a new account signup.
 pub struct AccountCredentials {
     /// Passphrase for the vault encryption.
@@ -168,8 +155,6 @@ pub struct TestDirs {
 }
 
 pub async fn setup(num_clients: usize) -> Result<TestDirs> {
-    set_mock_credential_builder().await;
-
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
     let target = current_dir.join("target/integration-test");

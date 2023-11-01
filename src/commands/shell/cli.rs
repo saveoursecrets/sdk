@@ -108,8 +108,8 @@ pub async fn run(
     loop {
         let prompt_value = {
             let owner = user.read().await;
-            let account_name = owner.user.account().label();
-            if let Some(current) = owner.storage.current() {
+            let account_name = owner.user().account().label();
+            if let Some(current) = owner.storage().current() {
                 format!("{}@{}> ", account_name, current.name())
             } else {
                 format!("{}> ", account_name)

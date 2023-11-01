@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.5.20"
+version = "0.6.0"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -15,7 +15,6 @@ crate-type = ["cdylib", "rlib"]
 default = ["recovery"]
 mem-fs = []
 test-utils = ["dep:anyhow"]
-keyring = ["dep:keyring"]
 recovery = ["dep:vsss-rs"]
 
 [dependencies]
@@ -73,7 +72,6 @@ tokio-util = { version = "0.7", default-features = false, features = ["compat"] 
 futures-util = "0.3"
 mpc-protocol = "0.4.1"
 
-keyring = {version = "2", optional = true }
 vsss-rs = {version = "3", optional = true }
 
 [dependencies.binary-stream]

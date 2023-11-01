@@ -665,7 +665,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let user = resolve_user(account.as_ref(), factory, true).await?;
             let owner = user.read().await;
             let archive_folder = owner
-                .storage
+                .storage()
                 .state()
                 .find(|s| s.flags().is_archive())
                 .cloned();
@@ -687,7 +687,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 }];
             } else if let Some(folder) = &folder {
                 let summary = owner
-                    .storage
+                    .storage()
                     .state()
                     .find_vault(folder)
                     .cloned()
@@ -1209,7 +1209,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                     resolve_user(account.as_ref(), factory.clone(), false)
                         .await?;
                 let owner = user.read().await;
-                owner.storage.current().map(|g| g.summary().clone())
+                owner.storage().current().map(|g| g.summary().clone())
             } else {
                 None
             };

@@ -272,27 +272,6 @@ impl Gatekeeper {
         let vault_id = *self.vault().id();
         let id = Uuid::new_v4();
 
-        #[cfg(feature = "keyring")]
-        {
-            if let Secret::Account {
-                account,
-                password,
-                url,
-                ..
-            } = &secret
-            {
-                let native_keyring = crate::get_native_keyring();
-                let keyring = native_keyring.lock().await;
-                let _ = keyring.create_entry(
-                    &id,
-                    secret_meta.label(),
-                    account,
-                    password,
-                    url.as_ref(),
-                );
-            }
-        }
-
         //let reader = self.index.read().await;
 
         /*
@@ -365,43 +344,6 @@ impl Gatekeeper {
 
         let vault_id = *self.vault().id();
 
-        #[cfg(feature = "keyring")]
-        {
-            if let Secret::Account {
-                account,
-                password,
-                url,
-                ..
-            } = &secret
-            {
-                let native_keyring = crate::get_native_keyring();
-                let keyring = native_keyring.lock().await;
-
-                // Delete an existing entry first
-                if let Some((meta, secret)) =
-                    self.read_secret(id, None, None).await?
-                {
-                    if let Secret::Account { account, url, .. } = &secret {
-                        let _ = keyring.delete_entry(
-                            &id,
-                            meta.label(),
-                            account,
-                            url.as_ref(),
-                        );
-                    }
-                }
-
-                // Create the new entry
-                let _ = keyring.create_entry(
-                    &id,
-                    secret_meta.label(),
-                    account,
-                    password,
-                    url.as_ref(),
-                );
-            }
-        }
-
         /*
         let reader = self.index.read().await;
 
@@ -462,24 +404,6 @@ impl Gatekeeper {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         self.enforce_shared_readonly(private_key).await?;
-
-        #[cfg(feature = "keyring")]
-        {
-            if let Some((meta, secret)) =
-                self.read_secret(id, None, None).await?
-            {
-                if let Secret::Account { account, url, .. } = &secret {
-                    let native_keyring = crate::get_native_keyring();
-                    let keyring = native_keyring.lock().await;
-                    let _ = keyring.delete_entry(
-                        &id,
-                        meta.label(),
-                        account,
-                        url.as_ref(),
-                    );
-                }
-            }
-        }
 
         let vault_id = *self.vault().id();
         if let Some(mirror) = self.mirror.as_mut() {
@@ -579,8 +503,6 @@ mod tests {
 
     #[tokio::test]
     async fn gatekeeper_secret_note() -> Result<()> {
-        set_mock_credential_builder().await;
-
         let passphrase = SecretString::new("mock-passphrase".to_owned());
         let name = String::from(DEFAULT_VAULT_NAME);
         let description = String::from("Mock Vault Description");
@@ -625,8 +547,6 @@ mod tests {
 
     #[tokio::test]
     async fn gatekeeper_secret_account() -> Result<()> {
-        set_mock_credential_builder().await;
-
         let passphrase = SecretString::new("mock-passphrase".to_owned());
         let name = String::from(DEFAULT_VAULT_NAME);
         let description = String::from("Mock Vault Description");

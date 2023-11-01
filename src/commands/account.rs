@@ -2,7 +2,7 @@ use clap::Subcommand;
 use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
-    client::provider::ProviderFactory,
+    client::provider::{BoxedProvider, ProviderFactory},
     migrate::import::{ImportFormat, ImportTarget},
     sdk::{
         account::{
@@ -246,7 +246,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             let original_folder = {
                 let mut owner = user.write().await;
                 let current =
-                    owner.storage.current().map(|g| g.summary().clone());
+                    owner.storage().current().map(|g| g.summary().clone());
                 let contacts = owner
                     .contacts_folder()
                     .ok_or_else(|| Error::NoContactsFolder)?;
@@ -394,7 +394,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     let account_ref = AccountRef::Address(inventory.manifest.address);
     let account = find_account(&account_ref).await?;
 
-    let (provider, passphrase) = if let Some(account) = account {
+    let provider: Option<BoxedProvider> = if let Some(account) = account {
         let confirmed = read_flag(Some(
             "Overwrite all account data from backup? (y/n) ",
         ))?;
@@ -405,16 +405,16 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         let account = AccountRef::Name(account.label().to_owned());
         let (owner, _) =
             sign_in(&account, ProviderFactory::Local(None)).await?;
-        (Some(owner.storage), None)
+        Some(owner.into())
     } else {
-        (None, None)
+        None
     };
 
     let files_dir =
         AppPaths::files_dir(inventory.manifest.address.to_string())?;
     let options = RestoreOptions {
         selected: inventory.vaults,
-        passphrase,
+        passphrase: None,
         files_dir: Some(ExtractFilesLocation::Path(files_dir)),
     };
     let reader = vfs::File::open(&input).await?;
@@ -440,7 +440,7 @@ async fn account_rename(
 ) -> Result<()> {
     let user = resolve_user(account.as_ref(), factory, false).await?;
     let mut owner = user.write().await;
-    owner.user.rename_account(name).await?;
+    owner.user_mut().rename_account(name).await?;
     Ok(())
 }
 
@@ -472,7 +472,7 @@ async fn account_delete(
         verify(Arc::clone(&user)).await?;
 
         let owner = user.read().await;
-        owner.user.account().into()
+        owner.user().account().into()
     };
 
     let user = resolve_user(Some(&account), factory, false).await?;
@@ -480,7 +480,7 @@ async fn account_delete(
 
     let prompt = format!(
         r#"Delete account "{}" (y/n)? "#,
-        owner.user.account().label(),
+        owner.user().account().label(),
     );
     let result = if read_flag(Some(&prompt))? {
         owner.delete_account().await?;
@@ -505,7 +505,7 @@ async fn migrate_export(
     let owner = user.read().await;
     let prompt = format!(
         r#"Export UNENCRYPTED account "{}" (y/n)? "#,
-        owner.user.account().label(),
+        owner.user().account().label(),
     );
 
     let result = if read_flag(Some(&prompt))? {

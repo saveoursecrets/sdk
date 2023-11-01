@@ -97,7 +97,7 @@ pub async fn resolve_account(
     if account.is_none() {
         if let Some(owner) = USER.get() {
             let reader = owner.read().await;
-            let account: AccountRef = reader.user.account().into();
+            let account: AccountRef = reader.user().account().into();
             return Some(account);
         }
 
@@ -118,7 +118,7 @@ pub async fn resolve_folder(
     if let Some(vault) = folder {
         Ok(Some(
             owner
-                .storage
+                .storage()
                 .state()
                 .find_vault(vault)
                 .cloned()
@@ -126,11 +126,12 @@ pub async fn resolve_folder(
         ))
     } else if let Some(owner) = USER.get() {
         let owner = owner.read().await;
-        let keeper = owner.storage.current().ok_or(Error::NoVaultSelected)?;
+        let keeper =
+            owner.storage().current().ok_or(Error::NoVaultSelected)?;
         Ok(Some(keeper.summary().clone()))
     } else {
         Ok(owner
-            .storage
+            .storage()
             .state()
             .find(|s| s.flags().is_default())
             .cloned())
@@ -142,7 +143,7 @@ pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
     let summary = if let Some(vault) = folder {
         Some(
             owner
-                .storage
+                .storage()
                 .state()
                 .find_vault(vault)
                 .cloned()
@@ -150,7 +151,7 @@ pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
         )
     } else {
         owner
-            .storage
+            .storage()
             .state()
             .find(|s| s.flags().is_default())
             .cloned()
