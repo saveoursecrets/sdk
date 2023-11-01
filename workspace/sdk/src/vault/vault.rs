@@ -1161,8 +1161,6 @@ mod tests {
 
     #[tokio::test]
     async fn vault_shared_folder_writable() -> Result<()> {
-        set_mock_credential_builder().await;
-
         let owner = age::x25519::Identity::generate();
         let other_1 = age::x25519::Identity::generate();
 
@@ -1230,8 +1228,6 @@ mod tests {
 
     #[tokio::test]
     async fn vault_shared_folder_readonly() -> Result<()> {
-        set_mock_credential_builder().await;
-
         let owner = age::x25519::Identity::generate();
         let other_1 = age::x25519::Identity::generate();
 

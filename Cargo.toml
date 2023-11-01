@@ -23,9 +23,8 @@ members = [
 ]
 
 [features]
-default = ["keyring"]
+default = []
 mem-fs = ["sos-net/mem-fs"]
-keyring  = ["sos-net/keyring"]
 test-utils = ["sos-net/test-utils"]
 
 [workspace.dependencies]
@@ -60,7 +59,7 @@ rustyline-derive = "0.8"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.sos-net]
 version = "0.5.26" 
 features = ["full"]
-#path = "workspace/net"
+path = "workspace/net"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { version = "1", features = ["rt", "time", "sync"] }
@@ -69,7 +68,7 @@ tokio = { version = "1", features = ["rt", "time", "sync"] }
 version = "0.5.26"
 default-features = false
 features = ["client"]
-#path = "workspace/net"
+path = "workspace/net"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow = "1"
@@ -81,7 +80,6 @@ serial_test = "2"
 secrecy = "0.8"
 http = "0.2"
 tempfile = "3.5"
-keyring = "2"
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 rexpect = "0.5"

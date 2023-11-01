@@ -48,9 +48,6 @@ device = [
   "whoami",
 ]
 security-report = []
-keyring = [
-  "sos-sdk/keyring",
-]
 mem-fs = ["sos-sdk/mem-fs"]
 test-utils = ["sos-sdk/test-utils"]
 

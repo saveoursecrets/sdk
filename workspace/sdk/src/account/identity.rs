@@ -260,8 +260,6 @@ mod tests {
 
     #[tokio::test]
     async fn identity_create_login() -> Result<()> {
-        set_mock_credential_builder().await;
-
         let (master_passphrase, _) = generate_passphrase()?;
         let auth_master_passphrase =
             SecretString::new(master_passphrase.expose_secret().to_owned());
@@ -279,8 +277,6 @@ mod tests {
 
     #[tokio::test]
     async fn identity_not_identity_vault() -> Result<()> {
-        set_mock_credential_builder().await;
-
         let (master_passphrase, _) = generate_passphrase()?;
         let vault = VaultBuilder::new()
             .password(master_passphrase.clone(), None)
@@ -299,8 +295,6 @@ mod tests {
 
     #[tokio::test]
     async fn identity_no_identity_signer() -> Result<()> {
-        set_mock_credential_builder().await;
-
         let (master_passphrase, _) = generate_passphrase()?;
 
         let vault = VaultBuilder::new()
@@ -322,8 +316,6 @@ mod tests {
 
     #[tokio::test]
     async fn identity_signer_kind() -> Result<()> {
-        set_mock_credential_builder().await;
-
         let (master_passphrase, _) = generate_passphrase()?;
 
         let vault = VaultBuilder::new()

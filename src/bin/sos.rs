@@ -4,20 +4,6 @@ use sos::{Result, TARGET};
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> Result<()> {
-    #[cfg(all(test, feature = "keyring"))]
-    {
-        keyring::set_default_credential_builder(
-            keyring::mock::default_credential_builder(),
-        );
-    }
-
-    #[cfg(all(not(debug_assertions), feature = "keyring"))]
-    {
-        let native_keyring = sos_net::sdk::get_native_keyring();
-        let mut keyring = native_keyring.lock().await;
-        keyring.set_enabled(true);
-    }
-
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(

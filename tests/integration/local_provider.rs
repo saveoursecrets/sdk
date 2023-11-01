@@ -121,8 +121,6 @@ async fn run_local_storage_tests(storage: &mut LocalProvider) -> Result<()> {
 #[tokio::test]
 #[serial]
 async fn integration_local_provider_file() -> Result<()> {
-    set_mock_credential_builder().await;
-
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();

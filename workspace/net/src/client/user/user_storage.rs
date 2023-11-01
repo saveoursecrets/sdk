@@ -198,14 +198,29 @@ impl UserStorage {
         .await
     }
 
+    /// Provider factory.
+    pub fn factory(&self) -> &ProviderFactory {
+        &self.factory
+    }
+
     /// Authenticated user information.
     pub fn user(&self) -> &AuthenticatedUser {
         &self.user
     }
 
+    /// Mutable authenticated user information.
+    pub fn user_mut(&mut self) -> &mut AuthenticatedUser {
+        &mut self.user
+    }
+
     /// Storage provider.
     pub fn storage(&self) -> &BoxedProvider {
         &self.storage
+    }
+
+    /// Mutable storage provider.
+    pub fn storage_mut(&mut self) -> &mut BoxedProvider {
+        &mut self.storage
     }
 
     /// File storage directory.
@@ -1681,5 +1696,11 @@ impl UserStorage {
             .root()
             .map(CommitHash)
             .ok_or_else(|| Error::NoRootCommit)?)
+    }
+}
+
+impl From<UserStorage> for BoxedProvider {
+    fn from(value: UserStorage) -> Self {
+        value.storage
     }
 }

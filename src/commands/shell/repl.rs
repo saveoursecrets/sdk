@@ -182,7 +182,7 @@ async fn exec_program(
 
             if let Some(new_name) = new_name {
                 let mut owner = user.write().await;
-                owner.user.rename_account(new_name).await?;
+                owner.user_mut().rename_account(new_name).await?;
             }
 
             Ok(())
@@ -332,7 +332,7 @@ async fn exec_program(
         ShellCommand::Switch { account } => {
             let factory = {
                 let owner = user.read().await;
-                let factory = owner.factory.clone();
+                let factory = owner.factory().clone();
                 factory
             };
 
@@ -355,14 +355,14 @@ async fn exec_program(
             let owner = user.read().await;
             println!(
                 "{} {}",
-                owner.user.account().label(),
-                owner.user.identity().address()
+                owner.user().account().label(),
+                owner.user().identity().address()
             );
             Ok(())
         }
         ShellCommand::Pwd => {
             let owner = user.read().await;
-            if let Some(current) = owner.storage.current() {
+            if let Some(current) = owner.storage().current() {
                 println!(
                     "{} {}",
                     current.summary().name(),
@@ -373,7 +373,7 @@ async fn exec_program(
         }
         ShellCommand::Quit => {
             let mut owner = user.write().await;
-            owner.user.sign_out();
+            owner.user_mut().sign_out();
             std::process::exit(0);
         }
     }
