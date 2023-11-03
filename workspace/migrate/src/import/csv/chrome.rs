@@ -24,6 +24,8 @@ pub struct ChromePasswordRecord {
     pub username: String,
     /// The password for the entry.
     pub password: String,
+    /// The note for the entry.
+    pub note: Option<String>,
 }
 
 impl From<ChromePasswordRecord> for GenericPasswordRecord {
@@ -159,6 +161,35 @@ mod test {
         let second =
             search.find_by_label(keeper.id(), "mock2.example.com", None);
         assert!(second.is_some());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn chrome_passwords_note_csv_convert() -> Result<()> {
+        let (passphrase, _) = generate_passphrase()?;
+        let vault = VaultBuilder::new()
+            .password(passphrase.clone(), None)
+            .await?;
+
+        let vault = ChromePasswordCsv
+            .convert(
+                "fixtures/chrome-export-note.csv".into(),
+                vault,
+                passphrase.clone().into(),
+            )
+            .await?;
+
+        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
+        let mut keeper =
+            Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
+        keeper.unlock(passphrase.into()).await?;
+        keeper.create_search_index().await?;
+
+        let search = search_index.read().await;
+        let first =
+            search.find_by_label(keeper.id(), "mock.example.com", None);
+        assert!(first.is_some());
 
         Ok(())
     }
