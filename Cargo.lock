@@ -3391,6 +3391,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "mpc-protocol"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6eaa5e335e41688f4b2d9fb43442ebf7cbd4fc407c9d13fea4a0c3a6c862cec"
+dependencies = [
+ "async-trait",
+ "binary-stream",
+ "futures",
+ "hex",
+ "http",
+ "log",
+ "pem 3.0.2",
+ "serde",
+ "snow",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "multiaddr"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5255,7 +5274,7 @@ dependencies = [
  "http",
  "human_bytes",
  "log",
- "mpc-protocol",
+ "mpc-protocol 0.5.0",
  "once_cell",
  "parking_lot",
  "rexpect",
@@ -5498,7 +5517,7 @@ dependencies = [
  "k256",
  "log",
  "mime_guess",
- "mpc-protocol",
+ "mpc-protocol 0.4.1",
  "once_cell",
  "parking_lot",
  "pem 3.0.2",
@@ -5566,7 +5585,7 @@ dependencies = [
  "k256",
  "log",
  "mime_guess",
- "mpc-protocol",
+ "mpc-protocol 0.4.1",
  "once_cell",
  "parking_lot",
  "pem 3.0.2",
