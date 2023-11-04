@@ -17,7 +17,9 @@ pub(crate) async fn read_csv_records<
 ) -> Result<Vec<T>> {
     let mut rows = Vec::new();
     let mut rdr =
-        csv_async::AsyncReaderBuilder::new().create_deserializer(reader);
+        csv_async::AsyncReaderBuilder::new()
+            .flexible(true)
+            .create_deserializer(reader);
     let mut records = rdr.deserialize::<T>();
     while let Some(record) = records.next().await {
         let record = record?;

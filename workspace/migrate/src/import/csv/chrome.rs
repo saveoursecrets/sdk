@@ -42,7 +42,7 @@ impl From<ChromePasswordRecord> for GenericPasswordRecord {
             password: value.password,
             otp_auth: None,
             tags: None,
-            note: None,
+            note: value.note,
         }
     }
 }
@@ -190,6 +190,14 @@ mod test {
         let first =
             search.find_by_label(keeper.id(), "mock.example.com", None);
         assert!(first.is_some());
+
+        let doc = first.unwrap();
+        if let Some((_meta, secret, _)) = keeper.read(&doc.secret_id).await? {
+            let comment = secret.user_data().comment();
+            assert_eq!(Some("mock note"), comment);
+        } else {
+            panic!("expecting to read secret");
+        }
 
         Ok(())
     }
