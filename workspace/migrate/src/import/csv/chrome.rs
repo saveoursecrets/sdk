@@ -192,14 +192,12 @@ mod test {
         assert!(first.is_some());
 
         let doc = first.unwrap();
-
         if let Some((_meta, secret, _)) = keeper.read(&doc.secret_id).await? {
             let comment = secret.user_data().comment();
             assert_eq!(Some("mock note"), comment);
         } else {
             panic!("expecting to read secret");
         }
-
 
         Ok(())
     }

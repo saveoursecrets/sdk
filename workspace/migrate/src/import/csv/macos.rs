@@ -28,6 +28,9 @@ pub struct MacPasswordRecord {
     /// The password for the entry.
     #[serde(rename = "Password")]
     pub password: String,
+    /// Notes for the entry.
+    #[serde(rename = "Notes")]
+    pub notes: Option<String>,
     /// OTP auth information for the entry.
     #[serde(rename = "OTPAuth")]
     pub otp_auth: Option<String>,
@@ -47,7 +50,7 @@ impl From<MacPasswordRecord> for GenericPasswordRecord {
             password: value.password,
             otp_auth: value.otp_auth,
             tags: None,
-            note: None,
+            note: value.notes,
         }
     }
 }
@@ -171,6 +174,46 @@ mod test {
             None,
         );
         assert!(second.is_some());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn macos_passwords_notes_csv_convert() -> Result<()> {
+        let (passphrase, _) = generate_passphrase()?;
+        let vault = VaultBuilder::new()
+            .password(passphrase.clone(), None)
+            .await?;
+
+        let vault = MacPasswordCsv
+            .convert(
+                "fixtures/macos-notes-export.csv".into(),
+                vault,
+                passphrase.clone().into(),
+            )
+            .await?;
+
+        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
+        let mut keeper =
+            Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
+        keeper.unlock(passphrase.into()).await?;
+        keeper.create_search_index().await?;
+
+        let search = search_index.read().await;
+        let first = search.find_by_label(
+            keeper.id(),
+            "mock.example.com (mock@example.com)",
+            None,
+        );
+        assert!(first.is_some());
+
+        let doc = first.unwrap();
+        if let Some((_meta, secret, _)) = keeper.read(&doc.secret_id).await? {
+            let comment = secret.user_data().comment();
+            assert_eq!(Some("mock note"), comment);
+        } else {
+            panic!("expecting to read secret");
+        }
 
         Ok(())
     }
