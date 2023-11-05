@@ -184,6 +184,7 @@ impl fmt::Display for Platform {
                     Distro::Unknown => "linux",
                     Distro::Debian => "debian",
                     Distro::RedHat => "redhat",
+                    Distro::Flatpak => "flatpak",
                 },
                 Self::Windows => "windows",
                 Self::MacOS => "macos",
@@ -202,6 +203,7 @@ impl FromStr for Platform {
             "linux" => Self::Linux(Distro::Unknown),
             "debian" => Self::Linux(Distro::Debian),
             "redhat" => Self::Linux(Distro::RedHat),
+            "flatpak" => Self::Linux(Distro::Flatpak),
             "windows" => Self::Windows,
             "macos" => Self::MacOS,
             "ios" => Self::iOS,
@@ -260,6 +262,8 @@ pub enum Distro {
     Debian,
     /// RedHat Linux (Fedora, CentOS etc).
     RedHat,
+    /// Flatpak bundle or repository.
+    Flatpak,
 }
 
 impl fmt::Display for Distro {
@@ -271,6 +275,7 @@ impl fmt::Display for Distro {
                 Self::Unknown => "linux",
                 Self::Debian => "debian",
                 Self::RedHat => "redhat",
+                Self::Flatpak => "flatpak",
             }
         )
     }
@@ -281,8 +286,10 @@ impl FromStr for Distro {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
+            "linux" => Self::Unknown,
             "debian" => Self::Debian,
             "redhat" => Self::RedHat,
+            "flatpak" => Self::Flatpak,
             _ => return Err(Error::UnknownDistro(s.to_owned())),
         })
     }
