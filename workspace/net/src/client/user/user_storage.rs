@@ -36,7 +36,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use tokio::{
     io::{AsyncRead, AsyncSeek},
-    sync::{mpsc, RwLock},
+    sync::{mpsc, RwLock, Mutex},
 };
 
 use crate::client::{
@@ -185,8 +185,13 @@ pub struct UserStorage {
     /// Key pair for peer to peer connections.
     #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
     peer_key: libp2p::identity::Keypair,
-    /// Remote targets for syncronization.
+
+    /// Remote targets for synchronization.
     remotes: Remotes,
+
+    /// Lock to prevent write to local storage
+    /// whilst a sync operation is in progress.
+    pub(super) sync_lock: Mutex<()>,
 }
 
 impl UserStorage {
@@ -350,6 +355,7 @@ impl UserStorage {
             #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
             peer_key,
             remotes: remotes.unwrap_or_default(),
+            sync_lock: Mutex::new(()),
         })
     }
 
@@ -498,6 +504,8 @@ impl UserStorage {
 
     /// Create a folder.
     pub async fn create_folder(&mut self, name: String) -> Result<Summary> {
+        let _ = self.sync_lock.lock().await;
+
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
         let key = AccessKey::Password(passphrase);
         let (event, _, summary) =
@@ -519,6 +527,8 @@ impl UserStorage {
 
     /// Delete a folder.
     pub async fn delete_folder(&mut self, summary: &Summary) -> Result<()> {
+        let _ = self.sync_lock.lock().await;
+
         let event = self.storage.remove_vault(summary).await?;
         DelegatedPassphrase::remove_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
@@ -543,6 +553,8 @@ impl UserStorage {
         summary: &Summary,
         name: String,
     ) -> Result<()> {
+        let _ = self.sync_lock.lock().await;
+
         // Update the provider
         let event = self.storage.set_vault_name(summary, &name).await?;
 
@@ -653,6 +665,8 @@ impl UserStorage {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<Summary> {
+        let _ = self.sync_lock.lock().await;
+
         let mut vault: Vault = decode(&buffer).await?;
 
         // Need to verify the passphrase
@@ -814,6 +828,8 @@ impl UserStorage {
         secret: Secret,
         options: SecretOptions,
     ) -> Result<(SecretId, Event<'static>)> {
+        let _ = self.sync_lock.lock().await;
+
         self.add_secret(meta, secret, options, true).await
     }
 
@@ -956,6 +972,8 @@ impl UserStorage {
         mut options: SecretOptions,
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Event<'static>)> {
+        let _ = self.sync_lock.lock().await;
+
         let folder = options
             .folder
             .take()
@@ -1050,6 +1068,8 @@ impl UserStorage {
         to: &Summary,
         mut options: SecretOptions,
     ) -> Result<(SecretId, Event<'static>)> {
+        let _ = self.sync_lock.lock().await;
+
         self.open_vault(from, false).await?;
         let (secret_data, read_event) =
             self.get_secret(secret_id, None, false).await?;
@@ -1108,6 +1128,8 @@ impl UserStorage {
         secret_id: &SecretId,
         mut options: SecretOptions,
     ) -> Result<Event<'static>> {
+        let _ = self.sync_lock.lock().await;
+
         let folder = options
             .folder
             .take()
@@ -1162,6 +1184,8 @@ impl UserStorage {
         secret_id: &SecretId,
         options: SecretOptions,
     ) -> Result<(SecretId, Event<'static>)> {
+        let _ = self.sync_lock.lock().await;
+
         if from.flags().is_archive() {
             return Err(Error::AlreadyArchived);
         }
@@ -1180,6 +1204,8 @@ impl UserStorage {
         secret_meta: &SecretMeta,
         options: SecretOptions,
     ) -> Result<(Summary, SecretId, Event<'static>)> {
+        let _ = self.sync_lock.lock().await;
+
         if !from.flags().is_archive() {
             return Err(Error::NotArchived);
         }
