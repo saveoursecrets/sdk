@@ -11,8 +11,9 @@ use axum::{
     extract::Extension,
     http::{
         header::{AUTHORIZATION, CONTENT_TYPE},
-        HeaderValue, Method,
+        HeaderValue, Method, StatusCode,
     },
+    response::{IntoResponse, Response},
     routing::{get, post},
     Router,
 };
@@ -179,6 +180,7 @@ impl Server {
 
         let mut app = Router::new()
             .route("/", get(home))
+            .route("/public-key", get(public_key))
             .route("/api", get(api))
             .route("/api/changes", get(upgrade))
             .route("/api/handshake", post(ServiceHandler::handshake))
@@ -193,4 +195,12 @@ impl Server {
 
         Ok(app)
     }
+}
+
+async fn public_key(
+    Extension(state): Extension<Arc<RwLock<State>>>,
+) -> std::result::Result<Response, StatusCode> {
+    let reader = state.read().await;
+    let public_key = hex::encode(reader.keypair.public_key());
+    Ok((StatusCode::OK, public_key).into_response())
 }
