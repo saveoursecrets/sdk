@@ -203,7 +203,8 @@ async fn integration_command_line() -> Result<()> {
     } else {
         "target/debug/sos".to_owned()
     };
-
+    
+    // Run tests in the context of a shell session
     shell(&exe, &password).await?;
 
     account::new(&exe, &password, ACCOUNT_NAME, None)?;
@@ -211,6 +212,10 @@ async fn integration_command_line() -> Result<()> {
     let address = helpers::first_account_address(&exe, ACCOUNT_NAME)?;
     let default_id = helpers::default_folder_id(&exe, &address, &password)?;
 
+    // These are the tests that execute each command line
+    // and therefore are much slower than the shell execution
+    // as we need to spawn the debug executable for each command
+    
     check::vault(&exe, &address, &default_id, None)?;
     check::keys(&exe, &address, &default_id, None)?;
     check::header(&exe, &address, &default_id, None)?;
