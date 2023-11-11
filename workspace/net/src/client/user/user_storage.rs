@@ -1068,7 +1068,10 @@ impl UserStorage {
         to: &Summary,
         mut options: SecretOptions,
     ) -> Result<(SecretId, Event<'static>)> {
-        let _ = self.sync_lock.lock().await;
+        // TODO: we need to lock here but would cause
+        // TODO: a deadlock in update_secret().
+
+        //let _ = self.sync_lock.lock().await;
 
         self.open_vault(from, false).await?;
         let (secret_data, read_event) =
