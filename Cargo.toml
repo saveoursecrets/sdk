@@ -102,10 +102,6 @@ path = "src/bin/sos_server.rs"
 name = "sos-rendezvous"
 path = "src/bin/sos_rendezvous.rs"
 
-[package.metadata.deb]
-name = "sos"
-copyright = "Save Our Secrets Pte Ltd"
-
 [workspace.metadata.release]
 allow-branch = ["main"]
 sign-tag = true

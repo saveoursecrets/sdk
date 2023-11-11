@@ -1,21 +1,17 @@
 extend= [
   { path = "coverage_grcov.makefile.toml" }
 ]
+
 [config]
 default_to_workspace = false
+skip_core_tasks = true
 
 [env]
 RUST_BACKTRACE = 0
 BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
-BINARIES = "sos"
 # Increase time for integration tests as the CLI
 # tests take a while due to so many exec calls
 RUST_TEST_TIME_INTEGRATION = "120000,240000"
-
-[tasks.debian-dist]
-script = '''
-cargo deb
-'''
 
 # NOTE: we use the --release flag to prevent a stack overflow on
 # windows, see: https://github.com/clap-rs/clap/issues/5134
@@ -71,24 +67,22 @@ dependencies = ["clean"]
 command = "cargo"
 args = ["build", "--bins", "--all", "--release"]
 
-[tasks.release-macos-arm]
-command = "cargo"
-args = ["build", "--bins", "--all", "--release", "--target", "aarch64-apple-darwin"]
-
-[tasks.release-macos-x86]
-command = "cargo"
-args = ["build", "--bins", "--all", "--release", "--target", "x86_64-apple-darwin"]
-
 [tasks.doc]
 toolchain = "nightly"
 command = "cargo"
-args = ["doc", "--workspace", "--open", "--no-deps", "--all-features"]
+args = [
+  "doc",
+  "--workspace",
+  "--open",
+  "--no-deps",
+  "--all-features"
+]
 
 [tasks.unit]
 command = "cargo"
 args = ["test", "--all", "--lib", "--", "--nocapture"]
 
-[tasks.cli]
+[tasks.test-cli]
 command = "cargo"
 args = ["test", "command_line", "--", "--nocapture"]
 
@@ -108,7 +102,16 @@ dependencies = ["check-wasm", "test", "format"]
 
 [tasks.check-wasm-node-client]
 command = "cargo"
-args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-net", "--no-default-features", "--features", "client"]
+args = [
+  "check",
+  "--target",
+  "wasm32-unknown-unknown",
+  "-p",
+  "sos-net",
+  "--no-default-features",
+  "--features",
+  "client"
+]
 
 [tasks.check-wasm]
 command = "cargo"
@@ -154,4 +157,10 @@ command = "cargo"
 args = ["clean", "--target-dir", "target/cover"]
 
 [tasks.cover]
-dependencies = ["clean-cover", "clean-coverage", "coverage", "genhtml", "clean-profraw"]
+dependencies = [
+  "clean-cover",
+  "clean-coverage",
+  "coverage",
+  "genhtml",
+  "clean-profraw"
+]
