@@ -28,7 +28,7 @@ use std::{
 use tokio::sync::RwLock;
 
 use crate::{
-    client::provider::{sync, ProviderState, StorageProvider},
+    client::{provider::{sync, ProviderState, StorageProvider}, RemoteSync},
     provider_impl,
 };
 
@@ -334,5 +334,16 @@ impl StorageProvider for LocalProvider {
             remote: head,
         };
         Ok((CommitRelationship::Equal(pair), None))
+    }
+}
+
+#[async_trait]
+impl RemoteSync for LocalProvider {
+    async fn sync(&mut self) -> Result<()> {
+        unimplemented!();
+    }
+
+    async fn sync_local_events(&self, events: &[WriteEvent]) -> Result<()> {
+        unimplemented!();
     }
 }

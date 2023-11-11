@@ -31,7 +31,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::{
-    client::provider::{sync, ProviderState, StorageProvider},
+    client::{provider::{sync, ProviderState, StorageProvider}, RemoteSync},
     patch, provider_impl, retry,
 };
 
@@ -454,5 +454,16 @@ impl StorageProvider for RemoteProvider {
         let (meta, secret, event) =
             keeper.read(id).await?.ok_or(Error::SecretNotFound(*id))?;
         Ok((meta, secret, event))
+    }
+}
+
+#[async_trait]
+impl RemoteSync for RemoteProvider {
+    async fn sync(&mut self) -> Result<()> {
+        todo!();
+    }
+
+    async fn sync_local_events(&self, events: &[WriteEvent]) -> Result<()> {
+        todo!();
     }
 }

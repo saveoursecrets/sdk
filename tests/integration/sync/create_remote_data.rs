@@ -42,8 +42,9 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     let (mut provider, address) = factory.create_provider(
         signer, keypair).await?;
 
-    let status = provider.status(&default_folder).await?;
+    //let remote = 
 
+    //let status = provider.status(&default_folder).await?;
     
     /*
     // Create a secret in the default folder

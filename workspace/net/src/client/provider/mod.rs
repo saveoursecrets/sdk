@@ -36,7 +36,7 @@ use tokio::sync::RwLock;
 
 use sos_sdk::account::RestoreTargets;
 
-use crate::client::{Error, Result};
+use crate::client::{Error, Result, RemoteSync};
 
 pub(crate) fn assert_proofs_eq(
     client_proof: &CommitProof,
@@ -77,7 +77,7 @@ pub type BoxedProvider = Box<dyn StorageProvider + Send + Sync + 'static>;
 /// See <https://docs.rs/async-trait/latest/async_trait/#dyn-traits>
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait StorageProvider: Sync + Send {
+pub trait StorageProvider: RemoteSync + Sync + Send {
     /// Get the event log cache.
     fn cache(&self) -> &HashMap<VaultId, (EventLogFile, PatchFile)>;
 
