@@ -1,17 +1,23 @@
 use anyhow::Result;
 use axum_server::Handle;
 
+use secrecy::SecretString;
 use std::{net::SocketAddr, path::PathBuf, sync::Arc, thread};
 use tokio::sync::{oneshot, RwLock};
 use url::Url;
 use web3_address::ethereum::Address;
 
 use sos_net::{
-    client::provider::{RemoteProvider, StorageProvider},
+    client::{
+        provider::{ProviderFactory, RemoteProvider, StorageProvider},
+        user::UserStorage,
+    },
     sdk::{
+        account::ImportedAccount,
         crypto::AccessKey,
         events::{AuditLogFile, WriteEvent},
         hex,
+        passwd::diceware::generate_passphrase,
         vault::{
             secret::{Secret, SecretId, SecretMeta},
             Summary,
@@ -79,11 +85,12 @@ impl MockServer {
         let audit_log = AuditLogFile::new(config.audit_file()).await?;
 
         let state = Arc::new(RwLock::new(State {
-            keypair,
             info: ServerInfo {
                 name: String::from("integration-test"),
                 version: String::from("0.0.0"),
+                public_key: keypair.public_key().to_owned(),
             },
+            keypair,
             config,
             backend,
             audit_log,
@@ -179,6 +186,36 @@ pub async fn setup(num_clients: usize) -> Result<TestDirs> {
         server,
         clients,
     })
+}
+
+pub async fn create_local_account(
+    account_name: &str,
+) -> Result<(UserStorage, ImportedAccount, Summary, SecretString)> {
+    let (passphrase, _) = generate_passphrase()?;
+    let factory = ProviderFactory::Local(None);
+    let (mut owner, imported_account, _) =
+        UserStorage::new_account_with_builder(
+            account_name.to_owned(),
+            passphrase.clone(),
+            factory.clone(),
+            |builder| {
+                builder
+                    .save_passphrase(false)
+                    .create_archive(true)
+                    .create_authenticator(false)
+                    .create_contacts(true)
+                    .create_file_password(false)
+            },
+            None,
+        )
+        .await?;
+
+    let ImportedAccount { summary, .. } = &imported_account;
+
+    owner.initialize_search_index().await?;
+
+    let summary = summary.to_owned();
+    Ok((owner, imported_account, summary, passphrase))
 }
 
 pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {

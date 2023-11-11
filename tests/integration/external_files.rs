@@ -4,14 +4,9 @@ use serial_test::serial;
 use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
-    client::{
-        provider::ProviderFactory,
-        user::{FileProgress, SecretOptions, UserStorage},
-    },
+    client::user::{FileProgress, SecretOptions, UserStorage},
     sdk::{
-        account::ImportedAccount,
         hex,
-        passwd::diceware::generate_passphrase,
         storage::AppPaths,
         vault::{
             secret::{
@@ -26,7 +21,7 @@ use sos_net::{
 
 use tokio::sync::{mpsc, Mutex};
 
-use crate::test_utils::setup;
+use crate::test_utils::{create_local_account, setup};
 
 const ZERO_CHECKSUM: [u8; 32] = [0; 32];
 
@@ -40,29 +35,8 @@ async fn integration_external_files() -> Result<()> {
     assert_eq!(AppPaths::data_dir()?, test_data_dir.clone().join("debug"));
     AppPaths::scaffold().await?;
 
-    let account_name = "External files test".to_string();
-    let (passphrase, _) = generate_passphrase()?;
-    let factory = ProviderFactory::Local(None);
-
-    let (mut owner, imported_account, _) =
-        UserStorage::new_account_with_builder(
-            account_name.clone(),
-            passphrase.clone(),
-            factory.clone(),
-            |builder| {
-                builder
-                    .save_passphrase(true)
-                    .create_archive(true)
-                    .create_authenticator(false)
-                    .create_contacts(false)
-                    .create_file_password(true)
-            },
-        )
-        .await?;
-
-    let ImportedAccount { summary, .. } = imported_account;
-
-    owner.initialize_search_index().await?;
+    let (mut owner, _, summary, _) =
+        create_local_account("external_files").await?;
 
     let operations: Arc<Mutex<Vec<FileProgress>>> =
         Arc::new(Mutex::new(Vec::new()));

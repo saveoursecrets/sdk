@@ -1,5 +1,8 @@
-use crate::{commands::{server, generate_keypair}, Result};
-use clap::{Subcommand, Parser};
+use crate::{
+    commands::{generate_keypair, server},
+    Result,
+};
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -51,14 +54,20 @@ pub enum Command {
 
 pub async fn run() -> Result<()> {
     let args = SosServer::parse();
-    
+
     match args.cmd {
         Command::GenerateKeypair {
             file,
             force,
             public_key,
-        }  => generate_keypair::run(file, force, public_key).await?,
-        Command::Start { audit_log, reap_interval, session_duration, bind, config } => {
+        } => generate_keypair::run(file, force, public_key).await?,
+        Command::Start {
+            audit_log,
+            reap_interval,
+            session_duration,
+            bind,
+            config,
+        } => {
             server::run(
                 audit_log,
                 reap_interval,

@@ -4,12 +4,8 @@ use secrecy::SecretString;
 use serial_test::serial;
 
 use sos_net::{
-    client::{
-        provider::ProviderFactory,
-        user::{SecurityReportOptions, UserStorage},
-    },
+    client::user::{SecurityReportOptions, UserStorage},
     sdk::{
-        account::ImportedAccount,
         passwd::diceware::generate_passphrase,
         storage::AppPaths,
         vault::{
@@ -19,7 +15,7 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::setup;
+use crate::test_utils::{create_local_account, setup};
 
 #[tokio::test]
 #[serial]
@@ -31,28 +27,8 @@ async fn integration_security_report() -> Result<()> {
     assert_eq!(AppPaths::data_dir()?, test_data_dir.clone().join("debug"));
     AppPaths::scaffold().await?;
 
-    let account_name = "Security report test".to_string();
-    let (passphrase, _) = generate_passphrase()?;
-    let factory = ProviderFactory::Local(None);
-    let (mut owner, imported_account, _) =
-        UserStorage::new_account_with_builder(
-            account_name.clone(),
-            passphrase.clone(),
-            factory.clone(),
-            |builder| {
-                builder
-                    .save_passphrase(false)
-                    .create_archive(true)
-                    .create_authenticator(false)
-                    .create_contacts(true)
-                    .create_file_password(false)
-            },
-        )
-        .await?;
-
-    let ImportedAccount { summary, .. } = imported_account;
-
-    owner.initialize_search_index().await?;
+    let (mut owner, _, summary, passphrase) =
+        create_local_account("security_report").await?;
 
     // Make changes to generate data
     let mock_ids = simulate_session(&mut owner, &summary, passphrase).await?;

@@ -203,7 +203,7 @@ async fn integration_command_line() -> Result<()> {
     } else {
         "target/debug/sos".to_owned()
     };
-    
+
     // Run tests in the context of a shell session
     shell(&exe, &password).await?;
 
@@ -215,7 +215,7 @@ async fn integration_command_line() -> Result<()> {
     // These are the tests that execute each command line
     // and therefore are much slower than the shell execution
     // as we need to spawn the debug executable for each command
-    
+
     check::vault(&exe, &address, &default_id, None)?;
     check::keys(&exe, &address, &default_id, None)?;
     check::header(&exe, &address, &default_id, None)?;

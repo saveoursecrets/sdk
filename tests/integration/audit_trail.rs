@@ -5,10 +5,10 @@ use serial_test::serial;
 use std::path::{Path, PathBuf};
 
 use sos_net::{
-    client::{provider::ProviderFactory, user::UserStorage},
+    client::user::UserStorage,
     migrate::import::ImportTarget,
     sdk::{
-        account::{ImportedAccount, RestoreOptions},
+        account::RestoreOptions,
         events::{AuditEvent, AuditLogFile, EventKind},
         passwd::diceware::generate_passphrase,
         storage::AppPaths,
@@ -17,7 +17,7 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::{mock_note, setup};
+use crate::test_utils::{create_local_account, mock_note, setup};
 
 #[tokio::test]
 #[serial]
@@ -29,28 +29,8 @@ async fn integration_audit_trail() -> Result<()> {
     assert_eq!(AppPaths::data_dir()?, test_data_dir.clone().join("debug"));
     AppPaths::scaffold().await?;
 
-    let account_name = "Audit trail test".to_string();
-    let (passphrase, _) = generate_passphrase()?;
-    let factory = ProviderFactory::Local(None);
-    let (mut owner, imported_account, _) =
-        UserStorage::new_account_with_builder(
-            account_name.clone(),
-            passphrase.clone(),
-            factory.clone(),
-            |builder| {
-                builder
-                    .save_passphrase(false)
-                    .create_archive(true)
-                    .create_authenticator(false)
-                    .create_contacts(true)
-                    .create_file_password(false)
-            },
-        )
-        .await?;
-
-    let ImportedAccount { summary, .. } = imported_account;
-
-    owner.initialize_search_index().await?;
+    let (mut owner, _, summary, passphrase) =
+        create_local_account("audit_trail").await?;
 
     // Make changes to generate audit logs
     simulate_session(&mut owner, &summary, passphrase).await?;

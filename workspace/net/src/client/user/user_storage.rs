@@ -22,12 +22,12 @@ use sos_sdk::{
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     storage::{AppPaths, UserPaths},
+    url::Url,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
         Gatekeeper, Summary, Vault, VaultAccess, VaultId, VaultWriter,
     },
     vfs::{self, File},
-    url::Url,
     Timestamp,
 };
 
@@ -36,7 +36,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use tokio::{
     io::{AsyncRead, AsyncSeek},
-    sync::{mpsc, RwLock, Mutex},
+    sync::{mpsc, Mutex, RwLock},
 };
 
 use crate::client::{
@@ -248,15 +248,15 @@ impl UserStorage {
     pub fn storage_mut(&mut self) -> &mut BoxedProvider {
         &mut self.storage
     }
-    
+
     /// Insert a remote origin for synchonrization.
     ///
-    /// If a remote with the given origin already exists it is 
+    /// If a remote with the given origin already exists it is
     /// overwritten.
     pub fn insert_remote(&mut self, origin: Origin, remote: Remote) {
         self.remotes.insert(origin, remote);
     }
-    
+
     /// Delete a remote if it exists.
     pub fn delete_remote(&mut self, origin: &Origin) -> Option<Remote> {
         self.remotes.remove(origin)

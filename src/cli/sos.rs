@@ -10,8 +10,7 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, changes, check, device, folder,
-        secret,
+        account, audit, changes, check, device, folder, secret,
         security_report::{self, SecurityReportFormat},
         shell, AccountCommand, AuditCommand, CheckCommand, DeviceCommand,
         FolderCommand, SecretCommand,

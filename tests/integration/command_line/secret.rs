@@ -607,10 +607,9 @@ pub async fn attach(
                 ps.exp_regex("Password:")?;
                 ps.send_line(password.expose_secret())?;
             }
-            
+
             // Hack for this test failing (incorrectly) sporadically
-            std::thread::sleep(
-                std::time::Duration::from_millis(25));
+            std::thread::sleep(std::time::Duration::from_millis(25));
 
             if !is_ci() {
                 ps.exp_regex("Password:")?;
