@@ -1012,7 +1012,7 @@ impl UserStorage {
 
         let id = if let Some(to) = destination.as_ref() {
             let (new_id, _) =
-                self.move_secret(secret_id, &folder, to, options).await?;
+                self.mv_secret(secret_id, &folder, to, options).await?;
             new_id
         } else {
             *secret_id
@@ -1066,13 +1066,19 @@ impl UserStorage {
         secret_id: &SecretId,
         from: &Summary,
         to: &Summary,
+        options: SecretOptions,
+    ) -> Result<(SecretId, Event<'static>)> {
+        let _ = self.sync_lock.lock().await;
+        self.mv_secret(secret_id, from, to, options).await
+    }
+
+    async fn mv_secret(
+        &mut self,
+        secret_id: &SecretId,
+        from: &Summary,
+        to: &Summary,
         mut options: SecretOptions,
     ) -> Result<(SecretId, Event<'static>)> {
-        // TODO: we need to lock here but would cause
-        // TODO: a deadlock in update_secret().
-
-        //let _ = self.sync_lock.lock().await;
-
         self.open_vault(from, false).await?;
         let (secret_data, read_event) =
             self.get_secret(secret_id, None, false).await?;
@@ -1350,6 +1356,8 @@ impl UserStorage {
         &mut self,
         target: ImportTarget,
     ) -> Result<Summary> {
+        let _ = self.sync_lock.lock().await;
+
         use sos_migrate::import::csv::{
             bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
             dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
