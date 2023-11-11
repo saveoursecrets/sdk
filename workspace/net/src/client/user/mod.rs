@@ -29,6 +29,7 @@ pub use security_report::{
 };
 pub use user_storage::{
     AccountData, DetachedView, SecretOptions, UserStatistics, UserStorage,
+    Origin, Remote, Remotes
 };
 
 #[cfg(feature = "contacts")]

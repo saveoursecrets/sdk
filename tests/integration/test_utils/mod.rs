@@ -204,7 +204,7 @@ pub async fn create_local_account(
                     .create_archive(true)
                     .create_authenticator(false)
                     .create_contacts(true)
-                    .create_file_password(false)
+                    .create_file_password(true)
             },
             None,
         )
