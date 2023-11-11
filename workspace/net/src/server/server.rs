@@ -11,15 +11,14 @@ use axum::{
     extract::Extension,
     http::{
         header::{AUTHORIZATION, CONTENT_TYPE},
-        HeaderValue, Method, StatusCode,
+        HeaderValue, Method,
     },
-    response::{IntoResponse, Response},
     routing::{get, post},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sos_sdk::{events::AuditLogFile, mpc::Keypair};
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
@@ -62,12 +61,16 @@ pub struct State {
 }
 
 /// Server information.
-#[derive(Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ServerInfo {
     /// Name of the crate.
     pub name: String,
     /// Version of the crate.
     pub version: String,
+    /// Hex-encoded public key.
+    #[serde(with = "hex::serde")]
+    pub public_key: Vec<u8>,
 }
 
 /// Web server implementation.
@@ -180,7 +183,6 @@ impl Server {
 
         let mut app = Router::new()
             .route("/", get(home))
-            .route("/public-key", get(public_key))
             .route("/api", get(api))
             .route("/api/changes", get(upgrade))
             .route("/api/handshake", post(ServiceHandler::handshake))
@@ -195,12 +197,4 @@ impl Server {
 
         Ok(app)
     }
-}
-
-async fn public_key(
-    Extension(state): Extension<Arc<RwLock<State>>>,
-) -> std::result::Result<Response, StatusCode> {
-    let reader = state.read().await;
-    let public_key = hex::encode(reader.keypair.public_key());
-    Ok((StatusCode::OK, public_key).into_response())
 }

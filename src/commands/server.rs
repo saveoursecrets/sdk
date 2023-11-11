@@ -55,8 +55,8 @@ pub async fn run(
     let audit_log = AuditLogFile::new(&audit_log_file).await?;
 
     let state = Arc::new(RwLock::new(State {
+        info: ServerInfo { name, version, public_key: keypair.public_key().to_owned() },
         keypair,
-        info: ServerInfo { name, version },
         config,
         backend,
         audit_log,
