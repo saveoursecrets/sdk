@@ -68,7 +68,7 @@ pub struct ServerInfo {
     pub name: String,
     /// Version of the crate.
     pub version: String,
-    /// Hex-encoded public key.
+    /// Noise protocol public key.
     #[serde(with = "hex::serde")]
     pub public_key: Vec<u8>,
 }
