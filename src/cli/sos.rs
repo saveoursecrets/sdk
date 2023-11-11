@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, changes, check, device, folder, generate_keypair,
+        account, audit, changes, check, device, folder,
         secret,
         security_report::{self, SecurityReportFormat},
         shell, AccountCommand, AuditCommand, CheckCommand, DeviceCommand,
@@ -72,19 +72,6 @@ pub enum Command {
     Folder {
         #[clap(subcommand)]
         cmd: FolderCommand,
-    },
-    /// Generate PEM-encoded noise protocol keypair.
-    Keypair {
-        /// Force overwrite if the file exists.
-        #[clap(short, long)]
-        force: bool,
-
-        /// Write hex-encoded public key to a file.
-        #[clap(long)]
-        public_key: Option<PathBuf>,
-
-        /// Write keypair to this file.
-        file: PathBuf,
     },
     /// Generate a security report.
     ///
@@ -172,11 +159,6 @@ pub async fn run() -> Result<()> {
         Command::Account { cmd } => account::run(cmd, factory).await?,
         Command::Device { cmd } => device::run(cmd, factory).await?,
         Command::Folder { cmd } => folder::run(cmd, factory).await?,
-        Command::Keypair {
-            file,
-            force,
-            public_key,
-        } => generate_keypair::run(file, force, public_key).await?,
         Command::SecurityReport {
             account,
             force,

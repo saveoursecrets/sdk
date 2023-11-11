@@ -16,9 +16,18 @@ RUST_TEST_TIME_INTEGRATION = "120000,240000"
 # NOTE: we use the --release flag to prevent a stack overflow on
 # windows, see: https://github.com/clap-rs/clap/issues/5134
 [tasks.gen-test-key]
-script = '''
-cargo run --release -- keypair tests/test.pem --public-key tests/server_public_key.txt
-'''
+command = "cargo"
+args = [
+  "run",
+  "--release",
+  "--bin",
+  "sos-server",
+  "--",
+  "generate-keypair",
+  "tests/test.pem",
+  "--public-key",
+  "tests/server_public_key.txt"
+]
 
 [tasks.fix-all]
 workspace = true
@@ -118,9 +127,20 @@ command = "cargo"
 args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-sdk"]
 dependencies = ["check-wasm-node-client"]
 
+[tasks.gen-server-key]
+command = "cargo"
+args = [
+  "run",
+  "--bin",
+  "sos-server",
+  "--",
+  "generate-keypair",
+  "sandbox/server_identity.pem",
+]
+
 [tasks.dev-server]
 script = '''
-cargo run --bin sos-server -- -c ../../sandbox/config.toml
+cargo run --bin sos-server -- start -c sandbox/config.toml
 '''
 
 [tasks.dev-certs]

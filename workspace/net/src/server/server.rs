@@ -111,9 +111,17 @@ impl Server {
         origins: Vec<HeaderValue>,
         tls: TlsConfig,
     ) -> Result<()> {
+        let public_key = {
+            let reader = state.read().await;
+            reader.keypair.public_key().to_vec()
+        };
+
         let tls = RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
         let app = Server::router(state, origins)?;
+
         tracing::info!("listening on {}", addr);
+        tracing::info!("public key {}", hex::encode(&public_key));
+
         axum_server::bind_rustls(addr, tls)
             .handle(handle)
             .serve(app.into_make_service())
@@ -129,8 +137,16 @@ impl Server {
         handle: Handle,
         origins: Vec<HeaderValue>,
     ) -> Result<()> {
+        let public_key = {
+            let reader = state.read().await;
+            reader.keypair.public_key().to_vec()
+        };
+
         let app = Server::router(state, origins)?;
+
         tracing::info!("listening on {}", addr);
+        tracing::info!("public key {}", hex::encode(&public_key));
+
         axum_server::bind(addr)
             .handle(handle)
             .serve(app.into_make_service())
