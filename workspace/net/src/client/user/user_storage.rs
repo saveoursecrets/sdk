@@ -27,6 +27,7 @@ use sos_sdk::{
         Gatekeeper, Summary, Vault, VaultAccess, VaultId, VaultWriter,
     },
     vfs::{self, File},
+    url::Url,
     Timestamp,
 };
 
@@ -56,6 +57,22 @@ use sos_migrate::{
 };
 
 use super::{file_manager::FileProgress, search_index::UserIndex};
+use crate::client::RemoteSync;
+
+/// Remote origin information.
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct Origin {
+    /// Name of the origin.
+    pub name: String,
+    /// URL of the remote server.
+    pub url: Url,
+}
+
+/// Remote synchronization target.
+pub type Remote = Box<dyn RemoteSync>;
+
+/// Collection of remote targets for synchronization.
+pub type Remotes = HashMap<Origin, Remote>;
 
 /// Read-only view of a vault created from a specific
 /// event log commit.
@@ -168,6 +185,8 @@ pub struct UserStorage {
     /// Key pair for peer to peer connections.
     #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
     peer_key: libp2p::identity::Keypair,
+    /// Remote targets for syncronization.
+    remotes: Remotes,
 }
 
 impl UserStorage {
@@ -181,6 +200,7 @@ impl UserStorage {
         account_name: String,
         passphrase: SecretString,
         factory: ProviderFactory,
+        remotes: Option<Remotes>,
     ) -> Result<(UserStorage, ImportedAccount, NewAccount)> {
         Self::new_account_with_builder(
             account_name,
@@ -194,6 +214,7 @@ impl UserStorage {
                     .create_contacts(true)
                     .create_file_password(true)
             },
+            remotes,
         )
         .await
     }
@@ -222,6 +243,19 @@ impl UserStorage {
     pub fn storage_mut(&mut self) -> &mut BoxedProvider {
         &mut self.storage
     }
+    
+    /// Insert a remote origin for synchonrization.
+    ///
+    /// If a remote with the given origin already exists it is 
+    /// overwritten.
+    pub fn insert_remote(&mut self, origin: Origin, remote: Remote) {
+        self.remotes.insert(origin, remote);
+    }
+    
+    /// Delete a remote if it exists.
+    pub fn delete_remote(&mut self, origin: &Origin) -> Option<Remote> {
+        self.remotes.remove(origin)
+    }
 
     /// File storage directory.
     pub fn files_dir(&self) -> &PathBuf {
@@ -242,6 +276,7 @@ impl UserStorage {
         passphrase: SecretString,
         factory: ProviderFactory,
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
+        remotes: Option<Remotes>,
     ) -> Result<(UserStorage, ImportedAccount, NewAccount)> {
         let account_builder =
             builder(AccountBuilder::new(account_name, passphrase.clone()));
@@ -261,6 +296,7 @@ impl UserStorage {
             new_account.user.address(),
             passphrase,
             factory,
+            remotes,
         )
         .await?;
 
@@ -285,6 +321,7 @@ impl UserStorage {
         address: &Address,
         passphrase: SecretString,
         factory: ProviderFactory,
+        remotes: Option<Remotes>,
     ) -> Result<Self> {
         let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
         let user =
@@ -312,6 +349,7 @@ impl UserStorage {
             devices: DeviceManager::new(devices_dir)?,
             #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
             peer_key,
+            remotes: remotes.unwrap_or_default(),
         })
     }
 
