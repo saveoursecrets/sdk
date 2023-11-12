@@ -24,7 +24,7 @@ use sos_sdk::{
     passwd::ChangePassword,
     patch::PatchFile,
     search::SearchIndex,
-    signer::ecdsa::BoxedEcdsaSigner,
+    signer::ecdsa::{BoxedEcdsaSigner, Address},
     storage::{UserPaths, AppPaths},
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
@@ -45,7 +45,7 @@ pub async fn new_remote_provider(
     origin: &Origin,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
-) -> Result<RemoteProvider> {
+) -> Result<(RemoteProvider, Address)> {
     let data_dir = AppPaths::data_dir().map_err(|_| Error::NoCache)?;
     let address = signer.address()?;
     let client =
@@ -56,9 +56,18 @@ pub async fn new_remote_provider(
             keypair,
         )?;
     let dirs = UserPaths::new(data_dir, &address.to_string());
-    Ok(RemoteProvider::new(client, dirs).await?)
+    Ok((RemoteProvider::new(client, dirs).await?, address))
 }
 
+/// Create a new local provider.
+pub async fn new_local_provider(
+    signer: BoxedEcdsaSigner,
+) -> Result<(LocalProvider, Address)> {
+    let data_dir = AppPaths::data_dir().map_err(|_| Error::NoCache)?;
+    let address = signer.address()?;
+    let dirs = UserPaths::new(data_dir, &address.to_string());
+    Ok((LocalProvider::new(dirs).await?, address))
+}
 
 pub(crate) fn assert_proofs_eq(
     client_proof: &CommitProof,
@@ -83,7 +92,7 @@ mod sync;
 pub use local_provider::LocalProvider;
 #[cfg(not(target_arch = "wasm32"))]
 pub use provider_factory::spawn_changes_listener;
-pub use provider_factory::{ArcProvider, ProviderFactory};
+pub use provider_factory::ProviderFactory;
 pub use remote_provider::RemoteProvider;
 
 pub use state::ProviderState;

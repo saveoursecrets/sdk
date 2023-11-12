@@ -29,7 +29,7 @@ pub async fn create_remote_provider(
     
     let keypair = Keypair::new(PATTERN.parse()?)?;
 
-    let mut provider = new_remote_provider(
+    let (mut provider, _) = new_remote_provider(
         &origin,
         signer,
         keypair,

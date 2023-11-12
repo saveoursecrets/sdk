@@ -25,6 +25,7 @@ use std::{path::PathBuf, str::FromStr};
 pub type ArcProvider = Arc<RwLock<BoxedProvider>>;
 
 /// Factory for creating providers.
+#[deprecated]
 #[derive(Debug, Clone)]
 pub enum ProviderFactory {
     /// Local provider using the default cache location or
