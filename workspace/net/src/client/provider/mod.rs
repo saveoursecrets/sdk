@@ -27,7 +27,7 @@ use sos_sdk::{
     storage::UserPaths,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
-        Gatekeeper, Summary, Vault, VaultId,
+        Gatekeeper, Summary, Vault, VaultId, Header,
     },
     vfs, Timestamp,
 };
@@ -341,8 +341,30 @@ pub trait StorageProvider: RemoteSync + Sync + Send {
         summary: &Summary,
     ) -> Result<WriteEvent<'static>>;
 
-    /// Load vault summaries.
-    async fn load_vaults(&mut self) -> Result<&[Summary]>;
+    /// Load vault summaries from the local disc.
+    async fn load_vaults(&mut self) -> Result<&[Summary]> {
+        let storage = self.paths().vaults_dir();
+        let mut summaries = Vec::new();
+        let mut contents = vfs::read_dir(&storage).await?;
+        while let Some(entry) = contents.next_entry().await? {
+            let path = entry.path();
+            if let Some(extension) = path.extension() {
+                if extension == VAULT_EXT {
+                    let summary = Header::read_summary_file(path).await?;
+                    if summary.flags().is_system() {
+                        continue;
+                    }
+                    summaries.push(summary);
+                }
+            }
+        }
+
+        self.load_caches(&summaries).await?;
+        self.state_mut().set_summaries(summaries);
+        Ok(self.vaults())
+    }
+
+    //async fn load_vaults(&mut self) -> Result<&[Summary]>;
 
     /// Attempt to set the vault name for a vault.
     async fn set_vault_name(

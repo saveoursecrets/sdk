@@ -202,28 +202,6 @@ impl StorageProvider for LocalProvider {
         Ok(())
     }
 
-    async fn load_vaults(&mut self) -> Result<&[Summary]> {
-        let storage = self.paths().vaults_dir();
-        let mut summaries = Vec::new();
-        let mut contents = vfs::read_dir(&storage).await?;
-        while let Some(entry) = contents.next_entry().await? {
-            let path = entry.path();
-            if let Some(extension) = path.extension() {
-                if extension == VAULT_EXT {
-                    let summary = Header::read_summary_file(path).await?;
-                    if summary.flags().is_system() {
-                        continue;
-                    }
-                    summaries.push(summary);
-                }
-            }
-        }
-
-        self.load_caches(&summaries).await?;
-        self.state.set_summaries(summaries);
-        Ok(self.vaults())
-    }
-
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
         let (event_log_file, _) = self
             .cache

@@ -40,7 +40,7 @@ use crate::vault::VaultWriter;
 /// Provides a status overview of an account.
 ///
 /// Intended to be used during a synchronization protocol.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(default)]
 pub struct AccountStatus {
     /// Indicates whether the account exists.

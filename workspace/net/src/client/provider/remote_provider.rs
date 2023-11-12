@@ -174,7 +174,8 @@ impl StorageProvider for RemoteProvider {
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
-
+        
+        /*
         if self.state().mirror() {
             self.write_vault_file(&summary, &buffer).await?;
         }
@@ -184,6 +185,7 @@ impl StorageProvider for RemoteProvider {
 
         // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault)).await?;
+        */
 
         Ok((WriteEvent::CreateVault(Cow::Owned(buffer)), summary))
     }
@@ -204,7 +206,8 @@ impl StorageProvider for RemoteProvider {
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
-
+        
+        /*
         if self.state().mirror() {
             self.write_vault_file(&summary, &buffer).await?;
         }
@@ -214,6 +217,7 @@ impl StorageProvider for RemoteProvider {
 
         // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault)).await?;
+        */
 
         Ok((WriteEvent::CreateVault(Cow::Owned(buffer)), summary))
     }
@@ -227,7 +231,8 @@ impl StorageProvider for RemoteProvider {
             retry!(|| self.client.account_status(), self.client);
         status.ok_or(Error::NoAccountStatus)
     }
-
+    
+    /*
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
         let (_, summaries) =
             retry!(|| self.client.list_vaults(), self.client);
@@ -264,6 +269,7 @@ impl StorageProvider for RemoteProvider {
 
         Ok(self.vaults())
     }
+    */
 
     async fn patch(
         &mut self,
@@ -467,12 +473,51 @@ impl StorageProvider for RemoteProvider {
     }
 }
 
+/// Sync helper functions.
+impl RemoteProvider {
+
+    /// Create an account on the remote.
+    async fn sync_create_remote_account(&mut self) -> Result<()> {
+        let default_folder = self.state.find(|s| s.flags().is_default())
+            .ok_or(Error::NoDefaultFolder)?;
+        
+        let folder_path = self.vault_path(&default_folder);
+        let folder_buffer = vfs::read(folder_path).await?;
+        
+        // Create the account and default folder on the remote
+        self.create_account_from_buffer(folder_buffer).await?;
+        
+        // Import other folders into the remote
+        let other_folders: Vec<Summary> = self.state.summaries()
+            .into_iter()
+            .filter(|s| !s.flags().is_default())
+            .map(|s| s.clone())
+            .collect();
+
+        for folder in other_folders {
+            let folder_path = self.vault_path(&folder);
+            let folder_buffer = vfs::read(folder_path).await?;
+            self.import_vault(folder_buffer).await?;
+        }
+
+        // FIXME: import files here!
+        
+        Ok(())
+    }
+}
+
 #[async_trait]
 impl RemoteSync for RemoteProvider {
     async fn sync(&mut self) -> Result<()> {
+        // Ensure our folder state is the latest version on disc
+        self.load_vaults().await?;
+
         let account_status = self.account_status().await?;
-        println!("Account status {:#?}", account_status);
-        todo!();
+        if !account_status.exists {
+            self.sync_create_remote_account().await
+        } else {
+            todo!("sync with existing account");
+        }
     }
 
     async fn sync_local_events(&self, events: &[WriteEvent]) -> Result<()> {
