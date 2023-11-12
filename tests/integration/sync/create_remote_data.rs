@@ -39,14 +39,16 @@ async fn integration_sync_create_remote_data() -> Result<()> {
         create_local_account("sync_basic_1").await?;
 
     // Folders on the local account
-    let storage = owner.storage();
-    let mut writer = storage.write().await;
-    let expected_summaries: Vec<Summary> = writer
-        .load_vaults()
-        .await?
-        .into_iter()
-        .map(|s| s.clone())
-        .collect();
+    let expected_summaries: Vec<Summary> = {
+        let storage = owner.storage();
+        let mut writer = storage.write().await;
+        writer
+            .load_vaults()
+            .await?
+            .into_iter()
+            .map(|s| s.clone())
+            .collect()
+    };
 
     // Path that we expect the remote server to write to
     let server_path = PathBuf::from(format!(
@@ -56,6 +58,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
 
     // Create the remote provider
     let signer = owner.user().identity().signer().clone();
+        
     let (origin, provider) = create_remote_provider(signer).await?;
 
     let remote_origin = origin.clone();
