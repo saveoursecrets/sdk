@@ -92,7 +92,6 @@ mod sync;
 pub use local_provider::LocalProvider;
 #[cfg(not(target_arch = "wasm32"))]
 pub use provider_factory::spawn_changes_listener;
-pub use provider_factory::ProviderFactory;
 pub use remote_provider::RemoteProvider;
 
 pub use state::ProviderState;

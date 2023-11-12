@@ -40,7 +40,7 @@ use tokio::{
 };
 
 use crate::client::{
-    provider::{BoxedProvider, ProviderFactory},
+    provider::{LocalProvider, new_local_provider, StorageProvider},
     Error, Result,
 };
 
@@ -168,12 +168,9 @@ pub struct UserStatistics {
 pub struct UserStorage {
     /// Authenticated user.
     user: AuthenticatedUser,
-    /// Storage provider.
-    storage: BoxedProvider,
 
-    /// Factory user to create the storage provider.
-    #[allow(dead_code)]
-    factory: ProviderFactory,
+    /// Storage provider.
+    storage: LocalProvider,
 
     /// Search index.
     index: UserIndex,
@@ -206,13 +203,11 @@ impl UserStorage {
     pub async fn new_account(
         account_name: String,
         passphrase: SecretString,
-        factory: ProviderFactory,
         remotes: Option<Remotes>,
     ) -> Result<(UserStorage, ImportedAccount, NewAccount)> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
-            factory,
             |builder| {
                 builder
                     .save_passphrase(true)
@@ -226,11 +221,6 @@ impl UserStorage {
         .await
     }
 
-    /// Provider factory.
-    pub fn factory(&self) -> &ProviderFactory {
-        &self.factory
-    }
-
     /// Authenticated user information.
     pub fn user(&self) -> &AuthenticatedUser {
         &self.user
@@ -242,12 +232,12 @@ impl UserStorage {
     }
 
     /// Storage provider.
-    pub fn storage(&self) -> &BoxedProvider {
+    pub fn storage(&self) -> &LocalProvider {
         &self.storage
     }
 
     /// Mutable storage provider.
-    pub fn storage_mut(&mut self) -> &mut BoxedProvider {
+    pub fn storage_mut(&mut self) -> &mut LocalProvider {
         &mut self.storage
     }
 
@@ -281,7 +271,6 @@ impl UserStorage {
     pub async fn new_account_with_builder(
         account_name: String,
         passphrase: SecretString,
-        factory: ProviderFactory,
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         remotes: Option<Remotes>,
     ) -> Result<(UserStorage, ImportedAccount, NewAccount)> {
@@ -289,23 +278,15 @@ impl UserStorage {
             builder(AccountBuilder::new(account_name, passphrase.clone()));
         let new_account = account_builder.finish().await?;
 
-        let (mut provider, _) = factory
-            .create_provider(
-                new_account.user.signer().clone(),
-                generate_keypair()?,
-            )
-            .await?;
-        provider.handshake().await?;
-        let (imported_account, events) =
-            provider.import_new_account(&new_account).await?;
-
-        let owner = UserStorage::sign_in(
+        let mut owner = UserStorage::sign_in(
             new_account.user.address(),
             passphrase,
-            factory,
             remotes,
         )
         .await?;
+
+        let (imported_account, events) =
+            owner.storage.import_new_account(&new_account).await?;
 
         let mut audit_events = Vec::new();
         for event in events {
@@ -327,7 +308,7 @@ impl UserStorage {
     pub async fn sign_in(
         address: &Address,
         passphrase: SecretString,
-        factory: ProviderFactory,
+        //storage: LocalProvider,
         remotes: Option<Remotes>,
     ) -> Result<Self> {
         let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
@@ -336,9 +317,7 @@ impl UserStorage {
 
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
-        let (mut storage, _) =
-            factory.create_provider(signer, generate_keypair()?).await?;
-        storage.handshake().await?;
+        let (storage, _) = new_local_provider(signer).await?;
 
         #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
         let peer_key = convert_libp2p_identity(user.device().signer())?;
@@ -349,7 +328,6 @@ impl UserStorage {
         Ok(Self {
             user,
             storage,
-            factory,
             files_dir,
             index: UserIndex::new(),
             #[cfg(feature = "device")]
@@ -1776,7 +1754,7 @@ impl UserStorage {
     }
 }
 
-impl From<UserStorage> for BoxedProvider {
+impl From<UserStorage> for LocalProvider {
     fn from(value: UserStorage) -> Self {
         value.storage
     }
