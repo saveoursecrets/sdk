@@ -62,7 +62,10 @@ impl Service for AccountService {
                         let proof = event_log.tree().head()?;
                         proofs.insert(*summary.id(), proof);
                     }
-                    AccountStatus { exists: true, proofs }
+                    AccountStatus {
+                        exists: true,
+                        proofs,
+                    }
                 } else {
                     Default::default()
                 };

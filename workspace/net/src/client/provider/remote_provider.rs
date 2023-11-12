@@ -174,7 +174,7 @@ impl StorageProvider for RemoteProvider {
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
-        
+
         /*
         if self.state().mirror() {
             self.write_vault_file(&summary, &buffer).await?;
@@ -206,7 +206,7 @@ impl StorageProvider for RemoteProvider {
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
-        
+
         /*
         if self.state().mirror() {
             self.write_vault_file(&summary, &buffer).await?;
@@ -231,7 +231,7 @@ impl StorageProvider for RemoteProvider {
             retry!(|| self.client.account_status(), self.client);
         status.ok_or(Error::NoAccountStatus)
     }
-    
+
     /*
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
         let (_, summaries) =
@@ -475,20 +475,23 @@ impl StorageProvider for RemoteProvider {
 
 /// Sync helper functions.
 impl RemoteProvider {
-
     /// Create an account on the remote.
     async fn sync_create_remote_account(&mut self) -> Result<()> {
-        let default_folder = self.state.find(|s| s.flags().is_default())
+        let default_folder = self
+            .state
+            .find(|s| s.flags().is_default())
             .ok_or(Error::NoDefaultFolder)?;
-        
+
         let folder_path = self.vault_path(&default_folder);
         let folder_buffer = vfs::read(folder_path).await?;
-        
+
         // Create the account and default folder on the remote
         self.create_account_from_buffer(folder_buffer).await?;
-        
+
         // Import other folders into the remote
-        let other_folders: Vec<Summary> = self.state.summaries()
+        let other_folders: Vec<Summary> = self
+            .state
+            .summaries()
             .into_iter()
             .filter(|s| !s.flags().is_default())
             .map(|s| s.clone())
@@ -501,7 +504,7 @@ impl RemoteProvider {
         }
 
         // FIXME: import files here!
-        
+
         Ok(())
     }
 }

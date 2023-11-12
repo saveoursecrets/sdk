@@ -12,7 +12,7 @@ pub use backup::{
     RestoreOptions, RestoreTargets,
 };
 pub use builder::{AccountBuilder, ImportedAccount, NewAccount};
-pub use identity::{Identity, UserIdentity, AccountStatus};
+pub use identity::{AccountStatus, Identity, UserIdentity};
 pub use local::{AccountInfo, AccountRef, LocalAccounts};
 pub use login::{AuthenticatedUser, DeviceSigner, Login};
 pub use passphrase::DelegatedPassphrase;

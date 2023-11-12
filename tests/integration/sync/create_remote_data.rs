@@ -1,11 +1,11 @@
 use anyhow::Result;
-use std::path::PathBuf;
 use serial_test::serial;
+use std::path::PathBuf;
 
 use sos_net::{
     client::{provider::ProviderFactory, user::Origin},
     sdk::{
-        constants::{VAULT_EXT, EVENT_LOG_EXT},
+        constants::{EVENT_LOG_EXT, VAULT_EXT},
         mpc::{Keypair, PATTERN},
         storage::AppPaths,
         vault::Summary,
@@ -16,6 +16,8 @@ use sos_net::{
 use crate::test_utils::{
     create_local_account, mock_note, server, server_public_key, setup, spawn,
 };
+
+use super::{assert_local_remote_eq, create_remote_provider};
 
 /// Tests creating all the account data on a remote
 /// when the server does not have the account data yet.
@@ -34,57 +36,37 @@ async fn integration_sync_create_remote_data() -> Result<()> {
 
     let (mut owner, _, default_folder, _) =
         create_local_account("sync_basic_1").await?;
-    
+
     // Folders on the local account
-    let expected_summaries: Vec<Summary> = owner.storage_mut().load_vaults().await?
+    let expected_summaries: Vec<Summary> = owner
+        .storage_mut()
+        .load_vaults()
+        .await?
         .into_iter()
         .map(|s| s.clone())
         .collect();
-    
+
     // Path that we expect the remote server to write to
-    let server_path = PathBuf::from(format!("target/integration-test/server/{}", owner.address()));
-
-    // Setup a remote origin
-    let server = server();
-    let server_public_key = server_public_key()?;
-    let origin = Origin {
-        name: "origin".to_owned(),
-        url: server.clone(),
-    };
-
-    // Prepare a provider for the remote service
-    let factory = ProviderFactory::Remote {
-        server,
-        server_public_key,
-    };
-
+    let server_path = PathBuf::from(format!(
+        "target/integration-test/server/{}",
+        owner.address()
+    ));
+    
+    // Create the remote provider
     let signer = owner.user().identity().signer().clone();
-    let keypair = Keypair::new(PATTERN.parse()?)?;
-
-    let (mut provider, address) =
-        factory.create_provider(signer, keypair).await?;
-
-    // Noise protocol handshake
-    provider.handshake().await?;
+    let (_origin, mut provider) = create_remote_provider(signer).await?;
 
     // Sync with a local account that does not exist on
     // the remote which should create the account on the remote
     provider.sync().await?;
 
-    // Compare vault buffers
-    for summary in expected_summaries {
-        let local_folder = owner.storage().vault_path(&summary);
-        let remote_folder = server_path.join(
-            format!("{}.{}", summary.id(), VAULT_EXT));
-        let local_buffer = vfs::read(&local_folder).await?;
-        let remote_buffer = vfs::read(&remote_folder).await?;
-        assert_eq!(local_buffer, remote_buffer);
-    }
-
-    // Compare event log status (commit proofs)
-    let local_status = owner.storage_mut().account_status().await?;
-    let remote_status = provider.account_status().await?;
-    assert_eq!(local_status, remote_status);
+    assert_local_remote_eq(
+        expected_summaries,
+        &server_path,
+        &mut owner,
+        &mut provider,
+    )
+    .await?;
 
     Ok(())
 }

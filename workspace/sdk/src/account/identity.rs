@@ -9,14 +9,14 @@
 //! passphrase.
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 
-use std::{sync::Arc, collections::HashMap};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 use std::path::Path;
 
+use serde::{Deserialize, Serialize};
 use urn::Urn;
 use web3_address::ethereum::Address;
-use serde::{Serialize, Deserialize};
 
 use crate::{
     commit::CommitProof,

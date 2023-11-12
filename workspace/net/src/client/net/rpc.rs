@@ -5,9 +5,9 @@ use sos_sdk::{
     account::AccountStatus,
     commit::CommitProof,
     constants::{
-        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_LOAD, EVENT_LOG_PATCH,
-        EVENT_LOG_SAVE, EVENT_LOG_STATUS, HANDSHAKE_INITIATE, VAULT_CREATE,
-        VAULT_DELETE, VAULT_SAVE,
+        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_LOAD,
+        EVENT_LOG_PATCH, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
+        HANDSHAKE_INITIATE, VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
     },
     decode, encode,
     mpc::{
@@ -191,7 +191,7 @@ impl RpcClient {
 
         Ok(())
     }
-    
+
     /// Get the account status.
     pub async fn account_status(
         &self,
@@ -199,11 +199,7 @@ impl RpcClient {
         let url = self.server.join("api/account")?;
 
         let id = self.next_id().await;
-        let request = RequestMessage::new_call(
-            Some(id),
-            ACCOUNT_STATUS,
-            (),
-        )?;
+        let request = RequestMessage::new_call(Some(id), ACCOUNT_STATUS, ())?;
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
         let signature =

@@ -10,7 +10,7 @@ use std::{
 };
 
 use sos_sdk::{
-    account::{ImportedAccount, NewAccount, AccountStatus},
+    account::{AccountStatus, ImportedAccount, NewAccount},
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
@@ -27,7 +27,7 @@ use sos_sdk::{
     storage::UserPaths,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
-        Gatekeeper, Summary, Vault, VaultId, Header,
+        Gatekeeper, Header, Summary, Vault, VaultId,
     },
     vfs, Timestamp,
 };
