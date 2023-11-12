@@ -241,12 +241,7 @@ pub trait StorageProvider: RemoteSync + Sync + Send {
 
         Ok(())
     }
-
-    /// Initiate noise protocol handshake with a remote server.
-    async fn handshake(&mut self) -> Result<()> {
-        Ok(())
-    }
-
+        
     /// Get the path to a event log file.
     fn event_log_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), EVENT_LOG_EXT);
