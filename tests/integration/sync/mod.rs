@@ -1,20 +1,16 @@
 use anyhow::Result;
 use sos_net::{
     client::{
-        provider::{new_remote_provider, RemoteProvider, StorageProvider},
-        user::{Origin, UserStorage},
+        provider::{RemoteProvider, StorageProvider},
+        user::UserStorage,
     },
     sdk::{
         constants::VAULT_EXT,
-        mpc::{Keypair, PATTERN},
-        signer::ecdsa::BoxedEcdsaSigner,
         vault::Summary,
         vfs,
     },
 };
 use std::path::PathBuf;
-
-use crate::test_utils::{server, server_public_key};
 
 mod create_remote_data;
 

@@ -733,9 +733,8 @@ mod test {
         if let Some((_, secret, _)) =
             keeper.read(card.as_ref().unwrap().id()).await?
         {
-            //println!("{:#?}", secret);
             if let Secret::Card { expiry, .. } = secret {
-                println!("{:#?}", expiry);
+                //println!("{:#?}", expiry);
             } else {
                 panic!("secret is of the wrong type");
             }

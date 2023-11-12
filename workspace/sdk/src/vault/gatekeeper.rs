@@ -493,7 +493,7 @@ impl From<Gatekeeper> for Vault {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::*;
+    //use crate::test_utils::*;
     use crate::{
         constants::DEFAULT_VAULT_NAME,
         vault::{secret::Secret, VaultBuilder},

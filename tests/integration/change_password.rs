@@ -1,22 +1,13 @@
 use anyhow::Result;
 use serial_test::serial;
 
-use crate::test_utils::*;
-
-use futures::stream::StreamExt;
-use std::{
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use crate::test_utils::{signup_local, create_secrets, AccountCredentials};
 
 use sos_net::{
     client::{
-        net::changes::{changes, connect},
         provider::StorageProvider,
     },
     sdk::{
-        events::{ChangeEvent, ChangeNotification},
-        mpc::generate_keypair,
         passwd::diceware::generate_passphrase,
     },
 };

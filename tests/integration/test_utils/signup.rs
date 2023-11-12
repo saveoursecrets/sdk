@@ -7,22 +7,19 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        net::RpcClient,
         provider::{RemoteProvider, StorageProvider, new_local_provider, LocalProvider},
         RemoteSync,
     },
     sdk::{
-        mpc::{generate_keypair, Keypair},
         signer::{
             ecdsa::{BoxedEcdsaSigner, SingleParty},
             Signer,
         },
-        storage::UserPaths,
         vfs,
     },
 };
 
-use super::{server_public_key, AccountCredentials, create_remote_provider};
+use super::{AccountCredentials, create_remote_provider};
 
 pub async fn signup(
     dirs: &TestDirs,

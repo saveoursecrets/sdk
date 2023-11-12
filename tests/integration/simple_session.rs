@@ -3,27 +3,13 @@ use serial_test::serial;
 
 use crate::test_utils::*;
 
-use futures::stream::StreamExt;
-use std::{
-    sync::{Arc, RwLock},
-    time::Duration,
-};
-use url::Url;
-
 use sos_net::{
     client::{
-        net::{
-            changes::{changes, connect},
-            RpcClient,
-        },
         provider::StorageProvider,
     },
     sdk::{
         commit::CommitRelationship,
         constants::DEFAULT_VAULT_NAME,
-        events::{ChangeEvent, ChangeNotification},
-        mpc::generate_keypair,
-        storage::AppPaths,
         vault::VaultRef,
     },
 };
