@@ -331,7 +331,7 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
             // Try to select the default folder
             let default_folder = {
                 let owner = user.read().await;
-                owner.default_folder()
+                owner.default_folder().await
             };
             if let Some(summary) = default_folder {
                 let folder = Some(VaultRef::Id(*summary.id()));
@@ -352,7 +352,9 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
         }
         ShellCommand::Pwd => {
             let owner = user.read().await;
-            if let Some(current) = owner.storage().current() {
+            let storage = owner.storage();
+            let reader = storage.read().await;
+            if let Some(current) = reader.current() {
                 println!(
                     "{} {}",
                     current.summary().name(),

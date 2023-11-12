@@ -664,10 +664,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let user = resolve_user(account.as_ref(), true).await?;
             let owner = user.read().await;
             let archive_folder = owner
-                .storage()
-                .state()
-                .find(|s| s.flags().is_archive())
-                .cloned();
+                .archive_folder().await;
 
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
@@ -685,8 +682,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                     ignored_types: None,
                 }];
             } else if let Some(folder) = &folder {
-                let summary = owner
-                    .storage()
+                let storage = owner.storage();
+                let reader = storage.read().await;
+                let summary = reader
                     .state()
                     .find_vault(folder)
                     .cloned()
@@ -1194,7 +1192,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             let original_folder = if is_shell {
                 let user = resolve_user(account.as_ref(), false).await?;
                 let owner = user.read().await;
-                owner.storage().current().map(|g| g.summary().clone())
+                let storage = owner.storage();
+                let reader = storage.read().await;
+                reader.current().map(|g| g.summary().clone())
             } else {
                 None
             };
@@ -1206,6 +1206,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         let owner = user.write().await;
                         Ok(owner
                             .archive_folder()
+                            .await
                             .ok_or_else(|| Error::NoArchiveFolder)?)
                     })
                 })),

@@ -169,7 +169,7 @@ pub struct UserStorage {
     user: AuthenticatedUser,
 
     /// Storage provider.
-    storage: LocalProvider,
+    storage: Arc<RwLock<LocalProvider>>,
 
     /// Search index.
     index: UserIndex,
@@ -231,14 +231,16 @@ impl UserStorage {
     }
 
     /// Storage provider.
-    pub fn storage(&self) -> &LocalProvider {
-        &self.storage
+    pub fn storage(&self) -> Arc<RwLock<LocalProvider>> {
+        Arc::clone(&self.storage)
     }
-
+    
+    /*
     /// Mutable storage provider.
     pub fn storage_mut(&mut self) -> &mut LocalProvider {
         &mut self.storage
     }
+    */
 
     /// Insert a remote origin for synchronization.
     ///
@@ -329,7 +331,7 @@ impl UserStorage {
         let devices_dir = storage.paths().devices_dir().clone();
         Ok(Self {
             user,
-            storage,
+            storage: Arc::new(RwLock::new(storage)),
             files_dir,
             index: UserIndex::new(),
             #[cfg(feature = "device")]
@@ -341,14 +343,16 @@ impl UserStorage {
         })
     }
 
-    /// Reference to the user storage paths.
-    pub fn paths(&self) -> &UserPaths {
-        self.storage.paths()
+    /// User storage paths.
+    pub async fn paths(&self) -> UserPaths {
+        let reader = self.storage.read().await;
+        reader.paths().to_owned()
     }
 
     /// Append to the audit log.
     async fn append_audit_logs(&self, events: Vec<AuditEvent>) -> Result<()> {
-        let audit_log = self.storage.audit_log();
+        let reader = self.storage.read().await;
+        let audit_log = reader.audit_log();
         let mut writer = audit_log.write().await;
         writer.append_audit_events(events).await?;
         Ok(())
@@ -361,7 +365,8 @@ impl UserStorage {
     /// can be unlocked then we have verified that the other
     /// device knows the master password for this account.
     pub async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let identity_path = self.storage.paths().identity()?;
+        let reader = self.storage.read().await;
+        let identity_path = reader.paths().identity()?;
         Ok(vfs::read(identity_path).await?)
     }
 
@@ -377,8 +382,8 @@ impl UserStorage {
         let mut types = HashMap::new();
 
         for (id, v) in count.vaults() {
-            if let Some(summary) = self.find(|s| s.id() == id) {
-                folders.push((summary.clone(), *v));
+            if let Some(summary) = self.find(|s| s.id() == id).await {
+                folders.push((summary, *v));
             }
         }
 
@@ -398,11 +403,12 @@ impl UserStorage {
     }
 
     /// Account data.
-    pub fn account_data(&self) -> Result<AccountData> {
+    pub async fn account_data(&self) -> Result<AccountData> {
+        let reader = self.storage.read().await;
         Ok(AccountData {
             account: self.user.account().clone(),
             identity: self.user.identity().recipient().to_string(),
-            folders: self.storage.state().summaries().to_vec(),
+            folders: reader.state().summaries().to_vec(),
             #[cfg(feature = "device")]
             device_address: self.user.device().public_id().to_owned(),
             #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
@@ -445,42 +451,46 @@ impl UserStorage {
     }
 
     /// Try to find a folder using a predicate.
-    pub fn find<F>(&self, predicate: F) -> Option<&Summary>
+    pub async fn find<F>(&self, predicate: F) -> Option<Summary>
     where
         F: FnMut(&&Summary) -> bool,
     {
-        self.storage.state().find(predicate)
+        let reader = self.storage.read().await;
+        reader.state().find(predicate).cloned()
     }
 
     /// Find the default folder.
-    pub fn default_folder(&self) -> Option<Summary> {
-        self.find(|s| s.flags().is_default()).cloned()
+    pub async fn default_folder(&self) -> Option<Summary> {
+        self.find(|s| s.flags().is_default()).await
     }
 
     /// Find the authenticator folder.
-    pub fn authenticator_folder(&self) -> Option<Summary> {
-        self.find(|s| s.flags().is_authenticator()).cloned()
+    pub async fn authenticator_folder(&self) -> Option<Summary> {
+        self.find(|s| s.flags().is_authenticator()).await
     }
 
     /// Find the contacts folder.
-    pub fn contacts_folder(&self) -> Option<Summary> {
-        self.find(|s| s.flags().is_contact()).cloned()
+    pub async fn contacts_folder(&self) -> Option<Summary> {
+        self.find(|s| s.flags().is_contact()).await
     }
 
     /// Find the archive folder.
-    pub fn archive_folder(&self) -> Option<Summary> {
-        self.find(|s| s.flags().is_archive()).cloned()
+    pub async fn archive_folder(&self) -> Option<Summary> {
+        self.find(|s| s.flags().is_archive()).await
     }
 
     /// List folders.
     pub async fn list_folders(&mut self) -> Result<Vec<Summary>> {
-        Ok(self.storage.load_vaults().await?.to_vec())
+        let mut writer = self.storage.write().await;
+        let folders = writer.load_vaults().await?.to_vec();
+        Ok(folders)
     }
 
     /// Sign out of the account.
     pub async fn sign_out(&mut self) {
+        let mut writer = self.storage.write().await;
         self.index.clear().await;
-        self.storage.close_vault();
+        writer.close_vault();
         self.user.sign_out();
     }
 
@@ -490,8 +500,10 @@ impl UserStorage {
 
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
         let key = AccessKey::Password(passphrase);
-        let (event, _, summary) =
-            self.storage.create_vault(name, Some(key.clone())).await?;
+        let (event, _, summary) = {
+            let mut writer = self.storage.write().await;
+            writer.create_vault(name, Some(key.clone())).await?
+        };
 
         DelegatedPassphrase::save_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
@@ -511,7 +523,10 @@ impl UserStorage {
     pub async fn delete_folder(&mut self, summary: &Summary) -> Result<()> {
         let _ = self.sync_lock.lock().await;
 
-        let event = self.storage.remove_vault(summary).await?;
+        let event = {
+            let mut writer = self.storage.write().await;
+            writer.remove_vault(summary).await?
+        };
         DelegatedPassphrase::remove_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
             summary.id(),
@@ -538,17 +553,26 @@ impl UserStorage {
         let _ = self.sync_lock.lock().await;
 
         // Update the provider
-        let event = self.storage.set_vault_name(summary, &name).await?;
+        let event = {
+            let mut writer = self.storage.write().await;
+            writer.set_vault_name(summary, &name).await?
+        };
 
         // Now update the in-memory name for the current selected vault
-        if let Some(keeper) = self.storage.current_mut() {
-            if keeper.vault().id() == summary.id() {
-                keeper.set_vault_name(name.clone()).await?;
+        {
+            let mut writer = self.storage.write().await;
+            if let Some(keeper) = writer.current_mut() {
+                if keeper.vault().id() == summary.id() {
+                    keeper.set_vault_name(name.clone()).await?;
+                }
             }
         }
 
         // Update the vault on disc
-        let vault_path = self.storage.vault_path(summary);
+        let vault_path = {
+            let reader = self.storage.read().await;
+            reader.vault_path(summary)
+        };
         let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
         access.set_vault_name(name).await?;
@@ -579,6 +603,7 @@ impl UserStorage {
         if save_key {
             let default_summary = self
                 .default_folder()
+                .await
                 .ok_or_else(|| Error::NoDefaultFolder)?;
 
             let _passphrase = DelegatedPassphrase::find_vault_passphrase(
@@ -707,7 +732,10 @@ impl UserStorage {
         let summary = vault.summary().clone();
 
         // Import the vault
-        self.storage.import_vault(buffer).await?;
+        {
+            let mut writer = self.storage.write().await;
+            writer.import_vault(buffer).await?;
+        }
 
         // If we are overwriting then we must remove the existing
         // vault passphrase so we can save it using the passphrase
@@ -732,12 +760,16 @@ impl UserStorage {
             // If we are overwriting and the current vault
             // is loaded into memory we must close it so
             // the UI does not show stale in-memory data
-            if let Some(current) = self.storage.current() {
-                if current.id() == summary.id() {
-                    self.storage.close_vault();
+            {
+                let mut writer = self.storage.write().await;
+                let is_current = if let Some(current) = writer.current() {
+                    current.id() == summary.id()
+                } else { false };
+
+                if is_current {
+                    writer.close_vault();
                 }
             }
-
             // Clean entries from the search index
             self.index
                 .remove_folder_from_search_index(summary.id())
@@ -768,9 +800,13 @@ impl UserStorage {
         audit: bool,
     ) -> Result<()> {
         // Bail early if the folder is already open
-        if let Some(current) = self.storage.current() {
-            if current.id() == summary.id() {
-                return Ok(());
+        // as opening a vault is an expensive operation
+        {
+            let reader = self.storage.read().await;
+            if let Some(current) = reader.current() {
+                if current.id() == summary.id() {
+                    return Ok(());
+                }
             }
         }
 
@@ -780,19 +816,15 @@ impl UserStorage {
         )
         .await?;
 
-        // If the target vault is already open then this is a noop
-        // as opening a vault is an expensive operation
-        if let Some(current) = self.storage.current().as_ref() {
-            if current.id() == summary.id() {
-                return Ok(());
-            }
-        }
-
         let index = Arc::clone(&self.index.search_index);
-        let event = self
-            .storage
-            .open_vault(summary, passphrase.into(), Some(index))
-            .await?;
+        
+        let event = {
+            let mut writer = self.storage.write().await;
+            writer
+                .open_vault(summary, passphrase.into(), Some(index))
+                .await?
+        };
+
         let event = Event::Read(*summary.id(), event);
 
         if audit {
@@ -822,10 +854,15 @@ impl UserStorage {
         mut options: SecretOptions,
         audit: bool,
     ) -> Result<(SecretId, Event<'static>)> {
-        let folder = options
-            .folder
-            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
-            .ok_or(Error::NoOpenFolder)?;
+    
+        let folder = {
+            let reader = self.storage.read().await;
+            options
+                .folder
+                .or_else(|| reader.current().map(|g| g.summary().clone()))
+                .ok_or(Error::NoOpenFolder)?
+        };
+
         self.open_folder(&folder).await?;
 
         if let Secret::Pem { certificates, .. } = &secret {
@@ -834,11 +871,14 @@ impl UserStorage {
             }
         }
 
-        let event = self
-            .storage
-            .create_secret(meta.clone(), secret.clone())
-            .await?
-            .into_owned();
+        let event = {
+            let mut writer = self.storage.write().await;
+            writer 
+                .create_secret(meta.clone(), secret.clone())
+                .await?
+                .into_owned()
+        };
+
 
         let id = if let WriteEvent::CreateSecret(id, _) = &event {
             *id
@@ -852,12 +892,14 @@ impl UserStorage {
             secret,
         };
 
-        let current_folder = self
-            .storage
-            .current()
-            .as_ref()
-            .map(|g| g.summary().clone())
-            .ok_or(Error::NoOpenFolder)?;
+        let current_folder = {
+            let reader = self.storage.read().await;
+            reader
+                .current()
+                .as_ref()
+                .map(|g| g.summary().clone())
+                .ok_or(Error::NoOpenFolder)?
+        };
 
         self.create_files(
             &current_folder,
@@ -895,13 +937,20 @@ impl UserStorage {
         folder: Option<Summary>,
         audit: bool,
     ) -> Result<(SecretData, ReadEvent)> {
-        let folder = folder
-            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
-            .ok_or(Error::NoOpenFolder)?;
+        
+        let folder = {
+            let reader = self.storage.read().await;
+            folder
+                .or_else(|| reader.current().map(|g| g.summary().clone()))
+                .ok_or(Error::NoOpenFolder)?
+        };
+
         self.open_folder(&folder).await?;
 
-        let (meta, secret, read_event) =
-            self.storage.read_secret(secret_id).await?;
+        let (meta, secret, read_event) = {
+            let mut writer = self.storage.write().await;
+            writer.read_secret(secret_id).await?
+        };
 
         if audit {
             let event = Event::Read(*folder.id(), read_event.clone());
@@ -956,11 +1005,15 @@ impl UserStorage {
     ) -> Result<(SecretId, Event<'static>)> {
         let _ = self.sync_lock.lock().await;
 
-        let folder = options
-            .folder
-            .take()
-            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
-            .ok_or(Error::NoOpenFolder)?;
+        let folder = {
+            let reader = self.storage.read().await;
+            options
+                .folder
+                .take()
+                .or_else(|| reader.current().map(|g| g.summary().clone()))
+                .ok_or(Error::NoOpenFolder)?
+        };
+
         self.open_folder(&folder).await?;
 
         let (old_secret_data, _) =
@@ -1016,9 +1069,12 @@ impl UserStorage {
         folder: Option<Summary>,
         audit: bool,
     ) -> Result<Event<'static>> {
-        let folder = folder
-            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
-            .ok_or(Error::NoOpenFolder)?;
+        let folder = {
+            let reader = self.storage.read().await;
+            folder
+                .or_else(|| reader.current().map(|g| g.summary().clone()))
+                .ok_or(Error::NoOpenFolder)?
+        };
         self.open_folder(&folder).await?;
 
         if let Secret::Pem { certificates, .. } = &secret_data.secret {
@@ -1026,12 +1082,14 @@ impl UserStorage {
                 return Err(Error::PemEncoding);
             }
         }
-
-        let event = self
-            .storage
-            .update_secret(secret_id, secret_data)
-            .await?
-            .into_owned();
+        
+        let event = {
+            let mut writer = self.storage.write().await;
+            writer
+                .update_secret(secret_id, secret_data)
+                .await?
+                .into_owned()
+        };
 
         let event = Event::Write(*folder.id(), event);
         if audit {
@@ -1121,11 +1179,16 @@ impl UserStorage {
     ) -> Result<Event<'static>> {
         let _ = self.sync_lock.lock().await;
 
-        let folder = options
-            .folder
-            .take()
-            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
-            .ok_or(Error::NoOpenFolder)?;
+        let folder = {
+            let reader = self.storage.read().await;
+
+            options
+                .folder
+                .take()
+                .or_else(|| reader.current().map(|g| g.summary().clone()))
+                .ok_or(Error::NoOpenFolder)?
+        };
+
         self.open_folder(&folder).await?;
 
         let (secret_data, _) =
@@ -1151,12 +1214,19 @@ impl UserStorage {
         folder: Option<Summary>,
         audit: bool,
     ) -> Result<Event<'static>> {
-        let folder = folder
-            .or_else(|| self.storage.current().map(|g| g.summary().clone()))
-            .ok_or(Error::NoOpenFolder)?;
+        let folder = {
+            let reader = self.storage.read().await;
+            folder
+                .or_else(|| reader.current().map(|g| g.summary().clone()))
+                .ok_or(Error::NoOpenFolder)?
+        };
+
         self.open_folder(&folder).await?;
 
-        let event = self.storage.delete_secret(secret_id).await?.into_owned();
+        let event = {
+            let mut writer = self.storage.write().await;
+            writer.delete_secret(secret_id).await?.into_owned()
+        };
 
         let event = Event::Write(*folder.id(), event.into_owned());
         if audit {
@@ -1181,7 +1251,7 @@ impl UserStorage {
             return Err(Error::AlreadyArchived);
         }
         self.open_folder(from).await?;
-        let to = self.archive_folder().ok_or_else(|| Error::NoArchive)?;
+        let to = self.archive_folder().await.ok_or_else(|| Error::NoArchive)?;
         self.move_secret(secret_id, from, &to, options).await
     }
 
@@ -1203,9 +1273,10 @@ impl UserStorage {
         self.open_folder(from).await?;
         let mut to = self
             .default_folder()
+            .await
             .ok_or_else(|| Error::NoDefaultFolder)?;
-        let authenticator = self.authenticator_folder();
-        let contacts = self.contacts_folder();
+        let authenticator = self.authenticator_folder().await;
+        let contacts = self.contacts_folder().await;
         if secret_meta.kind() == &SecretType::Totp && authenticator.is_some()
         {
             to = authenticator.unwrap();
@@ -1264,11 +1335,14 @@ impl UserStorage {
             // Must open the vault so the provider state unlocks
             // the vault
             self.open_vault(&summary, false).await?;
-
-            // Add the vault meta data to the search index
-            self.storage.create_search_index().await?;
-            // Close the vault as we are done for now
-            self.storage.close_vault();
+            
+            {
+                let mut writer = self.storage.write().await;
+                // Add the vault meta data to the search index
+                writer.create_search_index().await?;
+                // Close the vault as we are done for now
+                writer.close_vault();
+            }
         }
 
         Ok(self.index.document_count().await)
@@ -1446,7 +1520,10 @@ impl UserStorage {
             .await?;
 
         let buffer = encode(&vault).await?;
-        let (event, summary) = self.storage.import_vault(buffer).await?;
+        let (event, summary) = {
+            let mut writer = self.storage.write().await;
+            writer.import_vault(buffer).await?
+        };
 
         DelegatedPassphrase::save_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
@@ -1496,11 +1573,15 @@ impl UserStorage {
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<()> {
-        let current_folder = folder
-            .as_ref()
-            .or_else(|| self.storage.current().map(|g| g.summary()))
-            .ok_or(Error::NoOpenFolder)?
-            .clone();
+
+        let current_folder = {
+            let reader = self.storage.read().await;
+            folder
+                .as_ref()
+                .or_else(|| reader.current().map(|g| g.summary()))
+                .ok_or(Error::NoOpenFolder)?
+                .clone()
+        };
 
         let (data, _) = self.get_secret(secret_id, folder, false).await?;
         if let Secret::Contact { vcard, .. } = &data.secret {
@@ -1528,6 +1609,7 @@ impl UserStorage {
     ) -> Result<()> {
         let contacts = self
             .contacts_folder()
+            .await
             .ok_or_else(|| Error::NoContactsFolder)?;
 
         let contacts_passphrase = DelegatedPassphrase::find_vault_passphrase(
@@ -1574,9 +1656,15 @@ impl UserStorage {
     ) -> Result<()> {
         use sos_sdk::vcard4::parse;
 
-        let current = self.storage.current().map(|g| g.summary().clone());
+        
+        let current = {
+            let reader = self.storage.read().await;
+            reader.current().map(|g| g.summary().clone())
+        };
+
         let contacts = self
             .contacts_folder()
+            .await
             .ok_or_else(|| Error::NoContactsFolder)?;
         self.open_vault(&contacts, false).await?;
 
@@ -1682,7 +1770,7 @@ impl UserStorage {
         mut options: RestoreOptions,
     ) -> Result<(AccountInfo, Option<&mut UserStorage>)> {
         let files_dir = if let Some(owner) = owner.as_ref() {
-            ExtractFilesLocation::Path(owner.paths().files_dir().clone())
+            ExtractFilesLocation::Path(owner.files_dir().clone())
         } else {
             ExtractFilesLocation::Builder(Box::new(|address| {
                 AppPaths::files_dir(address).ok()
@@ -1699,7 +1787,10 @@ impl UserStorage {
         .await?;
 
         if let Some(owner) = owner.as_mut() {
-            owner.storage.restore_archive(&targets).await?;
+            {
+                let mut writer = owner.storage.write().await;
+                writer.restore_archive(&targets).await?;
+            }
             owner.build_search_index().await?;
         }
 
@@ -1716,7 +1807,8 @@ impl UserStorage {
         summary: &Summary,
         commit: CommitHash,
     ) -> Result<DetachedView> {
-        let cache = self.storage.cache();
+        let reader = self.storage.read().await;
+        let cache = reader.cache();
         let (log_file, _) = cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
@@ -1743,8 +1835,9 @@ impl UserStorage {
     }
 
     /// Get the root commit hash for a folder.
-    pub fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
-        let cache = self.storage.cache();
+    pub async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
+        let reader = self.storage.read().await;
+        let cache = reader.cache();
         let (log_file, _) = cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
@@ -1756,7 +1849,7 @@ impl UserStorage {
     }
 }
 
-impl From<UserStorage> for LocalProvider {
+impl From<UserStorage> for Arc<RwLock<LocalProvider>> {
     fn from(value: UserStorage) -> Self {
         value.storage
     }

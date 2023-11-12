@@ -36,7 +36,8 @@ async fn integration_audit_trail() -> Result<()> {
     simulate_session(&mut owner, &summary, passphrase).await?;
 
     // Read in the audit log events
-    let audit_log = owner.paths().audit_file();
+    let paths = owner.paths().await;
+    let audit_log = paths.audit_file();
     let events = read_audit_events(audit_log).await?;
     let mut kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
 

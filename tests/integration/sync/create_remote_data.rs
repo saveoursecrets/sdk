@@ -39,8 +39,9 @@ async fn integration_sync_create_remote_data() -> Result<()> {
         create_local_account("sync_basic_1").await?;
 
     // Folders on the local account
-    let expected_summaries: Vec<Summary> = owner
-        .storage_mut()
+    let storage = owner.storage();
+    let mut writer = storage.write().await;
+    let expected_summaries: Vec<Summary> = writer
         .load_vaults()
         .await?
         .into_iter()

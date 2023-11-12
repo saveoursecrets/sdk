@@ -735,6 +735,7 @@ mod test {
         {
             if let Secret::Card { expiry, .. } = secret {
                 //println!("{:#?}", expiry);
+                assert!(expiry.is_some());
             } else {
                 panic!("secret is of the wrong type");
             }

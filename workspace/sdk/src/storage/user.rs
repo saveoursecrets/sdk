@@ -13,7 +13,7 @@ use crate::{
 use super::AppPaths;
 
 /// Encapsulates the paths for a user account.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct UserPaths {
     /// User identifier.
     user_id: String,

@@ -1,5 +1,6 @@
 use clap::Subcommand;
 use std::{path::PathBuf, sync::Arc};
+use tokio::sync::RwLock;
 
 use sos_net::{
     client::provider::{LocalProvider, StorageProvider},
@@ -245,10 +246,16 @@ pub async fn run(cmd: Command) -> Result<()> {
             // does not lose context when importing and exporting contacts
             let original_folder = {
                 let mut owner = user.write().await;
-                let current =
-                    owner.storage().current().map(|g| g.summary().clone());
+                
+                let current = {
+                    let storage = owner.storage();
+                    let reader = storage.read().await;
+                    reader.current().map(|g| g.summary().clone())
+                };
+
                 let contacts = owner
                     .contacts_folder()
+                    .await
                     .ok_or_else(|| Error::NoContactsFolder)?;
                 owner.open_folder(&contacts).await?;
                 current
@@ -340,7 +347,7 @@ async fn account_info(
 ) -> Result<()> {
     let user = resolve_user(account.as_ref(), false).await?;
     let owner = user.read().await;
-    let data = owner.account_data()?;
+    let data = owner.account_data().await?;
 
     if json {
         serde_json::to_writer_pretty(&mut std::io::stdout(), &data)?;
@@ -392,7 +399,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     let account_ref = AccountRef::Address(inventory.manifest.address);
     let account = find_account(&account_ref).await?;
 
-    let provider: Option<LocalProvider> = if let Some(account) = account {
+    let provider: Option<Arc<RwLock<LocalProvider>>> = if let Some(account) = account {
         let confirmed = read_flag(Some(
             "Overwrite all account data from backup? (y/n) ",
         ))?;
@@ -422,8 +429,9 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     )
     .await?;
 
-    if let Some(mut provider) = provider {
-        provider.restore_archive(&targets).await?;
+    if let Some(provider) = provider {
+        let mut writer = provider.write().await;
+        writer.restore_archive(&targets).await?;
     }
 
     Ok(Some(account))
