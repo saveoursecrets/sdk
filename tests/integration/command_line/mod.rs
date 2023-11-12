@@ -313,10 +313,12 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
     helpers::set_password_ci_vars(&attachment_password);
 
     account::new(&exe, &password, SHELL_ACCOUNT_NAME, None)?;
+    
     let address = helpers::first_account_address(&exe, SHELL_ACCOUNT_NAME)?;
     let default_id = helpers::default_folder_id(&exe, &address, &password)?;
 
     let prompt = format_prompt(SHELL_ACCOUNT_NAME, DEFAULT_VAULT_NAME);
+        
     let process = login(exe, &address, password, &prompt)?;
 
     // Login shell specific commands

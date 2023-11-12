@@ -171,23 +171,26 @@ pub async fn run(cmd: Command) -> Result<()> {
                 return Err(Error::NoRemoveDefaultFolder);
             }
 
-            let mut owner = user.write().await;
-            let storage = owner.storage();
-            let reader = storage.read().await;
-            let is_current = if let Some(current) = reader.current()
-            {
-                current.id() == summary.id()
-            } else {
-                false
+            let is_current = {
+                let owner = user.read().await;
+                let storage = owner.storage();
+                let reader = storage.read().await;
+                if let Some(current) = reader.current()
+                {
+                    current.id() == summary.id()
+                } else {
+                    false
+                }
             };
 
             let prompt =
                 format!(r#"Delete folder "{}" (y/n)? "#, summary.name());
             if read_flag(Some(&prompt))? {
+                let mut owner = user.write().await;
                 owner.delete_folder(&summary).await?;
                 println!("Folder deleted ✓");
-
                 drop(owner);
+
                 // Removing current folder so try to use
                 // the default folder
                 if is_current {
@@ -308,14 +311,15 @@ pub async fn run(cmd: Command) -> Result<()> {
 
             match cmd {
                 History::Compact { .. } => {
-                    let owner = user.read().await;
-                    let storage = owner.storage();
-                    let reader = storage.read().await;
-                    let keeper = reader
-                        .current()
-                        .ok_or(Error::NoVaultSelected)?;
-                    let summary = keeper.summary().clone();
-                    drop(owner);
+                    let summary = {
+                        let owner = user.read().await;
+                        let storage = owner.storage();
+                        let reader = storage.read().await;
+                        let keeper = reader
+                            .current()
+                            .ok_or(Error::NoVaultSelected)?;
+                        keeper.summary().clone()
+                    };
 
                     let prompt = Some(
                         "Compaction will remove history, are you sure (y/n)? ",
