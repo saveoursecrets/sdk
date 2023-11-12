@@ -28,8 +28,8 @@ pub use security_report::{
     SecurityReportRow, SecurityReportTarget,
 };
 pub use user_storage::{
-    AccountData, DetachedView, SecretOptions, UserStatistics, UserStorage,
-    Origin, Remote, Remotes
+    AccountData, DetachedView, Origin, Remote, Remotes, SecretOptions,
+    UserStatistics, UserStorage,
 };
 
 #[cfg(feature = "contacts")]

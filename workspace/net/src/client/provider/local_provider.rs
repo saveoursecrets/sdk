@@ -28,7 +28,10 @@ use std::{
 use tokio::sync::RwLock;
 
 use crate::{
-    client::{provider::{sync, ProviderState, StorageProvider}, RemoteSync},
+    client::{
+        provider::{sync, ProviderState, StorageProvider},
+        RemoteSync,
+    },
     provider_impl,
 };
 

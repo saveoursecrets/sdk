@@ -36,7 +36,7 @@ use tokio::sync::RwLock;
 
 use sos_sdk::account::RestoreTargets;
 
-use crate::client::{Error, Result, RemoteSync};
+use crate::client::{Error, RemoteSync, Result};
 
 pub(crate) fn assert_proofs_eq(
     client_proof: &CommitProof,

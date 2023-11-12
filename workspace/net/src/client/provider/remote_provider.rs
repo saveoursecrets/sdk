@@ -31,7 +31,10 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::{
-    client::{provider::{sync, ProviderState, StorageProvider}, RemoteSync},
+    client::{
+        provider::{sync, ProviderState, StorageProvider},
+        RemoteSync,
+    },
     patch, provider_impl, retry,
 };
 
