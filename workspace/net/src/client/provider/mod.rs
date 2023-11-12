@@ -24,11 +24,13 @@ use sos_sdk::{
     passwd::ChangePassword,
     patch::PatchFile,
     search::SearchIndex,
-    storage::UserPaths,
+    signer::ecdsa::BoxedEcdsaSigner,
+    storage::{UserPaths, AppPaths},
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Header, Summary, Vault, VaultId,
     },
+    mpc::Keypair,
     vfs, Timestamp,
 };
 
@@ -36,7 +38,27 @@ use tokio::sync::RwLock;
 
 use sos_sdk::account::RestoreTargets;
 
-use crate::client::{Error, RemoteSync, Result};
+use crate::client::{Error, RemoteSync, Result, user::Origin, net::RpcClient};
+
+/// Create a new remote provider.
+pub async fn new_remote_provider(
+    origin: &Origin,
+    signer: BoxedEcdsaSigner,
+    keypair: Keypair,
+) -> Result<RemoteProvider> {
+    let data_dir = AppPaths::data_dir().map_err(|_| Error::NoCache)?;
+    let address = signer.address()?;
+    let client =
+        RpcClient::new(
+            origin.url.clone(),
+            origin.public_key.clone(),
+            signer,
+            keypair,
+        )?;
+    let dirs = UserPaths::new(data_dir, &address.to_string());
+    Ok(RemoteProvider::new(client, dirs).await?)
+}
+
 
 pub(crate) fn assert_proofs_eq(
     client_proof: &CommitProof,

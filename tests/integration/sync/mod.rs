@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_net::{
-    client::{provider::{BoxedProvider, ProviderFactory}, user::{Origin, UserStorage}},
+    client::{provider::{new_remote_provider, RemoteProvider, StorageProvider}, user::{Origin, UserStorage}},
     sdk::{
         constants::{EVENT_LOG_EXT, VAULT_EXT},
         signer::ecdsa::BoxedEcdsaSigner,
@@ -17,25 +17,23 @@ use crate::test_utils::{
 mod create_remote_data;
 
 pub async fn create_remote_provider(
-    signer: BoxedEcdsaSigner) -> Result<(Origin, BoxedProvider)> {
+    signer: BoxedEcdsaSigner) -> Result<(Origin, RemoteProvider)> {
     // Setup a remote origin
     let server = server();
     let server_public_key = server_public_key()?;
     let origin = Origin {
         name: "origin".to_owned(),
-        url: server.clone(),
+        url: server,
+        public_key: server_public_key,
     };
-
-    // Prepare a provider for the remote service
-    let factory = ProviderFactory::Remote {
-        server,
-        server_public_key,
-    };
-
+    
     let keypair = Keypair::new(PATTERN.parse()?)?;
 
-    let (mut provider, address) =
-        factory.create_provider(signer, keypair).await?;
+    let mut provider = new_remote_provider(
+        &origin,
+        signer,
+        keypair,
+    ).await?;
 
     // Noise protocol handshake
     provider.handshake().await?;
@@ -48,7 +46,7 @@ pub async fn assert_local_remote_eq(
     expected_summaries: Vec<Summary>,
     server_path: &PathBuf,
     owner: &mut UserStorage,
-    provider: &mut BoxedProvider,
+    provider: &mut RemoteProvider,
 ) -> Result<()> {
     // Compare vault buffers
     for summary in expected_summaries {

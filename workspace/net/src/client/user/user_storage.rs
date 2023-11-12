@@ -60,12 +60,14 @@ use super::{file_manager::FileProgress, search_index::UserIndex};
 use crate::client::RemoteSync;
 
 /// Remote origin information.
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Origin {
     /// Name of the origin.
     pub name: String,
     /// URL of the remote server.
     pub url: Url,
+    /// Public key of the remote server.
+    pub public_key: Vec<u8>,
 }
 
 /// Remote synchronization target.
@@ -187,7 +189,7 @@ pub struct UserStorage {
     peer_key: libp2p::identity::Keypair,
 
     /// Remote targets for synchronization.
-    remotes: Remotes,
+    pub(super) remotes: Remotes,
 
     /// Lock to prevent write to local storage
     /// whilst a sync operation is in progress.

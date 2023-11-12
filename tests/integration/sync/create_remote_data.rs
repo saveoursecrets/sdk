@@ -1,9 +1,9 @@
 use anyhow::Result;
 use serial_test::serial;
-use std::path::PathBuf;
+use std::{path::PathBuf, any::Any};
 
 use sos_net::{
-    client::{provider::ProviderFactory, user::Origin},
+    client::{provider::RemoteProvider, user::Origin, RemoteSync},
     sdk::{
         constants::{EVENT_LOG_EXT, VAULT_EXT},
         mpc::{Keypair, PATTERN},
@@ -54,17 +54,29 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     
     // Create the remote provider
     let signer = owner.user().identity().signer().clone();
-    let (_origin, mut provider) = create_remote_provider(signer).await?;
+    let (origin, provider) = create_remote_provider(signer).await?;
+
+    let remote_origin = origin.clone();
+
+    owner.insert_remote(origin, Box::new(provider));
 
     // Sync with a local account that does not exist on
     // the remote which should create the account on the remote
-    provider.sync().await?;
-
+    owner.sync().await?;
+    
+    // Get the remote out of the owner so we can
+    // assert on equality between local and remote
+    let mut provider = owner.delete_remote(&remote_origin).unwrap();
+    let remote_provider = provider
+        .as_any_mut()
+        .downcast_mut::<RemoteProvider>()
+        .expect("to be a remote provider");
+    
     assert_local_remote_eq(
         expected_summaries,
         &server_path,
         &mut owner,
-        &mut provider,
+        remote_provider,
     )
     .await?;
 
