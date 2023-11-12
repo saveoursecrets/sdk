@@ -54,17 +54,9 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     // Noise protocol handshake
     provider.handshake().await?;
 
-    //let remote =
-
-    //let status = provider.status(&default_folder).await?;
-
-    /*
-    // Create a secret in the default folder
-    let (meta, secret) = mock_note("Mock note", "Note value");
-    let (_, _) = owner
-        .create_secret(meta, secret, default_folder.into())
-        .await?;
-    */
+    // Sync with a local account that does not exist on
+    // the remote should create the account on the remote
+    provider.sync().await?;
 
     Ok(())
 }
