@@ -283,7 +283,7 @@ impl UserStorage {
         let (imported_account, events) =
             storage.import_new_account(&new_account).await?;
 
-        let mut owner = UserStorage::sign_in(
+        let owner = UserStorage::sign_in(
             new_account.user.address(),
             passphrase,
             remotes,

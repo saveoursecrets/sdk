@@ -95,12 +95,6 @@ pub use remote_provider::RemoteProvider;
 
 pub use state::ProviderState;
 
-/// Generic boxed provider.
-pub type BoxedProvider = Box<dyn StorageProvider + Send + Sync + 'static>;
-
-/// Provider that can be safely sent between threads.
-pub type ArcProvider = Arc<RwLock<BoxedProvider>>;
-
 /// Spawn a change notification listener that
 /// updates the local node cache.
 #[cfg(not(target_arch = "wasm32"))]
@@ -109,7 +103,7 @@ pub fn spawn_changes_listener(
     server_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
-    cache: ArcProvider,
+    cache: Arc<RwLock<LocalProvider>>,
 ) {
     use crate::client::changes_listener::ChangesListener;
     let listener =
