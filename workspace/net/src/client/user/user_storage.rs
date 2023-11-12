@@ -276,6 +276,12 @@ impl UserStorage {
         let account_builder =
             builder(AccountBuilder::new(account_name, passphrase.clone()));
         let new_account = account_builder.finish().await?;
+    
+        // Must import the new account before signing in
+        let signer = new_account.user.signer().clone();
+        let (mut storage, _) = new_local_provider(signer).await?;
+        let (imported_account, events) =
+            storage.import_new_account(&new_account).await?;
 
         let mut owner = UserStorage::sign_in(
             new_account.user.address(),
@@ -283,9 +289,6 @@ impl UserStorage {
             remotes,
         )
         .await?;
-
-        let (imported_account, events) =
-            owner.storage.import_new_account(&new_account).await?;
 
         let mut audit_events = Vec::new();
         for event in events {
@@ -307,9 +310,9 @@ impl UserStorage {
     pub async fn sign_in(
         address: &Address,
         passphrase: SecretString,
-        //storage: LocalProvider,
         remotes: Option<Remotes>,
     ) -> Result<Self> {
+        
         let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
         let user =
             Login::sign_in(address, passphrase, identity_index).await?;
