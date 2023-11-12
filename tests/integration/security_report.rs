@@ -40,6 +40,7 @@ async fn integration_security_report() -> Result<()> {
         }),
         target: None,
     };
+    
     let report = owner
         .generate_security_report::<bool, _, _>(report_options)
         .await?;

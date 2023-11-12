@@ -210,12 +210,11 @@ impl UserStorage {
         };
 
         
-        let storage = self.storage();
-        let reader = storage.read().await;
-
         for target in targets {
             self.open_vault(&target, false).await?;
             
+            let storage = self.storage();
+            let reader = storage.read().await;
             let keeper = reader.current().unwrap();
             let vault = keeper.vault();
             let mut password_hashes: Vec<(
