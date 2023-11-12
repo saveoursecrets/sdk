@@ -9,20 +9,22 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        provider::{LocalProvider, StorageProvider},
-        user::UserStorage,
+        provider::{LocalProvider, StorageProvider, RemoteProvider, new_remote_provider},
+        user::{Origin, UserStorage},
     },
     sdk::{
         account::ImportedAccount,
         crypto::AccessKey,
         events::{AuditLogFile, WriteEvent},
         hex,
+        signer::ecdsa::BoxedEcdsaSigner,
         passwd::diceware::generate_passphrase,
         vault::{
             secret::{Secret, SecretId, SecretMeta},
             Summary,
         },
         vfs,
+        mpc::{Keypair, PATTERN},
     },
     server::{
         BackendHandler, Server, ServerConfig, ServerInfo, State,
@@ -37,7 +39,31 @@ const SERVER_PUBLIC_KEY: &str = include_str!("../../server_public_key.txt");
 
 mod signup;
 
-pub use signup::{login, signup};
+pub use signup::{login, signup, signup_local};
+
+pub async fn create_remote_provider(
+    signer: BoxedEcdsaSigner,
+) -> Result<(Origin, RemoteProvider)> {
+    // Setup a remote origin
+    let server = server();
+    let server_public_key = server_public_key()?;
+    let origin = Origin {
+        name: "origin".to_owned(),
+        url: server,
+        public_key: server_public_key,
+    };
+
+    let keypair = Keypair::new(PATTERN.parse()?)?;
+
+    let (mut provider, _) =
+        new_remote_provider(&origin, signer, keypair).await?;
+
+    // Noise protocol handshake
+    provider.handshake().await?;
+
+    Ok((origin, provider))
+}
+
 
 /// Read the test server public key.
 pub fn server_public_key() -> Result<Vec<u8>> {

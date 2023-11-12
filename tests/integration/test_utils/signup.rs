@@ -8,7 +8,7 @@ use web3_address::ethereum::Address;
 use sos_net::{
     client::{
         net::RpcClient,
-        provider::{RemoteProvider, StorageProvider},
+        provider::{RemoteProvider, StorageProvider, new_local_provider, LocalProvider},
         RemoteSync,
     },
     sdk::{
@@ -22,7 +22,7 @@ use sos_net::{
     },
 };
 
-use super::{server_public_key, AccountCredentials};
+use super::{server_public_key, AccountCredentials, create_remote_provider};
 
 pub async fn signup(
     dirs: &TestDirs,
@@ -44,7 +44,6 @@ pub async fn signup(
     let server = server();
     let name = None;
     let signer = Box::new(SingleParty::new_random());
-    let keypair = generate_keypair()?;
     let address = signer.address()?;
 
     let (credentials, mut provider) = create_account(
@@ -52,7 +51,6 @@ pub async fn signup(
         destination.to_path_buf(),
         name,
         signer.clone(),
-        keypair,
         data_dir,
     )
     .await?;
@@ -62,11 +60,23 @@ pub async fn signup(
     Ok((address, credentials, provider, signer))
 }
 
+pub async fn signup_local(name: &str) -> Result<(
+    Address,
+    AccountCredentials,
+    LocalProvider,
+    BoxedEcdsaSigner,
+)> {
+    let signer = Box::new(SingleParty::new_random());
+    let address = signer.address()?;
+    let (credentials, mut provider) =
+        create_local_account(name, signer.clone()).await?;
+    Ok((address, credentials, provider, signer))
+}
+
 /// Login to a remote provider account.
 pub async fn login(
     signer: &BoxedEcdsaSigner,
 ) -> Result<RemoteProvider> {
-    use crate::sync::create_remote_provider;
     let (_origin, provider) = create_remote_provider(signer.clone()).await?;
     Ok(provider)
 }
@@ -77,20 +87,20 @@ async fn create_account(
     destination: PathBuf,
     name: Option<String>,
     signer: BoxedEcdsaSigner,
-    keypair: Keypair,
     data_dir: PathBuf,
 ) -> Result<(AccountCredentials, RemoteProvider)> {
     if !vfs::metadata(&destination).await?.is_dir() {
         bail!("not a directory {}", destination.display());
     }
 
-    use crate::sync::create_remote_provider;
-
     let address = signer.address()?;
     let (origin, mut provider) = create_remote_provider(signer).await?;
+
+    let local_provider = provider.local();
+    let mut local_writer = local_provider.write().await;
     
     let (_, encryption_passphrase, summary) =
-        provider.local_mut().create_account(name, None).await?;
+        local_writer.create_account(name, None).await?;
 
     let account = AccountCredentials {
         encryption_passphrase,
@@ -98,5 +108,22 @@ async fn create_account(
         summary,
     };
 
+    Ok((account, provider))
+}
+
+/// Create a new account and local provider.
+async fn create_local_account(
+    name: &str,
+    signer: BoxedEcdsaSigner,
+) -> Result<(AccountCredentials, LocalProvider)> {
+    let address = signer.address()?;
+    let (mut provider, _) = new_local_provider(signer).await?;
+    let (_, encryption_passphrase, summary) =
+        provider.create_account(Some(name.to_owned()), None).await?;
+    let account = AccountCredentials {
+        encryption_passphrase,
+        address,
+        summary,
+    };
     Ok((account, provider))
 }

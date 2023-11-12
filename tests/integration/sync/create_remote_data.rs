@@ -15,9 +15,10 @@ use sos_net::{
 
 use crate::test_utils::{
     create_local_account, setup, spawn,
+    create_remote_provider,
 };
 
-use super::{assert_local_remote_eq, create_remote_provider};
+use super::{assert_local_remote_eq};
 
 /// Tests creating all the account data on a remote
 /// when the server does not have the account data yet.

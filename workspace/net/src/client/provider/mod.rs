@@ -56,7 +56,7 @@ pub async fn new_remote_provider(
         signer,
         keypair,
     )?;
-    Ok((RemoteProvider::new(local, client), address))
+    Ok((RemoteProvider::new(Arc::new(RwLock::new(local)), client), address))
 }
 
 /// Create a new local provider.

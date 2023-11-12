@@ -18,29 +18,6 @@ use crate::test_utils::{server, server_public_key};
 
 mod create_remote_data;
 
-pub async fn create_remote_provider(
-    signer: BoxedEcdsaSigner,
-) -> Result<(Origin, RemoteProvider)> {
-    // Setup a remote origin
-    let server = server();
-    let server_public_key = server_public_key()?;
-    let origin = Origin {
-        name: "origin".to_owned(),
-        url: server,
-        public_key: server_public_key,
-    };
-
-    let keypair = Keypair::new(PATTERN.parse()?)?;
-
-    let (mut provider, _) =
-        new_remote_provider(&origin, signer, keypair).await?;
-
-    // Noise protocol handshake
-    provider.handshake().await?;
-
-    Ok((origin, provider))
-}
-
 /// Assert that local and remote storage are equal.
 pub async fn assert_local_remote_eq(
     expected_summaries: Vec<Summary>,

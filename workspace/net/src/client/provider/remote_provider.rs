@@ -42,7 +42,7 @@ use crate::{
 /// Bridge between a local provider and a remote.
 pub struct RemoteProvider {
     /// Local provider.
-    local: LocalProvider,
+    local: Arc<RwLock<LocalProvider>>,
     /// Client to use for remote communication.
     remote: RpcClient,
 }
@@ -50,7 +50,7 @@ pub struct RemoteProvider {
 impl RemoteProvider {
     /// Create a new remote provider.
     pub fn new(
-        local: LocalProvider,
+        local: Arc<RwLock<LocalProvider>>,
         remote: RpcClient,
     ) -> RemoteProvider {
         Self {
@@ -60,13 +60,8 @@ impl RemoteProvider {
     }
 
     /// Local provider.
-    pub fn local(&self) -> &LocalProvider {
-        &self.local
-    }
-    
-    /// Mutable local provider.
-    pub fn local_mut(&mut self) -> &mut LocalProvider {
-        &mut self.local
+    pub fn local(&self) -> Arc<RwLock<LocalProvider>> {
+        Arc::clone(&self.local)
     }
 }
 
@@ -471,31 +466,40 @@ impl RemoteProvider {
 
     /// Create an account on the remote.
     async fn sync_create_remote_account(&mut self) -> Result<()> {
-        let default_folder = self
-            .local
-            .state()
-            .find(|s| s.flags().is_default())
-            .ok_or(Error::NoDefaultFolder)?;
 
-        let folder_path = self.local.vault_path(&default_folder);
-        let folder_buffer = vfs::read(folder_path).await?;
+        let folder_buffer = {
+            let local = self.local.read().await;
+            let default_folder = local
+                .state()
+                .find(|s| s.flags().is_default())
+                .ok_or(Error::NoDefaultFolder)?.clone();
+
+            let folder_path = local.vault_path(&default_folder);
+            vfs::read(folder_path).await?
+        };
 
         // Create the account and default folder on the remote
         self.create_account(folder_buffer).await?;
 
         // Import other folders into the remote
-        let other_folders: Vec<Summary> = self
-            .local
-            .state()
-            .summaries()
-            .into_iter()
-            .filter(|s| !s.flags().is_default())
-            .map(|s| s.clone())
-            .collect();
+        let other_folders: Vec<Summary> = {
+            let local = self.local.read().await;
+            local
+                .state()
+                .summaries()
+                .into_iter()
+                .filter(|s| !s.flags().is_default())
+                .map(|s| s.clone())
+                .collect()
+        };
 
         for folder in other_folders {
-            let folder_path = self.local.vault_path(&folder);
-            let folder_buffer = vfs::read(folder_path).await?;
+            let folder_buffer = {
+                let local = self.local.read().await;
+                let folder_path = local.vault_path(&folder);
+                vfs::read(folder_path).await?
+            };
+
             self.import_vault(folder_buffer).await?;
         }
 
@@ -511,7 +515,10 @@ impl RemoteSync for RemoteProvider {
 
     async fn sync(&mut self) -> Result<()> {
         // Ensure our folder state is the latest version on disc
-        self.local.load_vaults().await?;
+        {
+            let mut local = self.local.write().await;
+            local.load_vaults().await?;
+        }
 
         let account_status = self.account_status().await?;
         if !account_status.exists {

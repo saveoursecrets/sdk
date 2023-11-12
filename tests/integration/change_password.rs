@@ -24,15 +24,9 @@ use sos_net::{
 #[tokio::test]
 #[serial]
 async fn integration_change_password() -> Result<()> {
-    let dirs = setup(1).await?;
+    let (address, credentials, mut provider, signer) = 
+        signup_local("change_password").await?;
 
-    let (rx, _handle) = spawn()?;
-    let _ = rx.await?;
-
-    let server_url = server();
-
-    let (address, credentials, mut provider, signer) =
-        signup(&dirs, 0).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,
@@ -41,15 +35,14 @@ async fn integration_change_password() -> Result<()> {
 
     // Use the new vault
     provider
-        .local_mut()
         .open_vault(&summary, encryption_passphrase.clone().into(), None)
         .await?;
 
     // Create some secrets
-    let _notes = create_secrets(provider.local_mut(), &summary).await?;
+    let _notes = create_secrets(&mut provider, &summary).await?;
 
     // Check our new list of secrets has the right length
-    let keeper = provider.local().current().unwrap();
+    let keeper = provider.current().unwrap();
 
     let index = keeper.index();
     let index_reader = index.read().await;
@@ -57,13 +50,12 @@ async fn integration_change_password() -> Result<()> {
     assert_eq!(3, meta.len());
     drop(index_reader);
 
-    let keeper = provider.local_mut().current_mut().unwrap();
+    let keeper = provider.current_mut().unwrap();
     let (new_passphrase, _) = generate_passphrase()?;
 
     let vault = keeper.vault().clone();
 
     provider
-        .local_mut()
         .change_password(
             &vault,
             encryption_passphrase.into(),
@@ -72,7 +64,7 @@ async fn integration_change_password() -> Result<()> {
         .await?;
 
     // Close the vault
-    provider.local_mut().close_vault();
+    provider.close_vault();
 
     Ok(())
 }
