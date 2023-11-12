@@ -9,15 +9,17 @@
 //! passphrase.
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 
-use std::sync::Arc;
+use std::{sync::Arc, collections::HashMap};
 use tokio::sync::RwLock;
 
 use std::path::Path;
 
 use urn::Urn;
 use web3_address::ethereum::Address;
+use serde::{Serialize, Deserialize};
 
 use crate::{
+    commit::CommitProof,
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     crypto::KeyDerivation,
     decode,
@@ -28,12 +30,25 @@ use crate::{
     },
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
-        Gatekeeper, Vault, VaultBuilder, VaultFlags,
+        Gatekeeper, Vault, VaultBuilder, VaultFlags, VaultId,
     },
     vfs, Error, Result,
 };
 
 use crate::vault::VaultWriter;
+
+/// Provides a status overview of an account.
+///
+/// Intended to be used during a synchronization protocol.
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AccountStatus {
+    /// Indicates whether the account exists.
+    pub exists: bool,
+    /// Commit proofs for the account vaults.
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub proofs: HashMap<VaultId, CommitProof>,
+}
 
 /// User identity containing the account signing keys.
 ///

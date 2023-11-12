@@ -2,9 +2,10 @@
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use sos_sdk::{
+    account::AccountStatus,
     commit::CommitProof,
     constants::{
-        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, EVENT_LOG_LOAD, EVENT_LOG_PATCH,
+        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_LOAD, EVENT_LOG_PATCH,
         EVENT_LOG_SAVE, EVENT_LOG_STATUS, HANDSHAKE_INITIATE, VAULT_CREATE,
         VAULT_DELETE, VAULT_SAVE,
     },
@@ -189,6 +190,35 @@ impl RpcClient {
         *writer = Some(ProtocolState::Transport(transport));
 
         Ok(())
+    }
+    
+    /// Get the account status.
+    pub async fn account_status(
+        &self,
+    ) -> Result<MaybeRetry<Option<AccountStatus>>> {
+        let url = self.server.join("api/account")?;
+
+        let id = self.next_id().await;
+        let request = RequestMessage::new_call(
+            Some(id),
+            ACCOUNT_STATUS,
+            (),
+        )?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
+        let signature =
+            encode_signature(self.signer.sign(&body).await?).await?;
+
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
+        let maybe_retry = self
+            .read_encrypted_response::<AccountStatus>(
+                response.status(),
+                &response.bytes().await?,
+            )
+            .await?;
+
+        maybe_retry.map(|result, _| Ok(result.ok()))
     }
 
     /// Create a new account.
@@ -595,6 +625,7 @@ impl<T> RetryResponse<T> {
 }
 
 /// Enumeration for a mapped result that may be retried
+#[derive(Debug)]
 pub enum MaybeRetry<T> {
     /// Indicates the previous request should be retried.
     Retry(StatusCode),

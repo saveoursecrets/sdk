@@ -10,7 +10,7 @@ use std::{
 };
 
 use sos_sdk::{
-    account::{ImportedAccount, NewAccount},
+    account::{ImportedAccount, NewAccount, AccountStatus},
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
@@ -293,6 +293,9 @@ pub trait StorageProvider: RemoteSync + Sync + Send {
         }
         Ok(())
     }
+
+    /// Get the account status.
+    async fn account_status(&mut self) -> Result<AccountStatus>;
 
     /// Create a new account and default login vault.
     async fn create_account(

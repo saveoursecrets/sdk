@@ -1,7 +1,9 @@
 use axum::http::StatusCode;
+use std::collections::HashMap;
 
 use sos_sdk::{
-    constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS},
+    account::AccountStatus,
+    constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
     events::{AuditEvent, ChangeEvent, ChangeNotification, Event, EventKind},
     rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
@@ -33,6 +35,43 @@ impl Service for AccountService {
         let mut writer = state.write().await;
 
         match request.method() {
+            ACCOUNT_STATUS => {
+                let account_exists = writer
+                    .backend
+                    .handler()
+                    .account_exists(caller.address())
+                    .await
+                    .map_err(Box::from)?;
+
+                let result: AccountStatus = if account_exists {
+                    let summaries = writer
+                        .backend
+                        .handler()
+                        .list(caller.address())
+                        .await
+                        .map_err(Box::from)?;
+
+                    let mut proofs = HashMap::new();
+                    for summary in summaries {
+                        let event_log = writer
+                            .backend
+                            .event_log_read(caller.address(), summary.id())
+                            .await
+                            .map_err(Box::from)?;
+
+                        let proof = event_log.tree().head()?;
+                        proofs.insert(*summary.id(), proof);
+                    }
+                    AccountStatus { exists: true, proofs }
+                } else {
+                    Default::default()
+                };
+
+                let reply: ResponseMessage<'_> =
+                    (request.id(), result).try_into()?;
+
+                Ok(reply)
+            }
             ACCOUNT_CREATE => {
                 if writer
                     .backend

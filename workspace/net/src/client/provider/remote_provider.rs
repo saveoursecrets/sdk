@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 
 use sos_sdk::{
+    account::AccountStatus,
     commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
     crypto::AccessKey,
     decode, encode,
@@ -219,6 +220,12 @@ impl StorageProvider for RemoteProvider {
 
     async fn handshake(&mut self) -> Result<()> {
         Ok(self.client.handshake().await?)
+    }
+
+    async fn account_status(&mut self) -> Result<AccountStatus> {
+        let (_, status) =
+            retry!(|| self.client.account_status(), self.client);
+        status.ok_or(Error::NoAccountStatus)
     }
 
     async fn load_vaults(&mut self) -> Result<&[Summary]> {
@@ -463,6 +470,8 @@ impl StorageProvider for RemoteProvider {
 #[async_trait]
 impl RemoteSync for RemoteProvider {
     async fn sync(&mut self) -> Result<()> {
+        let account_status = self.account_status().await?;
+        println!("Account status {:#?}", account_status);
         todo!();
     }
 

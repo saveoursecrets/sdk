@@ -156,6 +156,10 @@ pub enum Error {
     #[error(r#"secret "{0}" not found"#)]
     SecretNotFound(SecretId),
 
+    /// Error generated when account status could not be retrieved.
+    #[error("could not fetch account status")]
+    NoAccountStatus,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

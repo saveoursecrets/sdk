@@ -4,6 +4,7 @@ use super::{Error, Result};
 use async_trait::async_trait;
 
 use sos_sdk::{
+    account::AccountStatus,
     commit::{
         CommitPair, CommitRelationship, CommitTree, SyncInfo, SyncKind,
     },
@@ -132,6 +133,22 @@ impl StorageProvider for LocalProvider {
         buffer: Vec<u8>,
     ) -> Result<(WriteEvent<'static>, Summary)> {
         self.create_account_from_buffer(buffer).await
+    }
+
+    async fn account_status(&mut self) -> Result<AccountStatus> {
+        let summaries = self.state.summaries();
+        let mut proofs = HashMap::new();
+        for summary in summaries {
+            let (event_log, _) = self
+                .cache
+                .get(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            proofs.insert(*summary.id(), event_log.tree().head()?);
+        }
+        Ok(AccountStatus {
+            exists: true,
+            proofs,
+        })
     }
 
     async fn create_account_from_buffer(
