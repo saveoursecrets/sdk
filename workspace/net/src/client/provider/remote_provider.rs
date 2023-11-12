@@ -1,5 +1,4 @@
-//! Wrapper for the RPC client that handles authentication
-//! and retries when an unauthorized response is returned.
+//! Bridge between a local provider and a remote server.
 use super::{Error, Result};
 use crate::client::net::{MaybeRetry, RpcClient};
 
@@ -34,61 +33,44 @@ use uuid::Uuid;
 
 use crate::{
     client::{
-        provider::{sync, ProviderState, StorageProvider},
+        provider::{sync, ProviderState, StorageProvider, LocalProvider},
         RemoteSync,
     },
     patch, provider_impl, retry,
 };
 
-/// Local data cache for a node.
-///
-/// May be backed by files on disc or in-memory implementations
-/// for use in webassembly.
+/// Bridge between a local provider and a remote.
 pub struct RemoteProvider {
-    /// State of this node.
-    state: ProviderState,
-
-    /// Directories for file storage.
-    paths: UserPaths,
-
-    /// Data for the cache.
-    cache: HashMap<Uuid, (EventLogFile, PatchFile)>,
-
+    /// Local provider.
+    local: LocalProvider,
     /// Client to use for remote communication.
-    client: RpcClient,
-
-    /// Audit log for this provider.
-    audit_log: Arc<RwLock<AuditLogFile>>,
+    remote: RpcClient,
 }
 
 impl RemoteProvider {
-    /// Create new node cache backed by files on disc.
-    pub async fn new(
-        client: RpcClient,
-        paths: UserPaths,
-    ) -> Result<RemoteProvider> {
-        if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
-            return Err(Error::NotDirectory(
-                paths.documents_dir().to_path_buf(),
-            ));
+    /// Create a new remote provider.
+    pub fn new(
+        local: LocalProvider,
+        remote: RpcClient,
+    ) -> RemoteProvider {
+        Self {
+            local,
+            remote,
         }
+    }
 
-        paths.ensure().await?;
-
-        let audit_log = Arc::new(RwLock::new(
-            AuditLogFile::new(paths.audit_file()).await?,
-        ));
-
-        Ok(Self {
-            state: ProviderState::new(true),
-            cache: Default::default(),
-            client,
-            paths,
-            audit_log,
-        })
+    /// Local provider.
+    pub fn local(&self) -> &LocalProvider {
+        &self.local
+    }
+    
+    /// Mutable local provider.
+    pub fn local_mut(&mut self) -> &mut LocalProvider {
+        &mut self.local
     }
 }
 
+/*
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl StorageProvider for RemoteProvider {
@@ -232,45 +214,6 @@ impl StorageProvider for RemoteProvider {
             retry!(|| self.client.account_status(), self.client);
         status.ok_or(Error::NoAccountStatus)
     }
-
-    /*
-    async fn load_vaults(&mut self) -> Result<&[Summary]> {
-        let (_, summaries) =
-            retry!(|| self.client.list_vaults(), self.client);
-
-        self.load_caches(&summaries).await?;
-
-        // Find empty event logs which need to pull from remote
-        let mut needs_pull = Vec::new();
-        for summary in &summaries {
-            let (event_log_file, _) = self
-                .cache
-                .get(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            let length = event_log_file.tree().len();
-
-            // Got an empty tree which can happen if an
-            // existing user signs in with a new cache directory
-            // we need to fetch the entire event log from remote
-            if length == 0 {
-                needs_pull.push(summary.clone());
-            }
-        }
-
-        self.state.set_summaries(summaries);
-
-        for summary in needs_pull {
-            let (event_log_file, _) = self
-                .cache
-                .get_mut(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            sync::pull_event_log(&mut self.client, &summary, event_log_file)
-                .await?;
-        }
-
-        Ok(self.vaults())
-    }
-    */
 
     async fn patch(
         &mut self,
@@ -473,25 +416,77 @@ impl StorageProvider for RemoteProvider {
         Ok((meta, secret, event))
     }
 }
+*/
 
 /// Sync helper functions.
 impl RemoteProvider {
+    
+    /// Perform the noise protocol handshake.
+    pub async fn handshake(&mut self) -> Result<()> {
+        Ok(self.remote.handshake().await?)
+    }
+
+    /// Get account status from remote.
+    pub async fn account_status(&mut self) -> Result<AccountStatus> {
+        let (_, status) =
+            retry!(|| self.remote.account_status(), self.remote);
+        status.ok_or(Error::NoAccountStatus)
+    }
+    
+    /// Create an account on the remote.
+    async fn create_account(
+        &mut self,
+        buffer: Vec<u8>,
+    ) -> Result<()> {
+        let vault: Vault = decode(&buffer).await?;
+        let summary = vault.summary().clone();
+        let (status, _) = retry!(
+            || self.remote.create_account(buffer.clone()),
+            self.remote
+        );
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+
+        Ok(())
+    }
+    
+    /// Import a vault into an account that already exists on the remote.
+    async fn import_vault(
+        &mut self,
+        buffer: Vec<u8>,
+    ) -> Result<()> {
+        let vault: Vault = decode(&buffer).await?;
+        let summary = vault.summary().clone();
+        let (status, _) =
+            retry!(|| self.remote.create_vault(buffer.clone()), self.remote);
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+        Ok(())
+    }
+
     /// Create an account on the remote.
     async fn sync_create_remote_account(&mut self) -> Result<()> {
         let default_folder = self
-            .state
+            .local
+            .state()
             .find(|s| s.flags().is_default())
             .ok_or(Error::NoDefaultFolder)?;
 
-        let folder_path = self.vault_path(&default_folder);
+        let folder_path = self.local.vault_path(&default_folder);
         let folder_buffer = vfs::read(folder_path).await?;
 
         // Create the account and default folder on the remote
-        self.create_account_from_buffer(folder_buffer).await?;
+        self.create_account(folder_buffer).await?;
 
         // Import other folders into the remote
         let other_folders: Vec<Summary> = self
-            .state
+            .local
+            .state()
             .summaries()
             .into_iter()
             .filter(|s| !s.flags().is_default())
@@ -499,7 +494,7 @@ impl RemoteProvider {
             .collect();
 
         for folder in other_folders {
-            let folder_path = self.vault_path(&folder);
+            let folder_path = self.local.vault_path(&folder);
             let folder_buffer = vfs::read(folder_path).await?;
             self.import_vault(folder_buffer).await?;
         }
@@ -512,9 +507,11 @@ impl RemoteProvider {
 
 #[async_trait]
 impl RemoteSync for RemoteProvider {
+
+
     async fn sync(&mut self) -> Result<()> {
         // Ensure our folder state is the latest version on disc
-        self.load_vaults().await?;
+        self.local.load_vaults().await?;
 
         let account_status = self.account_status().await?;
         if !account_status.exists {

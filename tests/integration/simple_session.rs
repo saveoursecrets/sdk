@@ -38,7 +38,7 @@ async fn integration_simple_session() -> Result<()> {
 
     let server_url = server();
 
-    let (address, credentials, mut node_cache, signer) =
+    let (address, credentials, mut provider, signer) =
         signup(&dirs, 0).await?;
     let AccountCredentials { summary, .. } = credentials;
     let login_vault_id = *summary.id();
@@ -80,7 +80,7 @@ async fn integration_simple_session() -> Result<()> {
 
     let _ = AppPaths::data_dir()?;
 
-    //assert_eq!(address, node_cache.address()?);
+    //assert_eq!(address, provider.address()?);
 
     // Check the /api route
     let server_info = RpcClient::server_info(server_url.clone()).await?;
@@ -91,14 +91,14 @@ async fn integration_simple_session() -> Result<()> {
 
     // Create a new vault
     let new_vault_name = String::from("My Vault");
-    let (_, new_passphrase, _) = node_cache
+    let (_, new_passphrase, _) = provider
         .create_vault(new_vault_name.clone(), None)
         .await?;
 
     // Check our new vault is found in the local cache
     let vault_ref = VaultRef::Name(new_vault_name.clone());
     let new_vault_summary =
-        node_cache.state().find_vault(&vault_ref).unwrap().clone();
+        provider.state().find_vault(&vault_ref).unwrap().clone();
     assert_eq!(&new_vault_name, new_vault_summary.name());
 
     // Need this for some assertions later
@@ -107,51 +107,51 @@ async fn integration_simple_session() -> Result<()> {
     // Trigger code path for finding by id
     let id_ref = VaultRef::Id(*new_vault_summary.id());
     let new_vault_summary_by_id =
-        node_cache.state().find_vault(&id_ref).unwrap().clone();
+        provider.state().find_vault(&id_ref).unwrap().clone();
     assert_eq!(new_vault_summary_by_id, new_vault_summary);
 
     // Load vaults list
-    let cached_vaults = node_cache.vaults().to_vec();
-    let vaults = node_cache.load_vaults().await?;
+    let cached_vaults = provider.vaults().to_vec();
+    let vaults = provider.load_vaults().await?;
     assert_eq!(2, vaults.len());
     assert_eq!(&cached_vaults, &vaults);
 
     // Remove the default vault
     let default_ref = VaultRef::Name(DEFAULT_VAULT_NAME.to_owned());
     let default_vault_summary =
-        node_cache.state().find_vault(&default_ref).unwrap().clone();
-    node_cache.remove_vault(&default_vault_summary).await?;
-    let vaults = node_cache.load_vaults().await?;
+        provider.state().find_vault(&default_ref).unwrap().clone();
+    provider.remove_vault(&default_vault_summary).await?;
+    let vaults = provider.load_vaults().await?;
     assert_eq!(1, vaults.len());
-    assert_eq!(1, node_cache.vaults().len());
+    assert_eq!(1, provider.vaults().len());
 
     // Use the new vault
-    node_cache
+    provider
         .open_vault(&new_vault_summary, new_passphrase, None)
         .await?;
 
     // Create some secrets
-    let notes = create_secrets(&mut node_cache, &new_vault_summary).await?;
+    let notes = create_secrets(&mut provider, &new_vault_summary).await?;
 
     // Ensure we have a commit tree
-    assert!(node_cache.commit_tree(&new_vault_summary).is_some());
+    assert!(provider.commit_tree(&new_vault_summary).is_some());
 
     // Check the event log history has the right length
-    let history = node_cache.history(&new_vault_summary).await?;
+    let history = provider.history(&new_vault_summary).await?;
     assert_eq!(4, history.len());
 
     // Check the vault status
-    let (status, _) = node_cache.status(&new_vault_summary).await?;
+    let (status, _) = provider.status(&new_vault_summary).await?;
     let equals = matches!(status, CommitRelationship::Equal(_));
     assert!(equals);
 
     // Delete a secret
     let delete_secret_id = notes.get(0).unwrap().0;
-    delete_secret(&mut node_cache, &new_vault_summary, &delete_secret_id)
+    delete_secret(&mut provider, &new_vault_summary, &delete_secret_id)
         .await?;
 
     // Check our new list of secrets has the right length
-    let keeper = node_cache.current().unwrap();
+    let keeper = provider.current().unwrap();
     let index = keeper.index();
     let index_reader = index.read().await;
     let meta = index_reader.values();
@@ -159,25 +159,25 @@ async fn integration_simple_session() -> Result<()> {
     drop(index_reader);
 
     // Set the vault name
-    node_cache
+    provider
         .set_vault_name(&new_vault_summary, DEFAULT_VAULT_NAME)
         .await?;
 
     // Try to pull whilst up to date
-    let _ = node_cache.pull(&new_vault_summary, false).await?;
+    let _ = provider.pull(&new_vault_summary, false).await?;
     // Now force a pull
-    let _ = node_cache.pull(&new_vault_summary, true).await?;
+    let _ = provider.pull(&new_vault_summary, true).await?;
 
     // Try to push whilst up to date
-    let _ = node_cache.push(&new_vault_summary, false).await?;
+    let _ = provider.push(&new_vault_summary, false).await?;
     // Now force a push
-    let _ = node_cache.push(&new_vault_summary, true).await?;
+    let _ = provider.push(&new_vault_summary, true).await?;
 
     // Verify local event log ingegrity
-    node_cache.verify(&new_vault_summary).await?;
+    provider.verify(&new_vault_summary).await?;
 
     // Close the vault
-    node_cache.close_vault();
+    provider.close_vault();
 
     /* CHANGE NOTIFICATIONS */
 

@@ -9,7 +9,7 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        provider::{RemoteProvider, StorageProvider},
+        provider::{LocalProvider, StorageProvider},
         user::UserStorage,
     },
     sdk::{
@@ -226,7 +226,7 @@ pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
 }
 
 pub async fn create_secrets(
-    provider: &mut RemoteProvider,
+    provider: &mut LocalProvider,
     summary: &Summary,
 ) -> Result<Vec<(SecretId, &'static str)>> {
     let notes = vec![
@@ -267,7 +267,7 @@ pub async fn create_secrets(
 }
 
 pub async fn delete_secret(
-    provider: &mut RemoteProvider,
+    provider: &mut LocalProvider,
     summary: &Summary,
     id: &SecretId,
 ) -> Result<()> {
