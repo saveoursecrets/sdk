@@ -21,9 +21,6 @@ use crate::client::{provider::LocalProvider, user::Origin};
 
 use std::{path::PathBuf, str::FromStr};
 
-/// Provider that can be safely sent between threads.
-pub type ArcProvider = Arc<RwLock<BoxedProvider>>;
-
 /// Factory for creating providers.
 #[deprecated]
 #[derive(Debug, Clone)]
