@@ -9,6 +9,7 @@ use sos_net::{
     client::{
         net::RpcClient,
         provider::{RemoteProvider, StorageProvider},
+        RemoteSync,
     },
     sdk::{
         mpc::{generate_keypair, Keypair},
@@ -56,7 +57,8 @@ pub async fn signup(
     )
     .await?;
 
-    let _ = provider.local_mut().load_vaults().await?;
+    provider.sync().await?;
+
     Ok((address, credentials, provider, signer))
 }
 
