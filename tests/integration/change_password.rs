@@ -24,8 +24,7 @@ use sos_net::{
 #[tokio::test]
 #[serial]
 async fn integration_change_password() -> Result<()> {
-    let (address, credentials, mut provider, signer) = 
-        signup_local("change_password").await?;
+    let (address, credentials, mut provider, signer) = signup_local(None).await?;
 
     let AccountCredentials {
         summary,

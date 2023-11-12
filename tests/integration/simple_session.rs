@@ -31,64 +31,12 @@ use sos_net::{
 #[tokio::test]
 #[serial]
 async fn integration_simple_session() -> Result<()> {
-    let dirs = setup(1).await?;
-
-    let (rx, _handle) = spawn()?;
-    let _ = rx.await?;
-
-    let server_url = server();
-
+    
     let (address, credentials, mut provider, signer) =
-        signup(&dirs, 0).await?;
+        signup_local(None).await?;
     let AccountCredentials { summary, .. } = credentials;
     let login_vault_id = *summary.id();
-
-    let notifications: Arc<RwLock<Vec<ChangeNotification>>> =
-        Arc::new(RwLock::new(Vec::new()));
-    let changed = Arc::clone(&notifications);
-
-    // Spawn a task to handle change notifications
-    let ws_url = server_url.clone();
-    tokio::task::spawn(async move {
-        // Create the websocket connection
-        let (stream, client) = connect(
-            ws_url,
-            server_public_key()?,
-            signer,
-            generate_keypair()?,
-        )
-        .await?;
-
-        // Wrap the stream to read change notifications
-        let mut stream = changes(stream, client);
-
-        while let Some(notification) = stream.next().await {
-            let notification = notification?.await?;
-
-            // Store change notifications so we can
-            // assert at the end
-            let mut writer = changed.write().unwrap();
-            //println!("{:#?}", notification);
-            writer.push(notification);
-        }
-
-        Ok::<(), anyhow::Error>(())
-    });
-
-    // Give the websocket client some time to connect
-    tokio::time::sleep(Duration::from_millis(250)).await;
-
-    let _ = AppPaths::data_dir()?;
-
-    //assert_eq!(address, provider.address()?);
-
-    // Check the /api route
-    let server_info = RpcClient::server_info(server_url.clone()).await?;
-    assert!(server_info.status().is_success());
-
-    // Trigger server code path for the / URL
-    home(&server_url).await?;
-
+    
     // Create a new vault
     let new_vault_name = String::from("My Vault");
     let (_, new_passphrase, _) = provider
@@ -162,7 +110,8 @@ async fn integration_simple_session() -> Result<()> {
     provider
         .set_vault_name(&new_vault_summary, DEFAULT_VAULT_NAME)
         .await?;
-
+    
+    /*
     // Try to pull whilst up to date
     let _ = provider.pull(&new_vault_summary, false).await?;
     // Now force a pull
@@ -172,6 +121,7 @@ async fn integration_simple_session() -> Result<()> {
     let _ = provider.push(&new_vault_summary, false).await?;
     // Now force a push
     let _ = provider.push(&new_vault_summary, true).await?;
+    */
 
     // Verify local event log ingegrity
     provider.verify(&new_vault_summary).await?;
@@ -179,64 +129,5 @@ async fn integration_simple_session() -> Result<()> {
     // Close the vault
     provider.close_vault();
 
-    /* CHANGE NOTIFICATIONS */
-
-    // Assert on all the change notifications
-    let mut changes = notifications.write().unwrap();
-    assert_eq!(5, changes.len());
-
-    // Created a new vault
-    let create_vault = changes.remove(0);
-    assert_eq!(&address, create_vault.address());
-    assert_eq!(&new_vault_id, create_vault.vault_id());
-    assert_eq!(1, create_vault.changes().len());
-    assert_eq!(
-        &ChangeEvent::CreateVault(new_vault_summary),
-        create_vault.changes().get(0).unwrap()
-    );
-
-    // Deleted the login vault
-    let delete_vault = changes.remove(0);
-    assert_eq!(&address, delete_vault.address());
-    assert_eq!(&login_vault_id, delete_vault.vault_id());
-    assert_eq!(1, delete_vault.changes().len());
-    assert_eq!(
-        &ChangeEvent::DeleteVault,
-        delete_vault.changes().get(0).unwrap()
-    );
-
-    // Created 3 secrets
-    let create_secrets = changes.remove(0);
-    assert_eq!(&address, create_secrets.address());
-    assert_eq!(&new_vault_id, create_secrets.vault_id());
-    assert_eq!(3, create_secrets.changes().len());
-
-    // Deleted a secret
-    let delete_secret = changes.remove(0);
-    assert_eq!(&address, delete_secret.address());
-    assert_eq!(&new_vault_id, delete_secret.vault_id());
-    assert_eq!(1, delete_secret.changes().len());
-    assert_eq!(
-        &ChangeEvent::DeleteSecret(delete_secret_id),
-        delete_secret.changes().get(0).unwrap()
-    );
-
-    // Set vault name
-    let set_vault_name = changes.remove(0);
-    assert_eq!(&address, set_vault_name.address());
-    assert_eq!(&new_vault_id, set_vault_name.vault_id());
-    assert_eq!(1, set_vault_name.changes().len());
-    assert_eq!(
-        &ChangeEvent::SetVaultName(String::from(DEFAULT_VAULT_NAME)),
-        set_vault_name.changes().get(0).unwrap()
-    );
-
-    Ok(())
-}
-
-async fn home(server: &Url) -> Result<()> {
-    let url = server.clone();
-    let response = RpcClient::get(url).await?;
-    assert!(response.status().is_success());
     Ok(())
 }

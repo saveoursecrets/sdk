@@ -690,7 +690,7 @@ pub trait StorageProvider: RemoteSync + Sync + Send {
         Ok(new_key)
     }
 
-    /// Verify a event log log.
+    /// Verify an event log.
     async fn verify(&self, summary: &Summary) -> Result<()> {
         use sos_sdk::commit::event_log_commit_tree_file;
         let event_log_path = self.event_log_path(summary);

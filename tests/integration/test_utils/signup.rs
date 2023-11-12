@@ -60,7 +60,7 @@ pub async fn signup(
     Ok((address, credentials, provider, signer))
 }
 
-pub async fn signup_local(name: &str) -> Result<(
+pub async fn signup_local(default_folder_name: Option<String>) -> Result<(
     Address,
     AccountCredentials,
     LocalProvider,
@@ -68,8 +68,8 @@ pub async fn signup_local(name: &str) -> Result<(
 )> {
     let signer = Box::new(SingleParty::new_random());
     let address = signer.address()?;
-    let (credentials, mut provider) =
-        create_local_account(name, signer.clone()).await?;
+    let (credentials, provider) =
+        create_local_account(default_folder_name, signer.clone()).await?;
     Ok((address, credentials, provider, signer))
 }
 
@@ -94,7 +94,7 @@ async fn create_account(
     }
 
     let address = signer.address()?;
-    let (origin, mut provider) = create_remote_provider(signer).await?;
+    let (origin, provider) = create_remote_provider(signer).await?;
 
     let local_provider = provider.local();
     let mut local_writer = local_provider.write().await;
@@ -113,13 +113,13 @@ async fn create_account(
 
 /// Create a new account and local provider.
 async fn create_local_account(
-    name: &str,
+    default_folder_name: Option<String>,
     signer: BoxedEcdsaSigner,
 ) -> Result<(AccountCredentials, LocalProvider)> {
     let address = signer.address()?;
     let (mut provider, _) = new_local_provider(signer).await?;
     let (_, encryption_passphrase, summary) =
-        provider.create_account(Some(name.to_owned()), None).await?;
+        provider.create_account(default_folder_name, None).await?;
     let account = AccountCredentials {
         encryption_passphrase,
         address,

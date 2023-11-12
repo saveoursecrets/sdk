@@ -240,7 +240,7 @@ impl UserStorage {
         &mut self.storage
     }
 
-    /// Insert a remote origin for synchonrization.
+    /// Insert a remote origin for synchronization.
     ///
     /// If a remote with the given origin already exists it is
     /// overwritten.

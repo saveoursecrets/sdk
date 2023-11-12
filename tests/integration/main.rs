@@ -35,10 +35,13 @@ mod local_provider;
 //mod patch_conflict_resolve;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod rpc_client_basic;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod security_report;
 
-//#[cfg(not(target_arch = "wasm32"))]
-//mod simple_session;
+#[cfg(not(target_arch = "wasm32"))]
+mod simple_session;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod sync;
