@@ -2,7 +2,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use sos_net::{
-    client::{provider::ProviderFactory, user::UserStorage},
+    client::{provider::StorageProvider, user::UserStorage},
     sdk::{
         account::{AccountInfo, AccountRef, LocalAccounts},
         constants::DEFAULT_VAULT_NAME,
@@ -62,7 +62,6 @@ pub async fn choose_account() -> Result<Option<AccountInfo>> {
 /// the user must sign in to the target account.
 pub async fn resolve_user(
     account: Option<&AccountRef>,
-    factory: ProviderFactory,
     build_search_index: bool,
 ) -> Result<Owner> {
     let account = resolve_account(account)
@@ -73,7 +72,7 @@ pub async fn resolve_user(
         return Ok(Arc::clone(owner));
     }
 
-    let (mut owner, _) = sign_in(&account, factory).await?;
+    let (mut owner, _) = sign_in(&account).await?;
 
     // For non-shell we need to initialize the search index
     if USER.get().is_none() {
@@ -199,28 +198,22 @@ pub async fn find_account(
 /// Helper to sign in to an account.
 pub async fn sign_in(
     account: &AccountRef,
-    factory: ProviderFactory,
 ) -> Result<(UserStorage, SecretString)> {
     let account = find_account(account)
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
-    let owner = UserStorage::sign_in(
-        account.address(),
-        passphrase.clone(),
-        factory,
-        None,
-    )
-    .await?;
+    let owner =
+        UserStorage::sign_in(account.address(), passphrase.clone(), None)
+            .await?;
     Ok((owner, passphrase))
 }
 
 /// Switch to a different account.
 pub async fn switch(
     account: &AccountRef,
-    factory: ProviderFactory,
 ) -> Result<Arc<RwLock<UserStorage>>> {
-    let (mut owner, _) = sign_in(account, factory).await?;
+    let (mut owner, _) = sign_in(account).await?;
 
     owner.initialize_search_index().await?;
     owner.list_folders().await?;
@@ -326,14 +319,9 @@ pub async fn new_account(
             display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
 
-        let factory = ProviderFactory::Local(None);
-        let (owner, _, _) = UserStorage::new_account(
-            account_name.clone(),
-            passphrase,
-            factory,
-            None,
-        )
-        .await?;
+        let (owner, _, _) =
+            UserStorage::new_account(account_name.clone(), passphrase, None)
+                .await?;
         let address = owner.address().to_string();
 
         let data_dir = AppPaths::data_dir()?;

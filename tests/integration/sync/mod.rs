@@ -1,23 +1,26 @@
 use anyhow::Result;
 use sos_net::{
-    client::{provider::{new_remote_provider, RemoteProvider, StorageProvider}, user::{Origin, UserStorage}},
+    client::{
+        provider::{new_remote_provider, RemoteProvider, StorageProvider},
+        user::{Origin, UserStorage},
+    },
     sdk::{
-        constants::{EVENT_LOG_EXT, VAULT_EXT},
+        constants::VAULT_EXT,
+        mpc::{Keypair, PATTERN},
         signer::ecdsa::BoxedEcdsaSigner,
         vault::Summary,
-        vfs, mpc::{Keypair, PATTERN},
+        vfs,
     },
 };
 use std::path::PathBuf;
 
-use crate::test_utils::{
-    server, server_public_key,
-};
+use crate::test_utils::{server, server_public_key};
 
 mod create_remote_data;
 
 pub async fn create_remote_provider(
-    signer: BoxedEcdsaSigner) -> Result<(Origin, RemoteProvider)> {
+    signer: BoxedEcdsaSigner,
+) -> Result<(Origin, RemoteProvider)> {
     // Setup a remote origin
     let server = server();
     let server_public_key = server_public_key()?;
@@ -26,14 +29,11 @@ pub async fn create_remote_provider(
         url: server,
         public_key: server_public_key,
     };
-    
+
     let keypair = Keypair::new(PATTERN.parse()?)?;
 
-    let (mut provider, _) = new_remote_provider(
-        &origin,
-        signer,
-        keypair,
-    ).await?;
+    let (mut provider, _) =
+        new_remote_provider(&origin, signer, keypair).await?;
 
     // Noise protocol handshake
     provider.handshake().await?;

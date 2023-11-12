@@ -3,7 +3,7 @@ use std::{ffi::OsString, sync::Arc};
 use clap::{CommandFactory, Parser, Subcommand};
 
 use sos_net::{
-    client::provider::ProviderFactory,
+    client::provider::StorageProvider,
     sdk::{account::AccountRef, vault::VaultRef},
 };
 
@@ -166,11 +166,7 @@ where
 */
 
 /// Execute the program command.
-async fn exec_program(
-    program: Shell,
-    factory: ProviderFactory,
-    user: Owner,
-) -> Result<()> {
+async fn exec_program(program: Shell, user: Owner) -> Result<()> {
     match program.cmd {
         ShellCommand::Account { cmd } => {
             let mut new_name: Option<String> = None;
@@ -178,7 +174,7 @@ async fn exec_program(
                 new_name = Some(name.to_owned());
             }
 
-            crate::commands::account::run(cmd, factory).await?;
+            crate::commands::account::run(cmd).await?;
 
             if let Some(new_name) = new_name {
                 let mut owner = user.write().await;
@@ -188,10 +184,10 @@ async fn exec_program(
             Ok(())
         }
         ShellCommand::Folder { cmd } => {
-            crate::commands::folder::run(cmd, factory).await
+            crate::commands::folder::run(cmd).await
         }
         ShellCommand::Secret { cmd } => {
-            crate::commands::secret::run(cmd, factory).await
+            crate::commands::secret::run(cmd).await
         }
         ShellCommand::Cd { folder } => cd_folder(user, folder.as_ref()).await,
 
@@ -330,13 +326,7 @@ async fn exec_program(
         }
         */
         ShellCommand::Switch { account } => {
-            let factory = {
-                let owner = user.read().await;
-                let factory = owner.factory().clone();
-                factory
-            };
-
-            let user = switch(&account, factory).await?;
+            let user = switch(&account).await?;
 
             // Try to select the default folder
             let default_folder = {
@@ -380,28 +370,20 @@ async fn exec_program(
 }
 
 /// Intermediary to pretty print clap parse errors.
-async fn exec_args<I, T>(
-    it: I,
-    factory: ProviderFactory,
-    user: Owner,
-) -> Result<()>
+async fn exec_args<I, T>(it: I, user: Owner) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
     match Shell::try_parse_from(it) {
-        Ok(program) => exec_program(program, factory, user).await?,
+        Ok(program) => exec_program(program, user).await?,
         Err(e) => e.print().expect("unable to write error output"),
     }
     Ok(())
 }
 
 /// Execute a line of input in the context of the shell program.
-pub async fn exec(
-    line: &str,
-    factory: ProviderFactory,
-    user: Owner,
-) -> Result<()> {
+pub async fn exec(line: &str, user: Owner) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));
@@ -418,7 +400,7 @@ pub async fn exec(
         } else if line == "help" || line == "--help" {
             cmd.print_long_help()?;
         } else {
-            exec_args(it, factory, user).await?;
+            exec_args(it, user).await?;
         }
     }
     Ok(())

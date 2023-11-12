@@ -1,8 +1,8 @@
 use super::UserStorage;
-use std::any::Any;
 use crate::client::{RemoteSync, Result};
 use async_trait::async_trait;
 use sos_sdk::events::WriteEvent;
+use std::any::Any;
 
 #[async_trait]
 impl RemoteSync for UserStorage {

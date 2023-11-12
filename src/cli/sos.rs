@@ -1,10 +1,6 @@
 use clap::{Parser, Subcommand};
-use sos_net::{
-    client::provider::ProviderFactory,
-    sdk::{
-        account::AccountRef, hex, storage::AppPaths, url::Url,
-        vault::VaultRef,
-    },
+use sos_net::sdk::{
+    account::AccountRef, hex, storage::AppPaths, url::Url, vault::VaultRef,
 };
 use std::path::PathBuf;
 
@@ -38,10 +34,6 @@ pub struct Sos {
         hide_long_help = true
     )]
     password: Option<String>,
-
-    /// Storage provider factory.
-    #[clap(long, env = "SOS_PROVIDER")]
-    provider: Option<ProviderFactory>,
 
     /// Local storage directory.
     #[clap(long, env = "SOS_CACHE")]
@@ -142,7 +134,6 @@ pub enum Command {
 
 pub async fn run() -> Result<()> {
     let mut args = Sos::parse();
-    let factory = args.provider.unwrap_or_default();
 
     if let Some(cache) = args.cache.take() {
         AppPaths::set_data_dir(cache);
@@ -155,9 +146,9 @@ pub async fn run() -> Result<()> {
     }
 
     match args.cmd {
-        Command::Account { cmd } => account::run(cmd, factory).await?,
-        Command::Device { cmd } => device::run(cmd, factory).await?,
-        Command::Folder { cmd } => folder::run(cmd, factory).await?,
+        Command::Account { cmd } => account::run(cmd).await?,
+        Command::Device { cmd } => device::run(cmd).await?,
+        Command::Folder { cmd } => folder::run(cmd).await?,
         Command::SecurityReport {
             account,
             force,
@@ -171,11 +162,10 @@ pub async fn run() -> Result<()> {
                 output_format,
                 include_all,
                 file,
-                factory,
             )
             .await?
         }
-        Command::Secret { cmd } => secret::run(cmd, factory).await?,
+        Command::Secret { cmd } => secret::run(cmd).await?,
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Changes {
             server,
@@ -187,7 +177,7 @@ pub async fn run() -> Result<()> {
         }
         Command::Check { cmd } => check::run(cmd).await?,
         Command::Shell { account, folder } => {
-            shell::run(factory, account, folder).await?
+            shell::run(account, folder).await?
         }
     }
     Ok(())

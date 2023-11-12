@@ -9,7 +9,7 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        provider::{ProviderFactory, RemoteProvider, StorageProvider},
+        provider::{RemoteProvider, StorageProvider},
         user::UserStorage,
     },
     sdk::{
@@ -192,12 +192,10 @@ pub async fn create_local_account(
     account_name: &str,
 ) -> Result<(UserStorage, ImportedAccount, Summary, SecretString)> {
     let (passphrase, _) = generate_passphrase()?;
-    let factory = ProviderFactory::Local(None);
     let (mut owner, imported_account, _) =
         UserStorage::new_account_with_builder(
             account_name.to_owned(),
             passphrase.clone(),
-            factory.clone(),
             |builder| {
                 builder
                     .save_passphrase(false)

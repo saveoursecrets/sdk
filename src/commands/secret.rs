@@ -7,7 +7,7 @@ use terminal_banner::{Banner, Padding};
 
 use sos_net::{
     client::{
-        provider::ProviderFactory,
+        provider::StorageProvider,
         user::{ArchiveFilter, DocumentView},
     },
     sdk::{
@@ -604,14 +604,13 @@ enum FolderPredicate<'a> {
 }
 
 async fn resolve_verify<'a>(
-    factory: ProviderFactory,
     account: Option<&AccountRef>,
     predicate: FolderPredicate<'a>,
     secret: &SecretRef,
 ) -> Result<ResolvedSecret> {
     let is_shell = USER.get().is_some();
 
-    let mut user = resolve_user(account, factory, true).await?;
+    let mut user = resolve_user(account, true).await?;
 
     let (summary, should_open) = match predicate {
         FolderPredicate::Ref(folder) => (
@@ -651,7 +650,7 @@ async fn resolve_verify<'a>(
     })
 }
 
-pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
+pub async fn run(cmd: Command) -> Result<()> {
     let is_shell = USER.get().is_some();
 
     match cmd {
@@ -662,7 +661,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             all,
             favorites,
         } => {
-            let user = resolve_user(account.as_ref(), factory, true).await?;
+            let user = resolve_user(account.as_ref(), true).await?;
             let owner = user.read().await;
             let archive_folder = owner
                 .storage()
@@ -723,7 +722,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 */
             };
 
-            let user = resolve_user(account.as_ref(), factory, true).await?;
+            let user = resolve_user(account.as_ref(), true).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -759,7 +758,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             secret,
         } => {
             let resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 &secret,
@@ -778,7 +776,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             secret,
         } => {
             let resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 &secret,
@@ -804,7 +801,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             json,
         } => {
             let resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 &secret,
@@ -857,7 +853,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             };
 
             let mut resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 secret,
@@ -923,7 +918,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             secret,
         } => {
             let resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 &secret,
@@ -976,7 +970,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             secret,
         } => {
             let mut resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 &secret,
@@ -1007,7 +1000,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             secret,
         } => {
             let mut resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 &secret,
@@ -1036,7 +1028,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             secret,
         } => {
             let resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 &secret,
@@ -1066,7 +1057,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             secret,
         } => {
             let resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 &secret,
@@ -1096,7 +1086,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             text,
         } => {
             let resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 &secret,
@@ -1158,7 +1147,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             file,
         } => {
             let resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 &secret,
@@ -1185,7 +1173,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             secret,
         } => {
             let resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Ref(folder.as_ref()),
                 &secret,
@@ -1205,9 +1192,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
         }
         Command::Unarchive { account, secret } => {
             let original_folder = if is_shell {
-                let user =
-                    resolve_user(account.as_ref(), factory.clone(), false)
-                        .await?;
+                let user = resolve_user(account.as_ref(), false).await?;
                 let owner = user.read().await;
                 owner.storage().current().map(|g| g.summary().clone())
             } else {
@@ -1215,7 +1200,6 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             };
 
             let resolved = resolve_verify(
-                factory,
                 account.as_ref(),
                 FolderPredicate::Func(Box::new(|user| {
                     Box::pin(async {
@@ -1245,16 +1229,13 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 }
             }
         }
-        Command::Attach { cmd } => attachment(factory, cmd).await?,
+        Command::Attach { cmd } => attachment(cmd).await?,
     }
 
     Ok(())
 }
 
-async fn attachment(
-    factory: ProviderFactory,
-    cmd: AttachCommand,
-) -> Result<()> {
+async fn attachment(cmd: AttachCommand) -> Result<()> {
     let (account, folder, secret) = match &cmd {
         AttachCommand::List {
             account,
@@ -1309,7 +1290,6 @@ async fn attachment(
     };
 
     let resolved = resolve_verify(
-        factory.clone(),
         account.as_ref(),
         FolderPredicate::Ref(folder.as_ref()),
         secret,

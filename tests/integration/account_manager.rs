@@ -4,7 +4,7 @@ use serial_test::serial;
 use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use sos_net::{
-    client::provider::ProviderFactory,
+    client::provider::{new_local_provider, StorageProvider},
     sdk::{
         account::{
             AccountBackup, AccountBuilder, DelegatedPassphrase,
@@ -13,7 +13,6 @@ use sos_net::{
         },
         constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
         hex,
-        mpc::generate_keypair,
         passwd::diceware::generate_passphrase,
         search::SearchIndex,
         storage::{AppPaths, FileStorage},
@@ -52,10 +51,8 @@ async fn integration_account_manager() -> Result<()> {
             .await?;
 
     // Create local provider
-    let factory = ProviderFactory::Local(None);
     let signer = new_account.user.signer().clone();
-    let keypair = generate_keypair()?;
-    let (mut provider, _) = factory.create_provider(signer, keypair).await?;
+    let (mut provider, _) = new_local_provider(signer).await?;
 
     let (imported_account, _) =
         provider.import_new_account(&new_account).await?;
@@ -151,10 +148,8 @@ async fn integration_account_manager() -> Result<()> {
 
     // Restore from archive whilst signed in (with provider),
     // overwrites existing data (backup)
-    let factory = ProviderFactory::Local(None);
     let signer = user.identity().signer().clone();
-    let keypair = generate_keypair()?;
-    let (mut provider, _) = factory.create_provider(signer, keypair).await?;
+    let (mut provider, _) = new_local_provider(signer).await?;
 
     let options = RestoreOptions {
         selected: vaults.clone().into_iter().map(|v| v.0).collect(),

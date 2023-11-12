@@ -1,20 +1,20 @@
 use anyhow::Result;
 use serial_test::serial;
-use std::{path::PathBuf, any::Any};
+use std::path::PathBuf;
 
 use sos_net::{
-    client::{provider::RemoteProvider, user::Origin, RemoteSync},
+    client::{
+        provider::{RemoteProvider, StorageProvider},
+        RemoteSync,
+    },
     sdk::{
-        constants::{EVENT_LOG_EXT, VAULT_EXT},
-        mpc::{Keypair, PATTERN},
         storage::AppPaths,
         vault::Summary,
-        vfs,
     },
 };
 
 use crate::test_utils::{
-    create_local_account, mock_note, server, server_public_key, setup, spawn,
+    create_local_account, setup, spawn,
 };
 
 use super::{assert_local_remote_eq, create_remote_provider};
@@ -34,7 +34,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (mut owner, _, default_folder, _) =
+    let (mut owner, _, _default_folder, _) =
         create_local_account("sync_basic_1").await?;
 
     // Folders on the local account
@@ -51,7 +51,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
         "target/integration-test/server/{}",
         owner.address()
     ));
-    
+
     // Create the remote provider
     let signer = owner.user().identity().signer().clone();
     let (origin, provider) = create_remote_provider(signer).await?;
@@ -63,7 +63,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     // Sync with a local account that does not exist on
     // the remote which should create the account on the remote
     owner.sync().await?;
-    
+
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
     let mut provider = owner.delete_remote(&remote_origin).unwrap();
@@ -71,7 +71,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
         .as_any_mut()
         .downcast_mut::<RemoteProvider>()
         .expect("to be a remote provider");
-    
+
     assert_local_remote_eq(
         expected_summaries,
         &server_path,

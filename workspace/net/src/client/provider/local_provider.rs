@@ -8,7 +8,6 @@ use sos_sdk::{
     commit::{
         CommitPair, CommitRelationship, CommitTree, SyncInfo, SyncKind,
     },
-    constants::VAULT_EXT,
     crypto::AccessKey,
     decode, encode,
     events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
@@ -16,7 +15,7 @@ use sos_sdk::{
     passwd::diceware::generate_passphrase,
     patch::PatchFile,
     storage::UserPaths,
-    vault::{Header, Summary, Vault, VaultBuilder, VaultFlags, VaultId},
+    vault::{Summary, Vault, VaultBuilder, VaultFlags, VaultId},
     vfs,
 };
 

@@ -3,8 +3,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use sos_net::{
-    client::{provider::ProviderFactory, user::UserStorage},
-    device::TrustedDevice,
+    client::user::UserStorage, device::TrustedDevice,
     sdk::account::AccountRef,
 };
 
@@ -53,10 +52,10 @@ async fn resolve_device(
     Ok(None)
 }
 
-pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
+pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::List { account, verbose } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let devices = owner.devices().load().await?;
             for device in devices {
@@ -67,7 +66,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Remove { account, id } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
             if let Some(device) =
                 resolve_device(Arc::clone(&user), &id).await?
             {

@@ -1,7 +1,6 @@
 use sos_net::{
     client::{
         hashcheck,
-        provider::ProviderFactory,
         user::{SecurityReportOptions, SecurityReportRow},
     },
     sdk::account::AccountRef,
@@ -51,13 +50,12 @@ pub async fn run(
     format: SecurityReportFormat,
     include_all: bool,
     path: PathBuf,
-    factory: ProviderFactory,
 ) -> Result<()> {
     if tokio::fs::try_exists(&path).await? && !force {
         return Err(Error::FileExistsUseForce(path));
     }
 
-    let user = resolve_user(account.as_ref(), factory, false).await?;
+    let user = resolve_user(account.as_ref(), false).await?;
     let mut owner = user.write().await;
 
     let report_options = SecurityReportOptions {

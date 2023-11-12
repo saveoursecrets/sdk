@@ -21,16 +21,17 @@ use sos_sdk::{
         AuditEvent, AuditLogFile, ChangeAction, ChangeNotification, Event,
         EventKind, EventLogFile, ReadEvent, WriteEvent,
     },
+    mpc::Keypair,
     passwd::ChangePassword,
     patch::PatchFile,
     search::SearchIndex,
-    signer::ecdsa::{BoxedEcdsaSigner, Address},
-    storage::{UserPaths, AppPaths},
+    signer::ecdsa::{Address, BoxedEcdsaSigner},
+    storage::{AppPaths, UserPaths},
+    url::Url,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Header, Summary, Vault, VaultId,
     },
-    mpc::Keypair,
     vfs, Timestamp,
 };
 
@@ -38,7 +39,9 @@ use tokio::sync::RwLock;
 
 use sos_sdk::account::RestoreTargets;
 
-use crate::client::{Error, RemoteSync, Result, user::Origin, net::RpcClient};
+use crate::client::{
+    net::RpcClient, user::Origin, Error, RemoteSync, Result,
+};
 
 /// Create a new remote provider.
 pub async fn new_remote_provider(
@@ -48,13 +51,12 @@ pub async fn new_remote_provider(
 ) -> Result<(RemoteProvider, Address)> {
     let data_dir = AppPaths::data_dir().map_err(|_| Error::NoCache)?;
     let address = signer.address()?;
-    let client =
-        RpcClient::new(
-            origin.url.clone(),
-            origin.public_key.clone(),
-            signer,
-            keypair,
-        )?;
+    let client = RpcClient::new(
+        origin.url.clone(),
+        origin.public_key.clone(),
+        signer,
+        keypair,
+    )?;
     let dirs = UserPaths::new(data_dir, &address.to_string());
     Ok((RemoteProvider::new(client, dirs).await?, address))
 }
@@ -84,20 +86,43 @@ pub(crate) fn assert_proofs_eq(
 
 mod local_provider;
 mod macros;
-mod provider_factory;
 mod remote_provider;
 mod state;
 mod sync;
 
 pub use local_provider::LocalProvider;
-#[cfg(not(target_arch = "wasm32"))]
-pub use provider_factory::spawn_changes_listener;
 pub use remote_provider::RemoteProvider;
 
 pub use state::ProviderState;
 
 /// Generic boxed provider.
 pub type BoxedProvider = Box<dyn StorageProvider + Send + Sync + 'static>;
+
+/// Provider that can be safely sent between threads.
+pub type ArcProvider = Arc<RwLock<BoxedProvider>>;
+
+/// Spawn a change notification listener that
+/// updates the local node cache.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn spawn_changes_listener(
+    server: Url,
+    server_public_key: Vec<u8>,
+    signer: BoxedEcdsaSigner,
+    keypair: Keypair,
+    cache: ArcProvider,
+) {
+    use crate::client::changes_listener::ChangesListener;
+    let listener =
+        ChangesListener::new(server, server_public_key, signer, keypair);
+    listener.spawn(move |notification| {
+        let cache = Arc::clone(&cache);
+        async move {
+            //println!("{:#?}", notification);
+            let mut writer = cache.write().await;
+            let _ = writer.handle_change(notification).await;
+        }
+    });
+}
 
 /// Trait for storage providers.
 ///

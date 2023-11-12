@@ -3,7 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use terminal_banner::{Banner, Padding};
 
 use sos_net::{
-    client::{provider::ProviderFactory, user::UserStorage},
+    client::{provider::StorageProvider, user::UserStorage},
     sdk::{account::AccountRef, storage::AppPaths, vault::VaultRef, vfs},
     FileLocks,
 };
@@ -23,27 +23,22 @@ use super::repl::exec;
 const WELCOME: &str = include_str!("welcome.txt");
 
 /// Print the welcome information.
-fn welcome(factory: &ProviderFactory) -> Result<()> {
+fn welcome() -> Result<()> {
     let help_info = r#"Type "help", "--help" or "-h" for command usage
 Type "quit" or "q" to exit"#;
-    let status_info = format!("Provider: {}", factory);
     let banner = Banner::new()
         .padding(Padding::one())
         .text(Cow::from(WELCOME))
         .text(Cow::from(help_info))
-        .text(Cow::Owned(status_info))
         .render();
     println!("{}", banner);
     Ok(())
 }
 
 /// Loop sign in for shell authentication.
-async fn auth(
-    account: &AccountRef,
-    factory: ProviderFactory,
-) -> Result<UserStorage> {
+async fn auth(account: &AccountRef) -> Result<UserStorage> {
     loop {
-        match sign_in(account, factory.clone()).await {
+        match sign_in(account).await {
             Ok((owner, _)) => return Ok(owner),
             Err(e) => {
                 tracing::error!(target: TARGET, "{}", e);
@@ -58,7 +53,6 @@ async fn auth(
 }
 
 pub async fn run(
-    factory: ProviderFactory,
     mut account: Option<AccountRef>,
     folder: Option<VaultRef>,
 ) -> Result<()> {
@@ -82,23 +76,9 @@ pub async fn run(
         account.into()
     };
 
-    let mut owner = auth(&account, factory.clone()).await?;
+    let mut owner = auth(&account).await?;
     owner.initialize_search_index().await?;
-    welcome(&factory)?;
-
-    /*
-    match &factory {
-        ProviderFactory::Remote(remote) => {
-            // Listen for change notifications
-            spawn_changes_listener(
-                remote.clone(),
-                user.signer.clone(),
-                Arc::clone(&provider),
-            );
-        }
-        _ => {}
-    }
-    */
+    welcome()?;
 
     // Prepare state for shell execution
     let user = USER.get_or_init(|| Arc::new(RwLock::new(owner)));
@@ -120,7 +100,7 @@ pub async fn run(
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
                 let provider = Arc::clone(user);
-                if let Err(e) = exec(&line, factory.clone(), provider).await {
+                if let Err(e) = exec(&line, provider).await {
                     tracing::error!(target: TARGET, "{}", e);
                 }
             }

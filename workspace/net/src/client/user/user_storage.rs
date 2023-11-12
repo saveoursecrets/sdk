@@ -18,7 +18,6 @@ use sos_sdk::{
         AuditData, AuditEvent, AuditProvider, Event, EventKind, EventReducer,
         ReadEvent, WriteEvent,
     },
-    mpc::generate_keypair,
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     storage::{AppPaths, UserPaths},
@@ -40,7 +39,7 @@ use tokio::{
 };
 
 use crate::client::{
-    provider::{LocalProvider, new_local_provider, StorageProvider},
+    provider::{new_local_provider, LocalProvider, StorageProvider},
     Error, Result,
 };
 

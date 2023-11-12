@@ -1,10 +1,7 @@
 //! Listen for changes events on the server sent events channel.
 use futures::stream::StreamExt;
 use sos_net::{
-    client::{
-        net::changes::{changes, connect},
-        provider::ProviderFactory,
-    },
+    client::net::changes::{changes, connect},
     sdk::{
         account::AccountRef, mpc::generate_keypair, mpc::Keypair,
         signer::ecdsa::BoxedEcdsaSigner, url::Url,
@@ -40,7 +37,7 @@ pub async fn run(
     server_public_key: Vec<u8>,
     account: AccountRef,
 ) -> Result<()> {
-    let (owner, _) = sign_in(&account, ProviderFactory::Local(None)).await?;
+    let (owner, _) = sign_in(&account).await?;
     let signer = owner.user().identity().signer().clone();
     let keypair = generate_keypair()?;
     if let Err(e) =
