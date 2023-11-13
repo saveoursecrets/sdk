@@ -334,22 +334,3 @@ impl StorageProvider for LocalProvider {
         Ok((CommitRelationship::Equal(pair), None))
     }
 }
-
-#[async_trait]
-impl RemoteSync for LocalProvider {
-    async fn sync(&mut self) -> Result<()> {
-        unimplemented!();
-    }
-
-    async fn sync_local_events(&self, events: &[WriteEvent]) -> Result<()> {
-        unimplemented!();
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}

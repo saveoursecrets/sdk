@@ -14,7 +14,12 @@ impl RemoteSync for UserStorage {
         Ok(())
     }
 
-    async fn sync_local_events(&self, events: &[WriteEvent]) -> Result<()> {
+    async fn sync_send_events(&self, events: &[WriteEvent]) -> Result<()> {
+        let _ = self.sync_lock.lock().await;
+        todo!();
+    }
+
+    async fn sync_receive_events(&self, events: &[WriteEvent]) -> Result<()> {
         let _ = self.sync_lock.lock().await;
         todo!();
     }

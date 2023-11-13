@@ -512,7 +512,6 @@ impl RemoteProvider {
 #[async_trait]
 impl RemoteSync for RemoteProvider {
 
-
     async fn sync(&mut self) -> Result<()> {
         // Ensure our folder state is the latest version on disc
         {
@@ -528,7 +527,11 @@ impl RemoteSync for RemoteProvider {
         }
     }
 
-    async fn sync_local_events(&self, events: &[WriteEvent]) -> Result<()> {
+    async fn sync_send_events(&self, events: &[WriteEvent]) -> Result<()> {
+        todo!();
+    }
+
+    async fn sync_receive_events(&self, events: &[WriteEvent]) -> Result<()> {
         todo!();
     }
 

@@ -124,7 +124,7 @@ pub fn spawn_changes_listener(
 /// See <https://docs.rs/async-trait/latest/async_trait/#dyn-traits>
 #[cfg_attr(target_arch="wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait StorageProvider: RemoteSync + Sync + Send {
+pub trait StorageProvider: Sync + Send {
     /// Get the event log cache.
     fn cache(&self) -> &HashMap<VaultId, (EventLogFile, PatchFile)>;
 
