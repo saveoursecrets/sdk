@@ -104,7 +104,7 @@ async fn integration_simple_session() -> Result<()> {
     let _ = provider.push(&new_vault_summary, true).await?;
     */
 
-    // Verify local event log ingegrity
+    // Verify local event log integrity
     provider.verify(&new_vault_summary).await?;
 
     // Close the vault

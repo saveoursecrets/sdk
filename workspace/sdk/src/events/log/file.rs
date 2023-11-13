@@ -20,6 +20,7 @@ use crate::{
     encode,
     encoding::encoding_options,
     events::WriteEvent,
+    patch::Patch,
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
@@ -205,7 +206,7 @@ impl EventLogFile {
         }
     }
 
-    /// Read or encode the bytes for the item.
+    /// Read the bytes for the event log record.
     pub async fn read_buffer(
         &self,
         record: &EventLogFileRecord,
@@ -379,6 +380,7 @@ impl EventLogFile {
             let buffer = self.read_buffer(&record).await?;
             let last_record_hash = CommitTree::hash(&buffer);
             Ok(Some(CommitHash(last_record_hash)))
+            //Ok(Some(CommitHash(record.commit())))
         } else {
             Ok(None)
         }
@@ -386,6 +388,8 @@ impl EventLogFile {
 
     /// Get a diff of the records after the record with the
     /// given commit hash.
+    ///
+    /// Iterates backwards from the end of the event log.
     pub async fn diff(&self, commit: [u8; 32]) -> Result<Option<Vec<u8>>> {
         let mut it = self.iter().await?.rev();
         while let Some(record) = it.next_entry().await? {
@@ -394,6 +398,35 @@ impl EventLogFile {
             }
         }
         Ok(None)
+    }
+    
+    /// Get a patch from these event logs until a specific commit.
+    ///
+    /// Searches backwards until it finds the specified commit if given; if 
+    /// no commit is given the patch will include all events.
+    ///
+    /// Does not include the target commit in the patch.
+    pub async fn patch_until(&self, commit: Option<CommitHash>) -> Result<Patch> {
+        
+        //println!("patch until {:#?}", commit);
+
+        let mut events = Vec::new();
+        let mut it = self.iter().await?.rev();
+        while let Some(record) = it.next_entry().await? {
+            
+            println!("commit is {}", CommitHash(record.commit()));
+
+            if let Some(commit) = commit {
+                println!("target is {}", commit);
+
+                if &record.commit() == commit.as_ref() {
+                    break;
+                }
+            }
+            let buffer = self.read_buffer(&record).await?;
+            events.push((record, buffer).into());
+        }
+        Ok(Patch(events))
     }
 }
 

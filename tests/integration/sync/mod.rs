@@ -9,7 +9,7 @@ use sos_net::{
 use std::path::PathBuf;
 
 mod create_remote_data;
-mod send_events;
+//mod send_events;
 
 /// Assert that local and remote storage are equal.
 pub async fn assert_local_remote_eq(

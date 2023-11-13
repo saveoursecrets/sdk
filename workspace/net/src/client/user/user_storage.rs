@@ -872,10 +872,29 @@ impl UserStorage {
         options: SecretOptions,
     ) -> Result<SecretId> {
         let _ = self.sync_lock.lock().await;
-        let (id, event) =
+
+        let folder = {
+            let reader = self.storage.read().await;
+            options
+                .folder
+                .clone()
+                .or_else(|| reader.current().map(|g| g.summary().clone()))
+                .ok_or(Error::NoOpenFolder)?
+        };
+            
+        let last_commit = {
+            let reader = self.storage.read().await;
+            let (event_log, _) = reader
+                .cache()
+                .get(folder.id())
+                .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+            event_log.last_commit().await?
+        };
+
+        let (id, event, folder) =
             self.add_secret(meta, secret, options, true).await?;
         let (_, create_event) = event.try_into()?;
-        self.sync_send_events(&[create_event]).await?;
+        self.sync_send_events(last_commit, &folder, &[create_event]).await?;
         Ok(id)
     }
 
@@ -885,7 +904,7 @@ impl UserStorage {
         secret: Secret,
         mut options: SecretOptions,
         audit: bool,
-    ) -> Result<(SecretId, Event<'static>)> {
+    ) -> Result<(SecretId, Event<'static>, Summary)> {
         let folder = {
             let reader = self.storage.read().await;
             options
@@ -944,7 +963,7 @@ impl UserStorage {
             self.append_audit_logs(vec![audit_event]).await?;
         }
 
-        Ok((id, event))
+        Ok((id, event, folder))
     }
 
     /// Read a secret in the current open folder.
@@ -1154,7 +1173,7 @@ impl UserStorage {
         let move_secret_data = secret_data.clone();
 
         self.open_vault(to, false).await?;
-        let (new_id, create_event) = self
+        let (new_id, create_event, _) = self
             .add_secret(
                 secret_data.meta,
                 secret_data.secret,
@@ -1895,17 +1914,22 @@ impl RemoteSync for UserStorage {
         Ok(())
     }
 
-    async fn sync_send_events(&self, events: &[WriteEvent]) -> Result<()> {
+    async fn sync_send_events(
+        &mut self,
+        commit: Option<CommitHash>,
+        folder: &Summary,
+        events: &[WriteEvent<'static>],
+    ) -> Result<()> {
         let _ = self.sync_lock.lock().await;
-        for remote in self.remotes.values() {
-            remote.sync_send_events(events).await?;
+        for remote in self.remotes.values_mut() {
+            remote.sync_send_events(commit, folder, events).await?;
         }
         Ok(())
     }
 
     async fn sync_receive_events(
         &mut self,
-        events: &[WriteEvent],
+        events: &[WriteEvent<'static>],
     ) -> Result<()> {
         let _ = self.sync_lock.lock().await;
         for remote in self.remotes.values_mut() {

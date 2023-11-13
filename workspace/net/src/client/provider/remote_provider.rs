@@ -7,13 +7,13 @@ use http::StatusCode;
 
 use sos_sdk::{
     account::AccountStatus,
-    commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo},
+    commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo, CommitProof},
     crypto::AccessKey,
     decode, encode,
     events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
     events::{EventLogFile, EventReducer, ReadEvent},
     passwd::diceware::generate_passphrase,
-    patch::PatchFile,
+    patch::{PatchFile, Patch},
     storage::UserPaths,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
@@ -497,6 +497,46 @@ impl RemoteProvider {
 
         Ok(())
     }
+    
+    /// Get the proof for a folder in the local storage.
+    async fn client_proof(&self, folder: &Summary) -> Result<CommitProof> {
+        let reader = self.local.read().await;
+        let (event_log, _) = reader
+            .cache()
+            .get(folder.id())
+            .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+        Ok(event_log.tree().head()?)
+    }
+
+    async fn patch(
+        &mut self,
+        commit: Option<CommitHash>,
+        folder: &Summary,
+        events: &[WriteEvent<'static>],
+    ) -> Result<()> {
+        let client_proof = self.client_proof(folder).await?;
+
+        let patch = {
+            let reader = self.local.read().await;
+            let (event_log, _) = reader
+                .cache()
+                .get(folder.id())
+                .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+            event_log.patch_until(commit).await?
+        };
+
+        println!("send patch {:#?}", patch.0.len());
+
+        let (status, (server_proof, match_proof)) = retry!(
+            || self.remote.apply_patch(
+                *folder.id(),
+                client_proof.clone(),
+                patch.clone(),
+            ),
+            self.remote
+        );
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -516,14 +556,19 @@ impl RemoteSync for RemoteProvider {
         }
     }
 
-    async fn sync_send_events(&self, events: &[WriteEvent]) -> Result<()> {
-        println!("send events to remote server {:#?}", events);
+    async fn sync_send_events(
+        &mut self,
+        commit: Option<CommitHash>,
+        folder: &Summary,
+        events: &[WriteEvent<'static>],
+    ) -> Result<()> {
+        self.patch(commit, folder, events).await?;
         Ok(())
     }
 
     async fn sync_receive_events(
         &mut self,
-        events: &[WriteEvent],
+        events: &[WriteEvent<'static>],
     ) -> Result<()> {
         todo!();
     }
