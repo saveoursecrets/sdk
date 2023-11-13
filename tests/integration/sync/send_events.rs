@@ -7,20 +7,16 @@ use sos_net::{
         provider::{RemoteProvider, StorageProvider},
         RemoteSync,
     },
-    sdk::{
-        storage::AppPaths,
-        vault::Summary,
-    },
+    sdk::{storage::AppPaths, vault::Summary},
 };
 
 use crate::test_utils::{
-    create_local_account, setup, spawn,
-    origin, mock_note,
+    create_local_account, mock_note, origin, setup, spawn,
 };
 
-use super::{assert_local_remote_eq};
+use super::assert_local_remote_eq;
 
-/// Tests sending events from changes to the local storage 
+/// Tests sending events from changes to the local storage
 /// to a connected remote.
 #[tokio::test]
 #[serial]
@@ -71,7 +67,9 @@ async fn integration_sync_send_events() -> Result<()> {
     owner.open_folder(&default_folder).await?;
 
     let (meta, secret) = mock_note("note", "send_events_secret");
-    owner.create_secret(meta, secret, Default::default()).await?;
+    owner
+        .create_secret(meta, secret, Default::default())
+        .await?;
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote

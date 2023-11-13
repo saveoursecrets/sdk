@@ -1,5 +1,6 @@
 //! Network aware user storage and search index.
 use std::{
+    any::Any,
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
@@ -41,9 +42,12 @@ use tokio::{
 
 use crate::client::{
     net::RpcClient,
-    provider::{new_local_provider, LocalProvider, StorageProvider, RemoteProvider},
+    provider::{
+        new_local_provider, LocalProvider, RemoteProvider, StorageProvider,
+    },
     Error, Result,
 };
+use async_trait::async_trait;
 
 #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
 use crate::peer::convert_libp2p_identity;
@@ -236,14 +240,14 @@ impl UserStorage {
     pub fn storage(&self) -> Arc<RwLock<LocalProvider>> {
         Arc::clone(&self.storage)
     }
-    
-    /// Create a remote provider associated with this local storage and 
+
+    /// Create a remote provider associated with this local storage and
     /// signing identity and perform the initial noise protocol handshake.
     pub async fn create_remote_provider(
         &self,
         origin: &Origin,
-        keypair: Option<Keypair>) -> Result<RemoteProvider> {
-
+        keypair: Option<Keypair>,
+    ) -> Result<RemoteProvider> {
         let keypair = if let Some(keypair) = keypair {
             keypair
         } else {
@@ -302,7 +306,7 @@ impl UserStorage {
         let account_builder =
             builder(AccountBuilder::new(account_name, passphrase.clone()));
         let new_account = account_builder.finish().await?;
-    
+
         // Must import the new account before signing in
         let signer = new_account.user.signer().clone();
         let (mut storage, _) = new_local_provider(signer).await?;
@@ -338,7 +342,6 @@ impl UserStorage {
         passphrase: SecretString,
         remotes: Option<Remotes>,
     ) -> Result<Self> {
-        
         let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
         let user =
             Login::sign_in(address, passphrase, identity_index).await?;
@@ -788,7 +791,9 @@ impl UserStorage {
                 let mut writer = self.storage.write().await;
                 let is_current = if let Some(current) = writer.current() {
                     current.id() == summary.id()
-                } else { false };
+                } else {
+                    false
+                };
 
                 if is_current {
                     writer.close_vault();
@@ -841,7 +846,7 @@ impl UserStorage {
         .await?;
 
         let index = Arc::clone(&self.index.search_index);
-        
+
         let event = {
             let mut writer = self.storage.write().await;
             writer
@@ -865,10 +870,13 @@ impl UserStorage {
         meta: SecretMeta,
         secret: Secret,
         options: SecretOptions,
-    ) -> Result<(SecretId, Event<'static>)> {
+    ) -> Result<SecretId> {
         let _ = self.sync_lock.lock().await;
-        let (id, event) = self.add_secret(meta, secret, options, true).await?;
-        Ok((id, event))
+        let (id, event) =
+            self.add_secret(meta, secret, options, true).await?;
+        let (_, create_event) = event.try_into()?;
+        self.sync_send_events(&[create_event]).await?;
+        Ok(id)
     }
 
     async fn add_secret(
@@ -878,7 +886,6 @@ impl UserStorage {
         mut options: SecretOptions,
         audit: bool,
     ) -> Result<(SecretId, Event<'static>)> {
-    
         let folder = {
             let reader = self.storage.read().await;
             options
@@ -897,12 +904,11 @@ impl UserStorage {
 
         let event = {
             let mut writer = self.storage.write().await;
-            writer 
+            writer
                 .create_secret(meta.clone(), secret.clone())
                 .await?
                 .into_owned()
         };
-
 
         let id = if let WriteEvent::CreateSecret(id, _) = &event {
             *id
@@ -961,7 +967,6 @@ impl UserStorage {
         folder: Option<Summary>,
         audit: bool,
     ) -> Result<(SecretData, ReadEvent)> {
-        
         let folder = {
             let reader = self.storage.read().await;
             folder
@@ -1106,7 +1111,7 @@ impl UserStorage {
                 return Err(Error::PemEncoding);
             }
         }
-        
+
         let event = {
             let mut writer = self.storage.write().await;
             writer
@@ -1275,7 +1280,10 @@ impl UserStorage {
             return Err(Error::AlreadyArchived);
         }
         self.open_folder(from).await?;
-        let to = self.archive_folder().await.ok_or_else(|| Error::NoArchive)?;
+        let to = self
+            .archive_folder()
+            .await
+            .ok_or_else(|| Error::NoArchive)?;
         self.move_secret(secret_id, from, &to, options).await
     }
 
@@ -1359,7 +1367,7 @@ impl UserStorage {
             // Must open the vault so the provider state unlocks
             // the vault
             self.open_vault(&summary, false).await?;
-            
+
             {
                 let mut writer = self.storage.write().await;
                 // Add the vault meta data to the search index
@@ -1597,7 +1605,6 @@ impl UserStorage {
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<()> {
-
         let current_folder = {
             let reader = self.storage.read().await;
             folder
@@ -1680,7 +1687,6 @@ impl UserStorage {
     ) -> Result<()> {
         use sos_sdk::vcard4::parse;
 
-        
         let current = {
             let reader = self.storage.read().await;
             reader.current().map(|g| g.summary().clone())
@@ -1876,5 +1882,43 @@ impl UserStorage {
 impl From<UserStorage> for Arc<RwLock<LocalProvider>> {
     fn from(value: UserStorage) -> Self {
         value.storage
+    }
+}
+
+#[async_trait]
+impl RemoteSync for UserStorage {
+    async fn sync(&mut self) -> Result<()> {
+        let _ = self.sync_lock.lock().await;
+        for remote in self.remotes.values_mut() {
+            remote.sync().await?;
+        }
+        Ok(())
+    }
+
+    async fn sync_send_events(&self, events: &[WriteEvent]) -> Result<()> {
+        let _ = self.sync_lock.lock().await;
+        for remote in self.remotes.values() {
+            remote.sync_send_events(events).await?;
+        }
+        Ok(())
+    }
+
+    async fn sync_receive_events(
+        &mut self,
+        events: &[WriteEvent],
+    ) -> Result<()> {
+        let _ = self.sync_lock.lock().await;
+        for remote in self.remotes.values_mut() {
+            remote.sync_receive_events(events).await?;
+        }
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }

@@ -4,12 +4,9 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use sos_net::{
-    client::{
-        provider::StorageProvider,
-    },
+    client::provider::StorageProvider,
     sdk::{
-        commit::CommitRelationship,
-        constants::DEFAULT_VAULT_NAME,
+        commit::CommitRelationship, constants::DEFAULT_VAULT_NAME,
         vault::VaultRef,
     },
 };
@@ -17,17 +14,15 @@ use sos_net::{
 #[tokio::test]
 #[serial]
 async fn integration_simple_session() -> Result<()> {
-    
     let (address, credentials, mut provider, signer) =
         signup_local(None).await?;
     let AccountCredentials { summary, .. } = credentials;
     let login_vault_id = *summary.id();
-    
+
     // Create a new vault
     let new_vault_name = String::from("My Vault");
-    let (_, new_passphrase, _) = provider
-        .create_vault(new_vault_name.clone(), None)
-        .await?;
+    let (_, new_passphrase, _) =
+        provider.create_vault(new_vault_name.clone(), None).await?;
 
     // Check our new vault is found in the local cache
     let vault_ref = VaultRef::Name(new_vault_name.clone());
@@ -96,7 +91,7 @@ async fn integration_simple_session() -> Result<()> {
     provider
         .set_vault_name(&new_vault_summary, DEFAULT_VAULT_NAME)
         .await?;
-    
+
     /*
     // Try to pull whilst up to date
     let _ = provider.pull(&new_vault_summary, false).await?;

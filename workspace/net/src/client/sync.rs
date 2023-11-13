@@ -14,7 +14,10 @@ pub trait RemoteSync: Sync + Send + Any {
     async fn sync_send_events(&self, events: &[WriteEvent]) -> Result<()>;
 
     /// Receive events from changes to remote storage.
-    async fn sync_receive_events(&self, events: &[WriteEvent]) -> Result<()>;
+    async fn sync_receive_events(
+        &mut self,
+        events: &[WriteEvent],
+    ) -> Result<()>;
 
     /// Cast to the Any trait.
     fn as_any(&self) -> &dyn Any;

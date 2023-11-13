@@ -33,7 +33,7 @@ use uuid::Uuid;
 
 use crate::{
     client::{
-        provider::{sync, ProviderState, StorageProvider, LocalProvider},
+        provider::{sync, LocalProvider, ProviderState, StorageProvider},
         RemoteSync,
     },
     patch, provider_impl, retry,
@@ -53,10 +53,7 @@ impl RemoteProvider {
         local: Arc<RwLock<LocalProvider>>,
         remote: RpcClient,
     ) -> RemoteProvider {
-        Self {
-            local,
-            remote,
-        }
+        Self { local, remote }
     }
 
     /// Local provider.
@@ -415,7 +412,6 @@ impl StorageProvider for RemoteProvider {
 
 /// Sync helper functions.
 impl RemoteProvider {
-    
     /// Perform the noise protocol handshake.
     pub async fn handshake(&mut self) -> Result<()> {
         Ok(self.remote.handshake().await?)
@@ -427,12 +423,9 @@ impl RemoteProvider {
             retry!(|| self.remote.account_status(), self.remote);
         status.ok_or(Error::NoAccountStatus)
     }
-    
+
     /// Create an account on the remote.
-    async fn create_account(
-        &mut self,
-        buffer: Vec<u8>,
-    ) -> Result<()> {
+    async fn create_account(&mut self, buffer: Vec<u8>) -> Result<()> {
         let vault: Vault = decode(&buffer).await?;
         let summary = vault.summary().clone();
         let (status, _) = retry!(
@@ -447,12 +440,9 @@ impl RemoteProvider {
 
         Ok(())
     }
-    
+
     /// Import a vault into an account that already exists on the remote.
-    async fn import_vault(
-        &mut self,
-        buffer: Vec<u8>,
-    ) -> Result<()> {
+    async fn import_vault(&mut self, buffer: Vec<u8>) -> Result<()> {
         let vault: Vault = decode(&buffer).await?;
         let summary = vault.summary().clone();
         let (status, _) =
@@ -466,13 +456,13 @@ impl RemoteProvider {
 
     /// Create an account on the remote.
     async fn sync_create_remote_account(&mut self) -> Result<()> {
-
         let folder_buffer = {
             let local = self.local.read().await;
             let default_folder = local
                 .state()
                 .find(|s| s.flags().is_default())
-                .ok_or(Error::NoDefaultFolder)?.clone();
+                .ok_or(Error::NoDefaultFolder)?
+                .clone();
 
             let folder_path = local.vault_path(&default_folder);
             vfs::read(folder_path).await?
@@ -511,7 +501,6 @@ impl RemoteProvider {
 
 #[async_trait]
 impl RemoteSync for RemoteProvider {
-
     async fn sync(&mut self) -> Result<()> {
         // Ensure our folder state is the latest version on disc
         {
@@ -528,10 +517,14 @@ impl RemoteSync for RemoteProvider {
     }
 
     async fn sync_send_events(&self, events: &[WriteEvent]) -> Result<()> {
-        todo!();
+        println!("send events to remote server {:#?}", events);
+        Ok(())
     }
 
-    async fn sync_receive_events(&self, events: &[WriteEvent]) -> Result<()> {
+    async fn sync_receive_events(
+        &mut self,
+        events: &[WriteEvent],
+    ) -> Result<()> {
         todo!();
     }
 

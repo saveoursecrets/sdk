@@ -7,18 +7,12 @@ use sos_net::{
         provider::{RemoteProvider, StorageProvider},
         RemoteSync,
     },
-    sdk::{
-        storage::AppPaths,
-        vault::Summary,
-    },
+    sdk::{storage::AppPaths, vault::Summary},
 };
 
-use crate::test_utils::{
-    create_local_account, setup, spawn,
-    origin,
-};
+use crate::test_utils::{create_local_account, origin, setup, spawn};
 
-use super::{assert_local_remote_eq};
+use super::assert_local_remote_eq;
 
 /// Tests creating all the account data on a remote
 /// when the server does not have the account data yet.

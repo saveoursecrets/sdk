@@ -4,11 +4,7 @@ use sos_net::{
         provider::{RemoteProvider, StorageProvider},
         user::UserStorage,
     },
-    sdk::{
-        constants::VAULT_EXT,
-        vault::Summary,
-        vfs,
-    },
+    sdk::{constants::VAULT_EXT, vault::Summary, vfs},
 };
 use std::path::PathBuf;
 

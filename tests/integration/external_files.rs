@@ -191,7 +191,7 @@ async fn create_file_secret(
         folder: Some(default_folder.clone()),
         file_progress: Some(progress_tx),
     };
-    let (id, _) = owner.create_secret(meta, secret, options).await?;
+    let id = owner.create_secret(meta, secret, options).await?;
     let (secret_data, _) =
         owner.read_secret(&id, Some(default_folder.clone())).await?;
 

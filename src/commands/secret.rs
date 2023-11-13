@@ -663,8 +663,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         } => {
             let user = resolve_user(account.as_ref(), true).await?;
             let owner = user.read().await;
-            let archive_folder = owner
-                .archive_folder().await;
+            let archive_folder = owner.archive_folder().await;
 
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?

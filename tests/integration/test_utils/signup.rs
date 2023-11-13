@@ -7,7 +7,10 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        provider::{RemoteProvider, StorageProvider, new_local_provider, LocalProvider},
+        provider::{
+            new_local_provider, LocalProvider, RemoteProvider,
+            StorageProvider,
+        },
         RemoteSync,
     },
     sdk::{
@@ -19,7 +22,7 @@ use sos_net::{
     },
 };
 
-use super::{AccountCredentials, create_remote_provider};
+use super::{create_remote_provider, AccountCredentials};
 
 pub async fn signup(
     dirs: &TestDirs,
@@ -57,12 +60,9 @@ pub async fn signup(
     Ok((address, credentials, provider, signer))
 }
 
-pub async fn signup_local(default_folder_name: Option<String>) -> Result<(
-    Address,
-    AccountCredentials,
-    LocalProvider,
-    BoxedEcdsaSigner,
-)> {
+pub async fn signup_local(
+    default_folder_name: Option<String>,
+) -> Result<(Address, AccountCredentials, LocalProvider, BoxedEcdsaSigner)> {
     let signer = Box::new(SingleParty::new_random());
     let address = signer.address()?;
     let (credentials, provider) =
@@ -71,9 +71,7 @@ pub async fn signup_local(default_folder_name: Option<String>) -> Result<(
 }
 
 /// Login to a remote provider account.
-pub async fn login(
-    signer: &BoxedEcdsaSigner,
-) -> Result<RemoteProvider> {
+pub async fn login(signer: &BoxedEcdsaSigner) -> Result<RemoteProvider> {
     let (_origin, provider) = create_remote_provider(signer.clone()).await?;
     Ok(provider)
 }
@@ -95,7 +93,7 @@ async fn create_account(
 
     let local_provider = provider.local();
     let mut local_writer = local_provider.write().await;
-    
+
     let (_, encryption_passphrase, summary) =
         local_writer.create_account(name, None).await?;
 

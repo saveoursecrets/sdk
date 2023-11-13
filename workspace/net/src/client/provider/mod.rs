@@ -56,7 +56,10 @@ pub async fn new_remote_provider(
         signer,
         keypair,
     )?;
-    Ok((RemoteProvider::new(Arc::new(RwLock::new(local)), client), address))
+    Ok((
+        RemoteProvider::new(Arc::new(RwLock::new(local)), client),
+        address,
+    ))
 }
 
 /// Create a new local provider.
@@ -241,7 +244,7 @@ pub trait StorageProvider: Sync + Send {
 
         Ok(())
     }
-        
+
     /// Get the path to a event log file.
     fn event_log_path(&self, summary: &Summary) -> PathBuf {
         let file_name = format!("{}.{}", summary.id(), EVENT_LOG_EXT);

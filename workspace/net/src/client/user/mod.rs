@@ -7,7 +7,6 @@ mod file_manager;
 mod search_index;
 #[cfg(feature = "security-report")]
 mod security_report;
-mod sync;
 mod user_storage;
 
 #[cfg(feature = "device")]

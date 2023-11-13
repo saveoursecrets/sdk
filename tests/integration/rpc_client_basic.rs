@@ -1,15 +1,9 @@
 use anyhow::Result;
 use serial_test::serial;
 
-use crate::test_utils::{spawn, server};
+use crate::test_utils::{server, spawn};
 
-use sos_net::{
-    client::{
-        net::{
-            RpcClient,
-        },
-    },
-};
+use sos_net::client::net::RpcClient;
 
 #[tokio::test]
 #[serial]

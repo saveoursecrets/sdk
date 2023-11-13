@@ -202,7 +202,7 @@ impl Login {
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
 
         let identity_path = AppPaths::identity_vault(address.to_string())?;
-        
+
         let mut identity =
             Identity::login_file(identity_path, passphrase, Some(index))
                 .await?;

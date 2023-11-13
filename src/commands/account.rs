@@ -246,7 +246,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             // does not lose context when importing and exporting contacts
             let original_folder = {
                 let mut owner = user.write().await;
-                
+
                 let current = {
                     let storage = owner.storage();
                     let reader = storage.read().await;
@@ -399,20 +399,21 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     let account_ref = AccountRef::Address(inventory.manifest.address);
     let account = find_account(&account_ref).await?;
 
-    let provider: Option<Arc<RwLock<LocalProvider>>> = if let Some(account) = account {
-        let confirmed = read_flag(Some(
-            "Overwrite all account data from backup? (y/n) ",
-        ))?;
-        if !confirmed {
-            return Ok(None);
-        }
+    let provider: Option<Arc<RwLock<LocalProvider>>> =
+        if let Some(account) = account {
+            let confirmed = read_flag(Some(
+                "Overwrite all account data from backup? (y/n) ",
+            ))?;
+            if !confirmed {
+                return Ok(None);
+            }
 
-        let account = AccountRef::Name(account.label().to_owned());
-        let (owner, _) = sign_in(&account).await?;
-        Some(owner.into())
-    } else {
-        None
-    };
+            let account = AccountRef::Name(account.label().to_owned());
+            let (owner, _) = sign_in(&account).await?;
+            Some(owner.into())
+        } else {
+            None
+        };
 
     let files_dir =
         AppPaths::files_dir(inventory.manifest.address.to_string())?;

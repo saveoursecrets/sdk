@@ -209,10 +209,9 @@ impl UserStorage {
                 .map(|keeper| keeper.vault().summary().clone())
         };
 
-        
         for target in targets {
             self.open_vault(&target, false).await?;
-            
+
             let storage = self.storage();
             let reader = storage.read().await;
             let keeper = reader.current().unwrap();

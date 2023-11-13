@@ -9,7 +9,10 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        provider::{LocalProvider, StorageProvider, RemoteProvider, new_remote_provider},
+        provider::{
+            new_remote_provider, LocalProvider, RemoteProvider,
+            StorageProvider,
+        },
         user::{Origin, UserStorage},
     },
     sdk::{
@@ -17,14 +20,14 @@ use sos_net::{
         crypto::AccessKey,
         events::{AuditLogFile, WriteEvent},
         hex,
-        signer::ecdsa::BoxedEcdsaSigner,
+        mpc::{Keypair, PATTERN},
         passwd::diceware::generate_passphrase,
+        signer::ecdsa::BoxedEcdsaSigner,
         vault::{
             secret::{Secret, SecretId, SecretMeta},
             Summary,
         },
         vfs,
-        mpc::{Keypair, PATTERN},
     },
     server::{
         BackendHandler, Server, ServerConfig, ServerInfo, State,

@@ -175,8 +175,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let owner = user.read().await;
                 let storage = owner.storage();
                 let reader = storage.read().await;
-                if let Some(current) = reader.current()
-                {
+                if let Some(current) = reader.current() {
                     current.id() == summary.id()
                 } else {
                     false
@@ -238,11 +237,10 @@ pub async fn run(cmd: Command) -> Result<()> {
             if !is_shell {
                 owner.open_folder(&summary).await?;
             }
-            
+
             let storage = owner.storage();
             let reader = storage.read().await;
-            let keeper =
-                reader.current().ok_or(Error::NoVaultSelected)?;
+            let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
             for uuid in keeper.vault().keys() {
                 println!("{}", uuid);
             }
@@ -315,9 +313,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                         let owner = user.read().await;
                         let storage = owner.storage();
                         let reader = storage.read().await;
-                        let keeper = reader
-                            .current()
-                            .ok_or(Error::NoVaultSelected)?;
+                        let keeper =
+                            reader.current().ok_or(Error::NoVaultSelected)?;
                         keeper.summary().clone()
                     };
 
@@ -338,9 +335,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let owner = user.read().await;
                     let storage = owner.storage();
                     let reader = storage.read().await;
-                    let keeper = reader
-                        .current()
-                        .ok_or(Error::NoVaultSelected)?;
+                    let keeper =
+                        reader.current().ok_or(Error::NoVaultSelected)?;
                     reader.verify(keeper.summary()).await?;
                     println!("Verified ✓");
                 }
@@ -348,11 +344,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let owner = user.read().await;
                     let storage = owner.storage();
                     let reader = storage.read().await;
-                    let keeper = reader
-                        .current()
-                        .ok_or(Error::NoVaultSelected)?;
-                    let records =
-                        reader.history(keeper.summary()).await?;
+                    let keeper =
+                        reader.current().ok_or(Error::NoVaultSelected)?;
+                    let records = reader.history(keeper.summary()).await?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);
                         if verbose {
