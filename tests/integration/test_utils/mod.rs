@@ -41,20 +41,24 @@ mod signup;
 
 pub use signup::{login, signup, signup_local};
 
-pub async fn create_remote_provider(
-    signer: BoxedEcdsaSigner,
-) -> Result<(Origin, RemoteProvider)> {
-    // Setup a remote origin
+/// Get a remote origin for the test server.
+pub fn origin() -> Origin {
     let server = server();
-    let server_public_key = server_public_key()?;
-    let origin = Origin {
+    let server_public_key = server_public_key();
+    Origin {
         name: "origin".to_owned(),
         url: server,
         public_key: server_public_key,
-    };
+    }
+}
+
+/// Create a remote provider for the given signing key.
+pub(super) async fn create_remote_provider(
+    signer: BoxedEcdsaSigner,
+) -> Result<(Origin, RemoteProvider)> {
+    let origin = origin();
 
     let keypair = Keypair::new(PATTERN.parse()?)?;
-
     let (mut provider, _) =
         new_remote_provider(&origin, signer, keypair).await?;
 
@@ -64,10 +68,9 @@ pub async fn create_remote_provider(
     Ok((origin, provider))
 }
 
-
 /// Read the test server public key.
-pub fn server_public_key() -> Result<Vec<u8>> {
-    Ok(hex::decode(SERVER_PUBLIC_KEY)?)
+pub fn server_public_key() -> Vec<u8> {
+    hex::decode(SERVER_PUBLIC_KEY).unwrap()
 }
 
 /// Encapsulates the credentials for a new account signup.

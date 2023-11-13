@@ -61,7 +61,7 @@ async fn integration_handle_change() -> Result<()> {
         // Create the websocket connection
         let (stream, client) = connect(
             server_url,
-            server_public_key()?,
+            server_public_key(),
             signer,
             generate_keypair()?,
         )

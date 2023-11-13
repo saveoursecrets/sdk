@@ -15,7 +15,7 @@ use sos_net::{
 
 use crate::test_utils::{
     create_local_account, setup, spawn,
-    create_remote_provider,
+    origin, mock_note,
 };
 
 use super::{assert_local_remote_eq};
@@ -57,17 +57,21 @@ async fn integration_sync_send_events() -> Result<()> {
     ));
 
     // Create the remote provider
-    let signer = owner.user().identity().signer().clone();
-        
-    let (origin, provider) = create_remote_provider(signer).await?;
-
+    // Create the remote provider
+    let origin = origin();
     let remote_origin = origin.clone();
-
+    let provider = owner.create_remote_provider(&origin, None).await?;
     owner.insert_remote(origin, Box::new(provider));
 
     // Sync with a local account that does not exist on
     // the remote which should create the account on the remote
     owner.sync().await?;
+
+    let default_folder = owner.default_folder().await.unwrap();
+    owner.open_folder(&default_folder).await?;
+
+    let (meta, secret) = mock_note("note", "send_events_secret");
+    owner.create_secret(meta, secret, Default::default()).await?;
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote

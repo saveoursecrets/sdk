@@ -62,7 +62,7 @@ async fn integration_compact_force_pull() -> Result<()> {
         // Create the websocket connection
         let keypair = generate_keypair()?;
         let (stream, client) =
-            connect(server_url, server_public_key()?, signer, keypair)
+            connect(server_url, server_public_key(), signer, keypair)
                 .await?;
 
         // Wrap the stream to read change notifications

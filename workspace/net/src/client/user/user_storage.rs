@@ -18,6 +18,7 @@ use sos_sdk::{
         AuditData, AuditEvent, AuditProvider, Event, EventKind, EventReducer,
         ReadEvent, WriteEvent,
     },
+    mpc::{Keypair, PATTERN},
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     storage::{AppPaths, UserPaths},
@@ -39,7 +40,8 @@ use tokio::{
 };
 
 use crate::client::{
-    provider::{new_local_provider, LocalProvider, StorageProvider},
+    net::RpcClient,
+    provider::{new_local_provider, LocalProvider, StorageProvider, RemoteProvider},
     Error, Result,
 };
 
@@ -235,12 +237,34 @@ impl UserStorage {
         Arc::clone(&self.storage)
     }
     
-    /*
-    /// Mutable storage provider.
-    pub fn storage_mut(&mut self) -> &mut LocalProvider {
-        &mut self.storage
+    /// Create a remote provider associated with this local storage and 
+    /// signing identity and perform the initial noise protocol handshake.
+    pub async fn create_remote_provider(
+        &self,
+        origin: &Origin,
+        keypair: Option<Keypair>) -> Result<RemoteProvider> {
+
+        let keypair = if let Some(keypair) = keypair {
+            keypair
+        } else {
+            Keypair::new(PATTERN.parse()?)?
+        };
+
+        let signer = self.user.identity().signer().clone();
+        let local = self.storage();
+        let client = RpcClient::new(
+            origin.url.clone(),
+            origin.public_key.clone(),
+            signer,
+            keypair,
+        )?;
+        let mut provider = RemoteProvider::new(local, client);
+
+        // Noise protocol handshake
+        provider.handshake().await?;
+
+        Ok(provider)
     }
-    */
 
     /// Insert a remote origin for synchronization.
     ///
@@ -843,8 +867,8 @@ impl UserStorage {
         options: SecretOptions,
     ) -> Result<(SecretId, Event<'static>)> {
         let _ = self.sync_lock.lock().await;
-
-        self.add_secret(meta, secret, options, true).await
+        let (id, event) = self.add_secret(meta, secret, options, true).await?;
+        Ok((id, event))
     }
 
     async fn add_secret(

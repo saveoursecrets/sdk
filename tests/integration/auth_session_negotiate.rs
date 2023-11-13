@@ -23,7 +23,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     let mut client = RpcClient::new(
         server_url,
-        server_public_key()?,
+        server_public_key(),
         signer,
         generate_keypair()?,
     )?;
