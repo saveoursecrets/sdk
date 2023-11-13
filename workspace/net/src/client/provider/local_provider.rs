@@ -285,40 +285,6 @@ impl StorageProvider for LocalProvider {
         Ok(())
     }
 
-    async fn pull(
-        &mut self,
-        summary: &Summary,
-        _force: bool,
-    ) -> Result<SyncInfo> {
-        let head = self
-            .commit_tree(summary)
-            .ok_or(Error::NoRootCommit)?
-            .head()?;
-        let info = SyncInfo {
-            before: (head.clone(), head),
-            after: None,
-            status: SyncKind::Equal,
-        };
-        Ok(info)
-    }
-
-    async fn push(
-        &mut self,
-        summary: &Summary,
-        _force: bool,
-    ) -> Result<SyncInfo> {
-        let head = self
-            .commit_tree(summary)
-            .ok_or(Error::NoRootCommit)?
-            .head()?;
-        let info = SyncInfo {
-            before: (head.clone(), head),
-            after: None,
-            status: SyncKind::Equal,
-        };
-        Ok(info)
-    }
-
     async fn status(
         &mut self,
         summary: &Summary,

@@ -511,8 +511,6 @@ pub trait StorageProvider: Sync + Send {
     /// Remove the local cache for a vault.
     fn remove_local_cache(&mut self, summary: &Summary) -> Result<()>;
 
-    //fn load_caches(&mut self, summaries: &[Summary]) -> Result<()>;
-
     /// Respond to a change notification.
     ///
     /// The return flag indicates whether the change was made
@@ -524,6 +522,7 @@ pub trait StorageProvider: Sync + Send {
         change: ChangeNotification,
     ) -> Result<(bool, HashSet<ChangeAction>)>;
 
+    /*
     /// Download changes from a remote server.
     ///
     /// For a local provider this is a noop.
@@ -541,6 +540,7 @@ pub trait StorageProvider: Sync + Send {
         summary: &Summary,
         _force: bool,
     ) -> Result<SyncInfo>;
+    */
 
     /// Get a comparison between a local and remote.
     ///

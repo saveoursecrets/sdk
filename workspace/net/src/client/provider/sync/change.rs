@@ -64,7 +64,8 @@ pub async fn handle_change(
 
                         match status {
                             CommitRelationship::Behind(_, _) => {
-                                provider.pull(summary, false).await?;
+                                //provider.pull(summary, false).await?;
+                                todo!();
                             }
                             CommitRelationship::Diverged(_) => {
                                 if change
@@ -76,7 +77,8 @@ pub async fn handle_change(
                                     // node indicated it did an update to the
                                     // entire vault then we need a force pull to
                                     // stay in sync
-                                    provider.pull(summary, true).await?;
+                                    //provider.pull(summary, true).await?;
+                                    todo!();
                                 }
                             }
                             _ => {}
