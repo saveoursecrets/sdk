@@ -12,7 +12,7 @@ mod create_remote_data;
 mod send_events;
 
 /// Assert that local and remote storage are equal.
-pub async fn assert_local_remote_eq(
+pub async fn assert_local_remote_vaults_eq(
     expected_summaries: Vec<Summary>,
     server_path: &PathBuf,
     owner: &mut UserStorage,
@@ -31,7 +31,16 @@ pub async fn assert_local_remote_eq(
         assert_eq!(local_buffer, remote_buffer);
     }
 
-    drop(reader);
+    Ok(())
+}
+
+pub async fn assert_local_remote_events_eq(
+    expected_summaries: Vec<Summary>,
+    server_path: &PathBuf,
+    owner: &mut UserStorage,
+    provider: &mut RemoteProvider,
+) -> Result<()> {
+    let storage = owner.storage();
 
     // Compare event log status (commit proofs)
     let local_status = {

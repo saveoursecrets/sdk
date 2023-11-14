@@ -12,7 +12,7 @@ use sos_net::{
 
 use crate::test_utils::{create_local_account, origin, setup, spawn};
 
-use super::assert_local_remote_eq;
+use super::{assert_local_remote_events_eq, assert_local_remote_vaults_eq};
 
 /// Tests creating all the account data on a remote
 /// when the server does not have the account data yet.
@@ -67,8 +67,16 @@ async fn integration_sync_create_remote_data() -> Result<()> {
         .as_any_mut()
         .downcast_mut::<RemoteProvider>()
         .expect("to be a remote provider");
+    
+    assert_local_remote_vaults_eq(
+        expected_summaries.clone(),
+        &server_path,
+        &mut owner,
+        remote_provider,
+    )
+    .await?;
 
-    assert_local_remote_eq(
+    assert_local_remote_events_eq(
         expected_summaries,
         &server_path,
         &mut owner,

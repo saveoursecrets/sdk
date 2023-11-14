@@ -529,8 +529,6 @@ impl RemoteProvider {
             event_log.patch_until(last_commit).await?
         };
 
-        println!("send patch {:#?}", patch.0.len());
-
         let (status, (server_proof, match_proof)) = retry!(
             || self.remote.apply_patch(
                 *folder.id(),

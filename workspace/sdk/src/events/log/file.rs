@@ -207,13 +207,14 @@ impl EventLogFile {
         }
     }
 
-    /// Read the bytes for the event log record.
-    pub async fn read_buffer(
+    /// Read the bytes for the encoded write event
+    /// inside the log record.
+    pub async fn read_event_buffer(
         &self,
         record: &EventLogFileRecord,
     ) -> Result<Vec<u8>> {
         let mut file = File::open(&self.file_path).await?;
-        let offset = record.offset();
+        let offset = record.value();
         let row_len = offset.end - offset.start;
 
         file.seek(SeekFrom::Start(offset.start)).await?;
@@ -417,7 +418,7 @@ impl EventLogFile {
                     break;
                 }
             }
-            let buffer = self.read_buffer(&record).await?;
+            let buffer = self.read_event_buffer(&record).await?;
             events.push((record, buffer).into());
         }
         Ok(Patch(events))
@@ -528,18 +529,6 @@ mod test {
         let patch = event_log.patch_until(last_commit).await?;
         assert_eq!(0, patch.0.len());
 
-        /*
-        let mut it = event_log.iter().await?;
-        let first_row = it.next_entry().await?.unwrap();
-        let second_row = it.next_entry().await?.unwrap();
-        let third_row = it.next_entry().await?.unwrap();
-
-        assert_eq!(commits.get(0).unwrap().as_ref(), &first_row.commit());
-        assert_eq!(commits.get(1).unwrap().as_ref(), &second_row.commit());
-        assert_eq!(commits.get(2).unwrap().as_ref(), &third_row.commit());
-
-        assert!(it.next_entry().await?.is_none());
-        */
         temp.close()?;
         Ok(())
     }

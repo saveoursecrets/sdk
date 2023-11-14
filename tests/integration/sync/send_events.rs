@@ -14,7 +14,7 @@ use crate::test_utils::{
     create_local_account, mock_note, origin, setup, spawn,
 };
 
-use super::assert_local_remote_eq;
+use super::assert_local_remote_events_eq;
 
 /// Tests sending events from changes to the local storage
 /// to a connected remote.
@@ -79,7 +79,7 @@ async fn integration_sync_send_events() -> Result<()> {
         .downcast_mut::<RemoteProvider>()
         .expect("to be a remote provider");
 
-    assert_local_remote_eq(
+    assert_local_remote_events_eq(
         expected_summaries,
         &server_path,
         &mut owner,
