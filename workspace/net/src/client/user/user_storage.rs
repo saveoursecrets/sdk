@@ -12,7 +12,7 @@ use sos_sdk::{
         AuthenticatedUser, DelegatedPassphrase, ExtractFilesLocation,
         ImportedAccount, LocalAccounts, Login, NewAccount, RestoreOptions,
     },
-    commit::CommitHash,
+    commit::{CommitHash, CommitProof},
     crypto::AccessKey,
     decode, encode,
     events::{
@@ -882,19 +882,22 @@ impl UserStorage {
                 .ok_or(Error::NoOpenFolder)?
         };
 
-        let last_commit = {
+        let (last_commit, commit_proof) = {
             let reader = self.storage.read().await;
             let (event_log, _) = reader
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            event_log.last_commit().await?
+            let last_commit = event_log.last_commit().await?;
+            let commit_proof = event_log.tree().head()?;
+            (last_commit, commit_proof)
         };
 
         let (id, event, folder) =
             self.add_secret(meta, secret, options, true).await?;
         let (_, create_event) = event.try_into()?;
-        self.sync_send_events(last_commit, &folder, &[create_event])
+        self.sync_send_events(
+            last_commit, commit_proof, &folder, &[create_event])
             .await?;
         Ok(id)
     }
@@ -1917,13 +1920,15 @@ impl RemoteSync for UserStorage {
 
     async fn sync_send_events(
         &mut self,
-        commit: Option<CommitHash>,
+        last_commit: Option<CommitHash>,
+        client_proof: CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
         let _ = self.sync_lock.lock().await;
         for remote in self.remotes.values_mut() {
-            remote.sync_send_events(commit, folder, events).await?;
+            remote.sync_send_events(
+                last_commit, client_proof.clone(), folder, events).await?;
         }
         Ok(())
     }

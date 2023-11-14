@@ -1,6 +1,6 @@
 use super::Result;
 use async_trait::async_trait;
-use sos_sdk::{commit::CommitHash, events::WriteEvent, vault::Summary};
+use sos_sdk::{commit::{CommitHash, CommitProof}, events::WriteEvent, vault::Summary};
 use std::any::Any;
 
 /// Trait for types that can sync accounts with a remote.
@@ -11,9 +11,13 @@ pub trait RemoteSync: Sync + Send + Any {
 
     /// Send events from changes to the local storage
     /// to a remote.
+    ///
+    /// The last commit hash and proof must be acquired 
+    /// before applying changes to the local storage.
     async fn sync_send_events(
         &mut self,
-        commit: Option<CommitHash>,
+        last_commit: Option<CommitHash>,
+        client_proof: CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()>;

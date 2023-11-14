@@ -499,7 +499,8 @@ impl RemoteProvider {
 
         Ok(())
     }
-
+        
+    /*
     /// Get the proof for a folder in the local storage.
     async fn client_proof(&self, folder: &Summary) -> Result<CommitProof> {
         let reader = self.local.read().await;
@@ -509,14 +510,15 @@ impl RemoteProvider {
             .ok_or(Error::CacheNotAvailable(*folder.id()))?;
         Ok(event_log.tree().head()?)
     }
+    */
 
     async fn patch(
         &mut self,
-        commit: Option<CommitHash>,
+        last_commit: Option<CommitHash>,
+        client_proof: CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
-        let client_proof = self.client_proof(folder).await?;
 
         let patch = {
             let reader = self.local.read().await;
@@ -524,7 +526,7 @@ impl RemoteProvider {
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            event_log.patch_until(commit).await?
+            event_log.patch_until(last_commit).await?
         };
 
         println!("send patch {:#?}", patch.0.len());
@@ -566,11 +568,12 @@ impl RemoteSync for RemoteProvider {
 
     async fn sync_send_events(
         &mut self,
-        commit: Option<CommitHash>,
+        last_commit: Option<CommitHash>,
+        client_proof: CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
-        self.patch(commit, folder, events).await?;
+        self.patch(last_commit, client_proof, folder, events).await?;
         Ok(())
     }
 
