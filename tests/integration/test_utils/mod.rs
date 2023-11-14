@@ -292,7 +292,7 @@ pub async fn create_secrets(
 
     assert_eq!(3, keeper.vault().len());
 
-    // Send the patch to the remote server
+    // Applt the patch of events
     provider.patch(summary, create_events).await?;
 
     Ok(results)

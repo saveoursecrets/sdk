@@ -7,13 +7,15 @@ use http::StatusCode;
 
 use sos_sdk::{
     account::AccountStatus,
-    commit::{CommitHash, CommitRelationship, CommitTree, SyncInfo, CommitProof},
+    commit::{
+        CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
+    },
     crypto::AccessKey,
     decode, encode,
     events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
     events::{EventLogFile, EventReducer, ReadEvent},
     passwd::diceware::generate_passphrase,
-    patch::{PatchFile, Patch},
+    patch::{Patch, PatchFile},
     storage::UserPaths,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
@@ -497,7 +499,7 @@ impl RemoteProvider {
 
         Ok(())
     }
-    
+
     /// Get the proof for a folder in the local storage.
     async fn client_proof(&self, folder: &Summary) -> Result<CommitProof> {
         let reader = self.local.read().await;

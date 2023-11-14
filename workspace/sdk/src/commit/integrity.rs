@@ -1,7 +1,9 @@
 //! Functions to build commit trees and run integrity checks.
 use crate::{
     commit::CommitTree,
+    decode,
     encoding::encoding_options,
+    events::EventRecord,
     formats::{vault_stream, EventLogFileRecord, FileItem, VaultRecord},
     vfs, Error, Result,
 };
@@ -114,8 +116,7 @@ where
                 });
             }
 
-            let buffer = event_log.read_buffer(&record).await?;
-            last_checksum = Some(CommitTree::hash(&buffer));
+            last_checksum = Some(record.commit());
         }
 
         func(&record);

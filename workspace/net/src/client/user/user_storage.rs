@@ -881,7 +881,7 @@ impl UserStorage {
                 .or_else(|| reader.current().map(|g| g.summary().clone()))
                 .ok_or(Error::NoOpenFolder)?
         };
-            
+
         let last_commit = {
             let reader = self.storage.read().await;
             let (event_log, _) = reader
@@ -894,7 +894,8 @@ impl UserStorage {
         let (id, event, folder) =
             self.add_secret(meta, secret, options, true).await?;
         let (_, create_event) = event.try_into()?;
-        self.sync_send_events(last_commit, &folder, &[create_event]).await?;
+        self.sync_send_events(last_commit, &folder, &[create_event])
+            .await?;
         Ok(id)
     }
 

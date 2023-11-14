@@ -20,11 +20,11 @@ use crate::{
     encode,
     encoding::encoding_options,
     events::WriteEvent,
-    patch::Patch,
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
     },
+    patch::Patch,
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
     Error, Result,
@@ -104,6 +104,7 @@ impl EventLogFile {
     ) -> Result<(CommitHash, EventRecord)> {
         let time: Timestamp = Default::default();
         let bytes = encode(event).await?;
+
         let commit = CommitHash(CommitTree::hash(&bytes));
 
         let last_commit = if let Some(last_commit) = last_commit {
@@ -250,13 +251,13 @@ impl EventLogFile {
     ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
-        let mut last_commit_hash = None;
+        let mut last_commit_hash = self.last_commit().await?;
         for event in events {
             let (commit, record) =
                 self.encode_event(&event, last_commit_hash).await?;
             commits.push(commit);
             let mut buf = encode(&record).await?;
-            last_commit_hash = Some(CommitHash(CommitTree::hash(&buf)));
+            last_commit_hash = Some(*record.commit());
             buffer.append(&mut buf);
         }
 
@@ -309,7 +310,8 @@ impl EventLogFile {
         &mut self,
         event: WriteEvent<'_>,
     ) -> Result<CommitHash> {
-        let (commit, record) = self.encode_event(&event, None).await?;
+        let last_commit = self.last_commit().await?;
+        let (commit, record) = self.encode_event(&event, last_commit).await?;
         let buffer = encode(&record).await?;
         self.file.write_all(&buffer).await?;
         self.file.flush().await?;
@@ -377,10 +379,7 @@ impl EventLogFile {
     pub async fn last_commit(&self) -> Result<Option<CommitHash>> {
         let mut it = self.iter().await?.rev();
         if let Some(record) = it.next_entry().await? {
-            let buffer = self.read_buffer(&record).await?;
-            let last_record_hash = CommitTree::hash(&buffer);
-            Ok(Some(CommitHash(last_record_hash)))
-            //Ok(Some(CommitHash(record.commit())))
+            Ok(Some(CommitHash(record.commit())))
         } else {
             Ok(None)
         }
@@ -399,26 +398,21 @@ impl EventLogFile {
         }
         Ok(None)
     }
-    
+
     /// Get a patch from these event logs until a specific commit.
     ///
-    /// Searches backwards until it finds the specified commit if given; if 
+    /// Searches backwards until it finds the specified commit if given; if
     /// no commit is given the patch will include all events.
     ///
     /// Does not include the target commit in the patch.
-    pub async fn patch_until(&self, commit: Option<CommitHash>) -> Result<Patch> {
-        
-        //println!("patch until {:#?}", commit);
-
+    pub async fn patch_until(
+        &self,
+        commit: Option<CommitHash>,
+    ) -> Result<Patch> {
         let mut events = Vec::new();
         let mut it = self.iter().await?.rev();
         while let Some(record) = it.next_entry().await? {
-            
-            println!("commit is {}", CommitHash(record.commit()));
-
             if let Some(commit) = commit {
-                println!("target is {}", commit);
-
                 if &record.commit() == commit.as_ref() {
                     break;
                 }
@@ -439,13 +433,18 @@ mod test {
     use super::*;
     use crate::{events::WriteEvent, test_utils::*};
 
+    async fn mock_event_log() -> Result<(NamedTempFile, EventLogFile)> {
+        let temp = NamedTempFile::new()?;
+        let mut event_log = EventLogFile::new(temp.path()).await?;
+        Ok((temp, event_log))
+    }
+
     async fn mock_event_log_file(
     ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>)> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file().await?;
 
-        let temp = NamedTempFile::new()?;
-        let mut event_log = EventLogFile::new(temp.path()).await?;
+        let (temp, mut event_log) = mock_event_log().await?;
 
         let mut commits = Vec::new();
 
@@ -504,6 +503,43 @@ mod test {
         let _second_row = it.next_entry().await?.unwrap();
         let _first_row = it.next_entry().await?.unwrap();
         assert!(it.next_entry().await?.is_none());
+        temp.close()?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn event_log_last_commit() -> Result<()> {
+        let (temp, mut event_log) = mock_event_log().await?;
+        let (_, mut vault, buffer) = mock_vault_file().await?;
+
+        assert!(event_log.last_commit().await?.is_none());
+
+        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
+        event_log.append_event(event).await?;
+
+        assert!(event_log.last_commit().await?.is_some());
+
+        // Patch with all events
+        let patch = event_log.patch_until(None).await?;
+        assert_eq!(1, patch.0.len());
+
+        // Patch is empty as the target commit is the empty commit
+        let last_commit = event_log.last_commit().await?;
+        let patch = event_log.patch_until(last_commit).await?;
+        assert_eq!(0, patch.0.len());
+
+        /*
+        let mut it = event_log.iter().await?;
+        let first_row = it.next_entry().await?.unwrap();
+        let second_row = it.next_entry().await?.unwrap();
+        let third_row = it.next_entry().await?.unwrap();
+
+        assert_eq!(commits.get(0).unwrap().as_ref(), &first_row.commit());
+        assert_eq!(commits.get(1).unwrap().as_ref(), &second_row.commit());
+        assert_eq!(commits.get(2).unwrap().as_ref(), &third_row.commit());
+
+        assert!(it.next_entry().await?.is_none());
+        */
         temp.close()?;
         Ok(())
     }

@@ -1,6 +1,6 @@
 use super::Result;
 use async_trait::async_trait;
-use sos_sdk::{events::WriteEvent, vault::Summary, commit::CommitHash};
+use sos_sdk::{commit::CommitHash, events::WriteEvent, vault::Summary};
 use std::any::Any;
 
 /// Trait for types that can sync accounts with a remote.
