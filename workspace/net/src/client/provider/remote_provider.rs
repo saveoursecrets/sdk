@@ -537,6 +537,12 @@ impl RemoteProvider {
             ),
             self.remote
         );
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+        
         Ok(())
     }
 }
