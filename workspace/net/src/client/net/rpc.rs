@@ -440,9 +440,6 @@ impl RpcClient {
 
         let body = encode(&patch).await?;
         
-        //println!("Encoded body: {:#?}", &body);
-        //println!("Encoded length: {}", body.len());
-
         let request = RequestMessage::new(
             Some(id),
             EVENT_LOG_PATCH,
