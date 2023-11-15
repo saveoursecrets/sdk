@@ -4,7 +4,7 @@ version = "0.8.6"
 edition = "2021"
 description = "Types for release artifact meta data"
 homepage = "https://saveoursecrets.com"
-license = "GPL-3.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]

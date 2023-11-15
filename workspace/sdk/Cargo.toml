@@ -4,7 +4,7 @@ version = "0.6.0"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
-license = "GPL-3.0"
+license = "MIT OR Apache-2.0"
 categories = ["cryptography::cryptocurrencies", "authentication"]
 repository = "https://github.com/saveoursecrets/sdk"
 

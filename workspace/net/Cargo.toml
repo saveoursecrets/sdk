@@ -4,7 +4,7 @@ version = "0.6.2"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
-license = "GPL-3.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
