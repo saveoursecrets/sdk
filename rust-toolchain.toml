@@ -1,0 +1,4 @@
+channel = "stable"
+
+# Specify the target architecture for cross-compilation
+# target = "x86_64-unknown-linux-gnu"
