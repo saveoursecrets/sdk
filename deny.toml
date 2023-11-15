@@ -48,12 +48,8 @@ notice = "warn"
 # A list of advisory IDs to ignore. Note that ignored advisories will still
 # output a note when they are encountered.
 ignore = [
-    # atty advisory Windows - TBD
-    #"RUSTSEC-2021-0145"
-    # This is tokio pipeserver related config - lunatic doesn't use this
-    # Also there is SemVer compatible backport meaning people will get it
-    # tokio 1.24.0 bump means we don't need to ignore this
-    #"RUSTSEC-2023-0001"
+    # self_cell covariance
+    #"RUSTSEC-2023-0070"
 ]
 # Threshold for security vulnerabilities, any vulnerability with a CVSS score
 # lower than the range specified will be ignored. Note that ignored advisories
