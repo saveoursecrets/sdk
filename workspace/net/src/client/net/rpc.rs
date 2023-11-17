@@ -3,10 +3,10 @@ use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use sos_sdk::{
     account::AccountStatus,
-    commit::CommitProof,
+    commit::{CommitProof, CommitHash},
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_LOAD,
-        EVENT_LOG_PATCH, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
+        EVENT_LOG_PATCH, EVENT_LOG_DIFF, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
         HANDSHAKE_INITIATE, VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
     },
     decode, encode,
@@ -363,6 +363,34 @@ impl RpcClient {
             .await?;
 
         maybe_retry.map(|result, _| Ok(result?))
+    }
+    
+    /// Get a diff of events from a remote event log.
+    ///
+    /// Returns the number of events in the patch and 
+    /// a buffer that can be decoded to a `Patch`.
+    pub async fn diff(
+        &self,
+        vault_id: &Uuid,
+        last_commit: &CommitHash,
+        proof: &CommitProof,
+    ) -> Result<MaybeRetry<(usize, Vec<u8>)>> {
+        let url = self.server.join("api/events")?;
+        let id = self.next_id().await;
+        let body =
+            new_rpc_call(id, EVENT_LOG_DIFF, (vault_id, last_commit, proof)).await?;
+        let signature =
+            encode_signature(self.signer.sign(&body).await?).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
+        let maybe_retry = self
+            .read_encrypted_response::<usize>(
+                response.status(),
+                &response.bytes().await?,
+            )
+            .await?;
+
+        maybe_retry.map(|result, body| Ok((result?, body)))
     }
 
     /// Get the event log bytes for a vault.

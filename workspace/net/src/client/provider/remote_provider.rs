@@ -456,6 +456,31 @@ impl RemoteProvider {
         Ok(())
     }
 
+    async fn sync_pull(
+        &self,
+        last_commit: Option<&CommitHash>,
+        client_proof: &CommitProof,
+        folder: &Summary,
+    ) -> Result<()> {
+        let last_commit = last_commit.ok_or_else(|| Error::NoRootCommit)?;
+
+        let (status, (num_events, body)) = retry!(
+            || self.remote.diff(folder.id(), last_commit, client_proof),
+            self.remote
+        );
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+
+        if num_events > 0 {
+            let patch: Patch = decode(&body).await?;
+            println!("Apply remote patch to local {:#?}", patch);
+        }
+
+        Ok(())
+    }
+        
     /// Create an account on the remote.
     async fn sync_create_remote_account(&self) -> Result<()> {
         let folder_buffer = {
@@ -570,8 +595,7 @@ impl RemoteSync for RemoteProvider {
         client_proof: &CommitProof,
         folder: &Summary,
     ) -> Result<()> {
-        todo!("handle before apply change");
-        //Ok(())
+        self.sync_pull(last_commit, client_proof, folder).await
     }
 
     async fn sync_send_events(

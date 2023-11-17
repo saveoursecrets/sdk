@@ -415,12 +415,20 @@ impl EventLogFile {
         while let Some(record) = it.next_entry().await? {
             if let Some(commit) = commit {
                 if &record.commit() == commit.as_ref() {
-                    break;
+                    return Ok(Patch(events))
                 }
             }
             let buffer = self.read_event_buffer(&record).await?;
             events.push((record, buffer).into());
         }
+        
+        // If the caller wanted to patch until a particular commit
+        // but it doesn't exist we error otherwise we would return 
+        // all the events
+        if let Some(commit) = commit {
+            return Err(Error::CommitNotFound(*commit));
+        }
+
         Ok(Patch(events))
     }
 }

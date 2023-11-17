@@ -119,16 +119,19 @@ mod rpc {
     /// Vault delete method call.
     pub const VAULT_DELETE: &str = "Vault.delete";
 
-    /// event log load method call.
+    /// Event log load method call.
     pub const EVENT_LOG_LOAD: &str = "Events.load";
 
-    /// event log status method call.
+    /// Event log status method call.
     pub const EVENT_LOG_STATUS: &str = "Events.status";
 
-    /// event log patch method call.
+    /// Event log diff method call.
+    pub const EVENT_LOG_DIFF: &str = "Events.diff";
+
+    /// Event log patch method call.
     pub const EVENT_LOG_PATCH: &str = "Events.patch";
 
-    /// event log save method call.
+    /// Event log save method call.
     pub const EVENT_LOG_SAVE: &str = "Events.save";
 }
 

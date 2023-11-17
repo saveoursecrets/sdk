@@ -4,7 +4,7 @@ use thiserror::Error;
 use urn::Urn;
 use uuid::Uuid;
 
-use crate::vault::{secret::SecretId, VaultId};
+use crate::{vault::{secret::SecretId, VaultId}, commit::CommitHash};
 
 /// Error thrown by the core library.
 #[derive(Debug, Error)]
@@ -228,6 +228,10 @@ pub enum Error {
     /// Error generated when a commit tree is expected to have a root.
     #[error("commit tree does not have a root")]
     NoRootCommit,
+
+    /// Error generated when a target commit hash could not be found.
+    #[error("commit '{0}' could not be found")]
+    CommitNotFound(CommitHash),
 
     /// Error generated when an RPC method kind is invalid.
     #[error("method kind {0} is invalid")]

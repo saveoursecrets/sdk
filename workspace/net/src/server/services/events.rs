@@ -2,9 +2,9 @@ use axum::http::StatusCode;
 use sos_sdk::{
     commit::{CommitHash, CommitProof, Comparison},
     constants::{
-        EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
+        EVENT_LOG_LOAD, EVENT_LOG_DIFF, EVENT_LOG_PATCH, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
     },
-    decode,
+    encode, decode,
     events::{
         AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
         EventKind, WriteEvent,
@@ -198,6 +198,54 @@ impl Service for EventLogService {
                 let reply: ResponseMessage<'_> =
                     (request.id(), (proof, match_proof)).try_into()?;
                 Ok(reply)
+            }
+            EVENT_LOG_DIFF => {
+                let (vault_id, last_commit, client_proof) =
+                    request.parameters::<(Uuid, CommitHash, CommitProof)>()?;
+
+                let reader = state.read().await;
+
+                let (exists, _) = reader
+                    .backend
+                    .handler()
+                    .event_log_exists(caller.address(), &vault_id)
+                    .await
+                    .map_err(Box::from)?;
+
+                if !exists {
+                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                }
+
+                let event_log = reader
+                    .backend
+                    .event_log_read(caller.address(), &vault_id)
+                    .await
+                    .map_err(Box::from)?;
+
+                let proof = event_log.tree().head().map_err(Box::from)?;
+
+
+                let match_proof = event_log
+                    .tree()
+                    .contains(&client_proof)
+                    .map_err(Box::from)?;
+                
+                // Can only generate a diff patch if our tree
+                // contains the client proof.
+                if match_proof.is_some() {
+                    let patch = event_log.patch_until(Some(&last_commit)).await?;
+                    let buffer = encode(&patch).await?;
+                    let reply = ResponseMessage::new(
+                        request.id(),
+                        StatusCode::OK,
+                        Some(Ok(patch.0.len())),
+                        Cow::Owned(buffer),
+                    )?;
+                    Ok(reply)
+                } else {
+                    Ok((StatusCode::CONFLICT, request.id()).into())
+                }
+
             }
             EVENT_LOG_PATCH => {
                 let (vault_id, commit_proof) =
