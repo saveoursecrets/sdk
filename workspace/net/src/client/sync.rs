@@ -9,15 +9,28 @@ pub trait RemoteSync: Sync + Send + Any {
     /// Perform a full sync of the account.
     async fn sync(&self) -> Result<()>;
 
-    /// Send events from changes to the local storage
+    /// Must be called before applying changes to a local 
+    /// provider.
+    ///
+    /// If the local is behind the remote and can safely pull 
+    /// this allows us to apply remote changes before committing 
+    /// changes to the local provider.
+    async fn sync_before_apply_change(
+        &self,
+        last_commit: Option<&CommitHash>,
+        client_proof: &CommitProof,
+        folder: &Summary,
+    ) -> Result<()>;
+
+    /// Send events after changes to the local storage
     /// to a remote.
     ///
     /// The last commit hash and proof must be acquired 
     /// before applying changes to the local storage.
     async fn sync_send_events(
         &self,
-        last_commit: Option<CommitHash>,
-        client_proof: CommitProof,
+        last_commit: Option<&CommitHash>,
+        client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()>;

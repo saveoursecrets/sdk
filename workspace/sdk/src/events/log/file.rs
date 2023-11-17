@@ -408,7 +408,7 @@ impl EventLogFile {
     /// Does not include the target commit in the patch.
     pub async fn patch_until(
         &self,
-        commit: Option<CommitHash>,
+        commit: Option<&CommitHash>,
     ) -> Result<Patch> {
         let mut events = Vec::new();
         let mut it = self.iter().await?.rev();

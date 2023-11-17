@@ -893,11 +893,15 @@ impl UserStorage {
             (last_commit, commit_proof)
         };
 
+        self.sync_before_apply_change(
+            last_commit.as_ref(), &commit_proof, &folder)
+            .await?;
+
         let (id, event, folder) =
             self.add_secret(meta, secret, options, true).await?;
         let (_, create_event) = event.try_into()?;
         self.sync_send_events(
-            last_commit, commit_proof, &folder, &[create_event])
+            last_commit.as_ref(), &commit_proof, &folder, &[create_event])
             .await?;
         Ok(id)
     }
@@ -1918,17 +1922,31 @@ impl RemoteSync for UserStorage {
         Ok(())
     }
 
+    async fn sync_before_apply_change(
+        &self,
+        last_commit: Option<&CommitHash>,
+        client_proof: &CommitProof,
+        folder: &Summary,
+    ) -> Result<()> {
+        let _ = self.sync_lock.lock().await;
+        for remote in self.remotes.values() {
+            remote.sync_before_apply_change(
+                last_commit, client_proof, folder).await?;
+        }
+        Ok(())
+    }
+
     async fn sync_send_events(
         &self,
-        last_commit: Option<CommitHash>,
-        client_proof: CommitProof,
+        last_commit: Option<&CommitHash>,
+        client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
         let _ = self.sync_lock.lock().await;
         for remote in self.remotes.values() {
             remote.sync_send_events(
-                last_commit, client_proof.clone(), folder, events).await?;
+                last_commit, client_proof, folder, events).await?;
         }
         Ok(())
     }

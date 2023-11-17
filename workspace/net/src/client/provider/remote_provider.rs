@@ -514,8 +514,8 @@ impl RemoteProvider {
 
     async fn patch(
         &self,
-        last_commit: Option<CommitHash>,
-        client_proof: CommitProof,
+        last_commit: Option<&CommitHash>,
+        client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
@@ -564,10 +564,20 @@ impl RemoteSync for RemoteProvider {
         }
     }
 
+    async fn sync_before_apply_change(
+        &self,
+        last_commit: Option<&CommitHash>,
+        client_proof: &CommitProof,
+        folder: &Summary,
+    ) -> Result<()> {
+        todo!("handle before apply change");
+        //Ok(())
+    }
+
     async fn sync_send_events(
         &self,
-        last_commit: Option<CommitHash>,
-        client_proof: CommitProof,
+        last_commit: Option<&CommitHash>,
+        client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {

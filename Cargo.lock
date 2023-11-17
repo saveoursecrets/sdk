@@ -5311,7 +5311,7 @@ dependencies = [
  "serde_with 2.3.3",
  "sha3",
  "sos-migrate 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sos-sdk 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.7.0",
  "tempfile",
  "thiserror",
  "tokio",

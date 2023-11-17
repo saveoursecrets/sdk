@@ -99,7 +99,7 @@ either = { version = "1.8", optional = true }
 
 [dependencies.sos-sdk]
 version = "0.7"
-#path = "../sdk"
+path = "../sdk"
 
 [dependencies.sos-migrate]
 version = "0.7"
