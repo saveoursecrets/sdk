@@ -72,7 +72,7 @@ impl RpcClient {
             server_public_key,
             signer,
             keypair,
-            protocol,
+            protocol: Arc::new(RwLock::new(protocol)),
             client,
             id: Arc::new(Mutex::new(AtomicU64::from(1))),
         })
@@ -94,13 +94,13 @@ impl RpcClient {
     fn new_handshake(
         keypair: &Keypair,
         server_public_key: &[u8],
-    ) -> Result<Arc<RwLock<Option<ProtocolState>>>> {
+    ) -> Result<Option<ProtocolState>> {
         let initiator = snow::Builder::new(PATTERN.parse()?)
             .local_private_key(keypair.private_key())
             .remote_public_key(server_public_key)
             .build_initiator()?;
         let protocol = ProtocolState::Handshake(Box::new(initiator));
-        Ok(Arc::new(RwLock::new(Some(protocol))))
+        Ok(Some(protocol))
     }
 
     /// Get the signer for this client.
@@ -131,11 +131,12 @@ impl RpcClient {
     }
 
     /// Perform the handshake for the noise protocol.
-    pub async fn handshake(&mut self) -> Result<()> {
+    pub async fn handshake(&self) -> Result<()> {
         // If we are already in a transport state, discard
         // the transport and perform a new handshake
         if self.is_transport_ready().await {
-            self.protocol =
+            let mut writer = self.protocol.write().await;
+            *writer =
                 Self::new_handshake(&self.keypair, &self.server_public_key)?;
         }
 
