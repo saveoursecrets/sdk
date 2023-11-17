@@ -89,7 +89,7 @@ mod local_provider;
 mod macros;
 mod remote_provider;
 mod state;
-mod sync;
+//mod sync;
 
 pub use local_provider::LocalProvider;
 pub use remote_provider::RemoteProvider;
@@ -114,7 +114,8 @@ pub fn spawn_changes_listener(
         async move {
             //println!("{:#?}", notification);
             let mut writer = cache.write().await;
-            let _ = writer.handle_change(notification).await;
+            todo!("restore handling change event notifications");
+            //let _ = writer.handle_change(notification).await;
         }
     });
 }
@@ -513,17 +514,6 @@ pub trait StorageProvider: Sync + Send {
 
     /// Remove the local cache for a vault.
     fn remove_local_cache(&mut self, summary: &Summary) -> Result<()>;
-
-    /// Respond to a change notification.
-    ///
-    /// The return flag indicates whether the change was made
-    /// by this node which is determined by comparing the session
-    /// identifier on the change notification with the current
-    /// session identifier for this node.
-    async fn handle_change(
-        &mut self,
-        change: ChangeNotification,
-    ) -> Result<(bool, HashSet<ChangeAction>)>;
 
     /*
     /// Download changes from a remote server.

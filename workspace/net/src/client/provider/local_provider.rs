@@ -30,7 +30,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     client::{
-        provider::{sync, ProviderState, StorageProvider},
+        provider::{ProviderState, StorageProvider},
         RemoteSync,
     },
     provider_impl,
@@ -170,7 +170,8 @@ impl StorageProvider for LocalProvider {
 
         Ok((WriteEvent::CreateVault(Cow::Owned(buffer)), summary))
     }
-
+        
+    /*
     async fn handle_change(
         &mut self,
         change: ChangeNotification,
@@ -178,6 +179,7 @@ impl StorageProvider for LocalProvider {
         let actions = sync::handle_change(self, change).await?;
         Ok((false, actions))
     }
+    */
 
     async fn update_vault<'a>(
         &mut self,

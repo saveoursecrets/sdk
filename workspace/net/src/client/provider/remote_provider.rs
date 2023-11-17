@@ -35,7 +35,7 @@ use uuid::Uuid;
 
 use crate::{
     client::{
-        provider::{sync, LocalProvider, ProviderState, StorageProvider},
+        provider::{LocalProvider, ProviderState, StorageProvider},
         RemoteSync,
     },
     patch, provider_impl, retry,
