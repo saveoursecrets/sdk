@@ -225,6 +225,44 @@ impl Service for EventLogService {
 
                 let proof = event_log.tree().head().map_err(Box::from)?;
 
+                let comparison = event_log
+                    .tree()
+                    .compare(&client_proof)
+                    .map_err(Box::from)?;
+
+                let patch: Option<Patch> = match comparison {
+                    Comparison::Equal => {
+                        Some(Default::default())
+                    }
+                    Comparison::Contains(_indices, _leaves) => {
+                        let match_proof = event_log
+                            .tree()
+                            .contains(&client_proof)
+                            .map_err(Box::from)?;
+
+                        if match_proof.is_some() {
+                            Some(event_log.patch_until(Some(&last_commit)).await?)
+                        } else {
+                            None
+                        }
+                    }
+                    Comparison::Unknown => None,
+                };
+
+                if let Some(patch) = patch {
+                    let buffer = encode(&patch).await?;
+                    let reply = ResponseMessage::new(
+                        request.id(),
+                        StatusCode::OK,
+                        Some(Ok(patch.0.len())),
+                        Cow::Owned(buffer),
+                    )?;
+                    Ok(reply)
+                } else {
+                    Ok((StatusCode::CONFLICT, request.id()).into())
+                }
+    
+                /*
                 let match_proof = event_log
                     .tree()
                     .contains(&client_proof)
@@ -246,6 +284,7 @@ impl Service for EventLogService {
                 } else {
                     Ok((StatusCode::CONFLICT, request.id()).into())
                 }
+                */
             }
             EVENT_LOG_PATCH => {
                 let (vault_id, commit_proof) =
