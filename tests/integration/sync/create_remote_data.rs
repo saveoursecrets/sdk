@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use sos_net::{
     client::{
-        provider::{RemoteProvider, StorageProvider},
+        provider::RemoteProvider,
         RemoteSync,
     },
     sdk::{storage::AppPaths, vault::Summary},

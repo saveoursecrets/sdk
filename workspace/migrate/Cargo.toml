@@ -28,7 +28,7 @@ futures = "0.3"
 
 [dependencies.sos-sdk]
 version = "0.7"
-#path = "../sdk"
+path = "../sdk"
 
 [target.'cfg(target_os="macos")'.dependencies]
 security-framework = "2.8"
@@ -42,7 +42,7 @@ tokio = { version = "1", default-features = false, features = ["rt", "macros"] }
 [dev-dependencies.sos-sdk]
 version = "0.7"
 features = ["test-utils"]
-#path = "../sdk"
+path = "../sdk"
 
 [features]
 interactive-keychain-tests = []

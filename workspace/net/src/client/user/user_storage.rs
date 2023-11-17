@@ -42,9 +42,7 @@ use tokio::{
 
 use crate::client::{
     net::RpcClient,
-    provider::{
-        new_local_provider, LocalProvider, RemoteProvider, StorageProvider,
-    },
+    provider::{new_local_provider, LocalProvider, RemoteProvider},
     Error, Result,
 };
 use async_trait::async_trait;
@@ -894,15 +892,22 @@ impl UserStorage {
         };
 
         self.sync_before_apply_change(
-            last_commit.as_ref(), &commit_proof, &folder)
-            .await?;
+            last_commit.as_ref(),
+            &commit_proof,
+            &folder,
+        )
+        .await?;
 
         let (id, event, folder) =
             self.add_secret(meta, secret, options, true).await?;
         let (_, create_event) = event.try_into()?;
         self.sync_send_events(
-            last_commit.as_ref(), &commit_proof, &folder, &[create_event])
-            .await?;
+            last_commit.as_ref(),
+            &commit_proof,
+            &folder,
+            &[create_event],
+        )
+        .await?;
         Ok(id)
     }
 
@@ -1930,8 +1935,9 @@ impl RemoteSync for UserStorage {
     ) -> Result<()> {
         let _ = self.sync_lock.lock().await;
         for remote in self.remotes.values() {
-            remote.sync_before_apply_change(
-                last_commit, client_proof, folder).await?;
+            remote
+                .sync_before_apply_change(last_commit, client_proof, folder)
+                .await?;
         }
         Ok(())
     }
@@ -1945,8 +1951,9 @@ impl RemoteSync for UserStorage {
     ) -> Result<()> {
         let _ = self.sync_lock.lock().await;
         for remote in self.remotes.values() {
-            remote.sync_send_events(
-                last_commit, client_proof, folder, events).await?;
+            remote
+                .sync_send_events(last_commit, client_proof, folder, events)
+                .await?;
         }
         Ok(())
     }

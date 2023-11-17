@@ -3,10 +3,10 @@ use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use sos_sdk::{
     account::AccountStatus,
-    commit::{CommitProof, CommitHash},
+    commit::{CommitHash, CommitProof},
     constants::{
-        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_LOAD,
-        EVENT_LOG_PATCH, EVENT_LOG_DIFF, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
+        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
+        EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
         HANDSHAKE_INITIATE, VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
     },
     decode, encode,
@@ -364,10 +364,10 @@ impl RpcClient {
 
         maybe_retry.map(|result, _| Ok(result?))
     }
-    
+
     /// Get a diff of events from a remote event log.
     ///
-    /// Returns the number of events in the patch and 
+    /// Returns the number of events in the patch and
     /// a buffer that can be decoded to a `Patch`.
     pub async fn diff(
         &self,
@@ -378,7 +378,8 @@ impl RpcClient {
         let url = self.server.join("api/events")?;
         let id = self.next_id().await;
         let body =
-            new_rpc_call(id, EVENT_LOG_DIFF, (vault_id, last_commit, proof)).await?;
+            new_rpc_call(id, EVENT_LOG_DIFF, (vault_id, last_commit, proof))
+                .await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
@@ -468,7 +469,7 @@ impl RpcClient {
         */
 
         let body = encode(&patch).await?;
-        
+
         let request = RequestMessage::new(
             Some(id),
             EVENT_LOG_PATCH,

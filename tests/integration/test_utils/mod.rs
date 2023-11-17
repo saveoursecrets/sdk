@@ -11,7 +11,6 @@ use sos_net::{
     client::{
         provider::{
             new_remote_provider, LocalProvider, RemoteProvider,
-            StorageProvider,
         },
         user::{Origin, UserStorage},
     },

@@ -7,7 +7,6 @@ use terminal_banner::{Banner, Padding};
 
 use sos_net::{
     client::{
-        provider::StorageProvider,
         user::{ArchiveFilter, DocumentView},
     },
     sdk::{

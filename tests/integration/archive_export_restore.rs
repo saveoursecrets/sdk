@@ -8,7 +8,7 @@ use secrecy::SecretString;
 use tempfile::tempdir;
 
 use sos_net::{
-    client::provider::{LocalProvider, StorageProvider},
+    client::provider::LocalProvider,
     sdk::{
         account::{archive::Writer, AccountBackup, Identity, RestoreOptions},
         encode,

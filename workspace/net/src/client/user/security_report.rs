@@ -1,5 +1,5 @@
 //! Generate a security report for all passwords.
-use crate::client::{provider::StorageProvider, user::UserStorage, Result};
+use crate::client::{user::UserStorage, Result};
 use serde::{Deserialize, Serialize};
 use sos_sdk::{
     vault::{

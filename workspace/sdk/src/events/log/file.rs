@@ -534,7 +534,7 @@ mod test {
 
         // Patch is empty as the target commit is the empty commit
         let last_commit = event_log.last_commit().await?;
-        let patch = event_log.patch_until(last_commit).await?;
+        let patch = event_log.patch_until(last_commit.as_ref()).await?;
         assert_eq!(0, patch.0.len());
 
         temp.close()?;

@@ -35,10 +35,10 @@ use uuid::Uuid;
 
 use crate::{
     client::{
-        provider::{LocalProvider, ProviderState, StorageProvider},
+        provider::{LocalProvider, ProviderState},
         RemoteSync,
     },
-    patch, provider_impl, retry,
+    patch, retry,
 };
 
 /// Bridge between a local provider and a remote.
@@ -65,9 +65,7 @@ impl RemoteProvider {
 }
 
 /*
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl StorageProvider for RemoteProvider {
+impl RemoteProvider {
     provider_impl!();
 
     async fn create_vault_or_account(
@@ -480,7 +478,7 @@ impl RemoteProvider {
 
         Ok(())
     }
-        
+
     /// Create an account on the remote.
     async fn sync_create_remote_account(&self) -> Result<()> {
         let folder_buffer = {
@@ -524,7 +522,7 @@ impl RemoteProvider {
 
         Ok(())
     }
-        
+
     /*
     /// Get the proof for a folder in the local storage.
     async fn client_proof(&self, folder: &Summary) -> Result<CommitProof> {
@@ -544,7 +542,6 @@ impl RemoteProvider {
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
-
         let patch = {
             let reader = self.local.read().await;
             let (event_log, _) = reader
@@ -567,7 +564,7 @@ impl RemoteProvider {
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
-        
+
         Ok(())
     }
 }
@@ -605,7 +602,8 @@ impl RemoteSync for RemoteProvider {
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
-        self.patch(last_commit, client_proof, folder, events).await?;
+        self.patch(last_commit, client_proof, folder, events)
+            .await?;
         Ok(())
     }
 

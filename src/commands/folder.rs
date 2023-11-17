@@ -2,7 +2,6 @@ use clap::Subcommand;
 
 use human_bytes::human_bytes;
 use sos_net::{
-    client::provider::StorageProvider,
     sdk::{account::AccountRef, hex, vault::VaultRef},
 };
 

@@ -10,7 +10,6 @@ use tokio::sync::RwLock;
 use sos_net::{
     client::{
         net::changes::{changes, connect},
-        provider::StorageProvider,
     },
     sdk::{commit::CommitProof, mpc::generate_keypair},
 };

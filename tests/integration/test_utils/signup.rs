@@ -9,7 +9,6 @@ use sos_net::{
     client::{
         provider::{
             new_local_provider, LocalProvider, RemoteProvider,
-            StorageProvider,
         },
         RemoteSync,
     },

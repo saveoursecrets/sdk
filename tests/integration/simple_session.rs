@@ -4,7 +4,6 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use sos_net::{
-    client::provider::StorageProvider,
     sdk::{
         commit::CommitRelationship, constants::DEFAULT_VAULT_NAME,
         vault::VaultRef,

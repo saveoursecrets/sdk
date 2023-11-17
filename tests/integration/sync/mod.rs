@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sos_net::{
     client::{
-        provider::{RemoteProvider, StorageProvider},
+        provider::RemoteProvider,
         user::UserStorage,
     },
     sdk::{constants::VAULT_EXT, vault::Summary, vfs},

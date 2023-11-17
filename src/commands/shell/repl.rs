@@ -3,7 +3,6 @@ use std::{ffi::OsString, sync::Arc};
 use clap::{CommandFactory, Parser, Subcommand};
 
 use sos_net::{
-    client::provider::StorageProvider,
     sdk::{account::AccountRef, vault::VaultRef},
 };
 

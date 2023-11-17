@@ -4,7 +4,6 @@ use serial_test::serial;
 use crate::test_utils::{create_secrets, signup_local, AccountCredentials};
 
 use sos_net::{
-    client::provider::StorageProvider,
     sdk::passwd::diceware::generate_passphrase,
 };
 

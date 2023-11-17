@@ -1,6 +1,10 @@
 use super::Result;
 use async_trait::async_trait;
-use sos_sdk::{commit::{CommitHash, CommitProof}, events::WriteEvent, vault::Summary};
+use sos_sdk::{
+    commit::{CommitHash, CommitProof},
+    events::WriteEvent,
+    vault::Summary,
+};
 use std::any::Any;
 
 /// Trait for types that can sync accounts with a remote.
@@ -9,11 +13,11 @@ pub trait RemoteSync: Sync + Send + Any {
     /// Perform a full sync of the account.
     async fn sync(&self) -> Result<()>;
 
-    /// Must be called before applying changes to a local 
+    /// Must be called before applying changes to a local
     /// provider.
     ///
-    /// If the local is behind the remote and can safely pull 
-    /// this allows us to apply remote changes before committing 
+    /// If the local is behind the remote and can safely pull
+    /// this allows us to apply remote changes before committing
     /// changes to the local provider.
     async fn sync_before_apply_change(
         &self,
@@ -25,7 +29,7 @@ pub trait RemoteSync: Sync + Send + Any {
     /// Send events after changes to the local storage
     /// to a remote.
     ///
-    /// The last commit hash and proof must be acquired 
+    /// The last commit hash and proof must be acquired
     /// before applying changes to the local storage.
     async fn sync_send_events(
         &self,
@@ -41,7 +45,6 @@ pub trait RemoteSync: Sync + Send + Any {
         events: &[WriteEvent<'static>],
     ) -> Result<()>;
 
-    
     /*
     /// Respond to a change notification.
     ///
@@ -54,7 +57,6 @@ pub trait RemoteSync: Sync + Send + Any {
         change: ChangeNotification,
     ) -> Result<(bool, HashSet<ChangeAction>)>;
     */
-
 
     /// Cast to the Any trait.
     fn as_any(&self) -> &dyn Any;

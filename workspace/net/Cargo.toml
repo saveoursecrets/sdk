@@ -104,7 +104,7 @@ path = "../sdk"
 [dependencies.sos-migrate]
 version = "0.7"
 optional = true
-#path = "../migrate"
+path = "../migrate"
 
 [dependencies.libp2p]
 version = "0.52.4"
