@@ -415,19 +415,19 @@ impl StorageProvider for RemoteProvider {
 /// Sync helper functions.
 impl RemoteProvider {
     /// Perform the noise protocol handshake.
-    pub async fn handshake(&mut self) -> Result<()> {
+    pub async fn handshake(&self) -> Result<()> {
         Ok(self.remote.handshake().await?)
     }
 
     /// Get account status from remote.
-    pub async fn account_status(&mut self) -> Result<AccountStatus> {
+    pub async fn account_status(&self) -> Result<AccountStatus> {
         let (_, status) =
             retry!(|| self.remote.account_status(), self.remote);
         status.ok_or(Error::NoAccountStatus)
     }
 
     /// Create an account on the remote.
-    async fn create_account(&mut self, buffer: Vec<u8>) -> Result<()> {
+    async fn create_account(&self, buffer: Vec<u8>) -> Result<()> {
         let vault: Vault = decode(&buffer).await?;
         let summary = vault.summary().clone();
         let (status, _) = retry!(
@@ -444,7 +444,7 @@ impl RemoteProvider {
     }
 
     /// Import a vault into an account that already exists on the remote.
-    async fn import_vault(&mut self, buffer: Vec<u8>) -> Result<()> {
+    async fn import_vault(&self, buffer: Vec<u8>) -> Result<()> {
         let vault: Vault = decode(&buffer).await?;
         let summary = vault.summary().clone();
         let (status, _) =
@@ -457,7 +457,7 @@ impl RemoteProvider {
     }
 
     /// Create an account on the remote.
-    async fn sync_create_remote_account(&mut self) -> Result<()> {
+    async fn sync_create_remote_account(&self) -> Result<()> {
         let folder_buffer = {
             let local = self.local.read().await;
             let default_folder = local
@@ -513,7 +513,7 @@ impl RemoteProvider {
     */
 
     async fn patch(
-        &mut self,
+        &self,
         last_commit: Option<CommitHash>,
         client_proof: CommitProof,
         folder: &Summary,
@@ -549,7 +549,7 @@ impl RemoteProvider {
 
 #[async_trait]
 impl RemoteSync for RemoteProvider {
-    async fn sync(&mut self) -> Result<()> {
+    async fn sync(&self) -> Result<()> {
         // Ensure our folder state is the latest version on disc
         {
             let mut local = self.local.write().await;
@@ -565,7 +565,7 @@ impl RemoteSync for RemoteProvider {
     }
 
     async fn sync_send_events(
-        &mut self,
+        &self,
         last_commit: Option<CommitHash>,
         client_proof: CommitProof,
         folder: &Summary,
@@ -576,7 +576,7 @@ impl RemoteSync for RemoteProvider {
     }
 
     async fn sync_receive_events(
-        &mut self,
+        &self,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
         todo!();

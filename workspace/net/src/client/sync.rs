@@ -7,7 +7,7 @@ use std::any::Any;
 #[async_trait]
 pub trait RemoteSync: Sync + Send + Any {
     /// Perform a full sync of the account.
-    async fn sync(&mut self) -> Result<()>;
+    async fn sync(&self) -> Result<()>;
 
     /// Send events from changes to the local storage
     /// to a remote.
@@ -15,7 +15,7 @@ pub trait RemoteSync: Sync + Send + Any {
     /// The last commit hash and proof must be acquired 
     /// before applying changes to the local storage.
     async fn sync_send_events(
-        &mut self,
+        &self,
         last_commit: Option<CommitHash>,
         client_proof: CommitProof,
         folder: &Summary,
@@ -24,7 +24,7 @@ pub trait RemoteSync: Sync + Send + Any {
 
     /// Receive events from changes to remote storage.
     async fn sync_receive_events(
-        &mut self,
+        &self,
         events: &[WriteEvent<'static>],
     ) -> Result<()>;
 

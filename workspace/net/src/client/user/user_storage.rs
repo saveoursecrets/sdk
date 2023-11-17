@@ -1910,23 +1910,23 @@ impl From<UserStorage> for Arc<RwLock<LocalProvider>> {
 
 #[async_trait]
 impl RemoteSync for UserStorage {
-    async fn sync(&mut self) -> Result<()> {
+    async fn sync(&self) -> Result<()> {
         let _ = self.sync_lock.lock().await;
-        for remote in self.remotes.values_mut() {
+        for remote in self.remotes.values() {
             remote.sync().await?;
         }
         Ok(())
     }
 
     async fn sync_send_events(
-        &mut self,
+        &self,
         last_commit: Option<CommitHash>,
         client_proof: CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
         let _ = self.sync_lock.lock().await;
-        for remote in self.remotes.values_mut() {
+        for remote in self.remotes.values() {
             remote.sync_send_events(
                 last_commit, client_proof.clone(), folder, events).await?;
         }
@@ -1934,11 +1934,11 @@ impl RemoteSync for UserStorage {
     }
 
     async fn sync_receive_events(
-        &mut self,
+        &self,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
         let _ = self.sync_lock.lock().await;
-        for remote in self.remotes.values_mut() {
+        for remote in self.remotes.values() {
             remote.sync_receive_events(events).await?;
         }
         Ok(())
