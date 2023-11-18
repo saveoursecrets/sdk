@@ -9,10 +9,9 @@ use crate::{
         VAULTS_DIR, VAULT_EXT, EVENT_LOG_EXT, IDENTITY_DIR, TEMP_DIR,
         LOGS_DIR,
     },
+    storage::AppPaths,
     vfs,
 };
-
-
 
 /// Encapsulates the paths for a user account.
 #[derive(Default, Debug, Clone)]
@@ -85,7 +84,9 @@ impl UserPaths {
     /// Ensure all the user directories exist.
     pub async fn ensure(&self) -> Result<()> {
         vfs::create_dir_all(&self.documents_dir).await?;
+        //vfs::create_dir_all(&self.identity_dir).await?;
         vfs::create_dir_all(&self.local_dir).await?;
+        //vfs::create_dir_all(&self.logs_dir).await?;
         vfs::create_dir_all(&self.trash_dir).await?;
         vfs::create_dir_all(&self.user_dir).await?;
         vfs::create_dir_all(&self.files_dir).await?;
@@ -199,5 +200,36 @@ impl UserPaths {
         let mut vault_path = self.vaults_dir.join(id);
         vault_path.set_extension(EVENT_LOG_EXT);
         vault_path
+    }
+
+    /// Helper to get paths for an optional data directory 
+    /// and ensure the paths exist on disc.
+    pub async fn ensure_paths(
+        address: impl AsRef<str>,
+        data_dir: Option<PathBuf>) -> Result<UserPaths> {
+        // Ensure all paths before sign_in
+        Ok(if let Some(data_dir) = data_dir.clone() {
+            let paths = UserPaths::new(data_dir, address);
+            paths.ensure().await?;
+            paths
+        } else {
+            let paths = UserPaths::new(AppPaths::data_dir()?, address);
+            paths.ensure().await?;
+            paths
+        })
+    }
+
+    /// Ensure the root directories exist.
+    pub async fn scaffold(data_dir: Option<PathBuf>) -> Result<()> {
+        let data_dir = if let Some(data_dir) = data_dir {
+            data_dir
+        } else {
+            AppPaths::data_dir()?
+        };
+        let paths = Self::new_global(data_dir);
+        vfs::create_dir_all(paths.documents_dir()).await?;
+        vfs::create_dir_all(paths.identity_dir()).await?;
+        vfs::create_dir_all(paths.logs_dir()).await?;
+        Ok(())
     }
 }

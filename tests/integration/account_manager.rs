@@ -40,7 +40,7 @@ async fn integration_account_manager() -> Result<()> {
     let (passphrase, _) = generate_passphrase()?;
 
     let new_account =
-        AccountBuilder::new(account_name.clone(), passphrase.clone())
+        AccountBuilder::new(account_name.clone(), passphrase.clone(), None)
             .save_passphrase(true)
             .create_archive(true)
             .create_authenticator(true)

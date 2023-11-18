@@ -235,14 +235,12 @@ impl LocalProvider {
 
     /// Get the path to a event log file.
     pub fn event_log_path(&self, summary: &Summary) -> PathBuf {
-        let file_name = format!("{}.{}", summary.id(), EVENT_LOG_EXT);
-        self.paths().vaults_dir().join(file_name)
+        self.paths.event_log_path(summary.id().to_string())
     }
 
     /// Get the path to a vault file.
     pub fn vault_path(&self, summary: &Summary) -> PathBuf {
-        let file_name = format!("{}.{}", summary.id(), VAULT_EXT);
-        self.paths().vaults_dir().join(file_name)
+        self.paths.vault_path(summary.id().to_string())
     }
 
     /// Get the vault summaries for this storage.

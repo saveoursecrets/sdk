@@ -14,6 +14,7 @@ use sos_net::{
 
 use crate::test_utils::{
     create_local_account, mock_note, origin, setup, spawn,
+    init_tracing,
 };
 
 use super::assert_local_remote_events_eq;
@@ -23,6 +24,9 @@ use super::assert_local_remote_events_eq;
 #[tokio::test]
 #[serial]
 async fn integration_sync_send_events() -> Result<()> {
+    
+    init_tracing();
+
     // Prepare distinct data directories for the two clients
     let dirs = setup(2).await?;
 
@@ -32,7 +36,7 @@ async fn integration_sync_send_events() -> Result<()> {
     AppPaths::scaffold().await?;
 
     AppPaths::clear_data_dir();
-    
+
     // Need to remove the other data dir as we will
     // copy the first data dir in later
     let other_data_dir = dirs.clients.get(1).unwrap();
@@ -45,7 +49,7 @@ async fn integration_sync_send_events() -> Result<()> {
     let (mut owner, _, default_folder, passphrase) =
         create_local_account(
             "sync_basic_1",
-            Some(test_data_dir.join("debug"))).await?;
+            Some(test_data_dir.clone())).await?;
 
     // Folders on the local account
     let expected_summaries: Vec<Summary> = {
@@ -77,13 +81,18 @@ async fn integration_sync_send_events() -> Result<()> {
     
     // Copy the owner's account directory and sign in
     // using the alternative owner
-    copy_dir(test_data_dir, other_data_dir)?;
+    copy_dir(&test_data_dir, &other_data_dir)?;
+        
+    println!("Starting other user sign in");
+
     let mut other_owner = UserStorage::sign_in(
         owner.address(),
         passphrase,
         Some(other_remotes),
-        Some(other_data_dir.join("debug")),
+        Some(other_data_dir.clone()),
     ).await?;
+
+    println!("Sign in completed...");
 
     // Must list folders to load cache into memory after sign in
     other_owner.list_folders().await?;

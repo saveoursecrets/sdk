@@ -2,6 +2,7 @@
 
 use urn::Urn;
 
+use std::path::PathBuf;
 use crate::{
     constants::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
@@ -24,6 +25,8 @@ use secrecy::SecretString;
 
 /// Newly created account information.
 pub struct NewAccount {
+    /// Directory for the new account.
+    pub data_dir: Option<PathBuf>,
     /// Address of the account signing key.
     pub address: Address,
     /// Identity for the new user.
@@ -56,6 +59,7 @@ pub struct ImportedAccount {
 
 /// Create a new account.
 pub struct AccountBuilder {
+    data_dir: Option<PathBuf>,
     account_name: String,
     passphrase: SecretString,
     save_passphrase: bool,
@@ -68,8 +72,12 @@ pub struct AccountBuilder {
 
 impl AccountBuilder {
     /// Create a new account builder.
-    pub fn new(account_name: String, passphrase: SecretString) -> Self {
+    pub fn new(
+        account_name: String,
+        passphrase: SecretString,
+        data_dir: Option<PathBuf>) -> Self {
         Self {
+            data_dir,
             account_name,
             passphrase,
             save_passphrase: false,
@@ -120,6 +128,7 @@ impl AccountBuilder {
     /// Create a new identity vault and account folders.
     pub async fn build(self) -> Result<(Vault, NewAccount)> {
         let AccountBuilder {
+            data_dir,
             account_name,
             passphrase,
             save_passphrase,
@@ -129,6 +138,8 @@ impl AccountBuilder {
             create_file_password,
             mut default_folder_name,
         } = self;
+
+        UserPaths::scaffold(data_dir.clone()).await?;
 
         // Prepare the identity vault
         let (address, identity_vault) = Identity::new_login_vault(
@@ -275,6 +286,7 @@ impl AccountBuilder {
         Ok((
             keeper.into(),
             NewAccount {
+                data_dir,
                 address,
                 user,
                 default_vault,
@@ -286,12 +298,17 @@ impl AccountBuilder {
     }
 
     /// Write the identity vault to disc and prepare storage directories.
-    pub async fn write(
+    async fn write(
         identity_vault: Vault,
         account: NewAccount,
     ) -> Result<NewAccount> {
         let address = account.address.to_string();
-        let paths = UserPaths::new(AppPaths::data_dir()?, &address);
+        let data_dir = if let Some(data_dir) = &account.data_dir {
+            data_dir.clone()
+        } else {
+            AppPaths::data_dir()?
+        };
+        let paths = UserPaths::new(data_dir, &address);
         // Persist the identity vault to disc, MUST re-encode the buffer
         // as we have modified the identity vault
         let identity_vault_file = paths.identity_vault();

@@ -29,6 +29,7 @@ pub struct AppPaths;
 
 impl AppPaths {
     /// Ensure the root directories exist.
+    #[deprecated(note = "Use UserPaths::scaffold() instead")]
     pub async fn scaffold() -> Result<()> {
         let data_dir = Self::data_dir()?;
         vfs::create_dir_all(&data_dir).await?;
@@ -82,12 +83,20 @@ impl AppPaths {
             }
         };
         if cfg!(debug_assertions) {
-            let sub_dir = if std::env::var("SOS_TEST").is_ok() {
-                "test"
+            // Don't follow the convention for separating debug and 
+            // release data when running the integration tests as it 
+            // makes paths very hard to reason about when they are 
+            // being explicitly set in test specs.
+            if !cfg!(test) {
+                let sub_dir = if std::env::var("SOS_TEST").is_ok() {
+                    "test"
+                } else {
+                    "debug"
+                };
+                dir.map(|dir| dir.join(sub_dir))
             } else {
-                "debug"
-            };
-            dir.map(|dir| dir.join(sub_dir))
+                dir
+            }
         } else {
             dir
         }

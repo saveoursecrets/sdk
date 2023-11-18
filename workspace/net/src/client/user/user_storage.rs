@@ -32,6 +32,8 @@ use sos_sdk::{
     Timestamp,
 };
 
+use tracing::{span, Level};
+
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
@@ -293,7 +295,7 @@ impl UserStorage {
     pub fn peer_key(&self) -> &libp2p::identity::Keypair {
         &self.peer_key
     }
-
+    
     /// Create a new account with the given
     /// name, passphrase and provider and modify the
     /// account builder.
@@ -304,16 +306,27 @@ impl UserStorage {
         remotes: Option<Remotes>,
         data_dir: Option<PathBuf>,
     ) -> Result<(UserStorage, ImportedAccount, NewAccount)> {
+        let span = span!(Level::DEBUG, "new_account");
+        let _enter = span.enter();
+
         let account_builder =
-            builder(AccountBuilder::new(account_name, passphrase.clone()));
+            builder(AccountBuilder::new(
+                account_name, passphrase.clone(), data_dir.clone()));
         let new_account = account_builder.finish().await?;
+
+        tracing::debug!(address = %new_account.address, "created account");
 
         // Must import the new account before signing in
         let signer = new_account.user.signer().clone();
-        let (mut storage, _) = new_local_provider(signer, data_dir.clone()).await?;
+        let (mut storage, _) = new_local_provider(
+            signer, data_dir.clone()).await?;
+
+        tracing::debug!("prepared storage provider");
         
         let (imported_account, events) =
             storage.import_new_account(&new_account).await?;
+
+        tracing::debug!("imported new account");
 
         let owner = UserStorage::sign_in(
             new_account.user.address(),
@@ -322,6 +335,8 @@ impl UserStorage {
             data_dir,
         )
         .await?;
+
+        tracing::debug!("signed in new user");
 
         let mut audit_events = Vec::new();
         for event in events {
@@ -346,24 +361,22 @@ impl UserStorage {
         remotes: Option<Remotes>,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
+        let span = span!(Level::DEBUG, "sign_in");
+        let _enter = span.enter();
+
+        tracing::debug!(address = %address);
         
         // Ensure all paths before sign_in
-        let paths = {
-            let address = address.to_string();
-            if let Some(data_dir) = data_dir.clone() {
-                let paths = UserPaths::new(data_dir, &address);
-                paths.ensure().await?;
-                paths
-            } else {
-                let paths = UserPaths::new(AppPaths::data_dir()?, &address);
-                paths.ensure().await?;
-                paths
-            }
-        };
+        let paths = UserPaths::ensure_paths(
+            address.to_string(), data_dir.clone()).await?;
+
+        tracing::debug!(data_dir = ?paths.documents_dir());
 
         let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
         let user =
             Login::sign_in(address, &paths, passphrase, identity_index).await?;
+        tracing::debug!("sign in success");
+
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
         let (storage, _) = new_local_provider(signer, data_dir).await?;

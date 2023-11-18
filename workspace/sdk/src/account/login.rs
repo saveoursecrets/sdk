@@ -6,6 +6,7 @@ use tokio::sync::RwLock;
 
 use urn::Urn;
 use web3_address::ethereum::Address;
+use tracing::{span, Level};
 
 use crate::{
     account::{AccountInfo, DelegatedPassphrase, LocalAccounts},
@@ -196,6 +197,8 @@ impl Login {
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
     ) -> Result<AuthenticatedUser> {
+        let span = span!(Level::DEBUG, "login");
+
         let accounts = LocalAccounts::list_accounts().await?;
         let account = accounts
             .into_iter()
@@ -204,9 +207,13 @@ impl Login {
         
         let identity_path = paths.identity_vault();
 
+        tracing::debug!(identity_path = ?identity_path);
+
         let mut identity =
             Identity::login_file(identity_path, passphrase, Some(index))
                 .await?;
+
+        tracing::debug!("identity verified");
 
         // Lazily create or retrieve a device specific signing key
         let device =

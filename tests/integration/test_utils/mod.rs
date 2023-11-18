@@ -35,6 +35,7 @@ use sos_net::{
     FileLocks,
 };
 
+
 const ADDR: &str = "127.0.0.1:3505";
 const SERVER: &str = "http://localhost:3505";
 const SERVER_PUBLIC_KEY: &str = include_str!("../../server_public_key.txt");
@@ -42,6 +43,20 @@ const SERVER_PUBLIC_KEY: &str = include_str!("../../server_public_key.txt");
 mod signup;
 
 pub use signup::{login, signup, signup_local};
+
+#[allow(dead_code)]
+pub fn init_tracing() {
+    use tracing_subscriber::{
+        layer::SubscriberExt, util::SubscriberInitExt,
+    };
+    let _ = tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG")
+                .unwrap_or_else(|_| "debug".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer().without_time())
+        .try_init();
+}
 
 /// Get a remote origin for the test server.
 pub fn origin() -> Origin {
