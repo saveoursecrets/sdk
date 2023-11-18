@@ -68,11 +68,6 @@ async fn integration_simple_session() -> Result<()> {
     let history = provider.history(&new_vault_summary).await?;
     assert_eq!(4, history.len());
 
-    // Check the vault status
-    let (status, _) = provider.status(&new_vault_summary).await?;
-    let equals = matches!(status, CommitRelationship::Equal(_));
-    assert!(equals);
-
     // Delete a secret
     let delete_secret_id = notes.get(0).unwrap().0;
     delete_secret(&mut provider, &new_vault_summary, &delete_secret_id)

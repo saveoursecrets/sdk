@@ -233,7 +233,7 @@ pub async fn create_local_account(
                     .save_passphrase(false)
                     .create_archive(true)
                     .create_authenticator(false)
-                    .create_contacts(false)
+                    .create_contacts(true)
                     .create_file_password(true)
             },
             None,

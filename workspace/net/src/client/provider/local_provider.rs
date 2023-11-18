@@ -673,36 +673,22 @@ impl LocalProvider {
         summary: &Summary,
         events: Vec<WriteEvent<'static>>,
     ) -> Result<()> {
-        let event_log = self
-            .cache
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         // Apply events to the event log file
-        event_log.apply(events, None).await?;
+        {
+            let event_log = self
+                .cache
+                .get_mut(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            event_log.apply(events, None).await?;
+        }
+        
+        // Update the vault file on disc
+        let vault = self.reduce_event_log(summary).await?;
+        let buffer = encode(&vault).await?;
+        self.write_vault_file(summary, &buffer).await?;
 
         Ok(())
-    }
-
-    /// Get a comparison between a local and remote.
-    ///
-    /// If a patch file has unsaved events then the number
-    /// of pending events is returned along with the `CommitRelationship`.
-    ///
-    /// For a local provider this will always return an equal status.
-    pub async fn status(
-        &mut self,
-        summary: &Summary,
-    ) -> Result<(CommitRelationship, Option<usize>)> {
-        let head = self
-            .commit_tree(summary)
-            .ok_or(Error::NoRootCommit)?
-            .head()?;
-        let pair = CommitPair {
-            local: head.clone(),
-            remote: head,
-        };
-        Ok((CommitRelationship::Equal(pair), None))
     }
 
     /// Create a secret in the currently open vault.
