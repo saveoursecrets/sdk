@@ -862,26 +862,23 @@ impl UserStorage {
         Ok(())
     }
 
-    /// Create a secret in the current open folder or a specific folder.
-    pub async fn create_secret(
-        &mut self,
-        meta: SecretMeta,
-        secret: Secret,
-        options: SecretOptions,
-    ) -> Result<(SecretId, Option<Error>)> {
-        let _ = self.sync_lock.lock().await;
-
-        let folder = {
-            let reader = self.storage.read().await;
-            options
-                .folder
-                .clone()
-                .or_else(|| reader.current().map(|g| g.summary().clone()))
-                .ok_or(Error::NoOpenFolder)?
-        };
+    /// Helper to get all the state information needed
+    /// before calling sync methods.
+    ///
+    /// Computes the target folder that will be used, the last commit 
+    /// hash and the proof for the current head of the events log.
+    async fn before_apply_events(
+        &self,
+        options: &SecretOptions,
+    ) -> Result<(Summary, Option<CommitHash>, CommitProof)> {
+        let reader = self.storage.read().await;
+        let folder = options
+            .folder
+            .clone()
+            .or_else(|| reader.current().map(|g| g.summary().clone()))
+            .ok_or(Error::NoOpenFolder)?;
 
         let (last_commit, commit_proof) = {
-            let reader = self.storage.read().await;
             let event_log = reader
                 .cache()
                 .get(folder.id())
@@ -891,26 +888,45 @@ impl UserStorage {
             (last_commit, commit_proof)
         };
 
-        if let Err(e) = self.sync_before_apply_change(
-            last_commit.as_ref(),
-            &commit_proof,
-            &folder,
-        )
-        .await {
+        if let Err(e) = self
+            .sync_before_apply_change(
+                last_commit.as_ref(),
+                &commit_proof,
+                &folder,
+            )
+            .await
+        {
             tracing::error!(error = ?e, "failed to sync before change");
         };
+
+        Ok((folder, last_commit, commit_proof))
+    }
+
+    /// Create a secret in the current open folder or a specific folder.
+    pub async fn create_secret(
+        &mut self,
+        meta: SecretMeta,
+        secret: Secret,
+        options: SecretOptions,
+    ) -> Result<(SecretId, Option<Error>)> {
+        let _ = self.sync_lock.lock().await;
+
+        let (folder, last_commit, commit_proof)
+            = self.before_apply_events(&options).await?;
 
         let (id, event, folder) =
             self.add_secret(meta, secret, options, true).await?;
         let (_, create_event) = event.try_into()?;
 
-        let sync_error = self.sync_send_events(
-            last_commit.as_ref(),
-            &commit_proof,
-            &folder,
-            &[create_event],
-        )
-        .await.err();
+        let sync_error = self
+            .sync_send_events(
+                last_commit.as_ref(),
+                &commit_proof,
+                &folder,
+                &[create_event],
+            )
+            .await
+            .err();
 
         Ok((id, sync_error))
     }
@@ -1045,7 +1061,7 @@ impl UserStorage {
         path: P,
         options: SecretOptions,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, Event<'static>)> {
+    ) -> Result<(SecretId, Option<Error>)> {
         let path = path.as_ref().to_path_buf();
         let secret: Secret = path.try_into()?;
         self.update_secret(
@@ -1067,17 +1083,11 @@ impl UserStorage {
         //folder: Option<Summary>,
         mut options: SecretOptions,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, Event<'static>)> {
+    ) -> Result<(SecretId, Option<Error>)> {
         let _ = self.sync_lock.lock().await;
 
-        let folder = {
-            let reader = self.storage.read().await;
-            options
-                .folder
-                .take()
-                .or_else(|| reader.current().map(|g| g.summary().clone()))
-                .ok_or(Error::NoOpenFolder)?
-        };
+        let (folder, last_commit, commit_proof)
+            = self.before_apply_events(&options).await?;
 
         self.open_folder(&folder).await?;
 
@@ -1099,6 +1109,7 @@ impl UserStorage {
         let event = self
             .write_secret(secret_id, secret_data.clone(), None, true)
             .await?;
+        let (_, update_event) = event.try_into()?;
 
         // Must update the files before moving so checksums are correct
         self.update_files(
@@ -1118,7 +1129,17 @@ impl UserStorage {
             *secret_id
         };
 
-        Ok((id, event))
+        let sync_error = self
+            .sync_send_events(
+                last_commit.as_ref(),
+                &commit_proof,
+                &folder,
+                &[update_event],
+            )
+            .await
+            .err();
+
+        Ok((id, sync_error))
     }
 
     /// Write a secret in the current open folder or a specific folder.
@@ -1241,24 +1262,19 @@ impl UserStorage {
         &mut self,
         secret_id: &SecretId,
         mut options: SecretOptions,
-    ) -> Result<Event<'static>> {
+    ) -> Result<Option<Error>> {
         let _ = self.sync_lock.lock().await;
 
-        let folder = {
-            let reader = self.storage.read().await;
-
-            options
-                .folder
-                .take()
-                .or_else(|| reader.current().map(|g| g.summary().clone()))
-                .ok_or(Error::NoOpenFolder)?
-        };
+        let (folder, last_commit, commit_proof)
+            = self.before_apply_events(&options).await?;
 
         self.open_folder(&folder).await?;
 
         let (secret_data, _) =
             self.get_secret(secret_id, None, false).await?;
         let event = self.remove_secret(secret_id, None, true).await?;
+        let (_, update_event) = event.try_into()?;
+
         self.delete_files(
             &folder,
             &secret_data,
@@ -1267,7 +1283,17 @@ impl UserStorage {
         )
         .await?;
 
-        Ok(event)
+        let sync_error = self
+            .sync_send_events(
+                last_commit.as_ref(),
+                &commit_proof,
+                &folder,
+                &[update_event],
+            )
+            .await
+            .err();
+
+        Ok(sync_error)
     }
 
     /// Remove a secret.

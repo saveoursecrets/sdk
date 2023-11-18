@@ -8,7 +8,7 @@ use sos_sdk::{
     decode, encode,
     events::{
         AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
-        EventKind, WriteEvent, Patch,
+        EventKind, Patch, WriteEvent,
     },
     rpc::{RequestMessage, ResponseMessage, Service},
 };
@@ -231,9 +231,7 @@ impl Service for EventLogService {
                     .map_err(Box::from)?;
 
                 let patch: Option<Patch> = match comparison {
-                    Comparison::Equal => {
-                        Some(Default::default())
-                    }
+                    Comparison::Equal => Some(Default::default()),
                     Comparison::Contains(_indices, _leaves) => {
                         let match_proof = event_log
                             .tree()
@@ -241,7 +239,11 @@ impl Service for EventLogService {
                             .map_err(Box::from)?;
 
                         if match_proof.is_some() {
-                            Some(event_log.patch_until(Some(&last_commit)).await?)
+                            Some(
+                                event_log
+                                    .patch_until(Some(&last_commit))
+                                    .await?,
+                            )
                         } else {
                             None
                         }

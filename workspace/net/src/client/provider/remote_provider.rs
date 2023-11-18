@@ -12,7 +12,10 @@ use sos_sdk::{
     },
     crypto::AccessKey,
     decode, encode,
-    events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent, EventLogFile, EventReducer, ReadEvent, Patch},
+    events::{
+        AuditLogFile, ChangeAction, ChangeNotification, EventLogFile,
+        EventReducer, Patch, ReadEvent, WriteEvent,
+    },
     passwd::diceware::generate_passphrase,
     storage::UserPaths,
     vault::{

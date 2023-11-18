@@ -20,8 +20,9 @@ use sos_sdk::{
     search::SearchIndex,
     storage::UserPaths,
     vault::{
-        secret::{SecretId, SecretMeta, Secret, SecretData}, Gatekeeper, Header, Summary, Vault, VaultBuilder,
-        VaultFlags, VaultId,
+        secret::{Secret, SecretData, SecretId, SecretMeta},
+        Gatekeeper, Header, Summary, Vault, VaultBuilder, VaultFlags,
+        VaultId,
     },
     vfs, Timestamp,
 };
@@ -82,9 +83,7 @@ impl LocalProvider {
     }
 
     /// Get the mutable event log cache.
-    pub fn cache_mut(
-        &mut self,
-    ) -> &mut HashMap<VaultId, EventLogFile> {
+    pub fn cache_mut(&mut self) -> &mut HashMap<VaultId, EventLogFile> {
         &mut self.cache
     }
 
@@ -245,7 +244,7 @@ impl LocalProvider {
         let file_name = format!("{}.{}", summary.id(), VAULT_EXT);
         self.paths().vaults_dir().join(file_name)
     }
-        
+
     /// Get the vault summaries for this storage.
     pub fn vaults(&self) -> &[Summary] {
         self.state().summaries()
@@ -280,7 +279,7 @@ impl LocalProvider {
         self.cache_mut().insert(*summary.id(), event_log);
         Ok(())
     }
-    
+
     /*
     /// Add to the local cache for a vault.
     async fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
