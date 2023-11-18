@@ -40,7 +40,7 @@ async fn integration_sync_send_events() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (mut owner, _, _default_folder, passphrase) =
+    let (mut owner, _, default_folder, passphrase) =
         create_local_account(
             "sync_basic_1",
             Some(test_data_dir.join("debug"))).await?;
@@ -96,7 +96,8 @@ async fn integration_sync_send_events() -> Result<()> {
     // the remote which should create the account on the remote
     owner.sync().await?;
 
-    let default_folder = owner.default_folder().await.unwrap();
+    println!("Default folder {}", default_folder.id());
+
     owner.open_folder(&default_folder).await?;
     other_owner.open_folder(&default_folder).await?;
     
@@ -113,7 +114,7 @@ async fn integration_sync_send_events() -> Result<()> {
     other_owner
         .create_secret(meta, secret, Default::default())
         .await?;
-
+    
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
     let mut provider = owner.delete_remote(&remote_origin).unwrap();

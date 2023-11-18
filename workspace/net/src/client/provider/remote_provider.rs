@@ -475,8 +475,9 @@ impl RemoteProvider {
 
         if num_events > 0 {
             let patch: Patch = decode(&body).await?;
-            println!("Apply remote patch to local {:#?}", patch);
-            panic!("Apply remote events to local");
+            let events = patch.into_events().await?;
+            let mut writer = self.local.write().await;
+            writer.patch(folder, events).await?;
         }
 
         Ok(())

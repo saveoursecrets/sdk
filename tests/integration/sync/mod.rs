@@ -48,6 +48,10 @@ pub async fn assert_local_remote_events_eq(
         writer.account_status().await?
     };
     let remote_status = provider.account_status().await?;
+        
+    println!("{:#?}", local_status);
+    println!("{:#?}", remote_status);
+
     assert_eq!(local_status, remote_status);
 
     Ok(())
