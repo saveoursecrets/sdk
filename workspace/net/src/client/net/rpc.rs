@@ -450,30 +450,19 @@ impl RpcClient {
     /// TODO: remove the Option from the server_proof ???
     pub async fn apply_patch(
         &self,
-        vault_id: Uuid, /* WARN: must not be reference */
-        proof: CommitProof,
-        patch: Patch,
+        vault_id: &Uuid,
+        before_proof: &CommitProof,
+        after_proof: &CommitProof,
+        patch: &Patch,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<CommitProof>)>> {
         let url = self.server.join("api/events")?;
 
         let id = self.next_id().await;
-
-        /*
-        let (session_id, sign_bytes, body) = body!(
-            self,
-            id,
-            EVENT_LOG_PATCH,
-            (vault_id, proof),
-            Cow::Owned(body)
-        );
-        */
-
-        let body = encode(&patch).await?;
-
+        let body = encode(patch).await?;
         let request = RequestMessage::new(
             Some(id),
             EVENT_LOG_PATCH,
-            (vault_id, proof),
+            (vault_id, before_proof, after_proof),
             Cow::Owned(body),
         )?;
         let packet = Packet::new_request(request);
@@ -482,7 +471,6 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.encrypt_request(&body).await?;
-
         let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self

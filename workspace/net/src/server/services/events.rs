@@ -265,8 +265,8 @@ impl Service for EventLogService {
                 }
             }
             EVENT_LOG_PATCH => {
-                let (vault_id, commit_proof) =
-                    request.parameters::<(Uuid, CommitProof)>()?;
+                let (vault_id, before_proof, after_proof) =
+                    request.parameters::<(Uuid, CommitProof, CommitProof)>()?;
 
                 let reader = state.read().await;
                 let (exists, _) = reader
@@ -291,7 +291,7 @@ impl Service for EventLogService {
 
                     let comparison = event_log
                         .tree()
-                        .compare(&commit_proof)
+                        .compare(&before_proof)
                         .map_err(Box::from)?;
 
                     match comparison {

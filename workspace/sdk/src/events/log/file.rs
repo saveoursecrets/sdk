@@ -64,18 +64,6 @@ impl EventLogFile {
         })
     }
 
-    /// Create a new patch file.
-    pub async fn new_patch<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        let file =
-            EventLogFile::create(file_path.as_ref(), &PATCH_IDENTITY).await?;
-        Ok(Self {
-            file,
-            file_path: file_path.as_ref().to_path_buf(),
-            tree: Default::default(),
-            identity: PATCH_IDENTITY,
-        })
-    }
-
     /// Create the event log file.
     async fn create<P: AsRef<Path>>(
         path: P,
@@ -310,14 +298,8 @@ impl EventLogFile {
         &mut self,
         event: WriteEvent<'_>,
     ) -> Result<CommitHash> {
-        let last_commit = self.last_commit().await?;
-        let (commit, record) = self.encode_event(&event, last_commit).await?;
-        let buffer = encode(&record).await?;
-        self.file.write_all(&buffer).await?;
-        self.file.flush().await?;
-        self.tree.insert(*commit.as_ref());
-        self.tree.commit();
-        Ok(commit)
+        let mut commits = self.apply(vec![event], None).await?;
+        Ok(commits.remove(0))
     }
 
     /// Read the event data from an item.

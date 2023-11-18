@@ -930,6 +930,17 @@ impl UserStorage {
         Ok((folder, last_commit, commit_proof))
     }
 
+    /// Get the data required for sync after applying changes.
+    async fn after_apply_events(&self, folder: &Summary) -> Result<CommitProof> {
+        let reader = self.storage.read().await;
+        let event_log = reader
+            .cache()
+            .get(folder.id())
+            .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+        Ok(event_log.tree().head()?)
+    }
+
+
     /// Create a secret in the current open folder or a specific folder.
     pub async fn create_secret(
         &mut self,
@@ -939,17 +950,19 @@ impl UserStorage {
     ) -> Result<(SecretId, Option<Error>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (folder, last_commit, commit_proof)
+        let (folder, before_last_commit, before_commit_proof)
             = self.before_apply_events(&options).await?;
 
         let (id, event, folder) =
             self.add_secret(meta, secret, options, true).await?;
         let (_, create_event) = event.try_into()?;
-
+        
+        let after_commit_proof = self.after_apply_events(&folder).await?;
         let sync_error = self
             .sync_send_events(
-                last_commit.as_ref(),
-                &commit_proof,
+                before_last_commit.as_ref(),
+                &before_commit_proof,
+                &after_commit_proof,
                 &folder,
                 &[create_event],
             )
@@ -1114,7 +1127,7 @@ impl UserStorage {
     ) -> Result<(SecretId, Option<Error>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (folder, last_commit, commit_proof)
+        let (folder, before_last_commit, before_commit_proof)
             = self.before_apply_events(&options).await?;
 
         self.open_folder(&folder).await?;
@@ -1157,10 +1170,12 @@ impl UserStorage {
             *secret_id
         };
 
+        let after_commit_proof = self.after_apply_events(&folder).await?;
         let sync_error = self
             .sync_send_events(
-                last_commit.as_ref(),
-                &commit_proof,
+                before_last_commit.as_ref(),
+                &before_commit_proof,
+                &after_commit_proof,
                 &folder,
                 &[update_event],
             )
@@ -1293,7 +1308,7 @@ impl UserStorage {
     ) -> Result<Option<Error>> {
         let _ = self.sync_lock.lock().await;
 
-        let (folder, last_commit, commit_proof)
+        let (folder, before_last_commit, before_commit_proof)
             = self.before_apply_events(&options).await?;
 
         self.open_folder(&folder).await?;
@@ -1311,10 +1326,12 @@ impl UserStorage {
         )
         .await?;
 
+        let after_commit_proof = self.after_apply_events(&folder).await?;
         let sync_error = self
             .sync_send_events(
-                last_commit.as_ref(),
-                &commit_proof,
+                before_last_commit.as_ref(),
+                &before_commit_proof,
+                &after_commit_proof,
                 &folder,
                 &[update_event],
             )
@@ -2011,15 +2028,22 @@ impl RemoteSync for UserStorage {
 
     async fn sync_send_events(
         &self,
-        last_commit: Option<&CommitHash>,
-        client_proof: &CommitProof,
+        before_last_commit: Option<&CommitHash>,
+        before_client_proof: &CommitProof,
+        after_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
         let _ = self.sync_lock.lock().await;
         for remote in self.remotes.values() {
             remote
-                .sync_send_events(last_commit, client_proof, folder, events)
+                .sync_send_events(
+                    before_last_commit,
+                    before_client_proof,
+                    after_client_proof,
+                    folder,
+                    events,
+                )
                 .await?;
         }
         Ok(())

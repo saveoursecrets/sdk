@@ -209,15 +209,6 @@ impl RemoteProvider {
         status.ok_or(Error::NoAccountStatus)
     }
 
-    async fn patch(
-        &mut self,
-        summary: &Summary,
-        events: Vec<WriteEvent<'static>>,
-    ) -> Result<()> {
-        patch!(self, summary, events)?;
-        Ok(())
-    }
-
     async fn set_vault_name(
         &mut self,
         summary: &Summary,
@@ -527,22 +518,11 @@ impl RemoteProvider {
         Ok(())
     }
 
-    /*
-    /// Get the proof for a folder in the local storage.
-    async fn client_proof(&self, folder: &Summary) -> Result<CommitProof> {
-        let reader = self.local.read().await;
-        let (event_log, _) = reader
-            .cache()
-            .get(folder.id())
-            .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-        Ok(event_log.tree().head()?)
-    }
-    */
-
     async fn patch(
         &self,
-        last_commit: Option<&CommitHash>,
-        client_proof: &CommitProof,
+        before_last_commit: Option<&CommitHash>,
+        before_client_proof: &CommitProof,
+        after_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
@@ -552,14 +532,15 @@ impl RemoteProvider {
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            event_log.patch_until(last_commit).await?
+            event_log.patch_until(before_last_commit).await?
         };
 
         let (status, (server_proof, match_proof)) = retry!(
             || self.remote.apply_patch(
-                *folder.id(),
-                client_proof.clone(),
-                patch.clone(),
+                folder.id(),
+                before_client_proof,
+                after_client_proof,
+                &patch,
             ),
             self.remote
         );
@@ -601,13 +582,19 @@ impl RemoteSync for RemoteProvider {
 
     async fn sync_send_events(
         &self,
-        last_commit: Option<&CommitHash>,
-        client_proof: &CommitProof,
+        before_last_commit: Option<&CommitHash>,
+        before_client_proof: &CommitProof,
+        after_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
-        self.patch(last_commit, client_proof, folder, events)
-            .await?;
+        self.patch(
+            before_last_commit, 
+            before_client_proof,
+            after_client_proof,
+            folder,
+            events,
+        ).await?;
         Ok(())
     }
 

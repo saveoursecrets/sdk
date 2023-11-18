@@ -30,6 +30,8 @@ async fn integration_sync_send_events() -> Result<()> {
     let test_data_dir = dirs.clients.get(0).unwrap();
     AppPaths::set_data_dir(test_data_dir.clone());
     AppPaths::scaffold().await?;
+
+    AppPaths::clear_data_dir();
     
     // Need to remove the other data dir as we will
     // copy the first data dir in later
@@ -100,6 +102,14 @@ async fn integration_sync_send_events() -> Result<()> {
 
     owner.open_folder(&default_folder).await?;
     other_owner.open_folder(&default_folder).await?;
+    
+    /*
+    let owner_paths = owner.paths().await;
+    let other_owner_paths = other_owner.paths().await;
+
+    println!("owner_paths {:#?}", owner_paths);
+    println!("other_owner_paths {:#?}", other_owner_paths);
+    */
     
     // Create a secret in the primary owner which won't exist
     // in the second device
