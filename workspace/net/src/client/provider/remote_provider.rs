@@ -12,10 +12,8 @@ use sos_sdk::{
     },
     crypto::AccessKey,
     decode, encode,
-    events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent},
-    events::{EventLogFile, EventReducer, ReadEvent},
+    events::{AuditLogFile, ChangeAction, ChangeNotification, WriteEvent, EventLogFile, EventReducer, ReadEvent, Patch},
     passwd::diceware::generate_passphrase,
-    patch::{Patch, PatchFile},
     storage::UserPaths,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
@@ -544,7 +542,7 @@ impl RemoteProvider {
     ) -> Result<()> {
         let patch = {
             let reader = self.local.read().await;
-            let (event_log, _) = reader
+            let event_log = reader
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;

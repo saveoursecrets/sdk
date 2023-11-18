@@ -10,11 +10,11 @@ use sos_sdk::{
         HANDSHAKE_INITIATE, VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
     },
     decode, encode,
+    events::Patch,
     mpc::{
         channel::{decrypt_server_channel, encrypt_server_channel},
         snow, Keypair, ProtocolState, PATTERN,
     },
-    patch::Patch,
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
     signer::ecdsa::BoxedEcdsaSigner,
     vault::Summary,

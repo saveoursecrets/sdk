@@ -9,7 +9,7 @@ use sos_sdk::{
         CommitHash, CommitPair, CommitRelationship, CommitTree, SyncInfo,
         SyncKind,
     },
-    constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
+    constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::{AccessKey, KeyDerivation, PrivateKey},
     decode, encode,
     events::{
@@ -17,7 +17,6 @@ use sos_sdk::{
         EventKind, EventLogFile, EventReducer, ReadEvent, WriteEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
-    patch::PatchFile,
     search::SearchIndex,
     storage::UserPaths,
     vault::{
@@ -48,7 +47,7 @@ pub struct LocalProvider {
     paths: UserPaths,
 
     /// Cache for event log and patch providers.
-    cache: HashMap<VaultId, (EventLogFile, PatchFile)>,
+    cache: HashMap<VaultId, EventLogFile>,
 
     /// Audit log for this provider.
     audit_log: Arc<RwLock<AuditLogFile>>,
@@ -78,14 +77,14 @@ impl LocalProvider {
     }
 
     /// Get the event log cache.
-    pub fn cache(&self) -> &HashMap<VaultId, (EventLogFile, PatchFile)> {
+    pub fn cache(&self) -> &HashMap<VaultId, EventLogFile> {
         &self.cache
     }
 
     /// Get the mutable event log cache.
     pub fn cache_mut(
         &mut self,
-    ) -> &mut HashMap<VaultId, (EventLogFile, PatchFile)> {
+    ) -> &mut HashMap<VaultId, EventLogFile> {
         &mut self.cache
     }
 
@@ -246,13 +245,7 @@ impl LocalProvider {
         let file_name = format!("{}.{}", summary.id(), VAULT_EXT);
         self.paths().vaults_dir().join(file_name)
     }
-
-    /// Get the path to a patch file.
-    pub fn patch_path(&self, summary: &Summary) -> PathBuf {
-        let file_name = format!("{}.{}", summary.id(), PATCH_EXT);
-        self.paths().vaults_dir().join(file_name)
-    }
-
+        
     /// Get the vault summaries for this storage.
     pub fn vaults(&self) -> &[Summary] {
         self.state().summaries()
@@ -274,9 +267,6 @@ impl LocalProvider {
         summary: &Summary,
         vault: Option<Vault>,
     ) -> Result<()> {
-        let patch_path = self.patch_path(summary);
-        let patch_file = PatchFile::new(patch_path).await?;
-
         let event_log_path = self.event_log_path(summary);
         let mut event_log = EventLogFile::new(&event_log_path).await?;
 
@@ -287,8 +277,7 @@ impl LocalProvider {
         }
         event_log.load_tree().await?;
 
-        self.cache_mut()
-            .insert(*summary.id(), (event_log, patch_file));
+        self.cache_mut().insert(*summary.id(), event_log);
         Ok(())
     }
     
@@ -386,7 +375,7 @@ impl LocalProvider {
     pub fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree> {
         self.cache
             .get(summary.id())
-            .map(|(event_log, _)| event_log.tree())
+            .map(|event_log| event_log.tree())
     }
 
     /// Remove the local cache for a vault.
@@ -509,7 +498,7 @@ impl LocalProvider {
         let summaries = self.state.summaries();
         let mut proofs = HashMap::new();
         for summary in summaries {
-            let (event_log, _) = self
+            let event_log = self
                 .cache
                 .get(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
@@ -574,7 +563,7 @@ impl LocalProvider {
         }
 
         // Apply events to the event log
-        let (event_log, _) = self
+        let event_log = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
@@ -586,7 +575,7 @@ impl LocalProvider {
 
     /// Compact an event log file.
     pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let (event_log_file, _) = self
+        let event_log_file = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
@@ -612,7 +601,6 @@ impl LocalProvider {
         let event_log_file = self
             .cache
             .get_mut(summary.id())
-            .map(|(w, _)| w)
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
         Ok(EventReducer::new()
@@ -686,7 +674,7 @@ impl LocalProvider {
         summary: &Summary,
         events: Vec<WriteEvent<'static>>,
     ) -> Result<()> {
-        let (event_log, _patch_file) = self
+        let event_log = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
@@ -819,7 +807,7 @@ impl LocalProvider {
         &self,
         summary: &Summary,
     ) -> Result<Vec<(CommitHash, Timestamp, WriteEvent<'_>)>> {
-        let (event_log, _) = self
+        let event_log = self
             .cache()
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;

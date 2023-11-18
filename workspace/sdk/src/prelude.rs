@@ -5,7 +5,6 @@ pub use crate::constants::*;
 pub use crate::crypto::*;
 pub use crate::events::*;
 pub use crate::formats::*;
-pub use crate::patch::*;
 pub use crate::signer::ecdsa::Address;
 pub use crate::storage::*;
 pub use crate::vault::secret::*;

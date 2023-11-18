@@ -48,9 +48,6 @@ mod extensions {
 
     /// File extension used when creating a vault file backup.
     pub const VAULT_BACKUP_EXT: &str = "vault.backup";
-
-    /// File extension used for patch files.
-    pub const PATCH_EXT: &str = "patch";
 }
 
 /// Constants for vaults.

@@ -1,7 +1,7 @@
 mod commit;
 mod crypto;
 mod events;
-mod patch;
+//mod patch;
 #[cfg(feature = "recovery")]
 mod recovery;
 mod rpc;

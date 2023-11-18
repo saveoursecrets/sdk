@@ -8,9 +8,8 @@ use sos_sdk::{
     decode, encode,
     events::{
         AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
-        EventKind, WriteEvent,
+        EventKind, WriteEvent, Patch,
     },
-    patch::Patch,
     rpc::{RequestMessage, ResponseMessage, Service},
 };
 use web3_address::ethereum::Address;
@@ -38,6 +37,7 @@ enum PatchResult {
 ///
 /// * `Events.load`: Load the events for a vault.
 /// * `Events.patch`: Apply a patch to the event log for a vault.
+/// * `Events.diff`: Get patch of events on the remote that differ from a local vault.
 /// * `Events.save`: Save an event log buffer.
 ///
 pub struct EventLogService;
@@ -261,30 +261,6 @@ impl Service for EventLogService {
                 } else {
                     Ok((StatusCode::CONFLICT, request.id()).into())
                 }
-    
-                /*
-                let match_proof = event_log
-                    .tree()
-                    .contains(&client_proof)
-                    .map_err(Box::from)?;
-
-                // Can only generate a diff patch if our tree
-                // contains the client proof.
-                if match_proof.is_some() {
-                    let patch =
-                        event_log.patch_until(Some(&last_commit)).await?;
-                    let buffer = encode(&patch).await?;
-                    let reply = ResponseMessage::new(
-                        request.id(),
-                        StatusCode::OK,
-                        Some(Ok(patch.0.len())),
-                        Cow::Owned(buffer),
-                    )?;
-                    Ok(reply)
-                } else {
-                    Ok((StatusCode::CONFLICT, request.id()).into())
-                }
-                */
             }
             EVENT_LOG_PATCH => {
                 let (vault_id, commit_proof) =

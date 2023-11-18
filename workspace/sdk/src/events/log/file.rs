@@ -19,12 +19,11 @@ use crate::{
     constants::{EVENT_LOG_IDENTITY, PATCH_IDENTITY},
     encode,
     encoding::encoding_options,
-    events::WriteEvent,
+    events::{WriteEvent, Patch},
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
     },
-    patch::Patch,
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
     Error, Result,

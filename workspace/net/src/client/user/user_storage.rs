@@ -882,7 +882,7 @@ impl UserStorage {
 
         let (last_commit, commit_proof) = {
             let reader = self.storage.read().await;
-            let (event_log, _) = reader
+            let event_log = reader
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
@@ -1871,7 +1871,7 @@ impl UserStorage {
     ) -> Result<DetachedView> {
         let reader = self.storage.read().await;
         let cache = reader.cache();
-        let (log_file, _) = cache
+        let log_file = cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
 
@@ -1900,7 +1900,7 @@ impl UserStorage {
     pub async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
         let reader = self.storage.read().await;
         let cache = reader.cache();
-        let (log_file, _) = cache
+        let log_file = cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
         Ok(log_file

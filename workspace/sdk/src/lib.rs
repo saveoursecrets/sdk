@@ -19,7 +19,6 @@ pub mod events;
 pub mod formats;
 
 pub mod passwd;
-pub mod patch;
 pub mod prelude;
 
 #[cfg(feature = "recovery")]

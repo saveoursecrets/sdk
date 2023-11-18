@@ -14,7 +14,7 @@ use sos_sdk::{
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
-    constants::{EVENT_LOG_EXT, PATCH_EXT, VAULT_EXT},
+    constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::{AccessKey, KeyDerivation, PrivateKey},
     decode, encode,
     events::{
@@ -23,7 +23,6 @@ use sos_sdk::{
     },
     mpc::Keypair,
     passwd::ChangePassword,
-    patch::PatchFile,
     search::SearchIndex,
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{AppPaths, UserPaths},
