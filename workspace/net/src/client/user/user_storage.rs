@@ -891,16 +891,19 @@ impl UserStorage {
             (last_commit, commit_proof)
         };
 
-        self.sync_before_apply_change(
+        if let Err(e) = self.sync_before_apply_change(
             last_commit.as_ref(),
             &commit_proof,
             &folder,
         )
-        .await?;
+        .await {
+            tracing::error!(error = ?e, "failed to sync before change");
+        };
 
         let (id, event, folder) =
             self.add_secret(meta, secret, options, true).await?;
         let (_, create_event) = event.try_into()?;
+
         self.sync_send_events(
             last_commit.as_ref(),
             &commit_proof,
