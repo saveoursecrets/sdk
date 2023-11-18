@@ -904,16 +904,13 @@ impl UserStorage {
             self.add_secret(meta, secret, options, true).await?;
         let (_, create_event) = event.try_into()?;
 
-        let mut sync_error = None;
-        if let Err(e) = self.sync_send_events(
+        let sync_error = self.sync_send_events(
             last_commit.as_ref(),
             &commit_proof,
             &folder,
             &[create_event],
         )
-        .await {
-            sync_error = Some(e);
-        }
+        .await.err();
 
         Ok((id, sync_error))
     }
