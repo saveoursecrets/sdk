@@ -868,7 +868,7 @@ impl UserStorage {
         meta: SecretMeta,
         secret: Secret,
         options: SecretOptions,
-    ) -> Result<SecretId> {
+    ) -> Result<(SecretId, Option<Error>)> {
         let _ = self.sync_lock.lock().await;
 
         let folder = {
@@ -904,14 +904,18 @@ impl UserStorage {
             self.add_secret(meta, secret, options, true).await?;
         let (_, create_event) = event.try_into()?;
 
-        self.sync_send_events(
+        let mut sync_error = None;
+        if let Err(e) = self.sync_send_events(
             last_commit.as_ref(),
             &commit_proof,
             &folder,
             &[create_event],
         )
-        .await?;
-        Ok(id)
+        .await {
+            sync_error = Some(e);
+        }
+
+        Ok((id, sync_error))
     }
 
     async fn add_secret(
