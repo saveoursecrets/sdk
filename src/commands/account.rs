@@ -449,7 +449,7 @@ async fn account_rename(
 ) -> Result<()> {
     let user = resolve_user(account.as_ref(), false).await?;
     let mut owner = user.write().await;
-    owner.user_mut().rename_account(name).await?;
+    owner.rename_account(name).await?;
     Ok(())
 }
 

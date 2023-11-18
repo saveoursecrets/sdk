@@ -76,7 +76,7 @@ async fn integration_account_manager() -> Result<()> {
     )
     .await?;
 
-    user.rename_account("New account name".to_string()).await?;
+    user.rename_account(&paths, "New account name".to_string()).await?;
     assert_eq!("New account name", user.identity().keeper().vault().name());
 
     let vaults = local_accounts.list_local_vaults(false).await?;
@@ -169,7 +169,7 @@ async fn integration_account_manager() -> Result<()> {
     provider.restore_archive(&targets).await?;
 
     // Remove the account
-    user.delete_account().await?;
+    user.delete_account(&paths).await?;
 
     // Restore when not signed in - the account must not exist,
     // equivalent to importing an account

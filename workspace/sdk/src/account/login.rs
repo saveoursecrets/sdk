@@ -105,14 +105,14 @@ impl AuthenticatedUser {
     ///
     /// Moves the account identity vault and data directory to the
     /// trash directory.
-    pub async fn delete_account(&self) -> Result<Event<'static>> {
+    pub async fn delete_account(&self, paths: &UserPaths) -> Result<Event<'static>> {
         let address = self.identity.address().to_string();
-        let identity_vault_file = AppPaths::identity_vault(&address)?;
+        let identity_vault_file = paths.identity_vault();
 
-        let local_dir = AppPaths::local_dir()?;
+        let local_dir = paths.local_dir();
         let identity_data_dir = local_dir.join(&address);
 
-        let trash_dir = AppPaths::trash_dir()?;
+        let trash_dir = paths.trash_dir();
         let mut deleted_identity_vault_file = trash_dir.join(&address);
         deleted_identity_vault_file.set_extension(VAULT_EXT);
 
@@ -156,6 +156,7 @@ impl AuthenticatedUser {
     /// Rename this account by changing the name of the identity vault.
     pub async fn rename_account(
         &mut self,
+        paths: &UserPaths,
         account_name: String,
     ) -> Result<()> {
         // Update in-memory vault
@@ -165,8 +166,7 @@ impl AuthenticatedUser {
             .set_name(account_name.clone());
 
         // Update vault file on disc
-        let identity_vault_file =
-            AppPaths::identity_vault(self.identity.address().to_string())?;
+        let identity_vault_file = paths.identity_vault();
 
         let vault_file = VaultWriter::open(&identity_vault_file).await?;
         let mut access = VaultWriter::new(identity_vault_file, vault_file)?;
@@ -202,7 +202,7 @@ impl Login {
             .find(|a| a.address() == address)
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
         
-        let identity_path = AppPaths::identity_vault(address.to_string())?;
+        let identity_path = paths.identity_vault();
 
         let mut identity =
             Identity::login_file(identity_path, passphrase, Some(index))

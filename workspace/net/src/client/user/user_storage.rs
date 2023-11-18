@@ -411,7 +411,7 @@ impl UserStorage {
     /// device knows the master password for this account.
     pub async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
         let reader = self.storage.read().await;
-        let identity_path = reader.paths().identity()?;
+        let identity_path = reader.paths().identity_vault();
         Ok(vfs::read(identity_path).await?)
     }
 
@@ -468,7 +468,8 @@ impl UserStorage {
 
     /// Delete the account for this user and sign out.
     pub async fn delete_account(&mut self) -> Result<()> {
-        let event = self.user.delete_account().await?;
+        let paths = self.paths().await;
+        let event = self.user.delete_account(&paths).await?;
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
         self.sign_out().await;
@@ -480,7 +481,8 @@ impl UserStorage {
         &mut self,
         account_name: String,
     ) -> Result<()> {
-        Ok(self.user.rename_account(account_name).await?)
+        let paths = self.paths().await;
+        Ok(self.user.rename_account(&paths, account_name).await?)
     }
 
     /// Users devices reference.

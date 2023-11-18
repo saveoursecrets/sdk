@@ -111,17 +111,6 @@ impl AppPaths {
         Ok(Self::data_dir()?.join(LOCAL_DIR))
     }
 
-    /// Get the trash directory.
-    pub fn trash_dir() -> Result<PathBuf> {
-        let trash = Self::local_dir()?.join(TRASH_DIR);
-        Ok(trash)
-    }
-
-    /// Get the temporary directory.
-    pub fn temp_dir() -> Result<PathBuf> {
-        Ok(Self::local_dir()?.join(TEMP_DIR))
-    }
-
     /// Get the path to the directory used to store files.
     ///
     /// Ensure it exists if it does not already exist.
@@ -130,13 +119,6 @@ impl AppPaths {
         let local_dir = Self::local_dir()?;
         let files_dir = local_dir.join(address).join(FILES_DIR);
         Ok(files_dir)
-    }
-
-    /// Get the local directory for storing devices.
-    #[deprecated(note = "Prefer UserPaths instead")]
-    pub fn devices_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
-        let local_dir = Self::local_dir()?;
-        Ok(local_dir.join(address).join(DEVICES_DIR))
     }
 
     /// Get the expected location for the directory containing
@@ -167,39 +149,6 @@ impl AppPaths {
             .join(secret_id)
             .join(file_name);
         Ok(path)
-    }
-
-    /// Get the path to the identity vault file for an account identifier.
-    #[deprecated(note = "Prefer UserPaths instead")]
-    pub fn identity_vault<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
-        let identity_dir = Self::identity_dir()?;
-        let mut identity_vault_file = identity_dir.join(address.as_ref());
-        identity_vault_file.set_extension(VAULT_EXT);
-        Ok(identity_vault_file)
-    }
-
-    /// Get the path to a vault file from it's identifier.
-    #[deprecated(note = "Prefer UserPaths instead")]
-    pub fn vault_path<A: AsRef<Path>, V: AsRef<Path>>(
-        address: A,
-        id: V,
-    ) -> Result<PathBuf> {
-        let vaults_dir = Self::local_vaults_dir(address)?;
-        let mut vault_path = vaults_dir.join(id);
-        vault_path.set_extension(VAULT_EXT);
-        Ok(vault_path)
-    }
-
-    /// Get the path to an event log file from it's identifier.
-    #[deprecated(note = "Prefer UserPaths instead")]
-    pub fn event_log_path<A: AsRef<Path>, V: AsRef<Path>>(
-        address: A,
-        id: V,
-    ) -> Result<PathBuf> {
-        let vaults_dir = Self::local_vaults_dir(address)?;
-        let mut vault_path = vaults_dir.join(id);
-        vault_path.set_extension(EVENT_LOG_EXT);
-        Ok(vault_path)
     }
 }
 

@@ -177,7 +177,7 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
 
             if let Some(new_name) = new_name {
                 let mut owner = user.write().await;
-                owner.user_mut().rename_account(new_name).await?;
+                owner.rename_account(new_name).await?;
             }
 
             Ok(())

@@ -9,7 +9,7 @@ use crate::{
     },
     crypto::AccessKey,
     encode,
-    storage::AppPaths,
+    storage::{AppPaths, UserPaths},
     vault::{
         secret::{Secret, SecretMeta, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
@@ -291,9 +291,10 @@ impl AccountBuilder {
         account: NewAccount,
     ) -> Result<NewAccount> {
         let address = account.address.to_string();
+        let paths = UserPaths::new(AppPaths::data_dir()?, &address);
         // Persist the identity vault to disc, MUST re-encode the buffer
         // as we have modified the identity vault
-        let identity_vault_file = AppPaths::identity_vault(&address)?;
+        let identity_vault_file = paths.identity_vault();
         let buffer = encode(&identity_vault).await?;
         vfs::write(identity_vault_file, buffer).await?;
 
