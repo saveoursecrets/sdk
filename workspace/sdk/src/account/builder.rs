@@ -298,9 +298,6 @@ impl AccountBuilder {
         let buffer = encode(&identity_vault).await?;
         vfs::write(identity_vault_file, buffer).await?;
 
-        // Ensure the files directory exists
-        AppPaths::files_dir(&address)?;
-
         Ok(account)
     }
 

@@ -1900,7 +1900,9 @@ impl UserStorage {
             ExtractFilesLocation::Path(owner.files_dir().clone())
         } else {
             ExtractFilesLocation::Builder(Box::new(|address| {
-                AppPaths::files_dir(address).ok()
+                let data_dir = AppPaths::data_dir().unwrap();
+                let paths = UserPaths::new(data_dir, address);
+                Some(paths.files_dir().to_owned())
             }))
         };
 

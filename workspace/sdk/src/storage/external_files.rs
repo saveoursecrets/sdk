@@ -11,7 +11,7 @@
 //! stored on disc.
 
 use crate::{
-    storage::AppPaths,
+    storage::{AppPaths, UserPaths},
     vfs::{self, File},
     Error, Result,
 };
@@ -83,18 +83,17 @@ impl FileStorage {
     /// and the size of the original file.
     pub async fn encrypt_file_storage<
         P: AsRef<Path>,
-        A: AsRef<Path>,
         V: AsRef<Path>,
         S: AsRef<Path>,
     >(
         password: SecretString,
         path: P,
-        address: A,
+        address: impl AsRef<str>,
         vault_id: V,
         secret_id: S,
     ) -> Result<EncryptedFile> {
-        let target =
-            AppPaths::files_dir(address)?.join(vault_id).join(secret_id);
+        let paths = UserPaths::new(AppPaths::data_dir()?, address);
+        let target = paths.files_dir().join(vault_id).join(secret_id);
 
         if !vfs::try_exists(&target).await? {
             vfs::create_dir_all(&target).await?;
@@ -108,19 +107,19 @@ impl FileStorage {
 
     /// Decrypt a file in the storage location and return the buffer.
     pub async fn decrypt_file_storage<
-        A: AsRef<Path>,
         V: AsRef<Path>,
         S: AsRef<Path>,
         F: AsRef<Path>,
     >(
         password: &SecretString,
-        address: A,
+        address: impl AsRef<str>,
         vault_id: V,
         secret_id: S,
         file_name: F,
     ) -> Result<Vec<u8>> {
+        let paths = UserPaths::new(AppPaths::data_dir()?, address);
         let path =
-            AppPaths::file_location(address, vault_id, secret_id, file_name)?;
+            paths.file_location(vault_id, secret_id, file_name);
         Self::decrypt_file_passphrase(path, password).await
     }
 }

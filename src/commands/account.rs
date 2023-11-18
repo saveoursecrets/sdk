@@ -419,12 +419,13 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
             None
         };
 
-    let files_dir =
-        AppPaths::files_dir(inventory.manifest.address.to_string())?;
+    let address = inventory.manifest.address.to_string();
+    let paths = UserPaths::new(AppPaths::data_dir()?, &address);
+    let files_dir = paths.files_dir();
     let options = RestoreOptions {
         selected: inventory.vaults,
         passphrase: None,
-        files_dir: Some(ExtractFilesLocation::Path(files_dir)),
+        files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
     };
     let reader = vfs::File::open(&input).await?;
     let (targets, account) = AccountBackup::restore_archive_buffer(

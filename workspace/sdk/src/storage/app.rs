@@ -3,15 +3,14 @@ use crate::{Error, Result};
 use app_dirs2::{get_app_root, AppDataType, AppInfo};
 use once_cell::sync::Lazy;
 use std::{
-    path::{Path, PathBuf},
+    path::{PathBuf},
     sync::RwLock,
 };
 
 use crate::{
     constants::{
-        APP_AUTHOR, APP_NAME, DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR,
-        IDENTITY_DIR, LOCAL_DIR, LOGS_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR,
-        VAULT_EXT,
+        APP_AUTHOR, APP_NAME,
+        IDENTITY_DIR, LOGS_DIR,
     },
     vfs,
 };
@@ -92,63 +91,6 @@ impl AppPaths {
         } else {
             dir
         }
-    }
-
-    /// Get the path to the directory used to store identity vaults.
-    pub fn identity_dir() -> Result<PathBuf> {
-        let data_dir = Self::data_dir()?;
-        let identity_dir = data_dir.join(IDENTITY_DIR);
-        Ok(identity_dir)
-    }
-
-    /// Get the app logs directory.
-    pub fn logs_dir() -> Result<PathBuf> {
-        Ok(Self::data_dir()?.join(LOGS_DIR))
-    }
-
-    /// Get the local cache directory.
-    pub fn local_dir() -> Result<PathBuf> {
-        Ok(Self::data_dir()?.join(LOCAL_DIR))
-    }
-
-    /// Get the path to the directory used to store files.
-    ///
-    /// Ensure it exists if it does not already exist.
-    #[deprecated(note = "Prefer UserPaths instead")]
-    pub fn files_dir<A: AsRef<Path>>(address: A) -> Result<PathBuf> {
-        let local_dir = Self::local_dir()?;
-        let files_dir = local_dir.join(address).join(FILES_DIR);
-        Ok(files_dir)
-    }
-
-    /// Get the expected location for the directory containing
-    /// all the external files for a folder.
-    #[deprecated(note = "Prefer UserPaths instead")]
-    pub fn file_folder_location<A: AsRef<Path>, V: AsRef<Path>>(
-        address: A,
-        vault_id: V,
-    ) -> Result<PathBuf> {
-        let path = Self::files_dir(address)?.join(vault_id);
-        Ok(path)
-    }
-
-    /// Get the expected location for a file.
-    #[deprecated(note = "Prefer UserPaths instead")]
-    pub fn file_location<
-        A: AsRef<Path>,
-        V: AsRef<Path>,
-        S: AsRef<Path>,
-        F: AsRef<Path>,
-    >(
-        address: A,
-        vault_id: V,
-        secret_id: S,
-        file_name: F,
-    ) -> Result<PathBuf> {
-        let path = Self::file_folder_location(address, vault_id)?
-            .join(secret_id)
-            .join(file_name);
-        Ok(path)
     }
 }
 

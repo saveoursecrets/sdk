@@ -18,7 +18,7 @@ use crate::{
         ed25519::{self, BoxedEd25519Signer, VerifyingKey},
         Signer,
     },
-    storage::{AppPaths, UserPaths},
+    storage::{UserPaths},
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
         Gatekeeper, Summary, Vault, VaultAccess, VaultBuilder, VaultFlags,
@@ -223,7 +223,7 @@ impl Login {
     /// information such as the private key used to identify a machine
     /// on a peer to peer network.
     async fn ensure_device_vault(
-        address: &Address,
+        _address: &Address,
         paths: &UserPaths,
         user: &mut UserIdentity,
     ) -> Result<DeviceSigner> {

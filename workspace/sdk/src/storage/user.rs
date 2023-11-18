@@ -1,16 +1,18 @@
-//! File system paths for a user account.
+//! File system paths for application level folders 
+//! and user-specific account folders.
 use crate::Result;
 use std::path::{Path, PathBuf};
 
 use crate::{
     constants::{
         AUDIT_FILE_NAME, DEVICES_DIR, FILES_DIR, LOCAL_DIR, TRASH_DIR,
-        VAULTS_DIR, VAULT_EXT, EVENT_LOG_EXT, IDENTITY_DIR, TEMP_DIR
+        VAULTS_DIR, VAULT_EXT, EVENT_LOG_EXT, IDENTITY_DIR, TEMP_DIR,
+        LOGS_DIR,
     },
     vfs,
 };
 
-use super::AppPaths;
+
 
 /// Encapsulates the paths for a user account.
 #[derive(Default, Debug, Clone)]
@@ -23,6 +25,8 @@ pub struct UserPaths {
     identity_dir: PathBuf,
     /// Directory for local storage.
     local_dir: PathBuf,
+    /// Directory for application logs.
+    logs_dir: PathBuf,
     /// Directory for temporary storage.
     temp_dir: PathBuf,
     /// File for local audit logs.
@@ -40,24 +44,26 @@ pub struct UserPaths {
 }
 
 impl UserPaths {
-    /// Create new storage dirs.
-    pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: &str) -> Self {
+    /// Create new paths.
+    pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: impl AsRef<str>) -> Self {
         let documents_dir = documents_dir.as_ref().to_path_buf();
         let local_dir = documents_dir.join(LOCAL_DIR);
+        let logs_dir = documents_dir.join(LOGS_DIR);
         let identity_dir = documents_dir.join(IDENTITY_DIR);
         let audit_file = local_dir.join(AUDIT_FILE_NAME);
         let trash_dir = local_dir.join(TRASH_DIR);
         let temp_dir = local_dir.join(TEMP_DIR);
-        let user_dir = local_dir.join(user_id);
+        let user_dir = local_dir.join(user_id.as_ref());
         let files_dir = user_dir.join(FILES_DIR);
         let vaults_dir = user_dir.join(VAULTS_DIR);
         let devices_dir = user_dir.join(DEVICES_DIR);
 
         Self {
-            user_id: user_id.to_owned(),
+            user_id: user_id.as_ref().to_owned(),
             documents_dir,
             identity_dir,
             local_dir,
+            logs_dir,
             temp_dir,
             audit_file,
             trash_dir,
@@ -66,6 +72,14 @@ impl UserPaths {
             vaults_dir,
             devices_dir,
         }
+    }
+
+    /// Create new paths with an empty user identifier.
+    ///
+    /// Used to get application level paths when a user identifier 
+    /// is not available.
+    pub fn new_global<D: AsRef<Path>>(documents_dir: D) -> Self {
+        Self::new(documents_dir, "")
     }
 
     /// Ensure all the user directories exist.
@@ -94,6 +108,11 @@ impl UserPaths {
     pub fn local_dir(&self) -> &PathBuf {
         &self.local_dir
     }
+
+    /// Get the app logs directory.
+    pub fn logs_dir(&self) -> &PathBuf {
+        &self.logs_dir
+    }
     
     /// Get the temporary directory.
     pub fn temp_dir(&self) -> &PathBuf {
@@ -120,6 +139,31 @@ impl UserPaths {
         &self.files_dir
     }
 
+    /// Get the expected location for the directory containing
+    /// all the external files for a folder.
+    pub fn file_folder_location<V: AsRef<Path>>(
+        &self,
+        vault_id: V,
+    ) -> PathBuf {
+        self.files_dir.join(vault_id)
+    }
+
+    /// Get the expected location for a file.
+    pub fn file_location<
+        V: AsRef<Path>,
+        S: AsRef<Path>,
+        F: AsRef<Path>,
+    >(
+        &self,
+        vault_id: V,
+        secret_id: S,
+        file_name: F,
+    ) -> PathBuf {
+        self.file_folder_location(vault_id)
+            .join(secret_id)
+            .join(file_name)
+    }
+
     /// Get the user vaults storage directory.
     pub fn vaults_dir(&self) -> &PathBuf {
         &self.vaults_dir
@@ -132,7 +176,7 @@ impl UserPaths {
 
     /// Get the path to the identity vault file for this account.
     pub fn identity_vault(&self) -> PathBuf {
-        let mut identity_vault_file = self.identity_dir().join(&self.user_id);
+        let mut identity_vault_file = self.identity_dir.join(&self.user_id);
         identity_vault_file.set_extension(VAULT_EXT);
         identity_vault_file
     }
@@ -142,7 +186,7 @@ impl UserPaths {
         &self,
         id: V,
     ) -> PathBuf {
-        let mut vault_path = self.vaults_dir().join(id);
+        let mut vault_path = self.vaults_dir.join(id);
         vault_path.set_extension(VAULT_EXT);
         vault_path
     }
@@ -152,7 +196,7 @@ impl UserPaths {
         &self,
         id: V,
     ) -> PathBuf {
-        let mut vault_path = self.vaults_dir().join(id);
+        let mut vault_path = self.vaults_dir.join(id);
         vault_path.set_extension(EVENT_LOG_EXT);
         vault_path
     }

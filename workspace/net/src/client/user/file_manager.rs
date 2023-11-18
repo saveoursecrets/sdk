@@ -9,7 +9,7 @@ use std::{
 use sos_sdk::{
     account::DelegatedPassphrase,
     storage::EncryptedFile,
-    storage::{basename, AppPaths, FileStorage, FileStorageSync},
+    storage::{basename, UserPaths, AppPaths, FileStorage, FileStorageSync},
     vault::{
         secret::{
             FileContent, Secret, SecretData, SecretId, SecretRow, UserData,
@@ -124,10 +124,9 @@ impl UserStorage {
         &self,
         vault_id: &VaultId,
     ) -> Result<PathBuf> {
-        Ok(AppPaths::file_folder_location(
-            self.address().to_string(),
-            vault_id.to_string(),
-        )?)
+        let paths = UserPaths::new(
+            AppPaths::data_dir()?, &self.address().to_string());
+        Ok(paths.file_folder_location(vault_id.to_string()))
     }
 
     /// Expected location for a file by convention.
@@ -137,12 +136,13 @@ impl UserStorage {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<PathBuf> {
-        Ok(AppPaths::file_location(
-            self.address().to_string(),
+        let paths = UserPaths::new(
+            AppPaths::data_dir()?, &self.address().to_string());
+        Ok(paths.file_location(
             vault_id.to_string(),
             secret_id.to_string(),
             file_name,
-        )?)
+        ))
     }
 
     /// Remove the directory containing all the files for a folder.

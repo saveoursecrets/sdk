@@ -443,7 +443,7 @@ mod test {
 
     async fn mock_event_log() -> Result<(NamedTempFile, EventLogFile)> {
         let temp = NamedTempFile::new()?;
-        let mut event_log = EventLogFile::new(temp.path()).await?;
+        let event_log = EventLogFile::new(temp.path()).await?;
         Ok((temp, event_log))
     }
 
@@ -518,7 +518,7 @@ mod test {
     #[tokio::test]
     async fn event_log_last_commit() -> Result<()> {
         let (temp, mut event_log) = mock_event_log().await?;
-        let (_, mut vault, buffer) = mock_vault_file().await?;
+        let (_, _vault, buffer) = mock_vault_file().await?;
 
         assert!(event_log.last_commit().await?.is_none());
 

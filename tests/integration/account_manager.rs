@@ -123,7 +123,7 @@ async fn integration_account_manager() -> Result<()> {
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
 
     // Encrypt
-    let files_dir = AppPaths::files_dir(address.to_string())?;
+    let files_dir = paths.files_dir();
     let vault_id = VaultId::new_v4();
     let secret_id = SecretId::new_v4();
     let target = files_dir
@@ -176,7 +176,7 @@ async fn integration_account_manager() -> Result<()> {
     let options = RestoreOptions {
         selected: vaults.into_iter().map(|v| v.0).collect(),
         passphrase: Some(passphrase),
-        files_dir: Some(ExtractFilesLocation::Path(files_dir)),
+        files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
     };
     let reader = Cursor::new(&mut archive_buffer);
     AccountBackup::restore_archive_buffer(reader, options, false).await?;

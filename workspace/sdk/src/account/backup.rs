@@ -270,7 +270,7 @@ impl AccountBackup {
 
     /// Resolve a manifest entry to a path.
     pub fn resolve_manifest_entry(
-        address: &Address,
+        _address: &Address,
         paths: &UserPaths,
         entry: &ManifestEntry,
     ) -> Result<PathBuf> {
@@ -322,7 +322,7 @@ impl AccountBackup {
     /// The identity vault must be unlocked so we can retrieve
     /// the passphrase for the target vault.
     pub async fn export_vault(
-        address: &Address,
+        _address: &Address,
         paths: &UserPaths,
         identity: &Gatekeeper,
         vault_id: &VaultId,
