@@ -30,7 +30,7 @@ async fn integration_audit_trail() -> Result<()> {
     AppPaths::scaffold().await?;
 
     let (mut owner, _, summary, passphrase) =
-        create_local_account("audit_trail").await?;
+        create_local_account("audit_trail", None).await?;
 
     // Make changes to generate audit logs
     simulate_session(&mut owner, &summary, passphrase).await?;

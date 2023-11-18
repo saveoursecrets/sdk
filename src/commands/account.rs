@@ -10,7 +10,7 @@ use sos_net::{
             archive::Inventory, AccountBackup, AccountInfo, AccountRef,
             ExtractFilesLocation, RestoreOptions,
         },
-        storage::AppPaths,
+        storage::{AppPaths, UserPaths},
         vfs,
     },
 };
@@ -381,7 +381,11 @@ async fn account_backup(
     let account = find_account(&account)
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
-    AccountBackup::export_archive_file(&output, account.address()).await?;
+    let address = account.address();
+    let paths = UserPaths::new(
+        AppPaths::data_dir()?, &address.to_string());
+
+    AccountBackup::export_archive_file(&output, address, &paths).await?;
     Ok(())
 }
 

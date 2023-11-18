@@ -18,7 +18,7 @@ use crate::{
         ed25519::{self, BoxedEd25519Signer, VerifyingKey},
         Signer,
     },
-    storage::AppPaths,
+    storage::{AppPaths, UserPaths},
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
         Gatekeeper, Summary, Vault, VaultAccess, VaultBuilder, VaultFlags,
@@ -192,6 +192,7 @@ impl Login {
     /// Sign in a user.
     pub async fn sign_in(
         address: &Address,
+        paths: &UserPaths,
         passphrase: SecretString,
         index: Arc<RwLock<SearchIndex>>,
     ) -> Result<AuthenticatedUser> {
@@ -200,7 +201,7 @@ impl Login {
             .into_iter()
             .find(|a| a.address() == address)
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
-
+        
         let identity_path = AppPaths::identity_vault(address.to_string())?;
 
         let mut identity =
@@ -209,7 +210,7 @@ impl Login {
 
         // Lazily create or retrieve a device specific signing key
         let device =
-            Self::ensure_device_vault(address, &mut identity).await?;
+            Self::ensure_device_vault(address, paths, &mut identity).await?;
 
         Ok(AuthenticatedUser {
             account,
@@ -223,11 +224,14 @@ impl Login {
     /// on a peer to peer network.
     async fn ensure_device_vault(
         address: &Address,
+        paths: &UserPaths,
         user: &mut UserIdentity,
     ) -> Result<DeviceSigner> {
         let identity = user.keeper_mut();
 
-        let vaults = LocalAccounts::list_local_vaults(address, true).await?;
+        let local_accounts = LocalAccounts::new(paths);
+
+        let vaults = local_accounts.list_local_vaults(true).await?;
         let device_vault = vaults.into_iter().find_map(|(summary, _)| {
             if summary.flags().is_system() && summary.flags().is_device() {
                 Some(summary)
@@ -247,7 +251,7 @@ impl Login {
                 .await?;
 
             let (vault, _) =
-                LocalAccounts::find_local_vault(address, summary.id(), true)
+                local_accounts.find_local_vault(summary.id(), true)
                     .await?;
             let search_index = Arc::new(RwLock::new(SearchIndex::new()));
             let mut device_keeper =
@@ -333,7 +337,7 @@ impl Login {
             let summary = device_vault.summary().clone();
 
             let buffer = encode(&device_vault).await?;
-            let vaults_dir = AppPaths::local_vaults_dir(address.to_string())?;
+            let vaults_dir = paths.vaults_dir();
             let mut device_vault_file =
                 vaults_dir.join(summary.id().to_string());
             device_vault_file.set_extension(VAULT_EXT);

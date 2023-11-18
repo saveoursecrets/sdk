@@ -221,6 +221,7 @@ pub async fn setup(num_clients: usize) -> Result<TestDirs> {
 
 pub async fn create_local_account(
     account_name: &str,
+    data_dir: Option<PathBuf>,
 ) -> Result<(UserStorage, ImportedAccount, Summary, SecretString)> {
     let (passphrase, _) = generate_passphrase()?;
     let (mut owner, imported_account, _) =
@@ -236,6 +237,7 @@ pub async fn create_local_account(
                     .create_file_password(true)
             },
             None,
+            data_dir,
         )
         .await?;
 

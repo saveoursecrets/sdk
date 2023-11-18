@@ -7,7 +7,7 @@ use web3_address::ethereum::Address;
 use crate::{
     constants::VAULT_EXT,
     decode,
-    storage::AppPaths,
+    storage::{AppPaths, UserPaths},
     vault::{Header, Summary, Vault, VaultId},
     vfs,
 };
@@ -91,17 +91,23 @@ impl FromStr for AccountRef {
 }
 
 /// Inspect the local accounts directory.
-#[derive(Default)]
-pub struct LocalAccounts;
+pub struct LocalAccounts<'a> {
+    paths: &'a UserPaths,
+}
 
-impl LocalAccounts {
+impl<'a> LocalAccounts<'a> {
+    /// Create new local accounts.
+    pub fn new(paths: &'a UserPaths) -> Self {
+        Self { paths }
+    }
+
     /// Find and load a vault for a local file.
     pub async fn find_local_vault(
-        address: &Address,
+        &self,
         id: &VaultId,
         include_system: bool,
     ) -> Result<(Vault, PathBuf)> {
-        let vaults = Self::list_local_vaults(address, include_system).await?;
+        let vaults = self.list_local_vaults(include_system).await?;
         let (_summary, path) = vaults
             .into_iter()
             .find(|(s, _)| s.id() == id)
@@ -114,10 +120,11 @@ impl LocalAccounts {
 
     /// Get a list of the vaults for an account directly from the file system.
     pub async fn list_local_vaults(
-        address: &Address,
+        &self,
         include_system: bool,
     ) -> Result<Vec<(Summary, PathBuf)>> {
-        let vaults_dir = AppPaths::local_vaults_dir(address.to_string())?;
+        let vaults_dir = self.paths.vaults_dir();
+
         let mut vaults = Vec::new();
         let mut dir = vfs::read_dir(vaults_dir).await?;
         while let Some(entry) = dir.next_entry().await? {

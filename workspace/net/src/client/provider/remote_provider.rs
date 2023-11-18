@@ -43,6 +43,7 @@ use crate::{
 };
 
 /// Bridge between a local provider and a remote.
+#[derive(Clone)]
 pub struct RemoteProvider {
     /// Local provider.
     local: Arc<RwLock<LocalProvider>>,
@@ -475,6 +476,7 @@ impl RemoteProvider {
         if num_events > 0 {
             let patch: Patch = decode(&body).await?;
             println!("Apply remote patch to local {:#?}", patch);
+            panic!("Apply remote events to local");
         }
 
         Ok(())

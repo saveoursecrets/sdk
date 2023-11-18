@@ -28,7 +28,7 @@ async fn integration_security_report() -> Result<()> {
     AppPaths::scaffold().await?;
 
     let (mut owner, _, summary, passphrase) =
-        create_local_account("security_report").await?;
+        create_local_account("security_report", None).await?;
 
     // Make changes to generate data
     let mock_ids = simulate_session(&mut owner, &summary, passphrase).await?;

@@ -36,7 +36,7 @@ async fn integration_external_files() -> Result<()> {
     AppPaths::scaffold().await?;
 
     let (mut owner, _, summary, _) =
-        create_local_account("external_files").await?;
+        create_local_account("external_files", None).await?;
 
     let operations: Arc<Mutex<Vec<FileProgress>>> =
         Arc::new(Mutex::new(Vec::new()));

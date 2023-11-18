@@ -48,7 +48,7 @@ pub async fn new_remote_provider(
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
 ) -> Result<(RemoteProvider, Address)> {
-    let (local, address) = new_local_provider(signer.clone()).await?;
+    let (local, address) = new_local_provider(signer.clone(), None).await?;
     let client = RpcClient::new(
         origin.url.clone(),
         origin.public_key.clone(),
@@ -64,8 +64,14 @@ pub async fn new_remote_provider(
 /// Create a new local provider.
 pub async fn new_local_provider(
     signer: BoxedEcdsaSigner,
+    data_dir: Option<PathBuf>,
 ) -> Result<(LocalProvider, Address)> {
-    let data_dir = AppPaths::data_dir().map_err(|_| Error::NoCache)?;
+    let data_dir = if let Some(data_dir) = data_dir {
+        data_dir
+    } else {
+        AppPaths::data_dir().map_err(|_| Error::NoCache)?
+    };
+    
     let address = signer.address()?;
     let dirs = UserPaths::new(data_dir, &address.to_string());
     Ok((LocalProvider::new(dirs).await?, address))

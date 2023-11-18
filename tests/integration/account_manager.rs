@@ -15,7 +15,7 @@ use sos_net::{
         hex,
         passwd::diceware::generate_passphrase,
         search::SearchIndex,
-        storage::{AppPaths, FileStorage},
+        storage::{AppPaths, FileStorage, UserPaths},
         urn::Urn,
         vault::{secret::SecretId, Gatekeeper, VaultId},
         vfs,
@@ -52,7 +52,7 @@ async fn integration_account_manager() -> Result<()> {
 
     // Create local provider
     let signer = new_account.user.signer().clone();
-    let (mut provider, _) = new_local_provider(signer).await?;
+    let (mut provider, _) = new_local_provider(signer, None).await?;
 
     let (imported_account, _) =
         provider.import_new_account(&new_account).await?;
@@ -60,12 +60,17 @@ async fn integration_account_manager() -> Result<()> {
     let NewAccount { address, .. } = new_account;
     let ImportedAccount { summary, .. } = imported_account;
 
+    let paths = UserPaths::new(
+        AppPaths::data_dir()?, &address.to_string());
+    let local_accounts = LocalAccounts::new(&paths);
+
     let accounts = LocalAccounts::list_accounts().await?;
     assert_eq!(1, accounts.len());
 
     let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
     let mut user = Login::sign_in(
         &address,
+        &paths,
         passphrase.clone(),
         Arc::clone(&identity_index),
     )
@@ -74,7 +79,7 @@ async fn integration_account_manager() -> Result<()> {
     user.rename_account("New account name".to_string()).await?;
     assert_eq!("New account name", user.identity().keeper().vault().name());
 
-    let vaults = LocalAccounts::list_local_vaults(&address, false).await?;
+    let vaults = local_accounts.list_local_vaults(false).await?;
     // Default, Contacts, Authenticator and Archive vaults
     assert_eq!(4, vaults.len());
 
@@ -102,7 +107,7 @@ async fn integration_account_manager() -> Result<()> {
 
     let default_index = Arc::new(RwLock::new(SearchIndex::new()));
     let (default_vault, _) =
-        LocalAccounts::find_local_vault(&address, summary.id(), false)
+        local_accounts.find_local_vault(summary.id(), false)
             .await?;
     let mut default_vault_keeper =
         Gatekeeper::new(default_vault, Some(default_index));
@@ -142,14 +147,14 @@ async fn integration_account_manager() -> Result<()> {
     assert_eq!(expected, buffer);
 
     let mut archive_buffer =
-        AccountBackup::export_archive_buffer(&address).await?;
+        AccountBackup::export_archive_buffer(&address, &paths).await?;
     let reader = Cursor::new(&mut archive_buffer);
     let _inventory = AccountBackup::restore_archive_inventory(reader).await?;
 
     // Restore from archive whilst signed in (with provider),
     // overwrites existing data (backup)
     let signer = user.identity().signer().clone();
-    let (mut provider, _) = new_local_provider(signer).await?;
+    let (mut provider, _) = new_local_provider(signer, None).await?;
 
     let options = RestoreOptions {
         selected: vaults.clone().into_iter().map(|v| v.0).collect(),

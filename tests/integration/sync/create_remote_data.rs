@@ -30,7 +30,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, _default_folder, _) =
-        create_local_account("sync_basic_1").await?;
+        create_local_account("sync_basic_1", None).await?;
 
     // Folders on the local account
     let expected_summaries: Vec<Summary> = {

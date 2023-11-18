@@ -29,7 +29,7 @@ use crate::{
     passwd::ChangePassword,
     search::SearchIndex,
     sha2::{Digest, Sha256},
-    storage::AppPaths,
+    storage::{AppPaths, UserPaths},
     vault::{
         secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess, VaultId,
         VaultWriter,
@@ -194,8 +194,12 @@ impl AccountBackup {
     /// Build a manifest for an account.
     pub async fn manifest(
         address: &Address,
+        paths: &UserPaths,
         options: AccountManifestOptions,
     ) -> Result<(AccountManifest, u64)> {
+        
+        let local_accounts = LocalAccounts::new(paths);
+
         let mut total_size: u64 = 0;
         let mut manifest = AccountManifest::new(*address);
         let path = AppPaths::identity_vault(address.to_string())?;
@@ -209,7 +213,7 @@ impl AccountBackup {
         manifest.entries.push(entry);
         total_size += size;
 
-        let vaults = LocalAccounts::list_local_vaults(address, false).await?;
+        let vaults = local_accounts.list_local_vaults(false).await?;
         for (summary, path) in vaults {
             if options.no_sync_self && summary.flags().is_no_sync_self() {
                 continue;
@@ -226,7 +230,7 @@ impl AccountBackup {
             total_size += size;
         }
 
-        let files = AppPaths::files_dir(address.to_string())?;
+        let files = paths.files_dir();
         for entry in WalkDir::new(&files) {
             let entry = entry?;
             if vfs::metadata(entry.path()).await?.is_file() {
@@ -267,6 +271,7 @@ impl AccountBackup {
     /// Resolve a manifest entry to a path.
     pub fn resolve_manifest_entry(
         address: &Address,
+        paths: &UserPaths,
         entry: &ManifestEntry,
     ) -> Result<PathBuf> {
         match entry {
@@ -275,8 +280,7 @@ impl AccountBackup {
             }
             ManifestEntry::Vault { id, .. } => {
                 let mut path =
-                    AppPaths::local_vaults_dir(address.to_string())?
-                        .join(id.to_string());
+                    paths.vaults_dir().join(id.to_string());
                 path.set_extension(VAULT_EXT);
                 Ok(path)
             }
@@ -285,7 +289,7 @@ impl AccountBackup {
                 secret_id,
                 label,
                 ..
-            } => Ok(AppPaths::files_dir(address.to_string())?
+            } => Ok(paths.files_dir()
                 .join(vault_id.to_string())
                 .join(secret_id.to_string())
                 .join(label)),
@@ -319,6 +323,7 @@ impl AccountBackup {
     /// the passphrase for the target vault.
     pub async fn export_vault(
         address: &Address,
+        paths: &UserPaths,
         identity: &Gatekeeper,
         vault_id: &VaultId,
         new_passphrase: AccessKey,
@@ -329,8 +334,9 @@ impl AccountBackup {
                 .await?;
 
         // Find the local vault for the account
+        let local_accounts = LocalAccounts::new(paths);
         let (vault, _) =
-            LocalAccounts::find_local_vault(address, vault_id, false).await?;
+            local_accounts.find_local_vault(vault_id, false).await?;
 
         // Change the password before exporting
         let (_, vault, _) = ChangePassword::new(
@@ -347,14 +353,15 @@ impl AccountBackup {
 
     /// Create a buffer for a zip archive including the
     /// identity vault and all user vaults.
-    pub async fn export_archive_buffer(address: &Address) -> Result<Vec<u8>> {
+    pub async fn export_archive_buffer(address: &Address, paths: &UserPaths) -> Result<Vec<u8>> {
         let identity_path = AppPaths::identity_vault(address.to_string())?;
         if !vfs::try_exists(&identity_path).await? {
             return Err(Error::NotFile(identity_path));
         }
         let identity = vfs::read(identity_path).await?;
-
-        let vaults = LocalAccounts::list_local_vaults(address, false).await?;
+        
+        let local_accounts = LocalAccounts::new(paths);
+        let vaults = local_accounts.list_local_vaults(false).await?;
 
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));
@@ -365,7 +372,7 @@ impl AccountBackup {
             writer = writer.add_vault(*summary.id(), &buffer).await?;
         }
 
-        let files = AppPaths::files_dir(address.to_string())?;
+        let files = paths.files_dir();
         for entry in WalkDir::new(&files) {
             let entry = entry?;
             if vfs::metadata(entry.path()).await?.is_file() {
@@ -385,8 +392,9 @@ impl AccountBackup {
     pub async fn export_archive_file<P: AsRef<Path>>(
         path: P,
         address: &Address,
+        paths: &UserPaths,
     ) -> Result<()> {
-        let buffer = Self::export_archive_buffer(address).await?;
+        let buffer = Self::export_archive_buffer(address, paths).await?;
         vfs::write(path.as_ref(), buffer).await?;
         Ok(())
     }
@@ -430,6 +438,8 @@ impl AccountBackup {
                 .clone();
 
             let address = address.to_string();
+
+            let paths = UserPaths::new(AppPaths::data_dir()?, &address);
 
             if let Some(passphrase) = &options.passphrase {
                 let identity_vault_file = AppPaths::identity_vault(&address)?;
@@ -490,6 +500,7 @@ impl AccountBackup {
             }
 
             let address_path = restore_targets.address.to_string();
+            let paths = UserPaths::new(AppPaths::data_dir()?, &address_path);
 
             // Write out the identity vault
             let identity_vault_file =
@@ -525,7 +536,7 @@ impl AccountBackup {
             };
 
             // Prepare the vaults directory
-            let vaults_dir = AppPaths::local_vaults_dir(&address_path)?;
+            let vaults_dir = paths.vaults_dir();
             vfs::create_dir_all(&vaults_dir).await?;
 
             // Write out each vault and the event log log

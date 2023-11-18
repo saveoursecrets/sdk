@@ -80,6 +80,7 @@ serial_test = "2"
 secrecy = "0.8"
 http = "0.2"
 tempfile = "3.5"
+copy_dir = "0.1"
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 rexpect = "0.5"
