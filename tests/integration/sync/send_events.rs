@@ -41,7 +41,9 @@ async fn integration_sync_send_events() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, _default_folder, passphrase) =
-        create_local_account("sync_basic_1", Some(test_data_dir.clone())).await?;
+        create_local_account(
+            "sync_basic_1",
+            Some(test_data_dir.join("debug"))).await?;
 
     // Folders on the local account
     let expected_summaries: Vec<Summary> = {
@@ -78,7 +80,7 @@ async fn integration_sync_send_events() -> Result<()> {
         owner.address(),
         passphrase,
         Some(other_remotes),
-        Some(other_data_dir.clone()),
+        Some(other_data_dir.join("debug")),
     ).await?;
 
     // Must list folders to load cache into memory after sign in
@@ -97,7 +99,9 @@ async fn integration_sync_send_events() -> Result<()> {
     let default_folder = owner.default_folder().await.unwrap();
     owner.open_folder(&default_folder).await?;
     other_owner.open_folder(&default_folder).await?;
-
+    
+    // Create a secret in the primary owner which won't exist
+    // in the second device
     let (meta, secret) = mock_note("note_first_owner", "send_events_secret");
     owner
         .create_secret(meta, secret, Default::default())
