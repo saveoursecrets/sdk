@@ -1890,7 +1890,7 @@ impl UserStorage {
     ) -> Result<Inventory> {
         let mut inventory =
             AccountBackup::restore_archive_inventory(buffer).await?;
-        let accounts = LocalAccounts::list_accounts().await?;
+        let accounts = LocalAccounts::list_accounts(None).await?;
         let exists_local = accounts
             .iter()
             .any(|account| account.address() == &inventory.manifest.address);

@@ -143,11 +143,17 @@ impl<'a> LocalAccounts<'a> {
     }
 
     /// List account information for the identity vaults.
-    pub async fn list_accounts() -> Result<Vec<AccountInfo>> {
+    pub async fn list_accounts(
+        paths: Option<&UserPaths>) -> Result<Vec<AccountInfo>> {
         let mut keys = Vec::new();
-        let paths = UserPaths::new_global(AppPaths::data_dir()?);
-        let identity_dir = paths.identity_dir();
-        let mut dir = vfs::read_dir(identity_dir).await?;
+        let paths = if let Some(paths) = paths {
+            paths.clone()
+        } else {
+            UserPaths::new_global(AppPaths::data_dir()?)
+        };
+        //let paths = UserPaths::new_global(AppPaths::data_dir()?);
+        //let identity_dir = paths.identity_dir();
+        let mut dir = vfs::read_dir(paths.identity_dir()).await?;
         while let Some(entry) = dir.next_entry().await? {
             if let (Some(extension), Some(file_stem)) =
                 (entry.path().extension(), entry.path().file_stem())

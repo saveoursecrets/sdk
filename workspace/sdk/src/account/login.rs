@@ -199,7 +199,7 @@ impl Login {
     ) -> Result<AuthenticatedUser> {
         let span = span!(Level::DEBUG, "login");
 
-        let accounts = LocalAccounts::list_accounts().await?;
+        let accounts = LocalAccounts::list_accounts(Some(paths)).await?;
         let account = accounts
             .into_iter()
             .find(|a| a.address() == address)

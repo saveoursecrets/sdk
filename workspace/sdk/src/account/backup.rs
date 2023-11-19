@@ -430,7 +430,7 @@ impl AccountBackup {
 
             // The GUI should check the identity already exists
             // but we will double check here to be safe
-            let keys = LocalAccounts::list_accounts().await?;
+            let keys = LocalAccounts::list_accounts(None).await?;
             let existing_account =
                 keys.iter().find(|k| k.address() == address);
             let account = existing_account
@@ -489,7 +489,7 @@ impl AccountBackup {
 
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
-            let keys = LocalAccounts::list_accounts().await?;
+            let keys = LocalAccounts::list_accounts(None).await?;
             let existing_account = keys
                 .iter()
                 .find(|k| k.address() == &restore_targets.address);

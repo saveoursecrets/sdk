@@ -64,7 +64,7 @@ async fn integration_account_manager() -> Result<()> {
         AppPaths::data_dir()?, &address.to_string());
     let local_accounts = LocalAccounts::new(&paths);
 
-    let accounts = LocalAccounts::list_accounts().await?;
+    let accounts = LocalAccounts::list_accounts(None).await?;
     assert_eq!(1, accounts.len());
 
     let identity_index = Arc::new(RwLock::new(SearchIndex::new()));

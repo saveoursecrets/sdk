@@ -39,7 +39,7 @@ enum AccountPasswordOption {
 
 /// Choose an account.
 pub async fn choose_account() -> Result<Option<AccountInfo>> {
-    let mut accounts = LocalAccounts::list_accounts().await?;
+    let mut accounts = LocalAccounts::list_accounts(None).await?;
     if accounts.is_empty() {
         Ok(None)
     } else if accounts.len() == 1 {
@@ -100,7 +100,7 @@ pub async fn resolve_account(
             return Some(account);
         }
 
-        if let Ok(mut accounts) = LocalAccounts::list_accounts().await {
+        if let Ok(mut accounts) = LocalAccounts::list_accounts(None).await {
             if accounts.len() == 1 {
                 return Some(accounts.remove(0).into());
             }
@@ -170,7 +170,7 @@ pub async fn verify(user: Owner) -> Result<bool> {
 
 /// List local accounts.
 pub async fn list_accounts(verbose: bool) -> Result<()> {
-    let accounts = LocalAccounts::list_accounts().await?;
+    let accounts = LocalAccounts::list_accounts(None).await?;
     for account in accounts {
         if verbose {
             println!("{} {}", account.address(), account.label());
@@ -184,7 +184,7 @@ pub async fn list_accounts(verbose: bool) -> Result<()> {
 pub async fn find_account(
     account: &AccountRef,
 ) -> Result<Option<AccountInfo>> {
-    let accounts = LocalAccounts::list_accounts().await?;
+    let accounts = LocalAccounts::list_accounts(None).await?;
     match account {
         AccountRef::Address(address) => {
             Ok(accounts.into_iter().find(|a| a.address() == address))
