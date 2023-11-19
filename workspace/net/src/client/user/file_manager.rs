@@ -9,7 +9,7 @@ use std::{
 use sos_sdk::{
     account::DelegatedPassphrase,
     storage::EncryptedFile,
-    storage::{basename, AppPaths, FileStorage, FileStorageSync, UserPaths},
+    storage::{basename, FileStorage, FileStorageSync, UserPaths},
     vault::{
         secret::{
             FileContent, Secret, SecretData, SecretId, SecretRow, UserData,
@@ -19,6 +19,8 @@ use sos_sdk::{
     vfs,
 };
 use tokio::sync::mpsc;
+
+use tracing::{span, Level};
 
 use crate::client::{user::UserStorage, Error, Result};
 
@@ -79,6 +81,8 @@ impl UserStorage {
         secret_id: &SecretId,
         source: P,
     ) -> Result<EncryptedFile> {
+        let paths = self.paths().await;
+
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
             self.user().identity().keeper(),
@@ -89,7 +93,7 @@ impl UserStorage {
         Ok(FileStorageSync::encrypt_file_storage(
             password,
             source,
-            self.address().to_string(),
+            &paths,
             vault_id.to_string(),
             secret_id.to_string(),
         )?)
@@ -102,6 +106,8 @@ impl UserStorage {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<Vec<u8>> {
+        let paths = self.paths().await;
+
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
             self.user().identity().keeper(),
@@ -110,7 +116,7 @@ impl UserStorage {
 
         Ok(FileStorage::decrypt_file_storage(
             &password,
-            self.address().to_string(),
+            &paths,
             vault_id.to_string(),
             secret_id.to_string(),
             file_name,
@@ -120,28 +126,22 @@ impl UserStorage {
 
     /// Expected location for the directory containing all the
     /// external files for a folder.
-    pub(crate) fn file_folder_location(
+    pub(crate) async fn file_folder_location(
         &self,
         vault_id: &VaultId,
     ) -> Result<PathBuf> {
-        let paths = UserPaths::new(
-            AppPaths::data_dir()?,
-            &self.address().to_string(),
-        );
+        let paths = self.paths().await;
         Ok(paths.file_folder_location(vault_id.to_string()))
     }
 
     /// Expected location for a file by convention.
-    pub fn file_location(
+    pub async fn file_location(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<PathBuf> {
-        let paths = UserPaths::new(
-            AppPaths::data_dir()?,
-            &self.address().to_string(),
-        );
+        let paths = self.paths().await;
         Ok(paths.file_location(
             vault_id.to_string(),
             secret_id.to_string(),
@@ -154,7 +154,7 @@ impl UserStorage {
         &self,
         summary: &Summary,
     ) -> Result<()> {
-        let folder_files = self.file_folder_location(summary.id())?;
+        let folder_files = self.file_folder_location(summary.id()).await?;
         if vfs::try_exists(&folder_files).await? {
             vfs::remove_dir_all(&folder_files).await?;
         }
@@ -404,14 +404,24 @@ impl UserStorage {
         sources: Option<Vec<FileSource>>,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileStorageResult>> {
+        let span = span!(Level::DEBUG, "write_update_checksum");
+        let _enter = span.enter();
+
+        tracing::debug!(folder = ?summary.id());
+
         let mut results = Vec::new();
 
         let id = secret_data.id.as_ref().ok_or_else(|| Error::NoSecretId)?;
+
+        tracing::debug!(secret = ?id);
 
         let files =
             sources.unwrap_or_else(|| get_file_sources(&secret_data.secret));
         if !files.is_empty() {
             for source in files {
+
+                tracing::debug!(source = ?source.path);
+
                 if let Some(file_progress) = file_progress.as_mut() {
                     let _ = file_progress
                         .send(FileProgress::Write {
@@ -422,6 +432,8 @@ impl UserStorage {
                 let encrypted_file = self
                     .encrypt_file_storage(summary.id(), id, &source.path)
                     .await?;
+
+                tracing::debug!(checksum = %hex::encode(&encrypted_file.digest));
                 results.push(FileStorageResult {
                     source,
                     encrypted_file,

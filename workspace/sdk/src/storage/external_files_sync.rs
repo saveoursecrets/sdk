@@ -14,7 +14,7 @@ use std::{
 };
 
 use crate::{
-    storage::{AppPaths, UserPaths},
+    storage::UserPaths,
     Error, Result,
 };
 
@@ -86,11 +86,10 @@ impl FileStorageSync {
     >(
         password: SecretString,
         path: P,
-        address: impl AsRef<str>,
+        paths: &UserPaths,
         vault_id: V,
         secret_id: S,
     ) -> Result<EncryptedFile> {
-        let paths = UserPaths::new(AppPaths::data_dir()?, address);
         let target = paths.files_dir().join(vault_id).join(secret_id);
 
         if !target.exists() {
@@ -110,12 +109,11 @@ impl FileStorageSync {
         F: AsRef<Path>,
     >(
         password: &SecretString,
-        address: impl AsRef<str>,
+        paths: &UserPaths,
         vault_id: V,
         secret_id: S,
         file_name: F,
     ) -> Result<Vec<u8>> {
-        let paths = UserPaths::new(AppPaths::data_dir()?, address);
         let path = paths.file_location(vault_id, secret_id, file_name);
         Self::decrypt_file_passphrase(path, password)
     }

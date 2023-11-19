@@ -16,6 +16,8 @@ use super::{assert_local_remote_events_eq, assert_local_remote_vaults_eq};
 #[tokio::test]
 #[serial]
 async fn integration_sync_create_remote_data() -> Result<()> {
+    //crate::test_utils::init_tracing();
+
     let dirs = setup(1).await?;
     let test_data_dir = dirs.clients.get(0).unwrap();
 
