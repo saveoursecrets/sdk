@@ -41,26 +41,7 @@ use crate::client::{
     net::RpcClient, user::Origin, Error, RemoteSync, Result,
 };
 
-/// Create a new remote provider.
-pub async fn new_remote_provider(
-    origin: &Origin,
-    signer: BoxedEcdsaSigner,
-    keypair: Keypair,
-) -> Result<(RemoteProvider, Address)> {
-    let address = signer.address()?;
-    let local = LocalProvider::new(address.to_string(), None).await?;
-    let client = RpcClient::new(
-        origin.url.clone(),
-        origin.public_key.clone(),
-        signer,
-        keypair,
-    )?;
-    Ok((
-        RemoteProvider::new(Arc::new(RwLock::new(local)), client),
-        address,
-    ))
-}
-
+/*
 pub(crate) fn assert_proofs_eq(
     client_proof: &CommitProof,
     server_proof: &CommitProof,
@@ -73,16 +54,15 @@ pub(crate) fn assert_proofs_eq(
         Ok(())
     }
 }
+*/
 
 mod local_provider;
 mod macros;
 mod remote_provider;
 mod state;
-//mod sync;
 
 pub use local_provider::LocalProvider;
 pub use remote_provider::RemoteProvider;
-
 pub use state::ProviderState;
 
 /// Spawn a change notification listener that

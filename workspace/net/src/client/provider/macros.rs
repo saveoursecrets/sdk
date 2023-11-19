@@ -41,6 +41,7 @@ macro_rules! retry {
     }};
 }
 
+/*
 /// Patch remote and detect if local is behind remote.
 ///
 /// When local is behind remote attempt to pull changes from
@@ -122,3 +123,4 @@ macro_rules! patch {
         }
     }}
 }
+*/

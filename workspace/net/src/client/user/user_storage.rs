@@ -258,13 +258,8 @@ impl UserStorage {
 
         let signer = self.user.identity().signer().clone();
         let local = self.storage();
-        let client = RpcClient::new(
-            origin.url.clone(),
-            origin.public_key.clone(),
-            signer,
-            keypair,
-        )?;
-        let mut provider = RemoteProvider::new(local, client);
+        let mut provider = RemoteProvider::new(
+            local, origin.clone(), signer,keypair)?;
 
         // Noise protocol handshake
         provider.handshake().await?;

@@ -18,11 +18,13 @@ use sos_sdk::{
         EventReducer, Patch, ReadEvent, WriteEvent,
     },
     passwd::diceware::generate_passphrase,
+    signer::ecdsa::BoxedEcdsaSigner,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary, Vault, VaultBuilder, VaultFlags, VaultId,
     },
     vfs,
+    mpc::Keypair,
 };
 
 use std::{
@@ -37,9 +39,9 @@ use uuid::Uuid;
 use crate::{
     client::{
         provider::{LocalProvider, ProviderState},
-        RemoteSync,
+        RemoteSync, user::Origin,
     },
-    patch, retry,
+    retry,
 };
 
 use tracing::{span, Level};
@@ -54,15 +56,24 @@ pub struct RemoteProvider {
 }
 
 impl RemoteProvider {
-    /// Create a new remote provider.
+    /// Create a new remote bridge that wraps the given
+    /// local provider.
     pub fn new(
         local: Arc<RwLock<LocalProvider>>,
-        remote: RpcClient,
-    ) -> RemoteProvider {
-        Self { local, remote }
+        origin: Origin,
+        signer: BoxedEcdsaSigner,
+        keypair: Keypair,
+    ) -> Result<Self> {
+        let remote = RpcClient::new(
+            origin.url,
+            origin.public_key,
+            signer,
+            keypair,
+        )?;
+        Ok(Self { local, remote })
     }
 
-    /// Local provider.
+    /// Clone of the local provider.
     pub fn local(&self) -> Arc<RwLock<LocalProvider>> {
         Arc::clone(&self.local)
     }

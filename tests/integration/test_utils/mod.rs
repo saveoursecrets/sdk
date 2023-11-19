@@ -9,7 +9,7 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        provider::{new_remote_provider, LocalProvider, RemoteProvider},
+        provider::{LocalProvider, RemoteProvider},
         user::{Origin, UserStorage},
     },
     sdk::{
@@ -70,8 +70,9 @@ pub(super) async fn create_remote_provider(
     let origin = origin();
 
     let keypair = Keypair::new(PATTERN.parse()?)?;
-    let (mut provider, _) =
-        new_remote_provider(&origin, signer, keypair).await?;
+    let local = LocalProvider::new(signer.address()?.to_string(), None).await?;
+    let mut provider = RemoteProvider::new(
+        Arc::new(RwLock::new(local)), origin.clone(), signer, keypair)?;
 
     // Noise protocol handshake
     provider.handshake().await?;
