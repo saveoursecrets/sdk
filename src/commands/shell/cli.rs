@@ -4,7 +4,7 @@ use terminal_banner::{Banner, Padding};
 
 use sos_net::{
     client::user::UserStorage,
-    sdk::{account::AccountRef, storage::AppPaths, vault::VaultRef, vfs},
+    sdk::{account::AccountRef, storage::UserPaths, vault::VaultRef, vfs},
     FileLocks,
 };
 
@@ -56,7 +56,7 @@ pub async fn run(
     mut account: Option<AccountRef>,
     folder: Option<VaultRef>,
 ) -> Result<()> {
-    let data_dir = AppPaths::data_dir().map_err(|_| Error::NoCache)?;
+    let data_dir = UserPaths::data_dir().map_err(|_| Error::NoCache)?;
     if !vfs::metadata(&data_dir).await?.is_dir() {
         return Err(Error::NotDirectory(data_dir));
     }

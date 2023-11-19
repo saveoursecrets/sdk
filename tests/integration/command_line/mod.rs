@@ -6,7 +6,7 @@ use sos_net::sdk::{
     constants::{DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_VAULT_NAME},
     passwd::diceware::generate_passphrase,
     secrecy::ExposeSecret,
-    storage::{AppPaths, UserPaths},
+    storage::UserPaths,
     vfs,
 };
 use std::{
@@ -188,7 +188,7 @@ async fn integration_command_line() -> Result<()> {
     std::env::set_var("SOS_DATA_DIR", data_dir.clone());
 
     // Set so test functions can access
-    AppPaths::set_data_dir(data_dir.clone());
+    UserPaths::set_data_dir(data_dir.clone());
     UserPaths::scaffold(Some(data_dir)).await?;
 
     if is_ci() {
@@ -264,8 +264,9 @@ async fn integration_command_line() -> Result<()> {
     secret::remove(&exe, &address, &password, None)?;
 
     account::delete(&exe, &address, &password, None)?;
+    
+    UserPaths::clear_data_dir();
 
-    AppPaths::clear_data_dir();
     std::env::remove_var("SOS_DATA_DIR");
     std::env::remove_var("SOS_YES");
     std::env::remove_var("SOS_PASSWORD");

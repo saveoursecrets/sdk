@@ -11,7 +11,6 @@ use crate::{
         LOCAL_DIR, LOGS_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
         APP_AUTHOR, APP_NAME,
     },
-    storage::AppPaths,
     vfs,
 };
 
@@ -20,7 +19,7 @@ const APP_INFO: AppInfo = AppInfo {
     author: APP_AUTHOR,
 };
 
-static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
+static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
 
 /// Encapsulates the paths for a user account.
@@ -215,7 +214,7 @@ impl UserPaths {
         let paths = if let Some(data_dir) = data_dir {
             UserPaths::new(data_dir, address)
         } else {
-            UserPaths::new(AppPaths::data_dir()?, address)
+            UserPaths::new(UserPaths::data_dir()?, address)
         };
         paths.ensure().await?;
         Ok(paths)
@@ -226,7 +225,7 @@ impl UserPaths {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
         } else {
-            AppPaths::data_dir()?
+            UserPaths::data_dir()?
         };
         let paths = Self::new_global(data_dir);
         vfs::create_dir_all(paths.documents_dir()).await?;
@@ -238,14 +237,13 @@ impl UserPaths {
     /// Set an explicit data directory used to store all 
     /// application files.
     pub fn set_data_dir(path: PathBuf) {
-        let mut writer = CACHE_DIR.write().unwrap();
+        let mut writer = DATA_DIR.write().unwrap();
         *writer = Some(path);
     }
 
-    /// Clear an explicit data directory.
-    #[cfg(test)]
+    /// Clear an explicitly set data directory.
     pub fn clear_data_dir() {
-        let mut writer = CACHE_DIR.write().unwrap();
+        let mut writer = DATA_DIR.write().unwrap();
         *writer = None;
     }
 
@@ -270,7 +268,7 @@ impl UserPaths {
         let dir = if let Ok(env_data_dir) = std::env::var("SOS_DATA_DIR") {
             Ok(PathBuf::from(env_data_dir))
         } else {
-            let reader = CACHE_DIR.read().unwrap();
+            let reader = DATA_DIR.read().unwrap();
             if let Some(explicit) = reader.as_ref() {
                 Ok(explicit.to_path_buf())
             } else {

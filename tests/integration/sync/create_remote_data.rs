@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use sos_net::{
     client::{provider::RemoteProvider, RemoteSync},
-    sdk::{storage::AppPaths, vault::Summary},
+    sdk::vault::Summary,
 };
 
 use crate::test_utils::{create_local_account, origin, setup, spawn};

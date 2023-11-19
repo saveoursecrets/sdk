@@ -22,7 +22,7 @@ use sos_sdk::{
     mpc::{Keypair, PATTERN},
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
-    storage::{AppPaths, UserPaths},
+    storage::UserPaths,
     url::Url,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
@@ -1929,7 +1929,7 @@ impl UserStorage {
             ExtractFilesLocation::Path(owner.files_dir().clone())
         } else {
             ExtractFilesLocation::Builder(Box::new(|address| {
-                let data_dir = AppPaths::data_dir().unwrap();
+                let data_dir = UserPaths::data_dir().unwrap();
                 let paths = UserPaths::new(data_dir, address);
                 Some(paths.files_dir().to_owned())
             }))

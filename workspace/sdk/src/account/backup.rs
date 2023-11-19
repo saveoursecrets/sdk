@@ -29,7 +29,7 @@ use crate::{
     passwd::ChangePassword,
     search::SearchIndex,
     sha2::{Digest, Sha256},
-    storage::{AppPaths, UserPaths},
+    storage::UserPaths,
     vault::{
         secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess, VaultId,
         VaultWriter,
@@ -422,7 +422,7 @@ impl AccountBackup {
         let data_dir = if let Some(data_dir) = data_dir.take() {
             data_dir
         } else {
-            AppPaths::data_dir()?
+            UserPaths::data_dir()?
         };
 
         // Signed in so use the existing provider

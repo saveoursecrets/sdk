@@ -11,7 +11,6 @@ use sos_net::{
         account::RestoreOptions,
         events::{AuditEvent, AuditLogFile, EventKind},
         passwd::diceware::generate_passphrase,
-        storage::AppPaths,
         vault::Summary,
         vfs::{self, File},
     },

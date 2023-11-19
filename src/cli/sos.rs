@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use sos_net::sdk::{
     account::AccountRef,
     hex,
-    storage::{AppPaths, UserPaths},
+    storage::UserPaths,
     url::Url,
     vault::VaultRef,
 };
@@ -140,7 +140,7 @@ pub async fn run() -> Result<()> {
     let mut args = Sos::parse();
 
     if let Some(storage) = &args.storage {
-        AppPaths::set_data_dir(storage.clone());
+        UserPaths::set_data_dir(storage.clone());
     }
     UserPaths::scaffold(args.storage).await?;
 

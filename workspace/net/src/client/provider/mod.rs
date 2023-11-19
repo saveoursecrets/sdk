@@ -25,7 +25,7 @@ use sos_sdk::{
     passwd::ChangePassword,
     search::SearchIndex,
     signer::ecdsa::{Address, BoxedEcdsaSigner},
-    storage::{AppPaths, UserPaths},
+    storage::UserPaths,
     url::Url,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
@@ -69,7 +69,7 @@ pub async fn new_local_provider(
     let data_dir = if let Some(data_dir) = data_dir {
         data_dir
     } else {
-        AppPaths::data_dir().map_err(|_| Error::NoCache)?
+        UserPaths::data_dir().map_err(|_| Error::NoCache)?
     };
 
     let address = signer.address()?;

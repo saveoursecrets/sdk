@@ -15,7 +15,7 @@ use sos_net::{
         hex,
         passwd::diceware::generate_passphrase,
         search::SearchIndex,
-        storage::{AppPaths, FileStorage, UserPaths},
+        storage::{FileStorage, UserPaths},
         urn::Urn,
         vault::{secret::SecretId, Gatekeeper, VaultId},
         vfs,

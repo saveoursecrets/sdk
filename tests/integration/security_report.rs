@@ -7,7 +7,6 @@ use sos_net::{
     client::user::{SecurityReportOptions, UserStorage},
     sdk::{
         passwd::diceware::generate_passphrase,
-        storage::AppPaths,
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
             Summary,

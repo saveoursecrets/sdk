@@ -10,7 +10,7 @@ use sos_net::{
             archive::Inventory, AccountBackup, AccountInfo, AccountRef,
             ExtractFilesLocation, RestoreOptions,
         },
-        storage::{AppPaths, UserPaths},
+        storage::UserPaths,
         vfs,
     },
 };
@@ -382,7 +382,7 @@ async fn account_backup(
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
     let address = account.address();
-    let paths = UserPaths::new(AppPaths::data_dir()?, &address.to_string());
+    let paths = UserPaths::new(UserPaths::data_dir()?, &address.to_string());
 
     AccountBackup::export_archive_file(&output, address, &paths).await?;
     Ok(())
@@ -419,7 +419,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         };
 
     let address = inventory.manifest.address.to_string();
-    let paths = UserPaths::new(AppPaths::data_dir()?, &address);
+    let paths = UserPaths::new(UserPaths::data_dir()?, &address);
     let files_dir = paths.files_dir();
     let options = RestoreOptions {
         selected: inventory.vaults,

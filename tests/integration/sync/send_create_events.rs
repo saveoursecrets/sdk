@@ -9,7 +9,7 @@ use sos_net::{
         user::{Origin, Remote, UserStorage},
         RemoteSync,
     },
-    sdk::{storage::AppPaths, vault::Summary},
+    sdk::vault::Summary,
 };
 
 use crate::test_utils::{

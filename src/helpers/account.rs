@@ -9,7 +9,7 @@ use sos_net::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         secrecy::{ExposeSecret, SecretString},
-        storage::AppPaths,
+        storage::UserPaths,
         vault::{Summary, VaultRef},
     },
 };
@@ -333,7 +333,7 @@ pub async fn new_account(
         .await?;
         let address = owner.address().to_string();
 
-        let data_dir = AppPaths::data_dir()?;
+        let data_dir = UserPaths::data_dir()?;
         let message = format!(
             r#"* Account: {} ({})
 * Storage: {}"#,

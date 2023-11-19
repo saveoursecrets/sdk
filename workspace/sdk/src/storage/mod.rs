@@ -3,12 +3,10 @@ use crate::Result;
 
 use std::path::Path;
 
-mod app;
 mod external_files;
 mod external_files_sync;
 mod user;
 
-pub use app::AppPaths;
 pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;
 pub use user::UserPaths;

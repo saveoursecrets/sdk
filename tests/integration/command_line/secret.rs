@@ -4,7 +4,7 @@ use rexpect::spawn;
 use secrecy::SecretString;
 use sos_net::sdk::{
     constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
-    secrecy::ExposeSecret, storage::AppPaths, vfs,
+    secrecy::ExposeSecret, storage::UserPaths, vfs,
 };
 use std::{ops::DerefMut, path::PathBuf};
 
@@ -442,7 +442,7 @@ pub async fn download(
     account_name: &str,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let data_dir = AppPaths::data_dir()?;
+    let data_dir = UserPaths::data_dir()?;
     let output = data_dir.join(format!("sample-{}.heic", account_name));
 
     let cmd = format!(
@@ -493,7 +493,7 @@ pub async fn attach(
     account_name: &str,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let data_dir = AppPaths::data_dir()?;
+    let data_dir = UserPaths::data_dir()?;
     let input = PathBuf::from("tests/fixtures/sample.heic").canonicalize()?;
     let output =
         data_dir.join(format!("sample-attachment-{}.heic", account_name));

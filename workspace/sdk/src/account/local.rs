@@ -7,7 +7,7 @@ use web3_address::ethereum::Address;
 use crate::{
     constants::VAULT_EXT,
     decode,
-    storage::{AppPaths, UserPaths},
+    storage::UserPaths,
     vault::{Header, Summary, Vault, VaultId},
     vfs,
 };
@@ -150,7 +150,7 @@ impl<'a> LocalAccounts<'a> {
         let paths = if let Some(paths) = paths {
             paths.clone()
         } else {
-            UserPaths::new_global(AppPaths::data_dir()?)
+            UserPaths::new_global(UserPaths::data_dir()?)
         };
 
         let mut dir = vfs::read_dir(paths.identity_dir()).await?;

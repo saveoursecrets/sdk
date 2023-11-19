@@ -9,7 +9,7 @@ use crate::{
     },
     crypto::AccessKey,
     encode,
-    storage::{AppPaths, UserPaths},
+    storage::UserPaths,
     vault::{
         secret::{Secret, SecretMeta, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
@@ -307,7 +307,7 @@ impl AccountBuilder {
         let data_dir = if let Some(data_dir) = &account.data_dir {
             data_dir.clone()
         } else {
-            AppPaths::data_dir()?
+            UserPaths::data_dir()?
         };
         let paths = UserPaths::new(data_dir, &address);
         // Persist the identity vault to disc, MUST re-encode the buffer
