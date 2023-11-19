@@ -59,12 +59,13 @@ pub fn origin() -> Origin {
 /// Create a remote provider for the given signing key.
 pub(super) async fn create_remote_provider(
     signer: BoxedEcdsaSigner,
+    data_dir: Option<PathBuf>,
 ) -> Result<(Origin, RemoteBridge)> {
     let origin = origin();
 
     let keypair = Keypair::new(PATTERN.parse()?)?;
     let local =
-        LocalProvider::new(signer.address()?.to_string(), None).await?;
+        LocalProvider::new(signer.address()?.to_string(), data_dir).await?;
     let provider = RemoteBridge::new(
         Arc::new(RwLock::new(local)),
         origin.clone(),
@@ -335,7 +336,7 @@ async fn create_account(
     }
 
     let address = signer.address()?;
-    let (origin, provider) = create_remote_provider(signer).await?;
+    let (origin, provider) = create_remote_provider(signer, Some(data_dir)).await?;
 
     let local_provider = provider.local();
     let mut local_writer = local_provider.write().await;
@@ -371,32 +372,27 @@ pub async fn create_local_provider(
 }
 
 pub async fn signup(
-    dirs: &TestDirs,
-    client_index: usize,
+    data_dir: PathBuf,
 ) -> Result<(Address, AccountCredentials, RemoteBridge, BoxedEcdsaSigner)> {
-    let TestDirs {
-        target: destination,
-        clients,
-        ..
-    } = dirs;
-
-    let name = None;
     let signer: BoxedEcdsaSigner = Box::new(SingleParty::new_random());
 
     let address = signer.address()?;
-    let (origin, provider) = create_remote_provider(signer.clone()).await?;
+    let (origin, provider) = create_remote_provider(
+        signer.clone(), Some(data_dir)).await?;
 
     let local_provider = provider.local();
     let mut local_writer = local_provider.write().await;
 
     let (_, encryption_passphrase, summary) =
-        local_writer.create_account(name, None).await?;
+        local_writer.create_account(None, None).await?;
 
     let credentials = AccountCredentials {
         encryption_passphrase,
         address,
         summary,
     };
+
+    drop(local_writer);
 
     provider.sync().await?;
 

@@ -19,7 +19,8 @@ use sos_net::{
 #[ignore = "flaky"]
 // SEE: https://github.com/saveoursecrets/sdk/issues/126
 async fn integration_compact_force_pull() -> Result<()> {
-    let dirs = setup(2).await?;
+    let mut dirs = setup(2).await?;
+    let test_data_dir = dirs.clients.remove(0);
 
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
@@ -27,7 +28,7 @@ async fn integration_compact_force_pull() -> Result<()> {
     let server_url = server();
 
     // Signup a new account
-    let (_, credentials, mut creator, signer) = signup(&dirs, 0).await?;
+    let (_, credentials, mut creator, signer) = signup(test_data_dir).await?;
     let AccountCredentials {
         summary,
         encryption_passphrase,

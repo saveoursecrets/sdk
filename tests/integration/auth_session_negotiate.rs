@@ -12,14 +12,15 @@ use sos_net::{
 #[tokio::test]
 #[serial]
 async fn integration_auth_session_negotiate() -> Result<()> {
-    let dirs = setup(1).await?;
+    let mut dirs = setup(1).await?;
+    let test_data_dir = dirs.clients.remove(0);
 
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
     let server_url = server();
 
-    let (_address, _credentials, _, signer) = signup(&dirs, 0).await?;
+    let (_address, _credentials, _, signer) = signup(test_data_dir).await?;
 
     let mut client = RpcClient::new(
         server_url,
