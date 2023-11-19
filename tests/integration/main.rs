@@ -11,9 +11,6 @@ mod archive_export_restore;
 mod audit_trail;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod auth_session_negotiate;
-
-#[cfg(not(target_arch = "wasm32"))]
 mod change_password;
 
 #[cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))]
@@ -35,7 +32,7 @@ mod local_provider;
 //mod patch_conflict_resolve;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod rpc_client_basic;
+mod rpc;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod security_report;
