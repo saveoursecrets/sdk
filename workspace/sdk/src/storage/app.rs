@@ -76,7 +76,9 @@ impl AppPaths {
                 default_storage_dir()
             }
         };
-        if cfg!(debug_assertions) {
+
+        let has_explicit_env = std::env::var("SOS_DATA_DIR").ok().is_some();
+        if cfg!(debug_assertions) && !has_explicit_env {
             // Don't follow the convention for separating debug and
             // release data when running the integration tests as it
             // makes paths very hard to reason about when they are

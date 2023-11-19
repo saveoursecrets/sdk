@@ -152,8 +152,7 @@ impl<'a> LocalAccounts<'a> {
         } else {
             UserPaths::new_global(AppPaths::data_dir()?)
         };
-        //let paths = UserPaths::new_global(AppPaths::data_dir()?);
-        //let identity_dir = paths.identity_dir();
+
         let mut dir = vfs::read_dir(paths.identity_dir()).await?;
         while let Some(entry) = dir.next_entry().await? {
             if let (Some(extension), Some(file_stem)) =

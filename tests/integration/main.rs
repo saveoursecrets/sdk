@@ -16,8 +16,8 @@ mod auth_session_negotiate;
 #[cfg(not(target_arch = "wasm32"))]
 mod change_password;
 
-//#[cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))]
-//mod command_line;
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))]
+mod command_line;
 
 //#[cfg(not(target_arch = "wasm32"))]
 //mod compact_force_pull;

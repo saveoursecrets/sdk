@@ -40,8 +40,8 @@ pub struct Sos {
     password: Option<String>,
 
     /// Local storage directory.
-    #[clap(long, env = "SOS_CACHE")]
-    cache: Option<PathBuf>,
+    #[clap(long, env = "SOS_DATA_DIR")]
+    storage: Option<PathBuf>,
 
     /// Affirmative for all confirmation prompts.
     #[clap(long, env = "SOS_YES")]
@@ -139,10 +139,10 @@ pub enum Command {
 pub async fn run() -> Result<()> {
     let mut args = Sos::parse();
 
-    if let Some(cache) = &args.cache {
-        AppPaths::set_data_dir(cache.clone());
+    if let Some(storage) = &args.storage {
+        AppPaths::set_data_dir(storage.clone());
     }
-    UserPaths::scaffold(args.cache).await?;
+    UserPaths::scaffold(args.storage).await?;
 
     #[cfg(any(test, debug_assertions))]
     if let Some(password) = args.password.take() {
