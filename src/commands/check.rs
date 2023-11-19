@@ -81,16 +81,16 @@ async fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
     }
     let tree = event_log_commit_tree_file(&file, true, |row_info| {
         if verbose {
-            println!("{}", hex::encode(row_info.commit()));
+            println!("hash: {}", hex::encode(row_info.commit()));
         }
     })
     .await?;
     if verbose {
         if let Some(root) = tree.root_hex() {
-            println!("{}", root);
+            println!("root: {}", root);
         }
     }
-    println!("Verified ✓");
+    println!("Verified {} commit(s) ✓", tree.len());
     Ok(())
 }
 
