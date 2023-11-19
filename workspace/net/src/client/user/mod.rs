@@ -10,12 +10,10 @@ mod remote;
 mod search_index;
 #[cfg(feature = "security-report")]
 mod security_report;
-mod state;
 mod user_storage;
 
-pub use local_provider::LocalProvider;
+pub use local_provider::{LocalProvider, ProviderState};
 pub use remote::{RemoteProvider, Origin, Remote, Remotes};
-pub use state::ProviderState;
 
 #[cfg(feature = "device")]
 pub use devices::DeviceManager;
