@@ -58,12 +58,13 @@ pub async fn signup(
 }
 
 pub async fn signup_local(
+    data_dir: PathBuf,
     default_folder_name: Option<String>,
 ) -> Result<(Address, AccountCredentials, LocalProvider, BoxedEcdsaSigner)> {
     let signer = Box::new(SingleParty::new_random());
     let address = signer.address()?;
     let (credentials, provider) =
-        create_local_account(default_folder_name, signer.clone(), None)
+        create_local_account(default_folder_name, signer.clone(), Some(data_dir))
             .await?;
     Ok((address, credentials, provider, signer))
 }

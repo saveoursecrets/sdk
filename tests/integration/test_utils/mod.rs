@@ -201,6 +201,8 @@ pub struct TestDirs {
     pub clients: Vec<PathBuf>,
 }
 
+/// Setup prepares directories for the given number of clients and 
+/// a standard location for a remote server storage location.
 pub async fn setup(num_clients: usize) -> Result<TestDirs> {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");

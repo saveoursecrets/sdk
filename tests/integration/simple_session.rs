@@ -11,8 +11,10 @@ use sos_net::sdk::{
 #[tokio::test]
 #[serial]
 async fn integration_simple_session() -> Result<()> {
-    let (address, credentials, mut provider, signer) =
-        signup_local(None).await?;
+    let mut dirs = setup(1).await?;
+    let test_data_dir = dirs.clients.remove(0);
+
+    let (address, credentials, mut provider, signer) = signup_local(test_data_dir, None).await?;
     let AccountCredentials { summary, .. } = credentials;
     let login_vault_id = *summary.id();
 

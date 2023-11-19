@@ -1,15 +1,18 @@
 use anyhow::Result;
 use serial_test::serial;
 
-use crate::test_utils::{create_secrets, signup_local, AccountCredentials};
+use crate::test_utils::{create_secrets, signup_local, AccountCredentials, setup};
 
 use sos_net::sdk::passwd::diceware::generate_passphrase;
 
 #[tokio::test]
 #[serial]
 async fn integration_change_password() -> Result<()> {
+    let mut dirs = setup(1).await?;
+    let test_data_dir = dirs.clients.remove(0);
+
     let (address, credentials, mut provider, signer) =
-        signup_local(None).await?;
+        signup_local(test_data_dir, None).await?;
 
     let AccountCredentials {
         summary,

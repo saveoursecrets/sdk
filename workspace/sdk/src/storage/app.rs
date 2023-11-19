@@ -22,18 +22,6 @@ static CACHE_DIR: Lazy<RwLock<Option<PathBuf>>> =
 pub struct AppPaths;
 
 impl AppPaths {
-    /// Ensure the root directories exist.
-    #[deprecated(note = "Use UserPaths::scaffold() instead")]
-    pub async fn scaffold() -> Result<()> {
-        let data_dir = Self::data_dir()?;
-        vfs::create_dir_all(&data_dir).await?;
-        let identity_dir = data_dir.join(IDENTITY_DIR);
-        vfs::create_dir_all(&identity_dir).await?;
-        let logs_dir = data_dir.join(LOGS_DIR);
-        vfs::create_dir_all(&logs_dir).await?;
-        Ok(())
-    }
-
     /// Set an explicit cache directory.
     pub fn set_data_dir(path: PathBuf) {
         let mut writer = CACHE_DIR.write().unwrap();
