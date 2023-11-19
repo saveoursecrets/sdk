@@ -3,10 +3,7 @@ use serial_test::serial;
 use std::path::PathBuf;
 
 use sos_net::{
-    client::{
-        RemoteBridge,
-        RemoteSync,
-    },
+    client::{RemoteBridge, RemoteSync},
     sdk::vault::Summary,
 };
 
@@ -29,9 +26,11 @@ async fn integration_sync_send_delete_events() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (mut owner, _, default_folder, _) =
-        create_local_account("sync_delete_events", Some(test_data_dir.clone()))
-            .await?;
+    let (mut owner, _, default_folder, _) = create_local_account(
+        "sync_delete_events",
+        Some(test_data_dir.clone()),
+    )
+    .await?;
 
     // Folders on the local account
     let expected_summaries: Vec<Summary> = {
@@ -80,9 +79,7 @@ async fn integration_sync_send_delete_events() -> Result<()> {
     // Should have two events
     assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
 
-    let sync_error = owner
-        .delete_secret(&id, Default::default())
-        .await?;
+    let sync_error = owner.delete_secret(&id, Default::default()).await?;
     assert!(sync_error.is_none());
 
     // Should have three events

@@ -231,7 +231,6 @@ pub async fn new_account(
     account_name: String,
     folder_name: Option<String>,
 ) -> Result<()> {
-    
     let account = AccountRef::Name(account_name.clone());
     let account = find_account(&account).await?;
 

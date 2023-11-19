@@ -253,7 +253,7 @@ async fn assert_create_file_secret(
         let file_name = hex::encode(checksum);
         let expected_file_path =
             owner.file_location(default_folder.id(), &id, &file_name);
-        
+
         println!("expected {:#?}", expected_file_path);
 
         assert!(vfs::try_exists(&expected_file_path).await?);
@@ -400,8 +400,7 @@ async fn assert_delete_file_secret(
 
     // Check deleting the secret also removed the external file
     let file_name = hex::encode(checksum);
-    let deleted_file_path =
-        owner.file_location(folder.id(), id, &file_name);
+    let deleted_file_path = owner.file_location(folder.id(), id, &file_name);
     assert!(!vfs::try_exists(&deleted_file_path).await?);
 
     Ok(())
@@ -545,8 +544,7 @@ async fn assert_attach_file_secret(
             assert_eq!("image/heic", mime);
 
             let file_name = hex::encode(checksum);
-            let file_path =
-                owner.file_location(folder.id(), id, &file_name);
+            let file_path = owner.file_location(folder.id(), id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
         } else {
             panic!("expecting file secret variant");
@@ -587,8 +585,7 @@ async fn assert_attach_file_secret(
             assert_eq!("text/plain", mime);
 
             let file_name = hex::encode(checksum);
-            let file_path =
-                owner.file_location(folder.id(), &id, &file_name);
+            let file_path = owner.file_location(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
 
             *checksum
@@ -643,8 +640,7 @@ async fn assert_attach_file_secret(
             assert_eq!("image/heic", mime);
 
             let file_name = hex::encode(checksum);
-            let file_path =
-                owner.file_location(folder.id(), &id, &file_name);
+            let file_path = owner.file_location(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
 
             let old_file_name = hex::encode(attachment_checksum);
@@ -700,8 +696,7 @@ async fn assert_attach_file_secret(
         {
             assert_ne!(&ZERO_CHECKSUM, checksum);
             let file_name = hex::encode(checksum);
-            let file_path =
-                owner.file_location(folder.id(), &id, &file_name);
+            let file_path = owner.file_location(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
 
             *checksum
@@ -716,8 +711,7 @@ async fn assert_attach_file_secret(
         {
             assert_eq!(&updated_attachment_checksum, checksum);
             let file_name = hex::encode(checksum);
-            let file_path =
-                owner.file_location(folder.id(), &id, &file_name);
+            let file_path = owner.file_location(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
         } else {
             panic!("expecting file secret variant (attachment)");
@@ -758,8 +752,7 @@ async fn assert_attach_file_secret(
         {
             assert_ne!(&file_checksum, checksum);
             let file_name = hex::encode(checksum);
-            let file_path =
-                owner.file_location(folder.id(), &id, &file_name);
+            let file_path = owner.file_location(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
         } else {
             panic!("expecting file secret variant (attachment)");

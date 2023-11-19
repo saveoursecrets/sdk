@@ -1,11 +1,12 @@
 use anyhow::Result;
 use serial_test::serial;
 
-use crate::test_utils::{create_secrets, create_local_provider, AccountCredentials, setup};
+use crate::test_utils::{
+    create_local_provider, create_secrets, setup, AccountCredentials,
+};
 
 use sos_net::sdk::{
-    passwd::diceware::generate_passphrase,
-    signer::ecdsa::SingleParty,
+    passwd::diceware::generate_passphrase, signer::ecdsa::SingleParty,
 };
 
 #[tokio::test]
@@ -15,8 +16,8 @@ async fn integration_change_password() -> Result<()> {
     let test_data_dir = dirs.clients.remove(0);
 
     let signer = Box::new(SingleParty::new_random());
-    let (credentials, mut provider) = create_local_provider(
-        signer, Some(test_data_dir)).await?;
+    let (credentials, mut provider) =
+        create_local_provider(signer, Some(test_data_dir)).await?;
 
     let AccountCredentials {
         summary,

@@ -16,7 +16,7 @@
 //!
 use crate::{
     commit::{event_log_commit_tree_file, CommitHash, CommitTree},
-    constants::{EVENT_LOG_IDENTITY, PATCH_IDENTITY},
+    constants::EVENT_LOG_IDENTITY,
     encode,
     encoding::encoding_options,
     events::{Patch, WriteEvent},

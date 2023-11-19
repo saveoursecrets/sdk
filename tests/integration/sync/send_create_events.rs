@@ -4,11 +4,7 @@ use serial_test::serial;
 use std::path::PathBuf;
 
 use sos_net::{
-    client::{
-        RemoteBridge,
-        UserStorage,
-        RemoteSync,
-    },
+    client::{RemoteBridge, RemoteSync, UserStorage},
     sdk::vault::Summary,
 };
 
@@ -40,9 +36,11 @@ async fn integration_sync_send_create_events() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (mut owner, _, default_folder, passphrase) =
-        create_local_account("sync_create_events", Some(test_data_dir.clone()))
-            .await?;
+    let (mut owner, _, default_folder, passphrase) = create_local_account(
+        "sync_create_events",
+        Some(test_data_dir.clone()),
+    )
+    .await?;
 
     // Folders on the local account
     let expected_summaries: Vec<Summary> = {

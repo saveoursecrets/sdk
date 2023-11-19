@@ -9,7 +9,7 @@ use std::{
 use sos_sdk::{
     account::{
         basename, DelegatedPassphrase, EncryptedFile, FileStorage,
-        FileStorageSync, UserPaths,
+        FileStorageSync,
     },
     vault::{
         secret::{
@@ -23,7 +23,7 @@ use tokio::sync::mpsc;
 
 use tracing::{span, Level};
 
-use crate::client::{UserStorage, Error, Result};
+use crate::client::{Error, Result, UserStorage};
 
 /// File progress operations.
 #[derive(Debug)]
@@ -123,10 +123,7 @@ impl UserStorage {
 
     /// Expected location for the directory containing all the
     /// external files for a folder.
-    pub(crate) fn file_folder_location(
-        &self,
-        vault_id: &VaultId,
-    ) -> PathBuf {
+    pub(crate) fn file_folder_location(&self, vault_id: &VaultId) -> PathBuf {
         self.paths.file_folder_location(vault_id.to_string())
     }
 

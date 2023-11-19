@@ -4,9 +4,8 @@ use serial_test::serial;
 use crate::test_utils::*;
 
 use sos_net::sdk::{
-    constants::DEFAULT_VAULT_NAME,
+    constants::DEFAULT_VAULT_NAME, signer::ecdsa::SingleParty,
     vault::VaultRef,
-    signer::ecdsa::SingleParty,
 };
 
 #[tokio::test]
@@ -16,8 +15,8 @@ async fn integration_simple_session() -> Result<()> {
     let test_data_dir = dirs.clients.remove(0);
 
     let signer = Box::new(SingleParty::new_random());
-    let (credentials, mut provider) = create_local_provider(
-        signer, Some(test_data_dir)).await?;
+    let (credentials, mut provider) =
+        create_local_provider(signer, Some(test_data_dir)).await?;
     let AccountCredentials { summary, .. } = credentials;
     let login_vault_id = *summary.id();
 

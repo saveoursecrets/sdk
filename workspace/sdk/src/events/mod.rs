@@ -1,6 +1,6 @@
 //! Log and sync events.
 
-use crate::{Error, Result};
+use crate::Result;
 
 mod audit;
 mod change;

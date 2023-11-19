@@ -63,8 +63,7 @@ pub async fn connect(
     let endpoint = remote.clone();
     let public_key = keypair.public_key().to_vec();
 
-    let mut client =
-        RpcClient::new(remote, remote_public_key, signer, keypair)?;
+    let client = RpcClient::new(remote, remote_public_key, signer, keypair)?;
     client.handshake().await?;
 
     let host = endpoint.host_str().unwrap().to_string();

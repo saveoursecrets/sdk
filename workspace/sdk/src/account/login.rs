@@ -200,6 +200,7 @@ impl Login {
         index: Arc<RwLock<SearchIndex>>,
     ) -> Result<AuthenticatedUser> {
         let span = span!(Level::DEBUG, "login");
+        let _enter = span.enter();
 
         let accounts = LocalAccounts::list_accounts(Some(paths)).await?;
         let account = accounts

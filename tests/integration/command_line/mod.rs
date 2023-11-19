@@ -264,7 +264,7 @@ async fn integration_command_line() -> Result<()> {
     secret::remove(&exe, &address, &password, None)?;
 
     account::delete(&exe, &address, &password, None)?;
-    
+
     UserPaths::clear_data_dir();
 
     std::env::remove_var("SOS_DATA_DIR");

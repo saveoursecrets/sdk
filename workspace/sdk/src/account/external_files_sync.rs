@@ -13,10 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{
-    account::UserPaths,
-    Error, Result,
-};
+use crate::{account::UserPaths, Error, Result};
 
 use super::EncryptedFile;
 

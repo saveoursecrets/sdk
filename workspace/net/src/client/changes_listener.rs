@@ -5,7 +5,7 @@ use std::{future::Future, sync::Arc, thread};
 use async_recursion::async_recursion;
 use futures::StreamExt;
 use std::time::Duration;
-use tokio::{time::sleep, sync::RwLock};
+use tokio::{sync::RwLock, time::sleep};
 use url::Url;
 
 use super::{
@@ -13,8 +13,7 @@ use super::{
         changes::{changes, connect, WsStream},
         RpcClient,
     },
-    LocalProvider,
-    Error, Result,
+    Error, LocalProvider, Result,
 };
 
 use sos_sdk::{
@@ -38,7 +37,7 @@ pub fn spawn_changes_listener(
     listener.spawn(move |notification| {
         let cache = Arc::clone(&cache);
         async move {
-            //println!("{:#?}", notification);
+            println!("{:#?}", notification);
             let mut writer = cache.write().await;
             todo!("restore handling change event notifications");
             //let _ = writer.handle_change(notification).await;

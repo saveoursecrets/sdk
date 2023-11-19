@@ -24,12 +24,12 @@ use vcard4::{self, Vcard};
 use zxcvbn::Entropy;
 
 use crate::{
+    account::{basename, guess_mime},
     passwd::generator::measure_entropy,
     signer::{
         ecdsa::{self, BoxedEcdsaSigner},
         ed25519::{self, BoxedEd25519Signer},
     },
-    account::{basename, guess_mime},
     Error, Result, Timestamp,
 };
 

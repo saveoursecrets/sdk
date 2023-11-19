@@ -3,38 +3,29 @@ use sos_sdk::{
     account::{
         AccountStatus, ImportedAccount, NewAccount, RestoreTargets, UserPaths,
     },
-    commit::{
-        CommitHash, CommitPair, CommitRelationship, CommitTree, SyncInfo,
-        SyncKind,
-    },
-    constants::{EVENT_LOG_EXT, VAULT_EXT},
+    commit::{CommitHash, CommitTree},
+    constants::VAULT_EXT,
     crypto::{AccessKey, KeyDerivation, PrivateKey},
     decode, encode,
     events::{
-        AuditEvent, AuditLogFile, ChangeAction, ChangeNotification, Event,
-        EventKind, EventLogFile, EventReducer, ReadEvent, WriteEvent,
+        AuditEvent, AuditLogFile, Event, EventKind, EventLogFile,
+        EventReducer, ReadEvent, WriteEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
     search::SearchIndex,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Header, Summary, Vault, VaultBuilder, VaultFlags,
-        VaultId, VaultWriter, VaultRef,
+        VaultId, VaultRef, VaultWriter,
     },
     vfs, Timestamp,
 };
 
-use std::{
-    any::Any,
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 
 use tokio::sync::RwLock;
 
-use crate::client::{RemoteSync, Error, Result};
+use crate::client::{Error, Result};
 
 /// Local storage provider.
 pub struct LocalProvider {
@@ -52,7 +43,6 @@ pub struct LocalProvider {
 }
 
 impl LocalProvider {
-    
     /// Create a new local provider for an account with the given
     /// identifier.
     pub async fn new(

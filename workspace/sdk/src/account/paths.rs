@@ -2,14 +2,17 @@
 //! and user-specific account folders.
 use crate::{Error, Result};
 use app_dirs2::{get_app_root, AppDataType, AppInfo};
-use std::{path::{Path, PathBuf}, sync::RwLock};
 use once_cell::sync::Lazy;
+use std::{
+    path::{Path, PathBuf},
+    sync::RwLock,
+};
 
 use crate::{
     constants::{
-        AUDIT_FILE_NAME, DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR,
-        LOCAL_DIR, LOGS_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
-        APP_AUTHOR, APP_NAME,
+        APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICES_DIR, EVENT_LOG_EXT,
+        FILES_DIR, IDENTITY_DIR, LOCAL_DIR, LOGS_DIR, TEMP_DIR, TRASH_DIR,
+        VAULTS_DIR, VAULT_EXT,
     },
     vfs,
 };
@@ -234,7 +237,7 @@ impl UserPaths {
         Ok(())
     }
 
-    /// Set an explicit data directory used to store all 
+    /// Set an explicit data directory used to store all
     /// application files.
     pub fn set_data_dir(path: PathBuf) {
         let mut writer = DATA_DIR.write().unwrap();
@@ -257,8 +260,8 @@ impl UserPaths {
     /// Finally if no environment variable or explicit directory has been
     /// set then a path will be computed by platform convention.
     ///
-    /// When running with `debug_assertions` a `debug` path is appended 
-    /// (except when executing tests) so that we can use different 
+    /// When running with `debug_assertions` a `debug` path is appended
+    /// (except when executing tests) so that we can use different
     /// storage locations for debug and release builds.
     ///
     /// If the `SOS_TEST` environment variable is set then we use

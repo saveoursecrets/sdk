@@ -9,9 +9,9 @@ use secrecy::ExposeSecret;
 use sos_net::{
     client::LocalProvider,
     sdk::{
+        account::UserPaths,
         events::WriteEvent,
         signer::{ecdsa::SingleParty, Signer},
-        account::UserPaths,
         vault::secret::{Secret, SecretData},
     },
 };
@@ -124,8 +124,8 @@ async fn integration_local_provider_file() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
-    let mut storage = LocalProvider::new(
-        user_id, Some(dir.path().to_path_buf())).await?;
+    let mut storage =
+        LocalProvider::new(user_id, Some(dir.path().to_path_buf())).await?;
     run_local_storage_tests(&mut storage).await?;
     Ok(())
 }

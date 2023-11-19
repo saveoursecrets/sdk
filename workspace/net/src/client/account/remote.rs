@@ -1,46 +1,29 @@
 //! Bridge between a local provider and a remote server.
-use crate::client::{net::{MaybeRetry, RpcClient}, Error, Result};
+use crate::client::{
+    net::{MaybeRetry, RpcClient},
+    Error, Result,
+};
 
 use async_trait::async_trait;
 use http::StatusCode;
 
 use sos_sdk::{
-    account::{AccountStatus, UserPaths},
-    commit::{
-        CommitHash, CommitProof, CommitRelationship, CommitTree, Comparison,
-        SyncInfo,
-    },
-    crypto::AccessKey,
-    decode, encode,
-    events::{
-        AuditLogFile, ChangeAction, ChangeNotification, EventLogFile,
-        EventReducer, Patch, ReadEvent, WriteEvent,
-    },
-    passwd::diceware::generate_passphrase,
-    signer::ecdsa::BoxedEcdsaSigner,
-    vault::{
-        secret::{Secret, SecretId, SecretMeta},
-        Summary, Vault, VaultBuilder, VaultFlags, VaultId,
-    },
-    vfs,
-    url::Url,
+    account::AccountStatus,
+    commit::{CommitHash, CommitProof},
+    decode,
+    events::{Patch, WriteEvent},
     mpc::Keypair,
+    signer::ecdsa::BoxedEcdsaSigner,
+    url::Url,
+    vault::Summary,
+    vfs,
 };
 
-use std::{
-    any::Any,
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::{any::Any, collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 use crate::{
-    client::{
-        LocalProvider, LocalState,
-        RemoteSync,
-    },
+    client::{LocalProvider, RemoteSync},
     retry,
 };
 
@@ -63,7 +46,6 @@ pub type Remote = Box<dyn RemoteSync>;
 /// Collection of remote targets for synchronization.
 pub type Remotes = HashMap<Origin, Remote>;
 
-
 /// Bridge between a local provider and a remote.
 #[derive(Clone)]
 pub struct RemoteBridge {
@@ -82,12 +64,8 @@ impl RemoteBridge {
         signer: BoxedEcdsaSigner,
         keypair: Keypair,
     ) -> Result<Self> {
-        let remote = RpcClient::new(
-            origin.url,
-            origin.public_key,
-            signer,
-            keypair,
-        )?;
+        let remote =
+            RpcClient::new(origin.url, origin.public_key, signer, keypair)?;
         Ok(Self { local, remote })
     }
 
@@ -113,8 +91,6 @@ impl RemoteBridge {
 
     /// Create an account on the remote.
     async fn create_account(&self, buffer: Vec<u8>) -> Result<()> {
-        let vault: Vault = decode(&buffer).await?;
-        let summary = vault.summary().clone();
         let (status, _) = retry!(
             || self.remote.create_account(buffer.clone()),
             self.remote
@@ -130,8 +106,6 @@ impl RemoteBridge {
 
     /// Import a vault into an account that already exists on the remote.
     async fn import_vault(&self, buffer: Vec<u8>) -> Result<()> {
-        let vault: Vault = decode(&buffer).await?;
-        let summary = vault.summary().clone();
         let (status, _) =
             retry!(|| self.remote.create_vault(buffer.clone()), self.remote);
         status

@@ -8,10 +8,7 @@ use url::Url;
 use web3_address::ethereum::Address;
 
 use sos_net::{
-    client::{
-        LocalProvider, RemoteBridge,
-        Origin, UserStorage, RemoteSync,
-    },
+    client::{LocalProvider, Origin, RemoteBridge, RemoteSync, UserStorage},
     sdk::{
         account::ImportedAccount,
         crypto::AccessKey,
@@ -66,9 +63,14 @@ pub(super) async fn create_remote_provider(
     let origin = origin();
 
     let keypair = Keypair::new(PATTERN.parse()?)?;
-    let local = LocalProvider::new(signer.address()?.to_string(), None).await?;
+    let local =
+        LocalProvider::new(signer.address()?.to_string(), None).await?;
     let provider = RemoteBridge::new(
-        Arc::new(RwLock::new(local)), origin.clone(), signer, keypair)?;
+        Arc::new(RwLock::new(local)),
+        origin.clone(),
+        signer,
+        keypair,
+    )?;
 
     // Noise protocol handshake
     provider.handshake().await?;
@@ -198,7 +200,7 @@ pub struct TestDirs {
     pub clients: Vec<PathBuf>,
 }
 
-/// Setup prepares directories for the given number of clients and 
+/// Setup prepares directories for the given number of clients and
 /// a standard location for a remote server storage location.
 pub async fn setup(num_clients: usize) -> Result<TestDirs> {
     let current_dir = std::env::current_dir()
@@ -356,8 +358,8 @@ pub async fn create_local_provider(
     data_dir: Option<PathBuf>,
 ) -> Result<(AccountCredentials, LocalProvider)> {
     let address = signer.address()?;
-    let mut provider = LocalProvider::new(
-        address.to_string(), data_dir).await?;
+    let mut provider =
+        LocalProvider::new(address.to_string(), data_dir).await?;
     let (_, encryption_passphrase, summary) =
         provider.create_account(None, None).await?;
     let account = AccountCredentials {
@@ -371,21 +373,13 @@ pub async fn create_local_provider(
 pub async fn signup(
     dirs: &TestDirs,
     client_index: usize,
-) -> Result<(
-    Address,
-    AccountCredentials,
-    RemoteBridge,
-    BoxedEcdsaSigner,
-)> {
+) -> Result<(Address, AccountCredentials, RemoteBridge, BoxedEcdsaSigner)> {
     let TestDirs {
         target: destination,
         clients,
         ..
     } = dirs;
 
-    let data_dir = clients.get(client_index).unwrap().to_path_buf();
-
-    let server = server();
     let name = None;
     let signer: BoxedEcdsaSigner = Box::new(SingleParty::new_random());
 
@@ -408,4 +402,3 @@ pub async fn signup(
 
     Ok((address, credentials, provider, signer))
 }
-

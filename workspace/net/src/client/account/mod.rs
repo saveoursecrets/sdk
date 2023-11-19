@@ -13,7 +13,7 @@ mod security_report;
 mod user_storage;
 
 pub use local_provider::{LocalProvider, LocalState};
-pub use remote::{RemoteBridge, Origin, Remote, Remotes};
+pub use remote::{Origin, Remote, RemoteBridge, Remotes};
 
 #[cfg(feature = "device")]
 pub use devices::DeviceManager;
@@ -33,8 +33,7 @@ pub use security_report::{
     SecurityReportRow, SecurityReportTarget,
 };
 pub use user_storage::{
-    AccountData, DetachedView, SecretOptions,
-    UserStatistics, UserStorage,
+    AccountData, DetachedView, SecretOptions, UserStatistics, UserStorage,
 };
 
 #[cfg(feature = "contacts")]
