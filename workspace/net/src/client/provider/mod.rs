@@ -71,7 +71,7 @@ pub async fn new_local_provider(
     } else {
         AppPaths::data_dir().map_err(|_| Error::NoCache)?
     };
-    
+
     let address = signer.address()?;
     let dirs = UserPaths::new(data_dir, &address.to_string());
     Ok((LocalProvider::new(dirs).await?, address))

@@ -1,10 +1,11 @@
 use anyhow::Result;
 use sos_net::{
-    client::{
-        provider::RemoteProvider,
-        user::UserStorage,
+    client::{provider::RemoteProvider, user::UserStorage},
+    sdk::{
+        constants::VAULT_EXT,
+        vault::{Summary, VaultId},
+        vfs,
     },
-    sdk::{constants::VAULT_EXT, vault::{Summary, VaultId}, vfs},
 };
 use std::path::PathBuf;
 
@@ -56,7 +57,7 @@ pub async fn assert_local_remote_events_eq(
         writer.account_status().await?
     };
     let remote_status = provider.account_status().await?;
-        
+
     //println!("{:#?}", local_status);
     //println!("{:#?}", remote_status);
 

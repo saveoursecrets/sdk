@@ -2,7 +2,6 @@
 
 use urn::Urn;
 
-use std::path::PathBuf;
 use crate::{
     constants::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
@@ -17,6 +16,7 @@ use crate::{
     },
     vfs, Result,
 };
+use std::path::PathBuf;
 use web3_address::ethereum::Address;
 
 use super::{DelegatedPassphrase, Identity, UserIdentity};
@@ -75,7 +75,8 @@ impl AccountBuilder {
     pub fn new(
         account_name: String,
         passphrase: SecretString,
-        data_dir: Option<PathBuf>) -> Self {
+        data_dir: Option<PathBuf>,
+    ) -> Self {
         Self {
             data_dir,
             account_name,

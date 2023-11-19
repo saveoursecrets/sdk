@@ -9,9 +9,7 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        provider::{
-            new_remote_provider, LocalProvider, RemoteProvider,
-        },
+        provider::{new_remote_provider, LocalProvider, RemoteProvider},
         user::{Origin, UserStorage},
     },
     sdk::{
@@ -35,7 +33,6 @@ use sos_net::{
     FileLocks,
 };
 
-
 const ADDR: &str = "127.0.0.1:3505";
 const SERVER: &str = "http://localhost:3505";
 const SERVER_PUBLIC_KEY: &str = include_str!("../../server_public_key.txt");
@@ -46,13 +43,10 @@ pub use signup::{login, signup, signup_local};
 
 #[allow(dead_code)]
 pub fn init_tracing() {
-    use tracing_subscriber::{
-        layer::SubscriberExt, util::SubscriberInitExt,
-    };
+    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
     let _ = tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "debug".into()),
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "debug".into()),
         ))
         .with(tracing_subscriber::fmt::layer().without_time())
         .try_init();

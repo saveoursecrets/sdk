@@ -671,7 +671,6 @@ impl LocalProvider {
         summary: &Summary,
         events: Vec<WriteEvent<'static>>,
     ) -> Result<()> {
-
         // Apply events to the event log file
         {
             let event_log = self
@@ -680,7 +679,7 @@ impl LocalProvider {
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
             event_log.apply(events, None).await?;
         }
-        
+
         // Update the vault file on disc
         let vault = self.reduce_event_log(summary).await?;
         let buffer = encode(&vault).await?;

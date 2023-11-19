@@ -1,13 +1,12 @@
-//! File system paths for application level folders 
+//! File system paths for application level folders
 //! and user-specific account folders.
 use crate::Result;
 use std::path::{Path, PathBuf};
 
 use crate::{
     constants::{
-        AUDIT_FILE_NAME, DEVICES_DIR, FILES_DIR, LOCAL_DIR, TRASH_DIR,
-        VAULTS_DIR, VAULT_EXT, EVENT_LOG_EXT, IDENTITY_DIR, TEMP_DIR,
-        LOGS_DIR,
+        AUDIT_FILE_NAME, DEVICES_DIR, EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR,
+        LOCAL_DIR, LOGS_DIR, TEMP_DIR, TRASH_DIR, VAULTS_DIR, VAULT_EXT,
     },
     storage::AppPaths,
     vfs,
@@ -44,7 +43,10 @@ pub struct UserPaths {
 
 impl UserPaths {
     /// Create new paths.
-    pub fn new<D: AsRef<Path>>(documents_dir: D, user_id: impl AsRef<str>) -> Self {
+    pub fn new<D: AsRef<Path>>(
+        documents_dir: D,
+        user_id: impl AsRef<str>,
+    ) -> Self {
         let documents_dir = documents_dir.as_ref().to_path_buf();
         let local_dir = documents_dir.join(LOCAL_DIR);
         let logs_dir = documents_dir.join(LOGS_DIR);
@@ -75,7 +77,7 @@ impl UserPaths {
 
     /// Create new paths with an empty user identifier.
     ///
-    /// Used to get application level paths when a user identifier 
+    /// Used to get application level paths when a user identifier
     /// is not available.
     pub fn new_global<D: AsRef<Path>>(documents_dir: D) -> Self {
         Self::new(documents_dir, "")
@@ -114,7 +116,7 @@ impl UserPaths {
     pub fn logs_dir(&self) -> &PathBuf {
         &self.logs_dir
     }
-    
+
     /// Get the temporary directory.
     pub fn temp_dir(&self) -> &PathBuf {
         &self.temp_dir
@@ -150,11 +152,7 @@ impl UserPaths {
     }
 
     /// Get the expected location for a file.
-    pub fn file_location<
-        V: AsRef<Path>,
-        S: AsRef<Path>,
-        F: AsRef<Path>,
-    >(
+    pub fn file_location<V: AsRef<Path>, S: AsRef<Path>, F: AsRef<Path>>(
         &self,
         vault_id: V,
         secret_id: S,
@@ -183,30 +181,25 @@ impl UserPaths {
     }
 
     /// Get the path to a vault file from it's identifier.
-    pub fn vault_path<V: AsRef<Path>>(
-        &self,
-        id: V,
-    ) -> PathBuf {
+    pub fn vault_path<V: AsRef<Path>>(&self, id: V) -> PathBuf {
         let mut vault_path = self.vaults_dir.join(id);
         vault_path.set_extension(VAULT_EXT);
         vault_path
     }
 
     /// Get the path to an event log file from it's identifier.
-    pub fn event_log_path<V: AsRef<Path>>(
-        &self,
-        id: V,
-    ) -> PathBuf {
+    pub fn event_log_path<V: AsRef<Path>>(&self, id: V) -> PathBuf {
         let mut vault_path = self.vaults_dir.join(id);
         vault_path.set_extension(EVENT_LOG_EXT);
         vault_path
     }
 
-    /// Helper to get paths for an optional data directory 
+    /// Helper to get paths for an optional data directory
     /// and ensure the paths exist on disc.
     pub async fn ensure_paths(
         address: impl AsRef<str>,
-        data_dir: Option<PathBuf>) -> Result<UserPaths> {
+        data_dir: Option<PathBuf>,
+    ) -> Result<UserPaths> {
         // Ensure all paths before sign_in
         let paths = if let Some(data_dir) = data_dir {
             UserPaths::new(data_dir, address)

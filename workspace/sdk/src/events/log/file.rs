@@ -19,7 +19,7 @@ use crate::{
     constants::{EVENT_LOG_IDENTITY, PATCH_IDENTITY},
     encode,
     encoding::encoding_options,
-    events::{WriteEvent, Patch},
+    events::{Patch, WriteEvent},
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
@@ -244,7 +244,7 @@ impl EventLogFile {
             let (commit, record) =
                 self.encode_event(&event, last_commit_hash).await?;
             commits.push(commit);
-            
+
             /*
             if Some(commit) == last_commit_hash {
                 panic!("applying the same change twice {:#?}", self.path());
@@ -403,15 +403,15 @@ impl EventLogFile {
         while let Some(record) = it.next_entry().await? {
             if let Some(commit) = commit {
                 if &record.commit() == commit.as_ref() {
-                    return Ok(Patch(events))
+                    return Ok(Patch(events));
                 }
             }
             let buffer = self.read_event_buffer(&record).await?;
             events.push((record, buffer).into());
         }
-        
+
         // If the caller wanted to patch until a particular commit
-        // but it doesn't exist we error otherwise we would return 
+        // but it doesn't exist we error otherwise we would return
         // all the events
         if let Some(commit) = commit {
             return Err(Error::CommitNotFound(*commit));

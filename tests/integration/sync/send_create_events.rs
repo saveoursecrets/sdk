@@ -1,12 +1,12 @@
 use anyhow::Result;
-use serial_test::serial;
-use std::{path::PathBuf, collections::HashMap};
 use copy_dir::copy_dir;
+use serial_test::serial;
+use std::{collections::HashMap, path::PathBuf};
 
 use sos_net::{
     client::{
-        user::{UserStorage, Origin, Remote},
         provider::RemoteProvider,
+        user::{Origin, Remote, UserStorage},
         RemoteSync,
     },
     sdk::{storage::AppPaths, vault::Summary},
@@ -18,7 +18,7 @@ use crate::test_utils::{
 
 use super::{assert_local_remote_events_eq, num_events};
 
-/// Tests sending events create secret events between two 
+/// Tests sending events create secret events between two
 /// clients.
 #[tokio::test]
 #[serial]
@@ -35,15 +35,14 @@ async fn integration_sync_send_events() -> Result<()> {
     // copy the first data dir in later
     let other_data_dir = dirs.clients.get(1).unwrap();
     std::fs::remove_dir(&other_data_dir)?;
-    
+
     // Spawn a backend server and wait for it to be listening
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, passphrase) =
-        create_local_account(
-            "sync_basic_1",
-            Some(test_data_dir.clone())).await?;
+        create_local_account("sync_basic_1", Some(test_data_dir.clone()))
+            .await?;
 
     // Folders on the local account
     let expected_summaries: Vec<Summary> = {
@@ -71,17 +70,19 @@ async fn integration_sync_send_events() -> Result<()> {
     // Copy the owner's account directory and sign in
     // using the alternative owner
     copy_dir(&test_data_dir, &other_data_dir)?;
-        
+
     let mut other_owner = UserStorage::sign_in(
         owner.address(),
         passphrase,
         None,
         Some(other_data_dir.clone()),
-    ).await?;
+    )
+    .await?;
 
-    // Mimic account owner on another device connected to 
+    // Mimic account owner on another device connected to
     // the same remotes
-    let other_provider = other_owner.create_remote_provider(&origin, None).await?;
+    let other_provider =
+        other_owner.create_remote_provider(&origin, None).await?;
     // Insert the remote for the other owner
     other_owner.insert_remote(origin.clone(), Box::new(other_provider));
 
@@ -155,7 +156,7 @@ async fn integration_sync_send_events() -> Result<()> {
         remote_provider,
     )
     .await?;
-    
+
     assert_local_remote_events_eq(
         expected_summaries,
         &server_path,

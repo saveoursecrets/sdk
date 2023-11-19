@@ -118,8 +118,7 @@ impl FileStorage {
         file_name: F,
     ) -> Result<Vec<u8>> {
         let paths = UserPaths::new(AppPaths::data_dir()?, address);
-        let path =
-            paths.file_location(vault_id, secret_id, file_name);
+        let path = paths.file_location(vault_id, secret_id, file_name);
         Self::decrypt_file_passphrase(path, password).await
     }
 }

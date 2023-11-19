@@ -144,7 +144,8 @@ impl<'a> LocalAccounts<'a> {
 
     /// List account information for the identity vaults.
     pub async fn list_accounts(
-        paths: Option<&UserPaths>) -> Result<Vec<AccountInfo>> {
+        paths: Option<&UserPaths>,
+    ) -> Result<Vec<AccountInfo>> {
         let mut keys = Vec::new();
         let paths = if let Some(paths) = paths {
             paths.clone()

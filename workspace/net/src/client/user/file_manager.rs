@@ -9,7 +9,7 @@ use std::{
 use sos_sdk::{
     account::DelegatedPassphrase,
     storage::EncryptedFile,
-    storage::{basename, UserPaths, AppPaths, FileStorage, FileStorageSync},
+    storage::{basename, AppPaths, FileStorage, FileStorageSync, UserPaths},
     vault::{
         secret::{
             FileContent, Secret, SecretData, SecretId, SecretRow, UserData,
@@ -125,7 +125,9 @@ impl UserStorage {
         vault_id: &VaultId,
     ) -> Result<PathBuf> {
         let paths = UserPaths::new(
-            AppPaths::data_dir()?, &self.address().to_string());
+            AppPaths::data_dir()?,
+            &self.address().to_string(),
+        );
         Ok(paths.file_folder_location(vault_id.to_string()))
     }
 
@@ -137,7 +139,9 @@ impl UserStorage {
         file_name: &str,
     ) -> Result<PathBuf> {
         let paths = UserPaths::new(
-            AppPaths::data_dir()?, &self.address().to_string());
+            AppPaths::data_dir()?,
+            &self.address().to_string(),
+        );
         Ok(paths.file_location(
             vault_id.to_string(),
             secret_id.to_string(),

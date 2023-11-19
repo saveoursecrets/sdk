@@ -4,7 +4,10 @@ use thiserror::Error;
 use urn::Urn;
 use uuid::Uuid;
 
-use crate::{vault::{secret::SecretId, VaultId}, commit::CommitHash};
+use crate::{
+    commit::CommitHash,
+    vault::{secret::SecretId, VaultId},
+};
 
 /// Error thrown by the core library.
 #[derive(Debug, Error)]

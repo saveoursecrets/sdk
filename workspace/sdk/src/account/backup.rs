@@ -197,7 +197,6 @@ impl AccountBackup {
         paths: &UserPaths,
         options: AccountManifestOptions,
     ) -> Result<(AccountManifest, u64)> {
-        
         let local_accounts = LocalAccounts::new(paths);
 
         let mut total_size: u64 = 0;
@@ -275,12 +274,9 @@ impl AccountBackup {
         entry: &ManifestEntry,
     ) -> Result<PathBuf> {
         match entry {
-            ManifestEntry::Identity { .. } => {
-                Ok(paths.identity_vault())
-            }
+            ManifestEntry::Identity { .. } => Ok(paths.identity_vault()),
             ManifestEntry::Vault { id, .. } => {
-                let mut path =
-                    paths.vaults_dir().join(id.to_string());
+                let mut path = paths.vaults_dir().join(id.to_string());
                 path.set_extension(VAULT_EXT);
                 Ok(path)
             }
@@ -289,7 +285,8 @@ impl AccountBackup {
                 secret_id,
                 label,
                 ..
-            } => Ok(paths.files_dir()
+            } => Ok(paths
+                .files_dir()
                 .join(vault_id.to_string())
                 .join(secret_id.to_string())
                 .join(label)),
@@ -353,13 +350,16 @@ impl AccountBackup {
 
     /// Create a buffer for a zip archive including the
     /// identity vault and all user vaults.
-    pub async fn export_archive_buffer(address: &Address, paths: &UserPaths) -> Result<Vec<u8>> {
+    pub async fn export_archive_buffer(
+        address: &Address,
+        paths: &UserPaths,
+    ) -> Result<Vec<u8>> {
         let identity_path = paths.identity_vault();
         if !vfs::try_exists(&identity_path).await? {
             return Err(Error::NotFile(identity_path));
         }
         let identity = vfs::read(identity_path).await?;
-        
+
         let local_accounts = LocalAccounts::new(paths);
         let vaults = local_accounts.list_local_vaults(false).await?;
 
@@ -418,7 +418,7 @@ impl AccountBackup {
     ) -> Result<(RestoreTargets, AccountInfo)> {
         // FIXME: ensure we still have ONE vault marked as default vault!!!
         //
-        
+
         let data_dir = if let Some(data_dir) = data_dir.take() {
             data_dir
         } else {

@@ -35,21 +35,24 @@ async fn integration_account_manager() -> Result<()> {
     let folder_name = Some("Default folder".to_string());
     let (passphrase, _) = generate_passphrase()?;
 
-    let new_account =
-        AccountBuilder::new(account_name.clone(), passphrase.clone(), Some(test_data_dir.clone()))
-            .save_passphrase(true)
-            .create_archive(true)
-            .create_authenticator(true)
-            .create_contacts(true)
-            .create_file_password(true)
-            .default_folder_name(folder_name)
-            .finish()
-            .await?;
+    let new_account = AccountBuilder::new(
+        account_name.clone(),
+        passphrase.clone(),
+        Some(test_data_dir.clone()),
+    )
+    .save_passphrase(true)
+    .create_archive(true)
+    .create_authenticator(true)
+    .create_contacts(true)
+    .create_file_password(true)
+    .default_folder_name(folder_name)
+    .finish()
+    .await?;
 
     // Create local provider
     let signer = new_account.user.signer().clone();
-    let (mut provider, _) = new_local_provider(
-        signer, Some(test_data_dir.clone())).await?;
+    let (mut provider, _) =
+        new_local_provider(signer, Some(test_data_dir.clone())).await?;
 
     let (imported_account, _) =
         provider.import_new_account(&new_account).await?;
@@ -57,8 +60,7 @@ async fn integration_account_manager() -> Result<()> {
     let NewAccount { address, .. } = new_account;
     let ImportedAccount { summary, .. } = imported_account;
 
-    let paths = UserPaths::new(
-        test_data_dir.clone(), &address.to_string());
+    let paths = UserPaths::new(test_data_dir.clone(), &address.to_string());
     let local_accounts = LocalAccounts::new(&paths);
 
     let accounts = LocalAccounts::list_accounts(Some(&paths)).await?;
@@ -73,7 +75,8 @@ async fn integration_account_manager() -> Result<()> {
     )
     .await?;
 
-    user.rename_account(&paths, "New account name".to_string()).await?;
+    user.rename_account(&paths, "New account name".to_string())
+        .await?;
     assert_eq!("New account name", user.identity().keeper().vault().name());
 
     let vaults = local_accounts.list_local_vaults(false).await?;
@@ -104,8 +107,7 @@ async fn integration_account_manager() -> Result<()> {
 
     let default_index = Arc::new(RwLock::new(SearchIndex::new()));
     let (default_vault, _) =
-        local_accounts.find_local_vault(summary.id(), false)
-            .await?;
+        local_accounts.find_local_vault(summary.id(), false).await?;
     let mut default_vault_keeper =
         Gatekeeper::new(default_vault, Some(default_index));
     default_vault_keeper
@@ -160,8 +162,13 @@ async fn integration_account_manager() -> Result<()> {
     };
 
     let reader = Cursor::new(&mut archive_buffer);
-    let (targets, _) =
-        AccountBackup::restore_archive_buffer(reader, options, true, Some(test_data_dir.clone())).await?;
+    let (targets, _) = AccountBackup::restore_archive_buffer(
+        reader,
+        options,
+        true,
+        Some(test_data_dir.clone()),
+    )
+    .await?;
 
     provider.restore_archive(&targets).await?;
 
@@ -176,7 +183,13 @@ async fn integration_account_manager() -> Result<()> {
         files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
     };
     let reader = Cursor::new(&mut archive_buffer);
-    AccountBackup::restore_archive_buffer(reader, options, false, Some(test_data_dir)).await?;
+    AccountBackup::restore_archive_buffer(
+        reader,
+        options,
+        false,
+        Some(test_data_dir),
+    )
+    .await?;
 
     Ok(())
 }

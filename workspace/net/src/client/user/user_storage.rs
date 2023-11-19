@@ -295,7 +295,7 @@ impl UserStorage {
     pub fn peer_key(&self) -> &libp2p::identity::Keypair {
         &self.peer_key
     }
-    
+
     /// Create a new account with the given
     /// name, passphrase and provider and modify the
     /// account builder.
@@ -309,20 +309,22 @@ impl UserStorage {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
 
-        let account_builder =
-            builder(AccountBuilder::new(
-                account_name, passphrase.clone(), data_dir.clone()));
+        let account_builder = builder(AccountBuilder::new(
+            account_name,
+            passphrase.clone(),
+            data_dir.clone(),
+        ));
         let new_account = account_builder.finish().await?;
 
         tracing::debug!(address = %new_account.address, "created account");
 
         // Must import the new account before signing in
         let signer = new_account.user.signer().clone();
-        let (mut storage, _) = new_local_provider(
-            signer, data_dir.clone()).await?;
+        let (mut storage, _) =
+            new_local_provider(signer, data_dir.clone()).await?;
 
         tracing::debug!("prepared storage provider");
-        
+
         let (imported_account, events) =
             storage.import_new_account(&new_account).await?;
 
@@ -365,16 +367,18 @@ impl UserStorage {
         let _enter = span.enter();
 
         tracing::debug!(address = %address);
-        
+
         // Ensure all paths before sign_in
-        let paths = UserPaths::ensure_paths(
-            address.to_string(), data_dir.clone()).await?;
+        let paths =
+            UserPaths::ensure_paths(address.to_string(), data_dir.clone())
+                .await?;
 
         tracing::debug!(data_dir = ?paths.documents_dir());
 
         let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
         let user =
-            Login::sign_in(address, &paths, passphrase, identity_index).await?;
+            Login::sign_in(address, &paths, passphrase, identity_index)
+                .await?;
         tracing::debug!("sign in success");
 
         // Signing key for the storage provider
@@ -691,11 +695,9 @@ impl UserStorage {
             };
             let meta = SecretMeta::new(label, secret.kind());
 
-            let (vault, _) = local_accounts.find_local_vault(
-                default_summary.id(),
-                false,
-            )
-            .await?;
+            let (vault, _) = local_accounts
+                .find_local_vault(default_summary.id(), false)
+                .await?;
 
             self.add_secret(
                 meta,
@@ -906,13 +908,12 @@ impl UserStorage {
     /// Helper to get all the state information needed
     /// before calling sync methods.
     ///
-    /// Computes the target folder that will be used, the last commit 
+    /// Computes the target folder that will be used, the last commit
     /// hash and the proof for the current head of the events log.
     async fn before_apply_events(
         &self,
         options: &SecretOptions,
     ) -> Result<(Summary, Option<CommitHash>, CommitProof)> {
-        
         let (folder, mut last_commit, mut commit_proof) = {
             let reader = self.storage.read().await;
             let folder = options
@@ -939,7 +940,7 @@ impl UserStorage {
             .await
         {
             Ok(changed) => {
-                // If changes were made we need to re-compute the 
+                // If changes were made we need to re-compute the
                 // proof and last commit
                 if changed {
                     let reader = self.storage.read().await;
@@ -960,7 +961,10 @@ impl UserStorage {
     }
 
     /// Get the data required for sync after applying changes.
-    async fn after_apply_events(&self, folder: &Summary) -> Result<CommitProof> {
+    async fn after_apply_events(
+        &self,
+        folder: &Summary,
+    ) -> Result<CommitProof> {
         let reader = self.storage.read().await;
         let event_log = reader
             .cache()
@@ -968,7 +972,6 @@ impl UserStorage {
             .ok_or(Error::CacheNotAvailable(*folder.id()))?;
         Ok(event_log.tree().head()?)
     }
-
 
     /// Create a secret in the current open folder or a specific folder.
     pub async fn create_secret(
@@ -979,8 +982,8 @@ impl UserStorage {
     ) -> Result<(SecretId, Option<Error>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (folder, before_last_commit, before_commit_proof)
-            = self.before_apply_events(&options).await?;
+        let (folder, before_last_commit, before_commit_proof) =
+            self.before_apply_events(&options).await?;
 
         let (id, event, folder) =
             self.add_secret(meta, secret, options, true).await?;
@@ -1156,8 +1159,8 @@ impl UserStorage {
     ) -> Result<(SecretId, Option<Error>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (folder, before_last_commit, before_commit_proof)
-            = self.before_apply_events(&options).await?;
+        let (folder, before_last_commit, before_commit_proof) =
+            self.before_apply_events(&options).await?;
 
         self.open_folder(&folder).await?;
 
@@ -1337,8 +1340,8 @@ impl UserStorage {
     ) -> Result<Option<Error>> {
         let _ = self.sync_lock.lock().await;
 
-        let (folder, before_last_commit, before_commit_proof)
-            = self.before_apply_events(&options).await?;
+        let (folder, before_last_commit, before_commit_proof) =
+            self.before_apply_events(&options).await?;
 
         self.open_folder(&folder).await?;
 
@@ -1536,11 +1539,8 @@ impl UserStorage {
         let vaults = local_accounts.list_local_vaults(false).await?;
 
         for (summary, _) in vaults {
-            let (vault, _) = local_accounts.find_local_vault(
-                summary.id(),
-                false,
-            )
-            .await?;
+            let (vault, _) =
+                local_accounts.find_local_vault(summary.id(), false).await?;
             let vault_passphrase =
                 DelegatedPassphrase::find_vault_passphrase(
                     self.user.identity().keeper(),
@@ -1777,7 +1777,6 @@ impl UserStorage {
         &mut self,
         path: P,
     ) -> Result<()> {
-        
         let paths = self.paths().await;
         let local_accounts = LocalAccounts::new(&paths);
 
@@ -1791,11 +1790,9 @@ impl UserStorage {
             contacts.id(),
         )
         .await?;
-        let (vault, _) = local_accounts.find_local_vault(
-            contacts.id(),
-            false,
-        )
-        .await?;
+        let (vault, _) = local_accounts
+            .find_local_vault(contacts.id(), false)
+            .await?;
         let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(contacts_passphrase.into()).await?;
 
@@ -1886,7 +1883,8 @@ impl UserStorage {
         path: P,
     ) -> Result<()> {
         let paths = self.paths().await;
-        AccountBackup::export_archive_file(path, self.address(), &paths).await?;
+        AccountBackup::export_archive_file(path, self.address(), &paths)
+            .await?;
 
         let audit_event = AuditEvent::new(
             EventKind::ExportBackupArchive,
@@ -1923,7 +1921,8 @@ impl UserStorage {
     ) -> Result<AccountInfo> {
         let file = File::open(path).await?;
         let (account, owner) =
-            Self::restore_archive_reader(owner, file, options, data_dir).await?;
+            Self::restore_archive_reader(owner, file, options, data_dir)
+                .await?;
 
         if let Some(owner) = owner {
             let audit_event = AuditEvent::new(
@@ -1955,7 +1954,7 @@ impl UserStorage {
         };
 
         options.files_dir = Some(files_dir);
-        
+
         let (targets, account) = AccountBackup::restore_archive_buffer(
             buffer,
             options,
@@ -2057,9 +2056,12 @@ impl RemoteSync for UserStorage {
         for remote in self.remotes.values() {
             let local_changed = remote
                 .sync_before_apply_change(
-                    last_commit.as_ref(), &client_proof, folder)
+                    last_commit.as_ref(),
+                    &client_proof,
+                    folder,
+                )
                 .await?;
-            
+
             // If a remote changes were applied to local
             // we need to recompute the last commit and client proof
             if local_changed {

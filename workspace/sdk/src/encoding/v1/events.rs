@@ -7,9 +7,9 @@ use crate::{
     encoding::encoding_error,
     events::{
         AuditData, AuditEvent, AuditLogFile, EventKind, EventRecord,
-        LogFlags, WriteEvent, Patch,
+        LogFlags, Patch, WriteEvent,
     },
-    formats::{EventLogFileRecord, FileRecord, VaultRecord, FileIdentity},
+    formats::{EventLogFileRecord, FileIdentity, FileRecord, VaultRecord},
     vault::{secret::SecretId, VaultCommit},
     Timestamp,
 };

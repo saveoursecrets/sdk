@@ -2,16 +2,10 @@
 use crate::{Error, Result};
 use app_dirs2::{get_app_root, AppDataType, AppInfo};
 use once_cell::sync::Lazy;
-use std::{
-    path::{PathBuf},
-    sync::RwLock,
-};
+use std::{path::PathBuf, sync::RwLock};
 
 use crate::{
-    constants::{
-        APP_AUTHOR, APP_NAME,
-        IDENTITY_DIR, LOGS_DIR,
-    },
+    constants::{APP_AUTHOR, APP_NAME, IDENTITY_DIR, LOGS_DIR},
     vfs,
 };
 
@@ -83,9 +77,9 @@ impl AppPaths {
             }
         };
         if cfg!(debug_assertions) {
-            // Don't follow the convention for separating debug and 
-            // release data when running the integration tests as it 
-            // makes paths very hard to reason about when they are 
+            // Don't follow the convention for separating debug and
+            // release data when running the integration tests as it
+            // makes paths very hard to reason about when they are
             // being explicitly set in test specs.
             if !cfg!(test) {
                 let sub_dir = if std::env::var("SOS_TEST").is_ok() {

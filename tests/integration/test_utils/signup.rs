@@ -7,9 +7,7 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        provider::{
-            new_local_provider, LocalProvider, RemoteProvider,
-        },
+        provider::{new_local_provider, LocalProvider, RemoteProvider},
         RemoteSync,
     },
     sdk::{
@@ -65,7 +63,8 @@ pub async fn signup_local(
     let signer = Box::new(SingleParty::new_random());
     let address = signer.address()?;
     let (credentials, provider) =
-        create_local_account(default_folder_name, signer.clone(), None).await?;
+        create_local_account(default_folder_name, signer.clone(), None)
+            .await?;
     Ok((address, credentials, provider, signer))
 }
 

@@ -20,7 +20,7 @@ pub trait RemoteSync: Sync + Send + Any {
     /// this allows us to apply remote changes before committing
     /// changes to the local provider.
     ///
-    /// Returns a boolean indicating if changes were made so that 
+    /// Returns a boolean indicating if changes were made so that
     /// callers can re-compute their proofs.
     async fn sync_before_apply_change(
         &self,

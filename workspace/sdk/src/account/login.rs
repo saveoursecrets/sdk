@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
+use tracing::{span, Level};
 use urn::Urn;
 use web3_address::ethereum::Address;
-use tracing::{span, Level};
 
 use crate::{
     account::{AccountInfo, DelegatedPassphrase, LocalAccounts},
@@ -19,7 +19,7 @@ use crate::{
         ed25519::{self, BoxedEd25519Signer, VerifyingKey},
         Signer,
     },
-    storage::{UserPaths},
+    storage::UserPaths,
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
         Gatekeeper, Summary, Vault, VaultAccess, VaultBuilder, VaultFlags,
@@ -106,7 +106,10 @@ impl AuthenticatedUser {
     ///
     /// Moves the account identity vault and data directory to the
     /// trash directory.
-    pub async fn delete_account(&self, paths: &UserPaths) -> Result<Event<'static>> {
+    pub async fn delete_account(
+        &self,
+        paths: &UserPaths,
+    ) -> Result<Event<'static>> {
         let address = self.identity.address().to_string();
         let identity_vault_file = paths.identity_vault();
 
@@ -204,7 +207,7 @@ impl Login {
             .into_iter()
             .find(|a| a.address() == address)
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
-        
+
         let identity_path = paths.identity_vault();
 
         tracing::debug!(identity_path = ?identity_path);
@@ -258,8 +261,7 @@ impl Login {
                 .await?;
 
             let (vault, _) =
-                local_accounts.find_local_vault(summary.id(), true)
-                    .await?;
+                local_accounts.find_local_vault(summary.id(), true).await?;
             let search_index = Arc::new(RwLock::new(SearchIndex::new()));
             let mut device_keeper =
                 Gatekeeper::new(vault, Some(search_index));

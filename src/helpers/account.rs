@@ -203,9 +203,13 @@ pub async fn sign_in(
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
-    let owner =
-        UserStorage::sign_in(account.address(), passphrase.clone(), None, None)
-            .await?;
+    let owner = UserStorage::sign_in(
+        account.address(),
+        passphrase.clone(),
+        None,
+        None,
+    )
+    .await?;
     Ok((owner, passphrase))
 }
 
@@ -319,9 +323,13 @@ pub async fn new_account(
             display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
 
-        let (owner, _, _) =
-            UserStorage::new_account(account_name.clone(), passphrase, None, None)
-                .await?;
+        let (owner, _, _) = UserStorage::new_account(
+            account_name.clone(),
+            passphrase,
+            None,
+            None,
+        )
+        .await?;
         let address = owner.address().to_string();
 
         let data_dir = AppPaths::data_dir()?;

@@ -1,6 +1,10 @@
 use clap::{Parser, Subcommand};
 use sos_net::sdk::{
-    account::AccountRef, hex, storage::{AppPaths, UserPaths}, url::Url, vault::VaultRef,
+    account::AccountRef,
+    hex,
+    storage::{AppPaths, UserPaths},
+    url::Url,
+    vault::VaultRef,
 };
 use std::path::PathBuf;
 

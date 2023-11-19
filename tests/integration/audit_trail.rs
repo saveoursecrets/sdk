@@ -26,10 +26,12 @@ async fn integration_audit_trail() -> Result<()> {
     let test_data_dir = dirs.clients.remove(0);
 
     let (mut owner, _, summary, passphrase) =
-        create_local_account("audit_trail", Some(test_data_dir.clone())).await?;
+        create_local_account("audit_trail", Some(test_data_dir.clone()))
+            .await?;
 
     // Make changes to generate audit logs
-    simulate_session(&mut owner, &summary, passphrase, &test_data_dir).await?;
+    simulate_session(&mut owner, &summary, passphrase, &test_data_dir)
+        .await?;
 
     // Read in the audit log events
     let paths = owner.paths().await;

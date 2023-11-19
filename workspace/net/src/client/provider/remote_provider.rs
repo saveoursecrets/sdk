@@ -8,8 +8,8 @@ use http::StatusCode;
 use sos_sdk::{
     account::AccountStatus,
     commit::{
-        CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
-        Comparison,
+        CommitHash, CommitProof, CommitRelationship, CommitTree, Comparison,
+        SyncInfo,
     },
     crypto::AccessKey,
     decode, encode,
@@ -119,7 +119,6 @@ impl RemoteProvider {
         client_proof: &CommitProof,
         folder: &Summary,
     ) -> Result<bool> {
-        
         let last_commit = last_commit.ok_or_else(|| Error::NoRootCommit)?;
 
         let (status, (num_events, body)) = retry!(
@@ -142,8 +141,9 @@ impl RemoteProvider {
     }
 
     async fn sync_pull_account(
-        &self, account_status: AccountStatus) -> Result<()> {
-        
+        &self,
+        account_status: AccountStatus,
+    ) -> Result<()> {
         for (folder_id, remote_proof) in account_status.proofs {
             let (last_commit, commit_proof, folder) = {
                 let local = self.local.read().await;
@@ -152,7 +152,9 @@ impl RemoteProvider {
                     .find_vault(&(folder_id.clone().into()))
                     .cloned()
                     .ok_or(Error::CacheNotAvailable(folder_id))?;
-                let event_log = local.cache().get(&folder_id)
+                let event_log = local
+                    .cache()
+                    .get(&folder_id)
                     .ok_or(Error::CacheNotAvailable(folder_id))?;
 
                 let last_commit = event_log.last_commit().await?;
@@ -161,7 +163,11 @@ impl RemoteProvider {
             };
 
             self.sync_pull_folder(
-                last_commit.as_ref(), &commit_proof, &folder).await?;
+                last_commit.as_ref(),
+                &commit_proof,
+                &folder,
+            )
+            .await?;
         }
 
         Ok(())
@@ -277,7 +283,8 @@ impl RemoteSync for RemoteProvider {
         client_proof: &CommitProof,
         folder: &Summary,
     ) -> Result<bool> {
-        self.sync_pull_folder(last_commit, client_proof, folder).await
+        self.sync_pull_folder(last_commit, client_proof, folder)
+            .await
     }
 
     async fn sync_send_events(
@@ -289,12 +296,13 @@ impl RemoteSync for RemoteProvider {
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
         self.patch(
-            before_last_commit, 
+            before_last_commit,
             before_client_proof,
             after_client_proof,
             folder,
             events,
-        ).await?;
+        )
+        .await?;
         Ok(())
     }
 
