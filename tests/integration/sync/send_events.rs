@@ -24,7 +24,7 @@ use super::{assert_local_remote_events_eq, num_events};
 #[serial]
 async fn integration_sync_send_events() -> Result<()> {
     
-    //crate::test_utils::init_tracing();
+    crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
     let dirs = setup(2).await?;
@@ -128,9 +128,16 @@ async fn integration_sync_send_events() -> Result<()> {
         .create_secret(meta, secret, Default::default())
         .await?;
 
-    // Back in sync
+    // Second client is ahead
     assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
-    assert_eq!(2, num_events(&mut other_owner, &default_folder_id).await);
+    assert_eq!(3, num_events(&mut other_owner, &default_folder_id).await);
+
+    // First client runs sync to pull down the additional secret
+    owner.sync().await?;
+
+    // Everyone is equal
+    assert_eq!(3, num_events(&mut owner, &default_folder_id).await);
+    assert_eq!(3, num_events(&mut other_owner, &default_folder_id).await);
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote

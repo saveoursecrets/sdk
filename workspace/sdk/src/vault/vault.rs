@@ -192,6 +192,12 @@ impl FromStr for VaultRef {
     }
 }
 
+impl From<VaultId> for VaultRef {
+    fn from(value: VaultId) -> Self {
+        Self::Id(value)
+    }
+}
+
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.
 #[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
