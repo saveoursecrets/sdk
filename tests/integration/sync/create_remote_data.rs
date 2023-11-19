@@ -3,7 +3,7 @@ use serial_test::serial;
 use std::path::PathBuf;
 
 use sos_net::{
-    client::{RemoteProvider, RemoteSync},
+    client::{RemoteBridge, RemoteSync},
     sdk::vault::Summary,
 };
 
@@ -61,7 +61,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     let mut provider = owner.delete_remote(&remote_origin).unwrap();
     let remote_provider = provider
         .as_any_mut()
-        .downcast_mut::<RemoteProvider>()
+        .downcast_mut::<RemoteBridge>()
         .expect("to be a remote provider");
 
     assert_local_remote_vaults_eq(

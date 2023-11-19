@@ -44,7 +44,7 @@ use tokio::{
 
 use crate::client::{
     net::RpcClient,
-    LocalProvider, RemoteProvider,
+    LocalProvider, RemoteBridge,
     Origin, Remote, Remotes,
     Error, Result,
 };
@@ -236,7 +236,7 @@ impl UserStorage {
         &self,
         origin: &Origin,
         keypair: Option<Keypair>,
-    ) -> Result<RemoteProvider> {
+    ) -> Result<RemoteBridge> {
         let keypair = if let Some(keypair) = keypair {
             keypair
         } else {
@@ -245,7 +245,7 @@ impl UserStorage {
 
         let signer = self.user.identity().signer().clone();
         let local = self.storage();
-        let mut provider = RemoteProvider::new(
+        let mut provider = RemoteBridge::new(
             local, origin.clone(), signer,keypair)?;
 
         // Noise protocol handshake

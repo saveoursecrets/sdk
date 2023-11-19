@@ -66,14 +66,14 @@ pub type Remotes = HashMap<Origin, Remote>;
 
 /// Bridge between a local provider and a remote.
 #[derive(Clone)]
-pub struct RemoteProvider {
+pub struct RemoteBridge {
     /// Local provider.
     local: Arc<RwLock<LocalProvider>>,
     /// Client to use for remote communication.
     remote: RpcClient,
 }
 
-impl RemoteProvider {
+impl RemoteBridge {
     /// Create a new remote bridge that wraps the given
     /// local provider.
     pub fn new(
@@ -98,7 +98,7 @@ impl RemoteProvider {
 }
 
 /// Sync helper functions.
-impl RemoteProvider {
+impl RemoteBridge {
     /// Perform the noise protocol handshake.
     pub async fn handshake(&self) -> Result<()> {
         Ok(self.remote.handshake().await?)
@@ -287,7 +287,7 @@ impl RemoteProvider {
 }
 
 #[async_trait]
-impl RemoteSync for RemoteProvider {
+impl RemoteSync for RemoteBridge {
     async fn sync(&self) -> Result<()> {
         // Ensure our folder state is the latest version on disc
         {

@@ -5,7 +5,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use sos_net::{
     client::{
-        RemoteProvider,
+        RemoteBridge,
         Origin, Remote, UserStorage,
         RemoteSync,
     },
@@ -140,13 +140,13 @@ async fn integration_sync_send_events() -> Result<()> {
     let mut provider = owner.delete_remote(&remote_origin).unwrap();
     let remote_provider = provider
         .as_any_mut()
-        .downcast_mut::<RemoteProvider>()
+        .downcast_mut::<RemoteBridge>()
         .expect("to be a remote provider");
 
     let mut provider = other_owner.delete_remote(&remote_origin).unwrap();
     let other_remote_provider = provider
         .as_any_mut()
-        .downcast_mut::<RemoteProvider>()
+        .downcast_mut::<RemoteBridge>()
         .expect("to be a remote provider");
 
     assert_local_remote_events_eq(

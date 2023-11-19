@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_net::{
-    client::{RemoteProvider, UserStorage},
+    client::{RemoteBridge, UserStorage},
     sdk::{
         constants::VAULT_EXT,
         vault::{Summary, VaultId},
@@ -25,7 +25,7 @@ pub async fn assert_local_remote_vaults_eq(
     expected_summaries: Vec<Summary>,
     server_path: &PathBuf,
     owner: &mut UserStorage,
-    provider: &mut RemoteProvider,
+    provider: &mut RemoteBridge,
 ) -> Result<()> {
     let storage = owner.storage();
     let reader = storage.read().await;
@@ -47,7 +47,7 @@ pub async fn assert_local_remote_events_eq(
     expected_summaries: Vec<Summary>,
     server_path: &PathBuf,
     owner: &mut UserStorage,
-    provider: &mut RemoteProvider,
+    provider: &mut RemoteBridge,
 ) -> Result<()> {
     let storage = owner.storage();
 

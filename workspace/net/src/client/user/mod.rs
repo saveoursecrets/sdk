@@ -13,7 +13,7 @@ mod security_report;
 mod user_storage;
 
 pub use local_provider::{LocalProvider, LocalState};
-pub use remote::{RemoteProvider, Origin, Remote, Remotes};
+pub use remote::{RemoteBridge, Origin, Remote, Remotes};
 
 #[cfg(feature = "device")]
 pub use devices::DeviceManager;

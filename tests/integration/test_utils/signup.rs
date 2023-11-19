@@ -7,7 +7,7 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        LocalProvider, RemoteProvider,
+        LocalProvider, RemoteBridge,
         RemoteSync,
     },
     sdk::{
@@ -27,7 +27,7 @@ pub async fn signup(
 ) -> Result<(
     Address,
     AccountCredentials,
-    RemoteProvider,
+    RemoteBridge,
     BoxedEcdsaSigner,
 )> {
     let TestDirs {
@@ -70,7 +70,7 @@ pub async fn signup_local(
 }
 
 /// Login to a remote provider account.
-pub async fn login(signer: &BoxedEcdsaSigner) -> Result<RemoteProvider> {
+pub async fn login(signer: &BoxedEcdsaSigner) -> Result<RemoteBridge> {
     let (_origin, provider) = create_remote_provider(signer.clone()).await?;
     Ok(provider)
 }
@@ -82,7 +82,7 @@ async fn create_account(
     name: Option<String>,
     signer: BoxedEcdsaSigner,
     data_dir: PathBuf,
-) -> Result<(AccountCredentials, RemoteProvider)> {
+) -> Result<(AccountCredentials, RemoteBridge)> {
     if !vfs::metadata(&destination).await?.is_dir() {
         bail!("not a directory {}", destination.display());
     }
