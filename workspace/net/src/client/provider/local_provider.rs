@@ -121,8 +121,8 @@ impl LocalProvider {
     }
 
     /// Get the computed storage directories for the provider.
-    pub fn paths(&self) -> &UserPaths {
-        &self.paths
+    pub fn paths(&self) -> Arc<UserPaths> {
+        Arc::clone(&self.paths)
     }
 
     /// Load a vault, unlock it and set it as the current vault.
@@ -627,7 +627,7 @@ impl LocalProvider {
 
     /// Load vault summaries from the local disc.
     pub async fn load_vaults(&mut self) -> Result<&[Summary]> {
-        let storage = self.paths().vaults_dir();
+        let storage = self.paths.vaults_dir();
         let mut summaries = Vec::new();
         let mut contents = vfs::read_dir(&storage).await?;
         while let Some(entry) = contents.next_entry().await? {

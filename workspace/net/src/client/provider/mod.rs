@@ -1,7 +1,5 @@
 //! Storage provider trait.
 
-use async_trait::async_trait;
-
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},

@@ -177,6 +177,9 @@ pub struct UserStorage {
     /// Storage provider.
     storage: Arc<RwLock<LocalProvider>>,
 
+    /// Storage paths.
+    pub(super) paths: Arc<UserPaths>,
+
     /// Search index.
     index: UserIndex,
 
@@ -382,6 +385,8 @@ impl UserStorage {
         let storage = LocalProvider::new(
             signer.address()?.to_string(), data_dir).await?;
 
+        let paths = storage.paths();
+
         #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
         let peer_key = convert_libp2p_identity(user.device().signer())?;
 
@@ -391,6 +396,7 @@ impl UserStorage {
         Ok(Self {
             user,
             storage: Arc::new(RwLock::new(storage)),
+            paths,
             files_dir,
             index: UserIndex::new(),
             #[cfg(feature = "device")]
@@ -403,9 +409,8 @@ impl UserStorage {
     }
 
     /// User storage paths.
-    pub async fn paths(&self) -> UserPaths {
-        let reader = self.storage.read().await;
-        reader.paths().to_owned()
+    pub fn paths(&self) -> &UserPaths {
+        &self.paths
     }
 
     /// Append to the audit log.
@@ -482,8 +487,7 @@ impl UserStorage {
 
     /// Delete the account for this user and sign out.
     pub async fn delete_account(&mut self) -> Result<()> {
-        let paths = self.paths().await;
-        let event = self.user.delete_account(&paths).await?;
+        let event = self.user.delete_account(&self.paths).await?;
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
         self.sign_out().await;
@@ -495,8 +499,7 @@ impl UserStorage {
         &mut self,
         account_name: String,
     ) -> Result<()> {
-        let paths = self.paths().await;
-        Ok(self.user.rename_account(&paths, account_name).await?)
+        Ok(self.user.rename_account(&self.paths, account_name).await?)
     }
 
     /// Users devices reference.
@@ -653,18 +656,16 @@ impl UserStorage {
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<()> {
-        let paths = self.paths().await;
-
         let buffer = AccountBackup::export_vault(
             self.address(),
-            &paths,
+            &self.paths,
             self.user.identity().keeper(),
             summary.id(),
             new_key.clone(),
         )
         .await?;
 
-        let local_accounts = LocalAccounts::new(&paths);
+        let local_accounts = LocalAccounts::new(&self.paths);
 
         if save_key {
             let default_summary = self
@@ -742,8 +743,7 @@ impl UserStorage {
         // Need to verify the passphrase
         vault.verify(&key).await?;
 
-        let paths = self.paths().await;
-        let local_accounts = LocalAccounts::new(&paths);
+        let local_accounts = LocalAccounts::new(&self.paths);
 
         // Check for existing identifier
         let vaults = local_accounts.list_local_vaults(false).await?;
@@ -1510,8 +1510,7 @@ impl UserStorage {
         use sos_migrate::export::PublicExport;
         use std::io::Cursor;
 
-        let paths = self.paths().await;
-        let local_accounts = LocalAccounts::new(&paths);
+        let local_accounts = LocalAccounts::new(&self.paths);
 
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
@@ -1637,8 +1636,7 @@ impl UserStorage {
     ) -> Result<(Event<'static>, Summary)> {
         use sos_sdk::vault::VaultBuilder;
 
-        let paths = self.paths().await;
-        let local_accounts = LocalAccounts::new(&paths);
+        let local_accounts = LocalAccounts::new(&self.paths);
 
         let vaults = local_accounts.list_local_vaults(false).await?;
         let existing_name =
@@ -1756,8 +1754,7 @@ impl UserStorage {
         &mut self,
         path: P,
     ) -> Result<()> {
-        let paths = self.paths().await;
-        let local_accounts = LocalAccounts::new(&paths);
+        let local_accounts = LocalAccounts::new(&self.paths);
 
         let contacts = self
             .contacts_folder()
@@ -1861,8 +1858,7 @@ impl UserStorage {
         &self,
         path: P,
     ) -> Result<()> {
-        let paths = self.paths().await;
-        AccountBackup::export_archive_file(path, self.address(), &paths)
+        AccountBackup::export_archive_file(path, self.address(), &self.paths)
             .await?;
 
         let audit_event = AuditEvent::new(

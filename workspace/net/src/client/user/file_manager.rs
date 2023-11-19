@@ -82,8 +82,6 @@ impl UserStorage {
         secret_id: &SecretId,
         source: P,
     ) -> Result<EncryptedFile> {
-        let paths = self.paths().await;
-
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
             self.user().identity().keeper(),
@@ -94,7 +92,7 @@ impl UserStorage {
         Ok(FileStorageSync::encrypt_file_storage(
             password,
             source,
-            &paths,
+            &self.paths,
             vault_id.to_string(),
             secret_id.to_string(),
         )?)
@@ -107,8 +105,6 @@ impl UserStorage {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<Vec<u8>> {
-        let paths = self.paths().await;
-
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
             self.user().identity().keeper(),
@@ -117,7 +113,7 @@ impl UserStorage {
 
         Ok(FileStorage::decrypt_file_storage(
             &password,
-            &paths,
+            &self.paths,
             vault_id.to_string(),
             secret_id.to_string(),
             file_name,
@@ -127,27 +123,25 @@ impl UserStorage {
 
     /// Expected location for the directory containing all the
     /// external files for a folder.
-    pub(crate) async fn file_folder_location(
+    pub(crate) fn file_folder_location(
         &self,
         vault_id: &VaultId,
-    ) -> Result<PathBuf> {
-        let paths = self.paths().await;
-        Ok(paths.file_folder_location(vault_id.to_string()))
+    ) -> PathBuf {
+        self.paths.file_folder_location(vault_id.to_string())
     }
 
     /// Expected location for a file by convention.
-    pub async fn file_location(
+    pub fn file_location(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
         file_name: &str,
-    ) -> Result<PathBuf> {
-        let paths = self.paths().await;
-        Ok(paths.file_location(
+    ) -> PathBuf {
+        self.paths.file_location(
             vault_id.to_string(),
             secret_id.to_string(),
             file_name,
-        ))
+        )
     }
 
     /// Remove the directory containing all the files for a folder.
@@ -155,7 +149,7 @@ impl UserStorage {
         &self,
         summary: &Summary,
     ) -> Result<()> {
-        let folder_files = self.file_folder_location(summary.id()).await?;
+        let folder_files = self.file_folder_location(summary.id());
         if vfs::try_exists(&folder_files).await? {
             vfs::remove_dir_all(&folder_files).await?;
         }
