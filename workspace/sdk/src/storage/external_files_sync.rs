@@ -14,7 +14,7 @@ use std::{
 };
 
 use crate::{
-    storage::UserPaths,
+    account::UserPaths,
     Error, Result,
 };
 

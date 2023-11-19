@@ -6,7 +6,7 @@ use sos_net::{
     migrate::import::ImportFormat,
     sdk::{
         constants::DEFAULT_VAULT_NAME, secrecy::ExposeSecret,
-        storage::UserPaths,
+        account::UserPaths,
     },
 };
 use std::{

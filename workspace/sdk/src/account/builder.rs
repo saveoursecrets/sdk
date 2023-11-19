@@ -3,13 +3,13 @@
 use urn::Urn;
 
 use crate::{
+    account::UserPaths,
     constants::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
         DEFAULT_CONTACTS_VAULT_NAME, FILE_PASSWORD_URN,
     },
     crypto::AccessKey,
     encode,
-    storage::UserPaths,
     vault::{
         secret::{Secret, SecretMeta, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,

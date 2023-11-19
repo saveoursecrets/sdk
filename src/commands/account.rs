@@ -8,9 +8,8 @@ use sos_net::{
     sdk::{
         account::{
             archive::Inventory, AccountBackup, AccountInfo, AccountRef,
-            ExtractFilesLocation, RestoreOptions,
+            ExtractFilesLocation, RestoreOptions, UserPaths,
         },
-        storage::UserPaths,
         vfs,
     },
 };

@@ -9,7 +9,7 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    account::{AccountInfo, DelegatedPassphrase, LocalAccounts},
+    account::{AccountInfo, DelegatedPassphrase, LocalAccounts, UserPaths},
     constants::{DEVICE_KEY_URN, VAULT_EXT},
     crypto::AccessKey,
     encode,
@@ -19,7 +19,6 @@ use crate::{
         ed25519::{self, BoxedEd25519Signer, VerifyingKey},
         Signer,
     },
-    storage::UserPaths,
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
         Gatekeeper, Summary, Vault, VaultAccess, VaultBuilder, VaultFlags,

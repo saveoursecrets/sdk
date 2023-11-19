@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use web3_address::ethereum::Address;
 
 use crate::{
+    account::UserPaths,
     constants::VAULT_EXT,
     decode,
-    storage::UserPaths,
     vault::{Header, Summary, Vault, VaultId},
     vfs,
 };

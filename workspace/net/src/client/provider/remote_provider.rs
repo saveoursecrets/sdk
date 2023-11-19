@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 
 use sos_sdk::{
-    account::AccountStatus,
+    account::{AccountStatus, UserPaths},
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, Comparison,
         SyncInfo,
@@ -18,7 +18,6 @@ use sos_sdk::{
         EventReducer, Patch, ReadEvent, WriteEvent,
     },
     passwd::diceware::generate_passphrase,
-    storage::UserPaths,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary, Vault, VaultBuilder, VaultFlags, VaultId,

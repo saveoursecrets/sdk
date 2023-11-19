@@ -11,6 +11,7 @@ use sos_sdk::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
         AuthenticatedUser, DelegatedPassphrase, ExtractFilesLocation,
         ImportedAccount, LocalAccounts, Login, NewAccount, RestoreOptions,
+        UserPaths,
     },
     commit::{CommitHash, CommitProof},
     crypto::AccessKey,
@@ -22,7 +23,6 @@ use sos_sdk::{
     mpc::{Keypair, PATTERN},
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
-    storage::UserPaths,
     url::Url,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},

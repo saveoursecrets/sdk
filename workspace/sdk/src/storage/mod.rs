@@ -5,11 +5,9 @@ use std::path::Path;
 
 mod external_files;
 mod external_files_sync;
-mod user;
 
 pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;
-pub use user::UserPaths;
 
 /// Result of encrypting a file.
 #[derive(Debug, Clone)]

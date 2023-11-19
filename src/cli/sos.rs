@@ -1,8 +1,7 @@
 use clap::{Parser, Subcommand};
 use sos_net::sdk::{
-    account::AccountRef,
+    account::{AccountRef, UserPaths},
     hex,
-    storage::UserPaths,
     url::Url,
     vault::VaultRef,
 };

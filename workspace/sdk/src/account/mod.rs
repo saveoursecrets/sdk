@@ -6,6 +6,7 @@ mod identity;
 mod local;
 mod login;
 mod passphrase;
+mod paths;
 
 pub use backup::{
     AccountBackup, AccountManifest, ExtractFilesLocation, ManifestEntry,
@@ -16,3 +17,4 @@ pub use identity::{AccountStatus, Identity, UserIdentity};
 pub use local::{AccountInfo, AccountRef, LocalAccounts};
 pub use login::{AuthenticatedUser, DeviceSigner, Login};
 pub use passphrase::DelegatedPassphrase;
+pub use paths::UserPaths;

@@ -21,6 +21,7 @@ use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
         AccountInfo, DelegatedPassphrase, Identity, LocalAccounts,
+        UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -29,7 +30,6 @@ use crate::{
     passwd::ChangePassword,
     search::SearchIndex,
     sha2::{Digest, Sha256},
-    storage::UserPaths,
     vault::{
         secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess, VaultId,
         VaultWriter,

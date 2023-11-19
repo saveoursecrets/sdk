@@ -11,7 +11,7 @@ use sos_net::{
     sdk::{
         events::WriteEvent,
         signer::{ecdsa::SingleParty, Signer},
-        storage::UserPaths,
+        account::UserPaths,
         vault::secret::{Secret, SecretData},
     },
 };

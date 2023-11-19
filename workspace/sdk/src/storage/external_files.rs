@@ -11,7 +11,7 @@
 //! stored on disc.
 
 use crate::{
-    storage::UserPaths,
+    account::UserPaths,
     vfs::{self, File},
     Error, Result,
 };

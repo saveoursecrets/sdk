@@ -4,7 +4,7 @@ use super::{Error, Result};
 use async_trait::async_trait;
 
 use sos_sdk::{
-    account::{AccountStatus, ImportedAccount, NewAccount, RestoreTargets},
+    account::{AccountStatus, ImportedAccount, NewAccount, RestoreTargets, UserPaths},
     commit::{
         CommitHash, CommitPair, CommitRelationship, CommitTree, SyncInfo,
         SyncKind,
@@ -18,7 +18,6 @@ use sos_sdk::{
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
     search::SearchIndex,
-    storage::UserPaths,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Header, Summary, Vault, VaultBuilder, VaultFlags,

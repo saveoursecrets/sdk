@@ -10,7 +10,7 @@ use std::{
 };
 
 use sos_sdk::{
-    account::{AccountStatus, ImportedAccount, NewAccount},
+    account::{AccountStatus, ImportedAccount, NewAccount, UserPaths},
     commit::{
         CommitHash, CommitProof, CommitRelationship, CommitTree, SyncInfo,
     },
@@ -25,7 +25,6 @@ use sos_sdk::{
     passwd::ChangePassword,
     search::SearchIndex,
     signer::ecdsa::{Address, BoxedEcdsaSigner},
-    storage::UserPaths,
     url::Url,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},

@@ -7,9 +7,9 @@ use std::{
 };
 
 use sos_sdk::{
-    account::DelegatedPassphrase,
+    account::{DelegatedPassphrase, UserPaths},
     storage::EncryptedFile,
-    storage::{basename, FileStorage, FileStorageSync, UserPaths},
+    storage::{basename, FileStorage, FileStorageSync},
     vault::{
         secret::{
             FileContent, Secret, SecretData, SecretId, SecretRow, UserData,

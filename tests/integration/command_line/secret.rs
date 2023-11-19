@@ -4,7 +4,7 @@ use rexpect::spawn;
 use secrecy::SecretString;
 use sos_net::sdk::{
     constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
-    secrecy::ExposeSecret, storage::UserPaths, vfs,
+    secrecy::ExposeSecret, account::UserPaths, vfs,
 };
 use std::{ops::DerefMut, path::PathBuf};
 
