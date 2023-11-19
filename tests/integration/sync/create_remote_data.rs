@@ -18,15 +18,15 @@ use super::{assert_local_remote_events_eq, assert_local_remote_vaults_eq};
 async fn integration_sync_create_remote_data() -> Result<()> {
     //crate::test_utils::init_tracing();
 
-    let dirs = setup(1).await?;
-    let test_data_dir = dirs.clients.get(0).unwrap();
+    let mut dirs = setup(1).await?;
+    let test_data_dir = dirs.clients.remove(0);
 
     // Spawn a backend server and wait for it to be listening
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
     let (mut owner, _, _default_folder, _) =
-        create_local_account("sync_basic_1", None).await?;
+        create_local_account("sync_create_remote_data", Some(test_data_dir)).await?;
 
     // Folders on the local account
     let expected_summaries: Vec<Summary> = {

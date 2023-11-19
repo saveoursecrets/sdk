@@ -1,6 +1,5 @@
 use anyhow::Result;
 use serial_test::serial;
-use std::sync::Arc;
 
 use crate::test_utils::*;
 

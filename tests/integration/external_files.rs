@@ -7,7 +7,6 @@ use sos_net::{
     client::{FileProgress, SecretOptions, UserStorage},
     sdk::{
         hex,
-        account::UserPaths,
         vault::{
             secret::{
                 FileContent, Secret, SecretData, SecretId, SecretMeta,

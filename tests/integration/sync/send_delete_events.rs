@@ -1,11 +1,10 @@
 use anyhow::Result;
 use serial_test::serial;
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use sos_net::{
     client::{
         RemoteBridge,
-        Origin, Remote, UserStorage,
         RemoteSync,
     },
     sdk::vault::Summary,
@@ -30,7 +29,7 @@ async fn integration_sync_send_delete_events() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (mut owner, _, default_folder, passphrase) =
+    let (mut owner, _, default_folder, _) =
         create_local_account("sync_delete_events", Some(test_data_dir.clone()))
             .await?;
 

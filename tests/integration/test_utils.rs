@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use axum_server::Handle;
 
 use secrecy::SecretString;
@@ -10,7 +10,7 @@ use web3_address::ethereum::Address;
 use sos_net::{
     client::{
         LocalProvider, RemoteBridge,
-        Origin, UserStorage,
+        Origin, UserStorage, RemoteSync,
     },
     sdk::{
         account::ImportedAccount,
@@ -19,7 +19,7 @@ use sos_net::{
         hex,
         mpc::{Keypair, PATTERN},
         passwd::diceware::generate_passphrase,
-        signer::ecdsa::BoxedEcdsaSigner,
+        signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
         vault::{
             secret::{Secret, SecretId, SecretMeta},
             Summary,
@@ -35,11 +35,7 @@ use sos_net::{
 
 const ADDR: &str = "127.0.0.1:3505";
 const SERVER: &str = "http://localhost:3505";
-const SERVER_PUBLIC_KEY: &str = include_str!("../../server_public_key.txt");
-
-mod signup;
-
-pub use signup::{login, signup, signup_local};
+const SERVER_PUBLIC_KEY: &str = include_str!("../server_public_key.txt");
 
 #[allow(dead_code)]
 pub fn init_tracing() {
@@ -71,7 +67,7 @@ pub(super) async fn create_remote_provider(
 
     let keypair = Keypair::new(PATTERN.parse()?)?;
     let local = LocalProvider::new(signer.address()?.to_string(), None).await?;
-    let mut provider = RemoteBridge::new(
+    let provider = RemoteBridge::new(
         Arc::new(RwLock::new(local)), origin.clone(), signer, keypair)?;
 
     // Noise protocol handshake
@@ -324,3 +320,92 @@ pub async fn delete_secret(
     provider.patch(summary, vec![event]).await?;
     Ok(())
 }
+
+async fn create_account(
+    server: Url,
+    destination: PathBuf,
+    name: Option<String>,
+    signer: BoxedEcdsaSigner,
+    data_dir: PathBuf,
+) -> Result<(AccountCredentials, RemoteBridge)> {
+    if !vfs::metadata(&destination).await?.is_dir() {
+        bail!("not a directory {}", destination.display());
+    }
+
+    let address = signer.address()?;
+    let (origin, provider) = create_remote_provider(signer).await?;
+
+    let local_provider = provider.local();
+    let mut local_writer = local_provider.write().await;
+
+    let (_, encryption_passphrase, summary) =
+        local_writer.create_account(name, None).await?;
+
+    let account = AccountCredentials {
+        encryption_passphrase,
+        address,
+        summary,
+    };
+
+    Ok((account, provider))
+}
+
+/// Create a new account and local provider.
+pub async fn create_local_provider(
+    signer: BoxedEcdsaSigner,
+    data_dir: Option<PathBuf>,
+) -> Result<(AccountCredentials, LocalProvider)> {
+    let address = signer.address()?;
+    let mut provider = LocalProvider::new(
+        address.to_string(), data_dir).await?;
+    let (_, encryption_passphrase, summary) =
+        provider.create_account(None, None).await?;
+    let account = AccountCredentials {
+        encryption_passphrase,
+        address,
+        summary,
+    };
+    Ok((account, provider))
+}
+
+pub async fn signup(
+    dirs: &TestDirs,
+    client_index: usize,
+) -> Result<(
+    Address,
+    AccountCredentials,
+    RemoteBridge,
+    BoxedEcdsaSigner,
+)> {
+    let TestDirs {
+        target: destination,
+        clients,
+        ..
+    } = dirs;
+
+    let data_dir = clients.get(client_index).unwrap().to_path_buf();
+
+    let server = server();
+    let name = None;
+    let signer: BoxedEcdsaSigner = Box::new(SingleParty::new_random());
+
+    let address = signer.address()?;
+    let (origin, provider) = create_remote_provider(signer.clone()).await?;
+
+    let local_provider = provider.local();
+    let mut local_writer = local_provider.write().await;
+
+    let (_, encryption_passphrase, summary) =
+        local_writer.create_account(name, None).await?;
+
+    let credentials = AccountCredentials {
+        encryption_passphrase,
+        address,
+        summary,
+    };
+
+    provider.sync().await?;
+
+    Ok((address, credentials, provider, signer))
+}
+

@@ -1,12 +1,12 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
 use serial_test::serial;
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use sos_net::{
     client::{
         RemoteBridge,
-        Origin, Remote, UserStorage,
+        UserStorage,
         RemoteSync,
     },
     sdk::vault::Summary,

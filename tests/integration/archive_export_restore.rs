@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serial_test::serial;
-use std::{io::Cursor, sync::Arc};
+use std::io::Cursor;
 
 use crate::test_utils::*;
 

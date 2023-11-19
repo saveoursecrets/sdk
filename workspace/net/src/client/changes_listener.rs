@@ -33,7 +33,6 @@ pub fn spawn_changes_listener(
     keypair: Keypair,
     cache: Arc<RwLock<LocalProvider>>,
 ) {
-    use crate::client::changes_listener::ChangesListener;
     let listener =
         ChangesListener::new(server, server_public_key, signer, keypair);
     listener.spawn(move |notification| {
