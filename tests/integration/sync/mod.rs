@@ -4,12 +4,20 @@ use sos_net::{
         provider::RemoteProvider,
         user::UserStorage,
     },
-    sdk::{constants::VAULT_EXT, vault::Summary, vfs},
+    sdk::{constants::VAULT_EXT, vault::{Summary, VaultId}, vfs},
 };
 use std::path::PathBuf;
 
 mod create_remote_data;
 mod send_events;
+
+/// Get the number of events in a log.
+pub async fn num_events(owner: &mut UserStorage, folder: &VaultId) -> usize {
+    let storage = owner.storage();
+    let reader = storage.read().await;
+    let events = reader.cache().get(folder).unwrap();
+    events.tree().len()
+}
 
 /// Assert that local and remote storage are equal.
 pub async fn assert_local_remote_vaults_eq(

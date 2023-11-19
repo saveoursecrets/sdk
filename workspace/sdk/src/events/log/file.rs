@@ -244,6 +244,13 @@ impl EventLogFile {
             let (commit, record) =
                 self.encode_event(&event, last_commit_hash).await?;
             commits.push(commit);
+            
+            /*
+            if Some(commit) == last_commit_hash {
+                panic!("applying the same change twice {:#?}", self.path());
+            }
+            */
+
             let mut buf = encode(&record).await?;
             last_commit_hash = Some(*record.commit());
             buffer.append(&mut buf);

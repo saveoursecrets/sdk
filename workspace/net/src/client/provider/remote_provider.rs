@@ -453,6 +453,7 @@ impl RemoteProvider {
         client_proof: &CommitProof,
         folder: &Summary,
     ) -> Result<()> {
+        
         let last_commit = last_commit.ok_or_else(|| Error::NoRootCommit)?;
 
         let (status, (num_events, body)) = retry!(

@@ -912,21 +912,25 @@ impl UserStorage {
         &self,
         options: &SecretOptions,
     ) -> Result<(Summary, Option<CommitHash>, CommitProof)> {
-        let reader = self.storage.read().await;
-        let folder = options
-            .folder
-            .clone()
-            .or_else(|| reader.current().map(|g| g.summary().clone()))
-            .ok_or(Error::NoOpenFolder)?;
+        
+        let (folder, last_commit, commit_proof) = {
+            let reader = self.storage.read().await;
+            let folder = options
+                .folder
+                .clone()
+                .or_else(|| reader.current().map(|g| g.summary().clone()))
+                .ok_or(Error::NoOpenFolder)?;
 
-        let (last_commit, commit_proof) = {
-            let event_log = reader
-                .cache()
-                .get(folder.id())
-                .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            let last_commit = event_log.last_commit().await?;
-            let commit_proof = event_log.tree().head()?;
-            (last_commit, commit_proof)
+            let (last_commit, commit_proof) = {
+                let event_log = reader
+                    .cache()
+                    .get(folder.id())
+                    .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+                let last_commit = event_log.last_commit().await?;
+                let commit_proof = event_log.tree().head()?;
+                (last_commit, commit_proof)
+            };
+            (folder, last_commit, commit_proof)
         };
 
         if let Err(e) = self
@@ -969,7 +973,7 @@ impl UserStorage {
         let (id, event, folder) =
             self.add_secret(meta, secret, options, true).await?;
         let (_, create_event) = event.try_into()?;
-        
+
         let after_commit_proof = self.after_apply_events(&folder).await?;
         let sync_error = self
             .sync_send_events(
