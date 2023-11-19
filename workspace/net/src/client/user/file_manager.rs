@@ -23,7 +23,7 @@ use tokio::sync::mpsc;
 
 use tracing::{span, Level};
 
-use crate::client::{user::UserStorage, Error, Result};
+use crate::client::{UserStorage, Error, Result};
 
 /// File progress operations.
 #[derive(Debug)]

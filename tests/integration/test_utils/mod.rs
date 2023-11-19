@@ -10,7 +10,7 @@ use web3_address::ethereum::Address;
 use sos_net::{
     client::{
         LocalProvider, RemoteProvider,
-        user::{Origin, UserStorage},
+        Origin, UserStorage,
     },
     sdk::{
         account::ImportedAccount,

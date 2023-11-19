@@ -1,4 +1,4 @@
-//! Macro utilities for network connections and providers.
+//! Macro utilities for network connections.
 
 /// Retry a request after renewing a session if an
 /// UNAUTHORIZED response is returned,

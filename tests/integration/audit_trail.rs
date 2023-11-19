@@ -5,7 +5,7 @@ use serial_test::serial;
 use std::path::{Path, PathBuf};
 
 use sos_net::{
-    client::user::UserStorage,
+    client::UserStorage,
     migrate::import::ImportTarget,
     sdk::{
         account::RestoreOptions,

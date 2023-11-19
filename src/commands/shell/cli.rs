@@ -3,7 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use terminal_banner::{Banner, Padding};
 
 use sos_net::{
-    client::user::UserStorage,
+    client::UserStorage,
     sdk::{account::{AccountRef, UserPaths}, vault::VaultRef, vfs},
     FileLocks,
 };

@@ -1,7 +1,7 @@
 use sos_net::{
     client::{
         hashcheck,
-        user::{SecurityReportOptions, SecurityReportRow},
+        SecurityReportOptions, SecurityReportRow,
     },
     sdk::account::AccountRef,
 };

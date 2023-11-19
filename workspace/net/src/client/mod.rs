@@ -2,10 +2,11 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 mod changes_listener;
+#[cfg(feature = "hashcheck")]
 pub mod hashcheck;
 pub mod net;
 mod sync;
-pub mod user;
+mod user;
 
 mod error;
 

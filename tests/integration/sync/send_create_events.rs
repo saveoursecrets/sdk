@@ -6,7 +6,7 @@ use std::{collections::HashMap, path::PathBuf};
 use sos_net::{
     client::{
         RemoteProvider,
-        user::{Origin, Remote, UserStorage},
+        Origin, Remote, UserStorage,
         RemoteSync,
     },
     sdk::vault::Summary,

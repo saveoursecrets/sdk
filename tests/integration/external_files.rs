@@ -4,7 +4,7 @@ use serial_test::serial;
 use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
-    client::user::{FileProgress, SecretOptions, UserStorage},
+    client::{FileProgress, SecretOptions, UserStorage},
     sdk::{
         hex,
         account::UserPaths,

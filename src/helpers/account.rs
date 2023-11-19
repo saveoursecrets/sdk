@@ -2,7 +2,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use sos_net::{
-    client::user::UserStorage,
+    client::UserStorage,
     sdk::{
         account::{AccountInfo, AccountRef, LocalAccounts, UserPaths},
         constants::DEFAULT_VAULT_NAME,

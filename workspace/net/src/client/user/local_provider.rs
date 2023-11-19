@@ -34,7 +34,7 @@ use std::{
 
 use tokio::sync::RwLock;
 
-use crate::client::{{user::ProviderState, RemoteSync}, Error, Result};
+use crate::client::{{ProviderState, RemoteSync}, Error, Result};
 
 /// Local storage provider.
 pub struct LocalProvider {
@@ -291,18 +291,6 @@ impl LocalProvider {
         self.cache_mut().insert(*summary.id(), event_log);
         Ok(())
     }
-
-    /*
-    /// Add to the local cache for a vault.
-    async fn add_local_cache(&mut self, summary: Summary) -> Result<()> {
-        // Add to our cache of managed vaults
-        self.create_cache_entry(&summary, None).await?;
-
-        // Add to the state of managed vaults
-        self.state_mut().add_summary(summary);
-        Ok(())
-    }
-    */
 
     /// Refresh the in-memory vault of the current selection
     /// from the contents of the current event log file.

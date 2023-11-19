@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use sos_net::{
-    client::user::UserStorage, device::TrustedDevice,
+    client::UserStorage, device::TrustedDevice,
     sdk::account::AccountRef,
 };
 

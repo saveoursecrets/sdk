@@ -4,7 +4,7 @@ use secrecy::SecretString;
 use serial_test::serial;
 
 use sos_net::{
-    client::user::{SecurityReportOptions, UserStorage},
+    client::{SecurityReportOptions, UserStorage},
     sdk::{
         passwd::diceware::generate_passphrase,
         vault::{
