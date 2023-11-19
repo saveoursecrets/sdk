@@ -46,7 +46,7 @@ pub struct LocalProvider {
     state: ProviderState,
 
     /// Directories for file storage.
-    paths: UserPaths,
+    paths: Arc<UserPaths>,
 
     /// Cache for event log and patch providers.
     cache: HashMap<VaultId, EventLogFile>,
@@ -56,8 +56,25 @@ pub struct LocalProvider {
 }
 
 impl LocalProvider {
+    
+    /// Create a new local provider for an account with the given
+    /// identifier.
+    pub async fn new(
+        id: impl AsRef<str>,
+        data_dir: Option<PathBuf>,
+    ) -> Result<Self> {
+        let data_dir = if let Some(data_dir) = data_dir {
+            data_dir
+        } else {
+            UserPaths::data_dir().map_err(|_| Error::NoCache)?
+        };
+
+        let dirs = UserPaths::new(data_dir, id);
+        Self::new_paths(Arc::new(dirs)).await
+    }
+
     /// Create new node cache backed by files on disc.
-    pub async fn new(paths: UserPaths) -> Result<LocalProvider> {
+    async fn new_paths(paths: Arc<UserPaths>) -> Result<LocalProvider> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 paths.documents_dir().to_path_buf(),

@@ -4,7 +4,7 @@ use serial_test::serial;
 use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use sos_net::{
-    client::provider::new_local_provider,
+    client::provider::LocalProvider,
     sdk::{
         account::{
             AccountBackup, AccountBuilder, DelegatedPassphrase,
@@ -50,8 +50,9 @@ async fn integration_account_manager() -> Result<()> {
 
     // Create local provider
     let signer = new_account.user.signer().clone();
-    let (mut provider, _) =
-        new_local_provider(signer, Some(test_data_dir.clone())).await?;
+    let mut provider =
+        LocalProvider::new(
+            signer.address()?.to_string(), Some(test_data_dir.clone())).await?;
 
     let (imported_account, _) =
         provider.import_new_account(&new_account).await?;
@@ -152,7 +153,8 @@ async fn integration_account_manager() -> Result<()> {
     // Restore from archive whilst signed in (with provider),
     // overwrites existing data (backup)
     let signer = user.identity().signer().clone();
-    let (mut provider, _) = new_local_provider(signer, None).await?;
+    let mut provider = LocalProvider::new(
+        signer.address()?.to_string(), None).await?;
 
     let options = RestoreOptions {
         selected: vaults.clone().into_iter().map(|v| v.0).collect(),

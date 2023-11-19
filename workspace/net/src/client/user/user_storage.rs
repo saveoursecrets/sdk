@@ -44,7 +44,7 @@ use tokio::{
 
 use crate::client::{
     net::RpcClient,
-    provider::{new_local_provider, LocalProvider, RemoteProvider},
+    provider::{LocalProvider, RemoteProvider},
     Error, Result,
 };
 use async_trait::async_trait;
@@ -320,8 +320,9 @@ impl UserStorage {
 
         // Must import the new account before signing in
         let signer = new_account.user.signer().clone();
-        let (mut storage, _) =
-            new_local_provider(signer, data_dir.clone()).await?;
+        let mut storage =
+            LocalProvider::new(
+                signer.address()?.to_string(), data_dir.clone()).await?;
 
         tracing::debug!("prepared storage provider");
 
@@ -383,7 +384,8 @@ impl UserStorage {
 
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
-        let (storage, _) = new_local_provider(signer, data_dir).await?;
+        let storage = LocalProvider::new(
+            signer.address()?.to_string(), data_dir).await?;
 
         #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
         let peer_key = convert_libp2p_identity(user.device().signer())?;

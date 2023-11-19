@@ -7,7 +7,7 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        provider::{new_local_provider, LocalProvider, RemoteProvider},
+        provider::{LocalProvider, RemoteProvider},
         RemoteSync,
     },
     sdk::{
@@ -112,7 +112,7 @@ async fn create_local_account(
     data_dir: Option<PathBuf>,
 ) -> Result<(AccountCredentials, LocalProvider)> {
     let address = signer.address()?;
-    let (mut provider, _) = new_local_provider(signer, data_dir).await?;
+    let mut provider = LocalProvider::new(address.to_string(), data_dir).await?;
     let (_, encryption_passphrase, summary) =
         provider.create_account(default_folder_name, None).await?;
     let account = AccountCredentials {

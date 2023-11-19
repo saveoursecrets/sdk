@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serial_test::serial;
-use std::io::Cursor;
+use std::{io::Cursor, sync::Arc};
 
 use crate::test_utils::*;
 
@@ -52,9 +52,8 @@ async fn integration_archive_local_provider() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
-    let dirs = UserPaths::new(dir.path(), &user_id);
     let passphrase = SecretString::new("mock-password".to_owned());
-    let mut storage = LocalProvider::new(dirs).await?;
+    let mut storage = LocalProvider::new(user_id, Some(dir.path().to_path_buf())).await?;
 
     // Prepare a vault to add to the archive
     let default_vault = VaultBuilder::new()
