@@ -17,10 +17,10 @@ use crate::test_utils::{
 
 use super::{assert_local_remote_events_eq, num_events};
 
-/// Tests sending update secret events to a remote.
+/// Tests sending delete secret events to a remote.
 #[tokio::test]
 #[serial]
-async fn integration_sync_send_update_events() -> Result<()> {
+async fn integration_sync_send_delete_events() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let dirs = setup(1).await?;
@@ -31,7 +31,7 @@ async fn integration_sync_send_update_events() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, passphrase) =
-        create_local_account("sync_update_events", Some(test_data_dir.clone()))
+        create_local_account("sync_delete_events", Some(test_data_dir.clone()))
             .await?;
 
     // Folders on the local account
@@ -65,7 +65,7 @@ async fn integration_sync_send_update_events() -> Result<()> {
 
     //println!("default folder {}", default_folder_id);
 
-    // Before we begin the client should have a single event
+    // Before we begin the clients should have a single event
     assert_eq!(1, num_events(&mut owner, &default_folder_id).await);
 
     // Sync the local account to create the account on remote
@@ -81,9 +81,8 @@ async fn integration_sync_send_update_events() -> Result<()> {
     // Should have two events
     assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
 
-    let (meta, secret) = mock_note("note", "secret1");
-    let (_, sync_error) = owner
-        .update_secret(&id, meta, Some(secret), Default::default(), None)
+    let sync_error = owner
+        .delete_secret(&id, Default::default())
         .await?;
     assert!(sync_error.is_none());
 

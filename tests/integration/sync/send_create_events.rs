@@ -41,7 +41,7 @@ async fn integration_sync_send_create_events() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, passphrase) =
-        create_local_account("sync_basic_1", Some(test_data_dir.clone()))
+        create_local_account("sync_create_events", Some(test_data_dir.clone()))
             .await?;
 
     // Folders on the local account
