@@ -19,12 +19,15 @@ pub trait RemoteSync: Sync + Send + Any {
     /// If the local is behind the remote and can safely pull
     /// this allows us to apply remote changes before committing
     /// changes to the local provider.
+    ///
+    /// Returns a boolean indicating if changes were made so that 
+    /// callers can re-compute their proofs.
     async fn sync_before_apply_change(
         &self,
         last_commit: Option<&CommitHash>,
         client_proof: &CommitProof,
         folder: &Summary,
-    ) -> Result<()>;
+    ) -> Result<bool>;
 
     /// Send events after changes to the local storage
     /// to a remote.

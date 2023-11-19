@@ -161,7 +161,6 @@ async fn integration_sync_send_events() -> Result<()> {
     )
     .await?;
     
-    /*
     assert_local_remote_events_eq(
         expected_summaries,
         &server_path,
@@ -169,7 +168,6 @@ async fn integration_sync_send_events() -> Result<()> {
         other_remote_provider,
     )
     .await?;
-    */
 
     Ok(())
 }

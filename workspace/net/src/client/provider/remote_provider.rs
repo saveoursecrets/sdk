@@ -118,7 +118,7 @@ impl RemoteProvider {
         last_commit: Option<&CommitHash>,
         client_proof: &CommitProof,
         folder: &Summary,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         
         let last_commit = last_commit.ok_or_else(|| Error::NoRootCommit)?;
 
@@ -138,7 +138,7 @@ impl RemoteProvider {
             writer.patch(folder, events).await?;
         }
 
-        Ok(())
+        Ok(num_events > 0)
     }
 
     async fn sync_pull_account(
@@ -281,7 +281,7 @@ impl RemoteSync for RemoteProvider {
         last_commit: Option<&CommitHash>,
         client_proof: &CommitProof,
         folder: &Summary,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         self.sync_pull_folder(last_commit, client_proof, folder).await
     }
 

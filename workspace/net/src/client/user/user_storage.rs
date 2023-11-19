@@ -913,7 +913,7 @@ impl UserStorage {
         options: &SecretOptions,
     ) -> Result<(Summary, Option<CommitHash>, CommitProof)> {
         
-        let (folder, last_commit, commit_proof) = {
+        let (folder, mut last_commit, mut commit_proof) = {
             let reader = self.storage.read().await;
             let folder = options
                 .folder
@@ -921,19 +921,16 @@ impl UserStorage {
                 .or_else(|| reader.current().map(|g| g.summary().clone()))
                 .ok_or(Error::NoOpenFolder)?;
 
-            let (last_commit, commit_proof) = {
-                let event_log = reader
-                    .cache()
-                    .get(folder.id())
-                    .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-                let last_commit = event_log.last_commit().await?;
-                let commit_proof = event_log.tree().head()?;
-                (last_commit, commit_proof)
-            };
+            let event_log = reader
+                .cache()
+                .get(folder.id())
+                .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+            let last_commit = event_log.last_commit().await?;
+            let commit_proof = event_log.tree().head()?;
             (folder, last_commit, commit_proof)
         };
 
-        if let Err(e) = self
+        match self
             .sync_before_apply_change(
                 last_commit.as_ref(),
                 &commit_proof,
@@ -941,8 +938,23 @@ impl UserStorage {
             )
             .await
         {
-            tracing::error!(error = ?e, "failed to sync before change");
-        };
+            Ok(changed) => {
+                // If changes were made we need to re-compute the 
+                // proof and last commit
+                if changed {
+                    let reader = self.storage.read().await;
+                    let event_log = reader
+                        .cache()
+                        .get(folder.id())
+                        .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+                    last_commit = event_log.last_commit().await?;
+                    commit_proof = event_log.tree().head()?;
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = ?e, "failed to sync before change");
+            }
+        }
 
         Ok((folder, last_commit, commit_proof))
     }
@@ -2033,14 +2045,15 @@ impl RemoteSync for UserStorage {
         last_commit: Option<&CommitHash>,
         client_proof: &CommitProof,
         folder: &Summary,
-    ) -> Result<()> {
+    ) -> Result<bool> {
+        let mut changed = false;
         let _ = self.sync_lock.lock().await;
         for remote in self.remotes.values() {
-            remote
+            changed = changed || remote
                 .sync_before_apply_change(last_commit, client_proof, folder)
                 .await?;
         }
-        Ok(())
+        Ok(changed)
     }
 
     async fn sync_send_events(
