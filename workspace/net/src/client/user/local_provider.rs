@@ -39,7 +39,7 @@ use crate::client::{RemoteSync, Error, Result};
 /// Local storage provider.
 pub struct LocalProvider {
     /// State of this storage.
-    state: ProviderState,
+    state: LocalState,
 
     /// Directories for file storage.
     paths: Arc<UserPaths>,
@@ -84,7 +84,7 @@ impl LocalProvider {
         ));
 
         Ok(Self {
-            state: ProviderState::new(true),
+            state: LocalState::new(true),
             cache: Default::default(),
             paths,
             audit_log,
@@ -102,12 +102,12 @@ impl LocalProvider {
     }
 
     /// Get the state for this storage provider.
-    pub fn state(&self) -> &ProviderState {
+    pub fn state(&self) -> &LocalState {
         &self.state
     }
 
     /// Get a mutable reference to the state for this storage provider.
-    pub fn state_mut(&mut self) -> &mut ProviderState {
+    pub fn state_mut(&mut self) -> &mut LocalState {
         &mut self.state
     }
 
@@ -808,7 +808,7 @@ impl LocalProvider {
 }
 
 /// Manages the state of a node.
-pub struct ProviderState {
+pub struct LocalState {
     /// Whether this state should mirror changes to disc.
     mirror: bool,
     /// Vaults managed by this state.
@@ -817,7 +817,7 @@ pub struct ProviderState {
     current: Option<Gatekeeper>,
 }
 
-impl ProviderState {
+impl LocalState {
     /// Create a new node state.
     pub fn new(mirror: bool) -> Self {
         Self {

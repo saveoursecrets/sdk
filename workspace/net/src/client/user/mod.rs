@@ -12,7 +12,7 @@ mod search_index;
 mod security_report;
 mod user_storage;
 
-pub use local_provider::{LocalProvider, ProviderState};
+pub use local_provider::{LocalProvider, LocalState};
 pub use remote::{RemoteProvider, Origin, Remote, Remotes};
 
 #[cfg(feature = "device")]
