@@ -7,9 +7,10 @@ use std::{
 };
 
 use sos_sdk::{
-    account::{DelegatedPassphrase, UserPaths},
-    storage::EncryptedFile,
-    storage::{basename, FileStorage, FileStorageSync},
+    account::{
+        basename, DelegatedPassphrase, EncryptedFile, FileStorage,
+        FileStorageSync, UserPaths,
+    },
     vault::{
         secret::{
             FileContent, Secret, SecretData, SecretId, SecretRow, UserData,
@@ -419,7 +420,6 @@ impl UserStorage {
             sources.unwrap_or_else(|| get_file_sources(&secret_data.secret));
         if !files.is_empty() {
             for source in files {
-
                 tracing::debug!(source = ?source.path);
 
                 if let Some(file_progress) = file_progress.as_mut() {

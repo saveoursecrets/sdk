@@ -959,7 +959,7 @@ impl UserStorage {
 
         Ok((folder, last_commit, commit_proof))
     }
-    
+
     /// Create a secret in the current open folder or a specific folder.
     pub async fn create_secret(
         &mut self,

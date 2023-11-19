@@ -4,7 +4,9 @@ use super::{Error, Result};
 use async_trait::async_trait;
 
 use sos_sdk::{
-    account::{AccountStatus, ImportedAccount, NewAccount, RestoreTargets, UserPaths},
+    account::{
+        AccountStatus, ImportedAccount, NewAccount, RestoreTargets, UserPaths,
+    },
     commit::{
         CommitHash, CommitPair, CommitRelationship, CommitTree, SyncInfo,
         SyncKind,

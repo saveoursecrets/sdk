@@ -27,7 +27,6 @@ pub mod recovery;
 pub mod rpc;
 pub mod search;
 pub mod signer;
-pub mod storage;
 mod timestamp;
 pub mod vault;
 pub mod vfs;

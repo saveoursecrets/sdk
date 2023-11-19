@@ -29,7 +29,7 @@ use crate::{
         ecdsa::{self, BoxedEcdsaSigner},
         ed25519::{self, BoxedEd25519Signer},
     },
-    storage::{basename, guess_mime},
+    account::{basename, guess_mime},
     Error, Result, Timestamp,
 };
 

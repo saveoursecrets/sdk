@@ -291,13 +291,8 @@ impl RemoteSync for RemoteProvider {
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
-        self.patch(
-            before_last_commit,
-            before_client_proof,
-            folder,
-            events,
-        )
-        .await?;
+        self.patch(before_last_commit, before_client_proof, folder, events)
+            .await?;
         Ok(())
     }
 
