@@ -1151,7 +1151,6 @@ impl UserStorage {
         let (_, update_event) = event.try_into()?;
 
         // Must update the files before moving so checksums are correct
-        println!("Updating the files...");
         self.update_files(
             &folder,
             &folder,
