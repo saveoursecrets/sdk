@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 use sos_net::{
-    client::provider::LocalProvider,
+    client::LocalProvider,
     migrate::import::{ImportFormat, ImportTarget},
     sdk::{
         account::{

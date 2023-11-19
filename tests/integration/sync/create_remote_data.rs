@@ -3,7 +3,7 @@ use serial_test::serial;
 use std::path::PathBuf;
 
 use sos_net::{
-    client::{provider::RemoteProvider, RemoteSync},
+    client::{RemoteProvider, RemoteSync},
     sdk::vault::Summary,
 };
 

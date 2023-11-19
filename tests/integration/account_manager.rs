@@ -4,7 +4,7 @@ use serial_test::serial;
 use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use sos_net::{
-    client::provider::LocalProvider,
+    client::LocalProvider,
     sdk::{
         account::{
             AccountBackup, AccountBuilder, DelegatedPassphrase,

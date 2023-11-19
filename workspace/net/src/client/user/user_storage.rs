@@ -44,7 +44,7 @@ use tokio::{
 
 use crate::client::{
     net::RpcClient,
-    provider::{LocalProvider, RemoteProvider},
+    LocalProvider, RemoteProvider,
     Error, Result,
 };
 use async_trait::async_trait;

@@ -8,7 +8,7 @@ use tempfile::tempdir;
 
 use secrecy::ExposeSecret;
 use sos_net::{
-    client::provider::LocalProvider,
+    client::LocalProvider,
     sdk::{
         events::WriteEvent,
         signer::{ecdsa::SingleParty, Signer},

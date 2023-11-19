@@ -7,7 +7,7 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{
-        provider::{LocalProvider, RemoteProvider},
+        LocalProvider, RemoteProvider,
         RemoteSync,
     },
     sdk::{

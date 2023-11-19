@@ -1,6 +1,5 @@
 //! Bridge between a local provider and a remote server.
-use super::{Error, Result};
-use crate::client::net::{MaybeRetry, RpcClient};
+use crate::client::{net::{MaybeRetry, RpcClient}, Error, Result};
 
 use async_trait::async_trait;
 use http::StatusCode;
@@ -38,7 +37,7 @@ use uuid::Uuid;
 
 use crate::{
     client::{
-        provider::{LocalProvider, ProviderState},
+        LocalProvider, ProviderState,
         RemoteSync, user::Origin,
     },
     retry,

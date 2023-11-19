@@ -1,6 +1,6 @@
 //! Local node state exposing an in-memory cache
 //! of vault summaries and a currently selected vault.
-use super::{Error, Result};
+use crate::client::{Error, Result};
 
 use sos_sdk::{
     crypto::AccessKey,

@@ -5,7 +5,7 @@ use std::{future::Future, sync::Arc, thread};
 use async_recursion::async_recursion;
 use futures::StreamExt;
 use std::time::Duration;
-use tokio::time::sleep;
+use tokio::{time::sleep, sync::RwLock};
 use url::Url;
 
 use super::{
@@ -13,6 +13,7 @@ use super::{
         changes::{changes, connect, WsStream},
         RpcClient,
     },
+    LocalProvider,
     Error, Result,
 };
 
@@ -21,6 +22,30 @@ use sos_sdk::{
 };
 
 const INTERVAL_MS: u64 = 15000;
+
+/// Spawn a change notification listener that
+/// updates the local node cache.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn spawn_changes_listener(
+    server: Url,
+    server_public_key: Vec<u8>,
+    signer: BoxedEcdsaSigner,
+    keypair: Keypair,
+    cache: Arc<RwLock<LocalProvider>>,
+) {
+    use crate::client::changes_listener::ChangesListener;
+    let listener =
+        ChangesListener::new(server, server_public_key, signer, keypair);
+    listener.spawn(move |notification| {
+        let cache = Arc::clone(&cache);
+        async move {
+            //println!("{:#?}", notification);
+            let mut writer = cache.write().await;
+            todo!("restore handling change event notifications");
+            //let _ = writer.handle_change(notification).await;
+        }
+    });
+}
 
 /// Listen for changes and call a handler with the change notification.
 #[derive(Clone)]

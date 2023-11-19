@@ -1,8 +1,4 @@
 //! Storage provider backed by the local filesystem.
-use super::{Error, Result};
-
-use async_trait::async_trait;
-
 use sos_sdk::{
     account::{
         AccountStatus, ImportedAccount, NewAccount, RestoreTargets, UserPaths,
@@ -38,7 +34,7 @@ use std::{
 
 use tokio::sync::RwLock;
 
-use crate::client::{provider::ProviderState, RemoteSync};
+use crate::client::{{user::ProviderState, RemoteSync}, Error, Result};
 
 /// Local storage provider.
 pub struct LocalProvider {

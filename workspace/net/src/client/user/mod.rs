@@ -1,13 +1,21 @@
-//! Network aware user storage and search index.
+//! Network aware user account storage.
 
 #[cfg(feature = "device")]
 mod devices;
 
 mod file_manager;
+mod local_provider;
+mod macros;
+mod remote_bridge;
 mod search_index;
 #[cfg(feature = "security-report")]
 mod security_report;
+mod state;
 mod user_storage;
+
+pub use local_provider::LocalProvider;
+pub use remote_bridge::RemoteProvider;
+pub use state::ProviderState;
 
 #[cfg(feature = "device")]
 pub use devices::DeviceManager;

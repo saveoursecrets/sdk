@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_net::{
-    client::{provider::RemoteProvider, user::UserStorage},
+    client::{RemoteProvider, user::UserStorage},
     sdk::{
         constants::VAULT_EXT,
         vault::{Summary, VaultId},

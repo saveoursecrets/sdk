@@ -4,7 +4,6 @@
 mod changes_listener;
 pub mod hashcheck;
 pub mod net;
-pub mod provider;
 mod sync;
 pub mod user;
 
@@ -15,6 +14,7 @@ pub use changes_listener::ChangesListener;
 pub use error::Error;
 
 pub use sync::RemoteSync;
+pub use user::*;
 
 /// Result type for the client module.
 pub type Result<T> = std::result::Result<T, error::Error>;
