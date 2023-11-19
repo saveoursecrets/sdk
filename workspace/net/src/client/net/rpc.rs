@@ -452,7 +452,6 @@ impl RpcClient {
         &self,
         vault_id: &Uuid,
         before_proof: &CommitProof,
-        after_proof: &CommitProof,
         patch: &Patch,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<CommitProof>)>> {
         let url = self.server.join("api/events")?;
@@ -462,7 +461,7 @@ impl RpcClient {
         let request = RequestMessage::new(
             Some(id),
             EVENT_LOG_PATCH,
-            (vault_id, before_proof, after_proof),
+            (vault_id, before_proof),
             Cow::Owned(body),
         )?;
         let packet = Packet::new_request(request);

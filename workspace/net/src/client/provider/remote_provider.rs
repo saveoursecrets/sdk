@@ -221,7 +221,6 @@ impl RemoteProvider {
         &self,
         before_last_commit: Option<&CommitHash>,
         before_client_proof: &CommitProof,
-        after_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
@@ -243,7 +242,6 @@ impl RemoteProvider {
             || self.remote.apply_patch(
                 folder.id(),
                 before_client_proof,
-                after_client_proof,
                 &patch,
             ),
             self.remote
@@ -291,14 +289,12 @@ impl RemoteSync for RemoteProvider {
         &self,
         before_last_commit: Option<&CommitHash>,
         before_client_proof: &CommitProof,
-        after_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
         self.patch(
             before_last_commit,
             before_client_proof,
-            after_client_proof,
             folder,
             events,
         )

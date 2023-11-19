@@ -38,7 +38,6 @@ pub trait RemoteSync: Sync + Send + Any {
         &self,
         before_last_commit: Option<&CommitHash>,
         before_client_proof: &CommitProof,
-        after_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()>;

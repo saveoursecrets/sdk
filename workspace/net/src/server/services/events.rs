@@ -265,8 +265,8 @@ impl Service for EventLogService {
                 }
             }
             EVENT_LOG_PATCH => {
-                let (vault_id, before_proof, after_proof) = request
-                    .parameters::<(Uuid, CommitProof, CommitProof)>()?;
+                let (vault_id, before_proof) = request
+                    .parameters::<(Uuid, CommitProof)>()?;
 
                 let reader = state.read().await;
                 let (exists, _) = reader
