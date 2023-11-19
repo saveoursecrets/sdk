@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use sos_net::sdk::{
-    account::AccountRef, hex, storage::AppPaths, url::Url, vault::VaultRef,
+    account::AccountRef, hex, storage::{AppPaths, UserPaths}, url::Url, vault::VaultRef,
 };
 use std::path::PathBuf;
 
@@ -135,10 +135,10 @@ pub enum Command {
 pub async fn run() -> Result<()> {
     let mut args = Sos::parse();
 
-    if let Some(cache) = args.cache.take() {
-        AppPaths::set_data_dir(cache);
+    if let Some(cache) = &args.cache {
+        AppPaths::set_data_dir(cache.clone());
     }
-    AppPaths::scaffold().await?;
+    UserPaths::scaffold(args.cache).await?;
 
     #[cfg(any(test, debug_assertions))]
     if let Some(password) = args.password.take() {

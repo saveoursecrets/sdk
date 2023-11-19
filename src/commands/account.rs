@@ -432,6 +432,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         reader,
         options,
         provider.is_some(),
+        None,
     )
     .await?;
 

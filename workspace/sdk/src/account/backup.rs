@@ -414,8 +414,16 @@ impl AccountBackup {
         buffer: R,
         options: RestoreOptions,
         existing_account: bool,
+        mut data_dir: Option<PathBuf>,
     ) -> Result<(RestoreTargets, AccountInfo)> {
         // FIXME: ensure we still have ONE vault marked as default vault!!!
+        //
+        
+        let data_dir = if let Some(data_dir) = data_dir.take() {
+            data_dir
+        } else {
+            AppPaths::data_dir()?
+        };
 
         // Signed in so use the existing provider
         let (targets, account) = if existing_account {
@@ -430,7 +438,8 @@ impl AccountBackup {
 
             // The GUI should check the identity already exists
             // but we will double check here to be safe
-            let keys = LocalAccounts::list_accounts(None).await?;
+            let paths = UserPaths::new_global(data_dir.clone());
+            let keys = LocalAccounts::list_accounts(Some(&paths)).await?;
             let existing_account =
                 keys.iter().find(|k| k.address() == address);
             let account = existing_account
@@ -439,7 +448,7 @@ impl AccountBackup {
 
             let address = address.to_string();
 
-            let paths = UserPaths::new(AppPaths::data_dir()?, &address);
+            let paths = UserPaths::new(data_dir, &address);
 
             if let Some(passphrase) = &options.passphrase {
                 let identity_vault_file = paths.identity_vault();
@@ -489,7 +498,8 @@ impl AccountBackup {
 
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
-            let keys = LocalAccounts::list_accounts(None).await?;
+            let paths = UserPaths::new_global(data_dir.clone());
+            let keys = LocalAccounts::list_accounts(Some(&paths)).await?;
             let existing_account = keys
                 .iter()
                 .find(|k| k.address() == &restore_targets.address);
@@ -500,7 +510,7 @@ impl AccountBackup {
             }
 
             let address_path = restore_targets.address.to_string();
-            let paths = UserPaths::new(AppPaths::data_dir()?, &address_path);
+            let paths = UserPaths::new(data_dir, &address_path);
 
             // Write out the identity vault
             let identity_vault_file = paths.identity_vault();

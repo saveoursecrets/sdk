@@ -160,8 +160,6 @@ impl RemoteProvider {
                 (last_commit, commit_proof, folder)
             };
 
-            println!("Pulling folder {}", folder.id());
-        
             self.sync_pull_folder(
                 last_commit.as_ref(), &commit_proof, &folder).await?;
         }
@@ -259,9 +257,6 @@ impl RemoteProvider {
 #[async_trait]
 impl RemoteSync for RemoteProvider {
     async fn sync(&self) -> Result<()> {
-        
-        println!("sync running...");
-
         // Ensure our folder state is the latest version on disc
         {
             let mut local = self.local.write().await;
@@ -293,8 +288,6 @@ impl RemoteSync for RemoteProvider {
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
-        println!("Sending events...");
-
         self.patch(
             before_last_commit, 
             before_client_proof,

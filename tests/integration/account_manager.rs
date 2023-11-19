@@ -28,19 +28,15 @@ use crate::test_utils::*;
 #[tokio::test]
 #[serial]
 async fn integration_account_manager() -> Result<()> {
-    let dirs = setup(1).await?;
-
-    let test_data_dir = dirs.clients.get(0).unwrap();
-    AppPaths::set_data_dir(test_data_dir.clone());
-    assert_eq!(AppPaths::data_dir()?, test_data_dir.clone().join("debug"));
-    AppPaths::scaffold().await?;
+    let mut dirs = setup(1).await?;
+    let test_data_dir = dirs.clients.remove(0);
 
     let account_name = "Mock account name".to_string();
     let folder_name = Some("Default folder".to_string());
     let (passphrase, _) = generate_passphrase()?;
 
     let new_account =
-        AccountBuilder::new(account_name.clone(), passphrase.clone(), None)
+        AccountBuilder::new(account_name.clone(), passphrase.clone(), Some(test_data_dir.clone()))
             .save_passphrase(true)
             .create_archive(true)
             .create_authenticator(true)
@@ -52,7 +48,8 @@ async fn integration_account_manager() -> Result<()> {
 
     // Create local provider
     let signer = new_account.user.signer().clone();
-    let (mut provider, _) = new_local_provider(signer, None).await?;
+    let (mut provider, _) = new_local_provider(
+        signer, Some(test_data_dir.clone())).await?;
 
     let (imported_account, _) =
         provider.import_new_account(&new_account).await?;
@@ -164,7 +161,7 @@ async fn integration_account_manager() -> Result<()> {
 
     let reader = Cursor::new(&mut archive_buffer);
     let (targets, _) =
-        AccountBackup::restore_archive_buffer(reader, options, true).await?;
+        AccountBackup::restore_archive_buffer(reader, options, true, Some(test_data_dir.clone())).await?;
 
     provider.restore_archive(&targets).await?;
 
@@ -179,7 +176,7 @@ async fn integration_account_manager() -> Result<()> {
         files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
     };
     let reader = Cursor::new(&mut archive_buffer);
-    AccountBackup::restore_archive_buffer(reader, options, false).await?;
+    AccountBackup::restore_archive_buffer(reader, options, false, Some(test_data_dir)).await?;
 
     // Reset the cache dir so we don't interfere
     // with other tests

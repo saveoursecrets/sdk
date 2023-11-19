@@ -22,18 +22,14 @@ use crate::test_utils::{create_local_account, mock_note, setup};
 #[tokio::test]
 #[serial]
 async fn integration_audit_trail() -> Result<()> {
-    let dirs = setup(1).await?;
-
-    let test_data_dir = dirs.clients.get(0).unwrap();
-    AppPaths::set_data_dir(test_data_dir.clone());
-    assert_eq!(AppPaths::data_dir()?, test_data_dir.clone().join("debug"));
-    AppPaths::scaffold().await?;
+    let mut dirs = setup(1).await?;
+    let test_data_dir = dirs.clients.remove(0);
 
     let (mut owner, _, summary, passphrase) =
-        create_local_account("audit_trail", None).await?;
+        create_local_account("audit_trail", Some(test_data_dir.clone())).await?;
 
     // Make changes to generate audit logs
-    simulate_session(&mut owner, &summary, passphrase).await?;
+    simulate_session(&mut owner, &summary, passphrase, &test_data_dir).await?;
 
     // Read in the audit log events
     let paths = owner.paths().await;
@@ -114,6 +110,7 @@ async fn simulate_session(
     owner: &mut UserStorage,
     default_folder: &Summary,
     passphrase: SecretString,
+    test_data_dir: &PathBuf,
 ) -> Result<()> {
     // Create a secret
     let (meta, secret) = mock_note("Audit note", "Note value");
@@ -192,6 +189,7 @@ async fn simulate_session(
         Some(owner),
         archive,
         restore_options,
+        Some(test_data_dir.clone()),
     )
     .await?;
 

@@ -1919,10 +1919,11 @@ impl UserStorage {
         owner: Option<&mut UserStorage>,
         path: P,
         options: RestoreOptions,
+        data_dir: Option<PathBuf>,
     ) -> Result<AccountInfo> {
         let file = File::open(path).await?;
         let (account, owner) =
-            Self::restore_archive_reader(owner, file, options).await?;
+            Self::restore_archive_reader(owner, file, options, data_dir).await?;
 
         if let Some(owner) = owner {
             let audit_event = AuditEvent::new(
@@ -1941,6 +1942,7 @@ impl UserStorage {
         mut owner: Option<&mut UserStorage>,
         buffer: R,
         mut options: RestoreOptions,
+        data_dir: Option<PathBuf>,
     ) -> Result<(AccountInfo, Option<&mut UserStorage>)> {
         let files_dir = if let Some(owner) = owner.as_ref() {
             ExtractFilesLocation::Path(owner.files_dir().clone())
@@ -1953,11 +1955,12 @@ impl UserStorage {
         };
 
         options.files_dir = Some(files_dir);
-
+        
         let (targets, account) = AccountBackup::restore_archive_buffer(
             buffer,
             options,
             owner.is_some(),
+            data_dir,
         )
         .await?;
 
@@ -2047,11 +2050,29 @@ impl RemoteSync for UserStorage {
         folder: &Summary,
     ) -> Result<bool> {
         let mut changed = false;
+        let mut last_commit = last_commit.cloned();
+        let mut client_proof = client_proof.clone();
+
         let _ = self.sync_lock.lock().await;
         for remote in self.remotes.values() {
-            changed = changed || remote
-                .sync_before_apply_change(last_commit, client_proof, folder)
+            let local_changed = remote
+                .sync_before_apply_change(
+                    last_commit.as_ref(), &client_proof, folder)
                 .await?;
+            
+            // If a remote changes were applied to local
+            // we need to recompute the last commit and client proof
+            if local_changed {
+                let reader = self.storage.read().await;
+                let event_log = reader
+                    .cache()
+                    .get(folder.id())
+                    .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+                last_commit = event_log.last_commit().await?;
+                client_proof = event_log.tree().head()?;
+            }
+
+            changed = changed || local_changed;
         }
         Ok(changed)
     }

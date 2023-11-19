@@ -18,13 +18,12 @@ use crate::test_utils::{
 
 use super::{assert_local_remote_events_eq, num_events};
 
-/// Tests sending events from changes to the local storage
-/// to a connected remote.
+/// Tests sending events create secret events between two 
+/// clients.
 #[tokio::test]
 #[serial]
 async fn integration_sync_send_events() -> Result<()> {
-    
-    crate::test_utils::init_tracing();
+    //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
     let dirs = setup(2).await?;
@@ -100,7 +99,7 @@ async fn integration_sync_send_events() -> Result<()> {
     owner.open_folder(&default_folder).await?;
     other_owner.open_folder(&default_folder).await?;
 
-    println!("default folder {}", default_folder_id);
+    //println!("default folder {}", default_folder_id);
 
     // Before we begin both clients should have a single event
     assert_eq!(1, num_events(&mut owner, &default_folder_id).await);
