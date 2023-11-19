@@ -23,6 +23,7 @@ use sos_sdk::{
         Summary, Vault, VaultBuilder, VaultFlags, VaultId,
     },
     vfs,
+    url::Url,
     mpc::Keypair,
 };
 
@@ -38,12 +39,30 @@ use uuid::Uuid;
 use crate::{
     client::{
         LocalProvider, ProviderState,
-        RemoteSync, user::Origin,
+        RemoteSync,
     },
     retry,
 };
 
 use tracing::{span, Level};
+
+/// Remote origin information.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct Origin {
+    /// Name of the origin.
+    pub name: String,
+    /// URL of the remote server.
+    pub url: Url,
+    /// Public key of the remote server.
+    pub public_key: Vec<u8>,
+}
+
+/// Remote synchronization target.
+pub type Remote = Box<dyn RemoteSync>;
+
+/// Collection of remote targets for synchronization.
+pub type Remotes = HashMap<Origin, Remote>;
+
 
 /// Bridge between a local provider and a remote.
 #[derive(Clone)]

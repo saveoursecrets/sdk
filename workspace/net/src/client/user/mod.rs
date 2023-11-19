@@ -6,7 +6,7 @@ mod devices;
 mod file_manager;
 mod local_provider;
 mod macros;
-mod remote_bridge;
+mod remote;
 mod search_index;
 #[cfg(feature = "security-report")]
 mod security_report;
@@ -14,7 +14,7 @@ mod state;
 mod user_storage;
 
 pub use local_provider::LocalProvider;
-pub use remote_bridge::RemoteProvider;
+pub use remote::{RemoteProvider, Origin, Remote, Remotes};
 pub use state::ProviderState;
 
 #[cfg(feature = "device")]
@@ -35,7 +35,7 @@ pub use security_report::{
     SecurityReportRow, SecurityReportTarget,
 };
 pub use user_storage::{
-    AccountData, DetachedView, Origin, Remote, Remotes, SecretOptions,
+    AccountData, DetachedView, SecretOptions,
     UserStatistics, UserStorage,
 };
 

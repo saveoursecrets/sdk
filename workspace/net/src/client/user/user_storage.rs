@@ -45,6 +45,7 @@ use tokio::{
 use crate::client::{
     net::RpcClient,
     LocalProvider, RemoteProvider,
+    Origin, Remote, Remotes,
     Error, Result,
 };
 use async_trait::async_trait;
@@ -63,23 +64,6 @@ use sos_migrate::{
 
 use super::{file_manager::FileProgress, search_index::UserIndex};
 use crate::client::RemoteSync;
-
-/// Remote origin information.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct Origin {
-    /// Name of the origin.
-    pub name: String,
-    /// URL of the remote server.
-    pub url: Url,
-    /// Public key of the remote server.
-    pub public_key: Vec<u8>,
-}
-
-/// Remote synchronization target.
-pub type Remote = Box<dyn RemoteSync>;
-
-/// Collection of remote targets for synchronization.
-pub type Remotes = HashMap<Origin, Remote>;
 
 /// Read-only view of a vault created from a specific
 /// event log commit.
