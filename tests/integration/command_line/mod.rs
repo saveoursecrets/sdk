@@ -6,7 +6,7 @@ use sos_net::sdk::{
     constants::{DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_VAULT_NAME},
     passwd::diceware::generate_passphrase,
     secrecy::ExposeSecret,
-    storage::AppPaths,
+    storage::{AppPaths, UserPaths},
     vfs,
 };
 use std::{
@@ -186,9 +186,10 @@ async fn integration_command_line() -> Result<()> {
 
     // Set cache directory for child processes
     std::env::set_var("SOS_CACHE", data_dir.clone());
+
     // Set so test functions can access
-    AppPaths::set_data_dir(data_dir);
-    AppPaths::scaffold().await?;
+    AppPaths::set_data_dir(data_dir.clone());
+    UserPaths::scaffold(Some(data_dir)).await?;
 
     if is_ci() {
         std::env::set_var("SOS_YES", true.to_string());

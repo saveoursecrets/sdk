@@ -58,10 +58,10 @@ async fn integration_account_manager() -> Result<()> {
     let ImportedAccount { summary, .. } = imported_account;
 
     let paths = UserPaths::new(
-        AppPaths::data_dir()?, &address.to_string());
+        test_data_dir.clone(), &address.to_string());
     let local_accounts = LocalAccounts::new(&paths);
 
-    let accounts = LocalAccounts::list_accounts(None).await?;
+    let accounts = LocalAccounts::list_accounts(Some(&paths)).await?;
     assert_eq!(1, accounts.len());
 
     let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
@@ -177,10 +177,6 @@ async fn integration_account_manager() -> Result<()> {
     };
     let reader = Cursor::new(&mut archive_buffer);
     AccountBackup::restore_archive_buffer(reader, options, false, Some(test_data_dir)).await?;
-
-    // Reset the cache dir so we don't interfere
-    // with other tests
-    AppPaths::clear_data_dir();
 
     Ok(())
 }

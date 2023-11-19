@@ -30,10 +30,6 @@ async fn integration_sync_send_events() -> Result<()> {
 
     // Set up the paths for the first client
     let test_data_dir = dirs.clients.get(0).unwrap();
-    AppPaths::set_data_dir(test_data_dir.clone());
-    AppPaths::scaffold().await?;
-
-    AppPaths::clear_data_dir();
 
     // Need to remove the other data dir as we will
     // copy the first data dir in later

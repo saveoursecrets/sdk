@@ -208,15 +208,13 @@ impl UserPaths {
         address: impl AsRef<str>,
         data_dir: Option<PathBuf>) -> Result<UserPaths> {
         // Ensure all paths before sign_in
-        Ok(if let Some(data_dir) = data_dir.clone() {
-            let paths = UserPaths::new(data_dir, address);
-            paths.ensure().await?;
-            paths
+        let paths = if let Some(data_dir) = data_dir {
+            UserPaths::new(data_dir, address)
         } else {
-            let paths = UserPaths::new(AppPaths::data_dir()?, address);
-            paths.ensure().await?;
-            paths
-        })
+            UserPaths::new(AppPaths::data_dir()?, address)
+        };
+        paths.ensure().await?;
+        Ok(paths)
     }
 
     /// Ensure the root directories exist.

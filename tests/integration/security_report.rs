@@ -20,15 +20,11 @@ use crate::test_utils::{create_local_account, setup};
 #[tokio::test]
 #[serial]
 async fn integration_security_report() -> Result<()> {
-    let dirs = setup(1).await?;
-
-    let test_data_dir = dirs.clients.get(0).unwrap();
-    AppPaths::set_data_dir(test_data_dir.clone());
-    assert_eq!(AppPaths::data_dir()?, test_data_dir.clone().join("debug"));
-    AppPaths::scaffold().await?;
+    let mut dirs = setup(1).await?;
+    let test_data_dir = dirs.clients.remove(0);
 
     let (mut owner, _, summary, passphrase) =
-        create_local_account("security_report", None).await?;
+        create_local_account("security_report", Some(test_data_dir)).await?;
 
     // Make changes to generate data
     let mock_ids = simulate_session(&mut owner, &summary, passphrase).await?;
@@ -70,10 +66,6 @@ async fn integration_security_report() -> Result<()> {
 
     // Delete the account
     owner.delete_account().await?;
-
-    // Reset the cache dir so we don't interfere
-    // with other tests
-    AppPaths::clear_data_dir();
 
     Ok(())
 }

@@ -99,10 +99,6 @@ async fn integration_audit_trail() -> Result<()> {
     // Deleted the account
     assert!(matches!(kinds.remove(0), EventKind::DeleteAccount));
 
-    // Reset the cache dir so we don't interfere
-    // with other tests
-    AppPaths::clear_data_dir();
-
     Ok(())
 }
 

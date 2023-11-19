@@ -7,7 +7,7 @@ use sos_net::{
     client::user::{FileProgress, SecretOptions, UserStorage},
     sdk::{
         hex,
-        storage::AppPaths,
+        storage::UserPaths,
         vault::{
             secret::{
                 FileContent, Secret, SecretData, SecretId, SecretMeta,
@@ -28,15 +28,13 @@ const ZERO_CHECKSUM: [u8; 32] = [0; 32];
 #[tokio::test]
 #[serial]
 async fn integration_external_files() -> Result<()> {
-    let dirs = setup(1).await?;
+    let mut dirs = setup(1).await?;
+    let test_data_dir = dirs.clients.remove(0);
 
-    let test_data_dir = dirs.clients.get(0).unwrap();
-    AppPaths::set_data_dir(test_data_dir.clone());
-    assert_eq!(AppPaths::data_dir()?, test_data_dir.clone().join("debug"));
-    AppPaths::scaffold().await?;
+    //UserPaths::scaffold(Some(test_data_dir.clone())).await?;
 
     let (mut owner, _, summary, _) =
-        create_local_account("external_files", None).await?;
+        create_local_account("external_files", Some(test_data_dir)).await?;
 
     let operations: Arc<Mutex<Vec<FileProgress>>> =
         Arc::new(Mutex::new(Vec::new()));
@@ -156,10 +154,6 @@ async fn integration_external_files() -> Result<()> {
     assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
     assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
     assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
-
-    // Reset the cache dir so we don't interfere
-    // with other tests
-    AppPaths::clear_data_dir();
 
     Ok(())
 }

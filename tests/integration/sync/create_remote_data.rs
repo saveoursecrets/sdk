@@ -20,10 +20,7 @@ use super::{assert_local_remote_events_eq, assert_local_remote_vaults_eq};
 #[serial]
 async fn integration_sync_create_remote_data() -> Result<()> {
     let dirs = setup(1).await?;
-
     let test_data_dir = dirs.clients.get(0).unwrap();
-    AppPaths::set_data_dir(test_data_dir.clone());
-    AppPaths::scaffold().await?;
 
     // Spawn a backend server and wait for it to be listening
     let (rx, _handle) = spawn()?;
