@@ -57,19 +57,6 @@ pub trait RemoteSync: Sync + Send + Any {
         events: &[WriteEvent<'static>],
     ) -> Result<()>;
 
-    /*
-    /// Respond to a change notification.
-    ///
-    /// The return flag indicates whether the change was made
-    /// by this node which is determined by comparing the session
-    /// identifier on the change notification with the current
-    /// session identifier for this node.
-    async fn handle_change(
-        &mut self,
-        change: ChangeNotification,
-    ) -> Result<(bool, HashSet<ChangeAction>)>;
-    */
-
     /// Cast to the Any trait.
     fn as_any(&self) -> &dyn Any;
 

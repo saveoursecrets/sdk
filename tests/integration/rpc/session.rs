@@ -6,7 +6,7 @@ use crate::test_utils::*;
 use http::StatusCode;
 use sos_net::{
     client::{net::RpcClient, Origin},
-    sdk::{encode, mpc::generate_keypair, vault::Vault, hex},
+    sdk::{encode, hex, mpc::generate_keypair, vault::Vault},
 };
 
 #[tokio::test]
@@ -24,13 +24,13 @@ async fn integration_auth_session_negotiate() -> Result<()> {
 
     let public_key = server_public_key();
     let name = hex::encode(&public_key);
-    let origin = Origin { url, public_key, name };
+    let origin = Origin {
+        url,
+        public_key,
+        name,
+    };
 
-    let mut client = RpcClient::new(
-        origin,
-        signer,
-        generate_keypair()?,
-    )?;
+    let mut client = RpcClient::new(origin, signer, generate_keypair()?)?;
 
     client.handshake().await?;
 

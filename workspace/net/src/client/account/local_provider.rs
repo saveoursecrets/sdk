@@ -287,7 +287,7 @@ impl LocalProvider {
 
     /// Refresh the in-memory vault of the current selection
     /// from the contents of the current event log file.
-    pub async fn refresh_vault(
+    async fn refresh_vault(
         &mut self,
         summary: &Summary,
         new_key: Option<&AccessKey>,
@@ -336,7 +336,7 @@ impl LocalProvider {
     }
 
     /// Write the buffer for a vault to disc.
-    pub async fn write_vault_file(
+    async fn write_vault_file(
         &self,
         summary: &Summary,
         buffer: impl AsRef<[u8]>,
@@ -348,7 +348,7 @@ impl LocalProvider {
 
     /// Create a cache entry for each summary if it does not
     /// already exist.
-    pub async fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
+    async fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
         for summary in summaries {
             // Ensure we don't overwrite existing data
             if self.cache().get(summary.id()).is_none() {
@@ -371,7 +371,7 @@ impl LocalProvider {
     }
 
     /// Remove the local cache for a vault.
-    pub fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
+    fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
         let current_id = self.current().map(|c| c.id().clone());
 
         // If the deleted vault is the currently selected
@@ -439,7 +439,10 @@ impl LocalProvider {
         Ok((event, key, summary))
     }
 
-    /// Import a vault into an existing account.
+    /// Import a vault buffer into an existing account.
+    ///
+    /// If a vault with the same identifier already exists 
+    /// it is overwritten.
     pub async fn import_vault(
         &mut self,
         buffer: impl AsRef<[u8]>,
@@ -466,7 +469,8 @@ impl LocalProvider {
         }
         Ok(())
     }
-
+    
+    /*
     /// Create a backup of a vault file.
     pub async fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
         use sos_sdk::constants::VAULT_BACKUP_EXT;
@@ -484,6 +488,7 @@ impl LocalProvider {
 
         Ok(())
     }
+    */
 
     /// Get the account status.
     pub async fn account_status(&mut self) -> Result<AccountStatus> {

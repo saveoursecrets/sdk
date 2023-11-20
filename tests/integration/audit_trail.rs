@@ -70,7 +70,7 @@ async fn integration_audit_trail() -> Result<()> {
     assert!(matches!(kinds.remove(0), EventKind::SetVaultName));
     // Exported a folder
     assert!(matches!(kinds.remove(0), EventKind::ExportVault));
-        
+
     // Imported a folder that updated a vault
     assert!(matches!(kinds.remove(0), EventKind::UpdateVault));
     // Deleted the new folder

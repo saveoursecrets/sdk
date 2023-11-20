@@ -13,8 +13,7 @@ use super::{
         changes::{changes, connect, WsStream},
         RpcClient,
     },
-    Origin,
-    Error, LocalProvider, Result,
+    Error, LocalProvider, Origin, Result,
 };
 
 use sos_sdk::{
@@ -32,8 +31,7 @@ pub fn spawn_changes_listener(
     keypair: Keypair,
     cache: Arc<RwLock<LocalProvider>>,
 ) {
-    let listener =
-        ChangesListener::new(origin, signer, keypair);
+    let listener = ChangesListener::new(origin, signer, keypair);
     listener.spawn(move |notification| {
         let cache = Arc::clone(&cache);
         async move {

@@ -1,7 +1,10 @@
 //! Bridge between a local provider and a remote server.
-use crate::client::{
-    net::{MaybeRetry, RpcClient},
-    Error, Result,
+use crate::{
+    client::{
+        net::{MaybeRetry, RpcClient},
+        Error, LocalProvider, RemoteSync, Result, SyncError,
+    },
+    retry,
 };
 
 use async_trait::async_trait;
@@ -21,11 +24,6 @@ use sos_sdk::{
 
 use std::{any::Any, collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-
-use crate::{
-    client::{LocalProvider, RemoteSync, SyncError},
-    retry,
-};
 
 use tracing::{span, Level};
 
@@ -66,14 +64,134 @@ impl RemoteBridge {
         signer: BoxedEcdsaSigner,
         keypair: Keypair,
     ) -> Result<Self> {
-        let remote =
-            RpcClient::new(
-                origin.clone(),
-                //client_origin.url,
-                //client_origin.public_key,
-                signer,
-                keypair)?;
-        Ok(Self { origin, local, remote })
+        let remote = RpcClient::new(
+            origin.clone(),
+            //client_origin.url,
+            //client_origin.public_key,
+            signer,
+            keypair,
+        )?;
+        Ok(Self {
+            origin,
+            local,
+            remote,
+        })
+    }
+
+    /// Spawn a thread that listens for changes
+    /// from the remote server and applies any changes
+    /// from the remote to the local provider.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn listen(&self) {
+        use sos_sdk::prelude::{
+            ChangeAction, ChangeEvent, ChangeNotification,
+            CommitRelationship, VaultRef,
+        };
+        use std::collections::HashSet;
+
+        fn notification_actions(
+            change: &ChangeNotification,
+        ) -> HashSet<ChangeAction> {
+            // Gather actions corresponding to the events
+            let mut actions = HashSet::new();
+            for event in change.changes() {
+                let action = match event {
+                    ChangeEvent::CreateVault(summary) => {
+                        ChangeAction::Create(summary.clone())
+                    }
+                    ChangeEvent::DeleteVault => {
+                        ChangeAction::Remove(*change.vault_id())
+                    }
+                    _ => ChangeAction::Pull(*change.vault_id()),
+                };
+                actions.insert(action);
+            }
+            actions
+        }
+
+        async fn on_change_notification(
+            provider: &mut LocalProvider,
+            change: ChangeNotification,
+        ) -> Result<()> {
+            let actions = notification_actions(&change);
+            // Consume and react to the actions
+            for action in actions {
+                let summary = provider
+                    .state()
+                    .find_vault(&VaultRef::Id(*change.vault_id()))
+                    .cloned();
+
+                if let Some(summary) = &summary {
+                    match action {
+                        ChangeAction::Pull(_) => {
+                            let tree = provider
+                                .commit_tree(summary)
+                                .ok_or(sos_sdk::Error::NoRootCommit)?;
+
+                            let head = tree.head()?;
+
+                            tracing::debug!(
+                                vault_id = ?summary.id(),
+                                change_root = ?change.proof().root_hex(),
+                                root = ?head.root_hex(),
+                                "handle_change");
+
+                            // Looks like the change was made elsewhere
+                            // and we should attempt to sync with the server
+                            if change.proof().root() != head.root() {
+
+                                /*
+                                let (status, _) = provider.status(summary).await?;
+
+                                match status {
+                                    CommitRelationship::Behind(_, _) => {
+                                        //provider.pull(summary, false).await?;
+                                        todo!();
+                                    }
+                                    CommitRelationship::Diverged(_) => {
+                                        if change
+                                            .changes()
+                                            .iter()
+                                            .any(|c| c == &ChangeEvent::UpdateVault)
+                                        {
+                                            // If the trees have diverged and the other
+                                            // node indicated it did an update to the
+                                            // entire vault then we need a force pull to
+                                            // stay in sync
+                                            //provider.pull(summary, true).await?;
+                                            todo!();
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                                */
+                            }
+                        }
+                        ChangeAction::Remove(_) => {
+                            //provider.remove_local_cache(summary)?;
+                        }
+                        _ => {}
+                    }
+                } else if let ChangeAction::Create(summary) = action {
+                    //provider.add_local_cache(summary.clone()).await?;
+                }
+            }
+
+            Ok(())
+        }
+
+        let local = self.local();
+        self.remote.listen(move |notification| {
+            let cache = Arc::clone(&local);
+            async move {
+                let mut writer = cache.write().await;
+                if let Err(e) =
+                    on_change_notification(&mut writer, notification).await
+                {
+                    tracing::error!(error = ?e, "handle change");
+                }
+            }
+        });
     }
 
     /// Clone of the local provider.

@@ -1,4 +1,5 @@
 //! Remote procedure call (RPC) client implementation.
+use futures::Future;
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use sos_sdk::{
@@ -19,6 +20,13 @@ use sos_sdk::{
     signer::ecdsa::BoxedEcdsaSigner,
     vault::{Summary, VaultId},
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use sos_sdk::events::ChangeNotification;
+
+#[cfg(not(target_arch = "wasm32"))]
+use super::changes::ChangesListener;
+
 use std::{
     borrow::Cow,
     sync::{
@@ -29,7 +37,7 @@ use std::{
 use tokio::sync::{Mutex, RwLock};
 use url::Url;
 
-use crate::client::{Error, Result, Origin};
+use crate::client::{Error, Origin, Result};
 
 use super::{bearer_prefix, encode_signature, AUTHORIZATION};
 
@@ -72,6 +80,24 @@ impl RpcClient {
             client,
             id: Arc::new(Mutex::new(AtomicU64::from(1))),
         })
+    }
+
+    /// Spawn a thread that listens for changes
+    /// from the remote server using a websocket
+    /// that performs automatic re-connection.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn listen<F>(
+        &self,
+        handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
+    ) where
+        F: Future<Output = ()> + 'static,
+    {
+        let listener = ChangesListener::new(
+            self.origin.clone(),
+            self.signer.clone(),
+            self.keypair.clone(),
+        );
+        listener.spawn(handler);
     }
 
     /// Generic GET function.
