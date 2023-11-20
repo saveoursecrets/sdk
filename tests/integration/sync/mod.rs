@@ -10,11 +10,12 @@ use sos_net::{
 use std::path::PathBuf;
 
 mod create_remote_data;
-mod send_create_secret;
-mod send_delete_secret;
-mod send_update_secret;
+mod send_secret_create;
+mod send_secret_update;
+mod send_secret_delete;
 
-mod send_create_folder;
+mod send_folder_create;
+mod send_folder_delete;
 
 /// Get the number of events in a log.
 pub async fn num_events(owner: &mut UserStorage, folder: &VaultId) -> usize {

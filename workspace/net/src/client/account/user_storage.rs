@@ -594,9 +594,16 @@ impl UserStorage {
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
 
+        let options = SecretOptions {
+            folder: Some(summary.clone()),
+            ..Default::default()
+        };
+        let (summary, before_last_commit, before_commit_proof) =
+            self.before_apply_events(&options, false).await?;
+
         let event = {
             let mut writer = self.storage.write().await;
-            writer.remove_vault(summary).await?
+            writer.remove_vault(&summary).await?
         };
         DelegatedPassphrase::remove_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
@@ -606,18 +613,11 @@ impl UserStorage {
         self.index
             .remove_folder_from_search_index(summary.id())
             .await;
-        self.delete_folder_files(summary).await?;
+        self.delete_folder_files(&summary).await?;
 
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
-
-        let options = SecretOptions {
-            folder: Some(summary.clone()),
-            ..Default::default()
-        };
-        let (summary, before_last_commit, before_commit_proof) =
-            self.before_apply_events(&options, false).await?;
 
         let (_, event) = event.try_into()?;
         let sync_error = self
