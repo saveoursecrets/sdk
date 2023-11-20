@@ -13,10 +13,10 @@ use crate::test_utils::{
 
 use super::{assert_local_remote_events_eq, num_events};
 
-/// Tests sending update secret events to a remote.
+/// Tests sending create folder events to a remote.
 #[tokio::test]
 #[serial]
-async fn integration_sync_send_update_events() -> Result<()> {
+async fn integration_sync_send_create_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let dirs = setup(1).await?;
@@ -27,12 +27,12 @@ async fn integration_sync_send_update_events() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, _) = create_local_account(
-        "sync_update_events",
+        "sync_create_folder",
         Some(test_data_dir.clone()),
     )
     .await?;
 
-    // Folders on the local account
+    // Folders on the local account must be loaded into memory
     let expected_summaries: Vec<Summary> = {
         let storage = owner.storage();
         let mut writer = storage.write().await;
@@ -43,6 +43,8 @@ async fn integration_sync_send_update_events() -> Result<()> {
             .map(|s| s.clone())
             .collect()
     };
+
+    let original_summaries_len = expected_summaries.len();
 
     // Path that we expect the remote server to write to
     let server_path = PathBuf::from(format!(
@@ -61,32 +63,29 @@ async fn integration_sync_send_update_events() -> Result<()> {
     let default_folder_id = *default_folder.id();
     owner.open_folder(&default_folder).await?;
 
-    //println!("default folder {}", default_folder_id);
-
     // Before we begin the client should have a single event
     assert_eq!(1, num_events(&mut owner, &default_folder_id).await);
 
     // Sync the local account to create the account on remote
     owner.sync().await?;
-
-    // Create a secret
-    let (meta, secret) = mock_note("note", "secret1");
-    let (id, sync_error) = owner
-        .create_secret(meta, secret, Default::default())
-        .await?;
+    
+    let (new_folder, sync_error) =
+        owner.create_folder("sync_folder".to_string()).await?;
     assert!(sync_error.is_none());
+    
+    // Our new local folder should have the single create vault event
+    assert_eq!(1, num_events(&mut owner, new_folder.id()).await);
 
-    // Should have two events
-    assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
-
-    let (meta, secret) = mock_note("note", "secret1");
-    let (_, sync_error) = owner
-        .update_secret(&id, meta, Some(secret), Default::default(), None)
-        .await?;
-    assert!(sync_error.is_none());
-
-    // Should have three events
-    assert_eq!(3, num_events(&mut owner, &default_folder_id).await);
+    // Expected folders on the local account must be computed 
+    // again after creating the new folder for the assertions
+    let expected_summaries: Vec<Summary> = {
+        let storage = owner.storage();
+        let reader = storage.read().await;
+        reader.state().summaries().to_vec()
+    };
+    
+    // Ensure we have the extra folder summary in memory
+    assert_eq!(original_summaries_len + 1, expected_summaries.len());
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote

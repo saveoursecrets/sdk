@@ -50,7 +50,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     vault.set_name(String::from("Mock vault"));
     let body = encode(&vault).await?;
 
-    let (status, proof) = client.create_vault(body).await?.unwrap();
+    let (status, proof) = client.create_vault(&body).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 

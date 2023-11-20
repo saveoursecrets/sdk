@@ -270,22 +270,23 @@ impl RpcClient {
     /// Create a new vault on a remote node.
     pub async fn create_vault(
         &self,
-        vault: Vec<u8>,
+        vault: &[u8],
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/vault")?;
         let id = self.next_id().await;
+        
         let request = RequestMessage::new(
             Some(id),
             VAULT_CREATE,
             (),
-            Cow::Owned(vault),
+            Cow::Borrowed(vault),
         )?;
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
-
+        
         let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self

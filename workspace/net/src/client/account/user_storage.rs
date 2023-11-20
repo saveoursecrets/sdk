@@ -542,7 +542,10 @@ impl UserStorage {
     }
 
     /// Create a folder.
-    pub async fn create_folder(&mut self, name: String) -> Result<(Summary, Option<Error>)> {
+    pub async fn create_folder(
+        &mut self,
+        name: String,
+    ) -> Result<(Summary, Option<Error>)> {
         let _ = self.sync_lock.lock().await;
 
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
@@ -558,7 +561,7 @@ impl UserStorage {
             key,
         )
         .await?;
-    
+
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
@@ -567,8 +570,8 @@ impl UserStorage {
             folder: Some(summary),
             ..Default::default()
         };
-        let (summary, before_last_commit, before_commit_proof)
-            = self.before_apply_events(&options).await?;
+        let (summary, before_last_commit, before_commit_proof) =
+            self.before_apply_events(&options, false).await?;
 
         let (_, event) = event.try_into()?;
         let sync_error = self
@@ -911,6 +914,7 @@ impl UserStorage {
     async fn before_apply_events(
         &self,
         options: &SecretOptions,
+        apply_changes: bool,
     ) -> Result<(Summary, Option<CommitHash>, CommitProof)> {
         let (folder, mut last_commit, mut commit_proof) = {
             let reader = self.storage.read().await;
@@ -928,30 +932,35 @@ impl UserStorage {
             let commit_proof = event_log.tree().head()?;
             (folder, last_commit, commit_proof)
         };
-
-        match self
-            .sync_before_apply_change(
-                last_commit.as_ref(),
-                &commit_proof,
-                &folder,
-            )
-            .await
-        {
-            Ok(changed) => {
-                // If changes were made we need to re-compute the
-                // proof and last commit
-                if changed {
-                    let reader = self.storage.read().await;
-                    let event_log = reader
-                        .cache()
-                        .get(folder.id())
-                        .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-                    last_commit = event_log.last_commit().await?;
-                    commit_proof = event_log.tree().head()?;
+        
+        // Most sync events should try to apply remote changes 
+        // beforehand but some (such as creating new folders) should 
+        // not as it would just result in a 404
+        if apply_changes {
+            match self
+                .sync_before_apply_change(
+                    last_commit.as_ref(),
+                    &commit_proof,
+                    &folder,
+                )
+                .await
+            {
+                Ok(changed) => {
+                    // If changes were made we need to re-compute the
+                    // proof and last commit
+                    if changed {
+                        let reader = self.storage.read().await;
+                        let event_log = reader
+                            .cache()
+                            .get(folder.id())
+                            .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+                        last_commit = event_log.last_commit().await?;
+                        commit_proof = event_log.tree().head()?;
+                    }
                 }
-            }
-            Err(e) => {
-                tracing::error!(error = ?e, "failed to sync before change");
+                Err(e) => {
+                    tracing::error!(error = ?e, "failed to sync before change");
+                }
             }
         }
 
@@ -968,7 +977,7 @@ impl UserStorage {
         let _ = self.sync_lock.lock().await;
 
         let (folder, before_last_commit, before_commit_proof) =
-            self.before_apply_events(&options).await?;
+            self.before_apply_events(&options, true).await?;
 
         let (id, event, folder) =
             self.add_secret(meta, secret, options, true).await?;
@@ -1143,7 +1152,7 @@ impl UserStorage {
         let _ = self.sync_lock.lock().await;
 
         let (folder, before_last_commit, before_commit_proof) =
-            self.before_apply_events(&options).await?;
+            self.before_apply_events(&options, true).await?;
 
         self.open_folder(&folder).await?;
 
@@ -1322,7 +1331,7 @@ impl UserStorage {
         let _ = self.sync_lock.lock().await;
 
         let (folder, before_last_commit, before_commit_proof) =
-            self.before_apply_events(&options).await?;
+            self.before_apply_events(&options, true).await?;
 
         self.open_folder(&folder).await?;
 

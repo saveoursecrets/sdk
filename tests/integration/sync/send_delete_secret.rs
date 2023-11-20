@@ -16,7 +16,7 @@ use super::{assert_local_remote_events_eq, num_events};
 /// Tests sending delete secret events to a remote.
 #[tokio::test]
 #[serial]
-async fn integration_sync_send_delete_events() -> Result<()> {
+async fn integration_sync_send_delete_secret() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let dirs = setup(1).await?;
@@ -27,7 +27,7 @@ async fn integration_sync_send_delete_events() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, _) = create_local_account(
-        "sync_delete_events",
+        "sync_delete_secret",
         Some(test_data_dir.clone()),
     )
     .await?;

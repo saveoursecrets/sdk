@@ -105,9 +105,9 @@ impl RemoteBridge {
     }
 
     /// Import a vault into an account that already exists on the remote.
-    async fn import_vault(&self, buffer: Vec<u8>) -> Result<()> {
+    async fn import_vault(&self, buffer: &[u8]) -> Result<()> {
         let (status, _) =
-            retry!(|| self.remote.create_vault(buffer.clone()), self.remote);
+            retry!(|| self.remote.create_vault(buffer), self.remote);
         status
             .is_success()
             .then_some(())
@@ -211,7 +211,7 @@ impl RemoteBridge {
                 vfs::read(folder_path).await?
             };
 
-            self.import_vault(folder_buffer).await?;
+            self.import_vault(&folder_buffer).await?;
         }
 
         // FIXME: import files here!
@@ -294,8 +294,33 @@ impl RemoteSync for RemoteBridge {
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
-        self.patch(before_last_commit, before_client_proof, folder, events)
+        let events = events.to_vec();
+        let mut patch_events = Vec::new();
+        let mut new_folders = Vec::new();
+
+        for event in events {
+            match event {
+                WriteEvent::CreateVault(buf) => new_folders.push(buf),
+                _ => patch_events.push(event),
+            }
+        }
+        
+        // New folders must go via the vaults service,
+        // and must not be included in any patch events
+        for buf in new_folders {
+            self.import_vault(buf.as_ref()).await?;
+        }
+        
+        if !patch_events.is_empty() {
+            self.patch(
+                before_last_commit,
+                before_client_proof,
+                folder,
+                patch_events.as_slice(),
+            )
             .await?;
+        }
+
         Ok(())
     }
 

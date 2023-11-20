@@ -18,7 +18,7 @@ use super::{assert_local_remote_events_eq, num_events};
 /// clients.
 #[tokio::test]
 #[serial]
-async fn integration_sync_send_create_events() -> Result<()> {
+async fn integration_sync_send_create_secret() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
@@ -37,7 +37,7 @@ async fn integration_sync_send_create_events() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, passphrase) = create_local_account(
-        "sync_create_events",
+        "sync_create_secret",
         Some(test_data_dir.clone()),
     )
     .await?;
