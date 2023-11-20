@@ -161,8 +161,7 @@ impl LocalProvider {
         // Save the default vault
         let buffer = encode(&account.default_vault).await?;
 
-        let (event, summary) =
-            self.upsert_vault_buffer(buffer).await?;
+        let (event, summary) = self.upsert_vault_buffer(buffer).await?;
         events.push(Event::Write(*summary.id(), event.into_owned()));
 
         let archive = if let Some(archive_vault) = &account.archive {
@@ -531,7 +530,7 @@ impl LocalProvider {
         let exists = self.state().find(|s| s.id() == vault.id()).is_some();
 
         let summary = vault.summary().clone();
-        
+
         // Always write out the updated buffer
         if self.state().mirror() {
             self.write_vault_file(&summary, &buffer).await?;
@@ -547,12 +546,16 @@ impl LocalProvider {
 
         Ok(if !exists {
             (
-                WriteEvent::CreateVault(Cow::Owned(buffer.as_ref().to_owned())),
+                WriteEvent::CreateVault(Cow::Owned(
+                    buffer.as_ref().to_owned(),
+                )),
                 summary,
             )
         } else {
             (
-                WriteEvent::UpdateVault(Cow::Owned(buffer.as_ref().to_owned())),
+                WriteEvent::UpdateVault(Cow::Owned(
+                    buffer.as_ref().to_owned(),
+                )),
                 summary,
             )
         })

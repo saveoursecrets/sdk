@@ -20,7 +20,7 @@ use super::{assert_local_remote_events_eq, num_events};
 /// Tests sending delete folder events to a remote.
 #[tokio::test]
 #[serial]
-async fn integration_sync_send_delete_folder() -> Result<()> {
+async fn integration_sync_delete_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let dirs = setup(1).await?;

@@ -16,7 +16,7 @@ use super::{assert_local_remote_events_eq, num_events};
 /// Tests sending update secret events to a remote.
 #[tokio::test]
 #[serial]
-async fn integration_sync_send_update_secret() -> Result<()> {
+async fn integration_sync_update_secret() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let dirs = setup(1).await?;

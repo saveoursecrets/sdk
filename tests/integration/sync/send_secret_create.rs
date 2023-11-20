@@ -18,7 +18,7 @@ use super::{assert_local_remote_events_eq, num_events};
 /// clients.
 #[tokio::test]
 #[serial]
-async fn integration_sync_send_create_secret() -> Result<()> {
+async fn integration_sync_create_secret() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients

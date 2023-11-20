@@ -17,6 +17,7 @@ mod send_secret_update;
 mod send_folder_create;
 mod send_folder_delete;
 mod send_folder_import;
+mod send_folder_rename;
 
 /// Get the number of events in a log.
 pub async fn num_events(owner: &mut UserStorage, folder: &VaultId) -> usize {

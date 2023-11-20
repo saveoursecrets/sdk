@@ -639,13 +639,20 @@ impl UserStorage {
         &mut self,
         summary: &Summary,
         name: String,
-    ) -> Result<()> {
+    ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
+
+        let options = SecretOptions {
+            folder: Some(summary.clone()),
+            ..Default::default()
+        };
+        let (summary, before_last_commit, before_commit_proof) =
+            self.before_apply_events(&options, false).await?;
 
         // Update the provider
         let event = {
             let mut writer = self.storage.write().await;
-            writer.set_vault_name(summary, &name).await?
+            writer.set_vault_name(&summary, &name).await?
         };
 
         // Now update the in-memory name for the current selected vault
@@ -661,7 +668,7 @@ impl UserStorage {
         // Update the vault on disc
         let vault_path = {
             let reader = self.storage.read().await;
-            reader.vault_path(summary)
+            reader.vault_path(&summary)
         };
         let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
@@ -671,7 +678,18 @@ impl UserStorage {
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
-        Ok(())
+        let (_, event) = event.try_into()?;
+        let sync_error = self
+            .sync_send_events(
+                before_last_commit.as_ref(),
+                &before_commit_proof,
+                &summary,
+                &[event],
+            )
+            .await
+            .err();
+
+        Ok(sync_error)
     }
 
     /// Export a folder (vault).
@@ -869,11 +887,11 @@ impl UserStorage {
 
         // Ensure the imported secrets are in the search index
         self.index.add_folder_to_search_index(vault, key).await?;
-        
+
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
-        
+
         let options = SecretOptions {
             folder: Some(summary.clone()),
             ..Default::default()

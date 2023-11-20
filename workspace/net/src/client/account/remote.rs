@@ -323,7 +323,9 @@ impl RemoteSync for RemoteBridge {
         for event in events {
             match event {
                 WriteEvent::CreateVault(buf) => create_folders.push(buf),
-                WriteEvent::UpdateVault(buf) => update_folders.push((folder.id(), buf)),
+                WriteEvent::UpdateVault(buf) => {
+                    update_folders.push((folder.id(), buf))
+                }
                 WriteEvent::DeleteVault => delete_folders.push(folder.id()),
                 _ => patch_events.push(event),
             }

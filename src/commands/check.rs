@@ -2,7 +2,9 @@ use clap::Subcommand;
 use std::path::PathBuf;
 
 use sos_net::sdk::{
-    commit::{event_log_commit_tree_file, vault_commit_tree_file, CommitHash},
+    commit::{
+        event_log_commit_tree_file, vault_commit_tree_file, CommitHash,
+    },
     events::{EventLogFile, EventRecord},
     formats::vault_stream,
     hex,
