@@ -150,7 +150,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 return Err(Error::FolderExists(name));
             }
 
-            let summary = writer.create_folder(name).await?;
+            let (summary, _) = writer.create_folder(name).await?;
             println!("Folder created ✓");
             drop(writer);
             if cwd {

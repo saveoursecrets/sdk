@@ -542,7 +542,7 @@ impl UserStorage {
     }
 
     /// Create a folder.
-    pub async fn create_folder(&mut self, name: String) -> Result<Summary> {
+    pub async fn create_folder(&mut self, name: String) -> Result<(Summary, Option<Error>)> {
         let _ = self.sync_lock.lock().await;
 
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
@@ -558,12 +558,30 @@ impl UserStorage {
             key,
         )
         .await?;
-
+    
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
-        Ok(summary)
+        let options = SecretOptions {
+            folder: Some(summary),
+            ..Default::default()
+        };
+        let (summary, before_last_commit, before_commit_proof)
+            = self.before_apply_events(&options).await?;
+
+        let (_, event) = event.try_into()?;
+        let sync_error = self
+            .sync_send_events(
+                before_last_commit.as_ref(),
+                &before_commit_proof,
+                &summary,
+                &[event],
+            )
+            .await
+            .err();
+
+        Ok((summary, sync_error))
     }
 
     /// Delete a folder.
