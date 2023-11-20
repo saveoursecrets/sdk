@@ -2,7 +2,8 @@ use clap::Subcommand;
 use std::path::PathBuf;
 
 use sos_net::sdk::{
-    commit::{event_log_commit_tree_file, vault_commit_tree_file},
+    commit::{event_log_commit_tree_file, vault_commit_tree_file, CommitHash},
+    events::{EventLogFile, EventRecord},
     formats::vault_stream,
     hex,
     uuid::Uuid,
@@ -42,6 +43,15 @@ pub enum Command {
         /// Log file path.
         file: PathBuf,
     },
+    /// Print event log records.
+    Events {
+        /// Reverse the iteration direction.
+        #[clap(short, long)]
+        reverse: bool,
+
+        /// Log file path.
+        file: PathBuf,
+    },
 }
 
 pub async fn run(cmd: Command) -> Result<()> {
@@ -53,6 +63,9 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Keys { file } => keys(file).await?,
         Command::Log { verbose, file } => {
             verify_log(file, verbose).await?;
+        }
+        Command::Events { file, reverse } => {
+            print_events(file, reverse).await?;
         }
     }
 
@@ -91,6 +104,35 @@ async fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
         }
     }
     println!("Verified {} commit(s) ✓", tree.len());
+    Ok(())
+}
+
+/// Print the events of a log file.
+async fn print_events(file: PathBuf, reverse: bool) -> Result<()> {
+    if !vfs::metadata(&file).await?.is_file() {
+        return Err(Error::NotFile(file));
+    }
+
+    let event_log = EventLogFile::new(&file).await?;
+    let mut it = if reverse {
+        event_log.iter().await?.rev()
+    } else {
+        event_log.iter().await?
+    };
+    let divider = "-".repeat(80);
+
+    while let Some(record) = it.next_entry().await? {
+        println!("{}", divider);
+        println!("  time: {}", record.time());
+        println!("before: {}", CommitHash(record.last_commit()));
+        println!("commit: {}", CommitHash(record.commit()));
+        let event_buffer = event_log.read_event_buffer(&record).await?;
+        let event_record: EventRecord = (record, event_buffer).into();
+        let event = event_record.decode_event().await?;
+        println!(" event: {}", event.event_kind());
+    }
+    println!("{}", divider);
+
     Ok(())
 }
 
