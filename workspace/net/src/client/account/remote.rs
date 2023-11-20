@@ -113,6 +113,17 @@ impl RemoteBridge {
         Ok(())
     }
 
+    /// Update a vault.
+    async fn update_vault(&self, id: &VaultId, buffer: &[u8]) -> Result<()> {
+        let (status, _) =
+            retry!(|| self.remote.update_vault(id, buffer), self.remote);
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+        Ok(())
+    }
+
     /// Import a vault into an account that already exists on the remote.
     async fn delete_vault(&self, id: &VaultId) -> Result<()> {
         let (status, _) =
@@ -306,11 +317,13 @@ impl RemoteSync for RemoteBridge {
         let events = events.to_vec();
         let mut patch_events = Vec::new();
         let mut create_folders = Vec::new();
+        let mut update_folders = Vec::new();
         let mut delete_folders = Vec::new();
 
         for event in events {
             match event {
                 WriteEvent::CreateVault(buf) => create_folders.push(buf),
+                WriteEvent::UpdateVault(buf) => update_folders.push((folder.id(), buf)),
                 WriteEvent::DeleteVault => delete_folders.push(folder.id()),
                 _ => patch_events.push(event),
             }
@@ -320,6 +333,12 @@ impl RemoteSync for RemoteBridge {
         // and must not be included in any patch events
         for buf in create_folders {
             self.import_vault(buf.as_ref())
+                .await
+                .map_err(SyncError::One)?;
+        }
+
+        for (id, buf) in update_folders {
+            self.update_vault(id, buf.as_ref())
                 .await
                 .map_err(SyncError::One)?;
         }

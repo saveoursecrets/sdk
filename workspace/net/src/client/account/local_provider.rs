@@ -162,7 +162,7 @@ impl LocalProvider {
         let buffer = encode(&account.default_vault).await?;
 
         let (event, summary) =
-            self.create_account_from_buffer(buffer).await?;
+            self.upsert_vault_buffer(buffer).await?;
         events.push(Event::Write(*summary.id(), event.into_owned()));
 
         let archive = if let Some(archive_vault) = &account.archive {
@@ -441,7 +441,7 @@ impl LocalProvider {
         &mut self,
         buffer: impl AsRef<[u8]>,
     ) -> Result<(WriteEvent<'static>, Summary)> {
-        self.create_account_from_buffer(buffer).await
+        self.upsert_vault_buffer(buffer).await
     }
 
     /// Remove a vault file and event log file.
@@ -517,28 +517,41 @@ impl LocalProvider {
         self.create_vault_or_account(Some(name), key, false).await
     }
 
-    /// Create a new account using the given vault buffer.
-    pub async fn create_account_from_buffer(
+    /// Create or update a vault.
+    async fn upsert_vault_buffer(
         &mut self,
         buffer: impl AsRef<[u8]>,
     ) -> Result<(WriteEvent<'static>, Summary)> {
         let vault: Vault = decode(buffer.as_ref()).await?;
-        let summary = vault.summary().clone();
 
+        let exists = self.state().find(|s| s.id() == vault.id()).is_some();
+
+        let summary = vault.summary().clone();
+        
+        // Always write out the updated buffer
         if self.state().mirror() {
             self.write_vault_file(&summary, &buffer).await?;
         }
 
-        // Add the summary to the vaults we are managing
-        self.state_mut().add_summary(summary.clone());
+        if !exists {
+            // Add the summary to the vaults we are managing
+            self.state_mut().add_summary(summary.clone());
+        }
 
         // Initialize the local cache for event log
         self.create_cache_entry(&summary, Some(vault)).await?;
-
-        Ok((
-            WriteEvent::CreateVault(Cow::Owned(buffer.as_ref().to_owned())),
-            summary,
-        ))
+        
+        Ok(if !exists {
+            (
+                WriteEvent::CreateVault(Cow::Owned(buffer.as_ref().to_owned())),
+                summary,
+            )
+        } else {
+            (
+                WriteEvent::UpdateVault(Cow::Owned(buffer.as_ref().to_owned())),
+                summary,
+            )
+        })
     }
 
     /// Update an existing vault by replacing it with a new vault.

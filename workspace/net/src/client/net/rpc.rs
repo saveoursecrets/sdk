@@ -269,7 +269,7 @@ impl RpcClient {
     /// Create a new vault on a remote node.
     pub async fn create_vault(
         &self,
-        vault: &[u8],
+        vault: impl AsRef<[u8]>,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/vault")?;
         let id = self.next_id().await;
@@ -278,7 +278,7 @@ impl RpcClient {
             Some(id),
             VAULT_CREATE,
             (),
-            Cow::Borrowed(vault),
+            Cow::Borrowed(vault.as_ref()),
         )?;
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
@@ -328,10 +328,10 @@ impl RpcClient {
     /// This should be used when the commit tree has been
     /// rewritten, for example if the history was compacted
     /// or the password for a vault was changed.
-    pub async fn save_vault(
+    pub async fn update_vault(
         &self,
         vault_id: &VaultId,
-        vault: Vec<u8>,
+        vault: impl AsRef<[u8]>,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let vault_id = *vault_id;
         let url = self.server.join("api/vault")?;
@@ -345,7 +345,7 @@ impl RpcClient {
             Some(id),
             VAULT_SAVE,
             vault_id,
-            Cow::Owned(vault),
+            Cow::Borrowed(vault.as_ref()),
         )?;
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;

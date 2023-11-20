@@ -62,7 +62,7 @@ async fn integration_auth_session_negotiate() -> Result<()> {
     let name = "New vault name";
     vault.set_name(String::from(name));
     let body = encode(&vault).await?;
-    let (status, proof) = client.save_vault(vault.id(), body).await?.unwrap();
+    let (status, proof) = client.update_vault(vault.id(), body).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 

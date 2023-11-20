@@ -750,7 +750,7 @@ impl UserStorage {
         path: P,
         key: AccessKey,
         overwrite: bool,
-    ) -> Result<Summary> {
+    ) -> Result<(Summary, Option<SyncError>)> {
         let buffer = vfs::read(path.as_ref()).await?;
         self.import_folder_buffer(&buffer, key, overwrite).await
     }
@@ -758,13 +758,13 @@ impl UserStorage {
     /// Import a folder (vault) from a buffer.
     pub async fn import_folder_buffer(
         &mut self,
-        buffer: &[u8],
+        buffer: impl AsRef<[u8]>,
         key: AccessKey,
         overwrite: bool,
-    ) -> Result<Summary> {
+    ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let mut vault: Vault = decode(&buffer).await?;
+        let mut vault: Vault = decode(buffer.as_ref()).await?;
 
         // Need to verify the passphrase
         vault.verify(&key).await?;
@@ -817,16 +817,14 @@ impl UserStorage {
                 // Need to update the buffer as we changed the data
                 Cow::Owned(encode(&vault).await?)
             } else {
-                Cow::Borrowed(buffer)
+                Cow::Borrowed(buffer.as_ref())
             };
 
-        let summary = vault.summary().clone();
-
         // Import the vault
-        {
+        let (event, summary) = {
             let mut writer = self.storage.write().await;
-            writer.import_vault(buffer.as_ref()).await?;
-        }
+            writer.import_vault(buffer.as_ref()).await?
+        };
 
         // If we are overwriting then we must remove the existing
         // vault passphrase so we can save it using the passphrase
@@ -871,15 +869,30 @@ impl UserStorage {
 
         // Ensure the imported secrets are in the search index
         self.index.add_folder_to_search_index(vault, key).await?;
-
-        let audit_event = AuditEvent::new(
-            EventKind::ImportVault,
-            self.address().clone(),
-            Some(AuditData::Vault(*summary.id())),
-        );
+        
+        let event = Event::Write(*summary.id(), event);
+        let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
+        
+        let options = SecretOptions {
+            folder: Some(summary.clone()),
+            ..Default::default()
+        };
+        let (summary, before_last_commit, before_commit_proof) =
+            self.before_apply_events(&options, false).await?;
 
-        Ok(summary)
+        let (_, event) = event.try_into()?;
+        let sync_error = self
+            .sync_send_events(
+                before_last_commit.as_ref(),
+                &before_commit_proof,
+                &summary,
+                &[event],
+            )
+            .await
+            .err();
+
+        Ok((summary, sync_error))
     }
 
     /// Open a vault.
