@@ -68,22 +68,22 @@ async fn integration_sync_send_create_folder() -> Result<()> {
 
     // Sync the local account to create the account on remote
     owner.sync().await?;
-    
+
     let (new_folder, sync_error) =
         owner.create_folder("sync_folder".to_string()).await?;
     assert!(sync_error.is_none());
-    
+
     // Our new local folder should have the single create vault event
     assert_eq!(1, num_events(&mut owner, new_folder.id()).await);
 
-    // Expected folders on the local account must be computed 
+    // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
     let expected_summaries: Vec<Summary> = {
         let storage = owner.storage();
         let reader = storage.read().await;
         reader.state().summaries().to_vec()
     };
-    
+
     // Ensure we have the extra folder summary in memory
     assert_eq!(original_summaries_len + 1, expected_summaries.len());
 

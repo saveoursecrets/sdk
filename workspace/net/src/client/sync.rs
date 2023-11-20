@@ -1,4 +1,4 @@
-use super::Result;
+use super::{Error, Result};
 use async_trait::async_trait;
 use sos_sdk::{
     commit::{CommitHash, CommitProof},
@@ -40,7 +40,7 @@ pub trait RemoteSync: Sync + Send + Any {
         before_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
-    ) -> Result<()>;
+    ) -> std::result::Result<(), Vec<Error>>;
 
     /// Receive events from changes to remote storage.
     async fn sync_receive_events(

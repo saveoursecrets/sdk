@@ -17,7 +17,7 @@ use sos_sdk::{
     },
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
     signer::ecdsa::BoxedEcdsaSigner,
-    vault::Summary,
+    vault::{Summary, VaultId},
 };
 use std::{
     borrow::Cow,
@@ -28,7 +28,6 @@ use std::{
 };
 use tokio::sync::{Mutex, RwLock};
 use url::Url;
-use uuid::Uuid;
 
 use crate::client::{Error, Result};
 
@@ -274,7 +273,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.server.join("api/vault")?;
         let id = self.next_id().await;
-        
+
         let request = RequestMessage::new(
             Some(id),
             VAULT_CREATE,
@@ -286,7 +285,7 @@ impl RpcClient {
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
-        
+
         let response = self.send_request(url, signature, body).await?;
 
         let maybe_retry = self
@@ -301,7 +300,7 @@ impl RpcClient {
     /// Delete a vault on a remote node.
     pub async fn delete_vault(
         &self,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let vault_id = *vault_id;
         let url = self.server.join("api/vault")?;
@@ -331,7 +330,7 @@ impl RpcClient {
     /// or the password for a vault was changed.
     pub async fn save_vault(
         &self,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         vault: Vec<u8>,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let vault_id = *vault_id;
@@ -372,7 +371,7 @@ impl RpcClient {
     /// a buffer that can be decoded to a `Patch`.
     pub async fn diff(
         &self,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         last_commit: &CommitHash,
         proof: &CommitProof,
     ) -> Result<MaybeRetry<(usize, Vec<u8>)>> {
@@ -399,7 +398,7 @@ impl RpcClient {
     /// TODO: remove the Option from the body return value???
     pub async fn load_event_log(
         &self,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         proof: Option<CommitProof>,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<Vec<u8>>)>> {
         let url = self.server.join("api/events")?;
@@ -423,7 +422,7 @@ impl RpcClient {
     /// Get the commit proof of a vault on a remote node.
     pub async fn status(
         &self,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         proof: Option<CommitProof>,
     ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
         let url = self.server.join("api/events")?;
@@ -451,7 +450,7 @@ impl RpcClient {
     /// TODO: remove the Option from the server_proof ???
     pub async fn apply_patch(
         &self,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         before_proof: &CommitProof,
         patch: &Patch,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<CommitProof>)>> {
@@ -490,7 +489,7 @@ impl RpcClient {
     /// TODO: remove the Option from the return value ???
     pub async fn save_event_log(
         &self,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         proof: CommitProof,
         body: Vec<u8>,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {

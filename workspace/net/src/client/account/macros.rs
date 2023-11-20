@@ -1,7 +1,7 @@
 //! Macro utilities for network connections.
 
 /// Retry a request after renewing a session if an
-/// UNAUTHORIZED response is returned,
+/// UNAUTHORIZED response is returned.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! retry {

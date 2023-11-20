@@ -545,7 +545,7 @@ impl UserStorage {
     pub async fn create_folder(
         &mut self,
         name: String,
-    ) -> Result<(Summary, Option<Error>)> {
+    ) -> Result<(Summary, Option<Vec<Error>>)> {
         let _ = self.sync_lock.lock().await;
 
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
@@ -588,7 +588,10 @@ impl UserStorage {
     }
 
     /// Delete a folder.
-    pub async fn delete_folder(&mut self, summary: &Summary) -> Result<()> {
+    pub async fn delete_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<Option<Vec<Error>>> {
         let _ = self.sync_lock.lock().await;
 
         let event = {
@@ -609,7 +612,25 @@ impl UserStorage {
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
-        Ok(())
+        let options = SecretOptions {
+            folder: Some(summary.clone()),
+            ..Default::default()
+        };
+        let (summary, before_last_commit, before_commit_proof) =
+            self.before_apply_events(&options, false).await?;
+
+        let (_, event) = event.try_into()?;
+        let sync_error = self
+            .sync_send_events(
+                before_last_commit.as_ref(),
+                &before_commit_proof,
+                &summary,
+                &[event],
+            )
+            .await
+            .err();
+
+        Ok(sync_error)
     }
 
     /// Rename a folder.
@@ -932,9 +953,9 @@ impl UserStorage {
             let commit_proof = event_log.tree().head()?;
             (folder, last_commit, commit_proof)
         };
-        
-        // Most sync events should try to apply remote changes 
-        // beforehand but some (such as creating new folders) should 
+
+        // Most sync events should try to apply remote changes
+        // beforehand but some (such as creating new folders) should
         // not as it would just result in a 404
         if apply_changes {
             match self
@@ -973,7 +994,7 @@ impl UserStorage {
         meta: SecretMeta,
         secret: Secret,
         options: SecretOptions,
-    ) -> Result<(SecretId, Option<Error>)> {
+    ) -> Result<(SecretId, Option<Vec<Error>>)> {
         let _ = self.sync_lock.lock().await;
 
         let (folder, before_last_commit, before_commit_proof) =
@@ -1126,7 +1147,7 @@ impl UserStorage {
         path: P,
         options: SecretOptions,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, Option<Error>)> {
+    ) -> Result<(SecretId, Option<Vec<Error>>)> {
         let path = path.as_ref().to_path_buf();
         let secret: Secret = path.try_into()?;
         self.update_secret(
@@ -1148,7 +1169,7 @@ impl UserStorage {
         //folder: Option<Summary>,
         mut options: SecretOptions,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, Option<Error>)> {
+    ) -> Result<(SecretId, Option<Vec<Error>>)> {
         let _ = self.sync_lock.lock().await;
 
         let (folder, before_last_commit, before_commit_proof) =
@@ -1327,7 +1348,7 @@ impl UserStorage {
         &mut self,
         secret_id: &SecretId,
         mut options: SecretOptions,
-    ) -> Result<Option<Error>> {
+    ) -> Result<Option<Vec<Error>>> {
         let _ = self.sync_lock.lock().await;
 
         let (folder, before_last_commit, before_commit_proof) =
@@ -2069,19 +2090,26 @@ impl RemoteSync for UserStorage {
         before_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
-    ) -> Result<()> {
+    ) -> std::result::Result<(), Vec<Error>> {
         let _ = self.sync_lock.lock().await;
+        let mut errors = Vec::new();
         for remote in self.remotes.values() {
-            remote
+            if let Err(mut errs) = remote
                 .sync_send_events(
                     before_last_commit,
                     before_client_proof,
                     folder,
                     events,
                 )
-                .await?;
+                .await {
+                errors.append(&mut errs);
+            }
         }
-        Ok(())
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 
     async fn sync_receive_events(

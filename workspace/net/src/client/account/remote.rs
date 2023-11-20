@@ -15,7 +15,7 @@ use sos_sdk::{
     mpc::Keypair,
     signer::ecdsa::BoxedEcdsaSigner,
     url::Url,
-    vault::Summary,
+    vault::{Summary, VaultId},
     vfs,
 };
 
@@ -95,12 +95,10 @@ impl RemoteBridge {
             || self.remote.create_account(buffer.clone()),
             self.remote
         );
-
         status
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
-
         Ok(())
     }
 
@@ -108,6 +106,17 @@ impl RemoteBridge {
     async fn import_vault(&self, buffer: &[u8]) -> Result<()> {
         let (status, _) =
             retry!(|| self.remote.create_vault(buffer), self.remote);
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+        Ok(())
+    }
+
+    /// Import a vault into an account that already exists on the remote.
+    async fn delete_vault(&self, id: &VaultId) -> Result<()> {
+        let (status, _) =
+            retry!(|| self.remote.delete_vault(id), self.remote);
         status
             .is_success()
             .then_some(())
@@ -293,24 +302,30 @@ impl RemoteSync for RemoteBridge {
         before_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
-    ) -> Result<()> {
+    ) -> std::result::Result<(), Vec<Error>> {
         let events = events.to_vec();
         let mut patch_events = Vec::new();
-        let mut new_folders = Vec::new();
+        let mut create_folders = Vec::new();
+        let mut delete_folders = Vec::new();
 
         for event in events {
             match event {
-                WriteEvent::CreateVault(buf) => new_folders.push(buf),
+                WriteEvent::CreateVault(buf) => create_folders.push(buf),
+                WriteEvent::DeleteVault => delete_folders.push(folder.id()),
                 _ => patch_events.push(event),
             }
         }
-        
+
         // New folders must go via the vaults service,
         // and must not be included in any patch events
-        for buf in new_folders {
-            self.import_vault(buf.as_ref()).await?;
+        for buf in create_folders {
+            self.import_vault(buf.as_ref()).await.map_err(|e| vec![e])?;
         }
-        
+
+        for id in delete_folders {
+            self.delete_vault(id).await.map_err(|e| vec![e])?;
+        }
+
         if !patch_events.is_empty() {
             self.patch(
                 before_last_commit,
@@ -318,7 +333,7 @@ impl RemoteSync for RemoteBridge {
                 folder,
                 patch_events.as_slice(),
             )
-            .await?;
+            .await.map_err(|e| vec![e])?;
         }
 
         Ok(())
