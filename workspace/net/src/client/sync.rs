@@ -1,4 +1,4 @@
-use super::{Error, Result, Origin};
+use super::{Error, Origin, Result};
 use async_trait::async_trait;
 use sos_sdk::{
     commit::{CommitHash, CommitProof},
@@ -7,7 +7,7 @@ use sos_sdk::{
 };
 use std::any::Any;
 
-/// Enumeration of error types that can be returned 
+/// Enumeration of error types that can be returned
 /// from a sync operation.
 pub enum SyncError {
     /// Single remote error.

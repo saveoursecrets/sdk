@@ -336,10 +336,10 @@ impl LocalProvider {
     pub async fn write_vault_file(
         &self,
         summary: &Summary,
-        buffer: &[u8],
+        buffer: impl AsRef<[u8]>,
     ) -> Result<()> {
         let vault_path = self.vault_path(&summary);
-        vfs::write(vault_path, buffer).await?;
+        vfs::write(vault_path, buffer.as_ref()).await?;
         Ok(())
     }
 
@@ -439,7 +439,7 @@ impl LocalProvider {
     /// Import a vault into an existing account.
     pub async fn import_vault(
         &mut self,
-        buffer: Vec<u8>,
+        buffer: impl AsRef<[u8]>,
     ) -> Result<(WriteEvent<'static>, Summary)> {
         self.create_account_from_buffer(buffer).await
     }
@@ -520,9 +520,9 @@ impl LocalProvider {
     /// Create a new account using the given vault buffer.
     pub async fn create_account_from_buffer(
         &mut self,
-        buffer: Vec<u8>,
+        buffer: impl AsRef<[u8]>,
     ) -> Result<(WriteEvent<'static>, Summary)> {
-        let vault: Vault = decode(&buffer).await?;
+        let vault: Vault = decode(buffer.as_ref()).await?;
         let summary = vault.summary().clone();
 
         if self.state().mirror() {
@@ -535,7 +535,10 @@ impl LocalProvider {
         // Initialize the local cache for event log
         self.create_cache_entry(&summary, Some(vault)).await?;
 
-        Ok((WriteEvent::CreateVault(Cow::Owned(buffer)), summary))
+        Ok((
+            WriteEvent::CreateVault(Cow::Owned(buffer.as_ref().to_owned())),
+            summary,
+        ))
     }
 
     /// Update an existing vault by replacing it with a new vault.

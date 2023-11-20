@@ -4,11 +4,7 @@ use std::path::PathBuf;
 
 use sos_net::{
     client::{RemoteBridge, RemoteSync},
-    sdk::{
-        constants::{EVENT_LOG_EXT, VAULT_EXT},
-        vault::Summary,
-        vfs,
-    },
+    sdk::vault::Summary,
 };
 
 use crate::test_utils::{
@@ -17,10 +13,10 @@ use crate::test_utils::{
 
 use super::{assert_local_remote_events_eq, num_events};
 
-/// Tests sending delete folder events to a remote.
+/// Tests sending import folder events to a remote.
 #[tokio::test]
 #[serial]
-async fn integration_sync_send_delete_folder() -> Result<()> {
+async fn integration_sync_send_import_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let dirs = setup(1).await?;
@@ -31,7 +27,7 @@ async fn integration_sync_send_delete_folder() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, _) = create_local_account(
-        "sync_delete_folder",
+        "sync_import_folder",
         Some(test_data_dir.clone()),
     )
     .await?;
@@ -55,7 +51,6 @@ async fn integration_sync_send_delete_folder() -> Result<()> {
         "target/integration-test/server/{}",
         owner.address()
     ));
-    let address = owner.address().to_string();
 
     // Create the remote provider
     let origin = origin();
@@ -74,41 +69,41 @@ async fn integration_sync_send_delete_folder() -> Result<()> {
     // Sync the local account to create the account on remote
     owner.sync().await?;
 
-    let (new_folder, sync_error) = owner
-        .create_folder("sync_delete_folder".to_string())
-        .await?;
+    /*
+    let (new_folder, sync_error) =
+        owner.create_folder("sync_folder".to_string()).await?;
     assert!(sync_error.is_none());
 
     // Our new local folder should have the single create vault event
     assert_eq!(1, num_events(&mut owner, new_folder.id()).await);
 
-    let sync_error = owner.delete_folder(&new_folder).await?;
-    assert!(sync_error.is_none());
-
-    let updated_summaries: Vec<Summary> = {
+    // Expected folders on the local account must be computed
+    // again after creating the new folder for the assertions
+    let expected_summaries: Vec<Summary> = {
         let storage = owner.storage();
         let reader = storage.read().await;
         reader.state().summaries().to_vec()
     };
 
-    assert_eq!(expected_summaries.len(), updated_summaries.len());
+    // Ensure we have the extra folder summary in memory
+    assert_eq!(original_summaries_len + 1, expected_summaries.len());
 
-    let expected_vault_file = server_path.join(&address).join(format!(
-        "{}.{}",
-        new_folder.id(),
-        VAULT_EXT
-    ));
+    // Get the remote out of the owner so we can
+    // assert on equality between local and remote
+    let mut provider = owner.delete_remote(&remote_origin).unwrap();
+    let remote_provider = provider
+        .as_any_mut()
+        .downcast_mut::<RemoteBridge>()
+        .expect("to be a remote provider");
 
-    let expected_event_file = server_path.join(&address).join(format!(
-        "{}.{}",
-        new_folder.id(),
-        EVENT_LOG_EXT
-    ));
-
-    let vault_exists = vfs::try_exists(expected_vault_file).await?;
-    assert!(!vault_exists);
-    let event_exists = vfs::try_exists(expected_event_file).await?;
-    assert!(!event_exists);
+    assert_local_remote_events_eq(
+        expected_summaries.clone(),
+        &server_path,
+        &mut owner,
+        remote_provider,
+    )
+    .await?;
+    */
 
     Ok(())
 }

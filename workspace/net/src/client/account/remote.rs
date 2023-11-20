@@ -319,7 +319,9 @@ impl RemoteSync for RemoteBridge {
         // New folders must go via the vaults service,
         // and must not be included in any patch events
         for buf in create_folders {
-            self.import_vault(buf.as_ref()).await.map_err(SyncError::One)?;
+            self.import_vault(buf.as_ref())
+                .await
+                .map_err(SyncError::One)?;
         }
 
         for id in delete_folders {
@@ -333,7 +335,8 @@ impl RemoteSync for RemoteBridge {
                 folder,
                 patch_events.as_slice(),
             )
-            .await.map_err(SyncError::One)?;
+            .await
+            .map_err(SyncError::One)?;
         }
 
         Ok(())

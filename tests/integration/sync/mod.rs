@@ -11,11 +11,12 @@ use std::path::PathBuf;
 
 mod create_remote_data;
 mod send_secret_create;
-mod send_secret_update;
 mod send_secret_delete;
+mod send_secret_update;
 
 mod send_folder_create;
 mod send_folder_delete;
+mod send_folder_import;
 
 /// Get the number of events in a log.
 pub async fn num_events(owner: &mut UserStorage, folder: &VaultId) -> usize {

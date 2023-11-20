@@ -1,6 +1,7 @@
 //! Network aware user storage and search index.
 use std::{
     any::Any,
+    borrow::Cow,
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
@@ -42,8 +43,8 @@ use tokio::{
 };
 
 use crate::client::{
-    Error, LocalProvider, Origin, Remote, RemoteBridge, Remotes, Result,
-    SyncError, RemoteSync,
+    Error, LocalProvider, Origin, Remote, RemoteBridge, RemoteSync, Remotes,
+    Result, SyncError,
 };
 use async_trait::async_trait;
 
@@ -811,12 +812,12 @@ impl UserStorage {
             vault.set_default_flag(false);
         }
 
-        let buffer =
+        let buffer: Cow<[u8]> =
             if has_id_changed || has_name_changed || remove_default_flag {
                 // Need to update the buffer as we changed the data
-                encode(&vault).await?
+                Cow::Owned(encode(&vault).await?)
             } else {
-                buffer.to_vec()
+                Cow::Borrowed(buffer)
             };
 
         let summary = vault.summary().clone();
@@ -824,7 +825,7 @@ impl UserStorage {
         // Import the vault
         {
             let mut writer = self.storage.write().await;
-            writer.import_vault(buffer).await?;
+            writer.import_vault(buffer.as_ref()).await?;
         }
 
         // If we are overwriting then we must remove the existing
@@ -2101,7 +2102,8 @@ impl RemoteSync for UserStorage {
                     folder,
                     events,
                 )
-                .await {
+                .await
+            {
                 match e {
                     SyncError::One(e) => errors.push((origin.clone(), e)),
                     SyncError::Multiple(mut errs) => errors.append(&mut errs),
