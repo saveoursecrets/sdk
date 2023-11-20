@@ -272,6 +272,10 @@ impl LocalProvider {
         let mut event_log = EventLogFile::new(&event_log_path).await?;
 
         if let Some(vault) = &vault {
+            // Must truncate the event log so that importing vaults
+            // does not end up with multiple create vault events
+            event_log.truncate().await?;
+
             let encoded = encode(vault).await?;
             let event = WriteEvent::CreateVault(Cow::Owned(encoded));
             event_log.append_event(event).await?;
@@ -540,7 +544,7 @@ impl LocalProvider {
 
         // Initialize the local cache for event log
         self.create_cache_entry(&summary, Some(vault)).await?;
-        
+
         Ok(if !exists {
             (
                 WriteEvent::CreateVault(Cow::Owned(buffer.as_ref().to_owned())),

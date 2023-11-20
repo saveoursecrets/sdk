@@ -419,6 +419,22 @@ impl EventLogFile {
 
         Ok(Patch(events))
     }
+
+    /// Truncate the backing storage to an empty file.
+    pub async fn truncate(&mut self) -> Result<()> {
+        // Workaround for set_len(0) failing with "Access Denied" on Windows
+        // SEE: https://github.com/rust-lang/rust/issues/105437
+        let _ = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.file_path)
+            .await;
+
+        self.file.seek(SeekFrom::Start(0)).await?;
+        self.file.write_all(&self.identity).await?;
+        self.file.flush().await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

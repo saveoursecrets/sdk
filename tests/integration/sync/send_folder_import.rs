@@ -84,8 +84,6 @@ async fn integration_sync_send_import_folder() -> Result<()> {
         reader.current().unwrap().vault().clone()
     };
 
-    println!("Import folder {}", vault.id());
-    
     // Need the vault passphrase to import a buffer
     let vault_passphrase = DelegatedPassphrase::find_vault_passphrase(
         owner.user().identity().keeper(),
