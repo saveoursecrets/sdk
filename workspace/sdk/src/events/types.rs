@@ -42,20 +42,18 @@ const MOVE_SECRET: u16 = 15;
 const READ_EVENT_LOG: u16 = 16;
 /// Type identifier for the export vault operation.
 const EXPORT_VAULT: u16 = 17;
-/// Type identifier for the import vault operation.
-const IMPORT_VAULT: u16 = 18;
 /// Type identifier for export account archive.
-const EXPORT_BACKUP_ARCHIVE: u16 = 19;
+const EXPORT_BACKUP_ARCHIVE: u16 = 18;
 /// Type identifier for restore account archive.
-const IMPORT_BACKUP_ARCHIVE: u16 = 20;
+const IMPORT_BACKUP_ARCHIVE: u16 = 19;
 /// Type identifier for exporting unencrypted secrets.
-const EXPORT_UNSAFE: u16 = 21;
+const EXPORT_UNSAFE: u16 = 20;
 /// Type identifier for importing unencrypted secrets.
-const IMPORT_UNSAFE: u16 = 22;
+const IMPORT_UNSAFE: u16 = 21;
 /// Type identifier for exporting contacts.
-const EXPORT_CONTACTS: u16 = 23;
+const EXPORT_CONTACTS: u16 = 22;
 /// Type identifier for importing contacts.
-const IMPORT_CONTACTS: u16 = 24;
+const IMPORT_CONTACTS: u16 = 23;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -97,8 +95,6 @@ pub enum EventKind {
     ReadEventLog,
     /// Event to export a vault.
     ExportVault,
-    /// Event to import a vault.
-    ImportVault,
     /// Event to export an account archive.
     ExportBackupArchive,
     /// Event to import an account archive.
@@ -141,7 +137,6 @@ impl TryFrom<u16> for EventKind {
             MOVE_SECRET => EventKind::MoveSecret,
             READ_EVENT_LOG => EventKind::ReadEventLog,
             EXPORT_VAULT => EventKind::ExportVault,
-            IMPORT_VAULT => EventKind::ImportVault,
             EXPORT_BACKUP_ARCHIVE => EventKind::ExportBackupArchive,
             IMPORT_BACKUP_ARCHIVE => EventKind::ImportBackupArchive,
             EXPORT_UNSAFE => EventKind::ExportUnsafe,
@@ -174,7 +169,6 @@ impl From<&EventKind> for u16 {
             EventKind::MoveSecret => MOVE_SECRET,
             EventKind::ReadEventLog => READ_EVENT_LOG,
             EventKind::ExportVault => EXPORT_VAULT,
-            EventKind::ImportVault => IMPORT_VAULT,
             EventKind::ExportBackupArchive => EXPORT_BACKUP_ARCHIVE,
             EventKind::ImportBackupArchive => IMPORT_BACKUP_ARCHIVE,
             EventKind::ExportUnsafe => EXPORT_UNSAFE,
@@ -207,7 +201,6 @@ impl fmt::Display for EventKind {
                 EventKind::MoveSecret => "MOVE_SECRET",
                 EventKind::ReadEventLog => "READ_EVENT_LOG",
                 EventKind::ExportVault => "EXPORT_FOLDER",
-                EventKind::ImportVault => "IMPORT_FOLDER",
                 EventKind::ExportBackupArchive => "EXPORT_BACKUP_ARCHIVE",
                 EventKind::ImportBackupArchive => "IMPORT_BACKUP_ARCHIVE",
                 EventKind::ExportUnsafe => "EXPORT_UNSAFE",
