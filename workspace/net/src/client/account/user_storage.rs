@@ -43,6 +43,7 @@ use tokio::{
 
 use crate::client::{
     Error, LocalProvider, Origin, Remote, RemoteBridge, Remotes, Result,
+    SyncError, RemoteSync,
 };
 use async_trait::async_trait;
 
@@ -59,7 +60,6 @@ use sos_migrate::{
 };
 
 use super::{file_manager::FileProgress, search_index::UserIndex};
-use crate::client::RemoteSync;
 
 /// Read-only view of a vault created from a specific
 /// event log commit.
@@ -545,7 +545,7 @@ impl UserStorage {
     pub async fn create_folder(
         &mut self,
         name: String,
-    ) -> Result<(Summary, Option<Vec<Error>>)> {
+    ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
@@ -591,7 +591,7 @@ impl UserStorage {
     pub async fn delete_folder(
         &mut self,
         summary: &Summary,
-    ) -> Result<Option<Vec<Error>>> {
+    ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
 
         let event = {
@@ -994,7 +994,7 @@ impl UserStorage {
         meta: SecretMeta,
         secret: Secret,
         options: SecretOptions,
-    ) -> Result<(SecretId, Option<Vec<Error>>)> {
+    ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
         let (folder, before_last_commit, before_commit_proof) =
@@ -1147,7 +1147,7 @@ impl UserStorage {
         path: P,
         options: SecretOptions,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, Option<Vec<Error>>)> {
+    ) -> Result<(SecretId, Option<SyncError>)> {
         let path = path.as_ref().to_path_buf();
         let secret: Secret = path.try_into()?;
         self.update_secret(
@@ -1169,7 +1169,7 @@ impl UserStorage {
         //folder: Option<Summary>,
         mut options: SecretOptions,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, Option<Vec<Error>>)> {
+    ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
         let (folder, before_last_commit, before_commit_proof) =
@@ -1348,7 +1348,7 @@ impl UserStorage {
         &mut self,
         secret_id: &SecretId,
         mut options: SecretOptions,
-    ) -> Result<Option<Vec<Error>>> {
+    ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
 
         let (folder, before_last_commit, before_commit_proof) =
@@ -2090,11 +2090,11 @@ impl RemoteSync for UserStorage {
         before_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
-    ) -> std::result::Result<(), Vec<Error>> {
+    ) -> std::result::Result<(), SyncError> {
         let _ = self.sync_lock.lock().await;
         let mut errors = Vec::new();
-        for remote in self.remotes.values() {
-            if let Err(mut errs) = remote
+        for (origin, remote) in &self.remotes {
+            if let Err(e) = remote
                 .sync_send_events(
                     before_last_commit,
                     before_client_proof,
@@ -2102,13 +2102,16 @@ impl RemoteSync for UserStorage {
                     events,
                 )
                 .await {
-                errors.append(&mut errs);
+                match e {
+                    SyncError::One(e) => errors.push((origin.clone(), e)),
+                    SyncError::Multiple(mut errs) => errors.append(&mut errs),
+                }
             }
         }
         if errors.is_empty() {
             Ok(())
         } else {
-            Err(errors)
+            Err(SyncError::Multiple(errors))
         }
     }
 

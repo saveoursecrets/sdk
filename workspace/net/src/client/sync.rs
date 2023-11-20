@@ -1,4 +1,4 @@
-use super::{Error, Result};
+use super::{Error, Result, Origin};
 use async_trait::async_trait;
 use sos_sdk::{
     commit::{CommitHash, CommitProof},
@@ -6,6 +6,15 @@ use sos_sdk::{
     vault::Summary,
 };
 use std::any::Any;
+
+/// Enumeration of error types that can be returned 
+/// from a sync operation.
+pub enum SyncError {
+    /// Single remote error.
+    One(Error),
+    /// Collection of errors by remote origin.
+    Multiple(Vec<(Origin, Error)>),
+}
 
 /// Trait for types that can sync accounts with a remote.
 #[async_trait]
@@ -40,7 +49,7 @@ pub trait RemoteSync: Sync + Send + Any {
         before_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
-    ) -> std::result::Result<(), Vec<Error>>;
+    ) -> std::result::Result<(), SyncError>;
 
     /// Receive events from changes to remote storage.
     async fn sync_receive_events(

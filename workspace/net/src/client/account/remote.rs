@@ -23,7 +23,7 @@ use std::{any::Any, collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 use crate::{
-    client::{LocalProvider, RemoteSync},
+    client::{LocalProvider, RemoteSync, SyncError},
     retry,
 };
 
@@ -302,7 +302,7 @@ impl RemoteSync for RemoteBridge {
         before_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
-    ) -> std::result::Result<(), Vec<Error>> {
+    ) -> std::result::Result<(), SyncError> {
         let events = events.to_vec();
         let mut patch_events = Vec::new();
         let mut create_folders = Vec::new();
@@ -319,11 +319,11 @@ impl RemoteSync for RemoteBridge {
         // New folders must go via the vaults service,
         // and must not be included in any patch events
         for buf in create_folders {
-            self.import_vault(buf.as_ref()).await.map_err(|e| vec![e])?;
+            self.import_vault(buf.as_ref()).await.map_err(SyncError::One)?;
         }
 
         for id in delete_folders {
-            self.delete_vault(id).await.map_err(|e| vec![e])?;
+            self.delete_vault(id).await.map_err(SyncError::One)?;
         }
 
         if !patch_events.is_empty() {
@@ -333,7 +333,7 @@ impl RemoteSync for RemoteBridge {
                 folder,
                 patch_events.as_slice(),
             )
-            .await.map_err(|e| vec![e])?;
+            .await.map_err(SyncError::One)?;
         }
 
         Ok(())
