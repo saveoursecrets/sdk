@@ -49,6 +49,8 @@ pub type Remotes = HashMap<Origin, Remote>;
 /// Bridge between a local provider and a remote.
 #[derive(Clone)]
 pub struct RemoteBridge {
+    /// Origin for this remote.
+    origin: Origin,
     /// Local provider.
     local: Arc<RwLock<LocalProvider>>,
     /// Client to use for remote communication.
@@ -65,8 +67,13 @@ impl RemoteBridge {
         keypair: Keypair,
     ) -> Result<Self> {
         let remote =
-            RpcClient::new(origin.url, origin.public_key, signer, keypair)?;
-        Ok(Self { local, remote })
+            RpcClient::new(
+                origin.clone(),
+                //client_origin.url,
+                //client_origin.public_key,
+                signer,
+                keypair)?;
+        Ok(Self { origin, local, remote })
     }
 
     /// Clone of the local provider.

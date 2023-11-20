@@ -13,6 +13,7 @@ use super::{
         changes::{changes, connect, WsStream},
         RpcClient,
     },
+    Origin,
     Error, LocalProvider, Result,
 };
 
@@ -26,14 +27,13 @@ const INTERVAL_MS: u64 = 15000;
 /// updates the local node cache.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn spawn_changes_listener(
-    server: Url,
-    server_public_key: Vec<u8>,
+    origin: Origin,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
     cache: Arc<RwLock<LocalProvider>>,
 ) {
     let listener =
-        ChangesListener::new(server, server_public_key, signer, keypair);
+        ChangesListener::new(origin, signer, keypair);
     listener.spawn(move |notification| {
         let cache = Arc::clone(&cache);
         async move {
@@ -48,8 +48,9 @@ pub fn spawn_changes_listener(
 /// Listen for changes and call a handler with the change notification.
 #[derive(Clone)]
 pub struct ChangesListener {
-    remote: Url,
-    remote_public_key: Vec<u8>,
+    origin: Origin,
+    //remote: Url,
+    //remote_public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
 }
@@ -57,14 +58,16 @@ pub struct ChangesListener {
 impl ChangesListener {
     /// Create a new changes listener.
     pub fn new(
-        remote: Url,
-        remote_public_key: Vec<u8>,
+        origin: Origin,
+        //remote: Url,
+        //remote_public_key: Vec<u8>,
         signer: BoxedEcdsaSigner,
         keypair: Keypair,
     ) -> Self {
         Self {
-            remote,
-            remote_public_key,
+            origin,
+            //remote,
+            //remote_public_key,
             signer,
             keypair,
         }
@@ -109,8 +112,7 @@ impl ChangesListener {
 
     async fn stream(&self) -> Result<(WsStream, Arc<RpcClient>)> {
         connect(
-            self.remote.clone(),
-            self.remote_public_key.clone(),
+            self.origin.clone(),
             self.signer.clone(),
             self.keypair.clone(),
         )

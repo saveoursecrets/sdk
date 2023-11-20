@@ -1,10 +1,11 @@
 //! Listen for changes events on the server sent events channel.
 use futures::stream::StreamExt;
 use sos_net::{
-    client::net::changes::{changes, connect},
+    client::{net::changes::{changes, connect}, Origin},
     sdk::{
         account::AccountRef, mpc::generate_keypair, mpc::Keypair,
         signer::ecdsa::BoxedEcdsaSigner, url::Url,
+        hex,
     },
 };
 
@@ -12,13 +13,16 @@ use crate::{helpers::account::sign_in, Result, TARGET};
 
 /// Creates a changes stream and calls handler for every change notification.
 async fn changes_stream(
-    server: Url,
-    server_public_key: Vec<u8>,
+    url: Url,
+    public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
 ) -> sos_net::client::Result<()> {
+    let name = hex::encode(&public_key);
+    let origin = Origin { url, public_key, name };
+
     let (stream, client) =
-        connect(server, server_public_key, signer, keypair).await?;
+        connect(origin, signer, keypair).await?;
     let mut stream = changes(stream, client);
     while let Some(notification) = stream.next().await {
         let notification = notification?.await?;

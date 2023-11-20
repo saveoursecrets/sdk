@@ -21,7 +21,7 @@ use sos_sdk::{
     events::ChangeNotification, mpc::Keypair, signer::ecdsa::BoxedEcdsaSigner,
 };
 
-use crate::client::{net::RpcClient, Result};
+use crate::client::{net::RpcClient, Result, Origin as RemoteOrigin};
 
 use super::changes_uri;
 
@@ -54,25 +54,26 @@ impl IntoClientRequest for WebSocketRequest {
 
 /// Create the websocket connection and listen for events.
 pub async fn connect(
-    remote: Url,
-    remote_public_key: Vec<u8>,
+    //remote: Url,
+    //remote_public_key: Vec<u8>,
+    origin: RemoteOrigin,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
 ) -> Result<(WsStream, Arc<RpcClient>)> {
-    let origin = remote.origin();
-    let endpoint = remote.clone();
+    let url_origin = origin.url.origin();
+    let endpoint = origin.url.clone();
     let public_key = keypair.public_key().to_vec();
 
-    let client = RpcClient::new(remote, remote_public_key, signer, keypair)?;
+    let client = RpcClient::new(origin, signer, keypair)?;
     client.handshake().await?;
 
     let host = endpoint.host_str().unwrap().to_string();
     let uri = changes_uri(&endpoint, client.signer(), &public_key).await?;
 
     tracing::debug!(uri = %uri);
-    tracing::debug!(origin = ?origin);
+    tracing::debug!(origin = ?url_origin);
 
-    let request = WebSocketRequest { host, uri, origin };
+    let request = WebSocketRequest { host, uri, origin: url_origin };
     let (ws_stream, _) = connect_async(request).await?;
     Ok((ws_stream, Arc::new(client)))
 }
