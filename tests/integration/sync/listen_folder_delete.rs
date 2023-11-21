@@ -8,7 +8,8 @@ use sos_net::{
     sdk::{
         constants::{EVENT_LOG_EXT, VAULT_EXT},
         mpc::{Keypair, PATTERN},
-        vault::Summary, vfs,
+        vault::Summary,
+        vfs,
     },
 };
 
@@ -152,20 +153,20 @@ async fn integration_listen_delete_folder() -> Result<()> {
     ));
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
-    
+
     // Check the first client removed the files
-    let expected_vault_file = owner.paths().vault_path(
-        new_folder.id().to_string());
-    let expected_event_file = owner.paths().vault_path(
-        new_folder.id().to_string());
+    let expected_vault_file =
+        owner.paths().vault_path(new_folder.id().to_string());
+    let expected_event_file =
+        owner.paths().vault_path(new_folder.id().to_string());
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
 
     // Check the listening client removed the files
-    let expected_vault_file = other_owner.paths().vault_path(
-        new_folder.id().to_string());
-    let expected_event_file = other_owner.paths().vault_path(
-        new_folder.id().to_string());
+    let expected_vault_file =
+        other_owner.paths().vault_path(new_folder.id().to_string());
+    let expected_event_file =
+        other_owner.paths().vault_path(new_folder.id().to_string());
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
 

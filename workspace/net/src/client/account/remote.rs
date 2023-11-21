@@ -64,11 +64,7 @@ impl RemoteBridge {
         signer: BoxedEcdsaSigner,
         keypair: Keypair,
     ) -> Result<Self> {
-        let remote = RpcClient::new(
-            origin.clone(),
-            signer,
-            keypair,
-        )?;
+        let remote = RpcClient::new(origin.clone(), signer, keypair)?;
         Ok(Self {
             origin,
             local,
@@ -208,32 +204,35 @@ impl RemoteBridge {
                         "pull new folder");
 
                     let id = *summary.id();
-                    
+
                     // Prepare the local provider for the new folder
                     {
                         let mut writer = local.write().await;
                         writer.add_local_cache(summary).await?;
                     }
-                    
+
                     // Load the event entire event log
                     let (remote_proof, events_buffer) =
                         bridge.load_events(&id).await?;
 
                     {
                         let mut writer = local.write().await;
-                        let mut event_log = writer
-                            .cache_mut()
-                            .get_mut(&id)
-                            .ok_or(Error::CacheNotAvailable(id))?;
-                        
+                        let mut event_log =
+                            writer
+                                .cache_mut()
+                                .get_mut(&id)
+                                .ok_or(Error::CacheNotAvailable(id))?;
+
                         // Write out the events we fetched
                         event_log.write_buffer(&events_buffer).await?;
-                        
+
                         // Check the proofs match afterwards
                         let local_proof = event_log.tree().head()?;
                         if local_proof != remote_proof {
                             return Err(Error::RootHashMismatch(
-                                local_proof.into(), remote_proof.into()))
+                                local_proof.into(),
+                                remote_proof.into(),
+                            ));
                         }
                     }
 
@@ -303,7 +302,10 @@ impl RemoteBridge {
     }
 
     /// Load all events from a remote event log.
-    async fn load_events(&self, id: &VaultId) -> Result<(CommitProof, Vec<u8>)> {
+    async fn load_events(
+        &self,
+        id: &VaultId,
+    ) -> Result<(CommitProof, Vec<u8>)> {
         let span = span!(Level::DEBUG, "load_events");
         let _enter = span.enter();
 
@@ -316,7 +318,7 @@ impl RemoteBridge {
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
-        
+
         Ok((proof, buffer.ok_or(Error::NoEventBuffer)?))
     }
 
@@ -433,12 +435,8 @@ impl RemoteBridge {
                 (last_commit, commit_proof, folder)
             };
 
-            self.pull_folder(
-                last_commit.as_ref(),
-                &commit_proof,
-                &folder,
-            )
-            .await?;
+            self.pull_folder(last_commit.as_ref(), &commit_proof, &folder)
+                .await?;
         }
 
         Ok(())
@@ -487,7 +485,7 @@ impl RemoteBridge {
 
         Ok(())
     }
-    
+
     /// Send a local patch of events to the remote.
     async fn patch(
         &self,
@@ -553,8 +551,7 @@ impl RemoteSync for RemoteBridge {
         client_proof: &CommitProof,
         folder: &Summary,
     ) -> Result<bool> {
-        self.pull_folder(last_commit, client_proof, folder)
-            .await
+        self.pull_folder(last_commit, client_proof, folder).await
     }
 
     async fn sync_send_events(

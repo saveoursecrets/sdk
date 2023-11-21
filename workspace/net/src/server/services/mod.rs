@@ -1,10 +1,14 @@
 use axum::{
     body::Bytes,
     headers::{authorization::Bearer, Authorization},
-    http::StatusCode,
+    http::{
+        header::{self, HeaderMap, HeaderValue},
+        StatusCode,
+    },
 };
 
 use sos_sdk::{
+    constants::MIME_TYPE_RPC,
     decode, encode,
     events::{AuditEvent, AuditProvider, ChangeNotification},
     mpc::channel::{decrypt_server_channel, encrypt_server_channel},
@@ -91,7 +95,9 @@ pub(crate) async fn public_service(
     service: impl Service<State = Arc<RwLock<State>>> + Sync + Send,
     state: Arc<RwLock<State>>,
     body: Bytes,
-) -> Result<(StatusCode, Bytes), StatusCode> {
+) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+    let mut headers = HeaderMap::new();
+
     let packet: Packet<'_> =
         decode(&body).await.map_err(|_| StatusCode::BAD_REQUEST)?;
 
@@ -114,7 +120,12 @@ pub(crate) async fn public_service(
         (StatusCode::NO_CONTENT, Bytes::from(vec![]))
     };
 
-    Ok((StatusCode::OK, body))
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static(MIME_TYPE_RPC),
+    );
+
+    Ok((StatusCode::OK, headers, body))
 }
 
 /// Execute a request message in the context of a service
@@ -124,7 +135,9 @@ pub(crate) async fn private_service(
     state: Arc<RwLock<State>>,
     bearer: Authorization<Bearer>,
     body: Bytes,
-) -> Result<(StatusCode, Bytes), StatusCode> {
+) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+    let mut headers = HeaderMap::new();
+
     let (server_public_key, client_public_key, request, token) = {
         let mut writer = state.write().await;
         let message: ServerEnvelope = decode(&body)
@@ -227,5 +240,10 @@ pub(crate) async fn private_service(
         (status, body)
     };
 
-    Ok((status, Bytes::from(body)))
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static(MIME_TYPE_RPC),
+    );
+
+    Ok((status, headers, Bytes::from(body)))
 }

@@ -429,8 +429,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<(CommitProof, Option<Vec<u8>>)>> {
         let url = self.origin.url.join("api/events")?;
         let id = self.next_id().await;
-        let body =
-            new_rpc_call(id, EVENT_LOG_LOAD, vault_id).await?;
+        let body = new_rpc_call(id, EVENT_LOG_LOAD, vault_id).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;

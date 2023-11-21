@@ -11,7 +11,7 @@ use sos_net::{
 
 #[tokio::test]
 #[serial]
-async fn integration_auth_session_negotiate() -> Result<()> {
+async fn integration_rpc_session() -> Result<()> {
     let mut dirs = setup(1).await?;
     let test_data_dir = dirs.clients.remove(0);
 

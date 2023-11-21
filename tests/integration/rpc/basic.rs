@@ -7,7 +7,7 @@ use sos_net::client::RpcClient;
 
 #[tokio::test]
 #[serial]
-async fn integration_rpc_client_basic() -> Result<()> {
+async fn integration_rpc_basic() -> Result<()> {
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 

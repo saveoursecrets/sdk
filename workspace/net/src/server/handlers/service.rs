@@ -1,7 +1,7 @@
 use axum::{
     body::Bytes,
     extract::{Extension, TypedHeader},
-    headers::{authorization::Bearer, Authorization},
+    headers::{authorization::Bearer, Authorization, HeaderMap},
     http::StatusCode,
 };
 
@@ -25,7 +25,7 @@ impl ServiceHandler {
     pub(crate) async fn handshake(
         Extension(state): Extension<Arc<RwLock<State>>>,
         body: Bytes,
-    ) -> Result<(StatusCode, Bytes), StatusCode> {
+    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
         let service = HandshakeService {};
         public_service(service, state, body).await
     }
@@ -35,7 +35,7 @@ impl ServiceHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
-    ) -> Result<(StatusCode, Bytes), StatusCode> {
+    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
         let service = AccountService {};
         private_service(service, state, bearer, body).await
     }
@@ -45,7 +45,7 @@ impl ServiceHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
-    ) -> Result<(StatusCode, Bytes), StatusCode> {
+    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
         let service = VaultService {};
         private_service(service, state, bearer, body).await
     }
@@ -55,7 +55,7 @@ impl ServiceHandler {
         Extension(state): Extension<Arc<RwLock<State>>>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
-    ) -> Result<(StatusCode, Bytes), StatusCode> {
+    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
         let service = EventLogService {};
         private_service(service, state, bearer, body).await
     }

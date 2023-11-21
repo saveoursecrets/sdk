@@ -92,6 +92,9 @@ mod mime {
 
     /// Mime type for patches.
     pub const MIME_TYPE_PATCH: &str = "application/sos+patch";
+
+    /// Mime type for RPC packets.
+    pub const MIME_TYPE_RPC: &str = "application/sos+rpc";
 }
 
 mod rpc {

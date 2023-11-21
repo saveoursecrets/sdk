@@ -57,8 +57,7 @@ impl Service for EventLogService {
 
         match request.method() {
             EVENT_LOG_LOAD => {
-                let vault_id =
-                    request.parameters::<Uuid>()?;
+                let vault_id = request.parameters::<Uuid>()?;
 
                 let reader = state.read().await;
                 let (exists, _) = reader

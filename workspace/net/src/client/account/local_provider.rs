@@ -384,7 +384,10 @@ impl LocalProvider {
     }
 
     /// Remove the local cache for a vault.
-    pub(super) fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
+    pub(super) fn remove_local_cache(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<()> {
         let current_id = self.current().map(|c| c.id().clone());
 
         // If the deleted vault is the currently selected
