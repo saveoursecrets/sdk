@@ -2,7 +2,7 @@
 
 use libp2p::{core::Multiaddr, request_response::ResponseChannel, PeerId};
 
-use sos_sdk::rpc::{RequestMessage, ResponseMessage};
+use crate::rpc::{RequestMessage, ResponseMessage};
 
 /// Network event is dispatch by the network to the
 /// events stream.

@@ -2,12 +2,11 @@ use http::StatusCode;
 use serde_json::Value;
 use std::{borrow::Cow, io::Result};
 
-use crate::{
+use sos_sdk::{
     constants::RPC_IDENTITY,
     encoding::encoding_error,
     formats::FileIdentity,
     mpc::SealedEnvelope,
-    rpc::{Packet, Payload, RequestMessage, ResponseMessage, ServerEnvelope},
 };
 
 use async_trait::async_trait;
@@ -15,6 +14,8 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+
+use crate::rpc::{Packet, Payload, RequestMessage, ResponseMessage, ServerEnvelope};
 
 #[async_trait]
 impl Encodable for ServerEnvelope {

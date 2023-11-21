@@ -5263,6 +5263,7 @@ dependencies = [
  "axum",
  "axum-macros",
  "axum-server",
+ "binary-stream",
  "bs58 0.4.0",
  "dirs",
  "either",

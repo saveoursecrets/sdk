@@ -1,7 +1,7 @@
 //! Binary encoding implementation.
-pub mod v1;
+mod v1;
 
-pub use v1::*;
+pub use v1::VERSION;
 
 use crate::Result;
 use binary_stream::{
@@ -10,7 +10,8 @@ use binary_stream::{
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
-pub(crate) fn encoding_error(
+/// Helper for mapping an encoding error.
+pub fn encoding_error(
     e: impl std::error::Error + Send + Sync + 'static,
 ) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::Other, e)

@@ -17,6 +17,12 @@ pub mod peer;
 #[cfg(feature = "server")]
 pub mod server;
 
+#[cfg(any(feature = "client", feature = "server"))]
+pub mod rpc;
+
+#[cfg(any(feature = "client", feature = "server"))]
+mod encoding;
+
 mod error;
 
 /// Result type for the network module.

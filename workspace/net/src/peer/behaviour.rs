@@ -7,7 +7,7 @@ use libp2p_kad::{
     store::MemoryStore, Behaviour as Kademlia, Event as KademliaEvent,
 };
 
-use sos_sdk::rpc::{RequestMessage, ResponseMessage};
+use crate::rpc::{RequestMessage, ResponseMessage};
 
 use super::protocol::RpcExchangeCodec;
 

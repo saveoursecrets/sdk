@@ -3,12 +3,13 @@
 //! Message identifiers have the same semantics as JSON-RPC;
 //! if a request does not have an `id` than no reply is expected
 //! otherwise a service must reply.
-use crate::{mpc::SealedEnvelope, Error, Result};
+use sos_sdk::mpc::SealedEnvelope;
 
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use std::borrow::Cow;
+use crate::{Error, Result};
 
 use async_trait::async_trait;
 
@@ -321,7 +322,7 @@ pub trait Service {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{decode, encode};
+    use sos_sdk::{decode, encode};
     use anyhow::Result;
     use http::StatusCode;
 

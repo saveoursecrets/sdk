@@ -20,22 +20,6 @@ pub enum Error {
     #[error("permission denied")]
     PermissionDenied,
 
-    /// Expected a request payload.
-    #[error("expected a request payload")]
-    RpcRequestPayload,
-
-    /// Expected a response payload.
-    #[error("expected a response payload")]
-    RpcResponsePayload,
-
-    /// Error encapsulated in RPC messages.
-    #[error("{0}")]
-    RpcError(String),
-
-    /// Error generated when an RPC method is not supported.
-    #[error("unknown rpc method '{0}'")]
-    RpcUnknownMethod(String),
-
     /// Error generated when a path is not a file.
     #[error("path {0} is not a file")]
     NotFile(PathBuf),

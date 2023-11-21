@@ -13,7 +13,7 @@ pub mod account;
 pub mod commit;
 pub mod constants;
 pub mod crypto;
-mod encoding;
+pub mod encoding;
 mod error;
 pub mod events;
 pub mod formats;
@@ -24,7 +24,7 @@ pub mod prelude;
 #[cfg(feature = "recovery")]
 pub mod recovery;
 
-pub mod rpc;
+//pub mod rpc;
 pub mod search;
 pub mod signer;
 mod timestamp;

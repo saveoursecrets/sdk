@@ -12,8 +12,9 @@ use std::{
 
 use sos_sdk::{
     decode, encode,
-    rpc::{RequestMessage, ResponseMessage},
 };
+
+use crate::rpc::{RequestMessage, ResponseMessage};
 
 const MAX_BUFFER_READ: usize = 16_777_216;
 

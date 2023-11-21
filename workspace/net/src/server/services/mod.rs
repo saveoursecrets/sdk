@@ -8,14 +8,16 @@ use sos_sdk::{
     decode, encode,
     events::{AuditEvent, AuditProvider, ChangeNotification},
     mpc::channel::{decrypt_server_channel, encrypt_server_channel},
-    rpc::{Packet, RequestMessage, ServerEnvelope, Service},
 };
 use web3_address::ethereum::Address;
 
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 
-use crate::server::{authenticate, State};
+use crate::{
+    server::{authenticate, State},
+    rpc::{Packet, RequestMessage, ServerEnvelope, Service},
+};
 
 /// Type to represent the caller of a service request.
 pub struct Caller {

@@ -10,7 +10,6 @@ use sos_sdk::{
         AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
         EventKind, Patch, WriteEvent,
     },
-    rpc::{RequestMessage, ResponseMessage, Service},
 };
 use web3_address::ethereum::Address;
 
@@ -19,7 +18,10 @@ use std::borrow::Cow;
 use uuid::Uuid;
 
 use super::{append_audit_logs, send_notification, PrivateState};
-use crate::server::BackendHandler;
+use crate::{
+    server::BackendHandler,
+    rpc::{RequestMessage, ResponseMessage, Service},
+};
 
 enum PatchResult {
     Conflict(CommitProof, Option<CommitProof>),
@@ -50,7 +52,7 @@ impl Service for EventLogService {
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
-    ) -> sos_sdk::Result<ResponseMessage<'a>> {
+    ) -> crate::Result<ResponseMessage<'a>> {
         let (caller, state) = state;
 
         match request.method() {
@@ -280,7 +282,7 @@ impl Service for EventLogService {
                     return Ok((StatusCode::NOT_FOUND, request.id()).into());
                 }
 
-                let result: sos_sdk::Result<PatchResult> = {
+                let result: crate::Result<PatchResult> = {
                     let mut writer = state.write().await;
 
                     let event_log = writer
@@ -477,7 +479,7 @@ impl Service for EventLogService {
                     (request.id(), server_proof).try_into()?;
                 Ok(reply)
             }
-            _ => Err(sos_sdk::Error::RpcUnknownMethod(
+            _ => Err(crate::Error::RpcUnknownMethod(
                 request.method().to_owned(),
             )),
         }

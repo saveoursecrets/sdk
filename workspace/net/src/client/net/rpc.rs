@@ -16,7 +16,6 @@ use sos_sdk::{
         channel::{decrypt_server_channel, encrypt_server_channel},
         snow, Keypair, ProtocolState, PATTERN,
     },
-    rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
     signer::ecdsa::BoxedEcdsaSigner,
     vault::{Summary, VaultId},
 };
@@ -37,7 +36,10 @@ use std::{
 use tokio::sync::{Mutex, RwLock};
 use url::Url;
 
-use crate::client::{Error, ListenOptions, Origin, Result};
+use crate::{
+    client::{Error, ListenOptions, Origin, Result},
+    rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
+};
 
 use super::{bearer_prefix, encode_signature, AUTHORIZATION};
 
@@ -594,7 +596,7 @@ impl RpcClient {
         &self,
         status: StatusCode,
         buffer: &[u8],
-    ) -> Result<(StatusCode, sos_sdk::Result<T>, Vec<u8>)> {
+    ) -> Result<(StatusCode, crate::Result<T>, Vec<u8>)> {
         status
             .is_success()
             .then_some(())
@@ -646,13 +648,13 @@ impl RpcClient {
 /// Enumeration for a response that allows for retrying the request.
 enum RetryResponse<T> {
     Retry(StatusCode),
-    Complete(StatusCode, sos_sdk::Result<T>, Vec<u8>),
+    Complete(StatusCode, crate::Result<T>, Vec<u8>),
 }
 
 impl<T> RetryResponse<T> {
     fn map<E>(
         self,
-        func: impl FnOnce(sos_sdk::Result<T>, Vec<u8>) -> Result<E>,
+        func: impl FnOnce(crate::Result<T>, Vec<u8>) -> Result<E>,
     ) -> Result<MaybeRetry<E>> {
         match self {
             RetryResponse::Retry(status) => Ok(MaybeRetry::Retry(status)),

@@ -1,10 +1,12 @@
 use sos_sdk::{
     constants::HANDSHAKE_INITIATE,
     mpc::{snow, ProtocolState, PATTERN},
-    rpc::{RequestMessage, ResponseMessage, Service},
 };
 
-use crate::server::State;
+use crate::{
+    server::State,
+    rpc::{RequestMessage, ResponseMessage, Service},
+};
 use async_trait::async_trait;
 use axum::http::StatusCode;
 use std::{borrow::Cow, sync::Arc};
@@ -24,7 +26,7 @@ impl Service for HandshakeService {
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
-    ) -> sos_sdk::Result<ResponseMessage<'a>> {
+    ) -> crate::Result<ResponseMessage<'a>> {
         match request.method() {
             HANDSHAKE_INITIATE => {
                 let mut writer = state.write().await;
@@ -69,7 +71,7 @@ impl Service for HandshakeService {
                 )?;
                 Ok(reply)
             }
-            _ => Err(sos_sdk::Error::RpcUnknownMethod(
+            _ => Err(crate::Error::RpcUnknownMethod(
                 request.method().to_owned(),
             )),
         }

@@ -108,6 +108,11 @@ version = "0.7"
 optional = true
 path = "../migrate"
 
+[dependencies.binary-stream]
+version = "8.0.0"
+features = ["async"]
+#path = "../../../../binary-stream"
+
 [dependencies.libp2p]
 version = "0.52.4"
 optional = true

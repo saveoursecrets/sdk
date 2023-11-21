@@ -19,13 +19,16 @@ use tokio::sync::{
 };
 
 use sos_sdk::{
-    encode, mpc::channel::encrypt_server_channel, rpc::ServerEnvelope,
+    encode, mpc::channel::encrypt_server_channel, 
 };
 use web3_address::ethereum::Address;
 
-use crate::server::{
-    authenticate::{self, QueryMessage},
-    Result, State,
+use crate::{
+    server::{
+        authenticate::{self, QueryMessage},
+        Result, State,
+    },
+    rpc::ServerEnvelope,
 };
 
 const MAX_SOCKET_CONNECTIONS_PER_CLIENT: u8 = 6;

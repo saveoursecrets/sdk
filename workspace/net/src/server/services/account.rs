@@ -5,14 +5,16 @@ use sos_sdk::{
     account::AccountStatus,
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
     events::{AuditEvent, ChangeEvent, ChangeNotification, Event, EventKind},
-    rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
 };
 
 use async_trait::async_trait;
 
 use super::{append_audit_logs, send_notification, PrivateState};
-use crate::server::BackendHandler;
+use crate::{
+    server::BackendHandler,
+    rpc::{RequestMessage, ResponseMessage, Service},
+};
 
 /// Account management service.
 ///
@@ -29,7 +31,7 @@ impl Service for AccountService {
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
-    ) -> sos_sdk::Result<ResponseMessage<'a>> {
+    ) -> crate::Result<ResponseMessage<'a>> {
         let (caller, state) = state;
 
         let mut writer = state.write().await;
@@ -155,7 +157,7 @@ impl Service for AccountService {
 
                 Ok(reply)
             }
-            _ => Err(sos_sdk::Error::RpcUnknownMethod(
+            _ => Err(crate::Error::RpcUnknownMethod(
                 request.method().to_owned(),
             )),
         }

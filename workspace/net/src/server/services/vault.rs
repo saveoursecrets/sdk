@@ -6,7 +6,6 @@ use sos_sdk::{
         AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
         EventKind,
     },
-    rpc::{RequestMessage, ResponseMessage, Service},
     vault::Header,
 };
 
@@ -14,7 +13,10 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use super::{append_audit_logs, send_notification, PrivateState};
-use crate::server::{BackendHandler, Error};
+use crate::{
+    server::{BackendHandler, Error},
+    rpc::{RequestMessage, ResponseMessage, Service},
+};
 
 /// Vault management service.
 ///
@@ -32,7 +34,7 @@ impl Service for VaultService {
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
-    ) -> sos_sdk::Result<ResponseMessage<'a>> {
+    ) -> crate::Result<ResponseMessage<'a>> {
         let (caller, state) = state;
 
         match request.method() {
@@ -194,7 +196,7 @@ impl Service for VaultService {
 
                 Ok(reply)
             }
-            _ => Err(sos_sdk::Error::RpcUnknownMethod(
+            _ => Err(crate::Error::RpcUnknownMethod(
                 request.method().to_owned(),
             )),
         }

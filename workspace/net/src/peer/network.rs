@@ -10,7 +10,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
 use tokio::sync::mpsc as tokio_mpsc;
 
-use sos_sdk::rpc::{RequestMessage, ResponseMessage};
+use crate::rpc::{RequestMessage, ResponseMessage};
 
 use super::{Error, Result};
 
