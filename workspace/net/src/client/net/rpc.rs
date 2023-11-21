@@ -25,7 +25,7 @@ use sos_sdk::{
 use sos_sdk::events::ChangeNotification;
 
 #[cfg(not(target_arch = "wasm32"))]
-use super::changes::ChangesListener;
+use super::changes::WebSocketChangeListener;
 
 use std::{
     borrow::Cow,
@@ -88,14 +88,17 @@ impl RpcClient {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn listen<F>(
         &self,
+        keypair: Keypair,
+        reconnect_interval: u64,
         handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
     ) where
-        F: Future<Output = ()> + 'static,
+        F: Future<Output = ()> + Send + 'static,
     {
-        let listener = ChangesListener::new(
+        let listener = WebSocketChangeListener::new(
             self.origin.clone(),
             self.signer.clone(),
-            self.keypair.clone(),
+            keypair,
+            reconnect_interval,
         );
         listener.spawn(handler);
     }
@@ -407,6 +410,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
+
         let maybe_retry = self
             .read_encrypted_response::<usize>(
                 response.status(),

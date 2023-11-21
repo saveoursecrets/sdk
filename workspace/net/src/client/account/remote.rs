@@ -78,11 +78,21 @@ impl RemoteBridge {
         })
     }
 
-    /// Spawn a thread that listens for changes
+    /// Spawn a task that listens for changes
     /// from the remote server and applies any changes
     /// from the remote to the local provider.
+    ///
+    /// The keypair for the websocket connection must not be
+    /// the same as the main client so you should always generate
+    /// a new keypair for this connection. Otherwise transports
+    /// will collide on the server as they are identified by
+    /// public key.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn listen(&self) {
+    pub fn listen(
+        keypair: Keypair,
+        reconnect_interval: u64,
+        bridge: Arc<RemoteBridge>,
+    ) {
         use sos_sdk::prelude::{
             ChangeAction, ChangeEvent, ChangeNotification,
             CommitRelationship, VaultRef,
@@ -110,25 +120,33 @@ impl RemoteBridge {
         }
 
         async fn on_change_notification(
-            provider: &mut LocalProvider,
+            bridge: Arc<RemoteBridge>,
             change: ChangeNotification,
         ) -> Result<()> {
             let actions = notification_actions(&change);
+            let local = bridge.local();
             // Consume and react to the actions
             for action in actions {
-                let summary = provider
-                    .state()
-                    .find_vault(&VaultRef::Id(*change.vault_id()))
-                    .cloned();
+                tracing::debug!(action = ?action, "action");
+
+                let summary = {
+                    let reader = local.read().await;
+                    reader
+                        .state()
+                        .find_vault(&VaultRef::Id(*change.vault_id()))
+                        .cloned()
+                };
 
                 if let Some(summary) = &summary {
                     match action {
                         ChangeAction::Pull(_) => {
-                            let tree = provider
-                                .commit_tree(summary)
-                                .ok_or(sos_sdk::Error::NoRootCommit)?;
-
-                            let head = tree.head()?;
+                            let head = {
+                                let reader = local.read().await;
+                                let tree = reader
+                                    .commit_tree(summary)
+                                    .ok_or(sos_sdk::Error::NoRootCommit)?;
+                                tree.head()?
+                            };
 
                             tracing::debug!(
                                 vault_id = ?summary.id(),
@@ -139,32 +157,40 @@ impl RemoteBridge {
                             // Looks like the change was made elsewhere
                             // and we should attempt to sync with the server
                             if change.proof().root() != head.root() {
+                                tracing::debug!(
+                                    folder = %summary.id(),
+                                    "proofs differ, trying pull");
 
-                                /*
-                                let (status, _) = provider.status(summary).await?;
+                                let (last_commit, commit_proof) = {
+                                    let reader = local.read().await;
+                                    let event_log = reader
+                                        .cache()
+                                        .get(summary.id())
+                                        .ok_or(Error::CacheNotAvailable(
+                                            *summary.id(),
+                                        ))?;
+                                    let last_commit =
+                                        event_log.last_commit().await?;
+                                    let commit_proof =
+                                        event_log.tree().head()?;
+                                    (last_commit, commit_proof)
+                                };
 
-                                match status {
-                                    CommitRelationship::Behind(_, _) => {
-                                        //provider.pull(summary, false).await?;
-                                        todo!();
-                                    }
-                                    CommitRelationship::Diverged(_) => {
-                                        if change
-                                            .changes()
-                                            .iter()
-                                            .any(|c| c == &ChangeEvent::UpdateVault)
-                                        {
-                                            // If the trees have diverged and the other
-                                            // node indicated it did an update to the
-                                            // entire vault then we need a force pull to
-                                            // stay in sync
-                                            //provider.pull(summary, true).await?;
-                                            todo!();
-                                        }
-                                    }
-                                    _ => {}
-                                }
-                                */
+                                tracing::debug!(
+                                    last_commit = ?last_commit,
+                                    commit_proof = ?commit_proof);
+
+                                bridge
+                                    .sync_pull_folder(
+                                        last_commit.as_ref(),
+                                        &commit_proof,
+                                        summary,
+                                    )
+                                    .await?;
+                            } else {
+                                tracing::debug!(
+                                    folder = %summary.id(),
+                                    "proofs match, up to date");
                             }
                         }
                         ChangeAction::Remove(_) => {
@@ -180,18 +206,29 @@ impl RemoteBridge {
             Ok(())
         }
 
-        let local = self.local();
-        self.remote.listen(move |notification| {
-            let cache = Arc::clone(&local);
-            async move {
-                let mut writer = cache.write().await;
-                if let Err(e) =
-                    on_change_notification(&mut writer, notification).await
-                {
-                    tracing::error!(error = ?e, "handle change");
+        let remote_bridge = Arc::clone(&bridge);
+
+        bridge.remote.listen(
+            keypair,
+            reconnect_interval,
+            move |notification| {
+                let bridge = Arc::clone(&remote_bridge);
+
+                async move {
+                    let span = span!(Level::DEBUG, "change_event");
+                    let _enter = span.enter();
+                    tracing::debug!(notification = ?notification);
+                    if let Err(e) = on_change_notification(
+                        bridge,
+                        notification,
+                    )
+                    .await
+                    {
+                        tracing::error!(error = ?e, "handle change");
+                    }
                 }
-            }
-        });
+            },
+        );
     }
 
     /// Clone of the local provider.
@@ -266,16 +303,24 @@ impl RemoteBridge {
         client_proof: &CommitProof,
         folder: &Summary,
     ) -> Result<bool> {
+        let span = span!(Level::DEBUG, "pull_folder");
+        let _enter = span.enter();
+
         let last_commit = last_commit.ok_or_else(|| Error::NoRootCommit)?;
 
         let (status, (num_events, body)) = retry!(
             || self.remote.diff(folder.id(), last_commit, client_proof),
             self.remote
         );
+
+        tracing::debug!(status = %status);
+
         status
             .is_success()
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
+
+        tracing::debug!(num_events = ?num_events);
 
         if num_events > 0 {
             let patch: Patch = decode(&body).await?;

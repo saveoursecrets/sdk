@@ -26,33 +26,6 @@ use crate::client::{net::RpcClient, Error, Origin, Result};
 
 use super::changes_uri;
 
-/// Interval for websocket re-connect attempts.
-const INTERVAL_MS: u64 = 15000;
-
-/*
-/// Spawn a change notification listener that
-/// updates the local node cache.
-#[cfg(not(target_arch = "wasm32"))]
-pub fn spawn_changes_listener(
-    origin: Origin,
-    signer: BoxedEcdsaSigner,
-    keypair: Keypair,
-    cache: Arc<RwLock<LocalProvider>>,
-) {
-    let listener =
-        ChangesListener::new(origin, signer, keypair);
-    listener.spawn(move |notification| {
-        let cache = Arc::clone(&cache);
-        async move {
-            println!("{:#?}", notification);
-            let mut writer = cache.write().await;
-            todo!("restore handling change event notifications");
-            //let _ = writer.handle_change(notification).await;
-        }
-    });
-}
-*/
-
 /// Type of stream created for websocket connections.
 pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -135,50 +108,44 @@ pub fn changes(
                         let notification: ChangeNotification =
                             serde_json::from_slice(&buffer)?;
                         Ok(notification)
-
-                        //let message: ServerEnvelope = decode(buffer).await?;
-
-                        /*
-                        let (encoding, buffer) =
-                            decrypt_server_channel(
-                                protocol, message.envelope).await?;
-                        */
-
-                        /*
-                        let aead: AeadPack = decode(&buffer).await?;
-                        session.set_nonce(&aead.nonce);
-                        let message = session.decrypt(&aead).await?;
-                        let notification: ChangeNotification =
-                            serde_json::from_slice(&message)?;
-                        Ok(notification)
-                        */
                     }
-                    _ => unreachable!("bad websocket message type"),
+                    _ => panic!(
+                        "bad websocket message type, expected binary data"
+                    ),
                 }
             }))
         },
     )
 }
 
-/// Listen for changes and call a handler with the change notification.
+/// Creates a websocket that listens for changes emitted by a remote
+/// server and invokes a handler with the change notifications.
 #[derive(Clone)]
-pub struct ChangesListener {
+pub struct WebSocketChangeListener {
     origin: Origin,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
+    reconnect_interval: u64,
 }
 
-impl ChangesListener {
+impl WebSocketChangeListener {
     /// Create a new changes listener.
     pub fn new(
         origin: Origin,
         signer: BoxedEcdsaSigner,
         keypair: Keypair,
+        reconnect_interval: u64,
     ) -> Self {
+        assert!(
+            reconnect_interval >= 15000,
+            "reconnect interval must not be less than 15 seconds"
+        );
+
         Self {
             origin,
             signer,
             keypair,
+            reconnect_interval,
         }
     }
 
@@ -187,20 +154,16 @@ impl ChangesListener {
     pub fn spawn<F>(
         self,
         handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
-    ) -> thread::JoinHandle<()>
+    ) -> tokio::task::JoinHandle<()>
     where
-        F: Future<Output = ()> + 'static,
+        F: Future<Output = ()> + Send + 'static,
     {
-        thread::spawn(move || {
-            let runtime = tokio::runtime::Runtime::new().unwrap();
-            let _ = runtime.block_on(async move {
-                let _ = self.connect(&handler).await;
-                Ok::<(), Error>(())
-            });
+        tokio::task::spawn(async move {
+            let _ = self.connect(&handler).await;
         })
     }
 
-    #[async_recursion(?Send)]
+    #[async_recursion]
     async fn listen<F>(
         &self,
         stream: WsStream,
@@ -208,7 +171,7 @@ impl ChangesListener {
         handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
-        F: Future<Output = ()> + 'static,
+        F: Future<Output = ()> + Send + 'static,
     {
         let mut stream = changes(stream, client);
         while let Some(notification) = stream.next().await {
@@ -233,7 +196,7 @@ impl ChangesListener {
         handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
-        F: Future<Output = ()> + 'static,
+        F: Future<Output = ()> + Send + 'static,
     {
         match self.stream().await {
             Ok((stream, client)) => {
@@ -243,16 +206,16 @@ impl ChangesListener {
         }
     }
 
-    #[async_recursion(?Send)]
+    #[async_recursion]
     async fn delay_connect<F>(
         &self,
         handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
-        F: Future<Output = ()> + 'static,
+        F: Future<Output = ()> + Send + 'static,
     {
         loop {
-            sleep(Duration::from_millis(INTERVAL_MS)).await;
+            sleep(Duration::from_millis(self.reconnect_interval)).await;
             self.connect(handler).await?;
         }
     }

@@ -441,7 +441,7 @@ impl LocalProvider {
 
     /// Import a vault buffer into an existing account.
     ///
-    /// If a vault with the same identifier already exists 
+    /// If a vault with the same identifier already exists
     /// it is overwritten.
     pub async fn import_vault(
         &mut self,
@@ -469,7 +469,7 @@ impl LocalProvider {
         }
         Ok(())
     }
-    
+
     /*
     /// Create a backup of a vault file.
     pub async fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
