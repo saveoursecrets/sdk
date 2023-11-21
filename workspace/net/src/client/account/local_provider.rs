@@ -285,6 +285,19 @@ impl LocalProvider {
         Ok(())
     }
 
+    /// Add a summary to the in-memory cache of vaults.
+    pub(super) async fn add_local_cache(
+        &mut self,
+        summary: Summary,
+    ) -> Result<()> {
+        // Add to our cache of managed vaults
+        self.create_cache_entry(&summary, None).await?;
+
+        // Add to the state of managed vaults
+        self.state_mut().add_summary(summary);
+        Ok(())
+    }
+
     /// Refresh the in-memory vault of the current selection
     /// from the contents of the current event log file.
     async fn refresh_vault(

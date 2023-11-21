@@ -17,13 +17,13 @@ use crate::test_utils::{
 
 use super::{assert_local_remote_events_eq, num_events};
 
-/// Tests syncing create secret events between two clients
+/// Tests syncing create folder events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
 #[tokio::test]
 #[serial]
-async fn integration_change_create_secret() -> Result<()> {
-    //crate::test_utils::init_tracing();
+async fn integration_listen_create_folder() -> Result<()> {
+    crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
     let dirs = setup(2).await?;
@@ -41,7 +41,7 @@ async fn integration_change_create_secret() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, passphrase) = create_local_account(
-        "sync_change_create_secret",
+        "sync_listen_create_folder",
         Some(test_data_dir.clone()),
     )
     .await?;
@@ -78,7 +78,6 @@ async fn integration_change_create_secret() -> Result<()> {
     // Copy the owner's account directory and sign in
     // using the alternative owner
     copy_dir(&test_data_dir, &other_data_dir)?;
-
     let mut other_owner = UserStorage::sign_in(
         owner.address(),
         passphrase,
@@ -89,8 +88,7 @@ async fn integration_change_create_secret() -> Result<()> {
 
     // Mimic account owner on another device connected to
     // the same remotes
-    let other_provider =
-        other_owner.remote_bridge(&origin).await?;
+    let other_provider = other_owner.remote_bridge(&origin).await?;
 
     // Start listening for change notifications (second client)
     RemoteBridge::listen(
@@ -121,25 +119,19 @@ async fn integration_change_create_secret() -> Result<()> {
     // the remote which should create the account on the remote
     owner.sync().await?;
 
-    // Create a secret in the primary owner which won't exist
-    // in the second device
-    let (meta, secret) = mock_note("note_first_owner", "send_events_secret");
-    let (_, sync_error) = owner
-        .create_secret(meta, secret, Default::default())
-        .await?;
+    let (new_folder, sync_error) =
+        owner.create_folder("sync_folder".to_string()).await?;
     assert!(sync_error.is_none());
 
-    // First client is now ahead
-    assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
-    assert_eq!(1, num_events(&mut other_owner, &default_folder_id).await);
+    // Our new local folder should have the single create vault event
+    assert_eq!(1, num_events(&mut owner, new_folder.id()).await);
 
     // Pause a while to give the listener some time to process
     // the change notification
     tokio::time::sleep(Duration::from_millis(250)).await;
 
-    // Both clients should be in sync now
-    assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
-    assert_eq!(2, num_events(&mut other_owner, &default_folder_id).await);
+    // The synced client should also have the same number of events
+    assert_eq!(1, num_events(&mut other_owner, new_folder.id()).await);
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote

@@ -237,12 +237,7 @@ impl UserStorage {
         let signer = self.user.identity().signer().clone();
         let local = self.storage();
         let provider =
-            RemoteBridge::new(
-                local,
-                origin.clone(),
-                signer,
-                keypair,
-            )?;
+            RemoteBridge::new(local, origin.clone(), signer, keypair)?;
 
         // Noise protocol handshake
         provider.handshake().await?;

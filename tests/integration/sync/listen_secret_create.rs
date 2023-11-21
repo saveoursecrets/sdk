@@ -17,12 +17,12 @@ use crate::test_utils::{
 
 use super::{assert_local_remote_events_eq, num_events};
 
-/// Tests syncing delete secret events between two clients
+/// Tests syncing create secret events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
 #[tokio::test]
 #[serial]
-async fn integration_change_delete_secret() -> Result<()> {
+async fn integration_listen_create_secret() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
@@ -41,7 +41,7 @@ async fn integration_change_delete_secret() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, passphrase) = create_local_account(
-        "sync_change_delete_secret",
+        "sync_listen_create_secret",
         Some(test_data_dir.clone()),
     )
     .await?;
@@ -89,8 +89,7 @@ async fn integration_change_delete_secret() -> Result<()> {
 
     // Mimic account owner on another device connected to
     // the same remotes
-    let other_provider =
-        other_owner.remote_bridge(&origin).await?;
+    let other_provider = other_owner.remote_bridge(&origin).await?;
 
     // Start listening for change notifications (second client)
     RemoteBridge::listen(
@@ -124,22 +123,22 @@ async fn integration_change_delete_secret() -> Result<()> {
     // Create a secret in the primary owner which won't exist
     // in the second device
     let (meta, secret) = mock_note("note_first_owner", "send_events_secret");
-    let (id, sync_error) = owner
+    let (_, sync_error) = owner
         .create_secret(meta, secret, Default::default())
         .await?;
     assert!(sync_error.is_none());
 
-    // Delete the secret
-    let sync_error = owner.delete_secret(&id, Default::default()).await?;
-    assert!(sync_error.is_none());
-    
+    // First client is now ahead
+    assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
+    assert_eq!(1, num_events(&mut other_owner, &default_folder_id).await);
+
     // Pause a while to give the listener some time to process
     // the change notification
     tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Both clients should be in sync now
-    assert_eq!(3, num_events(&mut owner, &default_folder_id).await);
-    assert_eq!(3, num_events(&mut other_owner, &default_folder_id).await);
+    assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
+    assert_eq!(2, num_events(&mut other_owner, &default_folder_id).await);
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote

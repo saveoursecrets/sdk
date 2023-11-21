@@ -3,9 +3,7 @@ use serde_json::Value;
 use std::{borrow::Cow, io::Result};
 
 use sos_sdk::{
-    constants::RPC_IDENTITY,
-    encoding::encoding_error,
-    formats::FileIdentity,
+    constants::RPC_IDENTITY, encoding::encoding_error, formats::FileIdentity,
     mpc::SealedEnvelope,
 };
 
@@ -15,7 +13,9 @@ use binary_stream::futures::{
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
-use crate::rpc::{Packet, Payload, RequestMessage, ResponseMessage, ServerEnvelope};
+use crate::rpc::{
+    Packet, Payload, RequestMessage, ResponseMessage, ServerEnvelope,
+};
 
 #[async_trait]
 impl Encodable for ServerEnvelope {

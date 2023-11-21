@@ -15,8 +15,8 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 
 use crate::{
-    server::{authenticate, State},
     rpc::{Packet, RequestMessage, ServerEnvelope, Service},
+    server::{authenticate, State},
 };
 
 /// Type to represent the caller of a service request.

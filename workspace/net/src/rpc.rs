@@ -5,11 +5,11 @@
 //! otherwise a service must reply.
 use sos_sdk::mpc::SealedEnvelope;
 
+use crate::{Error, Result};
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use std::borrow::Cow;
-use crate::{Error, Result};
 
 use async_trait::async_trait;
 
@@ -322,9 +322,9 @@ pub trait Service {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sos_sdk::{decode, encode};
     use anyhow::Result;
     use http::StatusCode;
+    use sos_sdk::{decode, encode};
 
     #[tokio::test]
     async fn rpc_encode() -> Result<()> {

@@ -66,8 +66,6 @@ impl RemoteBridge {
     ) -> Result<Self> {
         let remote = RpcClient::new(
             origin.clone(),
-            //client_origin.url,
-            //client_origin.public_key,
             signer,
             keypair,
         )?;
@@ -147,8 +145,7 @@ impl RemoteBridge {
                             tracing::debug!(
                                 vault_id = ?summary.id(),
                                 change_root = ?change.proof().root_hex(),
-                                root = ?head.root_hex(),
-                                "handle_change");
+                                root = ?head.root_hex());
 
                             // Looks like the change was made elsewhere
                             // and we should attempt to sync with the server
@@ -177,7 +174,7 @@ impl RemoteBridge {
                                     commit_proof = ?commit_proof);
 
                                 bridge
-                                    .sync_pull_folder(
+                                    .pull_folder(
                                         last_commit.as_ref(),
                                         &commit_proof,
                                         summary,
@@ -195,7 +192,39 @@ impl RemoteBridge {
                         _ => {}
                     }
                 } else if let ChangeAction::Create(summary) = action {
-                    //provider.add_local_cache(summary.clone()).await?;
+                    tracing::debug!(
+                        folder = %summary.id(),
+                        "pull new folder");
+
+                    let id = *summary.id();
+                    
+                    // Prepare the local provider for the new folder
+                    {
+                        let mut writer = local.write().await;
+                        writer.add_local_cache(summary).await?;
+                    }
+                    
+                    // Load the event entire event log
+                    let (remote_proof, events_buffer) =
+                        bridge.load_events(&id).await?;
+
+                    {
+                        let mut writer = local.write().await;
+                        let mut event_log = writer
+                            .cache_mut()
+                            .get_mut(&id)
+                            .ok_or(Error::CacheNotAvailable(id))?;
+                        
+                        // Write out the events we fetched
+                        event_log.write_buffer(&events_buffer).await?;
+                        
+                        // Check the proofs match afterwards
+                        let local_proof = event_log.tree().head()?;
+                        if local_proof != remote_proof {
+                            return Err(Error::RootHashMismatch(
+                                local_proof.into(), remote_proof.into()))
+                        }
+                    }
                 }
             }
 
@@ -208,13 +237,13 @@ impl RemoteBridge {
             let bridge = Arc::clone(&remote_bridge);
 
             async move {
-                let span = span!(Level::DEBUG, "change_event");
+                let span = span!(Level::DEBUG, "on_change_event");
                 let _enter = span.enter();
                 tracing::debug!(notification = ?notification);
                 if let Err(e) =
                     on_change_notification(bridge, notification).await
                 {
-                    tracing::error!(error = ?e, "handle change");
+                    tracing::error!(error = ?e);
                 }
             }
         });
@@ -242,10 +271,16 @@ impl RemoteBridge {
 
     /// Create an account on the remote.
     async fn create_account(&self, buffer: Vec<u8>) -> Result<()> {
+        let span = span!(Level::DEBUG, "create_account");
+        let _enter = span.enter();
+
         let (status, _) = retry!(
             || self.remote.create_account(buffer.clone()),
             self.remote
         );
+
+        tracing::debug!(status = %status);
+
         status
             .is_success()
             .then_some(())
@@ -253,10 +288,34 @@ impl RemoteBridge {
         Ok(())
     }
 
-    /// Import a vault into an account that already exists on the remote.
-    async fn import_vault(&self, buffer: &[u8]) -> Result<()> {
+    /// Load all events from a remote event log.
+    async fn load_events(&self, id: &VaultId) -> Result<(CommitProof, Vec<u8>)> {
+        let span = span!(Level::DEBUG, "load_events");
+        let _enter = span.enter();
+
+        let (status, (proof, buffer)) =
+            retry!(|| self.remote.load_events(id), self.remote);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+        
+        Ok((proof, buffer.ok_or(Error::NoEventBuffer)?))
+    }
+
+    /// Import a folder on the remote.
+    async fn import_folder(&self, buffer: &[u8]) -> Result<()> {
+        let span = span!(Level::DEBUG, "import_folder");
+        let _enter = span.enter();
+
         let (status, _) =
             retry!(|| self.remote.create_vault(buffer), self.remote);
+
+        tracing::debug!(status = %status);
+
         status
             .is_success()
             .then_some(())
@@ -264,10 +323,16 @@ impl RemoteBridge {
         Ok(())
     }
 
-    /// Update a vault.
-    async fn update_vault(&self, id: &VaultId, buffer: &[u8]) -> Result<()> {
+    /// Update a folder on the remote.
+    async fn update_folder(&self, id: &VaultId, buffer: &[u8]) -> Result<()> {
+        let span = span!(Level::DEBUG, "update_folder");
+        let _enter = span.enter();
+
         let (status, _) =
             retry!(|| self.remote.update_vault(id, buffer), self.remote);
+
+        tracing::debug!(status = %status);
+
         status
             .is_success()
             .then_some(())
@@ -275,10 +340,16 @@ impl RemoteBridge {
         Ok(())
     }
 
-    /// Import a vault into an account that already exists on the remote.
-    async fn delete_vault(&self, id: &VaultId) -> Result<()> {
+    /// Import a folder into an account that already exists on the remote.
+    async fn delete_folder(&self, id: &VaultId) -> Result<()> {
+        let span = span!(Level::DEBUG, "delete_folder");
+        let _enter = span.enter();
+
         let (status, _) =
             retry!(|| self.remote.delete_vault(id), self.remote);
+
+        tracing::debug!(status = %status);
+
         status
             .is_success()
             .then_some(())
@@ -286,7 +357,7 @@ impl RemoteBridge {
         Ok(())
     }
 
-    async fn sync_pull_folder(
+    async fn pull_folder(
         &self,
         last_commit: Option<&CommitHash>,
         client_proof: &CommitProof,
@@ -294,6 +365,11 @@ impl RemoteBridge {
     ) -> Result<bool> {
         let span = span!(Level::DEBUG, "pull_folder");
         let _enter = span.enter();
+
+        tracing::debug!(
+            id = %folder.id(),
+            last_commit = ?last_commit,
+            client_proof = ?client_proof);
 
         let last_commit = last_commit.ok_or_else(|| Error::NoRootCommit)?;
 
@@ -321,7 +397,7 @@ impl RemoteBridge {
         Ok(num_events > 0)
     }
 
-    async fn sync_pull_account(
+    async fn pull_account(
         &self,
         account_status: AccountStatus,
     ) -> Result<()> {
@@ -343,7 +419,7 @@ impl RemoteBridge {
                 (last_commit, commit_proof, folder)
             };
 
-            self.sync_pull_folder(
+            self.pull_folder(
                 last_commit.as_ref(),
                 &commit_proof,
                 &folder,
@@ -355,7 +431,7 @@ impl RemoteBridge {
     }
 
     /// Create an account on the remote.
-    async fn sync_create_remote_account(&self) -> Result<()> {
+    async fn prepare_account(&self) -> Result<()> {
         let folder_buffer = {
             let local = self.local.read().await;
             let default_folder = local
@@ -390,14 +466,15 @@ impl RemoteBridge {
                 vfs::read(folder_path).await?
             };
 
-            self.import_vault(&folder_buffer).await?;
+            self.import_folder(&folder_buffer).await?;
         }
 
         // FIXME: import files here!
 
         Ok(())
     }
-
+    
+    /// Send a local patch of events to the remote.
     async fn patch(
         &self,
         before_last_commit: Option<&CommitHash>,
@@ -405,7 +482,7 @@ impl RemoteBridge {
         folder: &Summary,
         events: &[WriteEvent<'static>],
     ) -> Result<()> {
-        let span = span!(Level::DEBUG, "patch remote");
+        let span = span!(Level::DEBUG, "patch");
         let _enter = span.enter();
 
         let patch = {
@@ -450,9 +527,9 @@ impl RemoteSync for RemoteBridge {
 
         let account_status = self.account_status().await?;
         if !account_status.exists {
-            self.sync_create_remote_account().await
+            self.prepare_account().await
         } else {
-            self.sync_pull_account(account_status).await
+            self.pull_account(account_status).await
         }
     }
 
@@ -462,7 +539,7 @@ impl RemoteSync for RemoteBridge {
         client_proof: &CommitProof,
         folder: &Summary,
     ) -> Result<bool> {
-        self.sync_pull_folder(last_commit, client_proof, folder)
+        self.pull_folder(last_commit, client_proof, folder)
             .await
     }
 
@@ -493,19 +570,19 @@ impl RemoteSync for RemoteBridge {
         // New folders must go via the vaults service,
         // and must not be included in any patch events
         for buf in create_folders {
-            self.import_vault(buf.as_ref())
+            self.import_folder(buf.as_ref())
                 .await
                 .map_err(SyncError::One)?;
         }
 
         for (id, buf) in update_folders {
-            self.update_vault(id, buf.as_ref())
+            self.update_folder(id, buf.as_ref())
                 .await
                 .map_err(SyncError::One)?;
         }
 
         for id in delete_folders {
-            self.delete_vault(id).await.map_err(SyncError::One)?;
+            self.delete_folder(id).await.map_err(SyncError::One)?;
         }
 
         if !patch_events.is_empty() {

@@ -336,8 +336,7 @@ async fn create_account(
     }
 
     let address = signer.address()?;
-    let (origin, provider) =
-        remote_bridge(signer, Some(data_dir)).await?;
+    let (origin, provider) = remote_bridge(signer, Some(data_dir)).await?;
 
     let local_provider = provider.local();
     let mut local_writer = local_provider.write().await;

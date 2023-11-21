@@ -22,7 +22,7 @@ use super::{assert_local_remote_events_eq, num_events};
 /// by the first client via the remote.
 #[tokio::test]
 #[serial]
-async fn integration_change_update_secret() -> Result<()> {
+async fn integration_listen_update_secret() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
@@ -41,7 +41,7 @@ async fn integration_change_update_secret() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, passphrase) = create_local_account(
-        "sync_change_update_secret",
+        "sync_listen_update_secret",
         Some(test_data_dir.clone()),
     )
     .await?;
@@ -89,8 +89,7 @@ async fn integration_change_update_secret() -> Result<()> {
 
     // Mimic account owner on another device connected to
     // the same remotes
-    let other_provider =
-        other_owner.remote_bridge(&origin).await?;
+    let other_provider = other_owner.remote_bridge(&origin).await?;
 
     // Start listening for change notifications (second client)
     RemoteBridge::listen(
@@ -128,10 +127,10 @@ async fn integration_change_update_secret() -> Result<()> {
         .create_secret(meta, secret, Default::default())
         .await?;
     assert!(sync_error.is_none());
-    
+
     // Update the secret
-    let (meta, secret) = mock_note(
-        "note_first_owner", "send_events_secret_updated");
+    let (meta, secret) =
+        mock_note("note_first_owner", "send_events_secret_updated");
     let (_, sync_error) = owner
         .update_secret(&id, meta, Some(secret), Default::default(), None)
         .await?;

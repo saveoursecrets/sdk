@@ -1,11 +1,14 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
 use serial_test::serial;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use sos_net::{
-    client::{RemoteBridge, RemoteSync, UserStorage},
-    sdk::vault::Summary,
+    client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
+    sdk::{
+        mpc::{Keypair, PATTERN},
+        vault::Summary,
+    },
 };
 
 use crate::test_utils::{
@@ -14,11 +17,12 @@ use crate::test_utils::{
 
 use super::{assert_local_remote_events_eq, num_events};
 
-/// Tests syncing create secret events between two
-/// clients.
+/// Tests syncing delete secret events between two clients
+/// where the second client listens for changes emitted
+/// by the first client via the remote.
 #[tokio::test]
 #[serial]
-async fn integration_sync_create_secret() -> Result<()> {
+async fn integration_listen_delete_secret() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
@@ -37,7 +41,7 @@ async fn integration_sync_create_secret() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, passphrase) = create_local_account(
-        "sync_create_secret",
+        "sync_listen_delete_secret",
         Some(test_data_dir.clone()),
     )
     .await?;
@@ -65,6 +69,12 @@ async fn integration_sync_create_secret() -> Result<()> {
     let remote_origin = origin.clone();
     let provider = owner.remote_bridge(&origin).await?;
 
+    // Start listening for change notifications (first client)
+    RemoteBridge::listen(
+        Arc::new(provider.clone()),
+        ListenOptions::new("device_1".to_string())?,
+    );
+
     // Copy the owner's account directory and sign in
     // using the alternative owner
     copy_dir(&test_data_dir, &other_data_dir)?;
@@ -80,6 +90,13 @@ async fn integration_sync_create_secret() -> Result<()> {
     // Mimic account owner on another device connected to
     // the same remotes
     let other_provider = other_owner.remote_bridge(&origin).await?;
+
+    // Start listening for change notifications (second client)
+    RemoteBridge::listen(
+        Arc::new(other_provider.clone()),
+        ListenOptions::new("device_2".to_string())?,
+    );
+
     // Insert the remote for the other owner
     other_owner.insert_remote(origin.clone(), Box::new(other_provider));
 
@@ -106,29 +123,20 @@ async fn integration_sync_create_secret() -> Result<()> {
     // Create a secret in the primary owner which won't exist
     // in the second device
     let (meta, secret) = mock_note("note_first_owner", "send_events_secret");
-    owner
+    let (id, sync_error) = owner
         .create_secret(meta, secret, Default::default())
         .await?;
+    assert!(sync_error.is_none());
 
-    // First client is now ahead
-    assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
-    assert_eq!(1, num_events(&mut other_owner, &default_folder_id).await);
+    // Delete the secret
+    let sync_error = owner.delete_secret(&id, Default::default()).await?;
+    assert!(sync_error.is_none());
 
-    // The other owner creates a secret which should trigger a pull
-    // of the remote patch before applying changes
-    let (meta, secret) = mock_note("note_second_owner", "send_events_secret");
-    other_owner
-        .create_secret(meta, secret, Default::default())
-        .await?;
+    // Pause a while to give the listener some time to process
+    // the change notification
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
-    // Second client is ahead
-    assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
-    assert_eq!(3, num_events(&mut other_owner, &default_folder_id).await);
-
-    // First client runs sync to pull down the additional secret
-    owner.sync().await?;
-
-    // Everyone is equal
+    // Both clients should be in sync now
     assert_eq!(3, num_events(&mut owner, &default_folder_id).await);
     assert_eq!(3, num_events(&mut other_owner, &default_folder_id).await);
 

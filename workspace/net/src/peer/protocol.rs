@@ -10,9 +10,7 @@ use std::{
     io::{self, ErrorKind},
 };
 
-use sos_sdk::{
-    decode, encode,
-};
+use sos_sdk::{decode, encode};
 
 use crate::rpc::{RequestMessage, ResponseMessage};
 

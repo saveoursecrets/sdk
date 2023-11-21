@@ -19,8 +19,8 @@ use uuid::Uuid;
 
 use super::{append_audit_logs, send_notification, PrivateState};
 use crate::{
-    server::BackendHandler,
     rpc::{RequestMessage, ResponseMessage, Service},
+    server::BackendHandler,
 };
 
 enum PatchResult {
@@ -57,8 +57,8 @@ impl Service for EventLogService {
 
         match request.method() {
             EVENT_LOG_LOAD => {
-                let (vault_id, commit_proof) =
-                    request.parameters::<(Uuid, Option<CommitProof>)>()?;
+                let vault_id =
+                    request.parameters::<Uuid>()?;
 
                 let reader = state.read().await;
                 let (exists, _) = reader
@@ -83,50 +83,8 @@ impl Service for EventLogService {
 
                 let proof = event_log.tree().head().map_err(Box::from)?;
 
-                tracing::debug!(root = %proof.root_hex(),
-                    "get_event_log server root");
-
-                // Client is asking for data from a specific commit hash
-                let result = if let Some(proof) = commit_proof {
-                    //let proof: CommitProof = proof.into();
-
-                    tracing::debug!(root = %proof.root_hex(),
-                        "get_event_log client root");
-
-                    let comparison = event_log
-                        .tree()
-                        .compare(&proof)
-                        .map_err(Box::from)?;
-
-                    match comparison {
-                        Comparison::Equal => {
-                            Ok((StatusCode::NOT_MODIFIED, vec![]))
-                        }
-                        Comparison::Contains(_, mut leaves) => {
-                            if leaves.len() == 1 {
-                                let leaf = leaves.remove(0);
-                                if let Some(partial) = event_log
-                                    .diff(leaf)
-                                    .await
-                                    .map_err(Box::from)?
-                                {
-                                    Ok((StatusCode::OK, partial))
-                                // Could not find a record corresponding
-                                // to the leaf node
-                                } else {
-                                    Ok((StatusCode::CONFLICT, vec![]))
-                                }
-                            } else {
-                                Err(StatusCode::BAD_REQUEST)
-                            }
-                        }
-                        // Could not find leaf node in the commit tree
-                        Comparison::Unknown => {
-                            Ok((StatusCode::CONFLICT, vec![]))
-                        }
-                    }
                 // Otherwise get the entire event log buffer
-                } else if let Ok(buffer) = reader
+                let result = if let Ok(buffer) = reader
                     .backend
                     .handler()
                     .get_event_log(caller.address(), &vault_id)
@@ -156,7 +114,7 @@ impl Service for EventLogService {
                         let reply = ResponseMessage::new(
                             request.id(),
                             status,
-                            Some(Ok(Some(&proof))),
+                            Some(Ok(&proof)),
                             Cow::Owned(buffer),
                         )?;
                         Ok(reply)

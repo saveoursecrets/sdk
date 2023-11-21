@@ -14,8 +14,8 @@ use uuid::Uuid;
 
 use super::{append_audit_logs, send_notification, PrivateState};
 use crate::{
-    server::{BackendHandler, Error},
     rpc::{RequestMessage, ResponseMessage, Service},
+    server::{BackendHandler, Error},
 };
 
 /// Vault management service.

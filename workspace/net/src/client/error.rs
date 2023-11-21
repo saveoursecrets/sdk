@@ -160,6 +160,10 @@ pub enum Error {
     #[error("could not fetch account status")]
     NoAccountStatus,
 
+    /// Error generated when an event log buffer is expected.
+    #[error("no event buffer returned when loading events")]
+    NoEventBuffer,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

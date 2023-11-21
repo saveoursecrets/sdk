@@ -12,8 +12,8 @@ use async_trait::async_trait;
 
 use super::{append_audit_logs, send_notification, PrivateState};
 use crate::{
-    server::BackendHandler,
     rpc::{RequestMessage, ResponseMessage, Service},
+    server::BackendHandler,
 };
 
 /// Account management service.

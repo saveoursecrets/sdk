@@ -4,8 +4,8 @@ use sos_sdk::{
 };
 
 use crate::{
-    server::State,
     rpc::{RequestMessage, ResponseMessage, Service},
+    server::State,
 };
 use async_trait::async_trait;
 use axum::http::StatusCode;

@@ -131,6 +131,12 @@ impl From<CommitProof> for (CommitHash, usize) {
     }
 }
 
+impl From<CommitProof> for CommitHash {
+    fn from(value: CommitProof) -> Self {
+        CommitHash(value.root)
+    }
+}
+
 impl Default for CommitProof {
     fn default() -> Self {
         Self {

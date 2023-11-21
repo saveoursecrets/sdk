@@ -422,23 +422,21 @@ impl RpcClient {
         maybe_retry.map(|result, body| Ok((result?, body)))
     }
 
-    /// Get the event log bytes for a vault.
-    /// TODO: remove the Option from the body return value???
-    pub async fn load_event_log(
+    /// Load a buffer of the entire event log on a remote.
+    pub async fn load_events(
         &self,
         vault_id: &VaultId,
-        proof: Option<CommitProof>,
-    ) -> Result<MaybeRetry<(Option<CommitProof>, Option<Vec<u8>>)>> {
+    ) -> Result<MaybeRetry<(CommitProof, Option<Vec<u8>>)>> {
         let url = self.origin.url.join("api/events")?;
         let id = self.next_id().await;
         let body =
-            new_rpc_call(id, EVENT_LOG_LOAD, (vault_id, proof)).await?;
+            new_rpc_call(id, EVENT_LOG_LOAD, vault_id).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
         let maybe_retry = self
-            .read_encrypted_response::<Option<CommitProof>>(
+            .read_encrypted_response::<CommitProof>(
                 response.status(),
                 &response.bytes().await?,
             )
