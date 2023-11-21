@@ -3,6 +3,7 @@ use crate::{
     client::{
         net::{MaybeRetry, RpcClient},
         Error, LocalProvider, RemoteSync, Result, SyncError,
+        ListenOptions,
     },
     retry,
 };
@@ -89,9 +90,8 @@ impl RemoteBridge {
     /// public key.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn listen(
-        keypair: Keypair,
-        reconnect_interval: u64,
         bridge: Arc<RemoteBridge>,
+        options: ListenOptions,
     ) {
         use sos_sdk::prelude::{
             ChangeAction, ChangeEvent, ChangeNotification,
@@ -209,8 +209,7 @@ impl RemoteBridge {
         let remote_bridge = Arc::clone(&bridge);
 
         bridge.remote.listen(
-            keypair,
-            reconnect_interval,
+            options,
             move |notification| {
                 let bridge = Arc::clone(&remote_bridge);
 

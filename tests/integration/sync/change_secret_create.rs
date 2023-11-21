@@ -4,7 +4,7 @@ use serial_test::serial;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use sos_net::{
-    client::{RemoteBridge, RemoteSync, UserStorage},
+    client::{RemoteBridge, RemoteSync, UserStorage, ListenOptions},
     sdk::{
         mpc::{Keypair, PATTERN},
         vault::Summary,
@@ -69,6 +69,12 @@ async fn integration_change_create_secret() -> Result<()> {
     let remote_origin = origin.clone();
     let provider = owner.create_remote_provider(&origin, None).await?;
 
+    // Start listening for change notifications (first client)
+    RemoteBridge::listen(
+        Arc::new(provider.clone()),
+        ListenOptions::new("device_1".to_string())?,
+    );
+
     // Copy the owner's account directory and sign in
     // using the alternative owner
     copy_dir(&test_data_dir, &other_data_dir)?;
@@ -86,12 +92,10 @@ async fn integration_change_create_secret() -> Result<()> {
     let other_provider =
         other_owner.create_remote_provider(&origin, None).await?;
 
-    // Start listening for change notifications
-    let keypair = Keypair::new(PATTERN.parse()?)?;
+    // Start listening for change notifications (second client)
     RemoteBridge::listen(
-        keypair,
-        15000,
         Arc::new(other_provider.clone()),
+        ListenOptions::new("device_2".to_string())?,
     );
 
     // Insert the remote for the other owner

@@ -3,7 +3,7 @@ use futures::{
     stream::{Map, SplitStream},
     Future, StreamExt,
 };
-use std::{pin::Pin, sync::Arc, thread, time::Duration};
+use std::{pin::Pin, sync::Arc, time::Duration};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
@@ -14,15 +14,13 @@ use tokio_tungstenite::{
 };
 
 use async_recursion::async_recursion;
-use tokio::{net::TcpStream, sync::RwLock, time::sleep};
-
-use url::Url;
+use tokio::{net::TcpStream, time::sleep};
 
 use sos_sdk::{
     events::ChangeNotification, mpc::Keypair, signer::ecdsa::BoxedEcdsaSigner,
 };
 
-use crate::client::{net::RpcClient, Error, Origin, Result};
+use crate::client::{RpcClient, Origin, Result};
 
 use super::changes_uri;
 

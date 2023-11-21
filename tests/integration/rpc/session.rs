@@ -5,7 +5,7 @@ use crate::test_utils::*;
 
 use http::StatusCode;
 use sos_net::{
-    client::{net::RpcClient, Origin},
+    client::{RpcClient, Origin},
     sdk::{encode, hex, mpc::generate_keypair, vault::Vault},
 };
 

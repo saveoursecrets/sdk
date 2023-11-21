@@ -1,12 +1,11 @@
-//! Traits and implementations for clients.
+//! Client user account and types for bridging with remote origins.
 
 mod account;
+mod error;
 #[cfg(feature = "hashcheck")]
 pub mod hashcheck;
 mod net;
 mod sync;
-
-mod error;
 
 pub use account::*;
 pub use error::Error;

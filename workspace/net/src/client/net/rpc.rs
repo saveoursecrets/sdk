@@ -37,7 +37,7 @@ use std::{
 use tokio::sync::{Mutex, RwLock};
 use url::Url;
 
-use crate::client::{Error, Origin, Result};
+use crate::client::{Error, Origin, Result, ListenOptions};
 
 use super::{bearer_prefix, encode_signature, AUTHORIZATION};
 
@@ -88,8 +88,7 @@ impl RpcClient {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn listen<F>(
         &self,
-        keypair: Keypair,
-        reconnect_interval: u64,
+        options: ListenOptions,
         handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
     ) where
         F: Future<Output = ()> + Send + 'static,
@@ -97,8 +96,8 @@ impl RpcClient {
         let listener = WebSocketChangeListener::new(
             self.origin.clone(),
             self.signer.clone(),
-            keypair,
-            reconnect_interval,
+            options.keypair,
+            options.reconnect_interval,
         );
         listener.spawn(handler);
     }

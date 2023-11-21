@@ -3,7 +3,7 @@ use serial_test::serial;
 
 use crate::test_utils::{server, spawn};
 
-use sos_net::client::net::RpcClient;
+use sos_net::client::RpcClient;
 
 #[tokio::test]
 #[serial]
