@@ -1,6 +1,6 @@
 //! Remote procedure call (RPC) client implementation.
 use futures::Future;
-use http::StatusCode;
+use http::{StatusCode, header::{self, HeaderValue}};
 use serde::{de::DeserializeOwned, Serialize};
 use sos_sdk::{
     account::AccountStatus,
@@ -9,6 +9,7 @@ use sos_sdk::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
         EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
         HANDSHAKE_INITIATE, VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
+        MIME_TYPE_RPC,
     },
     decode, encode,
     events::Patch,
@@ -218,6 +219,25 @@ impl RpcClient {
 
         Ok(())
     }
+    
+    /// Check if we are able to handle a response status code 
+    /// and content type.
+    fn check_response(&self, response: &reqwest::Response) -> Result<()> {
+        let rpc_type = HeaderValue::from_static(MIME_TYPE_RPC);
+        let status = response.status();
+        let content_type = response.headers().get(&header::CONTENT_TYPE);
+        match (status, content_type) {
+            // OK with the correct MIME type can be handled
+            (StatusCode::OK, Some(rpc_type)) => Ok(()),
+            // Conflict with the correct MIME type can be handled
+            (StatusCode::CONFLICT, Some(rpc_type)) => Ok(()),
+            // Unauthorized responses can be retried
+            // to renew the noise protocol transport
+            (StatusCode::UNAUTHORIZED, None) => Ok(()),
+            // Otherwise exit out early
+            _ => Err(Error::ResponseCode(status.into())),
+        }
+    }
 
     /// Get the account status.
     pub async fn account_status(
@@ -234,6 +254,7 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
+        self.check_response(&response)?;
         let maybe_retry = self
             .read_encrypted_response::<AccountStatus>(
                 response.status(),
@@ -265,6 +286,7 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
+        self.check_response(&response)?;
         let maybe_retry = self
             .read_encrypted_response::<CommitProof>(
                 response.status(),
@@ -284,6 +306,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
+        self.check_response(&response)?;
         let maybe_retry = self
             .read_encrypted_response::<Vec<Summary>>(
                 response.status(),
@@ -312,9 +335,8 @@ impl RpcClient {
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
-
         let response = self.send_request(url, signature, body).await?;
-
+        self.check_response(&response)?;
         let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
@@ -336,10 +358,9 @@ impl RpcClient {
         let body = new_rpc_call(id, VAULT_DELETE, vault_id).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
-
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-
+        self.check_response(&response)?;
         let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
@@ -362,12 +383,7 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let vault_id = *vault_id;
         let url = self.origin.url.join("api/vault")?;
-
         let id = self.next_id().await;
-
-        //let (session_id, sign_bytes, body) =
-        //body!(self, id, VAULT_SAVE, vault_id, Cow::Owned(vault));
-
         let request = RequestMessage::new(
             Some(id),
             VAULT_SAVE,
@@ -381,7 +397,7 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-
+        self.check_response(&response)?;
         let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
@@ -411,7 +427,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-
+        self.check_response(&response)?;
         let maybe_retry = self
             .read_encrypted_response::<usize>(
                 response.status(),
@@ -434,6 +450,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
+        self.check_response(&response)?;
         let maybe_retry = self
             .read_encrypted_response::<CommitProof>(
                 response.status(),
@@ -458,6 +475,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
+        self.check_response(&response)?;
         let maybe_retry = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
                 response.status(),
@@ -496,7 +514,7 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-
+        self.check_response(&response)?;
         let maybe_retry = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
                 response.status(),
@@ -512,27 +530,16 @@ impl RpcClient {
 
     /// Replace the event log for a vault on a remote node.
     /// TODO: remove the Option from the return value ???
+    #[deprecated(note = "No longer used")]
     pub async fn save_event_log(
         &self,
         vault_id: &VaultId,
         proof: CommitProof,
         body: Vec<u8>,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
-        //let vault_id = *vault_id;
         let url = self.origin.url.join("api/events")?;
 
         let id = self.next_id().await;
-
-        /*
-        let (session_id, sign_bytes, body) = body!(
-            self,
-            id,
-            EVENT_LOG_SAVE,
-            (vault_id, proof),
-            Cow::Owned(body)
-        );
-        */
-
         let request = RequestMessage::new(
             Some(id),
             EVENT_LOG_SAVE,
@@ -547,7 +554,7 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-
+        self.check_response(&response)?;
         let maybe_retry = self
             .read_encrypted_response::<CommitProof>(
                 response.status(),
