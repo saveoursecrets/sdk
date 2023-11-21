@@ -2,8 +2,7 @@
 use crate::{
     client::{
         net::{MaybeRetry, RpcClient},
-        Error, LocalProvider, RemoteSync, Result, SyncError,
-        ListenOptions,
+        Error, ListenOptions, LocalProvider, RemoteSync, Result, SyncError,
     },
     retry,
 };
@@ -89,10 +88,7 @@ impl RemoteBridge {
     /// will collide on the server as they are identified by
     /// public key.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn listen(
-        bridge: Arc<RemoteBridge>,
-        options: ListenOptions,
-    ) {
+    pub fn listen(bridge: Arc<RemoteBridge>, options: ListenOptions) {
         use sos_sdk::prelude::{
             ChangeAction, ChangeEvent, ChangeNotification,
             CommitRelationship, VaultRef,
@@ -208,26 +204,20 @@ impl RemoteBridge {
 
         let remote_bridge = Arc::clone(&bridge);
 
-        bridge.remote.listen(
-            options,
-            move |notification| {
-                let bridge = Arc::clone(&remote_bridge);
+        bridge.remote.listen(options, move |notification| {
+            let bridge = Arc::clone(&remote_bridge);
 
-                async move {
-                    let span = span!(Level::DEBUG, "change_event");
-                    let _enter = span.enter();
-                    tracing::debug!(notification = ?notification);
-                    if let Err(e) = on_change_notification(
-                        bridge,
-                        notification,
-                    )
-                    .await
-                    {
-                        tracing::error!(error = ?e, "handle change");
-                    }
+            async move {
+                let span = span!(Level::DEBUG, "change_event");
+                let _enter = span.enter();
+                tracing::debug!(notification = ?notification);
+                if let Err(e) =
+                    on_change_notification(bridge, notification).await
+                {
+                    tracing::error!(error = ?e, "handle change");
                 }
-            },
-        );
+            }
+        });
     }
 
     /// Clone of the local provider.

@@ -25,7 +25,7 @@ use sos_sdk::{
 use sos_sdk::events::ChangeNotification;
 
 #[cfg(not(target_arch = "wasm32"))]
-use super::changes::WebSocketChangeListener;
+use super::websocket::WebSocketChangeListener;
 
 use std::{
     borrow::Cow,
@@ -37,7 +37,7 @@ use std::{
 use tokio::sync::{Mutex, RwLock};
 use url::Url;
 
-use crate::client::{Error, Origin, Result, ListenOptions};
+use crate::client::{Error, ListenOptions, Origin, Result};
 
 use super::{bearer_prefix, encode_signature, AUTHORIZATION};
 

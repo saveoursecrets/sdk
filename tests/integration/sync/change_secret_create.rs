@@ -4,7 +4,7 @@ use serial_test::serial;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use sos_net::{
-    client::{RemoteBridge, RemoteSync, UserStorage, ListenOptions},
+    client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
     sdk::{
         mpc::{Keypair, PATTERN},
         vault::Summary,
