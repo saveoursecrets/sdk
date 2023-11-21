@@ -2,7 +2,8 @@
 use futures::stream::StreamExt;
 use sos_net::{
     client::{
-        net::changes::{changes, connect},
+        changes,
+        connect,
         Origin,
     },
     sdk::{

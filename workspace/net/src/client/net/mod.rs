@@ -2,6 +2,7 @@
 
 use sos_sdk::{
     encode,
+    mpc::{Keypair, PATTERN},
     signer::ecdsa::{BinarySignature, BoxedEcdsaSigner},
 };
 
@@ -17,6 +18,24 @@ mod rpc;
 pub use rpc::{MaybeRetry, RpcClient};
 
 const AUTHORIZATION: &str = "authorization";
+
+/// Options used when listening for change notifications.
+pub struct ListenOptions {
+    pub(crate) connection_id: String,
+    pub(crate) keypair: Keypair,
+    pub(crate) reconnect_interval: u64,
+}
+
+impl ListenOptions {
+    /// Create new listen options.
+    pub fn new(connection_id: String) -> Result<Self> {
+        Ok(Self {
+            connection_id,
+            reconnect_interval: 15000,
+            keypair: Keypair::new(PATTERN.parse()?)?,
+        })
+    }
+}
 
 pub(crate) async fn encode_signature(signature: Signature) -> Result<String> {
     let signature: BinarySignature = signature.into();
