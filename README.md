@@ -43,6 +43,10 @@ Soft conflicts occur when a node tries to make changes to another node but canno
 
 The system is eventually consistent except in the case of two events; when a WAL is compacted to prune history or when the encryption password for a vault is changed. Either of these events will completely rewrite the append-only log and therefore the vault commit trees will have diverged. If all nodes are connected when these events occur then it is possible to synchronize automatically but if a node is offline (or an error occurs) then we have a conflict that must be resolved; we call this a *hard conflict*.
 
+## License
+
+MIT or Apache-2.0 at your discretion.
+
 [git]: https://git-scm.com/
 [wireguard]: https://www.wireguard.com/
 [lcov]: https://github.com/linux-test-project/lcov
