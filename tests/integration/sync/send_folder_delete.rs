@@ -105,10 +105,8 @@ async fn integration_sync_delete_folder() -> Result<()> {
         EVENT_LOG_EXT
     ));
 
-    let vault_exists = vfs::try_exists(expected_vault_file).await?;
-    assert!(!vault_exists);
-    let event_exists = vfs::try_exists(expected_event_file).await?;
-    assert!(!event_exists);
+    assert!(!vfs::try_exists(expected_vault_file).await?);
+    assert!(!vfs::try_exists(expected_event_file).await?);
 
     Ok(())
 }

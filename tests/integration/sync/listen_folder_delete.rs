@@ -6,8 +6,9 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
     sdk::{
+        constants::{EVENT_LOG_EXT, VAULT_EXT},
         mpc::{Keypair, PATTERN},
-        vault::Summary,
+        vault::Summary, vfs,
     },
 };
 
@@ -17,12 +18,12 @@ use crate::test_utils::{
 
 use super::{assert_local_remote_events_eq, num_events};
 
-/// Tests syncing create folder events between two clients
+/// Tests syncing delete folder events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
 #[tokio::test]
 #[serial]
-async fn integration_listen_create_folder() -> Result<()> {
+async fn integration_listen_delete_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
@@ -41,7 +42,7 @@ async fn integration_listen_create_folder() -> Result<()> {
     let _ = rx.await?;
 
     let (mut owner, _, default_folder, passphrase) = create_local_account(
-        "sync_listen_create_folder",
+        "sync_listen_delete_folder",
         Some(test_data_dir.clone()),
     )
     .await?;
@@ -63,6 +64,7 @@ async fn integration_listen_create_folder() -> Result<()> {
         "target/integration-test/server/{}",
         owner.address()
     ));
+    let address = owner.address().to_string();
 
     // Create the remote provider
     let origin = origin();
@@ -123,45 +125,49 @@ async fn integration_listen_create_folder() -> Result<()> {
         owner.create_folder("sync_folder".to_string()).await?;
     assert!(sync_error.is_none());
 
-    // Our new local folder should have the single create vault event
-    assert_eq!(1, num_events(&mut owner, new_folder.id()).await);
+    let sync_error = owner.delete_folder(&new_folder).await?;
+    assert!(sync_error.is_none());
 
     // Pause a while to give the listener some time to process
     // the change notification
     tokio::time::sleep(Duration::from_millis(250)).await;
 
-    // The synced client should also have the same number of events
-    assert_eq!(1, num_events(&mut other_owner, new_folder.id()).await);
+    let updated_summaries: Vec<Summary> = {
+        let storage = owner.storage();
+        let reader = storage.read().await;
+        reader.state().summaries().to_vec()
+    };
+    assert_eq!(expected_summaries.len(), updated_summaries.len());
 
-    // Get the remote out of the owner so we can
-    // assert on equality between local and remote
-    let mut provider = owner.delete_remote(&remote_origin).unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
+    // Check the server removed the files
+    let expected_vault_file = server_path.join(&address).join(format!(
+        "{}.{}",
+        new_folder.id(),
+        VAULT_EXT
+    ));
+    let expected_event_file = server_path.join(&address).join(format!(
+        "{}.{}",
+        new_folder.id(),
+        EVENT_LOG_EXT
+    ));
+    assert!(!vfs::try_exists(expected_vault_file).await?);
+    assert!(!vfs::try_exists(expected_event_file).await?);
+    
+    // Check the first client removed the files
+    let expected_vault_file = owner.paths().vault_path(
+        new_folder.id().to_string());
+    let expected_event_file = owner.paths().vault_path(
+        new_folder.id().to_string());
+    assert!(!vfs::try_exists(expected_vault_file).await?);
+    assert!(!vfs::try_exists(expected_event_file).await?);
 
-    let mut provider = other_owner.delete_remote(&remote_origin).unwrap();
-    let other_remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
-
-    assert_local_remote_events_eq(
-        expected_summaries.clone(),
-        &server_path,
-        &mut owner,
-        remote_provider,
-    )
-    .await?;
-
-    assert_local_remote_events_eq(
-        expected_summaries,
-        &server_path,
-        &mut other_owner,
-        other_remote_provider,
-    )
-    .await?;
+    // Check the listening client removed the files
+    let expected_vault_file = other_owner.paths().vault_path(
+        new_folder.id().to_string());
+    let expected_event_file = other_owner.paths().vault_path(
+        new_folder.id().to_string());
+    assert!(!vfs::try_exists(expected_vault_file).await?);
+    assert!(!vfs::try_exists(expected_event_file).await?);
 
     Ok(())
 }

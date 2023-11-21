@@ -186,8 +186,19 @@ impl RemoteBridge {
                                     "proofs match, up to date");
                             }
                         }
-                        ChangeAction::Remove(_) => {
-                            //provider.remove_local_cache(summary)?;
+                        ChangeAction::Remove(id) => {
+                            {
+                                let mut writer = local.write().await;
+                                let summary = writer
+                                    .state()
+                                    .find(|s| s.id() == &id)
+                                    .cloned()
+                                    .ok_or(Error::CacheNotAvailable(id))?;
+                                writer.remove_local_cache(&summary)?;
+                            }
+
+                            // FIXME: remove delegated passphrase
+                            // FIXME: for the folder here
                         }
                         _ => {}
                     }
@@ -225,6 +236,9 @@ impl RemoteBridge {
                                 local_proof.into(), remote_proof.into()))
                         }
                     }
+
+                    // FIXME: create delegated passphrase
+                    // FIXME: for the folder here
                 }
             }
 
