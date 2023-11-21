@@ -63,7 +63,7 @@ async fn integration_sync_create_secret() -> Result<()> {
     // Create the remote provider
     let origin = origin();
     let remote_origin = origin.clone();
-    let provider = owner.create_remote_provider(&origin, None).await?;
+    let provider = owner.remote_bridge(&origin).await?;
 
     // Copy the owner's account directory and sign in
     // using the alternative owner
@@ -80,7 +80,7 @@ async fn integration_sync_create_secret() -> Result<()> {
     // Mimic account owner on another device connected to
     // the same remotes
     let other_provider =
-        other_owner.create_remote_provider(&origin, None).await?;
+        other_owner.remote_bridge(&origin).await?;
     // Insert the remote for the other owner
     other_owner.insert_remote(origin.clone(), Box::new(other_provider));
 

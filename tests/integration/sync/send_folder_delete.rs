@@ -60,7 +60,7 @@ async fn integration_sync_delete_folder() -> Result<()> {
     // Create the remote provider
     let origin = origin();
     let remote_origin = origin.clone();
-    let provider = owner.create_remote_provider(&origin, None).await?;
+    let provider = owner.remote_bridge(&origin).await?;
 
     // Insert the remote for the primary owner
     owner.insert_remote(origin, Box::new(provider));

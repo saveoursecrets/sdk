@@ -57,7 +57,7 @@ pub fn origin() -> Origin {
 }
 
 /// Create a remote provider for the given signing key.
-pub(super) async fn create_remote_provider(
+pub(super) async fn remote_bridge(
     signer: BoxedEcdsaSigner,
     data_dir: Option<PathBuf>,
 ) -> Result<(Origin, RemoteBridge)> {
@@ -337,7 +337,7 @@ async fn create_account(
 
     let address = signer.address()?;
     let (origin, provider) =
-        create_remote_provider(signer, Some(data_dir)).await?;
+        remote_bridge(signer, Some(data_dir)).await?;
 
     let local_provider = provider.local();
     let mut local_writer = local_provider.write().await;
@@ -379,7 +379,7 @@ pub async fn signup(
 
     let address = signer.address()?;
     let (origin, provider) =
-        create_remote_provider(signer.clone(), Some(data_dir)).await?;
+        remote_bridge(signer.clone(), Some(data_dir)).await?;
 
     let local_provider = provider.local();
     let mut local_writer = local_provider.write().await;

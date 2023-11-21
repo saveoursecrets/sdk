@@ -21,7 +21,7 @@ use sos_sdk::{
         AuditData, AuditEvent, AuditProvider, Event, EventKind, EventReducer,
         ReadEvent, WriteEvent,
     },
-    mpc::{Keypair, PATTERN},
+    mpc::generate_keypair,
     search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     vault::{
@@ -227,23 +227,22 @@ impl UserStorage {
         Arc::clone(&self.storage)
     }
 
-    /// Create a remote provider associated with this local storage and
+    /// Create a remote bridge associated with this local storage and
     /// signing identity and perform the initial noise protocol handshake.
-    pub async fn create_remote_provider(
+    pub async fn remote_bridge(
         &self,
         origin: &Origin,
-        keypair: Option<Keypair>,
     ) -> Result<RemoteBridge> {
-        let keypair = if let Some(keypair) = keypair {
-            keypair
-        } else {
-            Keypair::new(PATTERN.parse()?)?
-        };
-
+        let keypair = generate_keypair()?;
         let signer = self.user.identity().signer().clone();
         let local = self.storage();
         let provider =
-            RemoteBridge::new(local, origin.clone(), signer, keypair)?;
+            RemoteBridge::new(
+                local,
+                origin.clone(),
+                signer,
+                keypair,
+            )?;
 
         // Noise protocol handshake
         provider.handshake().await?;

@@ -50,7 +50,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     // Create the remote provider
     let origin = origin();
     let remote_origin = origin.clone();
-    let provider = owner.create_remote_provider(&origin, None).await?;
+    let provider = owner.remote_bridge(&origin).await?;
     owner.insert_remote(origin, Box::new(provider));
 
     // Sync with a local account that does not exist on
