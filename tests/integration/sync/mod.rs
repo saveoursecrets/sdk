@@ -25,6 +25,7 @@ mod listen_secret_update;
 
 mod listen_folder_create;
 mod listen_folder_import;
+mod listen_folder_rename;
 mod listen_folder_delete;
 
 mod websocket_reconnect;
