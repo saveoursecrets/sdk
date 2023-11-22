@@ -3,19 +3,22 @@ use futures::{
     stream::{Map, SplitStream},
     Future, StreamExt,
 };
-use std::{pin::Pin, sync::Arc, time::Duration};
+use std::{pin::Pin, sync::{Arc, atomic::{AtomicU64, Ordering}}, time::Duration};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
         self, client::IntoClientRequest, handshake::client::generate_key,
         protocol::Message,
+        error::Error as WsError,
     },
     MaybeTlsStream, WebSocketStream,
 };
 
 use async_recursion::async_recursion;
-use tokio::{net::TcpStream, time::sleep};
+use tokio::{net::TcpStream, time::sleep, sync::Mutex};
 use url::Url;
+
+use tracing::{span, Level};
 
 use sos_sdk::{
     events::ChangeNotification,
@@ -28,18 +31,54 @@ use crate::client::{Origin, Result, RpcClient};
 use super::encode_signature;
 
 /// Options used when listening for change notifications.
+#[derive(Clone)]
 pub struct ListenOptions {
+    /// Identifier for this connection.
+    ///
+    /// Should match the identifier used by the RPC 
+    /// client so the server can ignore sending change notifications 
+    /// to the caller.
     pub(crate) connection_id: String,
+    /// Noise protocol keypair.
+    ///
+    /// Must NOT be the same as the RPC client keypair.
     pub(crate) keypair: Keypair,
+
+    /// Base reconnection interval for exponential backoff reconnect
+    /// attempts.
     pub(crate) reconnect_interval: u64,
+    
+    /// Maximum number of retry attempts.
+    pub(crate) maximum_retries: u64,
 }
 
 impl ListenOptions {
-    /// Create new listen options.
+    /// Create new listen options using the default reconnect 
+    /// configuration.
     pub fn new(connection_id: String) -> Result<Self> {
         Ok(Self {
             connection_id,
-            reconnect_interval: 15000,
+            reconnect_interval: 1000,
+            maximum_retries: 16,
+            keypair: generate_keypair()?,
+        })
+    }
+
+    /// Create new listen options using a custom reconnect 
+    /// configuration.
+    ///
+    /// The reconnect interval is a *base interval* in milliseconds 
+    /// for the exponential backoff so use a small value such as 
+    /// `1000` or `2000`.
+    pub fn new_config(
+        connection_id: String,
+        reconnect_interval: u64,
+        maximum_retries: u64,
+    ) -> Result<Self> {
+        Ok(Self {
+            connection_id,
+            reconnect_interval,
+            maximum_retries,
             keypair: generate_keypair()?,
         })
     }
@@ -163,22 +202,29 @@ pub fn changes(
         move |message| -> Result<
             Pin<Box<dyn Future<Output = Result<ChangeNotification>> + Send>>,
         > {
-            let message = message?;
-            let rpc = Arc::clone(&client);
-            Ok(Box::pin(async move {
-                match message {
-                    Message::Binary(buffer) => {
-                        let buffer =
-                            rpc.decrypt_server_envelope(&buffer).await?;
-                        let notification: ChangeNotification =
-                            serde_json::from_slice(&buffer)?;
-                        Ok(notification)
-                    }
-                    _ => panic!(
-                        "bad websocket message type, expected binary data"
-                    ),
+
+            match message {
+                Ok(message) => {
+                    let rpc = Arc::clone(&client);
+                    Ok(Box::pin(async move {
+                        match message {
+                            Message::Binary(buffer) => {
+                                let buffer =
+                                    rpc.decrypt_server_envelope(&buffer).await?;
+                                let notification: ChangeNotification =
+                                    serde_json::from_slice(&buffer)?;
+                                Ok(notification)
+                            }
+                            _ => panic!(
+                                "bad websocket message type, expected binary data"
+                            ),
+                        }
+                    }))
                 }
-            }))
+                Err(e) => {
+                    Ok(Box::pin(async move { Err(e.into()) }))
+                }
+            }
         },
     )
 }
@@ -189,28 +235,22 @@ pub fn changes(
 pub struct WebSocketChangeListener {
     origin: Origin,
     signer: BoxedEcdsaSigner,
-    keypair: Keypair,
-    reconnect_interval: u64,
+    options: ListenOptions,
+    retries: Arc<Mutex<AtomicU64>>,
 }
 
 impl WebSocketChangeListener {
-    /// Create a new changes listener.
+    /// Create a new websocket changes listener.
     pub fn new(
         origin: Origin,
         signer: BoxedEcdsaSigner,
-        keypair: Keypair,
-        reconnect_interval: u64,
+        options: ListenOptions,
     ) -> Self {
-        assert!(
-            reconnect_interval >= 15000,
-            "reconnect interval must not be less than 15 seconds"
-        );
-
         Self {
             origin,
             signer,
-            keypair,
-            reconnect_interval,
+            options,
+            retries: Arc::new(Mutex::new(AtomicU64::from(1))),
         }
     }
 
@@ -238,20 +278,30 @@ impl WebSocketChangeListener {
     where
         F: Future<Output = ()> + Send + 'static,
     {
+        let span = span!(Level::DEBUG, "websocket");
+        let _enter = span.enter();
+
         let mut stream = changes(stream, client);
         while let Some(notification) = stream.next().await {
-            let notification = notification?.await?;
-            let future = handler(notification);
-            future.await;
+            match notification?.await {
+                Ok(notification) => {
+                    let future = handler(notification);
+                    future.await;
+                }
+                Err(e) => {
+                    tracing::error!(error = ?e);
+                    break;
+                }
+            }
         }
-        Ok(())
+        self.delay_connect(handler).await
     }
 
     async fn stream(&self) -> Result<(WsStream, Arc<RpcClient>)> {
         connect(
             self.origin.clone(),
             self.signer.clone(),
-            self.keypair.clone(),
+            self.options.keypair.clone(),
         )
         .await
     }
@@ -279,9 +329,28 @@ impl WebSocketChangeListener {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        loop {
-            sleep(Duration::from_millis(self.reconnect_interval)).await;
+        let retries = {
+            let retries = self.retries.lock().await;
+            retries.fetch_add(1, Ordering::SeqCst)
+        };
+
+        if retries > self.options.maximum_retries {
+            tracing::debug!(
+                maximum_retries = %self.options.maximum_retries,
+                "retry attempts exhausted");
+            return Ok(())
+        }
+
+        tracing::debug!(attempt = %retries, "retry");
+        
+        if let Some(factor) = 2u64.checked_pow(retries as u32) {
+            let delay = self.options.reconnect_interval * factor;
+            tracing::debug!(delay = %delay);
+            sleep(Duration::from_millis(delay)).await;
             self.connect(handler).await?;
+            Ok(())
+        } else {
+            panic!("websocket connect retry attempts overflowed");
         }
     }
 }

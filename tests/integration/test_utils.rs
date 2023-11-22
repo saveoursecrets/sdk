@@ -39,7 +39,7 @@ pub fn init_tracing() {
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
     let _ = tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "sos_net=debug,sos_sdk=debug".into()),
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "integration=debug,sos_net=debug,sos_sdk=debug".into()),
         ))
         .with(tracing_subscriber::fmt::layer().without_time())
         .try_init();

@@ -27,6 +27,8 @@ mod listen_folder_create;
 mod listen_folder_import;
 mod listen_folder_delete;
 
+mod websocket_reconnect;
+
 /// Get the number of events in a log.
 pub async fn num_events(owner: &mut UserStorage, folder: &VaultId) -> usize {
     let storage = owner.storage();

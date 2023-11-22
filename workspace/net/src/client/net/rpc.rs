@@ -99,8 +99,7 @@ impl RpcClient {
         let listener = WebSocketChangeListener::new(
             self.origin.clone(),
             self.signer.clone(),
-            options.keypair,
-            options.reconnect_interval,
+            options,
         );
         listener.spawn(handler);
     }
