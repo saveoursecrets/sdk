@@ -79,10 +79,10 @@ pub enum ChangeEvent {
     CreateVault(Summary),
     /// Event emitted when a vault is updated.
     ///
-    /// This event can occur when a vault is imported 
-    /// that overwrites an existing vault or if the 
-    /// vault is compacted or the password changed (which 
-    /// requires re-writing the event log). 
+    /// This event can occur when a vault is imported
+    /// that overwrites an existing vault or if the
+    /// vault is compacted or the password changed (which
+    /// requires re-writing the event log).
     UpdateVault(Summary),
     /// Event emitted when a vault is deleted.
     DeleteVault,

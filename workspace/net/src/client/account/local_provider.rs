@@ -15,8 +15,8 @@ use sos_sdk::{
     search::SearchIndex,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
-        Gatekeeper, Header, Summary, Vault, VaultBuilder, VaultFlags,
-        VaultId, VaultRef, VaultWriter, VaultAccess,
+        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
+        VaultFlags, VaultId, VaultRef, VaultWriter,
     },
     vfs, Timestamp,
 };
@@ -298,7 +298,7 @@ impl LocalProvider {
         Ok(())
     }
 
-    /// Refresh the in-memory vault from the contents 
+    /// Refresh the in-memory vault from the contents
     /// of the current event log file.
     pub(super) async fn refresh_vault(
         &mut self,
@@ -688,8 +688,8 @@ impl LocalProvider {
     ) -> Result<WriteEvent<'static>> {
         // Log the event log event
         //
-        let event =
-            WriteEvent::SetVaultName(Cow::Borrowed(name.as_ref())).into_owned();
+        let event = WriteEvent::SetVaultName(Cow::Borrowed(name.as_ref()))
+            .into_owned();
         self.patch(summary, vec![event.clone()]).await?;
 
         // Update the in-memory name.

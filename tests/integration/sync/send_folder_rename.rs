@@ -11,9 +11,7 @@ use crate::test_utils::{
     create_local_account, mock_note, origin, setup, spawn,
 };
 
-use super::{
-    assert_local_remote_events_eq, assert_local_remote_vaults_eq,
-};
+use super::{assert_local_remote_events_eq, assert_local_remote_vaults_eq};
 
 /// Tests sending create folder events to a remote.
 #[tokio::test]

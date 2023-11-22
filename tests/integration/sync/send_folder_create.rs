@@ -7,9 +7,7 @@ use sos_net::{
     sdk::vault::Summary,
 };
 
-use crate::test_utils::{
-    create_local_account, origin, setup, spawn,
-};
+use crate::test_utils::{create_local_account, origin, setup, spawn};
 
 use super::{assert_local_remote_events_eq, num_events};
 

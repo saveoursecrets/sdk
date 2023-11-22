@@ -15,18 +15,18 @@ mod send_secret_delete;
 mod send_secret_update;
 
 mod send_folder_create;
+mod send_folder_delete;
 mod send_folder_import;
 mod send_folder_rename;
-mod send_folder_delete;
 
 mod listen_secret_create;
 mod listen_secret_delete;
 mod listen_secret_update;
 
 mod listen_folder_create;
+mod listen_folder_delete;
 mod listen_folder_import;
 mod listen_folder_rename;
-mod listen_folder_delete;
 
 mod websocket_reconnect;
 

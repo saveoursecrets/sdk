@@ -1,7 +1,7 @@
 use crate::{
     crypto::{
-        AeadPack, Cipher, KeyDerivation, Nonce, AES_GCM_256, ARGON_2_ID,
-        BALLOON_HASH, X25519, X_CHACHA20_POLY1305, SecureAccessKey,
+        AeadPack, Cipher, KeyDerivation, Nonce, SecureAccessKey, AES_GCM_256,
+        ARGON_2_ID, BALLOON_HASH, X25519, X_CHACHA20_POLY1305,
     },
     encoding::encoding_error,
 };
@@ -157,11 +157,11 @@ impl Encodable for SecureAccessKey {
             Self::Password(cipher, aead) => {
                 cipher.encode(&mut *writer).await?;
                 aead.encode(&mut *writer).await?;
-            },
+            }
             Self::Identity(cipher, aead) => {
                 cipher.encode(&mut *writer).await?;
                 aead.encode(&mut *writer).await?;
-            },
+            }
             _ => unreachable!(),
         }
 
@@ -183,7 +183,7 @@ impl Decodable for SecureAccessKey {
                 let mut aead: AeadPack = Default::default();
                 aead.decode(&mut *reader).await?;
                 *self = Self::Password(cipher, aead);
-            }  
+            }
             2 => {
                 let mut cipher: Cipher = Default::default();
                 cipher.decode(&mut *reader).await?;
@@ -196,7 +196,7 @@ impl Decodable for SecureAccessKey {
                     ErrorKind::Other,
                     format!("unknown secure access key variant {}", id),
                 ));
-            },
+            }
         }
         Ok(())
     }

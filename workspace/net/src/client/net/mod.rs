@@ -17,7 +17,7 @@ mod websocket;
 mod rpc;
 
 pub use rpc::{MaybeRetry, RpcClient};
-pub use websocket::{changes, connect, ListenOptions};
+pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};
 
 const AUTHORIZATION: &str = "authorization";
 

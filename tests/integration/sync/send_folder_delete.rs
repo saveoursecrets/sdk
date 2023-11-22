@@ -11,9 +11,7 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::{
-    create_local_account, origin, setup, spawn,
-};
+use crate::test_utils::{create_local_account, origin, setup, spawn};
 
 use super::num_events;
 

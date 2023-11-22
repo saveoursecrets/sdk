@@ -3,6 +3,7 @@ use crate::{
     client::{
         net::{MaybeRetry, RpcClient},
         Error, ListenOptions, LocalProvider, RemoteSync, Result, SyncError,
+        WebSocketHandle,
     },
     retry,
 };
@@ -82,7 +83,10 @@ impl RemoteBridge {
     /// will collide on the server as they are identified by
     /// public key.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn listen(bridge: Arc<RemoteBridge>, options: ListenOptions) {
+    pub(super) fn listen(
+        bridge: Arc<RemoteBridge>,
+        options: ListenOptions,
+    ) -> WebSocketHandle {
         use sos_sdk::prelude::{
             ChangeAction, ChangeEvent, ChangeNotification,
             CommitRelationship, VaultRef,
@@ -164,8 +168,7 @@ impl RemoteBridge {
                                     ))?;
                                 let last_commit =
                                     event_log.last_commit().await?;
-                                let commit_proof =
-                                    event_log.tree().head()?;
+                                let commit_proof = event_log.tree().head()?;
                                 (last_commit, commit_proof)
                             };
 
@@ -200,8 +203,8 @@ impl RemoteBridge {
                         // FIXME: remove delegated passphrase
                         // FIXME: for the folder here
                     }
-                    (ChangeAction::Create(folder), None) |
-                    (ChangeAction::Update(folder), Some(_)) => {
+                    (ChangeAction::Create(folder), None)
+                    | (ChangeAction::Update(folder), Some(_)) => {
                         tracing::debug!(
                             folder = %folder.id(),
                             "pull new folder");
@@ -219,11 +222,10 @@ impl RemoteBridge {
                             bridge.load_events(&id).await?;
                         {
                             let mut writer = local.write().await;
-                            let mut event_log =
-                                writer
-                                    .cache_mut()
-                                    .get_mut(&id)
-                                    .ok_or(Error::CacheNotAvailable(id))?;
+                            let mut event_log = writer
+                                .cache_mut()
+                                .get_mut(&id)
+                                .ok_or(Error::CacheNotAvailable(id))?;
 
                             // Write out the events we fetched
                             event_log.write_buffer(&events_buffer).await?;
@@ -237,34 +239,19 @@ impl RemoteBridge {
                                 ));
                             }
                         }
-                        
+
                         // Updating an existing folder
                         if folder_exists {
                             let mut writer = local.write().await;
                             writer.refresh_vault(&folder, None).await?;
                         }
-                        
+
                         // FIXME: create delegated passphrase
                         // FIXME: for the folder here
                     }
                     _ => {}
                 }
-
-                
-                /*
-                if let Some(summary) = &summary {
-                } else {
-                    let new_folder = matches!(&action, ChangeAction::Create(_));
-                    match action {
-                        ChangeAction::Create(summary) | ChangeAction::Update(summary) => {
-
-                        }
-                        _ => unreachable!(),
-                    }
-                }
-                */
             }
-
             Ok(())
         }
 
@@ -283,7 +270,7 @@ impl RemoteBridge {
                     tracing::error!(error = ?e);
                 }
             }
-        });
+        })
     }
 
     /// Clone of the local provider.

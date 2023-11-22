@@ -43,8 +43,8 @@ use tokio::{
 };
 
 use crate::client::{
-    Error, LocalProvider, Origin, Remote, RemoteBridge, RemoteSync, Remotes,
-    Result, SyncError,
+    Error, ListenOptions, LocalProvider, Origin, Remote, RemoteBridge,
+    RemoteSync, Remotes, Result, SyncError, WebSocketHandle,
 };
 use async_trait::async_trait;
 
@@ -648,7 +648,7 @@ impl UserStorage {
             let mut writer = self.storage.write().await;
             writer.set_vault_name(&summary, &name).await?
         };
-        
+
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
@@ -2035,6 +2035,27 @@ impl UserStorage {
             .root()
             .map(CommitHash)
             .ok_or_else(|| Error::NoRootCommit)?)
+    }
+
+    /// Listen for changes on a remote origin.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn listen(
+        &self,
+        origin: &Origin,
+        options: ListenOptions,
+    ) -> WebSocketHandle {
+        if let Some(remote) = self.remotes.get(origin) {
+            if let Some(remote) = remote
+                .as_any()
+                .downcast_ref::<RemoteBridge>() {
+                let remote = Arc::new(remote.clone());
+                RemoteBridge::listen(remote, options)
+            } else {
+                unreachable!();
+            }
+        } else {
+            todo!();
+        }
     }
 }
 

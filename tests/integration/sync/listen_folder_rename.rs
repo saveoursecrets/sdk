@@ -5,18 +5,14 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
-    sdk::{
-        account::DelegatedPassphrase,
-        encode,
-        vault::Summary,
-    },
+    sdk::{account::DelegatedPassphrase, encode, vault::Summary},
 };
 
-use crate::test_utils::{
-    create_local_account, origin, setup, spawn,
-};
+use crate::test_utils::{create_local_account, origin, setup, spawn};
 
-use super::{assert_local_remote_events_eq, assert_local_remote_vaults_eq, num_events};
+use super::{
+    assert_local_remote_events_eq, assert_local_remote_vaults_eq, num_events,
+};
 
 /// Tests syncing folder rename events between two clients
 /// where the second client listens for changes emitted
@@ -71,8 +67,8 @@ async fn integration_listen_rename_folder() -> Result<()> {
     let provider = owner.remote_bridge(&origin).await?;
 
     // Start listening for change notifications (first client)
-    RemoteBridge::listen(
-        Arc::new(provider.clone()),
+    owner.listen(
+        &origin,
         ListenOptions::new("device_1".to_string())?,
     );
 
@@ -92,8 +88,8 @@ async fn integration_listen_rename_folder() -> Result<()> {
     let other_provider = other_owner.remote_bridge(&origin).await?;
 
     // Start listening for change notifications (second client)
-    RemoteBridge::listen(
-        Arc::new(other_provider.clone()),
+    other_owner.listen(
+        &origin,
         ListenOptions::new("device_2".to_string())?,
     );
 
@@ -126,7 +122,7 @@ async fn integration_listen_rename_folder() -> Result<()> {
     // Pause a while to give the listener some time to process
     // the change notification
     tokio::time::sleep(Duration::from_millis(250)).await;
-    
+
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
     let mut provider = owner.delete_remote(&remote_origin).unwrap();
@@ -140,7 +136,7 @@ async fn integration_listen_rename_folder() -> Result<()> {
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
         .expect("to be a remote provider");
-    
+
     // Primary client
     assert_local_remote_vaults_eq(
         expected_summaries.clone(),
@@ -157,7 +153,7 @@ async fn integration_listen_rename_folder() -> Result<()> {
         remote_provider,
     )
     .await?;
-    
+
     // Secondary client
     assert_local_remote_vaults_eq(
         expected_summaries.clone(),
@@ -166,7 +162,7 @@ async fn integration_listen_rename_folder() -> Result<()> {
         other_remote_provider,
     )
     .await?;
-    
+
     assert_local_remote_events_eq(
         expected_summaries,
         &server_path,

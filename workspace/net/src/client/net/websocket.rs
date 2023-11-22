@@ -3,19 +3,25 @@ use futures::{
     stream::{Map, SplitStream},
     Future, StreamExt,
 };
-use std::{pin::Pin, sync::{Arc, atomic::{AtomicU64, Ordering}}, time::Duration};
+use std::{
+    pin::Pin,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
-        self, client::IntoClientRequest, handshake::client::generate_key,
-        protocol::Message,
-        error::Error as WsError,
+        self, client::IntoClientRequest, error::Error as WsError,
+        handshake::client::generate_key, protocol::Message,
     },
     MaybeTlsStream, WebSocketStream,
 };
 
 use async_recursion::async_recursion;
-use tokio::{net::TcpStream, time::sleep, sync::Mutex};
+use tokio::{net::TcpStream, sync::Mutex, time::sleep};
 use url::Url;
 
 use tracing::{span, Level};
@@ -35,8 +41,8 @@ use super::encode_signature;
 pub struct ListenOptions {
     /// Identifier for this connection.
     ///
-    /// Should match the identifier used by the RPC 
-    /// client so the server can ignore sending change notifications 
+    /// Should match the identifier used by the RPC
+    /// client so the server can ignore sending change notifications
     /// to the caller.
     pub(crate) connection_id: String,
     /// Noise protocol keypair.
@@ -47,13 +53,13 @@ pub struct ListenOptions {
     /// Base reconnection interval for exponential backoff reconnect
     /// attempts.
     pub(crate) reconnect_interval: u64,
-    
+
     /// Maximum number of retry attempts.
     pub(crate) maximum_retries: u64,
 }
 
 impl ListenOptions {
-    /// Create new listen options using the default reconnect 
+    /// Create new listen options using the default reconnect
     /// configuration.
     pub fn new(connection_id: String) -> Result<Self> {
         Ok(Self {
@@ -64,11 +70,11 @@ impl ListenOptions {
         })
     }
 
-    /// Create new listen options using a custom reconnect 
+    /// Create new listen options using a custom reconnect
     /// configuration.
     ///
-    /// The reconnect interval is a *base interval* in milliseconds 
-    /// for the exponential backoff so use a small value such as 
+    /// The reconnect interval is a *base interval* in milliseconds
+    /// for the exponential backoff so use a small value such as
     /// `1000` or `2000`.
     pub fn new_config(
         connection_id: String,
@@ -229,6 +235,11 @@ pub fn changes(
     )
 }
 
+/// Handle to a websocket listener.
+pub struct WebSocketHandle {
+    task: tokio::task::JoinHandle<()>,
+}
+
 /// Creates a websocket that listens for changes emitted by a remote
 /// server and invokes a handler with the change notifications.
 #[derive(Clone)]
@@ -254,18 +265,19 @@ impl WebSocketChangeListener {
         }
     }
 
-    /// Spawn a thread to listen for changes and apply incoming
-    /// changes to the local cache.
+    /// Spawn a task to listen for changes notifications and invoke
+    /// the handler with the notifications.
     pub fn spawn<F>(
         self,
         handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
-    ) -> tokio::task::JoinHandle<()>
+    ) -> WebSocketHandle
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        tokio::task::spawn(async move {
+        let task = tokio::task::spawn(async move {
             let _ = self.connect(&handler).await;
-        })
+        });
+        WebSocketHandle { task }
     }
 
     #[async_recursion]
@@ -338,11 +350,11 @@ impl WebSocketChangeListener {
             tracing::debug!(
                 maximum_retries = %self.options.maximum_retries,
                 "retry attempts exhausted");
-            return Ok(())
+            return Ok(());
         }
 
         tracing::debug!(attempt = %retries, "retry");
-        
+
         if let Some(factor) = 2u64.checked_pow(retries as u32) {
             let delay = self.options.reconnect_interval * factor;
             tracing::debug!(delay = %delay);

@@ -5,9 +5,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
-    sdk::{
-        vault::Summary,
-    },
+    sdk::vault::Summary,
 };
 
 use crate::test_utils::{
@@ -69,8 +67,8 @@ async fn integration_listen_delete_secret() -> Result<()> {
     let provider = owner.remote_bridge(&origin).await?;
 
     // Start listening for change notifications (first client)
-    RemoteBridge::listen(
-        Arc::new(provider.clone()),
+    owner.listen(
+        &origin,
         ListenOptions::new("device_1".to_string())?,
     );
 
@@ -91,8 +89,8 @@ async fn integration_listen_delete_secret() -> Result<()> {
     let other_provider = other_owner.remote_bridge(&origin).await?;
 
     // Start listening for change notifications (second client)
-    RemoteBridge::listen(
-        Arc::new(other_provider.clone()),
+    other_owner.listen(
+        &origin,
         ListenOptions::new("device_2".to_string())?,
     );
 

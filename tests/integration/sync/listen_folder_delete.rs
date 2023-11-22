@@ -12,9 +12,7 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::{
-    create_local_account, origin, setup, spawn,
-};
+use crate::test_utils::{create_local_account, origin, setup, spawn};
 
 use super::num_events;
 
@@ -72,8 +70,8 @@ async fn integration_listen_delete_folder() -> Result<()> {
     let provider = owner.remote_bridge(&origin).await?;
 
     // Start listening for change notifications (first client)
-    RemoteBridge::listen(
-        Arc::new(provider.clone()),
+    owner.listen(
+        &origin,
         ListenOptions::new("device_1".to_string())?,
     );
 
@@ -93,8 +91,8 @@ async fn integration_listen_delete_folder() -> Result<()> {
     let other_provider = other_owner.remote_bridge(&origin).await?;
 
     // Start listening for change notifications (second client)
-    RemoteBridge::listen(
-        Arc::new(other_provider.clone()),
+    other_owner.listen(
+        &origin,
         ListenOptions::new("device_2".to_string())?,
     );
 

@@ -5,9 +5,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
-    sdk::{
-        vault::Summary,
-    },
+    sdk::vault::Summary,
 };
 
 use crate::test_utils::{
@@ -42,18 +40,18 @@ async fn integration_websocket_reconnect() -> Result<()> {
     let origin = origin();
     let remote_origin = origin.clone();
     let provider = owner.remote_bridge(&origin).await?;
-    
+
     tokio::task::spawn(async move {
-        // Start a websocket listener that should 
+        // Start a websocket listener that should
         // attempt to reconnect 4 times with delays of
         // 1000ms, 2000ms, 4000ms and 8000ms before giving up.
-        RemoteBridge::listen(
-            Arc::new(provider.clone()),
-            ListenOptions::new_config(
-                "device_1".to_string(), 500, 4).unwrap(),
+        owner.listen(
+            &origin,
+            ListenOptions::new_config("device_1".to_string(), 500, 4)
+                .unwrap(),
         );
     });
-    
+
     // Wait a little to give the websocket time to connect
     tokio::time::sleep(Duration::from_millis(10)).await;
 
@@ -63,12 +61,12 @@ async fn integration_websocket_reconnect() -> Result<()> {
     // Wait a little to give the server time to shutdown
     // and the websocket client to make re-connect attempts
     tokio::time::sleep(Duration::from_millis(5000)).await;
-    
-    // Spawn a new server so the websocket can re-connect 
+
+    // Spawn a new server so the websocket can re-connect
     let (rx, handle) = spawn()?;
     let _ = rx.await?;
-    
-    // Delay some more to allow the websocket to make the 
+
+    // Delay some more to allow the websocket to make the
     // connection
     tokio::time::sleep(Duration::from_millis(5000)).await;
 

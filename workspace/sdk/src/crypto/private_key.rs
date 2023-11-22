@@ -6,7 +6,7 @@ use std::convert::AsRef;
 use std::fmt;
 
 use crate::{
-    crypto::{KeyDerivation, Seed, Cipher, AeadPack},
+    crypto::{AeadPack, Cipher, KeyDerivation, Seed},
     Error, Result,
 };
 
@@ -140,23 +140,25 @@ impl AsRef<[u8]> for DerivedPrivateKey {
 
 impl From<Vec<u8>> for DerivedPrivateKey {
     fn from(value: Vec<u8>) -> Self {
-        Self { inner: SecretVec::new(value) }
+        Self {
+            inner: SecretVec::new(value),
+        }
     }
 }
 
-/// Secure access key is an encrypted representation 
-/// of an access key so that it can be transferred 
-/// between accounts on different devices via an intermediary 
+/// Secure access key is an encrypted representation
+/// of an access key so that it can be transferred
+/// between accounts on different devices via an intermediary
 /// such as a relay server.
 ///
-/// Typically the account signing key would be used as the secret 
+/// Typically the account signing key would be used as the secret
 /// used to encrypt and decrypt the access key.
 ///
-/// Used to enable syncing folders between accounts on 
+/// Used to enable syncing folders between accounts on
 /// different devices.
 #[derive(Default)]
 pub enum SecureAccessKey {
-    #[default] 
+    #[default]
     #[doc(hidden)]
     Noop,
     /// Password access key variant.
@@ -170,18 +172,23 @@ impl SecureAccessKey {
     pub async fn encrypt(
         key: &AccessKey,
         secret_key: impl AsRef<[u8]>,
-        cipher: Option<Cipher>) -> Result<SecureAccessKey> {
-
+        cipher: Option<Cipher>,
+    ) -> Result<SecureAccessKey> {
         let secret = match key {
             AccessKey::Password(vault_passphrase) => vault_passphrase.clone(),
             AccessKey::Identity(id) => id.to_string(),
         };
 
         let cipher = cipher.unwrap_or_default();
-        let private_key = PrivateKey::Symmetric(
-            secret_key.as_ref().to_vec().into());
-        let aead = cipher.encrypt_symmetric(
-            &private_key, secret.expose_secret().as_bytes(), None).await?;
+        let private_key =
+            PrivateKey::Symmetric(secret_key.as_ref().to_vec().into());
+        let aead = cipher
+            .encrypt_symmetric(
+                &private_key,
+                secret.expose_secret().as_bytes(),
+                None,
+            )
+            .await?;
 
         Ok(match key {
             AccessKey::Password(_) => SecureAccessKey::Password(cipher, aead),
@@ -192,14 +199,15 @@ impl SecureAccessKey {
     /// Decrypt an access key.
     pub async fn decrypt(
         key: &SecureAccessKey,
-        secret_key: impl AsRef<[u8]>) -> Result<AccessKey> {
+        secret_key: impl AsRef<[u8]>,
+    ) -> Result<AccessKey> {
         let (cipher, aead) = match key {
             Self::Password(cipher, aead) => (cipher, aead),
             Self::Identity(cipher, aead) => (cipher, aead),
             _ => unreachable!(),
         };
-        let private_key = PrivateKey::Symmetric(
-            secret_key.as_ref().to_vec().into());
+        let private_key =
+            PrivateKey::Symmetric(secret_key.as_ref().to_vec().into());
 
         let buffer = cipher.decrypt_symmetric(&private_key, aead).await?;
         let value = std::str::from_utf8(&buffer)?;
@@ -208,12 +216,12 @@ impl SecureAccessKey {
         Ok(match key {
             Self::Password(_, _) => AccessKey::Password(secret),
             Self::Identity(_, _) => {
-                let identity: Identity = value.parse().map_err(
-                    |s: &'static str| {
+                let identity: Identity =
+                    value.parse().map_err(|s: &'static str| {
                         Error::AgeIdentityParse(s.to_string())
                     })?;
                 AccessKey::Identity(identity)
-            },
+            }
             _ => unreachable!(),
         })
     }
@@ -222,9 +230,9 @@ impl SecureAccessKey {
 #[cfg(test)]
 mod test {
     use super::*;
-    use anyhow::Result;
+    use crate::{decode, encode, signer::ecdsa::SingleParty};
     use age::x25519::Identity;
-    use crate::{signer::ecdsa::SingleParty, encode, decode};
+    use anyhow::Result;
 
     #[tokio::test]
     async fn secure_access_key_password() -> Result<()> {
@@ -234,14 +242,15 @@ mod test {
         let signer = SingleParty::new_random();
         let secret_key = signer.0.to_bytes();
 
-        let sendable = SecureAccessKey::encrypt(
-            &password_access, &secret_key, None).await?;
+        let sendable =
+            SecureAccessKey::encrypt(&password_access, &secret_key, None)
+                .await?;
 
         let encoded = encode(&sendable).await?;
         let decoded: SecureAccessKey = decode(&encoded).await?;
 
-        let access_key = SecureAccessKey::decrypt(
-            &decoded, &secret_key).await?;
+        let access_key =
+            SecureAccessKey::decrypt(&decoded, &secret_key).await?;
 
         assert_eq!(password_access, access_key);
         Ok(())
@@ -255,14 +264,15 @@ mod test {
         let signer = SingleParty::new_random();
         let secret_key = signer.0.to_bytes();
 
-        let sendable = SecureAccessKey::encrypt(
-            &identity_access, &secret_key, None).await?;
+        let sendable =
+            SecureAccessKey::encrypt(&identity_access, &secret_key, None)
+                .await?;
 
         let encoded = encode(&sendable).await?;
         let decoded: SecureAccessKey = decode(&encoded).await?;
 
-        let access_key = SecureAccessKey::decrypt(
-            &decoded, &secret_key).await?;
+        let access_key =
+            SecureAccessKey::decrypt(&decoded, &secret_key).await?;
 
         assert_eq!(identity_access, access_key);
         Ok(())

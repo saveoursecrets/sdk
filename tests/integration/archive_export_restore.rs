@@ -10,9 +10,7 @@ use tempfile::tempdir;
 use sos_net::{
     client::LocalProvider,
     sdk::{
-        account::{
-            archive::Writer, AccountBackup, Identity, RestoreOptions,
-        },
+        account::{archive::Writer, AccountBackup, Identity, RestoreOptions},
         encode,
         events::WriteEvent,
         signer::{ecdsa::SingleParty, Signer},

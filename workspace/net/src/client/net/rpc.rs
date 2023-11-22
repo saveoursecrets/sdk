@@ -1,6 +1,9 @@
 //! Remote procedure call (RPC) client implementation.
 use futures::Future;
-use http::{StatusCode, header::{self, HeaderValue}};
+use http::{
+    header::{self, HeaderValue},
+    StatusCode,
+};
 use serde::{de::DeserializeOwned, Serialize};
 use sos_sdk::{
     account::AccountStatus,
@@ -8,8 +11,8 @@ use sos_sdk::{
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
         EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
-        HANDSHAKE_INITIATE, VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
-        MIME_TYPE_RPC,
+        HANDSHAKE_INITIATE, MIME_TYPE_RPC, VAULT_CREATE, VAULT_DELETE,
+        VAULT_SAVE,
     },
     decode, encode,
     events::Patch,
@@ -38,7 +41,7 @@ use tokio::sync::{Mutex, RwLock};
 use url::Url;
 
 use crate::{
-    client::{Error, ListenOptions, Origin, Result},
+    client::{Error, ListenOptions, Origin, Result, WebSocketHandle},
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
 };
 
@@ -93,7 +96,8 @@ impl RpcClient {
         &self,
         options: ListenOptions,
         handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
-    ) where
+    ) -> WebSocketHandle
+    where
         F: Future<Output = ()> + Send + 'static,
     {
         let listener = WebSocketChangeListener::new(
@@ -101,7 +105,7 @@ impl RpcClient {
             self.signer.clone(),
             options,
         );
-        listener.spawn(handler);
+        listener.spawn(handler)
     }
 
     /// Generic GET function.
@@ -218,8 +222,8 @@ impl RpcClient {
 
         Ok(())
     }
-    
-    /// Check if we are able to handle a response status code 
+
+    /// Check if we are able to handle a response status code
     /// and content type.
     fn check_response(&self, response: &reqwest::Response) -> Result<()> {
         let rpc_type = HeaderValue::from_static(MIME_TYPE_RPC);
