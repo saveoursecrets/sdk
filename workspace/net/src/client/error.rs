@@ -4,6 +4,8 @@ use sos_sdk::{
     events::WriteEvent,
     vault::{secret::SecretId, Summary},
 };
+#[cfg(feature = "client")]
+use crate::client::Origin;
 use std::path::PathBuf;
 use thiserror::Error;
 use uuid::Uuid;
@@ -163,6 +165,10 @@ pub enum Error {
     /// Error generated when an event log buffer is expected.
     #[error("no event buffer returned when loading events")]
     NoEventBuffer,
+
+    /// Error generated when a remote origin could not be found.
+    #[error("origin '{0}' not found")]
+    OriginNotFound(Origin),
 
     /// Generic boxed error.
     #[error(transparent)]

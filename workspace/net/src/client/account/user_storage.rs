@@ -2043,18 +2043,18 @@ impl UserStorage {
         &self,
         origin: &Origin,
         options: ListenOptions,
-    ) -> WebSocketHandle {
+    ) -> Result<WebSocketHandle> {
         if let Some(remote) = self.remotes.get(origin) {
             if let Some(remote) = remote
                 .as_any()
                 .downcast_ref::<RemoteBridge>() {
                 let remote = Arc::new(remote.clone());
-                RemoteBridge::listen(remote, options)
+                Ok(RemoteBridge::listen(remote, options))
             } else {
                 unreachable!();
             }
         } else {
-            todo!();
+            Err(Error::OriginNotFound(origin.clone()))
         }
     }
 }

@@ -38,8 +38,8 @@ async fn integration_websocket_reconnect() -> Result<()> {
 
     // Create the remote provider
     let origin = origin();
-    let remote_origin = origin.clone();
     let provider = owner.remote_bridge(&origin).await?;
+    owner.insert_remote(origin.clone(), Box::new(provider));
 
     tokio::task::spawn(async move {
         // Start a websocket listener that should
@@ -49,7 +49,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
             &origin,
             ListenOptions::new_config("device_1".to_string(), 500, 4)
                 .unwrap(),
-        );
+        ).unwrap();
     });
 
     // Wait a little to give the websocket time to connect

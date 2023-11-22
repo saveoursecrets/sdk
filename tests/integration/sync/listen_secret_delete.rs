@@ -66,12 +66,6 @@ async fn integration_listen_delete_secret() -> Result<()> {
     let remote_origin = origin.clone();
     let provider = owner.remote_bridge(&origin).await?;
 
-    // Start listening for change notifications (first client)
-    owner.listen(
-        &origin,
-        ListenOptions::new("device_1".to_string())?,
-    );
-
     // Copy the owner's account directory and sign in
     // using the alternative owner
     copy_dir(&test_data_dir, &other_data_dir)?;
@@ -88,12 +82,6 @@ async fn integration_listen_delete_secret() -> Result<()> {
     // the same remotes
     let other_provider = other_owner.remote_bridge(&origin).await?;
 
-    // Start listening for change notifications (second client)
-    other_owner.listen(
-        &origin,
-        ListenOptions::new("device_2".to_string())?,
-    );
-
     // Insert the remote for the other owner
     other_owner.insert_remote(origin.clone(), Box::new(other_provider));
 
@@ -101,7 +89,19 @@ async fn integration_listen_delete_secret() -> Result<()> {
     other_owner.list_folders().await?;
 
     // Insert the remote for the primary owner
-    owner.insert_remote(origin, Box::new(provider));
+    owner.insert_remote(origin.clone(), Box::new(provider));
+
+    // Start listening for change notifications (first client)
+    owner.listen(
+        &origin,
+        ListenOptions::new("device_1".to_string())?,
+    )?;
+
+    // Start listening for change notifications (second client)
+    other_owner.listen(
+        &origin,
+        ListenOptions::new("device_2".to_string())?,
+    )?;
 
     let default_folder_id = *default_folder.id();
     owner.open_folder(&default_folder).await?;

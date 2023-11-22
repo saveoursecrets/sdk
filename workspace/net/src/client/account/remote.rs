@@ -23,7 +23,7 @@ use sos_sdk::{
     vfs,
 };
 
-use std::{any::Any, collections::HashMap, sync::Arc};
+use std::{any::Any, collections::HashMap, sync::Arc, fmt};
 use tokio::sync::RwLock;
 
 use tracing::{span, Level};
@@ -37,6 +37,12 @@ pub struct Origin {
     pub url: Url,
     /// Public key of the remote server.
     pub public_key: Vec<u8>,
+}
+
+impl fmt::Display for Origin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.name, self.url)
+    }
 }
 
 /// Remote synchronization target.
