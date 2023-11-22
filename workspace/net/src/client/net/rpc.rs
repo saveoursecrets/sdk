@@ -14,6 +14,7 @@ use sos_sdk::{
         HANDSHAKE_INITIATE, MIME_TYPE_RPC, VAULT_CREATE, VAULT_DELETE,
         VAULT_SAVE,
     },
+    crypto::SecureAccessKey,
     decode, encode,
     events::Patch,
     mpc::{
@@ -323,6 +324,7 @@ impl RpcClient {
     pub async fn create_vault(
         &self,
         vault: impl AsRef<[u8]>,
+        secure_key: Option<SecureAccessKey>,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.origin.url.join("api/vault")?;
         let id = self.next_id().await;
@@ -330,7 +332,7 @@ impl RpcClient {
         let request = RequestMessage::new(
             Some(id),
             VAULT_CREATE,
-            (),
+            secure_key,
             Cow::Borrowed(vault.as_ref()),
         )?;
         let packet = Packet::new_request(request);

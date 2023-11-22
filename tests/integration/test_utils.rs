@@ -326,6 +326,7 @@ pub async fn delete_secret(
     Ok(())
 }
 
+/*
 async fn create_account(
     server: Url,
     destination: PathBuf,
@@ -354,6 +355,7 @@ async fn create_account(
 
     Ok((account, provider))
 }
+*/
 
 /// Create a new account and local provider.
 pub async fn create_local_provider(

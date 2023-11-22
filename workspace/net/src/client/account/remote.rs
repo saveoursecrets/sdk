@@ -2,6 +2,7 @@
 use crate::{
     client::{
         net::{MaybeRetry, RpcClient},
+        sync::SyncData,
         Error, ListenOptions, LocalProvider, RemoteSync, Result, SyncError,
         WebSocketHandle,
     },
@@ -14,6 +15,7 @@ use http::StatusCode;
 use sos_sdk::{
     account::AccountStatus,
     commit::{CommitHash, CommitProof},
+    crypto::SecureAccessKey,
     decode,
     events::{Patch, WriteEvent},
     mpc::Keypair,
@@ -23,7 +25,7 @@ use sos_sdk::{
     vfs,
 };
 
-use std::{any::Any, collections::HashMap, sync::Arc, fmt};
+use std::{any::Any, collections::HashMap, fmt, sync::Arc};
 use tokio::sync::RwLock;
 
 use tracing::{span, Level};
@@ -101,13 +103,16 @@ impl RemoteBridge {
 
         fn notification_actions(
             change: &ChangeNotification,
-        ) -> HashSet<ChangeAction> {
+        ) -> Vec<ChangeAction> {
             // Gather actions corresponding to the events
-            let mut actions = HashSet::new();
+            let mut actions = Vec::new();
             for event in change.changes() {
                 let action = match event {
-                    ChangeEvent::CreateVault(summary) => {
-                        ChangeAction::Create(summary.clone())
+                    ChangeEvent::CreateVault(summary, secure_key) => {
+                        ChangeAction::Create(
+                            summary.clone(),
+                            secure_key.clone(),
+                        )
                     }
                     ChangeEvent::UpdateVault(summary) => {
                         ChangeAction::Update(summary.clone())
@@ -117,10 +122,65 @@ impl RemoteBridge {
                     }
                     _ => ChangeAction::Pull(*change.vault_id()),
                 };
-                actions.insert(action);
+                actions.push(action);
             }
             actions
         }
+
+        async fn create_or_update_folder(
+            bridge: Arc<RemoteBridge>,
+            folder: Summary,
+            folder_exists: bool,
+        ) -> Result<()> {
+            let local = bridge.local();
+            tracing::debug!(
+                folder = %folder.id(),
+                "pull new folder");
+
+            let id = *folder.id();
+
+            // Prepare the local provider for the new folder
+            if !folder_exists {
+                let mut writer = local.write().await;
+                writer.add_local_cache(folder.clone()).await?;
+            }
+
+            // Load the event entire event log
+            let (remote_proof, events_buffer) =
+                bridge.load_events(&id).await?;
+            {
+                let mut writer = local.write().await;
+                let mut event_log = writer
+                    .cache_mut()
+                    .get_mut(&id)
+                    .ok_or(Error::CacheNotAvailable(id))?;
+
+                // Write out the events we fetched
+                event_log.write_buffer(&events_buffer).await?;
+
+                // Check the proofs match afterwards
+                let local_proof = event_log.tree().head()?;
+                if local_proof != remote_proof {
+                    return Err(Error::RootHashMismatch(
+                        local_proof.into(),
+                        remote_proof.into(),
+                    ));
+                }
+            }
+
+            // Updating an existing folder
+            if folder_exists {
+                let mut writer = local.write().await;
+                writer.refresh_vault(&folder, None).await?;
+            }
+
+            // FIXME: create delegated passphrase
+            // FIXME: for the folder here
+
+            Ok(())
+        }
+
+        fn foo(bridge: Arc<RemoteBridge>) {}
 
         async fn on_change_notification(
             bridge: Arc<RemoteBridge>,
@@ -209,51 +269,21 @@ impl RemoteBridge {
                         // FIXME: remove delegated passphrase
                         // FIXME: for the folder here
                     }
-                    (ChangeAction::Create(folder), None)
-                    | (ChangeAction::Update(folder), Some(_)) => {
-                        tracing::debug!(
-                            folder = %folder.id(),
-                            "pull new folder");
-
-                        let id = *folder.id();
-
-                        // Prepare the local provider for the new folder
-                        if !folder_exists {
-                            let mut writer = local.write().await;
-                            writer.add_local_cache(folder.clone()).await?;
-                        }
-
-                        // Load the event entire event log
-                        let (remote_proof, events_buffer) =
-                            bridge.load_events(&id).await?;
-                        {
-                            let mut writer = local.write().await;
-                            let mut event_log = writer
-                                .cache_mut()
-                                .get_mut(&id)
-                                .ok_or(Error::CacheNotAvailable(id))?;
-
-                            // Write out the events we fetched
-                            event_log.write_buffer(&events_buffer).await?;
-
-                            // Check the proofs match afterwards
-                            let local_proof = event_log.tree().head()?;
-                            if local_proof != remote_proof {
-                                return Err(Error::RootHashMismatch(
-                                    local_proof.into(),
-                                    remote_proof.into(),
-                                ));
-                            }
-                        }
-
-                        // Updating an existing folder
-                        if folder_exists {
-                            let mut writer = local.write().await;
-                            writer.refresh_vault(&folder, None).await?;
-                        }
-
-                        // FIXME: create delegated passphrase
-                        // FIXME: for the folder here
+                    (ChangeAction::Create(folder, secure_key), None) => {
+                        create_or_update_folder(
+                            Arc::clone(&bridge),
+                            folder,
+                            folder_exists,
+                        )
+                        .await?;
+                    }
+                    (ChangeAction::Update(folder), Some(_)) => {
+                        create_or_update_folder(
+                            Arc::clone(&bridge),
+                            folder,
+                            folder_exists,
+                        )
+                        .await?;
                     }
                     _ => {}
                 }
@@ -339,13 +369,19 @@ impl RemoteBridge {
         Ok((proof, buffer.ok_or(Error::NoEventBuffer)?))
     }
 
-    /// Import a folder on the remote.
-    async fn import_folder(&self, buffer: &[u8]) -> Result<()> {
+    /// Create a folder on the remote.
+    async fn create_folder(
+        &self,
+        buffer: &[u8],
+        secure_key: Option<&SecureAccessKey>,
+    ) -> Result<()> {
         let span = span!(Level::DEBUG, "import_folder");
         let _enter = span.enter();
 
-        let (status, _) =
-            retry!(|| self.remote.create_vault(buffer), self.remote);
+        let (status, _) = retry!(
+            || self.remote.create_vault(buffer, secure_key.cloned()),
+            self.remote
+        );
 
         tracing::debug!(status = %status);
 
@@ -495,7 +531,7 @@ impl RemoteBridge {
                 vfs::read(folder_path).await?
             };
 
-            self.import_folder(&folder_buffer).await?;
+            self.create_folder(&folder_buffer, None).await?;
         }
 
         // FIXME: import files here!
@@ -577,6 +613,7 @@ impl RemoteSync for RemoteBridge {
         before_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
+        data: &[SyncData],
     ) -> std::result::Result<(), SyncError> {
         let events = events.to_vec();
         let mut patch_events = Vec::new();
@@ -584,9 +621,18 @@ impl RemoteSync for RemoteBridge {
         let mut update_folders = Vec::new();
         let mut delete_folders = Vec::new();
 
-        for event in events {
+        for (index, event) in events.into_iter().enumerate() {
+            let item = data.get(index);
             match event {
-                WriteEvent::CreateVault(buf) => create_folders.push(buf),
+                WriteEvent::CreateVault(buf) => {
+                    if let Some(SyncData::CreateVault(secure_key)) = item {
+                        create_folders.push((buf, secure_key))
+                    } else {
+                        panic!(
+                            "sync data is required for create vault event"
+                        );
+                    }
+                }
                 WriteEvent::UpdateVault(buf) => {
                     update_folders.push((folder.id(), buf))
                 }
@@ -597,8 +643,8 @@ impl RemoteSync for RemoteBridge {
 
         // New folders must go via the vaults service,
         // and must not be included in any patch events
-        for buf in create_folders {
-            self.import_folder(buf.as_ref())
+        for (buf, secure_key) in create_folders {
+            self.create_folder(buf.as_ref(), Some(secure_key))
                 .await
                 .map_err(SyncError::One)?;
         }

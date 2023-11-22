@@ -92,16 +92,11 @@ async fn integration_listen_update_secret() -> Result<()> {
     owner.insert_remote(origin.clone(), Box::new(provider));
 
     // Start listening for change notifications (first client)
-    owner.listen(
-        &origin,
-        ListenOptions::new("device_1".to_string())?,
-    )?;
+    owner.listen(&origin, ListenOptions::new("device_1".to_string())?)?;
 
     // Start listening for change notifications (second client)
-    other_owner.listen(
-        &origin,
-        ListenOptions::new("device_2".to_string())?,
-    )?;
+    other_owner
+        .listen(&origin, ListenOptions::new("device_2".to_string())?)?;
 
     let default_folder_id = *default_folder.id();
     owner.open_folder(&default_folder).await?;

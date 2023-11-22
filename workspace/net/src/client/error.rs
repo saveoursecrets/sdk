@@ -1,11 +1,11 @@
 //! Error type for the client module.
+#[cfg(feature = "client")]
+use crate::client::Origin;
 use sos_sdk::{
     commit::CommitHash,
     events::WriteEvent,
     vault::{secret::SecretId, Summary},
 };
-#[cfg(feature = "client")]
-use crate::client::Origin;
 use std::path::PathBuf;
 use thiserror::Error;
 use uuid::Uuid;

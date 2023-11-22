@@ -2,6 +2,7 @@
 use age::x25519::Identity;
 use argon2::password_hash::SaltString;
 use secrecy::{ExposeSecret, SecretString, SecretVec};
+use serde::{Deserialize, Serialize};
 use std::convert::AsRef;
 use std::fmt;
 
@@ -156,7 +157,7 @@ impl From<Vec<u8>> for DerivedPrivateKey {
 ///
 /// Used to enable syncing folders between accounts on
 /// different devices.
-#[derive(Default)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum SecureAccessKey {
     #[default]
     #[doc(hidden)]

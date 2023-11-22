@@ -5,6 +5,7 @@ use web3_address::ethereum::Address;
 
 use crate::{
     commit::CommitProof,
+    crypto::SecureAccessKey,
     events::{Event, WriteEvent},
     vault::{secret::SecretId, Header, Summary, VaultId},
     Error, Result,
@@ -76,7 +77,7 @@ impl ChangeNotification {
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum ChangeEvent {
     /// Event emitted when a vault is created.
-    CreateVault(Summary),
+    CreateVault(Summary, Option<SecureAccessKey>),
     /// Event emitted when a vault is updated.
     ///
     /// This event can occur when a vault is imported
@@ -107,7 +108,7 @@ impl ChangeEvent {
                     let summary = Header::read_summary_slice(vault)
                         .await
                         .expect("failed to read summary from vault");
-                    Some(ChangeEvent::CreateVault(summary))
+                    Some(ChangeEvent::CreateVault(summary, None))
                 }
                 WriteEvent::DeleteVault => Some(ChangeEvent::DeleteVault),
                 WriteEvent::SetVaultName(name) => {
@@ -139,7 +140,7 @@ impl ChangeEvent {
             WriteEvent::CreateVault(vault) => {
                 let summary =
                     Header::read_summary_slice(vault.as_ref()).await?;
-                Ok(ChangeEvent::CreateVault(summary))
+                Ok(ChangeEvent::CreateVault(summary, None))
             }
             WriteEvent::DeleteVault => Ok(ChangeEvent::DeleteVault),
             WriteEvent::SetVaultName(name) => {
@@ -161,7 +162,7 @@ impl ChangeEvent {
 }
 
 /// Action corresponding to a change event.
-#[derive(Debug, Hash, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ChangeAction {
     /// Pull updates from a remote node.
@@ -170,7 +171,7 @@ pub enum ChangeAction {
     /// Vaults was created on a remote node and the
     /// local node has fetched the vault summary
     /// and added it to it's local state.
-    Create(Summary),
+    Create(Summary, Option<SecureAccessKey>),
 
     /// Vault was updated on a remote node and the
     /// local node has fetched the vault summary

@@ -2,10 +2,18 @@ use super::{Error, Origin, Result};
 use async_trait::async_trait;
 use sos_sdk::{
     commit::{CommitHash, CommitProof},
+    crypto::SecureAccessKey,
     events::WriteEvent,
     vault::Summary,
 };
 use std::any::Any;
+
+/// Additional sync data.
+pub enum SyncData {
+    /// Secure access key needs to be sent
+    /// along with the create vault event.
+    CreateVault(SecureAccessKey),
+}
 
 /// Enumeration of error types that can be returned
 /// from a sync operation.
@@ -49,6 +57,7 @@ pub trait RemoteSync: Sync + Send + Any {
         before_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
+        data: &[SyncData],
     ) -> std::result::Result<(), SyncError>;
 
     /// Receive events from changes to remote storage.

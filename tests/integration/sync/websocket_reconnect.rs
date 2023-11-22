@@ -45,11 +45,13 @@ async fn integration_websocket_reconnect() -> Result<()> {
         // Start a websocket listener that should
         // attempt to reconnect 4 times with delays of
         // 1000ms, 2000ms, 4000ms and 8000ms before giving up.
-        owner.listen(
-            &origin,
-            ListenOptions::new_config("device_1".to_string(), 500, 4)
-                .unwrap(),
-        ).unwrap();
+        owner
+            .listen(
+                &origin,
+                ListenOptions::new_config("device_1".to_string(), 500, 4)
+                    .unwrap(),
+            )
+            .unwrap();
     });
 
     // Wait a little to give the websocket time to connect

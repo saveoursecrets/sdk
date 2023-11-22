@@ -15,7 +15,7 @@ use sos_sdk::{
         UserPaths,
     },
     commit::{CommitHash, CommitProof},
-    crypto::AccessKey,
+    crypto::{AccessKey, SecureAccessKey},
     decode, encode,
     events::{
         AuditData, AuditEvent, AuditProvider, Event, EventKind, EventReducer,
@@ -43,8 +43,8 @@ use tokio::{
 };
 
 use crate::client::{
-    Error, ListenOptions, LocalProvider, Origin, Remote, RemoteBridge,
-    RemoteSync, Remotes, Result, SyncError, WebSocketHandle,
+    sync::SyncData, Error, ListenOptions, LocalProvider, Origin, Remote,
+    RemoteBridge, RemoteSync, Remotes, Result, SyncError, WebSocketHandle,
 };
 use async_trait::async_trait;
 
@@ -549,6 +549,9 @@ impl UserStorage {
             let mut writer = self.storage.write().await;
             writer.create_vault(name, Some(key.clone())).await?
         };
+        
+        let secret_key = self.user.identity().signer().to_bytes();
+        let secure_key = SecureAccessKey::encrypt(&key, secret_key, None).await?;
 
         DelegatedPassphrase::save_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
@@ -575,6 +578,7 @@ impl UserStorage {
                 &before_commit_proof,
                 &summary,
                 &[event],
+                &[SyncData::CreateVault(secure_key)],
             )
             .await
             .err();
@@ -621,6 +625,7 @@ impl UserStorage {
                 &before_commit_proof,
                 &summary,
                 &[event],
+                &[],
             )
             .await
             .err();
@@ -660,6 +665,7 @@ impl UserStorage {
                 &before_commit_proof,
                 &summary,
                 &[event],
+                &[],
             )
             .await
             .err();
@@ -881,6 +887,7 @@ impl UserStorage {
                 &before_commit_proof,
                 &summary,
                 &[event],
+                &[],
             )
             .await
             .err();
@@ -1017,6 +1024,7 @@ impl UserStorage {
                 &before_commit_proof,
                 &folder,
                 &[create_event],
+                &[],
             )
             .await
             .err();
@@ -1228,6 +1236,7 @@ impl UserStorage {
                 &before_commit_proof,
                 &folder,
                 &[update_event],
+                &[],
             )
             .await
             .err();
@@ -1382,6 +1391,7 @@ impl UserStorage {
                 &before_commit_proof,
                 &folder,
                 &[update_event],
+                &[],
             )
             .await
             .err();
@@ -2045,9 +2055,9 @@ impl UserStorage {
         options: ListenOptions,
     ) -> Result<WebSocketHandle> {
         if let Some(remote) = self.remotes.get(origin) {
-            if let Some(remote) = remote
-                .as_any()
-                .downcast_ref::<RemoteBridge>() {
+            if let Some(remote) =
+                remote.as_any().downcast_ref::<RemoteBridge>()
+            {
                 let remote = Arc::new(remote.clone());
                 Ok(RemoteBridge::listen(remote, options))
             } else {
@@ -2118,6 +2128,7 @@ impl RemoteSync for UserStorage {
         before_client_proof: &CommitProof,
         folder: &Summary,
         events: &[WriteEvent<'static>],
+        data: &[SyncData],
     ) -> std::result::Result<(), SyncError> {
         let _ = self.sync_lock.lock().await;
         let mut errors = Vec::new();
@@ -2128,6 +2139,7 @@ impl RemoteSync for UserStorage {
                     before_client_proof,
                     folder,
                     events,
+                    data,
                 )
                 .await
             {
