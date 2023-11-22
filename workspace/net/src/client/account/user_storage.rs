@@ -549,9 +549,10 @@ impl UserStorage {
             let mut writer = self.storage.write().await;
             writer.create_vault(name, Some(key.clone())).await?
         };
-        
+
         let secret_key = self.user.identity().signer().to_bytes();
-        let secure_key = SecureAccessKey::encrypt(&key, secret_key, None).await?;
+        let secure_key =
+            SecureAccessKey::encrypt(&key, secret_key, None).await?;
 
         DelegatedPassphrase::save_vault_passphrase(
             self.user.identity_mut().keeper_mut(),
@@ -2059,7 +2060,33 @@ impl UserStorage {
                 remote.as_any().downcast_ref::<RemoteBridge>()
             {
                 let remote = Arc::new(remote.clone());
-                Ok(RemoteBridge::listen(remote, options))
+                //let keeper = self.user.identity_mut().keeper_mut();
+                Ok(RemoteBridge::listen(
+                    remote,
+                    options,
+                    move |folder_id, secure_key| {
+                        let secret_key =
+                            self.user.identity().signer().to_bytes();
+                        async move {
+                            let key = SecureAccessKey::decrypt(
+                                &secure_key,
+                                secret_key,
+                            )
+                            .await?;
+                            
+                            /*
+                            DelegatedPassphrase::save_vault_passphrase(
+                                keeper,
+                                &folder_id,
+                                key,
+                            )
+                            .await?;
+                            */
+
+                            Ok(())
+                        }
+                    },
+                ))
             } else {
                 unreachable!();
             }
