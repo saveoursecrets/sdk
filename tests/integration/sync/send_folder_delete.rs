@@ -3,7 +3,7 @@ use serial_test::serial;
 use std::path::PathBuf;
 
 use sos_net::{
-    client::{RemoteBridge, RemoteSync},
+    client::RemoteSync,
     sdk::{
         constants::{EVENT_LOG_EXT, VAULT_EXT},
         vault::Summary,
@@ -12,10 +12,10 @@ use sos_net::{
 };
 
 use crate::test_utils::{
-    create_local_account, mock_note, origin, setup, spawn,
+    create_local_account, origin, setup, spawn,
 };
 
-use super::{assert_local_remote_events_eq, num_events};
+use super::num_events;
 
 /// Tests sending delete folder events to a remote.
 #[tokio::test]

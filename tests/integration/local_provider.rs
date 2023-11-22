@@ -9,7 +9,6 @@ use secrecy::ExposeSecret;
 use sos_net::{
     client::LocalProvider,
     sdk::{
-        account::UserPaths,
         events::WriteEvent,
         signer::{ecdsa::SingleParty, Signer},
         vault::secret::{Secret, SecretData},

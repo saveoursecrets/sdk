@@ -26,7 +26,7 @@ use sos_sdk::{
     signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
-        Gatekeeper, Summary, Vault, VaultAccess, VaultId, VaultWriter,
+        Gatekeeper, Summary, Vault, VaultId,
     },
     vfs::{self, File},
     Timestamp,
@@ -648,26 +648,7 @@ impl UserStorage {
             let mut writer = self.storage.write().await;
             writer.set_vault_name(&summary, &name).await?
         };
-
-        // Now update the in-memory name for the current selected vault
-        {
-            let mut writer = self.storage.write().await;
-            if let Some(keeper) = writer.current_mut() {
-                if keeper.vault().id() == summary.id() {
-                    keeper.set_vault_name(name.clone()).await?;
-                }
-            }
-        }
-
-        // Update the vault on disc
-        let vault_path = {
-            let reader = self.storage.read().await;
-            reader.vault_path(&summary)
-        };
-        let vault_file = VaultWriter::open(&vault_path).await?;
-        let mut access = VaultWriter::new(vault_path, vault_file)?;
-        access.set_vault_name(name).await?;
-
+        
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;

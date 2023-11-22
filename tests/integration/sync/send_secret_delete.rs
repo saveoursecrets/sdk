@@ -8,7 +8,7 @@ use sos_net::{
 };
 
 use crate::test_utils::{
-    create_local_account, mock_note, origin, setup, spawn,
+    create_local_account, origin, setup, spawn, mock_note,
 };
 
 use super::{assert_local_remote_events_eq, num_events};

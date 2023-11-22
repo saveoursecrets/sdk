@@ -12,7 +12,6 @@ use sos_net::{
     sdk::{
         account::{
             archive::Writer, AccountBackup, Identity, RestoreOptions,
-            UserPaths,
         },
         encode,
         events::WriteEvent,

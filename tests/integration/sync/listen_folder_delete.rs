@@ -7,17 +7,16 @@ use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
     sdk::{
         constants::{EVENT_LOG_EXT, VAULT_EXT},
-        mpc::{Keypair, PATTERN},
         vault::Summary,
         vfs,
     },
 };
 
 use crate::test_utils::{
-    create_local_account, mock_note, origin, setup, spawn,
+    create_local_account, origin, setup, spawn,
 };
 
-use super::{assert_local_remote_events_eq, num_events};
+use super::num_events;
 
 /// Tests syncing delete folder events between two clients
 /// where the second client listens for changes emitted

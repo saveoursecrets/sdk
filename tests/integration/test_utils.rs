@@ -336,7 +336,7 @@ async fn create_account(
     }
 
     let address = signer.address()?;
-    let (origin, provider) = remote_bridge(signer, Some(data_dir)).await?;
+    let (_origin, provider) = remote_bridge(signer, Some(data_dir)).await?;
 
     let local_provider = provider.local();
     let mut local_writer = local_provider.write().await;
@@ -377,7 +377,7 @@ pub async fn signup(
     let signer: BoxedEcdsaSigner = Box::new(SingleParty::new_random());
 
     let address = signer.address()?;
-    let (origin, provider) =
+    let (_origin, provider) =
         remote_bridge(signer.clone(), Some(data_dir)).await?;
 
     let local_provider = provider.local();

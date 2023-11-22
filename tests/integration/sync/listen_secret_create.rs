@@ -6,7 +6,6 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
     sdk::{
-        mpc::{Keypair, PATTERN},
         vault::Summary,
     },
 };

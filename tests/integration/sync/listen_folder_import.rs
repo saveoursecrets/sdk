@@ -8,13 +8,12 @@ use sos_net::{
     sdk::{
         account::DelegatedPassphrase,
         encode,
-        mpc::{Keypair, PATTERN},
         vault::Summary,
     },
 };
 
 use crate::test_utils::{
-    create_local_account, mock_note, origin, setup, spawn,
+    create_local_account, origin, setup, spawn,
 };
 
 use super::{assert_local_remote_events_eq, assert_local_remote_vaults_eq, num_events};

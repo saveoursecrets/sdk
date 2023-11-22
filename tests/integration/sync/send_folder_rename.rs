@@ -12,7 +12,7 @@ use crate::test_utils::{
 };
 
 use super::{
-    assert_local_remote_events_eq, assert_local_remote_vaults_eq, num_events,
+    assert_local_remote_events_eq, assert_local_remote_vaults_eq,
 };
 
 /// Tests sending create folder events to a remote.

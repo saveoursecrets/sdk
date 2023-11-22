@@ -16,7 +16,7 @@ use sos_sdk::{
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Header, Summary, Vault, VaultBuilder, VaultFlags,
-        VaultId, VaultRef, VaultWriter,
+        VaultId, VaultRef, VaultWriter, VaultAccess,
     },
     vfs, Timestamp,
 };
@@ -684,19 +684,33 @@ impl LocalProvider {
     pub async fn set_vault_name(
         &mut self,
         summary: &Summary,
-        name: &str,
+        name: impl AsRef<str>,
     ) -> Result<WriteEvent<'static>> {
         // Log the event log event
+        //
         let event =
-            WriteEvent::SetVaultName(Cow::Borrowed(name)).into_owned();
+            WriteEvent::SetVaultName(Cow::Borrowed(name.as_ref())).into_owned();
         self.patch(summary, vec![event.clone()]).await?;
 
         // Update the in-memory name.
         for item in self.state.summaries_mut().iter_mut() {
             if item.id() == summary.id() {
-                item.set_name(name.to_string());
+                item.set_name(name.as_ref().to_owned());
             }
         }
+
+        // Now update the in-memory name for the current selected vault
+        if let Some(keeper) = self.current_mut() {
+            if keeper.vault().id() == summary.id() {
+                keeper.set_vault_name(name.as_ref().to_owned()).await?;
+            }
+        }
+
+        // Update the vault on disc
+        let vault_path = self.vault_path(summary);
+        let vault_file = VaultWriter::open(&vault_path).await?;
+        let mut access = VaultWriter::new(vault_path, vault_file)?;
+        access.set_vault_name(name.as_ref().to_owned()).await?;
 
         Ok(event)
     }
