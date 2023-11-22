@@ -154,7 +154,11 @@ impl From<Vec<u8>> for DerivedPrivateKey {
 ///
 /// Used to enable syncing folders between accounts on 
 /// different devices.
+#[derive(Default)]
 pub enum SecureAccessKey {
+    #[default] 
+    #[doc(hidden)]
+    Noop,
     /// Password access key variant.
     Password(Cipher, AeadPack),
     /// Identity (asymmetric) access key variant.
@@ -192,6 +196,7 @@ impl SecureAccessKey {
         let (cipher, aead) = match key {
             Self::Password(cipher, aead) => (cipher, aead),
             Self::Identity(cipher, aead) => (cipher, aead),
+            _ => unreachable!(),
         };
         let private_key = PrivateKey::Symmetric(
             secret_key.as_ref().to_vec().into());
@@ -209,6 +214,7 @@ impl SecureAccessKey {
                     })?;
                 AccessKey::Identity(identity)
             },
+            _ => unreachable!(),
         })
     }
 }
@@ -218,7 +224,7 @@ mod test {
     use super::*;
     use anyhow::Result;
     use age::x25519::Identity;
-    use crate::signer::ecdsa::SingleParty;
+    use crate::{signer::ecdsa::SingleParty, encode, decode};
 
     #[tokio::test]
     async fn secure_access_key_password() -> Result<()> {
@@ -231,8 +237,11 @@ mod test {
         let sendable = SecureAccessKey::encrypt(
             &password_access, &secret_key, None).await?;
 
+        let encoded = encode(&sendable).await?;
+        let decoded: SecureAccessKey = decode(&encoded).await?;
+
         let access_key = SecureAccessKey::decrypt(
-            &sendable, &secret_key).await?;
+            &decoded, &secret_key).await?;
 
         assert_eq!(password_access, access_key);
         Ok(())
@@ -249,8 +258,11 @@ mod test {
         let sendable = SecureAccessKey::encrypt(
             &identity_access, &secret_key, None).await?;
 
+        let encoded = encode(&sendable).await?;
+        let decoded: SecureAccessKey = decode(&encoded).await?;
+
         let access_key = SecureAccessKey::decrypt(
-            &sendable, &secret_key).await?;
+            &decoded, &secret_key).await?;
 
         assert_eq!(identity_access, access_key);
         Ok(())

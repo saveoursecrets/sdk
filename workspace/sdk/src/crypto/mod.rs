@@ -14,7 +14,7 @@ pub(crate) use key_derivation::{
     Deriver, ARGON_2_ID, BALLOON_HASH, SEED_SIZE,
 };
 pub use key_derivation::{KeyDerivation, Seed};
-pub use private_key::{AccessKey, DerivedPrivateKey, PrivateKey};
+pub use private_key::{AccessKey, DerivedPrivateKey, PrivateKey, SecureAccessKey};
 
 /// Exposes the default cryptographically secure RNG.
 pub fn csprng() -> impl CryptoRng + Rng {
