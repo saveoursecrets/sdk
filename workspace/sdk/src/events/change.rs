@@ -79,9 +79,11 @@ pub enum ChangeEvent {
     CreateVault(Summary),
     /// Event emitted when a vault is updated.
     ///
-    /// This occurs when the passphrase for a vault
-    /// has been changed.
-    UpdateVault,
+    /// This event can occur when a vault is imported 
+    /// that overwrites an existing vault or if the 
+    /// vault is compacted or the password changed (which 
+    /// requires re-writing the event log). 
+    UpdateVault(Summary),
     /// Event emitted when a vault is deleted.
     DeleteVault,
     /// Event emitted when a vault name is set.
@@ -169,6 +171,11 @@ pub enum ChangeAction {
     /// local node has fetched the vault summary
     /// and added it to it's local state.
     Create(Summary),
+
+    /// Vault was updated on a remote node and the
+    /// local node has fetched the vault summary
+    /// and added it to it's local state.
+    Update(Summary),
 
     /// Vault was removed on a remote node and
     /// the local node has removed it from it's

@@ -99,6 +99,9 @@ impl RemoteBridge {
                     ChangeEvent::CreateVault(summary) => {
                         ChangeAction::Create(summary.clone())
                     }
+                    ChangeEvent::UpdateVault(summary) => {
+                        ChangeAction::Update(summary.clone())
+                    }
                     ChangeEvent::DeleteVault => {
                         ChangeAction::Remove(*change.vault_id())
                     }
@@ -127,118 +130,139 @@ impl RemoteBridge {
                         .cloned()
                 };
 
-                if let Some(summary) = &summary {
-                    match action {
-                        ChangeAction::Pull(_) => {
-                            let head = {
+                let folder_exists = summary.is_some();
+
+                match (action, summary) {
+                    (ChangeAction::Pull(_), Some(summary)) => {
+                        let head = {
+                            let reader = local.read().await;
+                            let tree = reader
+                                .commit_tree(&summary)
+                                .ok_or(sos_sdk::Error::NoRootCommit)?;
+                            tree.head()?
+                        };
+
+                        tracing::debug!(
+                            vault_id = ?summary.id(),
+                            change_root = ?change.proof().root_hex(),
+                            root = ?head.root_hex());
+
+                        // Looks like the change was made elsewhere
+                        // and we should attempt to sync with the server
+                        if change.proof().root() != head.root() {
+                            tracing::debug!(
+                                folder = %summary.id(),
+                                "proofs differ, trying pull");
+
+                            let (last_commit, commit_proof) = {
                                 let reader = local.read().await;
-                                let tree = reader
-                                    .commit_tree(summary)
-                                    .ok_or(sos_sdk::Error::NoRootCommit)?;
-                                tree.head()?
+                                let event_log = reader
+                                    .cache()
+                                    .get(summary.id())
+                                    .ok_or(Error::CacheNotAvailable(
+                                        *summary.id(),
+                                    ))?;
+                                let last_commit =
+                                    event_log.last_commit().await?;
+                                let commit_proof =
+                                    event_log.tree().head()?;
+                                (last_commit, commit_proof)
                             };
 
                             tracing::debug!(
-                                vault_id = ?summary.id(),
-                                change_root = ?change.proof().root_hex(),
-                                root = ?head.root_hex());
+                                last_commit = ?last_commit,
+                                commit_proof = ?commit_proof);
 
-                            // Looks like the change was made elsewhere
-                            // and we should attempt to sync with the server
-                            if change.proof().root() != head.root() {
-                                tracing::debug!(
-                                    folder = %summary.id(),
-                                    "proofs differ, trying pull");
-
-                                let (last_commit, commit_proof) = {
-                                    let reader = local.read().await;
-                                    let event_log = reader
-                                        .cache()
-                                        .get(summary.id())
-                                        .ok_or(Error::CacheNotAvailable(
-                                            *summary.id(),
-                                        ))?;
-                                    let last_commit =
-                                        event_log.last_commit().await?;
-                                    let commit_proof =
-                                        event_log.tree().head()?;
-                                    (last_commit, commit_proof)
-                                };
-
-                                tracing::debug!(
-                                    last_commit = ?last_commit,
-                                    commit_proof = ?commit_proof);
-
-                                bridge
-                                    .pull_folder(
-                                        last_commit.as_ref(),
-                                        &commit_proof,
-                                        summary,
-                                    )
-                                    .await?;
-                            } else {
-                                tracing::debug!(
-                                    folder = %summary.id(),
-                                    "proofs match, up to date");
-                            }
+                            bridge
+                                .pull_folder(
+                                    last_commit.as_ref(),
+                                    &commit_proof,
+                                    &summary,
+                                )
+                                .await?;
+                        } else {
+                            tracing::debug!(
+                                folder = %summary.id(),
+                                "proofs match, up to date");
                         }
-                        ChangeAction::Remove(id) => {
-                            {
-                                let mut writer = local.write().await;
-                                let summary = writer
-                                    .state()
-                                    .find(|s| s.id() == &id)
-                                    .cloned()
-                                    .ok_or(Error::CacheNotAvailable(id))?;
-                                writer.remove_local_cache(&summary)?;
-                            }
-
-                            // FIXME: remove delegated passphrase
-                            // FIXME: for the folder here
-                        }
-                        _ => {}
                     }
-                } else if let ChangeAction::Create(summary) = action {
-                    tracing::debug!(
-                        folder = %summary.id(),
-                        "pull new folder");
-
-                    let id = *summary.id();
-
-                    // Prepare the local provider for the new folder
-                    {
-                        let mut writer = local.write().await;
-                        writer.add_local_cache(summary).await?;
-                    }
-
-                    // Load the event entire event log
-                    let (remote_proof, events_buffer) =
-                        bridge.load_events(&id).await?;
-
-                    {
-                        let mut writer = local.write().await;
-                        let mut event_log =
-                            writer
-                                .cache_mut()
-                                .get_mut(&id)
+                    (ChangeAction::Remove(id), Some(summary)) => {
+                        {
+                            let mut writer = local.write().await;
+                            let summary = writer
+                                .state()
+                                .find(|s| s.id() == &id)
+                                .cloned()
                                 .ok_or(Error::CacheNotAvailable(id))?;
-
-                        // Write out the events we fetched
-                        event_log.write_buffer(&events_buffer).await?;
-
-                        // Check the proofs match afterwards
-                        let local_proof = event_log.tree().head()?;
-                        if local_proof != remote_proof {
-                            return Err(Error::RootHashMismatch(
-                                local_proof.into(),
-                                remote_proof.into(),
-                            ));
+                            writer.remove_local_cache(&summary)?;
                         }
-                    }
 
-                    // FIXME: create delegated passphrase
-                    // FIXME: for the folder here
+                        // FIXME: remove delegated passphrase
+                        // FIXME: for the folder here
+                    }
+                    (ChangeAction::Create(folder), None) |
+                    (ChangeAction::Update(folder), Some(_)) => {
+                        tracing::debug!(
+                            folder = %folder.id(),
+                            "pull new folder");
+
+                        let id = *folder.id();
+
+                        // Prepare the local provider for the new folder
+                        if !folder_exists {
+                            let mut writer = local.write().await;
+                            writer.add_local_cache(folder.clone()).await?;
+                        }
+
+                        // Load the event entire event log
+                        let (remote_proof, events_buffer) =
+                            bridge.load_events(&id).await?;
+                        {
+                            let mut writer = local.write().await;
+                            let mut event_log =
+                                writer
+                                    .cache_mut()
+                                    .get_mut(&id)
+                                    .ok_or(Error::CacheNotAvailable(id))?;
+
+                            // Write out the events we fetched
+                            event_log.write_buffer(&events_buffer).await?;
+
+                            // Check the proofs match afterwards
+                            let local_proof = event_log.tree().head()?;
+                            if local_proof != remote_proof {
+                                return Err(Error::RootHashMismatch(
+                                    local_proof.into(),
+                                    remote_proof.into(),
+                                ));
+                            }
+                        }
+                        
+                        // Updating an existing folder
+                        if folder_exists {
+                            let mut writer = local.write().await;
+                            writer.refresh_vault(&folder, None).await?;
+                        }
+                        
+                        // FIXME: create delegated passphrase
+                        // FIXME: for the folder here
+                    }
+                    _ => {}
                 }
+
+                
+                /*
+                if let Some(summary) = &summary {
+                } else {
+                    let new_folder = matches!(&action, ChangeAction::Create(_));
+                    match action {
+                        ChangeAction::Create(summary) | ChangeAction::Update(summary) => {
+
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                */
             }
 
             Ok(())

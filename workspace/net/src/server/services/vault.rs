@@ -178,12 +178,14 @@ impl Service for VaultService {
                 let reply: ResponseMessage<'_> =
                     (request.id(), Some(&proof)).try_into()?;
 
+                let vault_id = *summary.id();
+
                 let notification = ChangeNotification::new(
                     caller.address(),
                     caller.public_key(),
-                    summary.id(),
+                    &vault_id,
                     proof,
-                    vec![ChangeEvent::UpdateVault],
+                    vec![ChangeEvent::UpdateVault(summary)],
                 );
 
                 let event = Event::Write(vault_id, sync_event);

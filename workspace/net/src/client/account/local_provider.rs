@@ -298,9 +298,9 @@ impl LocalProvider {
         Ok(())
     }
 
-    /// Refresh the in-memory vault of the current selection
-    /// from the contents of the current event log file.
-    async fn refresh_vault(
+    /// Refresh the in-memory vault from the contents 
+    /// of the current event log file.
+    pub(super) async fn refresh_vault(
         &mut self,
         summary: &Summary,
         new_key: Option<&AccessKey>,

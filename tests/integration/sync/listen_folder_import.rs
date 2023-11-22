@@ -1,10 +1,16 @@
 use anyhow::Result;
+use copy_dir::copy_dir;
 use serial_test::serial;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use sos_net::{
-    client::{RemoteBridge, RemoteSync},
-    sdk::{account::DelegatedPassphrase, encode, vault::Summary},
+    client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
+    sdk::{
+        account::DelegatedPassphrase,
+        encode,
+        mpc::{Keypair, PATTERN},
+        vault::Summary,
+    },
 };
 
 use crate::test_utils::{
@@ -13,26 +19,36 @@ use crate::test_utils::{
 
 use super::{assert_local_remote_events_eq, assert_local_remote_vaults_eq, num_events};
 
-/// Tests sending import folder events to a remote.
+/// Tests syncing update folder events between two clients
+/// where the second client listens for changes emitted
+/// by the first client via the remote.
 #[tokio::test]
 #[serial]
-async fn integration_sync_import_folder() -> Result<()> {
+async fn integration_listen_import_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
 
-    let dirs = setup(1).await?;
+    // Prepare distinct data directories for the two clients
+    let dirs = setup(2).await?;
+
+    // Set up the paths for the first client
     let test_data_dir = dirs.clients.get(0).unwrap();
+
+    // Need to remove the other data dir as we will
+    // copy the first data dir in later
+    let other_data_dir = dirs.clients.get(1).unwrap();
+    std::fs::remove_dir(&other_data_dir)?;
 
     // Spawn a backend server and wait for it to be listening
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 
-    let (mut owner, _, default_folder, _) = create_local_account(
-        "sync_import_folder",
+    let (mut owner, _, default_folder, passphrase) = create_local_account(
+        "sync_listen_import_folder",
         Some(test_data_dir.clone()),
     )
     .await?;
 
-    // Folders on the local account must be loaded into memory
+    // Folders on the local account
     let expected_summaries: Vec<Summary> = {
         let storage = owner.storage();
         let mut writer = storage.write().await;
@@ -55,20 +71,54 @@ async fn integration_sync_import_folder() -> Result<()> {
     let remote_origin = origin.clone();
     let provider = owner.remote_bridge(&origin).await?;
 
+    // Start listening for change notifications (first client)
+    RemoteBridge::listen(
+        Arc::new(provider.clone()),
+        ListenOptions::new("device_1".to_string())?,
+    );
+
+    // Copy the owner's account directory and sign in
+    // using the alternative owner
+    copy_dir(&test_data_dir, &other_data_dir)?;
+    let mut other_owner = UserStorage::sign_in(
+        owner.address(),
+        passphrase,
+        None,
+        Some(other_data_dir.clone()),
+    )
+    .await?;
+
+    // Mimic account owner on another device connected to
+    // the same remotes
+    let other_provider = other_owner.remote_bridge(&origin).await?;
+
+    // Start listening for change notifications (second client)
+    RemoteBridge::listen(
+        Arc::new(other_provider.clone()),
+        ListenOptions::new("device_2".to_string())?,
+    );
+
+    // Insert the remote for the other owner
+    other_owner.insert_remote(origin.clone(), Box::new(other_provider));
+
+    // Must list folders to load cache into memory after sign in
+    other_owner.list_folders().await?;
+
     // Insert the remote for the primary owner
     owner.insert_remote(origin, Box::new(provider));
 
     let default_folder_id = *default_folder.id();
     owner.open_folder(&default_folder).await?;
+    other_owner.open_folder(&default_folder).await?;
 
-    // Before we begin the client should have a single event
+    // Before we begin both clients should have a single event
     assert_eq!(1, num_events(&mut owner, &default_folder_id).await);
+    assert_eq!(1, num_events(&mut other_owner, &default_folder_id).await);
 
-    // Sync the local account to create the account on remote
+    // Sync a local account that does not exist on
+    // the remote which should create the account on the remote
     owner.sync().await?;
 
-    // Create a folder as we don't want an import to collide
-    // with the default folder
     let (new_folder, sync_error) =
         owner.create_folder("sync_folder".to_string()).await?;
     assert!(sync_error.is_none());
@@ -101,6 +151,10 @@ async fn integration_sync_import_folder() -> Result<()> {
         .import_folder_buffer(buffer, vault_passphrase, true)
         .await?;
 
+    // Pause a while to give the listener some time to process
+    // the change notification
+    tokio::time::sleep(Duration::from_millis(250)).await;
+
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
     let expected_summaries: Vec<Summary> = {
@@ -117,6 +171,13 @@ async fn integration_sync_import_folder() -> Result<()> {
         .downcast_mut::<RemoteBridge>()
         .expect("to be a remote provider");
 
+    let mut provider = other_owner.delete_remote(&remote_origin).unwrap();
+    let other_remote_provider = provider
+        .as_any_mut()
+        .downcast_mut::<RemoteBridge>()
+        .expect("to be a remote provider");
+    
+    // Primary client
     assert_local_remote_vaults_eq(
         expected_summaries.clone(),
         &server_path,
@@ -130,6 +191,23 @@ async fn integration_sync_import_folder() -> Result<()> {
         &server_path,
         &mut owner,
         remote_provider,
+    )
+    .await?;
+    
+    // Secondary client
+    assert_local_remote_vaults_eq(
+        expected_summaries.clone(),
+        &server_path,
+        &mut owner,
+        other_remote_provider,
+    )
+    .await?;
+    
+    assert_local_remote_events_eq(
+        expected_summaries,
+        &server_path,
+        &mut other_owner,
+        other_remote_provider,
     )
     .await?;
 
