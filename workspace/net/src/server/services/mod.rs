@@ -7,6 +7,7 @@ use axum::{
     },
 };
 
+use async_trait::async_trait;
 use sos_sdk::{
     constants::MIME_TYPE_RPC,
     decode, encode,
@@ -16,12 +17,49 @@ use sos_sdk::{
 use web3_address::ethereum::Address;
 
 use std::sync::Arc;
-use tokio::sync::{RwLock, RwLockWriteGuard};
+use tokio::sync::RwLockWriteGuard;
 
 use crate::{
-    rpc::{Packet, RequestMessage, ServerEnvelope, Service},
-    server::{authenticate, ServerBackend, ServerState, State},
+    rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
+    server::{
+        authenticate, Error, Result, ServerBackend, ServerState, State,
+    },
 };
+
+/// Trait for implementations that process incoming requests.
+#[async_trait]
+pub trait Service {
+    /// State for this service.
+    type State: Send + Sync;
+
+    /// Handle an incoming message.
+    async fn handle<'a>(
+        &self,
+        state: Self::State,
+        request: RequestMessage<'a>,
+    ) -> Result<ResponseMessage<'a>>;
+
+    /// Serve an incoming request.
+    async fn serve<'a>(
+        &self,
+        state: Self::State,
+        request: RequestMessage<'a>,
+    ) -> Option<ResponseMessage<'a>> {
+        match self.handle(state, request).await {
+            Ok(res) => {
+                if res.id().is_some() {
+                    Some(res)
+                } else {
+                    None
+                }
+            }
+            Err(e) => {
+                let reply: ResponseMessage<'_> = e.into();
+                Some(reply)
+            }
+        }
+    }
+}
 
 /// Type to represent the caller of a service request.
 pub struct Caller {
@@ -48,7 +86,7 @@ pub type PrivateState = (Caller, (ServerState, ServerBackend));
 async fn append_audit_logs<'a>(
     writer: &mut RwLockWriteGuard<'a, State>,
     events: Vec<AuditEvent>,
-) -> crate::server::Result<()> {
+) -> Result<()> {
     writer.audit_log.append_audit_events(events).await?;
     Ok(())
 }
@@ -95,24 +133,20 @@ pub(crate) async fn public_service(
     service: impl Service<State = ServerState> + Sync + Send,
     state: ServerState,
     body: Bytes,
-) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+) -> Result<(StatusCode, HeaderMap, Bytes)> {
     let mut headers = HeaderMap::new();
 
     let packet: Packet<'_> =
-        decode(&body).await.map_err(|_| StatusCode::BAD_REQUEST)?;
+        decode(&body).await.map_err(|_| Error::BadRequest)?;
 
-    let request: RequestMessage<'_> = packet
-        .try_into()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let request: RequestMessage<'_> = packet.try_into()?;
 
     let reply = service.serve(Arc::clone(&state), request).await;
 
     let (_status, body) = if let Some(reply) = reply {
         let status = reply.status();
         let response = Packet::new_response(reply);
-        let body = encode(&response)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let body = encode(&response).await?;
         (status, Bytes::from(body))
     } else {
         // Got a notification request without a message `id`
@@ -136,51 +170,42 @@ pub(crate) async fn private_service(
     backend: ServerBackend,
     bearer: Authorization<Bearer>,
     body: Bytes,
-) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+) -> Result<(StatusCode, HeaderMap, Bytes)> {
     let mut headers = HeaderMap::new();
 
     let (server_public_key, client_public_key, request, token) = {
         let mut writer = state.write().await;
-        let message: ServerEnvelope = decode(&body)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let message: ServerEnvelope = decode(&body).await?;
 
         let server_public_key = writer.keypair.public_key().to_vec();
         let client_public_key = message.public_key.clone();
         let transport = writer
             .transports
             .get_mut(&message.public_key)
-            .ok_or(StatusCode::UNAUTHORIZED)?;
+            .ok_or(Error::Unauthorized)?;
 
-        transport
-            .valid()
-            .then_some(())
-            .ok_or(StatusCode::UNAUTHORIZED)?;
+        transport.valid().then_some(()).ok_or(Error::Unauthorized)?;
 
         let (encoding, body) = decrypt_server_channel(
             transport.protocol_mut(),
             message.envelope,
         )
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .await?;
 
         assert!(matches!(encoding, sos_sdk::mpc::Encoding::Blob));
 
         // Parse the bearer token
         let token = authenticate::bearer(bearer, &body)
             .await
-            .map_err(|_| StatusCode::BAD_REQUEST)?;
+            .map_err(|_| Error::BadRequest)?;
 
         // Decode the incoming packet and request message
         let packet: Packet<'_> =
-            decode(&body).await.map_err(|_| StatusCode::BAD_REQUEST)?;
-        let request: RequestMessage<'_> = packet
-            .try_into()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            decode(&body).await.map_err(|_| Error::BadRequest)?;
+        let request: RequestMessage<'_> = packet.try_into()?;
 
         // Refresh the transport on activity
         transport.refresh();
-        drop(writer);
 
         (server_public_key, client_public_key, request, token)
     };
@@ -201,9 +226,7 @@ pub(crate) async fn private_service(
             let mut status = reply.status();
 
             let response = Packet::new_response(reply);
-            let body = encode(&response)
-                .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let body = encode(&response).await?;
 
             // If we send an actual NOT_MODIFIED response then the
             // client will not receive any body content so we have
@@ -224,21 +247,18 @@ pub(crate) async fn private_service(
         let transport = writer
             .transports
             .get_mut(&client_public_key)
-            .ok_or(StatusCode::UNAUTHORIZED)?;
+            .ok_or(Error::Unauthorized)?;
 
         let envelope =
             encrypt_server_channel(transport.protocol_mut(), &body, false)
-                .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .await?;
 
         let message = ServerEnvelope {
             public_key: server_public_key,
             envelope,
         };
 
-        let body = encode(&message)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let body = encode(&message).await?;
 
         (status, body)
     };

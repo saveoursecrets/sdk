@@ -5,6 +5,7 @@ use http::{
     StatusCode,
 };
 use serde::{de::DeserializeOwned, Serialize};
+use serde_json::Value;
 use sos_sdk::{
     account::AccountStatus,
     commit::{CommitHash, CommitProof},
@@ -226,20 +227,42 @@ impl RpcClient {
 
     /// Check if we are able to handle a response status code
     /// and content type.
-    fn check_response(&self, response: &reqwest::Response) -> Result<()> {
+    async fn check_response(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<reqwest::Response> {
+        let json_type = HeaderValue::from_static("application/json");
         let rpc_type = HeaderValue::from_static(MIME_TYPE_RPC);
         let status = response.status();
         let content_type = response.headers().get(&header::CONTENT_TYPE);
         match (status, content_type) {
             // OK with the correct MIME type can be handled
-            (StatusCode::OK, Some(rpc_type)) => Ok(()),
-            // Conflict with the correct MIME type can be handled
-            (StatusCode::CONFLICT, Some(rpc_type)) => Ok(()),
+            // or conflict with the correct MIME type can be handled
+            (StatusCode::OK, Some(content_type))
+            | (StatusCode::CONFLICT, Some(content_type)) => {
+                if content_type == &rpc_type {
+                    Ok(response)
+                } else {
+                    Err(Error::ResponseCode(status.into()))
+                }
+            }
             // Unauthorized responses can be retried
             // to renew the noise protocol transport
-            (StatusCode::UNAUTHORIZED, None) => Ok(()),
+            (StatusCode::UNAUTHORIZED, None)
+            | (StatusCode::UNAUTHORIZED, Some(_)) => Ok(response),
             // Otherwise exit out early
-            _ => Err(Error::ResponseCode(status.into())),
+            _ => {
+                if let Some(content_type) = content_type {
+                    if content_type == json_type {
+                        let value: Value = response.json().await?;
+                        Err(Error::ResponseJson(status.into(), value))
+                    } else {
+                        Err(Error::ResponseCode(status.into()))
+                    }
+                } else {
+                    Err(Error::ResponseCode(status.into()))
+                }
+            }
         }
     }
 
@@ -258,7 +281,7 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-        self.check_response(&response)?;
+        let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<AccountStatus>(
                 response.status(),
@@ -290,7 +313,7 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-        self.check_response(&response)?;
+        let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<CommitProof>(
                 response.status(),
@@ -310,7 +333,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-        self.check_response(&response)?;
+        let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<Vec<Summary>>(
                 response.status(),
@@ -328,7 +351,6 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.origin.url.join("api/vault")?;
         let id = self.next_id().await;
-
         let request = RequestMessage::new(
             Some(id),
             VAULT_CREATE,
@@ -341,7 +363,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-        self.check_response(&response)?;
+        let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
@@ -365,7 +387,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-        self.check_response(&response)?;
+        let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
@@ -402,7 +424,7 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-        self.check_response(&response)?;
+        let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<Option<CommitProof>>(
                 response.status(),
@@ -432,7 +454,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-        self.check_response(&response)?;
+        let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<usize>(
                 response.status(),
@@ -455,7 +477,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-        self.check_response(&response)?;
+        let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<CommitProof>(
                 response.status(),
@@ -480,7 +502,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-        self.check_response(&response)?;
+        let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
                 response.status(),
@@ -519,7 +541,7 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-        self.check_response(&response)?;
+        let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
                 response.status(),
@@ -559,7 +581,7 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-        self.check_response(&response)?;
+        let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<CommitProof>(
                 response.status(),
@@ -605,7 +627,7 @@ impl RpcClient {
         &self,
         status: StatusCode,
         buffer: &[u8],
-    ) -> Result<(StatusCode, crate::Result<T>, Vec<u8>)> {
+    ) -> Result<(StatusCode, crate::rpc::Result<T>, Vec<u8>)> {
         status
             .is_success()
             .then_some(())
@@ -657,13 +679,13 @@ impl RpcClient {
 /// Enumeration for a response that allows for retrying the request.
 enum RetryResponse<T> {
     Retry(StatusCode),
-    Complete(StatusCode, crate::Result<T>, Vec<u8>),
+    Complete(StatusCode, crate::rpc::Result<T>, Vec<u8>),
 }
 
 impl<T> RetryResponse<T> {
     fn map<E>(
         self,
-        func: impl FnOnce(crate::Result<T>, Vec<u8>) -> Result<E>,
+        func: impl FnOnce(crate::rpc::Result<T>, Vec<u8>) -> Result<E>,
     ) -> Result<MaybeRetry<E>> {
         match self {
             RetryResponse::Retry(status) => Ok(MaybeRetry::Retry(status)),

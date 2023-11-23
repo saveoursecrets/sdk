@@ -10,10 +10,11 @@ use sos_sdk::{
 
 use async_trait::async_trait;
 
+use super::Service;
 use super::{append_audit_logs, send_notification, PrivateState};
 use crate::{
-    rpc::{RequestMessage, ResponseMessage, Service},
-    server::{BackendHandler, Error, ServerBackend},
+    rpc::{RequestMessage, ResponseMessage},
+    server::{BackendHandler, Error, Result},
 };
 
 /// Account management service.
@@ -31,27 +32,20 @@ impl Service for AccountService {
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
-    ) -> crate::Result<ResponseMessage<'a>> {
+    ) -> Result<ResponseMessage<'a>> {
         let (caller, (state, backend)) = state;
 
         match request.method() {
             ACCOUNT_STATUS => {
                 let account_exists = {
                     let reader = backend.read().await;
-                    reader
-                        .handler()
-                        .account_exists(caller.address())
-                        .await
-                        .map_err(Box::from)?
+                    reader.handler().account_exists(caller.address()).await?
                 };
 
                 let result: AccountStatus = if account_exists {
                     let reader = backend.read().await;
-                    let summaries = reader
-                        .handler()
-                        .list(caller.address())
-                        .await
-                        .map_err(Box::from)?;
+                    let summaries =
+                        reader.handler().list(caller.address()).await?;
 
                     let mut proofs = HashMap::new();
                     let accounts = reader.accounts();
@@ -61,13 +55,11 @@ impl Service for AccountService {
                             .get(caller.address())
                             .ok_or_else(|| {
                                 Error::AccountNotExist(*caller.address())
-                            })
-                            .map_err(Box::from)?
+                            })?
                             .get(summary.id())
                             .ok_or_else(|| {
                                 Error::VaultNotExist(*summary.id())
-                            })
-                            .map_err(Box::from)?;
+                            })?;
 
                         let proof = event_log.tree().head()?;
                         proofs.insert(*summary.id(), proof);
@@ -91,8 +83,7 @@ impl Service for AccountService {
                     if reader
                         .handler()
                         .account_exists(caller.address())
-                        .await
-                        .map_err(Box::from)?
+                        .await?
                     {
                         return Ok(
                             (StatusCode::CONFLICT, request.id()).into()
@@ -111,8 +102,7 @@ impl Service for AccountService {
                         summary.id(),
                         request.body(),
                     )
-                    .await
-                    .map_err(Box::from)?;
+                    .await?;
 
                 let reply: ResponseMessage<'_> =
                     (request.id(), &proof).try_into()?;
@@ -132,9 +122,7 @@ impl Service for AccountService {
 
                 {
                     let mut writer = state.write().await;
-                    append_audit_logs(&mut writer, vec![log])
-                        .await
-                        .map_err(Box::from)?;
+                    append_audit_logs(&mut writer, vec![log]).await?;
                     send_notification(&mut writer, &caller, notification);
                 }
 
@@ -142,20 +130,12 @@ impl Service for AccountService {
             }
             ACCOUNT_LIST_VAULTS => {
                 let reader = backend.read().await;
-                if !reader
-                    .handler()
-                    .account_exists(caller.address())
-                    .await
-                    .map_err(Box::from)?
-                {
+                if !reader.handler().account_exists(caller.address()).await? {
                     return Ok((StatusCode::NOT_FOUND, request.id()).into());
                 }
 
-                let summaries = reader
-                    .handler()
-                    .list(caller.address())
-                    .await
-                    .map_err(Box::from)?;
+                let summaries =
+                    reader.handler().list(caller.address()).await?;
 
                 let reply: ResponseMessage<'_> =
                     (request.id(), summaries).try_into()?;
@@ -168,16 +148,12 @@ impl Service for AccountService {
 
                 {
                     let mut writer = state.write().await;
-                    append_audit_logs(&mut writer, vec![log])
-                        .await
-                        .map_err(Box::from)?;
+                    append_audit_logs(&mut writer, vec![log]).await?;
                 }
 
                 Ok(reply)
             }
-            _ => Err(crate::Error::RpcUnknownMethod(
-                request.method().to_owned(),
-            )),
+            _ => Err(Error::RpcUnknownMethod(request.method().to_owned())),
         }
     }
 }

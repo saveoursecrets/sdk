@@ -8,8 +8,6 @@ use axum::{
 
 use super::ServerState;
 use serde_json::json;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 pub(crate) mod service;
 pub(crate) mod websocket;

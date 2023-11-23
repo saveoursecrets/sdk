@@ -1,14 +1,11 @@
 use axum::{
     body::Bytes,
     extract::{Extension, TypedHeader},
-    headers::{authorization::Bearer, Authorization, HeaderMap},
-    http::StatusCode,
+    headers::{authorization::Bearer, Authorization},
+    response::IntoResponse,
 };
 
 //use axum_macros::debug_handler;
-
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use crate::server::{
     services::{
@@ -25,9 +22,12 @@ impl ServiceHandler {
     pub(crate) async fn handshake(
         Extension(state): Extension<ServerState>,
         body: Bytes,
-    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+    ) -> impl IntoResponse {
         let service = HandshakeService {};
-        public_service(service, state, body).await
+        match public_service(service, state, body).await {
+            Ok(result) => result.into_response(),
+            Err(error) => error.into_response(),
+        }
     }
 
     /// Handle requests for the account service.
@@ -36,9 +36,12 @@ impl ServiceHandler {
         Extension(backend): Extension<ServerBackend>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
-    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+    ) -> impl IntoResponse {
         let service = AccountService {};
-        private_service(service, state, backend, bearer, body).await
+        match private_service(service, state, backend, bearer, body).await {
+            Ok(result) => result.into_response(),
+            Err(error) => error.into_response(),
+        }
     }
 
     /// Handle requests for the vault service.
@@ -47,9 +50,12 @@ impl ServiceHandler {
         Extension(backend): Extension<ServerBackend>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
-    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+    ) -> impl IntoResponse {
         let service = VaultService {};
-        private_service(service, state, backend, bearer, body).await
+        match private_service(service, state, backend, bearer, body).await {
+            Ok(result) => result.into_response(),
+            Err(error) => error.into_response(),
+        }
     }
 
     /// Handle requests for the events service.
@@ -58,8 +64,11 @@ impl ServiceHandler {
         Extension(backend): Extension<ServerBackend>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
-    ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
+    ) -> impl IntoResponse {
         let service = EventLogService {};
-        private_service(service, state, backend, bearer, body).await
+        match private_service(service, state, backend, bearer, body).await {
+            Ok(result) => result.into_response(),
+            Err(error) => error.into_response(),
+        }
     }
 }

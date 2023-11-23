@@ -14,7 +14,7 @@ use binary_stream::futures::{
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use crate::rpc::{
-    Packet, Payload, RequestMessage, ResponseMessage, ServerEnvelope,
+    Error, Packet, Payload, RequestMessage, ResponseMessage, ServerEnvelope,
 };
 
 #[async_trait]
@@ -234,7 +234,7 @@ impl Decodable for ResponseMessage<'_> {
 
             if has_error {
                 let err_msg = reader.read_string().await?;
-                self.result = Some(Err(crate::Error::RpcError(err_msg)))
+                self.result = Some(Err(Error::RpcError(err_msg)))
             } else {
                 let value_len = reader.read_u32().await?;
 

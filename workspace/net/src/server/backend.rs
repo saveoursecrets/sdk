@@ -6,7 +6,7 @@ use sos_sdk::{
     decode, encode,
     events::WriteEvent,
     events::{EventLogFile, EventReducer},
-    vault::{Header, Summary, Vault, VaultAccess, VaultWriter},
+    vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
     vfs,
 };
 use std::{
@@ -16,11 +16,16 @@ use std::{
     sync::Arc,
 };
 use tempfile::NamedTempFile;
-use tokio::sync::{OwnedRwLockReadGuard, RwLock};
-use uuid::Uuid;
+use tokio::sync::RwLock;
 use web3_address::ethereum::Address;
 
 use crate::FileLocks;
+
+/// Individual account maps vault identifiers to the event logs.
+pub type VaultMap = HashMap<VaultId, EventLogFile>;
+
+/// Collection of accounts by address.
+pub type AccountsMap = Arc<RwLock<HashMap<Address, VaultMap>>>;
 
 /// Backend for a server.
 pub enum Backend {
@@ -46,39 +51,11 @@ impl Backend {
     }
 
     /// Get the accounts map.
-    pub fn accounts(&self) -> Accounts {
+    pub fn accounts(&self) -> AccountsMap {
         match self {
             Self::FileSystem(handler) => handler.accounts(),
         }
     }
-
-    /*
-    /// Get a read reference to the event log implementation for the backend.
-    pub async fn event_log_read(
-        &self,
-        owner: &Address,
-        vault_id: &Uuid,
-    ) -> Result<&EventLogFile> {
-        match self {
-            Self::FileSystem(handler) => {
-                handler.event_log_read(owner, vault_id).await
-            }
-        }
-    }
-
-    /// Get a write reference to the event log implementation for the backend.
-    pub async fn event_log_write(
-        &mut self,
-        owner: &Address,
-        vault_id: &Uuid,
-    ) -> Result<&mut EventLogFile> {
-        match self {
-            Self::FileSystem(handler) => {
-                handler.event_log_write(owner, vault_id).await
-            }
-        }
-    }
-    */
 }
 
 /// Trait for types that provide an interface to vault storage.
@@ -98,7 +75,7 @@ pub trait BackendHandler {
     async fn create_account<'a>(
         &mut self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         vault: &'a [u8],
     ) -> Result<(WriteEvent<'a>, CommitProof)>;
 
@@ -119,7 +96,7 @@ pub trait BackendHandler {
     async fn set_vault_name(
         &self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         name: String,
     ) -> Result<()>;
 
@@ -141,7 +118,7 @@ pub trait BackendHandler {
     async fn create_event_log<'a>(
         &mut self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         vault: &'a [u8],
     ) -> Result<(WriteEvent<'a>, CommitProof)>;
 
@@ -149,7 +126,7 @@ pub trait BackendHandler {
     async fn delete_event_log(
         &mut self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
     ) -> Result<()>;
 
     /// Determine if a vault exists and get it's commit proof
@@ -157,38 +134,32 @@ pub trait BackendHandler {
     async fn event_log_exists(
         &self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
     ) -> Result<(bool, Option<CommitProof>)>;
 
     /// Load a event log buffer for an account.
     async fn get_event_log(
         &self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
     ) -> Result<Vec<u8>>;
 
     /// Replace a event log file with a new buffer.
     async fn replace_event_log(
         &mut self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         root_hash: [u8; 32],
         buffer: &[u8],
     ) -> Result<CommitProof>;
 }
-
-/// Individual account maps vault identifiers to the event logs.
-pub type Account = HashMap<Uuid, EventLogFile>;
-
-/// Collection of accounts by address.
-pub type Accounts = Arc<RwLock<HashMap<Address, Account>>>;
 
 /// Backend storage for vaults on the file system.
 pub struct FileSystemBackend {
     directory: PathBuf,
     locks: FileLocks,
     startup_files: Vec<PathBuf>,
-    accounts: Accounts,
+    accounts: AccountsMap,
 }
 
 impl FileSystemBackend {
@@ -204,53 +175,9 @@ impl FileSystemBackend {
     }
 
     /// Get the accounts map.
-    pub fn accounts(&self) -> Accounts {
+    pub fn accounts(&self) -> AccountsMap {
         Arc::clone(&self.accounts)
     }
-
-    /*
-    /// Get a read reference to a event log file.
-    pub async fn event_log_read(
-        &self,
-        owner: &Address,
-        vault_id: &Uuid,
-    ) -> Result<OwnedRwLockReadGuard<&EventLogFile>> {
-        {
-            let accounts = self.accounts.read().await;
-            let account = accounts
-                .get(owner)
-                .ok_or_else(|| Error::AccountNotExist(*owner))?;
-
-            account
-                .get(vault_id)
-                .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
-        }
-
-        let accounts = Arc::clone(&self.accounts);
-        Ok(OwnedRwLockReadGuard::map(accounts.read_owned().await,
-            |a: HashMap<Address, HashMap<Uuid, EventLogFile>>| a.get(owner).unwrap().get(vault_id).unwrap()))
-    }
-    */
-
-    /*
-    /// Get a write reference to a event log file.
-    pub async fn event_log_write(
-        &mut self,
-        owner: &Address,
-        vault_id: &Uuid,
-    ) -> Result<&mut EventLogFile> {
-        let account = self
-            .accounts
-            .get_mut(owner)
-            .ok_or_else(|| Error::AccountNotExist(*owner))?;
-
-        let storage = account
-            .get_mut(vault_id)
-            .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
-
-        Ok(storage)
-    }
-    */
 
     /// Read accounts and vault file paths into memory.
     pub async fn read_dir(&mut self) -> Result<()> {
@@ -324,7 +251,7 @@ impl FileSystemBackend {
     async fn new_event_log_file(
         &mut self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         vault: &[u8],
     ) -> Result<(PathBuf, EventLogFile)> {
         let event_log_path = self.event_log_file_path(owner, vault_id);
@@ -352,7 +279,7 @@ impl FileSystemBackend {
     fn event_log_file_path(
         &self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
     ) -> PathBuf {
         let account_dir = self.directory.join(owner.to_string());
         let mut event_log_file = account_dir.join(vault_id.to_string());
@@ -360,7 +287,11 @@ impl FileSystemBackend {
         event_log_file
     }
 
-    fn vault_file_path(&self, owner: &Address, vault_id: &Uuid) -> PathBuf {
+    fn vault_file_path(
+        &self,
+        owner: &Address,
+        vault_id: &VaultId,
+    ) -> PathBuf {
         let mut vault_path = self.event_log_file_path(owner, vault_id);
         vault_path.set_extension(VAULT_EXT);
         vault_path
@@ -370,7 +301,7 @@ impl FileSystemBackend {
     async fn add_event_log_path(
         &mut self,
         owner: Address,
-        vault_id: Uuid,
+        vault_id: VaultId,
         _event_log_path: PathBuf,
         event_log_file: EventLogFile,
     ) -> Result<()> {
@@ -399,7 +330,7 @@ impl BackendHandler for FileSystemBackend {
     async fn create_account<'a>(
         &mut self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         vault: &'a [u8],
     ) -> Result<(WriteEvent<'a>, CommitProof)> {
         let account_dir = self.directory.join(owner.to_string());
@@ -430,7 +361,7 @@ impl BackendHandler for FileSystemBackend {
     async fn create_event_log<'a>(
         &mut self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         vault: &'a [u8],
     ) -> Result<(WriteEvent<'a>, CommitProof)> {
         let account_dir = self.directory.join(owner.to_string());
@@ -459,7 +390,7 @@ impl BackendHandler for FileSystemBackend {
     async fn delete_event_log(
         &mut self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
     ) -> Result<()> {
         let account_dir = self.directory.join(owner.to_string());
         if !vfs::metadata(&account_dir).await?.is_dir() {
@@ -503,7 +434,7 @@ impl BackendHandler for FileSystemBackend {
     async fn set_vault_name(
         &self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         name: String,
     ) -> Result<()> {
         let vault_path = self.vault_file_path(owner, vault_id);
@@ -584,7 +515,7 @@ impl BackendHandler for FileSystemBackend {
     async fn event_log_exists(
         &self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
     ) -> Result<(bool, Option<CommitProof>)> {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
@@ -601,7 +532,7 @@ impl BackendHandler for FileSystemBackend {
     async fn get_event_log(
         &self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
     ) -> Result<Vec<u8>> {
         let accounts = self.accounts.read().await;
         let account = accounts
@@ -620,7 +551,7 @@ impl BackendHandler for FileSystemBackend {
     async fn replace_event_log(
         &mut self,
         owner: &Address,
-        vault_id: &Uuid,
+        vault_id: &VaultId,
         root_hash: [u8; 32],
         mut buffer: &[u8],
     ) -> Result<CommitProof> {

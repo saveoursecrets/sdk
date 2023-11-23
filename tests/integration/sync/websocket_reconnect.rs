@@ -30,7 +30,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
     let (rx, handle) = spawn()?;
     let _ = rx.await?;
 
-    let (mut owner, _, default_folder, passphrase) = create_local_account(
+    let (mut owner, _, _, _) = create_local_account(
         "sync_websocket_reconnect",
         Some(test_data_dir.clone()),
     )

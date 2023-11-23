@@ -13,10 +13,11 @@ use sos_sdk::{
 use async_trait::async_trait;
 use uuid::Uuid;
 
+use super::Service;
 use super::{append_audit_logs, send_notification, PrivateState};
 use crate::{
-    rpc::{RequestMessage, ResponseMessage, Service},
-    server::{BackendHandler, Error, ServerBackend},
+    rpc::{RequestMessage, ResponseMessage},
+    server::{BackendHandler, Error, Result},
 };
 
 /// Vault management service.
@@ -35,7 +36,7 @@ impl Service for VaultService {
         &self,
         state: Self::State,
         request: RequestMessage<'a>,
-    ) -> crate::Result<ResponseMessage<'a>> {
+    ) -> Result<ResponseMessage<'a>> {
         let (caller, (state, backend)) = state;
 
         match request.method() {
@@ -51,8 +52,7 @@ impl Service for VaultService {
                 let (exists, proof) = reader
                     .handler()
                     .event_log_exists(caller.address(), summary.id())
-                    .await
-                    .map_err(Box::from)?;
+                    .await?;
                 drop(reader);
 
                 if exists {
@@ -68,8 +68,7 @@ impl Service for VaultService {
                             summary.id(),
                             request.body(),
                         )
-                        .await
-                        .map_err(Box::from)?;
+                        .await?;
 
                     let reply: ResponseMessage<'_> =
                         (request.id(), Some(&proof)).try_into()?;
@@ -89,9 +88,7 @@ impl Service for VaultService {
 
                     {
                         let mut writer = state.write().await;
-                        append_audit_logs(&mut writer, vec![log])
-                            .await
-                            .map_err(Box::from)?;
+                        append_audit_logs(&mut writer, vec![log]).await?;
                         send_notification(&mut writer, &caller, notification);
                     }
 
@@ -102,12 +99,11 @@ impl Service for VaultService {
                 let vault_id = request.parameters::<Uuid>()?;
 
                 let proof = {
-                    let mut writer = backend.write().await;
-                    let (exists, proof) = writer
+                    let reader = backend.read().await;
+                    let (exists, proof) = reader
                         .handler()
                         .event_log_exists(caller.address(), &vault_id)
-                        .await
-                        .map_err(Box::from)?;
+                        .await?;
 
                     if !exists {
                         return Ok(
@@ -115,15 +111,14 @@ impl Service for VaultService {
                         );
                     }
 
-                    proof.ok_or(Error::NoCommitProof).map_err(Box::from)?
+                    proof.ok_or(Error::NoCommitProof)?
                 };
 
                 let mut writer = backend.write().await;
                 writer
                     .handler_mut()
                     .delete_event_log(caller.address(), &vault_id)
-                    .await
-                    .map_err(Box::from)?;
+                    .await?;
 
                 let reply: ResponseMessage<'_> =
                     (request.id(), &proof).try_into()?;
@@ -144,9 +139,7 @@ impl Service for VaultService {
 
                 {
                     let mut writer = state.write().await;
-                    append_audit_logs(&mut writer, vec![log])
-                        .await
-                        .map_err(Box::from)?;
+                    append_audit_logs(&mut writer, vec![log]).await?;
                     send_notification(&mut writer, &caller, notification);
                 }
 
@@ -168,8 +161,7 @@ impl Service for VaultService {
                     let (exists, _) = reader
                         .handler()
                         .event_log_exists(caller.address(), summary.id())
-                        .await
-                        .map_err(Box::from)?;
+                        .await?;
                     if !exists {
                         return Ok(
                             (StatusCode::NOT_FOUND, request.id()).into()
@@ -181,8 +173,7 @@ impl Service for VaultService {
                 let (sync_event, proof) = writer
                     .handler_mut()
                     .set_vault(caller.address(), request.body())
-                    .await
-                    .map_err(Box::from)?;
+                    .await?;
 
                 let reply: ResponseMessage<'_> =
                     (request.id(), Some(&proof)).try_into()?;
@@ -202,17 +193,13 @@ impl Service for VaultService {
 
                 {
                     let mut writer = state.write().await;
-                    append_audit_logs(&mut writer, vec![log])
-                        .await
-                        .map_err(Box::from)?;
+                    append_audit_logs(&mut writer, vec![log]).await?;
                     send_notification(&mut writer, &caller, notification);
                 }
 
                 Ok(reply)
             }
-            _ => Err(crate::Error::RpcUnknownMethod(
-                request.method().to_owned(),
-            )),
+            _ => Err(Error::RpcUnknownMethod(request.method().to_owned())),
         }
     }
 }

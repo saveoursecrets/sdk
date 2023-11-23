@@ -15,7 +15,7 @@ use futures::{
 use std::sync::Arc;
 use tokio::sync::{
     broadcast::{self, Receiver, Sender},
-    mpsc, RwLock,
+    mpsc,
 };
 
 use sos_sdk::{encode, mpc::channel::encrypt_server_channel};
