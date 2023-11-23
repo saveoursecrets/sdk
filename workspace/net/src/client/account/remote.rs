@@ -444,13 +444,6 @@ impl RemoteSync for RemoteBridge {
         Ok(())
     }
 
-    async fn sync_receive_events(
-        &self,
-        events: &[WriteEvent<'static>],
-    ) -> Result<()> {
-        todo!();
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }

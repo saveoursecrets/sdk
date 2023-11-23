@@ -60,12 +60,6 @@ pub trait RemoteSync: Sync + Send + Any {
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError>;
 
-    /// Receive events from changes to remote storage.
-    async fn sync_receive_events(
-        &self,
-        events: &[WriteEvent<'static>],
-    ) -> Result<()>;
-
     /// Cast to the Any trait.
     fn as_any(&self) -> &dyn Any;
 

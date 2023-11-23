@@ -2143,17 +2143,6 @@ impl RemoteSync for UserStorage {
         }
     }
 
-    async fn sync_receive_events(
-        &self,
-        events: &[WriteEvent<'static>],
-    ) -> Result<()> {
-        let _ = self.sync_lock.lock().await;
-        for remote in self.remotes.values() {
-            remote.sync_receive_events(events).await?;
-        }
-        Ok(())
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
