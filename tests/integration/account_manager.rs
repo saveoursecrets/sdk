@@ -96,8 +96,8 @@ async fn integration_account_manager() -> Result<()> {
     {
         let keeper = user.identity().keeper();
         let reader = keeper.read().await;
-        let signing_key = identity_reader
-            .find_by_urn(reader.id(), &signing_urn);
+        let signing_key =
+            identity_reader.find_by_urn(reader.id(), &signing_urn);
         assert!(signing_key.is_some());
     }
 
@@ -106,8 +106,7 @@ async fn integration_account_manager() -> Result<()> {
     {
         let keeper = user.identity().keeper();
         let reader = keeper.read().await;
-        let age_key =
-            identity_reader.find_by_urn(reader.id(), &age_urn);
+        let age_key = identity_reader.find_by_urn(reader.id(), &age_urn);
         assert!(age_key.is_some());
     }
 

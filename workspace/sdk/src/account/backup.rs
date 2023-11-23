@@ -469,8 +469,9 @@ impl AccountBackup {
                     .unlock(passphrase.clone().into())
                     .await?;
                 restored_identity_keeper.create_search_index().await?;
-                
-                let restored_identity_keeper = Arc::new(RwLock::new(restored_identity_keeper));
+
+                let restored_identity_keeper =
+                    Arc::new(RwLock::new(restored_identity_keeper));
                 for (_, vault) in vaults {
                     let vault_passphrase =
                         DelegatedPassphrase::find_vault_passphrase(

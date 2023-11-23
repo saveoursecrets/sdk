@@ -2047,53 +2047,6 @@ impl UserStorage {
             .map(CommitHash)
             .ok_or_else(|| Error::NoRootCommit)?)
     }
-
-    /// Listen for changes on a remote origin.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn listen(
-        &self,
-        origin: &Origin,
-        options: ListenOptions,
-    ) -> Result<WebSocketHandle> {
-        if let Some(remote) = self.remotes.get(origin) {
-            if let Some(remote) =
-                remote.as_any().downcast_ref::<RemoteBridge>()
-            {
-                let remote = Arc::new(remote.clone());
-                let keeper = self.user.identity().keeper();
-                Ok(RemoteBridge::listen(
-                    remote,
-                    options,
-                    move |folder_id, secure_key| {
-                        let secret_key =
-                            self.user.identity().signer().to_bytes();
-                        async move {
-                            let key = SecureAccessKey::decrypt(
-                                &secure_key,
-                                secret_key,
-                            )
-                            .await?;
-                            
-                            /*
-                            DelegatedPassphrase::save_vault_passphrase(
-                                keeper,
-                                &folder_id,
-                                key,
-                            )
-                            .await?;
-                            */
-
-                            Ok(())
-                        }
-                    },
-                ))
-            } else {
-                unreachable!();
-            }
-        } else {
-            Err(Error::OriginNotFound(origin.clone()))
-        }
-    }
 }
 
 impl From<UserStorage> for Arc<RwLock<LocalProvider>> {
@@ -2200,5 +2153,87 @@ impl RemoteSync for UserStorage {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+mod listen {
+    use crate::client::{
+        account::remote::StorageChannels, Error, ListenOptions, Origin,
+        RemoteBridge, Result, UserStorage, WebSocketHandle,
+    };
+    use futures::{select, FutureExt};
+    use sos_sdk::prelude::{DelegatedPassphrase, SecureAccessKey};
+    use std::sync::Arc;
+
+    impl UserStorage {
+        /// Listen for changes on a remote origin.
+        pub fn listen(
+            &self,
+            origin: &Origin,
+            options: ListenOptions,
+        ) -> Result<WebSocketHandle> {
+            if let Some(remote) = self.remotes.get(origin) {
+                if let Some(remote) =
+                    remote.as_any().downcast_ref::<RemoteBridge>()
+                {
+                    let remote = Arc::new(remote.clone());
+                    let (handle, channels) =
+                        RemoteBridge::listen(remote, options);
+                    self.spawn_remote_bridge_channels(channels);
+                    Ok(handle)
+                } else {
+                    unreachable!();
+                }
+            } else {
+                Err(Error::OriginNotFound(origin.clone()))
+            }
+        }
+
+        fn spawn_remote_bridge_channels(
+            &self,
+            mut channels: StorageChannels,
+        ) {
+            let keeper = self.user.identity().keeper();
+            let secret_key = self.user.identity().signer().to_bytes();
+
+            tokio::task::spawn(async move {
+                loop {
+                    select!(
+                        event = channels
+                            .secure_access_key_rx
+                            .recv()
+                            .fuse() => {
+                            if let Some((folder_id, secure_key)) = event {
+
+                                // Decrypt the secure access key received
+                                // when creating or importing a folder,
+                                // must be done here as the remote bridge
+                                // does not have access to the private key
+                                // (account signing key)
+                                let access_key = SecureAccessKey::decrypt(
+                                    &secure_key,
+                                    secret_key.clone(),
+                                )
+                                .await?;
+
+                                // Save the access key for the synced folder
+                                let identity = Arc::clone(&keeper);
+                                DelegatedPassphrase::save_vault_passphrase(
+                                    identity,
+                                    &folder_id,
+                                    access_key.clone(),
+                                )
+                                .await?;
+
+                                // FIXME: send the access key back to the remote
+                            }
+                        }
+                    )
+                }
+
+                Ok::<(), Error>(())
+            });
+        }
     }
 }

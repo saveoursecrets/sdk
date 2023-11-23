@@ -289,7 +289,7 @@ impl AccountBuilder {
         };
 
         let vault = {
-            let reader = keeper.read().await; 
+            let reader = keeper.read().await;
             reader.vault().clone()
         };
 

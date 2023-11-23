@@ -353,238 +353,6 @@ impl RemoteBridge {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-use sos_sdk::prelude::{
-    ChangeAction, ChangeEvent, ChangeNotification, CommitRelationship,
-    VaultRef,
-};
-
-#[cfg(not(target_arch = "wasm32"))]
-use futures::Future;
-
-// Listen and respond to change notifications
-#[cfg(not(target_arch = "wasm32"))]
-impl RemoteBridge {
-    fn notification_actions(
-        change: &ChangeNotification,
-    ) -> Vec<ChangeAction> {
-        // Gather actions corresponding to the events
-        let mut actions = Vec::new();
-        for event in change.changes() {
-            let action = match event {
-                ChangeEvent::CreateVault(summary, secure_key) => {
-                    ChangeAction::Create(summary.clone(), secure_key.clone())
-                }
-                ChangeEvent::UpdateVault(summary) => {
-                    ChangeAction::Update(summary.clone())
-                }
-                ChangeEvent::DeleteVault => {
-                    ChangeAction::Remove(*change.vault_id())
-                }
-                _ => ChangeAction::Pull(*change.vault_id()),
-            };
-            actions.push(action);
-        }
-        actions
-    }
-
-    async fn create_or_update_folder(
-        bridge: Arc<RemoteBridge>,
-        folder: Summary,
-        folder_exists: bool,
-        secure_key: Option<SecureAccessKey>,
-    ) -> Result<()> {
-        let local = bridge.local();
-        tracing::debug!(
-            folder = %folder.id(),
-            "pull new folder");
-
-        let id = *folder.id();
-
-        // Prepare the local provider for the new folder
-        if !folder_exists {
-            let mut writer = local.write().await;
-            writer.add_local_cache(folder.clone()).await?;
-        }
-
-        // Load the event entire event log
-        let (remote_proof, events_buffer) = bridge.load_events(&id).await?;
-        {
-            let mut writer = local.write().await;
-            let mut event_log = writer
-                .cache_mut()
-                .get_mut(&id)
-                .ok_or(Error::CacheNotAvailable(id))?;
-
-            // Write out the events we fetched
-            event_log.write_buffer(&events_buffer).await?;
-
-            // Check the proofs match afterwards
-            let local_proof = event_log.tree().head()?;
-            if local_proof != remote_proof {
-                return Err(Error::RootHashMismatch(
-                    local_proof.into(),
-                    remote_proof.into(),
-                ));
-            }
-        }
-
-        // Updating an existing folder
-        if folder_exists {
-            let mut writer = local.write().await;
-            writer.refresh_vault(&folder, None).await?;
-        }
-
-        // FIXME: create delegated passphrase
-        // FIXME: for the folder here
-
-        Ok(())
-    }
-
-    async fn on_change_notification(
-        bridge: Arc<RemoteBridge>,
-        change: ChangeNotification,
-    ) -> Result<()> {
-        let actions = Self::notification_actions(&change);
-        let local = bridge.local();
-        // Consume and react to the actions
-        for action in actions {
-            tracing::debug!(action = ?action, "action");
-
-            let summary = {
-                let reader = local.read().await;
-                reader
-                    .state()
-                    .find_vault(&VaultRef::Id(*change.vault_id()))
-                    .cloned()
-            };
-
-            let folder_exists = summary.is_some();
-
-            match (action, summary) {
-                (ChangeAction::Pull(_), Some(summary)) => {
-                    let head = {
-                        let reader = local.read().await;
-                        let tree = reader
-                            .commit_tree(&summary)
-                            .ok_or(sos_sdk::Error::NoRootCommit)?;
-                        tree.head()?
-                    };
-
-                    tracing::debug!(
-                        vault_id = ?summary.id(),
-                        change_root = ?change.proof().root_hex(),
-                        root = ?head.root_hex());
-
-                    // Looks like the change was made elsewhere
-                    // and we should attempt to sync with the server
-                    if change.proof().root() != head.root() {
-                        tracing::debug!(
-                            folder = %summary.id(),
-                            "proofs differ, trying pull");
-
-                        let (last_commit, commit_proof) = {
-                            let reader = local.read().await;
-                            let event_log =
-                                reader.cache().get(summary.id()).ok_or(
-                                    Error::CacheNotAvailable(*summary.id()),
-                                )?;
-                            let last_commit = event_log.last_commit().await?;
-                            let commit_proof = event_log.tree().head()?;
-                            (last_commit, commit_proof)
-                        };
-
-                        tracing::debug!(
-                            last_commit = ?last_commit,
-                            commit_proof = ?commit_proof);
-
-                        bridge
-                            .pull_folder(
-                                last_commit.as_ref(),
-                                &commit_proof,
-                                &summary,
-                            )
-                            .await?;
-                    } else {
-                        tracing::debug!(
-                            folder = %summary.id(),
-                            "proofs match, up to date");
-                    }
-                }
-                (ChangeAction::Remove(id), Some(summary)) => {
-                    {
-                        let mut writer = local.write().await;
-                        let summary = writer
-                            .state()
-                            .find(|s| s.id() == &id)
-                            .cloned()
-                            .ok_or(Error::CacheNotAvailable(id))?;
-                        writer.remove_local_cache(&summary)?;
-                    }
-
-                    // FIXME: remove delegated passphrase
-                    // FIXME: for the folder here
-                }
-                (ChangeAction::Create(folder, secure_key), None) => {
-                    Self::create_or_update_folder(
-                        Arc::clone(&bridge),
-                        folder,
-                        folder_exists,
-                        secure_key,
-                    )
-                    .await?;
-                }
-                (ChangeAction::Update(folder), Some(_)) => {
-                    Self::create_or_update_folder(
-                        Arc::clone(&bridge),
-                        folder,
-                        folder_exists,
-                        None,
-                    )
-                    .await?;
-                }
-                _ => {}
-            }
-        }
-        Ok(())
-    }
-
-    /// Spawn a task that listens for changes
-    /// from the remote server and applies any changes
-    /// from the remote to the local provider.
-    ///
-    /// The keypair for the websocket connection must not be
-    /// the same as the main client so you should always generate
-    /// a new keypair for this connection. Otherwise transports
-    /// will collide on the server as they are identified by
-    /// public key.
-    pub(super) fn listen<C>(
-        bridge: Arc<RemoteBridge>,
-        options: ListenOptions,
-        on_create: impl Fn(VaultId, SecureAccessKey) -> C,
-    ) -> WebSocketHandle
-    where
-        C: Future<Output = Result<()>> + Send + 'static,
-    {
-        let remote_bridge = Arc::clone(&bridge);
-
-        bridge.remote.listen(options, move |notification| {
-            let bridge = Arc::clone(&remote_bridge);
-
-            async move {
-                let span = span!(Level::DEBUG, "on_change_event");
-                let _enter = span.enter();
-                tracing::debug!(notification = ?notification);
-                if let Err(e) =
-                    Self::on_change_notification(bridge, notification).await
-                {
-                    tracing::error!(error = ?e);
-                }
-            }
-        })
-    }
-}
-
 #[async_trait]
 impl RemoteSync for RemoteBridge {
     async fn sync(&self) -> Result<()> {
@@ -692,3 +460,296 @@ impl RemoteSync for RemoteBridge {
         self
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+mod listen {
+    use crate::client::{
+        Error, ListenOptions, RemoteBridge, Result, WebSocketHandle,
+    };
+    use sos_sdk::prelude::{
+        AccessKey, ChangeAction, ChangeEvent, ChangeNotification,
+        CommitRelationship, SecureAccessKey, Summary, VaultId, VaultRef,
+    };
+
+    use futures::Future;
+    use std::sync::Arc;
+    use tokio::sync::mpsc;
+    use tracing::{span, Level};
+
+    /// Channels we use to communicate with the
+    /// user account storage.
+    pub(crate) struct StorageChannels {
+        /// Receive a secure access key from the remote listener.
+        pub secure_access_key_rx: mpsc::Receiver<(VaultId, SecureAccessKey)>,
+    }
+
+    #[derive(Clone)]
+    pub(crate) struct ListenChannels {
+        /// Send a secure access key to the account storage for decryption.
+        pub secure_access_key_tx: mpsc::Sender<(VaultId, SecureAccessKey)>,
+    }
+
+    // Listen and respond to change notifications
+    #[cfg(not(target_arch = "wasm32"))]
+    impl RemoteBridge {
+        fn notification_actions(
+            change: &ChangeNotification,
+        ) -> Vec<ChangeAction> {
+            // Gather actions corresponding to the events
+            let mut actions = Vec::new();
+            for event in change.changes() {
+                let action = match event {
+                    ChangeEvent::CreateVault(summary, secure_key) => {
+                        ChangeAction::Create(
+                            summary.clone(),
+                            secure_key.clone(),
+                        )
+                    }
+                    ChangeEvent::UpdateVault(summary) => {
+                        ChangeAction::Update(summary.clone())
+                    }
+                    ChangeEvent::DeleteVault => {
+                        ChangeAction::Remove(*change.vault_id())
+                    }
+                    _ => ChangeAction::Pull(*change.vault_id()),
+                };
+                actions.push(action);
+            }
+            actions
+        }
+
+        async fn create_or_update_folder(
+            bridge: Arc<RemoteBridge>,
+            folder: Summary,
+            folder_exists: bool,
+            secure_key: Option<SecureAccessKey>,
+            listen_channels: Arc<ListenChannels>,
+        ) -> Result<()> {
+            let local = bridge.local();
+            tracing::debug!(
+                folder = %folder.id(),
+                "pull new folder");
+
+            let id = *folder.id();
+
+            // Prepare the local provider for the new folder
+            if !folder_exists {
+                let mut writer = local.write().await;
+                writer.add_local_cache(folder.clone()).await?;
+            }
+
+            // Load the event entire event log
+            let (remote_proof, events_buffer) =
+                bridge.load_events(&id).await?;
+            {
+                let mut writer = local.write().await;
+                let mut event_log = writer
+                    .cache_mut()
+                    .get_mut(&id)
+                    .ok_or(Error::CacheNotAvailable(id))?;
+
+                // Write out the events we fetched
+                event_log.write_buffer(&events_buffer).await?;
+
+                // Check the proofs match afterwards
+                let local_proof = event_log.tree().head()?;
+                if local_proof != remote_proof {
+                    return Err(Error::RootHashMismatch(
+                        local_proof.into(),
+                        remote_proof.into(),
+                    ));
+                }
+            }
+
+            let access_key: Option<AccessKey> =
+                if let Some(secure_key) = secure_key {
+                    // Send the secure access key to the
+                    // account storage for decryption
+                    listen_channels
+                        .secure_access_key_tx
+                        .send((*folder.id(), secure_key))
+                        .await?;
+
+                    // FIXME: wait to get the decrypted access key back
+                    None
+                } else {
+                    None
+                };
+
+            // Updating an existing folder
+            if folder_exists {
+                let mut writer = local.write().await;
+                writer.refresh_vault(&folder, access_key.as_ref()).await?;
+            }
+
+            // FIXME: create delegated passphrase
+            // FIXME: for the folder here
+
+            Ok(())
+        }
+
+        async fn on_change_notification(
+            bridge: Arc<RemoteBridge>,
+            change: ChangeNotification,
+            listen_channels: Arc<ListenChannels>,
+        ) -> Result<()> {
+            let actions = Self::notification_actions(&change);
+            let local = bridge.local();
+            // Consume and react to the actions
+            for action in actions {
+                tracing::debug!(action = ?action, "action");
+
+                let summary = {
+                    let reader = local.read().await;
+                    reader
+                        .state()
+                        .find_vault(&VaultRef::Id(*change.vault_id()))
+                        .cloned()
+                };
+
+                let folder_exists = summary.is_some();
+
+                match (action, summary) {
+                    (ChangeAction::Pull(_), Some(summary)) => {
+                        let head = {
+                            let reader = local.read().await;
+                            let tree = reader
+                                .commit_tree(&summary)
+                                .ok_or(sos_sdk::Error::NoRootCommit)?;
+                            tree.head()?
+                        };
+
+                        tracing::debug!(
+                            vault_id = ?summary.id(),
+                            change_root = ?change.proof().root_hex(),
+                            root = ?head.root_hex());
+
+                        // Looks like the change was made elsewhere
+                        // and we should attempt to sync with the server
+                        if change.proof().root() != head.root() {
+                            tracing::debug!(
+                                folder = %summary.id(),
+                                "proofs differ, trying pull");
+
+                            let (last_commit, commit_proof) = {
+                                let reader = local.read().await;
+                                let event_log = reader
+                                    .cache()
+                                    .get(summary.id())
+                                    .ok_or(Error::CacheNotAvailable(
+                                        *summary.id(),
+                                    ))?;
+                                let last_commit =
+                                    event_log.last_commit().await?;
+                                let commit_proof = event_log.tree().head()?;
+                                (last_commit, commit_proof)
+                            };
+
+                            tracing::debug!(
+                                last_commit = ?last_commit,
+                                commit_proof = ?commit_proof);
+
+                            bridge
+                                .pull_folder(
+                                    last_commit.as_ref(),
+                                    &commit_proof,
+                                    &summary,
+                                )
+                                .await?;
+                        } else {
+                            tracing::debug!(
+                                folder = %summary.id(),
+                                "proofs match, up to date");
+                        }
+                    }
+                    (ChangeAction::Remove(id), Some(summary)) => {
+                        {
+                            let mut writer = local.write().await;
+                            let summary = writer
+                                .state()
+                                .find(|s| s.id() == &id)
+                                .cloned()
+                                .ok_or(Error::CacheNotAvailable(id))?;
+                            writer.remove_local_cache(&summary)?;
+                        }
+
+                        // FIXME: remove delegated passphrase
+                        // FIXME: for the folder here
+                    }
+                    (ChangeAction::Create(folder, secure_key), None) => {
+                        Self::create_or_update_folder(
+                            Arc::clone(&bridge),
+                            folder,
+                            folder_exists,
+                            secure_key,
+                            Arc::clone(&listen_channels),
+                        )
+                        .await?;
+                    }
+                    (ChangeAction::Update(folder), Some(_)) => {
+                        Self::create_or_update_folder(
+                            Arc::clone(&bridge),
+                            folder,
+                            folder_exists,
+                            None,
+                            Arc::clone(&listen_channels),
+                        )
+                        .await?;
+                    }
+                    _ => {}
+                }
+            }
+            Ok(())
+        }
+
+        /// Spawn a task that listens for changes
+        /// from the remote server and applies any changes
+        /// from the remote to the local provider.
+        ///
+        /// The keypair for the websocket connection must not be
+        /// the same as the main client so you should always generate
+        /// a new keypair for this connection. Otherwise transports
+        /// will collide on the server as they are identified by
+        /// public key.
+        pub(crate) fn listen(
+            bridge: Arc<RemoteBridge>,
+            options: ListenOptions,
+        ) -> (WebSocketHandle, StorageChannels) {
+            let remote_bridge = Arc::clone(&bridge);
+
+            let (secure_access_key_tx, secure_access_key_rx) =
+                mpsc::channel::<(VaultId, SecureAccessKey)>(16);
+
+            let storage_channels = StorageChannels {
+                secure_access_key_rx,
+            };
+
+            let listen_channels = Arc::new(ListenChannels {
+                secure_access_key_tx,
+            });
+
+            let handle = bridge.remote.listen(options, move |notification| {
+                let bridge = Arc::clone(&remote_bridge);
+                let listener = Arc::clone(&listen_channels);
+                async move {
+                    let span = span!(Level::DEBUG, "on_change_event");
+                    let _enter = span.enter();
+                    tracing::debug!(notification = ?notification);
+                    if let Err(e) = Self::on_change_notification(
+                        bridge,
+                        notification,
+                        Arc::clone(&listener),
+                    )
+                    .await
+                    {
+                        tracing::error!(error = ?e);
+                    }
+                }
+            });
+
+            (handle, storage_channels)
+        }
+    }
+}
+
+pub(crate) use listen::StorageChannels;
