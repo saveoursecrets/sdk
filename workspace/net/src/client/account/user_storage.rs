@@ -2159,7 +2159,7 @@ impl RemoteSync for UserStorage {
 #[cfg(not(target_arch = "wasm32"))]
 mod listen {
     use crate::client::{
-        account::remote::StorageChannels, Error, ListenOptions, Origin,
+        account::remote::{UserStorageReceiver, UserStorageSender}, Error, ListenOptions, Origin,
         RemoteBridge, Result, UserStorage, WebSocketHandle,
     };
     use futures::{select, FutureExt};
@@ -2178,9 +2178,9 @@ mod listen {
                     remote.as_any().downcast_ref::<RemoteBridge>()
                 {
                     let remote = Arc::new(remote.clone());
-                    let (handle, channels) =
+                    let (handle, rx, tx) =
                         RemoteBridge::listen(remote, options);
-                    self.spawn_remote_bridge_channels(channels);
+                    self.spawn_remote_bridge_channels(rx, tx);
                     Ok(handle)
                 } else {
                     unreachable!();
@@ -2192,15 +2192,18 @@ mod listen {
 
         fn spawn_remote_bridge_channels(
             &self,
-            mut channels: StorageChannels,
+            mut rx: UserStorageReceiver,
+            mut tx: UserStorageSender,
         ) {
             let keeper = self.user.identity().keeper();
             let secret_key = self.user.identity().signer().to_bytes();
-
+            
+            // TODO: needs shutdown hook so this loop exits
+            // TODO: when the websocket connection is closed
             tokio::task::spawn(async move {
                 loop {
                     select!(
-                        event = channels
+                        event = rx
                             .secure_access_key_rx
                             .recv()
                             .fuse() => {
@@ -2226,12 +2229,11 @@ mod listen {
                                 )
                                 .await?;
 
-                                // FIXME: send the access key back to the remote
+                                tx.access_key_tx.send(access_key).await?;
                             }
                         }
                     )
                 }
-
                 Ok::<(), Error>(())
             });
         }

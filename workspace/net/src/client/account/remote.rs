@@ -473,20 +473,34 @@ mod listen {
 
     use futures::Future;
     use std::sync::Arc;
-    use tokio::sync::mpsc;
+    use tokio::sync::{mpsc, Mutex};
     use tracing::{span, Level};
 
     /// Channels we use to communicate with the
     /// user account storage.
-    pub(crate) struct StorageChannels {
+    pub(crate) struct UserStorageReceiver {
         /// Receive a secure access key from the remote listener.
         pub secure_access_key_rx: mpsc::Receiver<(VaultId, SecureAccessKey)>,
     }
-
+    
+    /// Channels used to get a reply from the account storage.
+    pub(crate) struct UserStorageSender {
+        /// Sends the decrypted access key from the 
+        /// storage to the remote bridge.
+        pub access_key_tx: mpsc::Sender<AccessKey>,
+    }
+    
+    /// Messages sent from the remote bridge.
     #[derive(Clone)]
-    pub(crate) struct ListenChannels {
+    pub(crate) struct RemoteBridgeSender {
         /// Send a secure access key to the account storage for decryption.
         pub secure_access_key_tx: mpsc::Sender<(VaultId, SecureAccessKey)>,
+    }
+
+    /// Messages sent from the remote bridge.
+    pub(crate) struct RemoteBridgeReceiver {
+        /// Receive the decrypted access key from the account storage.
+        pub access_key_rx: mpsc::Receiver<AccessKey>,
     }
 
     // Listen and respond to change notifications
@@ -523,7 +537,8 @@ mod listen {
             folder: Summary,
             folder_exists: bool,
             secure_key: Option<SecureAccessKey>,
-            listen_channels: Arc<ListenChannels>,
+            remote_bridge_tx: Arc<RemoteBridgeSender>,
+            remote_bridge_rx: Arc<Mutex<RemoteBridgeReceiver>>,
         ) -> Result<()> {
             let local = bridge.local();
             tracing::debug!(
@@ -565,16 +580,21 @@ mod listen {
                 if let Some(secure_key) = secure_key {
                     // Send the secure access key to the
                     // account storage for decryption
-                    listen_channels
+                    remote_bridge_tx
                         .secure_access_key_tx
                         .send((*folder.id(), secure_key))
                         .await?;
-
-                    // FIXME: wait to get the decrypted access key back
-                    None
+                    
+                    // Get the decrypted access key back
+                    // so we can use it when refreshing the 
+                    // in-memory vault
+                    let mut receiver = remote_bridge_rx.lock().await;
+                    receiver.access_key_rx.recv().await
                 } else {
                     None
                 };
+
+            println!("Remote bridge access {:#?}", access_key);
 
             // Updating an existing folder
             if folder_exists {
@@ -582,16 +602,14 @@ mod listen {
                 writer.refresh_vault(&folder, access_key.as_ref()).await?;
             }
 
-            // FIXME: create delegated passphrase
-            // FIXME: for the folder here
-
             Ok(())
         }
 
         async fn on_change_notification(
             bridge: Arc<RemoteBridge>,
             change: ChangeNotification,
-            listen_channels: Arc<ListenChannels>,
+            remote_bridge_tx: Arc<RemoteBridgeSender>,
+            remote_bridge_rx: Arc<Mutex<RemoteBridgeReceiver>>,
         ) -> Result<()> {
             let actions = Self::notification_actions(&change);
             let local = bridge.local();
@@ -682,7 +700,8 @@ mod listen {
                             folder,
                             folder_exists,
                             secure_key,
-                            Arc::clone(&listen_channels),
+                            Arc::clone(&remote_bridge_tx),
+                            Arc::clone(&remote_bridge_rx),
                         )
                         .await?;
                     }
@@ -692,7 +711,8 @@ mod listen {
                             folder,
                             folder_exists,
                             None,
-                            Arc::clone(&listen_channels),
+                            Arc::clone(&remote_bridge_tx),
+                            Arc::clone(&remote_bridge_rx),
                         )
                         .await?;
                     }
@@ -714,23 +734,35 @@ mod listen {
         pub(crate) fn listen(
             bridge: Arc<RemoteBridge>,
             options: ListenOptions,
-        ) -> (WebSocketHandle, StorageChannels) {
+        ) -> (WebSocketHandle, UserStorageReceiver, UserStorageSender) {
             let remote_bridge = Arc::clone(&bridge);
 
             let (secure_access_key_tx, secure_access_key_rx) =
                 mpsc::channel::<(VaultId, SecureAccessKey)>(16);
 
-            let storage_channels = StorageChannels {
+            let (access_key_tx, access_key_rx) =
+                mpsc::channel::<AccessKey>(16);
+
+            let user_storage_rx = UserStorageReceiver {
                 secure_access_key_rx,
             };
 
-            let listen_channels = Arc::new(ListenChannels {
+            let user_storage_tx = UserStorageSender {
+                access_key_tx,
+            };
+
+            let remote_bridge_tx = Arc::new(RemoteBridgeSender {
                 secure_access_key_tx,
             });
 
+            let remote_bridge_rx = Arc::new(Mutex::new(RemoteBridgeReceiver {
+                access_key_rx,
+            }));
+
             let handle = bridge.remote.listen(options, move |notification| {
                 let bridge = Arc::clone(&remote_bridge);
-                let listener = Arc::clone(&listen_channels);
+                let tx = Arc::clone(&remote_bridge_tx);
+                let rx = Arc::clone(&remote_bridge_rx);
                 async move {
                     let span = span!(Level::DEBUG, "on_change_event");
                     let _enter = span.enter();
@@ -738,7 +770,8 @@ mod listen {
                     if let Err(e) = Self::on_change_notification(
                         bridge,
                         notification,
-                        Arc::clone(&listener),
+                        Arc::clone(&tx),
+                        Arc::clone(&rx),
                     )
                     .await
                     {
@@ -747,9 +780,9 @@ mod listen {
                 }
             });
 
-            (handle, storage_channels)
+            (handle, user_storage_rx, user_storage_tx)
         }
     }
 }
 
-pub(crate) use listen::StorageChannels;
+pub(crate) use listen::{UserStorageReceiver, UserStorageSender};

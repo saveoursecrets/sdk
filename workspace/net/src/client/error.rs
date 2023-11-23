@@ -3,7 +3,7 @@
 use crate::client::Origin;
 use sos_sdk::{
     commit::CommitHash,
-    crypto::SecureAccessKey,
+    crypto::{AccessKey, SecureAccessKey},
     events::WriteEvent,
     vault::{secret::SecretId, Summary, VaultId},
 };
@@ -269,5 +269,13 @@ pub enum Error {
     MpscSecureAccessKey(
         #[from]
         tokio::sync::mpsc::error::SendError<(VaultId, SecureAccessKey)>,
+    ),
+
+    /// Error generated sending a access key
+    /// from account storage to a remote provider.
+    #[error(transparent)]
+    MpscAccessKey(
+        #[from]
+        tokio::sync::mpsc::error::SendError<AccessKey>,
     ),
 }
