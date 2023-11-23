@@ -14,5 +14,5 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub use backend::{Backend, BackendHandler, FileSystemBackend};
 pub use config::*;
-pub use server::{Server, ServerInfo, State, ServerState};
+pub use server::{Server, ServerBackend, ServerInfo, ServerState, State};
 pub use transports::{TransportChannel, TransportManager};

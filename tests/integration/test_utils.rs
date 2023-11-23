@@ -134,14 +134,20 @@ impl MockServer {
             },
             keypair,
             config,
-            backend,
             audit_log,
             sockets: Default::default(),
             transports: TransportManager::new(3000),
         }));
 
         let server = Server::new();
-        server.start(addr, state, self.handle.clone()).await?;
+        server
+            .start(
+                addr,
+                state,
+                Arc::new(RwLock::new(backend)),
+                self.handle.clone(),
+            )
+            .await?;
         Ok(())
     }
 

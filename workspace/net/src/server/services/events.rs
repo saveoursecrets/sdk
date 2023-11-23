@@ -20,7 +20,7 @@ use uuid::Uuid;
 use super::{append_audit_logs, send_notification, PrivateState};
 use crate::{
     rpc::{RequestMessage, ResponseMessage, Service},
-    server::BackendHandler,
+    server::{BackendHandler, Error, ServerBackend},
 };
 
 enum PatchResult {
@@ -53,48 +53,57 @@ impl Service for EventLogService {
         state: Self::State,
         request: RequestMessage<'a>,
     ) -> crate::Result<ResponseMessage<'a>> {
-        let (caller, state) = state;
+        let (caller, (state, backend)) = state;
 
         match request.method() {
             EVENT_LOG_LOAD => {
                 let vault_id = request.parameters::<Uuid>()?;
 
-                let reader = state.read().await;
-                let (exists, _) = reader
-                    .backend
-                    .handler()
-                    .event_log_exists(caller.address(), &vault_id)
-                    .await
-                    .map_err(Box::from)?;
-                drop(reader);
+                {
+                    let reader = backend.read().await;
+                    let (exists, _) = reader
+                        .handler()
+                        .event_log_exists(caller.address(), &vault_id)
+                        .await
+                        .map_err(Box::from)?;
 
-                if !exists {
-                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                    if !exists {
+                        return Ok(
+                            (StatusCode::NOT_FOUND, request.id()).into()
+                        );
+                    }
                 }
 
-                let reader = state.read().await;
+                let proof = {
+                    let reader = backend.read().await;
+                    let accounts = reader.accounts();
+                    let reader = accounts.read().await;
+                    let event_log = reader
+                        .get(caller.address())
+                        .ok_or_else(|| {
+                            Error::AccountNotExist(*caller.address())
+                        })
+                        .map_err(Box::from)?
+                        .get(&vault_id)
+                        .ok_or_else(|| Error::VaultNotExist(vault_id))
+                        .map_err(Box::from)?;
 
-                let event_log = reader
-                    .backend
-                    .event_log_read(caller.address(), &vault_id)
-                    .await
-                    .map_err(Box::from)?;
-
-                let proof = event_log.tree().head().map_err(Box::from)?;
-
-                // Otherwise get the entire event log buffer
-                let result = if let Ok(buffer) = reader
-                    .backend
-                    .handler()
-                    .get_event_log(caller.address(), &vault_id)
-                    .await
-                {
-                    Ok((StatusCode::OK, buffer))
-                } else {
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                    event_log.tree().head().map_err(Box::from)?
                 };
 
-                drop(reader);
+                let result = {
+                    let reader = backend.read().await;
+                    // Otherwise get the entire event log buffer
+                    if let Ok(buffer) = reader
+                        .handler()
+                        .get_event_log(caller.address(), &vault_id)
+                        .await
+                    {
+                        Ok((StatusCode::OK, buffer))
+                    } else {
+                        Err(StatusCode::INTERNAL_SERVER_ERROR)
+                    }
+                };
 
                 match result {
                     Ok((status, buffer)) => {
@@ -125,34 +134,46 @@ impl Service for EventLogService {
                 let (vault_id, commit_proof) =
                     request.parameters::<(Uuid, Option<CommitProof>)>()?;
 
-                let reader = state.read().await;
+                {
+                    let reader = backend.read().await;
+                    let (exists, _) = reader
+                        .handler()
+                        .event_log_exists(caller.address(), &vault_id)
+                        .await
+                        .map_err(Box::from)?;
 
-                let (exists, _) = reader
-                    .backend
-                    .handler()
-                    .event_log_exists(caller.address(), &vault_id)
-                    .await
-                    .map_err(Box::from)?;
-
-                if !exists {
-                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                    if !exists {
+                        return Ok(
+                            (StatusCode::NOT_FOUND, request.id()).into()
+                        );
+                    }
                 }
 
-                let event_log = reader
-                    .backend
-                    .event_log_read(caller.address(), &vault_id)
-                    .await
-                    .map_err(Box::from)?;
-
-                let proof = event_log.tree().head().map_err(Box::from)?;
-
-                let match_proof = if let Some(client_proof) = commit_proof {
-                    event_log
-                        .tree()
-                        .contains(&client_proof)
+                let (proof, match_proof) = {
+                    let reader = backend.read().await;
+                    let accounts = reader.accounts();
+                    let reader = accounts.read().await;
+                    let event_log = reader
+                        .get(caller.address())
+                        .ok_or_else(|| {
+                            Error::AccountNotExist(*caller.address())
+                        })
                         .map_err(Box::from)?
-                } else {
-                    None
+                        .get(&vault_id)
+                        .ok_or_else(|| Error::VaultNotExist(vault_id))
+                        .map_err(Box::from)?;
+
+                    let proof = event_log.tree().head().map_err(Box::from)?;
+                    let match_proof = if let Some(client_proof) = commit_proof
+                    {
+                        event_log
+                            .tree()
+                            .contains(&client_proof)
+                            .map_err(Box::from)?
+                    } else {
+                        None
+                    };
+                    (proof, match_proof)
                 };
 
                 let reply: ResponseMessage<'_> =
@@ -163,51 +184,62 @@ impl Service for EventLogService {
                 let (vault_id, last_commit, client_proof) = request
                     .parameters::<(Uuid, CommitHash, CommitProof)>()?;
 
-                let reader = state.read().await;
-
-                let (exists, _) = reader
-                    .backend
-                    .handler()
-                    .event_log_exists(caller.address(), &vault_id)
-                    .await
-                    .map_err(Box::from)?;
-
-                if !exists {
-                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                {
+                    let reader = backend.read().await;
+                    let (exists, _) = reader
+                        .handler()
+                        .event_log_exists(caller.address(), &vault_id)
+                        .await
+                        .map_err(Box::from)?;
+                    if !exists {
+                        return Ok(
+                            (StatusCode::NOT_FOUND, request.id()).into()
+                        );
+                    }
                 }
 
-                let event_log = reader
-                    .backend
-                    .event_log_read(caller.address(), &vault_id)
-                    .await
-                    .map_err(Box::from)?;
+                let (proof, patch) = {
+                    let reader = backend.read().await;
+                    let accounts = reader.accounts();
+                    let reader = accounts.read().await;
+                    let event_log = reader
+                        .get(caller.address())
+                        .ok_or_else(|| {
+                            Error::AccountNotExist(*caller.address())
+                        })
+                        .map_err(Box::from)?
+                        .get(&vault_id)
+                        .ok_or_else(|| Error::VaultNotExist(vault_id))
+                        .map_err(Box::from)?;
 
-                let proof = event_log.tree().head().map_err(Box::from)?;
+                    let proof = event_log.tree().head().map_err(Box::from)?;
+                    let comparison = event_log
+                        .tree()
+                        .compare(&client_proof)
+                        .map_err(Box::from)?;
 
-                let comparison = event_log
-                    .tree()
-                    .compare(&client_proof)
-                    .map_err(Box::from)?;
+                    let patch: Option<Patch> = match comparison {
+                        Comparison::Equal => Some(Default::default()),
+                        Comparison::Contains(_indices, _leaves) => {
+                            let match_proof = event_log
+                                .tree()
+                                .contains(&client_proof)
+                                .map_err(Box::from)?;
 
-                let patch: Option<Patch> = match comparison {
-                    Comparison::Equal => Some(Default::default()),
-                    Comparison::Contains(_indices, _leaves) => {
-                        let match_proof = event_log
-                            .tree()
-                            .contains(&client_proof)
-                            .map_err(Box::from)?;
-
-                        if match_proof.is_some() {
-                            Some(
-                                event_log
-                                    .patch_until(Some(&last_commit))
-                                    .await?,
-                            )
-                        } else {
-                            None
+                            if match_proof.is_some() {
+                                Some(
+                                    event_log
+                                        .patch_until(Some(&last_commit))
+                                        .await?,
+                                )
+                            } else {
+                                None
+                            }
                         }
-                    }
-                    Comparison::Unknown => None,
+                        Comparison::Unknown => None,
+                    };
+
+                    (proof, patch)
                 };
 
                 if let Some(patch) = patch {
@@ -227,25 +259,32 @@ impl Service for EventLogService {
                 let (vault_id, before_proof) =
                     request.parameters::<(Uuid, CommitProof)>()?;
 
-                let reader = state.read().await;
-                let (exists, _) = reader
-                    .backend
-                    .handler()
-                    .event_log_exists(caller.address(), &vault_id)
-                    .await
-                    .map_err(Box::from)?;
-                drop(reader);
-                if !exists {
-                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                {
+                    let reader = backend.read().await;
+                    let (exists, _) = reader
+                        .handler()
+                        .event_log_exists(caller.address(), &vault_id)
+                        .await
+                        .map_err(Box::from)?;
+                    if !exists {
+                        return Ok(
+                            (StatusCode::NOT_FOUND, request.id()).into()
+                        );
+                    }
                 }
 
                 let result: crate::Result<PatchResult> = {
-                    let mut writer = state.write().await;
-
+                    let reader = backend.read().await;
+                    let accounts = reader.accounts();
+                    let mut writer = accounts.write().await;
                     let event_log = writer
-                        .backend
-                        .event_log_write(caller.address(), &vault_id)
-                        .await
+                        .get_mut(caller.address())
+                        .ok_or_else(|| {
+                            Error::AccountNotExist(*caller.address())
+                        })
+                        .map_err(Box::from)?
+                        .get_mut(&vault_id)
+                        .ok_or_else(|| Error::VaultNotExist(vault_id))
                         .map_err(Box::from)?;
 
                     let comparison = event_log
@@ -359,22 +398,15 @@ impl Service for EventLogService {
                         proof,
                         name,
                     ) => {
-                        let mut writer = state.write().await;
-
                         // Must update the vault name in it's summary
                         if let Some(name) = name {
+                            let mut writer = backend.write().await;
                             writer
-                                .backend
                                 .handler_mut()
                                 .set_vault_name(&address, &vault_id, name)
                                 .await
                                 .map_err(Box::from)?;
                         }
-
-                        // Append audit logs
-                        append_audit_logs(&mut writer, logs)
-                            .await
-                            .map_err(Box::from)?;
 
                         let value: (&CommitProof, Option<CommitProof>) =
                             (&proof, None);
@@ -389,8 +421,20 @@ impl Service for EventLogService {
                             change_events,
                         );
 
-                        // Send notifications on the SSE channel
-                        send_notification(&mut writer, &caller, notification);
+                        {
+                            let mut writer = state.write().await;
+                            // Append audit logs
+                            append_audit_logs(&mut writer, logs)
+                                .await
+                                .map_err(Box::from)?;
+
+                            // Send notifications on the SSE channel
+                            send_notification(
+                                &mut writer,
+                                &caller,
+                                notification,
+                            );
+                        }
 
                         Ok(reply)
                     }
@@ -406,22 +450,23 @@ impl Service for EventLogService {
                 let (vault_id, commit_proof) =
                     request.parameters::<(Uuid, CommitProof)>()?;
 
-                let reader = state.read().await;
-                let (exists, _) = reader
-                    .backend
-                    .handler()
-                    .event_log_exists(caller.address(), &vault_id)
-                    .await
-                    .map_err(Box::from)?;
-                drop(reader);
-                if !exists {
-                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
+                {
+                    let reader = backend.read().await;
+                    let (exists, _) = reader
+                        .handler()
+                        .event_log_exists(caller.address(), &vault_id)
+                        .await
+                        .map_err(Box::from)?;
+                    if !exists {
+                        return Ok(
+                            (StatusCode::NOT_FOUND, request.id()).into()
+                        );
+                    }
                 }
 
-                let mut writer = state.write().await;
+                let mut writer = backend.write().await;
                 // TODO: better error to status code mapping
                 let server_proof = writer
-                    .backend
                     .handler_mut()
                     .replace_event_log(
                         caller.address(),

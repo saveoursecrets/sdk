@@ -62,7 +62,6 @@ pub async fn run(
         },
         keypair,
         config,
-        backend,
         audit_log,
         sockets: Default::default(),
         transports,
@@ -72,6 +71,8 @@ pub async fn run(
 
     let addr = SocketAddr::from_str(&bind)?;
     let server = Server::new();
-    server.start(addr, state, handle).await?;
+    server
+        .start(addr, state, Arc::new(RwLock::new(backend)), handle)
+        .await?;
     Ok(())
 }

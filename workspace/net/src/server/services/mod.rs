@@ -20,7 +20,7 @@ use tokio::sync::{RwLock, RwLockWriteGuard};
 
 use crate::{
     rpc::{Packet, RequestMessage, ServerEnvelope, Service},
-    server::{authenticate, ServerState, State},
+    server::{authenticate, ServerBackend, ServerState, State},
 };
 
 /// Type to represent the caller of a service request.
@@ -42,7 +42,7 @@ impl Caller {
 }
 
 /// Type used for the state of private services.
-pub type PrivateState = (Caller, ServerState);
+pub type PrivateState = (Caller, (ServerState, ServerBackend));
 
 /// Append to the audit log.
 async fn append_audit_logs<'a>(
@@ -133,6 +133,7 @@ pub(crate) async fn public_service(
 pub(crate) async fn private_service(
     service: impl Service<State = PrivateState> + Sync + Send,
     state: ServerState,
+    backend: ServerBackend,
     bearer: Authorization<Bearer>,
     body: Bytes,
 ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
@@ -191,7 +192,9 @@ pub(crate) async fn private_service(
     };
 
     tracing::debug!(method = ?request.method(), "serve");
-    let reply = service.serve((owner, Arc::clone(&state)), request).await;
+    let reply = service
+        .serve((owner, (Arc::clone(&state), Arc::clone(&backend))), request)
+        .await;
 
     let (status, body) = {
         let (status, body) = if let Some(reply) = reply {

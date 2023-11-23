@@ -8,6 +8,8 @@ use sos_net::client::RpcClient;
 #[tokio::test]
 #[serial]
 async fn integration_rpc_basic() -> Result<()> {
+    //crate::test_utils::init_tracing();
+
     let (rx, _handle) = spawn()?;
     let _ = rx.await?;
 

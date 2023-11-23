@@ -13,8 +13,10 @@ use std::{
     borrow::Cow,
     collections::HashMap,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 use tempfile::NamedTempFile;
+use tokio::sync::{OwnedRwLockReadGuard, RwLock};
 use uuid::Uuid;
 use web3_address::ethereum::Address;
 
@@ -43,6 +45,14 @@ impl Backend {
         }
     }
 
+    /// Get the accounts map.
+    pub fn accounts(&self) -> Accounts {
+        match self {
+            Self::FileSystem(handler) => handler.accounts(),
+        }
+    }
+
+    /*
     /// Get a read reference to the event log implementation for the backend.
     pub async fn event_log_read(
         &self,
@@ -68,6 +78,7 @@ impl Backend {
             }
         }
     }
+    */
 }
 
 /// Trait for types that provide an interface to vault storage.
@@ -166,12 +177,18 @@ pub trait BackendHandler {
     ) -> Result<CommitProof>;
 }
 
+/// Individual account maps vault identifiers to the event logs.
+pub type Account = HashMap<Uuid, EventLogFile>;
+
+/// Collection of accounts by address.
+pub type Accounts = Arc<RwLock<HashMap<Address, Account>>>;
+
 /// Backend storage for vaults on the file system.
 pub struct FileSystemBackend {
     directory: PathBuf,
     locks: FileLocks,
     startup_files: Vec<PathBuf>,
-    accounts: HashMap<Address, HashMap<Uuid, EventLogFile>>,
+    accounts: Accounts,
 }
 
 impl FileSystemBackend {
@@ -182,28 +199,40 @@ impl FileSystemBackend {
             directory,
             locks: Default::default(),
             startup_files: Vec::new(),
-            accounts: Default::default(),
+            accounts: Arc::new(RwLock::new(Default::default())),
         }
     }
 
+    /// Get the accounts map.
+    pub fn accounts(&self) -> Accounts {
+        Arc::clone(&self.accounts)
+    }
+
+    /*
     /// Get a read reference to a event log file.
     pub async fn event_log_read(
         &self,
         owner: &Address,
         vault_id: &Uuid,
-    ) -> Result<&EventLogFile> {
-        let account = self
-            .accounts
-            .get(owner)
-            .ok_or_else(|| Error::AccountNotExist(*owner))?;
+    ) -> Result<OwnedRwLockReadGuard<&EventLogFile>> {
+        {
+            let accounts = self.accounts.read().await;
+            let account = accounts
+                .get(owner)
+                .ok_or_else(|| Error::AccountNotExist(*owner))?;
 
-        let storage = account
-            .get(vault_id)
-            .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
+            account
+                .get(vault_id)
+                .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
+        }
 
-        Ok(storage)
+        let accounts = Arc::clone(&self.accounts);
+        Ok(OwnedRwLockReadGuard::map(accounts.read_owned().await,
+            |a: HashMap<Address, HashMap<Uuid, EventLogFile>>| a.get(owner).unwrap().get(vault_id).unwrap()))
     }
+    */
 
+    /*
     /// Get a write reference to a event log file.
     pub async fn event_log_write(
         &mut self,
@@ -221,6 +250,7 @@ impl FileSystemBackend {
 
         Ok(storage)
     }
+    */
 
     /// Read accounts and vault file paths into memory.
     pub async fn read_dir(&mut self) -> Result<()> {
@@ -235,10 +265,10 @@ impl FileSystemBackend {
                     if let Ok(owner) =
                         name.to_string_lossy().parse::<Address>()
                     {
-                        let accounts = &mut self.accounts;
-                        let _vaults = accounts
-                            .entry(owner)
-                            .or_insert(Default::default());
+                        {
+                            let mut accounts = self.accounts.write().await;
+                            accounts.insert(owner, Default::default());
+                        }
 
                         let mut dir = vfs::read_dir(&path).await?;
                         while let Some(entry) = dir.next_entry().await? {
@@ -344,7 +374,8 @@ impl FileSystemBackend {
         _event_log_path: PathBuf,
         event_log_file: EventLogFile,
     ) -> Result<()> {
-        let vaults = self.accounts.entry(owner).or_insert(Default::default());
+        let mut accounts = self.accounts.write().await;
+        let vaults = accounts.entry(owner).or_insert(Default::default());
         vaults.insert(vault_id, event_log_file);
         Ok(())
     }
@@ -383,6 +414,7 @@ impl BackendHandler for FileSystemBackend {
         let (event_log_path, event_log_file) =
             self.new_event_log_file(owner, vault_id, vault).await?;
         let proof = event_log_file.tree().head()?;
+
         self.add_event_log_path(
             *owner,
             *summary.id(),
@@ -390,6 +422,7 @@ impl BackendHandler for FileSystemBackend {
             event_log_file,
         )
         .await?;
+
         let event = WriteEvent::CreateVault(Cow::Borrowed(vault));
         Ok((event, proof))
     }
@@ -433,8 +466,8 @@ impl BackendHandler for FileSystemBackend {
             return Err(Error::NotDirectory(account_dir));
         }
 
-        let account = self
-            .accounts
+        let mut accounts = self.accounts.write().await;
+        let account = accounts
             .get_mut(owner)
             .ok_or_else(|| Error::AccountNotExist(*owner))?;
 
@@ -462,7 +495,8 @@ impl BackendHandler for FileSystemBackend {
 
     async fn account_exists(&self, owner: &Address) -> Result<bool> {
         let account_dir = self.directory.join(owner.to_string());
-        Ok(self.accounts.get(owner).is_some()
+        let accounts = self.accounts.read().await;
+        Ok(accounts.get(owner).is_some()
             && vfs::metadata(&account_dir).await?.is_dir())
     }
 
@@ -481,7 +515,8 @@ impl BackendHandler for FileSystemBackend {
 
     async fn list(&self, owner: &Address) -> Result<Vec<Summary>> {
         let mut summaries = Vec::new();
-        if let Some(account) = self.accounts.get(owner) {
+        let accounts = self.accounts.read().await;
+        if let Some(account) = accounts.get(owner) {
             for id in account.keys() {
                 let mut vault_path = self.event_log_file_path(owner, id);
                 vault_path.set_extension(VAULT_EXT);
@@ -497,10 +532,12 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault: &'a [u8],
     ) -> Result<(WriteEvent<'a>, CommitProof)> {
-        let _ = self
-            .accounts
-            .get(owner)
-            .ok_or_else(|| Error::AccountNotExist(*owner))?;
+        {
+            let accounts = self.accounts.read().await;
+            accounts
+                .get(owner)
+                .ok_or_else(|| Error::AccountNotExist(*owner))?;
+        }
 
         let vault: Vault = decode(vault).await?;
         let (vault, events) = EventReducer::split(vault).await?;
@@ -549,7 +586,8 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault_id: &Uuid,
     ) -> Result<(bool, Option<CommitProof>)> {
-        if let Some(account) = self.accounts.get(owner) {
+        let accounts = self.accounts.read().await;
+        if let Some(account) = accounts.get(owner) {
             if let Some(event_log) = account.get(vault_id) {
                 Ok((true, Some(event_log.tree().head()?)))
             } else {
@@ -565,12 +603,12 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault_id: &Uuid,
     ) -> Result<Vec<u8>> {
-        let account = self
-            .accounts
+        let accounts = self.accounts.read().await;
+        let account = accounts
             .get(owner)
             .ok_or_else(|| Error::AccountNotExist(*owner))?;
 
-        let _ = account
+        account
             .get(vault_id)
             .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
 
@@ -586,6 +624,13 @@ impl BackendHandler for FileSystemBackend {
         root_hash: [u8; 32],
         mut buffer: &[u8],
     ) -> Result<CommitProof> {
+        {
+            let accounts = self.accounts.read().await;
+            accounts
+                .get(owner)
+                .ok_or_else(|| Error::AccountNotExist(*owner))?;
+        }
+
         let mut tempfile = NamedTempFile::new()?;
         let temp_path = tempfile.path().to_path_buf();
 
@@ -632,14 +677,25 @@ impl BackendHandler for FileSystemBackend {
         // determine whether to rename or copy.
         vfs::copy(&temp_path, &original_event_log).await?;
 
-        let event_log = self.event_log_write(owner, vault_id).await?;
-        *event_log = EventLogFile::new(&original_event_log).await?;
-        event_log.load_tree().await?;
+        let (new_tree_root, head) = {
+            let mut writer = self.accounts.write().await;
+            //let event_log = self.event_log_write(owner, vault_id).await?;
 
-        let new_tree_root = event_log
-            .tree()
-            .root()
-            .ok_or(sos_sdk::Error::NoRootCommit)?;
+            let event_log = writer
+                .get_mut(owner)
+                .ok_or_else(|| Error::AccountNotExist(*owner))?
+                .get_mut(vault_id)
+                .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
+
+            *event_log = EventLogFile::new(&original_event_log).await?;
+            event_log.load_tree().await?;
+            let root = event_log
+                .tree()
+                .root()
+                .ok_or(sos_sdk::Error::NoRootCommit)?;
+            let head = event_log.tree().head()?;
+            (root, head)
+        };
 
         tracing::debug!(root = ?hex::encode(new_tree_root),
             "replace_event_log loaded a new tree root");
@@ -647,6 +703,6 @@ impl BackendHandler for FileSystemBackend {
         if root_hash != new_tree_root {
             return Err(Error::EventValidateMismatch);
         }
-        Ok(event_log.tree().head()?)
+        Ok(head)
     }
 }

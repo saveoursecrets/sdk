@@ -49,8 +49,11 @@ pub struct State {
     pub config: ServerConfig,
     /// Server information.
     pub info: ServerInfo,
+
+    /*
     /// Storage backend.
     pub backend: Backend,
+    */
     /// Audit log file
     pub audit_log: AuditLogFile,
     /// Server transport manager.
@@ -76,6 +79,9 @@ pub struct ServerInfo {
 /// State for the server.
 pub type ServerState = Arc<RwLock<State>>;
 
+/// State for the server backend.
+pub type ServerBackend = Arc<RwLock<Backend>>;
+
 /// Web server implementation.
 #[derive(Default)]
 pub struct Server;
@@ -91,6 +97,7 @@ impl Server {
         &self,
         addr: SocketAddr,
         state: ServerState,
+        backend: ServerBackend,
         handle: Handle,
     ) -> Result<()> {
         let reader = state.read().await;
@@ -103,9 +110,10 @@ impl Server {
         tokio::task::spawn(session_reaper(Arc::clone(&state), reap_interval));
 
         if let Some(tls) = tls {
-            self.run_tls(addr, state, handle, origins, tls).await
+            self.run_tls(addr, state, backend, handle, origins, tls)
+                .await
         } else {
-            self.run(addr, state, handle, origins).await
+            self.run(addr, state, backend, handle, origins).await
         }
     }
 
@@ -114,6 +122,7 @@ impl Server {
         &self,
         addr: SocketAddr,
         state: ServerState,
+        backend: ServerBackend,
         handle: Handle,
         origins: Vec<HeaderValue>,
         tls: TlsConfig,
@@ -124,7 +133,7 @@ impl Server {
         };
 
         let tls = RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
-        let app = Server::router(state, origins)?;
+        let app = Server::router(state, backend, origins)?;
 
         tracing::info!("listening on {}", addr);
         tracing::info!("public key {}", hex::encode(&public_key));
@@ -141,6 +150,7 @@ impl Server {
         &self,
         addr: SocketAddr,
         state: ServerState,
+        backend: ServerBackend,
         handle: Handle,
         origins: Vec<HeaderValue>,
     ) -> Result<()> {
@@ -149,7 +159,7 @@ impl Server {
             reader.keypair.public_key().to_vec()
         };
 
-        let app = Server::router(state, origins)?;
+        let app = Server::router(state, backend, origins)?;
 
         tracing::info!("listening on {}", addr);
         tracing::info!("public key {}", hex::encode(&public_key));
@@ -175,6 +185,7 @@ impl Server {
 
     fn router(
         state: ServerState,
+        backend: ServerBackend,
         origins: Vec<HeaderValue>,
     ) -> Result<Router> {
         let cors = CorsLayer::new()
@@ -196,6 +207,7 @@ impl Server {
         app = app
             .layer(cors)
             .layer(TraceLayer::new_for_http())
+            .layer(Extension(backend))
             .layer(Extension(state));
 
         Ok(app)
