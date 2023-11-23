@@ -3,8 +3,7 @@ use crate::{
     client::{
         net::{MaybeRetry, RpcClient},
         sync::SyncData,
-        Error, ListenOptions, LocalProvider, RemoteSync, Result, SyncError,
-        WebSocketHandle,
+        Error, ListenOptions, RemoteSync, Result, SyncError, WebSocketHandle,
     },
     retry,
 };
@@ -13,7 +12,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 
 use sos_sdk::{
-    account::AccountStatus,
+    account::{AccountStatus, LocalProvider},
     commit::{CommitHash, CommitProof},
     crypto::SecureAccessKey,
     decode,
@@ -556,7 +555,7 @@ mod listen {
             // Prepare the local provider for the new folder
             if !folder_exists {
                 let mut writer = local.write().await;
-                writer.add_local_cache(folder.clone()).await?;
+                writer.prepare_vault(folder.clone()).await?;
             }
 
             // Load the event entire event log
@@ -601,7 +600,7 @@ mod listen {
                 };
 
             // Updating an existing folder
-            if folder_exists {
+            {
                 let mut writer = local.write().await;
                 writer.refresh_vault(&folder, access_key.as_ref()).await?;
             }

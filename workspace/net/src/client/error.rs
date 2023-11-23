@@ -79,10 +79,11 @@ pub enum Error {
     #[error("file {0} already exists")]
     FileExists(PathBuf),
 
+    /*
     /// Error generated when unlocking a vault failed.
     #[error("failed to unlock vault")]
     VaultUnlockFail,
-
+    */
     /// Error generated when an unexpected response code is received.
     #[error("unexpected response status code {0}")]
     ResponseCode(u16),
@@ -150,6 +151,7 @@ pub enum Error {
     #[error("not authorized, authentication is required")]
     NotAuthorized,
 
+    /*
     /// Error generated attempting to make changes to the current
     /// vault but no vault is open.
     #[error("no vault is available, vault must be open")]
@@ -158,7 +160,7 @@ pub enum Error {
     /// Error generated when a secret could not be found.
     #[error(r#"secret "{0}" not found"#)]
     SecretNotFound(SecretId),
-
+    */
     /// Error generated when account status could not be retrieved.
     #[error("could not fetch account status")]
     NoAccountStatus,

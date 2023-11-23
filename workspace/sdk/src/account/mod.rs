@@ -9,6 +9,7 @@ mod local;
 mod login;
 mod passphrase;
 mod paths;
+mod provider;
 
 pub use backup::{
     AccountBackup, AccountManifest, ExtractFilesLocation, ManifestEntry,
@@ -20,6 +21,7 @@ pub use local::{AccountInfo, AccountRef, LocalAccounts};
 pub use login::{AuthenticatedUser, DeviceSigner, Login};
 pub use passphrase::DelegatedPassphrase;
 pub use paths::UserPaths;
+pub use provider::{LocalProvider, LocalState};
 
 pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;

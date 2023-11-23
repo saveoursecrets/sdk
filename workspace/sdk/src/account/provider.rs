@@ -1,5 +1,5 @@
 //! Storage provider backed by the local filesystem.
-use sos_sdk::{
+use crate::{
     account::{
         AccountStatus, ImportedAccount, NewAccount, RestoreTargets, UserPaths,
     },
@@ -8,8 +8,8 @@ use sos_sdk::{
     crypto::{AccessKey, KeyDerivation, PrivateKey},
     decode, encode,
     events::{
-        AuditEvent, AuditLogFile, Event, EventKind, EventLogFile,
-        EventReducer, ReadEvent, WriteEvent,
+        AuditEvent, Event, EventKind, EventLogFile, EventReducer, ReadEvent,
+        WriteEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
     search::SearchIndex,
@@ -18,14 +18,12 @@ use sos_sdk::{
         Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
         VaultFlags, VaultId, VaultRef, VaultWriter,
     },
-    vfs, Timestamp,
+    vfs, Error, Result, Timestamp,
 };
 
 use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 
 use tokio::sync::RwLock;
-
-use crate::client::{Error, Result};
 
 /// Local storage provider.
 pub struct LocalProvider {
@@ -37,9 +35,6 @@ pub struct LocalProvider {
 
     /// Cache for event log and patch providers.
     cache: HashMap<VaultId, EventLogFile>,
-
-    /// Audit log for this provider.
-    audit_log: Arc<RwLock<AuditLogFile>>,
 }
 
 impl LocalProvider {
@@ -69,15 +64,10 @@ impl LocalProvider {
 
         paths.ensure().await?;
 
-        let audit_log = Arc::new(RwLock::new(
-            AuditLogFile::new(paths.audit_file()).await?,
-        ));
-
         Ok(Self {
             state: LocalState::new(true),
             cache: Default::default(),
             paths,
-            audit_log,
         })
     }
 
@@ -99,11 +89,6 @@ impl LocalProvider {
     /// Get a mutable reference to the state for this storage provider.
     pub fn state_mut(&mut self) -> &mut LocalState {
         &mut self.state
-    }
-
-    /// Get the audit log for this provider.
-    pub fn audit_log(&self) -> Arc<RwLock<AuditLogFile>> {
-        Arc::clone(&self.audit_log)
     }
 
     /// Get the computed storage directories for the provider.
@@ -285,11 +270,11 @@ impl LocalProvider {
         Ok(())
     }
 
-    /// Add a summary to the in-memory cache of vaults.
-    pub(super) async fn add_local_cache(
-        &mut self,
-        summary: Summary,
-    ) -> Result<()> {
+    /// Prepare to receive data for a new vault by
+    /// creating an empty event log file on disc
+    /// and adding the target to the list of vaults
+    /// being managed by this local provider.
+    pub async fn prepare_vault(&mut self, summary: Summary) -> Result<()> {
         // Add to our cache of managed vaults
         self.create_cache_entry(&summary, None).await?;
 
@@ -300,7 +285,12 @@ impl LocalProvider {
 
     /// Refresh the in-memory vault from the contents
     /// of the current event log file.
-    pub(super) async fn refresh_vault(
+    ///
+    /// If a new access key is given and the target
+    /// folder is the currently open folder then the
+    /// in-memory `Gatekeeper` is updated to use the new
+    /// access key.
+    pub async fn refresh_vault(
         &mut self,
         summary: &Summary,
         new_key: Option<&AccessKey>,
@@ -465,7 +455,7 @@ impl LocalProvider {
 
     /// Remove a vault file and event log file.
     pub async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
-        use sos_sdk::constants::EVENT_LOG_DELETED_EXT;
+        use crate::constants::EVENT_LOG_DELETED_EXT;
 
         // Remove local vault mirror if it exists
         let vault_path = self.vault_path(summary);
@@ -825,7 +815,7 @@ impl LocalProvider {
 
     /// Verify an event log.
     pub async fn verify(&self, summary: &Summary) -> Result<()> {
-        use sos_sdk::commit::event_log_commit_tree_file;
+        use crate::commit::event_log_commit_tree_file;
         let event_log_path = self.event_log_path(summary);
         event_log_commit_tree_file(&event_log_path, true, |_| {}).await?;
         Ok(())

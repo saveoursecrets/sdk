@@ -4,7 +4,6 @@
 mod devices;
 
 mod file_manager;
-mod local_provider;
 mod macros;
 mod remote;
 mod search_index;
@@ -12,7 +11,6 @@ mod search_index;
 mod security_report;
 mod user_storage;
 
-pub use local_provider::{LocalProvider, LocalState};
 pub use remote::{Origin, Remote, RemoteBridge, Remotes};
 
 #[cfg(feature = "device")]

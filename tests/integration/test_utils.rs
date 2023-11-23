@@ -8,9 +8,9 @@ use url::Url;
 use web3_address::ethereum::Address;
 
 use sos_net::{
-    client::{LocalProvider, Origin, RemoteBridge, RemoteSync, UserStorage},
+    client::{Origin, RemoteBridge, RemoteSync, UserStorage},
     sdk::{
-        account::ImportedAccount,
+        account::{ImportedAccount, LocalProvider},
         crypto::AccessKey,
         events::{AuditLogFile, WriteEvent},
         hex,

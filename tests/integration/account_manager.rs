@@ -3,22 +3,19 @@ use anyhow::Result;
 use serial_test::serial;
 use std::{io::Cursor, path::PathBuf, sync::Arc};
 
-use sos_net::{
-    client::LocalProvider,
-    sdk::{
-        account::{
-            AccountBackup, AccountBuilder, DelegatedPassphrase,
-            ExtractFilesLocation, FileStorage, ImportedAccount,
-            LocalAccounts, Login, NewAccount, RestoreOptions, UserPaths,
-        },
-        constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
-        hex,
-        passwd::diceware::generate_passphrase,
-        search::SearchIndex,
-        urn::Urn,
-        vault::{secret::SecretId, Gatekeeper, VaultId},
-        vfs,
+use sos_net::sdk::{
+    account::{
+        AccountBackup, AccountBuilder, DelegatedPassphrase,
+        ExtractFilesLocation, FileStorage, ImportedAccount, LocalAccounts,
+        LocalProvider, Login, NewAccount, RestoreOptions, UserPaths,
     },
+    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
+    hex,
+    passwd::diceware::generate_passphrase,
+    search::SearchIndex,
+    urn::Urn,
+    vault::{secret::SecretId, Gatekeeper, VaultId},
+    vfs,
 };
 use tokio::sync::RwLock;
 

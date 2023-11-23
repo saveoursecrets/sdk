@@ -3,12 +3,11 @@ use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 use sos_net::{
-    client::LocalProvider,
     migrate::import::{ImportFormat, ImportTarget},
     sdk::{
         account::{
             archive::Inventory, AccountBackup, AccountInfo, AccountRef,
-            ExtractFilesLocation, RestoreOptions, UserPaths,
+            ExtractFilesLocation, LocalProvider, RestoreOptions, UserPaths,
         },
         vfs,
     },

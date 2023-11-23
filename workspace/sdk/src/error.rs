@@ -362,6 +362,23 @@ pub enum Error {
     #[error(r#"attachment "{0}" not found"#)]
     AttachmentNotFound(SecretId),
 
+    /// Error generated attempting to access a vault that is not available.
+    #[error("cache not available for {0}")]
+    CacheNotAvailable(Uuid),
+
+    /// Error generated when unlocking a vault failed.
+    #[error("failed to unlock vault")]
+    VaultUnlockFail,
+
+    /// Error generated attempting to make changes to the current
+    /// vault but no vault is open.
+    #[error("no vault is available, vault must be open")]
+    NoOpenVault,
+
+    /// Error generated when a secret could not be found.
+    #[error(r#"secret "{0}" not found"#)]
+    SecretNotFound(SecretId),
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

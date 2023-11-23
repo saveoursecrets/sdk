@@ -11,15 +11,15 @@ use sos_sdk::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
         AuthenticatedUser, DelegatedPassphrase, ExtractFilesLocation,
-        ImportedAccount, LocalAccounts, Login, NewAccount, RestoreOptions,
-        UserPaths,
+        ImportedAccount, LocalAccounts, LocalProvider, Login, NewAccount,
+        RestoreOptions, UserPaths,
     },
     commit::{CommitHash, CommitProof},
     crypto::{AccessKey, SecureAccessKey},
     decode, encode,
     events::{
-        AuditData, AuditEvent, AuditProvider, Event, EventKind, EventReducer,
-        ReadEvent, WriteEvent,
+        AuditData, AuditEvent, AuditLogFile, AuditProvider, Event, EventKind,
+        EventReducer, ReadEvent, WriteEvent,
     },
     mpc::generate_keypair,
     search::{DocumentCount, SearchIndex},
@@ -43,8 +43,8 @@ use tokio::{
 };
 
 use crate::client::{
-    sync::SyncData, Error, ListenOptions, LocalProvider, Origin, Remote,
-    RemoteBridge, RemoteSync, Remotes, Result, SyncError, WebSocketHandle,
+    sync::SyncData, Error, ListenOptions, Origin, Remote, RemoteBridge,
+    RemoteSync, Remotes, Result, SyncError, WebSocketHandle,
 };
 use async_trait::async_trait;
 
@@ -180,6 +180,9 @@ pub struct UserStorage {
     /// Lock to prevent write to local storage
     /// whilst a sync operation is in progress.
     pub(super) sync_lock: Mutex<()>,
+
+    /// Audit log for this provider.
+    audit_log: Arc<RwLock<AuditLogFile>>,
 }
 
 impl UserStorage {
@@ -371,6 +374,11 @@ impl UserStorage {
         let files_dir = storage.paths().files_dir().clone();
         #[cfg(feature = "device")]
         let devices_dir = storage.paths().devices_dir().clone();
+
+        let audit_log = Arc::new(RwLock::new(
+            AuditLogFile::new(paths.audit_file()).await?,
+        ));
+
         Ok(Self {
             user,
             storage: Arc::new(RwLock::new(storage)),
@@ -383,6 +391,7 @@ impl UserStorage {
             peer_key,
             remotes: remotes.unwrap_or_default(),
             sync_lock: Mutex::new(()),
+            audit_log,
         })
     }
 
@@ -393,9 +402,7 @@ impl UserStorage {
 
     /// Append to the audit log.
     async fn append_audit_logs(&self, events: Vec<AuditEvent>) -> Result<()> {
-        let reader = self.storage.read().await;
-        let audit_log = reader.audit_log();
-        let mut writer = audit_log.write().await;
+        let mut writer = self.audit_log.write().await;
         writer.append_audit_events(events).await?;
         Ok(())
     }

@@ -6,13 +6,11 @@ use crate::test_utils::*;
 use tempfile::tempdir;
 
 use secrecy::ExposeSecret;
-use sos_net::{
-    client::LocalProvider,
-    sdk::{
-        events::WriteEvent,
-        signer::{ecdsa::SingleParty, Signer},
-        vault::secret::{Secret, SecretData},
-    },
+use sos_net::sdk::{
+    account::LocalProvider,
+    events::WriteEvent,
+    signer::{ecdsa::SingleParty, Signer},
+    vault::secret::{Secret, SecretData},
 };
 
 macro_rules! commit_count {
