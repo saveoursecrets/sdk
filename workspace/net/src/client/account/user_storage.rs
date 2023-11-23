@@ -2233,6 +2233,22 @@ mod listen {
                                 tx.access_key_tx.send(access_key).await?;
                             }
                         }
+                        event = rx
+                            .remove_vault_rx
+                            .recv()
+                            .fuse() => {
+                            if let Some(folder_id) = event {
+                                // When a folder is removed via remote
+                                // bridge changes we need to clean up the
+                                // passphrase
+                                let identity = Arc::clone(&keeper);
+                                DelegatedPassphrase::remove_vault_passphrase(
+                                    identity,
+                                    &folder_id,
+                                )
+                                .await?;
+                            }
+                        }
                     )
                 }
                 Ok::<(), Error>(())

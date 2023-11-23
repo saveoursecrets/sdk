@@ -275,4 +275,9 @@ pub enum Error {
     /// from account storage to a remote provider.
     #[error(transparent)]
     MpscAccessKey(#[from] tokio::sync::mpsc::error::SendError<AccessKey>),
+
+    /// Error generated sending a vault identifier
+    /// from a remote provider to account storage.
+    #[error(transparent)]
+    MpscVaultId(#[from] tokio::sync::mpsc::error::SendError<VaultId>),
 }

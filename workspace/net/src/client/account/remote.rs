@@ -481,6 +481,9 @@ mod listen {
     pub(crate) struct UserStorageReceiver {
         /// Receive a secure access key from the remote listener.
         pub secure_access_key_rx: mpsc::Receiver<(VaultId, SecureAccessKey)>,
+
+        /// Receive a message when a vault is removed.
+        pub remove_vault_rx: mpsc::Receiver<VaultId>,
     }
 
     /// Channels used to get a reply from the account storage.
@@ -495,6 +498,9 @@ mod listen {
     pub(crate) struct RemoteBridgeSender {
         /// Send a secure access key to the account storage for decryption.
         pub secure_access_key_tx: mpsc::Sender<(VaultId, SecureAccessKey)>,
+
+        /// Send a message when a vault is removed.
+        pub remove_vault_tx: mpsc::Sender<VaultId>,
     }
 
     /// Messages sent from the remote bridge.
@@ -594,8 +600,6 @@ mod listen {
                     None
                 };
 
-            println!("Remote bridge access {:#?}", access_key);
-
             // Updating an existing folder
             if folder_exists {
                 let mut writer = local.write().await;
@@ -688,11 +692,16 @@ mod listen {
                                 .find(|s| s.id() == &id)
                                 .cloned()
                                 .ok_or(Error::CacheNotAvailable(id))?;
-                            writer.remove_local_cache(&summary)?;
+                            writer.remove_vault(&summary).await?;
                         }
 
-                        // FIXME: remove delegated passphrase
-                        // FIXME: for the folder here
+                        // Notify the account storage of the folder
+                        // removal so it can clean up the delegated
+                        // passphrase from the identity vault
+                        remote_bridge_tx
+                            .remove_vault_tx
+                            .send(*summary.id())
+                            .await?;
                     }
                     (ChangeAction::Create(folder, secure_key), None) => {
                         Self::create_or_update_folder(
@@ -741,17 +750,22 @@ mod listen {
             let (secure_access_key_tx, secure_access_key_rx) =
                 mpsc::channel::<(VaultId, SecureAccessKey)>(16);
 
+            let (remove_vault_tx, remove_vault_rx) =
+                mpsc::channel::<VaultId>(16);
+
             let (access_key_tx, access_key_rx) =
                 mpsc::channel::<AccessKey>(16);
 
             let user_storage_rx = UserStorageReceiver {
                 secure_access_key_rx,
+                remove_vault_rx,
             };
 
             let user_storage_tx = UserStorageSender { access_key_tx };
 
             let remote_bridge_tx = Arc::new(RemoteBridgeSender {
                 secure_access_key_tx,
+                remove_vault_tx,
             });
 
             let remote_bridge_rx =
