@@ -274,8 +274,5 @@ pub enum Error {
     /// Error generated sending a access key
     /// from account storage to a remote provider.
     #[error(transparent)]
-    MpscAccessKey(
-        #[from]
-        tokio::sync::mpsc::error::SendError<AccessKey>,
-    ),
+    MpscAccessKey(#[from] tokio::sync::mpsc::error::SendError<AccessKey>),
 }

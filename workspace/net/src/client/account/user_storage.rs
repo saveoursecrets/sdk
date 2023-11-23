@@ -2159,8 +2159,9 @@ impl RemoteSync for UserStorage {
 #[cfg(not(target_arch = "wasm32"))]
 mod listen {
     use crate::client::{
-        account::remote::{UserStorageReceiver, UserStorageSender}, Error, ListenOptions, Origin,
-        RemoteBridge, Result, UserStorage, WebSocketHandle,
+        account::remote::{UserStorageReceiver, UserStorageSender},
+        Error, ListenOptions, Origin, RemoteBridge, Result, UserStorage,
+        WebSocketHandle,
     };
     use futures::{select, FutureExt};
     use sos_sdk::prelude::{DelegatedPassphrase, SecureAccessKey};
@@ -2197,7 +2198,7 @@ mod listen {
         ) {
             let keeper = self.user.identity().keeper();
             let secret_key = self.user.identity().signer().to_bytes();
-            
+
             // TODO: needs shutdown hook so this loop exits
             // TODO: when the websocket connection is closed
             tokio::task::spawn(async move {

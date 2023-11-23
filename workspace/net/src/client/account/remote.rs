@@ -482,14 +482,14 @@ mod listen {
         /// Receive a secure access key from the remote listener.
         pub secure_access_key_rx: mpsc::Receiver<(VaultId, SecureAccessKey)>,
     }
-    
+
     /// Channels used to get a reply from the account storage.
     pub(crate) struct UserStorageSender {
-        /// Sends the decrypted access key from the 
+        /// Sends the decrypted access key from the
         /// storage to the remote bridge.
         pub access_key_tx: mpsc::Sender<AccessKey>,
     }
-    
+
     /// Messages sent from the remote bridge.
     #[derive(Clone)]
     pub(crate) struct RemoteBridgeSender {
@@ -584,9 +584,9 @@ mod listen {
                         .secure_access_key_tx
                         .send((*folder.id(), secure_key))
                         .await?;
-                    
+
                     // Get the decrypted access key back
-                    // so we can use it when refreshing the 
+                    // so we can use it when refreshing the
                     // in-memory vault
                     let mut receiver = remote_bridge_rx.lock().await;
                     receiver.access_key_rx.recv().await
@@ -734,7 +734,8 @@ mod listen {
         pub(crate) fn listen(
             bridge: Arc<RemoteBridge>,
             options: ListenOptions,
-        ) -> (WebSocketHandle, UserStorageReceiver, UserStorageSender) {
+        ) -> (WebSocketHandle, UserStorageReceiver, UserStorageSender)
+        {
             let remote_bridge = Arc::clone(&bridge);
 
             let (secure_access_key_tx, secure_access_key_rx) =
@@ -747,17 +748,14 @@ mod listen {
                 secure_access_key_rx,
             };
 
-            let user_storage_tx = UserStorageSender {
-                access_key_tx,
-            };
+            let user_storage_tx = UserStorageSender { access_key_tx };
 
             let remote_bridge_tx = Arc::new(RemoteBridgeSender {
                 secure_access_key_tx,
             });
 
-            let remote_bridge_rx = Arc::new(Mutex::new(RemoteBridgeReceiver {
-                access_key_rx,
-            }));
+            let remote_bridge_rx =
+                Arc::new(Mutex::new(RemoteBridgeReceiver { access_key_rx }));
 
             let handle = bridge.remote.listen(options, move |notification| {
                 let bridge = Arc::clone(&remote_bridge);
