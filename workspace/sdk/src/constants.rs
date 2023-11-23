@@ -6,14 +6,6 @@ pub const APP_NAME: &str = "SaveOurSecrets";
 /// Application author.
 pub const APP_AUTHOR: &str = "SaveOurSecrets";
 
-/*
-/// Bundle identifier for MacOS and iOS.
-///
-/// This is used to determine the default local storage directory
-/// for the macos and ios platforms.
-pub const BUNDLE_ID: &str = "com.saveoursecrets";
-*/
-
 /// File name for audit logs.
 pub const AUDIT_FILE_NAME: &str = "audit.dat";
 
