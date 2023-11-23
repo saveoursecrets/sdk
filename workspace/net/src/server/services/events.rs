@@ -14,7 +14,7 @@ use sos_sdk::{
 use web3_address::ethereum::Address;
 
 use async_trait::async_trait;
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 use uuid::Uuid;
 
 use super::Service;
@@ -78,11 +78,13 @@ impl Service for EventLogService {
                     let reader = backend.read().await;
                     let accounts = reader.accounts();
                     let reader = accounts.read().await;
-                    let event_log = reader
-                        .get(caller.address())
-                        .ok_or_else(|| {
+                    let account =
+                        reader.get(caller.address()).ok_or_else(|| {
                             Error::AccountNotExist(*caller.address())
-                        })?
+                        })?;
+
+                    let vaults = account.read().await;
+                    let event_log = vaults
                         .get(&vault_id)
                         .ok_or_else(|| Error::VaultNotExist(vault_id))?;
 
@@ -148,11 +150,13 @@ impl Service for EventLogService {
                     let reader = backend.read().await;
                     let accounts = reader.accounts();
                     let reader = accounts.read().await;
-                    let event_log = reader
-                        .get(caller.address())
-                        .ok_or_else(|| {
+                    let account =
+                        reader.get(caller.address()).ok_or_else(|| {
                             Error::AccountNotExist(*caller.address())
-                        })?
+                        })?;
+
+                    let vaults = account.read().await;
+                    let event_log = vaults
                         .get(&vault_id)
                         .ok_or_else(|| Error::VaultNotExist(vault_id))?;
 
@@ -191,11 +195,13 @@ impl Service for EventLogService {
                     let reader = backend.read().await;
                     let accounts = reader.accounts();
                     let reader = accounts.read().await;
-                    let event_log = reader
-                        .get(caller.address())
-                        .ok_or_else(|| {
+                    let account =
+                        reader.get(caller.address()).ok_or_else(|| {
                             Error::AccountNotExist(*caller.address())
-                        })?
+                        })?;
+
+                    let vaults = account.read().await;
+                    let event_log = vaults
                         .get(&vault_id)
                         .ok_or_else(|| Error::VaultNotExist(vault_id))?;
 
@@ -255,14 +261,22 @@ impl Service for EventLogService {
                 }
 
                 let result: Result<PatchResult> = {
-                    let reader = backend.read().await;
-                    let accounts = reader.accounts();
-                    let mut writer = accounts.write().await;
-                    let event_log = writer
-                        .get_mut(caller.address())
-                        .ok_or_else(|| {
-                            Error::AccountNotExist(*caller.address())
-                        })?
+                    // Clone the account so we can release
+                    // the outer lock on the the backend and 
+                    // the account as soon as possible
+                    let account = {
+                        let reader = backend.read().await;
+                        let accounts = reader.accounts();
+                        let reader = accounts.read().await;
+                        let account =
+                            reader.get(caller.address()).ok_or_else(|| {
+                                Error::AccountNotExist(*caller.address())
+                            })?;
+                        Arc::clone(account)
+                    };
+                    
+                    let mut vaults = account.write().await;
+                    let event_log = vaults
                         .get_mut(&vault_id)
                         .ok_or_else(|| Error::VaultNotExist(vault_id))?;
 
@@ -323,7 +337,7 @@ impl Service for EventLogService {
                                 changes.push(event);
                             }
 
-                            // Apply the change set of event log events to the log
+                            // Apply the change set of events to the log
                             let commits =
                                 event_log.apply(changes, None).await?;
 

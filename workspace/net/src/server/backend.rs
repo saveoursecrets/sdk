@@ -22,7 +22,7 @@ use web3_address::ethereum::Address;
 use crate::FileLocks;
 
 /// Individual account maps vault identifiers to the event logs.
-pub type VaultMap = HashMap<VaultId, EventLogFile>;
+pub type VaultMap = Arc<RwLock<HashMap<VaultId, EventLogFile>>>;
 
 /// Collection of accounts by address.
 pub type AccountsMap = Arc<RwLock<HashMap<Address, VaultMap>>>;
@@ -306,8 +306,11 @@ impl FileSystemBackend {
         event_log_file: EventLogFile,
     ) -> Result<()> {
         let mut accounts = self.accounts.write().await;
-        let vaults = accounts.entry(owner).or_insert(Default::default());
-        vaults.insert(vault_id, event_log_file);
+        let vaults = accounts
+            .entry(owner)
+            .or_insert(Arc::new(RwLock::new(Default::default())));
+        let mut writer = vaults.write().await;
+        writer.insert(vault_id, event_log_file);
         Ok(())
     }
 }
@@ -402,10 +405,11 @@ impl BackendHandler for FileSystemBackend {
             .get_mut(owner)
             .ok_or_else(|| Error::AccountNotExist(*owner))?;
 
-        account
+        let mut vaults = account.write().await;
+        vaults
             .get_mut(vault_id)
             .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
-        account.remove(vault_id).ok_or(Error::VaultRemove)?;
+        vaults.remove(vault_id).ok_or(Error::VaultRemove)?;
 
         let event_log_path = self.event_log_file_path(owner, vault_id);
 
@@ -448,7 +452,8 @@ impl BackendHandler for FileSystemBackend {
         let mut summaries = Vec::new();
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
-            for id in account.keys() {
+            let reader = account.read().await;
+            for id in reader.keys() {
                 let mut vault_path = self.event_log_file_path(owner, id);
                 vault_path.set_extension(VAULT_EXT);
                 let summary = Header::read_summary_file(&vault_path).await?;
@@ -519,7 +524,8 @@ impl BackendHandler for FileSystemBackend {
     ) -> Result<(bool, Option<CommitProof>)> {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
-            if let Some(event_log) = account.get(vault_id) {
+            let vaults = account.read().await;
+            if let Some(event_log) = vaults.get(vault_id) {
                 Ok((true, Some(event_log.tree().head()?)))
             } else {
                 Ok((false, None))
@@ -539,7 +545,8 @@ impl BackendHandler for FileSystemBackend {
             .get(owner)
             .ok_or_else(|| Error::AccountNotExist(*owner))?;
 
-        account
+        let vaults = account.read().await;
+        vaults
             .get(vault_id)
             .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
 
@@ -610,11 +617,13 @@ impl BackendHandler for FileSystemBackend {
 
         let (new_tree_root, head) = {
             let mut writer = self.accounts.write().await;
-            //let event_log = self.event_log_write(owner, vault_id).await?;
 
-            let event_log = writer
+            let account = writer
                 .get_mut(owner)
-                .ok_or_else(|| Error::AccountNotExist(*owner))?
+                .ok_or_else(|| Error::AccountNotExist(*owner))?;
+
+            let mut vaults = account.write().await;
+            let event_log = vaults
                 .get_mut(vault_id)
                 .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
 

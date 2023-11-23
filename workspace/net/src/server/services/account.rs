@@ -51,13 +51,13 @@ impl Service for AccountService {
                     let accounts = reader.accounts();
                     let backend = accounts.read().await;
                     for summary in summaries {
-                        let event_log = backend
-                            .get(caller.address())
-                            .ok_or_else(|| {
-                                Error::AccountNotExist(*caller.address())
-                            })?
-                            .get(summary.id())
-                            .ok_or_else(|| {
+                        let account =
+                            backend.get(caller.address()).ok_or_else(
+                                || Error::AccountNotExist(*caller.address()),
+                            )?;
+                        let vaults = account.read().await;
+                        let event_log =
+                            vaults.get(summary.id()).ok_or_else(|| {
                                 Error::VaultNotExist(*summary.id())
                             })?;
 
