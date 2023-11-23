@@ -60,7 +60,7 @@ pub struct UserIdentity {
     /// Private signing key for the identity.
     signer: BoxedEcdsaSigner,
     /// Gatekeeper for the identity vault.
-    keeper: Gatekeeper,
+    keeper: Arc<RwLock<Gatekeeper>>,
     /// AGE identity keypair.
     #[allow(dead_code)]
     shared_private: age::x25519::Identity,
@@ -80,13 +80,8 @@ impl UserIdentity {
     }
 
     /// Reference to the gatekeeper for the identity vault.
-    pub fn keeper(&self) -> &Gatekeeper {
-        &self.keeper
-    }
-
-    /// Mutable reference to the gatekeeper for the identity vault.
-    pub fn keeper_mut(&mut self) -> &mut Gatekeeper {
-        &mut self.keeper
+    pub fn keeper(&self) -> Arc<RwLock<Gatekeeper>> {
+        Arc::clone(&self.keeper)
     }
 
     /// Recipient public key for sharing.
@@ -246,7 +241,7 @@ impl Identity {
             signer,
             shared_public: shared.to_public(),
             shared_private: shared,
-            keeper,
+            keeper: Arc::new(RwLock::new(keeper)),
         })
     }
 }

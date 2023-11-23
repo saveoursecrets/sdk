@@ -85,11 +85,6 @@ impl AuthenticatedUser {
         &self.identity
     }
 
-    /// Mutable user identity.
-    pub fn identity_mut(&mut self) -> &mut UserIdentity {
-        &mut self.identity
-    }
-
     /// The device signing key.
     pub fn device(&self) -> &DeviceSigner {
         &self.device
@@ -97,7 +92,9 @@ impl AuthenticatedUser {
 
     /// Verify the passphrase for this account.
     pub async fn verify(&self, key: &AccessKey) -> bool {
-        let result = self.identity().keeper().verify(key).await.ok();
+        let keeper = self.identity().keeper();
+        let reader = keeper.read().await;
+        let result = reader.verify(key).await.ok();
         result.is_some()
     }
 
@@ -163,10 +160,11 @@ impl AuthenticatedUser {
         account_name: String,
     ) -> Result<()> {
         // Update in-memory vault
-        self.identity
-            .keeper_mut()
-            .vault_mut()
-            .set_name(account_name.clone());
+        {
+            let keeper = self.identity.keeper();
+            let mut writer = keeper.write().await;
+            writer.vault_mut().set_name(account_name.clone());
+        }
 
         // Update vault file on disc
         let identity_vault_file = paths.identity_vault();
@@ -182,8 +180,10 @@ impl AuthenticatedUser {
     }
 
     /// Sign out this user by locking the account identity vault.
-    pub fn sign_out(&mut self) {
-        self.identity.keeper_mut().lock();
+    pub async fn sign_out(&mut self) {
+        let keeper = self.identity.keeper();
+        let mut writer = keeper.write().await;
+        writer.lock();
     }
 }
 
@@ -237,8 +237,6 @@ impl Login {
         paths: &UserPaths,
         user: &mut UserIdentity,
     ) -> Result<DeviceSigner> {
-        let identity = user.keeper_mut();
-
         let local_accounts = LocalAccounts::new(paths);
 
         let vaults = local_accounts.list_local_vaults(true).await?;
@@ -255,7 +253,7 @@ impl Login {
         if let Some(summary) = device_vault {
             let device_passphrase =
                 DelegatedPassphrase::find_vault_passphrase(
-                    identity,
+                    user.keeper(),
                     summary.id(),
                 )
                 .await?;
@@ -321,7 +319,7 @@ impl Login {
             */
 
             DelegatedPassphrase::save_vault_passphrase(
-                identity,
+                user.keeper(),
                 vault.id(),
                 device_passphrase.clone().into(),
             )

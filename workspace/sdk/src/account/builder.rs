@@ -16,7 +16,8 @@ use crate::{
     },
     vfs, Result,
 };
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
+use tokio::sync::RwLock;
 use web3_address::ethereum::Address;
 
 use super::{DelegatedPassphrase, Identity, UserIdentity};
@@ -189,12 +190,14 @@ impl AccountBuilder {
             default_vault = keeper.into();
         }
 
-        // Store the vault passphrase in the identity vault
+        // Unlock the vault so we can write to it
         let mut keeper = Gatekeeper::new(identity_vault, None);
         keeper.unlock(passphrase.into()).await?;
 
+        let keeper = Arc::new(RwLock::new(keeper));
+
         DelegatedPassphrase::save_vault_passphrase(
-            &mut keeper,
+            Arc::clone(&keeper),
             default_vault.id(),
             AccessKey::Password(vault_passphrase),
         )
@@ -212,7 +215,8 @@ impl AccountBuilder {
                 SecretMeta::new("File Encryption".to_string(), secret.kind());
             let urn: Urn = FILE_PASSWORD_URN.parse()?;
             meta.set_urn(Some(urn));
-            keeper.create(meta, secret).await?;
+            let mut writer = keeper.write().await;
+            writer.create(meta, secret).await?;
         }
 
         let archive = if create_archive {
@@ -228,7 +232,7 @@ impl AccountBuilder {
                 .await?;
 
             DelegatedPassphrase::save_vault_passphrase(
-                &mut keeper,
+                Arc::clone(&keeper),
                 vault.id(),
                 AccessKey::Password(archive_passphrase),
             )
@@ -251,7 +255,7 @@ impl AccountBuilder {
                 .await?;
 
             DelegatedPassphrase::save_vault_passphrase(
-                &mut keeper,
+                Arc::clone(&keeper),
                 vault.id(),
                 AccessKey::Password(auth_passphrase),
             )
@@ -274,7 +278,7 @@ impl AccountBuilder {
                 .await?;
 
             DelegatedPassphrase::save_vault_passphrase(
-                &mut keeper,
+                Arc::clone(&keeper),
                 vault.id(),
                 AccessKey::Password(auth_passphrase),
             )
@@ -284,8 +288,13 @@ impl AccountBuilder {
             None
         };
 
+        let vault = {
+            let reader = keeper.read().await; 
+            reader.vault().clone()
+        };
+
         Ok((
-            keeper.into(),
+            vault,
             NewAccount {
                 data_dir,
                 address,

@@ -79,7 +79,11 @@ async fn integration_account_manager() -> Result<()> {
 
     user.rename_account(&paths, "New account name".to_string())
         .await?;
-    assert_eq!("New account name", user.identity().keeper().vault().name());
+    {
+        let keeper = user.identity().keeper();
+        let reader = keeper.read().await;
+        assert_eq!("New account name", reader.vault().name());
+    }
 
     let vaults = local_accounts.list_local_vaults(false).await?;
     // Default, Contacts, Authenticator and Archive vaults
@@ -89,15 +93,23 @@ async fn integration_account_manager() -> Result<()> {
 
     // Check we can find the signing key
     let signing_urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
-    let signing_key = identity_reader
-        .find_by_urn(user.identity().keeper().id(), &signing_urn);
-    assert!(signing_key.is_some());
+    {
+        let keeper = user.identity().keeper();
+        let reader = keeper.read().await;
+        let signing_key = identity_reader
+            .find_by_urn(reader.id(), &signing_urn);
+        assert!(signing_key.is_some());
+    }
 
     // Check AGE key
     let age_urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
-    let age_key =
-        identity_reader.find_by_urn(user.identity().keeper().id(), &age_urn);
-    assert!(age_key.is_some());
+    {
+        let keeper = user.identity().keeper();
+        let reader = keeper.read().await;
+        let age_key =
+            identity_reader.find_by_urn(reader.id(), &age_urn);
+        assert!(age_key.is_some());
+    }
 
     // Make sure we can find a vault passphrase and unlock it
     let default_vault_passphrase =

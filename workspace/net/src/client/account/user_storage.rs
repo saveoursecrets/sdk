@@ -533,7 +533,7 @@ impl UserStorage {
         let mut writer = self.storage.write().await;
         self.index.clear().await;
         writer.close_vault();
-        self.user.sign_out();
+        self.user.sign_out().await;
     }
 
     /// Create a folder.
@@ -555,7 +555,7 @@ impl UserStorage {
             SecureAccessKey::encrypt(&key, secret_key, None).await?;
 
         DelegatedPassphrase::save_vault_passphrase(
-            self.user.identity_mut().keeper_mut(),
+            self.user.identity().keeper(),
             summary.id(),
             key,
         )
@@ -606,7 +606,7 @@ impl UserStorage {
             writer.remove_vault(&summary).await?
         };
         DelegatedPassphrase::remove_vault_passphrase(
-            self.user.identity_mut().keeper_mut(),
+            self.user.identity().keeper(),
             summary.id(),
         )
         .await?;
@@ -831,14 +831,14 @@ impl UserStorage {
         // assigned when exporting the folder
         if overwrite {
             DelegatedPassphrase::remove_vault_passphrase(
-                self.user.identity_mut().keeper_mut(),
+                self.user.identity().keeper(),
                 summary.id(),
             )
             .await?;
         }
 
         DelegatedPassphrase::save_vault_passphrase(
-            self.user.identity_mut().keeper_mut(),
+            self.user.identity().keeper(),
             summary.id(),
             key.clone(),
         )
@@ -1722,7 +1722,7 @@ impl UserStorage {
         };
 
         DelegatedPassphrase::save_vault_passphrase(
-            self.user.identity_mut().keeper_mut(),
+            self.user.identity().keeper(),
             vault.id(),
             vault_passphrase.clone().into(),
         )
@@ -2060,7 +2060,7 @@ impl UserStorage {
                 remote.as_any().downcast_ref::<RemoteBridge>()
             {
                 let remote = Arc::new(remote.clone());
-                //let keeper = self.user.identity_mut().keeper_mut();
+                let keeper = self.user.identity().keeper();
                 Ok(RemoteBridge::listen(
                     remote,
                     options,

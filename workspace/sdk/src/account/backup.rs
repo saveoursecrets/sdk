@@ -320,7 +320,7 @@ impl AccountBackup {
     pub async fn export_vault(
         _address: &Address,
         paths: &UserPaths,
-        identity: &Gatekeeper,
+        identity: Arc<RwLock<Gatekeeper>>,
         vault_id: &VaultId,
         new_passphrase: AccessKey,
     ) -> Result<Vec<u8>> {
@@ -457,6 +457,8 @@ impl AccountBackup {
                     Gatekeeper::new(identity_vault, None);
                 identity_keeper.unlock(passphrase.clone().into()).await?;
 
+                let identity_keeper = Arc::new(RwLock::new(identity_keeper));
+
                 let search_index = Arc::new(RwLock::new(SearchIndex::new()));
                 let restored_identity: Vault = decode(&identity.1).await?;
                 let mut restored_identity_keeper = Gatekeeper::new(
@@ -467,25 +469,31 @@ impl AccountBackup {
                     .unlock(passphrase.clone().into())
                     .await?;
                 restored_identity_keeper.create_search_index().await?;
-
+                
+                let restored_identity_keeper = Arc::new(RwLock::new(restored_identity_keeper));
                 for (_, vault) in vaults {
                     let vault_passphrase =
                         DelegatedPassphrase::find_vault_passphrase(
-                            &restored_identity_keeper,
+                            Arc::clone(&restored_identity_keeper),
                             vault.id(),
                         )
                         .await?;
 
                     DelegatedPassphrase::save_vault_passphrase(
-                        &mut identity_keeper,
+                        Arc::clone(&identity_keeper),
                         vault.id(),
                         vault_passphrase,
                     )
                     .await?;
                 }
 
+                let vault = {
+                    let reader = identity_keeper.read().await;
+                    reader.vault().clone()
+                };
+
                 // Must re-write the identity vault
-                let buffer = encode(identity_keeper.vault()).await?;
+                let buffer = encode(&vault).await?;
                 vfs::write(identity_vault_file, buffer).await?;
             }
 

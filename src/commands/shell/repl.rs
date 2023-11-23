@@ -362,7 +362,7 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
         }
         ShellCommand::Quit => {
             let mut owner = user.write().await;
-            owner.user_mut().sign_out();
+            owner.sign_out().await;
             std::process::exit(0);
         }
     }
