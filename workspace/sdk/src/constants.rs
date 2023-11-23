@@ -130,9 +130,6 @@ mod rpc {
 
     /// Event log patch method call.
     pub const EVENT_LOG_PATCH: &str = "Events.patch";
-
-    /// Event log save method call.
-    pub const EVENT_LOG_SAVE: &str = "Events.save";
 }
 
 /// Constants for directory names.

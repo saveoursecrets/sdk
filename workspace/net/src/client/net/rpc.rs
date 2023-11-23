@@ -11,7 +11,7 @@ use sos_sdk::{
     commit::{CommitHash, CommitProof},
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
-        EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_SAVE, EVENT_LOG_STATUS,
+        EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_STATUS,
         HANDSHAKE_INITIATE, MIME_TYPE_RPC, VAULT_CREATE, VAULT_DELETE,
         VAULT_SAVE,
     },
@@ -553,43 +553,6 @@ impl RpcClient {
             let (server_proof, match_proof) = result?;
             Ok((Some(server_proof), match_proof))
         })
-    }
-
-    /// Replace the event log for a vault on a remote node.
-    /// TODO: remove the Option from the return value ???
-    #[deprecated(note = "No longer used")]
-    pub async fn save_event_log(
-        &self,
-        vault_id: &VaultId,
-        proof: CommitProof,
-        body: Vec<u8>,
-    ) -> Result<MaybeRetry<Option<CommitProof>>> {
-        let url = self.origin.url.join("api/events")?;
-
-        let id = self.next_id().await;
-        let request = RequestMessage::new(
-            Some(id),
-            EVENT_LOG_SAVE,
-            (vault_id, proof),
-            Cow::Owned(body),
-        )?;
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
-
-        let signature =
-            encode_signature(self.signer.sign(&body).await?).await?;
-
-        let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, signature, body).await?;
-        let response = self.check_response(response).await?;
-        let maybe_retry = self
-            .read_encrypted_response::<CommitProof>(
-                response.status(),
-                &response.bytes().await?,
-            )
-            .await?;
-
-        maybe_retry.map(|result, _| Ok(Some(result?)))
     }
 
     /// Build an encrypted request.

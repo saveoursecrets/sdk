@@ -2,8 +2,7 @@ use axum::http::StatusCode;
 use sos_sdk::{
     commit::{CommitHash, CommitProof, Comparison},
     constants::{
-        EVENT_LOG_DIFF, EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_SAVE,
-        EVENT_LOG_STATUS,
+        EVENT_LOG_DIFF, EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_STATUS,
     },
     decode, encode,
     events::{
@@ -262,19 +261,19 @@ impl Service for EventLogService {
 
                 let result: Result<PatchResult> = {
                     // Clone the account so we can release
-                    // the outer lock on the the backend and 
+                    // the outer lock on the the backend and
                     // the account as soon as possible
                     let account = {
                         let reader = backend.read().await;
                         let accounts = reader.accounts();
                         let reader = accounts.read().await;
                         let account =
-                            reader.get(caller.address()).ok_or_else(|| {
-                                Error::AccountNotExist(*caller.address())
-                            })?;
+                            reader.get(caller.address()).ok_or_else(
+                                || Error::AccountNotExist(*caller.address()),
+                            )?;
                         Arc::clone(account)
                     };
-                    
+
                     let mut vaults = account.write().await;
                     let event_log = vaults
                         .get_mut(&vault_id)
@@ -424,39 +423,6 @@ impl Service for EventLogService {
                     )
                         .try_into()?),
                 }
-            }
-            EVENT_LOG_SAVE => {
-                let (vault_id, commit_proof) =
-                    request.parameters::<(Uuid, CommitProof)>()?;
-
-                {
-                    let reader = backend.read().await;
-                    let (exists, _) = reader
-                        .handler()
-                        .event_log_exists(caller.address(), &vault_id)
-                        .await?;
-                    if !exists {
-                        return Ok(
-                            (StatusCode::NOT_FOUND, request.id()).into()
-                        );
-                    }
-                }
-
-                let mut writer = backend.write().await;
-                // TODO: better error to status code mapping
-                let server_proof = writer
-                    .handler_mut()
-                    .replace_event_log(
-                        caller.address(),
-                        &vault_id,
-                        commit_proof.root,
-                        request.body(),
-                    )
-                    .await?;
-
-                let reply: ResponseMessage<'_> =
-                    (request.id(), server_proof).try_into()?;
-                Ok(reply)
             }
             _ => Err(Error::RpcUnknownMethod(request.method().to_owned())),
         }
