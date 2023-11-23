@@ -25,7 +25,7 @@ use crate::{
     rpc::ServerEnvelope,
     server::{
         authenticate::{self, QueryMessage},
-        Result, State,
+        Result, ServerState,
     },
 };
 
@@ -47,7 +47,7 @@ pub struct WebSocketConnection {
 
 /// Upgrade to a websocket connection.
 pub async fn upgrade(
-    Extension(state): Extension<Arc<RwLock<State>>>,
+    Extension(state): Extension<ServerState>,
     Query(query): Query<QueryMessage>,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
@@ -123,7 +123,7 @@ pub async fn upgrade(
 }
 
 async fn disconnect(
-    state: Arc<RwLock<State>>,
+    state: ServerState,
     address: Address,
     public_key: Vec<u8>,
 ) {
@@ -149,7 +149,7 @@ async fn disconnect(
 
 async fn handle_socket(
     socket: WebSocket,
-    state: Arc<RwLock<State>>,
+    state: ServerState,
     outgoing: Receiver<Vec<u8>>,
     address: Address,
     server_public_key: Vec<u8>,
@@ -177,7 +177,7 @@ async fn handle_socket(
 }
 
 async fn read(
-    state: Arc<RwLock<State>>,
+    state: ServerState,
     address: Address,
     public_key: Vec<u8>,
     mut receiver: SplitStream<WebSocket>,
@@ -205,7 +205,7 @@ async fn read(
 }
 
 async fn write(
-    state: Arc<RwLock<State>>,
+    state: ServerState,
     address: Address,
     server_public_key: Vec<u8>,
     client_public_key: Vec<u8>,

@@ -5,7 +5,7 @@ use sos_sdk::{
 
 use crate::{
     rpc::{RequestMessage, ResponseMessage, Service},
-    server::State,
+    server::ServerState,
 };
 use async_trait::async_trait;
 use axum::http::StatusCode;
@@ -20,7 +20,7 @@ pub struct HandshakeService;
 
 #[async_trait]
 impl Service for HandshakeService {
-    type State = Arc<RwLock<State>>;
+    type State = ServerState;
 
     async fn handle<'a>(
         &self,

@@ -15,7 +15,7 @@ use crate::server::{
         private_service, public_service, AccountService, EventLogService,
         HandshakeService, VaultService,
     },
-    State,
+    ServerState,
 };
 
 // Handlers for account events.
@@ -23,7 +23,7 @@ pub(crate) struct ServiceHandler;
 impl ServiceHandler {
     /// Handle requests for the noise protocol handshake.
     pub(crate) async fn handshake(
-        Extension(state): Extension<Arc<RwLock<State>>>,
+        Extension(state): Extension<ServerState>,
         body: Bytes,
     ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
         let service = HandshakeService {};
@@ -32,7 +32,7 @@ impl ServiceHandler {
 
     /// Handle requests for the account service.
     pub(crate) async fn account(
-        Extension(state): Extension<Arc<RwLock<State>>>,
+        Extension(state): Extension<ServerState>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
     ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
@@ -42,7 +42,7 @@ impl ServiceHandler {
 
     /// Handle requests for the vault service.
     pub(crate) async fn vault(
-        Extension(state): Extension<Arc<RwLock<State>>>,
+        Extension(state): Extension<ServerState>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
     ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
@@ -52,7 +52,7 @@ impl ServiceHandler {
 
     /// Handle requests for the events service.
     pub(crate) async fn events(
-        Extension(state): Extension<Arc<RwLock<State>>>,
+        Extension(state): Extension<ServerState>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         body: Bytes,
     ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {

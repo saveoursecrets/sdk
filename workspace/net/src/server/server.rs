@@ -27,7 +27,7 @@ use tokio_stream::wrappers::IntervalStream;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use web3_address::ethereum::Address;
 
-async fn session_reaper(state: Arc<RwLock<State>>, interval_secs: u64) {
+async fn session_reaper(state: ServerState, interval_secs: u64) {
     let interval = tokio::time::interval(Duration::from_secs(interval_secs));
     let mut stream = IntervalStream::new(interval);
     while (stream.next().await).is_some() {
@@ -73,6 +73,9 @@ pub struct ServerInfo {
     pub public_key: Vec<u8>,
 }
 
+/// State for the server.
+pub type ServerState = Arc<RwLock<State>>;
+
 /// Web server implementation.
 #[derive(Default)]
 pub struct Server;
@@ -87,7 +90,7 @@ impl Server {
     pub async fn start(
         &self,
         addr: SocketAddr,
-        state: Arc<RwLock<State>>,
+        state: ServerState,
         handle: Handle,
     ) -> Result<()> {
         let reader = state.read().await;
@@ -110,7 +113,7 @@ impl Server {
     async fn run_tls(
         &self,
         addr: SocketAddr,
-        state: Arc<RwLock<State>>,
+        state: ServerState,
         handle: Handle,
         origins: Vec<HeaderValue>,
         tls: TlsConfig,
@@ -137,7 +140,7 @@ impl Server {
     async fn run(
         &self,
         addr: SocketAddr,
-        state: Arc<RwLock<State>>,
+        state: ServerState,
         handle: Handle,
         origins: Vec<HeaderValue>,
     ) -> Result<()> {
@@ -171,7 +174,7 @@ impl Server {
     }
 
     fn router(
-        state: Arc<RwLock<State>>,
+        state: ServerState,
         origins: Vec<HeaderValue>,
     ) -> Result<Router> {
         let cors = CorsLayer::new()

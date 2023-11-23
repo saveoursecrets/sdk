@@ -20,7 +20,7 @@ use tokio::sync::{RwLock, RwLockWriteGuard};
 
 use crate::{
     rpc::{Packet, RequestMessage, ServerEnvelope, Service},
-    server::{authenticate, State},
+    server::{authenticate, ServerState, State},
 };
 
 /// Type to represent the caller of a service request.
@@ -42,7 +42,7 @@ impl Caller {
 }
 
 /// Type used for the state of private services.
-pub type PrivateState = (Caller, Arc<RwLock<State>>);
+pub type PrivateState = (Caller, ServerState);
 
 /// Append to the audit log.
 async fn append_audit_logs<'a>(
@@ -92,8 +92,8 @@ pub use vault::VaultService;
 /// Execute a request message in the context of a service
 /// that does not require session authentication.
 pub(crate) async fn public_service(
-    service: impl Service<State = Arc<RwLock<State>>> + Sync + Send,
-    state: Arc<RwLock<State>>,
+    service: impl Service<State = ServerState> + Sync + Send,
+    state: ServerState,
     body: Bytes,
 ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
     let mut headers = HeaderMap::new();
@@ -132,7 +132,7 @@ pub(crate) async fn public_service(
 /// that requires session authentication.
 pub(crate) async fn private_service(
     service: impl Service<State = PrivateState> + Sync + Send,
-    state: Arc<RwLock<State>>,
+    state: ServerState,
     bearer: Authorization<Bearer>,
     body: Bytes,
 ) -> Result<(StatusCode, HeaderMap, Bytes), StatusCode> {
