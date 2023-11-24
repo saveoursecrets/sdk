@@ -4,7 +4,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     decode, encode,
-    events::{WriteEvent, VaultEventLog},
+    events::{VaultEventLog, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
     Error, Result,
 };
@@ -225,7 +225,7 @@ mod test {
         let (secret_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")
                 .await?;
-        commits.push(event_log.append_event(event).await?);
+        commits.push(event_log.append_event(event.into_owned()).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -237,18 +237,18 @@ mod test {
         )
         .await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event).await?);
+            commits.push(event_log.append_event(event.into_owned()).await?);
         }
 
         // Create another secret
         let (del_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "qux", "baz")
                 .await?;
-        commits.push(event_log.append_event(event).await?);
+        commits.push(event_log.append_event(event.into_owned()).await?);
 
         let event = vault.delete(&del_id).await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event).await?);
+            commits.push(event_log.append_event(event.into_owned()).await?);
         }
 
         Ok((temp, event_log, commits, encryption_key, secret_id))
@@ -319,7 +319,7 @@ mod test {
         let compact_temp = NamedTempFile::new()?;
         let mut compact = VaultEventLog::new(compact_temp.path()).await?;
         for event in events {
-            compact.append_event(event).await?;
+            compact.append_event(event.into_owned()).await?;
         }
 
         let compact_vault =

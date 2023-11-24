@@ -39,7 +39,7 @@ use std::{
 use futures::io::{BufReader, Cursor};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-use binary_stream::futures::{BinaryReader, Decodable};
+use binary_stream::futures::{BinaryReader, Decodable, Encodable};
 use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};
@@ -48,7 +48,10 @@ use super::{EventRecord, EventReducer};
 pub type VaultEventLog = EventLogFile<WriteEvent<'static>>;
 
 /// An event log that appends to a file.
-pub struct EventLogFile<T> {
+pub struct EventLogFile<T>
+where
+    T: Encodable + Decodable,
+{
     pub(crate) file_path: PathBuf,
     pub(crate) file: File,
     pub(crate) tree: CommitTree,
@@ -56,12 +59,11 @@ pub struct EventLogFile<T> {
     phantom: std::marker::PhantomData<T>,
 }
 
-impl<T> EventLogFile<T> {
+impl<T: Encodable + Decodable> EventLogFile<T> {
     /// Create a new event log file.
     pub async fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         let file =
-            Self::create(file_path.as_ref(), &EVENT_LOG_IDENTITY)
-                .await?;
+            Self::create(file_path.as_ref(), &EVENT_LOG_IDENTITY).await?;
         Ok(Self {
             file,
             file_path: file_path.as_ref().to_path_buf(),
@@ -93,7 +95,7 @@ impl<T> EventLogFile<T> {
     /// Encode an event into a record.
     pub async fn encode_event(
         &self,
-        event: &WriteEvent<'_>,
+        event: &T,
         last_commit: Option<CommitHash>,
     ) -> Result<(CommitHash, EventRecord)> {
         let time: Timestamp = Default::default();
@@ -203,7 +205,7 @@ impl<T> EventLogFile<T> {
     /// event log to it's previous state.
     pub async fn apply(
         &mut self,
-        events: Vec<WriteEvent<'_>>,
+        events: Vec<T>,
         expect: Option<CommitHash>,
     ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
@@ -270,10 +272,7 @@ impl<T> EventLogFile<T> {
     }
 
     /// Append a log event and commit the hash to the commit tree.
-    pub async fn append_event(
-        &mut self,
-        event: WriteEvent<'_>,
-    ) -> Result<CommitHash> {
+    pub async fn append_event(&mut self, event: T) -> Result<CommitHash> {
         let mut commits = self.apply(vec![event], None).await?;
         Ok(commits.remove(0))
     }
@@ -376,8 +375,8 @@ impl<T> EventLogFile<T> {
                 }
             }
             let buffer = self.read_event_buffer(&record).await?;
-            // Iterating in reverse order as we would typically 
-            // be looking for commits near the end of the event log 
+            // Iterating in reverse order as we would typically
+            // be looking for commits near the end of the event log
             // but we want the patch events in the order they were
             // appended so insert at the beginning to reverse the list
             events.insert(0, (record, buffer).into());
@@ -409,7 +408,6 @@ impl<T> EventLogFile<T> {
         Ok(())
     }
 }
-
 
 impl EventLogFile<WriteEvent<'static>> {
     /// Get a copy of this event log compacted.
@@ -449,7 +447,6 @@ impl EventLogFile<WriteEvent<'static>> {
         // commit tree
         Ok((new_event_log, old_size, new_size))
     }
-
 }
 
 #[cfg(test)]
@@ -477,7 +474,8 @@ mod test {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
+        let event: WriteEvent<'static> =
+            WriteEvent::CreateVault(Cow::Owned(buffer));
         commits.push(event_log.append_event(event).await?);
 
         // Create a secret
@@ -488,7 +486,7 @@ mod test {
             "This a event log note secret.",
         )
         .await?;
-        commits.push(event_log.append_event(event).await?);
+        commits.push(event_log.append_event(event.into_owned()).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -500,7 +498,7 @@ mod test {
         )
         .await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event).await?);
+            commits.push(event_log.append_event(event.into_owned()).await?);
         }
 
         Ok((temp, event_log, commits))

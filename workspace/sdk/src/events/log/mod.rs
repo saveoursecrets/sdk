@@ -86,7 +86,8 @@ mod test {
         Ok((id, Cow::Owned(result)))
     }
 
-    async fn mock_event_log_standalone() -> Result<(VaultEventLog, SecretId)> {
+    async fn mock_event_log_standalone() -> Result<(VaultEventLog, SecretId)>
+    {
         let path = PathBuf::from(MOCK_LOG);
         if vfs::try_exists(&path).await? {
             vfs::remove_file(&path).await?;
@@ -155,7 +156,7 @@ mod test {
         let mut it = server.iter().await?;
         while let Some(record) = it.next_entry().await? {
             let event = server.event_data(&record).await?;
-            client.append_event(event).await?;
+            client.append_event(event.into_owned()).await?;
         }
 
         let proof = client.tree().head()?;

@@ -8,7 +8,7 @@ use crate::{
     crypto::{AccessKey, KeyDerivation, PrivateKey},
     decode, encode,
     events::{
-        AuditEvent, Event, EventKind, VaultEventLog, EventReducer, ReadEvent,
+        AuditEvent, Event, EventKind, EventReducer, ReadEvent, VaultEventLog,
         WriteEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
@@ -591,6 +591,8 @@ impl LocalProvider {
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         event_log.clear().await?;
+        let events: Vec<_> =
+            events.into_iter().map(|e| e.into_owned()).collect();
         event_log.apply(events, None).await?;
 
         Ok(())

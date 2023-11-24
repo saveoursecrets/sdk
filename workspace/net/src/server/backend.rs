@@ -5,7 +5,7 @@ use sos_sdk::{
     constants::{EVENT_LOG_DELETED_EXT, EVENT_LOG_EXT, VAULT_EXT},
     decode, encode,
     events::WriteEvent,
-    events::{VaultEventLog, EventReducer},
+    events::{EventReducer, VaultEventLog},
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
     vfs,
 };
@@ -267,7 +267,7 @@ impl FileSystemBackend {
 
         // Create the event log file
         let mut event_log = VaultEventLog::new(&event_log_path).await?;
-        let event = WriteEvent::CreateVault(Cow::Borrowed(vault));
+        let event = WriteEvent::CreateVault(Cow::Owned(vault.to_vec()));
         event_log.append_event(event).await?;
 
         self.locks.add(&vault_path)?;

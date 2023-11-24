@@ -570,7 +570,8 @@ impl AccountBackup {
                 let create_vault =
                     WriteEvent::CreateVault(Cow::Borrowed(buffer));
                 event_log_events.push(create_vault);
-                let mut event_log = VaultEventLog::new(event_log_path).await?;
+                let mut event_log =
+                    VaultEventLog::new(event_log_path).await?;
                 event_log.apply(event_log_events, None).await?;
             }
 

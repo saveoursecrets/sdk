@@ -1,10 +1,8 @@
 //! Encoding of all operations.
 
-use serde::{Deserialize, Serialize};
-
-use crate::{vault::VaultId, Error, Result};
-
 use super::{AuditEvent, EventKind, ReadEvent, WriteEvent};
+use crate::{vault::VaultId, Error, Result};
+use serde::{Deserialize, Serialize};
 
 /// Events generated when reading or writing.
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]

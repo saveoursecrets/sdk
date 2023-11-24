@@ -152,7 +152,7 @@ pub async fn mock_event_log_file(
         "This a event log note secret.",
     )
     .await?;
-    commits.push(event_log.append_event(event).await?);
+    commits.push(event_log.append_event(event.into_owned()).await?);
 
     // Update the secret
     let (_, _, _, event) = mock_vault_note_update(
@@ -164,7 +164,7 @@ pub async fn mock_event_log_file(
     )
     .await?;
     if let Some(event) = event {
-        commits.push(event_log.append_event(event).await?);
+        commits.push(event_log.append_event(event.into_owned()).await?);
     }
 
     Ok((temp, event_log, commits, encryption_key))

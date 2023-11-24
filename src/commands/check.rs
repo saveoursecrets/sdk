@@ -5,7 +5,7 @@ use sos_net::sdk::{
     commit::{
         event_log_commit_tree_file, vault_commit_tree_file, CommitHash,
     },
-    events::{VaultEventLog, EventRecord},
+    events::{EventRecord, VaultEventLog},
     formats::vault_stream,
     hex,
     uuid::Uuid,
