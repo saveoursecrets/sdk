@@ -62,17 +62,17 @@ for a collection of secrets.
 ## Signing Key
 
 The account signing key is an ECDSA (Secp256k1 curve) private 
-key used to uniquely identity an account and verify account 
+key used to uniquely identify an account and verify account 
 ownership by signing requests to a remote service.
 
 ## Account Address
 
 An account address is an Ethereum-style address derived from 
 the public key of the account signing key used to uniquely 
-identify an account. This is used so that remote servers 
-(used for syncing data) can allow account creation and modification 
-without requiring any sign-up which may expose personally 
-identifiable information (PII) to the server.
+identify an account. An account address is used as the identifier 
+so that remote servers (used for syncing data) can allow account 
+creation and modification without requiring any sign-up which 
+may expose personally identifiable information (PII) to the server.
 
 ## Identity Vault
 
@@ -80,8 +80,7 @@ The identity vault is a special kind of vault whose purpose is
 to protect the account signing key, provide a single password 
 account sign in flow and to store delegated passwords. 
 Delegated passwords are passwords for other folders managed 
-by the account owner, each folder on disc is a separate 
-vault file (and corresponding event log).
+by the account owner.
 
 ## Cloud Account
 
