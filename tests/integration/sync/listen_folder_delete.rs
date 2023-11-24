@@ -1,7 +1,7 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
 use serial_test::serial;
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
@@ -12,7 +12,9 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::{create_local_account, origin, setup, spawn};
+use crate::test_utils::{
+    create_local_account, origin, setup, spawn, sync_pause,
+};
 
 use super::num_events;
 
@@ -123,7 +125,7 @@ async fn integration_listen_delete_folder() -> Result<()> {
 
     // Pause a while to give the listener some time to process
     // the change notification
-    tokio::time::sleep(Duration::from_millis(250)).await;
+    sync_pause().await;
 
     let updated_summaries: Vec<Summary> = {
         let storage = owner.storage();

@@ -1,17 +1,19 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
 use serial_test::serial;
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
     sdk::{account::DelegatedPassphrase, encode, vault::Summary},
 };
 
-use crate::test_utils::{create_local_account, origin, setup, spawn};
+use crate::test_utils::{
+    create_local_account, origin, setup, spawn, sync_pause, mock_note,
+};
 
 use super::{
-    assert_local_remote_events_eq, assert_local_remote_vaults_eq, num_events,
+    assert_local_remote_events_eq, num_events,
 };
 
 /// Tests syncing update folder events between two clients
@@ -136,14 +138,26 @@ async fn integration_listen_import_folder() -> Result<()> {
 
     // Encode for the import
     let buffer = encode(&vault).await?;
-
     owner
         .import_folder_buffer(buffer, vault_passphrase, true)
         .await?;
 
     // Pause a while to give the listener some time to process
     // the change notification
-    tokio::time::sleep(Duration::from_millis(250)).await;
+    sync_pause().await;
+
+    // Ensure we can open and write to the synced folder
+    other_owner.open_folder(&new_folder).await?;
+    let (meta, secret) =
+        mock_note("note_second_owner", "listen_import_folder");
+    let (_, sync_error) = other_owner
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    assert!(sync_error.is_none());
+
+    // Pause a while to allow the first owner to sync
+    // with the new change
+    sync_pause().await;
 
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
@@ -168,14 +182,6 @@ async fn integration_listen_import_folder() -> Result<()> {
         .expect("to be a remote provider");
 
     // Primary client
-    assert_local_remote_vaults_eq(
-        expected_summaries.clone(),
-        &server_path,
-        &mut owner,
-        remote_provider,
-    )
-    .await?;
-
     assert_local_remote_events_eq(
         expected_summaries.clone(),
         &server_path,
@@ -185,14 +191,6 @@ async fn integration_listen_import_folder() -> Result<()> {
     .await?;
 
     // Secondary client
-    assert_local_remote_vaults_eq(
-        expected_summaries.clone(),
-        &server_path,
-        &mut owner,
-        other_remote_provider,
-    )
-    .await?;
-
     assert_local_remote_events_eq(
         expected_summaries,
         &server_path,

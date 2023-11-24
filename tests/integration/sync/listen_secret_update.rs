@@ -1,7 +1,7 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
 use serial_test::serial;
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
@@ -9,7 +9,7 @@ use sos_net::{
 };
 
 use crate::test_utils::{
-    create_local_account, mock_note, origin, setup, spawn,
+    create_local_account, mock_note, origin, setup, spawn, sync_pause,
 };
 
 use super::{assert_local_remote_events_eq, num_events};
@@ -130,7 +130,7 @@ async fn integration_listen_update_secret() -> Result<()> {
 
     // Pause a while to give the listener some time to process
     // the change notification
-    tokio::time::sleep(Duration::from_millis(250)).await;
+    sync_pause().await;
 
     // Both clients should be in sync now
     assert_eq!(3, num_events(&mut owner, &default_folder_id).await);

@@ -2,7 +2,9 @@ use anyhow::{bail, Result};
 use axum_server::Handle;
 
 use secrecy::SecretString;
-use std::{net::SocketAddr, path::PathBuf, sync::Arc, thread};
+use std::{
+    net::SocketAddr, path::PathBuf, sync::Arc, thread, time::Duration,
+};
 use tokio::sync::{oneshot, RwLock};
 use url::Url;
 use web3_address::ethereum::Address;
@@ -56,6 +58,13 @@ pub fn origin() -> Origin {
         url: server,
         public_key: server_public_key,
     }
+}
+
+/// Pause a while to allow synchronization.
+///
+/// Declared here as we may need to adjust for CI.
+pub async fn sync_pause() {
+    tokio::time::sleep(Duration::from_millis(50)).await;
 }
 
 /// Create a remote provider for the given signing key.

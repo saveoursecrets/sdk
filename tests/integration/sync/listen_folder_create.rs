@@ -1,14 +1,16 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
 use serial_test::serial;
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
     sdk::vault::Summary,
 };
 
-use crate::test_utils::{create_local_account, origin, setup, spawn};
+use crate::test_utils::{
+    create_local_account, mock_note, origin, setup, spawn, sync_pause,
+};
 
 use super::{assert_local_remote_events_eq, num_events};
 
@@ -118,10 +120,28 @@ async fn integration_listen_create_folder() -> Result<()> {
 
     // Pause a while to give the listener some time to process
     // the change notification
-    tokio::time::sleep(Duration::from_millis(250)).await;
+    sync_pause().await;
 
     // The synced client should also have the same number of events
     assert_eq!(1, num_events(&mut other_owner, new_folder.id()).await);
+
+    // Ensure we can open and write to the synced folder
+    other_owner.open_folder(&new_folder).await?;
+    let (meta, secret) =
+        mock_note("note_second_owner", "listen_create_folder");
+    let (_, sync_error) = other_owner
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    assert!(sync_error.is_none());
+
+    // Pause a while to allow the first owner to sync
+    // with the new change
+    sync_pause().await;
+
+    // Both client now have two events (create vault
+    // and create secret)
+    assert_eq!(2, num_events(&mut owner, new_folder.id()).await);
+    assert_eq!(2, num_events(&mut other_owner, new_folder.id()).await);
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
