@@ -106,4 +106,9 @@ third-party service for long-term storage.
 The owner can then split the private key used to encrypt the 
 recovery pack and distribute it to members of the recovery group. 
 
+## Executor
+
+The executor is a member of the recovery group that is authorized to 
+perform the final decryption of the account owner's data.
+
 See SOCIAL-RECOVERY.md for more information on the social recovery protocol.
