@@ -1,12 +1,7 @@
 //! HTTP transport trait and implementations.
 
-use sos_sdk::{
-    encode,
-    mpc::{generate_keypair, Keypair},
-    signer::ecdsa::{BinarySignature, BoxedEcdsaSigner},
-};
+use sos_sdk::{encode, signer::ecdsa::BinarySignature};
 
-use url::Url;
 use web3_signature::Signature;
 
 use super::Result;

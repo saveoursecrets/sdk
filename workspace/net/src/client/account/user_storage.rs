@@ -43,8 +43,8 @@ use tokio::{
 };
 
 use crate::client::{
-    sync::SyncData, Error, ListenOptions, Origin, Remote, RemoteBridge,
-    RemoteSync, Remotes, Result, SyncError, WebSocketHandle,
+    sync::SyncData, Error, Origin, Remote, RemoteBridge, RemoteSync, Remotes,
+    Result, SyncError,
 };
 use async_trait::async_trait;
 
@@ -1019,7 +1019,7 @@ impl UserStorage {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (folder, before_last_commit, before_commit_proof) =
+        let (_folder, before_last_commit, before_commit_proof) =
             self.before_apply_events(&options, true).await?;
 
         let (id, event, folder) =
@@ -2190,7 +2190,7 @@ mod listen {
         fn spawn_remote_bridge_channels(
             &self,
             mut rx: UserStorageReceiver,
-            mut tx: UserStorageSender,
+            tx: UserStorageSender,
         ) {
             let keeper = self.user.identity().keeper();
             let secret_key = self.user.identity().signer().to_bytes();

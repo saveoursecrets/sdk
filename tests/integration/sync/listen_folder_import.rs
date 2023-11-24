@@ -1,6 +1,5 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
-use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
@@ -40,7 +39,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
         create_local_account(TEST_ID, Some(test_data_dir.clone())).await?;
 
     // Folders on the local account
-    let expected_summaries: Vec<Summary> = {
+    let _expected_summaries: Vec<Summary> = {
         let storage = owner.storage();
         let mut writer = storage.write().await;
         writer
@@ -52,7 +51,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
     };
 
     // Path that we expect the remote server to write to
-    let server_path = server.account_path(owner.address());
+    let _server_path = server.account_path(owner.address());
 
     // Create the remote provider
     let origin = server.origin.clone();

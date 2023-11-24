@@ -14,8 +14,8 @@ use std::{
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
-        self, client::IntoClientRequest, error::Error as WsError,
-        handshake::client::generate_key, protocol::Message,
+        self, client::IntoClientRequest, handshake::client::generate_key,
+        protocol::Message,
     },
     MaybeTlsStream, WebSocketStream,
 };

@@ -1,10 +1,9 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
-use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
-    sdk::{account::DelegatedPassphrase, encode, vault::Summary},
+    sdk::vault::Summary,
 };
 
 use crate::test_utils::{

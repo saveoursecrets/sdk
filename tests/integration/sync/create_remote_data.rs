@@ -1,11 +1,8 @@
 use anyhow::Result;
 
-use sos_net::{
-    client::{RemoteBridge, RemoteSync},
-    sdk::vault::Summary,
-};
+use sos_net::client::{RemoteBridge, RemoteSync};
 
-use crate::test_utils::{create_local_account, setup, spawn, teardown};
+use crate::test_utils::{spawn, teardown};
 
 use super::{
     assert_local_remote_events_eq, assert_local_remote_vaults_eq,
@@ -28,7 +25,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     let SimulatedDevice {
         mut owner,
         origin,
-        default_folder,
+
         server_path,
         folders,
         ..

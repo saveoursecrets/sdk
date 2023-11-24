@@ -21,7 +21,7 @@ async fn integration_rpc_session() -> Result<()> {
         signup(test_data_dir, &server.origin).await?;
 
     let origin = server.origin.clone();
-    let mut client = RpcClient::new(origin, signer, generate_keypair()?)?;
+    let client = RpcClient::new(origin, signer, generate_keypair()?)?;
 
     client.handshake().await?;
 
@@ -81,7 +81,7 @@ async fn integration_rpc_session() -> Result<()> {
 
     // Load the entire event log buffer
     let login = summaries.get(0).unwrap();
-    let (status, (proof, buffer)) =
+    let (status, (_proof, buffer)) =
         client.load_events(login.id()).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(buffer.is_some());

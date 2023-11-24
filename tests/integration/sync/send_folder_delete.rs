@@ -1,16 +1,12 @@
 use anyhow::Result;
-use std::path::PathBuf;
 
-use sos_net::{
-    client::RemoteSync,
-    sdk::{
-        constants::{EVENT_LOG_EXT, VAULT_EXT},
-        vault::Summary,
-        vfs,
-    },
+use sos_net::sdk::{
+    constants::{EVENT_LOG_EXT, VAULT_EXT},
+    vault::Summary,
+    vfs,
 };
 
-use crate::test_utils::{create_local_account, setup, spawn, teardown};
+use crate::test_utils::{spawn, teardown};
 
 use super::{num_events, simulate_device, SimulatedDevice};
 
@@ -27,14 +23,10 @@ async fn integration_sync_delete_folder() -> Result<()> {
     // Prepare a mock device
     let device = simulate_device(TEST_ID, &server, 1).await?;
     let SimulatedDevice {
-        mut owner,
-        origin,
-        default_folder,
-        folders,
-        ..
+        mut owner, folders, ..
     } = device;
 
-    let original_summaries_len = folders.len();
+    let _original_summaries_len = folders.len();
 
     // Path that we expect the remote server to write to
     let server_path = server.account_path(owner.address());

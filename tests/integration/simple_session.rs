@@ -19,7 +19,7 @@ async fn integration_simple_session() -> Result<()> {
     let (credentials, mut provider) =
         create_local_provider(signer, Some(test_data_dir)).await?;
     let AccountCredentials { summary, .. } = credentials;
-    let login_vault_id = *summary.id();
+    let _login_vault_id = *summary.id();
 
     // Create a new vault
     let new_vault_name = String::from("My Vault");
@@ -33,7 +33,7 @@ async fn integration_simple_session() -> Result<()> {
     assert_eq!(&new_vault_name, new_vault_summary.name());
 
     // Need this for some assertions later
-    let new_vault_id = *new_vault_summary.id();
+    let _new_vault_id = *new_vault_summary.id();
 
     // Trigger code path for finding by id
     let id_ref = VaultRef::Id(*new_vault_summary.id());

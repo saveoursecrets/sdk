@@ -1,8 +1,7 @@
 use anyhow::Result;
-use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
-    client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
+    client::ListenOptions,
     sdk::{
         constants::{EVENT_LOG_EXT, VAULT_EXT},
         vault::Summary,
@@ -10,11 +9,9 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::{
-    create_local_account, setup, spawn, sync_pause, teardown,
-};
+use crate::test_utils::{spawn, sync_pause, teardown};
 
-use super::{num_events, simulate_device, SimulatedDevice};
+use super::simulate_device;
 
 const TEST_ID: &str = "sync_listen_delete_folder";
 
@@ -30,22 +27,27 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
 
     // Prepare mock devices
     let mut device1 = simulate_device(TEST_ID, &server, 2).await?;
-    let default_folder_id = device1.default_folder_id.clone();
+    let _default_folder_id = device1.default_folder_id.clone();
     let origin = device1.origin.clone();
     let folders = device1.folders.clone();
     let address = device1.owner.address().to_string();
     let server_path = device1.server_path.clone();
-    let mut device2 = device1.connect(1, None).await?;
-    
+    let device2 = device1.connect(1, None).await?;
+
     // Start listening for change notifications (first client)
-    device1.owner.listen(&origin, ListenOptions::new("device_1".to_string())?)?;
+    device1
+        .owner
+        .listen(&origin, ListenOptions::new("device_1".to_string())?)?;
 
     // Start listening for change notifications (second client)
-    device2.owner
+    device2
+        .owner
         .listen(&origin, ListenOptions::new("device_2".to_string())?)?;
 
-    let (new_folder, sync_error) =
-        device1.owner.create_folder("sync_folder".to_string()).await?;
+    let (new_folder, sync_error) = device1
+        .owner
+        .create_folder("sync_folder".to_string())
+        .await?;
     assert!(sync_error.is_none());
 
     let sync_error = device1.owner.delete_folder(&new_folder).await?;
@@ -77,18 +79,26 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
     assert!(!vfs::try_exists(expected_event_file).await?);
 
     // Check the first client removed the files
-    let expected_vault_file =
-        device1.owner.paths().vault_path(new_folder.id().to_string());
-    let expected_event_file =
-        device1.owner.paths().vault_path(new_folder.id().to_string());
+    let expected_vault_file = device1
+        .owner
+        .paths()
+        .vault_path(new_folder.id().to_string());
+    let expected_event_file = device1
+        .owner
+        .paths()
+        .vault_path(new_folder.id().to_string());
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
 
     // Check the listening client removed the files
-    let expected_vault_file =
-        device2.owner.paths().vault_path(new_folder.id().to_string());
-    let expected_event_file =
-        device2.owner.paths().vault_path(new_folder.id().to_string());
+    let expected_vault_file = device2
+        .owner
+        .paths()
+        .vault_path(new_folder.id().to_string());
+    let expected_event_file = device2
+        .owner
+        .paths()
+        .vault_path(new_folder.id().to_string());
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
 

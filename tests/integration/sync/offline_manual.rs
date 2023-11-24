@@ -52,7 +52,7 @@ async fn integration_sync_offline_manual() -> Result<()> {
     };
 
     // Path that we expect the remote server to write to
-    let server_path = server.account_path(owner.address());
+    let _server_path = server.account_path(owner.address());
 
     // Create the remote provider
     let origin = server.origin.clone();
@@ -125,7 +125,7 @@ async fn integration_sync_offline_manual() -> Result<()> {
     // Let's bring the server back online using
     // the same bind address so we don't need to
     // update the remote origin
-    let server = spawn(TEST_ID, Some(addr), None).await?;
+    let _server = spawn(TEST_ID, Some(addr), None).await?;
 
     // Client explicitly syncs with the remote, either
     // they detected the server was back online of maybe

@@ -15,9 +15,7 @@
 //! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit::{
-        event_log_commit_tree_file, CommitHash, CommitProof, CommitTree,
-    },
+    commit::{event_log_commit_tree_file, CommitHash, CommitTree},
     constants::EVENT_LOG_IDENTITY,
     encode,
     encoding::encoding_options,

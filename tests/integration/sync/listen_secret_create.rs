@@ -1,6 +1,5 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
-use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
     client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
@@ -52,7 +51,7 @@ async fn integration_sync_listen_create_secret() -> Result<()> {
     };
 
     // Path that we expect the remote server to write to
-    let server_path = server.account_path(owner.address());
+    let _server_path = server.account_path(owner.address());
 
     // Create the remote provider
     let origin = server.origin.clone();

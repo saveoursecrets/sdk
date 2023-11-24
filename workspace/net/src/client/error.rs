@@ -6,7 +6,7 @@ use sos_sdk::{
     commit::CommitHash,
     crypto::{AccessKey, SecureAccessKey},
     events::WriteEvent,
-    vault::{secret::SecretId, Summary, VaultId},
+    vault::{Summary, VaultId},
 };
 use std::path::PathBuf;
 use thiserror::Error;

@@ -65,7 +65,7 @@ impl DelegatedPassphrase {
         vault_id: &VaultId,
     ) -> Result<()> {
         let id = {
-            let mut keeper = identity.write().await;
+            let keeper = identity.write().await;
             let urn = Vault::vault_urn(vault_id)?;
             let index = keeper.index();
             let index_reader = index.read().await;

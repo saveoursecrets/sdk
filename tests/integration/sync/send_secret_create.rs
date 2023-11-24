@@ -1,19 +1,10 @@
 use anyhow::Result;
-use copy_dir::copy_dir;
 
-use sos_net::{
-    client::{RemoteBridge, RemoteSync, UserStorage},
-    sdk::vault::Summary,
-};
+use sos_net::client::{RemoteBridge, RemoteSync};
 
-use crate::test_utils::{
-    create_local_account, mock_note, setup, spawn, teardown,
-};
+use crate::test_utils::{mock_note, spawn, teardown};
 
-use super::{
-    assert_local_remote_events_eq, num_events, simulate_device,
-    SimulatedDevice,
-};
+use super::{assert_local_remote_events_eq, num_events, simulate_device};
 
 const TEST_ID: &str = "sync_create_secret";
 

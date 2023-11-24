@@ -3,7 +3,7 @@ use crate::{
     client::{
         net::{MaybeRetry, RpcClient},
         sync::SyncData,
-        Error, ListenOptions, RemoteSync, Result, SyncError, WebSocketHandle,
+        Error, RemoteSync, Result, SyncError,
     },
     retry,
 };
@@ -241,7 +241,7 @@ impl RemoteBridge {
         &self,
         folder: &Summary,
         from_commit: &CommitHash,
-        remote_proof: &CommitProof,
+        _remote_proof: &CommitProof,
     ) -> Result<bool> {
         let span = span!(Level::DEBUG, "push_folder");
         let _enter = span.enter();
@@ -250,7 +250,7 @@ impl RemoteBridge {
             id = %folder.id(),
             from_commit = %from_commit);
 
-        let (mut patch, proof) = {
+        let (patch, proof) = {
             let reader = self.local.read().await;
             let event_log = reader
                 .cache()
@@ -268,7 +268,7 @@ impl RemoteBridge {
             proof = ?proof,
         );
 
-        let (status, (server_proof, match_proof)) = retry!(
+        let (status, (_server_proof, _match_proof)) = retry!(
             || self.remote.apply_patch(folder.id(), &proof, &patch,),
             self.remote
         );
@@ -379,7 +379,7 @@ impl RemoteBridge {
         before_last_commit: Option<&CommitHash>,
         before_client_proof: &CommitProof,
         folder: &Summary,
-        events: &[WriteEvent<'static>],
+        _events: &[WriteEvent<'static>],
     ) -> Result<()> {
         let span = span!(Level::DEBUG, "patch");
         let _enter = span.enter();
@@ -395,7 +395,7 @@ impl RemoteBridge {
 
         tracing::debug!(num_patch_events = %patch.0.len());
 
-        let (status, (server_proof, match_proof)) = retry!(
+        let (status, (_server_proof, _match_proof)) = retry!(
             || self.remote.apply_patch(
                 folder.id(),
                 before_client_proof,
@@ -523,10 +523,9 @@ mod listen {
     };
     use sos_sdk::prelude::{
         AccessKey, ChangeAction, ChangeEvent, ChangeNotification,
-        CommitRelationship, SecureAccessKey, Summary, VaultId, VaultRef,
+        SecureAccessKey, Summary, VaultId, VaultRef,
     };
 
-    use futures::Future;
     use std::sync::Arc;
     use tokio::sync::{mpsc, Mutex};
     use tracing::{span, Level};
@@ -619,7 +618,7 @@ mod listen {
                 bridge.load_events(&id).await?;
             {
                 let mut writer = local.write().await;
-                let mut event_log = writer
+                let event_log = writer
                     .cache_mut()
                     .get_mut(&id)
                     .ok_or(Error::CacheNotAvailable(id))?;

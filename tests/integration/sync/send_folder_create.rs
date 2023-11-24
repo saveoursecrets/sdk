@@ -5,7 +5,7 @@ use sos_net::{
     sdk::vault::Summary,
 };
 
-use crate::test_utils::{create_local_account, setup, spawn, teardown};
+use crate::test_utils::{spawn, teardown};
 
 use super::{
     assert_local_remote_events_eq, num_events, simulate_device,
@@ -27,7 +27,7 @@ async fn integration_sync_create_folder() -> Result<()> {
     let SimulatedDevice {
         mut owner,
         origin,
-        default_folder,
+
         folders,
         ..
     } = device;

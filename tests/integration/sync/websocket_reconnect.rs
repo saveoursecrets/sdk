@@ -1,20 +1,12 @@
 use anyhow::Result;
-use copy_dir::copy_dir;
-use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use sos_net::{
-    client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
-    sdk::vault::Summary,
-};
+use std::time::Duration;
 
-use crate::test_utils::{
-    create_local_account, mock_note, setup, spawn, teardown,
-};
+use sos_net::client::ListenOptions;
 
-use super::{
-    assert_local_remote_events_eq, num_events, simulate_device,
-    SimulatedDevice,
-};
+use crate::test_utils::{spawn, teardown};
+
+use super::{simulate_device, SimulatedDevice};
 
 const TEST_ID: &str = "websocket_reconnect";
 
@@ -31,9 +23,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
 
     // Prepare a mock device
     let device = simulate_device(TEST_ID, &server, 1).await?;
-    let SimulatedDevice {
-        mut owner, origin, ..
-    } = device;
+    let SimulatedDevice { owner, origin, .. } = device;
 
     tokio::task::spawn(async move {
         // Start a websocket listener that should
