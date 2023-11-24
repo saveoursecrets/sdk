@@ -1,13 +1,10 @@
-use anyhow::Result;
-
-use sos_net::client::{RemoteBridge, RemoteSync};
-
-use crate::test_utils::{spawn, teardown};
-
 use super::{
     assert_local_remote_events_eq, assert_local_remote_vaults_eq,
     simulate_device, SimulatedDevice,
 };
+use crate::test_utils::{spawn, teardown};
+use anyhow::Result;
+use sos_net::client::RemoteBridge;
 
 const TEST_ID: &str = "sync_create_remote_data";
 

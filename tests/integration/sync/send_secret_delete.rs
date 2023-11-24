@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use sos_net::client::{RemoteBridge, RemoteSync};
+use sos_net::client::RemoteBridge;
 
 use crate::test_utils::{mock_note, spawn, teardown};
 

@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use sos_net::{
-    client::{RemoteBridge, RemoteSync},
+    client::RemoteBridge,
     sdk::{account::DelegatedPassphrase, encode, vault::Summary},
 };
 

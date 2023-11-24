@@ -1,5 +1,6 @@
+use super::simulate_device;
+use crate::test_utils::{spawn, sync_pause, teardown};
 use anyhow::Result;
-
 use sos_net::{
     client::ListenOptions,
     sdk::{
@@ -8,10 +9,6 @@ use sos_net::{
         vfs,
     },
 };
-
-use crate::test_utils::{spawn, sync_pause, teardown};
-
-use super::simulate_device;
 
 const TEST_ID: &str = "sync_listen_delete_folder";
 
@@ -64,7 +61,7 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
     };
     assert_eq!(folders.len(), updated_summaries.len());
 
-    // Check the server removed the files
+    // Assert server
     let expected_vault_file = server_path.join(&address).join(format!(
         "{}.{}",
         new_folder.id(),
@@ -78,7 +75,7 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
 
-    // Check the first client removed the files
+    // Assert first device
     let expected_vault_file = device1
         .owner
         .paths()
@@ -90,7 +87,7 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
 
-    // Check the listening client removed the files
+    // Assert second device
     let expected_vault_file = device2
         .owner
         .paths()

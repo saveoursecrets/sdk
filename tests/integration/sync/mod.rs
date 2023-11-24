@@ -3,7 +3,7 @@ use anyhow::Result;
 use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
-    client::{Origin, RemoteBridge, RemoteSync, UserStorage},
+    client::{ListenOptions, Origin, RemoteBridge, RemoteSync, UserStorage},
     sdk::{
         constants::VAULT_EXT,
         vault::{Summary, VaultId},
@@ -35,6 +35,7 @@ mod offline_manual;
 mod websocket_reconnect;
 
 pub struct SimulatedDevice {
+    pub id: String,
     pub owner: UserStorage,
     pub default_folder: Summary,
     pub folders: Vec<Summary>,
@@ -77,6 +78,7 @@ impl SimulatedDevice {
         owner.open_folder(&self.default_folder).await?;
 
         Ok(SimulatedDevice {
+            id: format!("device_{}", index + 1),
             owner,
             data_dir: data_dir.clone(),
             default_folder: self.default_folder.clone(),
@@ -87,6 +89,13 @@ impl SimulatedDevice {
             server_path: self.server_path.clone(),
             password: self.password.clone(),
         })
+    }
+
+    /// Start listening for changes.
+    pub fn listen(&self) -> Result<()> {
+        self.owner
+            .listen(&self.origin, ListenOptions::new(self.id.clone())?)?;
+        Ok(())
     }
 }
 
@@ -123,13 +132,6 @@ pub async fn simulate_device(
         copy_dir(&data_dir, &dir)?;
     }
 
-    //let original_summaries_len = expected_summaries.len();
-
-    /*
-    // Path that we expect the remote server to write to
-    let server_path = server.account_path(owner.address());
-    */
-
     // Create the remote provider
     let origin = server.origin.clone();
     let provider = owner.remote_bridge(&origin).await?;
@@ -147,6 +149,7 @@ pub async fn simulate_device(
     let default_folder_id = *default_folder.id();
 
     Ok(SimulatedDevice {
+        id: "device_1".to_string(),
         owner,
         default_folder,
         folders,

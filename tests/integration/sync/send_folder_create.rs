@@ -1,9 +1,6 @@
 use anyhow::Result;
 
-use sos_net::{
-    client::{RemoteBridge, RemoteSync},
-    sdk::vault::Summary,
-};
+use sos_net::{client::RemoteBridge, sdk::vault::Summary};
 
 use crate::test_utils::{spawn, teardown};
 
