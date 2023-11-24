@@ -52,31 +52,41 @@ impl SimulatedDevice {
         &self,
         index: usize,
         origin: Option<Origin>,
-    ) -> Result<UserStorage> {
-        let device_dir = self.dirs.clients.get(index).unwrap();
-        let mut device = UserStorage::sign_in(
+    ) -> Result<SimulatedDevice> {
+        let data_dir = self.dirs.clients.get(index).unwrap();
+        let mut owner = UserStorage::sign_in(
             self.owner.address(),
             self.password.clone(),
             None,
-            Some(device_dir.clone()),
+            Some(data_dir.clone()),
         )
         .await?;
 
         let origin = origin.unwrap_or_else(|| self.origin.clone());
 
-        // Mimic account owner on another device connected to
+        // Mimic account owner on another owner connected to
         // the same remotes
-        let other_provider = device.remote_bridge(&origin).await?;
+        let provider = owner.remote_bridge(&origin).await?;
         // Insert the remote for the other owner
-        device.insert_remote(self.origin.clone(), Box::new(other_provider));
+        owner.insert_remote(self.origin.clone(), Box::new(provider));
 
         // Must list folders to load cache into memory after sign in
-        device.list_folders().await?;
+        owner.list_folders().await?;
 
         // Use the default folder
-        device.open_folder(&self.default_folder).await?;
+        owner.open_folder(&self.default_folder).await?;
 
-        Ok(device)
+        Ok(SimulatedDevice {
+            owner,
+            data_dir: data_dir.clone(),
+            default_folder: self.default_folder.clone(),
+            default_folder_id: self.default_folder_id.clone(),
+            folders: self.folders.clone(),
+            origin: origin.clone(),
+            dirs: self.dirs.clone(),
+            server_path: self.server_path.clone(),
+            password: self.password.clone(),
+        })
     }
 }
 

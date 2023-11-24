@@ -274,7 +274,7 @@ pub async fn spawn(
     })
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TestDirs {
     pub target: PathBuf,
     pub clients: Vec<PathBuf>,

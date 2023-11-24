@@ -38,7 +38,7 @@ async fn integration_sync_create_secret() -> Result<()> {
 
     // Before we begin both clients should have a single event
     assert_eq!(1, num_events(&mut device1.owner, &default_folder_id).await);
-    assert_eq!(1, num_events(&mut device2, &default_folder_id).await);
+    assert_eq!(1, num_events(&mut device2.owner, &default_folder_id).await);
 
     // Sync a local account that does not exist on
     // the remote which should create the account on the remote
@@ -54,25 +54,26 @@ async fn integration_sync_create_secret() -> Result<()> {
 
     // First client is now ahead
     assert_eq!(2, num_events(&mut device1.owner, &default_folder_id).await);
-    assert_eq!(1, num_events(&mut device2, &default_folder_id).await);
+    assert_eq!(1, num_events(&mut device2.owner, &default_folder_id).await);
 
     // The other owner creates a secret which should trigger a pull
     // of the remote patch before applying changes
     let (meta, secret) = mock_note("note_second_owner", "send_events_secret");
     device2
+        .owner
         .create_secret(meta, secret, Default::default())
         .await?;
 
     // Second client is ahead
     assert_eq!(2, num_events(&mut device1.owner, &default_folder_id).await);
-    assert_eq!(3, num_events(&mut device2, &default_folder_id).await);
+    assert_eq!(3, num_events(&mut device2.owner, &default_folder_id).await);
 
     // First client runs sync to pull down the additional secret
     device1.owner.sync().await?;
 
     // Everyone is equal
     assert_eq!(3, num_events(&mut device1.owner, &default_folder_id).await);
-    assert_eq!(3, num_events(&mut device2, &default_folder_id).await);
+    assert_eq!(3, num_events(&mut device2.owner, &default_folder_id).await);
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
@@ -82,7 +83,7 @@ async fn integration_sync_create_secret() -> Result<()> {
         .downcast_mut::<RemoteBridge>()
         .expect("to be a remote provider");
 
-    let mut provider = device2.delete_remote(&origin).unwrap();
+    let mut provider = device2.owner.delete_remote(&origin).unwrap();
     let other_remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
@@ -97,7 +98,7 @@ async fn integration_sync_create_secret() -> Result<()> {
 
     assert_local_remote_events_eq(
         folders.clone(),
-        &mut device2,
+        &mut device2.owner,
         other_remote_provider,
     )
     .await?;
