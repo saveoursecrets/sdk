@@ -37,7 +37,7 @@ pub enum Command {
         #[clap(short, long)]
         json: bool,
 
-        /// Filter to events that match the given address.
+        /// Filter to events that match the given address(es).
         #[clap(short, long)]
         address: Vec<Address>,
 
