@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use axum_server::Handle;
 
 use secrecy::SecretString;
@@ -77,11 +77,6 @@ async fn remote_bridge(
     Ok(provider)
 }
 
-/// Read the test server public key.
-pub fn server_public_key() -> Vec<u8> {
-    hex::decode(SERVER_PUBLIC_KEY).unwrap()
-}
-
 /// Encapsulates the credentials for a new account signup.
 pub struct AccountCredentials {
     /// Passphrase for the vault encryption.
@@ -102,22 +97,32 @@ fn socket_addr_url(addr: &SocketAddr) -> Url {
 struct MockServer {
     handle: Handle,
     addr: SocketAddr,
+    path: PathBuf,
 }
 
 impl MockServer {
-    fn new(addr: Option<SocketAddr>) -> Result<Self> {
+    fn new(addr: Option<SocketAddr>, path: PathBuf) -> Result<Self> {
         let default_addr: SocketAddr = ADDR.parse::<SocketAddr>()?;
         Ok(Self {
             handle: Handle::new(),
             addr: addr.unwrap_or(default_addr),
+            path,
         })
     }
 
     async fn start(&self) -> Result<()> {
-        tracing::info!("start mock server {:#?}", self.addr);
+        tracing::info!(
+            addr = ?self.addr,
+            path = ?self.path,
+            "start mock server");
 
-        let (config, keypair) =
+        let (mut config, keypair) =
             ServerConfig::load("tests/config.toml").await?;
+
+        // Override the storage path to use the path
+        // using the test identifier
+        config.storage.url =
+            Url::parse(&format!("file://{}", self.path.display()))?;
 
         let mut backend = config.backend().await?;
 
@@ -157,9 +162,10 @@ impl MockServer {
     /// Run the mock server in a separate thread.
     fn spawn(
         addr: Option<SocketAddr>,
+        path: PathBuf,
         tx: oneshot::Sender<SocketAddr>,
     ) -> Result<ShutdownHandle> {
-        let server = MockServer::new(addr)?;
+        let server = MockServer::new(addr, path)?;
         let listen_handle = server.handle.clone();
         let user_handle = server.handle.clone();
 
@@ -198,25 +204,59 @@ impl Drop for ShutdownHandle {
     }
 }
 
+/// Test server information.
 pub struct TestServer {
+    /// Test identifier.
+    pub test_id: String,
+    /// Path to the server storage.
+    pub path: PathBuf,
+    /// Bind address.
     pub addr: SocketAddr,
+    /// URL for clients to connect to.
     pub url: Url,
-    pub handle: ShutdownHandle,
+    /// Handle when dropped will shutdown the server.
+    #[allow(dead_code)]
+    handle: ShutdownHandle,
+    /// Origin for remote connections.
     pub origin: Origin,
 }
 
+impl TestServer {
+    /// Path to the server account data.
+    pub fn account_path(&self, address: &Address) -> PathBuf {
+        PathBuf::from(format!("{}/{}", self.path.display(), address,))
+    }
+}
+
 pub async fn spawn(
+    test_id: &str,
     addr: Option<SocketAddr>,
 ) -> Result<TestServer> {
+    let current_dir = std::env::current_dir()
+        .expect("failed to get current working directory");
+
+    // Prepare server storage
+    let target = current_dir.join("target/integration-test");
+    vfs::create_dir_all(&target).await?;
+
+    // Ensure test runner is pristine
+    let path = target.join(test_id).join("server");
+    let _ = vfs::remove_dir_all(&path).await;
+
+    // Setup required sub-directories
+    vfs::create_dir_all(&path).await?;
+
     let (tx, rx) = oneshot::channel::<SocketAddr>();
-    let handle = MockServer::spawn(addr, tx)?;
+    let handle = MockServer::spawn(addr, path.clone(), tx)?;
     let addr = rx.await?;
     let url = socket_addr_url(&addr);
     Ok(TestServer {
+        test_id: test_id.to_owned(),
+        path,
         origin: Origin {
             name: "origin".to_owned(),
             url: url.clone(),
-            public_key: server_public_key(),
+            public_key: hex::decode(SERVER_PUBLIC_KEY)?,
         },
         addr,
         url,
@@ -227,37 +267,26 @@ pub async fn spawn(
 #[derive(Debug)]
 pub struct TestDirs {
     pub target: PathBuf,
-    pub server: PathBuf,
     pub clients: Vec<PathBuf>,
 }
 
-/// Setup prepares directories for the given number of clients and
-/// a standard location for a remote server storage location.
-pub async fn setup(num_clients: usize) -> Result<TestDirs> {
+/// Setup prepares directories for the given number of clients.
+pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
     let target = current_dir.join("target/integration-test");
     vfs::create_dir_all(&target).await?;
 
-    let server = target.join("server");
-    let _ = vfs::remove_dir_all(&server).await;
-
-    // Setup required sub-directories
-    vfs::create_dir(&server).await?;
-
     let mut clients = Vec::new();
     for index in 0..num_clients {
-        let client = target.join(&format!("client{}", index + 1));
+        let client =
+            target.join(test_id).join(&format!("client{}", index + 1));
         let _ = vfs::remove_dir_all(&client).await;
-        vfs::create_dir(&client).await?;
+        vfs::create_dir_all(&client).await?;
         clients.push(client);
     }
 
-    Ok(TestDirs {
-        target,
-        server,
-        clients,
-    })
+    Ok(TestDirs { target, clients })
 }
 
 pub async fn create_local_account(
@@ -430,4 +459,15 @@ pub async fn signup(
     provider.sync().await?;
 
     Ok((address, credentials, provider, signer))
+}
+
+/// Clean up test resources on disc.
+pub async fn teardown(test_id: &str) {
+    let current_dir = std::env::current_dir()
+        .expect("failed to get current working directory");
+    let target = current_dir.join("target/integration-test").join(test_id);
+    tracing::debug!(path = ?target, "teardown");
+    vfs::remove_dir_all(&target)
+        .await
+        .expect("to remove test directory");
 }

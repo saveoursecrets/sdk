@@ -1,8 +1,5 @@
 use anyhow::Result;
-
 use secrecy::SecretString;
-use serial_test::serial;
-
 use sos_net::{
     client::{SecurityReportOptions, UserStorage},
     sdk::{
@@ -14,14 +11,13 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::{create_local_account, setup};
+use crate::test_utils::{create_local_account, setup, teardown};
 
 const TEST_ID: &str = "security_report";
 
 #[tokio::test]
-#[serial]
 async fn integration_security_report() -> Result<()> {
-    let mut dirs = setup(1).await?;
+    let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
     let (mut owner, _, summary, passphrase) =
@@ -67,6 +63,8 @@ async fn integration_security_report() -> Result<()> {
 
     // Delete the account
     owner.delete_account().await?;
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

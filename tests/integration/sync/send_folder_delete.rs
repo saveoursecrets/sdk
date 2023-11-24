@@ -1,5 +1,4 @@
 use anyhow::Result;
-use serial_test::serial;
 use std::path::PathBuf;
 
 use sos_net::{
@@ -11,7 +10,7 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::{create_local_account, setup, spawn};
+use crate::test_utils::{create_local_account, setup, spawn, teardown};
 
 use super::num_events;
 
@@ -19,15 +18,14 @@ const TEST_ID: &str = "sync_delete_folder";
 
 /// Tests sending delete folder events to a remote.
 #[tokio::test]
-#[serial]
 async fn integration_sync_delete_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
 
-    let dirs = setup(1).await?;
+    let dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.get(0).unwrap();
 
     // Spawn a backend server and wait for it to be listening
-    let server = spawn(None).await?;
+    let server = spawn(TEST_ID, None).await?;
 
     let (mut owner, _, default_folder, _) = create_local_account(
         "sync_delete_folder",
@@ -50,10 +48,7 @@ async fn integration_sync_delete_folder() -> Result<()> {
     let original_summaries_len = expected_summaries.len();
 
     // Path that we expect the remote server to write to
-    let server_path = PathBuf::from(format!(
-        "target/integration-test/server/{}",
-        owner.address()
-    ));
+    let server_path = server.account_path(owner.address());
     let address = owner.address().to_string();
 
     // Create the remote provider
@@ -106,6 +101,8 @@ async fn integration_sync_delete_folder() -> Result<()> {
 
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

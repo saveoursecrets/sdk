@@ -1,8 +1,8 @@
+use crate::test_utils::{
+    create_local_provider, create_secrets, delete_secret, setup, teardown,
+    AccountCredentials,
+};
 use anyhow::Result;
-use serial_test::serial;
-
-use crate::test_utils::*;
-
 use sos_net::sdk::{
     constants::DEFAULT_VAULT_NAME, signer::ecdsa::SingleParty,
     vault::VaultRef,
@@ -11,9 +11,8 @@ use sos_net::sdk::{
 const TEST_ID: &str = "simple_session";
 
 #[tokio::test]
-#[serial]
 async fn integration_simple_session() -> Result<()> {
-    let mut dirs = setup(1).await?;
+    let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
     let signer = Box::new(SingleParty::new_random());
@@ -90,23 +89,13 @@ async fn integration_simple_session() -> Result<()> {
         .set_vault_name(&new_vault_summary, DEFAULT_VAULT_NAME)
         .await?;
 
-    /*
-    // Try to pull whilst up to date
-    let _ = provider.pull(&new_vault_summary, false).await?;
-    // Now force a pull
-    let _ = provider.pull(&new_vault_summary, true).await?;
-
-    // Try to push whilst up to date
-    let _ = provider.push(&new_vault_summary, false).await?;
-    // Now force a push
-    let _ = provider.push(&new_vault_summary, true).await?;
-    */
-
     // Verify local event log integrity
     provider.verify(&new_vault_summary).await?;
 
     // Close the vault
     provider.close_vault();
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

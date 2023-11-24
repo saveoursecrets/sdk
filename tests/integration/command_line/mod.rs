@@ -1,7 +1,6 @@
 use anyhow::Result;
 use rexpect::{session::PtySession, spawn, ReadUntil};
 use secrecy::SecretString;
-use serial_test::serial;
 use sos_net::sdk::{
     account::UserPaths,
     constants::{DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_VAULT_NAME},
@@ -177,7 +176,6 @@ pub(crate) fn read_until_eof(
 }
 
 #[tokio::test]
-#[serial]
 async fn integration_command_line() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 

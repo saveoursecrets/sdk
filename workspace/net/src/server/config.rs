@@ -40,6 +40,7 @@ pub struct ServerConfig {
 }
 
 impl ServerConfig {
+    /*
     /// Create a new server config with a file path.
     pub fn new_dummy_file(path: PathBuf) -> Self {
         Self {
@@ -47,6 +48,7 @@ impl ServerConfig {
             ..Default::default()
         }
     }
+    */
 }
 
 /// Certificate and key for TLS.

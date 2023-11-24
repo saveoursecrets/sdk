@@ -1,6 +1,5 @@
 use anyhow::Result;
 
-use serial_test::serial;
 use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
@@ -20,18 +19,17 @@ use sos_net::{
 
 use tokio::sync::{mpsc, Mutex};
 
-use crate::test_utils::{create_local_account, setup};
+use crate::test_utils::{create_local_account, setup, teardown};
 
 const ZERO_CHECKSUM: [u8; 32] = [0; 32];
 
 const TEST_ID: &str = "external_files";
 
 #[tokio::test]
-#[serial]
 async fn integration_external_files() -> Result<()> {
     //crate::test_utils::init_tracing();
 
-    let mut dirs = setup(1).await?;
+    let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
     let (mut owner, _, summary, _) =
@@ -155,6 +153,8 @@ async fn integration_external_files() -> Result<()> {
     assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
     assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
     assert!(matches!(progress.remove(0), FileProgress::Delete { .. }));
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

@@ -1,15 +1,11 @@
 use anyhow::Result;
-use serial_test::serial;
-use std::path::PathBuf;
 
 use sos_net::{
     client::{RemoteBridge, RemoteSync},
     sdk::{account::DelegatedPassphrase, encode, vault::Summary},
 };
 
-use crate::test_utils::{
-    create_local_account, mock_note, setup, spawn,
-};
+use crate::test_utils::{create_local_account, setup, spawn, teardown};
 
 use super::{
     assert_local_remote_events_eq, assert_local_remote_vaults_eq, num_events,
@@ -19,15 +15,14 @@ const TEST_ID: &str = "sync_import_folder";
 
 /// Tests sending import folder events to a remote.
 #[tokio::test]
-#[serial]
 async fn integration_sync_import_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
 
-    let dirs = setup(1).await?;
+    let dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.get(0).unwrap();
 
     // Spawn a backend server and wait for it to be listening
-    let server = spawn(None).await?;
+    let server = spawn(TEST_ID, None).await?;
 
     let (mut owner, _, default_folder, _) = create_local_account(
         "sync_import_folder",
@@ -48,10 +43,7 @@ async fn integration_sync_import_folder() -> Result<()> {
     };
 
     // Path that we expect the remote server to write to
-    let server_path = PathBuf::from(format!(
-        "target/integration-test/server/{}",
-        owner.address()
-    ));
+    let server_path = server.account_path(owner.address());
 
     // Create the remote provider
     let origin = server.origin.clone();
@@ -130,11 +122,12 @@ async fn integration_sync_import_folder() -> Result<()> {
 
     assert_local_remote_events_eq(
         expected_summaries.clone(),
-        &server_path,
         &mut owner,
         remote_provider,
     )
     .await?;
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

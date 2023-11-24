@@ -5192,7 +5192,6 @@ dependencies = [
  "rustyline-derive",
  "secrecy",
  "serde_json",
- "serial_test",
  "shell-words",
  "sos-net",
  "tempfile",

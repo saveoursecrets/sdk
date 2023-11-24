@@ -1,6 +1,5 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
-use serial_test::serial;
 use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
@@ -9,7 +8,7 @@ use sos_net::{
 };
 
 use crate::test_utils::{
-    create_local_account, mock_note, setup, spawn, sync_pause,
+    create_local_account, mock_note, setup, spawn, sync_pause, teardown,
 };
 
 use super::{assert_local_remote_events_eq, num_events};
@@ -20,12 +19,11 @@ const TEST_ID: &str = "sync_listen_create_folder";
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
 #[tokio::test]
-#[serial]
 async fn integration_listen_create_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
-    let dirs = setup(2).await?;
+    let dirs = setup(TEST_ID, 2).await?;
 
     // Set up the paths for the first client
     let test_data_dir = dirs.clients.get(0).unwrap();
@@ -36,7 +34,7 @@ async fn integration_listen_create_folder() -> Result<()> {
     std::fs::remove_dir(&other_data_dir)?;
 
     // Spawn a backend server and wait for it to be listening
-    let server = spawn(None).await?;
+    let server = spawn(TEST_ID, None).await?;
 
     let (mut owner, _, default_folder, passphrase) = create_local_account(
         "sync_listen_create_folder",
@@ -57,10 +55,7 @@ async fn integration_listen_create_folder() -> Result<()> {
     };
 
     // Path that we expect the remote server to write to
-    let server_path = PathBuf::from(format!(
-        "target/integration-test/server/{}",
-        owner.address()
-    ));
+    let server_path = server.account_path(owner.address());
 
     // Create the remote provider
     let origin = server.origin.clone();
@@ -160,7 +155,6 @@ async fn integration_listen_create_folder() -> Result<()> {
 
     assert_local_remote_events_eq(
         expected_summaries.clone(),
-        &server_path,
         &mut owner,
         remote_provider,
     )
@@ -168,11 +162,12 @@ async fn integration_listen_create_folder() -> Result<()> {
 
     assert_local_remote_events_eq(
         expected_summaries,
-        &server_path,
         &mut other_owner,
         other_remote_provider,
     )
     .await?;
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

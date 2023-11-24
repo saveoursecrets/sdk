@@ -1,8 +1,8 @@
 use anyhow::Result;
-use serial_test::serial;
 
 use crate::test_utils::{
-    create_local_provider, create_secrets, setup, AccountCredentials,
+    create_local_provider, create_secrets, setup, teardown,
+    AccountCredentials,
 };
 
 use sos_net::sdk::{
@@ -12,9 +12,8 @@ use sos_net::sdk::{
 const TEST_ID: &str = "change_password";
 
 #[tokio::test]
-#[serial]
 async fn integration_change_password() -> Result<()> {
-    let mut dirs = setup(1).await?;
+    let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
     let signer = Box::new(SingleParty::new_random());
@@ -59,6 +58,8 @@ async fn integration_change_password() -> Result<()> {
 
     // Close the vault
     provider.close_vault();
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

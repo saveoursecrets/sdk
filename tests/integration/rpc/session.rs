@@ -1,37 +1,26 @@
+use crate::test_utils::{setup, signup, spawn, teardown};
 use anyhow::Result;
-use serial_test::serial;
-
-use crate::test_utils::*;
-
 use http::StatusCode;
 use sos_net::{
-    client::{Origin, RpcClient},
-    sdk::{encode, hex, mpc::generate_keypair, vault::Vault},
+    client::RpcClient,
+    sdk::{encode, mpc::generate_keypair, vault::Vault},
 };
 
 const TEST_ID: &str = "rpc_session";
 
 #[tokio::test]
-#[serial]
 async fn integration_rpc_session() -> Result<()> {
     //crate::test_utils::init_tracing();
 
-    let mut dirs = setup(1).await?;
+    let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
-    let server = spawn(None).await?;
-    let url = server.url.clone();
+    let server = spawn(TEST_ID, None).await?;
 
-    let (_address, _credentials, _, signer) = signup(test_data_dir, &server.origin).await?;
+    let (_address, _credentials, _, signer) =
+        signup(test_data_dir, &server.origin).await?;
 
-    let public_key = server_public_key();
-    let name = hex::encode(&public_key);
-    let origin = Origin {
-        url,
-        public_key,
-        name,
-    };
-
+    let origin = server.origin.clone();
     let mut client = RpcClient::new(origin, signer, generate_keypair()?)?;
 
     client.handshake().await?;
@@ -103,6 +92,8 @@ async fn integration_rpc_session() -> Result<()> {
         client.status(login.id(), None).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(match_proof.is_none());
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

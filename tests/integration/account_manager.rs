@@ -1,6 +1,5 @@
 use anyhow::Result;
 
-use serial_test::serial;
 use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use sos_net::sdk::{
@@ -19,14 +18,13 @@ use sos_net::sdk::{
 };
 use tokio::sync::RwLock;
 
-use crate::test_utils::*;
+use crate::test_utils::{setup, teardown};
 
 const TEST_ID: &str = "account_manager";
 
 #[tokio::test]
-#[serial]
 async fn integration_account_manager() -> Result<()> {
-    let mut dirs = setup(1).await?;
+    let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
     let account_name = "Mock account name".to_string();
@@ -203,6 +201,8 @@ async fn integration_account_manager() -> Result<()> {
         Some(test_data_dir),
     )
     .await?;
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

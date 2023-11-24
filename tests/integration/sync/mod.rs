@@ -70,7 +70,6 @@ pub async fn assert_local_remote_vaults_eq(
 
 pub async fn assert_local_remote_events_eq(
     expected_summaries: Vec<Summary>,
-    server_path: &PathBuf,
     owner: &mut UserStorage,
     provider: &mut RemoteBridge,
 ) -> Result<()> {

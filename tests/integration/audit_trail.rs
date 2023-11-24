@@ -1,7 +1,6 @@
 use anyhow::Result;
 
 use secrecy::SecretString;
-use serial_test::serial;
 use std::path::{Path, PathBuf};
 
 use sos_net::{
@@ -16,14 +15,13 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::{create_local_account, mock_note, setup};
+use crate::test_utils::{create_local_account, mock_note, setup, teardown};
 
 const TEST_ID: &str = "audit_trail";
 
 #[tokio::test]
-#[serial]
 async fn integration_audit_trail() -> Result<()> {
-    let mut dirs = setup(1).await?;
+    let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
     let (mut owner, _, summary, passphrase) =
@@ -102,6 +100,8 @@ async fn integration_audit_trail() -> Result<()> {
 
     // Deleted the account
     assert!(matches!(kinds.remove(0), EventKind::DeleteAccount));
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

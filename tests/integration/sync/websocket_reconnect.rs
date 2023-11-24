@@ -1,6 +1,5 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
-use serial_test::serial;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use sos_net::{
@@ -9,7 +8,7 @@ use sos_net::{
 };
 
 use crate::test_utils::{
-    create_local_account, mock_note, setup, spawn,
+    create_local_account, mock_note, setup, spawn, teardown,
 };
 
 use super::{assert_local_remote_events_eq, num_events};
@@ -18,18 +17,17 @@ const TEST_ID: &str = "websocket_reconnect";
 
 /// Tests websocket reconnect logic.
 #[tokio::test]
-#[serial]
 async fn integration_websocket_reconnect() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
-    let dirs = setup(1).await?;
+    let dirs = setup(TEST_ID, 1).await?;
 
     // Set up the paths for the first client
     let test_data_dir = dirs.clients.get(0).unwrap();
 
     // Spawn a backend server and wait for it to be listening
-    let server = spawn(None).await?;
+    let server = spawn(TEST_ID, None).await?;
 
     let (mut owner, _, _, _) = create_local_account(
         "sync_websocket_reconnect",
@@ -66,11 +64,13 @@ async fn integration_websocket_reconnect() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(5000)).await;
 
     // Spawn a new server so the websocket can re-connect
-    let _server = spawn(None).await?;
+    let _server = spawn(TEST_ID, None).await?;
 
     // Delay some more to allow the websocket to make the
     // connection
     tokio::time::sleep(Duration::from_millis(5000)).await;
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

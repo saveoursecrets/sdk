@@ -1,7 +1,6 @@
 use anyhow::Result;
-use serial_test::serial;
 
-use crate::test_utils::*;
+use crate::test_utils::mock_note;
 
 use tempfile::tempdir;
 
@@ -25,7 +24,6 @@ macro_rules! commit_count {
 //const TEST_ID: &str = "local_provider";
 
 #[tokio::test]
-#[serial]
 async fn integration_local_provider_file() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
@@ -128,4 +126,3 @@ async fn run_local_storage_tests(storage: &mut LocalProvider) -> Result<()> {
 
     Ok(())
 }
-
