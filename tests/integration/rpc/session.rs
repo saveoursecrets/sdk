@@ -15,7 +15,7 @@ async fn integration_rpc_session() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
-    let server = spawn(TEST_ID, None).await?;
+    let server = spawn(TEST_ID, None, None).await?;
 
     let (_address, _credentials, _, signer) =
         signup(test_data_dir, &server.origin).await?;

@@ -160,7 +160,7 @@ impl MockServer {
     }
 
     /// Run the mock server in a separate thread.
-    fn spawn(
+    fn launch(
         addr: Option<SocketAddr>,
         path: PathBuf,
         tx: oneshot::Sender<SocketAddr>,
@@ -228,9 +228,12 @@ impl TestServer {
     }
 }
 
+/// Spawn a mock server and wait for it to be listening
+/// then return test server information.
 pub async fn spawn(
     test_id: &str,
     addr: Option<SocketAddr>,
+    server_id: Option<&str>,
 ) -> Result<TestServer> {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
@@ -239,8 +242,10 @@ pub async fn spawn(
     let target = current_dir.join("target/integration-test");
     vfs::create_dir_all(&target).await?;
 
+    let server_id = server_id.unwrap_or("server");
+
     // Ensure test runner is pristine
-    let path = target.join(test_id).join("server");
+    let path = target.join(test_id).join(server_id);
 
     // Some tests need to restart a server so we should
     // not wipe out the data (eg: sync offline manual)
@@ -252,7 +257,7 @@ pub async fn spawn(
     vfs::create_dir_all(&path).await?;
 
     let (tx, rx) = oneshot::channel::<SocketAddr>();
-    let handle = MockServer::spawn(addr, path.clone(), tx)?;
+    let handle = MockServer::launch(addr, path.clone(), tx)?;
     let addr = rx.await?;
     let url = socket_addr_url(&addr);
     Ok(TestServer {

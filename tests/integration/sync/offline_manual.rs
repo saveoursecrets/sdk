@@ -33,7 +33,7 @@ async fn integration_sync_offline_manual() -> Result<()> {
     std::fs::remove_dir(&other_data_dir)?;
 
     // Spawn a backend server and wait for it to be listening
-    let server = spawn(TEST_ID, None).await?;
+    let server = spawn(TEST_ID, None, None).await?;
     let addr = server.addr.clone();
 
     let (mut owner, _, default_folder, passphrase) =
@@ -125,7 +125,7 @@ async fn integration_sync_offline_manual() -> Result<()> {
     // Let's bring the server back online using
     // the same bind address so we don't need to
     // update the remote origin
-    let server = spawn(TEST_ID, Some(addr)).await?;
+    let server = spawn(TEST_ID, Some(addr), None).await?;
 
     // Client explicitly syncs with the remote, either
     // they detected the server was back online of maybe

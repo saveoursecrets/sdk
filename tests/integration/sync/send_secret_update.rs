@@ -22,7 +22,7 @@ async fn integration_sync_update_secret() -> Result<()> {
     let test_data_dir = dirs.clients.get(0).unwrap();
 
     // Spawn a backend server and wait for it to be listening
-    let server = spawn(TEST_ID, None).await?;
+    let server = spawn(TEST_ID, None, None).await?;
 
     let (mut owner, _, default_folder, _) =
         create_local_account(TEST_ID, Some(test_data_dir.clone())).await?;

@@ -27,7 +27,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
     let test_data_dir = dirs.clients.get(0).unwrap();
 
     // Spawn a backend server and wait for it to be listening
-    let server = spawn(TEST_ID, None).await?;
+    let server = spawn(TEST_ID, None, None).await?;
 
     let (mut owner, _, _, _) =
         create_local_account(TEST_ID, Some(test_data_dir.clone())).await?;
@@ -61,7 +61,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(5000)).await;
 
     // Spawn a new server so the websocket can re-connect
-    let _server = spawn(TEST_ID, None).await?;
+    let _server = spawn(TEST_ID, None, None).await?;
 
     // Delay some more to allow the websocket to make the
     // connection

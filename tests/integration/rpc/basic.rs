@@ -8,7 +8,7 @@ const TEST_ID: &str = "rpc_basic";
 async fn integration_rpc_basic() -> Result<()> {
     //crate::test_utils::init_tracing();
 
-    let server = spawn(TEST_ID, None).await?;
+    let server = spawn(TEST_ID, None, None).await?;
 
     // Check the /api route
     let server_info = RpcClient::server_info(server.url.clone()).await?;
