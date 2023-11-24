@@ -5,7 +5,7 @@ use sos_sdk::{
     constants::{EVENT_LOG_DELETED_EXT, EVENT_LOG_EXT, VAULT_EXT},
     decode, encode,
     events::WriteEvent,
-    events::{EventLogFile, EventReducer},
+    events::{VaultEventLog, EventReducer},
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
     vfs,
 };
@@ -22,7 +22,7 @@ use web3_address::ethereum::Address;
 use crate::FileLocks;
 
 /// Individual account maps vault identifiers to the event logs.
-pub type VaultMap = Arc<RwLock<HashMap<VaultId, EventLogFile>>>;
+pub type VaultMap = Arc<RwLock<HashMap<VaultId, VaultEventLog>>>;
 
 /// Collection of accounts by address.
 pub type AccountsMap = Arc<RwLock<HashMap<Address, VaultMap>>>;
@@ -218,7 +218,7 @@ impl FileSystemBackend {
                                     let id = *summary.id();
 
                                     let mut event_log_file =
-                                        EventLogFile::new(&event_log_path)
+                                        VaultEventLog::new(&event_log_path)
                                             .await?;
                                     event_log_file.load_tree().await?;
 
@@ -253,7 +253,7 @@ impl FileSystemBackend {
         owner: &Address,
         vault_id: &VaultId,
         vault: &[u8],
-    ) -> Result<(PathBuf, EventLogFile)> {
+    ) -> Result<(PathBuf, VaultEventLog)> {
         let event_log_path = self.event_log_file_path(owner, vault_id);
         if vfs::try_exists(&event_log_path).await? {
             return Err(Error::FileExists(event_log_path));
@@ -266,7 +266,7 @@ impl FileSystemBackend {
         vfs::write(&vault_path, vault).await?;
 
         // Create the event log file
-        let mut event_log = EventLogFile::new(&event_log_path).await?;
+        let mut event_log = VaultEventLog::new(&event_log_path).await?;
         let event = WriteEvent::CreateVault(Cow::Borrowed(vault));
         event_log.append_event(event).await?;
 
@@ -303,7 +303,7 @@ impl FileSystemBackend {
         owner: Address,
         vault_id: VaultId,
         _event_log_path: PathBuf,
-        event_log_file: EventLogFile,
+        event_log_file: VaultEventLog,
     ) -> Result<()> {
         let mut accounts = self.accounts.write().await;
         let vaults = accounts
@@ -480,7 +480,7 @@ impl BackendHandler for FileSystemBackend {
 
         // Prepare a temp file with the new event log records
         let temp = NamedTempFile::new()?;
-        let mut temp_event_log = EventLogFile::new(temp.path()).await?;
+        let mut temp_event_log = VaultEventLog::new(temp.path()).await?;
         temp_event_log.apply(events, None).await?;
 
         let expected_root = temp_event_log
@@ -627,7 +627,7 @@ impl BackendHandler for FileSystemBackend {
                 .get_mut(vault_id)
                 .ok_or_else(|| Error::VaultNotExist(*vault_id))?;
 
-            *event_log = EventLogFile::new(&original_event_log).await?;
+            *event_log = VaultEventLog::new(&original_event_log).await?;
             event_log.load_tree().await?;
             let root = event_log
                 .tree()

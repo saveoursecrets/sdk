@@ -9,7 +9,7 @@ use binary_stream::futures::BinaryReader;
 use std::io::SeekFrom;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 
-use crate::events::EventLogFile;
+use crate::events::VaultEventLog;
 
 use std::path::Path;
 
@@ -84,7 +84,7 @@ where
     let mut file = vfs::File::open(event_log_file.as_ref()).await?.compat();
     let mut reader = BinaryReader::new(&mut file, encoding_options());
 
-    let event_log = EventLogFile::new(event_log_file.as_ref()).await?;
+    let event_log = VaultEventLog::new(event_log_file.as_ref()).await?;
     let mut it = event_log.iter().await?;
     let mut last_checksum: Option<[u8; 32]> = None;
 

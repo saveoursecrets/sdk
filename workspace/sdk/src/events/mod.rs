@@ -10,7 +10,7 @@ mod read;
 mod types;
 mod write;
 
-pub use self::log::{EventLogFile, EventRecord, EventReducer};
+pub use self::log::{EventLogFile, EventRecord, EventReducer, VaultEventLog};
 pub use audit::{
     AuditData, AuditEvent, AuditLogFile, AuditProvider, LogFlags,
 };

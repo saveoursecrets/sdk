@@ -5,7 +5,7 @@ use sos_net::sdk::{
     commit::{
         event_log_commit_tree_file, vault_commit_tree_file, CommitHash,
     },
-    events::{EventLogFile, EventRecord},
+    events::{VaultEventLog, EventRecord},
     formats::vault_stream,
     hex,
     uuid::Uuid,
@@ -115,7 +115,7 @@ async fn print_events(file: PathBuf, reverse: bool) -> Result<()> {
         return Err(Error::NotFile(file));
     }
 
-    let event_log = EventLogFile::new(&file).await?;
+    let event_log = VaultEventLog::new(&file).await?;
     let mut it = if reverse {
         event_log.iter().await?.rev()
     } else {

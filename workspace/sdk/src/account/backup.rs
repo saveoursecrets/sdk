@@ -25,7 +25,7 @@ use crate::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
     decode, encode,
-    events::{EventLogFile, WriteEvent},
+    events::{VaultEventLog, WriteEvent},
     passwd::ChangePassword,
     search::SearchIndex,
     sha2::{Digest, Sha256},
@@ -570,7 +570,7 @@ impl AccountBackup {
                 let create_vault =
                     WriteEvent::CreateVault(Cow::Borrowed(buffer));
                 event_log_events.push(create_vault);
-                let mut event_log = EventLogFile::new(event_log_path).await?;
+                let mut event_log = VaultEventLog::new(event_log_path).await?;
                 event_log.apply(event_log_events, None).await?;
             }
 

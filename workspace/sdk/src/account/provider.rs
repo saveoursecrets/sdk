@@ -8,7 +8,7 @@ use crate::{
     crypto::{AccessKey, KeyDerivation, PrivateKey},
     decode, encode,
     events::{
-        AuditEvent, Event, EventKind, EventLogFile, EventReducer, ReadEvent,
+        AuditEvent, Event, EventKind, VaultEventLog, EventReducer, ReadEvent,
         WriteEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
@@ -34,7 +34,7 @@ pub struct LocalProvider {
     paths: Arc<UserPaths>,
 
     /// Cache for event log and patch providers.
-    cache: HashMap<VaultId, EventLogFile>,
+    cache: HashMap<VaultId, VaultEventLog>,
 }
 
 impl LocalProvider {
@@ -72,12 +72,12 @@ impl LocalProvider {
     }
 
     /// Get the event log cache.
-    pub fn cache(&self) -> &HashMap<VaultId, EventLogFile> {
+    pub fn cache(&self) -> &HashMap<VaultId, VaultEventLog> {
         &self.cache
     }
 
     /// Get the mutable event log cache.
-    pub fn cache_mut(&mut self) -> &mut HashMap<VaultId, EventLogFile> {
+    pub fn cache_mut(&mut self) -> &mut HashMap<VaultId, VaultEventLog> {
         &mut self.cache
     }
 
@@ -253,7 +253,7 @@ impl LocalProvider {
         vault: Option<Vault>,
     ) -> Result<()> {
         let event_log_path = self.event_log_path(summary);
-        let mut event_log = EventLogFile::new(&event_log_path).await?;
+        let mut event_log = VaultEventLog::new(&event_log_path).await?;
 
         if let Some(vault) = &vault {
             // Must truncate the event log so that importing vaults

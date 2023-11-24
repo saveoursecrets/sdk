@@ -44,25 +44,30 @@ use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};
 
+/// Event log for write events to a vault.
+pub type VaultEventLog = EventLogFile<WriteEvent<'static>>;
+
 /// An event log that appends to a file.
-pub struct EventLogFile {
+pub struct EventLogFile<T> {
     pub(crate) file_path: PathBuf,
     pub(crate) file: File,
     pub(crate) tree: CommitTree,
     identity: [u8; 4],
+    phantom: std::marker::PhantomData<T>,
 }
 
-impl EventLogFile {
+impl<T> EventLogFile<T> {
     /// Create a new event log file.
     pub async fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         let file =
-            EventLogFile::create(file_path.as_ref(), &EVENT_LOG_IDENTITY)
+            Self::create(file_path.as_ref(), &EVENT_LOG_IDENTITY)
                 .await?;
         Ok(Self {
             file,
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: EVENT_LOG_IDENTITY,
+            phantom: std::marker::PhantomData,
         })
     }
 
@@ -104,44 +109,6 @@ impl EventLogFile {
 
         let record = EventRecord(time, last_commit, commit, bytes);
         Ok((commit, record))
-    }
-
-    /// Get a copy of this event log compacted.
-    pub async fn compact(&self) -> Result<(Self, u64, u64)> {
-        let old_size = self.path().metadata()?.len();
-
-        // Get the reduced set of events
-        let events =
-            EventReducer::new().reduce(self).await?.compact().await?;
-        let temp = NamedTempFile::new()?;
-
-        // Apply them to a temporary event log file
-        let mut temp_event_log = EventLogFile::new(temp.path()).await?;
-        temp_event_log.apply(events, None).await?;
-
-        let new_size = temp_event_log.file().metadata().await?.len();
-
-        // Remove the existing event log file
-        vfs::remove_file(self.path()).await?;
-        // Move the temp file into place
-        //
-        // NOTE: we would prefer to rename but on linux we
-        // NOTE: can hit ErrorKind::CrossesDevices
-        //
-        // But it's a nightly only variant so can't use it yet to
-        // determine whether to rename or copy.
-        vfs::copy(temp.path(), self.path()).await?;
-
-        let mut new_event_log = Self::new(self.path()).await?;
-        new_event_log.load_tree().await?;
-
-        // Verify the new event log tree
-        event_log_commit_tree_file(new_event_log.path(), true, |_| {})
-            .await?;
-
-        // Need to recreate the event log file and load the updated
-        // commit tree
-        Ok((new_event_log, old_size, new_size))
     }
 
     /// Replace this event log with the contents of the buffer.
@@ -443,6 +410,48 @@ impl EventLogFile {
     }
 }
 
+
+impl EventLogFile<WriteEvent<'static>> {
+    /// Get a copy of this event log compacted.
+    pub async fn compact(&self) -> Result<(Self, u64, u64)> {
+        let old_size = self.path().metadata()?.len();
+
+        // Get the reduced set of events
+        let events =
+            EventReducer::new().reduce(self).await?.compact().await?;
+        let temp = NamedTempFile::new()?;
+
+        // Apply them to a temporary event log file
+        let mut temp_event_log = Self::new(temp.path()).await?;
+        temp_event_log.apply(events, None).await?;
+
+        let new_size = temp_event_log.file().metadata().await?.len();
+
+        // Remove the existing event log file
+        vfs::remove_file(self.path()).await?;
+        // Move the temp file into place
+        //
+        // NOTE: we would prefer to rename but on linux we
+        // NOTE: can hit ErrorKind::CrossesDevices
+        //
+        // But it's a nightly only variant so can't use it yet to
+        // determine whether to rename or copy.
+        vfs::copy(temp.path(), self.path()).await?;
+
+        let mut new_event_log = Self::new(self.path()).await?;
+        new_event_log.load_tree().await?;
+
+        // Verify the new event log tree
+        event_log_commit_tree_file(new_event_log.path(), true, |_| {})
+            .await?;
+
+        // Need to recreate the event log file and load the updated
+        // commit tree
+        Ok((new_event_log, old_size, new_size))
+    }
+
+}
+
 #[cfg(test)]
 mod test {
     use anyhow::Result;
@@ -452,14 +461,14 @@ mod test {
     use super::*;
     use crate::{events::WriteEvent, test_utils::*};
 
-    async fn mock_event_log() -> Result<(NamedTempFile, EventLogFile)> {
+    async fn mock_event_log() -> Result<(NamedTempFile, VaultEventLog)> {
         let temp = NamedTempFile::new()?;
         let event_log = EventLogFile::new(temp.path()).await?;
         Ok((temp, event_log))
     }
 
     async fn mock_event_log_file(
-    ) -> Result<(NamedTempFile, EventLogFile, Vec<CommitHash>)> {
+    ) -> Result<(NamedTempFile, VaultEventLog, Vec<CommitHash>)> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file().await?;
 
