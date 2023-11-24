@@ -409,7 +409,11 @@ impl EventLogFile {
                 }
             }
             let buffer = self.read_event_buffer(&record).await?;
-            events.push((record, buffer).into());
+            // Iterating in reverse order as we would typically 
+            // be looking for commits near the end of the event log 
+            // but we want the patch events in the order they were
+            // appended so insert at the beginning to reverse the list
+            events.insert(0, (record, buffer).into());
         }
 
         // If the caller wanted to patch until a particular commit
@@ -418,10 +422,6 @@ impl EventLogFile {
         if let Some(commit) = commit {
             return Err(Error::CommitNotFound(*commit));
         }
-            
-        // We are iterating backwards but the events must 
-        // be in the logical order they were appended
-        events.reverse();
 
         Ok(Patch(events))
     }

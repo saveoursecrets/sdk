@@ -6,7 +6,9 @@ use std::{
     ops::Range,
 };
 
-use super::{CommitPair, CommitProof, CommitRelationship, Comparison, CommitHash};
+use super::{
+    CommitHash, CommitPair, CommitProof, CommitRelationship, Comparison,
+};
 
 /// Encapsulates a Merkle tree and provides functions
 /// for generating and comparing proofs.
@@ -73,15 +75,14 @@ impl CommitTree {
         let range = self.tree.leaves_len() - 1..self.tree.leaves_len();
         self.proof_range(range)
     }
-    
+
     /// Get a proof up to a particular commit.
     pub fn proof_at(&self, commit: &CommitHash) -> Result<CommitProof> {
         let mut leaves = self.tree.leaves().unwrap_or_default();
-        let position = leaves.iter()
-            .position(|leaf| leaf == commit.as_ref());
+        let position = leaves.iter().position(|leaf| leaf == commit.as_ref());
         if let Some(position) = position {
             if position < leaves.len() - 1 {
-                leaves.truncate(position + 1); 
+                leaves.truncate(position + 1);
                 let partial = MerkleTree::from_leaves(&leaves);
                 let indices = 0..leaves.len();
                 let leaf_indices = indices.clone().collect::<Vec<_>>();

@@ -257,8 +257,7 @@ impl RemoteBridge {
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
             let patch = event_log.patch_until(Some(from_commit)).await?;
-            let proof =
-                event_log.tree().proof_at(from_commit)?;
+            let proof = event_log.tree().proof_at(from_commit)?;
             (patch, proof)
         };
 

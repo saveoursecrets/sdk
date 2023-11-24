@@ -7,15 +7,15 @@ use sos_net::{
 };
 
 use crate::test_utils::{
-    create_local_account, mock_note, setup, spawn, teardown, sync_pause,
+    create_local_account, mock_note, setup, spawn, sync_pause, teardown,
 };
 
 use super::{assert_local_remote_events_eq, num_events};
 
 const TEST_ID: &str = "sync_offline_manual";
 
-/// Tests syncing events between two clients after 
-/// a server goes offline and a client commits changes 
+/// Tests syncing events between two clients after
+/// a server goes offline and a client commits changes
 /// to local storage whilst disconnected.
 #[tokio::test]
 async fn integration_sync_offline_manual() -> Result<()> {
@@ -36,11 +36,8 @@ async fn integration_sync_offline_manual() -> Result<()> {
     let server = spawn(TEST_ID, None).await?;
     let addr = server.addr.clone();
 
-    let (mut owner, _, default_folder, passphrase) = create_local_account(
-        TEST_ID,
-        Some(test_data_dir.clone()),
-    )
-    .await?;
+    let (mut owner, _, default_folder, passphrase) =
+        create_local_account(TEST_ID, Some(test_data_dir.clone())).await?;
 
     // Folders on the local account
     let expected_summaries: Vec<Summary> = {
@@ -90,7 +87,7 @@ async fn integration_sync_offline_manual() -> Result<()> {
     owner.open_folder(&default_folder).await?;
     other_owner.open_folder(&default_folder).await?;
 
-    println!("default folder {}", default_folder_id);
+    //println!("default folder {}", default_folder_id);
 
     // Before we begin both clients should have a single event
     assert_eq!(1, num_events(&mut owner, &default_folder_id).await);
@@ -99,13 +96,13 @@ async fn integration_sync_offline_manual() -> Result<()> {
     // Sync a local account that does not exist on
     // the remote which should create the account on the remote
     owner.sync().await?;
-    
+
     // Oh no, the server has gone offline!
     drop(server);
     // Wait a while to make sure the server has gone
     sync_pause().await;
 
-    // Perform all the basic CRUD operations to make sure 
+    // Perform all the basic CRUD operations to make sure
     // we are not affected by the remote being offline
     let (meta, secret) = mock_note("note", "offline_secret");
     let (id, sync_error) = owner
@@ -120,28 +117,30 @@ async fn integration_sync_offline_manual() -> Result<()> {
     assert!(sync_error.is_some());
     let sync_error = owner.delete_secret(&id, Default::default()).await?;
     assert!(sync_error.is_some());
-    
+
     // The first client is now very much ahead of the second client
     assert_eq!(4, num_events(&mut owner, &default_folder_id).await);
     assert_eq!(1, num_events(&mut other_owner, &default_folder_id).await);
 
-    // Let's bring the server back online using 
-    // the same bind address so we don't need to 
+    // Let's bring the server back online using
+    // the same bind address so we don't need to
     // update the remote origin
     let server = spawn(TEST_ID, Some(addr)).await?;
 
-    // Client explicitly syncs with the remote, either 
-    // they detected the server was back online of maybe 
-    // they signed in again (which is a natural event to sync)
+    // Client explicitly syncs with the remote, either
+    // they detected the server was back online of maybe
+    // they signed in again (which is a natural event to sync).
+    //
+    // This should push the local changes to the remote.
     owner.sync().await?;
-    
+
     // The client explicitly sync from the other device too.
     other_owner.sync().await?;
 
     // Now both devices should be up to date
     assert_eq!(4, num_events(&mut owner, &default_folder_id).await);
     assert_eq!(4, num_events(&mut other_owner, &default_folder_id).await);
-    
+
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
     let mut provider = owner.delete_remote(&remote_origin).unwrap();
