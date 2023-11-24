@@ -241,7 +241,12 @@ pub async fn spawn(
 
     // Ensure test runner is pristine
     let path = target.join(test_id).join("server");
-    let _ = vfs::remove_dir_all(&path).await;
+
+    // Some tests need to restart a server so we should
+    // not wipe out the data (eg: sync offline manual)
+    if addr.is_none() {
+        let _ = vfs::remove_dir_all(&path).await;
+    }
 
     // Setup required sub-directories
     vfs::create_dir_all(&path).await?;

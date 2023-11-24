@@ -24,8 +24,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     let server = spawn(TEST_ID, None).await?;
 
     let (mut owner, _, _default_folder, _) =
-        create_local_account("sync_create_remote_data", Some(test_data_dir))
-            .await?;
+        create_local_account(TEST_ID, Some(test_data_dir)).await?;
 
     // Folders on the local account
     let expected_summaries: Vec<Summary> = {

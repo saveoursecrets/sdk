@@ -1,25 +1,24 @@
 use anyhow::Result;
 use copy_dir::copy_dir;
-use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
-    client::{ListenOptions, RemoteBridge, RemoteSync, UserStorage},
+    client::{RemoteBridge, RemoteSync, UserStorage},
     sdk::vault::Summary,
 };
 
 use crate::test_utils::{
-    create_local_account, mock_note, setup, spawn, sync_pause, teardown,
+    create_local_account, mock_note, setup, spawn, teardown, sync_pause,
 };
 
 use super::{assert_local_remote_events_eq, num_events};
 
-const TEST_ID: &str = "sync_listen_create_secret";
+const TEST_ID: &str = "sync_offline_manual";
 
-/// Tests syncing create secret events between two clients
-/// where the second client listens for changes emitted
-/// by the first client via the remote.
+/// Tests syncing events between two clients after 
+/// a server goes offline and a client commits changes 
+/// to local storage whilst disconnected.
 #[tokio::test]
-async fn integration_listen_create_secret() -> Result<()> {
+async fn integration_sync_offline_manual() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
@@ -35,9 +34,13 @@ async fn integration_listen_create_secret() -> Result<()> {
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None).await?;
+    let addr = server.addr.clone();
 
-    let (mut owner, _, default_folder, passphrase) =
-        create_local_account(TEST_ID, Some(test_data_dir.clone())).await?;
+    let (mut owner, _, default_folder, passphrase) = create_local_account(
+        TEST_ID,
+        Some(test_data_dir.clone()),
+    )
+    .await?;
 
     // Folders on the local account
     let expected_summaries: Vec<Summary> = {
@@ -74,7 +77,6 @@ async fn integration_listen_create_secret() -> Result<()> {
     // Mimic account owner on another device connected to
     // the same remotes
     let other_provider = other_owner.remote_bridge(&origin).await?;
-
     // Insert the remote for the other owner
     other_owner.insert_remote(origin.clone(), Box::new(other_provider));
 
@@ -82,20 +84,13 @@ async fn integration_listen_create_secret() -> Result<()> {
     other_owner.list_folders().await?;
 
     // Insert the remote for the primary owner
-    owner.insert_remote(origin.clone(), Box::new(provider));
-
-    // Start listening for change notifications (first client)
-    owner.listen(&origin, ListenOptions::new("device_1".to_string())?)?;
-
-    // Start listening for change notifications (second client)
-    other_owner
-        .listen(&origin, ListenOptions::new("device_2".to_string())?)?;
+    owner.insert_remote(origin, Box::new(provider));
 
     let default_folder_id = *default_folder.id();
     owner.open_folder(&default_folder).await?;
     other_owner.open_folder(&default_folder).await?;
 
-    //println!("default folder {}", default_folder_id);
+    println!("default folder {}", default_folder_id);
 
     // Before we begin both clients should have a single event
     assert_eq!(1, num_events(&mut owner, &default_folder_id).await);
@@ -104,27 +99,49 @@ async fn integration_listen_create_secret() -> Result<()> {
     // Sync a local account that does not exist on
     // the remote which should create the account on the remote
     owner.sync().await?;
-
-    // Create a secret in the primary owner which won't exist
-    // in the second device
-    let (meta, secret) = mock_note("note_first_owner", "send_events_secret");
-    let (_, sync_error) = owner
-        .create_secret(meta, secret, Default::default())
-        .await?;
-    assert!(sync_error.is_none());
-
-    // First client is now ahead
-    assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
-    assert_eq!(1, num_events(&mut other_owner, &default_folder_id).await);
-
-    // Pause a while to give the listener some time to process
-    // the change notification
+    
+    // Oh no, the server has gone offline!
+    drop(server);
+    // Wait a while to make sure the server has gone
     sync_pause().await;
 
-    // Both clients should be in sync now
-    assert_eq!(2, num_events(&mut owner, &default_folder_id).await);
-    assert_eq!(2, num_events(&mut other_owner, &default_folder_id).await);
+    // Perform all the basic CRUD operations to make sure 
+    // we are not affected by the remote being offline
+    let (meta, secret) = mock_note("note", "offline_secret");
+    let (id, sync_error) = owner
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    assert!(sync_error.is_some());
+    let (_, _) = owner.read_secret(&id, Default::default()).await?;
+    let (meta, secret) = mock_note("note_edited", "offline_secret_edit");
+    let (_, sync_error) = owner
+        .update_secret(&id, meta, Some(secret), Default::default(), None)
+        .await?;
+    assert!(sync_error.is_some());
+    let sync_error = owner.delete_secret(&id, Default::default()).await?;
+    assert!(sync_error.is_some());
+    
+    // The first client is now very much ahead of the second client
+    assert_eq!(4, num_events(&mut owner, &default_folder_id).await);
+    assert_eq!(1, num_events(&mut other_owner, &default_folder_id).await);
 
+    // Let's bring the server back online using 
+    // the same bind address so we don't need to 
+    // update the remote origin
+    let server = spawn(TEST_ID, Some(addr)).await?;
+
+    // Client explicitly syncs with the remote, either 
+    // they detected the server was back online of maybe 
+    // they signed in again (which is a natural event to sync)
+    owner.sync().await?;
+    
+    // The client explicitly sync from the other device too.
+    other_owner.sync().await?;
+
+    // Now both devices should be up to date
+    assert_eq!(4, num_events(&mut owner, &default_folder_id).await);
+    assert_eq!(4, num_events(&mut other_owner, &default_folder_id).await);
+    
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
     let mut provider = owner.delete_remote(&remote_origin).unwrap();

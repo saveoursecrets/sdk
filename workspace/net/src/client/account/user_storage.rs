@@ -582,9 +582,9 @@ impl UserStorage {
         let (_, event) = event.try_into()?;
         let sync_error = self
             .sync_send_events(
+                &summary,
                 before_last_commit.as_ref(),
                 &before_commit_proof,
-                &summary,
                 &[event],
                 &[SyncData::CreateVault(secure_key)],
             )
@@ -629,9 +629,9 @@ impl UserStorage {
         let (_, event) = event.try_into()?;
         let sync_error = self
             .sync_send_events(
+                &summary,
                 before_last_commit.as_ref(),
                 &before_commit_proof,
-                &summary,
                 &[event],
                 &[],
             )
@@ -669,9 +669,9 @@ impl UserStorage {
         let (_, event) = event.try_into()?;
         let sync_error = self
             .sync_send_events(
+                &summary,
                 before_last_commit.as_ref(),
                 &before_commit_proof,
-                &summary,
                 &[event],
                 &[],
             )
@@ -891,9 +891,9 @@ impl UserStorage {
         let (_, event) = event.try_into()?;
         let sync_error = self
             .sync_send_events(
+                &summary,
                 before_last_commit.as_ref(),
                 &before_commit_proof,
-                &summary,
                 &[event],
                 &[],
             )
@@ -982,9 +982,9 @@ impl UserStorage {
         if apply_changes {
             match self
                 .sync_before_apply_change(
+                    &folder,
                     last_commit.as_ref(),
                     &commit_proof,
-                    &folder,
                 )
                 .await
             {
@@ -1028,9 +1028,9 @@ impl UserStorage {
 
         let sync_error = self
             .sync_send_events(
+                &folder,
                 before_last_commit.as_ref(),
                 &before_commit_proof,
-                &folder,
                 &[create_event],
                 &[],
             )
@@ -1240,9 +1240,9 @@ impl UserStorage {
 
         let sync_error = self
             .sync_send_events(
+                &folder,
                 before_last_commit.as_ref(),
                 &before_commit_proof,
-                &folder,
                 &[update_event],
                 &[],
             )
@@ -1395,9 +1395,9 @@ impl UserStorage {
 
         let sync_error = self
             .sync_send_events(
+                &folder,
                 before_last_commit.as_ref(),
                 &before_commit_proof,
-                &folder,
                 &[update_event],
                 &[],
             )
@@ -2074,9 +2074,9 @@ impl RemoteSync for UserStorage {
 
     async fn sync_before_apply_change(
         &self,
+        folder: &Summary,
         last_commit: Option<&CommitHash>,
         client_proof: &CommitProof,
-        folder: &Summary,
     ) -> Result<bool> {
         let mut changed = false;
         let mut last_commit = last_commit.cloned();
@@ -2086,9 +2086,9 @@ impl RemoteSync for UserStorage {
         for remote in self.remotes.values() {
             let local_changed = remote
                 .sync_before_apply_change(
+                    folder,
                     last_commit.as_ref(),
                     &client_proof,
-                    folder,
                 )
                 .await?;
 
@@ -2111,9 +2111,9 @@ impl RemoteSync for UserStorage {
 
     async fn sync_send_events(
         &self,
+        folder: &Summary,
         before_last_commit: Option<&CommitHash>,
         before_client_proof: &CommitProof,
-        folder: &Summary,
         events: &[WriteEvent<'static>],
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError> {
@@ -2122,9 +2122,9 @@ impl RemoteSync for UserStorage {
         for (origin, remote) in &self.remotes {
             if let Err(e) = remote
                 .sync_send_events(
+                    folder,
                     before_last_commit,
                     before_client_proof,
-                    folder,
                     events,
                     data,
                 )

@@ -61,8 +61,12 @@ impl Service for AccountService {
                                 Error::VaultNotExist(*summary.id())
                             })?;
 
-                        let proof = event_log.tree().head()?;
-                        proofs.insert(*summary.id(), proof);
+                        let last_commit = event_log
+                            .last_commit()
+                            .await?
+                            .ok_or(Error::NoCommitProof)?;
+                        let head = event_log.tree().head()?;
+                        proofs.insert(*summary.id(), (last_commit, head));
                     }
                     AccountStatus {
                         exists: true,

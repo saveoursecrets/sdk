@@ -13,7 +13,7 @@ use http::StatusCode;
 
 use sos_sdk::{
     account::{AccountStatus, LocalProvider},
-    commit::{CommitHash, CommitProof},
+    commit::{CommitHash, CommitProof, Comparison},
     crypto::SecureAccessKey,
     decode,
     events::{Patch, WriteEvent},
@@ -199,9 +199,9 @@ impl RemoteBridge {
 
     async fn pull_folder(
         &self,
+        folder: &Summary,
         last_commit: Option<&CommitHash>,
         client_proof: &CommitProof,
-        folder: &Summary,
     ) -> Result<bool> {
         let span = span!(Level::DEBUG, "pull_folder");
         let _enter = span.enter();
@@ -237,12 +237,63 @@ impl RemoteBridge {
         Ok(num_events > 0)
     }
 
+    async fn push_folder(
+        &self,
+        folder: &Summary,
+        from_commit: &CommitHash,
+        remote_proof: &CommitProof,
+    ) -> Result<bool> {
+        let span = span!(Level::DEBUG, "push_folder");
+        let _enter = span.enter();
+
+        tracing::debug!(
+            id = %folder.id(),
+            from_commit = %from_commit);
+
+        let (mut patch, proof) = {
+            let reader = self.local.read().await;
+            let event_log = reader
+                .cache()
+                .get(folder.id())
+                .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+            let patch = event_log.patch_until(Some(from_commit)).await?;
+            let proof =
+                event_log.tree().proof_at(from_commit)?;
+            (patch, proof)
+        };
+
+        let num_events = patch.0.len();
+
+        tracing::debug!(
+            num_events = %num_events,
+            proof = ?proof,
+        );
+
+        let (status, (server_proof, match_proof)) = retry!(
+            || self.remote.apply_patch(folder.id(), &proof, &patch,),
+            self.remote
+        );
+
+        tracing::debug!(push_status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+
+        Ok(num_events > 0)
+    }
+
     async fn pull_account(
         &self,
         account_status: AccountStatus,
     ) -> Result<()> {
-        for (folder_id, remote_proof) in account_status.proofs {
-            let (last_commit, commit_proof, folder) = {
+        for (folder_id, (remote_commit, remote_proof)) in
+            account_status.proofs
+        {
+            //println!("remote {:#?}", remote_proof);
+
+            let (last_commit, commit_proof, folder, comparison) = {
                 let local = self.local.read().await;
                 let folder = local
                     .state()
@@ -254,13 +305,26 @@ impl RemoteBridge {
                     .get(&folder_id)
                     .ok_or(Error::CacheNotAvailable(folder_id))?;
 
+                let comparison = event_log.tree().compare(&remote_proof)?;
                 let last_commit = event_log.last_commit().await?;
                 let commit_proof = event_log.tree().head()?;
-                (last_commit, commit_proof, folder)
+                (last_commit, commit_proof, folder, comparison)
             };
 
-            self.pull_folder(last_commit.as_ref(), &commit_proof, &folder)
+            let contains = matches!(&comparison, Comparison::Contains(_, _));
+            let ahead = contains && commit_proof.len() > remote_proof.len();
+
+            if ahead {
+                self.push_folder(&folder, &remote_commit, &remote_proof)
+                    .await?;
+            } else {
+                self.pull_folder(
+                    &folder,
+                    last_commit.as_ref(),
+                    &commit_proof,
+                )
                 .await?;
+            }
         }
 
         Ok(())
@@ -371,18 +435,18 @@ impl RemoteSync for RemoteBridge {
 
     async fn sync_before_apply_change(
         &self,
+        folder: &Summary,
         last_commit: Option<&CommitHash>,
         client_proof: &CommitProof,
-        folder: &Summary,
     ) -> Result<bool> {
-        self.pull_folder(last_commit, client_proof, folder).await
+        self.pull_folder(folder, last_commit, client_proof).await
     }
 
     async fn sync_send_events(
         &self,
+        folder: &Summary,
         before_last_commit: Option<&CommitHash>,
         before_client_proof: &CommitProof,
-        folder: &Summary,
         events: &[WriteEvent<'static>],
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError> {
@@ -665,9 +729,9 @@ mod listen {
 
                             bridge
                                 .pull_folder(
+                                    &summary,
                                     last_commit.as_ref(),
                                     &commit_proof,
-                                    &summary,
                                 )
                                 .await?;
                         } else {

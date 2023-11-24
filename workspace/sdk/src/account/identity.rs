@@ -19,7 +19,7 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    commit::CommitProof,
+    commit::{CommitHash, CommitProof},
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     crypto::KeyDerivation,
     decode,
@@ -47,7 +47,7 @@ pub struct AccountStatus {
     pub exists: bool,
     /// Commit proofs for the account vaults.
     #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub proofs: HashMap<VaultId, CommitProof>,
+    pub proofs: HashMap<VaultId, (CommitHash, CommitProof)>,
 }
 
 /// User identity containing the account signing keys.

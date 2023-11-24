@@ -502,7 +502,10 @@ impl LocalProvider {
                 .cache
                 .get(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            proofs.insert(*summary.id(), event_log.tree().head()?);
+            let last_commit =
+                event_log.last_commit().await?.ok_or(Error::NoRootCommit)?;
+            let head = event_log.tree().head()?;
+            proofs.insert(*summary.id(), (last_commit, head));
         }
         Ok(AccountStatus {
             exists: true,

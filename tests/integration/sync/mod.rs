@@ -28,6 +28,7 @@ mod listen_folder_delete;
 mod listen_folder_import;
 mod listen_folder_rename;
 
+//mod offline_manual;
 mod websocket_reconnect;
 
 /// Get the number of events in a log.

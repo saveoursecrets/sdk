@@ -41,9 +41,9 @@ pub trait RemoteSync: Sync + Send + Any {
     /// callers can re-compute their proofs.
     async fn sync_before_apply_change(
         &self,
+        folder: &Summary,
         last_commit: Option<&CommitHash>,
         client_proof: &CommitProof,
-        folder: &Summary,
     ) -> Result<bool>;
 
     /// Send events after changes to the local storage
@@ -53,9 +53,9 @@ pub trait RemoteSync: Sync + Send + Any {
     /// before applying changes to the local storage.
     async fn sync_send_events(
         &self,
+        folder: &Summary,
         before_last_commit: Option<&CommitHash>,
         before_client_proof: &CommitProof,
-        folder: &Summary,
         events: &[WriteEvent<'static>],
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError>;

@@ -36,11 +36,8 @@ async fn integration_listen_import_folder() -> Result<()> {
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None).await?;
 
-    let (mut owner, _, default_folder, passphrase) = create_local_account(
-        "sync_listen_import_folder",
-        Some(test_data_dir.clone()),
-    )
-    .await?;
+    let (mut owner, _, default_folder, passphrase) =
+        create_local_account(TEST_ID, Some(test_data_dir.clone())).await?;
 
     // Folders on the local account
     let expected_summaries: Vec<Summary> = {
