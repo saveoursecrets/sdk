@@ -13,10 +13,12 @@ use sos_net::{
 };
 
 use crate::test_utils::{
-    create_local_account, origin, setup, spawn, sync_pause,
+    create_local_account, setup, spawn, sync_pause,
 };
 
 use super::num_events;
+
+const TEST_ID: &str = "sync_listen_delete_folder";
 
 /// Tests syncing delete folder events between two clients
 /// where the second client listens for changes emitted
@@ -38,8 +40,7 @@ async fn integration_listen_delete_folder() -> Result<()> {
     std::fs::remove_dir(&other_data_dir)?;
 
     // Spawn a backend server and wait for it to be listening
-    let (rx, _handle) = spawn()?;
-    let _ = rx.await?;
+    let server = spawn(None).await?;
 
     let (mut owner, _, default_folder, passphrase) = create_local_account(
         "sync_listen_delete_folder",
@@ -67,7 +68,7 @@ async fn integration_listen_delete_folder() -> Result<()> {
     let address = owner.address().to_string();
 
     // Create the remote provider
-    let origin = origin();
+    let origin = server.origin.clone();
     let remote_origin = origin.clone();
     let provider = owner.remote_bridge(&origin).await?;
 

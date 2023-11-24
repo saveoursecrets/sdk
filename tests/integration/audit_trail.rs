@@ -18,6 +18,8 @@ use sos_net::{
 
 use crate::test_utils::{create_local_account, mock_note, setup};
 
+const TEST_ID: &str = "audit_trail";
+
 #[tokio::test]
 #[serial]
 async fn integration_audit_trail() -> Result<()> {

@@ -7,9 +7,11 @@ use sos_net::{
     sdk::vault::Summary,
 };
 
-use crate::test_utils::{create_local_account, origin, setup, spawn};
+use crate::test_utils::{create_local_account, setup, spawn};
 
 use super::{assert_local_remote_events_eq, assert_local_remote_vaults_eq};
+
+const TEST_ID: &str = "sync_create_remote_data";
 
 /// Tests creating all the account data on a remote
 /// when the server does not have the account data yet.
@@ -22,8 +24,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     let test_data_dir = dirs.clients.remove(0);
 
     // Spawn a backend server and wait for it to be listening
-    let (rx, _handle) = spawn()?;
-    let _ = rx.await?;
+    let server = spawn(None).await?;
 
     let (mut owner, _, _default_folder, _) =
         create_local_account("sync_create_remote_data", Some(test_data_dir))
@@ -48,7 +49,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     ));
 
     // Create the remote provider
-    let origin = origin();
+    let origin = server.origin.clone();
     let remote_origin = origin.clone();
     let provider = owner.remote_bridge(&origin).await?;
     owner.insert_remote(origin, Box::new(provider));

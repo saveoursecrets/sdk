@@ -24,6 +24,8 @@ use crate::test_utils::{create_local_account, setup};
 
 const ZERO_CHECKSUM: [u8; 32] = [0; 32];
 
+const TEST_ID: &str = "external_files";
+
 #[tokio::test]
 #[serial]
 async fn integration_external_files() -> Result<()> {

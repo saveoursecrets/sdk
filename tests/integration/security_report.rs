@@ -16,6 +16,8 @@ use sos_net::{
 
 use crate::test_utils::{create_local_account, setup};
 
+const TEST_ID: &str = "security_report";
+
 #[tokio::test]
 #[serial]
 async fn integration_security_report() -> Result<()> {

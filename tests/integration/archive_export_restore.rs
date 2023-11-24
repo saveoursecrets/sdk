@@ -19,29 +19,7 @@ use sos_net::sdk::{
 };
 use web3_address::ethereum::Address;
 
-async fn create_archive(
-    passphrase: SecretString,
-    vaults: Vec<Vault>,
-) -> Result<(Address, Vault, Vec<u8>)> {
-    let mut archive = Vec::new();
-    let mut writer = Writer::new(Cursor::new(&mut archive));
-
-    let (address, identity_vault) =
-        Identity::new_login_vault("Mock".to_string(), passphrase).await?;
-
-    let identity = encode(&identity_vault).await?;
-
-    writer = writer.set_identity(&address, &identity).await?;
-
-    for vault in vaults {
-        let buffer = encode(&vault).await?;
-        writer = writer.add_vault(*vault.id(), &buffer).await?;
-    }
-
-    writer.finish().await?;
-
-    Ok((address, identity_vault, archive))
-}
+const TEST_ID: &str = "archive_export_restore";
 
 #[tokio::test]
 #[serial]
@@ -123,3 +101,28 @@ async fn integration_archive_local_provider() -> Result<()> {
 
     Ok(())
 }
+
+async fn create_archive(
+    passphrase: SecretString,
+    vaults: Vec<Vault>,
+) -> Result<(Address, Vault, Vec<u8>)> {
+    let mut archive = Vec::new();
+    let mut writer = Writer::new(Cursor::new(&mut archive));
+
+    let (address, identity_vault) =
+        Identity::new_login_vault("Mock".to_string(), passphrase).await?;
+
+    let identity = encode(&identity_vault).await?;
+
+    writer = writer.set_identity(&address, &identity).await?;
+
+    for vault in vaults {
+        let buffer = encode(&vault).await?;
+        writer = writer.add_vault(*vault.id(), &buffer).await?;
+    }
+
+    writer.finish().await?;
+
+    Ok((address, identity_vault, archive))
+}
+

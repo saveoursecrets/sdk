@@ -8,6 +8,8 @@ use sos_net::sdk::{
     vault::VaultRef,
 };
 
+const TEST_ID: &str = "simple_session";
+
 #[tokio::test]
 #[serial]
 async fn integration_simple_session() -> Result<()> {

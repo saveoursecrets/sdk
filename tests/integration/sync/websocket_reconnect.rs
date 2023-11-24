@@ -9,10 +9,12 @@ use sos_net::{
 };
 
 use crate::test_utils::{
-    create_local_account, mock_note, origin, setup, spawn,
+    create_local_account, mock_note, setup, spawn,
 };
 
 use super::{assert_local_remote_events_eq, num_events};
+
+const TEST_ID: &str = "websocket_reconnect";
 
 /// Tests websocket reconnect logic.
 #[tokio::test]
@@ -27,8 +29,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
     let test_data_dir = dirs.clients.get(0).unwrap();
 
     // Spawn a backend server and wait for it to be listening
-    let (rx, handle) = spawn()?;
-    let _ = rx.await?;
+    let server = spawn(None).await?;
 
     let (mut owner, _, _, _) = create_local_account(
         "sync_websocket_reconnect",
@@ -37,7 +38,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
     .await?;
 
     // Create the remote provider
-    let origin = origin();
+    let origin = server.origin.clone();
     let provider = owner.remote_bridge(&origin).await?;
     owner.insert_remote(origin.clone(), Box::new(provider));
 
@@ -58,15 +59,14 @@ async fn integration_websocket_reconnect() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(10)).await;
 
     // Drop the server handle to shutdown the server
-    drop(handle);
+    drop(server);
 
     // Wait a little to give the server time to shutdown
     // and the websocket client to make re-connect attempts
     tokio::time::sleep(Duration::from_millis(5000)).await;
 
     // Spawn a new server so the websocket can re-connect
-    let (rx, handle) = spawn()?;
-    let _ = rx.await?;
+    let _server = spawn(None).await?;
 
     // Delay some more to allow the websocket to make the
     // connection

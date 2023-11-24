@@ -21,6 +21,8 @@ use tokio::sync::RwLock;
 
 use crate::test_utils::*;
 
+const TEST_ID: &str = "account_manager";
+
 #[tokio::test]
 #[serial]
 async fn integration_account_manager() -> Result<()> {

@@ -9,6 +9,8 @@ use sos_net::sdk::{
     passwd::diceware::generate_passphrase, signer::ecdsa::SingleParty,
 };
 
+const TEST_ID: &str = "change_password";
+
 #[tokio::test]
 #[serial]
 async fn integration_change_password() -> Result<()> {

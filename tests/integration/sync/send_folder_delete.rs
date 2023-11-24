@@ -11,9 +11,11 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::{create_local_account, origin, setup, spawn};
+use crate::test_utils::{create_local_account, setup, spawn};
 
 use super::num_events;
+
+const TEST_ID: &str = "sync_delete_folder";
 
 /// Tests sending delete folder events to a remote.
 #[tokio::test]
@@ -25,8 +27,7 @@ async fn integration_sync_delete_folder() -> Result<()> {
     let test_data_dir = dirs.clients.get(0).unwrap();
 
     // Spawn a backend server and wait for it to be listening
-    let (rx, _handle) = spawn()?;
-    let _ = rx.await?;
+    let server = spawn(None).await?;
 
     let (mut owner, _, default_folder, _) = create_local_account(
         "sync_delete_folder",
@@ -56,7 +57,7 @@ async fn integration_sync_delete_folder() -> Result<()> {
     let address = owner.address().to_string();
 
     // Create the remote provider
-    let origin = origin();
+    let origin = server.origin.clone();
     let remote_origin = origin.clone();
     let provider = owner.remote_bridge(&origin).await?;
 

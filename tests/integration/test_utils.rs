@@ -32,8 +32,7 @@ use sos_net::{
     FileLocks,
 };
 
-const ADDR: &str = "127.0.0.1:3505";
-const SERVER: &str = "http://localhost:3505";
+const ADDR: &str = "127.0.0.1:0";
 const SERVER_PUBLIC_KEY: &str = include_str!("../server_public_key.txt");
 
 #[allow(dead_code)]
@@ -49,17 +48,6 @@ pub fn init_tracing() {
         .try_init();
 }
 
-/// Get a remote origin for the test server.
-pub fn origin() -> Origin {
-    let server = server();
-    let server_public_key = server_public_key();
-    Origin {
-        name: "origin".to_owned(),
-        url: server,
-        public_key: server_public_key,
-    }
-}
-
 /// Pause a while to allow synchronization.
 ///
 /// Declared here as we may need to adjust for CI.
@@ -68,12 +56,11 @@ pub async fn sync_pause() {
 }
 
 /// Create a remote provider for the given signing key.
-pub(super) async fn remote_bridge(
+async fn remote_bridge(
+    origin: &Origin,
     signer: BoxedEcdsaSigner,
     data_dir: Option<PathBuf>,
-) -> Result<(Origin, RemoteBridge)> {
-    let origin = origin();
-
+) -> Result<RemoteBridge> {
     let keypair = Keypair::new(PATTERN.parse()?)?;
     let local =
         LocalProvider::new(signer.address()?.to_string(), data_dir).await?;
@@ -87,7 +74,7 @@ pub(super) async fn remote_bridge(
     // Noise protocol handshake
     provider.handshake().await?;
 
-    Ok((origin, provider))
+    Ok(provider)
 }
 
 /// Read the test server public key.
@@ -106,21 +93,28 @@ pub struct AccountCredentials {
     pub summary: Summary,
 }
 
+/// Convert a socket address to a URL.
+fn socket_addr_url(addr: &SocketAddr) -> Url {
+    let server = format!("http://{}:{}", addr.ip(), addr.port());
+    Url::parse(&server).expect("failed to parse server URL from socket addr")
+}
+
 struct MockServer {
     handle: Handle,
+    addr: SocketAddr,
 }
 
 impl MockServer {
-    fn new() -> Result<Self> {
+    fn new(addr: Option<SocketAddr>) -> Result<Self> {
+        let default_addr: SocketAddr = ADDR.parse::<SocketAddr>()?;
         Ok(Self {
             handle: Handle::new(),
+            addr: addr.unwrap_or(default_addr),
         })
     }
 
     async fn start(&self) -> Result<()> {
-        let addr: SocketAddr = ADDR.parse::<SocketAddr>()?;
-
-        tracing::info!("start mock server {:#?}", addr);
+        tracing::info!("start mock server {:#?}", self.addr);
 
         let (config, keypair) =
             ServerConfig::load("tests/config.toml").await?;
@@ -151,7 +145,7 @@ impl MockServer {
         let server = Server::new();
         server
             .start(
-                addr,
+                self.addr.clone(),
                 state,
                 Arc::new(RwLock::new(backend)),
                 self.handle.clone(),
@@ -161,8 +155,11 @@ impl MockServer {
     }
 
     /// Run the mock server in a separate thread.
-    fn spawn(tx: oneshot::Sender<SocketAddr>) -> Result<ShutdownHandle> {
-        let server = MockServer::new()?;
+    fn spawn(
+        addr: Option<SocketAddr>,
+        tx: oneshot::Sender<SocketAddr>,
+    ) -> Result<ShutdownHandle> {
+        let server = MockServer::new(addr)?;
         let listen_handle = server.handle.clone();
         let user_handle = server.handle.clone();
 
@@ -201,14 +198,30 @@ impl Drop for ShutdownHandle {
     }
 }
 
-pub fn spawn() -> Result<(oneshot::Receiver<SocketAddr>, ShutdownHandle)> {
-    let (tx, rx) = oneshot::channel::<SocketAddr>();
-    let handle = MockServer::spawn(tx)?;
-    Ok((rx, handle))
+pub struct TestServer {
+    pub addr: SocketAddr,
+    pub url: Url,
+    pub handle: ShutdownHandle,
+    pub origin: Origin,
 }
 
-pub fn server() -> Url {
-    Url::parse(SERVER).expect("failed to parse server URL")
+pub async fn spawn(
+    addr: Option<SocketAddr>,
+) -> Result<TestServer> {
+    let (tx, rx) = oneshot::channel::<SocketAddr>();
+    let handle = MockServer::spawn(addr, tx)?;
+    let addr = rx.await?;
+    let url = socket_addr_url(&addr);
+    Ok(TestServer {
+        origin: Origin {
+            name: "origin".to_owned(),
+            url: url.clone(),
+            public_key: server_public_key(),
+        },
+        addr,
+        url,
+        handle,
+    })
 }
 
 #[derive(Debug)]
@@ -392,12 +405,13 @@ pub async fn create_local_provider(
 
 pub async fn signup(
     data_dir: PathBuf,
+    origin: &Origin,
 ) -> Result<(Address, AccountCredentials, RemoteBridge, BoxedEcdsaSigner)> {
     let signer: BoxedEcdsaSigner = Box::new(SingleParty::new_random());
 
     let address = signer.address()?;
-    let (_origin, provider) =
-        remote_bridge(signer.clone(), Some(data_dir)).await?;
+    let provider =
+        remote_bridge(origin, signer.clone(), Some(data_dir)).await?;
 
     let local_provider = provider.local();
     let mut local_writer = local_provider.write().await;

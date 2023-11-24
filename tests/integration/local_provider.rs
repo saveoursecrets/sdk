@@ -22,6 +22,20 @@ macro_rules! commit_count {
     }};
 }
 
+//const TEST_ID: &str = "local_provider";
+
+#[tokio::test]
+#[serial]
+async fn integration_local_provider_file() -> Result<()> {
+    let dir = tempdir()?;
+    let signer = Box::new(SingleParty::new_random());
+    let user_id = signer.address()?.to_string();
+    let mut storage =
+        LocalProvider::new(user_id, Some(dir.path().to_path_buf())).await?;
+    run_local_storage_tests(&mut storage).await?;
+    Ok(())
+}
+
 async fn run_local_storage_tests(storage: &mut LocalProvider) -> Result<()> {
     // Create an account with default login vault
     let (_, passphrase, _) = storage.create_account(None, None).await?;
@@ -115,14 +129,3 @@ async fn run_local_storage_tests(storage: &mut LocalProvider) -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-#[serial]
-async fn integration_local_provider_file() -> Result<()> {
-    let dir = tempdir()?;
-    let signer = Box::new(SingleParty::new_random());
-    let user_id = signer.address()?.to_string();
-    let mut storage =
-        LocalProvider::new(user_id, Some(dir.path().to_path_buf())).await?;
-    run_local_storage_tests(&mut storage).await?;
-    Ok(())
-}

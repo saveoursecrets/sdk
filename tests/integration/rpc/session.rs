@@ -9,6 +9,8 @@ use sos_net::{
     sdk::{encode, hex, mpc::generate_keypair, vault::Vault},
 };
 
+const TEST_ID: &str = "rpc_session";
+
 #[tokio::test]
 #[serial]
 async fn integration_rpc_session() -> Result<()> {
@@ -17,12 +19,10 @@ async fn integration_rpc_session() -> Result<()> {
     let mut dirs = setup(1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
-    let (rx, _handle) = spawn()?;
-    let _ = rx.await?;
+    let server = spawn(None).await?;
+    let url = server.url.clone();
 
-    let url = server();
-
-    let (_address, _credentials, _, signer) = signup(test_data_dir).await?;
+    let (_address, _credentials, _, signer) = signup(test_data_dir, &server.origin).await?;
 
     let public_key = server_public_key();
     let name = hex::encode(&public_key);

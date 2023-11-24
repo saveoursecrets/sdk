@@ -40,11 +40,11 @@ pub async fn num_events(owner: &mut UserStorage, folder: &VaultId) -> usize {
 
 /// Assert that local and remote storage are equal.
 ///
-/// Note that this assertion can only be performed 
-/// when no secrets have been added to the vault 
-/// as the server vault does not contain secrets, 
-/// it only maintains data in the event log and 
-/// uses a header-only vault just to keep track of 
+/// Note that this assertion can only be performed
+/// when no secrets have been added to the vault
+/// as the server vault does not contain secrets,
+/// it only maintains data in the event log and
+/// uses a header-only vault just to keep track of
 /// the summary etc.
 pub async fn assert_local_remote_vaults_eq(
     expected_summaries: Vec<Summary>,
