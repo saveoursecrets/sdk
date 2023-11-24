@@ -452,21 +452,21 @@ pub async fn signup(
     let provider =
         remote_bridge(origin, signer.clone(), Some(data_dir)).await?;
 
-    let local_provider = provider.local();
-    let mut local_writer = local_provider.write().await;
+    let (encryption_passphrase, summary) = {
+        let local_provider = provider.local();
+        let mut local_writer = local_provider.write().await;
+        let (_, encryption_passphrase, summary) =
+            local_writer.create_account(None, None).await?;
+        (encryption_passphrase, summary)
+    };
 
-    let (_, encryption_passphrase, summary) =
-        local_writer.create_account(None, None).await?;
+    provider.sync().await?;
 
     let credentials = AccountCredentials {
         encryption_passphrase,
         address,
         summary,
     };
-
-    drop(local_writer);
-
-    provider.sync().await?;
 
     Ok((address, credentials, provider, signer))
 }

@@ -19,7 +19,7 @@ const TEST_ID: &str = "sync_listen_create_folder";
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
 #[tokio::test]
-async fn integration_listen_create_folder() -> Result<()> {
+async fn integration_sync_listen_create_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
@@ -62,6 +62,8 @@ async fn integration_listen_create_folder() -> Result<()> {
     // Copy the owner's account directory and sign in
     // using the alternative owner
     copy_dir(&test_data_dir, &other_data_dir)?;
+
+
     let mut other_owner = UserStorage::sign_in(
         owner.address(),
         passphrase,

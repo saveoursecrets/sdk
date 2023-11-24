@@ -11,31 +11,29 @@ use crate::test_utils::{
     create_local_account, mock_note, setup, spawn, teardown,
 };
 
-use super::{assert_local_remote_events_eq, num_events};
+use super::{
+    assert_local_remote_events_eq, num_events, simulate_device,
+    SimulatedDevice,
+};
 
 const TEST_ID: &str = "websocket_reconnect";
 
 /// Tests websocket reconnect logic.
+///
+/// Nothing really to assert on here so in order to debug
+/// enable tracing.
 #[tokio::test]
 async fn integration_websocket_reconnect() -> Result<()> {
     //crate::test_utils::init_tracing();
 
-    // Prepare distinct data directories for the two clients
-    let dirs = setup(TEST_ID, 1).await?;
-
-    // Set up the paths for the first client
-    let test_data_dir = dirs.clients.get(0).unwrap();
-
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
 
-    let (mut owner, _, _, _) =
-        create_local_account(TEST_ID, Some(test_data_dir.clone())).await?;
-
-    // Create the remote provider
-    let origin = server.origin.clone();
-    let provider = owner.remote_bridge(&origin).await?;
-    owner.insert_remote(origin.clone(), Box::new(provider));
+    // Prepare a mock device
+    let device = simulate_device(TEST_ID, &server, 1).await?;
+    let SimulatedDevice {
+        mut owner, origin, ..
+    } = device;
 
     tokio::task::spawn(async move {
         // Start a websocket listener that should

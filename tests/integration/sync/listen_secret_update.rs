@@ -19,7 +19,7 @@ const TEST_ID: &str = "sync_listen_update_secret";
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
 #[tokio::test]
-async fn integration_listen_update_secret() -> Result<()> {
+async fn integration_sync_listen_update_secret() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare distinct data directories for the two clients
