@@ -25,6 +25,7 @@ use sos_sdk::{
     signer::ecdsa::BoxedEcdsaSigner,
     vault::{Summary, VaultId},
 };
+//use tracing::{span, Level};
 
 #[cfg(not(target_arch = "wasm32"))]
 use sos_sdk::events::ChangeNotification;

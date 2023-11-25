@@ -1,12 +1,13 @@
 //! Listen for change notifications on a websocket connection.
 use futures::{
+    select,
     stream::{Map, SplitStream},
-    Future, StreamExt,
+    Future, FutureExt, StreamExt,
 };
 use std::{
     pin::Pin,
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
     },
     time::Duration,
@@ -21,7 +22,11 @@ use tokio_tungstenite::{
 };
 
 use async_recursion::async_recursion;
-use tokio::{net::TcpStream, sync::Mutex, time::sleep};
+use tokio::{
+    net::TcpStream,
+    sync::{Mutex, Notify},
+    time::sleep,
+};
 use url::Url;
 
 use tracing::{span, Level};
@@ -180,7 +185,6 @@ pub async fn connect(
     let uri = changes_uri(&endpoint, client.signer(), &public_key).await?;
 
     tracing::debug!(uri = %uri);
-    tracing::debug!(origin = ?url_origin);
 
     let request = WebSocketRequest {
         host,
@@ -191,7 +195,9 @@ pub async fn connect(
     Ok((ws_stream, Arc::new(client)))
 }
 
-/// Read change notifications from a websocket stream.
+/// Read change messages from a websocket stream,
+/// decrypt them from the noise protocol and decode
+/// to change notifications that can be processed.
 pub fn changes(
     stream: WsStream,
     client: Arc<RpcClient>,
@@ -236,18 +242,27 @@ pub fn changes(
 }
 
 /// Handle to a websocket listener.
+#[derive(Clone)]
 pub struct WebSocketHandle {
-    task: tokio::task::JoinHandle<()>,
+    notify: Arc<Notify>,
+}
+
+impl WebSocketHandle {
+    /// Close the websocket.
+    pub fn close(&self) {
+        self.notify.notify_one();
+    }
 }
 
 /// Creates a websocket that listens for changes emitted by a remote
 /// server and invokes a handler with the change notifications.
-#[derive(Clone)]
 pub struct WebSocketChangeListener {
     origin: Origin,
     signer: BoxedEcdsaSigner,
     options: ListenOptions,
     retries: Arc<Mutex<AtomicU64>>,
+    notify: Arc<Notify>,
+    closed: Arc<Mutex<bool>>,
 }
 
 impl WebSocketChangeListener {
@@ -257,11 +272,14 @@ impl WebSocketChangeListener {
         signer: BoxedEcdsaSigner,
         options: ListenOptions,
     ) -> Self {
+        let notify = Arc::new(Notify::new());
         Self {
             origin,
             signer,
             options,
             retries: Arc::new(Mutex::new(AtomicU64::from(1))),
+            notify,
+            closed: Arc::new(Mutex::new(false)),
         }
     }
 
@@ -274,10 +292,13 @@ impl WebSocketChangeListener {
     where
         F: Future<Output = ()> + Send + 'static,
     {
+        let notify = Arc::clone(&self.notify);
         let task = tokio::task::spawn(async move {
+            let span = span!(Level::DEBUG, "ws_client");
+            let _enter = span.enter();
             let _ = self.connect(&handler).await;
         });
-        WebSocketHandle { task }
+        WebSocketHandle { notify }
     }
 
     #[async_recursion]
@@ -290,23 +311,45 @@ impl WebSocketChangeListener {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let span = span!(Level::DEBUG, "websocket");
-        let _enter = span.enter();
-
         let mut stream = changes(stream, client);
-        while let Some(notification) = stream.next().await {
-            match notification?.await {
-                Ok(notification) => {
-                    let future = handler(notification);
-                    future.await;
+
+        tracing::debug!("connected");
+
+        let shutdown = Arc::clone(&self.notify);
+        loop {
+            select! {
+                event = stream.next().fuse() => {
+                    if let Some(notification) = event {
+                        match notification?.await {
+                            Ok(notification) => {
+                                let future = handler(notification);
+                                future.await;
+                            }
+                            Err(e) => {
+                                tracing::error!(error = ?e);
+                                break;
+                            }
+                        }
+                    }
                 }
-                Err(e) => {
-                    tracing::error!(error = ?e);
+                shutdown = shutdown.notified().fuse() => {
+                    tracing::debug!("closing websocket");
+                    let mut closed = self.closed.lock().await;
+                    *closed = true;
                     break;
                 }
             }
         }
-        self.delay_connect(handler).await
+
+        // Try to re-connect if not explicitly closed
+        let closed = self.closed.lock().await;
+        if !*closed {
+            // Avoid recursive spans
+            //drop(_enter);
+            self.delay_connect(handler).await
+        } else {
+            Ok(())
+        }
     }
 
     async fn stream(&self) -> Result<(WsStream, Arc<RpcClient>)> {

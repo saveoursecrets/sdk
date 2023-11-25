@@ -3,7 +3,10 @@ use anyhow::Result;
 use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
-    client::{ListenOptions, Origin, RemoteBridge, RemoteSync, UserStorage},
+    client::{
+        ListenOptions, Origin, RemoteBridge, RemoteSync, UserStorage,
+        WebSocketHandle,
+    },
     sdk::{
         constants::VAULT_EXT,
         vault::{Summary, VaultId},
@@ -37,6 +40,7 @@ mod multiple_remotes_fallback;
 
 mod offline_manual;
 mod websocket_reconnect;
+mod websocket_shutdown;
 
 pub struct SimulatedDevice {
     pub id: String,
@@ -96,10 +100,10 @@ impl SimulatedDevice {
     }
 
     /// Start listening for changes.
-    pub fn listen(&self) -> Result<()> {
-        self.owner
-            .listen(&self.origin, ListenOptions::new(self.id.clone())?)?;
-        Ok(())
+    pub fn listen(&self) -> Result<WebSocketHandle> {
+        Ok(self
+            .owner
+            .listen(&self.origin, ListenOptions::new(self.id.clone())?)?)
     }
 }
 

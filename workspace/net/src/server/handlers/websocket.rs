@@ -19,6 +19,7 @@ use tokio::sync::{
 };
 
 use sos_sdk::{encode, mpc::channel::encrypt_server_channel};
+use tracing::{span, Level};
 use web3_address::ethereum::Address;
 
 use crate::{
@@ -51,7 +52,10 @@ pub async fn upgrade(
     Query(query): Query<QueryMessage>,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
-    tracing::debug!("websocket upgrade request");
+    let span = span!(Level::DEBUG, "ws_server");
+    let _enter = span.enter();
+
+    tracing::debug!("upgrade request");
 
     let mut writer = state.write().await;
     let server_public_key = writer.keypair.public_key().to_vec();
@@ -127,7 +131,12 @@ async fn disconnect(
     address: Address,
     public_key: Vec<u8>,
 ) {
+    let span = span!(Level::DEBUG, "ws_server");
+    let _enter = span.enter();
+
     let mut writer = state.write().await;
+
+    tracing::debug!("server websocket disconnect");
 
     // Sessions for websocket connections have the keep alive
     // flag so we must remove them on disconnect

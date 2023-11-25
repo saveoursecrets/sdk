@@ -20,6 +20,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
+    let addr = server.addr.clone();
 
     // Prepare a mock device
     let device = simulate_device(TEST_ID, &server, 1).await?;
@@ -49,7 +50,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(5000)).await;
 
     // Spawn a new server so the websocket can re-connect
-    let _server = spawn(TEST_ID, None, None).await?;
+    let _server = spawn(TEST_ID, Some(addr), None).await?;
 
     // Delay some more to allow the websocket to make the
     // connection
