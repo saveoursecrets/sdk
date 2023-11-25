@@ -77,7 +77,7 @@ pub trait BackendHandler {
         owner: &Address,
         vault_id: &VaultId,
         vault: &'a [u8],
-    ) -> Result<(WriteEvent<'a>, CommitProof)>;
+    ) -> Result<(WriteEvent, CommitProof)>;
 
     // TODO: support account deletion
 
@@ -108,7 +108,7 @@ pub trait BackendHandler {
         &mut self,
         owner: &Address,
         vault: &'a [u8],
-    ) -> Result<(WriteEvent<'a>, CommitProof)>;
+    ) -> Result<(WriteEvent, CommitProof)>;
 
     /* event log */
 
@@ -120,7 +120,7 @@ pub trait BackendHandler {
         owner: &Address,
         vault_id: &VaultId,
         vault: &'a [u8],
-    ) -> Result<(WriteEvent<'a>, CommitProof)>;
+    ) -> Result<(WriteEvent, CommitProof)>;
 
     /// Delete a event log log and corresponding vault.
     async fn delete_event_log(
@@ -335,7 +335,7 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault_id: &VaultId,
         vault: &'a [u8],
-    ) -> Result<(WriteEvent<'a>, CommitProof)> {
+    ) -> Result<(WriteEvent, CommitProof)> {
         let account_dir = self.directory.join(owner.to_string());
         if vfs::try_exists(&account_dir).await? {
             return Err(Error::DirectoryExists(account_dir));
@@ -366,7 +366,7 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault_id: &VaultId,
         vault: &'a [u8],
-    ) -> Result<(WriteEvent<'a>, CommitProof)> {
+    ) -> Result<(WriteEvent, CommitProof)> {
         let account_dir = self.directory.join(owner.to_string());
         if !vfs::metadata(&account_dir).await?.is_dir() {
             return Err(Error::NotDirectory(account_dir));
@@ -467,7 +467,7 @@ impl BackendHandler for FileSystemBackend {
         &mut self,
         owner: &Address,
         vault: &'a [u8],
-    ) -> Result<(WriteEvent<'a>, CommitProof)> {
+    ) -> Result<(WriteEvent, CommitProof)> {
         {
             let accounts = self.accounts.read().await;
             accounts

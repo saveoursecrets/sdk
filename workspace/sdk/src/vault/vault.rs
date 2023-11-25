@@ -226,23 +226,20 @@ pub trait VaultAccess {
     async fn vault_name(&self) -> Result<Cow<'_, str>>;
 
     /// Set the name of a vault.
-    async fn set_vault_name(
-        &mut self,
-        name: String,
-    ) -> Result<WriteEvent<'_>>;
+    async fn set_vault_name(&mut self, name: String) -> Result<WriteEvent>;
 
     /// Set the vault meta data.
     async fn set_vault_meta(
         &mut self,
         meta_data: Option<AeadPack>,
-    ) -> Result<WriteEvent<'_>>;
+    ) -> Result<WriteEvent>;
 
     /// Add an encrypted secret to the vault.
     async fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent<'_>>;
+    ) -> Result<WriteEvent>;
 
     /// Insert an encrypted secret to the vault with the given id.
     ///
@@ -254,7 +251,7 @@ pub trait VaultAccess {
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent<'_>>;
+    ) -> Result<WriteEvent>;
 
     /// Get an encrypted secret from the vault.
     async fn read<'a>(
@@ -268,13 +265,10 @@ pub trait VaultAccess {
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<WriteEvent<'_>>>;
+    ) -> Result<Option<WriteEvent>>;
 
     /// Remove an encrypted secret from the vault.
-    async fn delete(
-        &mut self,
-        id: &SecretId,
-    ) -> Result<Option<WriteEvent<'_>>>;
+    async fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent>>;
 }
 
 /// Authentication information.
@@ -1017,18 +1011,15 @@ impl VaultAccess for Vault {
         Ok(Cow::Borrowed(self.name()))
     }
 
-    async fn set_vault_name(
-        &mut self,
-        name: String,
-    ) -> Result<WriteEvent<'_>> {
+    async fn set_vault_name(&mut self, name: String) -> Result<WriteEvent> {
         self.set_name(name.clone());
-        Ok(WriteEvent::SetVaultName(Cow::Owned(name)))
+        Ok(WriteEvent::SetVaultName(name))
     }
 
     async fn set_vault_meta(
         &mut self,
         meta_data: Option<AeadPack>,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<WriteEvent> {
         self.header.set_meta(meta_data);
         let meta = self.header.meta().cloned();
         Ok(WriteEvent::SetVaultMeta(meta))
@@ -1038,7 +1029,7 @@ impl VaultAccess for Vault {
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<WriteEvent> {
         let id = Uuid::new_v4();
         self.insert(id, commit, secret).await
     }
@@ -1048,7 +1039,7 @@ impl VaultAccess for Vault {
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<WriteEvent> {
         let value = self
             .contents
             .data
@@ -1070,7 +1061,7 @@ impl VaultAccess for Vault {
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<WriteEvent<'_>>> {
+    ) -> Result<Option<WriteEvent>> {
         let _vault_id = *self.id();
         if let Some(value) = self.contents.data.get_mut(id) {
             *value = VaultCommit(commit, secret);
@@ -1080,10 +1071,7 @@ impl VaultAccess for Vault {
         }
     }
 
-    async fn delete(
-        &mut self,
-        id: &SecretId,
-    ) -> Result<Option<WriteEvent<'_>>> {
+    async fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent>> {
         let entry = self.contents.data.remove(id);
         if entry.is_some() {
             Ok(Some(WriteEvent::DeleteSecret(*id)))

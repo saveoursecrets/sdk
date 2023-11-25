@@ -387,7 +387,7 @@ impl RemoteBridge {
         before_last_commit: Option<&CommitHash>,
         before_client_proof: &CommitProof,
         folder: &Summary,
-        _events: &[WriteEvent<'static>],
+        _events: &[WriteEvent],
     ) -> Result<()> {
         let span = span!(Level::DEBUG, "patch");
         let _enter = span.enter();
@@ -473,7 +473,7 @@ impl RemoteSync for RemoteBridge {
         folder: &Summary,
         before_last_commit: Option<&CommitHash>,
         before_client_proof: &CommitProof,
-        events: &[WriteEvent<'static>],
+        events: &[WriteEvent],
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError> {
         let events = events.to_vec();

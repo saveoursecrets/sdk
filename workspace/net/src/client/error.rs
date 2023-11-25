@@ -120,7 +120,7 @@ pub enum Error {
         /// Commit hash of the remote event log.
         remote: (CommitHash, usize),
         /// Events that can be applied after a pull.
-        events: Vec<WriteEvent<'static>>,
+        events: Vec<WriteEvent>,
     },
 
     /// Error generated when a conflict is detected that may be

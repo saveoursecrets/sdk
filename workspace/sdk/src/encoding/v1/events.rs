@@ -280,7 +280,7 @@ impl Encodable for AuditData {
 }
 
 #[async_trait]
-impl<'a> Encodable for WriteEvent<'a> {
+impl Encodable for WriteEvent {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -324,7 +324,7 @@ impl<'a> Encodable for WriteEvent<'a> {
 }
 
 #[async_trait]
-impl<'a> Decodable for WriteEvent<'a> {
+impl Decodable for WriteEvent {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -348,7 +348,7 @@ impl<'a> Decodable for WriteEvent<'a> {
             }
             EventKind::SetVaultName => {
                 let name = reader.read_string().await?;
-                *self = WriteEvent::SetVaultName(Cow::Owned(name));
+                *self = WriteEvent::SetVaultName(name);
             }
             EventKind::SetVaultMeta => {
                 let has_meta = reader.read_bool().await?;

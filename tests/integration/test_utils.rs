@@ -364,10 +364,7 @@ pub async fn create_secrets(
         } else {
             unreachable!()
         };
-
-        let event = event.into_owned();
         create_events.push(event);
-
         results.push((id, item.0));
     }
 
@@ -386,8 +383,6 @@ pub async fn delete_secret(
 ) -> Result<()> {
     let keeper = provider.current_mut().unwrap();
     let event = keeper.delete(id).await?.unwrap();
-    let event = event.into_owned();
-
     // Send the patch to the remote server
     provider.patch(summary, vec![event]).await?;
     Ok(())

@@ -56,7 +56,7 @@ pub trait RemoteSync: Sync + Send + Any {
         folder: &Summary,
         before_last_commit: Option<&CommitHash>,
         before_client_proof: &CommitProof,
-        events: &[WriteEvent<'static>],
+        events: &[WriteEvent],
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError>;
 

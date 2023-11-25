@@ -12,7 +12,7 @@ use super::EventKind;
 
 /// Write operations.
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
-pub enum WriteEvent<'a> {
+pub enum WriteEvent {
     /// Default variant, should never be used.
     ///
     /// We need a variant so we can implement the Default
@@ -34,7 +34,7 @@ pub enum WriteEvent<'a> {
     DeleteVault,
 
     /// Event used to indicate the vault name was set.
-    SetVaultName(Cow<'a, str>),
+    SetVaultName(String),
 
     /// Event used to indicate the vault meta data was set.
     SetVaultMeta(Option<AeadPack>),
@@ -49,7 +49,7 @@ pub enum WriteEvent<'a> {
     DeleteSecret(SecretId),
 }
 
-impl Ord for WriteEvent<'_> {
+impl Ord for WriteEvent {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, &other) {
             // NOTE: This sorting is important when we send a vault
@@ -70,13 +70,13 @@ impl Ord for WriteEvent<'_> {
     }
 }
 
-impl PartialOrd for WriteEvent<'_> {
+impl PartialOrd for WriteEvent {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl WriteEvent<'_> {
+impl WriteEvent {
     /// Get the event kind for this event.
     pub fn event_kind(&self) -> EventKind {
         match self {
@@ -89,32 +89,6 @@ impl WriteEvent<'_> {
             WriteEvent::CreateSecret(_, _) => EventKind::CreateSecret,
             WriteEvent::UpdateSecret(_, _) => EventKind::UpdateSecret,
             WriteEvent::DeleteSecret(_) => EventKind::DeleteSecret,
-        }
-    }
-
-    /// Convert this event into an owned version.
-    #[deprecated]
-    pub fn into_owned(self) -> WriteEvent<'static> {
-        match self {
-            WriteEvent::Noop => WriteEvent::Noop,
-            WriteEvent::CreateVault(value) => WriteEvent::CreateVault(value),
-            WriteEvent::UpdateVault(value) => WriteEvent::UpdateVault(value),
-            WriteEvent::DeleteVault => WriteEvent::DeleteVault,
-            WriteEvent::SetVaultName(value) => {
-                WriteEvent::SetVaultName(Cow::Owned(value.into_owned()))
-            }
-            WriteEvent::SetVaultMeta(value) => {
-                WriteEvent::SetVaultMeta(value)
-            }
-            WriteEvent::CreateSecret(secret_id, value) => {
-                WriteEvent::CreateSecret(secret_id, value)
-            }
-            WriteEvent::UpdateSecret(secret_id, value) => {
-                WriteEvent::UpdateSecret(secret_id, value)
-            }
-            WriteEvent::DeleteSecret(secret_id) => {
-                WriteEvent::DeleteSecret(secret_id)
-            }
         }
     }
 }

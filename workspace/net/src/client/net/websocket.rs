@@ -328,7 +328,7 @@ impl WebSocketChangeListener {
                         }
                     }
                 }
-                shutdown = shutdown.notified().fuse() => {
+                _ = shutdown.notified().fuse() => {
                     tracing::debug!("closing websocket");
                     let mut closed = self.closed.lock().await;
                     *closed = true;

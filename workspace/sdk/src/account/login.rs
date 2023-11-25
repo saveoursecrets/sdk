@@ -102,10 +102,7 @@ impl AuthenticatedUser {
     ///
     /// Moves the account identity vault and data directory to the
     /// trash directory.
-    pub async fn delete_account(
-        &self,
-        paths: &UserPaths,
-    ) -> Result<Event<'static>> {
+    pub async fn delete_account(&self, paths: &UserPaths) -> Result<Event> {
         let address = self.identity.address().to_string();
         let identity_vault_file = paths.identity_vault();
 

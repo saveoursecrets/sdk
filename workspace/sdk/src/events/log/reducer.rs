@@ -11,11 +11,11 @@ use crate::{
 
 /// Reduce log events to a vault.
 #[derive(Default)]
-pub struct EventReducer<'a> {
+pub struct EventReducer {
     /// Buffer for the create or last update vault event.
     vault: Option<Vec<u8>>,
     /// Last encountered vault name.
-    vault_name: Option<Cow<'a, str>>,
+    vault_name: Option<String>,
     /// Last encountered vault meta data.
     vault_meta: Option<Option<AeadPack>>,
     /// Map of the reduced secrets.
@@ -24,7 +24,7 @@ pub struct EventReducer<'a> {
     until_commit: Option<CommitHash>,
 }
 
-impl<'a> EventReducer<'a> {
+impl EventReducer {
     /// Create a new reducer.
     pub fn new() -> Self {
         Default::default()
@@ -43,9 +43,7 @@ impl<'a> EventReducer<'a> {
     ///
     /// The truncated vault represents the header of the vault and
     /// has no contents.
-    pub async fn split(
-        vault: Vault,
-    ) -> Result<(Vault, Vec<WriteEvent<'static>>)> {
+    pub async fn split(vault: Vault) -> Result<(Vault, Vec<WriteEvent>)> {
         let mut events = Vec::with_capacity(vault.len() + 1);
         let header = vault.header().clone();
         let head: Vault = header.into();
@@ -65,8 +63,8 @@ impl<'a> EventReducer<'a> {
     /// Reduce the events in the given iterator.
     pub async fn reduce(
         mut self,
-        event_log: &'a FolderEventLog,
-    ) -> Result<EventReducer<'a>> {
+        event_log: &FolderEventLog,
+    ) -> Result<EventReducer> {
         let mut it = event_log.iter().await?;
         if let Some(log) = it.next_entry().await? {
             let event = event_log.event_data(&log).await?;
@@ -136,13 +134,13 @@ impl<'a> EventReducer<'a> {
     /// the new series of events have been applied so callers
     /// must generate a new commit tree once the new event log has
     /// been created.
-    pub async fn compact(self) -> Result<Vec<WriteEvent<'a>>> {
+    pub async fn compact(self) -> Result<Vec<WriteEvent>> {
         if let Some(vault) = self.vault {
             let mut events = Vec::new();
 
             let mut vault: Vault = decode(&vault).await?;
             if let Some(name) = self.vault_name {
-                vault.set_name(name.into_owned());
+                vault.set_name(name);
             }
 
             if let Some(meta) = self.vault_meta {
@@ -165,7 +163,7 @@ impl<'a> EventReducer<'a> {
         if let Some(vault) = self.vault {
             let mut vault: Vault = decode(&vault).await?;
             if let Some(name) = self.vault_name {
-                vault.set_name(name.into_owned());
+                vault.set_name(name);
             }
 
             if let Some(meta) = self.vault_meta {
@@ -223,7 +221,7 @@ mod test {
         let (secret_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")
                 .await?;
-        commits.push(event_log.append_event(event.into_owned()).await?);
+        commits.push(event_log.append_event(event).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -235,18 +233,18 @@ mod test {
         )
         .await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event.into_owned()).await?);
+            commits.push(event_log.append_event(event).await?);
         }
 
         // Create another secret
         let (del_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "qux", "baz")
                 .await?;
-        commits.push(event_log.append_event(event.into_owned()).await?);
+        commits.push(event_log.append_event(event).await?);
 
         let event = vault.delete(&del_id).await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event.into_owned()).await?);
+            commits.push(event_log.append_event(event).await?);
         }
 
         Ok((temp, event_log, commits, encryption_key, secret_id))
@@ -317,7 +315,7 @@ mod test {
         let compact_temp = NamedTempFile::new()?;
         let mut compact = FolderEventLog::new(compact_temp.path()).await?;
         for event in events {
-            compact.append_event(event.into_owned()).await?;
+            compact.append_event(event).await?;
         }
 
         let compact_vault =

@@ -41,8 +41,8 @@ impl EventRecord {
     }
 
     /// Decode this event record into a write event.
-    pub async fn decode_event(&self) -> Result<WriteEvent<'static>> {
-        let event: WriteEvent<'static> = decode(&self.3).await?;
+    pub async fn decode_event(&self) -> Result<WriteEvent> {
+        let event: WriteEvent = decode(&self.3).await?;
         Ok(event)
     }
 }
@@ -156,7 +156,7 @@ mod test {
         let mut it = server.iter().await?;
         while let Some(record) = it.next_entry().await? {
             let event = server.event_data(&record).await?;
-            client.append_event(event.into_owned()).await?;
+            client.append_event(event).await?;
         }
 
         let proof = client.tree().head()?;

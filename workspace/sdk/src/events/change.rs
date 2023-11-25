@@ -101,7 +101,7 @@ pub enum ChangeEvent {
 
 impl ChangeEvent {
     /// Convert from a sync event.
-    pub async fn from_sync_event(event: &Event<'_>) -> Option<Self> {
+    pub async fn from_sync_event(event: &Event) -> Option<Self> {
         match event {
             Event::Write(_, event) => match event {
                 WriteEvent::CreateVault(vault) => {
@@ -133,9 +133,7 @@ impl ChangeEvent {
     }
 
     /// Convert from a write operation.
-    pub async fn try_from_write_event(
-        event: &WriteEvent<'_>,
-    ) -> Result<Self> {
+    pub async fn try_from_write_event(event: &WriteEvent) -> Result<Self> {
         match event {
             WriteEvent::CreateVault(vault) => {
                 let summary =

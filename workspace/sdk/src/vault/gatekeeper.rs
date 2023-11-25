@@ -177,7 +177,7 @@ impl Gatekeeper {
     pub async fn set_vault_name(
         &mut self,
         name: String,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<WriteEvent> {
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.set_vault_name(name.clone()).await?;
         }
@@ -207,7 +207,7 @@ impl Gatekeeper {
     pub async fn set_vault_meta(
         &mut self,
         meta_data: VaultMeta,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<WriteEvent> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         let meta_blob = encode(&meta_data).await?;
@@ -262,7 +262,7 @@ impl Gatekeeper {
         &mut self,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<WriteEvent> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
@@ -335,7 +335,7 @@ impl Gatekeeper {
         id: &SecretId,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Option<WriteEvent<'_>>> {
+    ) -> Result<Option<WriteEvent>> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
@@ -399,7 +399,7 @@ impl Gatekeeper {
     pub async fn delete(
         &mut self,
         id: &SecretId,
-    ) -> Result<Option<WriteEvent<'_>>> {
+    ) -> Result<Option<WriteEvent>> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         self.enforce_shared_readonly(private_key).await?;

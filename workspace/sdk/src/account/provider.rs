@@ -134,7 +134,7 @@ impl LocalProvider {
     pub async fn import_new_account(
         &mut self,
         account: &NewAccount,
-    ) -> Result<(ImportedAccount, Vec<Event<'static>>)> {
+    ) -> Result<(ImportedAccount, Vec<Event>)> {
         let mut events = Vec::new();
 
         events.push(Event::CreateAccount(AuditEvent::new(
@@ -147,12 +147,12 @@ impl LocalProvider {
         let buffer = encode(&account.default_vault).await?;
 
         let (event, summary) = self.upsert_vault_buffer(buffer).await?;
-        events.push(Event::Write(*summary.id(), event.into_owned()));
+        events.push(Event::Write(*summary.id(), event));
 
         let archive = if let Some(archive_vault) = &account.archive {
             let buffer = encode(archive_vault).await?;
             let (event, summary) = self.import_vault(buffer).await?;
-            events.push(Event::Write(*summary.id(), event.into_owned()));
+            events.push(Event::Write(*summary.id(), event));
             Some(summary)
         } else {
             None
@@ -162,7 +162,7 @@ impl LocalProvider {
             if let Some(authenticator_vault) = &account.authenticator {
                 let buffer = encode(authenticator_vault).await?;
                 let (event, summary) = self.import_vault(buffer).await?;
-                events.push(Event::Write(*summary.id(), event.into_owned()));
+                events.push(Event::Write(*summary.id(), event));
                 Some(summary)
             } else {
                 None
@@ -171,7 +171,7 @@ impl LocalProvider {
         let contacts = if let Some(contact_vault) = &account.contacts {
             let buffer = encode(contact_vault).await?;
             let (event, summary) = self.import_vault(buffer).await?;
-            events.push(Event::Write(*summary.id(), event.into_owned()));
+            events.push(Event::Write(*summary.id(), event));
             Some(summary)
         } else {
             None
@@ -448,7 +448,7 @@ impl LocalProvider {
     pub async fn import_vault(
         &mut self,
         buffer: impl AsRef<[u8]>,
-    ) -> Result<(WriteEvent<'static>, Summary)> {
+    ) -> Result<(WriteEvent, Summary)> {
         self.upsert_vault_buffer(buffer).await
     }
 
@@ -534,7 +534,7 @@ impl LocalProvider {
     async fn upsert_vault_buffer(
         &mut self,
         buffer: impl AsRef<[u8]>,
-    ) -> Result<(WriteEvent<'static>, Summary)> {
+    ) -> Result<(WriteEvent, Summary)> {
         let vault: Vault = decode(buffer.as_ref()).await?;
 
         let exists = self.state().find(|s| s.id() == vault.id()).is_some();
@@ -562,11 +562,11 @@ impl LocalProvider {
     }
 
     /// Update an existing vault by replacing it with a new vault.
-    pub async fn update_vault<'a>(
+    pub async fn update_vault(
         &mut self,
         summary: &Summary,
         vault: &Vault,
-        events: Vec<WriteEvent<'a>>,
+        events: Vec<WriteEvent>,
     ) -> Result<()> {
         if self.state().mirror() {
             // Write the vault to disc
@@ -580,8 +580,6 @@ impl LocalProvider {
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         event_log.clear().await?;
-        let events: Vec<_> =
-            events.into_iter().map(|e| e.into_owned()).collect();
         event_log.apply(events, None).await?;
 
         Ok(())
@@ -616,7 +614,6 @@ impl LocalProvider {
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
         Ok(EventReducer::new()
             .reduce(event_log_file)
             .await?
@@ -651,7 +648,7 @@ impl LocalProvider {
     pub async fn remove_vault(
         &mut self,
         summary: &Summary,
-    ) -> Result<WriteEvent<'static>> {
+    ) -> Result<WriteEvent> {
         // Remove the files
         self.remove_vault_file(summary).await?;
 
@@ -666,11 +663,10 @@ impl LocalProvider {
         &mut self,
         summary: &Summary,
         name: impl AsRef<str>,
-    ) -> Result<WriteEvent<'static>> {
+    ) -> Result<WriteEvent> {
         // Log the event log event
         //
-        let event = WriteEvent::SetVaultName(Cow::Borrowed(name.as_ref()))
-            .into_owned();
+        let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
         self.patch(summary, vec![event.clone()]).await?;
 
         // Update the in-memory name.
@@ -700,7 +696,7 @@ impl LocalProvider {
     pub async fn patch(
         &mut self,
         summary: &Summary,
-        events: Vec<WriteEvent<'static>>,
+        events: Vec<WriteEvent>,
     ) -> Result<()> {
         // Apply events to the event log file
         {
@@ -724,10 +720,10 @@ impl LocalProvider {
         &mut self,
         meta: SecretMeta,
         secret: Secret,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<WriteEvent> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
-        let event = keeper.create(meta, secret).await?.into_owned();
+        let event = keeper.create(meta, secret).await?;
         self.patch(&summary, vec![event.clone()]).await?;
         Ok(event)
     }
@@ -749,7 +745,7 @@ impl LocalProvider {
         &mut self,
         id: &SecretId,
         mut secret_data: SecretData,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<WriteEvent> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         secret_data.meta.touch();
@@ -757,7 +753,6 @@ impl LocalProvider {
             .update(id, secret_data.meta, secret_data.secret)
             .await?
             .ok_or(Error::SecretNotFound(*id))?;
-        let event = event.into_owned();
         self.patch(&summary, vec![event.clone()]).await?;
         Ok(event)
     }
@@ -766,12 +761,11 @@ impl LocalProvider {
     pub async fn delete_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<WriteEvent> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         let event =
             keeper.delete(id).await?.ok_or(Error::SecretNotFound(*id))?;
-        let event = event.into_owned();
         self.patch(&summary, vec![event.clone()]).await?;
         Ok(event)
     }
@@ -819,7 +813,7 @@ impl LocalProvider {
     pub async fn history(
         &self,
         summary: &Summary,
-    ) -> Result<Vec<(CommitHash, Timestamp, WriteEvent<'_>)>> {
+    ) -> Result<Vec<(CommitHash, Timestamp, WriteEvent)>> {
         let event_log = self
             .cache()
             .get(summary.id())

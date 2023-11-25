@@ -43,7 +43,7 @@ use tempfile::NamedTempFile;
 use super::{EventRecord, EventReducer};
 
 /// Event log for changes to a folder.
-pub type FolderEventLog = EventLogFile<WriteEvent<'static>>;
+pub type FolderEventLog = EventLogFile<WriteEvent>;
 
 /// Event log for changes to an account.
 pub type AccountEventLog = EventLogFile<AccountEvent>;
@@ -399,7 +399,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     }
 }
 
-impl EventLogFile<WriteEvent<'static>> {
+impl EventLogFile<WriteEvent> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.path().metadata()?.len();
@@ -464,7 +464,7 @@ mod test {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event: WriteEvent<'static> = WriteEvent::CreateVault(buffer);
+        let event = WriteEvent::CreateVault(buffer);
         commits.push(event_log.append_event(event).await?);
 
         // Create a secret
@@ -475,7 +475,7 @@ mod test {
             "This a event log note secret.",
         )
         .await?;
-        commits.push(event_log.append_event(event.into_owned()).await?);
+        commits.push(event_log.append_event(event).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -487,7 +487,7 @@ mod test {
         )
         .await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event.into_owned()).await?);
+            commits.push(event_log.append_event(event).await?);
         }
 
         Ok((temp, event_log, commits))

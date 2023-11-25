@@ -168,7 +168,7 @@ impl AuditEvent {
     */
 }
 
-impl<'a> From<(&Address, &Event<'a>)> for AuditEvent {
+impl<'a> From<(&Address, &Event)> for AuditEvent {
     fn from(value: (&Address, &Event)) -> Self {
         let (address, event) = value;
         match event {

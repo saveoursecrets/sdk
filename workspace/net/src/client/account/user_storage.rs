@@ -1081,7 +1081,7 @@ impl UserStorage {
         secret: Secret,
         mut options: SecretOptions,
         audit: bool,
-    ) -> Result<(SecretId, Event<'static>, Summary)> {
+    ) -> Result<(SecretId, Event, Summary)> {
         let folder = {
             let reader = self.storage.read().await;
             options
@@ -1100,10 +1100,7 @@ impl UserStorage {
 
         let event = {
             let mut writer = self.storage.write().await;
-            writer
-                .create_secret(meta.clone(), secret.clone())
-                .await?
-                .into_owned()
+            writer.create_secret(meta.clone(), secret.clone()).await?
         };
 
         let id = if let WriteEvent::CreateSecret(id, _) = &event {
@@ -1299,7 +1296,7 @@ impl UserStorage {
         secret_data: SecretData,
         folder: Option<Summary>,
         audit: bool,
-    ) -> Result<Event<'static>> {
+    ) -> Result<Event> {
         let folder = {
             let reader = self.storage.read().await;
             folder
@@ -1316,10 +1313,7 @@ impl UserStorage {
 
         let event = {
             let mut writer = self.storage.write().await;
-            writer
-                .update_secret(secret_id, secret_data)
-                .await?
-                .into_owned()
+            writer.update_secret(secret_id, secret_data).await?
         };
 
         let event = Event::Write(*folder.id(), event);
@@ -1338,7 +1332,7 @@ impl UserStorage {
         from: &Summary,
         to: &Summary,
         options: SecretOptions,
-    ) -> Result<(SecretId, Event<'static>)> {
+    ) -> Result<(SecretId, Event)> {
         let _ = self.sync_lock.lock().await;
         self.mv_secret(secret_id, from, to, options).await
     }
@@ -1349,7 +1343,7 @@ impl UserStorage {
         from: &Summary,
         to: &Summary,
         mut options: SecretOptions,
-    ) -> Result<(SecretId, Event<'static>)> {
+    ) -> Result<(SecretId, Event)> {
         self.open_vault(from, false).await?;
         let (secret_data, read_event) =
             self.get_secret(secret_id, None, false).await?;
@@ -1450,7 +1444,7 @@ impl UserStorage {
         secret_id: &SecretId,
         folder: Option<Summary>,
         audit: bool,
-    ) -> Result<Event<'static>> {
+    ) -> Result<Event> {
         let folder = {
             let reader = self.storage.read().await;
             folder
@@ -1462,10 +1456,10 @@ impl UserStorage {
 
         let event = {
             let mut writer = self.storage.write().await;
-            writer.delete_secret(secret_id).await?.into_owned()
+            writer.delete_secret(secret_id).await?
         };
 
-        let event = Event::Write(*folder.id(), event.into_owned());
+        let event = Event::Write(*folder.id(), event);
         if audit {
             let audit_event: AuditEvent = (self.address(), &event).into();
             self.append_audit_logs(vec![audit_event]).await?;
@@ -1481,7 +1475,7 @@ impl UserStorage {
         from: &Summary,
         secret_id: &SecretId,
         options: SecretOptions,
-    ) -> Result<(SecretId, Event<'static>)> {
+    ) -> Result<(SecretId, Event)> {
         let _ = self.sync_lock.lock().await;
 
         if from.flags().is_archive() {
@@ -1504,7 +1498,7 @@ impl UserStorage {
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
         options: SecretOptions,
-    ) -> Result<(Summary, SecretId, Event<'static>)> {
+    ) -> Result<(Summary, SecretId, Event)> {
         let _ = self.sync_lock.lock().await;
 
         if !from.flags().is_archive() {
@@ -1723,7 +1717,7 @@ impl UserStorage {
         path: P,
         folder_name: String,
         converter: impl Convert<Input = PathBuf>,
-    ) -> Result<(Event<'static>, Summary)> {
+    ) -> Result<(Event, Summary)> {
         use sos_sdk::vault::VaultBuilder;
 
         let local_accounts = LocalAccounts::new(&self.paths);
@@ -2162,7 +2156,7 @@ impl RemoteSync for UserStorage {
         folder: &Summary,
         before_last_commit: Option<&CommitHash>,
         before_client_proof: &CommitProof,
-        events: &[WriteEvent<'static>],
+        events: &[WriteEvent],
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError> {
         let _ = self.sync_lock.lock().await;

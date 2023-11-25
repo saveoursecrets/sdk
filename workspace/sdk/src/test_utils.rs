@@ -72,12 +72,12 @@ pub async fn mock_secret_file(
 }
 
 /// Generate a mock secret note and add it to a vault.
-pub async fn mock_vault_note<'a>(
-    vault: &'a mut Vault,
+pub async fn mock_vault_note(
+    vault: &mut Vault,
     encryption_key: &PrivateKey,
     secret_label: &str,
     secret_note: &str,
-) -> Result<(Uuid, CommitHash, SecretMeta, Secret, WriteEvent<'a>)> {
+) -> Result<(Uuid, CommitHash, SecretMeta, Secret, WriteEvent)> {
     let (secret_meta, secret_value, meta_bytes, secret_bytes) =
         mock_secret_note(secret_label, secret_note).await?;
 
@@ -98,13 +98,13 @@ pub async fn mock_vault_note<'a>(
 }
 
 /// Generate a mock secret note and update a vault entry.
-pub async fn mock_vault_note_update<'a>(
-    vault: &'a mut Vault,
+pub async fn mock_vault_note_update(
+    vault: &mut Vault,
     encryption_key: &PrivateKey,
     id: &SecretId,
     secret_label: &str,
     secret_note: &str,
-) -> Result<(CommitHash, SecretMeta, Secret, Option<WriteEvent<'a>>)> {
+) -> Result<(CommitHash, SecretMeta, Secret, Option<WriteEvent>)> {
     let (secret_meta, secret_value, meta_bytes, secret_bytes) =
         mock_secret_note(secret_label, secret_note).await?;
 
@@ -152,7 +152,7 @@ pub async fn mock_event_log_file(
         "This a event log note secret.",
     )
     .await?;
-    commits.push(event_log.append_event(event.into_owned()).await?);
+    commits.push(event_log.append_event(event).await?);
 
     // Update the secret
     let (_, _, _, event) = mock_vault_note_update(
@@ -164,7 +164,7 @@ pub async fn mock_event_log_file(
     )
     .await?;
     if let Some(event) = event {
-        commits.push(event_log.append_event(event.into_owned()).await?);
+        commits.push(event_log.append_event(event).await?);
     }
 
     Ok((temp, event_log, commits, encryption_key))

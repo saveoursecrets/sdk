@@ -35,7 +35,7 @@ impl AccountEvent {
 
 /// Events generated when reading or writing.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Event<'a> {
+pub enum Event {
     /// Create account event.
     CreateAccount(AuditEvent),
 
@@ -46,16 +46,16 @@ pub enum Event<'a> {
     Read(VaultId, ReadEvent),
 
     /// Write folder operations.
-    Write(VaultId, WriteEvent<'a>),
+    Write(VaultId, WriteEvent),
 
     /// Move secret operation.
-    MoveSecret(ReadEvent, WriteEvent<'a>, WriteEvent<'a>),
+    MoveSecret(ReadEvent, WriteEvent, WriteEvent),
 
     /// Delete account event.
     DeleteAccount(AuditEvent),
 }
 
-impl Event<'_> {
+impl Event {
     /// Get the event kind for this event.
     pub fn event_kind(&self) -> EventKind {
         match self {
@@ -69,20 +69,18 @@ impl Event<'_> {
     }
 }
 
-impl From<(VaultId, WriteEvent<'static>)> for Event<'static> {
-    fn from(value: (VaultId, WriteEvent<'static>)) -> Self {
+impl From<(VaultId, WriteEvent)> for Event {
+    fn from(value: (VaultId, WriteEvent)) -> Self {
         Self::Write(value.0, value.1)
     }
 }
 
 // Convert to an owned write event.
-impl<'a> TryFrom<Event<'a>> for (VaultId, WriteEvent<'static>) {
+impl TryFrom<Event> for (VaultId, WriteEvent) {
     type Error = Error;
-    fn try_from(value: Event<'a>) -> Result<Self> {
+    fn try_from(value: Event) -> Result<Self> {
         match value {
-            Event::Write(vault_id, event) => {
-                Ok((vault_id, event.into_owned()))
-            }
+            Event::Write(vault_id, event) => Ok((vault_id, event)),
             _ => panic!("not a write event"),
         }
     }
