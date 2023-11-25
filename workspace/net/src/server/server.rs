@@ -1,7 +1,7 @@
 use super::{
     config::TlsConfig,
     handlers::{
-        api, home,
+        api, home, connections,
         service::ServiceHandler,
         websocket::{upgrade, WebSocketConnection},
     },
@@ -49,11 +49,6 @@ pub struct State {
     pub config: ServerConfig,
     /// Server information.
     pub info: ServerInfo,
-
-    /*
-    /// Storage backend.
-    pub backend: Backend,
-    */
     /// Audit log file
     pub audit_log: AuditLogFile,
     /// Server transport manager.
@@ -198,6 +193,7 @@ impl Server {
         let mut app = Router::new()
             .route("/", get(home))
             .route("/api", get(api))
+            .route("/api/connections", get(connections))
             .route("/api/changes", get(upgrade))
             .route("/api/handshake", post(ServiceHandler::handshake))
             .route("/api/account", post(ServiceHandler::account))

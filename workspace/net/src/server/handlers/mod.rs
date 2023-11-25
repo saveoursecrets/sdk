@@ -26,3 +26,13 @@ pub(crate) async fn api(
     let reader = state.read().await;
     Json(json!(&reader.info))
 }
+
+/// Get the number of websocket connections.
+pub(crate) async fn connections(
+    Extension(state): Extension<ServerState>,
+) -> impl IntoResponse {
+    let reader = state.read().await;
+    let num_connections = reader.sockets
+        .values().fold(0, |acc, conn| acc + conn.clients );
+    Json(json!(num_connections))
+}
