@@ -36,6 +36,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
                 ListenOptions::new_config("device_1".to_string(), 500, 4)
                     .unwrap(),
             )
+            .await
             .unwrap();
     });
 

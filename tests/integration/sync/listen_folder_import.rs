@@ -24,8 +24,8 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
     let mut device2 = device1.connect(1, None).await?;
 
     // Start listening for change notifications
-    device1.listen()?;
-    device2.listen()?;
+    device1.listen().await?;
+    device2.listen().await?;
 
     let (new_folder, sync_error) = device1
         .owner

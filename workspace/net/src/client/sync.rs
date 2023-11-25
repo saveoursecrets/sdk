@@ -61,8 +61,8 @@ pub trait RemoteSync: Sync + Send + Any {
     ) -> std::result::Result<(), SyncError>;
 
     /// Cast to the Any trait.
-    fn as_any(&self) -> &dyn Any;
+    fn as_any(&self) -> &(dyn Any + Send + Sync);
 
     /// Cast to the Any trait.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn as_any_mut(&mut self) -> &mut (dyn Any + Send + Sync);
 }

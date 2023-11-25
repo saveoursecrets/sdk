@@ -41,6 +41,7 @@ mod multiple_remotes_fallback;
 mod offline_manual;
 mod websocket_reconnect;
 mod websocket_shutdown;
+mod websocket_shutdown_signout;
 
 pub struct SimulatedDevice {
     pub id: String,
@@ -100,10 +101,11 @@ impl SimulatedDevice {
     }
 
     /// Start listening for changes.
-    pub fn listen(&self) -> Result<WebSocketHandle> {
+    pub async fn listen(&self) -> Result<WebSocketHandle> {
         Ok(self
             .owner
-            .listen(&self.origin, ListenOptions::new(self.id.clone())?)?)
+            .listen(&self.origin, ListenOptions::new(self.id.clone())?)
+            .await?)
     }
 }
 

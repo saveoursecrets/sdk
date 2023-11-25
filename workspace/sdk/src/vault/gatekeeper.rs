@@ -11,10 +11,9 @@ use crate::{
     },
     vfs, Error, Result,
 };
-//use parking_lot::RwLock;
-
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
+use tracing::{span, Level};
 
 use uuid::Uuid;
 
@@ -474,6 +473,9 @@ impl Gatekeeper {
     /// associated with the vault, securely zeroing the
     /// underlying memory.
     pub fn lock(&mut self) {
+        let span = span!(Level::DEBUG, "lock");
+        let _enter = span.enter();
+        tracing::debug!(folder = %self.id(), "drop private key");
         self.private_key = None;
     }
 }

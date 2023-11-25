@@ -1,13 +1,10 @@
 use super::simulate_device;
 use crate::test_utils::{spawn, sync_pause, teardown};
 use anyhow::Result;
-use sos_net::{
-    client::ListenOptions,
-    sdk::{
-        constants::{EVENT_LOG_EXT, VAULT_EXT},
-        vault::Summary,
-        vfs,
-    },
+use sos_net::sdk::{
+    constants::{EVENT_LOG_EXT, VAULT_EXT},
+    vault::Summary,
+    vfs,
 };
 
 const TEST_ID: &str = "sync_listen_delete_folder";
@@ -25,21 +22,14 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
     // Prepare mock devices
     let mut device1 = simulate_device(TEST_ID, &server, 2).await?;
     let _default_folder_id = device1.default_folder_id.clone();
-    let origin = device1.origin.clone();
     let folders = device1.folders.clone();
     let address = device1.owner.address().to_string();
     let server_path = device1.server_path.clone();
     let device2 = device1.connect(1, None).await?;
 
-    // Start listening for change notifications (first client)
-    device1
-        .owner
-        .listen(&origin, ListenOptions::new("device_1".to_string())?)?;
-
-    // Start listening for change notifications (second client)
-    device2
-        .owner
-        .listen(&origin, ListenOptions::new("device_2".to_string())?)?;
+    // Start listening for change notifications
+    device1.listen().await?;
+    device2.listen().await?;
 
     let (new_folder, sync_error) = device1
         .owner

@@ -42,10 +42,13 @@ use tokio::{
     sync::{mpsc, Mutex, RwLock},
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+use crate::client::WebSocketHandle;
 use crate::client::{
     sync::SyncData, Error, Origin, Remote, RemoteBridge, RemoteSync, Remotes,
     Result, SyncError,
 };
+
 use async_trait::async_trait;
 
 #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
@@ -183,6 +186,10 @@ pub struct UserStorage {
 
     /// Audit log for this provider.
     audit_log: Arc<RwLock<AuditLogFile>>,
+
+    /// Websocket change listeners.
+    #[cfg(not(target_arch = "wasm32"))]
+    listeners: Mutex<Vec<WebSocketHandle>>,
 }
 
 impl UserStorage {
@@ -392,6 +399,7 @@ impl UserStorage {
             remotes: remotes.unwrap_or_default(),
             sync_lock: Mutex::new(()),
             audit_log,
+            listeners: Mutex::new(Default::default()),
         })
     }
 
@@ -537,9 +545,28 @@ impl UserStorage {
 
     /// Sign out of the account.
     pub async fn sign_out(&mut self) {
+        let span = span!(Level::DEBUG, "sign_out");
+        let _enter = span.enter();
+
+        tracing::debug!(address = %self.address());
+
+        // Close all the websocket connections
+        {
+            let mut listeners = self.listeners.lock().await;
+            for handle in listeners.drain(..) {
+                tracing::debug!("close websocket");
+                handle.close();
+            }
+        }
+
+        // Close the currently open vaul in the local storage
         let mut writer = self.storage.write().await;
         writer.close_vault();
+
+        // Remove the search index
         self.index.clear().await;
+
+        // Forget authenticated user information
         self.user.sign_out().await;
     }
 
@@ -2156,11 +2183,11 @@ impl RemoteSync for UserStorage {
         }
     }
 
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &(dyn Any + Send + Sync) {
         self
     }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
+    fn as_any_mut(&mut self) -> &mut (dyn Any + Send + Sync) {
         self
     }
 }
@@ -2178,7 +2205,7 @@ mod listen {
 
     impl UserStorage {
         /// Listen for changes on a remote origin.
-        pub fn listen(
+        pub async fn listen(
             &self,
             origin: &Origin,
             options: ListenOptions,
@@ -2191,6 +2218,12 @@ mod listen {
                     let (handle, rx, tx) =
                         RemoteBridge::listen(remote, options);
                     self.spawn_remote_bridge_channels(rx, tx);
+
+                    // Store the listeners so we can
+                    // close the connections on sign out
+                    let mut listeners = self.listeners.lock().await;
+                    listeners.push(handle.clone());
+
                     Ok(handle)
                 } else {
                     unreachable!();

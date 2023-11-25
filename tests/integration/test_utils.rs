@@ -480,4 +480,9 @@ pub async fn teardown(test_id: &str) {
     vfs::remove_dir_all(&target)
         .await
         .expect("to remove test directory");
+    /*
+    let _ = tracing::subscriber::set_global_default(
+        tracing::subscriber::NoSubscriber::new(),
+    );
+    */
 }

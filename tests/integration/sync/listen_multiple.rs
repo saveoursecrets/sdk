@@ -25,9 +25,9 @@ async fn integration_sync_listen_multiple() -> Result<()> {
     let mut device3 = device1.connect(2, None).await?;
 
     // Start listening for change notifications
-    device1.listen()?;
-    device2.listen()?;
-    device3.listen()?;
+    device1.listen().await?;
+    device2.listen().await?;
+    device3.listen().await?;
 
     //println!("default folder {}", default_folder_id);
 

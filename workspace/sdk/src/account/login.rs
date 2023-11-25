@@ -181,6 +181,7 @@ impl AuthenticatedUser {
 
     /// Sign out this user by locking the account identity vault.
     pub async fn sign_out(&mut self) {
+        tracing::debug!("identity vault sign out");
         let keeper = self.identity.keeper();
         let mut writer = keeper.write().await;
         writer.lock();

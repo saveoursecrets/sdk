@@ -36,6 +36,7 @@ impl UserIndex {
 
     /// Clear the entire search index.
     pub async fn clear(&mut self) {
+        tracing::debug!("clear search index");
         let mut writer = self.search_index.write().await;
         writer.remove_all();
     }

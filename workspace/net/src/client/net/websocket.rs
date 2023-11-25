@@ -7,7 +7,7 @@ use futures::{
 use std::{
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicU64, Ordering},
         Arc,
     },
     time::Duration,
@@ -28,8 +28,6 @@ use tokio::{
     time::sleep,
 };
 use url::Url;
-
-use tracing::{span, Level};
 
 use sos_sdk::{
     events::ChangeNotification,
@@ -294,8 +292,6 @@ impl WebSocketChangeListener {
     {
         let notify = Arc::clone(&self.notify);
         let task = tokio::task::spawn(async move {
-            let span = span!(Level::DEBUG, "ws_client");
-            let _enter = span.enter();
             let _ = self.connect(&handler).await;
         });
         WebSocketHandle { notify }
@@ -344,8 +340,6 @@ impl WebSocketChangeListener {
         // Try to re-connect if not explicitly closed
         let closed = self.closed.lock().await;
         if !*closed {
-            // Avoid recursive spans
-            //drop(_enter);
             self.delay_connect(handler).await
         } else {
             Ok(())
