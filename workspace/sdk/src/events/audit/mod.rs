@@ -179,7 +179,7 @@ impl<'a> From<(&Address, &Event<'a>)> for AuditEvent {
             Event::DeleteAccount(event) => event.clone(),
             _ => {
                 let audit_data = match event {
-                    Event::Account(address, event) => match event {
+                    Event::Account(event) => match event {
                         AccountEvent::CreateFolder(vault_id)
                         | AccountEvent::UpdateFolder(vault_id)
                         | AccountEvent::DeleteFolder(vault_id) => {

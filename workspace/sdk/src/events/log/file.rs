@@ -465,7 +465,7 @@ mod test {
 
         // Create the vault
         let event: WriteEvent<'static> =
-            WriteEvent::CreateVault(Cow::Owned(buffer));
+            WriteEvent::CreateVault(buffer);
         commits.push(event_log.append_event(event).await?);
 
         // Create a secret
@@ -530,7 +530,7 @@ mod test {
 
         assert!(event_log.last_commit().await?.is_none());
 
-        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
+        let event = WriteEvent::CreateVault(buffer);
         event_log.append_event(event).await?;
 
         assert!(event_log.last_commit().await?.is_some());

@@ -294,8 +294,8 @@ impl<'a> Encodable for WriteEvent<'a> {
             }
             WriteEvent::CreateVault(vault)
             | WriteEvent::UpdateVault(vault) => {
-                writer.write_u32(vault.as_ref().len() as u32).await?;
-                writer.write_bytes(vault.as_ref()).await?;
+                writer.write_u32(vault.len() as u32).await?;
+                writer.write_bytes(vault).await?;
             }
             WriteEvent::DeleteVault => {}
             WriteEvent::SetVaultName(name) => {
@@ -336,12 +336,12 @@ impl<'a> Decodable for WriteEvent<'a> {
             EventKind::CreateVault => {
                 let length = reader.read_u32().await?;
                 let buffer = reader.read_bytes(length as usize).await?;
-                *self = WriteEvent::CreateVault(Cow::Owned(buffer))
+                *self = WriteEvent::CreateVault(buffer);
             }
             EventKind::UpdateVault => {
                 let length = reader.read_u32().await?;
                 let buffer = reader.read_bytes(length as usize).await?;
-                *self = WriteEvent::UpdateVault(Cow::Owned(buffer))
+                *self = WriteEvent::UpdateVault(buffer);
             }
             EventKind::DeleteVault => {
                 *self = WriteEvent::DeleteVault;

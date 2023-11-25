@@ -603,7 +603,6 @@ impl UserStorage {
         .await?;
 
         let event = Event::Account(
-            self.address().clone(),
             AccountEvent::CreateFolder(*summary.id()));
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
@@ -616,7 +615,7 @@ impl UserStorage {
             self.before_apply_events(&options, false).await?;
 
         //let (_, event) = event.try_into()?;
-        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
+        let event = WriteEvent::CreateVault(buffer);
         let sync_error = self
             .sync_send_events(
                 &summary,

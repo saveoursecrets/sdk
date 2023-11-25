@@ -141,7 +141,7 @@ pub async fn mock_event_log_file(
     let mut commits = Vec::new();
 
     // Create the vault
-    let event = WriteEvent::CreateVault(Cow::Owned(buffer));
+    let event = WriteEvent::CreateVault(buffer);
     commits.push(event_log.append_event(event).await?);
 
     // Create a secret

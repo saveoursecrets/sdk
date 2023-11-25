@@ -13,7 +13,7 @@ use crate::{
 #[derive(Default)]
 pub struct EventReducer<'a> {
     /// Buffer for the create or last update vault event.
-    vault: Option<Cow<'a, [u8]>>,
+    vault: Option<Vec<u8>>,
     /// Last encountered vault name.
     vault_name: Option<Cow<'a, str>>,
     /// Last encountered vault meta data.
@@ -51,7 +51,7 @@ impl<'a> EventReducer<'a> {
         let head: Vault = header.into();
 
         let buffer = encode(&head).await?;
-        events.push(WriteEvent::CreateVault(Cow::Owned(buffer)));
+        events.push(WriteEvent::CreateVault(buffer));
         for (id, entry) in vault {
             let event = WriteEvent::CreateSecret(id, Cow::Owned(entry));
             events.push(event);
@@ -150,7 +150,7 @@ impl<'a> EventReducer<'a> {
             }
 
             let buffer = encode(&vault).await?;
-            events.push(WriteEvent::CreateVault(Cow::Owned(buffer)));
+            events.push(WriteEvent::CreateVault(buffer));
             for (id, entry) in self.secrets {
                 let entry = entry.into_owned();
                 events.push(WriteEvent::CreateSecret(id, Cow::Owned(entry)));
@@ -218,7 +218,7 @@ mod test {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
+        let event = WriteEvent::CreateVault(buffer);
         commits.push(event_log.append_event(event).await?);
 
         // Create a secret

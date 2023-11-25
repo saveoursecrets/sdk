@@ -104,7 +104,7 @@ mod test {
         server
             .apply(
                 vec![
-                    WriteEvent::CreateVault(Cow::Owned(vault_buffer)),
+                    WriteEvent::CreateVault(vault_buffer),
                     WriteEvent::CreateSecret(id, data),
                 ],
                 None,
@@ -144,7 +144,7 @@ mod test {
         server
             .apply(
                 vec![
-                    WriteEvent::CreateVault(Cow::Owned(vault_buffer)),
+                    WriteEvent::CreateVault(vault_buffer),
                     WriteEvent::CreateSecret(id, data),
                 ],
                 None,

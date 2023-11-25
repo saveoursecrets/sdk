@@ -267,7 +267,7 @@ impl FileSystemBackend {
 
         // Create the event log file
         let mut event_log = FolderEventLog::new(&event_log_path).await?;
-        let event = WriteEvent::CreateVault(Cow::Owned(vault.to_vec()));
+        let event = WriteEvent::CreateVault(vault.to_vec());
         event_log.append_event(event).await?;
 
         self.locks.add(&vault_path)?;
@@ -357,7 +357,7 @@ impl BackendHandler for FileSystemBackend {
         )
         .await?;
 
-        let event = WriteEvent::CreateVault(Cow::Borrowed(vault));
+        let event = WriteEvent::CreateVault(vault.to_owned());
         Ok((event, proof))
     }
 
@@ -386,7 +386,7 @@ impl BackendHandler for FileSystemBackend {
             event_log_file,
         )
         .await?;
-        let event = WriteEvent::CreateVault(Cow::Borrowed(vault));
+        let event = WriteEvent::CreateVault(vault.to_owned());
         Ok((event, proof))
     }
 
@@ -513,7 +513,7 @@ impl BackendHandler for FileSystemBackend {
         // Write out the vault file (header only)
         tokio::fs::write(&vault_path, &vault_buffer).await?;
 
-        let event = WriteEvent::UpdateVault(Cow::Owned(vault_buffer));
+        let event = WriteEvent::UpdateVault(vault_buffer);
         Ok((event, commit_proof))
     }
 

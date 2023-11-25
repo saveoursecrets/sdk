@@ -40,12 +40,12 @@ pub enum Event<'a> {
     CreateAccount(AuditEvent),
 
     /// Account changes.
-    Account(Address, AccountEvent),
+    Account(AccountEvent),
 
-    /// Read vault operations.
+    /// Read folder operations.
     Read(VaultId, ReadEvent),
 
-    /// Write vault operations.
+    /// Write folder operations.
     Write(VaultId, WriteEvent<'a>),
 
     /// Move secret operation.
@@ -56,21 +56,11 @@ pub enum Event<'a> {
 }
 
 impl Event<'_> {
-    /*
-    /// Determine if this payload would mutate state.
-    ///
-    /// Some payloads are purely for auditing and do not
-    /// mutate any data.
-    pub fn is_mutation(&self) -> bool {
-        !matches!(self, Self::Write(_, _))
-    }
-    */
-
     /// Get the event kind for this event.
     pub fn event_kind(&self) -> EventKind {
         match self {
             Self::CreateAccount(event) => event.event_kind(),
-            Self::Account(_, event) => event.event_kind(),
+            Self::Account(event) => event.event_kind(),
             Self::Read(_, event) => event.event_kind(),
             Self::Write(_, event) => event.event_kind(),
             Self::MoveSecret(_, _, _) => EventKind::MoveSecret,

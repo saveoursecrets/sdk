@@ -22,13 +22,13 @@ pub enum WriteEvent<'a> {
     Noop,
 
     /// Event used to indicate a vault was created.
-    CreateVault(Cow<'a, [u8]>),
+    CreateVault(Vec<u8>),
 
     /// Event used to indicate a vault was updated.
     ///
     /// This occurs when the passphrase for a vault
     /// has been changed.
-    UpdateVault(Cow<'a, [u8]>),
+    UpdateVault(Vec<u8>),
 
     /// Event used to indicate a vault was deleted.
     DeleteVault,
@@ -97,10 +97,10 @@ impl WriteEvent<'_> {
         match self {
             WriteEvent::Noop => WriteEvent::Noop,
             WriteEvent::CreateVault(value) => {
-                WriteEvent::CreateVault(Cow::Owned(value.into_owned()))
+                WriteEvent::CreateVault(value)
             }
             WriteEvent::UpdateVault(value) => {
-                WriteEvent::UpdateVault(Cow::Owned(value.into_owned()))
+                WriteEvent::UpdateVault(value)
             }
             WriteEvent::DeleteVault => WriteEvent::DeleteVault,
             WriteEvent::SetVaultName(value) => {

@@ -208,7 +208,7 @@ impl LocalProvider {
         for (buffer, vault) in vaults {
             // Prepare a fresh log of event log events
             let mut event_log_events = Vec::new();
-            let create_vault = WriteEvent::CreateVault(Cow::Borrowed(buffer));
+            let create_vault = WriteEvent::CreateVault(buffer.clone());
             event_log_events.push(create_vault);
 
             self.update_vault(vault.summary(), vault, event_log_events)
@@ -261,7 +261,7 @@ impl LocalProvider {
             event_log.truncate().await?;
 
             let encoded = encode(vault).await?;
-            let event = WriteEvent::CreateVault(Cow::Owned(encoded));
+            let event = WriteEvent::CreateVault(encoded);
             event_log.append_event(event).await?;
         }
         event_log.load_tree().await?;
@@ -556,16 +556,16 @@ impl LocalProvider {
 
         Ok(if !exists {
             (
-                WriteEvent::CreateVault(Cow::Owned(
+                WriteEvent::CreateVault(
                     buffer.as_ref().to_owned(),
-                )),
+                ),
                 summary,
             )
         } else {
             (
-                WriteEvent::UpdateVault(Cow::Owned(
+                WriteEvent::UpdateVault(
                     buffer.as_ref().to_owned(),
-                )),
+                ),
                 summary,
             )
         })
