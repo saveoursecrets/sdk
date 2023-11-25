@@ -91,7 +91,7 @@ impl<T: Encodable + Decodable> EventLogFile<T> {
     }
 
     /// Encode an event into a record.
-    pub async fn encode_event(
+    async fn encode_event(
         &self,
         event: &T,
         last_commit: Option<CommitHash>,
