@@ -112,3 +112,15 @@ The executor is a member of the recovery group that is authorized to
 perform the final decryption of the account owner's data.
 
 See SOCIAL-RECOVERY.md for more information on the social recovery protocol.
+
+## Files
+
+Files can be *internal* (embedded in a folder) or *external* which 
+encrypts the file data and stores it in a location determined by convention.
+
+The convention for file storage is the vault identifier followed by the secret identifier and then the SHA256 hash of the encrypted file data.
+
+Internal files are considered legacy and  *not recommended* as they 
+increase the size of folders and have negative performance implications.
+
+Support for internal files may be removed in the future so use with caution.

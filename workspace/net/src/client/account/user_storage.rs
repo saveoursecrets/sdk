@@ -538,8 +538,8 @@ impl UserStorage {
     /// Sign out of the account.
     pub async fn sign_out(&mut self) {
         let mut writer = self.storage.write().await;
-        self.index.clear().await;
         writer.close_vault();
+        self.index.clear().await;
         self.user.sign_out().await;
     }
 
