@@ -48,7 +48,7 @@ pub type VaultEventLog = EventLogFile<WriteEvent<'static>>;
 /// An event log that appends to a file.
 pub struct EventLogFile<T>
 where
-    T: Encodable + Decodable,
+    T: Default + Encodable + Decodable,
 {
     pub(crate) file_path: PathBuf,
     pub(crate) file: File,
@@ -57,7 +57,7 @@ where
     phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Encodable + Decodable> EventLogFile<T> {
+impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     /// Create a new event log file.
     pub async fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         let file =
@@ -213,13 +213,6 @@ impl<T: Encodable + Decodable> EventLogFile<T> {
             let (commit, record) =
                 self.encode_event(&event, last_commit_hash).await?;
             commits.push(commit);
-
-            /*
-            if Some(commit) == last_commit_hash {
-                panic!("applying the same change twice {:#?}", self.path());
-            }
-            */
-
             let mut buf = encode(&record).await?;
             last_commit_hash = Some(*record.commit());
             buffer.append(&mut buf);
@@ -279,7 +272,7 @@ impl<T: Encodable + Decodable> EventLogFile<T> {
     pub async fn event_data(
         &self,
         item: &EventLogFileRecord,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<T> {
         let value = item.value();
 
         // Use a different file handle as the owned `file` should
@@ -292,8 +285,7 @@ impl<T: Encodable + Decodable> EventLogFile<T> {
 
         let mut stream = BufReader::new(Cursor::new(&mut buffer));
         let mut reader = BinaryReader::new(&mut stream, encoding_options());
-        let mut event: WriteEvent = Default::default();
-
+        let mut event: T = Default::default();
         event.decode(&mut reader).await?;
         Ok(event)
     }
