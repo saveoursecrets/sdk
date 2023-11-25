@@ -222,7 +222,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         let mut header = Header::read_header_file(&self.file_path).await?;
         header.set_meta(meta_data.clone());
         self.write_header(content_offset, &header).await?;
-        Ok(WriteEvent::SetVaultMeta(Cow::Owned(meta_data)))
+        Ok(WriteEvent::SetVaultMeta(meta_data))
     }
 
     async fn create(
@@ -253,7 +253,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
 
         writer.flush().await?;
 
-        Ok(WriteEvent::CreateSecret(id, Cow::Owned(row)))
+        Ok(WriteEvent::CreateSecret(id, row))
     }
 
     async fn read<'a>(
@@ -304,7 +304,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
 
             self.splice(head, tail, Some(&buffer)).await?;
 
-            Ok(Some(WriteEvent::UpdateSecret(*id, Cow::Owned(row))))
+            Ok(Some(WriteEvent::UpdateSecret(*id, row)))
         } else {
             Ok(None)
         }

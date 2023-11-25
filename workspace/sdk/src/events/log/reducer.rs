@@ -17,9 +17,9 @@ pub struct EventReducer<'a> {
     /// Last encountered vault name.
     vault_name: Option<Cow<'a, str>>,
     /// Last encountered vault meta data.
-    vault_meta: Option<Cow<'a, Option<AeadPack>>>,
+    vault_meta: Option<Option<AeadPack>>,
     /// Map of the reduced secrets.
-    secrets: HashMap<SecretId, Cow<'a, VaultCommit>>,
+    secrets: HashMap<SecretId, VaultCommit>,
     /// Reduce events until a particular commit.
     until_commit: Option<CommitHash>,
 }
@@ -53,7 +53,7 @@ impl<'a> EventReducer<'a> {
         let buffer = encode(&head).await?;
         events.push(WriteEvent::CreateVault(buffer));
         for (id, entry) in vault {
-            let event = WriteEvent::CreateSecret(id, Cow::Owned(entry));
+            let event = WriteEvent::CreateSecret(id, entry);
             events.push(event);
         }
 
@@ -146,14 +146,13 @@ impl<'a> EventReducer<'a> {
             }
 
             if let Some(meta) = self.vault_meta {
-                vault.header_mut().set_meta(meta.into_owned());
+                vault.header_mut().set_meta(meta);
             }
 
             let buffer = encode(&vault).await?;
             events.push(WriteEvent::CreateVault(buffer));
             for (id, entry) in self.secrets {
-                let entry = entry.into_owned();
-                events.push(WriteEvent::CreateSecret(id, Cow::Owned(entry)));
+                events.push(WriteEvent::CreateSecret(id, entry));
             }
             Ok(events)
         } else {
@@ -170,11 +169,10 @@ impl<'a> EventReducer<'a> {
             }
 
             if let Some(meta) = self.vault_meta {
-                vault.header_mut().set_meta(meta.into_owned());
+                vault.header_mut().set_meta(meta);
             }
 
             for (id, entry) in self.secrets {
-                let entry = entry.into_owned();
                 vault.insert_entry(id, entry);
             }
             Ok(vault)

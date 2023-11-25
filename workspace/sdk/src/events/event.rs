@@ -1,7 +1,7 @@
 //! Encoding of all operations.
 
 use super::{AuditEvent, EventKind, ReadEvent, WriteEvent};
-use crate::{vault::VaultId, Error, Result, signer::ecdsa::Address};
+use crate::{signer::ecdsa::Address, vault::VaultId, Error, Result};
 use serde::{Deserialize, Serialize};
 
 /// Events generated in the context of an account.

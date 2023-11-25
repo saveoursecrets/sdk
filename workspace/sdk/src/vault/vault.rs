@@ -1031,7 +1031,7 @@ impl VaultAccess for Vault {
     ) -> Result<WriteEvent<'_>> {
         self.header.set_meta(meta_data);
         let meta = self.header.meta().cloned();
-        Ok(WriteEvent::SetVaultMeta(Cow::Owned(meta)))
+        Ok(WriteEvent::SetVaultMeta(meta))
     }
 
     async fn create(
@@ -1054,7 +1054,7 @@ impl VaultAccess for Vault {
             .data
             .entry(id)
             .or_insert(VaultCommit(commit, secret));
-        Ok(WriteEvent::CreateSecret(id, Cow::Borrowed(value)))
+        Ok(WriteEvent::CreateSecret(id, value.clone()))
     }
 
     async fn read<'a>(
@@ -1074,7 +1074,7 @@ impl VaultAccess for Vault {
         let _vault_id = *self.id();
         if let Some(value) = self.contents.data.get_mut(id) {
             *value = VaultCommit(commit, secret);
-            Ok(Some(WriteEvent::UpdateSecret(*id, Cow::Borrowed(value))))
+            Ok(Some(WriteEvent::UpdateSecret(*id, value.clone())))
         } else {
             Ok(None)
         }

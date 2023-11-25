@@ -77,13 +77,13 @@ mod test {
 
     const MOCK_LOG: &str = "target/mock-event-log-standalone.events";
 
-    async fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {
+    async fn mock_secret<'a>() -> Result<(SecretId, VaultCommit)> {
         let id = Uuid::new_v4();
         let entry = VaultEntry(Default::default(), Default::default());
         let buffer = encode(&entry).await?;
         let commit = CommitHash(CommitTree::hash(&buffer));
         let result = VaultCommit(commit, entry);
-        Ok((id, Cow::Owned(result)))
+        Ok((id, result))
     }
 
     async fn mock_event_log_standalone() -> Result<(FolderEventLog, SecretId)>

@@ -555,19 +555,9 @@ impl LocalProvider {
         self.create_cache_entry(&summary, Some(vault)).await?;
 
         Ok(if !exists {
-            (
-                WriteEvent::CreateVault(
-                    buffer.as_ref().to_owned(),
-                ),
-                summary,
-            )
+            (WriteEvent::CreateVault(buffer.as_ref().to_owned()), summary)
         } else {
-            (
-                WriteEvent::UpdateVault(
-                    buffer.as_ref().to_owned(),
-                ),
-                summary,
-            )
+            (WriteEvent::UpdateVault(buffer.as_ref().to_owned()), summary)
         })
     }
 

@@ -464,8 +464,7 @@ mod test {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event: WriteEvent<'static> =
-            WriteEvent::CreateVault(buffer);
+        let event: WriteEvent<'static> = WriteEvent::CreateVault(buffer);
         commits.push(event_log.append_event(event).await?);
 
         // Create a secret

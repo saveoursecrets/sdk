@@ -8,7 +8,7 @@ use uuid::Uuid;
 use web3_address::ethereum::Address;
 
 use crate::{
-    events::{Event, EventKind, ReadEvent, WriteEvent, AccountEvent},
+    events::{AccountEvent, Event, EventKind, ReadEvent, WriteEvent},
     timestamp::Timestamp,
     vault::{secret::SecretId, VaultId},
 };

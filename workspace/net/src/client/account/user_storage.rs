@@ -18,8 +18,8 @@ use sos_sdk::{
     crypto::{AccessKey, SecureAccessKey},
     decode, encode,
     events::{
-        AuditData, AuditEvent, AuditLogFile, AuditProvider, Event, EventKind,
-        EventReducer, ReadEvent, WriteEvent, AccountEvent,
+        AccountEvent, AuditData, AuditEvent, AuditLogFile, AuditProvider,
+        Event, EventKind, EventReducer, ReadEvent, WriteEvent,
     },
     mpc::generate_keypair,
     search::{DocumentCount, SearchIndex},
@@ -602,8 +602,7 @@ impl UserStorage {
         )
         .await?;
 
-        let event = Event::Account(
-            AccountEvent::CreateFolder(*summary.id()));
+        let event = Event::Account(AccountEvent::CreateFolder(*summary.id()));
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 

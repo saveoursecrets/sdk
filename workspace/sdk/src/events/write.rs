@@ -37,13 +37,13 @@ pub enum WriteEvent<'a> {
     SetVaultName(Cow<'a, str>),
 
     /// Event used to indicate the vault meta data was set.
-    SetVaultMeta(Cow<'a, Option<AeadPack>>),
+    SetVaultMeta(Option<AeadPack>),
 
     /// Event used to indicate a secret was created.
-    CreateSecret(SecretId, Cow<'a, VaultCommit>),
+    CreateSecret(SecretId, VaultCommit),
 
     /// Event used to indicate a secret was updated.
-    UpdateSecret(SecretId, Cow<'a, VaultCommit>),
+    UpdateSecret(SecretId, VaultCommit),
 
     /// Event used to indicate a secret was deleted.
     DeleteSecret(SecretId),
@@ -93,33 +93,24 @@ impl WriteEvent<'_> {
     }
 
     /// Convert this event into an owned version.
+    #[deprecated]
     pub fn into_owned(self) -> WriteEvent<'static> {
         match self {
             WriteEvent::Noop => WriteEvent::Noop,
-            WriteEvent::CreateVault(value) => {
-                WriteEvent::CreateVault(value)
-            }
-            WriteEvent::UpdateVault(value) => {
-                WriteEvent::UpdateVault(value)
-            }
+            WriteEvent::CreateVault(value) => WriteEvent::CreateVault(value),
+            WriteEvent::UpdateVault(value) => WriteEvent::UpdateVault(value),
             WriteEvent::DeleteVault => WriteEvent::DeleteVault,
             WriteEvent::SetVaultName(value) => {
                 WriteEvent::SetVaultName(Cow::Owned(value.into_owned()))
             }
             WriteEvent::SetVaultMeta(value) => {
-                WriteEvent::SetVaultMeta(Cow::Owned(value.into_owned()))
+                WriteEvent::SetVaultMeta(value)
             }
             WriteEvent::CreateSecret(secret_id, value) => {
-                WriteEvent::CreateSecret(
-                    secret_id,
-                    Cow::Owned(value.into_owned()),
-                )
+                WriteEvent::CreateSecret(secret_id, value)
             }
             WriteEvent::UpdateSecret(secret_id, value) => {
-                WriteEvent::UpdateSecret(
-                    secret_id,
-                    Cow::Owned(value.into_owned()),
-                )
+                WriteEvent::UpdateSecret(secret_id, value)
             }
             WriteEvent::DeleteSecret(secret_id) => {
                 WriteEvent::DeleteSecret(secret_id)

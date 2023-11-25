@@ -303,17 +303,17 @@ impl<'a> Encodable for WriteEvent<'a> {
             }
             WriteEvent::SetVaultMeta(meta) => {
                 writer.write_bool(meta.is_some()).await?;
-                if let Some(meta) = meta.as_ref() {
+                if let Some(meta) = meta {
                     meta.encode(&mut *writer).await?;
                 }
             }
             WriteEvent::CreateSecret(uuid, value) => {
                 writer.write_bytes(uuid.as_bytes()).await?;
-                value.as_ref().encode(&mut *writer).await?;
+                value.encode(&mut *writer).await?;
             }
             WriteEvent::UpdateSecret(uuid, value) => {
                 writer.write_bytes(uuid.as_bytes()).await?;
-                value.as_ref().encode(&mut *writer).await?;
+                value.encode(&mut *writer).await?;
             }
             WriteEvent::DeleteSecret(uuid) => {
                 writer.write_bytes(uuid.as_bytes()).await?;
@@ -359,7 +359,7 @@ impl<'a> Decodable for WriteEvent<'a> {
                 } else {
                     None
                 };
-                *self = WriteEvent::SetVaultMeta(Cow::Owned(aead_pack));
+                *self = WriteEvent::SetVaultMeta(aead_pack);
             }
             EventKind::CreateSecret => {
                 let id = SecretId::from_bytes(
@@ -372,7 +372,7 @@ impl<'a> Decodable for WriteEvent<'a> {
                 );
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *reader).await?;
-                *self = WriteEvent::CreateSecret(id, Cow::Owned(commit));
+                *self = WriteEvent::CreateSecret(id, commit);
             }
             EventKind::UpdateSecret => {
                 let id = SecretId::from_bytes(
@@ -385,7 +385,7 @@ impl<'a> Decodable for WriteEvent<'a> {
                 );
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *reader).await?;
-                *self = WriteEvent::UpdateSecret(id, Cow::Owned(commit));
+                *self = WriteEvent::UpdateSecret(id, commit);
             }
             EventKind::DeleteSecret => {
                 let id = SecretId::from_bytes(
@@ -564,7 +564,6 @@ impl Encodable for AccountEvent {
             }
             AccountEvent::CreateFolder(id)
             | AccountEvent::UpdateFolder(id) => {
-
                 writer.write_bytes(id.as_bytes()).await?;
             }
             AccountEvent::DeleteFolder(id) => {

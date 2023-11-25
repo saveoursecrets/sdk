@@ -567,8 +567,7 @@ impl AccountBackup {
 
                 // Write out the event log file
                 let mut event_log_events = Vec::new();
-                let create_vault =
-                    WriteEvent::CreateVault(buffer.clone());
+                let create_vault = WriteEvent::CreateVault(buffer.clone());
                 event_log_events.push(create_vault);
                 let mut event_log =
                     FolderEventLog::new(event_log_path).await?;
