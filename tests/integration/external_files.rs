@@ -51,6 +51,8 @@ async fn integration_external_files() -> Result<()> {
         assert_create_file_secret(&mut owner, &summary, progress_tx.clone())
             .await?;
 
+    pause().await;
+
     let mut progress: Vec<_> = {
         let mut writer = operations.lock().await;
         writer.drain(..).collect()
@@ -68,6 +70,8 @@ async fn integration_external_files() -> Result<()> {
             progress_tx.clone(),
         )
         .await?;
+
+    pause().await;
 
     // Update reports Delete and Write progress events
     let mut progress: Vec<_> = {
@@ -88,6 +92,8 @@ async fn integration_external_files() -> Result<()> {
         )
         .await?;
 
+    pause().await;
+
     let mut progress: Vec<_> = {
         let mut writer = operations.lock().await;
         writer.drain(..).collect()
@@ -104,6 +110,8 @@ async fn integration_external_files() -> Result<()> {
     )
     .await?;
 
+    pause().await;
+
     let mut progress: Vec<_> = {
         let mut writer = operations.lock().await;
         writer.drain(..).collect()
@@ -117,6 +125,8 @@ async fn integration_external_files() -> Result<()> {
         progress_tx.clone(),
     )
     .await?;
+
+    pause().await;
 
     let mut progress: Vec<_> = {
         let mut writer = operations.lock().await;
@@ -139,6 +149,8 @@ async fn integration_external_files() -> Result<()> {
 
     assert_attach_file_secret(&mut owner, &summary, progress_tx.clone())
         .await?;
+
+    pause().await;
 
     let mut progress: Vec<_> = {
         let mut writer = operations.lock().await;
@@ -255,8 +267,6 @@ async fn assert_create_file_secret(
         let file_name = hex::encode(checksum);
         let expected_file_path =
             owner.file_location(default_folder.id(), &id, &file_name);
-
-        println!("expected {:#?}", expected_file_path);
 
         assert!(vfs::try_exists(&expected_file_path).await?);
 
@@ -783,4 +793,11 @@ async fn assert_attach_file_secret(
     }
 
     Ok(())
+}
+
+
+async fn pause() {
+    // Need to pause a bit to give the progress channels some 
+    // time to flush the messages
+    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
 }
