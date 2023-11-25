@@ -32,6 +32,7 @@ mod listen_folder_import;
 mod listen_folder_rename;
 
 mod listen_multiple;
+mod multiple_remotes;
 mod offline_manual;
 mod websocket_reconnect;
 

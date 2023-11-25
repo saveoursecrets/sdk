@@ -52,7 +52,7 @@ pub fn init_tracing() {
 ///
 /// Declared here as we may need to adjust for CI.
 pub async fn sync_pause() {
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
 }
 
 /// Create a remote provider for the given signing key.

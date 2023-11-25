@@ -418,11 +418,16 @@ impl RemoteBridge {
 #[async_trait]
 impl RemoteSync for RemoteBridge {
     async fn sync(&self) -> Result<()> {
+        let span = span!(Level::DEBUG, "sync");
+        let _enter = span.enter();
+
         // Ensure our folder state is the latest version on disc
         {
             let mut local = self.local.write().await;
             local.load_vaults().await?;
         }
+
+        tracing::debug!(origin = ?self.origin);
 
         let account_status = self.account_status().await?;
         if !account_status.exists {
