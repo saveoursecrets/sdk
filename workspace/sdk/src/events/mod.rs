@@ -15,7 +15,7 @@ pub use audit::{
     AuditData, AuditEvent, AuditLogFile, AuditProvider, LogFlags,
 };
 pub use change::{ChangeAction, ChangeEvent, ChangeNotification};
-pub use event::Event;
+pub use event::{Event, AccountEvent};
 pub use read::ReadEvent;
 pub use types::EventKind;
 pub use write::WriteEvent;

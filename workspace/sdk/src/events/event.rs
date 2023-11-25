@@ -4,8 +4,37 @@ use super::{AuditEvent, EventKind, ReadEvent, WriteEvent};
 use crate::{vault::VaultId, Error, Result};
 use serde::{Deserialize, Serialize};
 
+/// Events generated in the context of an account.
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub enum AccountEvent {
+    #[default]
+    #[doc(hidden)]
+    Noop,
+
+    /// Create folder.
+    CreateFolder(Vec<u8>),
+
+    /// Create folder.
+    UpdateFolder(Vec<u8>),
+
+    /// Delete folder.
+    DeleteFolder,
+}
+
+impl AccountEvent {
+    /// Get the event kind for this event.
+    pub fn event_kind(&self) -> EventKind {
+        match self {
+            Self::Noop => EventKind::Noop,
+            Self::CreateFolder(_) => EventKind::CreateVault,
+            Self::UpdateFolder(_) => EventKind::UpdateVault,
+            Self::DeleteFolder => EventKind::DeleteVault,
+        }
+    }
+}
+
 /// Events generated when reading or writing.
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Event<'a> {
     /// Create account event.
     CreateAccount(AuditEvent),

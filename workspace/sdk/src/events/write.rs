@@ -18,6 +18,7 @@ pub enum WriteEvent<'a> {
     /// We need a variant so we can implement the Default
     /// trait which is required for decoding.
     #[default]
+    #[doc(hidden)]
     Noop,
 
     /// Event used to indicate a vault was created.

@@ -19,7 +19,7 @@ use crate::{
     constants::EVENT_LOG_IDENTITY,
     encode,
     encoding::encoding_options,
-    events::{Patch, WriteEvent},
+    events::{Patch, WriteEvent, AccountEvent},
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
@@ -42,8 +42,11 @@ use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};
 
-/// Event log for write events to a vault.
+/// Event log for changs to a vault.
 pub type VaultEventLog = EventLogFile<WriteEvent<'static>>;
+
+/// Event log for changes to an account.
+pub type AccountEventLog = EventLogFile<AccountEvent>;
 
 /// An event log that appends to a file.
 pub struct EventLogFile<T>

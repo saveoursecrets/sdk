@@ -7,7 +7,7 @@ use crate::{
     encoding::encoding_error,
     events::{
         AuditData, AuditEvent, AuditLogFile, EventKind, EventRecord,
-        LogFlags, Patch, WriteEvent,
+        LogFlags, Patch, WriteEvent, AccountEvent,
     },
     formats::{EventLogFileRecord, FileIdentity, FileRecord, VaultRecord},
     vault::{secret::SecretId, VaultCommit},
@@ -544,6 +544,64 @@ impl Decodable for Patch {
             event.decode(reader).await?;
             self.0.push(event);
             pos = reader.stream_position().await?;
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Encodable for AccountEvent {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        let op = self.event_kind();
+        op.encode(&mut *writer).await?;
+
+        match self {
+            AccountEvent::Noop => {
+                panic!("attempt to encode a noop")
+            }
+            AccountEvent::CreateFolder(vault)
+            | AccountEvent::UpdateFolder(vault) => {
+                writer.write_u32(vault.len() as u32).await?;
+                writer.write_bytes(vault).await?;
+            }
+            AccountEvent::DeleteFolder => {}
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for AccountEvent {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let mut op: EventKind = Default::default();
+        op.decode(&mut *reader).await?;
+        match op {
+            EventKind::Noop => panic!("attempt to decode a noop"),
+            EventKind::CreateVault => {
+                let length = reader.read_u32().await?;
+                let buffer = reader.read_bytes(length as usize).await?;
+                *self = AccountEvent::CreateFolder(buffer)
+            }
+            EventKind::UpdateVault => {
+                let length = reader.read_u32().await?;
+                let buffer = reader.read_bytes(length as usize).await?;
+                *self = AccountEvent::UpdateFolder(buffer)
+            }
+            EventKind::DeleteVault => {
+                *self = AccountEvent::DeleteFolder;
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown account event kind {}", op),
+                ));
+            }
         }
         Ok(())
     }
