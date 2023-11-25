@@ -30,9 +30,11 @@ mod listen_folder_create;
 mod listen_folder_delete;
 mod listen_folder_import;
 mod listen_folder_rename;
-
 mod listen_multiple;
+
 mod multiple_remotes;
+mod multiple_remotes_fallback;
+
 mod offline_manual;
 mod websocket_reconnect;
 
