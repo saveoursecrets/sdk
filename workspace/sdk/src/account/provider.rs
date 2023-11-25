@@ -400,7 +400,7 @@ impl LocalProvider {
         name: Option<String>,
         key: Option<AccessKey>,
         is_account: bool,
-    ) -> Result<(WriteEvent<'static>, AccessKey, Summary)> {
+    ) -> Result<(Vec<u8>, AccessKey, Summary)> {
         let key = if let Some(key) = key {
             key
         } else {
@@ -438,8 +438,7 @@ impl LocalProvider {
         // Initialize the local cache for event log and Patch
         self.create_cache_entry(&summary, Some(vault)).await?;
 
-        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
-        Ok((event, key, summary))
+        Ok((buffer, key, summary))
     }
 
     /// Import a vault buffer into an existing account.
@@ -518,7 +517,7 @@ impl LocalProvider {
         &mut self,
         name: Option<String>,
         key: Option<AccessKey>,
-    ) -> Result<(WriteEvent<'static>, AccessKey, Summary)> {
+    ) -> Result<(Vec<u8>, AccessKey, Summary)> {
         self.create_vault_or_account(name, key, true).await
     }
 
@@ -527,7 +526,7 @@ impl LocalProvider {
         &mut self,
         name: String,
         key: Option<AccessKey>,
-    ) -> Result<(WriteEvent<'static>, AccessKey, Summary)> {
+    ) -> Result<(Vec<u8>, AccessKey, Summary)> {
         self.create_vault_or_account(Some(name), key, false).await
     }
 

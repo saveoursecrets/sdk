@@ -19,7 +19,7 @@ use sos_sdk::{
     decode, encode,
     events::{
         AuditData, AuditEvent, AuditLogFile, AuditProvider, Event, EventKind,
-        EventReducer, ReadEvent, WriteEvent,
+        EventReducer, ReadEvent, WriteEvent, AccountEvent,
     },
     mpc::generate_keypair,
     search::{DocumentCount, SearchIndex},
@@ -586,7 +586,7 @@ impl UserStorage {
 
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
         let key = AccessKey::Password(passphrase);
-        let (event, _, summary) = {
+        let (buffer, _, summary) = {
             let mut writer = self.storage.write().await;
             writer.create_vault(name, Some(key.clone())).await?
         };
@@ -602,7 +602,9 @@ impl UserStorage {
         )
         .await?;
 
-        let event = Event::Write(*summary.id(), event);
+        let event = Event::Account(
+            self.address().clone(),
+            AccountEvent::CreateFolder(*summary.id()));
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
@@ -613,7 +615,8 @@ impl UserStorage {
         let (summary, before_last_commit, before_commit_proof) =
             self.before_apply_events(&options, false).await?;
 
-        let (_, event) = event.try_into()?;
+        //let (_, event) = event.try_into()?;
+        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
         let sync_error = self
             .sync_send_events(
                 &summary,

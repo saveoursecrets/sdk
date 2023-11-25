@@ -180,8 +180,8 @@ impl<'a> From<(&Address, &Event<'a>)> for AuditEvent {
             _ => {
                 let audit_data = match event {
                     Event::Account(address, event) => match event {
-                        AccountEvent::CreateFolder(vault_id, _)
-                        | AccountEvent::UpdateFolder(vault_id, _)
+                        AccountEvent::CreateFolder(vault_id)
+                        | AccountEvent::UpdateFolder(vault_id)
                         | AccountEvent::DeleteFolder(vault_id) => {
                             Some(AuditData::Vault(*vault_id))
                         }

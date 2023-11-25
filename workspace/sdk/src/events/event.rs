@@ -12,10 +12,10 @@ pub enum AccountEvent {
     Noop,
 
     /// Create folder.
-    CreateFolder(VaultId, Vec<u8>),
+    CreateFolder(VaultId),
 
     /// Update folder.
-    UpdateFolder(VaultId, Vec<u8>),
+    UpdateFolder(VaultId),
 
     /// Delete folder.
     DeleteFolder(VaultId),
@@ -26,8 +26,8 @@ impl AccountEvent {
     pub fn event_kind(&self) -> EventKind {
         match self {
             Self::Noop => EventKind::Noop,
-            Self::CreateFolder(_, _) => EventKind::CreateVault,
-            Self::UpdateFolder(_, _) => EventKind::UpdateVault,
+            Self::CreateFolder(_) => EventKind::CreateVault,
+            Self::UpdateFolder(_) => EventKind::UpdateVault,
             Self::DeleteFolder(_) => EventKind::DeleteVault,
         }
     }
