@@ -2064,12 +2064,25 @@ impl From<UserStorage> for Arc<RwLock<LocalProvider>> {
 
 #[async_trait]
 impl RemoteSync for UserStorage {
-    async fn sync(&self) -> Result<()> {
+    async fn sync(&self) -> Option<SyncError> {
         let _ = self.sync_lock.lock().await;
-        for remote in self.remotes.values() {
-            remote.sync().await?;
+        let mut errors = Vec::new();
+        for (origin, remote) in &self.remotes {
+            if let Some(e) = remote.sync().await {
+                match e {
+                    SyncError::One(e) => errors.push((origin.clone(), e)),
+                    SyncError::Multiple(mut errs) => errors.append(&mut errs),
+                }
+            }
         }
-        Ok(())
+        if errors.is_empty() {
+            None
+        } else {
+            for error in &errors {
+                tracing::error!(error = ?error);
+            }
+            Some(SyncError::Multiple(errors))
+        }
     }
 
     async fn sync_before_apply_change(

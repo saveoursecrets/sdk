@@ -28,7 +28,7 @@ pub enum SyncError {
 #[async_trait]
 pub trait RemoteSync: Sync + Send + Any {
     /// Perform a full sync of the account.
-    async fn sync(&self) -> Result<()>;
+    async fn sync(&self) -> Option<SyncError>;
 
     /// Must be called before applying changes to a local
     /// provider.

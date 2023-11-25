@@ -63,10 +63,10 @@ async fn integration_sync_offline_manual() -> Result<()> {
     // they signed in again (which is a natural time to sync).
     //
     // This should push the local changes to the remote.
-    device1.owner.sync().await?;
+    assert!(device1.owner.sync().await.is_none());
 
     // The client explicitly sync from the other device too.
-    device2.owner.sync().await?;
+    assert!(device2.owner.sync().await.is_none());
 
     // Now both devices should be up to date
     assert_eq!(4, num_events(&mut device1.owner, &default_folder_id).await);

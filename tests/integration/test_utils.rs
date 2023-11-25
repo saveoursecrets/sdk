@@ -460,7 +460,7 @@ pub async fn signup(
         (encryption_passphrase, summary)
     };
 
-    provider.sync().await?;
+    assert!(provider.sync().await.is_none());
 
     let credentials = AccountCredentials {
         encryption_passphrase,

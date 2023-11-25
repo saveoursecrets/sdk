@@ -1,15 +1,15 @@
 use super::{assert_local_remote_events_eq, simulate_device};
-use crate::test_utils::{mock_note, sync_pause, spawn, teardown};
+use crate::test_utils::{mock_note, spawn, sync_pause, teardown};
 use anyhow::Result;
-use sos_net::client::{RemoteBridge, RemoteSync};
+use sos_net::client::{RemoteBridge, RemoteSync, SyncError};
 
 const TEST_ID: &str = "sync_multiple_remotes_fallback";
 
-/// Tests syncing a single client with multiple 
+/// Tests syncing a single client with multiple
 /// remote servers when one of the servers is offline.
 #[tokio::test]
 async fn integration_sync_multiple_remotes_fallback() -> Result<()> {
-    crate::test_utils::init_tracing();
+    //crate::test_utils::init_tracing();
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
@@ -24,11 +24,13 @@ async fn integration_sync_multiple_remotes_fallback() -> Result<()> {
     // Create a remote provider for the additional server
     let origin = server2.origin.clone();
     let provider = device1.owner.remote_bridge(&origin).await?;
-    device1.owner.insert_remote(origin.clone(), Box::new(provider));
+    device1
+        .owner
+        .insert_remote(origin.clone(), Box::new(provider));
 
     // Sync again with the additional remote
-    device1.owner.sync().await?;
-    
+    assert!(device1.owner.sync().await.is_none());
+
     // Shutdown the first server
     drop(server1);
     sync_pause().await;
@@ -40,11 +42,18 @@ async fn integration_sync_multiple_remotes_fallback() -> Result<()> {
         .create_secret(meta, secret, Default::default())
         .await?;
 
-    // Explicit sync afterwards, triggers the code path 
+    // Explicit sync afterwards, triggers the code path
     // where we try to connect to a remote which is down
-    device1.owner.sync().await?;
-    
-    /*
+    let sync_error = device1.owner.sync().await;
+    assert!(matches!(sync_error, Some(SyncError::Multiple(_))));
+
+    // Bring the server back online
+    let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+    sync_pause().await;
+
+    // Now we should be able to sync to both remotes
+    assert!(device1.owner.sync().await.is_none());
+
     // Assert on first server
     let mut provider = device1.owner.delete_remote(&server1.origin).unwrap();
     let remote_provider = provider
@@ -70,7 +79,6 @@ async fn integration_sync_multiple_remotes_fallback() -> Result<()> {
         remote_provider,
     )
     .await?;
-    */
 
     teardown(TEST_ID).await;
 

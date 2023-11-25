@@ -27,14 +27,6 @@ async fn integration_sync_create_secret() -> Result<()> {
 
     //println!("default folder {}", default_folder_id);
 
-    // Before we begin both clients should have a single event
-    assert_eq!(1, num_events(&mut device1.owner, &default_folder_id).await);
-    assert_eq!(1, num_events(&mut device2.owner, &default_folder_id).await);
-
-    // Sync a local account that does not exist on
-    // the remote which should create the account on the remote
-    device1.owner.sync().await?;
-
     // Create a secret in the primary owner which won't exist
     // in the second device
     let (meta, secret) = mock_note("note_first_owner", "send_events_secret");
@@ -60,7 +52,7 @@ async fn integration_sync_create_secret() -> Result<()> {
     assert_eq!(3, num_events(&mut device2.owner, &default_folder_id).await);
 
     // First client runs sync to pull down the additional secret
-    device1.owner.sync().await?;
+    assert!(device1.owner.sync().await.is_none());
 
     // Everyone is equal
     assert_eq!(3, num_events(&mut device1.owner, &default_folder_id).await);

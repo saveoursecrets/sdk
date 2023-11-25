@@ -162,8 +162,11 @@ async fn integration_account_manager() -> Result<()> {
     // Restore from archive whilst signed in (with provider),
     // overwrites existing data (backup)
     let signer = user.identity().signer().clone();
-    let mut provider =
-        LocalProvider::new(signer.address()?.to_string(), Some(test_data_dir.clone())).await?;
+    let mut provider = LocalProvider::new(
+        signer.address()?.to_string(),
+        Some(test_data_dir.clone()),
+    )
+    .await?;
 
     let options = RestoreOptions {
         selected: vaults.clone().into_iter().map(|v| v.0).collect(),

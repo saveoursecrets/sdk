@@ -310,13 +310,14 @@ impl RemoteBridge {
                 (last_commit, commit_proof, folder, comparison)
             };
 
+            let equal = matches!(&comparison, Comparison::Equal);
             let contains = matches!(&comparison, Comparison::Contains(_, _));
             let ahead = contains && commit_proof.len() > remote_proof.len();
 
             if ahead {
                 self.push_folder(&folder, &remote_commit, &remote_proof)
                     .await?;
-            } else {
+            } else if !equal {
                 self.pull_folder(
                     &folder,
                     last_commit.as_ref(),
@@ -417,23 +418,37 @@ impl RemoteBridge {
 
 #[async_trait]
 impl RemoteSync for RemoteBridge {
-    async fn sync(&self) -> Result<()> {
+    async fn sync(&self) -> Option<SyncError> {
         let span = span!(Level::DEBUG, "sync");
         let _enter = span.enter();
 
         // Ensure our folder state is the latest version on disc
         {
             let mut local = self.local.write().await;
-            local.load_vaults().await?;
+            if let Err(e) = local.load_vaults().await {
+                return Some(SyncError::One(e.into()));
+            }
         }
 
-        tracing::debug!(origin = ?self.origin);
+        tracing::debug!(origin = %self.origin.url);
 
-        let account_status = self.account_status().await?;
-        if !account_status.exists {
-            self.prepare_account().await
-        } else {
-            self.pull_account(account_status).await
+        match self.account_status().await {
+            Ok(account_status) => {
+                if !account_status.exists {
+                    if let Err(e) = self.prepare_account().await {
+                        Some(SyncError::One(e))
+                    } else {
+                        None
+                    }
+                } else {
+                    if let Err(e) = self.pull_account(account_status).await {
+                        Some(SyncError::One(e))
+                    } else {
+                        None
+                    }
+                }
+            }
+            Err(e) => Some(SyncError::One(e)),
         }
     }
 

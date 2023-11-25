@@ -20,6 +20,12 @@ cargo make integration
 
 ## Notes
 
+### Command Line Tests
+
+The command line tests wait for very specific output in order to complete, inadvertently having a rogue `println!` in the code will cause the command line tests to fail.
+
+### MacOS ulimit
+
 If you are running on MacOS and see the "too many open files" error running the tests then you will need to configure `launchctl limit maxfiles`.
 
 To temporarily change the maxfiles limit:
