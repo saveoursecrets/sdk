@@ -10,12 +10,14 @@ mod read;
 mod types;
 mod write;
 
-pub use self::log::{EventLogFile, EventRecord, EventReducer, VaultEventLog};
+pub use self::log::{
+    EventLogFile, EventRecord, EventReducer, FolderEventLog,
+};
 pub use audit::{
     AuditData, AuditEvent, AuditLogFile, AuditProvider, LogFlags,
 };
 pub use change::{ChangeAction, ChangeEvent, ChangeNotification};
-pub use event::{Event, AccountEvent};
+pub use event::{AccountEvent, Event};
 pub use read::ReadEvent;
 pub use types::EventKind;
 pub use write::WriteEvent;

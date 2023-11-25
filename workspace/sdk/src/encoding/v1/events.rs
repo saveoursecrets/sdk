@@ -6,8 +6,8 @@ use crate::{
     crypto::AeadPack,
     encoding::encoding_error,
     events::{
-        AuditData, AuditEvent, AuditLogFile, EventKind, EventRecord,
-        LogFlags, Patch, WriteEvent, AccountEvent,
+        AccountEvent, AuditData, AuditEvent, AuditLogFile, EventKind,
+        EventRecord, LogFlags, Patch, WriteEvent,
     },
     formats::{EventLogFileRecord, FileIdentity, FileRecord, VaultRecord},
     vault::{secret::SecretId, VaultCommit},

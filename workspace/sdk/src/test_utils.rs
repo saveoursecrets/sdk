@@ -14,7 +14,7 @@ use sha3::{Digest, Sha3_256};
 use std::{borrow::Cow, io::Write};
 use uuid::Uuid;
 
-use crate::events::VaultEventLog;
+use crate::events::FolderEventLog;
 use tempfile::NamedTempFile;
 
 use anyhow::Result;
@@ -131,12 +131,12 @@ pub async fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)> {
 
 /// Create a mock event log in a temp file.
 pub async fn mock_event_log_file(
-) -> Result<(NamedTempFile, VaultEventLog, Vec<CommitHash>, PrivateKey)> {
+) -> Result<(NamedTempFile, FolderEventLog, Vec<CommitHash>, PrivateKey)> {
     let (encryption_key, _, _) = mock_encryption_key()?;
     let (_, mut vault, buffer) = mock_vault_file().await?;
 
     let temp = NamedTempFile::new()?;
-    let mut event_log = VaultEventLog::new(temp.path()).await?;
+    let mut event_log = FolderEventLog::new(temp.path()).await?;
 
     let mut commits = Vec::new();
 

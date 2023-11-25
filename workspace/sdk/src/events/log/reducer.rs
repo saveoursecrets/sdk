@@ -4,7 +4,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     decode, encode,
-    events::{VaultEventLog, WriteEvent},
+    events::{FolderEventLog, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
     Error, Result,
 };
@@ -65,7 +65,7 @@ impl<'a> EventReducer<'a> {
     /// Reduce the events in the given iterator.
     pub async fn reduce(
         mut self,
-        event_log: &'a VaultEventLog,
+        event_log: &'a FolderEventLog,
     ) -> Result<EventReducer<'a>> {
         let mut it = event_log.iter().await?;
         if let Some(log) = it.next_entry().await? {
@@ -191,7 +191,7 @@ mod test {
         commit::CommitHash,
         crypto::PrivateKey,
         decode,
-        events::{VaultEventLog, WriteEvent},
+        events::{FolderEventLog, WriteEvent},
         test_utils::*,
         vault::{
             secret::{Secret, SecretId, SecretMeta},
@@ -204,7 +204,7 @@ mod test {
 
     async fn mock_event_log_file() -> Result<(
         NamedTempFile,
-        VaultEventLog,
+        FolderEventLog,
         Vec<CommitHash>,
         PrivateKey,
         SecretId,
@@ -213,7 +213,7 @@ mod test {
         let (_, mut vault, buffer) = mock_vault_file().await?;
 
         let temp = NamedTempFile::new()?;
-        let mut event_log = VaultEventLog::new(temp.path()).await?;
+        let mut event_log = FolderEventLog::new(temp.path()).await?;
 
         let mut commits = Vec::new();
 
@@ -317,7 +317,7 @@ mod test {
         assert_eq!(2, events.len());
 
         let compact_temp = NamedTempFile::new()?;
-        let mut compact = VaultEventLog::new(compact_temp.path()).await?;
+        let mut compact = FolderEventLog::new(compact_temp.path()).await?;
         for event in events {
             compact.append_event(event.into_owned()).await?;
         }

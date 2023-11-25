@@ -7,7 +7,7 @@ use crate::{
 mod file;
 mod reducer;
 
-pub use file::{EventLogFile, VaultEventLog};
+pub use file::{EventLogFile, FolderEventLog};
 pub use reducer::EventReducer;
 
 /// Record for a row in the event log.
@@ -86,7 +86,7 @@ mod test {
         Ok((id, Cow::Owned(result)))
     }
 
-    async fn mock_event_log_standalone() -> Result<(VaultEventLog, SecretId)>
+    async fn mock_event_log_standalone() -> Result<(FolderEventLog, SecretId)>
     {
         let path = PathBuf::from(MOCK_LOG);
         if vfs::try_exists(&path).await? {
@@ -115,7 +115,7 @@ mod test {
     }
 
     async fn mock_event_log_server_client(
-    ) -> Result<(VaultEventLog, VaultEventLog, SecretId)> {
+    ) -> Result<(FolderEventLog, FolderEventLog, SecretId)> {
         // Required for CI which is setting the current
         // working directory to the workspace member rather
         // than using the top-level working directory
@@ -229,7 +229,7 @@ mod test {
             assert_eq!(vec![1], indices);
             let leaf = leaves.first().unwrap();
             if let Some(buffer) = server.diff(*leaf).await? {
-                let mut partial_log = VaultEventLog::new(&partial).await?;
+                let mut partial_log = FolderEventLog::new(&partial).await?;
                 partial_log.write_buffer(&buffer).await?;
                 let mut records = Vec::new();
                 let mut it = partial_log.iter().await?;
@@ -258,7 +258,7 @@ mod test {
     async fn event_log_file_load() -> Result<()> {
         mock_event_log_standalone().await?;
         let path = PathBuf::from(MOCK_LOG);
-        let event_log = VaultEventLog::new(path).await?;
+        let event_log = FolderEventLog::new(path).await?;
         let mut it = event_log.iter().await?;
         while let Some(record) = it.next_entry().await? {
             let _event = event_log.event_data(&record).await?;

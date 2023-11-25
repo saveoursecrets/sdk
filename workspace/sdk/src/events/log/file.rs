@@ -19,7 +19,7 @@ use crate::{
     constants::EVENT_LOG_IDENTITY,
     encode,
     encoding::encoding_options,
-    events::{Patch, WriteEvent, AccountEvent},
+    events::{AccountEvent, Patch, WriteEvent},
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
@@ -42,8 +42,8 @@ use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};
 
-/// Event log for changs to a vault.
-pub type VaultEventLog = EventLogFile<WriteEvent<'static>>;
+/// Event log for changes to a folder.
+pub type FolderEventLog = EventLogFile<WriteEvent<'static>>;
 
 /// Event log for changes to an account.
 pub type AccountEventLog = EventLogFile<AccountEvent>;
@@ -448,14 +448,14 @@ mod test {
     use super::*;
     use crate::{events::WriteEvent, test_utils::*};
 
-    async fn mock_event_log() -> Result<(NamedTempFile, VaultEventLog)> {
+    async fn mock_event_log() -> Result<(NamedTempFile, FolderEventLog)> {
         let temp = NamedTempFile::new()?;
         let event_log = EventLogFile::new(temp.path()).await?;
         Ok((temp, event_log))
     }
 
     async fn mock_event_log_file(
-    ) -> Result<(NamedTempFile, VaultEventLog, Vec<CommitHash>)> {
+    ) -> Result<(NamedTempFile, FolderEventLog, Vec<CommitHash>)> {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file().await?;
 
