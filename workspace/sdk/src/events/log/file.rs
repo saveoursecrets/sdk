@@ -53,9 +53,9 @@ pub struct EventLogFile<T>
 where
     T: Default + Encodable + Decodable,
 {
-    pub(crate) file_path: PathBuf,
-    pub(crate) file: File,
-    pub(crate) tree: CommitTree,
+    file_path: PathBuf,
+    file: File,
+    tree: CommitTree,
     identity: [u8; 4],
     phantom: std::marker::PhantomData<T>,
 }

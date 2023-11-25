@@ -1,7 +1,7 @@
 use super::simulate_device;
 use crate::test_utils::{spawn, teardown};
 use anyhow::Result;
-use sos_net::client::{RemoteBridge, RpcClient};
+use sos_net::client::RpcClient;
 use std::time::Duration;
 
 const TEST_ID: &str = "websocket_shutdown";

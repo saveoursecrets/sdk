@@ -8,7 +8,7 @@ use uuid::Uuid;
 use web3_address::ethereum::Address;
 
 use crate::{
-    events::{Event, EventKind, ReadEvent, WriteEvent},
+    events::{Event, EventKind, ReadEvent, WriteEvent, AccountEvent},
     timestamp::Timestamp,
     vault::{secret::SecretId, VaultId},
 };
@@ -179,6 +179,14 @@ impl<'a> From<(&Address, &Event<'a>)> for AuditEvent {
             Event::DeleteAccount(event) => event.clone(),
             _ => {
                 let audit_data = match event {
+                    Event::Account(address, event) => match event {
+                        AccountEvent::CreateFolder(vault_id, _)
+                        | AccountEvent::UpdateFolder(vault_id, _)
+                        | AccountEvent::DeleteFolder(vault_id) => {
+                            Some(AuditData::Vault(*vault_id))
+                        }
+                        AccountEvent::Noop => None,
+                    },
                     Event::Read(vault_id, event) => match event {
                         ReadEvent::ReadVault => {
                             Some(AuditData::Vault(*vault_id))

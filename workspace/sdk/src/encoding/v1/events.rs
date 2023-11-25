@@ -562,12 +562,16 @@ impl Encodable for AccountEvent {
             AccountEvent::Noop => {
                 panic!("attempt to encode a noop")
             }
-            AccountEvent::CreateFolder(vault)
-            | AccountEvent::UpdateFolder(vault) => {
+            AccountEvent::CreateFolder(id, vault)
+            | AccountEvent::UpdateFolder(id, vault) => {
+
+                writer.write_bytes(id.as_bytes()).await?;
                 writer.write_u32(vault.len() as u32).await?;
                 writer.write_bytes(vault).await?;
             }
-            AccountEvent::DeleteFolder => {}
+            AccountEvent::DeleteFolder(id) => {
+                writer.write_bytes(id.as_bytes()).await?;
+            }
         }
         Ok(())
     }
@@ -584,17 +588,38 @@ impl Decodable for AccountEvent {
         match op {
             EventKind::Noop => panic!("attempt to decode a noop"),
             EventKind::CreateVault => {
+                let uuid: [u8; 16] = reader
+                    .read_bytes(16)
+                    .await?
+                    .as_slice()
+                    .try_into()
+                    .map_err(encoding_error)?;
+                let id = Uuid::from_bytes(uuid);
                 let length = reader.read_u32().await?;
                 let buffer = reader.read_bytes(length as usize).await?;
-                *self = AccountEvent::CreateFolder(buffer)
+                *self = AccountEvent::CreateFolder(id, buffer)
             }
             EventKind::UpdateVault => {
+                let uuid: [u8; 16] = reader
+                    .read_bytes(16)
+                    .await?
+                    .as_slice()
+                    .try_into()
+                    .map_err(encoding_error)?;
+                let id = Uuid::from_bytes(uuid);
                 let length = reader.read_u32().await?;
                 let buffer = reader.read_bytes(length as usize).await?;
-                *self = AccountEvent::UpdateFolder(buffer)
+                *self = AccountEvent::UpdateFolder(id, buffer)
             }
             EventKind::DeleteVault => {
-                *self = AccountEvent::DeleteFolder;
+                let uuid: [u8; 16] = reader
+                    .read_bytes(16)
+                    .await?
+                    .as_slice()
+                    .try_into()
+                    .map_err(encoding_error)?;
+                let id = Uuid::from_bytes(uuid);
+                *self = AccountEvent::DeleteFolder(id);
             }
             _ => {
                 return Err(Error::new(

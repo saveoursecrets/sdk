@@ -1,7 +1,7 @@
 //! Encoding of all operations.
 
 use super::{AuditEvent, EventKind, ReadEvent, WriteEvent};
-use crate::{vault::VaultId, Error, Result};
+use crate::{vault::VaultId, Error, Result, signer::ecdsa::Address};
 use serde::{Deserialize, Serialize};
 
 /// Events generated in the context of an account.
@@ -12,13 +12,13 @@ pub enum AccountEvent {
     Noop,
 
     /// Create folder.
-    CreateFolder(Vec<u8>),
+    CreateFolder(VaultId, Vec<u8>),
 
-    /// Create folder.
-    UpdateFolder(Vec<u8>),
+    /// Update folder.
+    UpdateFolder(VaultId, Vec<u8>),
 
     /// Delete folder.
-    DeleteFolder,
+    DeleteFolder(VaultId),
 }
 
 impl AccountEvent {
@@ -26,9 +26,9 @@ impl AccountEvent {
     pub fn event_kind(&self) -> EventKind {
         match self {
             Self::Noop => EventKind::Noop,
-            Self::CreateFolder(_) => EventKind::CreateVault,
-            Self::UpdateFolder(_) => EventKind::UpdateVault,
-            Self::DeleteFolder => EventKind::DeleteVault,
+            Self::CreateFolder(_, _) => EventKind::CreateVault,
+            Self::UpdateFolder(_, _) => EventKind::UpdateVault,
+            Self::DeleteFolder(_) => EventKind::DeleteVault,
         }
     }
 }
@@ -38,6 +38,9 @@ impl AccountEvent {
 pub enum Event<'a> {
     /// Create account event.
     CreateAccount(AuditEvent),
+
+    /// Account changes.
+    Account(Address, AccountEvent),
 
     /// Read vault operations.
     Read(VaultId, ReadEvent),
@@ -53,6 +56,7 @@ pub enum Event<'a> {
 }
 
 impl Event<'_> {
+    /*
     /// Determine if this payload would mutate state.
     ///
     /// Some payloads are purely for auditing and do not
@@ -60,11 +64,13 @@ impl Event<'_> {
     pub fn is_mutation(&self) -> bool {
         !matches!(self, Self::Write(_, _))
     }
+    */
 
     /// Get the event kind for this event.
     pub fn event_kind(&self) -> EventKind {
         match self {
             Self::CreateAccount(event) => event.event_kind(),
+            Self::Account(_, event) => event.event_kind(),
             Self::Read(_, event) => event.event_kind(),
             Self::Write(_, event) => event.event_kind(),
             Self::MoveSecret(_, _, _) => EventKind::MoveSecret,
