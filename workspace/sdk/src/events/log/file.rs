@@ -269,10 +269,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     }
 
     /// Read the event data from an item.
-    pub async fn event_data(
-        &self,
-        item: &EventLogFileRecord,
-    ) -> Result<T> {
+    pub async fn event_data(&self, item: &EventLogFileRecord) -> Result<T> {
         let value = item.value();
 
         // Use a different file handle as the owned `file` should

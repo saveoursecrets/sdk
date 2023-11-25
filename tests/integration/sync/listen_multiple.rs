@@ -7,7 +7,7 @@ const TEST_ID: &str = "sync_listen_multiple";
 
 /// Tests syncing events between multiple clients.
 ///
-/// Verifies the server is broadasting change 
+/// Verifies the server is broadasting change
 /// notifications as expected.
 #[tokio::test]
 async fn integration_sync_listen_multiple() -> Result<()> {

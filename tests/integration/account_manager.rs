@@ -61,7 +61,6 @@ async fn integration_account_manager() -> Result<()> {
 
     let paths = UserPaths::new(test_data_dir.clone(), &address.to_string());
     let local_accounts = LocalAccounts::new(&paths);
-
     let accounts = LocalAccounts::list_accounts(Some(&paths)).await?;
     assert_eq!(1, accounts.len());
 
@@ -164,7 +163,7 @@ async fn integration_account_manager() -> Result<()> {
     // overwrites existing data (backup)
     let signer = user.identity().signer().clone();
     let mut provider =
-        LocalProvider::new(signer.address()?.to_string(), None).await?;
+        LocalProvider::new(signer.address()?.to_string(), Some(test_data_dir.clone())).await?;
 
     let options = RestoreOptions {
         selected: vaults.clone().into_iter().map(|v| v.0).collect(),
