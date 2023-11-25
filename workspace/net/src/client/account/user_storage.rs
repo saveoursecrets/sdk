@@ -263,6 +263,13 @@ impl UserStorage {
         self.remotes.insert(origin, remote);
     }
 
+    /*
+    /// Get a remote.
+    pub fn get_remote(&self, origin: &Origin) -> Option<&Remote> {
+        self.remotes.get(origin)
+    }
+    */
+
     /// Delete a remote if it exists.
     pub fn delete_remote(&mut self, origin: &Origin) -> Option<Remote> {
         self.remotes.remove(origin)

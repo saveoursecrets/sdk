@@ -1,7 +1,7 @@
 use super::{
     config::TlsConfig,
     handlers::{
-        api, home, connections,
+        api, connections, home,
         service::ServiceHandler,
         websocket::{upgrade, WebSocketConnection},
     },

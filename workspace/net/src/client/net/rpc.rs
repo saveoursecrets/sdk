@@ -124,6 +124,16 @@ impl RpcClient {
         Ok(client.get(url).send().await?)
     }
 
+    /// Get the total number of websocket connections.
+    pub async fn num_connections(server: &Url) -> Result<usize> {
+        let client = reqwest::Client::new();
+        let url = server.join("api/connections")?;
+        let res = client.get(url).send().await?;
+        let res = res.error_for_status()?;
+        let value = res.json::<usize>().await?;
+        Ok(value)
+    }
+
     fn new_handshake(
         keypair: &Keypair,
         public_key: &[u8],

@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use std::time::Duration;
 
-use sos_net::client::ListenOptions;
+use sos_net::client::{ListenOptions, RpcClient};
 
 use crate::test_utils::{spawn, teardown};
 
@@ -11,9 +11,6 @@ use super::{simulate_device, SimulatedDevice};
 const TEST_ID: &str = "websocket_reconnect";
 
 /// Tests websocket reconnect logic.
-///
-/// Nothing really to assert on here so in order to debug
-/// enable tracing.
 #[tokio::test]
 async fn integration_websocket_reconnect() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -43,6 +40,9 @@ async fn integration_websocket_reconnect() -> Result<()> {
     // Wait a little to give the websocket time to connect
     tokio::time::sleep(Duration::from_millis(10)).await;
 
+    let num_conns = RpcClient::num_connections(&server.origin.url).await?;
+    assert_eq!(1, num_conns);
+
     // Drop the server handle to shutdown the server
     drop(server);
 
@@ -51,11 +51,14 @@ async fn integration_websocket_reconnect() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(5000)).await;
 
     // Spawn a new server so the websocket can re-connect
-    let _server = spawn(TEST_ID, Some(addr), None).await?;
+    let server = spawn(TEST_ID, Some(addr), None).await?;
 
     // Delay some more to allow the websocket to make the
     // connection
     tokio::time::sleep(Duration::from_millis(5000)).await;
+
+    let num_conns = RpcClient::num_connections(&server.origin.url).await?;
+    assert_eq!(1, num_conns);
 
     teardown(TEST_ID).await;
 

@@ -1,14 +1,12 @@
 use super::simulate_device;
 use crate::test_utils::{spawn, teardown};
 use anyhow::Result;
+use sos_net::client::RpcClient;
 use std::time::Duration;
 
 const TEST_ID: &str = "websocket_shutdown_signout";
 
 /// Tests websocket shutdown logic on sign out.
-///
-/// Nothing really to assert on here so in order to debug
-/// enable tracing.
 #[tokio::test]
 async fn integration_websocket_shutdown_signout() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -25,11 +23,17 @@ async fn integration_websocket_shutdown_signout() -> Result<()> {
     // Wait a moment for the connection to complete
     tokio::time::sleep(Duration::from_millis(50)).await;
 
+    let num_conns = RpcClient::num_connections(&server.origin.url).await?;
+    assert_eq!(1, num_conns);
+
     // Sign out of the account
     device.owner.sign_out().await;
 
     // Wait a moment for the connection to close
     tokio::time::sleep(Duration::from_millis(50)).await;
+
+    let num_conns = RpcClient::num_connections(&server.origin.url).await?;
+    assert_eq!(0, num_conns);
 
     teardown(TEST_ID).await;
 

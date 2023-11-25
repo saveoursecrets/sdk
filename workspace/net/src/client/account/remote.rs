@@ -84,6 +84,13 @@ impl RemoteBridge {
     pub fn local(&self) -> Arc<RwLock<LocalProvider>> {
         Arc::clone(&self.local)
     }
+
+    /*
+    /// Get the client.
+    pub fn client(&self) -> &RpcClient {
+        &self.remote
+    }
+    */
 }
 
 /// Sync helper functions.
