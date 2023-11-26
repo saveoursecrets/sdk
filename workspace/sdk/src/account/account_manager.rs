@@ -148,9 +148,6 @@ pub struct Account {
     /// Search index.
     index: UserIndex,
 
-    /// File storage directory.
-    files_dir: PathBuf,
-    
     /*
     /// Devices for this user.
     #[cfg(feature = "device")]
@@ -210,7 +207,7 @@ impl Account {
 
     /// File storage directory.
     pub fn files_dir(&self) -> &PathBuf {
-        &self.files_dir
+        self.paths.files_dir()
     }
 
     /// Create a new account with the given
@@ -306,8 +303,6 @@ impl Account {
 
         //let paths = storage.paths();
 
-        let files_dir = paths.files_dir().clone();
-
         /*
         #[cfg(feature = "device")]
         let devices_dir = storage.paths().devices_dir().clone();
@@ -321,7 +316,6 @@ impl Account {
             user,
             paths: storage.paths(),
             storage: Arc::new(RwLock::new(storage)),
-            files_dir,
             index: UserIndex::new(),
             /*
             #[cfg(feature = "device")]
