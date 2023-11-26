@@ -133,7 +133,6 @@ impl UserStorage {
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
     ) -> Result<(Self, ImportedAccount, NewAccount)> {
-        
         let (account, imported_account, new_account) =
             Account::new_account_with_builder(
                 account_name,
@@ -141,8 +140,8 @@ impl UserStorage {
                 builder,
                 data_dir.clone(),
                 None,
-            ).await?;
-
+            )
+            .await?;
 
         let devices_dir = account.paths().devices_dir().clone();
 
@@ -232,10 +231,9 @@ impl UserStorage {
             address,
             passphrase,
             data_dir,
-            Some(Box::new(|_, _, _, _| {
-                Box::pin(async move { None })
-            })),
-        ).await?;
+            Some(Box::new(|_, _, _| Box::pin(async move { None }))),
+        )
+        .await?;
 
         /*
         let span = span!(Level::DEBUG, "sign_in");
@@ -277,7 +275,7 @@ impl UserStorage {
         */
 
         let devices_dir = account.paths().devices_dir().clone();
-        
+
         Ok(Self {
             account,
             #[cfg(feature = "device")]
@@ -612,8 +610,10 @@ impl UserStorage {
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (summary, event) =
-            self.account.import_folder_buffer(buffer, key, overwrite).await?;
+        let (summary, event) = self
+            .account
+            .import_folder_buffer(buffer, key, overwrite)
+            .await?;
 
         /*
         let sync_error = self
@@ -648,7 +648,6 @@ impl UserStorage {
         options: &SecretOptions,
         apply_changes: bool,
     ) -> Result<(Summary, Option<CommitHash>, CommitProof)> {
-        
         todo!();
 
         /*
@@ -953,7 +952,8 @@ impl UserStorage {
         }
 
         let mut files = HashMap::new();
-        let buffer = serde_json::to_vec_pretty(self.account.user().account())?;
+        let buffer =
+            serde_json::to_vec_pretty(self.account.user().account())?;
         files.insert("account.json", buffer.as_slice());
         migration.append_files(files).await?;
         migration.finish().await?;
@@ -961,7 +961,7 @@ impl UserStorage {
         vfs::write(path.as_ref(), &archive).await?;
 
         // FIXME: restore audit log!
-        
+
         /*
         let audit_event = AuditEvent::new(
             EventKind::ExportUnsafe,
@@ -1036,7 +1036,7 @@ impl UserStorage {
         };
 
         // FIXME: restore audit logs
-        
+
         /*
         let audit_event = AuditEvent::new(
             EventKind::ImportUnsafe,
@@ -1210,7 +1210,7 @@ impl UserStorage {
     pub async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
         Ok(self.account.root_commit(summary).await?)
     }
-    
+
     /// Expected location for a file by convention.
     pub fn file_location(
         &self,
@@ -1232,10 +1232,12 @@ impl UserStorage {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<Vec<u8>> {
-        Ok(self.account.decrypt_file_storage(
-            vault_id, secret_id, file_name).await?)
+        Ok(self
+            .account
+            .decrypt_file_storage(vault_id, secret_id, file_name)
+            .await?)
     }
-    
+
     /// Generate a security report.
     #[cfg(feature = "security-report")]
     pub async fn generate_security_report<T, D, R>(
@@ -1306,17 +1308,12 @@ impl RemoteSync for UserStorage {
         let _ = self.sync_lock.lock().await;
         for remote in self.remotes.values() {
             let local_changed = remote
-                .sync_before_apply_change(
-                    folder,
-                    &last_commit,
-                    &client_proof,
-                )
+                .sync_before_apply_change(folder, &last_commit, &client_proof)
                 .await?;
 
             // If a remote changes were applied to local
             // we need to recompute the last commit and client proof
             if local_changed {
-
                 /*
                 let reader = self.storage.read().await;
                 let event_log = reader
@@ -1428,7 +1425,8 @@ mod listen {
             tx: UserStorageSender,
         ) {
             let keeper = self.account.user().identity().keeper();
-            let secret_key = self.account.user().identity().signer().to_bytes();
+            let secret_key =
+                self.account.user().identity().signer().to_bytes();
 
             // TODO: needs shutdown hook so this loop exits
             // TODO: when the websocket connection is closed

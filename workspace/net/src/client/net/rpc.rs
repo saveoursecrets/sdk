@@ -335,8 +335,8 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result.ok()))
     }
 
-    /// List vaults for an account.
-    pub async fn list_vaults(&self) -> Result<MaybeRetry<Vec<Summary>>> {
+    /// List folders for an account.
+    pub async fn list_folders(&self) -> Result<MaybeRetry<Vec<Summary>>> {
         let url = self.origin.url.join("api/account")?;
         let id = self.next_id().await;
         let body = new_rpc_call(id, ACCOUNT_LIST_VAULTS, ()).await?;
@@ -354,8 +354,8 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// Create a new vault on a remote node.
-    pub async fn create_vault(
+    /// Create a new folder on a remote node.
+    pub async fn create_folder(
         &self,
         vault: impl AsRef<[u8]>,
         secure_key: Option<SecureAccessKey>,
@@ -385,7 +385,7 @@ impl RpcClient {
     }
 
     /// Delete a vault on a remote node.
-    pub async fn delete_vault(
+    pub async fn delete_folder(
         &self,
         vault_id: &VaultId,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
@@ -409,12 +409,12 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// Update an existing vault.
+    /// Update an existing folder.
     ///
     /// This should be used when the commit tree has been
     /// rewritten, for example if the history was compacted
     /// or the password for a vault was changed.
-    pub async fn update_vault(
+    pub async fn update_folder(
         &self,
         vault_id: &VaultId,
         vault: impl AsRef<[u8]>,
@@ -499,12 +499,13 @@ impl RpcClient {
         maybe_retry.map(|result, body| Ok((result?, Some(body))))
     }
 
-    /// Get the commit proof of a vault on a remote node.
-    pub async fn status(
+    /// Get the commit state of a folder on a remote node.
+    pub async fn folder_status(
         &self,
         vault_id: &VaultId,
         proof: Option<CommitProof>,
-    ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
+    ) -> Result<MaybeRetry<(CommitHash, CommitProof, Option<CommitProof>)>>
+    {
         let url = self.origin.url.join("api/events")?;
         let id = self.next_id().await;
         let body =
@@ -515,15 +516,15 @@ impl RpcClient {
         let response = self.send_request(url, signature, body).await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
-            .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
+            .read_encrypted_response::<(CommitHash, CommitProof, Option<CommitProof>)>(
                 response.status(),
                 &response.bytes().await?,
             )
             .await?;
 
         maybe_retry.map(|result, _| {
-            let (server_proof, match_proof) = result?;
-            Ok((server_proof, match_proof))
+            let (last_commit, server_proof, match_proof) = result?;
+            Ok((last_commit, server_proof, match_proof))
         })
     }
 

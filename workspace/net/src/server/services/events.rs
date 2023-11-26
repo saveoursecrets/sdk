@@ -145,7 +145,7 @@ impl Service for EventLogService {
                     }
                 }
 
-                let (proof, match_proof) = {
+                let (last_commit, proof, match_proof) = {
                     let reader = backend.read().await;
                     let accounts = reader.accounts();
                     let reader = accounts.read().await;
@@ -159,6 +159,10 @@ impl Service for EventLogService {
                         .get(&vault_id)
                         .ok_or_else(|| Error::VaultNotExist(vault_id))?;
 
+                    let last_commit = event_log
+                        .last_commit()
+                        .await?
+                        .ok_or(Error::NoCommitProof)?;
                     let proof = event_log.tree().head()?;
                     let match_proof = if let Some(client_proof) = commit_proof
                     {
@@ -166,11 +170,12 @@ impl Service for EventLogService {
                     } else {
                         None
                     };
-                    (proof, match_proof)
+                    (last_commit, proof, match_proof)
                 };
 
                 let reply: ResponseMessage<'_> =
-                    (request.id(), (proof, match_proof)).try_into()?;
+                    (request.id(), (last_commit, proof, match_proof))
+                        .try_into()?;
                 Ok(reply)
             }
             EVENT_LOG_DIFF => {

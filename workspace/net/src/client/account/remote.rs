@@ -13,10 +13,10 @@ use http::StatusCode;
 
 use sos_sdk::{
     account::{AccountStatus, LocalProvider},
-    commit::{CommitHash, CommitProof, Comparison, CommitState},
+    commit::{CommitHash, CommitProof, CommitState, Comparison},
     crypto::SecureAccessKey,
     decode,
-    events::{Patch, WriteEvent, Event},
+    events::{Event, Patch, WriteEvent},
     mpc::Keypair,
     signer::ecdsa::BoxedEcdsaSigner,
     url::Url,
@@ -84,13 +84,6 @@ impl RemoteBridge {
     pub fn local(&self) -> Arc<RwLock<LocalProvider>> {
         Arc::clone(&self.local)
     }
-
-    /*
-    /// Get the client.
-    pub fn client(&self) -> &RpcClient {
-        &self.remote
-    }
-    */
 }
 
 /// Sync helper functions.
@@ -157,7 +150,7 @@ impl RemoteBridge {
         let _enter = span.enter();
 
         let (status, _) = retry!(
-            || self.remote.create_vault(buffer, secure_key.cloned()),
+            || self.remote.create_folder(buffer, secure_key.cloned()),
             self.remote
         );
 
@@ -176,7 +169,7 @@ impl RemoteBridge {
         let _enter = span.enter();
 
         let (status, _) =
-            retry!(|| self.remote.update_vault(id, buffer), self.remote);
+            retry!(|| self.remote.update_folder(id, buffer), self.remote);
 
         tracing::debug!(status = %status);
 
@@ -193,7 +186,7 @@ impl RemoteBridge {
         let _enter = span.enter();
 
         let (status, _) =
-            retry!(|| self.remote.delete_vault(id), self.remote);
+            retry!(|| self.remote.delete_folder(id), self.remote);
 
         tracing::debug!(status = %status);
 
@@ -202,6 +195,28 @@ impl RemoteBridge {
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
         Ok(())
+    }
+
+    async fn folder_status(
+        &self,
+        vault_id: &VaultId,
+        proof: Option<CommitProof>,
+    ) -> Result<(CommitState, Option<CommitProof>)> {
+        let span = span!(Level::DEBUG, "folder_status");
+        let _enter = span.enter();
+
+        let (status, (last_commit, remote_proof, match_proof)) = retry!(
+            || self.remote.folder_status(vault_id, proof.clone()),
+            self.remote
+        );
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status.into()))?;
+        Ok(((last_commit, remote_proof), match_proof))
     }
 
     async fn pull_folder(
@@ -293,13 +308,15 @@ impl RemoteBridge {
         folder: &Summary,
         last_commit: &CommitHash,
         commit_proof: &CommitProof,
-        remote: Option<CommitState>
+        remote: Option<CommitState>,
     ) -> Result<bool> {
-
         let remote = if let Some(remote) = remote {
             remote
         } else {
-            todo!("fetch remote state in sync folder");
+            let (remote, _) = self
+                .folder_status(folder.id(), Some(commit_proof.clone()))
+                .await?;
+            remote
         };
 
         let (remote_commit, remote_proof) = remote;
@@ -325,12 +342,7 @@ impl RemoteBridge {
             self.push_folder(&folder, &remote_commit, &remote_proof)
                 .await
         } else if !equal {
-            self.pull_folder(
-                &folder,
-                last_commit,
-                commit_proof,
-            )
-            .await
+            self.pull_folder(&folder, last_commit, commit_proof).await
         } else {
             Ok(false)
         }
@@ -355,14 +367,22 @@ impl RemoteBridge {
                     .get(&folder_id)
                     .ok_or(Error::CacheNotAvailable(folder_id))?;
 
-                let last_commit = event_log.last_commit().await?.ok_or(Error::NoRootCommit)?;
+                let last_commit = event_log
+                    .last_commit()
+                    .await?
+                    .ok_or(Error::NoRootCommit)?;
                 let commit_proof = event_log.tree().head()?;
                 (folder, last_commit, commit_proof)
             };
 
             let remote = (remote_commit, remote_proof);
             self.sync_folder(
-                &folder, &last_commit, &commit_proof, Some(remote)).await?;
+                &folder,
+                &last_commit,
+                &commit_proof,
+                Some(remote),
+            )
+            .await?;
         }
 
         Ok(())
@@ -435,11 +455,7 @@ impl RemoteBridge {
         tracing::debug!(num_patch_events = %patch.0.len());
 
         let (status, (_server_proof, _match_proof)) = retry!(
-            || self.remote.apply_patch(
-                folder.id(),
-                commit_proof,
-                &patch,
-            ),
+            || self.remote.apply_patch(folder.id(), commit_proof, &patch,),
             self.remote
         );
 
@@ -510,7 +526,8 @@ impl RemoteSync for RemoteBridge {
         last_commit: &CommitHash,
         client_proof: &CommitProof,
     ) -> Result<bool> {
-        self.sync_folder(folder, last_commit, client_proof, None).await
+        self.sync_folder(folder, last_commit, client_proof, None)
+            .await
     }
 
     async fn sync_send_events(
@@ -532,7 +549,8 @@ impl RemoteSync for RemoteBridge {
             match event {
                 Event::Write(_, event) => match event {
                     WriteEvent::CreateVault(buf) => {
-                        if let Some(SyncData::CreateVault(secure_key)) = item {
+                        if let Some(SyncData::CreateVault(secure_key)) = item
+                        {
                             create_folders.push((buf, secure_key))
                         } else {
                             panic!(
@@ -543,9 +561,11 @@ impl RemoteSync for RemoteBridge {
                     WriteEvent::UpdateVault(buf) => {
                         update_folders.push((folder.id(), buf))
                     }
-                    WriteEvent::DeleteVault => delete_folders.push(folder.id()),
+                    WriteEvent::DeleteVault => {
+                        delete_folders.push(folder.id())
+                    }
                     _ => patch_events.push(event),
-                }
+                },
                 _ => {}
             }
         }
@@ -790,8 +810,10 @@ mod listen {
                                     .ok_or(Error::CacheNotAvailable(
                                         *summary.id(),
                                     ))?;
-                                let last_commit =
-                                    event_log.last_commit().await?.ok_or(Error::NoRootCommit)?;
+                                let last_commit = event_log
+                                    .last_commit()
+                                    .await?
+                                    .ok_or(Error::NoRootCommit)?;
                                 let commit_proof = event_log.tree().head()?;
                                 (last_commit, commit_proof)
                             };

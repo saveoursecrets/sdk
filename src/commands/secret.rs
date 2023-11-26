@@ -5,16 +5,14 @@ use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 use futures::future::LocalBoxFuture;
 use terminal_banner::{Banner, Padding};
 
-use sos_net::{
-    sdk::{
-        account::{AccountRef, ArchiveFilter, DocumentView},
-        search::Document,
-        vault::{
-            secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
-            Summary, VaultRef,
-        },
-        vfs,
+use sos_net::sdk::{
+    account::{AccountRef, ArchiveFilter, DocumentView},
+    search::Document,
+    vault::{
+        secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
+        Summary, VaultRef,
     },
+    vfs,
 };
 
 use crate::{

@@ -28,8 +28,8 @@ pub use backup::{
     RestoreOptions, RestoreTargets,
 };
 pub use builder::{AccountBuilder, ImportedAccount, NewAccount};
-pub use identity::{AccountStatus, Identity, UserIdentity};
 pub use file_manager::{FileProgress, FileSource};
+pub use identity::{AccountStatus, Identity, UserIdentity};
 pub use local::{AccountInfo, AccountRef, LocalAccounts};
 pub use login::{AuthenticatedUser, DeviceSigner, Login};
 pub use passphrase::DelegatedPassphrase;
@@ -38,7 +38,9 @@ pub use provider::{LocalProvider, LocalState};
 pub use search_index::{ArchiveFilter, DocumentView, QueryFilter, UserIndex};
 
 #[cfg(feature = "security-report")]
-pub use security_report::{SecurityReport, SecurityReportOptions, SecurityReportRow};
+pub use security_report::{
+    SecurityReport, SecurityReportOptions, SecurityReportRow,
+};
 
 pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;

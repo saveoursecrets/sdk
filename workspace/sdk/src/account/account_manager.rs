@@ -57,16 +57,14 @@ pub type BeforeHook = Box<
     dyn Fn(
             Arc<RwLock<LocalProvider>>,
             &Summary,
-            &CommitHash,
-            &CommitProof,
+            &CommitState,
         ) -> BeforeHookResult
         + Send
         + Sync,
 >;
 
-type BeforeHookResult = Pin<
-    Box<dyn Future<Output = Option<CommitState>> + Send + Sync>,
->;
+type BeforeHookResult =
+    Pin<Box<dyn Future<Output = Option<CommitState>> + Send + Sync>>;
 
 /// Read-only view of a vault created from a specific
 /// event log commit.
@@ -879,8 +877,7 @@ impl Account {
                 let before_result = (before_hook)(
                     storage,
                     &folder,
-                    &last_commit,
-                    &commit_proof,
+                    &(last_commit, commit_proof.clone()),
                 )
                 .await;
                 if let Some((commit, proof)) = before_result {
