@@ -45,21 +45,14 @@ pub trait RemoteSync: Sync + Send + Any {
         options: &SyncOptions,
     ) -> Option<SyncError>;
 
-    /// Must be called before applying changes to a local
-    /// provider.
-    ///
-    /// If the local is behind the remote and can safely pull
-    /// this allows us to apply remote changes before committing
-    /// changes to the local provider.
-    ///
-    /// Returns a boolean indicating if changes were made so that
-    /// callers can re-compute their proofs.
-    async fn sync_before_apply_change(
+    /// Sync a folder.
+    async fn sync_folder(
         &self,
         folder: &Summary,
-        last_commit: &CommitHash,
-        commit_proof: &CommitProof,
-    ) -> Result<bool>;
+        commit_state: &CommitState,
+        remote: Option<CommitState>,
+        options: &SyncOptions,
+    ) -> std::result::Result<bool, SyncError>;
 
     /// Send events after changes to the local storage
     /// to a remote.

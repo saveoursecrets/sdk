@@ -1207,6 +1207,51 @@ impl RemoteSync for UserStorage {
         }
     }
 
+    async fn sync_folder(
+        &self,
+        folder: &Summary,
+        commit_state: &CommitState,
+        remote_state: Option<CommitState>,
+        options: &SyncOptions,
+    ) -> std::result::Result<bool, SyncError> {
+        let _ = self.sync_lock.lock().await;
+        let mut errors = Vec::new();
+        let mut changed = false;
+        for (origin, remote) in &self.remotes {
+            let sync_remote = options.origins.is_empty()
+                || options.origins.contains(origin);
+
+            if sync_remote {
+                match remote
+                    .sync_folder(
+                        folder,
+                        commit_state,
+                        remote_state.clone(),
+                        options,
+                    )
+                    .await
+                {
+                    Ok(changes) => {}
+                    Err(e) => match e {
+                        SyncError::One(e) => errors.push((origin.clone(), e)),
+                        SyncError::Multiple(mut errs) => {
+                            errors.append(&mut errs)
+                        }
+                    },
+                }
+            }
+        }
+        if errors.is_empty() {
+            Ok(changed)
+        } else {
+            for error in &errors {
+                tracing::error!(error = ?error);
+            }
+            Err(SyncError::Multiple(errors))
+        }
+    }
+
+    /*
     async fn sync_before_apply_change(
         &self,
         folder: &Summary,
@@ -1226,7 +1271,6 @@ impl RemoteSync for UserStorage {
             // If a remote changes were applied to local
             // we need to recompute the last commit and client proof
             if local_changed {
-                /*
                 let reader = self.storage.read().await;
                 let event_log = reader
                     .cache()
@@ -1234,15 +1278,13 @@ impl RemoteSync for UserStorage {
                     .ok_or(Error::CacheNotAvailable(*folder.id()))?;
                 last_commit = event_log.last_commit().await?;
                 client_proof = event_log.tree().head()?;
-                */
-
-                todo!();
             }
 
             changed = changed || local_changed;
         }
         Ok(changed)
     }
+    */
 
     async fn sync_send_events(
         &self,

@@ -1,4 +1,4 @@
-//! Bridge between a local provider and a remote server.
+//! Bridge between local storage and a remote server.
 use crate::{
     client::{
         net::{MaybeRetry, RpcClient},
@@ -303,51 +303,6 @@ impl RemoteBridge {
         Ok(num_events > 0)
     }
 
-    async fn sync_folder(
-        &self,
-        folder: &Summary,
-        last_commit: &CommitHash,
-        commit_proof: &CommitProof,
-        remote: Option<CommitState>,
-    ) -> Result<bool> {
-        let remote = if let Some(remote) = remote {
-            remote
-        } else {
-            let (remote, _) = self
-                .folder_status(folder.id(), Some(commit_proof.clone()))
-                .await?;
-            remote
-        };
-
-        let (remote_commit, remote_proof) = remote;
-        let comparison = {
-            let local = self.local.read().await;
-            let folder = local
-                .state()
-                .find_vault(&(folder.id().clone().into()))
-                .cloned()
-                .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            let event_log = local
-                .cache()
-                .get(folder.id())
-                .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            event_log.tree().compare(&remote_proof)?
-        };
-
-        let equal = matches!(&comparison, Comparison::Equal);
-        let contains = matches!(&comparison, Comparison::Contains(_, _));
-        let ahead = contains && commit_proof.len() > remote_proof.len();
-
-        if ahead {
-            self.push_folder(&folder, &remote_commit, &remote_proof)
-                .await
-        } else if !equal {
-            self.pull_folder(&folder, last_commit, commit_proof).await
-        } else {
-            Ok(false)
-        }
-    }
-
     async fn pull_account(
         &self,
         account_status: AccountStatus,
@@ -378,9 +333,9 @@ impl RemoteBridge {
             let remote = (remote_commit, remote_proof);
             self.sync_folder(
                 &folder,
-                &last_commit,
-                &commit_proof,
+                &(last_commit, commit_proof),
                 Some(remote),
+                &Default::default(),
             )
             .await?;
         }
@@ -521,14 +476,62 @@ impl RemoteSync for RemoteBridge {
         }
     }
 
-    async fn sync_before_apply_change(
+    async fn sync_folder(
         &self,
         folder: &Summary,
-        last_commit: &CommitHash,
-        client_proof: &CommitProof,
-    ) -> Result<bool> {
-        self.sync_folder(folder, last_commit, client_proof, None)
-            .await
+        commit_state: &CommitState,
+        remote: Option<CommitState>,
+        options: &SyncOptions,
+    ) -> std::result::Result<bool, SyncError> {
+        let (last_commit, commit_proof) = commit_state;
+
+        let remote = if let Some(remote) = remote {
+            remote
+        } else {
+            let (remote, _) = self
+                .folder_status(folder.id(), Some(commit_proof.clone()))
+                .await
+                .map_err(SyncError::One)?;
+            remote
+        };
+
+        let (remote_commit, remote_proof) = remote;
+        let comparison = {
+            let local = self.local.read().await;
+            let folder = local
+                .state()
+                .find_vault(&(folder.id().clone().into()))
+                .cloned()
+                .ok_or(Error::CacheNotAvailable(*folder.id()))
+                .map_err(SyncError::One)?;
+            let event_log = local
+                .cache()
+                .get(folder.id())
+                .ok_or(Error::CacheNotAvailable(*folder.id()))
+                .map_err(SyncError::One)?;
+            event_log
+                .tree()
+                .compare(&remote_proof)
+                .map_err(|e| SyncError::One(e.into()))?
+        };
+
+        let equal = matches!(&comparison, Comparison::Equal);
+        let contains = matches!(&comparison, Comparison::Contains(_, _));
+        let ahead = contains && commit_proof.len() > remote_proof.len();
+
+        let changed = if ahead {
+            self.push_folder(&folder, &remote_commit, &remote_proof)
+                .await
+                .map_err(SyncError::One)?
+        } else if !equal {
+            self.pull_folder(&folder, last_commit, commit_proof)
+                .await
+                .map_err(SyncError::One)?
+        } else {
+            false
+        };
+
+        Ok(changed)
     }
 
     async fn sync_send_events(

@@ -1,6 +1,6 @@
 //! Error type for the client module.
 #[cfg(feature = "client")]
-use crate::client::Origin;
+use crate::client::{Origin, SyncError};
 use serde_json::Value;
 use sos_sdk::{
     commit::CommitHash,
@@ -302,4 +302,13 @@ pub enum Error {
     /// from a remote provider to account storage.
     #[error(transparent)]
     MpscVaultId(#[from] tokio::sync::mpsc::error::SendError<VaultId>),
+}
+
+impl From<SyncError> for Error {
+    fn from(value: SyncError) -> Self {
+        match value {
+            SyncError::One(e) => e,
+            _ => unreachable!(),
+        }
+    }
 }
