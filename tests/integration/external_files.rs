@@ -795,9 +795,8 @@ async fn assert_attach_file_secret(
     Ok(())
 }
 
-
 async fn pause() {
-    // Need to pause a bit to give the progress channels some 
+    // Need to pause a bit to give the progress channels some
     // time to flush the messages
     tokio::time::sleep(std::time::Duration::from_millis(5)).await;
 }

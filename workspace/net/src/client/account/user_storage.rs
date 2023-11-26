@@ -46,7 +46,7 @@ use tokio::{
 use crate::client::WebSocketHandle;
 use crate::client::{
     sync::SyncData, Error, Origin, Remote, RemoteBridge, RemoteSync, Remotes,
-    SyncOptions, Result, SyncError,
+    Result, SyncError, SyncOptions,
 };
 
 use async_trait::async_trait;
@@ -2093,23 +2093,28 @@ impl From<UserStorage> for Arc<RwLock<LocalProvider>> {
 
 #[async_trait]
 impl RemoteSync for UserStorage {
-
     async fn sync(&self) -> Option<SyncError> {
         self.sync_with_options(&Default::default()).await
     }
 
-    async fn sync_with_options(&self, options: &SyncOptions) -> Option<SyncError> {
+    async fn sync_with_options(
+        &self,
+        options: &SyncOptions,
+    ) -> Option<SyncError> {
         let _ = self.sync_lock.lock().await;
         let mut errors = Vec::new();
         for (origin, remote) in &self.remotes {
-            
             let sync_remote = options.origins.is_empty()
                 || options.origins.contains(origin);
-        
-            if let Some(e) = remote.sync_with_options(options).await {
-                match e {
-                    SyncError::One(e) => errors.push((origin.clone(), e)),
-                    SyncError::Multiple(mut errs) => errors.append(&mut errs),
+
+            if sync_remote {
+                if let Some(e) = remote.sync_with_options(options).await {
+                    match e {
+                        SyncError::One(e) => errors.push((origin.clone(), e)),
+                        SyncError::Multiple(mut errs) => {
+                            errors.append(&mut errs)
+                        }
+                    }
                 }
             }
         }
