@@ -1296,11 +1296,11 @@ impl RemoteSync for UserStorage {
     async fn sync_before_apply_change(
         &self,
         folder: &Summary,
-        last_commit: Option<&CommitHash>,
+        last_commit: &CommitHash,
         client_proof: &CommitProof,
     ) -> Result<bool> {
         let mut changed = false;
-        let mut last_commit = last_commit.cloned();
+        let mut last_commit = last_commit.clone();
         let mut client_proof = client_proof.clone();
 
         let _ = self.sync_lock.lock().await;
@@ -1308,7 +1308,7 @@ impl RemoteSync for UserStorage {
             let local_changed = remote
                 .sync_before_apply_change(
                     folder,
-                    last_commit.as_ref(),
+                    &last_commit,
                     &client_proof,
                 )
                 .await?;
@@ -1338,9 +1338,9 @@ impl RemoteSync for UserStorage {
     async fn sync_send_events(
         &self,
         folder: &Summary,
-        before_last_commit: Option<&CommitHash>,
-        before_client_proof: &CommitProof,
-        events: &[WriteEvent],
+        last_commit: &CommitHash,
+        commit_proof: &CommitProof,
+        events: &[Event],
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError> {
         let _ = self.sync_lock.lock().await;
@@ -1349,8 +1349,8 @@ impl RemoteSync for UserStorage {
             if let Err(e) = remote
                 .sync_send_events(
                     folder,
-                    before_last_commit,
-                    before_client_proof,
+                    last_commit,
+                    commit_proof,
                     events,
                     data,
                 )

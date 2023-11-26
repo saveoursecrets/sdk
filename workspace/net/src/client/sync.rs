@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use sos_sdk::{
     commit::{CommitHash, CommitProof},
     crypto::SecureAccessKey,
-    events::WriteEvent,
+    events::Event,
     vault::Summary,
 };
 use std::any::Any;
@@ -57,8 +57,8 @@ pub trait RemoteSync: Sync + Send + Any {
     async fn sync_before_apply_change(
         &self,
         folder: &Summary,
-        last_commit: Option<&CommitHash>,
-        client_proof: &CommitProof,
+        last_commit: &CommitHash,
+        commit_proof: &CommitProof,
     ) -> Result<bool>;
 
     /// Send events after changes to the local storage
@@ -69,9 +69,9 @@ pub trait RemoteSync: Sync + Send + Any {
     async fn sync_send_events(
         &self,
         folder: &Summary,
-        before_last_commit: Option<&CommitHash>,
-        before_client_proof: &CommitProof,
-        events: &[WriteEvent],
+        last_commit: &CommitHash,
+        commit_proof: &CommitProof,
+        events: &[Event],
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError>;
 
