@@ -7,6 +7,8 @@ use std::{
     sync::Arc,
 };
 
+use futures::Future;
+
 use crate::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
@@ -29,7 +31,7 @@ use crate::{
         Gatekeeper, Summary, Vault, VaultId,
     },
     vfs::{self, File},
-    Timestamp, Error, Result,
+    Error, Result, Timestamp,
 };
 
 use tracing::{span, Level};
@@ -110,8 +112,6 @@ pub struct AccountData {
     pub identity: String,
     /// Account folders.
     pub folders: Vec<Summary>,
-
-
     /*
     #[cfg(feature = "device")]
     /// Address of the device public key.
@@ -135,7 +135,13 @@ pub struct UserStatistics {
 }
 
 /// Authenticated user with folder manager.
-pub struct Account {
+pub struct Account<H, F>
+where
+    H: Fn(&Summary, &CommitHash, &CommitProof) -> F,
+    F: Future<Output = Option<(CommitHash, CommitProof)>>
+        + Send
+        + Sync,
+{
     /// Authenticated user.
     user: AuthenticatedUser,
 
@@ -148,21 +154,24 @@ pub struct Account {
     /// Search index.
     index: UserIndex,
 
-    /*
-    /// Devices for this user.
-    #[cfg(feature = "device")]
-    devices: DeviceManager,
-
-    /// Key pair for peer to peer connections.
-    #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
-    peer_key: libp2p::identity::Keypair,
-    */
-
     /// Audit log for this provider.
     audit_log: Arc<RwLock<AuditLogFile>>,
+
+    /// Hook called before making local changes.
+    ///
+    /// Allows network aware accounts to sync
+    /// before changes are applied to the local
+    /// storage.
+    before_hook: H,
 }
 
-impl Account {
+impl<H, F> Account<H, F>
+where
+    H: Fn(&Summary, &CommitHash, &CommitProof) -> F,
+    F: Future<Output = Option<(CommitHash, CommitProof)>>
+        + Send
+        + Sync,
+{
     /// Create a new account with the given
     /// name, passphrase and provider.
     ///
@@ -173,7 +182,8 @@ impl Account {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-    ) -> Result<(Account, ImportedAccount, NewAccount)> {
+        before_hook: H,
+    ) -> Result<(Self, ImportedAccount, NewAccount)> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
@@ -186,28 +196,9 @@ impl Account {
                     .create_file_password(true)
             },
             data_dir,
+            before_hook,
         )
         .await
-    }
-
-    /// Authenticated user information.
-    pub fn user(&self) -> &AuthenticatedUser {
-        &self.user
-    }
-
-    /// Mutable authenticated user information.
-    pub fn user_mut(&mut self) -> &mut AuthenticatedUser {
-        &mut self.user
-    }
-
-    /// Storage provider.
-    pub fn storage(&self) -> Arc<RwLock<LocalProvider>> {
-        Arc::clone(&self.storage)
-    }
-
-    /// File storage directory.
-    pub fn files_dir(&self) -> &PathBuf {
-        self.paths.files_dir()
     }
 
     /// Create a new account with the given
@@ -218,7 +209,8 @@ impl Account {
         passphrase: SecretString,
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
-    ) -> Result<(Account, ImportedAccount, NewAccount)> {
+        before_hook: H,
+    ) -> Result<(Self, ImportedAccount, NewAccount)> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
 
@@ -250,6 +242,7 @@ impl Account {
             new_account.user.address(),
             passphrase,
             data_dir,
+            before_hook,
         )
         .await?;
 
@@ -266,17 +259,38 @@ impl Account {
         Ok((owner, imported_account, new_account))
     }
 
+    /// Authenticated user information.
+    pub fn user(&self) -> &AuthenticatedUser {
+        &self.user
+    }
+
+    /// Mutable authenticated user information.
+    pub fn user_mut(&mut self) -> &mut AuthenticatedUser {
+        &mut self.user
+    }
+
+    /// Storage provider.
+    pub fn storage(&self) -> Arc<RwLock<LocalProvider>> {
+        Arc::clone(&self.storage)
+    }
+
+    /// File storage directory.
+    pub fn files_dir(&self) -> &PathBuf {
+        self.paths.files_dir()
+    }
+
     /// User identity address.
     pub fn address(&self) -> &Address {
         self.user.identity().address()
     }
 
-    /// Create new user storage by signing in to an account.
+    /// Get access to an account by signing in.
     pub async fn sign_in(
         address: &Address,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-    ) -> Result<Self> {
+        before_hook: H,
+    ) -> Result<Account<H, F>> {
         let span = span!(Level::DEBUG, "sign_in");
         let _enter = span.enter();
 
@@ -301,13 +315,6 @@ impl Account {
             LocalProvider::new(signer.address()?.to_string(), data_dir)
                 .await?;
 
-        //let paths = storage.paths();
-
-        /*
-        #[cfg(feature = "device")]
-        let devices_dir = storage.paths().devices_dir().clone();
-        */
-
         let audit_log = Arc::new(RwLock::new(
             AuditLogFile::new(paths.audit_file()).await?,
         ));
@@ -317,13 +324,8 @@ impl Account {
             paths: storage.paths(),
             storage: Arc::new(RwLock::new(storage)),
             index: UserIndex::new(),
-            /*
-            #[cfg(feature = "device")]
-            devices: DeviceManager::new(devices_dir)?,
-            #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
-            peer_key,
-            */
             audit_log,
+            before_hook,
         })
     }
 
@@ -390,13 +392,6 @@ impl Account {
             account: self.user.account().clone(),
             identity: self.user.identity().recipient().to_string(),
             folders: reader.state().summaries().to_vec(),
-
-            /*
-            #[cfg(feature = "device")]
-            device_address: self.user.device().public_id().to_owned(),
-            #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
-            peer_id: libp2p::PeerId::from(&self.peer_key.public()),
-            */
         })
     }
 
@@ -421,25 +416,11 @@ impl Account {
     ) -> Result<()> {
         Ok(self.user.rename_account(&self.paths, account_name).await?)
     }
-    
-    /*
-    /// Users devices reference.
-    #[cfg(feature = "device")]
-    pub fn devices(&self) -> &DeviceManager {
-        &self.devices
-    }
-
-    /// Users devices mutable reference.
-    #[cfg(feature = "device")]
-    pub fn devices_mut(&mut self) -> &mut DeviceManager {
-        &mut self.devices
-    }
-    */
 
     /// Try to find a folder using a predicate.
-    pub async fn find<F>(&self, predicate: F) -> Option<Summary>
+    pub async fn find<P>(&self, predicate: P) -> Option<Summary>
     where
-        F: FnMut(&&Summary) -> bool,
+        P: FnMut(&&Summary) -> bool,
     {
         let reader = self.storage.read().await;
         reader.state().find(predicate).cloned()
@@ -478,7 +459,7 @@ impl Account {
         let _enter = span.enter();
 
         tracing::debug!(address = %self.address());
-        
+
         /*
         // Close all the websocket connections
         {
@@ -536,8 +517,8 @@ impl Account {
         let (summary, before_last_commit, before_commit_proof) =
             self.compute_folder_state(&options, false).await?;
 
-        //let (_, event) = event.try_into()?;
-        let event = Event::Write(*summary.id(), WriteEvent::CreateVault(buffer));
+        let event =
+            Event::Write(*summary.id(), WriteEvent::CreateVault(buffer));
 
         Ok((summary, event))
     }
@@ -571,8 +552,6 @@ impl Account {
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
-
-        //let (_, event) = event.try_into()?;
 
         Ok(event)
     }
@@ -866,8 +845,8 @@ impl Account {
         &self,
         options: &SecretOptions,
         apply_changes: bool,
-    ) -> Result<(Summary, Option<CommitHash>, CommitProof)> {
-        let (folder, mut last_commit, mut commit_proof) = {
+    ) -> Result<(Summary, CommitHash, CommitProof)> {
+        let (folder, last_commit, mut commit_proof) = {
             let reader = self.storage.read().await;
             let folder = options
                 .folder
@@ -883,6 +862,21 @@ impl Account {
             let commit_proof = event_log.tree().head()?;
             (folder, last_commit, commit_proof)
         };
+
+        let mut last_commit = last_commit
+            .ok_or(Error::NoRootCommit)?;
+
+        if apply_changes {
+            let before_result =
+                (self.before_hook)(
+                    &folder, &last_commit, &commit_proof).await;
+            
+            if let Some((commit, proof)) = before_result {
+                last_commit = commit;
+                commit_proof = proof;
+            }
+        }
+
         Ok((folder, last_commit, commit_proof))
     }
 
@@ -1501,7 +1495,7 @@ impl Account {
 
         Ok(summary)
     }
-    
+
     /*
     /// Generic CSV import implementation.
     #[cfg(feature = "migrate")]
@@ -1767,7 +1761,7 @@ impl Account {
 
     /// Import from an archive file.
     pub async fn restore_backup_archive<P: AsRef<Path>>(
-        owner: Option<&mut Account>,
+        owner: Option<&mut Account<H, F>>,
         path: P,
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
@@ -1791,11 +1785,11 @@ impl Account {
 
     /// Import from an archive buffer.
     async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
-        mut owner: Option<&mut Account>,
+        mut owner: Option<&mut Account<H, F>>,
         buffer: R,
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
-    ) -> Result<(AccountInfo, Option<&mut Account>)> {
+    ) -> Result<(AccountInfo, Option<&mut Account<H, F>>)> {
         let files_dir = if let Some(owner) = owner.as_ref() {
             ExtractFilesLocation::Path(owner.files_dir().clone())
         } else {
@@ -1879,8 +1873,10 @@ impl Account {
     }
 }
 
+/*
 impl From<Account> for Arc<RwLock<LocalProvider>> {
     fn from(value: Account) -> Self {
         value.storage
     }
 }
+*/

@@ -1,23 +1,25 @@
 //! File manager to keep external files in sync
 //! as secrets are created, updated and moved.
 
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
-
 use crate::{
+    account::Account,
     account::{
         basename, DelegatedPassphrase, EncryptedFile, FileStorage,
         FileStorageSync,
     },
+    commit::{CommitHash, CommitProof},
     vault::{
         secret::{
             FileContent, Secret, SecretData, SecretId, SecretRow, UserData,
         },
         Summary, VaultId,
     },
-    vfs, Error, Result, account::Account,
+    vfs, Error, Result,
+};
+use futures::Future;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
 };
 use tokio::sync::mpsc;
 
@@ -72,7 +74,13 @@ pub struct FileStorageResult {
     encrypted_file: EncryptedFile,
 }
 
-impl Account {
+impl<H, F> Account<H, F>
+where
+    H: Fn(&Summary, &CommitHash, &CommitProof) -> F,
+    F: Future<Output = Option<(CommitHash, CommitProof)>>
+        + Send
+        + Sync,
+{
     /// Encrypt a file and move it to the external file storage location.
     pub async fn encrypt_file_storage<P: AsRef<Path>>(
         &self,
@@ -173,10 +181,14 @@ impl Account {
     ) -> Result<Vec<FileStorageResult>> {
         let mut results = Vec::new();
 
-        let old_secret_id =
-            old_secret.id.as_ref().ok_or_else(|| Error::MissingSecretId)?;
-        let new_secret_id =
-            new_secret.id.as_ref().ok_or_else(|| Error::MissingSecretId)?;
+        let old_secret_id = old_secret
+            .id
+            .as_ref()
+            .ok_or_else(|| Error::MissingSecretId)?;
+        let new_secret_id = new_secret
+            .id
+            .as_ref()
+            .ok_or_else(|| Error::MissingSecretId)?;
 
         let has_moved =
             new_summary != old_summary || new_secret.id != old_secret.id;
@@ -237,7 +249,10 @@ impl Account {
         targets: Option<Vec<&Secret>>,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<()> {
-        let id = secret_data.id.as_ref().ok_or_else(|| Error::MissingSecretId)?;
+        let id = secret_data
+            .id
+            .as_ref()
+            .ok_or_else(|| Error::MissingSecretId)?;
         let targets = targets.unwrap_or_else(|| {
             get_external_file_secrets(&secret_data.secret)
         });
@@ -401,7 +416,10 @@ impl Account {
 
         let mut results = Vec::new();
 
-        let id = secret_data.id.as_ref().ok_or_else(|| Error::MissingSecretId)?;
+        let id = secret_data
+            .id
+            .as_ref()
+            .ok_or_else(|| Error::MissingSecretId)?;
 
         tracing::debug!(secret = ?id);
 

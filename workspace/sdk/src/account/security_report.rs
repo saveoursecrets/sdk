@@ -1,14 +1,16 @@
 //! Generate a security report for all passwords.
-use serde::{Deserialize, Serialize};
 use crate::{
     account::Account,
+    commit::{CommitHash, CommitProof},
     vault::{
         secret::{Secret, SecretId, SecretType},
         Gatekeeper, Summary, VaultId,
     },
-    Result,
     zxcvbn::Entropy,
+    Result,
 };
+use futures::Future;
+use serde::{Deserialize, Serialize};
 
 /// Specific target for a security report.
 pub struct SecurityReportTarget(
@@ -178,15 +180,21 @@ async fn secret_security_report(
     Ok(())
 }
 
-impl Account {
+impl<H, F> Account<H, F>
+where
+    H: Fn(&Summary, &CommitHash, &CommitProof) -> F,
+    F: Future<Output = Option<(CommitHash, CommitProof)>>
+        + Send
+        + Sync,
+{
     /// Generate a security report.
-    pub async fn generate_security_report<T, H, F>(
+    pub async fn generate_security_report<T, D, R>(
         &mut self,
-        options: SecurityReportOptions<T, H, F>,
+        options: SecurityReportOptions<T, D, R>,
     ) -> Result<SecurityReport<T>>
     where
-        H: Fn(Vec<String>) -> F,
-        F: std::future::Future<Output = Vec<T>>,
+        D: Fn(Vec<String>) -> R,
+        R: std::future::Future<Output = Vec<T>>,
     {
         let mut records = Vec::new();
         let mut hashes = Vec::new();
