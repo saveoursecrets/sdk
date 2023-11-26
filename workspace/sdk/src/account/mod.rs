@@ -1,16 +1,23 @@
 //! Create and manage local accounts.
+mod account_manager;
 pub mod archive;
 mod backup;
 mod builder;
 mod external_files;
 mod external_files_sync;
+mod file_manager;
 mod identity;
 mod local;
 mod login;
 mod passphrase;
 mod paths;
 mod provider;
+mod search_index;
 
+#[cfg(feature = "security-report")]
+mod security_report;
+
+pub use account_manager::Account;
 pub use backup::{
     AccountBackup, AccountManifest, ExtractFilesLocation, ManifestEntry,
     RestoreOptions, RestoreTargets,
@@ -22,6 +29,7 @@ pub use login::{AuthenticatedUser, DeviceSigner, Login};
 pub use passphrase::DelegatedPassphrase;
 pub use paths::UserPaths;
 pub use provider::{LocalProvider, LocalState};
+pub use search_index::UserIndex;
 
 pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;

@@ -16,6 +16,8 @@ default = ["recovery"]
 mem-fs = []
 test-utils = ["dep:anyhow"]
 recovery = ["dep:vsss-rs"]
+contacts = []
+security-report = []
 
 [dependencies]
 async-trait = "0.1"

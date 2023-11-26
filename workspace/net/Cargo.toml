@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
-default = ["peer"]
+default = []
 full = [
   "client",
   "server",
@@ -43,13 +43,13 @@ server = [
   "tokio-stream",
 ]
 hashcheck = []
-contacts = []
+contacts = ["sos-sdk/contacts"]
 migrate = ["sos-migrate"]
 device = [
   "if-addrs",
   "whoami",
 ]
-security-report = []
+security-report = ["sos-sdk/security-report"]
 mem-fs = ["sos-sdk/mem-fs"]
 test-utils = ["sos-sdk/test-utils"]
 
