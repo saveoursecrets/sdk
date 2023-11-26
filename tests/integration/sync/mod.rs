@@ -67,8 +67,8 @@ impl SimulatedDevice {
         let mut owner = UserStorage::sign_in(
             self.owner.address(),
             self.password.clone(),
-            None,
             Some(data_dir.clone()),
+            None,
         )
         .await?;
 

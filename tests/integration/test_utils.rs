@@ -316,8 +316,8 @@ pub async fn create_local_account(
                     .create_contacts(true)
                     .create_file_password(true)
             },
-            None,
             data_dir,
+            None,
         )
         .await?;
 

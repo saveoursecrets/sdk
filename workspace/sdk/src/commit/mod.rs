@@ -12,6 +12,10 @@ pub use proof::{
 };
 pub use tree::{CommitTree, MultiTree};
 
+/// Commit state combines the last commit hash with 
+/// a commit proof.
+pub type CommitState = (CommitHash, CommitProof);
+
 /// Enumerates the kind set after synchronization was attempted.
 #[derive(Serialize, Deserialize)]
 pub enum SyncKind {

@@ -1,8 +1,9 @@
 use anyhow::Result;
 use secrecy::SecretString;
 use sos_net::{
-    client::{SecurityReportOptions, UserStorage},
+    client::UserStorage,
     sdk::{
+        account::SecurityReportOptions,
         passwd::diceware::generate_passphrase,
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},

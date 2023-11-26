@@ -3,8 +3,9 @@ use anyhow::Result;
 use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
-    client::{FileProgress, SecretOptions, UserStorage},
+    client::UserStorage,
     sdk::{
+        account::{FileProgress, SecretOptions},
         hex,
         vault::{
             secret::{

@@ -2,13 +2,8 @@
 
 #[cfg(feature = "device")]
 mod devices;
-
-mod file_manager;
 mod macros;
 mod remote;
-mod search_index;
-#[cfg(feature = "security-report")]
-mod security_report;
 mod user_storage;
 
 pub use remote::{Origin, Remote, RemoteBridge, Remotes};
@@ -22,17 +17,8 @@ pub use sos_migrate::{
     Convert,
 };
 
-pub use file_manager::FileProgress;
-pub use search_index::{ArchiveFilter, DocumentView, QueryFilter, UserIndex};
+pub use user_storage::UserStorage;
 
-#[cfg(feature = "security-report")]
-pub use security_report::{
-    SecurityReport, SecurityReportOptions, SecurityReportRecord,
-    SecurityReportRow, SecurityReportTarget,
-};
-pub use user_storage::{
-    AccountData, DetachedView, SecretOptions, UserStatistics, UserStorage,
-};
-
-#[cfg(feature = "contacts")]
-pub use user_storage::ContactImportProgress;
+//pub use user_storage::{
+//AccountData, DetachedView, SecretOptions, UserStatistics, UserStorage,
+//};

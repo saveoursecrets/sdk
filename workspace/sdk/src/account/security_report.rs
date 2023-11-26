@@ -180,13 +180,7 @@ async fn secret_security_report(
     Ok(())
 }
 
-impl<H, F> Account<H, F>
-where
-    H: Fn(&Summary, &CommitHash, &CommitProof) -> F,
-    F: Future<Output = Option<(CommitHash, CommitProof)>>
-        + Send
-        + Sync,
-{
+impl Account {
     /// Generate a security report.
     pub async fn generate_security_report<T, D, R>(
         &mut self,

@@ -4,6 +4,7 @@ use std::{
     borrow::Cow,
     collections::HashMap,
     path::{Path, PathBuf},
+    pin::Pin,
     sync::Arc,
 };
 
@@ -16,7 +17,7 @@ use crate::{
         ImportedAccount, LocalAccounts, LocalProvider, Login, NewAccount,
         RestoreOptions, UserPaths,
     },
-    commit::{CommitHash, CommitProof},
+    commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
     decode, encode,
     events::{
@@ -47,6 +48,25 @@ use tokio::{
 use async_trait::async_trait;
 
 use super::{file_manager::FileProgress, search_index::UserIndex};
+
+/// Hook executed before making changes to local storage.
+///
+/// Network aware accounts can use this hook to
+/// synchronize the folder before changes are made.
+pub type BeforeHook = Box<
+    dyn Fn(
+            Arc<RwLock<LocalProvider>>,
+            &Summary,
+            &CommitHash,
+            &CommitProof,
+        ) -> BeforeHookResult
+        + Send
+        + Sync,
+>;
+
+type BeforeHookResult = Pin<
+    Box<dyn Future<Output = Option<CommitState>> + Send + Sync>,
+>;
 
 /// Read-only view of a vault created from a specific
 /// event log commit.
@@ -135,13 +155,7 @@ pub struct UserStatistics {
 }
 
 /// Authenticated user with folder manager.
-pub struct Account<H, F>
-where
-    H: Fn(&Summary, &CommitHash, &CommitProof) -> F,
-    F: Future<Output = Option<(CommitHash, CommitProof)>>
-        + Send
-        + Sync,
-{
+pub struct Account {
     /// Authenticated user.
     user: AuthenticatedUser,
 
@@ -162,16 +176,10 @@ where
     /// Allows network aware accounts to sync
     /// before changes are applied to the local
     /// storage.
-    before_hook: H,
+    before_hook: Option<BeforeHook>,
 }
 
-impl<H, F> Account<H, F>
-where
-    H: Fn(&Summary, &CommitHash, &CommitProof) -> F,
-    F: Future<Output = Option<(CommitHash, CommitProof)>>
-        + Send
-        + Sync,
-{
+impl Account {
     /// Create a new account with the given
     /// name, passphrase and provider.
     ///
@@ -182,7 +190,7 @@ where
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        before_hook: H,
+        before_hook: Option<BeforeHook>,
     ) -> Result<(Self, ImportedAccount, NewAccount)> {
         Self::new_account_with_builder(
             account_name,
@@ -209,7 +217,7 @@ where
         passphrase: SecretString,
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
-        before_hook: H,
+        before_hook: Option<BeforeHook>,
     ) -> Result<(Self, ImportedAccount, NewAccount)> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
@@ -289,8 +297,8 @@ where
         address: &Address,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        before_hook: H,
-    ) -> Result<Account<H, F>> {
+        before_hook: Option<BeforeHook>,
+    ) -> Result<Self> {
         let span = span!(Level::DEBUG, "sign_in");
         let _enter = span.enter();
 
@@ -863,17 +871,22 @@ where
             (folder, last_commit, commit_proof)
         };
 
-        let mut last_commit = last_commit
-            .ok_or(Error::NoRootCommit)?;
+        let mut last_commit = last_commit.ok_or(Error::NoRootCommit)?;
 
         if apply_changes {
-            let before_result =
-                (self.before_hook)(
-                    &folder, &last_commit, &commit_proof).await;
-            
-            if let Some((commit, proof)) = before_result {
-                last_commit = commit;
-                commit_proof = proof;
+            let storage = self.storage();
+            if let Some(before_hook) = &self.before_hook {
+                let before_result = (before_hook)(
+                    storage,
+                    &folder,
+                    &last_commit,
+                    &commit_proof,
+                )
+                .await;
+                if let Some((commit, proof)) = before_result {
+                    last_commit = commit;
+                    commit_proof = proof;
+                }
             }
         }
 
@@ -1761,7 +1774,7 @@ where
 
     /// Import from an archive file.
     pub async fn restore_backup_archive<P: AsRef<Path>>(
-        owner: Option<&mut Account<H, F>>,
+        owner: Option<&mut Account>,
         path: P,
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
@@ -1785,11 +1798,11 @@ where
 
     /// Import from an archive buffer.
     async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
-        mut owner: Option<&mut Account<H, F>>,
+        mut owner: Option<&mut Account>,
         buffer: R,
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
-    ) -> Result<(AccountInfo, Option<&mut Account<H, F>>)> {
+    ) -> Result<(AccountInfo, Option<&mut Account>)> {
         let files_dir = if let Some(owner) = owner.as_ref() {
             ExtractFilesLocation::Path(owner.files_dir().clone())
         } else {
@@ -1873,10 +1886,8 @@ where
     }
 }
 
-/*
 impl From<Account> for Arc<RwLock<LocalProvider>> {
     fn from(value: Account) -> Self {
         value.storage
     }
 }
-*/
