@@ -68,7 +68,6 @@ impl SimulatedDevice {
             self.owner.address(),
             self.password.clone(),
             Some(data_dir.clone()),
-            None,
         )
         .await?;
 

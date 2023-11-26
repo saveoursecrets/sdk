@@ -234,8 +234,16 @@ impl UserStorage {
 
         let devices_dir = account.paths().devices_dir().clone();
 
-        todo!("fix me. ensure tests sign in after creating new account.");
+        // TODO: don't automatically sign in on new account?
 
+        let owner = Self::sign_in(
+            new_account.user.address(),
+            passphrase,
+            data_dir.clone(),
+        )
+        .await?;
+        
+        /*
         let owner = Self {
             account,
             #[cfg(feature = "device")]
@@ -244,6 +252,7 @@ impl UserStorage {
             sync_lock: Mutex::new(()),
             listeners: Mutex::new(Default::default()),
         };
+        */
 
         Ok((owner, imported_account, new_account))
     }
@@ -318,42 +327,12 @@ impl UserStorage {
         address: &Address,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        remotes: Option<Remotes>,
     ) -> Result<Self> {
-        
-        let remotes = Arc::new(RwLock::new(remotes.unwrap_or_default()));
+        let remotes = Arc::new(RwLock::new(Default::default()));
+        // TODO: load existing remote definitions from disc
         let handler = SyncHandler {
             remotes: Arc::clone(&remotes),
         };
-
-
-        /*
-        match self
-            .sync_before_apply_change(
-                &folder,
-                last_commit.as_ref(),
-                &commit_proof,
-            )
-            .await
-        {
-            Ok(changed) => {
-                // If changes were made we need to re-compute the
-                // proof and last commit
-                if changed {
-                    let reader = self.storage.read().await;
-                    let event_log = reader
-                        .cache()
-                        .get(folder.id())
-                        .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-                    last_commit = event_log.last_commit().await?;
-                    commit_proof = event_log.tree().head()?;
-                }
-            }
-            Err(e) => {
-                tracing::error!(error = ?e, "failed to sync before change");
-            }
-        }
-        */
 
         let account = LocalAccount::sign_in(
             address,
@@ -363,47 +342,7 @@ impl UserStorage {
         )
         .await?;
 
-        /*
-        let span = span!(Level::DEBUG, "sign_in");
-        let _enter = span.enter();
-
-        tracing::debug!(address = %address);
-
-        // Ensure all paths before sign_in
-        let paths =
-            UserPaths::ensure_paths(address.to_string(), data_dir.clone())
-                .await?;
-
-        tracing::debug!(data_dir = ?paths.documents_dir());
-
-        let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
-        let user =
-            Login::sign_in(address, &paths, passphrase, identity_index)
-                .await?;
-        tracing::debug!("sign in success");
-
-        // Signing key for the storage provider
-        let signer = user.identity().signer().clone();
-        let storage =
-            LocalProvider::new(signer.address()?.to_string(), data_dir)
-                .await?;
-
-        let paths = storage.paths();
-
-        #[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
-        let peer_key = convert_libp2p_identity(user.device().signer())?;
-
-        let files_dir = storage.paths().files_dir().clone();
-        #[cfg(feature = "device")]
-        let devices_dir = storage.paths().devices_dir().clone();
-
-        let audit_log = Arc::new(RwLock::new(
-            AuditLogFile::new(paths.audit_file()).await?,
-        ));
-        */
-
         let devices_dir = account.paths().devices_dir().clone();
-
         Ok(Self {
             account,
             #[cfg(feature = "device")]
@@ -683,7 +622,8 @@ impl UserStorage {
     pub async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
         Ok(self.account.open_folder(summary).await?)
     }
-
+    
+    /*
     /// Helper to get all the state information needed
     /// before calling sync methods.
     ///
@@ -694,10 +634,6 @@ impl UserStorage {
         options: &SecretOptions,
         apply_changes: bool,
     ) -> Result<(Summary, Option<CommitHash>, CommitProof)> {
-        todo!();
-
-        /*
-
         let (folder, mut last_commit, mut commit_proof) = {
             let reader = self.storage.read().await;
             let folder = options
@@ -747,8 +683,8 @@ impl UserStorage {
         }
 
         Ok((folder, last_commit, commit_proof))
-        */
     }
+    */
 
     /// Create a secret in the current open folder or a specific folder.
     pub async fn create_secret(

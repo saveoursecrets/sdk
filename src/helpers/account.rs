@@ -206,7 +206,6 @@ pub async fn sign_in(
         account.address(),
         passphrase.clone(),
         None,
-        None,
     )
     .await?;
     Ok((owner, passphrase))
