@@ -24,11 +24,24 @@ pub enum SyncError {
     Multiple(Vec<(Origin, Error)>),
 }
 
+/// Options for sync operation.
+#[derive(Default, Debug)]
+pub struct SyncOptions {
+    /// Only sync these origins.
+    pub origins: Vec<Origin>,
+}
+
 /// Trait for types that can sync accounts with a remote.
 #[async_trait]
 pub trait RemoteSync: Sync + Send + Any {
-    /// Perform a full sync of the account.
+    /// Perform a full sync of the account using 
+    /// the default options.
     async fn sync(&self) -> Option<SyncError>;
+
+    /// Perform a full sync of the account
+    /// using the given options.
+    async fn sync_with_options(
+        &self, options: &SyncOptions) -> Option<SyncError>;
 
     /// Must be called before applying changes to a local
     /// provider.

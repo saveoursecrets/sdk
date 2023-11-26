@@ -4,6 +4,7 @@ use crate::{
         net::{MaybeRetry, RpcClient},
         sync::SyncData,
         Error, RemoteSync, Result, SyncError,
+        SyncOptions,
     },
     retry,
 };
@@ -426,6 +427,10 @@ impl RemoteBridge {
 #[async_trait]
 impl RemoteSync for RemoteBridge {
     async fn sync(&self) -> Option<SyncError> {
+        self.sync_with_options(&Default::default()).await
+    }
+
+    async fn sync_with_options(&self, options: &SyncOptions) -> Option<SyncError> {
         let span = span!(Level::DEBUG, "sync");
         let _enter = span.enter();
 
