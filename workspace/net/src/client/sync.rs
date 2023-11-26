@@ -1,7 +1,7 @@
 use super::{Error, Origin, Result};
 use async_trait::async_trait;
 use sos_sdk::{
-    commit::{CommitHash, CommitProof},
+    commit::{CommitHash, CommitProof, CommitState},
     crypto::SecureAccessKey,
     events::Event,
     vault::Summary,
@@ -69,8 +69,7 @@ pub trait RemoteSync: Sync + Send + Any {
     async fn sync_send_events(
         &self,
         folder: &Summary,
-        last_commit: &CommitHash,
-        commit_proof: &CommitProof,
+        commit_state: &CommitState,
         events: &[Event],
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError>;

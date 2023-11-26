@@ -17,7 +17,7 @@ use sos_sdk::{
         LocalProvider, Login, NewAccount, RestoreOptions, SecretOptions,
         UserIndex, UserPaths, UserStatistics,
     },
-    commit::{CommitHash, CommitProof},
+    commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
     decode, encode,
     events::{
@@ -145,6 +145,8 @@ impl UserStorage {
 
         let devices_dir = account.paths().devices_dir().clone();
 
+        todo!("fix me. ensure tests sign in after creating new account.");
+
         let owner = Self {
             account,
             #[cfg(feature = "device")]
@@ -220,7 +222,7 @@ impl UserStorage {
         self.account.address()
     }
 
-    /// Create new user storage by signing in to an account.
+    /// Sign in to an existing account.
     pub async fn sign_in(
         address: &Address,
         passphrase: SecretString,
@@ -231,7 +233,38 @@ impl UserStorage {
             address,
             passphrase,
             data_dir,
-            Some(Box::new(|_, _, _| Box::pin(async move { None }))),
+            Some(Box::new(|_, _, _| {
+                Box::pin(async move {
+                    None
+                    /*
+                    match self
+                        .sync_before_apply_change(
+                            &folder,
+                            last_commit.as_ref(),
+                            &commit_proof,
+                        )
+                        .await
+                    {
+                        Ok(changed) => {
+                            // If changes were made we need to re-compute the
+                            // proof and last commit
+                            if changed {
+                                let reader = self.storage.read().await;
+                                let event_log = reader
+                                    .cache()
+                                    .get(folder.id())
+                                    .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+                                last_commit = event_log.last_commit().await?;
+                                commit_proof = event_log.tree().head()?;
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!(error = ?e, "failed to sync before change");
+                        }
+                    }
+                    */
+                })
+            })),
         )
         .await?;
 
@@ -451,14 +484,13 @@ impl UserStorage {
         let event = WriteEvent::CreateVault(buffer);
         */
 
-        let (summary, event) = self.account.create_folder(name).await?;
+        let (summary, event, commit_state, secure_key) =
+            self.account.create_folder(name).await?;
 
-        /*
         let sync_error = self
             .sync_send_events(
                 &summary,
-                before_last_commit.as_ref(),
-                &before_commit_proof,
+                &commit_state,
                 &[event],
                 &[SyncData::CreateVault(secure_key)],
             )
@@ -466,9 +498,6 @@ impl UserStorage {
             .err();
 
         Ok((summary, sync_error))
-        */
-
-        todo!();
     }
 
     /// Delete a folder.
@@ -478,53 +507,15 @@ impl UserStorage {
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
 
-        /*
-        let options = SecretOptions {
-            folder: Some(summary.clone()),
-            ..Default::default()
-        };
-        let (summary, before_last_commit, before_commit_proof) =
-            self.before_apply_events(&options, false).await?;
+        let (event, commit_state) =
+            self.account.delete_folder(summary).await?;
 
-        let event = {
-            let mut writer = self.storage.write().await;
-            writer.remove_vault(&summary).await?
-        };
-        DelegatedPassphrase::remove_vault_passphrase(
-            self.user.identity().keeper(),
-            summary.id(),
-        )
-        .await?;
-        self.index
-            .remove_folder_from_search_index(summary.id())
-            .await;
-        self.delete_folder_files(&summary).await?;
-
-        let event = Event::Write(*summary.id(), event);
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
-
-        let (_, event) = event.try_into()?;
-        */
-
-        let event = self.account.delete_folder(summary).await?;
-
-        /*
         let sync_error = self
-            .sync_send_events(
-                &summary,
-                before_last_commit.as_ref(),
-                &before_commit_proof,
-                &[event],
-                &[],
-            )
+            .sync_send_events(&summary, &commit_state, &[event], &[])
             .await
             .err();
 
         Ok(sync_error)
-        */
-
-        todo!();
     }
 
     /// Rename a folder.
@@ -535,45 +526,15 @@ impl UserStorage {
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
 
-        /*
-        let options = SecretOptions {
-            folder: Some(summary.clone()),
-            ..Default::default()
-        };
-        let (summary, before_last_commit, before_commit_proof) =
-            self.before_apply_events(&options, false).await?;
+        let (event, commit_state) =
+            self.account.rename_folder(summary, name).await?;
 
-        // Update the provider
-        let event = {
-            let mut writer = self.storage.write().await;
-            writer.set_vault_name(&summary, &name).await?
-        };
-
-        let event = Event::Write(*summary.id(), event);
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
-
-        let (_, event) = event.try_into()?;
-        */
-
-        let event = self.account.rename_folder(summary, name).await?;
-
-        /*
         let sync_error = self
-            .sync_send_events(
-                &summary,
-                before_last_commit.as_ref(),
-                &before_commit_proof,
-                &[event],
-                &[],
-            )
+            .sync_send_events(&summary, &commit_state, &[event], &[])
             .await
             .err();
 
         Ok(sync_error)
-        */
-
-        todo!();
     }
 
     /// Export a folder as a vault file.
@@ -610,27 +571,17 @@ impl UserStorage {
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (summary, event) = self
+        let (summary, event, commit_state) = self
             .account
             .import_folder_buffer(buffer, key, overwrite)
             .await?;
 
-        /*
         let sync_error = self
-            .sync_send_events(
-                &summary,
-                before_last_commit.as_ref(),
-                &before_commit_proof,
-                &[event],
-                &[],
-            )
+            .sync_send_events(&summary, &commit_state, &[event], &[])
             .await
             .err();
 
         Ok((summary, sync_error))
-        */
-
-        todo!();
     }
 
     /// Open a vault.
@@ -713,25 +664,15 @@ impl UserStorage {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (id, event) =
+        let (id, event, commit_state, folder) =
             self.account.create_secret(meta, secret, options).await?;
 
-        /*
         let sync_error = self
-            .sync_send_events(
-                &folder,
-                before_last_commit.as_ref(),
-                &before_commit_proof,
-                &[create_event],
-                &[],
-            )
+            .sync_send_events(&folder, &commit_state, &[event], &[])
             .await
             .err();
 
         Ok((id, sync_error))
-        */
-
-        todo!();
     }
 
     /// Read a secret in the current open folder.
@@ -758,27 +699,17 @@ impl UserStorage {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (id, event) = self
+        let (id, event, commit_state, folder) = self
             .account
             .update_file(secret_id, meta, path, options, destination)
             .await?;
 
-        /*
         let sync_error = self
-            .sync_send_events(
-                &folder,
-                before_last_commit.as_ref(),
-                &before_commit_proof,
-                &[update_event],
-                &[],
-            )
+            .sync_send_events(&folder, &commit_state, &[event], &[])
             .await
             .err();
 
         Ok((id, sync_error))
-        */
-
-        todo!();
     }
 
     /// Update a secret in the current open folder or a specific folder.
@@ -792,27 +723,17 @@ impl UserStorage {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (id, event) = self
+        let (id, event, commit_state, folder) = self
             .account
             .update_secret(secret_id, meta, secret, options, destination)
             .await?;
 
-        /*
         let sync_error = self
-            .sync_send_events(
-                &folder,
-                before_last_commit.as_ref(),
-                &before_commit_proof,
-                &[update_event],
-                &[],
-            )
+            .sync_send_events(&folder, &commit_state, &[event], &[])
             .await
             .err();
 
         Ok((id, sync_error))
-        */
-
-        todo!();
     }
 
     /// Move a secret between folders.
@@ -838,24 +759,15 @@ impl UserStorage {
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
 
-        let event = self.account.delete_secret(secret_id, options).await?;
+        let (event, commit_state, folder) =
+            self.account.delete_secret(secret_id, options).await?;
 
-        /*
         let sync_error = self
-            .sync_send_events(
-                &folder,
-                before_last_commit.as_ref(),
-                &before_commit_proof,
-                &[update_event],
-                &[],
-            )
+            .sync_send_events(&folder, &commit_state, &[event], &[])
             .await
             .err();
 
         Ok(sync_error)
-        */
-
-        todo!();
     }
 
     /// Move a secret to the archive.
@@ -1335,8 +1247,7 @@ impl RemoteSync for UserStorage {
     async fn sync_send_events(
         &self,
         folder: &Summary,
-        last_commit: &CommitHash,
-        commit_proof: &CommitProof,
+        commit_state: &CommitState,
         events: &[Event],
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError> {
@@ -1344,13 +1255,7 @@ impl RemoteSync for UserStorage {
         let mut errors = Vec::new();
         for (origin, remote) in &self.remotes {
             if let Err(e) = remote
-                .sync_send_events(
-                    folder,
-                    last_commit,
-                    commit_proof,
-                    events,
-                    data,
-                )
+                .sync_send_events(folder, commit_state, events, data)
                 .await
             {
                 match e {

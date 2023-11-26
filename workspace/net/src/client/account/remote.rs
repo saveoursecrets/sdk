@@ -435,13 +435,14 @@ impl RemoteBridge {
     /// Send a local patch of events to the remote.
     async fn patch(
         &self,
-        last_commit: &CommitHash,
-        commit_proof: &CommitProof,
+        commit_state: &CommitState,
         folder: &Summary,
         _events: &[WriteEvent],
     ) -> Result<()> {
         let span = span!(Level::DEBUG, "patch");
         let _enter = span.enter();
+
+        let (last_commit, commit_proof) = commit_state;
 
         let patch = {
             let reader = self.local.read().await;
@@ -533,8 +534,7 @@ impl RemoteSync for RemoteBridge {
     async fn sync_send_events(
         &self,
         folder: &Summary,
-        last_commit: &CommitHash,
-        commit_proof: &CommitProof,
+        commit_state: &CommitState,
         events: &[Event],
         data: &[SyncData],
     ) -> std::result::Result<(), SyncError> {
@@ -589,14 +589,9 @@ impl RemoteSync for RemoteBridge {
         }
 
         if !patch_events.is_empty() {
-            self.patch(
-                last_commit,
-                commit_proof,
-                folder,
-                patch_events.as_slice(),
-            )
-            .await
-            .map_err(SyncError::One)?;
+            self.patch(commit_state, folder, patch_events.as_slice())
+                .await
+                .map_err(SyncError::One)?;
         }
 
         Ok(())

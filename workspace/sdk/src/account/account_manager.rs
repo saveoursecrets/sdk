@@ -152,7 +152,13 @@ pub struct UserStatistics {
     pub favorites: usize,
 }
 
-/// Authenticated user with folder manager.
+/// Local account storage.
+///
+/// For functions that return a `CommitState` it represents
+/// the state *before* any changes were made. If a `before_hook`
+/// has been assigned the `before_hook` may alter the `CommitState`
+/// by returning a new state after changes from a remote server have
+/// been applied.
 pub struct Account {
     /// Authenticated user.
     user: AuthenticatedUser,
@@ -492,7 +498,7 @@ impl Account {
     pub async fn create_folder(
         &mut self,
         name: String,
-    ) -> Result<(Summary, Event)> {
+    ) -> Result<(Summary, Event, CommitState, SecureAccessKey)> {
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
         let key = AccessKey::Password(passphrase);
         let (buffer, _, summary) = {
@@ -520,25 +526,25 @@ impl Account {
             ..Default::default()
         };
 
-        let (summary, before_last_commit, before_commit_proof) =
+        let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
 
         let event =
             Event::Write(*summary.id(), WriteEvent::CreateVault(buffer));
 
-        Ok((summary, event))
+        Ok((summary, event, commit_state, secure_key))
     }
 
     /// Delete a folder.
     pub async fn delete_folder(
         &mut self,
         summary: &Summary,
-    ) -> Result<Event> {
+    ) -> Result<(Event, CommitState)> {
         let options = SecretOptions {
             folder: Some(summary.clone()),
             ..Default::default()
         };
-        let (summary, before_last_commit, before_commit_proof) =
+        let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
 
         let event = {
@@ -559,7 +565,7 @@ impl Account {
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
-        Ok(event)
+        Ok((event, commit_state))
     }
 
     /// Rename a folder.
@@ -567,12 +573,12 @@ impl Account {
         &mut self,
         summary: &Summary,
         name: String,
-    ) -> Result<Event> {
+    ) -> Result<(Event, CommitState)> {
         let options = SecretOptions {
             folder: Some(summary.clone()),
             ..Default::default()
         };
-        let (summary, before_last_commit, before_commit_proof) =
+        let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
 
         // Update the provider
@@ -585,7 +591,7 @@ impl Account {
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
-        Ok(event)
+        Ok((event, commit_state))
     }
 
     /// Export a folder (vault).
@@ -664,7 +670,7 @@ impl Account {
         path: P,
         key: AccessKey,
         overwrite: bool,
-    ) -> Result<(Summary, Event)> {
+    ) -> Result<(Summary, Event, CommitState)> {
         let buffer = vfs::read(path.as_ref()).await?;
         self.import_folder_buffer(&buffer, key, overwrite).await
     }
@@ -675,7 +681,7 @@ impl Account {
         buffer: impl AsRef<[u8]>,
         key: AccessKey,
         overwrite: bool,
-    ) -> Result<(Summary, Event)> {
+    ) -> Result<(Summary, Event, CommitState)> {
         let mut vault: Vault = decode(buffer.as_ref()).await?;
 
         // Need to verify the passphrase
@@ -790,10 +796,10 @@ impl Account {
             folder: Some(summary.clone()),
             ..Default::default()
         };
-        let (summary, before_last_commit, before_commit_proof) =
+        let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
 
-        Ok((summary, event))
+        Ok((summary, event, commit_state))
     }
 
     /// Open a vault.
@@ -851,7 +857,7 @@ impl Account {
         &self,
         options: &SecretOptions,
         apply_changes: bool,
-    ) -> Result<(Summary, CommitHash, CommitProof)> {
+    ) -> Result<(Summary, CommitState)> {
         let (folder, last_commit, mut commit_proof) = {
             let reader = self.storage.read().await;
             let folder = options
@@ -887,7 +893,7 @@ impl Account {
             }
         }
 
-        Ok((folder, last_commit, commit_proof))
+        Ok((folder, (last_commit, commit_proof)))
     }
 
     /// Create a secret in the current open folder or a specific folder.
@@ -896,14 +902,14 @@ impl Account {
         meta: SecretMeta,
         secret: Secret,
         options: SecretOptions,
-    ) -> Result<(SecretId, Event)> {
-        let (_folder, before_last_commit, before_commit_proof) =
+    ) -> Result<(SecretId, Event, CommitState, Summary)> {
+        let (folder, commit_state) =
             self.compute_folder_state(&options, true).await?;
 
-        let (id, event, folder) =
+        let (id, event, _) =
             self.add_secret(meta, secret, options, true).await?;
 
-        Ok((id, event))
+        Ok((id, event, commit_state, folder))
     }
 
     async fn add_secret(
@@ -1033,7 +1039,7 @@ impl Account {
         path: P,
         options: SecretOptions,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, Event)> {
+    ) -> Result<(SecretId, Event, CommitState, Summary)> {
         let path = path.as_ref().to_path_buf();
         let secret: Secret = path.try_into()?;
         self.update_secret(
@@ -1052,11 +1058,10 @@ impl Account {
         secret_id: &SecretId,
         meta: SecretMeta,
         secret: Option<Secret>,
-        //folder: Option<Summary>,
         mut options: SecretOptions,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, Event)> {
-        let (folder, before_last_commit, before_commit_proof) =
+    ) -> Result<(SecretId, Event, CommitState, Summary)> {
+        let (folder, commit_state) =
             self.compute_folder_state(&options, true).await?;
 
         self.open_folder(&folder).await?;
@@ -1098,7 +1103,7 @@ impl Account {
             *secret_id
         };
 
-        Ok((id, event))
+        Ok((id, event, commit_state, folder))
     }
 
     /// Write a secret in the current open folder or a specific folder.
@@ -1217,8 +1222,8 @@ impl Account {
         &mut self,
         secret_id: &SecretId,
         mut options: SecretOptions,
-    ) -> Result<Event> {
-        let (folder, before_last_commit, before_commit_proof) =
+    ) -> Result<(Event, CommitState, Summary)> {
+        let (folder, commit_state) =
             self.compute_folder_state(&options, true).await?;
 
         self.open_folder(&folder).await?;
@@ -1235,7 +1240,7 @@ impl Account {
         )
         .await?;
 
-        Ok(event)
+        Ok((event, commit_state, folder))
     }
 
     /// Remove a secret.
