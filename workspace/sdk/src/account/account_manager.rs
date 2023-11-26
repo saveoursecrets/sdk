@@ -49,22 +49,22 @@ use async_trait::async_trait;
 
 use super::{file_manager::FileProgress, search_index::UserIndex};
 
-/// Hook executed before making changes to local storage.
-///
-/// Network aware accounts can use this hook to
-/// synchronize the folder before changes are made.
-pub type BeforeHook = Box<
-    dyn Fn(
-            Arc<RwLock<LocalProvider>>,
-            &Summary,
-            &CommitState,
-        ) -> BeforeHookResult
-        + Send
-        + Sync,
->;
+/// Account handler provides is notified of account changes.
+#[async_trait::async_trait]
+pub trait AccountHandler {
+    /// Data associated with this handler.
+    type Data; 
+    
+    /// Called before changes to the account.
+    async fn before_change(
+        &self,
+        storage: Arc<RwLock<LocalProvider>>,
+        folder: &Summary,
+        commit_state: &CommitState,
+    ) -> Option<CommitState>;
+}
 
-type BeforeHookResult =
-    Pin<Box<dyn Future<Output = Option<CommitState>> + Send + Sync>>;
+type Handler = Box<dyn AccountHandler<Data = ()> + Send + Sync>;
 
 /// Read-only view of a vault created from a specific
 /// event log commit.
@@ -155,8 +155,8 @@ pub struct UserStatistics {
 /// Local account storage.
 ///
 /// For functions that return a `CommitState` it represents
-/// the state *before* any changes were made. If a `before_hook`
-/// has been assigned the `before_hook` may alter the `CommitState`
+/// the state *before* any changes were made. If a `handler`
+/// has been assigned the `handler` may alter the `CommitState`
 /// by returning a new state after changes from a remote server have
 /// been applied.
 pub struct Account {
@@ -180,7 +180,7 @@ pub struct Account {
     /// Allows network aware accounts to sync
     /// before changes are applied to the local
     /// storage.
-    before_hook: Option<BeforeHook>,
+    handler: Option<Handler>,
 }
 
 impl Account {
@@ -194,7 +194,7 @@ impl Account {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        before_hook: Option<BeforeHook>,
+        handler: Option<Handler>,
     ) -> Result<(Self, ImportedAccount, NewAccount)> {
         Self::new_account_with_builder(
             account_name,
@@ -208,7 +208,7 @@ impl Account {
                     .create_file_password(true)
             },
             data_dir,
-            before_hook,
+            handler,
         )
         .await
     }
@@ -221,7 +221,7 @@ impl Account {
         passphrase: SecretString,
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
-        before_hook: Option<BeforeHook>,
+        handler: Option<Handler>,
     ) -> Result<(Self, ImportedAccount, NewAccount)> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
@@ -254,7 +254,7 @@ impl Account {
             new_account.user.address(),
             passphrase,
             data_dir,
-            before_hook,
+            handler,
         )
         .await?;
 
@@ -301,7 +301,7 @@ impl Account {
         address: &Address,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        before_hook: Option<BeforeHook>,
+        handler: Option<Handler>,
     ) -> Result<Self> {
         let span = span!(Level::DEBUG, "sign_in");
         let _enter = span.enter();
@@ -337,7 +337,7 @@ impl Account {
             storage: Arc::new(RwLock::new(storage)),
             index: UserIndex::new(),
             audit_log,
-            before_hook,
+            handler,
         })
     }
 
@@ -879,8 +879,9 @@ impl Account {
 
         if apply_changes {
             let storage = self.storage();
-            if let Some(before_hook) = &self.before_hook {
-                let before_result = (before_hook)(
+
+            if let Some(handler) = &self.handler {
+                let before_result = handler.before_change(
                     storage,
                     &folder,
                     &(last_commit, commit_proof.clone()),

@@ -16,6 +16,7 @@ use sos_sdk::{
         DetachedView, ExtractFilesLocation, ImportedAccount, LocalAccounts,
         LocalProvider, Login, NewAccount, RestoreOptions, SecretOptions,
         UserIndex, UserPaths, UserStatistics,
+        AccountHandler,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -71,6 +72,24 @@ use sos_migrate::{
     import::{ImportFormat, ImportTarget},
     Convert,
 };
+
+struct SyncHandler {
+
+}
+
+#[async_trait::async_trait]
+impl AccountHandler for SyncHandler {
+    type Data = ();
+
+    async fn before_change(
+        &self,
+        storage: Arc<RwLock<LocalProvider>>,
+        folder: &Summary,
+        commit_state: &CommitState,
+    ) -> Option<CommitState> {
+        todo!();
+    }
+}
 
 /// Authenticated user with local storage provider.
 pub struct UserStorage {
@@ -229,42 +248,42 @@ impl UserStorage {
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
     ) -> Result<Self> {
+        
+        let handler = SyncHandler {};
+
+        /*
+        match self
+            .sync_before_apply_change(
+                &folder,
+                last_commit.as_ref(),
+                &commit_proof,
+            )
+            .await
+        {
+            Ok(changed) => {
+                // If changes were made we need to re-compute the
+                // proof and last commit
+                if changed {
+                    let reader = self.storage.read().await;
+                    let event_log = reader
+                        .cache()
+                        .get(folder.id())
+                        .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+                    last_commit = event_log.last_commit().await?;
+                    commit_proof = event_log.tree().head()?;
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = ?e, "failed to sync before change");
+            }
+        }
+        */
+
         let account = Account::sign_in(
             address,
             passphrase,
             data_dir,
-            Some(Box::new(|_, _, _| {
-                Box::pin(async move {
-                    None
-                    /*
-                    match self
-                        .sync_before_apply_change(
-                            &folder,
-                            last_commit.as_ref(),
-                            &commit_proof,
-                        )
-                        .await
-                    {
-                        Ok(changed) => {
-                            // If changes were made we need to re-compute the
-                            // proof and last commit
-                            if changed {
-                                let reader = self.storage.read().await;
-                                let event_log = reader
-                                    .cache()
-                                    .get(folder.id())
-                                    .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-                                last_commit = event_log.last_commit().await?;
-                                commit_proof = event_log.tree().head()?;
-                            }
-                        }
-                        Err(e) => {
-                            tracing::error!(error = ?e, "failed to sync before change");
-                        }
-                    }
-                    */
-                })
-            })),
+            Some(Box::new(handler)),
         )
         .await?;
 

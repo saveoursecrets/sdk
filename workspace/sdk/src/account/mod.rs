@@ -13,7 +13,6 @@ mod passphrase;
 mod paths;
 mod provider;
 mod search_index;
-
 #[cfg(feature = "security-report")]
 mod security_report;
 
@@ -22,6 +21,7 @@ pub use account_manager::ContactImportProgress;
 
 pub use account_manager::{
     Account, AccountData, DetachedView, SecretOptions, UserStatistics,
+    AccountHandler,
 };
 pub use backup::{
     AccountBackup, AccountManifest, ExtractFilesLocation, ManifestEntry,
