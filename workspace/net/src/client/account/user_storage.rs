@@ -73,13 +73,64 @@ use sos_migrate::{
     Convert,
 };
 
-struct SyncHandler {
 
+type SyncHandlerData = Arc<RwLock<Remotes>>;
+type LocalAccount = Account<SyncHandlerData>;
+
+struct SyncHandler {
+    remotes: Arc<RwLock<Remotes>>,
+}
+
+impl SyncHandler {
+
+    /// Try to sync the target folder against all remotes.
+    async fn try_sync_folder(
+        &self,
+        storage: Arc<RwLock<LocalProvider>>,
+        folder: &Summary,
+        commit_state: &CommitState,
+    ) -> Result<Option<CommitState>> {
+        let mut changed = false;
+        let (last_commit, commit_proof) = commit_state;
+        let mut last_commit = last_commit.clone();
+        let mut commit_proof = commit_proof.clone();
+        
+        let remotes = self.remotes.read().await;
+        for remote in remotes.values() {
+            let local_changed = remote.sync_folder(
+                folder, commit_state, None, &Default::default()).await?;
+
+            // If a remote changes were applied to local
+            // we need to recompute the last commit and client proof
+            if local_changed {
+                let reader = storage.read().await;
+                let event_log = reader
+                    .cache()
+                    .get(folder.id())
+                    .ok_or(Error::CacheNotAvailable(*folder.id()))?;
+                last_commit = event_log.last_commit().await?
+                    .ok_or(Error::NoRootCommit)?;
+                commit_proof = event_log.tree().head()?;
+            }
+
+            changed = changed || local_changed;
+        }
+    
+        Ok(if changed {
+            Some((last_commit, commit_proof))
+        } else {
+            None
+        })
+    }
 }
 
 #[async_trait::async_trait]
 impl AccountHandler for SyncHandler {
-    type Data = ();
+    type Data = SyncHandlerData;
+
+    fn data(&self) -> &Self::Data {
+        &self.remotes
+    }
 
     async fn before_change(
         &self,
@@ -87,21 +138,35 @@ impl AccountHandler for SyncHandler {
         folder: &Summary,
         commit_state: &CommitState,
     ) -> Option<CommitState> {
-        todo!();
+        match self
+            .try_sync_folder(
+                storage,
+                folder,
+                commit_state,
+            )
+            .await
+        {
+            Ok(commit_state) => commit_state,
+            Err(e) => {
+                tracing::error!(error = ?e, "failed to sync before change");
+                None
+            }
+        }
     }
 }
+
 
 /// Authenticated user with local storage provider.
 pub struct UserStorage {
     /// Local account.
-    account: Account,
+    account: LocalAccount,
 
     /// Devices for this user.
     #[cfg(feature = "device")]
     devices: DeviceManager,
 
     /// Remote targets for synchronization.
-    pub(super) remotes: Remotes,
+    pub(super) remotes: Arc<RwLock<Remotes>>,
 
     /// Lock to prevent write to local storage
     /// whilst a sync operation is in progress.
@@ -152,13 +217,18 @@ impl UserStorage {
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
     ) -> Result<(Self, ImportedAccount, NewAccount)> {
+        let remotes = Arc::new(RwLock::new(remotes.unwrap_or_default()));
+        let handler = SyncHandler {
+            remotes: Arc::clone(&remotes),
+        };
+
         let (account, imported_account, new_account) =
-            Account::new_account_with_builder(
+            LocalAccount::new_account_with_builder(
                 account_name,
                 passphrase.clone(),
                 builder,
                 data_dir.clone(),
-                None,
+                Some(Box::new(handler)),
             )
             .await?;
 
@@ -170,7 +240,7 @@ impl UserStorage {
             account,
             #[cfg(feature = "device")]
             devices: DeviceManager::new(devices_dir)?,
-            remotes: remotes.unwrap_or_default(),
+            remotes,
             sync_lock: Mutex::new(()),
             listeners: Mutex::new(Default::default()),
         };
@@ -215,8 +285,9 @@ impl UserStorage {
     ///
     /// If a remote with the given origin already exists it is
     /// overwritten.
-    pub fn insert_remote(&mut self, origin: Origin, remote: Remote) {
-        self.remotes.insert(origin, remote);
+    pub async fn insert_remote(&mut self, origin: Origin, remote: Remote) {
+        let mut remotes = self.remotes.write().await;
+        remotes.insert(origin, remote);
     }
 
     /*
@@ -227,8 +298,9 @@ impl UserStorage {
     */
 
     /// Delete a remote if it exists.
-    pub fn delete_remote(&mut self, origin: &Origin) -> Option<Remote> {
-        self.remotes.remove(origin)
+    pub async fn delete_remote(&mut self, origin: &Origin) -> Option<Remote> {
+        let mut remotes = self.remotes.write().await;
+        remotes.remove(origin)
     }
 
     /// File storage directory.
@@ -249,7 +321,11 @@ impl UserStorage {
         remotes: Option<Remotes>,
     ) -> Result<Self> {
         
-        let handler = SyncHandler {};
+        let remotes = Arc::new(RwLock::new(remotes.unwrap_or_default()));
+        let handler = SyncHandler {
+            remotes: Arc::clone(&remotes),
+        };
+
 
         /*
         match self
@@ -279,7 +355,7 @@ impl UserStorage {
         }
         */
 
-        let account = Account::sign_in(
+        let account = LocalAccount::sign_in(
             address,
             passphrase,
             data_dir,
@@ -332,7 +408,7 @@ impl UserStorage {
             account,
             #[cfg(feature = "device")]
             devices: DeviceManager::new(devices_dir)?,
-            remotes: remotes.unwrap_or_default(),
+            remotes,
             sync_lock: Mutex::new(()),
             listeners: Mutex::new(Default::default()),
         })
@@ -1105,7 +1181,7 @@ impl UserStorage {
     >(
         buffer: R,
     ) -> Result<Inventory> {
-        Ok(Account::restore_archive_inventory(buffer).await?)
+        Ok(LocalAccount::restore_archive_inventory(buffer).await?)
     }
 
     /// Import from an archive file.
@@ -1115,7 +1191,7 @@ impl UserStorage {
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<AccountInfo> {
-        Ok(Account::restore_backup_archive(
+        Ok(LocalAccount::restore_backup_archive(
             owner.map(|o| &mut o.account),
             path,
             options,
@@ -1201,7 +1277,8 @@ impl RemoteSync for UserStorage {
     ) -> Option<SyncError> {
         let _ = self.sync_lock.lock().await;
         let mut errors = Vec::new();
-        for (origin, remote) in &self.remotes {
+        let remotes = self.remotes.read().await;
+        for (origin, remote) in &*remotes {
             let sync_remote = options.origins.is_empty()
                 || options.origins.contains(origin);
 
@@ -1236,7 +1313,8 @@ impl RemoteSync for UserStorage {
         let _ = self.sync_lock.lock().await;
         let mut errors = Vec::new();
         let mut changed = false;
-        for (origin, remote) in &self.remotes {
+        let remotes = self.remotes.read().await;
+        for (origin, remote) in &*remotes {
             let sync_remote = options.origins.is_empty()
                 || options.origins.contains(origin);
 
@@ -1314,7 +1392,8 @@ impl RemoteSync for UserStorage {
     ) -> std::result::Result<(), SyncError> {
         let _ = self.sync_lock.lock().await;
         let mut errors = Vec::new();
-        for (origin, remote) in &self.remotes {
+        let remotes = self.remotes.read().await;
+        for (origin, remote) in &*remotes {
             if let Err(e) = remote
                 .sync_send_events(folder, commit_state, events, data)
                 .await
@@ -1362,7 +1441,8 @@ mod listen {
             origin: &Origin,
             options: ListenOptions,
         ) -> Result<WebSocketHandle> {
-            if let Some(remote) = self.remotes.get(origin) {
+            let remotes = self.remotes.read().await;
+            if let Some(remote) = remotes.get(origin) {
                 if let Some(remote) =
                     remote.as_any().downcast_ref::<RemoteBridge>()
                 {

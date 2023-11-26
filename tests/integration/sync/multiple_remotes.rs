@@ -24,7 +24,7 @@ async fn integration_sync_multiple_remotes() -> Result<()> {
     let provider = device1.owner.remote_bridge(&origin).await?;
     device1
         .owner
-        .insert_remote(origin.clone(), Box::new(provider));
+        .insert_remote(origin.clone(), Box::new(provider)).await;
 
     // Sync again with the additional remote
     assert!(device1.owner.sync().await.is_none());
@@ -37,7 +37,7 @@ async fn integration_sync_multiple_remotes() -> Result<()> {
         .await?;
 
     // Assert on first server
-    let mut provider = device1.owner.delete_remote(&server1.origin).unwrap();
+    let mut provider = device1.owner.delete_remote(&server1.origin).await.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
@@ -50,7 +50,7 @@ async fn integration_sync_multiple_remotes() -> Result<()> {
     .await?;
 
     // Assert on second server
-    let mut provider = device1.owner.delete_remote(&server2.origin).unwrap();
+    let mut provider = device1.owner.delete_remote(&server2.origin).await.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()

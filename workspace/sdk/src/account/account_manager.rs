@@ -55,6 +55,9 @@ pub trait AccountHandler {
     /// Data associated with this handler.
     type Data; 
     
+    /// Get the associated data for this handler.
+    fn data(&self) -> &Self::Data;
+    
     /// Called before changes to the account.
     async fn before_change(
         &self,
@@ -64,7 +67,7 @@ pub trait AccountHandler {
     ) -> Option<CommitState>;
 }
 
-type Handler = Box<dyn AccountHandler<Data = ()> + Send + Sync>;
+type Handler<D> = Box<dyn AccountHandler<Data = D> + Send + Sync>;
 
 /// Read-only view of a vault created from a specific
 /// event log commit.
@@ -159,7 +162,7 @@ pub struct UserStatistics {
 /// has been assigned the `handler` may alter the `CommitState`
 /// by returning a new state after changes from a remote server have
 /// been applied.
-pub struct Account {
+pub struct Account<D> {
     /// Authenticated user.
     user: AuthenticatedUser,
 
@@ -180,10 +183,10 @@ pub struct Account {
     /// Allows network aware accounts to sync
     /// before changes are applied to the local
     /// storage.
-    handler: Option<Handler>,
+    handler: Option<Handler<D>>,
 }
 
-impl Account {
+impl<D> Account<D> {
     /// Create a new account with the given
     /// name, passphrase and provider.
     ///
@@ -194,7 +197,7 @@ impl Account {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        handler: Option<Handler>,
+        handler: Option<Handler<D>>,
     ) -> Result<(Self, ImportedAccount, NewAccount)> {
         Self::new_account_with_builder(
             account_name,
@@ -221,7 +224,7 @@ impl Account {
         passphrase: SecretString,
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
-        handler: Option<Handler>,
+        handler: Option<Handler<D>>,
     ) -> Result<(Self, ImportedAccount, NewAccount)> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
@@ -301,7 +304,7 @@ impl Account {
         address: &Address,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        handler: Option<Handler>,
+        handler: Option<Handler<D>>,
     ) -> Result<Self> {
         let span = span!(Level::DEBUG, "sign_in");
         let _enter = span.enter();
@@ -1777,7 +1780,7 @@ impl Account {
 
     /// Import from an archive file.
     pub async fn restore_backup_archive<P: AsRef<Path>>(
-        owner: Option<&mut Account>,
+        owner: Option<&mut Account<D>>,
         path: P,
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
@@ -1801,11 +1804,11 @@ impl Account {
 
     /// Import from an archive buffer.
     async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
-        mut owner: Option<&mut Account>,
+        mut owner: Option<&mut Account<D>>,
         buffer: R,
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
-    ) -> Result<(AccountInfo, Option<&mut Account>)> {
+    ) -> Result<(AccountInfo, Option<&mut Account<D>>)> {
         let files_dir = if let Some(owner) = owner.as_ref() {
             ExtractFilesLocation::Path(owner.files_dir().clone())
         } else {
@@ -1889,8 +1892,8 @@ impl Account {
     }
 }
 
-impl From<Account> for Arc<RwLock<LocalProvider>> {
-    fn from(value: Account) -> Self {
+impl<D> From<Account<D>> for Arc<RwLock<LocalProvider>> {
+    fn from(value: Account<D>) -> Self {
         value.storage
     }
 }

@@ -74,7 +74,7 @@ pub struct FileStorageResult {
     encrypted_file: EncryptedFile,
 }
 
-impl Account {
+impl<D> Account<D> {
     /// Encrypt a file and move it to the external file storage location.
     pub async fn encrypt_file_storage<P: AsRef<Path>>(
         &self,

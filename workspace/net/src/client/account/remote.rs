@@ -519,10 +519,11 @@ impl RemoteSync for RemoteBridge {
         let contains = matches!(&comparison, Comparison::Contains(_, _));
         let ahead = contains && commit_proof.len() > remote_proof.len();
 
-        let changed = if ahead {
+        let local_changed = if ahead {
             self.push_folder(&folder, &remote_commit, &remote_proof)
                 .await
-                .map_err(SyncError::One)?
+                .map_err(SyncError::One)?;
+            false
         } else if !equal {
             self.pull_folder(&folder, last_commit, commit_proof)
                 .await
@@ -531,7 +532,7 @@ impl RemoteSync for RemoteBridge {
             false
         };
 
-        Ok(changed)
+        Ok(local_changed)
     }
 
     async fn sync_send_events(
