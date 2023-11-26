@@ -12,8 +12,6 @@ mod file_locks;
 pub mod client;
 #[cfg(feature = "device")]
 pub mod device;
-#[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
-pub mod peer;
 #[cfg(feature = "server")]
 pub mod server;
 

@@ -158,9 +158,6 @@ pub enum Error {
     Server(#[from] sos_net::server::Error),
 
     #[error(transparent)]
-    Peer(#[from] sos_net::peer::Error),
-
-    #[error(transparent)]
     Clipboard(#[from] arboard::Error),
 
     #[error(transparent)]

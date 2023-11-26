@@ -61,9 +61,6 @@ use crate::client::{
 
 use async_trait::async_trait;
 
-#[cfg(all(feature = "peer", not(target_arch = "wasm32")))]
-use crate::peer::convert_libp2p_identity;
-
 #[cfg(feature = "device")]
 use super::devices::DeviceManager;
 
