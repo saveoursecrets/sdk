@@ -12,7 +12,7 @@ use web3_address::ethereum::Address;
 use sos_net::{
     client::{Origin, RemoteBridge, RemoteSync, UserStorage},
     sdk::{
-        account::{ImportedAccount, LocalProvider},
+        account::{CreatedAccount, LocalProvider},
         crypto::AccessKey,
         events::{AuditLogFile, WriteEvent},
         hex,
@@ -302,7 +302,7 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
 pub async fn create_local_account(
     account_name: &str,
     data_dir: Option<PathBuf>,
-) -> Result<(UserStorage, ImportedAccount, Summary, SecretString)> {
+) -> Result<(UserStorage, CreatedAccount, Summary, SecretString)> {
     let (passphrase, _) = generate_passphrase()?;
     let (mut owner, imported_account, _) =
         UserStorage::new_account_with_builder(
@@ -321,7 +321,7 @@ pub async fn create_local_account(
         )
         .await?;
 
-    let ImportedAccount { summary, .. } = &imported_account;
+    let CreatedAccount { summary, .. } = &imported_account;
 
     owner.initialize_search_index().await?;
 

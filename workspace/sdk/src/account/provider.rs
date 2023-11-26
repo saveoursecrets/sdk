@@ -1,7 +1,7 @@
 //! Storage provider backed by the local filesystem.
 use crate::{
     account::{
-        AccountStatus, ImportedAccount, NewAccount, RestoreTargets, UserPaths,
+        AccountStatus, CreatedAccount, NewAccount, RestoreTargets, UserPaths,
     },
     commit::{CommitHash, CommitTree},
     constants::VAULT_EXT,
@@ -134,7 +134,7 @@ impl LocalProvider {
     pub async fn import_new_account(
         &mut self,
         account: &NewAccount,
-    ) -> Result<(ImportedAccount, Vec<Event>)> {
+    ) -> Result<(CreatedAccount, Vec<Event>)> {
         let mut events = Vec::new();
 
         events.push(Event::CreateAccount(AuditEvent::new(
@@ -178,7 +178,7 @@ impl LocalProvider {
         };
 
         Ok((
-            ImportedAccount {
+            CreatedAccount {
                 summary,
                 archive,
                 authenticator,

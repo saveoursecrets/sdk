@@ -5,7 +5,7 @@ use std::{io::Cursor, path::PathBuf, sync::Arc};
 use sos_net::sdk::{
     account::{
         AccountBackup, AccountBuilder, DelegatedPassphrase,
-        ExtractFilesLocation, FileStorage, ImportedAccount, LocalAccounts,
+        ExtractFilesLocation, FileStorage, CreatedAccount, LocalAccounts,
         LocalProvider, Login, NewAccount, RestoreOptions, UserPaths,
     },
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
@@ -57,7 +57,7 @@ async fn integration_account_manager() -> Result<()> {
         provider.import_new_account(&new_account).await?;
 
     let NewAccount { address, .. } = new_account;
-    let ImportedAccount { summary, .. } = imported_account;
+    let CreatedAccount { summary, .. } = imported_account;
 
     let paths = UserPaths::new(test_data_dir.clone(), &address.to_string());
     let local_accounts = LocalAccounts::new(&paths);

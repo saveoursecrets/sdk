@@ -27,7 +27,7 @@ pub use backup::{
     AccountBackup, AccountManifest, ExtractFilesLocation, ManifestEntry,
     RestoreOptions, RestoreTargets,
 };
-pub use builder::{AccountBuilder, ImportedAccount, NewAccount};
+pub use builder::{AccountBuilder, CreatedAccount, NewAccount};
 pub use file_manager::{FileProgress, FileSource};
 pub use identity::{AccountStatus, Identity, UserIdentity};
 pub use local::{AccountInfo, AccountRef, LocalAccounts};

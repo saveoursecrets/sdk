@@ -13,7 +13,7 @@ use sos_sdk::{
     account::{
         archive::Inventory, Account, AccountBackup, AccountBuilder,
         AccountData, AccountInfo, AuthenticatedUser, DelegatedPassphrase,
-        DetachedView, ExtractFilesLocation, ImportedAccount, LocalAccounts,
+        DetachedView, ExtractFilesLocation, CreatedAccount, LocalAccounts,
         LocalProvider, Login, NewAccount, RestoreOptions, SecretOptions,
         UserIndex, UserPaths, UserStatistics,
         AccountHandler,
@@ -186,7 +186,7 @@ impl UserStorage {
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
-    ) -> Result<(Self, ImportedAccount, NewAccount)> {
+    ) -> Result<(Self, CreatedAccount, NewAccount)> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
@@ -213,7 +213,7 @@ impl UserStorage {
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
-    ) -> Result<(Self, ImportedAccount, NewAccount)> {
+    ) -> Result<(Self, CreatedAccount, NewAccount)> {
         let remotes = Arc::new(RwLock::new(remotes.unwrap_or_default()));
         let handler = SyncHandler {
             remotes: Arc::clone(&remotes),

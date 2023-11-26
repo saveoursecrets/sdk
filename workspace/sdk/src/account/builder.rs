@@ -44,7 +44,7 @@ pub struct NewAccount {
 
 /// New account vaults that have been imported into
 /// a storage provider.
-pub struct ImportedAccount {
+pub struct CreatedAccount {
     /// Summary for the default folder.
     pub summary: Summary,
     /// Sumary for an archive if the new account

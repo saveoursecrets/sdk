@@ -14,7 +14,7 @@ use crate::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
         AuthenticatedUser, DelegatedPassphrase, ExtractFilesLocation,
-        ImportedAccount, LocalAccounts, LocalProvider, Login, NewAccount,
+        CreatedAccount, LocalAccounts, LocalProvider, Login, NewAccount,
         RestoreOptions, UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
@@ -198,7 +198,7 @@ impl<D> Account<D> {
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
         handler: Option<Handler<D>>,
-    ) -> Result<(Self, ImportedAccount, NewAccount)> {
+    ) -> Result<(Self, CreatedAccount, NewAccount)> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
@@ -225,7 +225,7 @@ impl<D> Account<D> {
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
         handler: Option<Handler<D>>,
-    ) -> Result<(Self, ImportedAccount, NewAccount)> {
+    ) -> Result<(Self, CreatedAccount, NewAccount)> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
 
