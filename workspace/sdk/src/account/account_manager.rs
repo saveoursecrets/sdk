@@ -350,7 +350,8 @@ impl<D> Account<D> {
     }
 
     /// Append to the audit log.
-    async fn append_audit_logs(&self, events: Vec<AuditEvent>) -> Result<()> {
+    pub async fn append_audit_logs(
+        &self, events: Vec<AuditEvent>) -> Result<()> {
         let mut writer = self.audit_log.write().await;
         writer.append_audit_events(events).await?;
         Ok(())

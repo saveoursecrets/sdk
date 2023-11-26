@@ -903,16 +903,12 @@ impl UserStorage {
 
         vfs::write(path.as_ref(), &archive).await?;
 
-        // FIXME: restore audit log!
-
-        /*
         let audit_event = AuditEvent::new(
             EventKind::ExportUnsafe,
             self.address().clone(),
             None,
         );
-        self.append_audit_logs(vec![audit_event]).await?;
-        */
+        self.account.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
     }
@@ -978,18 +974,14 @@ impl UserStorage {
             }
         };
 
-        // FIXME: restore audit logs
-
-        /*
         let audit_event = AuditEvent::new(
             EventKind::ImportUnsafe,
             self.address().clone(),
             None,
         );
         let create_event: AuditEvent = (self.address(), &event).into();
-        self.append_audit_logs(vec![audit_event, create_event])
+        self.account.append_audit_logs(vec![audit_event, create_event])
             .await?;
-        */
 
         Ok(summary)
     }
