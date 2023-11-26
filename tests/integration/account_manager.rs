@@ -4,9 +4,9 @@ use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use sos_net::sdk::{
     account::{
-        AccountBackup, AccountBuilder, DelegatedPassphrase,
-        ExtractFilesLocation, FileStorage, CreatedAccount, LocalAccounts,
-        LocalProvider, Login, NewAccount, RestoreOptions, UserPaths,
+        AccountBackup, AccountBuilder, CreatedAccount, DelegatedPassphrase,
+        ExtractFilesLocation, FileStorage, LocalAccounts, LocalProvider,
+        Login, NewAccount, RestoreOptions, UserPaths,
     },
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     hex,

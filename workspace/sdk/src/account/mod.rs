@@ -20,8 +20,8 @@ mod security_report;
 pub use account_manager::ContactImportProgress;
 
 pub use account_manager::{
-    Account, AccountData, DetachedView, SecretOptions, UserStatistics,
-    AccountHandler,
+    Account, AccountData, AccountHandler, DetachedView, SecretOptions,
+    UserStatistics,
 };
 pub use backup::{
     AccountBackup, AccountManifest, ExtractFilesLocation, ManifestEntry,

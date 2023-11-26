@@ -12,11 +12,11 @@ use futures::Future;
 use sos_sdk::{
     account::{
         archive::Inventory, Account, AccountBackup, AccountBuilder,
-        AccountData, AccountInfo, AuthenticatedUser, DelegatedPassphrase,
-        DetachedView, ExtractFilesLocation, CreatedAccount, LocalAccounts,
-        LocalProvider, Login, NewAccount, RestoreOptions, SecretOptions,
-        UserIndex, UserPaths, UserStatistics,
-        AccountHandler,
+        AccountData, AccountHandler, AccountInfo, AuthenticatedUser,
+        CreatedAccount, DelegatedPassphrase, DetachedView,
+        ExtractFilesLocation, LocalAccounts, LocalProvider, Login,
+        NewAccount, RestoreOptions, SecretOptions, UserIndex, UserPaths,
+        UserStatistics,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -70,7 +70,6 @@ use sos_migrate::{
     Convert,
 };
 
-
 type SyncHandlerData = Arc<RwLock<Remotes>>;
 type LocalAccount = Account<SyncHandlerData>;
 
@@ -79,7 +78,6 @@ struct SyncHandler {
 }
 
 impl SyncHandler {
-
     /// Try to sync the target folder against all remotes.
     async fn try_sync_folder(
         &self,
@@ -91,11 +89,12 @@ impl SyncHandler {
         let (last_commit, commit_proof) = commit_state;
         let mut last_commit = last_commit.clone();
         let mut commit_proof = commit_proof.clone();
-        
+
         let remotes = self.remotes.read().await;
         for remote in remotes.values() {
-            let local_changed = remote.sync_folder(
-                folder, commit_state, None, &Default::default()).await?;
+            let local_changed = remote
+                .sync_folder(folder, commit_state, None, &Default::default())
+                .await?;
 
             // If a remote changes were applied to local
             // we need to recompute the last commit and client proof
@@ -105,14 +104,16 @@ impl SyncHandler {
                     .cache()
                     .get(folder.id())
                     .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-                last_commit = event_log.last_commit().await?
+                last_commit = event_log
+                    .last_commit()
+                    .await?
                     .ok_or(Error::NoRootCommit)?;
                 commit_proof = event_log.tree().head()?;
             }
 
             changed = changed || local_changed;
         }
-    
+
         Ok(if changed {
             Some((last_commit, commit_proof))
         } else {
@@ -135,14 +136,7 @@ impl AccountHandler for SyncHandler {
         folder: &Summary,
         commit_state: &CommitState,
     ) -> Option<CommitState> {
-        match self
-            .try_sync_folder(
-                storage,
-                folder,
-                commit_state,
-            )
-            .await
-        {
+        match self.try_sync_folder(storage, folder, commit_state).await {
             Ok(commit_state) => commit_state,
             Err(e) => {
                 tracing::error!(error = ?e, "failed to sync before change");
@@ -151,7 +145,6 @@ impl AccountHandler for SyncHandler {
         }
     }
 }
-
 
 /// Authenticated user with local storage provider.
 pub struct UserStorage {
@@ -239,7 +232,7 @@ impl UserStorage {
             data_dir.clone(),
         )
         .await?;
-        
+
         /*
         let owner = Self {
             account,
@@ -619,7 +612,7 @@ impl UserStorage {
     pub async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
         Ok(self.account.open_folder(summary).await?)
     }
-    
+
     /*
     /// Helper to get all the state information needed
     /// before calling sync methods.
@@ -977,7 +970,8 @@ impl UserStorage {
             None,
         );
         let create_event: AuditEvent = (self.address(), &event).into();
-        self.account.append_audit_logs(vec![audit_event, create_event])
+        self.account
+            .append_audit_logs(vec![audit_event, create_event])
             .await?;
 
         Ok(summary)

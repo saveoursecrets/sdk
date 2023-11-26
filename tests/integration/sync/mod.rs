@@ -77,7 +77,9 @@ impl SimulatedDevice {
         // the same remotes
         let provider = owner.remote_bridge(&origin).await?;
         // Insert the remote for the other owner
-        owner.insert_remote(self.origin.clone(), Box::new(provider)).await;
+        owner
+            .insert_remote(self.origin.clone(), Box::new(provider))
+            .await;
 
         // Must list folders to load cache into memory after sign in
         owner.list_folders().await?;
@@ -146,7 +148,9 @@ pub async fn simulate_device(
     let provider = owner.remote_bridge(&origin).await?;
 
     // Insert the remote for the primary owner
-    owner.insert_remote(origin.clone(), Box::new(provider)).await;
+    owner
+        .insert_remote(origin.clone(), Box::new(provider))
+        .await;
 
     //let default_folder_id = *default_folder.id();
     owner.open_folder(&default_folder).await?;

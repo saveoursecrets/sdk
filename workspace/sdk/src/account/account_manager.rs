@@ -13,9 +13,9 @@ use futures::Future;
 use crate::{
     account::{
         archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
-        AuthenticatedUser, DelegatedPassphrase, ExtractFilesLocation,
-        CreatedAccount, LocalAccounts, LocalProvider, Login, NewAccount,
-        RestoreOptions, UserPaths,
+        AuthenticatedUser, CreatedAccount, DelegatedPassphrase,
+        ExtractFilesLocation, LocalAccounts, LocalProvider, Login,
+        NewAccount, RestoreOptions, UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -53,11 +53,11 @@ use super::{file_manager::FileProgress, search_index::UserIndex};
 #[async_trait::async_trait]
 pub trait AccountHandler {
     /// Data associated with this handler.
-    type Data; 
-    
+    type Data;
+
     /// Get the associated data for this handler.
     fn data(&self) -> &Self::Data;
-    
+
     /// Called before changes to the account.
     async fn before_change(
         &self,
@@ -351,7 +351,9 @@ impl<D> Account<D> {
 
     /// Append to the audit log.
     pub async fn append_audit_logs(
-        &self, events: Vec<AuditEvent>) -> Result<()> {
+        &self,
+        events: Vec<AuditEvent>,
+    ) -> Result<()> {
         let mut writer = self.audit_log.write().await;
         writer.append_audit_events(events).await?;
         Ok(())
@@ -885,12 +887,13 @@ impl<D> Account<D> {
             let storage = self.storage();
 
             if let Some(handler) = &self.handler {
-                let before_result = handler.before_change(
-                    storage,
-                    &folder,
-                    &(last_commit, commit_proof.clone()),
-                )
-                .await;
+                let before_result = handler
+                    .before_change(
+                        storage,
+                        &folder,
+                        &(last_commit, commit_proof.clone()),
+                    )
+                    .await;
                 if let Some((commit, proof)) = before_result {
                     last_commit = commit;
                     commit_proof = proof;
