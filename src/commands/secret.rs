@@ -12,7 +12,7 @@ use sos_net::sdk::{
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
-        Summary, FolderRef,
+        FolderRef, Summary,
     },
     vfs,
 };

@@ -226,6 +226,7 @@ impl CommitTree {
     }
 }
 
+/*
 /// Multi tree allows comparison between multiple trees each
 /// represented by a unique identifier.
 ///
@@ -293,7 +294,9 @@ where
         Ok(relationships)
     }
 }
+*/
 
+/*
 /// Node tree represents multi trees from different nodes
 /// combined so that a node can determine which actions to
 /// take for a sync operation.
@@ -382,7 +385,9 @@ where
         Ok(ops)
     }
 }
+*/
 
+/*
 /// Operation that can be made to sync between two peers.
 #[derive(Debug, Hash, Eq, PartialEq)]
 pub enum Operation<I, K>
@@ -431,6 +436,7 @@ where
         commit: CommitPair,
     },
 }
+*/
 
 #[cfg(test)]
 mod test {

@@ -152,8 +152,7 @@ impl AccountBuilder {
                 .await?;
 
         // Prepare the passphrase for the default vault
-        let vault_passphrase =
-            DelegatedPassword::generate_folder_password()?;
+        let vault_passphrase = DelegatedPassword::generate_folder_password()?;
 
         // Prepare the default vault
         let mut builder = VaultBuilder::new().flags(VaultFlags::DEFAULT);

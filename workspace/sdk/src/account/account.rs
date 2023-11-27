@@ -16,17 +16,17 @@ use crate::{
             AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
         },
         login::Login,
+        password::DelegatedPassword,
         search::{AccountStatistics, DocumentCount, SearchIndex},
         AccountBuilder, AccountInfo, AccountsList, AuthenticatedUser,
-        password::DelegatedPassword, FolderStorage, NewAccount, UserPaths,
+        FolderStorage, NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
     decode, encode,
     events::{
-        AccountEvent, AuditData, AuditEvent, AuditLogFile, AuditProvider,
-        Event, EventKind, EventReducer, ReadEvent, WriteEvent,
-        AccountEventLog,
+        AccountEvent, AccountEventLog, AuditData, AuditEvent, AuditLogFile,
+        AuditProvider, Event, EventKind, EventReducer, ReadEvent, WriteEvent,
     },
     mpc::generate_keypair,
     signer::ecdsa::Address,
@@ -145,7 +145,7 @@ struct Authenticated {
 /// User account backed by the filesystem.
 ///
 /// Many functions require that the account is authenticated and will
-/// return [Error::NotAuthenticated] if the account is not authenticated 
+/// return [Error::NotAuthenticated] if the account is not authenticated
 /// to authenticate a user call [Account::sign_in].
 ///
 /// For functions that return a [CommitState] it represents
@@ -370,8 +370,9 @@ impl<D> Account<D> {
             user,
             storage: Arc::new(RwLock::new(storage)),
             index: AccountSearch::new(),
-            account_log: Arc::new(
-                RwLock::new(AccountEventLog::new(account_events).await?)),
+            account_log: Arc::new(RwLock::new(
+                AccountEventLog::new(account_events).await?,
+            )),
         });
 
         Ok(())
@@ -1502,12 +1503,11 @@ impl<D> Account<D> {
         for (summary, _) in vaults {
             let (vault, _) =
                 local_accounts.find_local_vault(summary.id(), false).await?;
-            let vault_passphrase =
-                DelegatedPassword::find_folder_password(
-                    self.user.identity().keeper(),
-                    summary.id(),
-                )
-                .await?;
+            let vault_passphrase = DelegatedPassword::find_folder_password(
+                self.user.identity().keeper(),
+                summary.id(),
+            )
+            .await?;
 
             let mut keeper = Gatekeeper::new(vault, None);
             keeper.unlock(vault_passphrase.into()).await?;
@@ -1707,7 +1707,7 @@ impl<D> Account<D> {
         Ok(inventory)
     }
 
-    /// Import from an archive file.
+    /// Restore from a backup archive file.
     pub async fn restore_backup_archive<P: AsRef<Path>>(
         owner: Option<&mut Account<D>>,
         path: P,
@@ -1731,7 +1731,7 @@ impl<D> Account<D> {
         Ok(account)
     }
 
-    /// Import from an archive buffer.
+    /// Import from an archive reader.
     async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
         mut owner: Option<&mut Account<D>>,
         buffer: R,

@@ -612,8 +612,8 @@ mod listen {
         Error, ListenOptions, RemoteBridge, Result, WebSocketHandle,
     };
     use sos_sdk::prelude::{
-        AccessKey, ChangeAction, ChangeEvent, ChangeNotification,
-        SecureAccessKey, Summary, VaultId, FolderRef,
+        AccessKey, ChangeAction, ChangeEvent, ChangeNotification, FolderRef,
+        SecureAccessKey, Summary, VaultId,
     };
 
     use std::sync::Arc;

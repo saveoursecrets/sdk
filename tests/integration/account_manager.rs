@@ -7,8 +7,7 @@ use sos_net::sdk::{
         archive::{AccountBackup, ExtractFilesLocation, RestoreOptions},
         files::FileStorage,
         search::SearchIndex,
-        Account, AccountsList, FolderStorage,
-        LocalAccount,
+        Account, AccountsList, FolderStorage, LocalAccount,
     },
     hex,
     passwd::diceware::generate_passphrase,
@@ -86,12 +85,11 @@ async fn integration_account_manager() -> Result<()> {
     */
 
     // Make sure we can find a vault passphrase and unlock it
-    let default_vault_passphrase =
-        LocalAccount::find_folder_password(
-            user.identity().keeper(),
-            summary.id(),
-        )
-        .await?;
+    let default_vault_passphrase = LocalAccount::find_folder_password(
+        user.identity().keeper(),
+        summary.id(),
+    )
+    .await?;
 
     let default_index = Arc::new(RwLock::new(SearchIndex::new()));
     let (default_vault, _) =
@@ -103,12 +101,12 @@ async fn integration_account_manager() -> Result<()> {
         .await?;
 
     //let file_passphrase =
-        //LocalAccount::find_file_encryption_password(
-            //user.identity().keeper(),
-        //)
-        //.await?;
+    //LocalAccount::find_file_encryption_password(
+    //user.identity().keeper(),
+    //)
+    //.await?;
     let source_file = PathBuf::from("tests/fixtures/test-file.txt");
-    
+
     let files_dir = paths.files_dir();
 
     /*

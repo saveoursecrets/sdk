@@ -28,8 +28,7 @@ async fn integration_simple_session() -> Result<()> {
 
     // Check our new vault is found in the local cache
     let vault_ref = FolderRef::Name(new_vault_name.clone());
-    let new_vault_summary =
-        provider.find_folder(&vault_ref).unwrap().clone();
+    let new_vault_summary = provider.find_folder(&vault_ref).unwrap().clone();
     assert_eq!(&new_vault_name, new_vault_summary.name());
 
     // Need this for some assertions later

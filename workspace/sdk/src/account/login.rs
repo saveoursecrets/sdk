@@ -10,8 +10,8 @@ use web3_address::ethereum::Address;
 
 use crate::{
     account::{
-        search::SearchIndex, AccountInfo, AccountsList, password::DelegatedPassword,
-        UserPaths,
+        password::DelegatedPassword, search::SearchIndex, AccountInfo,
+        AccountsList, UserPaths,
     },
     constants::{DEVICE_KEY_URN, VAULT_EXT},
     crypto::AccessKey,
@@ -251,12 +251,11 @@ impl Login {
         let urn: Urn = DEVICE_KEY_URN.parse()?;
 
         if let Some(summary) = device_vault {
-            let device_passphrase =
-                DelegatedPassword::find_folder_password(
-                    user.keeper(),
-                    summary.id(),
-                )
-                .await?;
+            let device_passphrase = DelegatedPassword::find_folder_password(
+                user.keeper(),
+                summary.id(),
+            )
+            .await?;
 
             let (vault, _) =
                 local_accounts.find_local_vault(summary.id(), true).await?;

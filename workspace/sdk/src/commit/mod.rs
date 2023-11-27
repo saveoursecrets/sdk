@@ -10,7 +10,7 @@ pub use integrity::{event_log_commit_tree_file, vault_commit_tree_file};
 pub use proof::{
     CommitHash, CommitPair, CommitProof, CommitRelationship, Comparison,
 };
-pub use tree::{CommitTree, MultiTree};
+pub use tree::CommitTree;
 
 /// Commit state combines the last commit hash with
 /// a commit proof.

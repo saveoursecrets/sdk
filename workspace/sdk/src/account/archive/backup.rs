@@ -21,8 +21,9 @@ use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
         identity::Identity,
+        password::DelegatedPassword,
         search::SearchIndex,
-        AccountInfo, AccountsList, password::DelegatedPassword, UserPaths,
+        AccountInfo, AccountsList, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -63,9 +64,9 @@ pub enum ExtractFilesLocation {
 pub struct RestoreOptions {
     /// Vaults that the user selected to be imported.
     pub selected: Vec<Summary>,
-    /// Passphrase for the identity vault in the archive to copy
-    /// the passphrases for imported folders.
-    pub passphrase: Option<SecretString>,
+    /// Password for the identity vault in the archive to access 
+    /// the passwords for imported folders.
+    pub password: Option<SecretString>,
     /// Target directory for files.
     pub files_dir: Option<ExtractFilesLocation>,
 }
@@ -450,7 +451,7 @@ impl AccountBackup {
 
             let paths = UserPaths::new(data_dir, &address);
 
-            if let Some(passphrase) = &options.passphrase {
+            if let Some(passphrase) = &options.password {
                 let identity_vault_file = paths.identity_vault();
                 let identity_buffer = vfs::read(&identity_vault_file).await?;
                 let identity_vault: Vault = decode(&identity_buffer).await?;
@@ -632,7 +633,7 @@ impl AccountBackup {
         }
 
         // Check all the decoded vaults can be decrypted
-        if let Some(passphrase) = &options.passphrase {
+        if let Some(passphrase) = &options.password {
             // Check the identity vault can be unlocked
             let vault: Vault = decode(&identity.1).await?;
             let mut keeper = Gatekeeper::new(vault, None);

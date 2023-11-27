@@ -15,8 +15,8 @@ use crate::{
     passwd::{diceware::generate_passphrase, ChangePassword},
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
-        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
-        VaultFlags, VaultId, FolderRef, VaultWriter,
+        FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
+        VaultBuilder, VaultFlags, VaultId, VaultWriter,
     },
     vfs, Error, Result, Timestamp,
 };
@@ -93,7 +93,7 @@ impl FolderStorage {
     {
         self.state.find(predicate)
     }
-    
+
     /// Get the computed storage directories for the provider.
     pub fn paths(&self) -> Arc<UserPaths> {
         Arc::clone(&self.paths)
@@ -122,9 +122,7 @@ impl FolderStorage {
             self.reduce_event_log(summary).await?
         };
 
-        self.state
-            .open_vault(key, vault, vault_path, index)
-            .await?;
+        self.state.open_vault(key, vault, vault_path, index).await?;
         Ok(ReadEvent::ReadVault)
     }
 

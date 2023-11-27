@@ -9,7 +9,7 @@ use sos_net::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         secrecy::{ExposeSecret, SecretString},
-        vault::{Summary, FolderRef},
+        vault::{FolderRef, Summary},
     },
 };
 use terminal_banner::{Banner, Padding};
@@ -138,7 +138,10 @@ pub async fn resolve_folder(
     }
 }
 
-pub async fn cd_folder(user: Owner, folder: Option<&FolderRef>) -> Result<()> {
+pub async fn cd_folder(
+    user: Owner,
+    folder: Option<&FolderRef>,
+) -> Result<()> {
     let summary = {
         let owner = user.read().await;
         let storage = owner.storage()?;

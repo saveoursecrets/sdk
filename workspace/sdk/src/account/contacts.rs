@@ -1,6 +1,6 @@
 //! Support for importing and exporting account contacts.
 use crate::{
-    account::{Account, AccountsList, password::DelegatedPassword},
+    account::{password::DelegatedPassword, Account, AccountsList},
     events::{AuditData, AuditEvent, EventKind},
     vault::{
         secret::{Secret, SecretId, SecretMeta},

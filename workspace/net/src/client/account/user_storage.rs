@@ -18,8 +18,8 @@ use sos_sdk::{
             AccountSearch, AccountStatistics, DocumentCount, SearchIndex,
         },
         AccessOptions, Account, AccountBuilder, AccountData, AccountHandler,
-        AccountInfo, AccountsList, AuthenticatedUser, 
-        DetachedView, FolderStorage, NewAccount, UserPaths,
+        AccountInfo, AccountsList, AuthenticatedUser, DetachedView,
+        FolderStorage, NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -898,12 +898,11 @@ impl UserStorage {
         for (summary, _) in vaults {
             let (vault, _) =
                 local_accounts.find_local_vault(summary.id(), false).await?;
-            let vault_passphrase =
-                LocalAccount::find_folder_password(
-                    self.user()?.identity().keeper(),
-                    summary.id(),
-                )
-                .await?;
+            let vault_passphrase = LocalAccount::find_folder_password(
+                self.user()?.identity().keeper(),
+                summary.id(),
+            )
+            .await?;
 
             let mut keeper = Gatekeeper::new(vault, None);
             keeper.unlock(vault_passphrase.into()).await?;
@@ -1022,8 +1021,7 @@ impl UserStorage {
         let existing_name =
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 
-        let vault_passphrase =
-            LocalAccount::generate_folder_password()?;
+        let vault_passphrase = LocalAccount::generate_folder_password()?;
 
         let vault_id = VaultId::new_v4();
         let name = if existing_name.is_some() {
@@ -1379,8 +1377,7 @@ mod listen {
     };
     use futures::{select, Future, FutureExt};
     use sos_sdk::prelude::{
-        CommitHash, CommitProof, SecureAccessKey,
-        Summary,
+        CommitHash, CommitProof, SecureAccessKey, Summary,
     };
     use std::sync::Arc;
 
