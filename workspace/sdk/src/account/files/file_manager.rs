@@ -5,7 +5,7 @@ use crate::{
     account::Account,
     account::{
         files::{basename, EncryptedFile, FileStorage, FileStorageSync},
-        DelegatedPassphrase,
+        password::DelegatedPassword,
     },
     commit::{CommitHash, CommitProof},
     vault::{
@@ -83,7 +83,7 @@ impl<D> Account<D> {
         source: P,
     ) -> Result<EncryptedFile> {
         // Find the file encryption password
-        let password = DelegatedPassphrase::find_file_encryption_passphrase(
+        let password = DelegatedPassword::find_file_encryption_password(
             self.user()?.identity().keeper(),
         )
         .await?;
@@ -106,7 +106,7 @@ impl<D> Account<D> {
         file_name: &str,
     ) -> Result<Vec<u8>> {
         // Find the file encryption password
-        let password = DelegatedPassphrase::find_file_encryption_passphrase(
+        let password = DelegatedPassword::find_file_encryption_password(
             self.user()?.identity().keeper(),
         )
         .await?;

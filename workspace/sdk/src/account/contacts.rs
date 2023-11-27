@@ -1,6 +1,6 @@
 //! Support for importing and exporting account contacts.
 use crate::{
-    account::{Account, AccountsList, DelegatedPassphrase},
+    account::{Account, AccountsList, password::DelegatedPassword},
     events::{AuditData, AuditEvent, EventKind},
     vault::{
         secret::{Secret, SecretId, SecretMeta},
@@ -97,7 +97,7 @@ impl<D> Account<D> {
             .await
             .ok_or_else(|| Error::NoContactsFolder)?;
 
-        let contacts_passphrase = DelegatedPassphrase::find_vault_passphrase(
+        let contacts_passphrase = DelegatedPassword::find_folder_password(
             self.user()?.identity().keeper(),
             contacts.id(),
         )

@@ -22,7 +22,7 @@ use crate::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
         identity::Identity,
         search::SearchIndex,
-        AccountInfo, AccountsList, DelegatedPassphrase, UserPaths,
+        AccountInfo, AccountsList, password::DelegatedPassword, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -327,7 +327,7 @@ impl AccountBackup {
     ) -> Result<Vec<u8>> {
         // Get the current vault passphrase from the identity vault
         let current_passphrase =
-            DelegatedPassphrase::find_vault_passphrase(identity, vault_id)
+            DelegatedPassword::find_folder_password(identity, vault_id)
                 .await?;
 
         // Find the local vault for the account
@@ -475,13 +475,13 @@ impl AccountBackup {
                     Arc::new(RwLock::new(restored_identity_keeper));
                 for (_, vault) in vaults {
                     let vault_passphrase =
-                        DelegatedPassphrase::find_vault_passphrase(
+                        DelegatedPassword::find_folder_password(
                             Arc::clone(&restored_identity_keeper),
                             vault.id(),
                         )
                         .await?;
 
-                    DelegatedPassphrase::save_vault_passphrase(
+                    DelegatedPassword::save_folder_password(
                         Arc::clone(&identity_keeper),
                         vault.id(),
                         vault_passphrase,

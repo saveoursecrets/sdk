@@ -8,7 +8,7 @@ pub mod files;
 mod identity;
 mod local;
 mod login;
-mod passphrase;
+mod password;
 mod paths;
 mod provider;
 pub mod search;
@@ -24,7 +24,6 @@ pub use builder::{AccountBuilder, NewAccount};
 pub use identity::{AccountStatus, Identity};
 pub use local::{AccountInfo, AccountRef, AccountsList};
 pub use login::{AuthenticatedUser, DeviceSigner};
-pub use passphrase::DelegatedPassphrase;
 pub use paths::UserPaths;
 pub use provider::FolderStorage;
 

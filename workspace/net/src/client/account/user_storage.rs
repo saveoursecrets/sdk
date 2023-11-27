@@ -18,7 +18,7 @@ use sos_sdk::{
             AccountSearch, AccountStatistics, DocumentCount, SearchIndex,
         },
         AccessOptions, Account, AccountBuilder, AccountData, AccountHandler,
-        AccountInfo, AccountsList, AuthenticatedUser, DelegatedPassphrase,
+        AccountInfo, AccountsList, AuthenticatedUser, 
         DetachedView, FolderStorage, NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
@@ -505,7 +505,7 @@ impl UserStorage {
         let _ = self.sync_lock.lock().await;
 
         /*
-        let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
+        let passphrase = DelegatedPassword::generate_folder_password()?;
         let key = AccessKey::Password(passphrase);
         let (buffer, _, summary) = {
             let mut writer = self.storage.write().await;
@@ -516,7 +516,7 @@ impl UserStorage {
         let secure_key =
             SecureAccessKey::encrypt(&key, secret_key, None).await?;
 
-        DelegatedPassphrase::save_vault_passphrase(
+        DelegatedPassword::save_folder_password(
             self.user.identity().keeper(),
             summary.id(),
             key,
@@ -899,7 +899,7 @@ impl UserStorage {
             let (vault, _) =
                 local_accounts.find_local_vault(summary.id(), false).await?;
             let vault_passphrase =
-                DelegatedPassphrase::find_vault_passphrase(
+                LocalAccount::find_folder_password(
                     self.user()?.identity().keeper(),
                     summary.id(),
                 )
@@ -1023,7 +1023,7 @@ impl UserStorage {
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 
         let vault_passphrase =
-            DelegatedPassphrase::generate_vault_passphrase()?;
+            LocalAccount::generate_folder_password()?;
 
         let vault_id = VaultId::new_v4();
         let name = if existing_name.is_some() {
@@ -1054,7 +1054,7 @@ impl UserStorage {
             writer.import_vault(buffer).await?
         };
 
-        DelegatedPassphrase::save_vault_passphrase(
+        LocalAccount::save_folder_password(
             self.user()?.identity().keeper(),
             vault.id(),
             vault_passphrase.clone().into(),
@@ -1371,6 +1371,7 @@ impl RemoteSync for UserStorage {
 
 #[cfg(not(target_arch = "wasm32"))]
 mod listen {
+    use super::LocalAccount;
     use crate::client::{
         account::remote::{UserStorageReceiver, UserStorageSender},
         Error, ListenOptions, Origin, RemoteBridge, Result, UserStorage,
@@ -1378,7 +1379,7 @@ mod listen {
     };
     use futures::{select, Future, FutureExt};
     use sos_sdk::prelude::{
-        CommitHash, CommitProof, DelegatedPassphrase, SecureAccessKey,
+        CommitHash, CommitProof, SecureAccessKey,
         Summary,
     };
     use std::sync::Arc;
@@ -1448,7 +1449,7 @@ mod listen {
 
                                     // Save the access key for the synced folder
                                     let identity = Arc::clone(&keeper);
-                                    DelegatedPassphrase::save_vault_passphrase(
+                                    LocalAccount::save_folder_password(
                                         identity,
                                         &folder_id,
                                         access_key.clone(),
@@ -1467,7 +1468,7 @@ mod listen {
                                     // bridge changes we need to clean up the
                                     // passphrase
                                     let identity = Arc::clone(&keeper);
-                                    DelegatedPassphrase::remove_vault_passphrase(
+                                    LocalAccount::remove_folder_password(
                                         identity,
                                         &folder_id,
                                     )

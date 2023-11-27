@@ -22,7 +22,7 @@ use web3_address::ethereum::Address;
 
 use super::{
     identity::{Identity, UserIdentity},
-    DelegatedPassphrase,
+    password::DelegatedPassword,
 };
 
 use secrecy::SecretString;
@@ -153,7 +153,7 @@ impl AccountBuilder {
 
         // Prepare the passphrase for the default vault
         let vault_passphrase =
-            DelegatedPassphrase::generate_vault_passphrase()?;
+            DelegatedPassword::generate_folder_password()?;
 
         // Prepare the default vault
         let mut builder = VaultBuilder::new().flags(VaultFlags::DEFAULT);
@@ -190,7 +190,7 @@ impl AccountBuilder {
 
         let keeper = Arc::new(RwLock::new(keeper));
 
-        DelegatedPassphrase::save_vault_passphrase(
+        DelegatedPassword::save_folder_password(
             Arc::clone(&keeper),
             default_folder.id(),
             AccessKey::Password(vault_passphrase),
@@ -199,7 +199,7 @@ impl AccountBuilder {
 
         if create_file_password {
             let file_passphrase =
-                DelegatedPassphrase::generate_vault_passphrase()?;
+                DelegatedPassword::generate_folder_password()?;
             let secret = Secret::Password {
                 password: file_passphrase,
                 name: None,
@@ -216,7 +216,7 @@ impl AccountBuilder {
         let archive = if create_archive {
             // Prepare the passphrase for the archive vault
             let archive_passphrase =
-                DelegatedPassphrase::generate_vault_passphrase()?;
+                DelegatedPassword::generate_folder_password()?;
 
             // Prepare the archive vault
             let vault = VaultBuilder::new()
@@ -225,7 +225,7 @@ impl AccountBuilder {
                 .password(archive_passphrase.clone(), None)
                 .await?;
 
-            DelegatedPassphrase::save_vault_passphrase(
+            DelegatedPassword::save_folder_password(
                 Arc::clone(&keeper),
                 vault.id(),
                 AccessKey::Password(archive_passphrase),
@@ -239,7 +239,7 @@ impl AccountBuilder {
         let authenticator = if create_authenticator {
             // Prepare the passphrase for the authenticator vault
             let auth_passphrase =
-                DelegatedPassphrase::generate_vault_passphrase()?;
+                DelegatedPassword::generate_folder_password()?;
 
             // Prepare the authenticator vault
             let vault = VaultBuilder::new()
@@ -248,7 +248,7 @@ impl AccountBuilder {
                 .password(auth_passphrase.clone(), None)
                 .await?;
 
-            DelegatedPassphrase::save_vault_passphrase(
+            DelegatedPassword::save_folder_password(
                 Arc::clone(&keeper),
                 vault.id(),
                 AccessKey::Password(auth_passphrase),
@@ -262,7 +262,7 @@ impl AccountBuilder {
         let contacts = if create_contacts {
             // Prepare the passphrase for the authenticator vault
             let auth_passphrase =
-                DelegatedPassphrase::generate_vault_passphrase()?;
+                DelegatedPassword::generate_folder_password()?;
 
             // Prepare the authenticator vault
             let vault = VaultBuilder::new()
@@ -271,7 +271,7 @@ impl AccountBuilder {
                 .password(auth_passphrase.clone(), None)
                 .await?;
 
-            DelegatedPassphrase::save_vault_passphrase(
+            DelegatedPassword::save_folder_password(
                 Arc::clone(&keeper),
                 vault.id(),
                 AccessKey::Password(auth_passphrase),

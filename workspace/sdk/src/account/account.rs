@@ -18,7 +18,7 @@ use crate::{
         login::Login,
         search::{AccountStatistics, DocumentCount, SearchIndex},
         AccountBuilder, AccountInfo, AccountsList, AuthenticatedUser,
-        DelegatedPassphrase, FolderStorage, NewAccount, UserPaths,
+        password::DelegatedPassword, FolderStorage, NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -562,7 +562,7 @@ impl<D> Account<D> {
         &mut self,
         name: String,
     ) -> Result<(Summary, Event, CommitState, SecureAccessKey)> {
-        let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
+        let passphrase = DelegatedPassword::generate_folder_password()?;
         let key = AccessKey::Password(passphrase);
         let (buffer, _, summary) = {
             let storage = self.storage()?;
@@ -574,7 +574,7 @@ impl<D> Account<D> {
         let secure_key =
             SecureAccessKey::encrypt(&key, secret_key, None).await?;
 
-        DelegatedPassphrase::save_vault_passphrase(
+        DelegatedPassword::save_folder_password(
             self.user()?.identity().keeper(),
             summary.id(),
             key,
@@ -616,7 +616,7 @@ impl<D> Account<D> {
             let mut writer = storage.write().await;
             writer.remove_vault(&summary).await?
         };
-        DelegatedPassphrase::remove_vault_passphrase(
+        DelegatedPassword::remove_folder_password(
             self.user()?.identity().keeper(),
             summary.id(),
         )
@@ -685,7 +685,7 @@ impl<D> Account<D> {
                 .await
                 .ok_or_else(|| Error::NoDefaultFolder)?;
 
-            let _passphrase = DelegatedPassphrase::find_vault_passphrase(
+            let _passphrase = DelegatedPassword::find_folder_password(
                 self.user()?.identity().keeper(),
                 default_summary.id(),
             )
@@ -815,14 +815,14 @@ impl<D> Account<D> {
         // vault passphrase so we can save it using the passphrase
         // assigned when exporting the folder
         if overwrite {
-            DelegatedPassphrase::remove_vault_passphrase(
+            DelegatedPassword::remove_folder_password(
                 self.user()?.identity().keeper(),
                 summary.id(),
             )
             .await?;
         }
 
-        DelegatedPassphrase::save_vault_passphrase(
+        DelegatedPassword::save_folder_password(
             self.user()?.identity().keeper(),
             summary.id(),
             key.clone(),
@@ -892,7 +892,7 @@ impl<D> Account<D> {
             }
         }
 
-        let passphrase = DelegatedPassphrase::find_vault_passphrase(
+        let passphrase = DelegatedPassword::find_folder_password(
             self.user()?.identity().keeper(),
             summary.id(),
         )
@@ -1495,7 +1495,7 @@ impl<D> Account<D> {
             let (vault, _) =
                 local_accounts.find_local_vault(summary.id(), false).await?;
             let vault_passphrase =
-                DelegatedPassphrase::find_vault_passphrase(
+                DelegatedPassword::find_folder_password(
                     self.user.identity().keeper(),
                     summary.id(),
                 )
@@ -1617,7 +1617,7 @@ impl<D> Account<D> {
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 
         let vault_passphrase =
-            DelegatedPassphrase::generate_vault_passphrase()?;
+            DelegatedPassword::generate_folder_password()?;
 
         let vault_id = VaultId::new_v4();
         let name = if existing_name.is_some() {
@@ -1647,7 +1647,7 @@ impl<D> Account<D> {
             writer.import_vault(buffer).await?
         };
 
-        DelegatedPassphrase::save_vault_passphrase(
+        DelegatedPassword::save_folder_password(
             self.user.identity().keeper(),
             vault.id(),
             vault_passphrase.clone().into(),
@@ -1779,7 +1779,7 @@ impl<D> Account<D> {
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
 
-        let passphrase = DelegatedPassphrase::find_vault_passphrase(
+        let passphrase = DelegatedPassword::find_folder_password(
             self.user()?.identity().keeper(),
             summary.id(),
         )
@@ -1813,6 +1813,42 @@ impl<D> Account<D> {
             .root()
             .map(CommitHash)
             .ok_or_else(|| Error::NoRootCommit)?)
+    }
+}
+
+// Proxy the delegated password functions.
+impl<D> Account<D> {
+    /// Generate a folder password.
+    pub fn generate_folder_password() -> Result<SecretString> {
+        DelegatedPassword::generate_folder_password()
+    }
+
+    /// Save a folder password into an identity vault.
+    pub async fn save_folder_password(
+        identity: Arc<RwLock<Gatekeeper>>,
+        vault_id: &VaultId,
+        key: AccessKey,
+    ) -> Result<()> {
+        DelegatedPassword::save_folder_password(identity, vault_id, key).await
+    }
+
+    /// Remove a folder password from an identity vault.
+    pub async fn remove_folder_password(
+        identity: Arc<RwLock<Gatekeeper>>,
+        vault_id: &VaultId,
+    ) -> Result<()> {
+        DelegatedPassword::remove_folder_password(identity, vault_id).await
+    }
+
+    /// Find a folder password in an identity vault.
+    ///
+    /// The identity vault must already be unlocked to extract
+    /// the secret passphrase.
+    pub async fn find_folder_password(
+        identity: Arc<RwLock<Gatekeeper>>,
+        vault_id: &VaultId,
+    ) -> Result<AccessKey> {
+        DelegatedPassword::find_folder_password(identity, vault_id).await
     }
 }
 

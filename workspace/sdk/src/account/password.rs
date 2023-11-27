@@ -18,18 +18,18 @@ use urn::Urn;
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
 /// Delegated passphrase manager.
-pub struct DelegatedPassphrase;
+pub struct DelegatedPassword;
 
-impl DelegatedPassphrase {
-    /// Generate a vault passphrase.
-    pub fn generate_vault_passphrase() -> Result<SecretString> {
+impl DelegatedPassword {
+    /// Generate a folder password.
+    pub fn generate_folder_password() -> Result<SecretString> {
         let (vault_passphrase, _) =
             generate_passphrase_words(VAULT_PASSPHRASE_WORDS)?;
         Ok(vault_passphrase)
     }
 
-    /// Save a vault passphrase into an identity vault.
-    pub async fn save_vault_passphrase(
+    /// Save a folder password into an identity vault.
+    pub async fn save_folder_password(
         identity: Arc<RwLock<Gatekeeper>>,
         vault_id: &VaultId,
         key: AccessKey,
@@ -59,8 +59,8 @@ impl DelegatedPassphrase {
         Ok(())
     }
 
-    /// Remove a vault passphrase from an identity vault.
-    pub async fn remove_vault_passphrase(
+    /// Remove a folder password from an identity vault.
+    pub async fn remove_folder_password(
         identity: Arc<RwLock<Gatekeeper>>,
         vault_id: &VaultId,
     ) -> Result<()> {
@@ -82,12 +82,11 @@ impl DelegatedPassphrase {
         Ok(())
     }
 
-    /// Find a vault passphrase in an identity vault using the
-    /// search index associated with the vault.
+    /// Find a folder password in an identity vault.
     ///
     /// The identity vault must already be unlocked to extract
     /// the secret passphrase.
-    pub async fn find_vault_passphrase(
+    pub async fn find_folder_password(
         identity: Arc<RwLock<Gatekeeper>>,
         vault_id: &VaultId,
     ) -> Result<AccessKey> {
@@ -118,8 +117,8 @@ impl DelegatedPassphrase {
         Ok(key)
     }
 
-    /// Find the passphrase used for symmetric file encryption (AGE).
-    pub async fn find_file_encryption_passphrase(
+    /// Find the password used for symmetric file encryption (AGE).
+    pub(crate) async fn find_file_encryption_password(
         identity: Arc<RwLock<Gatekeeper>>,
     ) -> Result<SecretString> {
         let keeper = identity.read().await;

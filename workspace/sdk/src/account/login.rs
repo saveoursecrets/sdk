@@ -10,7 +10,7 @@ use web3_address::ethereum::Address;
 
 use crate::{
     account::{
-        search::SearchIndex, AccountInfo, AccountsList, DelegatedPassphrase,
+        search::SearchIndex, AccountInfo, AccountsList, password::DelegatedPassword,
         UserPaths,
     },
     constants::{DEVICE_KEY_URN, VAULT_EXT},
@@ -252,7 +252,7 @@ impl Login {
 
         if let Some(summary) = device_vault {
             let device_passphrase =
-                DelegatedPassphrase::find_vault_passphrase(
+                DelegatedPassword::find_folder_password(
                     user.keeper(),
                     summary.id(),
                 )
@@ -294,7 +294,7 @@ impl Login {
         } else {
             // Prepare the passphrase for the device vault
             let device_passphrase =
-                DelegatedPassphrase::generate_vault_passphrase()?;
+                DelegatedPassword::generate_folder_password()?;
 
             // Prepare the device vault
             let vault = VaultBuilder::new()
@@ -318,7 +318,7 @@ impl Login {
             vault.initialize(device_passphrase.clone(), None).await?;
             */
 
-            DelegatedPassphrase::save_vault_passphrase(
+            DelegatedPassword::save_folder_password(
                 user.keeper(),
                 vault.id(),
                 device_passphrase.clone().into(),
