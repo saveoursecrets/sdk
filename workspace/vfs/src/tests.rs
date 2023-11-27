@@ -3,11 +3,11 @@ use anyhow::Result;
 use std::ffi::OsString;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
-use sos_net::sdk::vfs::{self, File, FileType, OpenOptions, Permissions};
+use crate::memory::{self as vfs, File, FileType, OpenOptions, Permissions};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[tokio::test]
-async fn integration_memory_vfs() -> Result<()> {
+async fn memory_vfs() -> Result<()> {
     file_write_read().await?;
     file_append().await?;
     read_to_string().await?;

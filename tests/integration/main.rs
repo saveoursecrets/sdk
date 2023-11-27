@@ -27,6 +27,3 @@ mod security_report;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod sync;
-
-#[cfg(feature = "mem-fs")]
-mod memory_vfs;

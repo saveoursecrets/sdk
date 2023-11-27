@@ -11,9 +11,14 @@ repository = "https://github.com/saveoursecrets/sdk"
 mem-fs = []
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1", default-features = false, features = ["rt", "fs", "sync", "io-util"] }
+tokio = { version = "1", default-features = false, features = ["rt", "fs", "sync", "io-util", "macros"] }
+
+[dependencies]
 futures = "0.3"
 async-recursion = "1"
 once_cell = "1"
 parking_lot = "0.12"
 bitflags = "1"
+
+[dev-dependencies]
+anyhow = "1"

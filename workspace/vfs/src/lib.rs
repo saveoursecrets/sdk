@@ -44,12 +44,14 @@
 //!
 
 #[cfg(any(
+    test,
     feature = "mem-fs",
     all(target_arch = "wasm32", target_os = "unknown")
 ))]
 mod memory;
 
 #[cfg(all(
+    not(test),
     not(all(target_arch = "wasm32", target_os = "unknown")),
     not(feature = "mem-fs")
 ))]
@@ -62,7 +64,11 @@ mod os;
 pub use memory::*;
 
 #[cfg(all(
+    not(test),
     not(all(target_arch = "wasm32", target_os = "unknown")),
     not(feature = "mem-fs")
 ))]
 pub use os::*;
+
+#[cfg(test)]
+mod tests;
