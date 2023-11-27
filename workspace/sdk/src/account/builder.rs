@@ -20,7 +20,10 @@ use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use web3_address::ethereum::Address;
 
-use super::{DelegatedPassphrase, identity::{Identity, UserIdentity}};
+use super::{
+    identity::{Identity, UserIdentity},
+    DelegatedPassphrase,
+};
 
 use secrecy::SecretString;
 

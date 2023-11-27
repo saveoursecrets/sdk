@@ -11,11 +11,14 @@ use futures::Future;
 
 use sos_sdk::{
     account::{
-        archive::Inventory, Account, AccountBackup, AccountBuilder,
-        AccountData, AccountHandler, AccountInfo, AuthenticatedUser,
-        CreatedAccount, DelegatedPassphrase, DetachedView,
-        ExtractFilesLocation, LocalAccounts, LocalProvider, NewAccount,
-        RestoreOptions, SecretOptions, UserIndex, UserPaths, UserStatistics,
+        archive::{
+            AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
+        },
+        search::UserIndex,
+        Account, AccountBuilder, AccountData, AccountHandler, AccountInfo,
+        AuthenticatedUser, CreatedAccount, DelegatedPassphrase, DetachedView,
+        LocalAccounts, LocalProvider, NewAccount, SecretOptions, UserPaths,
+        UserStatistics,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -39,7 +42,9 @@ use sos_sdk::{
 use sos_sdk::account::ContactImportProgress;
 
 #[cfg(feature = "security-report")]
-pub use sos_sdk::account::security_report::{SecurityReport, SecurityReportOptions};
+pub use sos_sdk::account::security_report::{
+    SecurityReport, SecurityReportOptions,
+};
 
 use tracing::{span, Level};
 

@@ -6,8 +6,11 @@ use sos_net::{
     migrate::import::{ImportFormat, ImportTarget},
     sdk::{
         account::{
-            archive::Inventory, AccountBackup, AccountInfo, AccountRef,
-            ExtractFilesLocation, LocalProvider, RestoreOptions, UserPaths,
+            archive::{
+                AccountBackup, ExtractFilesLocation, Inventory,
+                RestoreOptions,
+            },
+            AccountInfo, AccountRef, LocalProvider, UserPaths,
         },
         vfs,
     },

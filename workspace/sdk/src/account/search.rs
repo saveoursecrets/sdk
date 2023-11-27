@@ -1,4 +1,4 @@
-//! User search index.
+//! Account search index.
 use std::{collections::HashSet, sync::Arc};
 
 use crate::{

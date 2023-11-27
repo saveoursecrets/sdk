@@ -4,8 +4,9 @@
 use crate::{
     account::Account,
     account::{
-        basename, DelegatedPassphrase, EncryptedFile, FileStorage,
-        FileStorageSync,
+        basename,
+        files::{EncryptedFile, FileStorage, FileStorageSync},
+        DelegatedPassphrase,
     },
     commit::{CommitHash, CommitProof},
     vault::{

@@ -1,18 +1,16 @@
 //! Create and manage local accounts.
 mod account_manager;
 pub mod archive;
-mod backup;
 mod builder;
-mod external_files;
-mod external_files_sync;
-mod file_manager;
+pub mod files;
 mod identity;
 mod local;
 mod login;
 mod passphrase;
 mod paths;
 mod provider;
-mod search_index;
+pub mod search;
+
 #[cfg(feature = "security-report")]
 pub mod security_report;
 
@@ -23,42 +21,16 @@ pub use account_manager::{
     Account, AccountData, AccountHandler, DetachedView, SecretOptions,
     UserStatistics,
 };
-pub use backup::{
-    AccountBackup, AccountManifest, ExtractFilesLocation, ManifestEntry,
-    RestoreOptions, RestoreTargets,
-};
 pub use builder::{AccountBuilder, CreatedAccount, NewAccount};
-pub use file_manager::{FileProgress, FileSource};
 pub use identity::{AccountStatus, Identity};
 pub use local::{AccountInfo, AccountRef, LocalAccounts};
 pub use login::{AuthenticatedUser, DeviceSigner};
 pub use passphrase::DelegatedPassphrase;
 pub use paths::UserPaths;
 pub use provider::{LocalProvider, LocalState};
-pub use search_index::{ArchiveFilter, DocumentView, QueryFilter, UserIndex};
-
-/*
-#[cfg(feature = "security-report")]
-pub use security_report::{
-    SecurityReport, SecurityReportOptions, SecurityReportRow,
-    SecurityReportTarget,
-};
-*/
-
-pub use external_files::FileStorage;
-pub use external_files_sync::FileStorageSync;
 
 use crate::Result;
 use std::path::Path;
-
-/// Result of encrypting a file.
-#[derive(Debug, Clone)]
-pub struct EncryptedFile {
-    /// Size of the encrypted data in bytes.
-    pub size: u64,
-    /// Sha256 digest of the encrypted buffer.
-    pub digest: Vec<u8>,
-}
 
 /// Compute the file name from a path.
 ///

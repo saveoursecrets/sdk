@@ -12,10 +12,13 @@ use futures::Future;
 
 use crate::{
     account::{
-        archive::Inventory, login::Login, AccountBackup, AccountBuilder,
-        AccountInfo, AuthenticatedUser, CreatedAccount, DelegatedPassphrase,
-        ExtractFilesLocation, LocalAccounts, LocalProvider, NewAccount,
-        RestoreOptions, UserPaths,
+        archive::{
+            AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
+        },
+        login::Login,
+        AccountBuilder, AccountInfo, AuthenticatedUser, CreatedAccount,
+        DelegatedPassphrase, LocalAccounts, LocalProvider, NewAccount,
+        UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -47,7 +50,7 @@ use tokio::{
 
 use async_trait::async_trait;
 
-use super::{file_manager::FileProgress, search_index::UserIndex};
+use super::{files::FileProgress, search::UserIndex};
 
 /// Account handler provides is notified of account changes.
 #[async_trait::async_trait]

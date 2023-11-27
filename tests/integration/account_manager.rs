@@ -4,9 +4,10 @@ use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use sos_net::sdk::{
     account::{
-        Account, AccountBackup, CreatedAccount, DelegatedPassphrase,
-        ExtractFilesLocation, FileStorage, LocalAccounts, LocalProvider,
-        NewAccount, RestoreOptions,
+        archive::{AccountBackup, ExtractFilesLocation, RestoreOptions},
+        files::FileStorage,
+        Account, CreatedAccount, DelegatedPassphrase, LocalAccounts,
+        LocalProvider, NewAccount,
     },
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     hex,
@@ -106,7 +107,7 @@ async fn integration_account_manager() -> Result<()> {
     let vaults = local_accounts.list_local_vaults(false).await?;
     // Default, Contacts and Archive vaults
     assert_eq!(3, vaults.len());
-    
+
     /*
     let identity_reader = identity_index.read().await;
 

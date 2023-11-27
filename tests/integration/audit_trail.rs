@@ -7,7 +7,7 @@ use sos_net::{
     client::UserStorage,
     migrate::import::ImportTarget,
     sdk::{
-        account::RestoreOptions,
+        account::archive::RestoreOptions,
         events::{AuditEvent, AuditLogFile, EventKind},
         passwd::diceware::generate_passphrase,
         vault::Summary,

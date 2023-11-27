@@ -5,7 +5,7 @@ use std::{path::PathBuf, sync::Arc};
 use sos_net::{
     client::UserStorage,
     sdk::{
-        account::{FileProgress, SecretOptions},
+        account::{files::FileProgress, SecretOptions},
         hex,
         vault::{
             secret::{

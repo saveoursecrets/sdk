@@ -1,7 +1,8 @@
 //! Storage provider backed by the local filesystem.
 use crate::{
     account::{
-        AccountStatus, CreatedAccount, NewAccount, RestoreTargets, UserPaths,
+        archive::RestoreTargets, AccountStatus, CreatedAccount, NewAccount,
+        UserPaths,
     },
     commit::{CommitHash, CommitTree},
     constants::VAULT_EXT,
@@ -830,7 +831,7 @@ impl LocalProvider {
     }
 }
 
-/// Manages the state of a node.
+/// Collection of in-memory vaults.
 pub struct LocalState {
     /// Whether this state should mirror changes to disc.
     mirror: bool,
@@ -855,40 +856,40 @@ impl LocalState {
         self.mirror
     }
 
-    /// Get the current in-memory vault access.
+    /// Current in-memory vault.
     pub fn current(&self) -> Option<&Gatekeeper> {
         self.current.as_ref()
     }
 
-    /// Get a mutable reference to the current in-memory vault access.
-    pub fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
+    /// Mutable reference to the current in-memory vault.
+    fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
         self.current.as_mut()
     }
 
-    /// Get the vault summaries this state is managing.
+    /// Vault summaries.
     pub fn summaries(&self) -> &[Summary] {
         self.summaries.as_slice()
     }
 
-    /// Get the vault summaries this state is managing.
-    pub fn summaries_mut(&mut self) -> &mut [Summary] {
+    /// Mutable reference to the vault summaries.
+    fn summaries_mut(&mut self) -> &mut [Summary] {
         self.summaries.as_mut_slice()
     }
 
     /// Set the summaries for this state.
-    pub fn set_summaries(&mut self, summaries: Vec<Summary>) {
+    fn set_summaries(&mut self, summaries: Vec<Summary>) {
         self.summaries = summaries;
         self.summaries.sort();
     }
 
     /// Add a summary to this state.
-    pub fn add_summary(&mut self, summary: Summary) {
+    fn add_summary(&mut self, summary: Summary) {
         self.summaries.push(summary);
         self.summaries.sort();
     }
 
     /// Remove a summary from this state.
-    pub fn remove_summary(&mut self, summary: &Summary) {
+    fn remove_summary(&mut self, summary: &Summary) {
         let index =
             self.summaries.iter().position(|s| s.id() == summary.id());
         if let Some(index) = index {
@@ -915,8 +916,8 @@ impl LocalState {
         self.summaries.iter().find(predicate)
     }
 
-    /// Set the current vault and unlock it.
-    pub async fn open_vault(
+    /// Set the current folder and unlock it.
+    async fn open_vault(
         &mut self,
         key: AccessKey,
         vault: Vault,
@@ -939,8 +940,8 @@ impl LocalState {
         Ok(())
     }
 
-    /// Add this vault to the search index.
-    pub(crate) async fn create_search_index(&mut self) -> Result<()> {
+    /// Add the currrent open vault to the search index.
+    async fn create_search_index(&mut self) -> Result<()> {
         let keeper = self.current_mut().ok_or_else(|| Error::NoOpenVault)?;
         keeper.create_search_index().await?;
         Ok(())

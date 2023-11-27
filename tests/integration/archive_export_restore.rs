@@ -8,8 +8,8 @@ use tempfile::tempdir;
 
 use sos_net::sdk::{
     account::{
-        archive::Writer, AccountBackup, Identity, LocalProvider,
-        RestoreOptions,
+        archive::{AccountBackup, RestoreOptions, Writer},
+        Identity, LocalProvider,
     },
     encode,
     events::WriteEvent,

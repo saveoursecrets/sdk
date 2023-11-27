@@ -1,6 +1,9 @@
 use sos_net::{
     client::hashcheck,
-    sdk::account::{AccountRef, security_report::{SecurityReportOptions, SecurityReportRow}},
+    sdk::account::{
+        security_report::{SecurityReportOptions, SecurityReportRow},
+        AccountRef,
+    },
 };
 use std::{fmt, path::PathBuf, str::FromStr};
 
