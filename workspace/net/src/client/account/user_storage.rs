@@ -17,7 +17,7 @@ use sos_sdk::{
         search::{AccountSearch, DocumentCount, SearchIndex, AccountStatistics},
         Account, AccountBuilder, AccountData, AccountHandler, AccountInfo,
         AuthenticatedUser, DelegatedPassphrase, DetachedView,
-        AccountsList, LocalProvider, NewAccount, SecretOptions, UserPaths,
+        AccountsList, LocalProvider, NewAccount, AccessOptions, UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -526,7 +526,7 @@ impl UserStorage {
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
-        let options = SecretOptions {
+        let options = AccessOptions {
             folder: Some(summary),
             ..Default::default()
         };
@@ -650,7 +650,7 @@ impl UserStorage {
     /// hash and the proof for the current head of the events log.
     async fn before_apply_events(
         &self,
-        options: &SecretOptions,
+        options: &AccessOptions,
         apply_changes: bool,
     ) -> Result<(Summary, Option<CommitHash>, CommitProof)> {
         let (folder, mut last_commit, mut commit_proof) = {
@@ -710,7 +710,7 @@ impl UserStorage {
         &mut self,
         meta: SecretMeta,
         secret: Secret,
-        options: SecretOptions,
+        options: AccessOptions,
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
@@ -744,7 +744,7 @@ impl UserStorage {
         secret_id: &SecretId,
         meta: SecretMeta,
         path: P,
-        options: SecretOptions,
+        options: AccessOptions,
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
@@ -768,7 +768,7 @@ impl UserStorage {
         secret_id: &SecretId,
         meta: SecretMeta,
         secret: Option<Secret>,
-        mut options: SecretOptions,
+        mut options: AccessOptions,
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
@@ -792,7 +792,7 @@ impl UserStorage {
         secret_id: &SecretId,
         from: &Summary,
         to: &Summary,
-        options: SecretOptions,
+        options: AccessOptions,
     ) -> Result<(SecretId, Event)> {
         let _ = self.sync_lock.lock().await;
         Ok(self
@@ -805,7 +805,7 @@ impl UserStorage {
     pub async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
-        mut options: SecretOptions,
+        mut options: AccessOptions,
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
 
@@ -827,7 +827,7 @@ impl UserStorage {
         &mut self,
         from: &Summary,
         secret_id: &SecretId,
-        options: SecretOptions,
+        options: AccessOptions,
     ) -> Result<(SecretId, Event)> {
         let _ = self.sync_lock.lock().await;
 
@@ -842,7 +842,7 @@ impl UserStorage {
         from: &Summary,
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
-        options: SecretOptions,
+        options: AccessOptions,
     ) -> Result<(Summary, SecretId, Event)> {
         let _ = self.sync_lock.lock().await;
         Ok(self

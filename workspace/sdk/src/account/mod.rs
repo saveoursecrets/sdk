@@ -17,7 +17,7 @@ pub mod search;
 pub mod security_report;
 
 pub use account::{
-    Account, AccountData, AccountHandler, DetachedView, SecretOptions,
+    Account, AccountData, AccountHandler, DetachedView, AccessOptions,
 };
 pub use builder::{AccountBuilder, NewAccount};
 pub use identity::{AccountStatus, Identity};

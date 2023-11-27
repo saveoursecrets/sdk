@@ -85,11 +85,10 @@ impl DetachedView {
     }
 }
 
-/// Options used when creating, deleting and updating
-/// secrets.
+/// Options used when accessing account data.
 #[derive(Default)]
-pub struct SecretOptions {
-    /// Target folder for the secret operation.
+pub struct AccessOptions {
+    /// Target folder for the operation.
     ///
     /// If no target folder is given the current open folder
     /// will be used. When no folder is open and the target
@@ -99,7 +98,7 @@ pub struct SecretOptions {
     pub file_progress: Option<mpsc::Sender<FileProgress>>,
 }
 
-impl From<Summary> for SecretOptions {
+impl From<Summary> for AccessOptions {
     fn from(value: Summary) -> Self {
         Self {
             folder: Some(value),
@@ -582,7 +581,7 @@ impl<D> Account<D> {
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
-        let options = SecretOptions {
+        let options = AccessOptions {
             folder: Some(summary),
             ..Default::default()
         };
@@ -601,7 +600,7 @@ impl<D> Account<D> {
         &mut self,
         summary: &Summary,
     ) -> Result<(Event, CommitState)> {
-        let options = SecretOptions {
+        let options = AccessOptions {
             folder: Some(summary.clone()),
             ..Default::default()
         };
@@ -636,7 +635,7 @@ impl<D> Account<D> {
         summary: &Summary,
         name: String,
     ) -> Result<(Event, CommitState)> {
-        let options = SecretOptions {
+        let options = AccessOptions {
             folder: Some(summary.clone()),
             ..Default::default()
         };
@@ -857,7 +856,7 @@ impl<D> Account<D> {
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
-        let options = SecretOptions {
+        let options = AccessOptions {
             folder: Some(summary.clone()),
             ..Default::default()
         };
@@ -922,7 +921,7 @@ impl<D> Account<D> {
     /// hash and the proof for the current head of the events log.
     async fn compute_folder_state(
         &self,
-        options: &SecretOptions,
+        options: &AccessOptions,
         apply_changes: bool,
     ) -> Result<(Summary, CommitState)> {
         let (folder, last_commit, mut commit_proof) = {
@@ -970,7 +969,7 @@ impl<D> Account<D> {
         &mut self,
         meta: SecretMeta,
         secret: Secret,
-        options: SecretOptions,
+        options: AccessOptions,
     ) -> Result<(SecretId, Event, CommitState, Summary)> {
         let (folder, commit_state) =
             self.compute_folder_state(&options, true).await?;
@@ -985,7 +984,7 @@ impl<D> Account<D> {
         &mut self,
         meta: SecretMeta,
         secret: Secret,
-        mut options: SecretOptions,
+        mut options: AccessOptions,
         audit: bool,
     ) -> Result<(SecretId, Event, Summary)> {
         let folder = {
@@ -1111,7 +1110,7 @@ impl<D> Account<D> {
         secret_id: &SecretId,
         meta: SecretMeta,
         path: P,
-        options: SecretOptions,
+        options: AccessOptions,
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Event, CommitState, Summary)> {
         let path = path.as_ref().to_path_buf();
@@ -1132,7 +1131,7 @@ impl<D> Account<D> {
         secret_id: &SecretId,
         meta: SecretMeta,
         secret: Option<Secret>,
-        mut options: SecretOptions,
+        mut options: AccessOptions,
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Event, CommitState, Summary)> {
         let (folder, commit_state) =
@@ -1229,7 +1228,7 @@ impl<D> Account<D> {
         secret_id: &SecretId,
         from: &Summary,
         to: &Summary,
-        options: SecretOptions,
+        options: AccessOptions,
     ) -> Result<(SecretId, Event)> {
         self.mv_secret(secret_id, from, to, options).await
     }
@@ -1239,7 +1238,7 @@ impl<D> Account<D> {
         secret_id: &SecretId,
         from: &Summary,
         to: &Summary,
-        mut options: SecretOptions,
+        mut options: AccessOptions,
     ) -> Result<(SecretId, Event)> {
         self.open_vault(from, false).await?;
         let (secret_data, read_event) =
@@ -1297,7 +1296,7 @@ impl<D> Account<D> {
     pub async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
-        mut options: SecretOptions,
+        mut options: AccessOptions,
     ) -> Result<(Event, CommitState, Summary)> {
         let (folder, commit_state) =
             self.compute_folder_state(&options, true).await?;
@@ -1359,7 +1358,7 @@ impl<D> Account<D> {
         &mut self,
         from: &Summary,
         secret_id: &SecretId,
-        options: SecretOptions,
+        options: AccessOptions,
     ) -> Result<(SecretId, Event)> {
         if from.flags().is_archive() {
             return Err(Error::AlreadyArchived);
@@ -1380,7 +1379,7 @@ impl<D> Account<D> {
         from: &Summary,
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
-        options: SecretOptions,
+        options: AccessOptions,
     ) -> Result<(Summary, SecretId, Event)> {
         if !from.flags().is_archive() {
             return Err(Error::NotArchived);

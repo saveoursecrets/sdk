@@ -5,7 +5,7 @@ use std::{path::PathBuf, sync::Arc};
 use sos_net::{
     client::UserStorage,
     sdk::{
-        account::{files::FileProgress, SecretOptions},
+        account::{files::FileProgress, AccessOptions},
         hex,
         vault::{
             secret::{
@@ -195,7 +195,7 @@ async fn create_file_secret(
     let (meta, secret, file_path) = get_image_secret()?;
 
     // Create the file secret in the default folder
-    let options = SecretOptions {
+    let options = AccessOptions {
         folder: Some(default_folder.clone()),
         file_progress: Some(progress_tx),
     };
@@ -223,7 +223,7 @@ async fn update_file_secret(
             id,
             new_meta,
             "tests/fixtures/test-file.txt",
-            SecretOptions {
+            AccessOptions {
                 folder: None,
                 file_progress: Some(progress_tx),
             },
@@ -351,7 +351,7 @@ async fn assert_move_file_secret(
             id,
             default_folder,
             &destination,
-            SecretOptions {
+            AccessOptions {
                 folder: None,
                 file_progress: Some(progress_tx),
             },
@@ -405,7 +405,7 @@ async fn assert_delete_file_secret(
     checksum: &[u8; 32],
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<()> {
-    let options = SecretOptions {
+    let options = AccessOptions {
         folder: Some(folder.clone()),
         file_progress: Some(progress_tx),
     };
@@ -520,7 +520,7 @@ async fn assert_attach_file_secret(
             &id,
             secret_data.meta,
             Some(secret_data.secret),
-            SecretOptions {
+            AccessOptions {
                 folder: Some(folder.clone()),
                 file_progress: Some(progress_tx.clone()),
             },
@@ -615,7 +615,7 @@ async fn assert_attach_file_secret(
                 &id,
                 secret_data.meta.clone(),
                 Some(secret_data.secret.clone()),
-                SecretOptions {
+                AccessOptions {
                     folder: Some(folder.clone()),
                     file_progress: Some(progress_tx.clone()),
                 },
@@ -677,7 +677,7 @@ async fn assert_attach_file_secret(
                 &id,
                 updated_secret_data.meta,
                 Some(updated_secret_data.secret),
-                SecretOptions {
+                AccessOptions {
                     folder: Some(folder.clone()),
                     file_progress: Some(progress_tx.clone()),
                 },
@@ -738,7 +738,7 @@ async fn assert_attach_file_secret(
                 &id,
                 insert_attachment_secret_data.meta,
                 Some(insert_attachment_secret_data.secret),
-                SecretOptions {
+                AccessOptions {
                     folder: Some(folder.clone()),
                     file_progress: Some(progress_tx.clone()),
                 },
@@ -780,7 +780,7 @@ async fn assert_attach_file_secret(
     owner
         .delete_secret(
             &id,
-            SecretOptions {
+            AccessOptions {
                 folder: Some(folder.clone()),
                 file_progress: Some(progress_tx.clone()),
             },
