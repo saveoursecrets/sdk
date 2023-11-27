@@ -46,7 +46,7 @@ async fn integration_sync_delete_folder() -> Result<()> {
     let updated_summaries: Vec<Summary> = {
         let storage = owner.storage()?;
         let reader = storage.read().await;
-        reader.state().summaries().to_vec()
+        reader.folders().to_vec()
     };
 
     assert_eq!(folders.len(), updated_summaries.len());

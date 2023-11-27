@@ -25,7 +25,7 @@ use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 
 use tokio::sync::RwLock;
 
-/// Local storage provider.
+/// Manages multiple folders loaded into memory and mirrored to disc.
 pub struct FolderStorage {
     /// State of this storage.
     state: LocalState,
@@ -33,7 +33,7 @@ pub struct FolderStorage {
     /// Directories for file storage.
     paths: Arc<UserPaths>,
 
-    /// Cache for event log and patch providers.
+    /// Folder event logs.
     cache: HashMap<VaultId, FolderEventLog>,
 }
 
@@ -81,16 +81,19 @@ impl FolderStorage {
         &mut self.cache
     }
 
-    /// Get the state for this storage provider.
-    pub fn state(&self) -> &LocalState {
-        &self.state
+    /// Find a summary in this storage.
+    pub fn find_folder(&self, vault: &VaultRef) -> Option<&Summary> {
+        self.state.find_vault(vault)
     }
 
-    /// Get a mutable reference to the state for this storage provider.
-    pub fn state_mut(&mut self) -> &mut LocalState {
-        &mut self.state
+    /// Find a summary in this storage.
+    pub fn find<F>(&self, predicate: F) -> Option<&Summary>
+    where
+        F: FnMut(&&Summary) -> bool,
+    {
+        self.state.find(predicate)
     }
-
+    
     /// Get the computed storage directories for the provider.
     pub fn paths(&self) -> Arc<UserPaths> {
         Arc::clone(&self.paths)
@@ -104,7 +107,7 @@ impl FolderStorage {
         index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<ReadEvent> {
         let vault_path = self.vault_path(summary);
-        let vault = if self.state().mirror() {
+        let vault = if self.state.mirror() {
             if !vfs::try_exists(&vault_path).await? {
                 let vault = self.reduce_event_log(summary).await?;
                 let buffer = encode(&vault).await?;
@@ -119,7 +122,7 @@ impl FolderStorage {
             self.reduce_event_log(summary).await?
         };
 
-        self.state_mut()
+        self.state
             .open_vault(key, vault, vault_path, index)
             .await?;
         Ok(ReadEvent::ReadVault)
@@ -127,7 +130,7 @@ impl FolderStorage {
 
     /// Create the search index for the currently open vault.
     pub async fn create_search_index(&mut self) -> Result<()> {
-        self.state_mut().create_search_index().await
+        self.state.create_search_index().await
     }
 
     /// Import the vaults for a new account.
@@ -212,19 +215,19 @@ impl FolderStorage {
         self.paths.vault_path(summary.id().to_string())
     }
 
-    /// Get the vault summaries for this storage.
-    pub fn vaults(&self) -> &[Summary] {
-        self.state().summaries()
+    /// Get the folder summaries for this storage.
+    pub fn folders(&self) -> &[Summary] {
+        self.state.summaries()
     }
 
     /// Get the current in-memory vault access.
     pub fn current(&self) -> Option<&Gatekeeper> {
-        self.state().current()
+        self.state.current()
     }
 
     /// Get a mutable reference to the current in-memory vault access.
     pub fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
-        self.state_mut().current_mut()
+        self.state.current_mut()
     }
 
     /// Create new patch and event log cache entries.
@@ -260,7 +263,7 @@ impl FolderStorage {
         self.create_cache_entry(&summary, None).await?;
 
         // Add to the state of managed vaults
-        self.state_mut().add_summary(summary);
+        self.state.add_summary(summary);
         Ok(())
     }
 
@@ -279,7 +282,7 @@ impl FolderStorage {
         let vault = self.reduce_event_log(summary).await?;
 
         // Rewrite the on-disc version if we are mirroring
-        if self.state().mirror() {
+        if self.state.mirror() {
             let buffer = encode(&vault).await?;
             self.write_vault_file(summary, &buffer).await?;
         }
@@ -344,7 +347,7 @@ impl FolderStorage {
 
     /// Close the current open vault.
     pub fn close_vault(&mut self) {
-        self.state_mut().close_vault();
+        self.state.close_vault();
     }
 
     /// Get a reference to the commit tree for an event log file.
@@ -370,7 +373,7 @@ impl FolderStorage {
         self.cache.remove(summary.id());
 
         // Remove from the state of managed vaults
-        self.state_mut().remove_summary(summary);
+        self.state.remove_summary(summary);
 
         Ok(())
     }
@@ -409,12 +412,12 @@ impl FolderStorage {
 
         let summary = vault.summary().clone();
 
-        if self.state().mirror() {
+        if self.state.mirror() {
             self.write_vault_file(&summary, &buffer).await?;
         }
 
         // Add the summary to the vaults we are managing
-        self.state_mut().add_summary(summary.clone());
+        self.state.add_summary(summary.clone());
 
         // Initialize the local cache for event log and Patch
         self.create_cache_entry(&summary, Some(vault)).await?;
@@ -518,18 +521,18 @@ impl FolderStorage {
     ) -> Result<(WriteEvent, Summary)> {
         let vault: Vault = decode(buffer.as_ref()).await?;
 
-        let exists = self.state().find(|s| s.id() == vault.id()).is_some();
+        let exists = self.find(|s| s.id() == vault.id()).is_some();
 
         let summary = vault.summary().clone();
 
         // Always write out the updated buffer
-        if self.state().mirror() {
+        if self.state.mirror() {
             self.write_vault_file(&summary, &buffer).await?;
         }
 
         if !exists {
             // Add the summary to the vaults we are managing
-            self.state_mut().add_summary(summary.clone());
+            self.state.add_summary(summary.clone());
         }
 
         // Initialize the local cache for event log
@@ -549,7 +552,7 @@ impl FolderStorage {
         vault: &Vault,
         events: Vec<WriteEvent>,
     ) -> Result<()> {
-        if self.state().mirror() {
+        if self.state.mirror() {
             // Write the vault to disc
             let buffer = encode(vault).await?;
             self.write_vault_file(summary, &buffer).await?;
@@ -621,8 +624,8 @@ impl FolderStorage {
         }
 
         self.load_caches(&summaries).await?;
-        self.state_mut().set_summaries(summaries);
-        Ok(self.vaults())
+        self.state.set_summaries(summaries);
+        Ok(self.folders())
     }
 
     /// Remove a vault.
@@ -812,7 +815,7 @@ impl FolderStorage {
 }
 
 /// Collection of in-memory vaults.
-pub struct LocalState {
+struct LocalState {
     /// Whether this state should mirror changes to disc.
     mirror: bool,
     /// Vaults managed by this state.
@@ -832,12 +835,12 @@ impl LocalState {
     }
 
     /// Determine if mirroring is enabled.
-    pub fn mirror(&self) -> bool {
+    fn mirror(&self) -> bool {
         self.mirror
     }
 
     /// Current in-memory vault.
-    pub fn current(&self) -> Option<&Gatekeeper> {
+    fn current(&self) -> Option<&Gatekeeper> {
         self.current.as_ref()
     }
 
@@ -847,7 +850,7 @@ impl LocalState {
     }
 
     /// Vault summaries.
-    pub fn summaries(&self) -> &[Summary] {
+    fn summaries(&self) -> &[Summary] {
         self.summaries.as_slice()
     }
 
@@ -879,7 +882,7 @@ impl LocalState {
     }
 
     /// Find a summary in this state by reference.
-    pub fn find_vault(&self, vault: &VaultRef) -> Option<&Summary> {
+    fn find_vault(&self, vault: &VaultRef) -> Option<&Summary> {
         match vault {
             VaultRef::Name(name) => {
                 self.summaries.iter().find(|s| s.name() == name)
@@ -889,7 +892,7 @@ impl LocalState {
     }
 
     /// Find a summary in this state.
-    pub fn find<F>(&self, predicate: F) -> Option<&Summary>
+    fn find<F>(&self, predicate: F) -> Option<&Summary>
     where
         F: FnMut(&&Summary) -> bool,
     {
@@ -932,7 +935,7 @@ impl LocalState {
     /// When a vault is open it is locked before being closed.
     ///
     /// If no vault is open this is a noop.
-    pub fn close_vault(&mut self) {
+    fn close_vault(&mut self) {
         if let Some(current) = self.current_mut() {
             current.lock();
         }

@@ -25,7 +25,7 @@ pub use local::{AccountInfo, AccountRef, AccountsList};
 pub use login::{AuthenticatedUser, DeviceSigner};
 pub use passphrase::DelegatedPassphrase;
 pub use paths::UserPaths;
-pub use provider::{FolderStorage, LocalState};
+pub use provider::FolderStorage;
 
 use crate::Result;
 use std::path::Path;

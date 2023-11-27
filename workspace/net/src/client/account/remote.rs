@@ -313,8 +313,7 @@ impl RemoteBridge {
             let (folder, last_commit, commit_proof) = {
                 let local = self.local.read().await;
                 let folder = local
-                    .state()
-                    .find_vault(&(folder_id.clone().into()))
+                    .find_folder(&(folder_id.clone().into()))
                     .cloned()
                     .ok_or(Error::CacheNotAvailable(folder_id))?;
                 let event_log = local
@@ -348,7 +347,6 @@ impl RemoteBridge {
         let folder_buffer = {
             let local = self.local.read().await;
             let default_folder = local
-                .state()
                 .find(|s| s.flags().is_default())
                 .ok_or(Error::NoDefaultFolder)?
                 .clone();
@@ -364,8 +362,7 @@ impl RemoteBridge {
         let other_folders: Vec<Summary> = {
             let local = self.local.read().await;
             local
-                .state()
-                .summaries()
+                .folders()
                 .into_iter()
                 .filter(|s| !s.flags().is_default())
                 .map(|s| s.clone())
@@ -499,8 +496,7 @@ impl RemoteSync for RemoteBridge {
         let comparison = {
             let local = self.local.read().await;
             let folder = local
-                .state()
-                .find_vault(&(folder.id().clone().into()))
+                .find_folder(&(folder.id().clone().into()))
                 .cloned()
                 .ok_or(Error::CacheNotAvailable(*folder.id()))
                 .map_err(SyncError::One)?;
@@ -772,8 +768,7 @@ mod listen {
                 let summary = {
                     let reader = local.read().await;
                     reader
-                        .state()
-                        .find_vault(&VaultRef::Id(*change.vault_id()))
+                        .find_folder(&VaultRef::Id(*change.vault_id()))
                         .cloned()
                 };
 
@@ -838,7 +833,6 @@ mod listen {
                         {
                             let mut writer = local.write().await;
                             let summary = writer
-                                .state()
                                 .find(|s| s.id() == &id)
                                 .cloned()
                                 .ok_or(Error::CacheNotAvailable(id))?;

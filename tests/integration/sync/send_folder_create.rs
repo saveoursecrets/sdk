@@ -43,7 +43,7 @@ async fn integration_sync_create_folder() -> Result<()> {
     let folders: Vec<Summary> = {
         let storage = owner.storage()?;
         let reader = storage.read().await;
-        reader.state().summaries().to_vec()
+        reader.folders().to_vec()
     };
 
     // Ensure we have the extra folder summary in memory

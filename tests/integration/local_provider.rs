@@ -38,7 +38,7 @@ async fn run_local_storage_tests(storage: &mut FolderStorage) -> Result<()> {
     // Create an account with default login vault
     let (_, passphrase, _) = storage.create_account(None, None).await?;
 
-    let mut summaries = storage.vaults().to_vec();
+    let mut summaries = storage.folders().to_vec();
     assert_eq!(1, summaries.len());
     let summary = summaries.remove(0);
     assert_eq!("Documents", summary.name());
@@ -48,7 +48,7 @@ async fn run_local_storage_tests(storage: &mut FolderStorage) -> Result<()> {
 
     // Rename a vault
     storage.set_vault_name(&summary, "MockVault").await?;
-    let mut summaries = storage.vaults().to_vec();
+    let mut summaries = storage.folders().to_vec();
     let summary = summaries.remove(0);
     assert_eq!("MockVault", summary.name());
 

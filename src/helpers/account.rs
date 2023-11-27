@@ -121,8 +121,7 @@ pub async fn resolve_folder(
         let reader = storage.read().await;
         Ok(Some(
             reader
-                .state()
-                .find_vault(vault)
+                .find_folder(vault)
                 .cloned()
                 .ok_or(Error::FolderNotFound(vault.to_string()))?,
         ))
@@ -135,7 +134,7 @@ pub async fn resolve_folder(
     } else {
         let storage = owner.storage()?;
         let reader = storage.read().await;
-        Ok(reader.state().find(|s| s.flags().is_default()).cloned())
+        Ok(reader.find(|s| s.flags().is_default()).cloned())
     }
 }
 
@@ -147,13 +146,12 @@ pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
         let summary = if let Some(vault) = folder {
             Some(
                 reader
-                    .state()
-                    .find_vault(vault)
+                    .find_folder(vault)
                     .cloned()
                     .ok_or(Error::FolderNotFound(vault.to_string()))?,
             )
         } else {
-            reader.state().find(|s| s.flags().is_default()).cloned()
+            reader.find(|s| s.flags().is_default()).cloned()
         };
 
         summary.ok_or(Error::NoVault)?

@@ -443,7 +443,7 @@ impl<D> Account<D> {
         Ok(AccountData {
             account: user.account().clone(),
             identity: user.identity().recipient().to_string(),
-            folders: reader.state().summaries().to_vec(),
+            folders: reader.folders().to_vec(),
         })
     }
 
@@ -490,7 +490,7 @@ impl<D> Account<D> {
     {
         if let Some(auth) = &self.authenticated {
             let reader = auth.storage.read().await;
-            reader.state().find(predicate).cloned()
+            reader.find(predicate).cloned()
         } else {
             None
         }

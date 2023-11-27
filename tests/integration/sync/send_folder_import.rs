@@ -70,7 +70,7 @@ async fn integration_sync_import_folder() -> Result<()> {
     let folders: Vec<Summary> = {
         let storage = owner.storage()?;
         let reader = storage.read().await;
-        reader.state().summaries().to_vec()
+        reader.folders().to_vec()
     };
 
     // Get the remote out of the owner so we can

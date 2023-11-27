@@ -84,7 +84,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
     let expected_summaries: Vec<Summary> = {
         let storage = device1.owner.storage()?;
         let reader = storage.read().await;
-        reader.state().summaries().to_vec()
+        reader.folders().to_vec()
     };
 
     // Assert first device

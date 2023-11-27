@@ -680,8 +680,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let storage = owner.storage()?;
                 let reader = storage.read().await;
                 let summary = reader
-                    .state()
-                    .find_vault(folder)
+                    .find_folder(folder)
                     .cloned()
                     .ok_or(Error::FolderNotFound(folder.to_string()))?;
                 views = vec![DocumentView::Vault(*summary.id())];
