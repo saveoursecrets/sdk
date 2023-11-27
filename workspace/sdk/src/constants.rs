@@ -32,14 +32,8 @@ mod extensions {
     /// File extension used for event log files.
     pub const EVENT_LOG_EXT: &str = "events";
 
-    /// File extension used when deleting event log files.
-    pub const EVENT_LOG_DELETED_EXT: &str = "events.deleted";
-
     /// File extension used for vault files.
     pub const VAULT_EXT: &str = "vault";
-
-    /// File extension used when creating a vault file backup.
-    pub const VAULT_BACKUP_EXT: &str = "vault.backup";
 
     /// File extension for JSON documents.
     pub const JSON_EXT: &str = "json";

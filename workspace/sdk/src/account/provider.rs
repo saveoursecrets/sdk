@@ -436,8 +436,6 @@ impl FolderStorage {
 
     /// Remove a vault file and event log file.
     pub async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
-        use crate::constants::EVENT_LOG_DELETED_EXT;
-
         // Remove local vault mirror if it exists
         let vault_path = self.vault_path(summary);
         if vfs::try_exists(&vault_path).await? {
@@ -447,32 +445,10 @@ impl FolderStorage {
         // Rename the local event log file so recovery is still possible
         let event_log_path = self.event_log_path(summary);
         if vfs::try_exists(&event_log_path).await? {
-            let mut event_log_path_backup = event_log_path.clone();
-            event_log_path_backup.set_extension(EVENT_LOG_DELETED_EXT);
-            vfs::rename(event_log_path, event_log_path_backup).await?;
+            vfs::remove_file(&event_log_path).await?;
         }
         Ok(())
     }
-
-    /*
-    /// Create a backup of a vault file.
-    pub async fn backup_vault_file(&self, summary: &Summary) -> Result<()> {
-        use sos_sdk::constants::VAULT_BACKUP_EXT;
-
-        // Move our cached vault to a backup
-        let vault_path = self.vault_path(summary);
-
-        if vfs::try_exists(&vault_path).await? {
-            let mut vault_backup = vault_path.clone();
-            vault_backup.set_extension(VAULT_BACKUP_EXT);
-            vfs::rename(&vault_path, &vault_backup).await?;
-            tracing::debug!(
-                vault = ?vault_path, backup = ?vault_backup, "vault backup");
-        }
-
-        Ok(())
-    }
-    */
 
     /// Get the account status.
     pub async fn account_status(&mut self) -> Result<AccountStatus> {

@@ -2,7 +2,7 @@ use super::{Error, Result};
 use async_trait::async_trait;
 use sos_sdk::{
     commit::{event_log_commit_tree_file, CommitProof},
-    constants::{EVENT_LOG_DELETED_EXT, EVENT_LOG_EXT, VAULT_EXT},
+    constants::{EVENT_LOG_EXT, VAULT_EXT},
     decode, encode,
     events::WriteEvent,
     events::{EventReducer, FolderEventLog},
@@ -418,10 +418,8 @@ impl BackendHandler for FileSystemBackend {
         let _ = tokio::fs::remove_file(&vault_path).await?;
         self.locks.remove(&vault_path)?;
 
-        // Keep a backup of the event log file as .event_log.deleted
-        let mut event_log_backup = event_log_path.clone();
-        event_log_backup.set_extension(EVENT_LOG_DELETED_EXT);
-        let _ = tokio::fs::rename(&event_log_path, event_log_backup).await?;
+        // Remove the event log file and lock
+        let _ = tokio::fs::remove_file(&event_log_path).await?;
         self.locks.remove(&event_log_path)?;
 
         Ok(())
