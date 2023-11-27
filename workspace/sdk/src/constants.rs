@@ -156,16 +156,10 @@ mod archive {
     pub const ARCHIVE_MANIFEST: &str = "sos-manifest.json";
 }
 
-mod scheme {
-    /// Scheme for P2P URIs.
-    pub const P2P_URI_SCHEME: &str = "sos+p2p";
-}
-
 pub use archive::*;
 pub use extensions::*;
 pub use folders::*;
 pub use identity::*;
 pub use mime::*;
 pub use rpc::*;
-pub use scheme::*;
 pub use vault::*;
