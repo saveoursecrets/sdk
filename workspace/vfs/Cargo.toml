@@ -1,6 +1,6 @@
 [package]
 name = "sos-vfs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Virtual file system same as tokio::fs."
 homepage = "https://saveoursecrets.com"
@@ -11,4 +11,9 @@ repository = "https://github.com/saveoursecrets/sdk"
 mem-fs = []
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1", default-features = false, features = ["fs"] }
+tokio = { version = "1", default-features = false, features = ["rt", "fs", "sync", "io-util"] }
+futures = "0.3"
+async-recursion = "1"
+once_cell = "1"
+parking_lot = "0.12"
+bitflags = "1"
