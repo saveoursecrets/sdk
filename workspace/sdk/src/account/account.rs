@@ -26,6 +26,7 @@ use crate::{
     events::{
         AccountEvent, AuditData, AuditEvent, AuditLogFile, AuditProvider,
         Event, EventKind, EventReducer, ReadEvent, WriteEvent,
+        AccountEventLog,
     },
     mpc::generate_keypair,
     signer::ecdsa::Address,
@@ -136,6 +137,9 @@ struct Authenticated {
 
     /// Search index.
     index: AccountSearch,
+
+    /// Account event log.
+    account_log: Arc<RwLock<AccountEventLog>>,
 }
 
 /// User account backed by the filesystem.
@@ -359,11 +363,15 @@ impl<D> Account<D> {
             FolderStorage::new(signer.address()?.to_string(), Some(data_dir))
                 .await?;
 
+        let account_events = paths.account_events();
+
         self.paths = storage.paths();
         self.authenticated = Some(Authenticated {
             user,
             storage: Arc::new(RwLock::new(storage)),
             index: AccountSearch::new(),
+            account_log: Arc::new(
+                RwLock::new(AccountEventLog::new(account_events).await?)),
         });
 
         Ok(())

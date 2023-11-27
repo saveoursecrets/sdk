@@ -8,7 +8,7 @@ use binary_stream::futures::Decodable;
 mod file;
 mod reducer;
 
-pub use file::{EventLogFile, FolderEventLog};
+pub use file::{EventLogFile, FolderEventLog, AccountEventLog};
 pub use reducer::EventReducer;
 
 /// Record for a row in the event log.

@@ -207,6 +207,13 @@ impl UserPaths {
         vault_path
     }
 
+    /// Get the path to the account-level event log file.
+    pub fn account_events(&self) -> PathBuf {
+        let mut vault_path = self.user_dir.join("account");
+        vault_path.set_extension(EVENT_LOG_EXT);
+        vault_path
+    }
+
     /// Helper to get paths for an optional data directory
     /// and ensure the paths exist on disc.
     pub async fn ensure_paths(
