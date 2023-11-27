@@ -1,5 +1,6 @@
 //! Create and manage local accounts.
 mod account;
+#[cfg(feature = "archive")]
 pub mod archive;
 mod builder;
 #[cfg(feature = "contacts")]
