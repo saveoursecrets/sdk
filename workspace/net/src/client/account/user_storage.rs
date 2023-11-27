@@ -17,7 +17,7 @@ use sos_sdk::{
         search::UserIndex,
         Account, AccountBuilder, AccountData, AccountHandler, AccountInfo,
         AuthenticatedUser, DelegatedPassphrase, DetachedView,
-        LocalAccounts, LocalProvider, NewAccount, SecretOptions, UserPaths,
+        AccountsList, LocalProvider, NewAccount, SecretOptions, UserPaths,
         UserStatistics,
     },
     commit::{CommitHash, CommitProof, CommitState},
@@ -890,7 +890,7 @@ impl UserStorage {
         use sos_migrate::export::PublicExport;
         use std::io::Cursor;
 
-        let local_accounts = LocalAccounts::new(self.paths());
+        let local_accounts = AccountsList::new(self.paths());
 
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
@@ -1017,7 +1017,7 @@ impl UserStorage {
     ) -> Result<(Event, Summary)> {
         use sos_sdk::vault::VaultBuilder;
 
-        let local_accounts = LocalAccounts::new(self.paths());
+        let local_accounts = AccountsList::new(self.paths());
 
         let vaults = local_accounts.list_local_vaults(false).await?;
         let existing_name =

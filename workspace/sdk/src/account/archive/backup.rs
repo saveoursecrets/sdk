@@ -21,7 +21,7 @@ use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
         identity::Identity,
-        AccountInfo, DelegatedPassphrase, LocalAccounts, UserPaths,
+        AccountInfo, DelegatedPassphrase, AccountsList, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -197,7 +197,7 @@ impl AccountBackup {
         paths: &UserPaths,
         options: AccountManifestOptions,
     ) -> Result<(AccountManifest, u64)> {
-        let local_accounts = LocalAccounts::new(paths);
+        let local_accounts = AccountsList::new(paths);
 
         let mut total_size: u64 = 0;
         let mut manifest = AccountManifest::new(*address);
@@ -331,7 +331,7 @@ impl AccountBackup {
                 .await?;
 
         // Find the local vault for the account
-        let local_accounts = LocalAccounts::new(paths);
+        let local_accounts = AccountsList::new(paths);
         let (vault, _) =
             local_accounts.find_local_vault(vault_id, false).await?;
 
@@ -360,7 +360,7 @@ impl AccountBackup {
         }
         let identity = vfs::read(identity_path).await?;
 
-        let local_accounts = LocalAccounts::new(paths);
+        let local_accounts = AccountsList::new(paths);
         let vaults = local_accounts.list_local_vaults(false).await?;
 
         let mut archive = Vec::new();
@@ -439,7 +439,7 @@ impl AccountBackup {
             // The GUI should check the identity already exists
             // but we will double check here to be safe
             let paths = UserPaths::new_global(data_dir.clone());
-            let keys = LocalAccounts::list_accounts(Some(&paths)).await?;
+            let keys = AccountsList::list_accounts(Some(&paths)).await?;
             let existing_account =
                 keys.iter().find(|k| k.address() == address);
             let account = existing_account
@@ -508,7 +508,7 @@ impl AccountBackup {
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
             let paths = UserPaths::new_global(data_dir.clone());
-            let keys = LocalAccounts::list_accounts(Some(&paths)).await?;
+            let keys = AccountsList::list_accounts(Some(&paths)).await?;
             let existing_account = keys
                 .iter()
                 .find(|k| k.address() == &restore_targets.address);

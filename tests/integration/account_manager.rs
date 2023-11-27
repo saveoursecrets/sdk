@@ -6,7 +6,7 @@ use sos_net::sdk::{
     account::{
         archive::{AccountBackup, ExtractFilesLocation, RestoreOptions},
         files::FileStorage,
-        Account, DelegatedPassphrase, LocalAccounts,
+        Account, DelegatedPassphrase, AccountsList,
         LocalProvider,
     },
     hex,
@@ -45,8 +45,8 @@ async fn integration_account_manager() -> Result<()> {
         .await?;
 
     let paths = account.paths().clone();
-    let local_accounts = LocalAccounts::new(&paths);
-    let accounts = LocalAccounts::list_accounts(Some(&paths)).await?;
+    let local_accounts = AccountsList::new(&paths);
+    let accounts = AccountsList::list_accounts(Some(&paths)).await?;
     assert_eq!(1, accounts.len());
     let user = account.user()?;
         

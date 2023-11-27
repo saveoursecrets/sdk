@@ -17,7 +17,7 @@ use crate::{
         },
         login::Login,
         AccountBuilder, AccountInfo, AuthenticatedUser, 
-        DelegatedPassphrase, LocalAccounts, LocalProvider, NewAccount,
+        DelegatedPassphrase, AccountsList, LocalProvider, NewAccount,
         UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
@@ -689,7 +689,7 @@ impl<D> Account<D> {
         )
         .await?;
 
-        let local_accounts = LocalAccounts::new(&self.paths);
+        let local_accounts = AccountsList::new(&self.paths);
 
         if save_key {
             let default_summary = self
@@ -765,7 +765,7 @@ impl<D> Account<D> {
         // Need to verify the passphrase
         vault.verify(&key).await?;
 
-        let local_accounts = LocalAccounts::new(&self.paths);
+        let local_accounts = AccountsList::new(&self.paths);
 
         // Check for existing identifier
         let vaults = local_accounts.list_local_vaults(false).await?;
@@ -1497,7 +1497,7 @@ impl<D> Account<D> {
         use sos_migrate::export::PublicExport;
         use std::io::Cursor;
 
-        let local_accounts = LocalAccounts::new(&self.paths);
+        let local_accounts = AccountsList::new(&self.paths);
 
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
@@ -1622,7 +1622,7 @@ impl<D> Account<D> {
     ) -> Result<(Event, Summary)> {
         use sos_sdk::vault::VaultBuilder;
 
-        let local_accounts = LocalAccounts::new(&self.paths);
+        let local_accounts = AccountsList::new(&self.paths);
 
         let vaults = local_accounts.list_local_vaults(false).await?;
         let existing_name =
@@ -1703,7 +1703,7 @@ impl<D> Account<D> {
     ) -> Result<Inventory> {
         let mut inventory =
             AccountBackup::restore_archive_inventory(buffer).await?;
-        let accounts = LocalAccounts::list_accounts(None).await?;
+        let accounts = AccountsList::list_accounts(None).await?;
         let exists_local = accounts
             .iter()
             .any(|account| account.address() == &inventory.manifest.address);

@@ -22,7 +22,7 @@ pub use account::{
 };
 pub use builder::{AccountBuilder, NewAccount};
 pub use identity::{AccountStatus, Identity};
-pub use local::{AccountInfo, AccountRef, LocalAccounts};
+pub use local::{AccountInfo, AccountRef, AccountsList};
 pub use login::{AuthenticatedUser, DeviceSigner};
 pub use passphrase::DelegatedPassphrase;
 pub use paths::UserPaths;

@@ -9,7 +9,7 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    account::{AccountInfo, DelegatedPassphrase, LocalAccounts, UserPaths},
+    account::{AccountInfo, DelegatedPassphrase, AccountsList, UserPaths},
     constants::{DEVICE_KEY_URN, VAULT_EXT},
     crypto::AccessKey,
     encode,
@@ -200,7 +200,7 @@ impl Login {
         let span = span!(Level::DEBUG, "login");
         let _enter = span.enter();
 
-        let accounts = LocalAccounts::list_accounts(Some(paths)).await?;
+        let accounts = AccountsList::list_accounts(Some(paths)).await?;
         let account = accounts
             .into_iter()
             .find(|a| a.address() == address)
@@ -235,7 +235,7 @@ impl Login {
         paths: &UserPaths,
         user: &mut UserIdentity,
     ) -> Result<DeviceSigner> {
-        let local_accounts = LocalAccounts::new(paths);
+        let local_accounts = AccountsList::new(paths);
 
         let vaults = local_accounts.list_local_vaults(true).await?;
         let device_vault = vaults.into_iter().find_map(|(summary, _)| {

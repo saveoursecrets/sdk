@@ -1,6 +1,6 @@
 //! Support for importing and exporting account contacts.
 use crate::{
-    account::{Account, DelegatedPassphrase, LocalAccounts},
+    account::{Account, DelegatedPassphrase, AccountsList},
     events::{AuditData, AuditEvent, EventKind},
     vault::{
         secret::{Secret, SecretId, SecretMeta},
@@ -90,7 +90,7 @@ impl<D> Account<D> {
         &mut self,
         path: P,
     ) -> Result<()> {
-        let local_accounts = LocalAccounts::new(&self.paths);
+        let local_accounts = AccountsList::new(&self.paths);
 
         let contacts = self
             .contacts_folder()

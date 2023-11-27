@@ -91,11 +91,11 @@ impl FromStr for AccountRef {
 }
 
 /// Inspect the local accounts directory.
-pub struct LocalAccounts<'a> {
+pub struct AccountsList<'a> {
     paths: &'a UserPaths,
 }
 
-impl<'a> LocalAccounts<'a> {
+impl<'a> AccountsList<'a> {
     /// Create new local accounts.
     pub fn new(paths: &'a UserPaths) -> Self {
         Self { paths }
