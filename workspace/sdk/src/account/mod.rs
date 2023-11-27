@@ -21,7 +21,7 @@ pub use account::{
     LocalAccount,
 };
 pub use builder::{AccountBuilder, NewAccount};
-pub use identity::{AccountStatus, Identity};
+pub use identity::AccountStatus;
 pub use local::{AccountInfo, AccountRef, AccountsList};
 pub use login::{AuthenticatedUser, DeviceSigner};
 pub use paths::UserPaths;
