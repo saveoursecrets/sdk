@@ -450,40 +450,6 @@ impl UserStorage {
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        /*
-        let passphrase = DelegatedPassword::generate_folder_password()?;
-        let key = AccessKey::Password(passphrase);
-        let (buffer, _, summary) = {
-            let mut writer = self.storage.write().await;
-            writer.create_vault(name, Some(key.clone())).await?
-        };
-
-        let secret_key = self.user.identity().signer().to_bytes();
-        let secure_key =
-            SecureAccessKey::encrypt(&key, secret_key, None).await?;
-
-        DelegatedPassword::save_folder_password(
-            self.user.identity().keeper(),
-            summary.id(),
-            key,
-        )
-        .await?;
-
-        let event = Event::Account(AccountEvent::CreateFolder(*summary.id()));
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
-
-        let options = AccessOptions {
-            folder: Some(summary),
-            ..Default::default()
-        };
-        let (summary, before_last_commit, before_commit_proof) =
-            self.before_apply_events(&options, false).await?;
-
-        //let (_, event) = event.try_into()?;
-        let event = WriteEvent::CreateVault(buffer);
-        */
-
         let (summary, event, commit_state, secure_key) =
             self.account.create_folder(name).await?;
 
@@ -588,69 +554,6 @@ impl UserStorage {
     pub async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
         Ok(self.account.open_folder(summary).await?)
     }
-
-    /*
-    /// Helper to get all the state information needed
-    /// before calling sync methods.
-    ///
-    /// Computes the target folder that will be used, the last commit
-    /// hash and the proof for the current head of the events log.
-    async fn before_apply_events(
-        &self,
-        options: &AccessOptions,
-        apply_changes: bool,
-    ) -> Result<(Summary, Option<CommitHash>, CommitProof)> {
-        let (folder, mut last_commit, mut commit_proof) = {
-            let reader = self.storage.read().await;
-            let folder = options
-                .folder
-                .clone()
-                .or_else(|| reader.current().map(|g| g.summary().clone()))
-                .ok_or(Error::NoOpenFolder)?;
-
-            let event_log = reader
-                .cache()
-                .get(folder.id())
-                .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            let last_commit = event_log.last_commit().await?;
-            let commit_proof = event_log.tree().head()?;
-            (folder, last_commit, commit_proof)
-        };
-
-        // Most sync events should try to apply remote changes
-        // beforehand but some (such as creating new folders) should
-        // not as it would just result in a 404
-        if apply_changes {
-            match self
-                .sync_before_apply_change(
-                    &folder,
-                    last_commit.as_ref(),
-                    &commit_proof,
-                )
-                .await
-            {
-                Ok(changed) => {
-                    // If changes were made we need to re-compute the
-                    // proof and last commit
-                    if changed {
-                        let reader = self.storage.read().await;
-                        let event_log = reader
-                            .cache()
-                            .get(folder.id())
-                            .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-                        last_commit = event_log.last_commit().await?;
-                        commit_proof = event_log.tree().head()?;
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(error = ?e, "failed to sync before change");
-                }
-            }
-        }
-
-        Ok((folder, last_commit, commit_proof))
-    }
-    */
 
     /// Create a secret in the current open folder or a specific folder.
     pub async fn create_secret(
@@ -1014,40 +917,6 @@ impl UserStorage {
         Ok((event, summary))
     }
 
-    /// Create a backup archive containing the
-    /// encrypted data for the account.
-    pub async fn export_backup_archive<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<()> {
-        Ok(self.account.export_backup_archive(path).await?)
-    }
-
-    /// Read the inventory from an archive.
-    pub async fn restore_archive_inventory<
-        R: AsyncRead + AsyncSeek + Unpin,
-    >(
-        buffer: R,
-    ) -> Result<Inventory> {
-        Ok(LocalAccount::restore_archive_inventory(buffer).await?)
-    }
-
-    /// Import from an archive file.
-    pub async fn restore_backup_archive<P: AsRef<Path>>(
-        owner: Option<&mut UserStorage>,
-        path: P,
-        options: RestoreOptions,
-        data_dir: Option<PathBuf>,
-    ) -> Result<AccountInfo> {
-        Ok(LocalAccount::restore_backup_archive(
-            owner.map(|o| &mut o.account),
-            path,
-            options,
-            data_dir,
-        )
-        .await?)
-    }
-
     /// Create a detached view of an event log until a
     /// particular commit.
     ///
@@ -1107,6 +976,44 @@ impl UserStorage {
     }
 }
 
+#[cfg(feature = "archive")]
+impl UserStorage {
+    /// Create a backup archive containing the
+    /// encrypted data for the account.
+    pub async fn export_backup_archive<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<()> {
+        Ok(self.account.export_backup_archive(path).await?)
+    }
+
+    /// Read the inventory from an archive.
+    pub async fn restore_archive_inventory<
+        R: AsyncRead + AsyncSeek + Unpin,
+    >(
+        buffer: R,
+    ) -> Result<Inventory> {
+        Ok(LocalAccount::restore_archive_inventory(buffer).await?)
+    }
+
+    /// Import from an archive file.
+    pub async fn restore_backup_archive<P: AsRef<Path>>(
+        owner: Option<&mut UserStorage>,
+        path: P,
+        options: RestoreOptions,
+        data_dir: Option<PathBuf>,
+    ) -> Result<AccountInfo> {
+        Ok(LocalAccount::restore_backup_archive(
+            owner.map(|o| &mut o.account),
+            path,
+            options,
+            data_dir,
+        )
+        .await?)
+    }
+
+}
+
 #[cfg(feature = "contacts")]
 impl UserStorage {
     /// Get an avatar JPEG image for a contact in the current
@@ -1149,14 +1056,6 @@ impl UserStorage {
         Ok(self.account.import_vcard(content, progress).await?)
     }
 }
-
-/*
-impl From<UserStorage> for Arc<RwLock<FolderStorage>> {
-    fn from(value: UserStorage) -> Self {
-        value.account.into()
-    }
-}
-*/
 
 #[async_trait]
 impl RemoteSync for UserStorage {
@@ -1240,41 +1139,6 @@ impl RemoteSync for UserStorage {
             Err(SyncError::Multiple(errors))
         }
     }
-
-    /*
-    async fn sync_before_apply_change(
-        &self,
-        folder: &Summary,
-        last_commit: &CommitHash,
-        client_proof: &CommitProof,
-    ) -> Result<bool> {
-        let mut changed = false;
-        let mut last_commit = last_commit.clone();
-        let mut client_proof = client_proof.clone();
-
-        let _ = self.sync_lock.lock().await;
-        for remote in self.remotes.values() {
-            let local_changed = remote
-                .sync_before_apply_change(folder, &last_commit, &client_proof)
-                .await?;
-
-            // If a remote changes were applied to local
-            // we need to recompute the last commit and client proof
-            if local_changed {
-                let reader = self.storage.read().await;
-                let event_log = reader
-                    .cache()
-                    .get(folder.id())
-                    .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-                last_commit = event_log.last_commit().await?;
-                client_proof = event_log.tree().head()?;
-            }
-
-            changed = changed || local_changed;
-        }
-        Ok(changed)
-    }
-    */
 
     async fn sync_send_events(
         &self,

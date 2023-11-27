@@ -1,7 +1,7 @@
 //! Storage provider backed by the local filesystem.
 use crate::{
     account::{
-        archive::RestoreTargets, search::SearchIndex, AccountStatus,
+        search::SearchIndex, AccountStatus,
         NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitTree},
@@ -24,6 +24,9 @@ use crate::{
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use tokio::sync::RwLock;
+
+#[cfg(feature = "archive")]
+use crate::account::archive::RestoreTargets;
 
 /// Manages multiple folders loaded into memory and mirrored to disc.
 pub struct FolderStorage {
@@ -173,6 +176,7 @@ impl FolderStorage {
     /// Restore vaults from an archive.
     ///
     /// Buffer is the compressed archive contents.
+    #[cfg(feature = "archive")]
     pub async fn restore_archive(
         &mut self,
         targets: &RestoreTargets,

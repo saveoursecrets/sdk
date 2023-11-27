@@ -314,41 +314,6 @@ impl AccountBackup {
         Ok((size, checksum.as_slice().try_into()?))
     }
 
-    /// Export a vault by changing the vault passphrase and
-    /// converting it to a buffer.
-    ///
-    /// The identity vault must be unlocked so we can retrieve
-    /// the passphrase for the target vault.
-    pub async fn export_vault(
-        _address: &Address,
-        paths: &UserPaths,
-        identity: Arc<RwLock<Gatekeeper>>,
-        vault_id: &VaultId,
-        new_passphrase: AccessKey,
-    ) -> Result<Vec<u8>> {
-        // Get the current vault passphrase from the identity vault
-        let current_passphrase =
-            DelegatedPassword::find_folder_password(identity, vault_id)
-                .await?;
-
-        // Find the local vault for the account
-        let local_accounts = AccountsList::new(paths);
-        let (vault, _) =
-            local_accounts.find_local_vault(vault_id, false).await?;
-
-        // Change the password before exporting
-        let (_, vault, _) = ChangePassword::new(
-            &vault,
-            current_passphrase,
-            new_passphrase,
-            None,
-        )
-        .build()
-        .await?;
-
-        encode(&vault).await
-    }
-
     /// Create a buffer for a zip archive including the
     /// identity vault and all user vaults.
     pub async fn export_archive_buffer(

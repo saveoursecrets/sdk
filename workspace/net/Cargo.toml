@@ -10,6 +10,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 [features]
 default = []
 full = [
+  "archive",
   "client",
   "server",
   "hashcheck",
@@ -32,6 +33,7 @@ server = [
   "tokio-stream",
 ]
 hashcheck = []
+archive = ["sos-sdk/archive"]
 contacts = ["sos-sdk/contacts"]
 migrate = ["sos-migrate"]
 device = [
