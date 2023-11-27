@@ -6,14 +6,12 @@ use sos_net::sdk::{
     account::{
         archive::{AccountBackup, ExtractFilesLocation, RestoreOptions},
         files::FileStorage,
-        Account, CreatedAccount, DelegatedPassphrase, LocalAccounts,
-        LocalProvider, NewAccount,
+        Account, DelegatedPassphrase, LocalAccounts,
+        LocalProvider,
     },
-    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     hex,
     passwd::diceware::generate_passphrase,
     search::SearchIndex,
-    urn::Urn,
     vault::{secret::SecretId, Gatekeeper, VaultId},
     vfs,
 };
@@ -31,7 +29,7 @@ async fn integration_account_manager() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (passphrase, _) = generate_passphrase()?;
 
-    let (mut account, imported_account, new_account) =
+    let (mut account, new_account) =
         Account::<()>::new_account(
             account_name.clone(),
             passphrase.clone(),
@@ -42,50 +40,6 @@ async fn integration_account_manager() -> Result<()> {
 
     account.sign_in(passphrase.clone()).await?;
 
-    /*
-    let new_account = AccountBuilder::new(
-        account_name.clone(),
-        passphrase.clone(),
-        Some(test_data_dir.clone()),
-    )
-    .save_passphrase(true)
-    .create_archive(true)
-    .create_authenticator(true)
-    .create_contacts(true)
-    .create_file_password(true)
-    .default_folder_name(folder_name)
-    .finish()
-    .await?;
-
-    // Create local provider
-    let signer = new_account.user.signer().clone();
-    let mut provider = LocalProvider::new(
-        signer.address()?.to_string(),
-        Some(test_data_dir.clone()),
-    )
-    .await?;
-
-    let (imported_account, _) =
-        provider.import_new_account(&new_account).await?;
-
-    let NewAccount { address, .. } = new_account;
-    let CreatedAccount { summary, .. } = imported_account;
-
-    let paths = UserPaths::new(test_data_dir.clone(), &address.to_string());
-    let local_accounts = LocalAccounts::new(&paths);
-    let accounts = LocalAccounts::list_accounts(Some(&paths)).await?;
-    assert_eq!(1, accounts.len());
-
-    let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
-    let mut user = Login::sign_in(
-        &address,
-        &paths,
-        passphrase.clone(),
-        Arc::clone(&identity_index),
-    )
-    .await?;
-    */
-
     account
         .rename_account("New account name".to_string())
         .await?;
@@ -95,8 +49,9 @@ async fn integration_account_manager() -> Result<()> {
     let accounts = LocalAccounts::list_accounts(Some(&paths)).await?;
     assert_eq!(1, accounts.len());
     let user = account.user()?;
-    let NewAccount { address, .. } = new_account;
-    let CreatedAccount { summary, .. } = imported_account;
+        
+    let address = new_account.address.clone();
+    let summary = new_account.default_folder().clone();
 
     {
         let keeper = user.identity().keeper();

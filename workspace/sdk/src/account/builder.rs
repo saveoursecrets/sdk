@@ -27,7 +27,7 @@ use super::{
 
 use secrecy::SecretString;
 
-/// Newly created account information.
+/// Information about a new account.
 pub struct NewAccount {
     /// Directory for the new account.
     pub data_dir: Option<PathBuf>,
@@ -36,7 +36,7 @@ pub struct NewAccount {
     /// Identity for the new user.
     pub user: UserIdentity,
     /// Default vault.
-    pub default_vault: Vault,
+    pub default_folder: Vault,
     /// Archive vault.
     pub archive: Option<Vault>,
     /// Authenticator vault.
@@ -45,20 +45,12 @@ pub struct NewAccount {
     pub contacts: Option<Vault>,
 }
 
-/// New account vaults that have been imported into
-/// a storage provider.
-pub struct CreatedAccount {
-    /// Summary for the default folder.
-    pub summary: Summary,
-    /// Sumary for an archive if the new account
-    /// includes an archive folder.
-    pub archive: Option<Summary>,
-    /// Sumary for an authenticator if the new account
-    /// includes an authenticator folder.
-    pub authenticator: Option<Summary>,
-    /// Sumary for contacts if the new account
-    /// includes a contacts folder.
-    pub contacts: Option<Summary>,
+impl NewAccount {
+    
+    /// Summary of the default folder.
+    pub fn default_folder(&self) -> &Summary {
+        self.default_folder.summary()
+    }
 }
 
 /// Create a new account.
@@ -169,12 +161,12 @@ impl AccountBuilder {
         if let Some(name) = default_folder_name.take() {
             builder = builder.public_name(name);
         }
-        let mut default_vault =
+        let mut default_folder =
             builder.password(vault_passphrase.clone(), None).await?;
 
         // Save the master passphrase in the default vault
         if save_passphrase {
-            let mut keeper = Gatekeeper::new(default_vault, None);
+            let mut keeper = Gatekeeper::new(default_folder, None);
             keeper.unlock(vault_passphrase.clone().into()).await?;
 
             let secret = Secret::Account {
@@ -190,7 +182,7 @@ impl AccountBuilder {
             meta.set_favorite(true);
             keeper.create(meta, secret).await?;
 
-            default_vault = keeper.into();
+            default_folder = keeper.into();
         }
 
         // Unlock the vault so we can write to it
@@ -201,7 +193,7 @@ impl AccountBuilder {
 
         DelegatedPassphrase::save_vault_passphrase(
             Arc::clone(&keeper),
-            default_vault.id(),
+            default_folder.id(),
             AccessKey::Password(vault_passphrase),
         )
         .await?;
@@ -302,7 +294,7 @@ impl AccountBuilder {
                 data_dir,
                 address,
                 user,
-                default_vault,
+                default_folder,
                 archive,
                 authenticator,
                 contacts,

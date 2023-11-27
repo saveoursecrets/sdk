@@ -20,7 +20,7 @@ pub use account::{
     Account, AccountData, AccountHandler, DetachedView, SecretOptions,
     UserStatistics,
 };
-pub use builder::{AccountBuilder, CreatedAccount, NewAccount};
+pub use builder::{AccountBuilder, NewAccount};
 pub use identity::{AccountStatus, Identity};
 pub use local::{AccountInfo, AccountRef, LocalAccounts};
 pub use login::{AuthenticatedUser, DeviceSigner};

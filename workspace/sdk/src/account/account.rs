@@ -16,7 +16,7 @@ use crate::{
             AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
         },
         login::Login,
-        AccountBuilder, AccountInfo, AuthenticatedUser, CreatedAccount,
+        AccountBuilder, AccountInfo, AuthenticatedUser, 
         DelegatedPassphrase, LocalAccounts, LocalProvider, NewAccount,
         UserPaths,
     },
@@ -223,7 +223,7 @@ impl<D> Account<D> {
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
         handler: Option<Handler<D>>,
-    ) -> Result<(Self, CreatedAccount, NewAccount)> {
+    ) -> Result<(Self, NewAccount)> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
@@ -250,7 +250,7 @@ impl<D> Account<D> {
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
         handler: Option<Handler<D>>,
-    ) -> Result<(Self, CreatedAccount, NewAccount)> {
+    ) -> Result<(Self, NewAccount)> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
 
@@ -271,7 +271,7 @@ impl<D> Account<D> {
 
         tracing::debug!("prepared storage provider");
 
-        let (imported_account, events) =
+        let events =
             storage.import_new_account(&new_account).await?;
 
         tracing::debug!("imported new account");
@@ -295,18 +295,6 @@ impl<D> Account<D> {
             handler,
         };
 
-        /*
-        let owner = Account::sign_in(
-            new_account.user.address(),
-            passphrase,
-            data_dir,
-            handler,
-        )
-        .await?;
-
-        tracing::debug!("signed in new user");
-        */
-
         let mut audit_events = Vec::new();
         for event in events {
             let audit_event: AuditEvent =
@@ -315,7 +303,7 @@ impl<D> Account<D> {
         }
         owner.append_audit_logs(audit_events).await?;
 
-        Ok((owner, imported_account, new_account))
+        Ok((owner, new_account))
     }
 
     /// Authenticated user information.

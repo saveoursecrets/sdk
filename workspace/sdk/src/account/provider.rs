@@ -1,7 +1,7 @@
 //! Storage provider backed by the local filesystem.
 use crate::{
     account::{
-        archive::RestoreTargets, AccountStatus, CreatedAccount, NewAccount,
+        archive::RestoreTargets, AccountStatus, NewAccount,
         UserPaths,
     },
     commit::{CommitHash, CommitTree},
@@ -135,7 +135,7 @@ impl LocalProvider {
     pub async fn import_new_account(
         &mut self,
         account: &NewAccount,
-    ) -> Result<(CreatedAccount, Vec<Event>)> {
+    ) -> Result<Vec<Event>> {
         let mut events = Vec::new();
 
         events.push(Event::CreateAccount(AuditEvent::new(
@@ -145,48 +145,29 @@ impl LocalProvider {
         )));
 
         // Save the default vault
-        let buffer = encode(&account.default_vault).await?;
-
+        let buffer = encode(&account.default_folder).await?;
         let (event, summary) = self.upsert_vault_buffer(buffer).await?;
         events.push(Event::Write(*summary.id(), event));
 
-        let archive = if let Some(archive_vault) = &account.archive {
+        if let Some(archive_vault) = &account.archive {
             let buffer = encode(archive_vault).await?;
             let (event, summary) = self.import_vault(buffer).await?;
             events.push(Event::Write(*summary.id(), event));
-            Some(summary)
-        } else {
-            None
-        };
+        }
 
-        let authenticator =
-            if let Some(authenticator_vault) = &account.authenticator {
-                let buffer = encode(authenticator_vault).await?;
-                let (event, summary) = self.import_vault(buffer).await?;
-                events.push(Event::Write(*summary.id(), event));
-                Some(summary)
-            } else {
-                None
-            };
+        if let Some(authenticator_vault) = &account.authenticator {
+            let buffer = encode(authenticator_vault).await?;
+            let (event, summary) = self.import_vault(buffer).await?;
+            events.push(Event::Write(*summary.id(), event));
+        }
 
-        let contacts = if let Some(contact_vault) = &account.contacts {
+        if let Some(contact_vault) = &account.contacts {
             let buffer = encode(contact_vault).await?;
             let (event, summary) = self.import_vault(buffer).await?;
             events.push(Event::Write(*summary.id(), event));
-            Some(summary)
-        } else {
-            None
-        };
+        }
 
-        Ok((
-            CreatedAccount {
-                summary,
-                archive,
-                authenticator,
-                contacts,
-            },
-            events,
-        ))
+        Ok(events)
     }
 
     /// Restore vaults from an archive.

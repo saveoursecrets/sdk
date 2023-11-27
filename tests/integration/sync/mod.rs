@@ -131,7 +131,7 @@ pub async fn simulate_device(
     let dirs = setup(test_id, num_clients).await?;
     let data_dir = dirs.clients.get(0).unwrap().clone();
 
-    let (mut owner, _, default_folder, password) =
+    let (mut owner, default_folder, password) =
         create_local_account(test_id, Some(data_dir.clone())).await?;
 
     // Folders on the local account must be loaded into memory

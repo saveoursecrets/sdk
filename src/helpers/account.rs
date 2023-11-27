@@ -328,7 +328,7 @@ pub async fn new_account(
             display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
 
-        let (mut owner, _, _) = UserStorage::new_account(
+        let (mut owner, _) = UserStorage::new_account(
             account_name.clone(),
             passphrase.clone(),
             None,

@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use sha3::{Digest, Sha3_256};
-use std::{borrow::Cow, io::Write};
+use std::io::Write;
 use uuid::Uuid;
 
 use crate::events::FolderEventLog;

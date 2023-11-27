@@ -16,7 +16,7 @@ use sos_sdk::{
         },
         search::UserIndex,
         Account, AccountBuilder, AccountData, AccountHandler, AccountInfo,
-        AuthenticatedUser, CreatedAccount, DelegatedPassphrase, DetachedView,
+        AuthenticatedUser, DelegatedPassphrase, DetachedView,
         LocalAccounts, LocalProvider, NewAccount, SecretOptions, UserPaths,
         UserStatistics,
     },
@@ -215,7 +215,7 @@ impl UserStorage {
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
-    ) -> Result<(Self, CreatedAccount, NewAccount)> {
+    ) -> Result<(Self, NewAccount)> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
@@ -242,13 +242,13 @@ impl UserStorage {
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
-    ) -> Result<(Self, CreatedAccount, NewAccount)> {
+    ) -> Result<(Self, NewAccount)> {
         let remotes = Arc::new(RwLock::new(remotes.unwrap_or_default()));
         let handler = SyncHandler {
             remotes: Arc::clone(&remotes),
         };
 
-        let (account, imported_account, new_account) =
+        let (account, new_account) =
             LocalAccount::new_account_with_builder(
                 account_name,
                 passphrase.clone(),
@@ -269,29 +269,7 @@ impl UserStorage {
             listeners: Mutex::new(Default::default()),
         };
 
-        // TODO: don't automatically sign in on new account?
-
-        /*
-        let owner = Self::sign_in(
-            new_account.user.address(),
-            passphrase,
-            data_dir.clone(),
-        )
-        .await?;
-        */
-
-        /*
-        let owner = Self {
-            account,
-            #[cfg(feature = "device")]
-            devices: DeviceManager::new(devices_dir)?,
-            remotes,
-            sync_lock: Mutex::new(()),
-            listeners: Mutex::new(Default::default()),
-        };
-        */
-
-        Ok((owner, imported_account, new_account))
+        Ok((owner, new_account))
     }
 
     /// Determine if the account is authenticated.

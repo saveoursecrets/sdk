@@ -24,7 +24,7 @@ async fn integration_audit_trail() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
-    let (mut owner, _, summary, passphrase) =
+    let (mut owner, summary, passphrase) =
         create_local_account("audit_trail", Some(test_data_dir.clone()))
             .await?;
 

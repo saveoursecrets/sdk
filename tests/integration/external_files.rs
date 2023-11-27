@@ -33,7 +33,7 @@ async fn integration_external_files() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
-    let (mut owner, _, summary, _) =
+    let (mut owner, summary, _) =
         create_local_account("external_files", Some(test_data_dir)).await?;
 
     let operations: Arc<Mutex<Vec<FileProgress>>> =

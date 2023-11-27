@@ -21,7 +21,7 @@ async fn integration_security_report() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
-    let (mut owner, _, summary, passphrase) =
+    let (mut owner, summary, passphrase) =
         create_local_account("security_report", Some(test_data_dir)).await?;
 
     // Make changes to generate data
