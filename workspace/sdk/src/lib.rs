@@ -29,7 +29,7 @@ pub mod search;
 pub mod signer;
 mod timestamp;
 pub mod vault;
-pub mod vfs;
+//pub mod vfs;
 
 #[cfg(all(not(doc), any(test, feature = "test-utils")))]
 pub mod test_utils;
@@ -53,6 +53,7 @@ pub use url;
 pub use urn;
 pub use uuid;
 pub use vcard4;
+pub use sos_vfs as vfs;
 pub use zxcvbn;
 
 /// Result type for the core library.

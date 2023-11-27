@@ -4081,6 +4081,7 @@ dependencies = [
  "sha1",
  "sha2",
  "sha3",
+ "sos-vfs 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "subtle",
  "tempfile",
  "thiserror",
@@ -4100,6 +4101,22 @@ dependencies = [
  "web3-signature",
  "zeroize",
  "zxcvbn",
+]
+
+[[package]]
+name = "sos-vfs"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
+name = "sos-vfs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "526fc024c0ede36f4a7d37e6fee8b1a97e975304758a9b12db2bfa20f10ff4c9"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]
