@@ -342,14 +342,14 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
             let owner = user.read().await;
             println!(
                 "{} {}",
-                owner.user().account().label(),
-                owner.user().identity().address()
+                owner.user()?.account().label(),
+                owner.user()?.identity().address()
             );
             Ok(())
         }
         ShellCommand::Pwd => {
             let owner = user.read().await;
-            let storage = owner.storage();
+            let storage = owner.storage()?;
             let reader = storage.read().await;
             if let Some(current) = reader.current() {
                 println!(
@@ -362,7 +362,7 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
         }
         ShellCommand::Quit => {
             let mut owner = user.write().await;
-            owner.sign_out().await;
+            owner.sign_out().await?;
             std::process::exit(0);
         }
     }

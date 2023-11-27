@@ -14,9 +14,8 @@ use sos_sdk::{
         archive::Inventory, Account, AccountBackup, AccountBuilder,
         AccountData, AccountHandler, AccountInfo, AuthenticatedUser,
         CreatedAccount, DelegatedPassphrase, DetachedView,
-        ExtractFilesLocation, LocalAccounts, LocalProvider, Login,
-        NewAccount, RestoreOptions, SecretOptions, UserIndex, UserPaths,
-        UserStatistics,
+        ExtractFilesLocation, LocalAccounts, LocalProvider, NewAccount,
+        RestoreOptions, SecretOptions, UserIndex, UserPaths, UserStatistics,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -168,6 +167,38 @@ pub struct UserStorage {
 }
 
 impl UserStorage {
+    /// Prepare an account for sign in.
+    ///
+    /// After preparing an account call `sign_in`
+    /// to authenticate a user.
+    pub async fn new_unauthenticated(
+        address: Address,
+        data_dir: Option<PathBuf>,
+        remotes: Option<Remotes>,
+    ) -> Result<Self> {
+        let remotes = Arc::new(RwLock::new(remotes.unwrap_or_default()));
+        let handler = SyncHandler {
+            remotes: Arc::clone(&remotes),
+        };
+
+        let account = LocalAccount::new_unauthenticated(
+            address,
+            data_dir,
+            Some(Box::new(handler)),
+        )
+        .await?;
+        let devices_dir = account.paths().devices_dir().clone();
+
+        Ok(Self {
+            account,
+            #[cfg(feature = "device")]
+            devices: DeviceManager::new(devices_dir)?,
+            remotes,
+            sync_lock: Mutex::new(()),
+            listeners: Mutex::new(Default::default()),
+        })
+    }
+
     /// Create a new account with the given
     /// name, passphrase and provider.
     ///
@@ -224,14 +255,25 @@ impl UserStorage {
 
         let devices_dir = account.paths().devices_dir().clone();
 
+        let owner = Self {
+            account,
+            #[cfg(feature = "device")]
+            devices: DeviceManager::new(devices_dir)?,
+            remotes,
+            sync_lock: Mutex::new(()),
+            listeners: Mutex::new(Default::default()),
+        };
+
         // TODO: don't automatically sign in on new account?
 
+        /*
         let owner = Self::sign_in(
             new_account.user.address(),
             passphrase,
             data_dir.clone(),
         )
         .await?;
+        */
 
         /*
         let owner = Self {
@@ -247,19 +289,24 @@ impl UserStorage {
         Ok((owner, imported_account, new_account))
     }
 
+    /// Determine if the account is authenticated.
+    pub fn is_authenticated(&self) -> bool {
+        self.account.is_authenticated()
+    }
+
     /// Authenticated user information.
-    pub fn user(&self) -> &AuthenticatedUser {
-        self.account.user()
+    pub fn user(&self) -> Result<&AuthenticatedUser> {
+        Ok(self.account.user()?)
     }
 
     /// Mutable authenticated user information.
-    pub fn user_mut(&mut self) -> &mut AuthenticatedUser {
-        self.account.user_mut()
+    pub fn user_mut(&mut self) -> Result<&mut AuthenticatedUser> {
+        Ok(self.account.user_mut()?)
     }
 
     /// Storage provider.
-    pub fn storage(&self) -> Arc<RwLock<LocalProvider>> {
-        self.account.storage()
+    pub fn storage(&self) -> Result<Arc<RwLock<LocalProvider>>> {
+        Ok(self.account.storage()?)
     }
 
     /// Create a remote bridge associated with this local storage and
@@ -269,8 +316,8 @@ impl UserStorage {
         origin: &Origin,
     ) -> Result<RemoteBridge> {
         let keypair = generate_keypair()?;
-        let signer = self.account.user().identity().signer().clone();
-        let local = self.storage();
+        let signer = self.user()?.identity().signer().clone();
+        let local = self.storage()?;
         let provider =
             RemoteBridge::new(local, origin.clone(), signer, keypair)?;
 
@@ -303,21 +350,21 @@ impl UserStorage {
     }
 
     /// File storage directory.
+    #[deprecated(note = "Use paths() instead")]
     pub fn files_dir(&self) -> &PathBuf {
         self.account.files_dir()
     }
 
-    /// User identity address.
+    /// Account address.
     pub fn address(&self) -> &Address {
         self.account.address()
     }
 
-    /// Sign in to an existing account.
-    pub async fn sign_in(
-        address: &Address,
-        passphrase: SecretString,
-        data_dir: Option<PathBuf>,
-    ) -> Result<Self> {
+    /// Sign in to an account.
+    pub async fn sign_in(&mut self, passphrase: SecretString) -> Result<()> {
+        Ok(self.account.sign_in(passphrase).await?)
+
+        /*
         let remotes = Arc::new(RwLock::new(Default::default()));
         // TODO: load existing remote definitions from disc
         let handler = SyncHandler {
@@ -341,6 +388,7 @@ impl UserStorage {
             sync_lock: Mutex::new(()),
             listeners: Mutex::new(Default::default()),
         })
+        */
     }
 
     /// User storage paths.
@@ -449,7 +497,7 @@ impl UserStorage {
     }
 
     /// Sign out of the account.
-    pub async fn sign_out(&mut self) {
+    pub async fn sign_out(&mut self) -> Result<()> {
         let span = span!(Level::DEBUG, "sign_out");
         let _enter = span.enter();
 
@@ -464,7 +512,7 @@ impl UserStorage {
             }
         }
 
-        self.account.sign_out().await;
+        Ok(self.account.sign_out().await?)
     }
 
     /// Create a folder.
@@ -823,13 +871,13 @@ impl UserStorage {
     }
 
     /// Search index reference.
-    pub fn index(&self) -> &UserIndex {
-        self.account.index()
+    pub fn index(&self) -> Result<&UserIndex> {
+        Ok(self.account.index()?)
     }
 
     /// Mutable search index reference.
-    pub fn index_mut(&mut self) -> &mut UserIndex {
-        self.account.index_mut()
+    pub fn index_mut(&mut self) -> Result<&mut UserIndex> {
+        Ok(self.account.index_mut()?)
     }
 
     /// Initialize the search index.
@@ -870,7 +918,7 @@ impl UserStorage {
                 local_accounts.find_local_vault(summary.id(), false).await?;
             let vault_passphrase =
                 DelegatedPassphrase::find_vault_passphrase(
-                    self.account.user().identity().keeper(),
+                    self.user()?.identity().keeper(),
                     summary.id(),
                 )
                 .await?;
@@ -885,8 +933,7 @@ impl UserStorage {
         }
 
         let mut files = HashMap::new();
-        let buffer =
-            serde_json::to_vec_pretty(self.account.user().account())?;
+        let buffer = serde_json::to_vec_pretty(self.user()?.account())?;
         files.insert("account.json", buffer.as_slice());
         migration.append_files(files).await?;
         migration.finish().await?;
@@ -1020,20 +1067,20 @@ impl UserStorage {
 
         let buffer = encode(&vault).await?;
         let (event, summary) = {
-            let storage = self.account.storage();
+            let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer.import_vault(buffer).await?
         };
 
         DelegatedPassphrase::save_vault_passphrase(
-            self.account.user().identity().keeper(),
+            self.user()?.identity().keeper(),
             vault.id(),
             vault_passphrase.clone().into(),
         )
         .await?;
 
         // Ensure the imported secrets are in the search index
-        self.index_mut()
+        self.index_mut()?
             .add_folder_to_search_index(vault, vault_passphrase.into())
             .await?;
 
@@ -1178,11 +1225,13 @@ impl UserStorage {
     }
 }
 
+/*
 impl From<UserStorage> for Arc<RwLock<LocalProvider>> {
     fn from(value: UserStorage) -> Self {
         value.account.into()
     }
 }
+*/
 
 #[async_trait]
 impl RemoteSync for UserStorage {
@@ -1389,64 +1438,66 @@ mod listen {
             mut rx: UserStorageReceiver,
             tx: UserStorageSender,
         ) {
-            let keeper = self.account.user().identity().keeper();
-            let secret_key =
-                self.account.user().identity().signer().to_bytes();
+            if self.account.is_authenticated() {
+                let user = self.user().unwrap();
+                let keeper = user.identity().keeper();
+                let secret_key = user.identity().signer().to_bytes();
 
-            // TODO: needs shutdown hook so this loop exits
-            // TODO: when the websocket connection is closed
-            tokio::task::spawn(async move {
-                loop {
-                    select!(
-                        event = rx
-                            .secure_access_key_rx
-                            .recv()
-                            .fuse() => {
-                            if let Some((folder_id, secure_key)) = event {
+                // TODO: needs shutdown hook so this loop exits
+                // TODO: when the websocket connection is closed
+                tokio::task::spawn(async move {
+                    loop {
+                        select!(
+                            event = rx
+                                .secure_access_key_rx
+                                .recv()
+                                .fuse() => {
+                                if let Some((folder_id, secure_key)) = event {
 
-                                // Decrypt the secure access key received
-                                // when creating or importing a folder,
-                                // must be done here as the remote bridge
-                                // does not have access to the private key
-                                // (account signing key)
-                                let access_key = SecureAccessKey::decrypt(
-                                    &secure_key,
-                                    secret_key.clone(),
-                                )
-                                .await?;
+                                    // Decrypt the secure access key received
+                                    // when creating or importing a folder,
+                                    // must be done here as the remote bridge
+                                    // does not have access to the private key
+                                    // (account signing key)
+                                    let access_key = SecureAccessKey::decrypt(
+                                        &secure_key,
+                                        secret_key.clone(),
+                                    )
+                                    .await?;
 
-                                // Save the access key for the synced folder
-                                let identity = Arc::clone(&keeper);
-                                DelegatedPassphrase::save_vault_passphrase(
-                                    identity,
-                                    &folder_id,
-                                    access_key.clone(),
-                                )
-                                .await?;
+                                    // Save the access key for the synced folder
+                                    let identity = Arc::clone(&keeper);
+                                    DelegatedPassphrase::save_vault_passphrase(
+                                        identity,
+                                        &folder_id,
+                                        access_key.clone(),
+                                    )
+                                    .await?;
 
-                                tx.access_key_tx.send(access_key).await?;
+                                    tx.access_key_tx.send(access_key).await?;
+                                }
                             }
-                        }
-                        event = rx
-                            .remove_vault_rx
-                            .recv()
-                            .fuse() => {
-                            if let Some(folder_id) = event {
-                                // When a folder is removed via remote
-                                // bridge changes we need to clean up the
-                                // passphrase
-                                let identity = Arc::clone(&keeper);
-                                DelegatedPassphrase::remove_vault_passphrase(
-                                    identity,
-                                    &folder_id,
-                                )
-                                .await?;
+                            event = rx
+                                .remove_vault_rx
+                                .recv()
+                                .fuse() => {
+                                if let Some(folder_id) = event {
+                                    // When a folder is removed via remote
+                                    // bridge changes we need to clean up the
+                                    // passphrase
+                                    let identity = Arc::clone(&keeper);
+                                    DelegatedPassphrase::remove_vault_passphrase(
+                                        identity,
+                                        &folder_id,
+                                    )
+                                    .await?;
+                                }
                             }
-                        }
-                    )
-                }
-                Ok::<(), Error>(())
-            });
+                        )
+                    }
+                    Ok::<(), Error>(())
+                });
+            }
         }
     }
 }

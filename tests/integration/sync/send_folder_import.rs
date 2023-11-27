@@ -43,14 +43,14 @@ async fn integration_sync_import_folder() -> Result<()> {
     // path when sync happens
     owner.open_folder(&new_folder).await?;
     let mut vault = {
-        let storage = owner.storage();
+        let storage = owner.storage()?;
         let reader = storage.read().await;
         reader.current().unwrap().vault().clone()
     };
 
     // Need the vault passphrase to import a buffer
     let vault_passphrase = DelegatedPassphrase::find_vault_passphrase(
-        owner.user().identity().keeper(),
+        owner.user()?.identity().keeper(),
         new_folder.id(),
     )
     .await?;
@@ -68,7 +68,7 @@ async fn integration_sync_import_folder() -> Result<()> {
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
     let folders: Vec<Summary> = {
-        let storage = owner.storage();
+        let storage = owner.storage()?;
         let reader = storage.read().await;
         reader.state().summaries().to_vec()
     };

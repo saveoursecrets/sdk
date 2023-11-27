@@ -323,6 +323,8 @@ pub async fn create_local_account(
 
     let CreatedAccount { summary, .. } = &imported_account;
 
+    owner.sign_in(passphrase.clone()).await?;
+
     owner.initialize_search_index().await?;
 
     let summary = summary.to_owned();

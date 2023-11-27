@@ -41,7 +41,7 @@ async fn integration_sync_create_folder() -> Result<()> {
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
     let folders: Vec<Summary> = {
-        let storage = owner.storage();
+        let storage = owner.storage()?;
         let reader = storage.read().await;
         reader.state().summaries().to_vec()
     };

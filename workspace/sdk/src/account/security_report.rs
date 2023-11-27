@@ -205,7 +205,7 @@ impl<H> Account<H> {
 
         // Store current open vault so we can restore afterwards
         let current = {
-            let storage = self.storage();
+            let storage = self.storage()?;
             let reader = storage.read().await;
             reader
                 .current()
@@ -215,7 +215,7 @@ impl<H> Account<H> {
         for target in targets {
             self.open_vault(&target, false).await?;
 
-            let storage = self.storage();
+            let storage = self.storage()?;
             let reader = storage.read().await;
             let keeper = reader.current().unwrap();
             let vault = keeper.vault();

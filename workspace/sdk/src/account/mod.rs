@@ -31,7 +31,7 @@ pub use builder::{AccountBuilder, CreatedAccount, NewAccount};
 pub use file_manager::{FileProgress, FileSource};
 pub use identity::{AccountStatus, Identity, UserIdentity};
 pub use local::{AccountInfo, AccountRef, LocalAccounts};
-pub use login::{AuthenticatedUser, DeviceSigner, Login};
+pub use login::{AuthenticatedUser, DeviceSigner};
 pub use passphrase::DelegatedPassphrase;
 pub use paths::UserPaths;
 pub use provider::{LocalProvider, LocalState};

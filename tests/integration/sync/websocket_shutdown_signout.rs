@@ -27,7 +27,7 @@ async fn integration_websocket_shutdown_signout() -> Result<()> {
     assert_eq!(1, num_conns);
 
     // Sign out of the account
-    device.owner.sign_out().await;
+    device.owner.sign_out().await?;
 
     // Wait a moment for the connection to close
     tokio::time::sleep(Duration::from_millis(50)).await;

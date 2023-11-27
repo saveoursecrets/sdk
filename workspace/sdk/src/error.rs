@@ -24,6 +24,11 @@ pub enum Error {
     #[error("path {0} is not a file")]
     NotFile(PathBuf),
 
+    /// Error generated accessing an account that is not
+    /// authenticated.
+    #[error("account not authenticated, sign in required")]
+    NotAuthenticated,
+
     /// Error generated if we could not determine a cache directory.
     #[error("could not determine cache directory")]
     NoCache,

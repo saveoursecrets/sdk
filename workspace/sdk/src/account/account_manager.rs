@@ -12,10 +12,10 @@ use futures::Future;
 
 use crate::{
     account::{
-        archive::Inventory, AccountBackup, AccountBuilder, AccountInfo,
-        AuthenticatedUser, CreatedAccount, DelegatedPassphrase,
-        ExtractFilesLocation, LocalAccounts, LocalProvider, Login,
-        NewAccount, RestoreOptions, UserPaths,
+        archive::Inventory, login::Login, AccountBackup, AccountBuilder,
+        AccountInfo, AuthenticatedUser, CreatedAccount, DelegatedPassphrase,
+        ExtractFilesLocation, LocalAccounts, LocalProvider, NewAccount,
+        RestoreOptions, UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -141,7 +141,7 @@ pub struct AccountData {
 }
 
 /// User statistics structure derived from the search index.
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct UserStatistics {
     /// Number of documents in the search index.
     pub documents: usize,
@@ -155,6 +155,18 @@ pub struct UserStatistics {
     pub favorites: usize,
 }
 
+/// Account information when signed in.
+struct Authenticated {
+    /// Authenticated user.
+    user: AuthenticatedUser,
+
+    /// Storage provider.
+    storage: Arc<RwLock<LocalProvider>>,
+
+    /// Search index.
+    index: UserIndex,
+}
+
 /// Local account storage.
 ///
 /// For functions that return a `CommitState` it represents
@@ -163,17 +175,15 @@ pub struct UserStatistics {
 /// by returning a new state after changes from a remote server have
 /// been applied.
 pub struct Account<D> {
-    /// Authenticated user.
-    user: AuthenticatedUser,
+    /// Account address.
+    address: Address,
 
-    /// Storage provider.
-    storage: Arc<RwLock<LocalProvider>>,
+    /// Account information after a successful
+    /// sign in.
+    authenticated: Option<Authenticated>,
 
     /// Storage paths.
     pub(super) paths: Arc<UserPaths>,
-
-    /// Search index.
-    index: UserIndex,
 
     /// Audit log for this provider.
     audit_log: Arc<RwLock<AuditLogFile>>,
@@ -187,6 +197,35 @@ pub struct Account<D> {
 }
 
 impl<D> Account<D> {
+    /// Prepare an account for sign in.
+    ///
+    /// After preparing an account call `sign_in`
+    /// to authenticate a user.
+    pub async fn new_unauthenticated(
+        address: Address,
+        data_dir: Option<PathBuf>,
+        handler: Option<Handler<D>>,
+    ) -> Result<Self> {
+        let data_dir = if let Some(data_dir) = data_dir {
+            data_dir
+        } else {
+            UserPaths::data_dir()?
+        };
+
+        let paths = UserPaths::new_global(data_dir);
+        let audit_log = Arc::new(RwLock::new(
+            AuditLogFile::new(paths.audit_file()).await?,
+        ));
+
+        Ok(Self {
+            address,
+            paths: Arc::new(paths),
+            authenticated: None,
+            audit_log,
+            handler,
+        })
+    }
+
     /// Create a new account with the given
     /// name, passphrase and provider.
     ///
@@ -240,11 +279,9 @@ impl<D> Account<D> {
 
         // Must import the new account before signing in
         let signer = new_account.user.signer().clone();
-        let mut storage = LocalProvider::new(
-            signer.address()?.to_string(),
-            data_dir.clone(),
-        )
-        .await?;
+        let address = signer.address()?;
+        let mut storage =
+            LocalProvider::new(address.to_string(), data_dir.clone()).await?;
 
         tracing::debug!("prepared storage provider");
 
@@ -253,6 +290,26 @@ impl<D> Account<D> {
 
         tracing::debug!("imported new account");
 
+        let data_dir = if let Some(data_dir) = data_dir {
+            data_dir
+        } else {
+            UserPaths::data_dir()?
+        };
+
+        let paths = UserPaths::new_global(data_dir);
+        let audit_log = Arc::new(RwLock::new(
+            AuditLogFile::new(paths.audit_file()).await?,
+        ));
+
+        let owner = Self {
+            address,
+            paths: Arc::new(paths),
+            authenticated: None,
+            audit_log,
+            handler,
+        };
+
+        /*
         let owner = Account::sign_in(
             new_account.user.address(),
             passphrase,
@@ -262,6 +319,7 @@ impl<D> Account<D> {
         .await?;
 
         tracing::debug!("signed in new user");
+        */
 
         let mut audit_events = Vec::new();
         for event in events {
@@ -275,46 +333,55 @@ impl<D> Account<D> {
     }
 
     /// Authenticated user information.
-    pub fn user(&self) -> &AuthenticatedUser {
-        &self.user
+    pub fn user(&self) -> Result<&AuthenticatedUser> {
+        self.authenticated
+            .as_ref()
+            .map(|a| &a.user)
+            .ok_or(Error::NotAuthenticated)
     }
 
     /// Mutable authenticated user information.
-    pub fn user_mut(&mut self) -> &mut AuthenticatedUser {
-        &mut self.user
+    pub fn user_mut(&mut self) -> Result<&mut AuthenticatedUser> {
+        self.authenticated
+            .as_mut()
+            .map(|a| &mut a.user)
+            .ok_or(Error::NotAuthenticated)
     }
 
     /// Storage provider.
-    pub fn storage(&self) -> Arc<RwLock<LocalProvider>> {
-        Arc::clone(&self.storage)
+    pub fn storage(&self) -> Result<Arc<RwLock<LocalProvider>>> {
+        let auth =
+            self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        Ok(Arc::clone(&auth.storage))
     }
 
     /// File storage directory.
+    #[deprecated(note = "Use paths() instead")]
     pub fn files_dir(&self) -> &PathBuf {
         self.paths.files_dir()
     }
 
-    /// User identity address.
+    /// Account address.
     pub fn address(&self) -> &Address {
-        self.user.identity().address()
+        &self.address
     }
 
     /// Get access to an account by signing in.
-    pub async fn sign_in(
-        address: &Address,
-        passphrase: SecretString,
-        data_dir: Option<PathBuf>,
-        handler: Option<Handler<D>>,
-    ) -> Result<Self> {
+    pub async fn sign_in(&mut self, passphrase: SecretString) -> Result<()> {
         let span = span!(Level::DEBUG, "sign_in");
         let _enter = span.enter();
+
+        let address = &self.address;
+        let data_dir = self.paths().documents_dir().clone();
 
         tracing::debug!(address = %address);
 
         // Ensure all paths before sign_in
-        let paths =
-            UserPaths::ensure_paths(address.to_string(), data_dir.clone())
-                .await?;
+        let paths = UserPaths::ensure_paths(
+            address.to_string(),
+            Some(data_dir.clone()),
+        )
+        .await?;
 
         tracing::debug!(data_dir = ?paths.documents_dir());
 
@@ -327,21 +394,22 @@ impl<D> Account<D> {
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
         let storage =
-            LocalProvider::new(signer.address()?.to_string(), data_dir)
+            LocalProvider::new(signer.address()?.to_string(), Some(data_dir))
                 .await?;
 
-        let audit_log = Arc::new(RwLock::new(
-            AuditLogFile::new(paths.audit_file()).await?,
-        ));
-
-        Ok(Self {
+        self.paths = storage.paths();
+        self.authenticated = Some(Authenticated {
             user,
-            paths: storage.paths(),
             storage: Arc::new(RwLock::new(storage)),
             index: UserIndex::new(),
-            audit_log,
-            handler,
-        })
+        });
+
+        Ok(())
+    }
+
+    /// Determine if the account is authenticated.
+    pub fn is_authenticated(&self) -> bool {
+        self.authenticated.is_some()
     }
 
     /// User storage paths.
@@ -366,64 +434,81 @@ impl<D> Account<D> {
     /// can be unlocked then we have verified that the other
     /// device knows the master password for this account.
     pub async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let reader = self.storage.read().await;
+        let storage = self.storage()?;
+        let reader = storage.read().await;
         let identity_path = reader.paths().identity_vault();
         Ok(vfs::read(identity_path).await?)
     }
 
-    /// Compute the user statistics.
+    /// Compute the account statistics.
+    ///
+    /// If the account is not authenticated returns
+    /// a default statistics object (all values will be zero).
     pub async fn statistics(&self) -> UserStatistics {
-        let search_index = self.index.search();
-        let index = search_index.read().await;
-        let statistics = index.statistics();
-        let count = statistics.count();
+        if let Some(auth) = &self.authenticated {
+            let search_index = auth.index.search();
+            let index = search_index.read().await;
+            let statistics = index.statistics();
+            let count = statistics.count();
 
-        let documents: usize = count.vaults().values().sum();
-        let mut folders = Vec::new();
-        let mut types = HashMap::new();
+            let documents: usize = count.vaults().values().sum();
+            let mut folders = Vec::new();
+            let mut types = HashMap::new();
 
-        for (id, v) in count.vaults() {
-            if let Some(summary) = self.find(|s| s.id() == id).await {
-                folders.push((summary, *v));
+            for (id, v) in count.vaults() {
+                if let Some(summary) = self.find(|s| s.id() == id).await {
+                    folders.push((summary, *v));
+                }
             }
-        }
 
-        for (k, v) in count.kinds() {
-            if let Ok(kind) = SecretType::try_from(*k) {
-                types.insert(kind, *v);
+            for (k, v) in count.kinds() {
+                if let Ok(kind) = SecretType::try_from(*k) {
+                    types.insert(kind, *v);
+                }
             }
-        }
 
-        UserStatistics {
-            documents,
-            folders,
-            types,
-            tags: count.tags().clone(),
-            favorites: count.favorites(),
+            UserStatistics {
+                documents,
+                folders,
+                types,
+                tags: count.tags().clone(),
+                favorites: count.favorites(),
+            }
+        } else {
+            Default::default()
         }
     }
 
     /// Account data.
     pub async fn account_data(&self) -> Result<AccountData> {
-        let reader = self.storage.read().await;
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        let user = self.user()?;
         Ok(AccountData {
-            account: self.user.account().clone(),
-            identity: self.user.identity().recipient().to_string(),
+            account: user.account().clone(),
+            identity: user.identity().recipient().to_string(),
             folders: reader.state().summaries().to_vec(),
         })
     }
 
     /// Verify an access key for this account.
+    ///
+    /// If the account is not authenticated this returns false.
     pub async fn verify(&self, key: &AccessKey) -> bool {
-        self.user.verify(key).await
+        if let Some(auth) = &self.authenticated {
+            auth.user.verify(key).await
+        } else {
+            false
+        }
     }
 
     /// Delete the account for this user and sign out.
     pub async fn delete_account(&mut self) -> Result<()> {
-        let event = self.user.delete_account(&self.paths).await?;
+        let paths = self.paths().clone();
+        let event = self.user_mut()?.delete_account(&paths).await?;
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.append_audit_logs(vec![audit_event]).await?;
-        self.sign_out().await;
+        self.sign_out().await?;
         Ok(())
     }
 
@@ -432,7 +517,11 @@ impl<D> Account<D> {
         &mut self,
         account_name: String,
     ) -> Result<()> {
-        Ok(self.user.rename_account(&self.paths, account_name).await?)
+        let paths = self.paths().clone();
+        Ok(self
+            .user_mut()?
+            .rename_account(&paths, account_name)
+            .await?)
     }
 
     /// Try to find a folder using a predicate.
@@ -440,8 +529,12 @@ impl<D> Account<D> {
     where
         P: FnMut(&&Summary) -> bool,
     {
-        let reader = self.storage.read().await;
-        reader.state().find(predicate).cloned()
+        if let Some(auth) = &self.authenticated {
+            let reader = auth.storage.read().await;
+            reader.state().find(predicate).cloned()
+        } else {
+            None
+        }
     }
 
     /// Find the default folder.
@@ -466,38 +559,33 @@ impl<D> Account<D> {
 
     /// List folders.
     pub async fn list_folders(&mut self) -> Result<Vec<Summary>> {
-        let mut writer = self.storage.write().await;
+        let storage = self.storage()?;
+        let mut writer = storage.write().await;
         let folders = writer.load_vaults().await?.to_vec();
         Ok(folders)
     }
 
     /// Sign out of the account.
-    pub async fn sign_out(&mut self) {
+    pub async fn sign_out(&mut self) -> Result<()> {
         let span = span!(Level::DEBUG, "sign_out");
         let _enter = span.enter();
 
         tracing::debug!(address = %self.address());
 
-        /*
-        // Close all the websocket connections
-        {
-            let mut listeners = self.listeners.lock().await;
-            for handle in listeners.drain(..) {
-                tracing::debug!("close websocket");
-                handle.close();
-            }
-        }
-        */
-
         // Close the currently open vaul in the local storage
-        let mut writer = self.storage.write().await;
+        let storage = self.storage()?;
+        let mut writer = storage.write().await;
         writer.close_vault();
 
         // Remove the search index
-        self.index.clear().await;
+        self.index_mut()?.clear().await;
 
         // Forget authenticated user information
-        self.user.sign_out().await;
+        self.user_mut()?.sign_out().await;
+
+        self.authenticated = None;
+
+        Ok(())
     }
 
     /// Create a folder.
@@ -508,16 +596,17 @@ impl<D> Account<D> {
         let passphrase = DelegatedPassphrase::generate_vault_passphrase()?;
         let key = AccessKey::Password(passphrase);
         let (buffer, _, summary) = {
-            let mut writer = self.storage.write().await;
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
             writer.create_vault(name, Some(key.clone())).await?
         };
 
-        let secret_key = self.user.identity().signer().to_bytes();
+        let secret_key = self.user()?.identity().signer().to_bytes();
         let secure_key =
             SecureAccessKey::encrypt(&key, secret_key, None).await?;
 
         DelegatedPassphrase::save_vault_passphrase(
-            self.user.identity().keeper(),
+            self.user()?.identity().keeper(),
             summary.id(),
             key,
         )
@@ -554,15 +643,16 @@ impl<D> Account<D> {
             self.compute_folder_state(&options, false).await?;
 
         let event = {
-            let mut writer = self.storage.write().await;
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
             writer.remove_vault(&summary).await?
         };
         DelegatedPassphrase::remove_vault_passphrase(
-            self.user.identity().keeper(),
+            self.user()?.identity().keeper(),
             summary.id(),
         )
         .await?;
-        self.index
+        self.index_mut()?
             .remove_folder_from_search_index(summary.id())
             .await;
         self.delete_folder_files(&summary).await?;
@@ -589,7 +679,8 @@ impl<D> Account<D> {
 
         // Update the provider
         let event = {
-            let mut writer = self.storage.write().await;
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
             writer.set_vault_name(&summary, &name).await?
         };
 
@@ -611,7 +702,7 @@ impl<D> Account<D> {
         let buffer = AccountBackup::export_vault(
             self.address(),
             &self.paths,
-            self.user.identity().keeper(),
+            self.user()?.identity().keeper(),
             summary.id(),
             new_key.clone(),
         )
@@ -626,7 +717,7 @@ impl<D> Account<D> {
                 .ok_or_else(|| Error::NoDefaultFolder)?;
 
             let _passphrase = DelegatedPassphrase::find_vault_passphrase(
-                self.user.identity().keeper(),
+                self.user()?.identity().keeper(),
                 default_summary.id(),
             )
             .await?;
@@ -746,7 +837,8 @@ impl<D> Account<D> {
 
         // Import the vault
         let (event, summary) = {
-            let mut writer = self.storage.write().await;
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
             writer.import_vault(buffer.as_ref()).await?
         };
 
@@ -755,14 +847,14 @@ impl<D> Account<D> {
         // assigned when exporting the folder
         if overwrite {
             DelegatedPassphrase::remove_vault_passphrase(
-                self.user.identity().keeper(),
+                self.user()?.identity().keeper(),
                 summary.id(),
             )
             .await?;
         }
 
         DelegatedPassphrase::save_vault_passphrase(
-            self.user.identity().keeper(),
+            self.user()?.identity().keeper(),
             summary.id(),
             key.clone(),
         )
@@ -774,7 +866,8 @@ impl<D> Account<D> {
             // is loaded into memory we must close it so
             // the UI does not show stale in-memory data
             {
-                let mut writer = self.storage.write().await;
+                let storage = self.storage()?;
+                let mut writer = storage.write().await;
                 let is_current = if let Some(current) = writer.current() {
                     current.id() == summary.id()
                 } else {
@@ -786,13 +879,13 @@ impl<D> Account<D> {
                 }
             }
             // Clean entries from the search index
-            self.index
+            self.index_mut()?
                 .remove_folder_from_search_index(summary.id())
                 .await;
         }
 
         // Ensure the imported secrets are in the search index
-        self.index.add_folder_to_search_index(vault, key).await?;
+        self.index()?.add_folder_to_search_index(vault, key).await?;
 
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent = (self.address(), &event).into();
@@ -821,7 +914,8 @@ impl<D> Account<D> {
         // Bail early if the folder is already open
         // as opening a vault is an expensive operation
         {
-            let reader = self.storage.read().await;
+            let storage = self.storage()?;
+            let reader = storage.read().await;
             if let Some(current) = reader.current() {
                 if current.id() == summary.id() {
                     return Ok(());
@@ -830,15 +924,16 @@ impl<D> Account<D> {
         }
 
         let passphrase = DelegatedPassphrase::find_vault_passphrase(
-            self.user.identity().keeper(),
+            self.user()?.identity().keeper(),
             summary.id(),
         )
         .await?;
 
-        let index = Arc::clone(&self.index.search_index);
+        let index = Arc::clone(&self.index()?.search_index);
 
         let event = {
-            let mut writer = self.storage.write().await;
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
             writer
                 .open_vault(summary, passphrase.into(), Some(index))
                 .await?
@@ -865,7 +960,8 @@ impl<D> Account<D> {
         apply_changes: bool,
     ) -> Result<(Summary, CommitState)> {
         let (folder, last_commit, mut commit_proof) = {
-            let reader = self.storage.read().await;
+            let storage = self.storage()?;
+            let reader = storage.read().await;
             let folder = options
                 .folder
                 .clone()
@@ -884,8 +980,7 @@ impl<D> Account<D> {
         let mut last_commit = last_commit.ok_or(Error::NoRootCommit)?;
 
         if apply_changes {
-            let storage = self.storage();
-
+            let storage = self.storage()?;
             if let Some(handler) = &self.handler {
                 let before_result = handler
                     .before_change(
@@ -928,7 +1023,8 @@ impl<D> Account<D> {
         audit: bool,
     ) -> Result<(SecretId, Event, Summary)> {
         let folder = {
-            let reader = self.storage.read().await;
+            let storage = self.storage()?;
+            let reader = storage.read().await;
             options
                 .folder
                 .or_else(|| reader.current().map(|g| g.summary().clone()))
@@ -944,7 +1040,8 @@ impl<D> Account<D> {
         }
 
         let event = {
-            let mut writer = self.storage.write().await;
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
             writer.create_secret(meta.clone(), secret.clone()).await?
         };
 
@@ -961,7 +1058,8 @@ impl<D> Account<D> {
         };
 
         let current_folder = {
-            let reader = self.storage.read().await;
+            let storage = self.storage()?;
+            let reader = storage.read().await;
             reader
                 .current()
                 .as_ref()
@@ -1006,7 +1104,8 @@ impl<D> Account<D> {
         audit: bool,
     ) -> Result<(SecretData, ReadEvent)> {
         let folder = {
-            let reader = self.storage.read().await;
+            let storage = self.storage()?;
+            let reader = storage.read().await;
             folder
                 .or_else(|| reader.current().map(|g| g.summary().clone()))
                 .ok_or(Error::NoOpenFolder)?
@@ -1015,7 +1114,8 @@ impl<D> Account<D> {
         self.open_folder(&folder).await?;
 
         let (meta, secret, read_event) = {
-            let mut writer = self.storage.write().await;
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
             writer.read_secret(secret_id).await?
         };
 
@@ -1128,7 +1228,8 @@ impl<D> Account<D> {
         audit: bool,
     ) -> Result<Event> {
         let folder = {
-            let reader = self.storage.read().await;
+            let storage = self.storage()?;
+            let reader = storage.read().await;
             folder
                 .or_else(|| reader.current().map(|g| g.summary().clone()))
                 .ok_or(Error::NoOpenFolder)?
@@ -1142,7 +1243,8 @@ impl<D> Account<D> {
         }
 
         let event = {
-            let mut writer = self.storage.write().await;
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
             writer.update_secret(secret_id, secret_data).await?
         };
 
@@ -1261,7 +1363,8 @@ impl<D> Account<D> {
         audit: bool,
     ) -> Result<Event> {
         let folder = {
-            let reader = self.storage.read().await;
+            let storage = self.storage()?;
+            let reader = storage.read().await;
             folder
                 .or_else(|| reader.current().map(|g| g.summary().clone()))
                 .ok_or(Error::NoOpenFolder)?
@@ -1270,7 +1373,8 @@ impl<D> Account<D> {
         self.open_folder(&folder).await?;
 
         let event = {
-            let mut writer = self.storage.write().await;
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
             writer.delete_secret(secret_id).await?
         };
 
@@ -1336,13 +1440,19 @@ impl<D> Account<D> {
     }
 
     /// Search index reference.
-    pub fn index(&self) -> &UserIndex {
-        &self.index
+    pub fn index(&self) -> Result<&UserIndex> {
+        self.authenticated
+            .as_ref()
+            .map(|a| &a.index)
+            .ok_or(Error::NotAuthenticated)
     }
 
     /// Mutable search index reference.
-    pub fn index_mut(&mut self) -> &mut UserIndex {
-        &mut self.index
+    pub fn index_mut(&mut self) -> Result<&mut UserIndex> {
+        self.authenticated
+            .as_mut()
+            .map(|a| &mut a.index)
+            .ok_or(Error::NotAuthenticated)
     }
 
     /// Initialize the search index.
@@ -1362,7 +1472,7 @@ impl<D> Account<D> {
                     break;
                 }
             }
-            let mut writer = self.index.search_index.write().await;
+            let mut writer = self.index()?.search_index.write().await;
             writer.set_archive_id(archive);
             summaries
         };
@@ -1372,7 +1482,7 @@ impl<D> Account<D> {
     /// Build the search index for all folders.
     pub async fn build_search_index(&mut self) -> Result<DocumentCount> {
         // Clear search index first
-        self.index.clear().await;
+        self.index_mut()?.clear().await;
 
         // Build search index from all the vaults
         let summaries = self.list_folders().await?;
@@ -1382,7 +1492,8 @@ impl<D> Account<D> {
             self.open_vault(&summary, false).await?;
 
             {
-                let mut writer = self.storage.write().await;
+                let storage = self.storage()?;
+                let mut writer = storage.write().await;
                 // Add the vault meta data to the search index
                 writer.create_search_index().await?;
                 // Close the vault as we are done for now
@@ -1390,7 +1501,7 @@ impl<D> Account<D> {
             }
         }
 
-        Ok(self.index.document_count().await)
+        Ok(self.index()?.document_count().await)
     }
 
     /// Write a zip archive containing all the secrets
@@ -1617,7 +1728,8 @@ impl<D> Account<D> {
         folder: Option<Summary>,
     ) -> Result<()> {
         let current_folder = {
-            let reader = self.storage.read().await;
+            let storage = self.storage()?;
+            let reader = storage.read().await;
             folder
                 .as_ref()
                 .or_else(|| reader.current().map(|g| g.summary()))
@@ -1657,7 +1769,7 @@ impl<D> Account<D> {
             .ok_or_else(|| Error::NoContactsFolder)?;
 
         let contacts_passphrase = DelegatedPassphrase::find_vault_passphrase(
-            self.user.identity().keeper(),
+            self.user()?.identity().keeper(),
             contacts.id(),
         )
         .await?;
@@ -1698,7 +1810,8 @@ impl<D> Account<D> {
         use crate::vcard4::parse;
 
         let current = {
-            let reader = self.storage.read().await;
+            let storage = self.storage()?;
+            let reader = storage.read().await;
             reader.current().map(|g| g.summary().clone())
         };
 
@@ -1835,7 +1948,8 @@ impl<D> Account<D> {
 
         if let Some(owner) = owner.as_mut() {
             {
-                let mut writer = owner.storage.write().await;
+                let storage = owner.storage()?;
+                let mut writer = storage.write().await;
                 writer.restore_archive(&targets).await?;
             }
             owner.build_search_index().await?;
@@ -1854,14 +1968,15 @@ impl<D> Account<D> {
         summary: &Summary,
         commit: CommitHash,
     ) -> Result<DetachedView> {
-        let reader = self.storage.read().await;
+        let storage = self.storage()?;
+        let reader = storage.read().await;
         let cache = reader.cache();
         let log_file = cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
 
         let passphrase = DelegatedPassphrase::find_vault_passphrase(
-            self.user.identity().keeper(),
+            self.user()?.identity().keeper(),
             summary.id(),
         )
         .await?;
@@ -1883,7 +1998,8 @@ impl<D> Account<D> {
 
     /// Get the root commit hash for a folder.
     pub async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
-        let reader = self.storage.read().await;
+        let storage = self.storage()?;
+        let reader = storage.read().await;
         let cache = reader.cache();
         let log_file = cache
             .get(summary.id())
@@ -1896,8 +2012,10 @@ impl<D> Account<D> {
     }
 }
 
+/*
 impl<D> From<Account<D>> for Arc<RwLock<LocalProvider>> {
     fn from(value: Account<D>) -> Self {
         value.storage
     }
 }
+*/

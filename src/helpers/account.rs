@@ -95,8 +95,11 @@ pub async fn resolve_account(
     if account.is_none() {
         if let Some(owner) = USER.get() {
             let reader = owner.read().await;
-            let account: AccountRef = reader.user().account().into();
-            return Some(account);
+            if reader.is_authenticated() {
+                let account: AccountRef =
+                    reader.user().unwrap().account().into();
+                return Some(account);
+            }
         }
 
         if let Ok(mut accounts) = LocalAccounts::list_accounts(None).await {
@@ -114,7 +117,7 @@ pub async fn resolve_folder(
 ) -> Result<Option<Summary>> {
     let owner = user.read().await;
     if let Some(vault) = folder {
-        let storage = owner.storage();
+        let storage = owner.storage()?;
         let reader = storage.read().await;
         Ok(Some(
             reader
@@ -125,12 +128,12 @@ pub async fn resolve_folder(
         ))
     } else if let Some(owner) = USER.get() {
         let owner = owner.read().await;
-        let storage = owner.storage();
+        let storage = owner.storage()?;
         let reader = storage.read().await;
         let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
         Ok(Some(keeper.summary().clone()))
     } else {
-        let storage = owner.storage();
+        let storage = owner.storage()?;
         let reader = storage.read().await;
         Ok(reader.state().find(|s| s.flags().is_default()).cloned())
     }
@@ -139,7 +142,7 @@ pub async fn resolve_folder(
 pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
     let summary = {
         let owner = user.read().await;
-        let storage = owner.storage();
+        let storage = owner.storage()?;
         let reader = storage.read().await;
         let summary = if let Some(vault) = folder {
             Some(
@@ -202,9 +205,16 @@ pub async fn sign_in(
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
-    let owner =
-        UserStorage::sign_in(account.address(), passphrase.clone(), None)
-            .await?;
+
+    let mut owner = UserStorage::new_unauthenticated(
+        account.address().clone(),
+        None,
+        None,
+    )
+    .await?;
+
+    owner.sign_in(passphrase.clone()).await?;
+
     Ok((owner, passphrase))
 }
 
@@ -318,14 +328,16 @@ pub async fn new_account(
             display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
 
-        let (owner, _, _) = UserStorage::new_account(
+        let (mut owner, _, _) = UserStorage::new_account(
             account_name.clone(),
-            passphrase,
+            passphrase.clone(),
             None,
             None,
         )
         .await?;
         let address = owner.address().to_string();
+
+        owner.sign_in(passphrase).await?;
 
         let data_dir = UserPaths::data_dir()?;
         let message = format!(

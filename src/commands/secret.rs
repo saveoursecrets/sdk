@@ -675,7 +675,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     ignored_types: None,
                 }];
             } else if let Some(folder) = &folder {
-                let storage = owner.storage();
+                let storage = owner.storage()?;
                 let reader = storage.read().await;
                 let summary = reader
                     .state()
@@ -688,7 +688,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
 
             let documents =
-                owner.index().query_view(views, archive_filter).await?;
+                owner.index()?.query_view(views, archive_filter).await?;
             let docs: Vec<&Document> = documents.iter().collect();
             print_documents(&docs, verbose)?;
         }
@@ -1185,7 +1185,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let original_folder = if is_shell {
                 let user = resolve_user(account.as_ref(), false).await?;
                 let owner = user.read().await;
-                let storage = owner.storage();
+                let storage = owner.storage()?;
                 let reader = storage.read().await;
                 reader.current().map(|g| g.summary().clone())
             } else {

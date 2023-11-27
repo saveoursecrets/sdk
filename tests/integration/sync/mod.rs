@@ -64,12 +64,24 @@ impl SimulatedDevice {
         origin: Option<Origin>,
     ) -> Result<SimulatedDevice> {
         let data_dir = self.dirs.clients.get(index).unwrap();
+
+        let mut owner = UserStorage::new_unauthenticated(
+            self.owner.address().clone(),
+            Some(data_dir.clone()),
+            None,
+        )
+        .await?;
+
+        owner.sign_in(self.password.clone()).await?;
+
+        /*
         let mut owner = UserStorage::sign_in(
             self.owner.address(),
             self.password.clone(),
             Some(data_dir.clone()),
         )
         .await?;
+        */
 
         let origin = origin.unwrap_or_else(|| self.origin.clone());
 
@@ -124,7 +136,7 @@ pub async fn simulate_device(
 
     // Folders on the local account must be loaded into memory
     let folders: Vec<Summary> = {
-        let storage = owner.storage();
+        let storage = owner.storage()?;
         let mut writer = storage.write().await;
         writer
             .load_vaults()
@@ -177,7 +189,7 @@ pub async fn simulate_device(
 
 /// Get the number of events in a log.
 pub async fn num_events(owner: &mut UserStorage, folder: &VaultId) -> usize {
-    let storage = owner.storage();
+    let storage = owner.storage().unwrap();
     let reader = storage.read().await;
     let events = reader.cache().get(folder).unwrap();
     events.tree().len()
@@ -197,7 +209,7 @@ pub async fn assert_local_remote_vaults_eq(
     owner: &mut UserStorage,
     _provider: &mut RemoteBridge,
 ) -> Result<()> {
-    let storage = owner.storage();
+    let storage = owner.storage()?;
     let reader = storage.read().await;
 
     // Compare vault buffers
@@ -218,10 +230,9 @@ pub async fn assert_local_remote_events_eq(
     owner: &mut UserStorage,
     provider: &mut RemoteBridge,
 ) -> Result<()> {
-    let storage = owner.storage();
-
     // Compare event log status (commit proofs)
     let local_status = {
+        let storage = owner.storage()?;
         let mut writer = storage.write().await;
         writer.account_status().await?
     };

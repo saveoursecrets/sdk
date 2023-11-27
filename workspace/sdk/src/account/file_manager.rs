@@ -84,7 +84,7 @@ impl<D> Account<D> {
     ) -> Result<EncryptedFile> {
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
-            self.user().identity().keeper(),
+            self.user()?.identity().keeper(),
         )
         .await?;
 
@@ -107,7 +107,7 @@ impl<D> Account<D> {
     ) -> Result<Vec<u8>> {
         // Find the file encryption password
         let password = DelegatedPassphrase::find_file_encryption_passphrase(
-            self.user().identity().keeper(),
+            self.user()?.identity().keeper(),
         )
         .await?;
 

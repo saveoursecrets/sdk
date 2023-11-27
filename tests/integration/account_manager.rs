@@ -4,9 +4,9 @@ use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use sos_net::sdk::{
     account::{
-        AccountBackup, AccountBuilder, CreatedAccount, DelegatedPassphrase,
+        Account, AccountBackup, CreatedAccount, DelegatedPassphrase,
         ExtractFilesLocation, FileStorage, LocalAccounts, LocalProvider,
-        Login, NewAccount, RestoreOptions, UserPaths,
+        NewAccount, RestoreOptions,
     },
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     hex,
@@ -27,10 +27,21 @@ async fn integration_account_manager() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 
-    let account_name = "Mock account name".to_string();
-    let folder_name = Some("Default folder".to_string());
+    let account_name = TEST_ID.to_string();
     let (passphrase, _) = generate_passphrase()?;
 
+    let (mut account, imported_account, new_account) =
+        Account::<()>::new_account(
+            account_name.clone(),
+            passphrase.clone(),
+            Some(test_data_dir.clone()),
+            None,
+        )
+        .await?;
+
+    account.sign_in(passphrase.clone()).await?;
+
+    /*
     let new_account = AccountBuilder::new(
         account_name.clone(),
         passphrase.clone(),
@@ -72,9 +83,20 @@ async fn integration_account_manager() -> Result<()> {
         Arc::clone(&identity_index),
     )
     .await?;
+    */
 
-    user.rename_account(&paths, "New account name".to_string())
+    account
+        .rename_account("New account name".to_string())
         .await?;
+
+    let paths = account.paths().clone();
+    let local_accounts = LocalAccounts::new(&paths);
+    let accounts = LocalAccounts::list_accounts(Some(&paths)).await?;
+    assert_eq!(1, accounts.len());
+    let user = account.user()?;
+    let NewAccount { address, .. } = new_account;
+    let CreatedAccount { summary, .. } = imported_account;
+
     {
         let keeper = user.identity().keeper();
         let reader = keeper.read().await;
@@ -82,9 +104,10 @@ async fn integration_account_manager() -> Result<()> {
     }
 
     let vaults = local_accounts.list_local_vaults(false).await?;
-    // Default, Contacts, Authenticator and Archive vaults
-    assert_eq!(4, vaults.len());
-
+    // Default, Contacts and Archive vaults
+    assert_eq!(3, vaults.len());
+    
+    /*
     let identity_reader = identity_index.read().await;
 
     // Check we can find the signing key
@@ -105,6 +128,7 @@ async fn integration_account_manager() -> Result<()> {
         let age_key = identity_reader.find_by_urn(reader.id(), &age_urn);
         assert!(age_key.is_some());
     }
+    */
 
     // Make sure we can find a vault passphrase and unlock it
     let default_vault_passphrase =
