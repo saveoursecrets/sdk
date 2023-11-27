@@ -1,9 +1,6 @@
 use anyhow::Result;
-
 use crate::test_utils::mock_note;
-
 use tempfile::tempdir;
-
 use secrecy::ExposeSecret;
 use sos_net::sdk::{
     account::FolderStorage,
@@ -21,20 +18,16 @@ macro_rules! commit_count {
     }};
 }
 
-//const TEST_ID: &str = "local_provider";
-
+/// Tests compacting a folder event log.
 #[tokio::test]
-async fn integration_local_provider_file() -> Result<()> {
+async fn integration_compact_folder() -> Result<()> {
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
     let mut storage =
-        FolderStorage::new(user_id, Some(dir.path().to_path_buf())).await?;
-    run_local_storage_tests(&mut storage).await?;
-    Ok(())
-}
+        FolderStorage::new(
+            user_id, Some(dir.path().to_path_buf())).await?;
 
-async fn run_local_storage_tests(storage: &mut FolderStorage) -> Result<()> {
     // Create an account with default login vault
     let (_, passphrase, _) = storage.create_account(None, None).await?;
 

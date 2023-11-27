@@ -8,10 +8,11 @@ use sos_net::sdk::{
     vault::FolderRef,
 };
 
-const TEST_ID: &str = "simple_session";
+const TEST_ID: &str = "folder_storage";
 
+/// Tests basic operations directly on folder storage.
 #[tokio::test]
-async fn integration_simple_session() -> Result<()> {
+async fn integration_folder_storage() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 

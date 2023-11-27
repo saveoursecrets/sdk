@@ -11,6 +11,7 @@ use sos_net::sdk::{
 
 const TEST_ID: &str = "change_password";
 
+/// Tests changing the encryption password of a folder.
 #[tokio::test]
 async fn integration_change_password() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
