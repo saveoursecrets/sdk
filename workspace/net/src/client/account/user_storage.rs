@@ -1138,7 +1138,7 @@ impl UserStorage {
     }
 
     /// Decrypt a file so it can be downloaded from the account.
-    pub async fn decrypt_file_storage(
+    pub async fn download_file(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
@@ -1146,7 +1146,7 @@ impl UserStorage {
     ) -> Result<Vec<u8>> {
         Ok(self
             .account
-            .decrypt_file_storage(vault_id, secret_id, file_name)
+            .download_file(vault_id, secret_id, file_name)
             .await?)
     }
 

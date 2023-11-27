@@ -501,7 +501,7 @@ pub(crate) async fn download_file_secret(
             FileContent::External { checksum, .. } => {
                 let file_name = hex::encode(checksum);
                 let buffer = owner
-                    .decrypt_file_storage(
+                    .download_file(
                         resolved.summary.id(),
                         &resolved.secret_id,
                         &file_name,

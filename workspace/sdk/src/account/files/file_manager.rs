@@ -77,7 +77,7 @@ pub struct FileStorageResult {
 
 impl<D> Account<D> {
     /// Encrypt a file and move it to the external file storage location.
-    pub async fn encrypt_file_storage<P: AsRef<Path>>(
+    async fn encrypt_file_storage<P: AsRef<Path>>(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
@@ -100,7 +100,7 @@ impl<D> Account<D> {
     }
 
     /// Decrypt a file in the storage location and return the buffer.
-    pub async fn decrypt_file_storage(
+    async fn decrypt_file_storage(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
@@ -126,6 +126,16 @@ impl<D> Account<D> {
     /// external files for a folder.
     pub(crate) fn file_folder_location(&self, vault_id: &VaultId) -> PathBuf {
         self.paths.file_folder_location(vault_id.to_string())
+    }
+    
+    /// Decrypt a file and return the buffer.
+    pub async fn download_file(
+        &self,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
+        file_name: &str,
+    ) -> Result<Vec<u8>> {
+        self.decrypt_file_storage(vault_id, secret_id, file_name).await
     }
 
     /// Expected location for a file by convention.
