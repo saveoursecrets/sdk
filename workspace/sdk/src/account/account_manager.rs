@@ -504,6 +504,9 @@ impl<D> Account<D> {
 
     /// Delete the account for this user and sign out.
     pub async fn delete_account(&mut self) -> Result<()> {
+        let span = span!(Level::DEBUG, "delete_account");
+        let _enter = span.enter();
+
         let paths = self.paths().clone();
         let event = self.user_mut()?.delete_account(&paths).await?;
         let audit_event: AuditEvent = (self.address(), &event).into();
@@ -572,17 +575,21 @@ impl<D> Account<D> {
 
         tracing::debug!(address = %self.address());
 
+        tracing::debug!("close current open vault");
         // Close the currently open vaul in the local storage
         let storage = self.storage()?;
         let mut writer = storage.write().await;
         writer.close_vault();
 
+        tracing::debug!("clear search index");
         // Remove the search index
         self.index_mut()?.clear().await;
 
+        tracing::debug!("sign out user identity");
         // Forget authenticated user information
         self.user_mut()?.sign_out().await;
 
+        tracing::debug!("remove authenticated state");
         self.authenticated = None;
 
         Ok(())
