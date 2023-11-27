@@ -1,4 +1,4 @@
-//! Read and write archives of vaults.
+//! Read and write account backup archives.
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -351,7 +351,7 @@ fn sanitize_file_path(path: &str) -> PathBuf {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{account::Identity, encode, vault::Vault};
+    use crate::{account::identity::Identity, encode, vault::Vault};
     use anyhow::Result;
     use secrecy::SecretString;
     use std::io::Cursor;

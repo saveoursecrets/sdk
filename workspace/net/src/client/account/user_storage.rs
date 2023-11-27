@@ -39,7 +39,7 @@ use sos_sdk::{
 use sos_sdk::account::ContactImportProgress;
 
 #[cfg(feature = "security-report")]
-pub use sos_sdk::account::{SecurityReport, SecurityReportOptions};
+pub use sos_sdk::account::security_report::{SecurityReport, SecurityReportOptions};
 
 use tracing::{span, Level};
 

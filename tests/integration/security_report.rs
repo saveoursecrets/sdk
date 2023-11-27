@@ -3,7 +3,7 @@ use secrecy::SecretString;
 use sos_net::{
     client::UserStorage,
     sdk::{
-        account::SecurityReportOptions,
+        account::security_report::SecurityReportOptions,
         passwd::diceware::generate_passphrase,
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},

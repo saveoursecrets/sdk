@@ -29,7 +29,7 @@ use crate::{
 
 use secrecy::{ExposeSecret, SecretString};
 
-use super::{Identity, UserIdentity};
+use super::identity::{Identity, UserIdentity};
 
 use crate::{Error, Result};
 

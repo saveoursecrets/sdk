@@ -14,7 +14,7 @@ mod paths;
 mod provider;
 mod search_index;
 #[cfg(feature = "security-report")]
-mod security_report;
+pub mod security_report;
 
 #[cfg(feature = "contacts")]
 pub use account_manager::ContactImportProgress;
@@ -29,7 +29,7 @@ pub use backup::{
 };
 pub use builder::{AccountBuilder, CreatedAccount, NewAccount};
 pub use file_manager::{FileProgress, FileSource};
-pub use identity::{AccountStatus, Identity, UserIdentity};
+pub use identity::{AccountStatus, Identity};
 pub use local::{AccountInfo, AccountRef, LocalAccounts};
 pub use login::{AuthenticatedUser, DeviceSigner};
 pub use passphrase::DelegatedPassphrase;
@@ -37,11 +37,13 @@ pub use paths::UserPaths;
 pub use provider::{LocalProvider, LocalState};
 pub use search_index::{ArchiveFilter, DocumentView, QueryFilter, UserIndex};
 
+/*
 #[cfg(feature = "security-report")]
 pub use security_report::{
     SecurityReport, SecurityReportOptions, SecurityReportRow,
     SecurityReportTarget,
 };
+*/
 
 pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;

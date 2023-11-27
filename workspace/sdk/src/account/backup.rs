@@ -20,7 +20,7 @@ use walkdir::WalkDir;
 use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
-        AccountInfo, DelegatedPassphrase, Identity, LocalAccounts, UserPaths,
+        AccountInfo, DelegatedPassphrase, identity::Identity, LocalAccounts, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
