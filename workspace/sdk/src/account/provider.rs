@@ -21,7 +21,7 @@ use crate::{
     vfs, Error, Result, Timestamp,
 };
 
-use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use tokio::sync::RwLock;
 

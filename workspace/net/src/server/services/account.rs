@@ -145,7 +145,7 @@ impl Service for AccountService {
                     (request.id(), summaries).try_into()?;
 
                 let log = AuditEvent::new(
-                    EventKind::LoginResponse,
+                    EventKind::ListVaults,
                     caller.address,
                     None,
                 );

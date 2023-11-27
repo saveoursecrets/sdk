@@ -1,13 +1,7 @@
 use anyhow::Result;
-
-use std::{io::Cursor, path::PathBuf, sync::Arc};
-
 use sos_net::sdk::{
-    account::{AccountsList, FolderStorage, LocalAccount, UserPaths},
-    hex,
+    account::{AccountsList, LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
-    vault::{secret::SecretId, Gatekeeper, VaultId},
-    vfs,
 };
 
 use crate::test_utils::{setup, teardown};

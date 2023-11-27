@@ -1,10 +1,6 @@
 use crate::{Error, Result};
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
-use std::{
-    collections::{HashMap, HashSet},
-    hash::Hash,
-    ops::Range,
-};
+use std::ops::Range;
 
 use super::{
     CommitHash, CommitPair, CommitProof, CommitRelationship, Comparison,
@@ -447,7 +443,6 @@ mod test {
         vault::{Vault, VaultAccess, VaultBuilder, VaultEntry},
     };
     use anyhow::Result;
-    use uuid::Uuid;
 
     /// Create a commit tree from an existing vault using the
     /// hashes of the encrypted data that are used to verify

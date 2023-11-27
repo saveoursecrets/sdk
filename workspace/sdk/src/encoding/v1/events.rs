@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::{
     commit::CommitHash,
     constants::PATCH_IDENTITY,

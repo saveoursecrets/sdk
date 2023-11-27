@@ -1,7 +1,7 @@
 //! Write operations.
 
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, cmp::Ordering};
+use std::cmp::Ordering;
 
 use crate::{
     crypto::AeadPack,

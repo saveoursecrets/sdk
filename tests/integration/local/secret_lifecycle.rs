@@ -1,25 +1,16 @@
+use crate::test_utils::{mock_note, setup, teardown};
 use anyhow::Result;
-
-use std::{io::Cursor, path::PathBuf, sync::Arc};
-
 use sos_net::sdk::{
-    account::{
-        archive::RestoreOptions, AccountsList, FolderStorage, LocalAccount,
-        UserPaths,
-    },
-    hex,
+    account::{archive::RestoreOptions, LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
-    vault::{secret::SecretId, Gatekeeper, VaultId},
     vfs,
 };
-
-use crate::test_utils::{mock_note, setup, teardown};
 
 const TEST_ID: &str = "secret_lifecycle";
 
 /// Tests the basic secret lifecycle; create, read, update
-/// and account deletion followed by creating a backup, 
-/// restoring from the backup archive and asserting on 
+/// and account deletion followed by creating a backup,
+/// restoring from the backup archive and asserting on
 /// the restored data.
 #[tokio::test]
 async fn integration_secret_lifecycle() -> Result<()> {
@@ -30,7 +21,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 
     UserPaths::scaffold(Some(data_dir.clone())).await?;
-    let paths = UserPaths::new_global(data_dir.clone());
+    UserPaths::new_global(data_dir.clone());
 
     let (mut account, new_account) = LocalAccount::new_account(
         account_name.clone(),
@@ -79,7 +70,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
 
     // Create another secret so we can assert after restoring the account
     let (meta, secret) = mock_note("restored_note", TEST_ID);
-    let (id, _, _, folder) = account
+    let (id, _, _, _) = account
         .create_secret(meta, secret, Default::default())
         .await?;
 
@@ -108,7 +99,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
         Some(data_dir.clone()),
     )
     .await?;
-    
+
     // Sign in after restoring the account
     let mut account = LocalAccount::new_unauthenticated(
         address,
@@ -117,7 +108,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
     )
     .await?;
     account.sign_in(password.clone()).await?;
-    let folders = account.list_folders().await?;
+    account.list_folders().await?;
     account.open_folder(&default_folder).await?;
 
     // Assert on the restored secret

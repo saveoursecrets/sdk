@@ -8,8 +8,6 @@ use crate::{
     Error, Result,
 };
 
-use std::borrow::Cow;
-
 /// Builder that changes a vault password.
 ///
 /// Generates a new vault derived from the original vault so

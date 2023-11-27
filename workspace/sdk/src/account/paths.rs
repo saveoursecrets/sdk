@@ -10,9 +10,10 @@ use std::{
 
 use crate::{
     constants::{
-        APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICES_DIR, EVENT_LOG_EXT,
-        FILES_DIR, IDENTITY_DIR, LOCAL_DIR, LOGS_DIR, TEMP_DIR, TRASH_DIR,
-        VAULTS_DIR, VAULT_EXT,
+        ACCOUNT_FILE, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICES_DIR,
+        EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR, JSON_EXT, LOCAL_DIR,
+        LOGS_DIR, PREFERENCES_FILE, TEMP_DIR, TRASH_DIR, VAULTS_DIR,
+        VAULT_EXT,
     },
     vfs,
 };
@@ -209,8 +210,15 @@ impl UserPaths {
 
     /// Get the path to the account-level event log file.
     pub fn account_events(&self) -> PathBuf {
-        let mut vault_path = self.user_dir.join("account");
+        let mut vault_path = self.user_dir.join(ACCOUNT_FILE);
         vault_path.set_extension(EVENT_LOG_EXT);
+        vault_path
+    }
+
+    /// Get the path to the account preferences.
+    pub fn preferences(&self) -> PathBuf {
+        let mut vault_path = self.user_dir.join(PREFERENCES_FILE);
+        vault_path.set_extension(JSON_EXT);
         vault_path
     }
 

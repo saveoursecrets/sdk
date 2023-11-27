@@ -11,9 +11,8 @@ const NOOP: u16 = 0;
 const CREATE_ACCOUNT: u16 = 1;
 /// Type identifier for the delete account operation.
 const DELETE_ACCOUNT: u16 = 2;
-/// Type identifier for the login response operation.
-#[deprecated]
-const LOGIN_RESPONSE: u16 = 3;
+/// Type identifier for a list vaults operation.
+const LIST_VAULTS: u16 = 3;
 /// Type identifier for the create vault operation.
 const CREATE_VAULT: u16 = 4;
 /// Type identifier for the read vault operation.
@@ -65,8 +64,8 @@ pub enum EventKind {
     CreateAccount,
     /// Event to delete an account.
     DeleteAccount,
-    /// Event to create a login response.
-    LoginResponse,
+    /// Event to represent a sign in.
+    ListVaults,
     /// Event to create a vault.
     CreateVault,
     /// Event to read a vault.
@@ -122,7 +121,7 @@ impl TryFrom<u16> for EventKind {
             NOOP => EventKind::Noop,
             CREATE_ACCOUNT => EventKind::CreateAccount,
             DELETE_ACCOUNT => EventKind::DeleteAccount,
-            LOGIN_RESPONSE => EventKind::LoginResponse,
+            LIST_VAULTS => EventKind::ListVaults,
             CREATE_VAULT => EventKind::CreateVault,
             READ_VAULT => EventKind::ReadVault,
             UPDATE_VAULT => EventKind::UpdateVault,
@@ -154,7 +153,7 @@ impl From<&EventKind> for u16 {
             EventKind::Noop => NOOP,
             EventKind::CreateAccount => CREATE_ACCOUNT,
             EventKind::DeleteAccount => DELETE_ACCOUNT,
-            EventKind::LoginResponse => LOGIN_RESPONSE,
+            EventKind::ListVaults => LIST_VAULTS,
             EventKind::CreateVault => CREATE_VAULT,
             EventKind::ReadVault => READ_VAULT,
             EventKind::UpdateVault => UPDATE_VAULT,
@@ -186,7 +185,7 @@ impl fmt::Display for EventKind {
                 EventKind::Noop => "NOOP",
                 EventKind::CreateAccount => "CREATE_ACCOUNT",
                 EventKind::DeleteAccount => "DELETE_ACCOUNT",
-                EventKind::LoginResponse => "LOGIN_RESPONSE",
+                EventKind::ListVaults => "LIST_FOLDERS",
                 EventKind::CreateVault => "CREATE_FOLDER",
                 EventKind::ReadVault => "READ_FOLDER",
                 EventKind::UpdateVault => "UPDATE_FOLDER",

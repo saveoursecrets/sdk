@@ -1,7 +1,7 @@
 //! Write ahead log types and traits.
 use crate::{
-    commit::CommitHash, decode, events::WriteEvent,
-    formats::EventLogFileRecord, timestamp::Timestamp, Result,
+    commit::CommitHash, decode, formats::EventLogFileRecord,
+    timestamp::Timestamp, Result,
 };
 use binary_stream::futures::Decodable;
 
@@ -63,7 +63,7 @@ impl From<(EventLogFileRecord, Vec<u8>)> for EventRecord {
 mod test {
     use anyhow::Result;
     use serial_test::serial;
-    use std::{borrow::Cow, path::PathBuf};
+    use std::path::PathBuf;
 
     use uuid::Uuid;
 

@@ -1,41 +1,30 @@
 //! Network aware account.
 use std::{
     any::Any,
-    borrow::Cow,
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use futures::Future;
-
 use sos_sdk::{
     account::{
-        archive::{
-            AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
-        },
-        search::{
-            AccountSearch, AccountStatistics, DocumentCount, SearchIndex,
-        },
+        archive::{Inventory, RestoreOptions},
+        search::{AccountSearch, AccountStatistics, DocumentCount},
         AccessOptions, Account, AccountBuilder, AccountData, AccountHandler,
         AccountInfo, AccountsList, AuthenticatedUser, DetachedView,
         FolderStorage, NewAccount, UserPaths,
     },
-    commit::{CommitHash, CommitProof, CommitState},
-    crypto::{AccessKey, SecureAccessKey},
-    decode, encode,
-    events::{
-        AccountEvent, AuditData, AuditEvent, AuditLogFile, AuditProvider,
-        Event, EventKind, EventReducer, ReadEvent, WriteEvent,
-    },
+    commit::{CommitHash, CommitState},
+    crypto::AccessKey,
+    encode,
+    events::{AuditEvent, Event, EventKind, ReadEvent},
     mpc::generate_keypair,
     signer::ecdsa::Address,
     vault::{
-        secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
-        Gatekeeper, Summary, Vault, VaultId,
+        secret::{Secret, SecretData, SecretId, SecretMeta},
+        Gatekeeper, Summary, VaultId,
     },
-    vfs::{self, File},
-    Timestamp,
+    vfs,
 };
 
 #[cfg(feature = "contacts")]
@@ -49,11 +38,9 @@ pub use sos_sdk::account::security_report::{
 use tracing::{span, Level};
 
 use secrecy::SecretString;
-use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
 use tokio::{
     io::{AsyncRead, AsyncSeek},
-    sync::{mpsc, Mutex, RwLock},
+    sync::{Mutex, RwLock},
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -331,12 +318,6 @@ impl UserStorage {
         remotes.remove(origin)
     }
 
-    /// File storage directory.
-    #[deprecated(note = "Use paths() instead")]
-    pub fn files_dir(&self) -> &PathBuf {
-        self.account.files_dir()
-    }
-
     /// Account address.
     pub fn address(&self) -> &Address {
         self.account.address()
@@ -345,47 +326,12 @@ impl UserStorage {
     /// Sign in to an account.
     pub async fn sign_in(&mut self, passphrase: SecretString) -> Result<()> {
         Ok(self.account.sign_in(passphrase).await?)
-
-        /*
-        let remotes = Arc::new(RwLock::new(Default::default()));
-        // TODO: load existing remote definitions from disc
-        let handler = SyncHandler {
-            remotes: Arc::clone(&remotes),
-        };
-
-        let account = LocalAccount::sign_in(
-            address,
-            passphrase,
-            data_dir,
-            Some(Box::new(handler)),
-        )
-        .await?;
-
-        let devices_dir = account.paths().devices_dir().clone();
-        Ok(Self {
-            account,
-            #[cfg(feature = "device")]
-            devices: DeviceManager::new(devices_dir)?,
-            remotes,
-            sync_lock: Mutex::new(()),
-            listeners: Mutex::new(Default::default()),
-        })
-        */
     }
 
     /// User storage paths.
     pub fn paths(&self) -> &UserPaths {
         self.account.paths()
     }
-
-    /*
-    /// Append to the audit log.
-    async fn append_audit_logs(&self, events: Vec<AuditEvent>) -> Result<()> {
-        let mut writer = self.audit_log.write().await;
-        writer.append_audit_events(events).await?;
-        Ok(())
-    }
-    */
 
     /// Load the buffer of the encrypted vault for this account.
     ///
@@ -769,7 +715,7 @@ impl UserStorage {
         secret_id: &SecretId,
         meta: SecretMeta,
         secret: Option<Secret>,
-        mut options: AccessOptions,
+        options: AccessOptions,
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
@@ -806,7 +752,7 @@ impl UserStorage {
     pub async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
-        mut options: AccessOptions,
+        options: AccessOptions,
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
 
@@ -1375,10 +1321,8 @@ mod listen {
         Error, ListenOptions, Origin, RemoteBridge, Result, UserStorage,
         WebSocketHandle,
     };
-    use futures::{select, Future, FutureExt};
-    use sos_sdk::prelude::{
-        CommitHash, CommitProof, SecureAccessKey, Summary,
-    };
+    use futures::{select, FutureExt};
+    use sos_sdk::prelude::SecureAccessKey;
     use std::sync::Arc;
 
     impl UserStorage {

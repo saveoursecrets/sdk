@@ -1,14 +1,10 @@
 //! Account storage and search index.
 use std::{
-    any::Any,
     borrow::Cow,
     collections::HashMap,
     path::{Path, PathBuf},
-    pin::Pin,
     sync::Arc,
 };
-
-use futures::Future;
 
 use crate::{
     account::{
@@ -21,14 +17,13 @@ use crate::{
         AccountBuilder, AccountInfo, AccountsList, AuthenticatedUser,
         FolderStorage, NewAccount, UserPaths,
     },
-    commit::{CommitHash, CommitProof, CommitState},
+    commit::{CommitHash, CommitState},
     crypto::{AccessKey, SecureAccessKey},
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, AuditData, AuditEvent, AuditLogFile,
         AuditProvider, Event, EventKind, EventReducer, ReadEvent, WriteEvent,
     },
-    mpc::generate_keypair,
     signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
@@ -42,21 +37,19 @@ use tracing::{span, Level};
 
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
 use tokio::{
     io::{AsyncRead, AsyncSeek},
-    sync::{mpsc, Mutex, RwLock},
+    sync::{mpsc, RwLock},
 };
 
-use async_trait::async_trait;
-
 use super::{files::FileProgress, search::AccountSearch};
+use async_trait::async_trait;
 
 /// Type alias for a local account without a handler.
 pub type LocalAccount = Account<()>;
 
 /// Account handler is notified of account changes.
-#[async_trait::async_trait]
+#[async_trait]
 pub trait AccountHandler {
     /// Data associated with this handler.
     type Data;
@@ -110,7 +103,6 @@ impl From<Summary> for AccessOptions {
 }
 
 /// Data about an account.
-#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountData {
     /// Main account information.
@@ -319,12 +311,6 @@ impl<D> Account<D> {
         let auth =
             self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         Ok(Arc::clone(&auth.storage))
-    }
-
-    /// File storage directory.
-    #[deprecated(note = "Use paths() instead")]
-    pub fn files_dir(&self) -> &PathBuf {
-        self.paths.files_dir()
     }
 
     /// Account address.
@@ -1739,7 +1725,7 @@ impl<D> Account<D> {
         data_dir: Option<PathBuf>,
     ) -> Result<(AccountInfo, Option<&mut Account<D>>)> {
         let files_dir = if let Some(owner) = owner.as_ref() {
-            ExtractFilesLocation::Path(owner.files_dir().clone())
+            ExtractFilesLocation::Path(owner.paths().files_dir().clone())
         } else {
             ExtractFilesLocation::Builder(Box::new(|address| {
                 let data_dir = UserPaths::data_dir().unwrap();

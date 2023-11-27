@@ -40,6 +40,9 @@ mod extensions {
 
     /// File extension used when creating a vault file backup.
     pub const VAULT_BACKUP_EXT: &str = "vault.backup";
+
+    /// File extension for JSON documents.
+    pub const JSON_EXT: &str = "json";
 }
 
 /// Constants for vaults.
@@ -145,10 +148,17 @@ mod folders {
     pub const TEMP_DIR: &str = "temp";
 
     /// Directory to store deleted files.
+    #[deprecated]
     pub const TRASH_DIR: &str = "trash";
 
     /// Directory to store log files.
     pub const LOGS_DIR: &str = "logs";
+
+    /// Name of the file for account events.
+    pub const ACCOUNT_FILE: &str = "account";
+
+    /// Name of the file for account preferences.
+    pub const PREFERENCES_FILE: &str = "preferences";
 }
 
 mod archive {

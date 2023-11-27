@@ -420,7 +420,6 @@ impl EventLogFile<WriteEvent> {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use std::borrow::Cow;
     use tempfile::NamedTempFile;
 
     use super::*;

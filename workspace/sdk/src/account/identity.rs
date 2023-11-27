@@ -20,7 +20,7 @@ use web3_address::ethereum::Address;
 
 use crate::{
     account::search::SearchIndex,
-    commit::{CommitHash, CommitProof, CommitState},
+    commit::CommitState,
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     crypto::KeyDerivation,
     decode,

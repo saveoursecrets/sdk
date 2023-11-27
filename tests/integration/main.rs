@@ -1,8 +1,8 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod test_utils;
 
-#[cfg(not(target_arch = "wasm32"))]
-mod account_manager;
+//#[cfg(not(target_arch = "wasm32"))]
+//mod account_manager;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod archive_export_restore;

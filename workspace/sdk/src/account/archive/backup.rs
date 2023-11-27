@@ -1,7 +1,6 @@
 //! Account manager provides utility functions for
 //! creating and managing local accounts.
 use std::{
-    borrow::Cow,
     io::Cursor,
     path::{Path, PathBuf},
     sync::Arc,

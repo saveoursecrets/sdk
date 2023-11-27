@@ -1,7 +1,6 @@
 //! Generate a security report for all passwords.
 use crate::{
     account::Account,
-    commit::{CommitHash, CommitProof},
     vault::{
         secret::{Secret, SecretId, SecretType},
         Gatekeeper, Summary, VaultId,
@@ -9,7 +8,6 @@ use crate::{
     zxcvbn::Entropy,
     Result,
 };
-use futures::Future;
 use serde::{Deserialize, Serialize};
 
 /// Specific target for a security report.

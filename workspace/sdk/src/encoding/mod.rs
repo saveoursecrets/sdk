@@ -8,7 +8,6 @@ use binary_stream::{
     futures::{Decodable, Encodable},
     Endian, Options,
 };
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 /// Helper for mapping an encoding error.
 pub fn encoding_error(
@@ -36,34 +35,3 @@ pub async fn encode(encodable: &impl Encodable) -> Result<Vec<u8>> {
 pub async fn decode<T: Decodable + Default>(buffer: &[u8]) -> Result<T> {
     Ok(binary_stream::futures::decode(buffer, encoding_options()).await?)
 }
-
-/*
-/// Encode to a stream.
-async fn encode_stream<S>(
-    encodable: &impl Encodable,
-    stream: &mut S,
-) -> Result<()>
-where
-    S: AsyncWrite + AsyncSeek + Send + Sync + Unpin,
-{
-    Ok(binary_stream::futures::encode_stream(
-        encodable,
-        stream,
-        encoding_options(),
-    )
-    .await?)
-}
-
-/// Decode from a stream.
-async fn decode_stream<
-    T: Decodable + Default,
-    S: AsyncRead + AsyncSeek + Send + Sync + Unpin,
->(
-    stream: &mut S,
-) -> Result<T> {
-    Ok(
-        binary_stream::futures::decode_stream(stream, encoding_options())
-            .await?,
-    )
-}
-*/

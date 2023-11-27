@@ -10,7 +10,6 @@ use sos_sdk::{
     vfs,
 };
 use std::{
-    borrow::Cow,
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,

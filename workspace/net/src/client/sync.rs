@@ -1,9 +1,7 @@
-use super::{Error, Origin, Result};
+use super::{Error, Origin};
 use async_trait::async_trait;
 use sos_sdk::{
-    commit::{CommitHash, CommitProof, CommitState},
-    crypto::SecureAccessKey,
-    events::Event,
+    commit::CommitState, crypto::SecureAccessKey, events::Event,
     vault::Summary,
 };
 use std::any::Any;
