@@ -58,7 +58,7 @@ async fn integration_archive_local_provider() -> Result<()> {
 
     let options = RestoreOptions {
         selected: vec![vault.summary().clone()],
-        passphrase: Some(passphrase.clone()),
+        password: Some(passphrase.clone()),
         files_dir: None,
     };
 

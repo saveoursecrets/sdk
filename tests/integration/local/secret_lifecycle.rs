@@ -3,7 +3,10 @@ use anyhow::Result;
 use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use sos_net::sdk::{
-    account::{AccountsList, FolderStorage, LocalAccount, UserPaths},
+    account::{
+        archive::RestoreOptions, AccountsList, FolderStorage, LocalAccount,
+        UserPaths,
+    },
     hex,
     passwd::diceware::generate_passphrase,
     vault::{secret::SecretId, Gatekeeper, VaultId},
@@ -15,7 +18,9 @@ use crate::test_utils::{mock_note, setup, teardown};
 const TEST_ID: &str = "secret_lifecycle";
 
 /// Tests the basic secret lifecycle; create, read, update
-/// and delete followed by creating a backup.
+/// and account deletion followed by creating a backup, 
+/// restoring from the backup archive and asserting on 
+/// the restored data.
 #[tokio::test]
 async fn integration_secret_lifecycle() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -34,6 +39,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
         None,
     )
     .await?;
+    let address = account.address().clone();
 
     let default_folder = new_account.default_folder();
 
@@ -67,9 +73,15 @@ async fn integration_secret_lifecycle() -> Result<()> {
     let (data, _) = account.read_secret(&id, Default::default()).await?;
     assert_eq!(meta, data.meta);
     assert_eq!("note_edited", data.meta.label());
-    
+
     // Delete
     account.delete_secret(&id, Default::default()).await?;
+
+    // Create another secret so we can assert after restoring the account
+    let (meta, secret) = mock_note("restored_note", TEST_ID);
+    let (id, _, _, folder) = account
+        .create_secret(meta, secret, Default::default())
+        .await?;
 
     // Export a backup archive
     let archive = data_dir.join("backup.zip");
@@ -80,18 +92,38 @@ async fn integration_secret_lifecycle() -> Result<()> {
     account.delete_account().await?;
     assert!(!account.is_authenticated());
 
-    // Restore from the backup archive.
+    // Restore from the backup archive
     let options = RestoreOptions {
         selected: folders.clone(),
         password: Some(password.clone()),
-        ..Default::default(),
+        ..Default::default()
     };
     LocalAccount::restore_backup_archive(
-        Some(&mut account),
+        // Note we don't pass in the account as we
+        // are not restoring a signed in account but
+        // an account that no longer exists
+        None,
         &archive,
         options,
         Some(data_dir.clone()),
-    ).await?;
+    )
+    .await?;
+    
+    // Sign in after restoring the account
+    let mut account = LocalAccount::new_unauthenticated(
+        address,
+        Some(data_dir.clone()),
+        None,
+    )
+    .await?;
+    account.sign_in(password.clone()).await?;
+    let folders = account.list_folders().await?;
+    account.open_folder(&default_folder).await?;
+
+    // Assert on the restored secret
+    let (data, _) = account.read_secret(&id, Default::default()).await?;
+    assert_eq!(Some(id), data.id);
+    assert_eq!("restored_note", data.meta.label());
 
     teardown(TEST_ID).await;
 

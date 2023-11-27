@@ -150,7 +150,7 @@ async fn integration_account_manager() -> Result<()> {
 
     let options = RestoreOptions {
         selected: vaults.clone().into_iter().map(|v| v.0).collect(),
-        passphrase: Some(passphrase.clone()),
+        password: Some(passphrase.clone()),
         files_dir: Some(ExtractFilesLocation::Path(files_dir.clone())),
     };
 
@@ -172,7 +172,7 @@ async fn integration_account_manager() -> Result<()> {
     // equivalent to importing an account
     let options = RestoreOptions {
         selected: vaults.into_iter().map(|v| v.0).collect(),
-        passphrase: Some(passphrase),
+        password: Some(passphrase),
         files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
     };
     let reader = Cursor::new(&mut archive_buffer);

@@ -182,7 +182,7 @@ async fn simulate_session(
 
     let restore_options = RestoreOptions {
         selected: vec![default_folder.clone()],
-        passphrase: Some(passphrase),
+        password: Some(passphrase),
         files_dir: None,
     };
 

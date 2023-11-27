@@ -61,10 +61,11 @@ pub enum ExtractFilesLocation {
 }
 
 /// Options for a restore operation.
+#[derive(Default)]
 pub struct RestoreOptions {
     /// Vaults that the user selected to be imported.
     pub selected: Vec<Summary>,
-    /// Password for the identity vault in the archive to access 
+    /// Password for the identity vault in the archive to access
     /// the passwords for imported folders.
     pub password: Option<SecretString>,
     /// Target directory for files.

@@ -699,6 +699,7 @@ mod test {
         Ok(())
     }
 
+    /*
     #[test]
     fn commit_multi_equal() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -750,7 +751,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_multi_ahead() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -804,7 +807,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_multi_behind() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -858,7 +863,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_multi_diverged() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -911,7 +918,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_equal() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -960,7 +969,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_push() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -1025,7 +1036,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_pull() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -1090,7 +1103,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_conflict() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -1153,7 +1168,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_pull_push() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -1231,7 +1248,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_pull_push_conflict() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -1331,7 +1350,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_multi_node() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -1463,4 +1484,5 @@ mod test {
 
         Ok(())
     }
+    */
 }

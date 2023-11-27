@@ -424,7 +424,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     let files_dir = paths.files_dir();
     let options = RestoreOptions {
         selected: inventory.vaults,
-        passphrase: None,
+        password: None,
         files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
     };
     let reader = vfs::File::open(&input).await?;
