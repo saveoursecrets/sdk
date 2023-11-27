@@ -5,7 +5,7 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_net::sdk::{
     constants::DEFAULT_VAULT_NAME, signer::ecdsa::SingleParty,
-    vault::VaultRef,
+    vault::FolderRef,
 };
 
 const TEST_ID: &str = "simple_session";
@@ -27,7 +27,7 @@ async fn integration_simple_session() -> Result<()> {
         provider.create_vault(new_vault_name.clone(), None).await?;
 
     // Check our new vault is found in the local cache
-    let vault_ref = VaultRef::Name(new_vault_name.clone());
+    let vault_ref = FolderRef::Name(new_vault_name.clone());
     let new_vault_summary =
         provider.find_folder(&vault_ref).unwrap().clone();
     assert_eq!(&new_vault_name, new_vault_summary.name());
@@ -36,7 +36,7 @@ async fn integration_simple_session() -> Result<()> {
     let _new_vault_id = *new_vault_summary.id();
 
     // Trigger code path for finding by id
-    let id_ref = VaultRef::Id(*new_vault_summary.id());
+    let id_ref = FolderRef::Id(*new_vault_summary.id());
     let new_vault_summary_by_id =
         provider.find_folder(&id_ref).unwrap().clone();
     assert_eq!(new_vault_summary_by_id, new_vault_summary);
@@ -48,7 +48,7 @@ async fn integration_simple_session() -> Result<()> {
     assert_eq!(&cached_vaults, &vaults);
 
     // Remove the default vault
-    let default_ref = VaultRef::Name(DEFAULT_VAULT_NAME.to_owned());
+    let default_ref = FolderRef::Name(DEFAULT_VAULT_NAME.to_owned());
     let default_vault_summary =
         provider.find_folder(&default_ref).unwrap().clone();
     provider.remove_vault(&default_vault_summary).await?;

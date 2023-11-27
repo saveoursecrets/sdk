@@ -71,14 +71,13 @@ pub trait AccountHandler {
 
 type Handler<D> = Box<dyn AccountHandler<Data = D> + Send + Sync>;
 
-/// Read-only view of a vault created from a specific
-/// event log commit.
+/// Read-only view created from a specific event log commit.
 pub struct DetachedView {
     keeper: Gatekeeper,
 }
 
 impl DetachedView {
-    /// Read-only access to the vault.
+    /// Read-only access to the folder.
     pub fn keeper(&self) -> &Gatekeeper {
         &self.keeper
     }
@@ -136,7 +135,7 @@ struct Authenticated {
     index: AccountSearch,
 }
 
-/// Local account storage.
+/// User account backed by the filesystem.
 ///
 /// For functions that return a `CommitState` it represents
 /// the state *before* any changes were made. If a `handler`

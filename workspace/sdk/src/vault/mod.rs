@@ -11,7 +11,7 @@ pub use file_writer::VaultWriter;
 pub use gatekeeper::Gatekeeper;
 pub use vault::{
     Header, SharedAccess, Summary, Vault, VaultAccess, VaultCommit,
-    VaultEntry, VaultFlags, VaultId, VaultMeta, VaultRef,
+    VaultEntry, VaultFlags, VaultId, VaultMeta, FolderRef,
 };
 
 pub(crate) use vault::{Auth, Contents};

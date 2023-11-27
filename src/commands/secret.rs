@@ -12,7 +12,7 @@ use sos_net::sdk::{
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
-        Summary, VaultRef,
+        Summary, FolderRef,
     },
     vfs,
 };
@@ -50,7 +50,7 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Print more information.
         #[clap(short, long)]
@@ -72,7 +72,7 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -86,7 +86,7 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -99,7 +99,7 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Print debug representation.
         #[clap(short, long)]
@@ -127,7 +127,7 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -141,7 +141,7 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -154,7 +154,7 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// New name for the secret.
         #[clap(short, long)]
@@ -172,11 +172,11 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Target folder name or id.
         #[clap(short, long)]
-        target: VaultRef,
+        target: FolderRef,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -189,7 +189,7 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Text for the comment.
         #[clap(short, long)]
@@ -207,7 +207,7 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Overwrite an existing file.
         #[clap(long)]
@@ -227,7 +227,7 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -256,7 +256,7 @@ pub enum Command {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -279,7 +279,7 @@ pub enum AttachCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Print more information.
         #[clap(short, long)]
@@ -296,7 +296,7 @@ pub enum AttachCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -313,7 +313,7 @@ pub enum AttachCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Overwrite an existing file.
         #[clap(long)]
@@ -337,7 +337,7 @@ pub enum AttachCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -357,7 +357,7 @@ pub enum AttachAddCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Name of the attachment.
         #[clap(short, long)]
@@ -378,7 +378,7 @@ pub enum AttachAddCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Name of the attachment.
         #[clap(short, long)]
@@ -395,7 +395,7 @@ pub enum AttachAddCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Name of the attachment.
         #[clap(short, long)]
@@ -412,7 +412,7 @@ pub enum AttachAddCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Name of the attachment.
         #[clap(short, long)]
@@ -433,7 +433,7 @@ pub enum TagCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Comma separated tags.
         #[clap(short, long)]
@@ -451,7 +451,7 @@ pub enum TagCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -465,7 +465,7 @@ pub enum TagCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Comma separated tags.
         #[clap(short, long)]
@@ -482,7 +482,7 @@ pub enum TagCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Secret name or identifier.
         secret: SecretRef,
@@ -499,7 +499,7 @@ pub enum AddCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Comma separated tags.
         #[clap(short, long)]
@@ -517,7 +517,7 @@ pub enum AddCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Comma separated tags.
         #[clap(short, long)]
@@ -535,7 +535,7 @@ pub enum AddCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Comma separated tags.
         #[clap(short, long)]
@@ -553,7 +553,7 @@ pub enum AddCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Comma separated tags.
         #[clap(short, long)]
@@ -575,7 +575,7 @@ pub enum AddCommand {
 
         /// Folder name or id.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Comma separated tags.
         #[clap(short, long)]
@@ -591,7 +591,7 @@ pub enum AddCommand {
 /// Predicate used to locate a folder.
 enum FolderPredicate<'a> {
     /// User supplied reference to a folder.
-    Ref(Option<&'a VaultRef>),
+    Ref(Option<&'a FolderRef>),
     /// Closure that can be used to selected a specific folder.
     ///
     /// Particularly useful for commands such as `unarchive` which

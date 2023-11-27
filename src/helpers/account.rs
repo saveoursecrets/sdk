@@ -9,7 +9,7 @@ use sos_net::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         secrecy::{ExposeSecret, SecretString},
-        vault::{Summary, VaultRef},
+        vault::{Summary, FolderRef},
     },
 };
 use terminal_banner::{Banner, Padding};
@@ -113,7 +113,7 @@ pub async fn resolve_account(
 
 pub async fn resolve_folder(
     user: &Owner,
-    folder: Option<&VaultRef>,
+    folder: Option<&FolderRef>,
 ) -> Result<Option<Summary>> {
     let owner = user.read().await;
     if let Some(vault) = folder {
@@ -138,7 +138,7 @@ pub async fn resolve_folder(
     }
 }
 
-pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
+pub async fn cd_folder(user: Owner, folder: Option<&FolderRef>) -> Result<()> {
     let summary = {
         let owner = user.read().await;
         let storage = owner.storage()?;

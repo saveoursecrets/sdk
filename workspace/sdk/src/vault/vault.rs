@@ -163,16 +163,16 @@ impl VaultMeta {
     }
 }
 
-/// Reference to a vault using an id or a named label.
+/// Reference to a folder using an id or a named label.
 #[derive(Debug, Clone)]
-pub enum VaultRef {
+pub enum FolderRef {
     /// Vault identifier.
     Id(VaultId),
     /// Vault label.
     Name(String),
 }
 
-impl fmt::Display for VaultRef {
+impl fmt::Display for FolderRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Id(id) => write!(f, "{}", id),
@@ -181,7 +181,7 @@ impl fmt::Display for VaultRef {
     }
 }
 
-impl FromStr for VaultRef {
+impl FromStr for FolderRef {
     type Err = Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if let Ok(id) = Uuid::parse_str(s) {
@@ -192,7 +192,7 @@ impl FromStr for VaultRef {
     }
 }
 
-impl From<VaultId> for VaultRef {
+impl From<VaultId> for FolderRef {
     fn from(value: VaultId) -> Self {
         Self::Id(value)
     }

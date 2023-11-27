@@ -2,7 +2,7 @@ use std::{ffi::OsString, sync::Arc};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
-use sos_net::sdk::{account::AccountRef, vault::VaultRef};
+use sos_net::sdk::{account::AccountRef, vault::FolderRef};
 
 use crate::{
     commands::{AccountCommand, CheckCommand, FolderCommand, SecretCommand},
@@ -66,7 +66,7 @@ enum ShellCommand {
     /// Set a folder as the current working directory.
     Cd {
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Switch account.
     #[clap(alias = "su")]
@@ -331,7 +331,7 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
                 owner.default_folder().await
             };
             if let Some(summary) = default_folder {
-                let folder = Some(VaultRef::Id(*summary.id()));
+                let folder = Some(FolderRef::Id(*summary.id()));
                 cd_folder(Arc::clone(&user), folder.as_ref()).await?;
             }
 

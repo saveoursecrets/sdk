@@ -1,7 +1,7 @@
 use clap::Subcommand;
 
 use human_bytes::human_bytes;
-use sos_net::sdk::{account::AccountRef, hex, vault::VaultRef};
+use sos_net::sdk::{account::AccountRef, hex, vault::FolderRef};
 
 use crate::{
     helpers::{
@@ -34,7 +34,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
 
     /// List folders.
@@ -59,7 +59,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Print secret keys for a folder.
     Keys {
@@ -68,7 +68,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Print commits for a folder.
     Commits {
@@ -77,7 +77,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Rename a folder.
     #[clap(alias = "mv")]
@@ -91,7 +91,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Manage the history for a folder.
     History {
@@ -110,7 +110,7 @@ pub enum History {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Verify the integrity of the folder history.
     Check {
@@ -119,7 +119,7 @@ pub enum History {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// List history events.
     #[clap(alias = "ls")]
@@ -133,7 +133,7 @@ pub enum History {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
 }
 
@@ -154,7 +154,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             println!("Folder created ✓");
             drop(writer);
             if cwd {
-                let target = Some(VaultRef::Id(*summary.id()));
+                let target = Some(FolderRef::Id(*summary.id()));
                 cd_folder(user, target.as_ref()).await?;
             }
         }

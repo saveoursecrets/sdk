@@ -3,7 +3,7 @@ use sos_net::sdk::{
     account::{AccountRef, UserPaths},
     hex,
     url::Url,
-    vault::VaultRef,
+    vault::FolderRef,
 };
 use std::path::PathBuf;
 
@@ -128,7 +128,7 @@ pub enum Command {
     Shell {
         /// Folder name or identifier.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Account name or address.
         account: Option<AccountRef>,

@@ -6,7 +6,7 @@ use sos_net::{
     client::UserStorage,
     sdk::{
         account::{AccountRef, UserPaths},
-        vault::VaultRef,
+        vault::FolderRef,
         vfs,
     },
     FileLocks,
@@ -58,7 +58,7 @@ async fn auth(account: &AccountRef) -> Result<UserStorage> {
 
 pub async fn run(
     mut account: Option<AccountRef>,
-    folder: Option<VaultRef>,
+    folder: Option<FolderRef>,
 ) -> Result<()> {
     let data_dir = UserPaths::data_dir().map_err(|_| Error::NoCache)?;
     if !vfs::metadata(&data_dir).await?.is_dir() {

@@ -613,7 +613,7 @@ mod listen {
     };
     use sos_sdk::prelude::{
         AccessKey, ChangeAction, ChangeEvent, ChangeNotification,
-        SecureAccessKey, Summary, VaultId, VaultRef,
+        SecureAccessKey, Summary, VaultId, FolderRef,
     };
 
     use std::sync::Arc;
@@ -768,7 +768,7 @@ mod listen {
                 let summary = {
                     let reader = local.read().await;
                     reader
-                        .find_folder(&VaultRef::Id(*change.vault_id()))
+                        .find_folder(&FolderRef::Id(*change.vault_id()))
                         .cloned()
                 };
 

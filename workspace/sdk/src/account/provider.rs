@@ -16,7 +16,7 @@ use crate::{
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
-        VaultFlags, VaultId, VaultRef, VaultWriter,
+        VaultFlags, VaultId, FolderRef, VaultWriter,
     },
     vfs, Error, Result, Timestamp,
 };
@@ -82,7 +82,7 @@ impl FolderStorage {
     }
 
     /// Find a summary in this storage.
-    pub fn find_folder(&self, vault: &VaultRef) -> Option<&Summary> {
+    pub fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
         self.state.find_vault(vault)
     }
 
@@ -882,12 +882,12 @@ impl LocalState {
     }
 
     /// Find a summary in this state by reference.
-    fn find_vault(&self, vault: &VaultRef) -> Option<&Summary> {
+    fn find_vault(&self, vault: &FolderRef) -> Option<&Summary> {
         match vault {
-            VaultRef::Name(name) => {
+            FolderRef::Name(name) => {
                 self.summaries.iter().find(|s| s.name() == name)
             }
-            VaultRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
+            FolderRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
         }
     }
 
