@@ -104,8 +104,8 @@ mod test {
         let mut server = EventLogFile::new(path).await?;
         server
             .apply(vec![
-                WriteEvent::CreateVault(vault_buffer),
-                WriteEvent::CreateSecret(id, data),
+                &WriteEvent::CreateVault(vault_buffer),
+                &WriteEvent::CreateSecret(id, data),
             ])
             .await?;
 
@@ -141,8 +141,8 @@ mod test {
         let mut server = EventLogFile::new(&server_file).await?;
         server
             .apply(vec![
-                WriteEvent::CreateVault(vault_buffer),
-                WriteEvent::CreateSecret(id, data),
+                &WriteEvent::CreateVault(vault_buffer),
+                &WriteEvent::CreateSecret(id, data),
             ])
             .await?;
 
@@ -151,7 +151,7 @@ mod test {
         let mut it = server.iter().await?;
         while let Some(record) = it.next_entry().await? {
             let event = server.event_data(&record).await?;
-            client.append_event(event).await?;
+            client.append_event(&event).await?;
         }
 
         let proof = client.tree().head()?;
@@ -168,7 +168,7 @@ mod test {
         let (mut server, client, id) = mock_event_log_server_client().await?;
 
         // Add another event to the server from another client.
-        server.append_event(WriteEvent::DeleteSecret(id)).await?;
+        server.append_event(&WriteEvent::DeleteSecret(id)).await?;
 
         // Check that the server contains the client proof
         let proof = client.tree().head()?;
@@ -211,7 +211,7 @@ mod test {
         let (mut server, client, id) = mock_event_log_server_client().await?;
 
         // Add another event to the server from another client.
-        server.append_event(WriteEvent::DeleteSecret(id)).await?;
+        server.append_event(&WriteEvent::DeleteSecret(id)).await?;
 
         // Get the last record for our assertion
         let record = server.iter().await?.rev().next_entry().await?.unwrap();

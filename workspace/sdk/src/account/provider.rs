@@ -248,7 +248,7 @@ impl FolderStorage {
 
             let encoded = encode(vault).await?;
             let event = WriteEvent::CreateVault(encoded);
-            event_log.append_event(event).await?;
+            event_log.append_event(&event).await?;
         }
         event_log.load_tree().await?;
 
@@ -542,7 +542,7 @@ impl FolderStorage {
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         event_log.clear().await?;
-        event_log.apply(events).await?;
+        event_log.apply(events.iter().collect()).await?;
 
         Ok(())
     }
@@ -666,7 +666,7 @@ impl FolderStorage {
                 .cache
                 .get_mut(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            event_log.apply(events).await?;
+            event_log.apply(events.iter().collect()).await?;
         }
 
         // Update the vault file on disc

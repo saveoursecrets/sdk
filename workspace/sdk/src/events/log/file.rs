@@ -204,13 +204,13 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     ///
     /// If any events fail this function will rollback the
     /// event log to it's previous state.
-    pub async fn apply(&mut self, events: Vec<T>) -> Result<Vec<CommitHash>> {
+    pub async fn apply(&mut self, events: Vec<&T>) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
         let mut last_commit_hash = self.last_commit().await?;
         for event in events {
             let (commit, record) =
-                self.encode_event(&event, last_commit_hash).await?;
+                self.encode_event(event, last_commit_hash).await?;
             commits.push(commit);
             let mut buf = encode(&record).await?;
             last_commit_hash = Some(*record.commit());
@@ -244,7 +244,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     }
 
     /// Append a log event and commit the hash to the commit tree.
-    pub async fn append_event(&mut self, event: T) -> Result<CommitHash> {
+    pub async fn append_event(&mut self, event: &T) -> Result<CommitHash> {
         let mut commits = self.apply(vec![event]).await?;
         Ok(commits.remove(0))
     }
@@ -389,7 +389,7 @@ impl EventLogFile<WriteEvent> {
 
         // Apply them to a temporary event log file
         let mut temp_event_log = Self::new(temp.path()).await?;
-        temp_event_log.apply(events).await?;
+        temp_event_log.apply(events.iter().collect()).await?;
 
         let new_size = temp_event_log.file().metadata().await?.len();
 
@@ -442,7 +442,7 @@ mod test {
 
         // Create the vault
         let event = WriteEvent::CreateVault(buffer);
-        commits.push(event_log.append_event(event).await?);
+        commits.push(event_log.append_event(&event).await?);
 
         // Create a secret
         let (secret_id, _, _, _, event) = mock_vault_note(
@@ -452,7 +452,7 @@ mod test {
             "This a event log note secret.",
         )
         .await?;
-        commits.push(event_log.append_event(event).await?);
+        commits.push(event_log.append_event(&event).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -464,7 +464,7 @@ mod test {
         )
         .await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event).await?);
+            commits.push(event_log.append_event(&event).await?);
         }
 
         Ok((temp, event_log, commits))
@@ -507,7 +507,7 @@ mod test {
         assert!(event_log.last_commit().await?.is_none());
 
         let event = WriteEvent::CreateVault(buffer);
-        event_log.append_event(event).await?;
+        event_log.append_event(&event).await?;
 
         assert!(event_log.last_commit().await?.is_some());
 

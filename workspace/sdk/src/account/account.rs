@@ -572,9 +572,7 @@ impl<D> Account<D> {
         )
         .await?;
 
-        let event = Event::Account(AccountEvent::CreateFolder(*summary.id()));
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+        let account_event = AccountEvent::CreateFolder(*summary.id());
 
         let options = AccessOptions {
             folder: Some(summary),
@@ -586,9 +584,11 @@ impl<D> Account<D> {
 
         if let Some(auth) = self.authenticated.as_mut() {
             let mut account_log = auth.account_log.write().await;
-            account_log.append_event(
-                AccountEvent::CreateFolder(*summary.id())).await?;
+            account_log.append_event(&account_event).await?;
         }
+
+        let audit_event: AuditEvent = (self.address(), &Event::Account(account_event)).into();
+        self.append_audit_logs(vec![audit_event]).await?;
 
         let event =
             Event::Write(*summary.id(), WriteEvent::CreateVault(buffer));
@@ -622,17 +622,17 @@ impl<D> Account<D> {
             .remove_folder_from_search_index(summary.id())
             .await;
         self.delete_folder_files(&summary).await?;
-
+        
+        let account_event = AccountEvent::DeleteFolder(*summary.id());
         if let Some(auth) = self.authenticated.as_mut() {
             let mut account_log = auth.account_log.write().await;
-            account_log.append_event(
-                AccountEvent::CreateFolder(*summary.id())).await?;
+            account_log.append_event(&account_event).await?;
         }
 
-        let event = Event::Write(*summary.id(), event);
-        let audit_event: AuditEvent = (self.address(), &event).into();
+        let audit_event: AuditEvent = (self.address(), &Event::Account(account_event)).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
+        let event = Event::Write(*summary.id(), event);
         Ok((event, commit_state))
     }
 

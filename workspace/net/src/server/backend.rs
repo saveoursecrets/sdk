@@ -267,7 +267,7 @@ impl FileSystemBackend {
         // Create the event log file
         let mut event_log = FolderEventLog::new(&event_log_path).await?;
         let event = WriteEvent::CreateVault(vault.to_vec());
-        event_log.append_event(event).await?;
+        event_log.append_event(&event).await?;
 
         self.locks.add(&vault_path)?;
         self.locks.add(&event_log_path)?;
@@ -478,7 +478,7 @@ impl BackendHandler for FileSystemBackend {
         // Prepare a temp file with the new event log records
         let temp = NamedTempFile::new()?;
         let mut temp_event_log = FolderEventLog::new(temp.path()).await?;
-        temp_event_log.apply(events).await?;
+        temp_event_log.apply(events.iter().collect()).await?;
 
         let expected_root = temp_event_log
             .tree()
