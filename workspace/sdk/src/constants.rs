@@ -141,10 +141,6 @@ mod folders {
     /// Directory to store temporary files.
     pub const TEMP_DIR: &str = "temp";
 
-    /// Directory to store deleted files.
-    #[deprecated]
-    pub const TRASH_DIR: &str = "trash";
-
     /// Directory to store log files.
     pub const LOGS_DIR: &str = "logs";
 
@@ -155,13 +151,14 @@ mod folders {
     pub const PREFERENCES_FILE: &str = "preferences";
 }
 
-mod archive {
+/// File names.
+mod files {
     /// Manifest file for archives.
     pub const ARCHIVE_MANIFEST: &str = "sos-manifest.json";
 }
 
-pub use archive::*;
 pub use extensions::*;
+pub use files::*;
 pub use folders::*;
 pub use identity::*;
 pub use mime::*;
