@@ -10,7 +10,7 @@ use terminal_banner::{Banner, Padding};
 use secrecy::{ExposeSecret, SecretString};
 use sos_net::sdk::{
     hex,
-    search::Document,
+    account::search::Document,
     secrecy,
     url::Url,
     vault::{

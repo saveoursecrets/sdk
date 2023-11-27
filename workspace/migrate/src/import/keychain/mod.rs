@@ -20,8 +20,8 @@ use std::{
 };
 
 use sos_sdk::{
+    account::search::SearchIndex,
     crypto::AccessKey,
-    search::SearchIndex,
     vault::{
         secret::{Secret, SecretMeta},
         Gatekeeper, Vault,

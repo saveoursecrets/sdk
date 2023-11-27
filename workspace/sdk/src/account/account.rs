@@ -19,6 +19,7 @@ use crate::{
         AccountBuilder, AccountInfo, AuthenticatedUser, 
         DelegatedPassphrase, AccountsList, LocalProvider, NewAccount,
         UserPaths,
+        search::{DocumentCount, SearchIndex},
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -28,7 +29,6 @@ use crate::{
         Event, EventKind, EventReducer, ReadEvent, WriteEvent,
     },
     mpc::generate_keypair,
-    search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
@@ -52,7 +52,7 @@ use async_trait::async_trait;
 
 use super::{files::FileProgress, search::UserIndex};
 
-/// Account handler provides is notified of account changes.
+/// Account handler is notified of account changes.
 #[async_trait::async_trait]
 pub trait AccountHandler {
     /// Data associated with this handler.

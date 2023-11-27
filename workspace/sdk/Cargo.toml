@@ -20,7 +20,7 @@ contacts = []
 security-report = []
 
 [dependencies]
-sos-vfs = "0.1"
+sos-vfs = "0.2"
 async-trait = "0.1"
 async-recursion = "1"
 aes-gcm = { version = "0.10.1", features = ["std"] }

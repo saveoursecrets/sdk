@@ -19,11 +19,11 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
+    account::search::SearchIndex,
     commit::{CommitHash, CommitProof, CommitState},
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     crypto::KeyDerivation,
     decode,
-    search::SearchIndex,
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
         Signer,

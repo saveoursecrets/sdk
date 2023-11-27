@@ -14,7 +14,7 @@ use sos_sdk::{
         archive::{
             AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
         },
-        search::UserIndex,
+        search::{UserIndex, DocumentCount, SearchIndex},
         Account, AccountBuilder, AccountData, AccountHandler, AccountInfo,
         AuthenticatedUser, DelegatedPassphrase, DetachedView,
         AccountsList, LocalProvider, NewAccount, SecretOptions, UserPaths,
@@ -28,7 +28,6 @@ use sos_sdk::{
         Event, EventKind, EventReducer, ReadEvent, WriteEvent,
     },
     mpc::generate_keypair,
-    search::{DocumentCount, SearchIndex},
     signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},

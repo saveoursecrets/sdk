@@ -18,8 +18,8 @@ use url::Url;
 use vcard4::Vcard;
 
 use sos_sdk::{
+    account::search::SearchIndex,
     crypto::AccessKey,
-    search::SearchIndex,
     vault::{
         secret::{IdentityKind, Secret, SecretMeta},
         Gatekeeper, Vault,

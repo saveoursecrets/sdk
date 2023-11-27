@@ -99,7 +99,7 @@ mod test {
 
     use sos_sdk::{
         passwd::diceware::generate_passphrase,
-        search::SearchIndex,
+        account::search::SearchIndex,
         vault::{Gatekeeper, VaultBuilder},
     };
     use std::sync::Arc;

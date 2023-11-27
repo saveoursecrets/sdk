@@ -1,9 +1,8 @@
 //! Account search index.
 use std::{collections::HashSet, sync::Arc};
-
+use tokio::sync::RwLock;
 use crate::{
     crypto::AccessKey,
-    search::{Document, DocumentCount, SearchIndex},
     vault::{
         secret::{SecretId, SecretType},
         Gatekeeper, Vault, VaultId,
@@ -11,7 +10,8 @@ use crate::{
     vcard4, Result,
 };
 
-use tokio::sync::RwLock;
+mod index;
+pub use index::*;
 
 /// Modify and query a search index.
 pub struct UserIndex {

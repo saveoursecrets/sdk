@@ -1,9 +1,9 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
+    account::search::SearchIndex,
     crypto::{AccessKey, KeyDerivation, PrivateKey},
     decode, encode,
     events::{ReadEvent, WriteEvent},
-    search::SearchIndex,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         SharedAccess, Summary, Vault, VaultAccess, VaultCommit, VaultEntry,

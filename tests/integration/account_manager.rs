@@ -8,10 +8,10 @@ use sos_net::sdk::{
         files::FileStorage,
         Account, DelegatedPassphrase, AccountsList,
         LocalProvider,
+        search::SearchIndex,
     },
     hex,
     passwd::diceware::generate_passphrase,
-    search::SearchIndex,
     vault::{secret::SecretId, Gatekeeper, VaultId},
     vfs,
 };

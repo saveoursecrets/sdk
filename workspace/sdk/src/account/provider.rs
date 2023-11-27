@@ -3,6 +3,7 @@ use crate::{
     account::{
         archive::RestoreTargets, AccountStatus, NewAccount,
         UserPaths,
+        search::SearchIndex,
     },
     commit::{CommitHash, CommitTree},
     constants::VAULT_EXT,
@@ -13,7 +14,6 @@ use crate::{
         ReadEvent, WriteEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
-    search::SearchIndex,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
         Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,

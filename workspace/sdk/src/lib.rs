@@ -24,7 +24,6 @@ pub mod prelude;
 #[cfg(feature = "recovery")]
 pub mod recovery;
 
-pub mod search;
 pub mod signer;
 mod timestamp;
 pub mod vault;

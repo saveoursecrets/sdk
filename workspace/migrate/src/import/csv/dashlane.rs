@@ -662,7 +662,7 @@ mod test {
 
     use sos_sdk::{
         passwd::diceware::generate_passphrase,
-        search::SearchIndex,
+        account::search::SearchIndex,
         vault::{secret::Secret, Gatekeeper, VaultBuilder},
     };
     use std::sync::Arc;

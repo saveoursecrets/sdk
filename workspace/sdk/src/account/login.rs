@@ -9,12 +9,13 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    account::{AccountInfo, DelegatedPassphrase, AccountsList, UserPaths},
+    account::{AccountInfo, DelegatedPassphrase, AccountsList, UserPaths,
+    search::SearchIndex,
+    },
     constants::{DEVICE_KEY_URN, VAULT_EXT},
     crypto::AccessKey,
     encode,
     events::{AuditEvent, Event, EventKind},
-    search::SearchIndex,
     signer::{
         ed25519::{self, BoxedEd25519Signer, VerifyingKey},
         Signer,
