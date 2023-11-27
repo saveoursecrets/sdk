@@ -51,6 +51,9 @@ use async_trait::async_trait;
 
 use super::{files::FileProgress, search::AccountSearch};
 
+/// Type alias for a local account without a handler.
+pub type LocalAccount = Account<()>;
+
 /// Account handler is notified of account changes.
 #[async_trait::async_trait]
 pub trait AccountHandler {
@@ -137,9 +140,13 @@ struct Authenticated {
 
 /// User account backed by the filesystem.
 ///
-/// For functions that return a `CommitState` it represents
+/// Many functions require that the account is authenticated and will
+/// return [Error::NotAuthenticated] if the account is not authenticated 
+/// to authenticate a user call [Account::sign_in].
+///
+/// For functions that return a [CommitState] it represents
 /// the state *before* any changes were made. If a `handler`
-/// has been assigned the `handler` may alter the `CommitState`
+/// has been assigned the `handler` may alter the [CommitState]
 /// by returning a new state after changes from a remote server have
 /// been applied.
 pub struct Account<D> {
