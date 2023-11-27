@@ -16,20 +16,14 @@ mod change_password;
 #[cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))]
 mod command_line;
 
-//#[cfg(not(target_arch = "wasm32"))]
-//mod compact_force_pull;
-
 #[cfg(not(target_arch = "wasm32"))]
 mod external_files;
 
-//#[cfg(not(target_arch = "wasm32"))]
-//mod handle_change;
+#[cfg(not(target_arch = "wasm32"))]
+mod local;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod local_provider;
-
-//#[cfg(not(target_arch = "wasm32"))]
-//mod patch_conflict_resolve;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod rpc;

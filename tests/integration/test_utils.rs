@@ -12,7 +12,7 @@ use web3_address::ethereum::Address;
 use sos_net::{
     client::{Origin, RemoteBridge, RemoteSync, UserStorage},
     sdk::{
-        account::FolderStorage,
+        account::{FolderStorage, UserPaths},
         crypto::AccessKey,
         events::{AuditLogFile, WriteEvent},
         hex,
@@ -293,6 +293,7 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
             target.join(test_id).join(&format!("client{}", index + 1));
         let _ = vfs::remove_dir_all(&client).await;
         vfs::create_dir_all(&client).await?;
+        UserPaths::scaffold(Some(client.clone())).await?;
         clients.push(client);
     }
 

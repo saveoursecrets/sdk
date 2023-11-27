@@ -154,6 +154,7 @@ impl<'a> AccountsList<'a> {
         };
 
         let mut dir = vfs::read_dir(paths.identity_dir()).await?;
+
         while let Some(entry) = dir.next_entry().await? {
             if let (Some(extension), Some(file_stem)) =
                 (entry.path().extension(), entry.path().file_stem())
