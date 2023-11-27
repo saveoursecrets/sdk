@@ -4,3 +4,5 @@ mod compact_folder;
 mod external_files;
 mod folder_storage;
 mod secret_lifecycle;
+mod security_report;
+

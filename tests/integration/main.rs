@@ -1,17 +1,8 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod test_utils;
 
-//#[cfg(not(target_arch = "wasm32"))]
-//mod account_manager;
-
-//#[cfg(not(target_arch = "wasm32"))]
-//mod archive_export_restore;
-
 #[cfg(not(target_arch = "wasm32"))]
 mod audit_trail;
-
-//#[cfg(not(target_arch = "wasm32"))]
-//mod change_password;
 
 #[cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))]
 mod command_line;
@@ -21,9 +12,6 @@ mod local_account;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod rpc;
-
-#[cfg(not(target_arch = "wasm32"))]
-mod security_report;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod sync;
