@@ -5,7 +5,7 @@ use sos_net::sdk::{
     commit::{
         event_log_commit_tree_file, vault_commit_tree_file, CommitHash,
     },
-    events::{EventRecord, FolderEventLog},
+    events::{EventRecord, FolderEventLog, WriteEvent},
     formats::vault_stream,
     hex,
     uuid::Uuid,
@@ -130,7 +130,7 @@ async fn print_events(file: PathBuf, reverse: bool) -> Result<()> {
         println!("commit: {}", CommitHash(record.commit()));
         let event_buffer = event_log.read_event_buffer(&record).await?;
         let event_record: EventRecord = (record, event_buffer).into();
-        let event = event_record.decode_event().await?;
+        let event = event_record.decode_event::<WriteEvent>().await?;
         println!(" event: {}", event.event_kind());
     }
     println!("{}", divider);

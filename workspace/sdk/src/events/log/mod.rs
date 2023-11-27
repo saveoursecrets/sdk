@@ -3,6 +3,7 @@ use crate::{
     commit::CommitHash, decode, events::WriteEvent,
     formats::EventLogFileRecord, timestamp::Timestamp, Result,
 };
+use binary_stream::futures::Decodable;
 
 mod file;
 mod reducer;
@@ -41,8 +42,8 @@ impl EventRecord {
     }
 
     /// Decode this event record into a write event.
-    pub async fn decode_event(&self) -> Result<WriteEvent> {
-        let event: WriteEvent = decode(&self.3).await?;
+    pub async fn decode_event<T: Default + Decodable>(&self) -> Result<T> {
+        let event: T = decode(&self.3).await?;
         Ok(event)
     }
 }

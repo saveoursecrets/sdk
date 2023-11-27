@@ -291,7 +291,7 @@ impl WebSocketChangeListener {
         F: Future<Output = ()> + Send + 'static,
     {
         let notify = Arc::clone(&self.notify);
-        let task = tokio::task::spawn(async move {
+        tokio::task::spawn(async move {
             let _ = self.connect(&handler).await;
         });
         WebSocketHandle { notify }
