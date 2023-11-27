@@ -7,7 +7,7 @@ pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;
 pub use file_manager::{FileProgress, FileSource};
 
-/// Result of encrypting a file.
+/// Meta data about an encrypted file.
 #[derive(Debug, Clone)]
 pub struct EncryptedFile {
     /// Size of the encrypted data in bytes.

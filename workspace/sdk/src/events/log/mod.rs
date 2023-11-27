@@ -107,7 +107,6 @@ mod test {
                     WriteEvent::CreateVault(vault_buffer),
                     WriteEvent::CreateSecret(id, data),
                 ],
-                None,
             )
             .await?;
 
@@ -147,7 +146,6 @@ mod test {
                     WriteEvent::CreateVault(vault_buffer),
                     WriteEvent::CreateSecret(id, data),
                 ],
-                None,
             )
             .await?;
 

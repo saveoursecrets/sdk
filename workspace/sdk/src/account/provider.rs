@@ -581,7 +581,7 @@ impl LocalProvider {
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         event_log.clear().await?;
-        event_log.apply(events, None).await?;
+        event_log.apply(events).await?;
 
         Ok(())
     }
@@ -705,7 +705,7 @@ impl LocalProvider {
                 .cache
                 .get_mut(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            event_log.apply(events, None).await?;
+            event_log.apply(events).await?;
         }
 
         // Update the vault file on disc

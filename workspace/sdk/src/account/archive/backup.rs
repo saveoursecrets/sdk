@@ -572,7 +572,7 @@ impl AccountBackup {
                 event_log_events.push(create_vault);
                 let mut event_log =
                     FolderEventLog::new(event_log_path).await?;
-                event_log.apply(event_log_events, None).await?;
+                event_log.apply(event_log_events).await?;
             }
 
             let account = AccountInfo::new(label, restore_targets.address);

@@ -481,7 +481,7 @@ impl BackendHandler for FileSystemBackend {
         // Prepare a temp file with the new event log records
         let temp = NamedTempFile::new()?;
         let mut temp_event_log = FolderEventLog::new(temp.path()).await?;
-        temp_event_log.apply(events, None).await?;
+        temp_event_log.apply(events).await?;
 
         let expected_root = temp_event_log
             .tree()

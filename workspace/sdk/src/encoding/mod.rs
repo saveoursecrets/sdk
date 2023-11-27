@@ -37,8 +37,9 @@ pub async fn decode<T: Decodable + Default>(buffer: &[u8]) -> Result<T> {
     Ok(binary_stream::futures::decode(buffer, encoding_options()).await?)
 }
 
+/*
 /// Encode to a stream.
-pub async fn encode_stream<S>(
+async fn encode_stream<S>(
     encodable: &impl Encodable,
     stream: &mut S,
 ) -> Result<()>
@@ -54,7 +55,7 @@ where
 }
 
 /// Decode from a stream.
-pub async fn decode_stream<
+async fn decode_stream<
     T: Decodable + Default,
     S: AsyncRead + AsyncSeek + Send + Sync + Unpin,
 >(
@@ -65,3 +66,4 @@ pub async fn decode_stream<
             .await?,
     )
 }
+*/

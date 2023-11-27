@@ -2,6 +2,8 @@
 mod account_manager;
 pub mod archive;
 mod builder;
+#[cfg(feature = "contacts")]
+pub mod contacts;
 pub mod files;
 mod identity;
 mod local;
@@ -13,9 +15,6 @@ pub mod search;
 
 #[cfg(feature = "security-report")]
 pub mod security_report;
-
-#[cfg(feature = "contacts")]
-pub use account_manager::ContactImportProgress;
 
 pub use account_manager::{
     Account, AccountData, AccountHandler, DetachedView, SecretOptions,

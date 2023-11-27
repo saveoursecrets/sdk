@@ -207,7 +207,6 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     pub async fn apply(
         &mut self,
         events: Vec<T>,
-        expect: Option<CommitHash>,
     ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
@@ -230,25 +229,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
             Ok(_) => {
                 self.tree.append(&mut hashes);
                 self.tree.commit();
-
-                // Rollback to previous state if expected commit hash
-                // does not match the new commit hash
-                if let (Some(expected), Some(root)) =
-                    (expect, self.tree.root())
-                {
-                    let other_root: [u8; 32] = expected.into();
-                    if other_root != root {
-                        tracing::debug!(
-                            length = len,
-                            "event log rollback on expected root hash mismatch"
-                        );
-                        self.file.set_len(len).await?;
-                        self.tree.rollback();
-                    }
-                }
-
                 self.file.flush().await?;
-
                 Ok(commits)
             }
             Err(e) => {
@@ -267,7 +248,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
 
     /// Append a log event and commit the hash to the commit tree.
     pub async fn append_event(&mut self, event: T) -> Result<CommitHash> {
-        let mut commits = self.apply(vec![event], None).await?;
+        let mut commits = self.apply(vec![event]).await?;
         Ok(commits.remove(0))
     }
 
@@ -411,7 +392,7 @@ impl EventLogFile<WriteEvent> {
 
         // Apply them to a temporary event log file
         let mut temp_event_log = Self::new(temp.path()).await?;
-        temp_event_log.apply(events, None).await?;
+        temp_event_log.apply(events).await?;
 
         let new_size = temp_event_log.file().metadata().await?.len();
 
