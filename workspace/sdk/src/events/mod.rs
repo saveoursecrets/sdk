@@ -29,7 +29,9 @@ pub struct Patch(pub Vec<EventRecord>);
 
 impl Patch {
     /// Convert this patch into a collection of events.
-    pub async fn into_events<T: Default + Decodable>(&self) -> Result<Vec<T>> {
+    pub async fn into_events<T: Default + Decodable>(
+        &self,
+    ) -> Result<Vec<T>> {
         let mut events = Vec::new();
         for record in &self.0 {
             let event = record.decode_event::<T>().await?;

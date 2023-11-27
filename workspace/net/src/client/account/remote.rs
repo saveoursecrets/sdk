@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use http::StatusCode;
 
 use sos_sdk::{
-    account::{AccountStatus, LocalProvider},
+    account::{AccountStatus, FolderStorage},
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     crypto::SecureAccessKey,
     decode,
@@ -58,7 +58,7 @@ pub struct RemoteBridge {
     /// Origin for this remote.
     origin: Origin,
     /// Local provider.
-    local: Arc<RwLock<LocalProvider>>,
+    local: Arc<RwLock<FolderStorage>>,
     /// Client to use for remote communication.
     remote: RpcClient,
 }
@@ -67,7 +67,7 @@ impl RemoteBridge {
     /// Create a new remote bridge that wraps the given
     /// local provider.
     pub fn new(
-        local: Arc<RwLock<LocalProvider>>,
+        local: Arc<RwLock<FolderStorage>>,
         origin: Origin,
         signer: BoxedEcdsaSigner,
         keypair: Keypair,
@@ -81,7 +81,7 @@ impl RemoteBridge {
     }
 
     /// Clone of the local provider.
-    pub fn local(&self) -> Arc<RwLock<LocalProvider>> {
+    pub fn local(&self) -> Arc<RwLock<FolderStorage>> {
         Arc::clone(&self.local)
     }
 }

@@ -7,7 +7,7 @@ use terminal_banner::{Banner, Padding};
 
 use sos_net::sdk::{
     account::{
-        search::{ArchiveFilter, DocumentView, Document},
+        search::{ArchiveFilter, Document, DocumentView},
         AccountRef,
     },
     vault::{

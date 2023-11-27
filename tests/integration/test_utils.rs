@@ -12,7 +12,7 @@ use web3_address::ethereum::Address;
 use sos_net::{
     client::{Origin, RemoteBridge, RemoteSync, UserStorage},
     sdk::{
-        account::LocalProvider,
+        account::FolderStorage,
         crypto::AccessKey,
         events::{AuditLogFile, WriteEvent},
         hex,
@@ -63,7 +63,7 @@ async fn remote_bridge(
 ) -> Result<RemoteBridge> {
     let keypair = Keypair::new(PATTERN.parse()?)?;
     let local =
-        LocalProvider::new(signer.address()?.to_string(), data_dir).await?;
+        FolderStorage::new(signer.address()?.to_string(), data_dir).await?;
     let provider = RemoteBridge::new(
         Arc::new(RwLock::new(local)),
         origin.clone(),
@@ -304,22 +304,21 @@ pub async fn create_local_account(
     data_dir: Option<PathBuf>,
 ) -> Result<(UserStorage, Summary, SecretString)> {
     let (passphrase, _) = generate_passphrase()?;
-    let (mut owner, new_account) =
-        UserStorage::new_account_with_builder(
-            account_name.to_owned(),
-            passphrase.clone(),
-            |builder| {
-                builder
-                    .save_passphrase(false)
-                    .create_archive(true)
-                    .create_authenticator(false)
-                    .create_contacts(true)
-                    .create_file_password(true)
-            },
-            data_dir,
-            None,
-        )
-        .await?;
+    let (mut owner, new_account) = UserStorage::new_account_with_builder(
+        account_name.to_owned(),
+        passphrase.clone(),
+        |builder| {
+            builder
+                .save_passphrase(false)
+                .create_archive(true)
+                .create_authenticator(false)
+                .create_contacts(true)
+                .create_file_password(true)
+        },
+        data_dir,
+        None,
+    )
+    .await?;
 
     let summary = new_account.default_folder().clone();
 
@@ -341,7 +340,7 @@ pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
 }
 
 pub async fn create_secrets(
-    provider: &mut LocalProvider,
+    provider: &mut FolderStorage,
     summary: &Summary,
 ) -> Result<Vec<(SecretId, &'static str)>> {
     let notes = vec![
@@ -379,7 +378,7 @@ pub async fn create_secrets(
 }
 
 pub async fn delete_secret(
-    provider: &mut LocalProvider,
+    provider: &mut FolderStorage,
     summary: &Summary,
     id: &SecretId,
 ) -> Result<()> {
@@ -425,10 +424,10 @@ async fn create_account(
 pub async fn create_local_provider(
     signer: BoxedEcdsaSigner,
     data_dir: Option<PathBuf>,
-) -> Result<(AccountCredentials, LocalProvider)> {
+) -> Result<(AccountCredentials, FolderStorage)> {
     let address = signer.address()?;
     let mut provider =
-        LocalProvider::new(address.to_string(), data_dir).await?;
+        FolderStorage::new(address.to_string(), data_dir).await?;
     let (_, encryption_passphrase, summary) =
         provider.create_account(None, None).await?;
     let account = AccountCredentials {

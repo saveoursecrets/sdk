@@ -1,6 +1,6 @@
 //! File encryption/decryption and manager for external files.
-use std::path::Path;
 use crate::Result;
+use std::path::Path;
 
 mod external_files;
 mod external_files_sync;

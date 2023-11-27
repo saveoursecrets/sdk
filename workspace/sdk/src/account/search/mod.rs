@@ -1,15 +1,18 @@
 //! Account search index.
-use std::{collections::{HashSet, HashMap}, sync::Arc};
-use tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
 use crate::{
     crypto::AccessKey,
     vault::{
         secret::{SecretId, SecretType},
-        Gatekeeper, Vault, VaultId, Summary,
+        Gatekeeper, Summary, Vault, VaultId,
     },
     vcard4, Result,
 };
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
+use tokio::sync::RwLock;
 
 mod index;
 pub use index::*;

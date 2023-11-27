@@ -103,12 +103,10 @@ mod test {
         // Create a simple event log
         let mut server = EventLogFile::new(path).await?;
         server
-            .apply(
-                vec![
-                    WriteEvent::CreateVault(vault_buffer),
-                    WriteEvent::CreateSecret(id, data),
-                ],
-            )
+            .apply(vec![
+                WriteEvent::CreateVault(vault_buffer),
+                WriteEvent::CreateSecret(id, data),
+            ])
             .await?;
 
         Ok((server, id))
@@ -142,12 +140,10 @@ mod test {
         // Create a simple event log
         let mut server = EventLogFile::new(&server_file).await?;
         server
-            .apply(
-                vec![
-                    WriteEvent::CreateVault(vault_buffer),
-                    WriteEvent::CreateSecret(id, data),
-                ],
-            )
+            .apply(vec![
+                WriteEvent::CreateVault(vault_buffer),
+                WriteEvent::CreateSecret(id, data),
+            ])
             .await?;
 
         // Duplicate the server events on the client

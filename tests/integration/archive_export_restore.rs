@@ -9,7 +9,7 @@ use tempfile::tempdir;
 use sos_net::sdk::{
     account::{
         archive::{AccountBackup, RestoreOptions, Writer},
-        Identity, LocalProvider,
+        FolderStorage, Identity,
     },
     encode,
     events::WriteEvent,
@@ -30,7 +30,7 @@ async fn integration_archive_local_provider() -> Result<()> {
     let user_id = signer.address()?.to_string();
     let passphrase = SecretString::new("mock-password".to_owned());
     let mut storage =
-        LocalProvider::new(user_id, Some(dir.path().to_path_buf())).await?;
+        FolderStorage::new(user_id, Some(dir.path().to_path_buf())).await?;
 
     // Prepare a vault to add to the archive
     let default_vault = VaultBuilder::new()

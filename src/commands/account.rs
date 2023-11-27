@@ -10,7 +10,7 @@ use sos_net::{
                 AccountBackup, ExtractFilesLocation, Inventory,
                 RestoreOptions,
             },
-            AccountInfo, AccountRef, LocalProvider, UserPaths,
+            AccountInfo, AccountRef, FolderStorage, UserPaths,
         },
         vfs,
     },
@@ -403,7 +403,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     let account_ref = AccountRef::Address(inventory.manifest.address);
     let account = find_account(&account_ref).await?;
 
-    let provider: Option<Arc<RwLock<LocalProvider>>> =
+    let provider: Option<Arc<RwLock<FolderStorage>>> =
         if let Some(account) = account {
             let confirmed = read_flag(Some(
                 "Overwrite all account data from backup? (y/n) ",

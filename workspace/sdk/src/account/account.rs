@@ -16,10 +16,9 @@ use crate::{
             AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
         },
         login::Login,
-        AccountBuilder, AccountInfo, AuthenticatedUser, 
-        DelegatedPassphrase, AccountsList, LocalProvider, NewAccount,
-        UserPaths,
-        search::{DocumentCount, SearchIndex, AccountStatistics},
+        search::{AccountStatistics, DocumentCount, SearchIndex},
+        AccountBuilder, AccountInfo, AccountsList, AuthenticatedUser,
+        DelegatedPassphrase, FolderStorage, NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -64,7 +63,7 @@ pub trait AccountHandler {
     /// Called before changes to the account.
     async fn before_change(
         &self,
-        storage: Arc<RwLock<LocalProvider>>,
+        storage: Arc<RwLock<FolderStorage>>,
         folder: &Summary,
         commit_state: &CommitState,
     ) -> Option<CommitState>;
@@ -131,7 +130,7 @@ struct Authenticated {
     user: AuthenticatedUser,
 
     /// Storage provider.
-    storage: Arc<RwLock<LocalProvider>>,
+    storage: Arc<RwLock<FolderStorage>>,
 
     /// Search index.
     index: AccountSearch,
@@ -251,12 +250,11 @@ impl<D> Account<D> {
         let signer = new_account.user.signer().clone();
         let address = signer.address()?;
         let mut storage =
-            LocalProvider::new(address.to_string(), data_dir.clone()).await?;
+            FolderStorage::new(address.to_string(), data_dir.clone()).await?;
 
         tracing::debug!("prepared storage provider");
 
-        let events =
-            storage.import_new_account(&new_account).await?;
+        let events = storage.import_new_account(&new_account).await?;
 
         tracing::debug!("imported new account");
 
@@ -307,7 +305,7 @@ impl<D> Account<D> {
     }
 
     /// Storage provider.
-    pub fn storage(&self) -> Result<Arc<RwLock<LocalProvider>>> {
+    pub fn storage(&self) -> Result<Arc<RwLock<FolderStorage>>> {
         let auth =
             self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         Ok(Arc::clone(&auth.storage))
@@ -352,7 +350,7 @@ impl<D> Account<D> {
         // Signing key for the storage provider
         let signer = user.identity().signer().clone();
         let storage =
-            LocalProvider::new(signer.address()?.to_string(), Some(data_dir))
+            FolderStorage::new(signer.address()?.to_string(), Some(data_dir))
                 .await?;
 
         self.paths = storage.paths();
@@ -1813,7 +1811,7 @@ impl<D> Account<D> {
 }
 
 /*
-impl<D> From<Account<D>> for Arc<RwLock<LocalProvider>> {
+impl<D> From<Account<D>> for Arc<RwLock<FolderStorage>> {
     fn from(value: Account<D>) -> Self {
         value.storage
     }

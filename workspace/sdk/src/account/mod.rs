@@ -17,7 +17,7 @@ pub mod search;
 pub mod security_report;
 
 pub use account::{
-    Account, AccountData, AccountHandler, DetachedView, AccessOptions,
+    AccessOptions, Account, AccountData, AccountHandler, DetachedView,
 };
 pub use builder::{AccountBuilder, NewAccount};
 pub use identity::{AccountStatus, Identity};
@@ -25,8 +25,7 @@ pub use local::{AccountInfo, AccountRef, AccountsList};
 pub use login::{AuthenticatedUser, DeviceSigner};
 pub use passphrase::DelegatedPassphrase;
 pub use paths::UserPaths;
-pub use provider::{LocalProvider, LocalState};
+pub use provider::{FolderStorage, LocalState};
 
 use crate::Result;
 use std::path::Path;
-

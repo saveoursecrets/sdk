@@ -14,10 +14,12 @@ use sos_sdk::{
         archive::{
             AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
         },
-        search::{AccountSearch, DocumentCount, SearchIndex, AccountStatistics},
-        Account, AccountBuilder, AccountData, AccountHandler, AccountInfo,
-        AuthenticatedUser, DelegatedPassphrase, DetachedView,
-        AccountsList, LocalProvider, NewAccount, AccessOptions, UserPaths,
+        search::{
+            AccountSearch, AccountStatistics, DocumentCount, SearchIndex,
+        },
+        AccessOptions, Account, AccountBuilder, AccountData, AccountHandler,
+        AccountInfo, AccountsList, AuthenticatedUser, DelegatedPassphrase,
+        DetachedView, FolderStorage, NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -83,7 +85,7 @@ impl SyncHandler {
     /// Try to sync the target folder against all remotes.
     async fn try_sync_folder(
         &self,
-        storage: Arc<RwLock<LocalProvider>>,
+        storage: Arc<RwLock<FolderStorage>>,
         folder: &Summary,
         commit_state: &CommitState,
     ) -> Result<Option<CommitState>> {
@@ -134,7 +136,7 @@ impl AccountHandler for SyncHandler {
 
     async fn before_change(
         &self,
-        storage: Arc<RwLock<LocalProvider>>,
+        storage: Arc<RwLock<FolderStorage>>,
         folder: &Summary,
         commit_state: &CommitState,
     ) -> Option<CommitState> {
@@ -246,15 +248,14 @@ impl UserStorage {
             remotes: Arc::clone(&remotes),
         };
 
-        let (account, new_account) =
-            LocalAccount::new_account_with_builder(
-                account_name,
-                passphrase.clone(),
-                builder,
-                data_dir.clone(),
-                Some(Box::new(handler)),
-            )
-            .await?;
+        let (account, new_account) = LocalAccount::new_account_with_builder(
+            account_name,
+            passphrase.clone(),
+            builder,
+            data_dir.clone(),
+            Some(Box::new(handler)),
+        )
+        .await?;
 
         let devices_dir = account.paths().devices_dir().clone();
 
@@ -286,7 +287,7 @@ impl UserStorage {
     }
 
     /// Storage provider.
-    pub fn storage(&self) -> Result<Arc<RwLock<LocalProvider>>> {
+    pub fn storage(&self) -> Result<Arc<RwLock<FolderStorage>>> {
         Ok(self.account.storage()?)
     }
 
@@ -1206,7 +1207,7 @@ impl UserStorage {
 }
 
 /*
-impl From<UserStorage> for Arc<RwLock<LocalProvider>> {
+impl From<UserStorage> for Arc<RwLock<FolderStorage>> {
     fn from(value: UserStorage) -> Self {
         value.account.into()
     }

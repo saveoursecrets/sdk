@@ -148,8 +148,8 @@ mod test {
     use tokio::sync::RwLock;
 
     use sos_sdk::{
-        passwd::diceware::generate_passphrase,
         account::search::SearchIndex,
+        passwd::diceware::generate_passphrase,
         vault::{Gatekeeper, VaultBuilder},
     };
     use std::sync::Arc;

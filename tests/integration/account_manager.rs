@@ -6,9 +6,8 @@ use sos_net::sdk::{
     account::{
         archive::{AccountBackup, ExtractFilesLocation, RestoreOptions},
         files::FileStorage,
-        Account, DelegatedPassphrase, AccountsList,
-        LocalProvider,
         search::SearchIndex,
+        Account, AccountsList, DelegatedPassphrase, FolderStorage,
     },
     hex,
     passwd::diceware::generate_passphrase,
@@ -29,14 +28,13 @@ async fn integration_account_manager() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (passphrase, _) = generate_passphrase()?;
 
-    let (mut account, new_account) =
-        Account::<()>::new_account(
-            account_name.clone(),
-            passphrase.clone(),
-            Some(test_data_dir.clone()),
-            None,
-        )
-        .await?;
+    let (mut account, new_account) = Account::<()>::new_account(
+        account_name.clone(),
+        passphrase.clone(),
+        Some(test_data_dir.clone()),
+        None,
+    )
+    .await?;
 
     account.sign_in(passphrase.clone()).await?;
 
@@ -49,7 +47,7 @@ async fn integration_account_manager() -> Result<()> {
     let accounts = AccountsList::list_accounts(Some(&paths)).await?;
     assert_eq!(1, accounts.len());
     let user = account.user()?;
-        
+
     let address = new_account.address.clone();
     let summary = new_account.default_folder().clone();
 
@@ -142,7 +140,7 @@ async fn integration_account_manager() -> Result<()> {
     // Restore from archive whilst signed in (with provider),
     // overwrites existing data (backup)
     let signer = user.identity().signer().clone();
-    let mut provider = LocalProvider::new(
+    let mut provider = FolderStorage::new(
         signer.address()?.to_string(),
         Some(test_data_dir.clone()),
     )

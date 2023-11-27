@@ -9,8 +9,9 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    account::{AccountInfo, DelegatedPassphrase, AccountsList, UserPaths,
-    search::SearchIndex,
+    account::{
+        search::SearchIndex, AccountInfo, AccountsList, DelegatedPassphrase,
+        UserPaths,
     },
     constants::{DEVICE_KEY_URN, VAULT_EXT},
     crypto::AccessKey,

@@ -1,9 +1,8 @@
 //! Storage provider backed by the local filesystem.
 use crate::{
     account::{
-        archive::RestoreTargets, AccountStatus, NewAccount,
-        UserPaths,
-        search::SearchIndex,
+        archive::RestoreTargets, search::SearchIndex, AccountStatus,
+        NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitTree},
     constants::VAULT_EXT,
@@ -27,7 +26,7 @@ use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 /// Local storage provider.
-pub struct LocalProvider {
+pub struct FolderStorage {
     /// State of this storage.
     state: LocalState,
 
@@ -38,7 +37,7 @@ pub struct LocalProvider {
     cache: HashMap<VaultId, FolderEventLog>,
 }
 
-impl LocalProvider {
+impl FolderStorage {
     /// Create a new local provider for an account with the given
     /// identifier.
     pub async fn new(
@@ -56,7 +55,7 @@ impl LocalProvider {
     }
 
     /// Create new node cache backed by files on disc.
-    async fn new_paths(paths: Arc<UserPaths>) -> Result<LocalProvider> {
+    async fn new_paths(paths: Arc<UserPaths>) -> Result<FolderStorage> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 paths.documents_dir().to_path_buf(),

@@ -46,7 +46,6 @@ pub struct NewAccount {
 }
 
 impl NewAccount {
-    
     /// Summary of the default folder.
     pub fn default_folder(&self) -> &Summary {
         self.default_folder.summary()

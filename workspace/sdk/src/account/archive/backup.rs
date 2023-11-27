@@ -21,8 +21,8 @@ use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
         identity::Identity,
-        AccountInfo, DelegatedPassphrase, AccountsList, UserPaths,
         search::SearchIndex,
+        AccountInfo, AccountsList, DelegatedPassphrase, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,

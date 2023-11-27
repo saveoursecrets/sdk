@@ -4,7 +4,7 @@
 use crate::{
     account::Account,
     account::{
-        files::{EncryptedFile, FileStorage, FileStorageSync, basename},
+        files::{basename, EncryptedFile, FileStorage, FileStorageSync},
         DelegatedPassphrase,
     },
     commit::{CommitHash, CommitProof},
@@ -126,7 +126,7 @@ impl<D> Account<D> {
     pub(crate) fn file_folder_location(&self, vault_id: &VaultId) -> PathBuf {
         self.paths.file_folder_location(vault_id.to_string())
     }
-    
+
     /// Decrypt a file and return the buffer.
     pub async fn download_file(
         &self,
@@ -134,7 +134,8 @@ impl<D> Account<D> {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<Vec<u8>> {
-        self.decrypt_file_storage(vault_id, secret_id, file_name).await
+        self.decrypt_file_storage(vault_id, secret_id, file_name)
+            .await
     }
 
     /// Expected location for a file by convention.

@@ -6,7 +6,7 @@ use tempfile::tempdir;
 
 use secrecy::ExposeSecret;
 use sos_net::sdk::{
-    account::LocalProvider,
+    account::FolderStorage,
     events::WriteEvent,
     signer::{ecdsa::SingleParty, Signer},
     vault::secret::{Secret, SecretData},
@@ -29,12 +29,12 @@ async fn integration_local_provider_file() -> Result<()> {
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
     let mut storage =
-        LocalProvider::new(user_id, Some(dir.path().to_path_buf())).await?;
+        FolderStorage::new(user_id, Some(dir.path().to_path_buf())).await?;
     run_local_storage_tests(&mut storage).await?;
     Ok(())
 }
 
-async fn run_local_storage_tests(storage: &mut LocalProvider) -> Result<()> {
+async fn run_local_storage_tests(storage: &mut FolderStorage) -> Result<()> {
     // Create an account with default login vault
     let (_, passphrase, _) = storage.create_account(None, None).await?;
 

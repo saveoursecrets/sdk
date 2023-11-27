@@ -342,8 +342,7 @@ impl Service for EventLogService {
                             }
 
                             // Apply the change set of events to the log
-                            let commits =
-                                event_log.apply(changes).await?;
+                            let commits = event_log.apply(changes).await?;
 
                             // Get a new commit proof for the last leaf hash
                             let proof = event_log.tree().head()?;

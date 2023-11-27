@@ -44,13 +44,13 @@ pub use pem;
 pub use secrecy;
 pub use sha2;
 pub use sha3;
+pub use sos_vfs as vfs;
 pub use time;
 pub use totp_rs as totp;
 pub use url;
 pub use urn;
 pub use uuid;
 pub use vcard4;
-pub use sos_vfs as vfs;
 pub use zxcvbn;
 
 /// Result type for the core library.
