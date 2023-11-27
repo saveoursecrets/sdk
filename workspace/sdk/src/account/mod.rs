@@ -1,5 +1,5 @@
 //! Create and manage local accounts.
-mod account_manager;
+mod account;
 pub mod archive;
 mod builder;
 #[cfg(feature = "contacts")]
@@ -16,7 +16,7 @@ pub mod search;
 #[cfg(feature = "security-report")]
 pub mod security_report;
 
-pub use account_manager::{
+pub use account::{
     Account, AccountData, AccountHandler, DetachedView, SecretOptions,
     UserStatistics,
 };
