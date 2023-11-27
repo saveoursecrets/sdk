@@ -14,11 +14,10 @@ use sos_sdk::{
         archive::{
             AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
         },
-        search::{UserIndex, DocumentCount, SearchIndex},
+        search::{AccountSearch, DocumentCount, SearchIndex, AccountStatistics},
         Account, AccountBuilder, AccountData, AccountHandler, AccountInfo,
         AuthenticatedUser, DelegatedPassphrase, DetachedView,
         AccountsList, LocalProvider, NewAccount, SecretOptions, UserPaths,
-        UserStatistics,
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -398,7 +397,7 @@ impl UserStorage {
     }
 
     /// Compute the user statistics.
-    pub async fn statistics(&self) -> UserStatistics {
+    pub async fn statistics(&self) -> AccountStatistics {
         self.account.statistics().await
     }
 
@@ -853,12 +852,12 @@ impl UserStorage {
     }
 
     /// Search index reference.
-    pub fn index(&self) -> Result<&UserIndex> {
+    pub fn index(&self) -> Result<&AccountSearch> {
         Ok(self.account.index()?)
     }
 
     /// Mutable search index reference.
-    pub fn index_mut(&mut self) -> Result<&mut UserIndex> {
+    pub fn index_mut(&mut self) -> Result<&mut AccountSearch> {
         Ok(self.account.index_mut()?)
     }
 

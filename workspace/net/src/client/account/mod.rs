@@ -18,7 +18,3 @@ pub use sos_migrate::{
 };
 
 pub use user_storage::UserStorage;
-
-//pub use user_storage::{
-//AccountData, DetachedView, SecretOptions, UserStatistics, UserStorage,
-//};

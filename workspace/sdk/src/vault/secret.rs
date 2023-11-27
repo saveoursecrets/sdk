@@ -24,7 +24,7 @@ use vcard4::{self, Vcard};
 use zxcvbn::Entropy;
 
 use crate::{
-    account::{basename, guess_mime},
+    account::files::{basename, guess_mime},
     passwd::generator::measure_entropy,
     signer::{
         ecdsa::{self, BoxedEcdsaSigner},

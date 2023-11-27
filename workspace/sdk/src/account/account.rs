@@ -19,7 +19,7 @@ use crate::{
         AccountBuilder, AccountInfo, AuthenticatedUser, 
         DelegatedPassphrase, AccountsList, LocalProvider, NewAccount,
         UserPaths,
-        search::{DocumentCount, SearchIndex},
+        search::{DocumentCount, SearchIndex, AccountStatistics},
     },
     commit::{CommitHash, CommitProof, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -50,7 +50,7 @@ use tokio::{
 
 use async_trait::async_trait;
 
-use super::{files::FileProgress, search::UserIndex};
+use super::{files::FileProgress, search::AccountSearch};
 
 /// Account handler is notified of account changes.
 #[async_trait::async_trait]
@@ -126,21 +126,6 @@ pub struct AccountData {
     */
 }
 
-/// User statistics structure derived from the search index.
-#[derive(Default, Serialize, Deserialize)]
-pub struct UserStatistics {
-    /// Number of documents in the search index.
-    pub documents: usize,
-    /// Folder counts.
-    pub folders: Vec<(Summary, usize)>,
-    /// Tag counts.
-    pub tags: HashMap<String, usize>,
-    /// Types.
-    pub types: HashMap<SecretType, usize>,
-    /// Number of favorites.
-    pub favorites: usize,
-}
-
 /// Account information when signed in.
 struct Authenticated {
     /// Authenticated user.
@@ -150,7 +135,7 @@ struct Authenticated {
     storage: Arc<RwLock<LocalProvider>>,
 
     /// Search index.
-    index: UserIndex,
+    index: AccountSearch,
 }
 
 /// Local account storage.
@@ -375,7 +360,7 @@ impl<D> Account<D> {
         self.authenticated = Some(Authenticated {
             user,
             storage: Arc::new(RwLock::new(storage)),
-            index: UserIndex::new(),
+            index: AccountSearch::new(),
         });
 
         Ok(())
@@ -418,7 +403,7 @@ impl<D> Account<D> {
     ///
     /// If the account is not authenticated returns
     /// a default statistics object (all values will be zero).
-    pub async fn statistics(&self) -> UserStatistics {
+    pub async fn statistics(&self) -> AccountStatistics {
         if let Some(auth) = &self.authenticated {
             let search_index = auth.index.search();
             let index = search_index.read().await;
@@ -441,7 +426,7 @@ impl<D> Account<D> {
                 }
             }
 
-            UserStatistics {
+            AccountStatistics {
                 documents,
                 folders,
                 types,
@@ -1421,7 +1406,7 @@ impl<D> Account<D> {
     }
 
     /// Search index reference.
-    pub fn index(&self) -> Result<&UserIndex> {
+    pub fn index(&self) -> Result<&AccountSearch> {
         self.authenticated
             .as_ref()
             .map(|a| &a.index)
@@ -1429,7 +1414,7 @@ impl<D> Account<D> {
     }
 
     /// Mutable search index reference.
-    pub fn index_mut(&mut self) -> Result<&mut UserIndex> {
+    pub fn index_mut(&mut self) -> Result<&mut AccountSearch> {
         self.authenticated
             .as_mut()
             .map(|a| &mut a.index)

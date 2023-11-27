@@ -1,11 +1,12 @@
 //! Account search index.
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::{HashSet, HashMap}, sync::Arc};
 use tokio::sync::RwLock;
+use serde::{Deserialize, Serialize};
 use crate::{
     crypto::AccessKey,
     vault::{
         secret::{SecretId, SecretType},
-        Gatekeeper, Vault, VaultId,
+        Gatekeeper, Vault, VaultId, Summary,
     },
     vcard4, Result,
 };
@@ -13,13 +14,28 @@ use crate::{
 mod index;
 pub use index::*;
 
-/// Modify and query a search index.
-pub struct UserIndex {
+/// Account statistics derived from the search index.
+#[derive(Default, Serialize, Deserialize)]
+pub struct AccountStatistics {
+    /// Number of documents in the search index.
+    pub documents: usize,
+    /// Folder counts.
+    pub folders: Vec<(Summary, usize)>,
+    /// Tag counts.
+    pub tags: HashMap<String, usize>,
+    /// Types.
+    pub types: HashMap<SecretType, usize>,
+    /// Number of favorites.
+    pub favorites: usize,
+}
+
+/// Modify and query the search index for an account.
+pub struct AccountSearch {
     /// Search index.
     pub(super) search_index: Arc<RwLock<SearchIndex>>,
 }
 
-impl UserIndex {
+impl AccountSearch {
     /// Create a new user search index.
     pub fn new() -> Self {
         Self {
@@ -145,7 +161,7 @@ impl UserIndex {
     }
 }
 
-impl Default for UserIndex {
+impl Default for AccountSearch {
     fn default() -> Self {
         Self::new()
     }
