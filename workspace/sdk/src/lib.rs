@@ -1,7 +1,7 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::module_inception)]
 #![deny(missing_docs)]
-//#![forbid(unsafe_code)]
+#![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! High-level software development kit for a
 //! distributed encrypted database that can be used
@@ -24,12 +24,10 @@ pub mod prelude;
 #[cfg(feature = "recovery")]
 pub mod recovery;
 
-//pub mod rpc;
 pub mod search;
 pub mod signer;
 mod timestamp;
 pub mod vault;
-//pub mod vfs;
 
 #[cfg(all(not(doc), any(test, feature = "test-utils")))]
 pub mod test_utils;
