@@ -105,43 +105,8 @@ impl AuthenticatedUser {
     /// Moves the account identity vault and data directory to the
     /// trash directory.
     pub async fn delete_account(&self, paths: &UserPaths) -> Result<Event> {
-        let address = self.identity.address().to_string();
-        let identity_vault_file = paths.identity_vault();
-
-        let local_dir = paths.local_dir();
-        let identity_data_dir = local_dir.join(&address);
-
-        let trash_dir = paths.trash_dir();
-        let mut deleted_identity_vault_file = trash_dir.join(&address);
-        deleted_identity_vault_file.set_extension(VAULT_EXT);
-
-        let deleted_identity_data_dir = trash_dir.join(&address);
-
-        // If the trash targets exist delete them first.
-        //
-        // This can only happen if somebody has manually restored
-        // items from the trash using `cp` and then decides to delete
-        // the accout again, so the rule is last deleted account wins.
-        if vfs::try_exists(&deleted_identity_vault_file).await? {
-            vfs::remove_file(&deleted_identity_vault_file).await?;
-        }
-        if vfs::try_exists(&deleted_identity_data_dir).await? {
-            vfs::remove_dir_all(&deleted_identity_data_dir).await?;
-        }
-
-        vfs::rename(identity_vault_file, deleted_identity_vault_file).await?;
-
-        // FIXME: We need a better solution (see #426)!
-        //
-        // FIXME: On windows if we try to rename the folder
-        // FIXME: to move it to the trash then we get an
-        // FIXME: "Access denied (os error 5)" error as Windows
-        // FIXME: refuses to rename a folder that has an open file
-        // FIXME: handle in it. The correct fix is to ensure all
-        // FIXME: file handles have been closed.
-        if cfg!(not(windows)) {
-            vfs::rename(identity_data_dir, deleted_identity_data_dir).await?;
-        }
+        vfs::remove_file(paths.identity_vault()).await?;
+        vfs::remove_dir_all(paths.user_dir()).await?;
 
         let event = Event::CreateAccount(AuditEvent::new(
             EventKind::DeleteAccount,

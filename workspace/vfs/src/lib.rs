@@ -42,6 +42,7 @@
 //! `symlink()`, `symlink_metadata()`, `symlink_file()` and
 //! `symlink_dir()` functions are not available.
 //!
+#![allow(dead_code)]
 
 #[cfg(any(
     test,

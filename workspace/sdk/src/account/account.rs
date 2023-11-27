@@ -588,6 +588,12 @@ impl<D> Account<D> {
         let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
 
+        if let Some(auth) = self.authenticated.as_mut() {
+            let mut account_log = auth.account_log.write().await;
+            account_log.append_event(
+                AccountEvent::CreateFolder(*summary.id())).await?;
+        }
+
         let event =
             Event::Write(*summary.id(), WriteEvent::CreateVault(buffer));
 
@@ -620,6 +626,12 @@ impl<D> Account<D> {
             .remove_folder_from_search_index(summary.id())
             .await;
         self.delete_folder_files(&summary).await?;
+
+        if let Some(auth) = self.authenticated.as_mut() {
+            let mut account_log = auth.account_log.write().await;
+            account_log.append_event(
+                AccountEvent::CreateFolder(*summary.id())).await?;
+        }
 
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent = (self.address(), &event).into();

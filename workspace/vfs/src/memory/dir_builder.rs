@@ -55,6 +55,7 @@ impl DirBuilder {
         if self.recursive {
             let mut current = Parent::Root(root_fs_mut());
             let mut buf = PathBuf::new();
+            #[allow(unused_assignments)]
             let mut file_name: Option<OsString> = None;
             for component in path.as_ref().components() {
                 match component {

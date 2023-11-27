@@ -3,7 +3,7 @@ use anyhow::Result;
 use std::ffi::OsString;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
-use crate::memory::{self as vfs, File, FileType, OpenOptions, Permissions};
+use crate::memory::{self as vfs, File, OpenOptions, Permissions};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[tokio::test]
@@ -126,7 +126,7 @@ async fn file_overwrite() -> Result<()> {
 async fn set_len() -> Result<()> {
     let path = "test.txt";
 
-    let mut fd = File::create(path).await?;
+    let fd = File::create(path).await?;
     // Extend length with zeroes
     fd.set_len(1024).await?;
 

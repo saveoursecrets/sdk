@@ -120,12 +120,14 @@ impl File {
     }
 
     /// Attempts to sync all OS-internal metadata to disk.
+    #[allow(dead_code)]
     pub async fn sync_all(&self) -> io::Result<()> {
         Ok(())
     }
 
     /// This function is similar to `sync_all`, except that it may not
     /// synchronize file metadata to the filesystem.
+    #[allow(dead_code)]
     pub async fn sync_data(&self) -> io::Result<()> {
         Ok(())
     }
@@ -219,6 +221,7 @@ impl File {
     /// underlying file handle as the existing `File`
     /// instance. Reads, writes, and seeks will affect both
     /// File instances simultaneously.
+    #[allow(dead_code)]
     pub async fn try_clone(&self) -> io::Result<File> {
         unimplemented!();
     }

@@ -12,7 +12,7 @@ use crate::{
     constants::{
         ACCOUNT_FILE, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICES_DIR,
         EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR, JSON_EXT, LOCAL_DIR,
-        LOGS_DIR, PREFERENCES_FILE, TEMP_DIR, TRASH_DIR, VAULTS_DIR,
+        LOGS_DIR, PREFERENCES_FILE, TEMP_DIR, VAULTS_DIR,
         VAULT_EXT,
     },
     vfs,
@@ -43,8 +43,6 @@ pub struct UserPaths {
     temp_dir: PathBuf,
     /// File for local audit logs.
     audit_file: PathBuf,
-    /// Trash for deleted data.
-    trash_dir: PathBuf,
     /// User segregated storage.
     user_dir: PathBuf,
     /// User file storage.
@@ -66,7 +64,6 @@ impl UserPaths {
         let logs_dir = documents_dir.join(LOGS_DIR);
         let identity_dir = documents_dir.join(IDENTITY_DIR);
         let audit_file = local_dir.join(AUDIT_FILE_NAME);
-        let trash_dir = local_dir.join(TRASH_DIR);
         let temp_dir = local_dir.join(TEMP_DIR);
         let user_dir = local_dir.join(user_id.as_ref());
         let files_dir = user_dir.join(FILES_DIR);
@@ -81,7 +78,6 @@ impl UserPaths {
             logs_dir,
             temp_dir,
             audit_file,
-            trash_dir,
             user_dir,
             files_dir,
             vaults_dir,
@@ -103,7 +99,6 @@ impl UserPaths {
         //vfs::create_dir_all(&self.identity_dir).await?;
         vfs::create_dir_all(&self.local_dir).await?;
         //vfs::create_dir_all(&self.logs_dir).await?;
-        vfs::create_dir_all(&self.trash_dir).await?;
         vfs::create_dir_all(&self.user_dir).await?;
         vfs::create_dir_all(&self.files_dir).await?;
         vfs::create_dir_all(&self.vaults_dir).await?;
@@ -134,11 +129,6 @@ impl UserPaths {
     /// Get the temporary directory.
     pub fn temp_dir(&self) -> &PathBuf {
         &self.temp_dir
-    }
-
-    /// Get the path to the trash.
-    pub fn trash_dir(&self) -> &PathBuf {
-        &self.trash_dir
     }
 
     /// Audit file location.
