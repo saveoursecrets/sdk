@@ -19,7 +19,7 @@ use crate::{
     constants::EVENT_LOG_IDENTITY,
     encode,
     encoding::encoding_options,
-    events::{AccountEvent, Patch, WriteEvent},
+    events::{AccountEvent, Patch, WriteEvent, FileEvent},
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
@@ -42,11 +42,14 @@ use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};
 
+/// Event log for changes to an account.
+pub type AccountEventLog = EventLogFile<AccountEvent>;
+
 /// Event log for changes to a folder.
 pub type FolderEventLog = EventLogFile<WriteEvent>;
 
-/// Event log for changes to an account.
-pub type AccountEventLog = EventLogFile<AccountEvent>;
+/// Event log for changes to external files.
+pub type FileEventLog = EventLogFile<FileEvent>;
 
 /// An event log that appends to a file.
 pub struct EventLogFile<T>

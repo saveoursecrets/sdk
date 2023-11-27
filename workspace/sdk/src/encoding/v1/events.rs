@@ -5,7 +5,7 @@ use crate::{
     encoding::encoding_error,
     events::{
         AccountEvent, AuditData, AuditEvent, AuditLogFile, EventKind,
-        EventRecord, LogFlags, Patch, WriteEvent,
+        EventRecord, LogFlags, Patch, WriteEvent, FileEvent,
     },
     formats::{EventLogFileRecord, FileIdentity, FileRecord, VaultRecord},
     vault::{secret::SecretId, VaultCommit},
@@ -620,5 +620,25 @@ impl Decodable for AccountEvent {
             }
         }
         Ok(())
+    }
+}
+
+#[async_trait]
+impl Encodable for FileEvent {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        todo!();
+    }
+}
+
+#[async_trait]
+impl Decodable for FileEvent {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        todo!();
     }
 }

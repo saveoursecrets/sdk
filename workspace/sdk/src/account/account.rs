@@ -20,6 +20,7 @@ use crate::{
     events::{
         AccountEvent, AccountEventLog, AuditData, AuditEvent, AuditLogFile,
         AuditProvider, Event, EventKind, EventReducer, ReadEvent, WriteEvent,
+        FileEventLog,
     },
     signer::ecdsa::Address,
     vault::{
@@ -128,6 +129,9 @@ struct Authenticated {
 
     /// Account event log.
     account_log: Arc<RwLock<AccountEventLog>>,
+
+    /// File event log.
+    file_log: Arc<RwLock<FileEventLog>>,
 }
 
 /// User account backed by the filesystem.
@@ -346,6 +350,7 @@ impl<D> Account<D> {
                 .await?;
 
         let account_events = paths.account_events();
+        let file_events = paths.file_events();
 
         self.paths = storage.paths();
         self.authenticated = Some(Authenticated {
@@ -354,6 +359,9 @@ impl<D> Account<D> {
             index: AccountSearch::new(),
             account_log: Arc::new(RwLock::new(
                 AccountEventLog::new(account_events).await?,
+            )),
+            file_log: Arc::new(RwLock::new(
+                FileEventLog::new(file_events).await?,
             )),
         });
 

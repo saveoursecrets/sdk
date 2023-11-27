@@ -6,6 +6,7 @@ use binary_stream::futures::Decodable;
 mod audit;
 mod change;
 mod event;
+mod file;
 mod log;
 mod read;
 mod types;
@@ -13,12 +14,14 @@ mod write;
 
 pub use self::log::{
     AccountEventLog, EventLogFile, EventRecord, EventReducer, FolderEventLog,
+    FileEventLog,
 };
 pub use audit::{
     AuditData, AuditEvent, AuditLogFile, AuditProvider, LogFlags,
 };
 pub use change::{ChangeAction, ChangeEvent, ChangeNotification};
 pub use event::{AccountEvent, Event};
+pub use file::FileEvent;
 pub use read::ReadEvent;
 pub use types::EventKind;
 pub use write::WriteEvent;
