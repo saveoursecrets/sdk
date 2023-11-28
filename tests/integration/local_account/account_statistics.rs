@@ -121,6 +121,37 @@ async fn integration_account_statistics() -> Result<()> {
     assert!(statistics.folders.contains(&(default_folder.clone(), 7)));
     assert_eq!(Some(&1), statistics.types.get(&SecretType::File));
 
+    // Create a link
+    let (meta, secret) = mock::link("link", "https://example.com");
+    account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    let statistics = account.statistics().await;
+    assert_eq!(8, statistics.documents);
+    assert!(statistics.folders.contains(&(default_folder.clone(), 8)));
+    assert_eq!(Some(&1), statistics.types.get(&SecretType::Link));
+
+    // Create a password
+    let (password, _) = generate_passphrase()?;
+    let (meta, secret) = mock::password("password", password);
+    account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    let statistics = account.statistics().await;
+    assert_eq!(9, statistics.documents);
+    assert!(statistics.folders.contains(&(default_folder.clone(), 9)));
+    assert_eq!(Some(&1), statistics.types.get(&SecretType::Password));
+
+    // Create an AGE identity
+    let (meta, secret) = mock::age("age");
+    account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    let statistics = account.statistics().await;
+    assert_eq!(10, statistics.documents);
+    assert!(statistics.folders.contains(&(default_folder.clone(), 10)));
+    assert_eq!(Some(&1), statistics.types.get(&SecretType::Age));
+
     println!("{:#?}", statistics);
 
     teardown(TEST_ID).await;

@@ -20,7 +20,7 @@ use sos_net::{
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
         vault::{
-            secret::{Secret, SecretId, SecretMeta},
+            secret::SecretId,
             Summary,
         },
         vfs,
@@ -479,6 +479,7 @@ pub mod mock {
     use sos_net::sdk::{
         pem,
         vault::secret::{Secret, SecretMeta, FileContent},
+        age,
     };
     use sha2::{Digest, Sha256};
     use std::collections::HashMap;
@@ -564,9 +565,9 @@ pub mod mock {
     }
 
     pub fn pem(label: &str) -> (SecretMeta, Secret) {
-        const certificate: &str =
+        const CERTIFICATE: &str =
             include_str!("../../workspace/sdk/fixtures/mock-cert.pem");
-        let certificates = pem::parse_many(certificate).unwrap();
+        let certificates = pem::parse_many(CERTIFICATE).unwrap();
         let secret_value = Secret::Pem {
             certificates,
             user_data: Default::default(),
@@ -590,6 +591,40 @@ pub mod mock {
                 checksum: checksum.try_into().unwrap(),
                 buffer: secrecy::Secret::new(buffer.as_ref().to_owned()),
             },
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
+    pub fn link(label: &str, url: &str) -> (SecretMeta, Secret) {
+        let secret_value = Secret::Link {
+            url: SecretString::new(url.to_string()),
+            label: None,
+            title: None,
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
+    pub fn password(label: &str, password: SecretString) -> (SecretMeta, Secret) {
+        let secret_value = Secret::Password {
+            password,
+            name: None,
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
+    pub fn age(label: &str) -> (SecretMeta, Secret) {
+        let secret_value = Secret::Age {
+            version: Default::default(),
+            key: age::x25519::Identity::generate().to_string(),
             user_data: Default::default(),
         };
         let secret_meta =
