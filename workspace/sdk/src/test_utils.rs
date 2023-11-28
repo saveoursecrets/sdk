@@ -10,7 +10,7 @@ use crate::{
         Vault, VaultAccess, VaultBuilder, VaultEntry,
     },
 };
-use sha3::{Digest, Sha3_256};
+use sha2::{Digest, Sha256};
 use std::io::Write;
 use uuid::Uuid;
 
@@ -55,7 +55,7 @@ pub async fn mock_secret_file(
     mime: &str,
     buffer: Vec<u8>,
 ) -> Result<(SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
-    let checksum = Sha3_256::digest(&buffer);
+    let checksum = Sha256::digest(&buffer);
     let secret_value = Secret::File {
         content: FileContent::Embedded {
             name: name.to_string(),

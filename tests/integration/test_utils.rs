@@ -475,9 +475,13 @@ pub async fn teardown(test_id: &str) {
 }
 
 pub mod mock {
-    use std::collections::HashMap;
     use secrecy::SecretString;
-    use sos_net::sdk::{vault::secret::{Secret, SecretMeta}, pem};
+    use sos_net::sdk::{
+        pem,
+        vault::secret::{Secret, SecretMeta, FileContent},
+    };
+    use sha2::{Digest, Sha256};
+    use std::collections::HashMap;
 
     pub fn login(
         label: &str,
@@ -541,23 +545,17 @@ pub mod mock {
         (secret_meta, secret_value)
     }
 
-    /*
-        /// The items in the list.
-        #[serde(serialize_with = "serialize_secret_string_map")]
-        items: HashMap<String, SecretString>,
-        /// Custom user data.
-        #[serde(default, skip_serializing_if = "UserData::is_default")]
-        user_data: UserData,
-    */
-
     pub fn list(
         label: &str,
         items: HashMap<&str, &str>,
     ) -> (SecretMeta, Secret) {
         let secret_value = Secret::List {
-            items: items.into_iter().map(|(k, v)| {
-                (k.to_owned(), secrecy::Secret::new(v.to_owned()))
-            }).collect(),
+            items: items
+                .into_iter()
+                .map(|(k, v)| {
+                    (k.to_owned(), secrecy::Secret::new(v.to_owned()))
+                })
+                .collect(),
             user_data: Default::default(),
         };
         let secret_meta =
@@ -565,10 +563,9 @@ pub mod mock {
         (secret_meta, secret_value)
     }
 
-    pub fn pem(
-        label: &str,
-    ) -> (SecretMeta, Secret) {
-        const certificate: &str = include_str!("../../workspace/sdk/fixtures/mock-cert.pem");
+    pub fn pem(label: &str) -> (SecretMeta, Secret) {
+        const certificate: &str =
+            include_str!("../../workspace/sdk/fixtures/mock-cert.pem");
         let certificates = pem::parse_many(certificate).unwrap();
         let secret_value = Secret::Pem {
             certificates,
@@ -578,9 +575,29 @@ pub mod mock {
             SecretMeta::new(label.to_string(), secret_value.kind());
         (secret_meta, secret_value)
     }
+
+    pub fn internal_file(
+        label: &str,
+        name: &str,
+        mime: &str,
+        buffer: impl AsRef<[u8]>,
+    ) -> (SecretMeta, Secret) {
+        let checksum = Sha256::digest(&buffer);
+        let secret_value = Secret::File {
+            content: FileContent::Embedded {
+                name: name.to_string(),
+                mime: mime.to_string(),
+                checksum: checksum.try_into().unwrap(),
+                buffer: secrecy::Secret::new(buffer.as_ref().to_owned()),
+            },
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
 }
 
 // Backwards compat
-pub use mock::card as mock_card;
-pub use mock::login as mock_login;
+#[deprecated]
 pub use mock::note as mock_note;

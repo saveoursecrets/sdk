@@ -509,7 +509,7 @@ impl<D> Account<D> {
 
         // Ensure we update checksum for top-level file
         // when this is a file secret type
-        let (new_secret, changed) = if let Secret::File { .. } =
+        let (new_secret, changed) = if let Secret::File { content: FileContent::External { .. }, .. } =
             &secret_data.secret
         {
             (
@@ -701,6 +701,7 @@ fn copy_file_secret(
             user_data: new_user_data.unwrap_or_else(|| user_data.clone()),
         })
     } else {
+        println!("Doing copy of file secret!!!!");
         Err(Error::NotFileContent)
     }
 }

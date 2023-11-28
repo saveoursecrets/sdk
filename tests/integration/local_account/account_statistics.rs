@@ -1,11 +1,11 @@
+use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
+use maplit2::hashmap;
 use sos_net::sdk::{
     account::{LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
     vault::secret::SecretType,
 };
-use maplit2::hashmap;
-use crate::test_utils::{mock, setup, teardown};
 
 const TEST_ID: &str = "account_statistics";
 
@@ -46,7 +46,7 @@ async fn integration_account_statistics() -> Result<()> {
     // Create a login
     let (login_password, _) = generate_passphrase()?;
     let (meta, secret) = mock::login("login", TEST_ID, login_password);
-    let (id, _, _, _) = account
+    account
         .create_secret(meta, secret, Default::default())
         .await?;
 
@@ -54,11 +54,10 @@ async fn integration_account_statistics() -> Result<()> {
     assert_eq!(1, statistics.documents);
     assert!(statistics.folders.contains(&(default_folder.clone(), 1)));
     assert_eq!(Some(&1), statistics.types.get(&SecretType::Account));
-    
 
     // Create a note
     let (meta, secret) = mock::note("note", TEST_ID);
-    let (id, _, _, _) = account
+    account
         .create_secret(meta, secret, Default::default())
         .await?;
 
@@ -69,7 +68,7 @@ async fn integration_account_statistics() -> Result<()> {
 
     // Create a card
     let (meta, secret) = mock::card("card", TEST_ID, "123");
-    let (id, _, _, _) = account
+    account
         .create_secret(meta, secret, Default::default())
         .await?;
     let statistics = account.statistics().await;
@@ -79,7 +78,7 @@ async fn integration_account_statistics() -> Result<()> {
 
     // Create a bank account
     let (meta, secret) = mock::bank("bank", TEST_ID, "12-34-56");
-    let (id, _, _, _) = account
+    account
         .create_secret(meta, secret, Default::default())
         .await?;
     let statistics = account.statistics().await;
@@ -93,7 +92,7 @@ async fn integration_account_statistics() -> Result<()> {
         "b" => "2",
     };
     let (meta, secret) = mock::list("list", items);
-    let (id, _, _, _) = account
+    account
         .create_secret(meta, secret, Default::default())
         .await?;
     let statistics = account.statistics().await;
@@ -103,13 +102,24 @@ async fn integration_account_statistics() -> Result<()> {
 
     // Create a PEM-encoded certificate
     let (meta, secret) = mock::pem("pem");
-    let (id, _, _, _) = account
+    account
         .create_secret(meta, secret, Default::default())
         .await?;
     let statistics = account.statistics().await;
     assert_eq!(6, statistics.documents);
     assert!(statistics.folders.contains(&(default_folder.clone(), 6)));
     assert_eq!(Some(&1), statistics.types.get(&SecretType::Pem));
+
+    // Create an internal file
+    let (meta, secret) = mock::internal_file(
+        "file", "file_name.txt", "text/plain", "file_contents".as_bytes());
+    account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    let statistics = account.statistics().await;
+    assert_eq!(7, statistics.documents);
+    assert!(statistics.folders.contains(&(default_folder.clone(), 7)));
+    assert_eq!(Some(&1), statistics.types.get(&SecretType::File));
 
     println!("{:#?}", statistics);
 

@@ -3933,6 +3933,7 @@ dependencies = [
  "rustyline-derive",
  "secrecy",
  "serde_json",
+ "sha2",
  "shell-words",
  "sos-net",
  "tempfile",

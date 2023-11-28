@@ -2269,7 +2269,8 @@ END:VCARD"#;
 
     #[tokio::test]
     async fn secret_encode_pem() -> Result<()> {
-        const certificate: &str = include_str!("../../fixtures/mock-cert.pem");
+        const certificate: &str =
+            include_str!("../../fixtures/mock-cert.pem");
         let certificates = pem::parse_many(certificate).unwrap();
         let secret = Secret::Pem {
             certificates,
