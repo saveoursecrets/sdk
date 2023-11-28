@@ -671,7 +671,7 @@ impl<D> Account<D> {
         Ok((event, commit_state))
     }
 
-    /// Export a folder (vault).
+    /// Export a folder as a vault file.
     pub async fn export_folder<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -741,7 +741,7 @@ impl<D> Account<D> {
         Ok(())
     }
 
-    /// Import a folder (vault) from a file.
+    /// Import a folder from a vault file.
     pub async fn import_folder<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -752,7 +752,7 @@ impl<D> Account<D> {
         self.import_folder_buffer(&buffer, key, overwrite).await
     }
 
-    /// Import a folder (vault) from a buffer.
+    /// Import a folder from a vault buffer.
     pub async fn import_folder_buffer(
         &mut self,
         buffer: impl AsRef<[u8]>,

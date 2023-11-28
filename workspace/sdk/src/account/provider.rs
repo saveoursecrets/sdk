@@ -221,6 +221,11 @@ impl FolderStorage {
     pub fn folders(&self) -> &[Summary] {
         self.state.summaries()
     }
+    
+    /// Reference to the currently open folder.
+    pub fn current_folder(&self) -> Option<&Summary> {
+        self.current().map(|g| g.summary())
+    }
 
     /// Get the current in-memory vault access.
     pub fn current(&self) -> Option<&Gatekeeper> {

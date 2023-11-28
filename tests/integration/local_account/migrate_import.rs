@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 use anyhow::Result;
 use sos_net::sdk::{
-    account::{archive::RestoreOptions, LocalAccount, UserPaths},
+    account::{LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
     vfs,
 };
 use sos_net::migrate::{LocalImport, import::{ImportFormat, ImportTarget}};
-use crate::test_utils::{mock_note, setup, teardown};
+use crate::test_utils::{setup, teardown};
 
 const TEST_ID: &str = "migrate_import";
 

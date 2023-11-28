@@ -2,6 +2,7 @@ mod account_lifecycle;
 mod change_password;
 mod compact_folder;
 mod external_files;
+mod folder_lifecycle;
 mod folder_storage;
 mod migrate_export;
 mod migrate_import;
