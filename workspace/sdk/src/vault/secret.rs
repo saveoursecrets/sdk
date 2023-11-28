@@ -2313,12 +2313,9 @@ END:VCARD"#;
 
     #[tokio::test]
     async fn secret_encode_contact() -> Result<()> {
-        let text = r#"BEGIN:VCARD
-VERSION:4.0
-FN:John Doe
-END:VCARD"#;
-
-        let vcard: Vcard = text.try_into()?;
+        const TEXT: &str =
+            include_str!("../../fixtures/contact.vcf");
+        let vcard: Vcard = TEXT.try_into()?;
         let secret = Secret::Contact {
             vcard: Box::new(vcard),
             user_data: Default::default(),
