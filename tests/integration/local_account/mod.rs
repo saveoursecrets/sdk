@@ -7,5 +7,6 @@ mod folder_lifecycle;
 mod folder_storage;
 mod migrate_export;
 mod migrate_import;
+mod move_secret;
 mod secret_lifecycle;
 mod security_report;
