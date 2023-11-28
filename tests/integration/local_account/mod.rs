@@ -2,6 +2,7 @@ mod account_lifecycle;
 mod account_statistics;
 mod change_password;
 mod compact_folder;
+mod contacts;
 mod external_files;
 mod folder_lifecycle;
 mod folder_storage;
