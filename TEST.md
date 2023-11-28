@@ -26,7 +26,15 @@ The command line tests wait for very specific output in order to complete, inadv
 
 ### MacOS ulimit
 
-If you are running on MacOS and see the "too many open files" error running the tests then you will need to configure `launchctl limit maxfiles`.
+If you are running on MacOS and see the "too many open files" error running the tests then you will need to configure the limits.
+
+Update your shell's ulimit by modifying the profile (eg: `~/.zshrc`):
+
+```
+ulimit -n 2048
+```
+
+And update the maxfiles limit `launchctl limit maxfiles`.
 
 To temporarily change the maxfiles limit:
 

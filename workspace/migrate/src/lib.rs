@@ -39,4 +39,4 @@ pub mod import;
 
 mod migrate;
 
-pub use migrate::{AccountExport, AccountImport};
+pub use migrate::{AccountExport, AccountImport, LocalExport, LocalImport};

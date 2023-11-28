@@ -14,6 +14,12 @@ use crate::{
     Result,
 };
 
+/// Type alias for exporting from a local account.
+pub type LocalExport<'a> = AccountExport<'a, ()>;
+
+/// Type alias for importing into a local account.
+pub type LocalImport<'a> = AccountImport<'a, ()>;
+
 /// Adds migration support to an account.
 pub struct AccountExport<'a, D> {
     account: &'a Account<D>,
@@ -61,7 +67,8 @@ impl<'a, D> AccountExport<'a, D> {
         }
 
         let mut files = HashMap::new();
-        let buffer = serde_json::to_vec_pretty(self.account.user()?.account())?;
+        let buffer = serde_json::to_vec_pretty(
+            self.account.user()?.account())?;
         files.insert("account.json", buffer.as_slice());
         migration.append_files(files).await?;
         migration.finish().await?;

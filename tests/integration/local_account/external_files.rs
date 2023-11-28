@@ -1,7 +1,5 @@
 use anyhow::Result;
-
 use std::{path::PathBuf, sync::Arc};
-
 use sos_net::{
     client::UserStorage,
     sdk::{
@@ -19,11 +17,9 @@ use sos_net::{
 };
 
 use tokio::sync::{mpsc, Mutex};
-
 use crate::test_utils::{create_local_account, setup, teardown};
 
 const ZERO_CHECKSUM: [u8; 32] = [0; 32];
-
 const TEST_ID: &str = "external_files";
 
 /// Tests for the external file logic for a local account.
