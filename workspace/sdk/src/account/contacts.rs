@@ -27,8 +27,9 @@ pub enum ContactImportProgress {
 }
 
 impl<D> Account<D> {
-    /// Get an avatar JPEG image for a contact in the current
-    /// open folder.
+    /// Try to load an avatar JPEG image for a contact.
+    ///
+    /// Looks in the current open folder if no specified folder is given.
     pub async fn load_avatar(
         &mut self,
         secret_id: &SecretId,

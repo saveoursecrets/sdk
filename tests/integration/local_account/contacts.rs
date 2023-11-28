@@ -7,8 +7,10 @@ use sos_net::sdk::{
 };
 
 const TEST_ID: &str = "contacts";
-const VCARD: &str =
+const CONTACT: &str =
     include_str!("../../../workspace/sdk/fixtures/contact.vcf");
+const AVATAR: &str =
+    include_str!("../../../workspace/sdk/fixtures/avatar.vcf");
 
 /// Tests importing and exporting contacts from vCard
 /// files.
@@ -38,7 +40,7 @@ async fn integration_contacts() -> Result<()> {
     let contacts = account.contacts_folder().await.unwrap();
     account.open_folder(&contacts).await?;
 
-    let ids = account.import_contacts(VCARD, |_| {}).await?;
+    let ids = account.import_contacts(CONTACT, |_| {}).await?;
     assert_eq!(1, ids.len());
 
     let id = ids.get(0).unwrap();
@@ -48,7 +50,7 @@ async fn integration_contacts() -> Result<()> {
 
     let contact_content = vfs::read_to_string(&contact).await?;
     let contact_content = contact_content.replace('\r', "");
-    assert_eq!(VCARD, &contact_content);
+    assert_eq!(CONTACT, &contact_content);
 
     let contacts = data_dir.join("contacts.vcf");
     account.export_all_contacts(&contacts).await?;
@@ -56,7 +58,14 @@ async fn integration_contacts() -> Result<()> {
 
     let contacts_content = vfs::read_to_string(&contacts).await?;
     let contacts_content = contacts_content.replace('\r', "");
-    assert_eq!(VCARD, &contacts_content);
+    assert_eq!(CONTACT, &contacts_content);
+    
+    // Try loading bytes for a JPEG avatar
+    let ids = account.import_contacts(AVATAR, |_| {}).await?;
+    assert_eq!(1, ids.len());
+    let id = ids.get(0).unwrap();
+    let avatar_bytes = account.load_avatar(id, None).await?;
+    assert!(avatar_bytes.is_some());
 
     teardown(TEST_ID).await;
 
