@@ -188,6 +188,8 @@ pub enum DocumentView {
     /// Contacts of the given types.
     Contact {
         /// Contact types to include in the results.
+        ///
+        /// If no types are specified all types are included.
         include_types: Option<Vec<vcard4::property::Kind>>,
     },
     /// Documents with the specific identifiers.

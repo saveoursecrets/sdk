@@ -987,6 +987,20 @@ impl<D> Account<D> {
         Ok((folder, (last_commit, commit_proof)))
     }
 
+    /// Bulk insert secrets into the currently open folder.
+    pub async fn insert(
+        &mut self,
+        secrets: Vec<(SecretMeta, Secret)>,
+    ) -> Result<Vec<(SecretId, Event, CommitState, Summary)>> {
+        let mut results = Vec::new();
+        for (meta, secret) in secrets {
+            results.push(
+                self.create_secret(meta, secret, Default::default()).await?,
+            );
+        }
+        Ok(results)
+    }
+
     /// Create a secret in the current open folder or a specific folder.
     pub async fn create_secret(
         &mut self,
