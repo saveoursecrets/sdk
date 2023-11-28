@@ -19,10 +19,7 @@ use sos_net::{
         mpc::{Keypair, PATTERN},
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
-        vault::{
-            secret::SecretId,
-            Summary,
-        },
+        vault::{secret::SecretId, Summary},
         vfs,
     },
     server::{
@@ -476,12 +473,11 @@ pub async fn teardown(test_id: &str) {
 
 pub mod mock {
     use secrecy::SecretString;
-    use sos_net::sdk::{
-        pem,
-        vault::secret::{Secret, SecretMeta, FileContent},
-        age,
-    };
     use sha2::{Digest, Sha256};
+    use sos_net::sdk::{
+        age, pem,
+        vault::secret::{FileContent, IdentityKind, Secret, SecretMeta},
+    };
     use std::collections::HashMap;
 
     pub fn login(
@@ -610,7 +606,10 @@ pub mod mock {
         (secret_meta, secret_value)
     }
 
-    pub fn password(label: &str, password: SecretString) -> (SecretMeta, Secret) {
+    pub fn password(
+        label: &str,
+        password: SecretString,
+    ) -> (SecretMeta, Secret) {
         let secret_value = Secret::Password {
             password,
             name: None,
@@ -631,6 +630,84 @@ pub mod mock {
             SecretMeta::new(label.to_string(), secret_value.kind());
         (secret_meta, secret_value)
     }
+
+    pub fn identity(
+        label: &str,
+        id_kind: IdentityKind,
+        number: &str,
+    ) -> (SecretMeta, Secret) {
+        let secret_value = Secret::Identity {
+            id_kind,
+            number: SecretString::new(number.to_string()),
+            issue_place: None,
+            issue_date: None,
+            expiry_date: None,
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
+    pub fn totp(
+        label: &str,
+    ) -> (SecretMeta, Secret) {
+        use sos_net::sdk::totp::{Algorithm, TOTP};
+        let totp = TOTP::new(
+            Algorithm::SHA1,
+            6,
+            1,
+            30,
+            "MockSecretWhichMustBeAtLeast80Bytes".as_bytes().to_vec(),
+            Some("MockIssuer".to_string()),
+            "mock@example.com".to_string(),
+        )
+        .unwrap();
+
+        let secret_value = Secret::Totp {
+            totp,
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
+    pub fn contact(
+        label: &str,
+        full_name: &str,
+    ) -> (SecretMeta, Secret) {
+        use sos_net::sdk::vcard4::Vcard;
+        let text = format!(r#"BEGIN:VCARD
+VERSION:4.0
+FN:{}
+END:VCARD"#, full_name);
+        let vcard: Vcard = text.as_str().try_into().unwrap();
+        let secret_value = Secret::Contact {
+            vcard: Box::new(vcard),
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
+    pub fn page(
+        label: &str,
+        title: &str,
+        document: &str,
+    ) -> (SecretMeta, Secret) {
+        let secret_value = Secret::Page {
+            title: title.to_string(),
+            mime: "text/markdown".to_string(),
+            document: secrecy::Secret::new(document.to_string()),
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
 }
 
 // Backwards compat

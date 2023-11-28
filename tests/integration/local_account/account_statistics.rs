@@ -1,10 +1,10 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use maplit2::hashmap;
+use maplit2::{hashmap, hashset};
 use sos_net::sdk::{
-    account::{LocalAccount, UserPaths},
+    account::{LocalAccount, UserPaths, AccessOptions},
     passwd::diceware::generate_passphrase,
-    vault::secret::SecretType,
+    vault::secret::{IdentityKind, SecretType},
 };
 
 const TEST_ID: &str = "account_statistics";
@@ -44,8 +44,14 @@ async fn integration_account_statistics() -> Result<()> {
     assert_eq!(0, statistics.favorites);
 
     // Create a login
+    let tags = hashset! {
+        "foo".to_owned(),
+        "bar".to_owned()
+    };
     let (login_password, _) = generate_passphrase()?;
-    let (meta, secret) = mock::login("login", TEST_ID, login_password);
+    let (mut meta, secret) = mock::login("login", TEST_ID, login_password);
+    meta.set_favorite(true);
+    meta.set_tags(tags);
     account
         .create_secret(meta, secret, Default::default())
         .await?;
@@ -54,9 +60,16 @@ async fn integration_account_statistics() -> Result<()> {
     assert_eq!(1, statistics.documents);
     assert!(statistics.folders.contains(&(default_folder.clone(), 1)));
     assert_eq!(Some(&1), statistics.types.get(&SecretType::Account));
+    assert_eq!(Some(&1), statistics.tags.get("foo"));
+    assert_eq!(Some(&1), statistics.tags.get("bar"));
+    assert_eq!(1, statistics.favorites);
 
     // Create a note
-    let (meta, secret) = mock::note("note", TEST_ID);
+    let tags = hashset! {
+        "foo".to_owned(),
+    };
+    let (mut meta, secret) = mock::note("note", TEST_ID);
+    meta.set_tags(tags);
     account
         .create_secret(meta, secret, Default::default())
         .await?;
@@ -65,6 +78,8 @@ async fn integration_account_statistics() -> Result<()> {
     assert_eq!(2, statistics.documents);
     assert!(statistics.folders.contains(&(default_folder.clone(), 2)));
     assert_eq!(Some(&1), statistics.types.get(&SecretType::Note));
+    assert_eq!(Some(&2), statistics.tags.get("foo"));
+    assert_eq!(Some(&1), statistics.tags.get("bar"));
 
     // Create a card
     let (meta, secret) = mock::card("card", TEST_ID, "123");
@@ -112,7 +127,11 @@ async fn integration_account_statistics() -> Result<()> {
 
     // Create an internal file
     let (meta, secret) = mock::internal_file(
-        "file", "file_name.txt", "text/plain", "file_contents".as_bytes());
+        "file",
+        "file_name.txt",
+        "text/plain",
+        "file_contents".as_bytes(),
+    );
     account
         .create_secret(meta, secret, Default::default())
         .await?;
@@ -152,7 +171,68 @@ async fn integration_account_statistics() -> Result<()> {
     assert!(statistics.folders.contains(&(default_folder.clone(), 10)));
     assert_eq!(Some(&1), statistics.types.get(&SecretType::Age));
 
-    println!("{:#?}", statistics);
+    // Create an identity document
+    let (meta, secret) =
+        mock::identity("identity", IdentityKind::IdCard, "1234567890");
+    account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    let statistics = account.statistics().await;
+    assert_eq!(11, statistics.documents);
+    assert!(statistics.folders.contains(&(default_folder.clone(), 11)));
+    assert_eq!(Some(&1), statistics.types.get(&SecretType::Identity));
+
+    // Create a TOTP
+    let (meta, secret) = mock::totp("totp");
+    account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    let statistics = account.statistics().await;
+    assert_eq!(12, statistics.documents);
+    assert!(statistics.folders.contains(&(default_folder.clone(), 12)));
+    assert_eq!(Some(&1), statistics.types.get(&SecretType::Totp));
+
+    // Create a contact
+    let (meta, secret) = mock::contact("contact", "Jane Doe");
+    account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    let statistics = account.statistics().await;
+    assert_eq!(13, statistics.documents);
+    assert!(statistics.folders.contains(&(default_folder.clone(), 13)));
+    assert_eq!(Some(&1), statistics.types.get(&SecretType::Contact));
+
+    // Create a page
+    let (meta, secret) = mock::page("page", "Title", "Body");
+    account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    let statistics = account.statistics().await;
+    assert_eq!(14, statistics.documents);
+    assert!(statistics.folders.contains(&(default_folder.clone(), 14)));
+    assert_eq!(Some(&1), statistics.types.get(&SecretType::Page));
+
+    // Create a folder and add a secret to the folder
+    let folder_name = "folder_name";
+    let (folder, _, _, _) =
+        account.create_folder(folder_name.to_string()).await?;
+    let (login_password, _) = generate_passphrase()?;
+    let (mut meta, secret) = mock::login("login", TEST_ID, login_password);
+    meta.set_favorite(true);
+    let options = AccessOptions {
+        folder: Some(folder.clone()),
+        ..Default::default()
+    };
+    account
+        .create_secret(meta, secret, options)
+        .await?;
+
+    let statistics = account.statistics().await;
+    assert_eq!(15, statistics.documents);
+    assert!(statistics.folders.contains(&(default_folder.clone(), 14)));
+    assert!(statistics.folders.contains(&(folder.clone(), 1)));
+    assert_eq!(Some(&2), statistics.types.get(&SecretType::Account));
+    assert_eq!(2, statistics.favorites);
 
     teardown(TEST_ID).await;
 

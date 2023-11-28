@@ -509,8 +509,10 @@ impl<D> Account<D> {
 
         // Ensure we update checksum for top-level file
         // when this is a file secret type
-        let (new_secret, changed) = if let Secret::File { content: FileContent::External { .. }, .. } =
-            &secret_data.secret
+        let (new_secret, changed) = if let Secret::File {
+            content: FileContent::External { .. },
+            ..
+        } = &secret_data.secret
         {
             (
                 copy_file_secret(
