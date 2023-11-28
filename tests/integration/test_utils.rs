@@ -330,27 +330,6 @@ pub async fn create_local_account(
     Ok((owner, summary, passphrase))
 }
 
-pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
-    let secret_value = Secret::Note {
-        text: secrecy::Secret::new(text.to_string()),
-        user_data: Default::default(),
-    };
-    let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
-    (secret_meta, secret_value)
-}
-
-pub fn mock_login(
-    label: &str, account: &str, password: SecretString) -> (SecretMeta, Secret) {
-    let secret_value = Secret::Account {
-        account: account.to_owned(),
-        password,
-        url: None,
-        user_data: Default::default(),
-    };
-    let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
-    (secret_meta, secret_value)
-}
-
 pub async fn create_secrets(
     provider: &mut FolderStorage,
     summary: &Summary,
@@ -494,3 +473,114 @@ pub async fn teardown(test_id: &str) {
     );
     */
 }
+
+pub mod mock {
+    use std::collections::HashMap;
+    use secrecy::SecretString;
+    use sos_net::sdk::{vault::secret::{Secret, SecretMeta}, pem};
+
+    pub fn login(
+        label: &str,
+        account: &str,
+        password: SecretString,
+    ) -> (SecretMeta, Secret) {
+        let secret_value = Secret::Account {
+            account: account.to_owned(),
+            password,
+            url: None,
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
+    pub fn note(label: &str, text: &str) -> (SecretMeta, Secret) {
+        let secret_value = Secret::Note {
+            text: secrecy::Secret::new(text.to_string()),
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
+    pub fn card(
+        label: &str,
+        number: &str,
+        cvv: &str,
+    ) -> (SecretMeta, Secret) {
+        let secret_value = Secret::Card {
+            number: secrecy::Secret::new(number.to_string()),
+            cvv: secrecy::Secret::new(cvv.to_string()),
+            expiry: None,
+            name: None,
+            atm_pin: None,
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
+    pub fn bank(
+        label: &str,
+        number: &str,
+        routing: &str,
+    ) -> (SecretMeta, Secret) {
+        let secret_value = Secret::Bank {
+            number: secrecy::Secret::new(number.to_string()),
+            routing: secrecy::Secret::new(routing.to_string()),
+            iban: None,
+            swift: None,
+            bic: None,
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
+    /*
+        /// The items in the list.
+        #[serde(serialize_with = "serialize_secret_string_map")]
+        items: HashMap<String, SecretString>,
+        /// Custom user data.
+        #[serde(default, skip_serializing_if = "UserData::is_default")]
+        user_data: UserData,
+    */
+
+    pub fn list(
+        label: &str,
+        items: HashMap<&str, &str>,
+    ) -> (SecretMeta, Secret) {
+        let secret_value = Secret::List {
+            items: items.into_iter().map(|(k, v)| {
+                (k.to_owned(), secrecy::Secret::new(v.to_owned()))
+            }).collect(),
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+
+    pub fn pem(
+        label: &str,
+    ) -> (SecretMeta, Secret) {
+        const certificate: &str = include_str!("../../workspace/sdk/fixtures/mock-cert.pem");
+        let certificates = pem::parse_many(certificate).unwrap();
+        let secret_value = Secret::Pem {
+            certificates,
+            user_data: Default::default(),
+        };
+        let secret_meta =
+            SecretMeta::new(label.to_string(), secret_value.kind());
+        (secret_meta, secret_value)
+    }
+}
+
+// Backwards compat
+pub use mock::card as mock_card;
+pub use mock::login as mock_login;
+pub use mock::note as mock_note;

@@ -19,8 +19,8 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, AuditData, AuditEvent, AuditLogFile,
-        AuditProvider, Event, EventKind, EventReducer, ReadEvent, WriteEvent,
-        FileEventLog,
+        AuditProvider, Event, EventKind, EventReducer, FileEventLog,
+        ReadEvent, WriteEvent,
     },
     signer::ecdsa::Address,
     vault::{
@@ -35,9 +35,7 @@ use tracing::{span, Level};
 
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-use tokio::{
-    sync::{mpsc, RwLock},
-};
+use tokio::sync::{mpsc, RwLock};
 
 use super::{files::FileProgress, search::AccountSearch};
 use async_trait::async_trait;
@@ -523,7 +521,7 @@ impl<D> Account<D> {
 
     /// List folders.
     ///
-    /// This method should be called after a successful sign in 
+    /// This method should be called after a successful sign in
     /// to load the account folders into memory.
     pub async fn list_folders(&mut self) -> Result<Vec<Summary>> {
         let storage = self.storage()?;
@@ -597,7 +595,8 @@ impl<D> Account<D> {
             account_log.append_event(&account_event).await?;
         }
 
-        let audit_event: AuditEvent = (self.address(), &Event::Account(account_event)).into();
+        let audit_event: AuditEvent =
+            (self.address(), &Event::Account(account_event)).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
         let event =
@@ -632,14 +631,15 @@ impl<D> Account<D> {
             .remove_folder_from_search_index(summary.id())
             .await;
         self.delete_folder_files(&summary).await?;
-        
+
         let account_event = AccountEvent::DeleteFolder(*summary.id());
         if let Some(auth) = self.authenticated.as_mut() {
             let mut account_log = auth.account_log.write().await;
             account_log.append_event(&account_event).await?;
         }
 
-        let audit_event: AuditEvent = (self.address(), &Event::Account(account_event)).into();
+        let audit_event: AuditEvent =
+            (self.address(), &Event::Account(account_event)).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
         let event = Event::Write(*summary.id(), event);
@@ -1591,23 +1591,17 @@ async fn export_vault(
     use crate::passwd::ChangePassword;
     // Get the current vault passphrase from the identity vault
     let current_passphrase =
-        DelegatedPassword::find_folder_password(identity, vault_id)
-            .await?;
+        DelegatedPassword::find_folder_password(identity, vault_id).await?;
 
     // Find the local vault for the account
     let local_accounts = AccountsList::new(paths);
-    let (vault, _) =
-        local_accounts.find_local_vault(vault_id, false).await?;
+    let (vault, _) = local_accounts.find_local_vault(vault_id, false).await?;
 
     // Change the password before exporting
-    let (_, vault, _) = ChangePassword::new(
-        &vault,
-        current_passphrase,
-        new_passphrase,
-        None,
-    )
-    .build()
-    .await?;
+    let (_, vault, _) =
+        ChangePassword::new(&vault, current_passphrase, new_passphrase, None)
+            .build()
+            .await?;
 
     encode(&vault).await
 }

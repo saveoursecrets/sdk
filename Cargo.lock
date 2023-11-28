@@ -2345,6 +2345,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "maplit2"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5be3fc94901ceb513dfa964ae5b0d7ef231f964ace599ccf048bb9aeaea4d9d9"
+
+[[package]]
 name = "matchers"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3918,6 +3924,7 @@ dependencies = [
  "http",
  "human_bytes",
  "log",
+ "maplit2",
  "mpc-protocol 0.5.0",
  "once_cell",
  "parking_lot",

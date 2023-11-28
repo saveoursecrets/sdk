@@ -35,11 +35,11 @@ async fn integration_folder_lifecycle() -> Result<()> {
     account.sign_in(password.clone()).await?;
     account.list_folders().await?;
     account.open_folder(&default_folder).await?;
-    
+
     // Create a folder
     let folder_name = "folder_name";
-    let (folder, _, _, _) = account.create_folder(
-        folder_name.to_string()).await?;
+    let (folder, _, _, _) =
+        account.create_folder(folder_name.to_string()).await?;
 
     // Open the new folder for writing
     account.open_folder(&folder).await?;
@@ -50,7 +50,7 @@ async fn integration_folder_lifecycle() -> Result<()> {
         .create_secret(meta, secret, Default::default())
         .await?;
     assert_eq!(&folder, &secret_folder);
-    
+
     // Switch to the default folder for writing
     account.open_folder(&default_folder).await?;
 
@@ -58,8 +58,8 @@ async fn integration_folder_lifecycle() -> Result<()> {
     let (data, _) = account.read_secret(&id, Some(folder.clone())).await?;
     assert_eq!(Some(id), data.id);
     assert_eq!("note", data.meta.label());
-    
-    // Changed the currently open folder by reading 
+
+    // Changed the currently open folder by reading
     // from an explicit folder
     let current_folder = {
         let storage = account.storage()?;
@@ -67,13 +67,19 @@ async fn integration_folder_lifecycle() -> Result<()> {
         reader.current_folder().cloned()
     };
     assert_eq!(Some(&folder), current_folder.as_ref());
-    
+
     // Export the folder and save the password for the exported
     // folder in the default folder
     let (folder_password, _) = generate_passphrase()?;
     let exported = data_dir.join("exported.vault");
-    account.export_folder(
-        &exported, &folder, folder_password.clone().into(), true).await?;
+    account
+        .export_folder(
+            &exported,
+            &folder,
+            folder_password.clone().into(),
+            true,
+        )
+        .await?;
     assert!(vfs::try_exists(&exported).await?);
 
     // Now delete the folder
@@ -81,7 +87,9 @@ async fn integration_folder_lifecycle() -> Result<()> {
     assert!(account.find(|f| f.id() == folder.id()).await.is_none());
 
     // Import the folder we exported
-    account.import_folder(&exported, folder_password.into(), false).await?;
+    account
+        .import_folder(&exported, folder_password.into(), false)
+        .await?;
     assert!(account.find(|f| f.id() == folder.id()).await.is_some());
 
     // Check we can read the secret data

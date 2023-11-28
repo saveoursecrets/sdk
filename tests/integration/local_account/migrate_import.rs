@@ -1,11 +1,14 @@
-use std::path::PathBuf;
+use crate::test_utils::{setup, teardown};
 use anyhow::Result;
+use sos_net::migrate::{
+    import::{ImportFormat, ImportTarget},
+    LocalImport,
+};
 use sos_net::sdk::{
     account::{LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
 };
-use sos_net::migrate::{LocalImport, import::{ImportFormat, ImportTarget}};
-use crate::test_utils::{setup, teardown};
+use std::path::PathBuf;
 
 const TEST_ID: &str = "migrate_import";
 
@@ -36,7 +39,9 @@ async fn integration_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::OnePasswordCsv,
-        path: PathBuf::from("workspace/migrate/fixtures/1password-export.csv"),
+        path: PathBuf::from(
+            "workspace/migrate/fixtures/1password-export.csv",
+        ),
         folder_name: "1password".to_string(),
     };
     let mut importer = LocalImport::new(&mut account);
@@ -58,7 +63,9 @@ async fn integration_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::BitwardenCsv,
-        path: PathBuf::from("workspace/migrate/fixtures/bitwarden-export.csv"),
+        path: PathBuf::from(
+            "workspace/migrate/fixtures/bitwarden-export.csv",
+        ),
         folder_name: "bitwarden".to_string(),
     };
     let mut importer = LocalImport::new(&mut account);

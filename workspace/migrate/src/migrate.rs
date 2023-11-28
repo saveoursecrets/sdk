@@ -1,17 +1,21 @@
-use std::{path::{Path, PathBuf}, io::Cursor, collections::HashMap};
 use sos_sdk::{prelude::*, vfs};
+use std::{
+    collections::HashMap,
+    io::Cursor,
+    path::{Path, PathBuf},
+};
 
 use crate::{
-    import::{ImportFormat, ImportTarget,
+    export::PublicExport,
+    import::{
         csv::{
             bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
             dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
             macos::MacPasswordCsv, one_password::OnePasswordCsv,
         },
+        ImportFormat, ImportTarget,
     },
-    export::PublicExport,
-    Convert,
-    Result,
+    Convert, Result,
 };
 
 /// Type alias for exporting from a local account.
@@ -26,7 +30,6 @@ pub struct AccountExport<'a, D> {
 }
 
 impl<'a, D> AccountExport<'a, D> {
-    
     /// Create a new account export.
     pub fn new(account: &'a Account<D>) -> Self {
         Self { account }
@@ -40,7 +43,6 @@ impl<'a, D> AccountExport<'a, D> {
         &self,
         path: P,
     ) -> Result<()> {
-        
         let paths = self.account.paths();
         let local_accounts = AccountsList::new(&paths);
 
@@ -67,8 +69,8 @@ impl<'a, D> AccountExport<'a, D> {
         }
 
         let mut files = HashMap::new();
-        let buffer = serde_json::to_vec_pretty(
-            self.account.user()?.account())?;
+        let buffer =
+            serde_json::to_vec_pretty(self.account.user()?.account())?;
         files.insert("account.json", buffer.as_slice());
         migration.append_files(files).await?;
         migration.finish().await?;
@@ -84,9 +86,7 @@ impl<'a, D> AccountExport<'a, D> {
 
         Ok(())
     }
-
 }
-
 
 /// Adds migration support to an account.
 pub struct AccountImport<'a, D> {
@@ -104,7 +104,6 @@ impl<'a, D> AccountImport<'a, D> {
         &mut self,
         target: ImportTarget,
     ) -> Result<Summary> {
-
         let (event, summary) = match target.format {
             ImportFormat::OnePasswordCsv => {
                 self.import_csv(
@@ -157,8 +156,10 @@ impl<'a, D> AccountImport<'a, D> {
             self.account.address().clone(),
             None,
         );
-        let create_event: AuditEvent = (self.account.address(), &event).into();
-        self.account.append_audit_logs(vec![audit_event, create_event])
+        let create_event: AuditEvent =
+            (self.account.address(), &event).into();
+        self.account
+            .append_audit_logs(vec![audit_event, create_event])
             .await?;
 
         Ok(summary)
@@ -171,7 +172,6 @@ impl<'a, D> AccountImport<'a, D> {
         folder_name: String,
         converter: impl Convert<Input = PathBuf>,
     ) -> Result<(Event, Summary)> {
-        
         let paths = self.account.paths();
         let local_accounts = AccountsList::new(&paths);
 
@@ -179,8 +179,7 @@ impl<'a, D> AccountImport<'a, D> {
         let existing_name =
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 
-        let vault_passphrase =
-            Account::<D>::generate_folder_password()?;
+        let vault_passphrase = Account::<D>::generate_folder_password()?;
 
         let vault_id = VaultId::new_v4();
         let name = if existing_name.is_some() {
@@ -219,7 +218,8 @@ impl<'a, D> AccountImport<'a, D> {
         .await?;
 
         // Ensure the imported secrets are in the search index
-        self.account.index_mut()?
+        self.account
+            .index_mut()?
             .add_folder_to_search_index(vault, vault_passphrase.into())
             .await?;
 

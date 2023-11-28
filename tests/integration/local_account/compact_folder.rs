@@ -1,6 +1,5 @@
-use anyhow::Result;
 use crate::test_utils::mock_note;
-use tempfile::tempdir;
+use anyhow::Result;
 use secrecy::ExposeSecret;
 use sos_net::sdk::{
     account::FolderStorage,
@@ -8,6 +7,7 @@ use sos_net::sdk::{
     signer::{ecdsa::SingleParty, Signer},
     vault::secret::{Secret, SecretData},
 };
+use tempfile::tempdir;
 
 macro_rules! commit_count {
     ($storage:expr, $summary:expr, $amount:expr) => {{
@@ -22,13 +22,12 @@ macro_rules! commit_count {
 #[tokio::test]
 async fn integration_compact_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
-    
+
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();
     let mut storage =
-        FolderStorage::new(
-            user_id, Some(dir.path().to_path_buf())).await?;
+        FolderStorage::new(user_id, Some(dir.path().to_path_buf())).await?;
 
     // Create an account with default login vault
     let (_, passphrase, _) = storage.create_account(None, None).await?;

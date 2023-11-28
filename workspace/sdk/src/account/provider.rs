@@ -1,9 +1,6 @@
 //! Storage provider backed by the local filesystem.
 use crate::{
-    account::{
-        search::SearchIndex, AccountStatus,
-        NewAccount, UserPaths,
-    },
+    account::{search::SearchIndex, AccountStatus, NewAccount, UserPaths},
     commit::{CommitHash, CommitTree},
     constants::VAULT_EXT,
     crypto::{AccessKey, KeyDerivation, PrivateKey},
@@ -221,7 +218,7 @@ impl FolderStorage {
     pub fn folders(&self) -> &[Summary] {
         self.state.summaries()
     }
-    
+
     /// Reference to the currently open folder.
     pub fn current_folder(&self) -> Option<&Summary> {
         self.current().map(|g| g.summary())

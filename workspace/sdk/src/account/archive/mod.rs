@@ -8,9 +8,13 @@ pub use backup::{
 };
 pub use zip::*;
 
-use crate::{Result, events::{EventKind, AuditEvent}, vfs::File};
+use super::{Account, AccountInfo, AccountsList, UserPaths};
+use crate::{
+    events::{AuditEvent, EventKind},
+    vfs::File,
+    Result,
+};
 use std::path::{Path, PathBuf};
-use super::{Account, AccountInfo, UserPaths, AccountsList};
 use tokio::{
     io::{AsyncRead, AsyncSeek},
     sync::{mpsc, RwLock},
@@ -114,5 +118,4 @@ impl<D> Account<D> {
 
         Ok((account, owner))
     }
-
 }

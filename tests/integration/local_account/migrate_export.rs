@@ -1,11 +1,11 @@
+use crate::test_utils::{setup, teardown};
 use anyhow::Result;
+use sos_net::migrate::LocalExport;
 use sos_net::sdk::{
     account::{LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
     vfs,
 };
-use sos_net::migrate::LocalExport;
-use crate::test_utils::{setup, teardown};
 
 const TEST_ID: &str = "migrate_export";
 
@@ -40,7 +40,7 @@ async fn integration_migrate_export() -> Result<()> {
     assert!(vfs::try_exists(&zip).await?);
 
     // TODO: assert on exported data!
-    
+
     teardown(TEST_ID).await;
 
     Ok(())

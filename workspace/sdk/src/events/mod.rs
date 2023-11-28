@@ -13,8 +13,8 @@ mod types;
 mod write;
 
 pub use self::log::{
-    AccountEventLog, EventLogFile, EventRecord, EventReducer, FolderEventLog,
-    FileEventLog,
+    AccountEventLog, EventLogFile, EventRecord, EventReducer, FileEventLog,
+    FolderEventLog,
 };
 pub use audit::{
     AuditData, AuditEvent, AuditLogFile, AuditProvider, LogFlags,

@@ -11,9 +11,9 @@ use std::{
 use crate::{
     constants::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICES_DIR,
-        EVENT_LOG_EXT, FILES_DIR, IDENTITY_DIR, JSON_EXT, LOCAL_DIR,
-        LOGS_DIR, PREFERENCES_FILE, TEMP_DIR, VAULTS_DIR,
-        VAULT_EXT, FILE_EVENTS,
+        EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR, JSON_EXT,
+        LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, TEMP_DIR, VAULTS_DIR,
+        VAULT_EXT,
     },
     vfs,
 };
@@ -205,7 +205,7 @@ impl UserPaths {
         vault_path
     }
 
-    /// Get the path to the event log file that records 
+    /// Get the path to the event log file that records
     /// changes to external files.
     pub fn file_events(&self) -> PathBuf {
         let mut vault_path = self.user_dir.join(FILE_EVENTS);

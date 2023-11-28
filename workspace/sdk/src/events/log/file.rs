@@ -19,7 +19,7 @@ use crate::{
     constants::EVENT_LOG_IDENTITY,
     encode,
     encoding::encoding_options,
-    events::{AccountEvent, Patch, WriteEvent, FileEvent},
+    events::{AccountEvent, FileEvent, Patch, WriteEvent},
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
@@ -207,7 +207,10 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     ///
     /// If any events fail this function will rollback the
     /// event log to it's previous state.
-    pub async fn apply(&mut self, events: Vec<&T>) -> Result<Vec<CommitHash>> {
+    pub async fn apply(
+        &mut self,
+        events: Vec<&T>,
+    ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
         let mut last_commit_hash = self.last_commit().await?;

@@ -725,7 +725,7 @@ impl UserStorage {
     pub async fn build_search_index(&mut self) -> Result<DocumentCount> {
         Ok(self.account.build_search_index().await?)
     }
-    
+
     /*
     /// Write a zip archive containing all the secrets
     /// for the account unencrypted.
@@ -979,7 +979,7 @@ impl UserStorage {
 }
 
 #[cfg(feature = "migrate")]
-use sos_migrate::{AccountImport, AccountExport};
+use sos_migrate::{AccountExport, AccountImport};
 
 #[cfg(feature = "migrate")]
 impl UserStorage {
@@ -1042,7 +1042,6 @@ impl UserStorage {
         )
         .await?)
     }
-
 }
 
 #[cfg(feature = "contacts")]
