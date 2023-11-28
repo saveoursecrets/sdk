@@ -649,9 +649,7 @@ pub mod mock {
         (secret_meta, secret_value)
     }
 
-    pub fn totp(
-        label: &str,
-    ) -> (SecretMeta, Secret) {
+    pub fn totp(label: &str) -> (SecretMeta, Secret) {
         use sos_net::sdk::totp::{Algorithm, TOTP};
         let totp = TOTP::new(
             Algorithm::SHA1,
@@ -673,15 +671,15 @@ pub mod mock {
         (secret_meta, secret_value)
     }
 
-    pub fn contact(
-        label: &str,
-        full_name: &str,
-    ) -> (SecretMeta, Secret) {
+    pub fn contact(label: &str, full_name: &str) -> (SecretMeta, Secret) {
         use sos_net::sdk::vcard4::Vcard;
-        let text = format!(r#"BEGIN:VCARD
+        let text = format!(
+            r#"BEGIN:VCARD
 VERSION:4.0
 FN:{}
-END:VCARD"#, full_name);
+END:VCARD"#,
+            full_name
+        );
         let vcard: Vcard = text.as_str().try_into().unwrap();
         let secret_value = Secret::Contact {
             vcard: Box::new(vcard),
@@ -707,7 +705,6 @@ END:VCARD"#, full_name);
             SecretMeta::new(label.to_string(), secret_value.kind());
         (secret_meta, secret_value)
     }
-
 }
 
 // Backwards compat

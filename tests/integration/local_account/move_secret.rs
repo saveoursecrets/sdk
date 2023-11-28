@@ -31,7 +31,6 @@ async fn integration_move_secret() -> Result<()> {
 
     let default_folder = new_account.default_folder();
     account.sign_in(password.clone()).await?;
-    account.list_folders().await?;
     account.open_folder(&default_folder).await?;
 
     // Create secret
@@ -48,13 +47,11 @@ async fn integration_move_secret() -> Result<()> {
     let folder_name = "folder_name";
     let (folder, _, _, _) =
         account.create_folder(folder_name.to_string()).await?;
-    
+
     // Move to the new folder
-    account.move_secret(
-        &id,
-        &default_folder,
-        &folder,
-        Default::default()).await?;
+    account
+        .move_secret(&id, &default_folder, &folder, Default::default())
+        .await?;
 
     let statistics = account.statistics().await;
     assert!(statistics.folders.contains(&(default_folder.clone(), 0)));

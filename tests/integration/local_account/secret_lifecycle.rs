@@ -109,8 +109,8 @@ async fn integration_secret_lifecycle() -> Result<()> {
         None,
     )
     .await?;
+
     account.sign_in(password.clone()).await?;
-    account.list_folders().await?;
     account.open_folder(&default_folder).await?;
 
     // Assert on the restored secret

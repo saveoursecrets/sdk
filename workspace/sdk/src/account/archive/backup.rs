@@ -25,10 +25,8 @@ use crate::{
         AccountInfo, AccountsList, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
-    crypto::AccessKey,
     decode, encode,
     events::{FolderEventLog, WriteEvent},
-    passwd::ChangePassword,
     sha2::{Digest, Sha256},
     vault::{
         secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess, VaultId,

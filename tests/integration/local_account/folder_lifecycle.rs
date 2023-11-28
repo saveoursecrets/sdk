@@ -33,7 +33,6 @@ async fn integration_folder_lifecycle() -> Result<()> {
 
     let default_folder = new_account.default_folder();
     account.sign_in(password.clone()).await?;
-    account.list_folders().await?;
     account.open_folder(&default_folder).await?;
 
     // Create a folder

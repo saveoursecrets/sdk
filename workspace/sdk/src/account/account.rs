@@ -27,8 +27,7 @@ use crate::{
         secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
         Gatekeeper, Summary, Vault, VaultId,
     },
-    vfs::{self, File},
-    Error, Result, Timestamp,
+    vfs, Error, Result, Timestamp,
 };
 
 use tracing::{span, Level};
@@ -363,6 +362,8 @@ impl<D> Account<D> {
             )),
         });
 
+        self.load_folders().await?;
+
         Ok(())
     }
 
@@ -519,14 +520,22 @@ impl<D> Account<D> {
         self.find(|s| s.flags().is_archive()).await
     }
 
-    /// List folders.
+    /// Load folders into memory.
     ///
-    /// This method should be called after a successful sign in
-    /// to load the account folders into memory.
-    pub async fn list_folders(&mut self) -> Result<Vec<Summary>> {
+    /// This method is automatically called on sign in to
+    /// prepare the in-memory vaults but can be explicitly
+    /// called to reload the data from disc.
+    pub async fn load_folders(&mut self) -> Result<Vec<Summary>> {
         let storage = self.storage()?;
         let mut writer = storage.write().await;
         Ok(writer.load_vaults().await?.to_vec())
+    }
+
+    /// List in-memory folders managed by this account.
+    pub async fn list_folders(&self) -> Result<Vec<Summary>> {
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        Ok(reader.folders().to_vec())
     }
 
     /// Sign out of the account.

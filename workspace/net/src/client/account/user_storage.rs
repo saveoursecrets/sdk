@@ -1,7 +1,6 @@
 //! Network aware account.
 use std::{
     any::Any,
-    collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -11,18 +10,17 @@ use sos_sdk::{
         archive::{Inventory, RestoreOptions},
         search::{AccountSearch, AccountStatistics, DocumentCount},
         AccessOptions, Account, AccountBuilder, AccountData, AccountHandler,
-        AccountInfo, AccountsList, AuthenticatedUser, DetachedView,
-        FolderStorage, NewAccount, UserPaths,
+        AccountInfo, AuthenticatedUser, DetachedView, FolderStorage,
+        NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
-    encode,
-    events::{AuditEvent, Event, EventKind, ReadEvent},
+    events::{Event, ReadEvent},
     mpc::generate_keypair,
     signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretData, SecretId, SecretMeta},
-        Gatekeeper, Summary, VaultId,
+        Summary, VaultId,
     },
     vfs,
 };
@@ -54,12 +52,6 @@ use async_trait::async_trait;
 
 #[cfg(feature = "device")]
 use super::devices::DeviceManager;
-
-#[cfg(feature = "migrate")]
-use sos_migrate::{
-    import::{ImportFormat, ImportTarget},
-    Convert,
-};
 
 type SyncHandlerData = Arc<RwLock<Remotes>>;
 type LocalAccount = Account<SyncHandlerData>;
@@ -419,7 +411,12 @@ impl UserStorage {
         self.account.archive_folder().await
     }
 
-    /// List folders.
+    /// Load folders from disc into memory.
+    pub async fn load_folders(&mut self) -> Result<Vec<Summary>> {
+        Ok(self.account.load_folders().await?)
+    }
+
+    /// List folders managed by this account.
     pub async fn list_folders(&mut self) -> Result<Vec<Summary>> {
         Ok(self.account.list_folders().await?)
     }
@@ -726,199 +723,6 @@ impl UserStorage {
         Ok(self.account.build_search_index().await?)
     }
 
-    /*
-    /// Write a zip archive containing all the secrets
-    /// for the account unencrypted.
-    ///
-    /// Used to migrate an account to another provider.
-    #[cfg(feature = "migrate")]
-    pub async fn export_unsafe_archive<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<()> {
-        use sos_migrate::export::PublicExport;
-        use std::io::Cursor;
-
-        let local_accounts = AccountsList::new(self.paths());
-
-        let mut archive = Vec::new();
-        let mut migration = PublicExport::new(Cursor::new(&mut archive));
-        let vaults = local_accounts.list_local_vaults(false).await?;
-
-        for (summary, _) in vaults {
-            let (vault, _) =
-                local_accounts.find_local_vault(summary.id(), false).await?;
-            let vault_passphrase = LocalAccount::find_folder_password(
-                self.user()?.identity().keeper(),
-                summary.id(),
-            )
-            .await?;
-
-            let mut keeper = Gatekeeper::new(vault, None);
-            keeper.unlock(vault_passphrase.into()).await?;
-
-            // Add the secrets for the vault to the migration
-            migration.add(&keeper).await?;
-
-            keeper.lock();
-        }
-
-        let mut files = HashMap::new();
-        let buffer = serde_json::to_vec_pretty(self.user()?.account())?;
-        files.insert("account.json", buffer.as_slice());
-        migration.append_files(files).await?;
-        migration.finish().await?;
-
-        vfs::write(path.as_ref(), &archive).await?;
-
-        let audit_event = AuditEvent::new(
-            EventKind::ExportUnsafe,
-            self.address().clone(),
-            None,
-        );
-        self.account.append_audit_logs(vec![audit_event]).await?;
-
-        Ok(())
-    }
-
-    /// Import secrets from another app.
-    #[cfg(feature = "migrate")]
-    pub async fn import_file(
-        &mut self,
-        target: ImportTarget,
-    ) -> Result<Summary> {
-        let _ = self.sync_lock.lock().await;
-
-        use sos_migrate::import::csv::{
-            bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
-            dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
-            macos::MacPasswordCsv, one_password::OnePasswordCsv,
-        };
-
-        let (event, summary) = match target.format {
-            ImportFormat::OnePasswordCsv => {
-                self.import_csv(
-                    target.path,
-                    target.folder_name,
-                    OnePasswordCsv,
-                )
-                .await?
-            }
-            ImportFormat::DashlaneZip => {
-                self.import_csv(
-                    target.path,
-                    target.folder_name,
-                    DashlaneCsvZip,
-                )
-                .await?
-            }
-            ImportFormat::BitwardenCsv => {
-                self.import_csv(target.path, target.folder_name, BitwardenCsv)
-                    .await?
-            }
-            ImportFormat::ChromeCsv => {
-                self.import_csv(
-                    target.path,
-                    target.folder_name,
-                    ChromePasswordCsv,
-                )
-                .await?
-            }
-            ImportFormat::FirefoxCsv => {
-                self.import_csv(
-                    target.path,
-                    target.folder_name,
-                    FirefoxPasswordCsv,
-                )
-                .await?
-            }
-            ImportFormat::MacosCsv => {
-                self.import_csv(
-                    target.path,
-                    target.folder_name,
-                    MacPasswordCsv,
-                )
-                .await?
-            }
-        };
-
-        let audit_event = AuditEvent::new(
-            EventKind::ImportUnsafe,
-            self.address().clone(),
-            None,
-        );
-        let create_event: AuditEvent = (self.address(), &event).into();
-        self.account
-            .append_audit_logs(vec![audit_event, create_event])
-            .await?;
-
-        Ok(summary)
-    }
-
-    /// Generic CSV import implementation.
-    #[cfg(feature = "migrate")]
-    async fn import_csv<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        folder_name: String,
-        converter: impl Convert<Input = PathBuf>,
-    ) -> Result<(Event, Summary)> {
-        use sos_sdk::vault::VaultBuilder;
-
-        let local_accounts = AccountsList::new(self.paths());
-
-        let vaults = local_accounts.list_local_vaults(false).await?;
-        let existing_name =
-            vaults.iter().find(|(s, _)| s.name() == folder_name);
-
-        let vault_passphrase = LocalAccount::generate_folder_password()?;
-
-        let vault_id = VaultId::new_v4();
-        let name = if existing_name.is_some() {
-            format!("{} ({})", folder_name, vault_id)
-        } else {
-            folder_name
-        };
-
-        let vault = VaultBuilder::new()
-            .id(vault_id)
-            .public_name(name)
-            .password(vault_passphrase.clone(), None)
-            .await?;
-
-        // Parse the CSV records into the vault
-        let vault = converter
-            .convert(
-                path.as_ref().to_path_buf(),
-                vault,
-                vault_passphrase.clone().into(),
-            )
-            .await?;
-
-        let buffer = encode(&vault).await?;
-        let (event, summary) = {
-            let storage = self.storage()?;
-            let mut writer = storage.write().await;
-            writer.import_vault(buffer).await?
-        };
-
-        LocalAccount::save_folder_password(
-            self.user()?.identity().keeper(),
-            vault.id(),
-            vault_passphrase.clone().into(),
-        )
-        .await?;
-
-        // Ensure the imported secrets are in the search index
-        self.index_mut()?
-            .add_folder_to_search_index(vault, vault_passphrase.into())
-            .await?;
-
-        let event = Event::Write(*summary.id(), event);
-        Ok((event, summary))
-    }
-    */
-
     /// Create a detached view of an event log until a
     /// particular commit.
     ///
@@ -979,7 +783,7 @@ impl UserStorage {
 }
 
 #[cfg(feature = "migrate")]
-use sos_migrate::{AccountExport, AccountImport};
+use sos_migrate::{import::ImportTarget, AccountExport, AccountImport};
 
 #[cfg(feature = "migrate")]
 impl UserStorage {

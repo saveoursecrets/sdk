@@ -15,10 +15,7 @@ use crate::{
     Result,
 };
 use std::path::{Path, PathBuf};
-use tokio::{
-    io::{AsyncRead, AsyncSeek},
-    sync::{mpsc, RwLock},
-};
+use tokio::io::{AsyncRead, AsyncSeek};
 
 impl<D> Account<D> {
     /// Create a backup archive containing the

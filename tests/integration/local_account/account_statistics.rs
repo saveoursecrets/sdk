@@ -2,7 +2,7 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::{hashmap, hashset};
 use sos_net::sdk::{
-    account::{LocalAccount, UserPaths, AccessOptions},
+    account::{AccessOptions, LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
     vault::secret::{IdentityKind, SecretType},
 };
@@ -223,9 +223,7 @@ async fn integration_account_statistics() -> Result<()> {
         folder: Some(folder.clone()),
         ..Default::default()
     };
-    account
-        .create_secret(meta, secret, options)
-        .await?;
+    account.create_secret(meta, secret, options).await?;
 
     let statistics = account.statistics().await;
     assert_eq!(15, statistics.documents);

@@ -32,7 +32,6 @@ async fn integration_migrate_export() -> Result<()> {
     .await?;
 
     account.sign_in(password.clone()).await?;
-    account.list_folders().await?;
 
     let zip = data_dir.join("export.zip");
     let exporter = LocalExport::new(&account);

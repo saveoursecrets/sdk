@@ -35,7 +35,6 @@ async fn integration_migrate_import() -> Result<()> {
     .await?;
 
     account.sign_in(password.clone()).await?;
-    account.list_folders().await?;
 
     let target = ImportTarget {
         format: ImportFormat::OnePasswordCsv,

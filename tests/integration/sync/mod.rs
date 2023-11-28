@@ -96,9 +96,6 @@ impl SimulatedDevice {
             .insert_remote(self.origin.clone(), Box::new(provider))
             .await;
 
-        // Must list folders to load cache into memory after sign in
-        owner.list_folders().await?;
-
         // Use the default folder
         owner.open_folder(&self.default_folder).await?;
 
