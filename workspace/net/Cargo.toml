@@ -14,14 +14,16 @@ full = [
   "client",
   "server",
   "hashcheck",
+  "listen",
   "migrate",
   "contacts",
   "device",
   "security-report",
 ]
 client = [
-  "reqwest",
+  "dep:reqwest",
 ]
+listen = ["dep:tokio-tungstenite"]
 server = [
   "toml",
   "axum",
@@ -37,8 +39,8 @@ archive = ["sos-sdk/archive"]
 contacts = ["sos-sdk/contacts"]
 migrate = ["sos-migrate"]
 device = [
-  "if-addrs",
-  "whoami",
+  "dep:if-addrs",
+  "dep:whoami",
 ]
 security-report = ["sos-sdk/security-report"]
 mem-fs = ["sos-sdk/mem-fs"]
@@ -81,6 +83,7 @@ tower = { version = "0.4", optional = true }
 tower-http = { version = "0.3", features = ["cors", "trace"], optional = true }
 async-stream = { version = "0.3", optional = true }
 tokio-stream = { version = "0.1", optional = true }
+tokio-tungstenite = { version = "0.20", features = ["rustls-tls-native-roots"] , optional = true}
 
 # device
 whoami = { version = "1.4", optional = true }
@@ -103,7 +106,6 @@ features = ["async"]
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 file-guard = "0.1"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
-tokio-tungstenite = { version = "0.20", features = ["rustls-tls-native-roots"] }
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
 tokio = { version = "1", features = ["rt", "time", "sync"] }
