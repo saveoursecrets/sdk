@@ -18,6 +18,8 @@ const TEST_ID: &str = "security_report";
 
 #[tokio::test]
 async fn integration_security_report() -> Result<()> {
+    //crate::test_utils::init_tracing();
+
     let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 

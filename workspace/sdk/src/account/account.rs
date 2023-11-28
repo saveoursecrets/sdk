@@ -522,11 +522,13 @@ impl<D> Account<D> {
     }
 
     /// List folders.
+    ///
+    /// This method should be called after a successful sign in 
+    /// to load the account folders into memory.
     pub async fn list_folders(&mut self) -> Result<Vec<Summary>> {
         let storage = self.storage()?;
         let mut writer = storage.write().await;
-        let folders = writer.load_vaults().await?.to_vec();
-        Ok(folders)
+        Ok(writer.load_vaults().await?.to_vec())
     }
 
     /// Sign out of the account.

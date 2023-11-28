@@ -12,6 +12,8 @@ const TEST_ID: &str = "migrate_export";
 /// Tests exporting an archive of plain text secrets.
 #[tokio::test]
 async fn integration_migrate_export() -> Result<()> {
+    //crate::test_utils::init_tracing();
+
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
 

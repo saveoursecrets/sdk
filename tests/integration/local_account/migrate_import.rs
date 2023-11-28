@@ -13,6 +13,8 @@ const TEST_ID: &str = "migrate_import";
 /// Tests importing plain text secrets from other apps.
 #[tokio::test]
 async fn integration_migrate_import() -> Result<()> {
+    //crate::test_utils::init_tracing();
+
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
 

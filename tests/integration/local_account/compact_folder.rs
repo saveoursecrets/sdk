@@ -21,6 +21,8 @@ macro_rules! commit_count {
 /// Tests compacting a folder event log.
 #[tokio::test]
 async fn integration_compact_folder() -> Result<()> {
+    //crate::test_utils::init_tracing();
+    
     let dir = tempdir()?;
     let signer = Box::new(SingleParty::new_random());
     let user_id = signer.address()?.to_string();

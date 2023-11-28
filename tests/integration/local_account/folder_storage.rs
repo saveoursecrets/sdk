@@ -13,6 +13,8 @@ const TEST_ID: &str = "folder_storage";
 /// Tests basic operations directly on folder storage.
 #[tokio::test]
 async fn integration_folder_storage() -> Result<()> {
+    //crate::test_utils::init_tracing();
+
     let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 

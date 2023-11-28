@@ -14,6 +14,8 @@ const TEST_ID: &str = "change_password";
 /// Tests changing the encryption password of a folder.
 #[tokio::test]
 async fn integration_change_password() -> Result<()> {
+    //crate::test_utils::init_tracing();
+
     let mut dirs = setup(TEST_ID, 1).await?;
     let test_data_dir = dirs.clients.remove(0);
 

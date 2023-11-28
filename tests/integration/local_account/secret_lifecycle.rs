@@ -14,6 +14,8 @@ const TEST_ID: &str = "secret_lifecycle";
 /// the restored data.
 #[tokio::test]
 async fn integration_secret_lifecycle() -> Result<()> {
+    //crate::test_utils::init_tracing();
+
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
 

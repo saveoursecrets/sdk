@@ -12,6 +12,8 @@ const TEST_ID: &str = "account_lifecycle";
 /// and sign out followed by account deletion.
 #[tokio::test]
 async fn integration_account_lifecycle() -> Result<()> {
+    //crate::test_utils::init_tracing();
+
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
 
