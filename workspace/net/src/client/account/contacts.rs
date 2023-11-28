@@ -17,33 +17,30 @@ impl NetworkAccount {
         Ok(self.account.load_avatar(secret_id, folder).await?)
     }
 
-    /// Export a contact secret to vCard file.
-    pub async fn export_vcard_file<P: AsRef<Path>>(
+    /// Export a contact secret to a vCard file.
+    pub async fn export_contact<P: AsRef<Path>>(
         &mut self,
         path: P,
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<()> {
-        Ok(self
-            .account
-            .export_vcard_file(path, secret_id, folder)
-            .await?)
+        Ok(self.account.export_contact(path, secret_id, folder).await?)
     }
 
     /// Export all contacts to a single vCard.
-    pub async fn export_all_vcards<P: AsRef<Path>>(
+    pub async fn export_all_contacts<P: AsRef<Path>>(
         &mut self,
         path: P,
     ) -> Result<()> {
-        Ok(self.account.export_all_vcards(path).await?)
+        Ok(self.account.export_all_contacts(path).await?)
     }
 
-    /// Import vCards from a string buffer.
-    pub async fn import_vcard(
+    /// Import contacts from a vCard string buffer.
+    pub async fn import_contacts(
         &mut self,
         content: &str,
         progress: impl Fn(ContactImportProgress),
-    ) -> Result<()> {
-        Ok(self.account.import_vcard(content, progress).await?)
+    ) -> Result<Vec<SecretId>> {
+        Ok(self.account.import_contacts(content, progress).await?)
     }
 }

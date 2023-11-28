@@ -553,7 +553,7 @@ async fn contacts_export(
         return Err(Error::FileExists(output));
     }
     let mut owner = user.write().await;
-    owner.export_all_vcards(output).await?;
+    owner.export_all_contacts(output).await?;
     Ok(())
 }
 
@@ -561,6 +561,6 @@ async fn contacts_export(
 async fn contacts_import(user: Owner, input: PathBuf) -> Result<()> {
     let mut owner = user.write().await;
     let content = vfs::read_to_string(&input).await?;
-    owner.import_vcard(&content, |_| {}).await?;
+    owner.import_contacts(&content, |_| {}).await?;
     Ok(())
 }

@@ -207,10 +207,10 @@ async fn simulate_session(
 
     let contacts = "tests/fixtures/contacts.vcf";
     let vcard = vfs::read_to_string(contacts).await?;
-    owner.import_vcard(&vcard, |_| {}).await?;
+    owner.import_contacts(&vcard, |_| {}).await?;
 
     let exported_contacts = "target/audit-trail-exported-contacts.vcf";
-    owner.export_all_vcards(exported_contacts).await?;
+    owner.export_all_contacts(exported_contacts).await?;
 
     // Delete the account
     owner.delete_account().await?;

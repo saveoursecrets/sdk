@@ -7,9 +7,10 @@ use sos_net::sdk::{
 };
 
 const TEST_ID: &str = "contacts";
-const VCARD: &str = include_str!("../../../workspace/sdk/fixtures/contact.vcf");
+const VCARD: &str =
+    include_str!("../../../workspace/sdk/fixtures/contact.vcf");
 
-/// Tests importing and exporting contacts from vCard 
+/// Tests importing and exporting contacts from vCard
 /// files.
 #[tokio::test]
 async fn integration_contacts() -> Result<()> {
@@ -32,15 +33,30 @@ async fn integration_contacts() -> Result<()> {
     )
     .await?;
 
-    let default_folder = new_account.default_folder();
     account.sign_in(password.clone()).await?;
-    account.open_folder(&default_folder).await?;
 
-    account.import_vcard(VCARD, |_| {}).await?; 
+    let contacts = account.contacts_folder().await.unwrap();
+    account.open_folder(&contacts).await?;
+
+    let ids = account.import_contacts(VCARD, |_| {}).await?;
+    assert_eq!(1, ids.len());
+
+    let id = ids.get(0).unwrap();
+    let contact = data_dir.join("contact.vcf");
+    account.export_contact(&contact, id, None).await?;
+    assert!(vfs::try_exists(&contact).await?);
+
+    let contact_content = vfs::read_to_string(&contact).await?;
+    let contact_content = contact_content.replace('\r', "");
+    assert_eq!(VCARD, &contact_content);
 
     let contacts = data_dir.join("contacts.vcf");
-    account.export_all_vcards(&contacts).await?;
+    account.export_all_contacts(&contacts).await?;
     assert!(vfs::try_exists(&contacts).await?);
+
+    let contacts_content = vfs::read_to_string(&contacts).await?;
+    let contacts_content = contacts_content.replace('\r', "");
+    assert_eq!(VCARD, &contacts_content);
 
     teardown(TEST_ID).await;
 

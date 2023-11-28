@@ -50,8 +50,8 @@ impl<D> Account<D> {
         Ok(None)
     }
 
-    /// Export a contact secret to vCard file.
-    pub async fn export_vcard_file<P: AsRef<Path>>(
+    /// Export a contact secret to a vCard file.
+    pub async fn export_contact<P: AsRef<Path>>(
         &mut self,
         path: P,
         secret_id: &SecretId,
@@ -86,7 +86,7 @@ impl<D> Account<D> {
     }
 
     /// Export all contacts to a single vCard.
-    pub async fn export_all_vcards<P: AsRef<Path>>(
+    pub async fn export_all_contacts<P: AsRef<Path>>(
         &mut self,
         path: P,
     ) -> Result<()> {
@@ -129,14 +129,15 @@ impl<D> Account<D> {
         Ok(())
     }
 
-    /// Import vCards from a string buffer.
-    pub async fn import_vcard(
+    /// Import contacts from a vCard string buffer.
+    pub async fn import_contacts(
         &mut self,
         content: &str,
         progress: impl Fn(ContactImportProgress),
-    ) -> Result<()> {
+    ) -> Result<Vec<SecretId>> {
         use crate::vcard4::parse;
 
+        let mut ids = Vec::new();
         let current = {
             let storage = self.storage()?;
             let reader = storage.read().await;
@@ -171,7 +172,9 @@ impl<D> Account<D> {
             });
 
             let meta = SecretMeta::new(label, secret.kind());
-            self.create_secret(meta, secret, Default::default()).await?;
+            let (id, _, _, _) =
+                self.create_secret(meta, secret, Default::default()).await?;
+            ids.push(id);
         }
 
         if let Some(folder) = current {
@@ -184,7 +187,6 @@ impl<D> Account<D> {
             None,
         );
         self.append_audit_logs(vec![audit_event]).await?;
-
-        Ok(())
+        Ok(ids)
     }
 }
