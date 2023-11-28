@@ -44,11 +44,18 @@ pub struct DocumentKey(String, VaultId, SecretId);
 
 // Index tokenizer.
 fn tokenizer(s: &str) -> Vec<Cow<'_, str>> {
-    let ngrams = ngram_slice(s, 2);
     let words = s.split(' ').collect::<HashSet<_>>();
 
+    let ngram2 = ngram_slice(s, 2);
+    let ngram3 = ngram_slice(s, 3);
+    let ngram4 = ngram_slice(s, 4);
+    let ngram5 = ngram_slice(s, 5);
+    let ngram: HashSet<&str> = ngram2.union(&ngram3).map(|s| &**s).collect();
+    let ngram: HashSet<&str> = ngram.union(&ngram4).map(|s| &**s).collect();
+    let ngram: HashSet<&str> = ngram.union(&ngram5).map(|s| &**s).collect();
+
     let mut tokens: Vec<Cow<str>> = Vec::new();
-    for token in words.union(&ngrams) {
+    for token in ngram.union(&words) {
         tokens.push(Cow::Owned(token.to_lowercase()))
     }
     tokens

@@ -171,6 +171,7 @@ impl Default for AccountSearch {
 }
 
 /// View of documents in the search index.
+#[derive(Debug)]
 pub enum DocumentView {
     /// View all documents in the search index.
     All {
@@ -256,6 +257,7 @@ impl DocumentView {
 }
 
 /// Filter for a search query.
+#[derive(Default, Debug)]
 pub struct QueryFilter {
     /// List of tags.
     pub tags: Vec<String>,
@@ -266,6 +268,7 @@ pub struct QueryFilter {
 }
 
 /// Filter for archived documents.
+#[derive(Debug)]
 pub struct ArchiveFilter {
     /// Identifier of the archive vault.
     pub id: VaultId,

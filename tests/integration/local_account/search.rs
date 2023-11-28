@@ -164,6 +164,10 @@ async fn integration_search() -> Result<()> {
         .await?;
     assert_eq!(1, documents.len());
 
+    let documents = account.index()?.query_map(
+        "log", Default::default()).await?;
+    assert_eq!(2, documents.len());
+
     println!("{:#?}", documents.len());
 
     teardown(TEST_ID).await;
