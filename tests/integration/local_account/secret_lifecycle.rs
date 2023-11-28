@@ -1,4 +1,4 @@
-use crate::test_utils::{mock_note, setup, teardown};
+use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::{
     account::{archive::RestoreOptions, LocalAccount, UserPaths},
@@ -41,7 +41,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
     account.open_folder(&default_folder).await?;
 
     // Create secret
-    let (meta, secret) = mock_note("note", TEST_ID);
+    let (meta, secret) = mock::note("note", TEST_ID);
     let (id, _, _, folder) = account
         .create_secret(meta, secret, Default::default())
         .await?;
@@ -53,7 +53,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
     assert_eq!("note", data.meta.label());
 
     // Update secret
-    let (meta, secret) = mock_note("note_edited", TEST_ID);
+    let (meta, secret) = mock::note("note_edited", TEST_ID);
     let (_, _, _, _) = account
         .update_secret(
             &id,
@@ -71,7 +71,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
     account.delete_secret(&id, Default::default()).await?;
 
     // Create another secret so we can assert after restoring the account
-    let (meta, secret) = mock_note("restored_note", TEST_ID);
+    let (meta, secret) = mock::note("restored_note", TEST_ID);
     let (id, _, _, _) = account
         .create_secret(meta, secret, Default::default())
         .await?;

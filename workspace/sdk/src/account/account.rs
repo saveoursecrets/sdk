@@ -1399,7 +1399,7 @@ impl<D> Account<D> {
 
     /// Move a secret out of the archive.
     ///
-    /// The secret must be inside a folder with the archive flag set.
+    /// The secret must be inside a folder with the archive flag set
     pub async fn unarchive(
         &mut self,
         from: &Summary,

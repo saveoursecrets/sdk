@@ -1,5 +1,6 @@
 mod account_lifecycle;
 mod account_statistics;
+mod archive_unarchive;
 mod change_password;
 mod compact_folder;
 mod contacts;
