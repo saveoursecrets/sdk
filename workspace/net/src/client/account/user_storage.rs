@@ -725,7 +725,8 @@ impl UserStorage {
     pub async fn build_search_index(&mut self) -> Result<DocumentCount> {
         Ok(self.account.build_search_index().await?)
     }
-
+    
+    /*
     /// Write a zip archive containing all the secrets
     /// for the account unencrypted.
     ///
@@ -916,6 +917,7 @@ impl UserStorage {
         let event = Event::Write(*summary.id(), event);
         Ok((event, summary))
     }
+    */
 
     /// Create a detached view of an event log until a
     /// particular commit.
@@ -973,6 +975,35 @@ impl UserStorage {
         R: std::future::Future<Output = Vec<T>>,
     {
         Ok(self.account.generate_security_report(options).await?)
+    }
+}
+
+#[cfg(feature = "migrate")]
+use sos_migrate::{AccountImport, AccountExport};
+
+#[cfg(feature = "migrate")]
+impl UserStorage {
+    /// Write a zip archive containing all the secrets
+    /// for the account unencrypted.
+    ///
+    /// Used to migrate an account to another provider.
+    pub async fn export_unsafe_archive<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<()> {
+        let migration = AccountExport::new(&self.account);
+        Ok(migration.export_unsafe_archive(path).await?)
+    }
+
+    /// Import secrets from another app.
+    #[cfg(feature = "migrate")]
+    pub async fn import_file(
+        &mut self,
+        target: ImportTarget,
+    ) -> Result<Summary> {
+        let _ = self.sync_lock.lock().await;
+        let mut migration = AccountImport::new(&mut self.account);
+        Ok(migration.import_file(target).await?)
     }
 }
 
