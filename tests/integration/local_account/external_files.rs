@@ -5,10 +5,7 @@ use sos_net::{
         account::{files::FileProgress, AccessOptions},
         hex,
         vault::{
-            secret::{
-                FileContent, Secret, SecretData, SecretId, SecretMeta,
-                SecretRow,
-            },
+            secret::{FileContent, Secret, SecretData, SecretId, SecretRow},
             Summary,
         },
         vfs,
@@ -16,7 +13,7 @@ use sos_net::{
 };
 use std::{path::PathBuf, sync::Arc};
 
-use crate::test_utils::{create_local_account, setup, teardown};
+use crate::test_utils::{create_local_account, mock, setup, teardown};
 use tokio::sync::{mpsc, Mutex};
 
 const ZERO_CHECKSUM: [u8; 32] = [0; 32];
@@ -172,27 +169,12 @@ async fn integration_external_files() -> Result<()> {
     Ok(())
 }
 
-fn get_image_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
-    let file_path = PathBuf::from("tests/fixtures/sample.heic");
-    let secret: Secret = file_path.clone().try_into()?;
-    let meta =
-        SecretMeta::new("Sample image file".to_string(), secret.kind());
-    Ok((meta, secret, file_path))
-}
-
-fn get_text_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
-    let file_path = PathBuf::from("tests/fixtures/test-file.txt");
-    let secret: Secret = file_path.clone().try_into()?;
-    let meta = SecretMeta::new("Sample text file".to_string(), secret.kind());
-    Ok((meta, secret, file_path))
-}
-
 async fn create_file_secret(
     account: &mut NetworkAccount,
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(SecretId, SecretData, PathBuf)> {
-    let (meta, secret, file_path) = get_image_secret()?;
+    let (meta, secret, file_path) = mock::file_image_secret()?;
 
     // Create the file secret in the default folder
     let options = AccessOptions {
@@ -512,7 +494,7 @@ async fn assert_attach_file_secret(
         create_file_secret(account, folder, progress_tx.clone()).await?;
 
     // Add an attachment
-    let (meta, secret, _) = get_text_secret()?;
+    let (meta, secret, _) = mock::file_text_secret()?;
     let attachment_id = SecretId::new_v4();
     let attachment = SecretRow::new(attachment_id, meta, secret);
     secret_data.secret.attach(attachment);
@@ -611,7 +593,7 @@ async fn assert_attach_file_secret(
         };
 
         // Now update the attachment
-        let (meta, secret, _) = get_image_secret()?;
+        let (meta, secret, _) = mock::file_image_secret()?;
         let new_attachment = SecretRow::new(*attached.id(), meta, secret);
         secret_data.secret.update_attachment(new_attachment)?;
         account
@@ -672,7 +654,7 @@ async fn assert_attach_file_secret(
         };
 
         // Now insert an attachment before the previous one
-        let (meta, secret, _) = get_text_secret()?;
+        let (meta, secret, _) = mock::file_text_secret()?;
         let new_attachment_id = SecretId::new_v4();
         let attachment = SecretRow::new(new_attachment_id, meta, secret);
         updated_secret_data.secret.insert_attachment(0, attachment);

@@ -477,14 +477,14 @@ impl NetworkAccount {
 
     /// Update a file secret.
     ///
-    /// If the secret is not the `File` variant that it will be
-    /// converted to a `File` variant to ensure this is only called
-    /// on file secrets.
-    pub async fn update_file<P: AsRef<Path>>(
+    /// If the secret exists and is not a file secret it will be
+    /// converted to a file secret so take care to ensure you only
+    /// use this on file secrets.
+    pub async fn update_file(
         &mut self,
         secret_id: &SecretId,
         meta: SecretMeta,
-        path: P,
+        path: impl AsRef<Path>,
         options: AccessOptions,
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Option<SyncError>)> {

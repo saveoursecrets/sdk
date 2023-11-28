@@ -68,10 +68,6 @@ impl SyncHandler {
 impl AccountHandler for SyncHandler {
     type Data = SyncHandlerData;
 
-    fn data(&self) -> &Self::Data {
-        &self.remotes
-    }
-
     async fn before_change(
         &self,
         storage: Arc<RwLock<FolderStorage>>,

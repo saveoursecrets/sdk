@@ -472,6 +472,7 @@ pub async fn teardown(test_id: &str) {
 }
 
 pub mod mock {
+    use anyhow::Result;
     use secrecy::SecretString;
     use sha2::{Digest, Sha256};
     use sos_net::sdk::{
@@ -479,6 +480,7 @@ pub mod mock {
         vault::secret::{FileContent, IdentityKind, Secret, SecretMeta},
     };
     use std::collections::HashMap;
+    use std::path::PathBuf;
 
     pub fn login(
         label: &str,
@@ -704,6 +706,20 @@ END:VCARD"#,
         let secret_meta =
             SecretMeta::new(label.to_string(), secret_value.kind());
         (secret_meta, secret_value)
+    }
+
+    pub fn file_image_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
+        let file_path = PathBuf::from("tests/fixtures/sample.heic");
+        let secret: Secret = file_path.clone().try_into()?;
+        let meta = SecretMeta::new("image".to_string(), secret.kind());
+        Ok((meta, secret, file_path))
+    }
+
+    pub fn file_text_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
+        let file_path = PathBuf::from("tests/fixtures/test-file.txt");
+        let secret: Secret = file_path.clone().try_into()?;
+        let meta = SecretMeta::new("text".to_string(), secret.kind());
+        Ok((meta, secret, file_path))
     }
 }
 
