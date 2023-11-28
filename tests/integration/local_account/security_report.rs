@@ -1,7 +1,7 @@
 use anyhow::Result;
 use secrecy::SecretString;
 use sos_net::{
-    client::UserStorage,
+    client::NetworkAccount,
     sdk::{
         account::security_report::SecurityReportOptions,
         passwd::diceware::generate_passphrase,
@@ -79,7 +79,7 @@ struct MockSecretIds {
 }
 
 async fn simulate_session(
-    owner: &mut UserStorage,
+    owner: &mut NetworkAccount,
     default_folder: &Summary,
     _passphrase: SecretString,
 ) -> Result<MockSecretIds> {

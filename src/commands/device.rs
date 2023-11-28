@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use sos_net::{
-    client::UserStorage, device::TrustedDevice, sdk::account::AccountRef,
+    client::NetworkAccount, device::TrustedDevice, sdk::account::AccountRef,
 };
 
 use crate::{
@@ -37,7 +37,7 @@ pub enum Command {
 }
 
 async fn resolve_device(
-    user: Arc<RwLock<UserStorage>>,
+    user: Arc<RwLock<NetworkAccount>>,
     id: &str,
 ) -> Result<Option<TrustedDevice>> {
     let owner = user.read().await;

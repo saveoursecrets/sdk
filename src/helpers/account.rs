@@ -2,7 +2,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use sos_net::{
-    client::UserStorage,
+    client::NetworkAccount,
     sdk::{
         account::{AccountInfo, AccountRef, AccountsList, UserPaths},
         constants::DEFAULT_VAULT_NAME,
@@ -25,7 +25,7 @@ use once_cell::sync::OnceCell;
 use crate::{Error, Result};
 
 /// Account owner.
-pub type Owner = Arc<RwLock<UserStorage>>;
+pub type Owner = Arc<RwLock<NetworkAccount>>;
 
 /// Current user for the shell REPL.
 pub(crate) static USER: OnceCell<Owner> = OnceCell::new();
@@ -201,13 +201,13 @@ pub async fn find_account(
 /// Helper to sign in to an account.
 pub async fn sign_in(
     account: &AccountRef,
-) -> Result<(UserStorage, SecretString)> {
+) -> Result<(NetworkAccount, SecretString)> {
     let account = find_account(account)
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
 
-    let mut owner = UserStorage::new_unauthenticated(
+    let mut owner = NetworkAccount::new_unauthenticated(
         account.address().clone(),
         None,
         None,
@@ -222,7 +222,7 @@ pub async fn sign_in(
 /// Switch to a different account.
 pub async fn switch(
     account: &AccountRef,
-) -> Result<Arc<RwLock<UserStorage>>> {
+) -> Result<Arc<RwLock<NetworkAccount>>> {
     let (mut owner, _) = sign_in(account).await?;
 
     owner.initialize_search_index().await?;
@@ -329,7 +329,7 @@ pub async fn new_account(
             display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
 
-        let (mut owner, _) = UserStorage::new_account(
+        let (mut owner, _) = NetworkAccount::new_account(
             account_name.clone(),
             passphrase.clone(),
             None,

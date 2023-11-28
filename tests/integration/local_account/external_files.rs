@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_net::{
-    client::UserStorage,
+    client::NetworkAccount,
     sdk::{
         account::{files::FileProgress, AccessOptions},
         hex,
@@ -188,7 +188,7 @@ fn get_text_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
 }
 
 async fn create_file_secret(
-    account: &mut UserStorage,
+    account: &mut NetworkAccount,
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(SecretId, SecretData, PathBuf)> {
@@ -208,7 +208,7 @@ async fn create_file_secret(
 }
 
 async fn update_file_secret(
-    account: &mut UserStorage,
+    account: &mut NetworkAccount,
     default_folder: &Summary,
     secret_data: &SecretData,
     destination: Option<&Summary>,
@@ -242,7 +242,7 @@ async fn update_file_secret(
 }
 
 async fn assert_create_file_secret(
-    account: &mut UserStorage,
+    account: &mut NetworkAccount,
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(SecretId, SecretData, [u8; 32])> {
@@ -286,7 +286,7 @@ async fn assert_create_file_secret(
 }
 
 async fn assert_update_file_secret(
-    account: &mut UserStorage,
+    account: &mut NetworkAccount,
     default_folder: &Summary,
     id: &SecretId,
     secret_data: &SecretData,
@@ -338,7 +338,7 @@ async fn assert_update_file_secret(
 }
 
 async fn assert_move_file_secret(
-    account: &mut UserStorage,
+    account: &mut NetworkAccount,
     default_folder: &Summary,
     id: &SecretId,
     updated_checksum: &[u8; 32],
@@ -400,7 +400,7 @@ async fn assert_move_file_secret(
 }
 
 async fn assert_delete_file_secret(
-    account: &mut UserStorage,
+    account: &mut NetworkAccount,
     folder: &Summary,
     id: &SecretId,
     checksum: &[u8; 32],
@@ -422,7 +422,7 @@ async fn assert_delete_file_secret(
 }
 
 async fn assert_create_update_move_file_secret(
-    account: &mut UserStorage,
+    account: &mut NetworkAccount,
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(Summary, SecretId, [u8; 32])> {
@@ -489,7 +489,7 @@ async fn assert_create_update_move_file_secret(
 }
 
 async fn assert_delete_folder_file_secrets(
-    account: &mut UserStorage,
+    account: &mut NetworkAccount,
     folder: &Summary,
     id: &SecretId,
     checksum: &[u8; 32],
@@ -504,7 +504,7 @@ async fn assert_delete_folder_file_secrets(
 }
 
 async fn assert_attach_file_secret(
-    account: &mut UserStorage,
+    account: &mut NetworkAccount,
     folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<()> {
@@ -536,7 +536,7 @@ async fn assert_attach_file_secret(
 
     // We never modify the root secret so assert on every change
     async fn assert_root_file_secret(
-        account: &mut UserStorage,
+        account: &mut NetworkAccount,
         folder: &Summary,
         id: &SecretId,
         root: &Secret,

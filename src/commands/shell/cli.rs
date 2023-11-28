@@ -3,7 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use terminal_banner::{Banner, Padding};
 
 use sos_net::{
-    client::UserStorage,
+    client::NetworkAccount,
     sdk::{
         account::{AccountRef, UserPaths},
         vault::FolderRef,
@@ -40,7 +40,7 @@ Type "quit" or "q" to exit"#;
 }
 
 /// Loop sign in for shell authentication.
-async fn auth(account: &AccountRef) -> Result<UserStorage> {
+async fn auth(account: &AccountRef) -> Result<NetworkAccount> {
     loop {
         match sign_in(account).await {
             Ok((owner, _)) => return Ok(owner),

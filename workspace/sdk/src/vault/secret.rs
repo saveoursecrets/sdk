@@ -2313,8 +2313,7 @@ END:VCARD"#;
 
     #[tokio::test]
     async fn secret_encode_contact() -> Result<()> {
-        const TEXT: &str =
-            include_str!("../../fixtures/contact.vcf");
+        const TEXT: &str = include_str!("../../fixtures/contact.vcf");
         let vcard: Vcard = TEXT.try_into()?;
         let secret = Secret::Contact {
             vcard: Box::new(vcard),

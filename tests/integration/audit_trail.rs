@@ -4,7 +4,7 @@ use secrecy::SecretString;
 use std::path::{Path, PathBuf};
 
 use sos_net::{
-    client::UserStorage,
+    client::NetworkAccount,
     migrate::import::ImportTarget,
     sdk::{
         account::archive::RestoreOptions,
@@ -107,7 +107,7 @@ async fn integration_audit_trail() -> Result<()> {
 }
 
 async fn simulate_session(
-    owner: &mut UserStorage,
+    owner: &mut NetworkAccount,
     default_folder: &Summary,
     passphrase: SecretString,
     test_data_dir: &PathBuf,
@@ -186,7 +186,7 @@ async fn simulate_session(
         files_dir: None,
     };
 
-    UserStorage::restore_backup_archive(
+    NetworkAccount::restore_backup_archive(
         Some(owner),
         archive,
         restore_options,

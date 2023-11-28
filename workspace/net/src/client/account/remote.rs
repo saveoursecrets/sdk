@@ -622,7 +622,7 @@ mod listen {
 
     /// Channels we use to communicate with the
     /// user account storage.
-    pub(crate) struct UserStorageReceiver {
+    pub(crate) struct NetworkAccountReceiver {
         /// Receive a secure access key from the remote listener.
         pub secure_access_key_rx: mpsc::Receiver<(VaultId, SecureAccessKey)>,
 
@@ -631,7 +631,7 @@ mod listen {
     }
 
     /// Channels used to get a reply from the account storage.
-    pub(crate) struct UserStorageSender {
+    pub(crate) struct NetworkAccountSender {
         /// Sends the decrypted access key from the
         /// storage to the remote bridge.
         pub access_key_tx: mpsc::Sender<AccessKey>,
@@ -887,8 +887,11 @@ mod listen {
         pub(crate) fn listen(
             bridge: Arc<RemoteBridge>,
             options: ListenOptions,
-        ) -> (WebSocketHandle, UserStorageReceiver, UserStorageSender)
-        {
+        ) -> (
+            WebSocketHandle,
+            NetworkAccountReceiver,
+            NetworkAccountSender,
+        ) {
             let remote_bridge = Arc::clone(&bridge);
 
             let (secure_access_key_tx, secure_access_key_rx) =
@@ -900,12 +903,12 @@ mod listen {
             let (access_key_tx, access_key_rx) =
                 mpsc::channel::<AccessKey>(16);
 
-            let user_storage_rx = UserStorageReceiver {
+            let user_storage_rx = NetworkAccountReceiver {
                 secure_access_key_rx,
                 remove_vault_rx,
             };
 
-            let user_storage_tx = UserStorageSender { access_key_tx };
+            let user_storage_tx = NetworkAccountSender { access_key_tx };
 
             let remote_bridge_tx = Arc::new(RemoteBridgeSender {
                 secure_access_key_tx,
@@ -941,4 +944,4 @@ mod listen {
     }
 }
 
-pub(crate) use listen::{UserStorageReceiver, UserStorageSender};
+pub(crate) use listen::{NetworkAccountReceiver, NetworkAccountSender};

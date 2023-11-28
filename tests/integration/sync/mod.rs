@@ -4,7 +4,7 @@ use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
     client::{
-        ListenOptions, Origin, RemoteBridge, RemoteSync, UserStorage,
+        ListenOptions, NetworkAccount, Origin, RemoteBridge, RemoteSync,
         WebSocketHandle,
     },
     sdk::{
@@ -48,7 +48,7 @@ mod websocket_shutdown_signout;
 
 pub struct SimulatedDevice {
     pub id: String,
-    pub owner: UserStorage,
+    pub owner: NetworkAccount,
     pub default_folder: Summary,
     pub folders: Vec<Summary>,
     pub origin: Origin,
@@ -68,7 +68,7 @@ impl SimulatedDevice {
     ) -> Result<SimulatedDevice> {
         let data_dir = self.dirs.clients.get(index).unwrap();
 
-        let mut owner = UserStorage::new_unauthenticated(
+        let mut owner = NetworkAccount::new_unauthenticated(
             self.owner.address().clone(),
             Some(data_dir.clone()),
             None,
@@ -78,7 +78,7 @@ impl SimulatedDevice {
         owner.sign_in(self.password.clone()).await?;
 
         /*
-        let mut owner = UserStorage::sign_in(
+        let mut owner = NetworkAccount::sign_in(
             self.owner.address(),
             self.password.clone(),
             Some(data_dir.clone()),
@@ -188,7 +188,10 @@ pub async fn simulate_device(
 }
 
 /// Get the number of events in a log.
-pub async fn num_events(owner: &mut UserStorage, folder: &VaultId) -> usize {
+pub async fn num_events(
+    owner: &mut NetworkAccount,
+    folder: &VaultId,
+) -> usize {
     let storage = owner.storage().unwrap();
     let reader = storage.read().await;
     let events = reader.cache().get(folder).unwrap();
@@ -206,7 +209,7 @@ pub async fn num_events(owner: &mut UserStorage, folder: &VaultId) -> usize {
 pub async fn assert_local_remote_vaults_eq(
     expected_summaries: Vec<Summary>,
     server_path: &PathBuf,
-    owner: &mut UserStorage,
+    owner: &mut NetworkAccount,
     _provider: &mut RemoteBridge,
 ) -> Result<()> {
     let storage = owner.storage()?;
@@ -227,7 +230,7 @@ pub async fn assert_local_remote_vaults_eq(
 
 pub async fn assert_local_remote_events_eq(
     _expected_summaries: Vec<Summary>,
-    owner: &mut UserStorage,
+    owner: &mut NetworkAccount,
     provider: &mut RemoteBridge,
 ) -> Result<()> {
     // Compare event log status (commit proofs)

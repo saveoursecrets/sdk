@@ -10,7 +10,7 @@ use url::Url;
 use web3_address::ethereum::Address;
 
 use sos_net::{
-    client::{Origin, RemoteBridge, RemoteSync, UserStorage},
+    client::{NetworkAccount, Origin, RemoteBridge, RemoteSync},
     sdk::{
         account::FolderStorage,
         crypto::AccessKey,
@@ -299,9 +299,9 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
 pub async fn create_local_account(
     account_name: &str,
     data_dir: Option<PathBuf>,
-) -> Result<(UserStorage, Summary, SecretString)> {
+) -> Result<(NetworkAccount, Summary, SecretString)> {
     let (passphrase, _) = generate_passphrase()?;
-    let (mut owner, new_account) = UserStorage::new_account_with_builder(
+    let (mut owner, new_account) = NetworkAccount::new_account_with_builder(
         account_name.to_owned(),
         passphrase.clone(),
         |builder| {

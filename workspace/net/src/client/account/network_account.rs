@@ -129,8 +129,8 @@ impl AccountHandler for SyncHandler {
     }
 }
 
-/// Authenticated user with local storage provider.
-pub struct UserStorage {
+/// Adds networking capability to a local account.
+pub struct NetworkAccount {
     /// Local account.
     account: LocalAccount,
 
@@ -150,7 +150,7 @@ pub struct UserStorage {
     listeners: Mutex<Vec<WebSocketHandle>>,
 }
 
-impl UserStorage {
+impl NetworkAccount {
     /// Prepare an account for sign in.
     ///
     /// After preparing an account call `sign_in`
@@ -786,7 +786,7 @@ impl UserStorage {
 use sos_migrate::{import::ImportTarget, AccountExport, AccountImport};
 
 #[cfg(feature = "migrate")]
-impl UserStorage {
+impl NetworkAccount {
     /// Write a zip archive containing all the secrets
     /// for the account unencrypted.
     ///
@@ -812,7 +812,7 @@ impl UserStorage {
 }
 
 #[cfg(feature = "archive")]
-impl UserStorage {
+impl NetworkAccount {
     /// Create a backup archive containing the
     /// encrypted data for the account.
     pub async fn export_backup_archive<P: AsRef<Path>>(
@@ -833,7 +833,7 @@ impl UserStorage {
 
     /// Import from an archive file.
     pub async fn restore_backup_archive<P: AsRef<Path>>(
-        owner: Option<&mut UserStorage>,
+        owner: Option<&mut NetworkAccount>,
         path: P,
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
@@ -849,7 +849,7 @@ impl UserStorage {
 }
 
 #[cfg(feature = "contacts")]
-impl UserStorage {
+impl NetworkAccount {
     /// Get an avatar JPEG image for a contact in the current
     /// open folder.
     pub async fn load_avatar(
@@ -892,7 +892,7 @@ impl UserStorage {
 }
 
 #[async_trait]
-impl RemoteSync for UserStorage {
+impl RemoteSync for NetworkAccount {
     async fn sync(&self) -> Option<SyncError> {
         self.sync_with_options(&Default::default()).await
     }
@@ -1015,15 +1015,15 @@ impl RemoteSync for UserStorage {
 mod listen {
     use super::LocalAccount;
     use crate::client::{
-        account::remote::{UserStorageReceiver, UserStorageSender},
-        Error, ListenOptions, Origin, RemoteBridge, Result, UserStorage,
+        account::remote::{NetworkAccountReceiver, NetworkAccountSender},
+        Error, ListenOptions, NetworkAccount, Origin, RemoteBridge, Result,
         WebSocketHandle,
     };
     use futures::{select, FutureExt};
     use sos_sdk::prelude::SecureAccessKey;
     use std::sync::Arc;
 
-    impl UserStorage {
+    impl NetworkAccount {
         /// Listen for changes on a remote origin.
         pub async fn listen(
             &self,
@@ -1056,8 +1056,8 @@ mod listen {
 
         fn spawn_remote_bridge_channels(
             &self,
-            mut rx: UserStorageReceiver,
-            tx: UserStorageSender,
+            mut rx: NetworkAccountReceiver,
+            tx: NetworkAccountSender,
         ) {
             if self.account.is_authenticated() {
                 let user = self.user().unwrap();
