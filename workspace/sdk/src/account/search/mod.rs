@@ -18,7 +18,7 @@ mod index;
 pub use index::*;
 
 /// Account statistics derived from the search index.
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct AccountStatistics {
     /// Number of documents in the search index.
     pub documents: usize,

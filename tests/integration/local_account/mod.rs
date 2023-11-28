@@ -1,4 +1,5 @@
 mod account_lifecycle;
+mod account_statistics;
 mod change_password;
 mod compact_folder;
 mod external_files;
@@ -8,4 +9,3 @@ mod migrate_export;
 mod migrate_import;
 mod secret_lifecycle;
 mod security_report;
-

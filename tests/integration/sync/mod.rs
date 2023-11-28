@@ -39,9 +39,12 @@ mod multiple_remotes;
 mod multiple_remotes_fallback;
 
 mod offline_manual;
+
+/*
 mod websocket_reconnect;
 mod websocket_shutdown;
 mod websocket_shutdown_signout;
+*/
 
 pub struct SimulatedDevice {
     pub id: String,

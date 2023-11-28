@@ -1,7 +1,7 @@
 use crate::test_utils::{mock_note, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::{
-    account::{archive::RestoreOptions, LocalAccount, UserPaths},
+    account::{LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
     vfs,
 };
@@ -33,7 +33,7 @@ async fn integration_folder_lifecycle() -> Result<()> {
 
     let default_folder = new_account.default_folder();
     account.sign_in(password.clone()).await?;
-    let folders = account.list_folders().await?;
+    account.list_folders().await?;
     account.open_folder(&default_folder).await?;
     
     // Create a folder

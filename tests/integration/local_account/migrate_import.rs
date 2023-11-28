@@ -3,7 +3,6 @@ use anyhow::Result;
 use sos_net::sdk::{
     account::{LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
-    vfs,
 };
 use sos_net::migrate::{LocalImport, import::{ImportFormat, ImportTarget}};
 use crate::test_utils::{setup, teardown};

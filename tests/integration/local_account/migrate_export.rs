@@ -23,7 +23,7 @@ async fn integration_migrate_export() -> Result<()> {
     UserPaths::scaffold(Some(data_dir.clone())).await?;
     UserPaths::new_global(data_dir.clone());
 
-    let (mut account, new_account) = LocalAccount::new_account(
+    let (mut account, _new_account) = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),

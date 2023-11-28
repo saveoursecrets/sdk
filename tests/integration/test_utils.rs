@@ -339,6 +339,18 @@ pub fn mock_note(label: &str, text: &str) -> (SecretMeta, Secret) {
     (secret_meta, secret_value)
 }
 
+pub fn mock_login(
+    label: &str, account: &str, password: SecretString) -> (SecretMeta, Secret) {
+    let secret_value = Secret::Account {
+        account: account.to_owned(),
+        password,
+        url: None,
+        user_data: Default::default(),
+    };
+    let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
+    (secret_meta, secret_value)
+}
+
 pub async fn create_secrets(
     provider: &mut FolderStorage,
     summary: &Summary,
