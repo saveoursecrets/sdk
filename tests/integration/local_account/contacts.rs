@@ -59,7 +59,7 @@ async fn integration_contacts() -> Result<()> {
     let contacts_content = vfs::read_to_string(&contacts).await?;
     let contacts_content = contacts_content.replace('\r', "");
     assert_eq!(CONTACT, &contacts_content);
-    
+
     // Try loading bytes for a JPEG avatar
     let ids = account.import_contacts(AVATAR, |_| {}).await?;
     assert_eq!(1, ids.len());

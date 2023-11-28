@@ -7,7 +7,7 @@ use sos_sdk::{
         AuthenticatedUser, DetachedView, FolderStorage, NewAccount,
         UserPaths,
     },
-    commit::CommitHash,
+    commit::{CommitHash, CommitState},
     crypto::AccessKey,
     events::{Event, ReadEvent},
     mpc::generate_keypair,
@@ -633,6 +633,16 @@ impl NetworkAccount {
     /// Get the root commit hash for a folder.
     pub async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
         Ok(self.account.root_commit(summary).await?)
+    }
+
+    /// Get the commit state for a folder.
+    ///
+    /// The folder must have at least one commit.
+    pub async fn commit_state(
+        &self,
+        summary: &Summary,
+    ) -> Result<CommitState> {
+        Ok(self.account.commit_state(summary).await?)
     }
 
     /// Expected location for a file by convention.

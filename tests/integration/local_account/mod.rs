@@ -12,3 +12,4 @@ mod migrate_import;
 mod move_secret;
 mod secret_lifecycle;
 mod security_report;
+mod time_travel;

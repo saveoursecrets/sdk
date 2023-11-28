@@ -15,7 +15,9 @@
 //! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit::{event_log_commit_tree_file, CommitHash, CommitTree},
+    commit::{
+        event_log_commit_tree_file, CommitHash, CommitState, CommitTree,
+    },
     constants::EVENT_LOG_IDENTITY,
     encode,
     encoding::encoding_options,
@@ -380,6 +382,16 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         self.file.write_all(&self.identity).await?;
         self.file.flush().await?;
         Ok(())
+    }
+
+    /// Get the commit state of this event log.
+    ///
+    /// The event log must already have some commits.
+    pub async fn commit_state(&self) -> Result<CommitState> {
+        let last_commit =
+            self.last_commit().await?.ok_or(Error::NoRootCommit)?;
+        let head = self.tree.head()?;
+        Ok((last_commit, head))
     }
 }
 

@@ -1547,6 +1547,22 @@ impl<D> Account<D> {
             .map(CommitHash)
             .ok_or_else(|| Error::NoRootCommit)?)
     }
+
+    /// Get the commit state for a folder.
+    ///
+    /// The folder must have at least one commit.
+    pub async fn commit_state(
+        &self,
+        summary: &Summary,
+    ) -> Result<CommitState> {
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        let cache = reader.cache();
+        let log_file = cache
+            .get(summary.id())
+            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
+        Ok(log_file.commit_state().await?)
+    }
 }
 
 // Proxy the delegated password functions.
