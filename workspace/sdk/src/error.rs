@@ -37,6 +37,10 @@ pub enum Error {
     #[error("no open folder")]
     NoOpenFolder,
 
+    /// Error generated when a device signer is expected.
+    #[error("no device available")]
+    NoDevice,
+
     /// Error generated when no default folder is available.
     #[error("no default folder")]
     NoDefaultFolder,

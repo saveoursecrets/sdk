@@ -240,7 +240,6 @@ impl AuthenticatedUser {
         file: P,
         password: SecretString,
     ) -> Result<()> {
-        let vault_file = VaultWriter::open(file.as_ref()).await?;
         let buffer = vfs::read(file.as_ref()).await?;
         self.login_buffer(buffer, password).await
     }
@@ -306,24 +305,29 @@ impl AuthenticatedUser {
         let shared = identity
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
 
-        // Lazily create or retrieve a device specific signing key
-        #[cfg(feature = "device")]
-        let device = self.ensure_device_vault().await?;
-
         self.identity = Some(PrivateIdentity {
             address,
             signer,
-            device,
+            #[cfg(feature = "device")]
+            device: None,
             shared_public: shared.to_public(),
             shared_private: shared,
             keeper: Arc::new(RwLock::new(keeper)),
             index: Arc::new(RwLock::new(index)),
         });
 
+        // Lazily create or retrieve a device specific signing key
+        #[cfg(feature = "device")]
+        {
+            let device = self.ensure_device_vault().await?;
+            let identity = self.identity.as_mut().unwrap();
+            identity.device = Some(device);
+        }
+
         Ok(())
     }
 
-    /// Sign in a user.
+    /// Sign in a user account.
     pub async fn sign_in(
         &mut self,
         address: &Address,
@@ -342,7 +346,7 @@ impl AuthenticatedUser {
 
         tracing::debug!(identity_path = ?identity_path);
 
-        let mut identity = self.login_file(identity_path, passphrase).await?;
+        self.login_file(identity_path, passphrase).await?;
 
         tracing::debug!("identity verified");
 
@@ -357,7 +361,6 @@ impl AuthenticatedUser {
     #[cfg(feature = "device")]
     async fn ensure_device_vault(&mut self) -> Result<DeviceSigner> {
         let local_accounts = AccountsList::new(&self.paths);
-
         let vaults = local_accounts.list_local_vaults(true).await?;
         let device_vault = vaults.into_iter().find_map(|(summary, _)| {
             if summary.flags().is_system() && summary.flags().is_device() {
@@ -465,6 +468,7 @@ impl AuthenticatedUser {
             let mut device_vault_file =
                 vaults_dir.join(summary.id().to_string());
             device_vault_file.set_extension(VAULT_EXT);
+            
             vfs::write(device_vault_file, buffer).await?;
 
             Ok(DeviceSigner {
@@ -515,7 +519,7 @@ pub struct PrivateIdentity {
     /// AGE recipient public key.
     shared_public: age::x25519::Recipient,
     #[cfg(feature = "device")]
-    device: DeviceSigner,
+    device: Option<DeviceSigner>,
 }
 
 impl PrivateIdentity {
@@ -543,11 +547,13 @@ impl PrivateIdentity {
     pub fn recipient(&self) -> &age::x25519::Recipient {
         &self.shared_public
     }
-
-    /// The device signing key.
+        
+    /// Device signing key.
     #[cfg(feature = "device")]
-    pub fn device(&self) -> &DeviceSigner {
-        &self.device
+    pub fn device(&self) -> Result<&DeviceSigner> {
+        self.device
+            .as_ref()
+            .ok_or(Error::NoDevice)
     }
 
     /// Generate a folder password.
@@ -680,6 +686,7 @@ mod tests {
     use secrecy::{ExposeSecret, SecretString};
     use tempfile::NamedTempFile;
     use urn::Urn;
+    use std::path::PathBuf;
 
     use crate::{
         account::{AuthenticatedUser, UserPaths},
@@ -697,20 +704,29 @@ mod tests {
 
     #[tokio::test]
     async fn identity_create_login() -> Result<()> {
+        
+        let data_dir = PathBuf::from("target/identity_create_login");
+        vfs::remove_dir_all(&data_dir).await?;
+        vfs::create_dir(&data_dir).await?;
+
+        UserPaths::scaffold(Some(data_dir.clone())).await?;
+
+        let path = data_dir.join("login.vault");
+
         let (password, _) = generate_passphrase()?;
         let auth_password =
             SecretString::new(password.expose_secret().to_owned());
-        let (_address, vault) =
+        let (address, vault) =
             AuthenticatedUser::new_login_vault("Login".to_owned(), password)
                 .await?;
         let buffer = encode(&vault).await?;
-        let temp = NamedTempFile::new()?;
-        vfs::write(temp.path(), buffer).await?;
+        vfs::write(&path, buffer).await?;
 
-        let mut identity = AuthenticatedUser::new(UserPaths::new_global(
-            UserPaths::data_dir()?,
-        ));
-        identity.login_file(temp.path(), auth_password).await?;
+        let paths = UserPaths::new(data_dir, address.to_string());
+        paths.ensure().await?;
+        let mut identity = AuthenticatedUser::new(paths);
+        
+        identity.login_file(path, auth_password).await?;
         Ok(())
     }
 
