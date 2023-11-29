@@ -11,7 +11,7 @@ pub enum Error {
     FolderExists(String),
 
     #[error(r#"attachment "{0}" already exists"#)]
-    AttachmentExists(String),
+    FieldExists(String),
 
     #[error(r#"folder "{0}" not found"#)]
     FolderNotFound(String),
@@ -20,7 +20,7 @@ pub enum Error {
     DeviceNotFound(String),
 
     #[error(r#"attachment "{0}" not found"#)]
-    AttachmentNotFound(SecretRef),
+    FieldNotFound(SecretRef),
 
     #[error("unable to copy to the clipboard, secret type may not support copy operation")]
     ClipboardCopy,

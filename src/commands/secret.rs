@@ -301,7 +301,7 @@ pub enum AttachCommand {
         /// Secret name or identifier.
         secret: SecretRef,
 
-        /// Attachment name or identifier.
+        /// Field name or identifier.
         attachment: SecretRef,
     },
     /// Decrypt and download a file attachment.
@@ -322,7 +322,7 @@ pub enum AttachCommand {
         /// Secret name or identifier.
         secret: SecretRef,
 
-        /// Attachment name or identifier.
+        /// Field name or identifier.
         attachment: SecretRef,
 
         /// Path for the decrypted file.
@@ -342,7 +342,7 @@ pub enum AttachCommand {
         /// Secret name or identifier.
         secret: SecretRef,
 
-        /// Attachment name or identifier.
+        /// Field name or identifier.
         attachment: SecretRef,
     },
 }
@@ -1319,9 +1319,9 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
             AttachCommand::Add { cmd } => match cmd {
                 AttachAddCommand::File { name, path, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_attachment_by_name(&name).is_some()
+                    if data.secret().find_field_by_name(&name).is_some()
                     {
-                        return Err(Error::AttachmentExists(name));
+                        return Err(Error::FieldExists(name));
                     }
 
                     let file = if let Some(file) = path {
@@ -1339,9 +1339,9 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
                 AttachAddCommand::Note { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_attachment_by_name(&name).is_some()
+                    if data.secret().find_field_by_name(&name).is_some()
                     {
-                        return Err(Error::AttachmentExists(name));
+                        return Err(Error::FieldExists(name));
                     }
 
                     if let Some((meta, secret)) = add_note(Some(name), None)?
@@ -1356,9 +1356,9 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
                 AttachAddCommand::Link { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_attachment_by_name(&name).is_some()
+                    if data.secret().find_field_by_name(&name).is_some()
                     {
-                        return Err(Error::AttachmentExists(name));
+                        return Err(Error::FieldExists(name));
                     }
 
                     if let Some((meta, secret)) = add_link(Some(name), None)?
@@ -1373,9 +1373,9 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
                 AttachAddCommand::Password { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_attachment_by_name(&name).is_some()
+                    if data.secret().find_field_by_name(&name).is_some()
                     {
-                        return Err(Error::AttachmentExists(name));
+                        return Err(Error::FieldExists(name));
                     }
 
                     if let Some((meta, secret)) =
@@ -1391,12 +1391,12 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
             },
             AttachCommand::Get { attachment, .. } => {
-                let existing = data.secret().find_attachment(&attachment);
+                let existing = data.secret().find_field(&attachment);
                 if let Some(existing) = existing {
                     print_secret(existing.meta(), existing.secret())?;
                     None
                 } else {
-                    return Err(Error::AttachmentNotFound(attachment));
+                    return Err(Error::FieldNotFound(attachment));
                 }
             }
             AttachCommand::Download {
@@ -1410,23 +1410,23 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
 
                 let existing =
-                    data.secret().find_attachment(&attachment).cloned();
+                    data.secret().find_field(&attachment).cloned();
                 if let Some(existing) = existing {
                     download_file_secret(&resolved, file, existing.into())
                         .await?;
                     None
                 } else {
-                    return Err(Error::AttachmentNotFound(attachment));
+                    return Err(Error::FieldNotFound(attachment));
                 }
             }
             AttachCommand::Remove { attachment, .. } => {
                 let existing =
-                    data.secret().find_attachment(&attachment).cloned();
+                    data.secret().find_field(&attachment).cloned();
                 if let Some(existing) = existing {
                     data.secret_mut().detach(existing.id());
                     Some(data.into())
                 } else {
-                    return Err(Error::AttachmentNotFound(attachment));
+                    return Err(Error::FieldNotFound(attachment));
                 }
             }
         };

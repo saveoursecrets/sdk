@@ -405,7 +405,7 @@ pub enum Error {
 
     /// Error generated when an attachment could not be found.
     #[error(r#"attachment "{0}" not found"#)]
-    AttachmentNotFound(SecretId),
+    FieldNotFound(SecretId),
 
     /// Error generated attempting to access a vault that is not available.
     #[error("cache not available for {0}")]

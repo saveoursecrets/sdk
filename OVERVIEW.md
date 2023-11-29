@@ -124,3 +124,17 @@ Internal files are considered legacy and  *not recommended* as they
 increase the size of folders and have negative performance implications.
 
 Support for internal files may be removed in the future so use with caution.
+
+## User Data
+
+User data is optional additional data that can be assigned to a secret, for example, a user might add a comment to the user data to give additional instructions to a recovery group on how to use a secret.
+
+## Custom Fields
+
+Custom fields are additional fields that can be assigned to the *user data* for a secret. They allow end users to manage additional data assigned to a secret adding flexibility to the shape of secret data.
+
+Custom fields are implemented as nested secrets so whilst it is technically possible to nest custom fields it it not recommended.
+
+It is possible to use any secret type for a custom field but that may be overwhelming from a user experience point of view so we recommend restricting the types available to custom fields, for example, limiting custom fields to notes, links, passwords and files gives a lot of flexibility without offering too many choices.
+
+Some secret types such as *Link* and *Password* are intended to only be used in custom fields.

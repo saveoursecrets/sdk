@@ -1515,8 +1515,7 @@ impl Secret {
     /// where we expose the bank number and routing number delimited
     /// by a newline.
     ///
-    /// The `Signer`, `File` and `Age` secret variants
-    /// are not supported.
+    /// The `Signer`, `File` and `Age` secret variants are not supported.
     pub fn display_unsafe(&self) -> Option<String> {
         match self {
             Secret::Note { text, .. } => {
@@ -1652,41 +1651,41 @@ impl Secret {
         }
     }
 
-    /// Attach a secret to this secret's user data.
+    /// Attach a custom field to this secret's user data.
     pub fn attach(&mut self, attachment: SecretRow) {
         self.user_data_mut().fields_mut().push(attachment);
     }
 
-    /// Remove a secret from this secret's user data.
+    /// Remove a custom field from this secret's user data.
     pub fn detach(&mut self, id: &SecretId) {
         self.user_data_mut()
             .fields_mut()
             .retain(|row| row.id() != id);
     }
 
-    /// Find an attachment by reference.
-    pub fn find_attachment(&self, target: &SecretRef) -> Option<&SecretRow> {
+    /// Find a custom field by reference.
+    pub fn find_field(&self, target: &SecretRef) -> Option<&SecretRow> {
         match target {
-            SecretRef::Id(id) => self.find_attachment_by_id(id),
-            SecretRef::Name(name) => self.find_attachment_by_name(name),
+            SecretRef::Id(id) => self.find_field_by_id(id),
+            SecretRef::Name(name) => self.find_field_by_name(name),
         }
     }
 
-    /// Find an attachment by identifier.
-    pub fn find_attachment_by_id(&self, id: &SecretId) -> Option<&SecretRow> {
+    /// Find a custom field by identifier.
+    pub fn find_field_by_id(&self, id: &SecretId) -> Option<&SecretRow> {
         self.user_data().fields().iter().find(|row| row.id() == id)
     }
 
     /// Find an attachment by name.
-    pub fn find_attachment_by_name(&self, label: &str) -> Option<&SecretRow> {
+    pub fn find_field_by_name(&self, label: &str) -> Option<&SecretRow> {
         self.user_data()
             .fields()
             .iter()
             .find(|row| row.meta().label() == label)
     }
 
-    /// Update an attached secret.
-    pub fn update_attachment(&mut self, attachment: SecretRow) -> Result<()> {
+    /// Update a custom field secret.
+    pub fn update_field(&mut self, attachment: SecretRow) -> Result<()> {
         let existing = self
             .user_data_mut()
             .fields_mut()
@@ -1697,16 +1696,16 @@ impl Secret {
             *existing = attachment;
             Ok(())
         } else {
-            Err(Error::AttachmentNotFound(*attachment.id()))
+            Err(Error::FieldNotFound(*attachment.id()))
         }
     }
 
-    /// Insert an attached secret at an index.
+    /// Insert a custom field at an index.
     ///
     /// # Panics
     ///
     /// Panics if `index > len`.
-    pub fn insert_attachment(&mut self, index: usize, attachment: SecretRow) {
+    pub fn insert_field(&mut self, index: usize, attachment: SecretRow) {
         self.user_data_mut().fields_mut().insert(index, attachment);
     }
 }

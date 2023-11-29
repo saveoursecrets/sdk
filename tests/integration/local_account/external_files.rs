@@ -562,7 +562,7 @@ async fn assert_attach_file_secret(
         // Verify the attachment file exists
         let attached = secret_data
             .secret()
-            .find_attachment_by_id(&attachment_id)
+            .find_field_by_id(&attachment_id)
             .expect("attachment to exist");
 
         let attachment_checksum = if let Secret::File {
@@ -595,7 +595,7 @@ async fn assert_attach_file_secret(
         // Now update the attachment
         let (meta, secret, _) = mock::file_image_secret()?;
         let new_attachment = SecretRow::new(*attached.id(), meta, secret);
-        secret_data.secret_mut().update_attachment(new_attachment)?;
+        secret_data.secret_mut().update_field(new_attachment)?;
         account
             .update_secret(
                 &id,
@@ -618,7 +618,7 @@ async fn assert_attach_file_secret(
 
         let updated_attachment = updated_secret_data
             .secret()
-            .find_attachment_by_id(&attachment_id)
+            .find_field_by_id(&attachment_id)
             .cloned()
             .expect("attachment to exist");
 
@@ -660,7 +660,7 @@ async fn assert_attach_file_secret(
         let attachment = SecretRow::new(new_attachment_id, meta, secret);
         updated_secret_data
             .secret_mut()
-            .insert_attachment(0, attachment);
+            .insert_field(0, attachment);
 
         let (_, meta, secret) = updated_secret_data.clone().into();
         account
@@ -679,21 +679,21 @@ async fn assert_attach_file_secret(
         assert_root_file_secret(account, folder, &id, secret_data.secret())
             .await?;
 
-        let (mut insert_attachment_secret_data, _) =
+        let (mut insert_field_secret_data, _) =
             account.read_secret(&id, Some(folder.clone())).await?;
         assert_eq!(
             2,
-            insert_attachment_secret_data.secret().user_data().len()
+            insert_field_secret_data.secret().user_data().len()
         );
 
-        let inserted_attachment = insert_attachment_secret_data
+        let inserted_attachment = insert_field_secret_data
             .secret()
-            .find_attachment_by_id(&new_attachment_id)
+            .find_field_by_id(&new_attachment_id)
             .expect("attachment to exist");
 
-        let original_attachment = insert_attachment_secret_data
+        let original_attachment = insert_field_secret_data
             .secret()
-            .find_attachment_by_id(&attachment_id)
+            .find_field_by_id(&attachment_id)
             .expect("attachment to exist");
 
         let inserted_attachment_checksum = if let Secret::File {
@@ -727,11 +727,11 @@ async fn assert_attach_file_secret(
         };
 
         // Delete the original attachment (index 1)
-        insert_attachment_secret_data
+        insert_field_secret_data
             .secret_mut()
             .detach(&attachment_id);
 
-        let (_, meta, secret) = insert_attachment_secret_data.into();
+        let (_, meta, secret) = insert_field_secret_data.into();
         account
             .update_secret(
                 &id,
@@ -757,7 +757,7 @@ async fn assert_attach_file_secret(
 
         let updated_inserted_attachment = delete_attachment_secret_data
             .secret()
-            .find_attachment_by_id(&new_attachment_id)
+            .find_field_by_id(&new_attachment_id)
             .expect("attachment to exist");
 
         if let Secret::File {
