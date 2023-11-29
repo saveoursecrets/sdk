@@ -2,11 +2,8 @@
 //! as secrets are created, updated and moved.
 
 use crate::{
+    account::files::{basename, EncryptedFile, FileStorage, FileStorageSync},
     account::Account,
-    account::{
-        files::{basename, EncryptedFile, FileStorage, FileStorageSync},
-        password::DelegatedPassword,
-    },
     vault::{
         secret::{FileContent, Secret, SecretId, SecretRow, UserData},
         Summary, VaultId,

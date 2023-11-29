@@ -53,11 +53,11 @@ impl<'a, D> AccountExport<'a, D> {
         for (summary, _) in vaults {
             let (vault, _) =
                 local_accounts.find_local_vault(summary.id(), false).await?;
-            let vault_passphrase = Account::<D>::find_folder_password(
-                self.account.user()?.identity()?.keeper(),
-                summary.id(),
-            )
-            .await?;
+            let vault_passphrase = self
+                .account
+                .user()?
+                .find_folder_password(summary.id())
+                .await?;
 
             let mut keeper = Gatekeeper::new(vault, None);
             keeper.unlock(vault_passphrase.into()).await?;
@@ -179,7 +179,8 @@ impl<'a, D> AccountImport<'a, D> {
         let existing_name =
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 
-        let vault_passphrase = Account::<D>::generate_folder_password()?;
+        let vault_passphrase =
+            self.account.user()?.generate_folder_password()?;
 
         let vault_id = VaultId::new_v4();
         let name = if existing_name.is_some() {
@@ -210,12 +211,10 @@ impl<'a, D> AccountImport<'a, D> {
             writer.import_vault(buffer).await?
         };
 
-        Account::<D>::save_folder_password(
-            self.account.user()?.identity()?.keeper(),
-            vault.id(),
-            vault_passphrase.clone().into(),
-        )
-        .await?;
+        self.account
+            .user_mut()?
+            .save_folder_password(vault.id(), vault_passphrase.clone().into())
+            .await?;
 
         // Ensure the imported secrets are in the search index
         self.account

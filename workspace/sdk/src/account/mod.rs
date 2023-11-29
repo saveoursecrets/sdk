@@ -11,7 +11,6 @@ mod device;
 pub mod files;
 mod identity;
 mod local_storage;
-mod password;
 mod paths;
 pub mod search;
 

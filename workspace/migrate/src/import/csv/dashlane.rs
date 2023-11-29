@@ -658,14 +658,12 @@ mod test {
     use super::{parse_path, DashlaneCsvZip, DashlaneRecord};
     use crate::Convert;
     use anyhow::Result;
-    use tokio::sync::RwLock;
 
     use sos_sdk::{
         account::search::SearchIndex,
         passwd::diceware::generate_passphrase,
         vault::{secret::Secret, Gatekeeper, VaultBuilder},
     };
-    use std::sync::Arc;
     use url::Url;
 
     #[tokio::test]
@@ -704,8 +702,7 @@ mod test {
             .await?;
 
         let mut search = SearchIndex::new();
-        let mut keeper =
-            Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(passphrase.into()).await?;
         search.add_folder(&keeper).await?;
 
@@ -726,7 +723,8 @@ mod test {
         let note = search.find_by_label(keeper.id(), "Mock note", None);
         assert!(note.is_some());
 
-        let card = search.find_by_label(keeper.id(), "Mock Payment Card User", None);
+        let card =
+            search.find_by_label(keeper.id(), "Mock Payment Card User", None);
         assert!(card.is_some());
 
         if let Some((_, secret, _)) =

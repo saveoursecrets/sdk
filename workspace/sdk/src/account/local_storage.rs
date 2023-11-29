@@ -125,7 +125,7 @@ impl FolderStorage {
         self.state.open_vault(key, vault, vault_path, index).await?;
         Ok(ReadEvent::ReadVault)
     }
-    
+
     /*
     /// Create the search index for the currently open vault.
     pub async fn create_search_index(&mut self) -> Result<()> {

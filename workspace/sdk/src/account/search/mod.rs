@@ -57,7 +57,7 @@ impl AccountSearch {
         let mut writer = self.search_index.write().await;
         writer.remove_all();
     }
-    
+
     /// Add a folder which must be unlocked.
     pub async fn add_folder(&self, folder: &Gatekeeper) -> Result<()> {
         let mut index = self.search_index.write().await;

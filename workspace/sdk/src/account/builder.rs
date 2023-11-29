@@ -20,11 +20,7 @@ use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use web3_address::ethereum::Address;
 
-use super::{
-    AuthenticatedUser,
-    identity::PrivateIdentity,
-    password::DelegatedPassword,
-};
+use super::{identity::PrivateIdentity, AuthenticatedUser};
 
 use secrecy::SecretString;
 
@@ -145,14 +141,12 @@ impl AccountBuilder {
         )
         .await?;
 
-
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault).await?;
         let paths = UserPaths::new_global(UserPaths::data_dir()?);
         let mut user = AuthenticatedUser::new(paths);
-        user.login_buffer(buffer, passphrase.clone())
-            .await?;
+        user.login_buffer(buffer, passphrase.clone()).await?;
 
         // Prepare the passphrase for the default vault
         let vault_passphrase = user.generate_folder_password()?;
@@ -193,8 +187,7 @@ impl AccountBuilder {
         .await?;
 
         if create_file_password {
-            let file_passphrase =
-                user.generate_folder_password()?;
+            let file_passphrase = user.generate_folder_password()?;
             let secret = Secret::Password {
                 password: file_passphrase,
                 name: None,
@@ -204,7 +197,7 @@ impl AccountBuilder {
                 SecretMeta::new("File Encryption".to_string(), secret.kind());
             let urn: Urn = FILE_PASSWORD_URN.parse()?;
             meta.set_urn(Some(urn));
-            
+
             let keeper = user.identity()?.keeper();
             let mut writer = keeper.write().await;
             writer.create(meta, secret).await?;
@@ -212,8 +205,7 @@ impl AccountBuilder {
 
         let archive = if create_archive {
             // Prepare the passphrase for the archive vault
-            let archive_passphrase =
-                user.generate_folder_password()?;
+            let archive_passphrase = user.generate_folder_password()?;
 
             // Prepare the archive vault
             let vault = VaultBuilder::new()
@@ -255,8 +247,7 @@ impl AccountBuilder {
 
         let contacts = if create_contacts {
             // Prepare the passphrase for the authenticator vault
-            let auth_passphrase =
-                user.generate_folder_password()?;
+            let auth_passphrase = user.generate_folder_password()?;
 
             // Prepare the authenticator vault
             let vault = VaultBuilder::new()
@@ -274,7 +265,7 @@ impl AccountBuilder {
         } else {
             None
         };
-    
+
         let vault = {
             let keeper = user.identity()?.keeper();
             let reader = keeper.read().await;

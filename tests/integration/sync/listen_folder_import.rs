@@ -3,7 +3,7 @@ use crate::test_utils::{mock_note, spawn, sync_pause, teardown};
 use anyhow::Result;
 use sos_net::{
     client::RemoteBridge,
-    sdk::{account::LocalAccount, encode, vault::Summary},
+    sdk::{encode, vault::Summary},
 };
 
 const TEST_ID: &str = "sync_listen_import_folder";
@@ -45,11 +45,11 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
     };
 
     // Need the vault passphrase to import a buffer
-    let vault_passphrase = LocalAccount::find_folder_password(
-        device1.owner.user()?.identity()?.keeper(),
-        new_folder.id(),
-    )
-    .await?;
+    let vault_passphrase = device1
+        .owner
+        .user()?
+        .find_folder_password(new_folder.id())
+        .await?;
 
     // Make a change so we can assert on the new value
     vault.set_name("sync_folder_imported".to_string());

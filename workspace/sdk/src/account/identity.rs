@@ -19,25 +19,24 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    account::{
-        password::DelegatedPassword, search::SearchIndex, AccountInfo,
-        AccountsList, UserPaths,
-    },
+    account::{search::SearchIndex, AccountInfo, AccountsList, UserPaths},
     commit::CommitState,
-    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN, VAULT_EXT, DEVICE_KEY_URN, FILE_PASSWORD_URN},
+    constants::{
+        DEVICE_KEY_URN, FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN,
+        LOGIN_SIGNING_KEY_URN, VAULT_EXT,
+    },
     crypto::{AccessKey, KeyDerivation},
-    encode, decode,
+    decode, encode,
     events::{AuditEvent, Event, EventKind},
     passwd::diceware::generate_passphrase_words,
     signer::{
         ecdsa::{BoxedEcdsaSigner, SingleParty},
-        ed25519,
-        Signer,
+        ed25519, Signer,
     },
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
-        Gatekeeper, Vault, VaultBuilder, VaultFlags, VaultId,
-        VaultAccess, VaultWriter,
+        Gatekeeper, Vault, VaultAccess, VaultBuilder, VaultFlags, VaultId,
+        VaultWriter,
     },
     vfs, Error, Result,
 };
@@ -55,51 +54,40 @@ pub struct AuthenticatedUser {
     paths: UserPaths,
     account: Option<AccountInfo>,
     identity: Option<PrivateIdentity>,
-    //#[cfg(feature = "device")]
-    //device: DeviceSigner,
 }
 
 impl AuthenticatedUser {
     /// Create a new unauthenticated user.
     pub fn new(paths: UserPaths) -> Self {
-        Self { paths, identity: None, account: None }
+        Self {
+            paths,
+            identity: None,
+            account: None,
+        }
     }
 
     /// Take the private identity from this user.
     pub fn private_identity(mut self) -> Result<PrivateIdentity> {
-        self.identity.take()
-            .ok_or(Error::NotAuthenticated)
+        self.identity.take().ok_or(Error::NotAuthenticated)
     }
 
     /// Account information.
     pub fn account(&self) -> Result<&AccountInfo> {
-        self.account.as_ref()
-            .ok_or(Error::NotAuthenticated)
+        self.account.as_ref().ok_or(Error::NotAuthenticated)
     }
 
     fn account_mut(&mut self) -> Result<&mut AccountInfo> {
-        self.account.as_mut()
-            .ok_or(Error::NotAuthenticated)
+        self.account.as_mut().ok_or(Error::NotAuthenticated)
     }
 
     /// User identity reference.
     pub fn identity(&self) -> Result<&PrivateIdentity> {
-        self.identity.as_ref()
-            .ok_or(Error::NotAuthenticated)
+        self.identity.as_ref().ok_or(Error::NotAuthenticated)
     }
 
     fn identity_mut(&mut self) -> Result<&mut PrivateIdentity> {
-        self.identity.as_mut()
-            .ok_or(Error::NotAuthenticated)
+        self.identity.as_mut().ok_or(Error::NotAuthenticated)
     }
-    
-    /*
-    /// The device signing key.
-    #[cfg(feature = "device")]
-    pub fn device(&self) -> &DeviceSigner {
-        &self.device
-    }
-    */
 
     /// Verify the passphrase for this account.
     pub async fn verify(&self, key: &AccessKey) -> bool {
@@ -108,7 +96,9 @@ impl AuthenticatedUser {
             let reader = keeper.read().await;
             let result = reader.verify(key).await.ok();
             result.is_some()
-        } else { false }
+        } else {
+            false
+        }
     }
 
     /// Delete the account for this user.
@@ -153,7 +143,7 @@ impl AuthenticatedUser {
 
         Ok(())
     }
-    
+
     /// Generate a folder password.
     pub fn generate_folder_password(&self) -> Result<SecretString> {
         self.identity()?.generate_folder_password()
@@ -165,7 +155,9 @@ impl AuthenticatedUser {
         vault_id: &VaultId,
         key: AccessKey,
     ) -> Result<()> {
-        self.identity_mut()?.save_folder_password(vault_id, key).await
+        self.identity_mut()?
+            .save_folder_password(vault_id, key)
+            .await
     }
 
     /// Remove a folder password from an identity vault.
@@ -188,7 +180,9 @@ impl AuthenticatedUser {
     }
 
     /// Find the password used for symmetric file encryption (AGE).
-    pub(crate) async fn find_file_encryption_password(&self) -> Result<SecretString> {
+    pub(crate) async fn find_file_encryption_password(
+        &self,
+    ) -> Result<SecretString> {
         self.identity()?.find_file_encryption_password().await
     }
 
@@ -204,10 +198,7 @@ impl AuthenticatedUser {
         let vault = VaultBuilder::new()
             .public_name(name)
             .flags(VaultFlags::IDENTITY)
-            .password(
-                password.clone(),
-                Some(KeyDerivation::generate_seed()),
-            )
+            .password(password.clone(), Some(KeyDerivation::generate_seed()))
             .await?;
 
         let mut keeper = Gatekeeper::new(vault, None);
@@ -251,11 +242,7 @@ impl AuthenticatedUser {
     ) -> Result<()> {
         let vault_file = VaultWriter::open(file.as_ref()).await?;
         let buffer = vfs::read(file.as_ref()).await?;
-        self.login_buffer(
-            buffer,
-            password,
-        )
-        .await
+        self.login_buffer(buffer, password).await
     }
 
     /// Attempt to login using a buffer.
@@ -265,7 +252,7 @@ impl AuthenticatedUser {
         password: SecretString,
     ) -> Result<()> {
         let vault: Vault = decode(buffer.as_ref()).await?;
-        
+
         if !vault.flags().contains(VaultFlags::IDENTITY) {
             return Err(Error::NotIdentityVault);
         }
@@ -319,9 +306,14 @@ impl AuthenticatedUser {
         let shared = identity
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
 
+        // Lazily create or retrieve a device specific signing key
+        #[cfg(feature = "device")]
+        let device = self.ensure_device_vault().await?;
+
         self.identity = Some(PrivateIdentity {
             address,
             signer,
+            device,
             shared_public: shared.to_public(),
             shared_private: shared,
             keeper: Arc::new(RwLock::new(keeper)),
@@ -350,19 +342,9 @@ impl AuthenticatedUser {
 
         tracing::debug!(identity_path = ?identity_path);
 
-        let mut identity =
-            self.login_file(identity_path, passphrase)
-                .await?;
+        let mut identity = self.login_file(identity_path, passphrase).await?;
 
         tracing::debug!("identity verified");
-
-        println!("ENSURING DEVICE VAULT");
-        
-        // Lazily create or retrieve a device specific signing key
-        #[cfg(feature = "device")]
-        let device = self.ensure_device_vault().await?;
-
-        println!("ENSURED!!!!");
 
         self.account = Some(account);
 
@@ -373,9 +355,7 @@ impl AuthenticatedUser {
     /// information such as the private key used to identify a machine
     /// on a peer to peer network.
     #[cfg(feature = "device")]
-    async fn ensure_device_vault(
-        &mut self,
-    ) -> Result<DeviceSigner> {
+    async fn ensure_device_vault(&mut self) -> Result<DeviceSigner> {
         let local_accounts = AccountsList::new(&self.paths);
 
         let vaults = local_accounts.list_local_vaults(true).await?;
@@ -392,10 +372,8 @@ impl AuthenticatedUser {
         let index = self.identity()?.index();
 
         if let Some(summary) = device_vault {
-            let device_passphrase = self.find_folder_password(
-                summary.id(),
-            )
-            .await?;
+            let device_passphrase =
+                self.find_folder_password(summary.id()).await?;
 
             let (vault, _) =
                 local_accounts.find_local_vault(summary.id(), true).await?;
@@ -434,8 +412,7 @@ impl AuthenticatedUser {
             }
         } else {
             // Prepare the passphrase for the device vault
-            let device_passphrase =
-                self.generate_folder_password()?;
+            let device_passphrase = self.generate_folder_password()?;
 
             // Prepare the device vault
             let vault = VaultBuilder::new()
@@ -498,7 +475,6 @@ impl AuthenticatedUser {
         }
     }
 
-
     /// Sign out this user by locking the account identity vault.
     pub async fn sign_out(&mut self) -> Result<()> {
         tracing::debug!("identity vault sign out");
@@ -522,10 +498,8 @@ pub struct AccountStatus {
     pub proofs: HashMap<VaultId, CommitState>,
 }
 
-/// User identity containing the account signing keys.
-///
-/// Exposes access to the identity vault for access to
-/// delegated passwords.
+/// Private identity containing the in-memory identity vault
+/// and signing keys.
 pub struct PrivateIdentity {
     /// Address of the signing key.
     address: Address,
@@ -540,6 +514,8 @@ pub struct PrivateIdentity {
     shared_private: age::x25519::Identity,
     /// AGE recipient public key.
     shared_public: age::x25519::Recipient,
+    #[cfg(feature = "device")]
+    device: DeviceSigner,
 }
 
 impl PrivateIdentity {
@@ -566,6 +542,12 @@ impl PrivateIdentity {
     /// Recipient public key for sharing.
     pub fn recipient(&self) -> &age::x25519::Recipient {
         &self.shared_public
+    }
+
+    /// The device signing key.
+    #[cfg(feature = "device")]
+    pub fn device(&self) -> &DeviceSigner {
+        &self.device
     }
 
     /// Generate a folder password.
@@ -616,7 +598,6 @@ impl PrivateIdentity {
         &mut self,
         vault_id: &VaultId,
     ) -> Result<()> {
-
         let id = {
             let keeper = self.keeper.read().await;
             let urn = Vault::vault_urn(vault_id)?;
@@ -726,23 +707,24 @@ mod tests {
         let temp = NamedTempFile::new()?;
         vfs::write(temp.path(), buffer).await?;
 
-        let mut identity = AuthenticatedUser::new(UserPaths::new_global(UserPaths::data_dir()?));
-        identity.login_file(temp.path(), auth_password)
-            .await?;
+        let mut identity = AuthenticatedUser::new(UserPaths::new_global(
+            UserPaths::data_dir()?,
+        ));
+        identity.login_file(temp.path(), auth_password).await?;
         Ok(())
     }
 
     #[tokio::test]
     async fn identity_not_identity_vault() -> Result<()> {
         let (password, _) = generate_passphrase()?;
-        let vault = VaultBuilder::new()
-            .password(password.clone(), None)
-            .await?;
+        let vault =
+            VaultBuilder::new().password(password.clone(), None).await?;
         let buffer = encode(&vault).await?;
 
-        let mut identity = AuthenticatedUser::new(UserPaths::new_global(UserPaths::data_dir()?));
-        let result = identity.login_buffer(buffer, password)
-            .await;
+        let mut identity = AuthenticatedUser::new(UserPaths::new_global(
+            UserPaths::data_dir()?,
+        ));
+        let result = identity.login_buffer(buffer, password).await;
         if let Err(Error::NotIdentityVault) = result {
             Ok(())
         } else {
@@ -761,10 +743,10 @@ mod tests {
 
         let buffer = encode(&vault).await?;
 
-        let mut identity = AuthenticatedUser::new(UserPaths::new_global(UserPaths::data_dir()?));
-        let result =
-            identity.login_buffer(buffer, password)
-                .await;
+        let mut identity = AuthenticatedUser::new(UserPaths::new_global(
+            UserPaths::data_dir()?,
+        ));
+        let result = identity.login_buffer(buffer, password).await;
         if let Err(Error::NoSecretUrn(_, _)) = result {
             Ok(())
         } else {
@@ -798,11 +780,11 @@ mod tests {
 
         let vault: Vault = keeper.into();
         let buffer = encode(&vault).await?;
-        
-        let mut identity = AuthenticatedUser::new(UserPaths::new_global(UserPaths::data_dir()?));
-        let result =
-            identity.login_buffer(buffer, password)
-                .await;
+
+        let mut identity = AuthenticatedUser::new(UserPaths::new_global(
+            UserPaths::data_dir()?,
+        ));
+        let result = identity.login_buffer(buffer, password).await;
         if let Err(Error::WrongSecretKind(_, _)) = result {
             Ok(())
         } else {

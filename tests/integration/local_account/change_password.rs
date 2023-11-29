@@ -5,9 +5,7 @@ use crate::test_utils::{
     AccountCredentials,
 };
 
-use sos_net::sdk::{
-    passwd::diceware::generate_passphrase, signer::ecdsa::SingleParty,
-};
+use sos_net::sdk::signer::ecdsa::SingleParty;
 
 const TEST_ID: &str = "change_password";
 
@@ -41,7 +39,7 @@ async fn integration_change_password() -> Result<()> {
     let keeper = provider.current().unwrap();
 
     todo!("restore access to seach index...");
-    
+
     /*
     let index = keeper.index();
     let index_reader = index.read().await;

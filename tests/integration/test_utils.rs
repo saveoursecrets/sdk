@@ -14,7 +14,7 @@ use sos_net::{
     sdk::{
         account::FolderStorage,
         crypto::AccessKey,
-        events::{AuditLogFile, WriteEvent},
+        events::AuditLogFile,
         hex,
         mpc::{Keypair, PATTERN},
         passwd::diceware::generate_passphrase,

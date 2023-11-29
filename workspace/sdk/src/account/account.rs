@@ -8,7 +8,6 @@ use std::{
 
 use crate::{
     account::{
-        password::DelegatedPassword,
         search::{AccountStatistics, DocumentCount, SearchIndex},
         AccountBuilder, AccountInfo, AccountsList, AuthenticatedUser,
         FolderStorage, NewAccount, UserPaths,
@@ -571,7 +570,7 @@ impl<D> Account<D> {
         &mut self,
         name: String,
     ) -> Result<(Summary, Event, CommitState, SecureAccessKey)> {
-        let passphrase = DelegatedPassword::generate_folder_password()?;
+        let passphrase = self.user()?.generate_folder_password()?;
         let key = AccessKey::Password(passphrase);
         let (buffer, _, summary) = {
             let storage = self.storage()?;
@@ -583,11 +582,9 @@ impl<D> Account<D> {
         let secure_key =
             SecureAccessKey::encrypt(&key, secret_key, None).await?;
 
-        self.user_mut()?.save_folder_password(
-            summary.id(),
-            key,
-        )
-        .await?;
+        self.user_mut()?
+            .save_folder_password(summary.id(), key)
+            .await?;
 
         let account_event = AccountEvent::CreateFolder(*summary.id());
 
@@ -631,10 +628,9 @@ impl<D> Account<D> {
             let mut writer = storage.write().await;
             writer.remove_vault(&summary).await?
         };
-        self.user_mut()?.remove_folder_password(
-            summary.id(),
-        )
-        .await?;
+        self.user_mut()?
+            .remove_folder_password(summary.id())
+            .await?;
         self.index_mut()?
             .remove_folder_from_search_index(summary.id())
             .await;
@@ -689,14 +685,9 @@ impl<D> Account<D> {
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<()> {
-        let buffer = export_vault(
-            self.address(),
-            &self.paths,
-            self.user()?.identity()?.keeper(),
-            summary.id(),
-            new_key.clone(),
-        )
-        .await?;
+        let buffer = self
+            .change_folder_password(summary.id(), new_key.clone())
+            .await?;
 
         let local_accounts = AccountsList::new(&self.paths);
 
@@ -706,10 +697,10 @@ impl<D> Account<D> {
                 .await
                 .ok_or_else(|| Error::NoDefaultFolder)?;
 
-            let _passphrase = self.user()?.find_folder_password(
-                default_summary.id(),
-            )
-            .await?;
+            let _passphrase = self
+                .user()?
+                .find_folder_password(default_summary.id())
+                .await?;
 
             let timestamp: Timestamp = Default::default();
             let label = format!(
@@ -748,6 +739,40 @@ impl<D> Account<D> {
         self.append_audit_logs(vec![audit_event]).await?;
 
         Ok(())
+    }
+
+    /// Export a vault by changing the vault passphrase and
+    /// converting it to a buffer.
+    ///
+    /// The identity vault must be unlocked so we can retrieve
+    /// the passphrase for the target vault.
+    async fn change_folder_password(
+        &self,
+        vault_id: &VaultId,
+        new_passphrase: AccessKey,
+    ) -> Result<Vec<u8>> {
+        use crate::passwd::ChangePassword;
+        let paths = self.paths().clone();
+        // Get the current vault passphrase from the identity vault
+        let current_passphrase =
+            self.user()?.find_folder_password(vault_id).await?;
+
+        // Find the local vault for the account
+        let local_accounts = AccountsList::new(&paths);
+        let (vault, _) =
+            local_accounts.find_local_vault(vault_id, false).await?;
+
+        // Change the password before exporting
+        let (_, vault, _) = ChangePassword::new(
+            &vault,
+            current_passphrase,
+            new_passphrase,
+            None,
+        )
+        .build()
+        .await?;
+
+        encode(&vault).await
     }
 
     /// Import a folder from a vault file.
@@ -835,17 +860,14 @@ impl<D> Account<D> {
         // vault passphrase so we can save it using the passphrase
         // assigned when exporting the folder
         if overwrite {
-            self.user_mut()?.remove_folder_password(
-                summary.id(),
-            )
-            .await?;
+            self.user_mut()?
+                .remove_folder_password(summary.id())
+                .await?;
         }
 
-        self.user_mut()?.save_folder_password(
-            summary.id(),
-            key.clone(),
-        )
-        .await?;
+        self.user_mut()?
+            .save_folder_password(summary.id(), key.clone())
+            .await?;
 
         // If overwriting remove old entries from the index
         if overwrite {
@@ -910,10 +932,8 @@ impl<D> Account<D> {
             }
         }
 
-        let passphrase = self.user()?.find_folder_password(
-            summary.id(),
-        )
-        .await?;
+        let passphrase =
+            self.user()?.find_folder_password(summary.id()).await?;
 
         let index = Arc::clone(&self.index()?.search_index);
 
@@ -1507,10 +1527,8 @@ impl<D> Account<D> {
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
 
-        let passphrase = self.user()?.find_folder_password(
-            summary.id(),
-        )
-        .await?;
+        let passphrase =
+            self.user()?.find_folder_password(summary.id()).await?;
 
         let vault = EventReducer::new_until_commit(commit)
             .reduce(log_file)
@@ -1518,18 +1536,18 @@ impl<D> Account<D> {
             .build()
             .await?;
 
-        let mut keeper = Gatekeeper::new(
-            vault,
-            None,
-        );
+        let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(passphrase).await?;
-        
+
         {
             let mut index = search_index.write().await;
             index.add_folder(&keeper).await?;
         }
 
-        Ok(DetachedView { keeper, index: search_index })
+        Ok(DetachedView {
+            keeper,
+            index: search_index,
+        })
     }
 
     /// Get the root commit hash for a folder.
@@ -1562,70 +1580,4 @@ impl<D> Account<D> {
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
         Ok(log_file.commit_state().await?)
     }
-}
-
-// Proxy the delegated password functions.
-impl<D> Account<D> {
-    /// Generate a folder password.
-    pub fn generate_folder_password() -> Result<SecretString> {
-        DelegatedPassword::generate_folder_password()
-    }
-
-    /// Save a folder password into an identity vault.
-    pub async fn save_folder_password(
-        identity: Arc<RwLock<Gatekeeper>>,
-        vault_id: &VaultId,
-        key: AccessKey,
-    ) -> Result<()> {
-        DelegatedPassword::save_folder_password(identity, vault_id, key).await
-    }
-
-    /// Remove a folder password from an identity vault.
-    pub async fn remove_folder_password(
-        identity: Arc<RwLock<Gatekeeper>>,
-        vault_id: &VaultId,
-    ) -> Result<()> {
-        DelegatedPassword::remove_folder_password(identity, vault_id).await
-    }
-
-    /// Find a folder password in an identity vault.
-    ///
-    /// The identity vault must already be unlocked to extract
-    /// the secret passphrase.
-    pub async fn find_folder_password(
-        identity: Arc<RwLock<Gatekeeper>>,
-        vault_id: &VaultId,
-    ) -> Result<AccessKey> {
-        DelegatedPassword::find_folder_password(identity, vault_id).await
-    }
-}
-
-/// Export a vault by changing the vault passphrase and
-/// converting it to a buffer.
-///
-/// The identity vault must be unlocked so we can retrieve
-/// the passphrase for the target vault.
-async fn export_vault(
-    _address: &Address,
-    paths: &UserPaths,
-    identity: Arc<RwLock<Gatekeeper>>,
-    vault_id: &VaultId,
-    new_passphrase: AccessKey,
-) -> Result<Vec<u8>> {
-    use crate::passwd::ChangePassword;
-    // Get the current vault passphrase from the identity vault
-    let current_passphrase =
-        DelegatedPassword::find_folder_password(identity, vault_id).await?;
-
-    // Find the local vault for the account
-    let local_accounts = AccountsList::new(paths);
-    let (vault, _) = local_accounts.find_local_vault(vault_id, false).await?;
-
-    // Change the password before exporting
-    let (_, vault, _) =
-        ChangePassword::new(&vault, current_passphrase, new_passphrase, None)
-            .build()
-            .await?;
-
-    encode(&vault).await
 }

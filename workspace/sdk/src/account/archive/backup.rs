@@ -19,10 +19,8 @@ use walkdir::WalkDir;
 use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
-        password::DelegatedPassword,
         search::SearchIndex,
-        AuthenticatedUser,
-        AccountInfo, AccountsList, UserPaths,
+        AccountInfo, AccountsList, AuthenticatedUser, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     decode, encode,
@@ -417,8 +415,8 @@ impl AccountBackup {
             if let Some(passphrase) = &options.password {
                 let identity_vault_file = paths.identity_vault().clone();
                 let mut user = AuthenticatedUser::new(paths.clone());
-                user.login_file(
-                    &identity_vault_file, passphrase.clone()).await?;
+                user.login_file(&identity_vault_file, passphrase.clone())
+                    .await?;
 
                 /*
                 let identity_buffer = vfs::read(&identity_vault_file).await?;
@@ -431,9 +429,10 @@ impl AccountBackup {
                 */
 
                 let mut restored_user = AuthenticatedUser::new(paths);
-                restored_user.login_buffer(
-                    &identity.1, passphrase.clone()).await?;
-                
+                restored_user
+                    .login_buffer(&identity.1, passphrase.clone())
+                    .await?;
+
                 /*
                 let search_index = Arc::new(RwLock::new(SearchIndex::new()));
                 let restored_identity: Vault = decode(&identity.1).await?;
@@ -452,17 +451,12 @@ impl AccountBackup {
                 */
 
                 for (_, vault) in vaults {
-                    let vault_passphrase =
-                        restored_user.find_folder_password(
-                            vault.id(),
-                        )
+                    let vault_passphrase = restored_user
+                        .find_folder_password(vault.id())
                         .await?;
 
-                    user.save_folder_password(
-                        vault.id(),
-                        vault_passphrase,
-                    )
-                    .await?;
+                    user.save_folder_password(vault.id(), vault_passphrase)
+                        .await?;
                 }
 
                 let vault = {
@@ -616,23 +610,14 @@ impl AccountBackup {
             keeper.unlock(passphrase.clone().into()).await?;
 
             let paths = UserPaths::new_global(UserPaths::data_dir()?);
-            
-            /*
+
             // Get the signing address from the identity vault and
             // verify it matches the manifest address
-            let mut user = AuthenticatedUser::new(
-                address.clone(), paths);
-            user.login_buffer(
-                &identity.1,
-                passphrase.clone(),
-            )
-            .await?;
-            if user.address() != &address {
+            let mut user = AuthenticatedUser::new(paths);
+            user.login_buffer(&identity.1, passphrase.clone()).await?;
+            if user.identity()?.address() != &address {
                 return Err(Error::ArchiveAddressMismatch);
             }
-            */
-
-            todo!("fix backup archive password verification");
         }
 
         Ok(RestoreTargets {

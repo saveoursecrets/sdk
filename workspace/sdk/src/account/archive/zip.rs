@@ -359,7 +359,7 @@ mod test {
     async fn archive_buffer_async() -> Result<()> {
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));
-    
+
         let (address, identity_vault) = AuthenticatedUser::new_login_vault(
             "Mock".to_string(),
             SecretString::new("mock-password".to_string()),

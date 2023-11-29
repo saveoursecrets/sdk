@@ -96,7 +96,7 @@ impl Gatekeeper {
             let updated_keys = vault.keys().collect::<HashSet<_>>();
 
             // FIXME!!!
-            
+
             /*
             let mut writer = self.index.write().await;
 
@@ -288,7 +288,7 @@ impl Gatekeeper {
             .vault
             .insert(id, commit, VaultEntry(meta_aead, secret_aead))
             .await?;
-    
+
         // FIXME!!!!
         //let mut writer = self.index.write().await;
         //writer.add(&vault_id, &id, secret_meta, &secret);
@@ -348,7 +348,7 @@ impl Gatekeeper {
             .await?;
 
         //drop(reader);
-    
+
         // FIXME!!!!
         //let mut writer = self.index.write().await;
         //writer.update(&vault_id, id, secret_meta, &secret);
@@ -370,7 +370,7 @@ impl Gatekeeper {
             mirror.delete(id).await?;
         }
         let event = self.vault.delete(id).await?;
-        
+
         // FIXME!!!
         //let mut writer = self.index.write().await;
         //writer.remove(&vault_id, id);
@@ -382,7 +382,7 @@ impl Gatekeeper {
     pub async fn verify(&self, key: &AccessKey) -> Result<()> {
         self.vault.verify(key).await
     }
-    
+
     /*
     /// Add the meta data for the vault entries to a search index..
     #[deprecated(note = "Use SeachIndex::add_folder() instead")]
@@ -498,9 +498,9 @@ mod tests {
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        let (_, event) = keeper.create(secret_meta.clone(), secret.clone()).await?;
-        if let WriteEvent::CreateSecret(secret_uuid, _) = event
-        {
+        let (_, event) =
+            keeper.create(secret_meta.clone(), secret.clone()).await?;
+        if let WriteEvent::CreateSecret(secret_uuid, _) = event {
             let (saved_secret_meta, saved_secret) =
                 keeper.read_secret(&secret_uuid, None, None).await?.unwrap();
             assert_eq!(secret, saved_secret);
@@ -544,11 +544,10 @@ mod tests {
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        let (id, event) = keeper.create(
-            secret_meta.clone(), secret.clone()).await?;
+        let (id, event) =
+            keeper.create(secret_meta.clone(), secret.clone()).await?;
 
-        if let WriteEvent::CreateSecret(secret_uuid, _) = event
-        {
+        if let WriteEvent::CreateSecret(secret_uuid, _) = event {
             let (saved_secret_meta, saved_secret) =
                 keeper.read_secret(&secret_uuid, None, None).await?.unwrap();
             assert_eq!(secret, saved_secret);

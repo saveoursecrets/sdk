@@ -51,7 +51,7 @@ async fn integration_account_lifecycle() -> Result<()> {
 
     // Must sign in again to delete the account
     account.sign_in(passphrase.clone()).await?;
-    
+
     account.delete_account().await?;
 
     // Deleting the account is an automatic sign out

@@ -3,7 +3,6 @@ use anyhow::Result;
 use secrecy::ExposeSecret;
 use sos_net::sdk::{
     account::FolderStorage,
-    events::WriteEvent,
     signer::{ecdsa::SingleParty, Signer},
     vault::secret::{Secret, SecretRow},
 };

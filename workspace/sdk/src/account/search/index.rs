@@ -479,10 +479,10 @@ impl SearchIndex {
             SecretRef::Name(name) => self.find_by_label(vault_id, name, None),
         }
     }
-    
+
     /// Prepare a document for insertion.
     ///
-    /// If a document with the given identifiers exists 
+    /// If a document with the given identifiers exists
     /// then no document is created.
     pub fn prepare(
         &self,
@@ -524,7 +524,6 @@ impl SearchIndex {
         meta: SecretMeta,
         secret: &Secret,
     ) {
-    
         let data = self.prepare(vault_id, id, meta, secret);
 
         // Prevent duplicates

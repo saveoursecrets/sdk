@@ -9,8 +9,6 @@ use futures::{select, FutureExt};
 use sos_sdk::prelude::SecureAccessKey;
 use std::sync::Arc;
 
-use super::network_account::LocalAccount;
-
 impl NetworkAccount {
     /// Listen for changes on a remote origin.
     pub async fn listen(
@@ -74,6 +72,8 @@ impl NetworkAccount {
                                 .await?;
 
                                 // Save the access key for the synced folder
+                                //
+                                /*
                                 let identity = Arc::clone(&keeper);
                                 LocalAccount::save_folder_password(
                                     identity,
@@ -81,6 +81,9 @@ impl NetworkAccount {
                                     access_key.clone(),
                                 )
                                 .await?;
+                                */
+
+                                todo!("fixme saving listen folder password..");
 
                                 tx.access_key_tx.send(access_key).await?;
                             }
@@ -93,12 +96,15 @@ impl NetworkAccount {
                                 // When a folder is removed via remote
                                 // bridge changes we need to clean up the
                                 // passphrase
+                                /*
                                 let identity = Arc::clone(&keeper);
                                 LocalAccount::remove_folder_password(
                                     identity,
                                     &folder_id,
                                 )
                                 .await?;
+                                */
+                                todo!("fixme removing listen folder password..");
                             }
                         }
                     )

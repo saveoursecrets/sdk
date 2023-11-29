@@ -164,14 +164,12 @@ mod test {
     use super::{super::UNTITLED, parse_path, OnePasswordCsv};
     use crate::Convert;
     use anyhow::Result;
-    use tokio::sync::RwLock;
 
     use sos_sdk::{
         account::search::SearchIndex,
         passwd::diceware::generate_passphrase,
         vault::{Gatekeeper, VaultBuilder},
     };
-    use std::sync::Arc;
     use url::Url;
 
     #[tokio::test]
@@ -261,8 +259,7 @@ mod test {
             .await?;
 
         let mut search = SearchIndex::new();
-        let mut keeper =
-            Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(passphrase.into()).await?;
         search.add_folder(&keeper).await?;
 
