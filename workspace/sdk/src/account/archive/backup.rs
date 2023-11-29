@@ -429,7 +429,7 @@ impl AccountBackup {
 
                 let mut restored_user = AuthenticatedUser::new(paths);
                 restored_user
-                    .login_buffer(&identity.1, passphrase.clone())
+                    .login_buffer(&identity.1, passphrase.clone(), None)
                     .await?;
 
                 /*
@@ -612,7 +612,8 @@ impl AccountBackup {
             // Get the signing address from the identity vault and
             // verify it matches the manifest address
             let mut user = AuthenticatedUser::new(paths);
-            user.login_buffer(&identity.1, passphrase.clone()).await?;
+            user.login_buffer(&identity.1, passphrase.clone(), None)
+                .await?;
             if user.identity()?.address() != &address {
                 return Err(Error::ArchiveAddressMismatch);
             }

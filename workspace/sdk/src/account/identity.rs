@@ -238,8 +238,10 @@ impl AuthenticatedUser {
         file: P,
         password: SecretString,
     ) -> Result<()> {
+        let vault_file = VaultWriter::open(file.as_ref()).await?;
+        let mirror = VaultWriter::new(file.as_ref(), vault_file)?;
         let buffer = vfs::read(file.as_ref()).await?;
-        self.login_buffer(buffer, password).await
+        self.login_buffer(buffer, password, Some(mirror)).await
     }
 
     /// Attempt to login using a buffer.
@@ -247,21 +249,31 @@ impl AuthenticatedUser {
         &mut self,
         buffer: B,
         password: SecretString,
+        mirror: Option<VaultWriter<vfs::File>>,
     ) -> Result<()> {
         let vault: Vault = decode(buffer.as_ref()).await?;
-
         if !vault.flags().contains(VaultFlags::IDENTITY) {
             return Err(Error::NotIdentityVault);
         }
 
-        let mut keeper = Gatekeeper::new(vault);
+        let mut keeper = if let Some(mirror) = mirror {
+            Gatekeeper::new_mirror(vault, mirror)
+        } else {
+            Gatekeeper::new(vault)
+        };
 
-        let mut index = SearchIndex::new();
+        let mut index = if let Some(identity) = &self.identity {
+            identity.index()
+        } else {
+            Arc::new(RwLock::new(SearchIndex::new()))
+        };
         keeper.unlock(password.into()).await?;
-        index.add_folder(&keeper).await?;
+
+        let mut search = index.write().await;
+        search.add_folder(&keeper).await?;
 
         let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
-        let document = index
+        let document = search
             .find_by_urn(keeper.id(), &urn)
             .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
         let data = keeper
@@ -281,7 +293,7 @@ impl AuthenticatedUser {
         let address = signer.address()?;
 
         let urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
-        let document = index
+        let document = search
             .find_by_urn(keeper.id(), &urn)
             .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
         let data = keeper
@@ -303,6 +315,8 @@ impl AuthenticatedUser {
         let shared = identity
             .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
 
+        drop(search);
+
         self.identity = Some(PrivateIdentity {
             address,
             signer,
@@ -311,7 +325,7 @@ impl AuthenticatedUser {
             shared_public: shared.to_public(),
             shared_private: shared,
             keeper: Arc::new(RwLock::new(keeper)),
-            index: Arc::new(RwLock::new(index)),
+            index,
         });
 
         Ok(())
@@ -332,8 +346,6 @@ impl AuthenticatedUser {
             .find(|a| a.address() == address)
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
 
-        println!("Sign in listed accounts...");
-
         let identity_path = self.paths.identity_vault();
 
         tracing::debug!(identity_path = ?identity_path);
@@ -351,23 +363,16 @@ impl AuthenticatedUser {
         }
 
         self.account = Some(account);
-
-
-        {
-            let reader = self.identity.as_ref().unwrap().index.read().await;
-            println!("IDENT DOCS {}", reader.documents().len());
-        }
-
         Ok(())
     }
 
     /// Ensure that the account has a vault for storing device specific
-    /// information such as the private key used to identify a machine
-    /// on a peer to peer network.
+    /// information such as the private key used to identify a machine.
     #[cfg(feature = "device")]
     async fn ensure_device_vault(&mut self) -> Result<DeviceSigner> {
         let local_accounts = AccountsList::new(&self.paths);
         let vaults = local_accounts.list_local_vaults(true).await?;
+
         let device_vault = vaults.into_iter().find_map(|(summary, _)| {
             if summary.flags().is_system() && summary.flags().is_device() {
                 Some(summary)
@@ -434,16 +439,6 @@ impl AuthenticatedUser {
                 .password(device_passphrase.clone().into(), None)
                 .await?;
 
-            /*
-            let mut vault: Vault = Default::default();
-            vault.set_name("Device".to_string());
-            vault.set_system_flag(true);
-            vault.set_device_flag(true);
-            vault.set_no_sync_self_flag(true);
-            vault.set_no_sync_other_flag(true);
-            vault.initialize(device_passphrase.clone(), None).await?;
-            */
-
             self.save_folder_password(
                 vault.id(),
                 device_passphrase.clone().into(),
@@ -463,9 +458,21 @@ impl AuthenticatedUser {
             let mut meta =
                 SecretMeta::new("Device Key".to_string(), secret.kind());
             meta.set_urn(Some(urn));
-            device_keeper
-                .create(SecretId::new_v4(), meta, secret)
-                .await?;
+            let id = SecretId::new_v4();
+
+            let index_doc = {
+                let search = self.identity()?.index();
+                let index = search.read().await;
+                index.prepare(device_keeper.id(), &id, &meta, &secret)
+            };
+
+            device_keeper.create(id, meta, secret).await?;
+
+            {
+                let search = self.identity_mut()?.index();
+                let mut index = search.write().await;
+                index.commit(index_doc);
+            }
 
             let device_vault: Vault = device_keeper.into();
             let summary = device_vault.summary().clone();
@@ -492,6 +499,9 @@ impl AuthenticatedUser {
         let keeper = self.identity()?.keeper();
         let mut writer = keeper.write().await;
         writer.lock();
+
+        self.account = None;
+        self.identity = None;
         Ok(())
     }
 }
@@ -643,12 +653,11 @@ impl PrivateIdentity {
     ) -> Result<AccessKey> {
         let keeper = self.keeper.read().await;
         let urn = Vault::vault_urn(vault_id)?;
-        let index_reader = self.index.read().await;
-
-        let document = index_reader
+        let index = self.index.read().await;
+        let document = index
             .find_by_urn(keeper.id(), &urn)
             .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
-        
+
         let (_, secret, _) = keeper
             .read(document.id())
             .await?
@@ -720,7 +729,7 @@ mod tests {
         let mut identity = AuthenticatedUser::new(UserPaths::new_global(
             UserPaths::data_dir()?,
         ));
-        let result = identity.login_buffer(buffer, password).await;
+        let result = identity.login_buffer(buffer, password, None).await;
         if let Err(Error::NotIdentityVault) = result {
             Ok(())
         } else {
@@ -742,7 +751,7 @@ mod tests {
         let mut identity = AuthenticatedUser::new(UserPaths::new_global(
             UserPaths::data_dir()?,
         ));
-        let result = identity.login_buffer(buffer, password).await;
+        let result = identity.login_buffer(buffer, password, None).await;
         if let Err(Error::NoSecretUrn(_, _)) = result {
             Ok(())
         } else {
@@ -782,7 +791,7 @@ mod tests {
         let mut identity = AuthenticatedUser::new(UserPaths::new_global(
             UserPaths::data_dir()?,
         ));
-        let result = identity.login_buffer(buffer, password).await;
+        let result = identity.login_buffer(buffer, password, None).await;
         if let Err(Error::WrongSecretKind(_, _)) = result {
             Ok(())
         } else {

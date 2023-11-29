@@ -5,7 +5,9 @@ use crate::test_utils::{
     AccountCredentials,
 };
 
-use sos_net::sdk::signer::ecdsa::SingleParty;
+use sos_net::sdk::{
+    passwd::diceware::generate_passphrase, signer::ecdsa::SingleParty,
+};
 
 const TEST_ID: &str = "change_password";
 
@@ -38,15 +40,6 @@ async fn integration_change_password() -> Result<()> {
     // Check our new list of secrets has the right length
     let keeper = provider.current().unwrap();
 
-    todo!("restore access to seach index...");
-
-    /*
-    let index = keeper.index();
-    let index_reader = index.read().await;
-    let meta = index_reader.values();
-    assert_eq!(3, meta.len());
-    drop(index_reader);
-
     let keeper = provider.current_mut().unwrap();
     let (new_passphrase, _) = generate_passphrase()?;
 
@@ -62,7 +55,6 @@ async fn integration_change_password() -> Result<()> {
 
     // Close the vault
     provider.close_vault();
-    */
 
     teardown(TEST_ID).await;
 

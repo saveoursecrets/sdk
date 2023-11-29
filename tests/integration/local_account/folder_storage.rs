@@ -81,15 +81,6 @@ async fn integration_folder_storage() -> Result<()> {
     // Check our new list of secrets has the right length
     let keeper = provider.current().unwrap();
 
-    todo!("restore access to seach index...");
-
-    /*
-    let index = keeper.index();
-    let index_reader = index.read().await;
-    let meta = index_reader.values();
-    assert_eq!(2, meta.len());
-    drop(index_reader);
-
     // Set the vault name
     provider
         .set_vault_name(&new_vault_summary, DEFAULT_VAULT_NAME)
@@ -100,7 +91,6 @@ async fn integration_folder_storage() -> Result<()> {
 
     // Close the vault
     provider.close_vault();
-    */
 
     teardown(TEST_ID).await;
 

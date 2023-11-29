@@ -12,7 +12,7 @@ const TEST_ID: &str = "account_lifecycle";
 /// and sign out followed by account deletion.
 #[tokio::test]
 async fn integration_account_lifecycle() -> Result<()> {
-    crate::test_utils::init_tracing();
+    //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -36,12 +36,8 @@ async fn integration_account_lifecycle() -> Result<()> {
     let accounts = AccountsList::list_accounts(Some(&paths)).await?;
     assert_eq!(1, accounts.len());
 
-    println!("Signing in...");
-
     account.sign_in(passphrase.clone()).await?;
     assert!(account.is_authenticated());
-
-    println!("List folders...");
 
     let folders = account.list_folders().await?;
     assert_eq!(3, folders.len());
@@ -50,17 +46,11 @@ async fn integration_account_lifecycle() -> Result<()> {
     let data = account.account_data().await?;
     assert_eq!("account_name", data.account.label());
 
-    println!("Sign out...");
-
     account.sign_out().await?;
     assert!(!account.is_authenticated());
 
-    println!("Sign in again...");
-
     // Must sign in again to delete the account
     account.sign_in(passphrase.clone()).await?;
-
-    println!("Delete account...");
 
     account.delete_account().await?;
 

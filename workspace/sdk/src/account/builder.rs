@@ -151,7 +151,7 @@ impl AccountBuilder {
         let buffer = encode(&identity_vault).await?;
         let paths = UserPaths::new_global(UserPaths::data_dir()?);
         let mut user = AuthenticatedUser::new(paths);
-        user.login_buffer(buffer, passphrase.clone()).await?;
+        user.login_buffer(buffer, passphrase.clone(), None).await?;
 
         // Prepare the passphrase for the default vault
         let vault_passphrase = user.generate_folder_password()?;
