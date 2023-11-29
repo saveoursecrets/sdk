@@ -54,7 +54,7 @@ impl<'a, D> AccountExport<'a, D> {
             let (vault, _) =
                 local_accounts.find_local_vault(summary.id(), false).await?;
             let vault_passphrase = Account::<D>::find_folder_password(
-                self.account.user()?.identity().keeper(),
+                self.account.user()?.identity()?.keeper(),
                 summary.id(),
             )
             .await?;
@@ -70,7 +70,7 @@ impl<'a, D> AccountExport<'a, D> {
 
         let mut files = HashMap::new();
         let buffer =
-            serde_json::to_vec_pretty(self.account.user()?.account())?;
+            serde_json::to_vec_pretty(self.account.user()?.account()?)?;
         files.insert("account.json", buffer.as_slice());
         migration.append_files(files).await?;
         migration.finish().await?;
@@ -211,7 +211,7 @@ impl<'a, D> AccountImport<'a, D> {
         };
 
         Account::<D>::save_folder_password(
-            self.account.user()?.identity().keeper(),
+            self.account.user()?.identity()?.keeper(),
             vault.id(),
             vault_passphrase.clone().into(),
         )

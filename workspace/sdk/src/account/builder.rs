@@ -21,7 +21,8 @@ use tokio::sync::RwLock;
 use web3_address::ethereum::Address;
 
 use super::{
-    identity::{Identity, UserIdentity},
+    AuthenticatedUser,
+    identity::PrivateIdentity,
     password::DelegatedPassword,
 };
 
@@ -34,7 +35,7 @@ pub struct NewAccount {
     /// Address of the account signing key.
     pub address: Address,
     /// Identity for the new user.
-    pub user: UserIdentity,
+    pub user: PrivateIdentity,
     /// Default vault.
     pub default_folder: Vault,
     /// Archive vault.
@@ -138,22 +139,23 @@ impl AccountBuilder {
         UserPaths::scaffold(data_dir.clone()).await?;
 
         // Prepare the identity vault
-        let (address, identity_vault) = Identity::new_login_vault(
+        let (address, identity_vault) = AuthenticatedUser::new_login_vault(
             account_name.clone(),
             passphrase.clone(),
         )
         .await?;
 
+
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault).await?;
-        let identity = Identity::new();
-        let user =
-            identity.login_buffer(buffer, passphrase.clone(), None)
-                .await?;
+        let paths = UserPaths::new_global(UserPaths::data_dir()?);
+        let mut user = AuthenticatedUser::new(paths);
+        user.login_buffer(buffer, passphrase.clone())
+            .await?;
 
         // Prepare the passphrase for the default vault
-        let vault_passphrase = DelegatedPassword::generate_folder_password()?;
+        let vault_passphrase = user.generate_folder_password()?;
 
         // Prepare the default vault
         let mut builder = VaultBuilder::new().flags(VaultFlags::DEFAULT);
@@ -184,14 +186,7 @@ impl AccountBuilder {
             default_folder = keeper.into();
         }
 
-        // Unlock the vault so we can write to it
-        let mut keeper = Gatekeeper::new(identity_vault, None);
-        keeper.unlock(passphrase.into()).await?;
-
-        let keeper = Arc::new(RwLock::new(keeper));
-
-        DelegatedPassword::save_folder_password(
-            Arc::clone(&keeper),
+        user.save_folder_password(
             default_folder.id(),
             AccessKey::Password(vault_passphrase),
         )
@@ -199,7 +194,7 @@ impl AccountBuilder {
 
         if create_file_password {
             let file_passphrase =
-                DelegatedPassword::generate_folder_password()?;
+                user.generate_folder_password()?;
             let secret = Secret::Password {
                 password: file_passphrase,
                 name: None,
@@ -209,6 +204,8 @@ impl AccountBuilder {
                 SecretMeta::new("File Encryption".to_string(), secret.kind());
             let urn: Urn = FILE_PASSWORD_URN.parse()?;
             meta.set_urn(Some(urn));
+            
+            let keeper = user.identity()?.keeper();
             let mut writer = keeper.write().await;
             writer.create(meta, secret).await?;
         }
@@ -216,7 +213,7 @@ impl AccountBuilder {
         let archive = if create_archive {
             // Prepare the passphrase for the archive vault
             let archive_passphrase =
-                DelegatedPassword::generate_folder_password()?;
+                user.generate_folder_password()?;
 
             // Prepare the archive vault
             let vault = VaultBuilder::new()
@@ -225,8 +222,7 @@ impl AccountBuilder {
                 .password(archive_passphrase.clone(), None)
                 .await?;
 
-            DelegatedPassword::save_folder_password(
-                Arc::clone(&keeper),
+            user.save_folder_password(
                 vault.id(),
                 AccessKey::Password(archive_passphrase),
             )
@@ -238,8 +234,7 @@ impl AccountBuilder {
 
         let authenticator = if create_authenticator {
             // Prepare the passphrase for the authenticator vault
-            let auth_passphrase =
-                DelegatedPassword::generate_folder_password()?;
+            let auth_passphrase = user.generate_folder_password()?;
 
             // Prepare the authenticator vault
             let vault = VaultBuilder::new()
@@ -248,8 +243,7 @@ impl AccountBuilder {
                 .password(auth_passphrase.clone(), None)
                 .await?;
 
-            DelegatedPassword::save_folder_password(
-                Arc::clone(&keeper),
+            user.save_folder_password(
                 vault.id(),
                 AccessKey::Password(auth_passphrase),
             )
@@ -262,7 +256,7 @@ impl AccountBuilder {
         let contacts = if create_contacts {
             // Prepare the passphrase for the authenticator vault
             let auth_passphrase =
-                DelegatedPassword::generate_folder_password()?;
+                user.generate_folder_password()?;
 
             // Prepare the authenticator vault
             let vault = VaultBuilder::new()
@@ -271,8 +265,7 @@ impl AccountBuilder {
                 .password(auth_passphrase.clone(), None)
                 .await?;
 
-            DelegatedPassword::save_folder_password(
-                Arc::clone(&keeper),
+            user.save_folder_password(
                 vault.id(),
                 AccessKey::Password(auth_passphrase),
             )
@@ -281,11 +274,14 @@ impl AccountBuilder {
         } else {
             None
         };
-
+    
         let vault = {
+            let keeper = user.identity()?.keeper();
             let reader = keeper.read().await;
             reader.vault().clone()
         };
+
+        let user = user.private_identity()?;
 
         Ok((
             vault,

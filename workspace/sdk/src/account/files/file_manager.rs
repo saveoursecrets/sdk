@@ -79,10 +79,7 @@ impl<D> Account<D> {
         source: P,
     ) -> Result<EncryptedFile> {
         // Find the file encryption password
-        let password = DelegatedPassword::find_file_encryption_password(
-            self.user()?.identity().keeper(),
-        )
-        .await?;
+        let password = self.user()?.find_file_encryption_password().await?;
 
         // Encrypt and write to disc
         Ok(FileStorageSync::encrypt_file_storage(
@@ -102,10 +99,7 @@ impl<D> Account<D> {
         file_name: &str,
     ) -> Result<Vec<u8>> {
         // Find the file encryption password
-        let password = DelegatedPassword::find_file_encryption_password(
-            self.user()?.identity().keeper(),
-        )
-        .await?;
+        let password = self.user()?.find_file_encryption_password().await?;
 
         Ok(FileStorage::decrypt_file_storage(
             &password,

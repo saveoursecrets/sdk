@@ -99,7 +99,7 @@ impl<D> Account<D> {
             .ok_or_else(|| Error::NoContactsFolder)?;
 
         let contacts_passphrase = DelegatedPassword::find_folder_password(
-            self.user()?.identity().keeper(),
+            self.user()?.identity()?.keeper(),
             contacts.id(),
         )
         .await?;

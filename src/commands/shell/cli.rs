@@ -93,7 +93,7 @@ pub async fn run(
     loop {
         let prompt_value = {
             let owner = user.read().await;
-            let account_name = owner.user()?.account().label();
+            let account_name = owner.user()?.account()?.label();
             let storage = owner.storage()?;
             let reader = storage.read().await;
             if let Some(current) = reader.current() {

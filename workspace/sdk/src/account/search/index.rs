@@ -479,15 +479,18 @@ impl SearchIndex {
             SecretRef::Name(name) => self.find_by_label(vault_id, name, None),
         }
     }
-
-    /// Add a document to the index.
-    pub fn add(
-        &mut self,
+    
+    /// Prepare a document for insertion.
+    ///
+    /// If a document with the given identifiers exists 
+    /// then no document is created.
+    pub fn prepare(
+        &self,
         vault_id: &VaultId,
         id: &SecretId,
         meta: SecretMeta,
         secret: &Secret,
-    ) {
+    ) -> Option<(DocumentKey, Document)> {
         // Prevent duplicates
         if self.find_by_id(vault_id, id).is_none() {
             let kind = *meta.kind();
@@ -506,6 +509,26 @@ impl SearchIndex {
                 *vault_id,
                 *id,
             );
+
+            Some((key, doc))
+        } else {
+            None
+        }
+    }
+
+    /// Add a document to the index.
+    pub fn add(
+        &mut self,
+        vault_id: &VaultId,
+        id: &SecretId,
+        meta: SecretMeta,
+        secret: &Secret,
+    ) {
+    
+        let data = self.prepare(vault_id, id, meta, secret);
+
+        // Prevent duplicates
+        if let Some((key, doc)) = data {
             let doc = self.documents.entry(key).or_insert(doc);
 
             self.index.add_document(
@@ -517,7 +540,7 @@ impl SearchIndex {
 
             self.statistics.count.add(
                 *vault_id,
-                kind.into(),
+                doc.meta().kind().into(),
                 doc.meta().tags(),
                 doc.meta().favorite(),
             );

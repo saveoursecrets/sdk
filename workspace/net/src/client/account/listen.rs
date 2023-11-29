@@ -48,8 +48,8 @@ impl NetworkAccount {
     ) {
         if self.account.is_authenticated() {
             let user = self.user().unwrap();
-            let keeper = user.identity().keeper();
-            let secret_key = user.identity().signer().to_bytes();
+            let keeper = user.identity().unwrap().keeper();
+            let secret_key = user.identity().unwrap().signer().to_bytes();
 
             // TODO: needs shutdown hook so this loop exits
             // TODO: when the websocket connection is closed

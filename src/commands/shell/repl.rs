@@ -342,8 +342,8 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
             let owner = user.read().await;
             println!(
                 "{} {}",
-                owner.user()?.account().label(),
-                owner.user()?.identity().address()
+                owner.user()?.account()?.label(),
+                owner.user()?.identity()?.address()
             );
             Ok(())
         }

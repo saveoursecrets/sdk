@@ -187,7 +187,7 @@ impl NetworkAccount {
         origin: &Origin,
     ) -> Result<RemoteBridge> {
         let keypair = generate_keypair()?;
-        let signer = self.user()?.identity().signer().clone();
+        let signer = self.user()?.identity()?.signer().clone();
         let local = self.storage()?;
         let provider =
             RemoteBridge::new(local, origin.clone(), signer, keypair)?;

@@ -18,6 +18,7 @@ use urn::Urn;
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
 /// Delegated passphrase manager.
+#[deprecated(note = "Use AuthenticatedUser instead")]
 pub struct DelegatedPassword;
 
 impl DelegatedPassword {

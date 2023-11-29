@@ -480,7 +480,7 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
         verify(Arc::clone(&user)).await?;
 
         let owner = user.read().await;
-        owner.user()?.account().into()
+        owner.user()?.account()?.into()
     };
 
     let user = resolve_user(Some(&account), false).await?;
@@ -488,7 +488,7 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
 
     let prompt = format!(
         r#"Delete account "{}" (y/n)? "#,
-        owner.user()?.account().label(),
+        owner.user()?.account()?.label(),
     );
     let result = if read_flag(Some(&prompt))? {
         owner.delete_account().await?;
@@ -513,7 +513,7 @@ async fn migrate_export(
     let owner = user.read().await;
     let prompt = format!(
         r#"Export UNENCRYPTED account "{}" (y/n)? "#,
-        owner.user()?.account().label(),
+        owner.user()?.account()?.label(),
     );
 
     let result = if read_flag(Some(&prompt))? {

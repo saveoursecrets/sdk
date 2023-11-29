@@ -46,7 +46,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
 
     // Need the vault passphrase to import a buffer
     let vault_passphrase = LocalAccount::find_folder_password(
-        device1.owner.user()?.identity().keeper(),
+        device1.owner.user()?.identity()?.keeper(),
         new_folder.id(),
     )
     .await?;

@@ -1170,7 +1170,7 @@ mod tests {
         keeper.unlock(AccessKey::Identity(owner.clone())).await?;
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
-        let (id, event) = keeper.create(meta.clone(), secret.clone()).await?;
+        let (id, _) = keeper.create(meta.clone(), secret.clone()).await?;
 
         // In the real world this exchange of the vault
         // would happen via a sync operation
@@ -1231,7 +1231,7 @@ mod tests {
         keeper.unlock(AccessKey::Identity(owner.clone())).await?;
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
-        let (id, event) = keeper.create(meta.clone(), secret.clone()).await?;
+        let (id, _) = keeper.create(meta.clone(), secret.clone()).await?;
 
         // Check the owner can update
         let (new_meta, new_secret, _, _) =

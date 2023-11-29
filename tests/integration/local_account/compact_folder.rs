@@ -55,7 +55,7 @@ async fn integration_compact_folder() -> Result<()> {
         .await?;
 
     let (meta, secret) = mock_note("Test Note", "Mock note content.");
-    let (id, event) = storage.create_secret(meta, secret).await?;
+    let (id, _) = storage.create_secret(meta, secret).await?;
 
     // Commit for secret creation
     commit_count!(storage, &summary, 3);
@@ -80,7 +80,7 @@ async fn integration_compact_folder() -> Result<()> {
 
     // Create another secret
     let (meta, secret) = mock_note("Alt Note", "Another mock note.");
-    let (alt_id, event) = storage.create_secret(meta, secret).await?;
+    let (alt_id, _) = storage.create_secret(meta, secret).await?;
 
     // Commit for secret creation
     commit_count!(storage, &summary, 5);

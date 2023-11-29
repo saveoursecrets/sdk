@@ -498,7 +498,7 @@ mod tests {
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        let (id, event) = keeper.create(secret_meta.clone(), secret.clone()).await?;
+        let (_, event) = keeper.create(secret_meta.clone(), secret.clone()).await?;
         if let WriteEvent::CreateSecret(secret_uuid, _) = event
         {
             let (saved_secret_meta, saved_secret) =

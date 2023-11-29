@@ -1,4 +1,4 @@
-//! Account storage and search index.
+//! Account storage and search index..as_ref()
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -8,7 +8,6 @@ use std::{
 
 use crate::{
     account::{
-        identity::Identity,
         password::DelegatedPassword,
         search::{AccountStatistics, DocumentCount, SearchIndex},
         AccountBuilder, AccountInfo, AccountsList, AuthenticatedUser,
@@ -337,14 +336,12 @@ impl<D> Account<D> {
 
         tracing::debug!(data_dir = ?paths.documents_dir());
 
-        let identity = Identity::new();
-        let user =
-            identity.sign_in(address, &paths, passphrase)
-                .await?;
+        let mut user = AuthenticatedUser::new(paths.clone());
+        user.sign_in(self.address(), passphrase).await?;
         tracing::debug!("sign in success");
 
         // Signing key for the storage provider
-        let signer = user.identity().signer().clone();
+        let signer = user.identity()?.signer().clone();
         let storage =
             FolderStorage::new(signer.address()?.to_string(), Some(data_dir))
                 .await?;
@@ -448,8 +445,8 @@ impl<D> Account<D> {
         let reader = storage.read().await;
         let user = self.user()?;
         Ok(AccountData {
-            account: user.account().clone(),
-            identity: user.identity().recipient().to_string(),
+            account: user.account()?.clone(),
+            identity: user.identity()?.recipient().to_string(),
             folders: reader.folders().to_vec(),
         })
     }
@@ -560,8 +557,8 @@ impl<D> Account<D> {
         self.index_mut()?.clear().await;
 
         tracing::debug!("sign out user identity");
-        // Forget authenticated user information
-        self.user_mut()?.sign_out().await;
+        // Forget private identity information
+        self.user_mut()?.sign_out().await?;
 
         tracing::debug!("remove authenticated state");
         self.authenticated = None;
@@ -582,12 +579,11 @@ impl<D> Account<D> {
             writer.create_vault(name, Some(key.clone())).await?
         };
 
-        let secret_key = self.user()?.identity().signer().to_bytes();
+        let secret_key = self.user()?.identity()?.signer().to_bytes();
         let secure_key =
             SecureAccessKey::encrypt(&key, secret_key, None).await?;
 
-        DelegatedPassword::save_folder_password(
-            self.user()?.identity().keeper(),
+        self.user_mut()?.save_folder_password(
             summary.id(),
             key,
         )
@@ -635,8 +631,7 @@ impl<D> Account<D> {
             let mut writer = storage.write().await;
             writer.remove_vault(&summary).await?
         };
-        DelegatedPassword::remove_folder_password(
-            self.user()?.identity().keeper(),
+        self.user_mut()?.remove_folder_password(
             summary.id(),
         )
         .await?;
@@ -697,7 +692,7 @@ impl<D> Account<D> {
         let buffer = export_vault(
             self.address(),
             &self.paths,
-            self.user()?.identity().keeper(),
+            self.user()?.identity()?.keeper(),
             summary.id(),
             new_key.clone(),
         )
@@ -711,8 +706,7 @@ impl<D> Account<D> {
                 .await
                 .ok_or_else(|| Error::NoDefaultFolder)?;
 
-            let _passphrase = DelegatedPassword::find_folder_password(
-                self.user()?.identity().keeper(),
+            let _passphrase = self.user()?.find_folder_password(
                 default_summary.id(),
             )
             .await?;
@@ -841,15 +835,13 @@ impl<D> Account<D> {
         // vault passphrase so we can save it using the passphrase
         // assigned when exporting the folder
         if overwrite {
-            DelegatedPassword::remove_folder_password(
-                self.user()?.identity().keeper(),
+            self.user_mut()?.remove_folder_password(
                 summary.id(),
             )
             .await?;
         }
 
-        DelegatedPassword::save_folder_password(
-            self.user()?.identity().keeper(),
+        self.user_mut()?.save_folder_password(
             summary.id(),
             key.clone(),
         )
@@ -918,8 +910,7 @@ impl<D> Account<D> {
             }
         }
 
-        let passphrase = DelegatedPassword::find_folder_password(
-            self.user()?.identity().keeper(),
+        let passphrase = self.user()?.find_folder_password(
             summary.id(),
         )
         .await?;
@@ -1516,8 +1507,7 @@ impl<D> Account<D> {
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
 
-        let passphrase = DelegatedPassword::find_folder_password(
-            self.user()?.identity().keeper(),
+        let passphrase = self.user()?.find_folder_password(
             summary.id(),
         )
         .await?;
