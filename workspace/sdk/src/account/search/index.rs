@@ -378,7 +378,6 @@ impl SearchIndex {
         vault_id: &VaultId,
         urn: &Urn,
     ) -> Option<&'a Document> {
-        println!("find_by_urn {}", self.documents.len());
         self.documents
             .values()
             .find(|d| d.vault_id() == vault_id && d.meta().urn() == Some(urn))

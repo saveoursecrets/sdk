@@ -374,7 +374,6 @@ impl AuthenticatedUser {
         });
 
         let urn: Urn = DEVICE_KEY_URN.parse()?;
-
         let index = self.identity()?.index();
 
         if let Some(summary) = device_vault {
@@ -592,19 +591,17 @@ impl PrivateIdentity {
         meta.set_urn(Some(urn));
 
         let id = SecretId::new_v4();
-
         let index_doc = {
+            let keeper = self.keeper.read().await;
             let index = self.index.read().await;
-            index.prepare(vault_id, &id, &meta, &secret)
+            index.prepare(keeper.id(), &id, &meta, &secret)
         };
 
         let mut keeper = self.keeper.write().await;
         keeper.create(id, meta, secret).await?;
 
-        {
-            let mut index = self.index.write().await;
-            index.commit(index_doc);
-        }
+        let mut index = self.index.write().await;
+        index.commit(index_doc);
 
         Ok(())
     }
@@ -621,17 +618,14 @@ impl PrivateIdentity {
             let document = index_reader
                 .find_by_urn(keeper.id(), &urn)
                 .ok_or(Error::NoVaultEntry(urn.to_string()))?;
-
             *document.id()
         };
 
         let mut keeper = self.keeper.write().await;
         keeper.delete(&id).await?;
 
-        {
-            let mut index = self.index.write().await;
-            index.remove(vault_id, &id);
-        }
+        let mut index = self.index.write().await;
+        index.remove(vault_id, &id);
 
         Ok(())
     }
@@ -647,10 +641,11 @@ impl PrivateIdentity {
         let keeper = self.keeper.read().await;
         let urn = Vault::vault_urn(vault_id)?;
         let index_reader = self.index.read().await;
+
         let document = index_reader
             .find_by_urn(keeper.id(), &urn)
             .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
-
+        
         let (_, secret, _) = keeper
             .read(document.id())
             .await?
@@ -675,7 +670,6 @@ impl PrivateIdentity {
         &self,
     ) -> Result<SecretString> {
         let keeper = self.keeper.read().await;
-
         let reader = self.index.read().await;
         let urn: Urn = FILE_PASSWORD_URN.parse()?;
         let document = reader
