@@ -346,7 +346,8 @@ pub async fn create_secrets(
     let mut create_events = Vec::new();
     for item in notes.iter() {
         let (meta, secret) = mock_note(item.0, item.1);
-        let (id, event) = keeper.create(meta, secret).await?;
+        let id = SecretId::new_v4();
+        let event = keeper.create(id, meta, secret).await?;
         create_events.push(event);
         results.push((id, item.0));
     }

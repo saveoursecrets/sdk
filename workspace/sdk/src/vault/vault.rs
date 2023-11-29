@@ -1170,7 +1170,8 @@ mod tests {
         keeper.unlock(AccessKey::Identity(owner.clone())).await?;
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
-        let (id, _) = keeper.create(meta.clone(), secret.clone()).await?;
+        let id = SecretId::new_v4();
+        keeper.create(id, meta.clone(), secret.clone()).await?;
 
         // In the real world this exchange of the vault
         // would happen via a sync operation
@@ -1231,7 +1232,8 @@ mod tests {
         keeper.unlock(AccessKey::Identity(owner.clone())).await?;
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
-        let (id, _) = keeper.create(meta.clone(), secret.clone()).await?;
+        let id = SecretId::new_v4();
+        keeper.create(id, meta.clone(), secret.clone()).await?;
 
         // Check the owner can update
         let (new_meta, new_secret, _, _) =
@@ -1275,8 +1277,9 @@ mod tests {
         assert!(matches!(result, Err(Error::PermissionDenied)));
 
         // Trying to create a secret is also denied
+        let id = SecretId::new_v4();
         let result = keeper_1
-            .create(updated_meta.clone(), updated_secret.clone())
+            .create(id, updated_meta.clone(), updated_secret.clone())
             .await;
         assert!(matches!(result, Err(Error::PermissionDenied)));
 

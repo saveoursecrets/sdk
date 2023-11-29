@@ -181,7 +181,7 @@ mod test {
     use sos_sdk::{
         passwd::diceware::generate_passphrase,
         test_utils::*,
-        vault::{Gatekeeper, VaultBuilder, VaultFlags},
+        vault::{Gatekeeper, VaultBuilder, VaultFlags, secret::SecretId},
     };
 
     async fn create_mock_migration<W: AsyncWrite + AsyncSeek + Unpin>(
@@ -200,7 +200,7 @@ mod test {
 
         let (meta, secret, _, _) =
             mock_secret_note("Mock note", "Value for the mock note").await?;
-        keeper.create(meta, secret).await?;
+        keeper.create(SecretId::new_v4(), meta, secret).await?;
 
         let (meta, secret, _, _) = mock_secret_file(
             "Mock file",
@@ -209,7 +209,7 @@ mod test {
             "Test value".as_bytes().to_vec(),
         )
         .await?;
-        keeper.create(meta, secret).await?;
+        keeper.create(SecretId::new_v4(), meta, secret).await?;
 
         migration.add(&keeper).await?;
         Ok(migration)

@@ -9,7 +9,7 @@ use sos_net::sdk::{
 
 const TEST_ID: &str = "identity_login";
 
-/// Tests the creating an identity vault and logging in
+/// Tests creating an identity vault and logging in
 /// with the new vault.
 #[tokio::test]
 async fn integration_identity_login() -> Result<()> {
@@ -25,7 +25,6 @@ async fn integration_identity_login() -> Result<()> {
     UserPaths::new_global(data_dir.clone());
 
     let path = data_dir.join("login.vault");
-
     let (address, vault) = AuthenticatedUser::new_login_vault(
         "Login".to_owned(),
         password.clone(),
@@ -38,7 +37,7 @@ async fn integration_identity_login() -> Result<()> {
     paths.ensure().await?;
     let mut identity = AuthenticatedUser::new(paths);
 
-    identity.login_file(path, password).await?;
+    identity.login(path, password).await?;
 
     teardown(TEST_ID).await;
 

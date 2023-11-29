@@ -21,7 +21,7 @@ use sos_sdk::{
     account::search::SearchIndex,
     crypto::AccessKey,
     vault::{
-        secret::{IdentityKind, Secret, SecretMeta},
+        secret::{IdentityKind, Secret, SecretMeta, SecretId},
         Gatekeeper, Vault,
     },
     Timestamp,
@@ -324,7 +324,7 @@ impl Convert for GenericCsvConvert {
             if let Some(tags) = tags {
                 meta.set_tags(tags);
             }
-            keeper.create(meta, secret).await?;
+            keeper.create(SecretId::new_v4(), meta, secret).await?;
         }
 
         keeper.lock();

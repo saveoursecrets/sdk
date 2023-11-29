@@ -415,7 +415,7 @@ impl AccountBackup {
             if let Some(passphrase) = &options.password {
                 let identity_vault_file = paths.identity_vault().clone();
                 let mut user = AuthenticatedUser::new(paths.clone());
-                user.login_file(&identity_vault_file, passphrase.clone())
+                user.login(&identity_vault_file, passphrase.clone())
                     .await?;
 
                 /*

@@ -1,8 +1,8 @@
-//! Login identity vault.
+//! Login identity vault management.
 //!
-//! Identity provides access to a login vault containing
+//! Provides access to an identity vault containing
 //! the account signing key and delegated passwords used
-//! for folders managed by the account.
+//! for folders managed by an account.
 //!
 //! This enables user interfaces to protect both the signing
 //! key and encryption passphrase using a single master
@@ -34,7 +34,7 @@ use crate::{
         ed25519, Signer,
     },
     vault::{
-        secret::{Secret, SecretMeta, SecretSigner},
+        secret::{Secret, SecretMeta, SecretSigner, SecretId},
         Gatekeeper, Vault, VaultAccess, VaultBuilder, VaultFlags, VaultId,
         VaultWriter,
     },
@@ -102,9 +102,6 @@ impl AuthenticatedUser {
     }
 
     /// Delete the account for this user.
-    ///
-    /// Moves the account identity vault and data directory to the
-    /// trash directory.
     pub async fn delete_account(&self, paths: &UserPaths) -> Result<Event> {
         vfs::remove_file(paths.identity_vault()).await?;
         vfs::remove_dir_all(paths.user_dir()).await?;
@@ -217,7 +214,8 @@ impl AuthenticatedUser {
         let mut signer_meta =
             SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
-        keeper.create(signer_meta, signer_secret).await?;
+
+        keeper.create(SecretId::new_v4(), signer_meta, signer_secret).await?;
 
         // Store the AGE identity
         let age_secret = Secret::Age {
@@ -229,13 +227,14 @@ impl AuthenticatedUser {
         let mut age_meta =
             SecretMeta::new(urn.as_str().to_owned(), age_secret.kind());
         age_meta.set_urn(Some(urn));
-        keeper.create(age_meta, age_secret).await?;
+
+        keeper.create(SecretId::new_v4(), age_meta, age_secret).await?;
 
         Ok((address, keeper.into()))
     }
 
-    /// Attempt to login using a file path.
-    pub async fn login_file<P: AsRef<Path>>(
+    /// Login to an identity vault.
+    pub async fn login<P: AsRef<Path>>(
         &mut self,
         file: P,
         password: SecretString,
@@ -327,7 +326,7 @@ impl AuthenticatedUser {
         Ok(())
     }
 
-    /// Sign in a user account.
+    /// Sign in to a user account.
     pub async fn sign_in(
         &mut self,
         address: &Address,
@@ -346,7 +345,7 @@ impl AuthenticatedUser {
 
         tracing::debug!(identity_path = ?identity_path);
 
-        self.login_file(identity_path, passphrase).await?;
+        self.login(identity_path, passphrase).await?;
 
         tracing::debug!("identity verified");
 
@@ -458,7 +457,7 @@ impl AuthenticatedUser {
             let mut meta =
                 SecretMeta::new("Device Key".to_string(), secret.kind());
             meta.set_urn(Some(urn));
-            device_keeper.create(meta, secret).await?;
+            device_keeper.create(SecretId::new_v4(), meta, secret).await?;
 
             let device_vault: Vault = device_keeper.into();
             let summary = device_vault.summary().clone();
@@ -586,13 +585,20 @@ impl PrivateIdentity {
             SecretMeta::new(urn.as_str().to_owned(), secret.kind());
         meta.set_urn(Some(urn));
 
+        let id = SecretId::new_v4();
+        
+        let index_doc = {
+            let index = self.index.read().await;
+            index.prepare(vault_id, &id, &meta, &secret)
+        };
+
         let mut keeper = self.keeper.write().await;
-        let (id, _) = keeper.create(meta, secret).await?;
+        keeper.create(id, meta, secret).await?;
 
-        //let mut writer = self.identity.index.write().await;
-        //writer.prepare(&vault_id, &id, &meta, &secret);
-
-        todo!("add to the search index...");
+        {
+            let mut index = self.index.write().await;
+            index.commit(index_doc);
+        }
 
         Ok(())
     }
@@ -616,7 +622,10 @@ impl PrivateIdentity {
         let mut keeper = self.keeper.write().await;
         keeper.delete(&id).await?;
 
-        todo!("remove from the search index");
+        {
+            let mut index = self.index.write().await;
+            index.remove(vault_id, &id);
+        }
 
         Ok(())
     }
@@ -692,7 +701,7 @@ mod tests {
         encode,
         passwd::diceware::generate_passphrase,
         vault::{
-            secret::{Secret, SecretMeta},
+            secret::{Secret, SecretMeta, SecretId},
             Gatekeeper, Vault, VaultBuilder, VaultFlags,
         },
         vfs, Error,
@@ -760,7 +769,7 @@ mod tests {
         let mut signer_meta =
             SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
-        keeper.create(signer_meta, signer_secret).await?;
+        keeper.create(SecretId::new_v4(), signer_meta, signer_secret).await?;
 
         let vault: Vault = keeper.into();
         let buffer = encode(&vault).await?;

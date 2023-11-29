@@ -172,7 +172,7 @@ mod test {
     use crate::{
         crypto::AccessKey,
         test_utils::*,
-        vault::{Gatekeeper, VaultBuilder},
+        vault::{Gatekeeper, VaultBuilder, secret::SecretId},
     };
     use anyhow::Result;
 
@@ -195,7 +195,7 @@ mod test {
         for item in notes {
             let (secret_meta, secret_value, _, _) =
                 mock_secret_note(item.0, item.1).await?;
-            keeper.create(secret_meta, secret_value).await?;
+            keeper.create(SecretId::new_v4(), secret_meta, secret_value).await?;
         }
 
         let expected_len = keeper.vault().len();

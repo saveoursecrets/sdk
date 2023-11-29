@@ -126,16 +126,6 @@ impl FolderStorage {
         Ok(ReadEvent::ReadVault)
     }
 
-    /*
-    /// Create the search index for the currently open vault.
-    pub async fn create_search_index(&mut self) -> Result<()> {
-        let keeper =
-            self.state.current_mut().ok_or_else(|| Error::NoOpenVault)?;
-        keeper.create_search_index().await?;
-        Ok(())
-    }
-    */
-
     /// Import the vaults for a new account.
     pub async fn import_new_account(
         &mut self,
@@ -692,7 +682,8 @@ impl FolderStorage {
     ) -> Result<(SecretId, WriteEvent)> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
-        let (id, event) = keeper.create(meta, secret).await?;
+        let id = SecretId::new_v4();
+        let event = keeper.create(id, meta, secret).await?;
         self.patch(&summary, vec![event.clone()]).await?;
         Ok((id, event))
     }

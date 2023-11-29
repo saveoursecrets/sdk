@@ -253,16 +253,17 @@ impl Gatekeeper {
     /// Add a secret to the vault.
     pub async fn create(
         &mut self,
+        id: Uuid,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<(SecretId, WriteEvent)> {
+    ) -> Result<WriteEvent> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
         self.enforce_shared_readonly(private_key).await?;
 
         let vault_id = *self.vault().id();
-        let id = Uuid::new_v4();
+        //let id = Uuid::new_v4();
 
         let meta_blob = encode(&secret_meta).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
@@ -293,7 +294,7 @@ impl Gatekeeper {
         //let mut writer = self.index.write().await;
         //writer.add(&vault_id, &id, secret_meta, &secret);
 
-        Ok((id, result))
+        Ok(result)
     }
 
     /// Get a secret and it's meta data from the vault.
@@ -498,8 +499,8 @@ mod tests {
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        let (_, event) =
-            keeper.create(secret_meta.clone(), secret.clone()).await?;
+        let event =
+            keeper.create(SecretId::new_v4(), secret_meta.clone(), secret.clone()).await?;
         if let WriteEvent::CreateSecret(secret_uuid, _) = event {
             let (saved_secret_meta, saved_secret) =
                 keeper.read_secret(&secret_uuid, None, None).await?.unwrap();
@@ -543,9 +544,10 @@ mod tests {
             user_data: Default::default(),
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
-
-        let (id, event) =
-            keeper.create(secret_meta.clone(), secret.clone()).await?;
+        
+        let id = SecretId::new_v4();
+        let event =
+            keeper.create(id, secret_meta.clone(), secret.clone()).await?;
 
         if let WriteEvent::CreateSecret(secret_uuid, _) = event {
             let (saved_secret_meta, saved_secret) =

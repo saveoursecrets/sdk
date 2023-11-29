@@ -488,7 +488,7 @@ impl SearchIndex {
         &self,
         vault_id: &VaultId,
         id: &SecretId,
-        meta: SecretMeta,
+        meta: &SecretMeta,
         secret: &Secret,
     ) -> Option<(DocumentKey, Document)> {
         // Prevent duplicates
@@ -498,7 +498,7 @@ impl SearchIndex {
             let doc = Document {
                 vault_id: *vault_id,
                 secret_id: *id,
-                meta,
+                meta: meta.clone(),
                 extra: secret.into(),
             };
 
@@ -515,6 +515,28 @@ impl SearchIndex {
             None
         }
     }
+    
+    /// Commit a prepared key and document.
+    pub fn commit(&mut self, doc: Option<(DocumentKey, Document)>) {
+        // Prevent duplicates
+        if let Some((key, doc)) = doc {
+            let doc = self.documents.entry(key).or_insert(doc);
+
+            self.index.add_document(
+                &[label_extract, tags_extract],
+                tokenizer,
+                (doc.vault_id, doc.secret_id),
+                doc,
+            );
+
+            self.statistics.count.add(
+                doc.vault_id,
+                doc.meta().kind().into(),
+                doc.meta().tags(),
+                doc.meta().favorite(),
+            );
+        }
+    }
 
     /// Add a document to the index.
     pub fn add(
@@ -524,26 +546,8 @@ impl SearchIndex {
         meta: SecretMeta,
         secret: &Secret,
     ) {
-        let data = self.prepare(vault_id, id, meta, secret);
-
-        // Prevent duplicates
-        if let Some((key, doc)) = data {
-            let doc = self.documents.entry(key).or_insert(doc);
-
-            self.index.add_document(
-                &[label_extract, tags_extract],
-                tokenizer,
-                (*vault_id, *id),
-                doc,
-            );
-
-            self.statistics.count.add(
-                *vault_id,
-                doc.meta().kind().into(),
-                doc.meta().tags(),
-                doc.meta().favorite(),
-            );
-        }
+        let data = self.prepare(vault_id, id, &meta, secret);
+        self.commit(data);
     }
 
     /// Update a document in the index.

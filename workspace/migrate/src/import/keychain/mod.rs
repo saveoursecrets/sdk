@@ -23,7 +23,7 @@ use sos_sdk::{
     account::search::SearchIndex,
     crypto::AccessKey,
     vault::{
-        secret::{Secret, SecretMeta},
+        secret::{Secret, SecretMeta, SecretId},
         Gatekeeper, Vault,
     },
 };
@@ -189,8 +189,7 @@ impl Convert for KeychainImport {
                         };
 
                         let meta = SecretMeta::new(label, secret.kind());
-
-                        keeper.create(meta, secret).await?;
+                        keeper.create(SecretId::new_v4(), meta, secret).await?;
                     } else if let Some((_, attr_account)) = entry
                         .find_attribute_by_name(
                             AttributeName::SecAccountItemAttr,
@@ -205,8 +204,7 @@ impl Convert for KeychainImport {
                         };
 
                         let meta = SecretMeta::new(label, secret.kind());
-
-                        keeper.create(meta, secret).await?;
+                        keeper.create(SecretId::new_v4(), meta, secret).await?;
                     }
                 }
             }
