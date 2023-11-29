@@ -2,7 +2,10 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::{hashmap, hashset};
 use sos_net::sdk::{
-    account::{search::DocumentView, LocalAccount, UserPaths},
+    account::{
+        search::{ArchiveFilter, DocumentView, QueryFilter},
+        LocalAccount, UserPaths,
+    },
     passwd::diceware::generate_passphrase,
     vault::secret::{IdentityKind, SecretType},
 };
@@ -157,16 +160,52 @@ async fn integration_search() -> Result<()> {
         .await?;
     assert_eq!(14, documents.len());
 
-    // Find by tags 
+    // Find by tags
     let documents = account
         .index()?
         .query_view(vec![DocumentView::Tags(vec!["notes".to_owned()])], None)
         .await?;
     assert_eq!(1, documents.len());
 
-    let documents = account.index()?.query_map(
-        "log", Default::default()).await?;
+    // Gets the two login secrets, "login" and "alt-login"
+    let documents = account
+        .index()?
+        .query_map("log", Default::default())
+        .await?;
     assert_eq!(2, documents.len());
+
+    // Just the "login" secret as we filter by folder
+    let documents = account
+        .index()?
+        .query_map(
+            "log",
+            QueryFilter {
+                folders: vec![*default_folder.id()],
+                ..Default::default()
+            },
+        )
+        .await?;
+    assert_eq!(1, documents.len());
+
+    // Gets the "age" and "page" secrets
+    let documents = account
+        .index()?
+        .query_map("age", Default::default())
+        .await?;
+    assert_eq!(2, documents.len());
+
+    // Just the "page" secret as we filter by type
+    let documents = account
+        .index()?
+        .query_map(
+            "age",
+            QueryFilter {
+                types: vec![SecretType::Page],
+                ..Default::default()
+            },
+        )
+        .await?;
+    assert_eq!(1, documents.len());
 
     println!("{:#?}", documents.len());
 
