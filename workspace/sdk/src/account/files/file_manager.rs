@@ -8,9 +8,7 @@ use crate::{
         password::DelegatedPassword,
     },
     vault::{
-        secret::{
-            FileContent, Secret, SecretId, SecretRow, UserData,
-        },
+        secret::{FileContent, Secret, SecretId, SecretRow, UserData},
         Summary, VaultId,
     },
     vfs, Error, Result,
@@ -519,7 +517,8 @@ impl<D> Account<D> {
         };
 
         if changed {
-            let secret_data = SecretRow::new(id, secret_data.meta, new_secret);
+            let secret_data =
+                SecretRow::new(id, secret_data.meta, new_secret);
             // Update with new checksum(s)
             self.write_secret(&id, secret_data, Some(summary.clone()), false)
                 .await?;

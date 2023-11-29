@@ -13,7 +13,7 @@ use sos_sdk::{
     mpc::generate_keypair,
     signer::ecdsa::Address,
     vault::{
-        secret::{Secret, SecretRow, SecretId, SecretMeta},
+        secret::{Secret, SecretId, SecretMeta, SecretRow},
         Summary, VaultId,
     },
     vfs,
@@ -29,7 +29,7 @@ use tracing::{span, Level};
 use crate::client::WebSocketHandle;
 
 #[cfg(feature = "device")]
-use super::devices::DeviceManager;
+use super::device::DeviceManager;
 
 use super::sync::{SyncHandler, SyncHandlerData};
 use crate::client::{

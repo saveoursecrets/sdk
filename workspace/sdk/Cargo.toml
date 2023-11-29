@@ -18,6 +18,7 @@ mem-fs = ["sos-vfs/mem-fs"]
 test-utils = ["dep:anyhow"]
 recovery = ["dep:vsss-rs"]
 contacts = []
+device = []
 security-report = []
 
 [dependencies]

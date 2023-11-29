@@ -1,13 +1,15 @@
 //! Create and manage local accounts.
 mod account;
+mod accounts_list;
 #[cfg(feature = "archive")]
 pub mod archive;
 mod builder;
 #[cfg(feature = "contacts")]
 pub mod contacts;
+#[cfg(feature = "device")]
+mod device;
 pub mod files;
 mod identity;
-mod local;
 mod local_storage;
 mod login;
 mod password;
@@ -21,11 +23,13 @@ pub use account::{
     AccessOptions, Account, AccountData, AccountHandler, DetachedView,
     LocalAccount,
 };
+pub use accounts_list::{AccountInfo, AccountRef, AccountsList};
 pub use builder::{AccountBuilder, NewAccount};
+#[cfg(feature = "device")]
+pub use device::DeviceSigner;
 pub use identity::AccountStatus;
-pub use local::{AccountInfo, AccountRef, AccountsList};
-pub use login::{AuthenticatedUser, DeviceSigner};
 pub use local_storage::FolderStorage;
+pub use login::AuthenticatedUser;
 pub use paths::UserPaths;
 
 /*

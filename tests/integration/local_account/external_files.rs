@@ -5,7 +5,7 @@ use sos_net::{
         account::{files::FileProgress, AccessOptions},
         hex,
         vault::{
-            secret::{FileContent, Secret, SecretRow, SecretId},
+            secret::{FileContent, Secret, SecretId, SecretRow},
             Summary,
         },
         vfs,
@@ -658,8 +658,10 @@ async fn assert_attach_file_secret(
         let (meta, secret, _) = mock::file_text_secret()?;
         let new_attachment_id = SecretId::new_v4();
         let attachment = SecretRow::new(new_attachment_id, meta, secret);
-        updated_secret_data.secret_mut().insert_attachment(0, attachment);
-    
+        updated_secret_data
+            .secret_mut()
+            .insert_attachment(0, attachment);
+
         let (_, meta, secret) = updated_secret_data.clone().into();
         account
             .update_secret(
@@ -679,7 +681,10 @@ async fn assert_attach_file_secret(
 
         let (mut insert_attachment_secret_data, _) =
             account.read_secret(&id, Some(folder.clone())).await?;
-        assert_eq!(2, insert_attachment_secret_data.secret().user_data().len());
+        assert_eq!(
+            2,
+            insert_attachment_secret_data.secret().user_data().len()
+        );
 
         let inserted_attachment = insert_attachment_secret_data
             .secret()
@@ -722,7 +727,9 @@ async fn assert_attach_file_secret(
         };
 
         // Delete the original attachment (index 1)
-        insert_attachment_secret_data.secret_mut().detach(&attachment_id);
+        insert_attachment_secret_data
+            .secret_mut()
+            .detach(&attachment_id);
 
         let (_, meta, secret) = insert_attachment_secret_data.into();
         account
@@ -743,7 +750,10 @@ async fn assert_attach_file_secret(
 
         let (delete_attachment_secret_data, _) =
             account.read_secret(&id, Some(folder.clone())).await?;
-        assert_eq!(1, delete_attachment_secret_data.secret().user_data().len());
+        assert_eq!(
+            1,
+            delete_attachment_secret_data.secret().user_data().len()
+        );
 
         let updated_inserted_attachment = delete_attachment_secret_data
             .secret()

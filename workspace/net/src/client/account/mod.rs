@@ -5,7 +5,7 @@ mod archive;
 #[cfg(feature = "contacts")]
 mod contacts;
 #[cfg(feature = "device")]
-mod devices;
+mod device;
 #[cfg(feature = "listen")]
 mod listen;
 mod macros;
@@ -18,7 +18,7 @@ mod security_report;
 mod sync;
 
 #[cfg(feature = "device")]
-pub use devices::DeviceManager;
+pub use device::DeviceManager;
 
 pub use network_account::NetworkAccount;
 pub use remote::{Origin, Remote, RemoteBridge, Remotes};

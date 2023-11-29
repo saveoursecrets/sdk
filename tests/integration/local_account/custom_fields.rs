@@ -3,12 +3,12 @@ use anyhow::Result;
 use sos_net::sdk::{
     account::{LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
-    vault::secret::{SecretId, SecretRow}
+    vault::secret::{SecretId, SecretRow},
 };
 
 const TEST_ID: &str = "custom_fields";
 
-/// Tests modifiying custom fields. Custom fields are 
+/// Tests modifiying custom fields. Custom fields are
 /// nested secrets included in a secret's user data.
 #[tokio::test]
 async fn integration_custom_fields() -> Result<()> {
@@ -53,13 +53,15 @@ async fn integration_custom_fields() -> Result<()> {
     // Create a secret to add as a custom field
     let (field_meta, field_secret) =
         mock::password("password_field", generate_passphrase()?.0);
-    
+
     // Add the custom field
     let mut user_data = data.secret_mut().user_data_mut();
-    user_data.push(
-        SecretRow::new(
-            SecretId::new_v4(), field_meta, field_secret));
-    
+    user_data.push(SecretRow::new(
+        SecretId::new_v4(),
+        field_meta,
+        field_secret,
+    ));
+
     /*
     account
         .update_secret(

@@ -1319,7 +1319,8 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
             AttachCommand::Add { cmd } => match cmd {
                 AttachAddCommand::File { name, path, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_attachment_by_name(&name).is_some() {
+                    if data.secret().find_attachment_by_name(&name).is_some()
+                    {
                         return Err(Error::AttachmentExists(name));
                     }
 
@@ -1338,7 +1339,8 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
                 AttachAddCommand::Note { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_attachment_by_name(&name).is_some() {
+                    if data.secret().find_attachment_by_name(&name).is_some()
+                    {
                         return Err(Error::AttachmentExists(name));
                     }
 
@@ -1354,7 +1356,8 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
                 AttachAddCommand::Link { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_attachment_by_name(&name).is_some() {
+                    if data.secret().find_attachment_by_name(&name).is_some()
+                    {
                         return Err(Error::AttachmentExists(name));
                     }
 
@@ -1370,7 +1373,8 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
                 AttachAddCommand::Password { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_attachment_by_name(&name).is_some() {
+                    if data.secret().find_attachment_by_name(&name).is_some()
+                    {
                         return Err(Error::AttachmentExists(name));
                     }
 

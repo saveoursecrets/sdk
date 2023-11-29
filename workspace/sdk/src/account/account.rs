@@ -24,7 +24,7 @@ use crate::{
     },
     signer::ecdsa::Address,
     vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretType, SecretRow},
+        secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
         Gatekeeper, Summary, Vault, VaultId,
     },
     vfs, Error, Result, Timestamp,
@@ -1122,10 +1122,7 @@ impl<D> Account<D> {
             self.append_audit_logs(vec![audit_event]).await?;
         }
 
-        Ok((
-            SecretRow::new(*secret_id, meta, secret),
-            read_event,
-        ))
+        Ok((SecretRow::new(*secret_id, meta, secret), read_event))
     }
 
     /// Update a file secret.

@@ -1,13 +1,4 @@
-//! Account manager provides utility functions for
-//! creating and managing local accounts.
-use std::sync::Arc;
-
-use tokio::sync::RwLock;
-
-use tracing::{span, Level};
-use urn::Urn;
-use web3_address::ethereum::Address;
-
+//! Provides functions for unlocking an identity vault.
 use crate::{
     account::{
         password::DelegatedPassword, search::SearchIndex, AccountInfo,
@@ -18,61 +9,34 @@ use crate::{
     encode,
     events::{AuditEvent, Event, EventKind},
     signer::{
-        ed25519::{self, BoxedEd25519Signer, VerifyingKey},
+        ed25519,
         Signer,
     },
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
-        Gatekeeper, Summary, Vault, VaultAccess, VaultBuilder, VaultFlags,
+        Gatekeeper, Vault, VaultAccess, VaultBuilder, VaultFlags,
         VaultWriter,
     },
     vfs,
 };
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tracing::{span, Level};
+use urn::Urn;
+use web3_address::ethereum::Address;
 
-use secrecy::{ExposeSecret, SecretString};
+#[cfg(feature = "device")]
+use crate::account::DeviceSigner;
 
 use super::identity::{Identity, UserIdentity};
-
 use crate::{Error, Result};
+use secrecy::{ExposeSecret, SecretString};
 
-/// Encapsulate device specific information for an account.
-#[derive(Clone)]
-pub struct DeviceSigner {
-    /// The vault containing device specific keys.
-    summary: Summary,
-    /// The signing key for this device.
-    signer: BoxedEd25519Signer,
-    /// The id of this device; Base58 encoded device public key.
-    public_id: String,
-}
-
-impl DeviceSigner {
-    /// Summary of the vault containing the device
-    /// signing key.
-    pub fn summary(&self) -> &Summary {
-        &self.summary
-    }
-
-    /// Device signing key.
-    pub fn signer(&self) -> &BoxedEd25519Signer {
-        &self.signer
-    }
-
-    /// Identifier of the device public key.
-    pub fn public_id(&self) -> &str {
-        &self.public_id
-    }
-
-    /// Get the verifying key.
-    pub fn verifying_key(&self) -> VerifyingKey {
-        self.signer.verifying_key()
-    }
-}
-
-/// Authenticated user, account and device information.
+/// Authenticated user information.
 pub struct AuthenticatedUser {
     account: AccountInfo,
     identity: UserIdentity,
+    #[cfg(feature = "device")]
     device: DeviceSigner,
 }
 
@@ -88,6 +52,7 @@ impl AuthenticatedUser {
     }
 
     /// The device signing key.
+    #[cfg(feature = "device")]
     pub fn device(&self) -> &DeviceSigner {
         &self.device
     }
@@ -154,7 +119,7 @@ impl AuthenticatedUser {
 
 /// Login to an account.
 #[derive(Default)]
-pub struct Login;
+pub(super) struct Login;
 
 impl Login {
     /// Sign in a user.
@@ -184,12 +149,14 @@ impl Login {
         tracing::debug!("identity verified");
 
         // Lazily create or retrieve a device specific signing key
+        #[cfg(feature = "device")]
         let device =
             Self::ensure_device_vault(address, paths, &mut identity).await?;
 
         Ok(AuthenticatedUser {
             account,
             identity,
+            #[cfg(feature = "device")]
             device,
         })
     }
@@ -197,6 +164,7 @@ impl Login {
     /// Ensure that the account has a vault for storing device specific
     /// information such as the private key used to identify a machine
     /// on a peer to peer network.
+    #[cfg(feature = "device")]
     async fn ensure_device_vault(
         _address: &Address,
         paths: &UserPaths,

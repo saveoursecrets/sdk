@@ -41,6 +41,7 @@ migrate = ["sos-migrate"]
 device = [
   "dep:if-addrs",
   "dep:whoami",
+  "sos-sdk/device",
 ]
 security-report = ["sos-sdk/security-report"]
 mem-fs = ["sos-sdk/mem-fs"]
