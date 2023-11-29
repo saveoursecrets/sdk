@@ -1319,8 +1319,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
             AttachCommand::Add { cmd } => match cmd {
                 AttachAddCommand::File { name, path, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_field_by_name(&name).is_some()
-                    {
+                    if data.secret().find_field_by_name(&name).is_some() {
                         return Err(Error::FieldExists(name));
                     }
 
@@ -1339,8 +1338,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
                 AttachAddCommand::Note { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_field_by_name(&name).is_some()
-                    {
+                    if data.secret().find_field_by_name(&name).is_some() {
                         return Err(Error::FieldExists(name));
                     }
 
@@ -1356,8 +1354,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
                 AttachAddCommand::Link { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_field_by_name(&name).is_some()
-                    {
+                    if data.secret().find_field_by_name(&name).is_some() {
                         return Err(Error::FieldExists(name));
                     }
 
@@ -1373,8 +1370,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
                 AttachAddCommand::Password { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret().find_field_by_name(&name).is_some()
-                    {
+                    if data.secret().find_field_by_name(&name).is_some() {
                         return Err(Error::FieldExists(name));
                     }
 
@@ -1391,7 +1387,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
             },
             AttachCommand::Get { attachment, .. } => {
-                let existing = data.secret().find_field(&attachment);
+                let existing = data.secret().find_field_by_ref(&attachment);
                 if let Some(existing) = existing {
                     print_secret(existing.meta(), existing.secret())?;
                     None
@@ -1409,8 +1405,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     return Err(Error::FileExists(file));
                 }
 
-                let existing =
-                    data.secret().find_field(&attachment).cloned();
+                let existing = data.secret().find_field_by_ref(&attachment).cloned();
                 if let Some(existing) = existing {
                     download_file_secret(&resolved, file, existing.into())
                         .await?;
@@ -1420,8 +1415,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
             }
             AttachCommand::Remove { attachment, .. } => {
-                let existing =
-                    data.secret().find_field(&attachment).cloned();
+                let existing = data.secret().find_field_by_ref(&attachment).cloned();
                 if let Some(existing) = existing {
                     data.secret_mut().remove_field(existing.id());
                     Some(data.into())

@@ -1652,8 +1652,8 @@ impl Secret {
     }
 
     /// Attach a custom field to this secret's user data.
-    pub fn add_field(&mut self, attachment: SecretRow) {
-        self.user_data_mut().fields_mut().push(attachment);
+    pub fn add_field(&mut self, field: SecretRow) {
+        self.user_data_mut().fields_mut().push(field);
     }
 
     /// Remove a custom field from this secret's user data.
@@ -1668,12 +1668,12 @@ impl Secret {
     /// # Panics
     ///
     /// Panics if `index > len`.
-    pub fn insert_field(&mut self, index: usize, attachment: SecretRow) {
-        self.user_data_mut().fields_mut().insert(index, attachment);
+    pub fn insert_field(&mut self, index: usize, field: SecretRow) {
+        self.user_data_mut().fields_mut().insert(index, field);
     }
 
     /// Find a custom field by reference.
-    pub fn find_field(&self, target: &SecretRef) -> Option<&SecretRow> {
+    pub fn find_field_by_ref(&self, target: &SecretRef) -> Option<&SecretRow> {
         match target {
             SecretRef::Id(id) => self.find_field_by_id(id),
             SecretRef::Name(name) => self.find_field_by_name(name),
@@ -1685,7 +1685,7 @@ impl Secret {
         self.user_data().fields().iter().find(|row| row.id() == id)
     }
 
-    /// Find an attachment by name.
+    /// Find a custom field by name.
     pub fn find_field_by_name(&self, label: &str) -> Option<&SecretRow> {
         self.user_data()
             .fields()
@@ -1694,21 +1694,20 @@ impl Secret {
     }
 
     /// Update a custom field secret.
-    pub fn update_field(&mut self, attachment: SecretRow) -> Result<()> {
+    pub fn update_field(&mut self, field: SecretRow) -> Result<()> {
         let existing = self
             .user_data_mut()
             .fields_mut()
             .iter_mut()
-            .find(|row| row.id() == attachment.id());
+            .find(|row| row.id() == field.id());
 
         if let Some(existing) = existing {
-            *existing = attachment;
+            *existing = field;
             Ok(())
         } else {
-            Err(Error::FieldNotFound(*attachment.id()))
+            Err(Error::FieldNotFound(*field.id()))
         }
     }
-
 }
 
 impl PartialEq for Secret {

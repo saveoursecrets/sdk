@@ -1,11 +1,7 @@
 //! Types for device support.
 use crate::{
-    signer::{
-        ed25519::{BoxedEd25519Signer, VerifyingKey},
-    },
-    vault::{
-        Summary,
-    },
+    signer::ed25519::{BoxedEd25519Signer, VerifyingKey},
+    vault::Summary,
 };
 
 /// Encapsulate device specific information for an account.

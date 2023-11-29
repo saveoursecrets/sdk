@@ -658,9 +658,7 @@ async fn assert_attach_file_secret(
         let (meta, secret, _) = mock::file_text_secret()?;
         let new_attachment_id = SecretId::new_v4();
         let attachment = SecretRow::new(new_attachment_id, meta, secret);
-        updated_secret_data
-            .secret_mut()
-            .insert_field(0, attachment);
+        updated_secret_data.secret_mut().insert_field(0, attachment);
 
         let (_, meta, secret) = updated_secret_data.clone().into();
         account
@@ -681,10 +679,7 @@ async fn assert_attach_file_secret(
 
         let (mut insert_field_secret_data, _) =
             account.read_secret(&id, Some(folder.clone())).await?;
-        assert_eq!(
-            2,
-            insert_field_secret_data.secret().user_data().len()
-        );
+        assert_eq!(2, insert_field_secret_data.secret().user_data().len());
 
         let inserted_attachment = insert_field_secret_data
             .secret()

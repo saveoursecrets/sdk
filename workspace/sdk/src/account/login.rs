@@ -8,10 +8,7 @@ use crate::{
     crypto::AccessKey,
     encode,
     events::{AuditEvent, Event, EventKind},
-    signer::{
-        ed25519,
-        Signer,
-    },
+    signer::{ed25519, Signer},
     vault::{
         secret::{Secret, SecretMeta, SecretSigner},
         Gatekeeper, Vault, VaultAccess, VaultBuilder, VaultFlags,

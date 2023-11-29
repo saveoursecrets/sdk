@@ -138,3 +138,5 @@ Custom fields are implemented as nested secrets so whilst it is technically poss
 It is possible to use any secret type for a custom field but that may be overwhelming from a user experience point of view so we recommend restricting the types available to custom fields, for example, limiting custom fields to notes, links, passwords and files gives a lot of flexibility without offering too many choices.
 
 Some secret types such as *Link* and *Password* are intended to only be used in custom fields.
+
+At the moment custom fields are not included in the search index, we may change this later.
