@@ -247,7 +247,7 @@ impl<D> Account<D> {
         tracing::debug!(address = %new_account.address, "created account");
 
         // Must import the new account before signing in
-        let signer = new_account.user.signer().clone();
+        let signer = new_account.user.identity()?.signer().clone();
         let address = signer.address()?;
         let mut storage =
             FolderStorage::new(address.to_string(), data_dir.clone()).await?;
@@ -280,7 +280,7 @@ impl<D> Account<D> {
         let mut audit_events = Vec::new();
         for event in events {
             let audit_event: AuditEvent =
-                (new_account.user.address(), &event).into();
+                (new_account.address(), &event).into();
             audit_events.push(audit_event);
         }
         owner.append_audit_logs(audit_events).await?;
@@ -1059,11 +1059,26 @@ impl<D> Account<D> {
             }
         }
 
-        let (id, event) = {
+        let id = SecretId::new_v4();
+
+        let index_doc = {
+            let search = self.index()?.search();
+            let index = search.read().await;
+            index.prepare(folder.id(), &id, &meta, &secret)
+        };
+
+        let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.create_secret(meta.clone(), secret.clone()).await?
+            writer.create_secret(id, meta.clone(), secret.clone()).await?
         };
+
+
+        {
+            let search = self.index()?.search();
+            let mut index = search.write().await;
+            index.commit(index_doc)
+        }
 
         let secret_data = SecretRow::new(id, meta, secret);
         let current_folder = {
@@ -1240,11 +1255,27 @@ impl<D> Account<D> {
             }
         }
 
+        let index_doc = {
+            let search = self.index()?.search();
+            let index = search.read().await;
+            index.prepare(
+                folder.id(),
+                &secret_id,
+                secret_data.meta(),
+                secret_data.secret())
+        };
+
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer.update_secret(secret_id, secret_data).await?
         };
+
+        {
+            let search = self.index()?.search();
+            let mut index = search.write().await;
+            index.commit(index_doc)
+        }
 
         let event = Event::Write(*folder.id(), event);
         if audit {
@@ -1375,6 +1406,12 @@ impl<D> Account<D> {
             let mut writer = storage.write().await;
             writer.delete_secret(secret_id).await?
         };
+        
+        {
+            let search = self.index()?.search();
+            let mut writer = search.write().await;
+            writer.remove(folder.id(), secret_id);
+        }
 
         let event = Event::Write(*folder.id(), event);
         if audit {

@@ -20,7 +20,7 @@ use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use web3_address::ethereum::Address;
 
-use super::{identity::PrivateIdentity, AuthenticatedUser};
+use super::AuthenticatedUser;
 
 use secrecy::SecretString;
 
@@ -31,7 +31,7 @@ pub struct NewAccount {
     /// Address of the account signing key.
     pub address: Address,
     /// Identity for the new user.
-    pub user: PrivateIdentity,
+    pub user: AuthenticatedUser,
     /// Default vault.
     pub default_folder: Vault,
     /// Archive vault.
@@ -43,6 +43,11 @@ pub struct NewAccount {
 }
 
 impl NewAccount {
+    /// Account address.
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+
     /// Summary of the default folder.
     pub fn default_folder(&self) -> &Summary {
         self.default_folder.summary()
@@ -272,7 +277,7 @@ impl AccountBuilder {
             reader.vault().clone()
         };
 
-        let user = user.private_identity()?;
+        //let user = user.private_identity()?;
 
         Ok((
             vault,

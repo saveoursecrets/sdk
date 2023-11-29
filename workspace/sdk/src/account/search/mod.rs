@@ -47,8 +47,8 @@ impl AccountSearch {
     }
 
     /// Get a reference to the search index.
-    pub fn search(&self) -> &Arc<RwLock<SearchIndex>> {
-        &self.search_index
+    pub fn search(&self) -> Arc<RwLock<SearchIndex>> {
+        Arc::clone(&self.search_index)
     }
 
     /// Clear the entire search index.

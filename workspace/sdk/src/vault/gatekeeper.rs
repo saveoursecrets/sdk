@@ -263,7 +263,6 @@ impl Gatekeeper {
         self.enforce_shared_readonly(private_key).await?;
 
         let vault_id = *self.vault().id();
-        //let id = Uuid::new_v4();
 
         let meta_blob = encode(&secret_meta).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
@@ -289,10 +288,6 @@ impl Gatekeeper {
             .vault
             .insert(id, commit, VaultEntry(meta_aead, secret_aead))
             .await?;
-
-        // FIXME!!!!
-        //let mut writer = self.index.write().await;
-        //writer.add(&vault_id, &id, secret_meta, &secret);
 
         Ok(result)
     }
@@ -343,18 +338,10 @@ impl Gatekeeper {
                 .await?;
         }
 
-        let event = self
+        Ok(self
             .vault
             .update(id, commit, VaultEntry(meta_aead, secret_aead))
-            .await?;
-
-        //drop(reader);
-
-        // FIXME!!!!
-        //let mut writer = self.index.write().await;
-        //writer.update(&vault_id, id, secret_meta, &secret);
-
-        Ok(event)
+            .await?)
     }
 
     /// Delete a secret and it's meta data from the vault.
@@ -370,43 +357,13 @@ impl Gatekeeper {
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.delete(id).await?;
         }
-        let event = self.vault.delete(id).await?;
-
-        // FIXME!!!
-        //let mut writer = self.index.write().await;
-        //writer.remove(&vault_id, id);
-
-        Ok(event)
+        Ok(self.vault.delete(id).await?)
     }
 
     /// Verify an encryption passphrase.
     pub async fn verify(&self, key: &AccessKey) -> Result<()> {
         self.vault.verify(key).await
     }
-
-    /*
-    /// Add the meta data for the vault entries to a search index..
-    #[deprecated(note = "Use SeachIndex::add_folder() instead")]
-    pub async fn create_search_index(&mut self) -> Result<()> {
-        let private_key =
-            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
-        let mut writer = self.index.write().await;
-        for (id, value) in self.vault.iter() {
-            let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
-                value;
-            let meta_blob =
-                self.vault.decrypt(private_key, meta_aead).await?;
-            let secret_meta: SecretMeta = decode(&meta_blob).await?;
-
-            let secret_blob =
-                self.vault.decrypt(private_key, secret_aead).await?;
-            let secret: Secret = decode(&secret_blob).await?;
-
-            writer.add(self.vault().id(), id, secret_meta, &secret);
-        }
-        Ok(())
-    }
-    */
 
     /// Unlock the vault by setting the private key from a passphrase.
     ///

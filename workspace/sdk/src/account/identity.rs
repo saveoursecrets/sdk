@@ -315,14 +315,6 @@ impl AuthenticatedUser {
             index: Arc::new(RwLock::new(index)),
         });
 
-        // Lazily create or retrieve a device specific signing key
-        #[cfg(feature = "device")]
-        {
-            let device = self.ensure_device_vault().await?;
-            let identity = self.identity.as_mut().unwrap();
-            identity.device = Some(device);
-        }
-
         Ok(())
     }
 
@@ -348,6 +340,14 @@ impl AuthenticatedUser {
         self.login(identity_path, passphrase).await?;
 
         tracing::debug!("identity verified");
+
+        // Lazily create or retrieve a device specific signing key
+        #[cfg(feature = "device")]
+        {
+            let device = self.ensure_device_vault().await?;
+            let identity = self.identity.as_mut().unwrap();
+            identity.device = Some(device);
+        }
 
         self.account = Some(account);
 

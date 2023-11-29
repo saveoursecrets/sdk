@@ -4,7 +4,7 @@ use secrecy::ExposeSecret;
 use sos_net::sdk::{
     account::FolderStorage,
     signer::{ecdsa::SingleParty, Signer},
-    vault::secret::{Secret, SecretRow},
+    vault::secret::{Secret, SecretRow, SecretId},
 };
 use tempfile::tempdir;
 
@@ -54,7 +54,8 @@ async fn integration_compact_folder() -> Result<()> {
         .await?;
 
     let (meta, secret) = mock_note("Test Note", "Mock note content.");
-    let (id, _) = storage.create_secret(meta, secret).await?;
+    let id = SecretId::new_v4();
+    storage.create_secret(id, meta, secret).await?;
 
     // Commit for secret creation
     commit_count!(storage, &summary, 3);
@@ -79,7 +80,8 @@ async fn integration_compact_folder() -> Result<()> {
 
     // Create another secret
     let (meta, secret) = mock_note("Alt Note", "Another mock note.");
-    let (alt_id, _) = storage.create_secret(meta, secret).await?;
+    let alt_id = SecretId::new_v4();
+    storage.create_secret(alt_id, meta, secret).await?;
 
     // Commit for secret creation
     commit_count!(storage, &summary, 5);

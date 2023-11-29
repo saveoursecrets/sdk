@@ -39,6 +39,8 @@ async fn integration_search() -> Result<()> {
     account.open_folder(&default_folder).await?;
     let archive_folder = account.archive_folder().await.unwrap();
 
+    println!("DEFAULT {}", default_folder.id());
+
     let default_folder_docs = vec![
         mock::login("login", TEST_ID, generate_passphrase()?.0),
         mock::note("note", "secret"),
@@ -92,6 +94,9 @@ async fn integration_search() -> Result<()> {
     let folder_name = "folder_name";
     let (folder, _, _, _) =
         account.create_folder(folder_name.to_string()).await?;
+
+    println!("FOLDER {}", folder.id());
+
     account.open_folder(&folder).await?;
     account.insert(new_folder_docs).await?;
 

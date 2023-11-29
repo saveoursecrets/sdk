@@ -677,15 +677,15 @@ impl FolderStorage {
     /// Create a secret in the currently open vault.
     pub async fn create_secret(
         &mut self,
+        id: SecretId,
         meta: SecretMeta,
         secret: Secret,
-    ) -> Result<(SecretId, WriteEvent)> {
+    ) -> Result<WriteEvent> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
-        let id = SecretId::new_v4();
         let event = keeper.create(id, meta, secret).await?;
         self.patch(&summary, vec![event.clone()]).await?;
-        Ok((id, event))
+        Ok(event)
     }
 
     /// Read a secret in the currently open vault.
