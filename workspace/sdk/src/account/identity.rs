@@ -66,11 +66,6 @@ impl AuthenticatedUser {
         }
     }
 
-    /// Take the private identity from this user.
-    pub fn private_identity(mut self) -> Result<PrivateIdentity> {
-        self.identity.take().ok_or(Error::NotAuthenticated)
-    }
-
     /// Account information.
     pub fn account(&self) -> Result<&AccountInfo> {
         self.account.as_ref().ok_or(Error::NotAuthenticated)
@@ -337,6 +332,8 @@ impl AuthenticatedUser {
             .find(|a| a.address() == address)
             .ok_or_else(|| Error::NoAccount(address.to_string()))?;
 
+        println!("Sign in listed accounts...");
+
         let identity_path = self.paths.identity_vault();
 
         tracing::debug!(identity_path = ?identity_path);
@@ -354,6 +351,12 @@ impl AuthenticatedUser {
         }
 
         self.account = Some(account);
+
+
+        {
+            let reader = self.identity.as_ref().unwrap().index.read().await;
+            println!("IDENT DOCS {}", reader.documents().len());
+        }
 
         Ok(())
     }
