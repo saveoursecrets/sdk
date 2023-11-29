@@ -759,7 +759,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let mut owner = resolved.user.write().await;
                 let (data, _) =
                     owner.read_secret(&resolved.secret_id, None).await?;
-                print_secret(&data.meta, &data.secret)?;
+                print_secret(data.meta(), data.secret())?;
             }
         }
         Command::Copy {
@@ -777,7 +777,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let mut owner = resolved.user.write().await;
                 let (data, _) =
                     owner.read_secret(&resolved.secret_id, None).await?;
-                let copied = copy_secret_text(&data.secret)?;
+                let copied = copy_secret_text(data.secret())?;
                 if copied {
                     println!("Copied to clipboard ✓");
                 } else {
@@ -921,9 +921,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                     owner.read_secret(&resolved.secret_id, None).await?;
 
                 let result =
-                    if let Secret::File { content, .. } = &data.secret {
+                    if let Secret::File { content, .. } = data.secret() {
                         if content.mime().starts_with("text/") {
-                            editor::edit(&data.secret).await?
+                            editor::edit(data.secret()).await?
                         } else {
                             println!(
                                 "Binary {} {} {}",
@@ -935,14 +935,14 @@ pub async fn run(cmd: Command) -> Result<()> {
                             Cow::Owned(read_file_secret(&file_path).await?)
                         }
                     } else {
-                        editor::edit(&data.secret).await?
+                        editor::edit(data.secret()).await?
                     };
 
                 if let Cow::Owned(edited_secret) = result {
                     owner
                         .update_secret(
                             &resolved.secret_id,
-                            data.meta,
+                            data.into(),
                             Some(edited_secret),
                             Default::default(),
                             None,
@@ -1095,7 +1095,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     (true, Some(text))
                 } else {
                     let comment_text =
-                        data.secret.user_data().comment().unwrap_or("");
+                        data.secret().user_data().comment().unwrap_or("");
                     match editor::edit_text(comment_text).await? {
                         Cow::Owned(s) => (true, Some(s)),
                         Cow::Borrowed(_) => {
@@ -1116,13 +1116,13 @@ pub async fn run(cmd: Command) -> Result<()> {
                     } else {
                         None
                     };
-                    data.secret.user_data_mut().set_comment(value);
+                    data.secret_mut().user_data_mut().set_comment(value);
                     let mut owner = resolved.user.write().await;
                     owner
                         .update_secret(
                             &resolved.secret_id,
                             resolved.meta,
-                            Some(data.secret),
+                            Some(data.into()),
                             Default::default(),
                             None,
                         )
@@ -1156,7 +1156,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     data
                 };
 
-                download_file_secret(&resolved, file, data.secret).await?;
+                download_file_secret(&resolved, file, data.into()).await?;
             }
         }
         Command::Archive {
@@ -1301,7 +1301,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
         let new_secret = match cmd {
             AttachCommand::List { verbose, .. } => {
                 for (index, row) in
-                    data.secret.user_data().fields().iter().enumerate()
+                    data.secret().user_data().fields().iter().enumerate()
                 {
                     if verbose {
                         println!(
@@ -1319,7 +1319,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
             AttachCommand::Add { cmd } => match cmd {
                 AttachAddCommand::File { name, path, .. } => {
                     let name = read_name(name)?;
-                    if data.secret.find_attachment_by_name(&name).is_some() {
+                    if data.secret().find_attachment_by_name(&name).is_some() {
                         return Err(Error::AttachmentExists(name));
                     }
 
@@ -1333,12 +1333,12 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     let meta = SecretMeta::new(name, secret.kind());
                     let attachment =
                         SecretRow::new(SecretId::new_v4(), meta, secret);
-                    data.secret.attach(attachment);
-                    Some(data.secret)
+                    data.secret_mut().attach(attachment);
+                    Some(data.into())
                 }
                 AttachAddCommand::Note { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret.find_attachment_by_name(&name).is_some() {
+                    if data.secret().find_attachment_by_name(&name).is_some() {
                         return Err(Error::AttachmentExists(name));
                     }
 
@@ -1346,15 +1346,15 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     {
                         let attachment =
                             SecretRow::new(SecretId::new_v4(), meta, secret);
-                        data.secret.attach(attachment);
-                        Some(data.secret)
+                        data.secret_mut().attach(attachment);
+                        Some(data.into())
                     } else {
                         None
                     }
                 }
                 AttachAddCommand::Link { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret.find_attachment_by_name(&name).is_some() {
+                    if data.secret().find_attachment_by_name(&name).is_some() {
                         return Err(Error::AttachmentExists(name));
                     }
 
@@ -1362,15 +1362,15 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     {
                         let attachment =
                             SecretRow::new(SecretId::new_v4(), meta, secret);
-                        data.secret.attach(attachment);
-                        Some(data.secret)
+                        data.secret_mut().attach(attachment);
+                        Some(data.into())
                     } else {
                         None
                     }
                 }
                 AttachAddCommand::Password { name, .. } => {
                     let name = read_name(name)?;
-                    if data.secret.find_attachment_by_name(&name).is_some() {
+                    if data.secret().find_attachment_by_name(&name).is_some() {
                         return Err(Error::AttachmentExists(name));
                     }
 
@@ -1379,15 +1379,15 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     {
                         let attachment =
                             SecretRow::new(SecretId::new_v4(), meta, secret);
-                        data.secret.attach(attachment);
-                        Some(data.secret)
+                        data.secret_mut().attach(attachment);
+                        Some(data.into())
                     } else {
                         None
                     }
                 }
             },
             AttachCommand::Get { attachment, .. } => {
-                let existing = data.secret.find_attachment(&attachment);
+                let existing = data.secret().find_attachment(&attachment);
                 if let Some(existing) = existing {
                     print_secret(existing.meta(), existing.secret())?;
                     None
@@ -1406,7 +1406,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
 
                 let existing =
-                    data.secret.find_attachment(&attachment).cloned();
+                    data.secret().find_attachment(&attachment).cloned();
                 if let Some(existing) = existing {
                     download_file_secret(&resolved, file, existing.into())
                         .await?;
@@ -1417,10 +1417,10 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
             }
             AttachCommand::Remove { attachment, .. } => {
                 let existing =
-                    data.secret.find_attachment(&attachment).cloned();
+                    data.secret().find_attachment(&attachment).cloned();
                 if let Some(existing) = existing {
-                    data.secret.detach(existing.id());
-                    Some(data.secret)
+                    data.secret_mut().detach(existing.id());
+                    Some(data.into())
                 } else {
                     return Err(Error::AttachmentNotFound(attachment));
                 }

@@ -33,17 +33,6 @@ use crate::{
     Error, Result, Timestamp,
 };
 
-/// Secret with meta data and possibly an identifier.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct SecretData {
-    /// Secret identifier.
-    pub id: Option<SecretId>,
-    /// Secret meta data.
-    pub meta: SecretMeta,
-    /// Secret information.
-    pub secret: Secret,
-}
-
 bitflags! {
     /// Bit flags for a secret.
     #[derive(Default, Serialize, Deserialize)]
@@ -623,6 +612,12 @@ impl SecretRow {
 impl From<SecretRow> for (SecretId, SecretMeta, Secret) {
     fn from(value: SecretRow) -> Self {
         (value.id, value.meta, value.secret)
+    }
+}
+
+impl From<SecretRow> for SecretMeta {
+    fn from(value: SecretRow) -> Self {
+        value.meta
     }
 }
 

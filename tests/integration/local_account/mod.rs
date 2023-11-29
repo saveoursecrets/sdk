@@ -4,6 +4,7 @@ mod archive_unarchive;
 mod change_password;
 mod compact_folder;
 mod contacts;
+mod custom_fields;
 mod external_files;
 mod folder_lifecycle;
 mod folder_storage;

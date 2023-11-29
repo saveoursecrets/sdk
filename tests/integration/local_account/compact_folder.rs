@@ -5,7 +5,7 @@ use sos_net::sdk::{
     account::FolderStorage,
     events::WriteEvent,
     signer::{ecdsa::SingleParty, Signer},
-    vault::secret::{Secret, SecretData},
+    vault::secret::{Secret, SecretRow},
 };
 use tempfile::tempdir;
 
@@ -77,12 +77,7 @@ async fn integration_compact_folder() -> Result<()> {
 
     let (_, updated_secret) = mock_note("", "New mock note content.");
 
-    let secret_data = SecretData {
-        id: Some(id),
-        meta,
-        secret: updated_secret,
-    };
-
+    let secret_data = SecretRow::new(id, meta, updated_secret);
     let _event = storage.update_secret(&id, secret_data).await?;
 
     // Commit for secret edit

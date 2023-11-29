@@ -13,7 +13,7 @@ use sos_sdk::{
     mpc::generate_keypair,
     signer::ecdsa::Address,
     vault::{
-        secret::{Secret, SecretData, SecretId, SecretMeta},
+        secret::{Secret, SecretRow, SecretId, SecretMeta},
         Summary, VaultId,
     },
     vfs,
@@ -471,7 +471,7 @@ impl NetworkAccount {
         &mut self,
         secret_id: &SecretId,
         folder: Option<Summary>,
-    ) -> Result<(SecretData, ReadEvent)> {
+    ) -> Result<(SecretRow, ReadEvent)> {
         Ok(self.account.read_secret(secret_id, folder).await?)
     }
 

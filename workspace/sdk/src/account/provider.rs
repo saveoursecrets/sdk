@@ -11,7 +11,7 @@ use crate::{
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
     vault::{
-        secret::{Secret, SecretData, SecretId, SecretMeta},
+        secret::{Secret, SecretId, SecretMeta, SecretRow},
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
         VaultBuilder, VaultFlags, VaultId, VaultWriter,
     },
@@ -708,7 +708,7 @@ impl FolderStorage {
     pub async fn update_secret(
         &mut self,
         id: &SecretId,
-        mut secret_data: SecretData,
+        mut secret_data: SecretRow,
     ) -> Result<WriteEvent> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();

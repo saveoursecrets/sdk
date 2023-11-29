@@ -24,7 +24,7 @@ use crate::{
     },
     signer::ecdsa::Address,
     vault::{
-        secret::{Secret, SecretData, SecretId, SecretMeta, SecretType},
+        secret::{Secret, SecretId, SecretMeta, SecretType, SecretRow},
         Gatekeeper, Summary, Vault, VaultId,
     },
     vfs, Error, Result, Timestamp,
@@ -1053,12 +1053,7 @@ impl<D> Account<D> {
             unreachable!();
         };
 
-        let secret_data = SecretData {
-            id: Some(id),
-            meta,
-            secret,
-        };
-
+        let secret_data = SecretRow::new(id, meta, secret);
         let current_folder = {
             let storage = self.storage()?;
             let reader = storage.read().await;
@@ -1090,7 +1085,7 @@ impl<D> Account<D> {
         &mut self,
         secret_id: &SecretId,
         folder: Option<Summary>,
-    ) -> Result<(SecretData, ReadEvent)> {
+    ) -> Result<(SecretRow, ReadEvent)> {
         self.get_secret(secret_id, folder, true).await
     }
 
@@ -1104,7 +1099,7 @@ impl<D> Account<D> {
         secret_id: &SecretId,
         folder: Option<Summary>,
         audit: bool,
-    ) -> Result<(SecretData, ReadEvent)> {
+    ) -> Result<(SecretRow, ReadEvent)> {
         let folder = {
             let storage = self.storage()?;
             let reader = storage.read().await;
@@ -1128,11 +1123,7 @@ impl<D> Account<D> {
         }
 
         Ok((
-            SecretData {
-                id: Some(*secret_id),
-                meta,
-                secret,
-            },
+            SecretRow::new(*secret_id, meta, secret),
             read_event,
         ))
     }
@@ -1180,11 +1171,7 @@ impl<D> Account<D> {
             self.get_secret(secret_id, None, false).await?;
 
         let secret_data = if let Some(secret) = secret {
-            SecretData {
-                id: Some(*secret_id),
-                meta,
-                secret,
-            }
+            SecretRow::new(*secret_id, meta, secret)
         } else {
             let mut secret_data = old_secret_data.clone();
             secret_data.meta = meta;
@@ -1225,7 +1212,7 @@ impl<D> Account<D> {
     pub(crate) async fn write_secret(
         &mut self,
         secret_id: &SecretId,
-        secret_data: SecretData,
+        secret_data: SecretRow,
         folder: Option<Summary>,
         audit: bool,
     ) -> Result<Event> {
@@ -1238,7 +1225,7 @@ impl<D> Account<D> {
         };
         self.open_folder(&folder).await?;
 
-        if let Secret::Pem { certificates, .. } = &secret_data.secret {
+        if let Secret::Pem { certificates, .. } = secret_data.secret() {
             if certificates.is_empty() {
                 return Err(Error::PemEncoding);
             }

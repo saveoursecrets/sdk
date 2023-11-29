@@ -52,7 +52,7 @@ async fn integration_update_file() -> Result<()> {
     if let Secret::File {
         content: FileContent::External { checksum, .. },
         ..
-    } = secret_data.secret
+    } = secret_data.secret()
     {
         let file_name = hex::encode(checksum);
         let file_content = account

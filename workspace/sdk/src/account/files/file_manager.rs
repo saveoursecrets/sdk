@@ -9,7 +9,7 @@ use crate::{
     },
     vault::{
         secret::{
-            FileContent, Secret, SecretData, SecretId, SecretRow, UserData,
+            FileContent, Secret, SecretId, SecretRow, UserData,
         },
         Summary, VaultId,
     },
@@ -166,7 +166,7 @@ impl<D> Account<D> {
     pub(crate) async fn create_files(
         &mut self,
         summary: &Summary,
-        secret_data: SecretData,
+        secret_data: SecretRow,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileStorageResult>> {
         self.write_update_checksum(summary, secret_data, None, file_progress)
@@ -178,20 +178,14 @@ impl<D> Account<D> {
         &mut self,
         old_summary: &Summary,
         new_summary: &Summary,
-        old_secret: &SecretData,
-        new_secret: SecretData,
+        old_secret: &SecretRow,
+        new_secret: SecretRow,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileStorageResult>> {
         let mut results = Vec::new();
 
-        let old_secret_id = old_secret
-            .id
-            .as_ref()
-            .ok_or_else(|| Error::MissingSecretId)?;
-        let new_secret_id = new_secret
-            .id
-            .as_ref()
-            .ok_or_else(|| Error::MissingSecretId)?;
+        let old_secret_id = old_secret.id();
+        let new_secret_id = new_secret.id();
 
         let has_moved =
             new_summary != old_summary || new_secret.id != old_secret.id;
@@ -248,14 +242,11 @@ impl<D> Account<D> {
     pub(crate) async fn delete_files(
         &self,
         summary: &Summary,
-        secret_data: &SecretData,
+        secret_data: &SecretRow,
         targets: Option<Vec<&Secret>>,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<()> {
-        let id = secret_data
-            .id
-            .as_ref()
-            .ok_or_else(|| Error::MissingSecretId)?;
+        let id = secret_data.id();
         let targets = targets.unwrap_or_else(|| {
             get_external_file_secrets(&secret_data.secret)
         });
@@ -321,7 +312,7 @@ impl<D> Account<D> {
     /// Move a collection of external storage files.
     pub(crate) async fn move_files(
         &self,
-        secret_data: &SecretData,
+        secret_data: &SecretRow,
         old_vault_id: &VaultId,
         new_vault_id: &VaultId,
         old_secret_id: &SecretId,
@@ -410,7 +401,7 @@ impl<D> Account<D> {
     async fn write_update_checksum(
         &mut self,
         summary: &Summary,
-        mut secret_data: SecretData,
+        mut secret_data: SecretRow,
         sources: Option<Vec<FileSource>>,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileStorageResult>> {
@@ -421,10 +412,7 @@ impl<D> Account<D> {
 
         let mut results = Vec::new();
 
-        let id = secret_data
-            .id
-            .as_ref()
-            .ok_or_else(|| Error::MissingSecretId)?;
+        let id = *secret_data.id();
 
         tracing::debug!(secret = ?id);
 
@@ -442,7 +430,7 @@ impl<D> Account<D> {
                         .await;
                 }
                 let encrypted_file = self
-                    .encrypt_file_storage(summary.id(), id, &source.path)
+                    .encrypt_file_storage(summary.id(), &id, &source.path)
                     .await?;
 
                 tracing::debug!(checksum = %hex::encode(&encrypted_file.digest));
@@ -531,14 +519,9 @@ impl<D> Account<D> {
         };
 
         if changed {
-            let secret_data = SecretData {
-                id: Some(*id),
-                meta: secret_data.meta,
-                secret: new_secret,
-            };
-
+            let secret_data = SecretRow::new(id, secret_data.meta, new_secret);
             // Update with new checksum(s)
-            self.write_secret(id, secret_data, Some(summary.clone()), false)
+            self.write_secret(&id, secret_data, Some(summary.clone()), false)
                 .await?;
         }
 

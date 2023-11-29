@@ -45,11 +45,6 @@ pub enum Error {
     #[error("invalid PEM encoding")]
     PemEncoding,
 
-    /// Error generated when secret data does not have an identifier
-    /// but an existing secret is expected.
-    #[error("secret does not have an identifier")]
-    MissingSecretId,
-
     /// Error generated when a file secret is expected.
     #[error("not a file secret")]
     NotFileContent,

@@ -49,8 +49,8 @@ async fn integration_secret_lifecycle() -> Result<()> {
 
     // Read secret
     let (data, _) = account.read_secret(&id, Default::default()).await?;
-    assert_eq!(Some(id), data.id);
-    assert_eq!("note", data.meta.label());
+    assert_eq!(&id, data.id());
+    assert_eq!("note", data.meta().label());
 
     // Update secret
     let (meta, secret) = mock::note("note_edited", TEST_ID);
@@ -64,8 +64,8 @@ async fn integration_secret_lifecycle() -> Result<()> {
         )
         .await?;
     let (data, _) = account.read_secret(&id, Default::default()).await?;
-    assert_eq!(meta, data.meta);
-    assert_eq!("note_edited", data.meta.label());
+    assert_eq!(&meta, data.meta());
+    assert_eq!("note_edited", data.meta().label());
 
     // Delete
     account.delete_secret(&id, Default::default()).await?;
@@ -115,8 +115,8 @@ async fn integration_secret_lifecycle() -> Result<()> {
 
     // Assert on the restored secret
     let (data, _) = account.read_secret(&id, Default::default()).await?;
-    assert_eq!(Some(id), data.id);
-    assert_eq!("restored_note", data.meta.label());
+    assert_eq!(&id, data.id());
+    assert_eq!("restored_note", data.meta().label());
 
     teardown(TEST_ID).await;
 

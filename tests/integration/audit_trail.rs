@@ -121,7 +121,7 @@ async fn simulate_session(
     let (secret_data, _) =
         owner.read_secret(&id, Some(default_folder.clone())).await?;
     // Update the secret
-    let mut new_meta = secret_data.meta.clone();
+    let mut new_meta = secret_data.meta().clone();
     new_meta.set_label("Audit note updated".to_string());
     let (id, _) = owner
         .update_secret(

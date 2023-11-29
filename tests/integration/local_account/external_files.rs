@@ -5,7 +5,7 @@ use sos_net::{
         account::{files::FileProgress, AccessOptions},
         hex,
         vault::{
-            secret::{FileContent, Secret, SecretData, SecretId, SecretRow},
+            secret::{FileContent, Secret, SecretRow, SecretId},
             Summary,
         },
         vfs,
@@ -173,7 +173,7 @@ async fn create_file_secret(
     account: &mut NetworkAccount,
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
-) -> Result<(SecretId, SecretData, PathBuf)> {
+) -> Result<(SecretId, SecretRow, PathBuf)> {
     let (meta, secret, file_path) = mock::file_image_secret()?;
 
     // Create the file secret in the default folder
@@ -192,18 +192,18 @@ async fn create_file_secret(
 async fn update_file_secret(
     account: &mut NetworkAccount,
     default_folder: &Summary,
-    secret_data: &SecretData,
+    secret_data: &SecretRow,
     destination: Option<&Summary>,
     progress_tx: mpsc::Sender<FileProgress>,
-) -> Result<SecretData> {
-    let id = secret_data.id.as_ref().unwrap();
+) -> Result<SecretRow> {
+    let id = *secret_data.id();
 
-    let mut new_meta = secret_data.meta.clone();
+    let mut new_meta = secret_data.meta().clone();
     new_meta.set_label("Text file".to_string());
 
     let (new_id, _) = account
         .update_file(
-            id,
+            &id,
             new_meta,
             "tests/fixtures/test-file.txt",
             AccessOptions {
@@ -227,7 +227,7 @@ async fn assert_create_file_secret(
     account: &mut NetworkAccount,
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
-) -> Result<(SecretId, SecretData, [u8; 32])> {
+) -> Result<(SecretId, SecretRow, [u8; 32])> {
     let (id, secret_data, file_path) =
         create_file_secret(account, default_folder, progress_tx).await?;
 
@@ -241,7 +241,7 @@ async fn assert_create_file_secret(
                 ..
             },
         ..
-    } = &secret_data.secret
+    } = secret_data.secret()
     {
         assert!(path.is_none());
         assert!(*size > 0);
@@ -271,10 +271,10 @@ async fn assert_update_file_secret(
     account: &mut NetworkAccount,
     default_folder: &Summary,
     id: &SecretId,
-    secret_data: &SecretData,
+    secret_data: &SecretRow,
     original_checksum: &[u8; 32],
     progress_tx: mpsc::Sender<FileProgress>,
-) -> Result<(SecretId, SecretData, [u8; 32])> {
+) -> Result<(SecretId, SecretRow, [u8; 32])> {
     let new_secret_data = update_file_secret(
         account,
         default_folder,
@@ -294,7 +294,7 @@ async fn assert_update_file_secret(
                 ..
             },
         ..
-    } = &new_secret_data.secret
+    } = new_secret_data.secret()
     {
         assert!(path.is_none());
         assert!(*size > 0);
@@ -325,7 +325,7 @@ async fn assert_move_file_secret(
     id: &SecretId,
     updated_checksum: &[u8; 32],
     progress_tx: mpsc::Sender<FileProgress>,
-) -> Result<(Summary, SecretId, SecretData, [u8; 32])> {
+) -> Result<(Summary, SecretId, SecretRow, [u8; 32])> {
     let new_folder_name = "Mock folder".to_string();
     let (destination, _) = account.create_folder(new_folder_name).await?;
 
@@ -355,7 +355,7 @@ async fn assert_move_file_secret(
                 ..
             },
         ..
-    } = &moved_secret_data.secret
+    } = moved_secret_data.secret()
     {
         assert!(path.is_none());
         assert!(*size > 0);
@@ -415,7 +415,7 @@ async fn assert_create_update_move_file_secret(
     let original_checksum = if let Secret::File {
         content: FileContent::External { checksum, .. },
         ..
-    } = &secret_data.secret
+    } = secret_data.secret()
     {
         checksum
     } else {
@@ -433,7 +433,7 @@ async fn assert_create_update_move_file_secret(
         progress_tx,
     )
     .await?;
-    let new_id = new_secret_data.id.as_ref().unwrap();
+    let new_id = *new_secret_data.id();
 
     let checksum = if let Secret::File {
         content:
@@ -445,7 +445,7 @@ async fn assert_create_update_move_file_secret(
                 ..
             },
         ..
-    } = &new_secret_data.secret
+    } = new_secret_data.secret()
     {
         assert!(path.is_none());
         assert!(*size > 0);
@@ -454,7 +454,7 @@ async fn assert_create_update_move_file_secret(
 
         let file_name = hex::encode(checksum);
         let expected_file_path =
-            account.file_location(destination.id(), new_id, &file_name);
+            account.file_location(destination.id(), &new_id, &file_name);
         assert!(vfs::try_exists(&expected_file_path).await?);
 
         let old_file_name = hex::encode(original_checksum);
@@ -467,7 +467,7 @@ async fn assert_create_update_move_file_secret(
         panic!("expecting file secret variant");
     };
 
-    Ok((destination, *new_id, checksum))
+    Ok((destination, new_id, checksum))
 }
 
 async fn assert_delete_folder_file_secrets(
@@ -497,13 +497,13 @@ async fn assert_attach_file_secret(
     let (meta, secret, _) = mock::file_text_secret()?;
     let attachment_id = SecretId::new_v4();
     let attachment = SecretRow::new(attachment_id, meta, secret);
-    secret_data.secret.attach(attachment);
+    secret_data.secret_mut().attach(attachment);
 
     account
         .update_secret(
             &id,
-            secret_data.meta,
-            Some(secret_data.secret),
+            secret_data.meta().clone(),
+            Some(secret_data.secret().clone()),
             AccessOptions {
                 folder: Some(folder.clone()),
                 file_progress: Some(progress_tx.clone()),
@@ -553,15 +553,15 @@ async fn assert_attach_file_secret(
     let checksums = if let Secret::File {
         content: FileContent::External { checksum, .. },
         ..
-    } = &secret_data.secret
+    } = secret_data.secret()
     {
         let file_checksum = *checksum;
-        assert_root_file_secret(account, folder, &id, &secret_data.secret)
+        assert_root_file_secret(account, folder, &id, secret_data.secret())
             .await?;
 
         // Verify the attachment file exists
         let attached = secret_data
-            .secret
+            .secret()
             .find_attachment_by_id(&attachment_id)
             .expect("attachment to exist");
 
@@ -595,12 +595,12 @@ async fn assert_attach_file_secret(
         // Now update the attachment
         let (meta, secret, _) = mock::file_image_secret()?;
         let new_attachment = SecretRow::new(*attached.id(), meta, secret);
-        secret_data.secret.update_attachment(new_attachment)?;
+        secret_data.secret_mut().update_attachment(new_attachment)?;
         account
             .update_secret(
                 &id,
-                secret_data.meta.clone(),
-                Some(secret_data.secret.clone()),
+                secret_data.meta().clone(),
+                Some(secret_data.secret().clone()),
                 AccessOptions {
                     folder: Some(folder.clone()),
                     file_progress: Some(progress_tx.clone()),
@@ -609,16 +609,17 @@ async fn assert_attach_file_secret(
             )
             .await?;
 
-        assert_root_file_secret(account, folder, &id, &secret_data.secret)
+        assert_root_file_secret(account, folder, &id, secret_data.secret())
             .await?;
 
         let (mut updated_secret_data, _) =
             account.read_secret(&id, Some(folder.clone())).await?;
-        assert_eq!(1, updated_secret_data.secret.user_data().len());
+        assert_eq!(1, updated_secret_data.secret().user_data().len());
 
         let updated_attachment = updated_secret_data
-            .secret
+            .secret()
             .find_attachment_by_id(&attachment_id)
+            .cloned()
             .expect("attachment to exist");
 
         let updated_attachment_checksum = if let Secret::File {
@@ -635,7 +636,7 @@ async fn assert_attach_file_secret(
         {
             assert!(path.is_none());
             assert!(*size > 0);
-            assert_ne!(&ZERO_CHECKSUM, checksum);
+            assert_ne!(ZERO_CHECKSUM, *checksum);
             assert_eq!("image/heic", mime);
 
             let file_name = hex::encode(checksum);
@@ -648,7 +649,7 @@ async fn assert_attach_file_secret(
                 account.file_location(folder.id(), &id, &old_file_name);
             assert!(!vfs::try_exists(&old_file_path).await?);
 
-            *checksum
+            checksum
         } else {
             panic!("expecting file secret variant (attachment)");
         };
@@ -657,13 +658,14 @@ async fn assert_attach_file_secret(
         let (meta, secret, _) = mock::file_text_secret()?;
         let new_attachment_id = SecretId::new_v4();
         let attachment = SecretRow::new(new_attachment_id, meta, secret);
-        updated_secret_data.secret.insert_attachment(0, attachment);
-
+        updated_secret_data.secret_mut().insert_attachment(0, attachment);
+    
+        let (_, meta, secret) = updated_secret_data.clone().into();
         account
             .update_secret(
                 &id,
-                updated_secret_data.meta,
-                Some(updated_secret_data.secret),
+                meta,
+                Some(secret),
                 AccessOptions {
                     folder: Some(folder.clone()),
                     file_progress: Some(progress_tx.clone()),
@@ -672,20 +674,20 @@ async fn assert_attach_file_secret(
             )
             .await?;
 
-        assert_root_file_secret(account, folder, &id, &secret_data.secret)
+        assert_root_file_secret(account, folder, &id, secret_data.secret())
             .await?;
 
         let (mut insert_attachment_secret_data, _) =
             account.read_secret(&id, Some(folder.clone())).await?;
-        assert_eq!(2, insert_attachment_secret_data.secret.user_data().len());
+        assert_eq!(2, insert_attachment_secret_data.secret().user_data().len());
 
         let inserted_attachment = insert_attachment_secret_data
-            .secret
+            .secret()
             .find_attachment_by_id(&new_attachment_id)
             .expect("attachment to exist");
 
         let original_attachment = insert_attachment_secret_data
-            .secret
+            .secret()
             .find_attachment_by_id(&attachment_id)
             .expect("attachment to exist");
 
@@ -694,7 +696,7 @@ async fn assert_attach_file_secret(
             ..
         } = inserted_attachment.secret()
         {
-            assert_ne!(&ZERO_CHECKSUM, checksum);
+            assert_ne!(ZERO_CHECKSUM, *checksum);
             let file_name = hex::encode(checksum);
             let file_path =
                 account.file_location(folder.id(), &id, &file_name);
@@ -710,7 +712,7 @@ async fn assert_attach_file_secret(
             ..
         } = original_attachment.secret()
         {
-            assert_eq!(&updated_attachment_checksum, checksum);
+            assert_eq!(updated_attachment_checksum, checksum);
             let file_name = hex::encode(checksum);
             let file_path =
                 account.file_location(folder.id(), &id, &file_name);
@@ -720,13 +722,14 @@ async fn assert_attach_file_secret(
         };
 
         // Delete the original attachment (index 1)
-        insert_attachment_secret_data.secret.detach(&attachment_id);
+        insert_attachment_secret_data.secret_mut().detach(&attachment_id);
 
+        let (_, meta, secret) = insert_attachment_secret_data.into();
         account
             .update_secret(
                 &id,
-                insert_attachment_secret_data.meta,
-                Some(insert_attachment_secret_data.secret),
+                meta,
+                Some(secret),
                 AccessOptions {
                     folder: Some(folder.clone()),
                     file_progress: Some(progress_tx.clone()),
@@ -735,15 +738,15 @@ async fn assert_attach_file_secret(
             )
             .await?;
 
-        assert_root_file_secret(account, folder, &id, &secret_data.secret)
+        assert_root_file_secret(account, folder, &id, secret_data.secret())
             .await?;
 
         let (delete_attachment_secret_data, _) =
             account.read_secret(&id, Some(folder.clone())).await?;
-        assert_eq!(1, delete_attachment_secret_data.secret.user_data().len());
+        assert_eq!(1, delete_attachment_secret_data.secret().user_data().len());
 
         let updated_inserted_attachment = delete_attachment_secret_data
-            .secret
+            .secret()
             .find_attachment_by_id(&new_attachment_id)
             .expect("attachment to exist");
 

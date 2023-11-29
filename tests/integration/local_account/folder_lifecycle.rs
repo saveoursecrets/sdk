@@ -55,8 +55,8 @@ async fn integration_folder_lifecycle() -> Result<()> {
 
     // Now read using the specific folder
     let (data, _) = account.read_secret(&id, Some(folder.clone())).await?;
-    assert_eq!(Some(id), data.id);
-    assert_eq!("note", data.meta.label());
+    assert_eq!(&id, data.id());
+    assert_eq!("note", data.meta().label());
 
     // Changed the currently open folder by reading
     // from an explicit folder
@@ -93,8 +93,8 @@ async fn integration_folder_lifecycle() -> Result<()> {
 
     // Check we can read the secret data
     let (data, _) = account.read_secret(&id, Some(folder.clone())).await?;
-    assert_eq!(Some(id), data.id);
-    assert_eq!("note", data.meta.label());
+    assert_eq!(&id, data.id());
+    assert_eq!("note", data.meta().label());
 
     teardown(TEST_ID).await;
 
