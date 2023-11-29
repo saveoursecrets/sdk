@@ -39,8 +39,6 @@ pub struct Gatekeeper {
     vault: Vault,
     /// Mirror in-memory vault changes to a writer.
     mirror: Option<VaultWriter<vfs::File>>,
-    /// Search index.
-    index: Arc<RwLock<SearchIndex>>,
 }
 
 impl Gatekeeper {
@@ -53,8 +51,6 @@ impl Gatekeeper {
             vault,
             private_key: None,
             mirror: None,
-            index: index
-                .unwrap_or_else(|| Arc::new(RwLock::new(SearchIndex::new()))),
         }
     }
 
@@ -69,8 +65,6 @@ impl Gatekeeper {
             vault,
             private_key: None,
             mirror: Some(mirror),
-            index: index
-                .unwrap_or_else(|| Arc::new(RwLock::new(SearchIndex::new()))),
         }
     }
 
@@ -101,6 +95,9 @@ impl Gatekeeper {
             let existing_keys = self.vault.keys().collect::<HashSet<_>>();
             let updated_keys = vault.keys().collect::<HashSet<_>>();
 
+            // FIXME!!!
+            
+            /*
             let mut writer = self.index.write().await;
 
             for added_key in updated_keys.difference(&existing_keys) {
@@ -142,6 +139,7 @@ impl Gatekeeper {
                     }
                 }
             }
+            */
         }
 
         self.vault = vault;
@@ -151,11 +149,6 @@ impl Gatekeeper {
     /// Set the vault.
     pub fn set_vault(&mut self, vault: Vault) {
         self.vault = vault;
-    }
-
-    /// Get the search index.
-    pub fn index(&self) -> Arc<RwLock<SearchIndex>> {
-        Arc::clone(&self.index)
     }
 
     /// Get the summary for the vault.
@@ -262,7 +255,7 @@ impl Gatekeeper {
         &mut self,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<WriteEvent> {
+    ) -> Result<(SecretId, WriteEvent)> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
@@ -270,19 +263,6 @@ impl Gatekeeper {
 
         let vault_id = *self.vault().id();
         let id = Uuid::new_v4();
-
-        //let reader = self.index.read().await;
-
-        /*
-        if reader
-            .find_by_label(&vault_id, secret_meta.label(), None)
-            .is_some()
-        {
-            return Err(Error::SecretAlreadyExists(
-                secret_meta.label().to_string(),
-            ));
-        }
-        */
 
         let meta_blob = encode(&secret_meta).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
@@ -308,13 +288,12 @@ impl Gatekeeper {
             .vault
             .insert(id, commit, VaultEntry(meta_aead, secret_aead))
             .await?;
+    
+        // FIXME!!!!
+        //let mut writer = self.index.write().await;
+        //writer.add(&vault_id, &id, secret_meta, &secret);
 
-        //drop(reader);
-
-        let mut writer = self.index.write().await;
-        writer.add(&vault_id, &id, secret_meta, &secret);
-
-        Ok(result)
+        Ok((id, result))
     }
 
     /// Get a secret and it's meta data from the vault.
@@ -343,25 +322,6 @@ impl Gatekeeper {
 
         let vault_id = *self.vault().id();
 
-        /*
-        let reader = self.index.read().await;
-
-        let doc = reader
-            .find_by_id(&vault_id, id)
-            .ok_or(Error::SecretDoesNotExist(*id))?;
-
-        // Label has changed, so ensure uniqueness
-        if doc.meta().label() != secret_meta.label()
-            && reader
-                .find_by_label(&vault_id, secret_meta.label(), Some(id))
-                .is_some()
-        {
-            return Err(Error::SecretAlreadyExists(
-                secret_meta.label().to_string(),
-            ));
-        }
-        */
-
         let meta_blob = encode(&secret_meta).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
 
@@ -388,9 +348,10 @@ impl Gatekeeper {
             .await?;
 
         //drop(reader);
-
-        let mut writer = self.index.write().await;
-        writer.update(&vault_id, id, secret_meta, &secret);
+    
+        // FIXME!!!!
+        //let mut writer = self.index.write().await;
+        //writer.update(&vault_id, id, secret_meta, &secret);
 
         Ok(event)
     }
@@ -409,8 +370,11 @@ impl Gatekeeper {
             mirror.delete(id).await?;
         }
         let event = self.vault.delete(id).await?;
-        let mut writer = self.index.write().await;
-        writer.remove(&vault_id, id);
+        
+        // FIXME!!!
+        //let mut writer = self.index.write().await;
+        //writer.remove(&vault_id, id);
+
         Ok(event)
     }
 
@@ -418,8 +382,10 @@ impl Gatekeeper {
     pub async fn verify(&self, key: &AccessKey) -> Result<()> {
         self.vault.verify(key).await
     }
-
+    
+    /*
     /// Add the meta data for the vault entries to a search index..
+    #[deprecated(note = "Use SeachIndex::add_folder() instead")]
     pub async fn create_search_index(&mut self) -> Result<()> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
@@ -439,6 +405,7 @@ impl Gatekeeper {
         }
         Ok(())
     }
+    */
 
     /// Unlock the vault by setting the private key from a passphrase.
     ///
@@ -531,8 +498,8 @@ mod tests {
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        if let WriteEvent::CreateSecret(secret_uuid, _) =
-            keeper.create(secret_meta.clone(), secret.clone()).await?
+        let (id, event) = keeper.create(secret_meta.clone(), secret.clone()).await?;
+        if let WriteEvent::CreateSecret(secret_uuid, _) = event
         {
             let (saved_secret_meta, saved_secret) =
                 keeper.read_secret(&secret_uuid, None, None).await?.unwrap();
@@ -577,8 +544,10 @@ mod tests {
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        let id = if let WriteEvent::CreateSecret(secret_uuid, _) =
-            keeper.create(secret_meta.clone(), secret.clone()).await?
+        let (id, event) = keeper.create(
+            secret_meta.clone(), secret.clone()).await?;
+
+        if let WriteEvent::CreateSecret(secret_uuid, _) = event
         {
             let (saved_secret_meta, saved_secret) =
                 keeper.read_secret(&secret_uuid, None, None).await?.unwrap();

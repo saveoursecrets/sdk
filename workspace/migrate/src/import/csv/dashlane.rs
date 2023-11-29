@@ -703,13 +703,12 @@ mod test {
             )
             .await?;
 
-        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
+        let mut search = SearchIndex::new();
         let mut keeper =
-            Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
+            Gatekeeper::new(vault, None);
         keeper.unlock(passphrase.into()).await?;
-        keeper.create_search_index().await?;
+        search.add_folder(&keeper).await?;
 
-        let search = search_index.read().await;
         assert_eq!(15, search.len());
 
         let password = search.find_by_label(keeper.id(), "example.com", None);
@@ -727,17 +726,17 @@ mod test {
         let note = search.find_by_label(keeper.id(), "Mock note", None);
         assert!(note.is_some());
 
-        let card = search.find_by_label(keeper.id(), "Mock User", None);
+        let card = search.find_by_label(keeper.id(), "Mock Payment Card User", None);
         assert!(card.is_some());
 
         if let Some((_, secret, _)) =
             keeper.read(card.as_ref().unwrap().id()).await?
         {
-            if let Secret::Card { expiry, .. } = secret {
+            if let Secret::Card { expiry, .. } = &secret {
                 //println!("{:#?}", expiry);
                 assert!(expiry.is_some());
             } else {
-                panic!("secret is of the wrong type");
+                panic!("secret is of the wrong type {:#?}", secret);
             }
         } else {
             panic!("secret not found");

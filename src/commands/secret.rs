@@ -1405,7 +1405,8 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     return Err(Error::FileExists(file));
                 }
 
-                let existing = data.secret().find_field_by_ref(&attachment).cloned();
+                let existing =
+                    data.secret().find_field_by_ref(&attachment).cloned();
                 if let Some(existing) = existing {
                     download_file_secret(&resolved, file, existing.into())
                         .await?;
@@ -1415,7 +1416,8 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 }
             }
             AttachCommand::Remove { attachment, .. } => {
-                let existing = data.secret().find_field_by_ref(&attachment).cloned();
+                let existing =
+                    data.secret().find_field_by_ref(&attachment).cloned();
                 if let Some(existing) = existing {
                     data.secret_mut().remove_field(existing.id());
                     Some(data.into())

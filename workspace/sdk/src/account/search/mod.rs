@@ -57,6 +57,12 @@ impl AccountSearch {
         let mut writer = self.search_index.write().await;
         writer.remove_all();
     }
+    
+    /// Add a folder which must be unlocked.
+    pub async fn add_folder(&self, folder: &Gatekeeper) -> Result<()> {
+        let mut index = self.search_index.write().await;
+        index.add_folder(folder).await
+    }
 
     /// Remove a folder from the search index.
     pub async fn remove_folder_from_search_index(&self, vault_id: &VaultId) {
@@ -71,10 +77,10 @@ impl AccountSearch {
         vault: Vault,
         key: AccessKey,
     ) -> Result<()> {
-        let index = Arc::clone(&self.search_index);
-        let mut keeper = Gatekeeper::new(vault, Some(index));
+        let mut index = self.search_index.write().await;
+        let mut keeper = Gatekeeper::new(vault, None);
         keeper.unlock(key).await?;
-        keeper.create_search_index().await?;
+        index.add_folder(&keeper).await?;
         keeper.lock();
         Ok(())
     }

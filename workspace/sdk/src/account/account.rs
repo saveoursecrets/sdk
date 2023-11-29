@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     account::{
-        login::Login,
+        identity::Identity,
         password::DelegatedPassword,
         search::{AccountStatistics, DocumentCount, SearchIndex},
         AccountBuilder, AccountInfo, AccountsList, AuthenticatedUser,
@@ -62,12 +62,18 @@ type Handler<D> = Box<dyn AccountHandler<Data = D> + Send + Sync>;
 /// Read-only view created from a specific event log commit.
 pub struct DetachedView {
     keeper: Gatekeeper,
+    index: Arc<RwLock<SearchIndex>>,
 }
 
 impl DetachedView {
     /// Read-only access to the folder.
     pub fn keeper(&self) -> &Gatekeeper {
         &self.keeper
+    }
+
+    /// Search index for the detached view.
+    pub fn index(&self) -> Arc<RwLock<SearchIndex>> {
+        Arc::clone(&self.index)
     }
 }
 
@@ -331,9 +337,9 @@ impl<D> Account<D> {
 
         tracing::debug!(data_dir = ?paths.documents_dir());
 
-        let identity_index = Arc::new(RwLock::new(SearchIndex::new()));
+        let identity = Identity::new();
         let user =
-            Login::sign_in(address, &paths, passphrase, identity_index)
+            identity.sign_in(address, &paths, passphrase)
                 .await?;
         tracing::debug!("sign in success");
 
@@ -523,6 +529,7 @@ impl<D> Account<D> {
     /// prepare the in-memory vaults but can be explicitly
     /// called to reload the data from disc.
     pub async fn load_folders(&mut self) -> Result<Vec<Summary>> {
+        tracing::debug!("load folders");
         let storage = self.storage()?;
         let mut writer = storage.write().await;
         Ok(writer.load_vaults().await?.to_vec())
@@ -1041,16 +1048,10 @@ impl<D> Account<D> {
             }
         }
 
-        let event = {
+        let (id, event) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer.create_secret(meta.clone(), secret.clone()).await?
-        };
-
-        let id = if let WriteEvent::CreateSecret(id, _) = &event {
-            *id
-        } else {
-            unreachable!();
         };
 
         let secret_data = SecretRow::new(id, meta, secret);
@@ -1480,8 +1481,14 @@ impl<D> Account<D> {
             {
                 let storage = self.storage()?;
                 let mut writer = storage.write().await;
+
+                let keeper = writer.current().unwrap();
+                self.index_mut()?.add_folder(&keeper).await?;
+
+                /*
                 // Add the vault meta data to the search index
                 writer.create_search_index().await?;
+                */
                 // Close the vault as we are done for now
                 writer.close_vault();
             }
@@ -1500,6 +1507,8 @@ impl<D> Account<D> {
         summary: &Summary,
         commit: CommitHash,
     ) -> Result<DetachedView> {
+        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
+
         let storage = self.storage()?;
         let reader = storage.read().await;
         let cache = reader.cache();
@@ -1521,11 +1530,16 @@ impl<D> Account<D> {
 
         let mut keeper = Gatekeeper::new(
             vault,
-            Some(Arc::new(RwLock::new(SearchIndex::new()))),
+            None,
         );
         keeper.unlock(passphrase).await?;
-        keeper.create_search_index().await?;
-        Ok(DetachedView { keeper })
+        
+        {
+            let mut index = search_index.write().await;
+            index.add_folder(&keeper).await?;
+        }
+
+        Ok(DetachedView { keeper, index: search_index })
     }
 
     /// Get the root commit hash for a folder.

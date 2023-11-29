@@ -11,7 +11,6 @@ mod device;
 pub mod files;
 mod identity;
 mod local_storage;
-mod login;
 mod password;
 mod paths;
 pub mod search;
@@ -27,9 +26,8 @@ pub use accounts_list::{AccountInfo, AccountRef, AccountsList};
 pub use builder::{AccountBuilder, NewAccount};
 #[cfg(feature = "device")]
 pub use device::DeviceSigner;
-pub use identity::AccountStatus;
+pub use identity::{AccountStatus, AuthenticatedUser};
 pub use local_storage::FolderStorage;
-pub use login::AuthenticatedUser;
 pub use paths::UserPaths;
 
 /*

@@ -428,12 +428,16 @@ impl AccountBackup {
                 let restored_identity: Vault = decode(&identity.1).await?;
                 let mut restored_identity_keeper = Gatekeeper::new(
                     restored_identity,
-                    Some(Arc::clone(&search_index)),
+                    None,
                 );
                 restored_identity_keeper
                     .unlock(passphrase.clone().into())
                     .await?;
-                restored_identity_keeper.create_search_index().await?;
+
+                {
+                    let mut index = search_index.write().await;
+                    index.add_folder(&restored_identity_keeper).await?;
+                }
 
                 let restored_identity_keeper =
                     Arc::new(RwLock::new(restored_identity_keeper));
@@ -604,10 +608,10 @@ impl AccountBackup {
 
             // Get the signing address from the identity vault and
             // verify it matches the manifest address
-            let user = Identity::login_buffer(
+            let account_identity = Identity::new();
+            let user = account_identity.login_buffer(
                 &identity.1,
                 passphrase.clone(),
-                None,
                 None,
             )
             .await?;

@@ -154,13 +154,12 @@ mod test {
             )
             .await?;
 
-        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
+        let mut search = SearchIndex::new();
         let mut keeper =
-            Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
+            Gatekeeper::new(vault, None);
         keeper.unlock(passphrase.into()).await?;
-        keeper.create_search_index().await?;
+        search.add_folder(&keeper).await?;
 
-        let search = search_index.read().await;
         let first = search.find_by_label(
             keeper.id(),
             "mock.example.com (mock@example.com)",
@@ -193,13 +192,12 @@ mod test {
             )
             .await?;
 
-        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
+        let mut search = SearchIndex::new();
         let mut keeper =
-            Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
+            Gatekeeper::new(vault, None);
         keeper.unlock(passphrase.into()).await?;
-        keeper.create_search_index().await?;
+        search.add_folder(&keeper).await?;
 
-        let search = search_index.read().await;
         let first = search.find_by_label(
             keeper.id(),
             "mock.example.com (mock@example.com)",

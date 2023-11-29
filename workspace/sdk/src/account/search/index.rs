@@ -9,9 +9,12 @@ use std::{
 use unicode_segmentation::UnicodeSegmentation;
 use urn::Urn;
 
-use crate::vault::{
-    secret::{Secret, SecretId, SecretMeta, SecretRef},
-    VaultId,
+use crate::{
+    vault::{
+        secret::{Secret, SecretId, SecretMeta, SecretRef},
+        Gatekeeper, VaultId,
+    },
+    Error, Result,
 };
 
 /// Create a set of ngrams of the given size.
@@ -531,6 +534,20 @@ impl SearchIndex {
     ) {
         self.remove(vault_id, id);
         self.add(vault_id, id, meta, secret);
+    }
+
+    /// Add the meta data from the entries in a folder
+    /// to this search index.
+    pub async fn add_folder(&mut self, folder: &Gatekeeper) -> Result<()> {
+        let vault = folder.vault();
+        for id in vault.keys() {
+            let (meta, secret, _) = folder
+                .read(id)
+                .await?
+                .ok_or_else(|| Error::NoSecretId(*folder.id(), *id))?;
+            self.add(folder.id(), id, meta, &secret);
+        }
+        Ok(())
     }
 
     /// Remove and vacuum a document from the index.

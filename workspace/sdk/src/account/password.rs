@@ -64,10 +64,11 @@ impl DelegatedPassword {
         identity: Arc<RwLock<Gatekeeper>>,
         vault_id: &VaultId,
     ) -> Result<()> {
+
+        /*
         let id = {
             let keeper = identity.write().await;
             let urn = Vault::vault_urn(vault_id)?;
-            let index = keeper.index();
             let index_reader = index.read().await;
             let document = index_reader
                 .find_by_urn(keeper.id(), &urn)
@@ -78,6 +79,9 @@ impl DelegatedPassword {
 
         let mut keeper = identity.write().await;
         keeper.delete(&id).await?;
+        */
+
+        todo!();
 
         Ok(())
     }
@@ -88,11 +92,15 @@ impl DelegatedPassword {
     /// the secret passphrase.
     pub async fn find_folder_password(
         identity: Arc<RwLock<Gatekeeper>>,
+        //index: Arc<RwLock<SearchIndex>>,
         vault_id: &VaultId,
     ) -> Result<AccessKey> {
         let keeper = identity.read().await;
         let urn = Vault::vault_urn(vault_id)?;
-        let index = keeper.index();
+
+        todo!();
+
+        /*
         let index_reader = index.read().await;
         let document = index_reader
             .find_by_urn(keeper.id(), &urn)
@@ -115,6 +123,7 @@ impl DelegatedPassword {
             _ => return Err(Error::VaultEntryKind(urn.to_string())),
         };
         Ok(key)
+        */
     }
 
     /// Find the password used for symmetric file encryption (AGE).
@@ -122,6 +131,8 @@ impl DelegatedPassword {
         identity: Arc<RwLock<Gatekeeper>>,
     ) -> Result<SecretString> {
         let keeper = identity.read().await;
+
+        /*
         let index = keeper.index();
         let reader = index.read().await;
         let urn: Urn = FILE_PASSWORD_URN.parse()?;
@@ -137,5 +148,8 @@ impl DelegatedPassword {
                 return Err(Error::VaultEntryKind(urn.to_string()));
             };
         Ok(password)
+        */
+
+        todo!();
     }
 }

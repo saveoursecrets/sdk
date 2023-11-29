@@ -147,8 +147,9 @@ impl AccountBuilder {
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault).await?;
+        let identity = Identity::new();
         let user =
-            Identity::login_buffer(buffer, passphrase.clone(), None, None)
+            identity.login_buffer(buffer, passphrase.clone(), None)
                 .await?;
 
         // Prepare the passphrase for the default vault

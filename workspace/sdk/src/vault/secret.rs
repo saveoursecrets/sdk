@@ -1673,7 +1673,10 @@ impl Secret {
     }
 
     /// Find a custom field by reference.
-    pub fn find_field_by_ref(&self, target: &SecretRef) -> Option<&SecretRow> {
+    pub fn find_field_by_ref(
+        &self,
+        target: &SecretRef,
+    ) -> Option<&SecretRow> {
         match target {
             SecretRef::Id(id) => self.find_field_by_id(id),
             SecretRef::Name(name) => self.find_field_by_name(name),

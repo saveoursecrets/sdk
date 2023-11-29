@@ -125,11 +125,16 @@ impl FolderStorage {
         self.state.open_vault(key, vault, vault_path, index).await?;
         Ok(ReadEvent::ReadVault)
     }
-
+    
+    /*
     /// Create the search index for the currently open vault.
     pub async fn create_search_index(&mut self) -> Result<()> {
-        self.state.create_search_index().await
+        let keeper =
+            self.state.current_mut().ok_or_else(|| Error::NoOpenVault)?;
+        keeper.create_search_index().await?;
+        Ok(())
     }
+    */
 
     /// Import the vaults for a new account.
     pub async fn import_new_account(
@@ -684,12 +689,12 @@ impl FolderStorage {
         &mut self,
         meta: SecretMeta,
         secret: Secret,
-    ) -> Result<WriteEvent> {
+    ) -> Result<(SecretId, WriteEvent)> {
         let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
-        let event = keeper.create(meta, secret).await?;
+        let (id, event) = keeper.create(meta, secret).await?;
         self.patch(&summary, vec![event.clone()]).await?;
-        Ok(event)
+        Ok((id, event))
     }
 
     /// Read a secret in the currently open vault.
@@ -900,13 +905,6 @@ impl LocalState {
             .await
             .map_err(|_| Error::VaultUnlockFail)?;
         self.current = Some(keeper);
-        Ok(())
-    }
-
-    /// Add the currrent open vault to the search index.
-    async fn create_search_index(&mut self) -> Result<()> {
-        let keeper = self.current_mut().ok_or_else(|| Error::NoOpenVault)?;
-        keeper.create_search_index().await?;
         Ok(())
     }
 
