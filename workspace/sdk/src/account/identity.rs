@@ -34,7 +34,7 @@ use crate::{
         ed25519, Signer,
     },
     vault::{
-        secret::{Secret, SecretMeta, SecretSigner, SecretId},
+        secret::{Secret, SecretId, SecretMeta, SecretSigner},
         Gatekeeper, Vault, VaultAccess, VaultBuilder, VaultFlags, VaultId,
         VaultWriter,
     },
@@ -198,7 +198,7 @@ impl AuthenticatedUser {
             .password(password.clone(), Some(KeyDerivation::generate_seed()))
             .await?;
 
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(password.into()).await?;
 
         // Store the signing key
@@ -215,7 +215,9 @@ impl AuthenticatedUser {
             SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
 
-        keeper.create(SecretId::new_v4(), signer_meta, signer_secret).await?;
+        keeper
+            .create(SecretId::new_v4(), signer_meta, signer_secret)
+            .await?;
 
         // Store the AGE identity
         let age_secret = Secret::Age {
@@ -228,7 +230,9 @@ impl AuthenticatedUser {
             SecretMeta::new(urn.as_str().to_owned(), age_secret.kind());
         age_meta.set_urn(Some(urn));
 
-        keeper.create(SecretId::new_v4(), age_meta, age_secret).await?;
+        keeper
+            .create(SecretId::new_v4(), age_meta, age_secret)
+            .await?;
 
         Ok((address, keeper.into()))
     }
@@ -255,7 +259,7 @@ impl AuthenticatedUser {
             return Err(Error::NotIdentityVault);
         }
 
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
 
         let mut index = SearchIndex::new();
         keeper.unlock(password.into()).await?;
@@ -380,7 +384,7 @@ impl AuthenticatedUser {
             let (vault, _) =
                 local_accounts.find_local_vault(summary.id(), true).await?;
             let search_index = self.identity()?.index();
-            let mut device_keeper = Gatekeeper::new(vault, None);
+            let mut device_keeper = Gatekeeper::new(vault);
             device_keeper.unlock(device_passphrase.into()).await?;
             {
                 let mut index = search_index.write().await;
@@ -444,7 +448,7 @@ impl AuthenticatedUser {
             )
             .await?;
 
-            let mut device_keeper = Gatekeeper::new(vault, None);
+            let mut device_keeper = Gatekeeper::new(vault);
             device_keeper.unlock(device_passphrase.into()).await?;
 
             let key = ed25519::SingleParty::new_random();
@@ -457,7 +461,9 @@ impl AuthenticatedUser {
             let mut meta =
                 SecretMeta::new("Device Key".to_string(), secret.kind());
             meta.set_urn(Some(urn));
-            device_keeper.create(SecretId::new_v4(), meta, secret).await?;
+            device_keeper
+                .create(SecretId::new_v4(), meta, secret)
+                .await?;
 
             let device_vault: Vault = device_keeper.into();
             let summary = device_vault.summary().clone();
@@ -586,7 +592,7 @@ impl PrivateIdentity {
         meta.set_urn(Some(urn));
 
         let id = SecretId::new_v4();
-        
+
         let index_doc = {
             let index = self.index.read().await;
             index.prepare(vault_id, &id, &meta, &secret)
@@ -701,7 +707,7 @@ mod tests {
         encode,
         passwd::diceware::generate_passphrase,
         vault::{
-            secret::{Secret, SecretMeta, SecretId},
+            secret::{Secret, SecretId, SecretMeta},
             Gatekeeper, Vault, VaultBuilder, VaultFlags,
         },
         vfs, Error,
@@ -756,7 +762,7 @@ mod tests {
             .password(password.clone(), None)
             .await?;
 
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(password.clone().into()).await?;
 
         // Create a secret using the expected name but of the wrong kind
@@ -769,7 +775,9 @@ mod tests {
         let mut signer_meta =
             SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
-        keeper.create(SecretId::new_v4(), signer_meta, signer_secret).await?;
+        keeper
+            .create(SecretId::new_v4(), signer_meta, signer_secret)
+            .await?;
 
         let vault: Vault = keeper.into();
         let buffer = encode(&vault).await?;

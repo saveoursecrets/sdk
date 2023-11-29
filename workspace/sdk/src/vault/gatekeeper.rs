@@ -1,6 +1,5 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
-    account::search::SearchIndex,
     crypto::{AccessKey, KeyDerivation, PrivateKey},
     decode, encode,
     events::{ReadEvent, WriteEvent},
@@ -11,8 +10,7 @@ use crate::{
     },
     vfs, Error, Result,
 };
-use std::{collections::HashSet, sync::Arc};
-use tokio::sync::RwLock;
+use std::collections::HashSet;
 use tracing::{span, Level};
 
 use uuid::Uuid;
@@ -43,10 +41,7 @@ pub struct Gatekeeper {
 
 impl Gatekeeper {
     /// Create a new gatekeeper.
-    pub fn new(
-        vault: Vault,
-        index: Option<Arc<RwLock<SearchIndex>>>,
-    ) -> Self {
+    pub fn new(vault: Vault) -> Self {
         Self {
             vault,
             private_key: None,
@@ -56,11 +51,7 @@ impl Gatekeeper {
 
     /// Create a new gatekeeper that writes in-memory
     /// changes to a file.
-    pub fn new_mirror(
-        vault: Vault,
-        mirror: VaultWriter<vfs::File>,
-        index: Option<Arc<RwLock<SearchIndex>>>,
-    ) -> Self {
+    pub fn new_mirror(vault: Vault, mirror: VaultWriter<vfs::File>) -> Self {
         Self {
             vault,
             private_key: None,
@@ -407,7 +398,7 @@ impl Gatekeeper {
 
 impl From<Vault> for Gatekeeper {
     fn from(value: Vault) -> Self {
-        Gatekeeper::new(value, None)
+        Gatekeeper::new(value)
     }
 }
 
@@ -440,7 +431,7 @@ mod tests {
             .password(passphrase.clone(), None)
             .await?;
 
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(passphrase.into()).await?;
 
         //// Decrypt the initialized meta data.
@@ -456,8 +447,9 @@ mod tests {
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        let event =
-            keeper.create(SecretId::new_v4(), secret_meta.clone(), secret.clone()).await?;
+        let event = keeper
+            .create(SecretId::new_v4(), secret_meta.clone(), secret.clone())
+            .await?;
         if let WriteEvent::CreateSecret(secret_uuid, _) = event {
             let (saved_secret_meta, saved_secret) =
                 keeper.read_secret(&secret_uuid, None, None).await?.unwrap();
@@ -484,7 +476,7 @@ mod tests {
             .password(passphrase.clone(), None)
             .await?;
 
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(passphrase.into()).await?;
 
         //// Decrypt the initialized meta data.
@@ -501,10 +493,11 @@ mod tests {
             user_data: Default::default(),
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
-        
+
         let id = SecretId::new_v4();
-        let event =
-            keeper.create(id, secret_meta.clone(), secret.clone()).await?;
+        let event = keeper
+            .create(id, secret_meta.clone(), secret.clone())
+            .await?;
 
         if let WriteEvent::CreateSecret(secret_uuid, _) = event {
             let (saved_secret_meta, saved_secret) =

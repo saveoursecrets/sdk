@@ -60,7 +60,7 @@ async fn integration_folder_storage() -> Result<()> {
 
     // Use the new vault
     provider
-        .open_vault(&new_vault_summary, new_passphrase, None)
+        .open_vault(&new_vault_summary, new_passphrase)
         .await?;
 
     // Create some secrets

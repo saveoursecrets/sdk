@@ -59,7 +59,7 @@ impl<'a, D> AccountExport<'a, D> {
                 .find_folder_password(summary.id())
                 .await?;
 
-            let mut keeper = Gatekeeper::new(vault, None);
+            let mut keeper = Gatekeeper::new(vault);
             keeper.unlock(vault_passphrase.into()).await?;
 
             // Add the secrets for the vault to the migration
@@ -219,7 +219,7 @@ impl<'a, D> AccountImport<'a, D> {
         // Ensure the imported secrets are in the search index
         self.account
             .index_mut()?
-            .add_folder_to_search_index(vault, vault_passphrase.into())
+            .add_vault(vault, vault_passphrase.into())
             .await?;
 
         let event = Event::Write(*summary.id(), event);

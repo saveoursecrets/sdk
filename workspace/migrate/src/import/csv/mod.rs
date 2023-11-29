@@ -21,7 +21,7 @@ use sos_sdk::{
     account::search::SearchIndex,
     crypto::AccessKey,
     vault::{
-        secret::{IdentityKind, Secret, SecretMeta, SecretId},
+        secret::{IdentityKind, Secret, SecretId, SecretMeta},
         Gatekeeper, Vault,
     },
     Timestamp,
@@ -283,10 +283,8 @@ impl Convert for GenericCsvConvert {
         vault: Vault,
         key: AccessKey,
     ) -> crate::Result<Vault> {
-        let search_index = Arc::new(RwLock::new(SearchIndex::new()));
-        let mut keeper =
-            Gatekeeper::new(vault, Some(Arc::clone(&search_index)));
-
+        let mut index = SearchIndex::new();
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
@@ -296,8 +294,7 @@ impl Convert for GenericCsvConvert {
             let mut label = entry.label().to_owned();
 
             let rename_label = {
-                let search = search_index.read().await;
-                if search
+                if index
                     .find_by_label(keeper.vault().id(), &label, None)
                     .is_some()
                 {
@@ -324,7 +321,11 @@ impl Convert for GenericCsvConvert {
             if let Some(tags) = tags {
                 meta.set_tags(tags);
             }
-            keeper.create(SecretId::new_v4(), meta, secret).await?;
+
+            let id = SecretId::new_v4();
+            let index_doc = index.prepare(keeper.id(), &id, &meta, &secret);
+            keeper.create(id, meta, secret).await?;
+            index.commit(index_doc);
         }
 
         keeper.lock();

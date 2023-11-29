@@ -29,7 +29,7 @@ async fn integration_change_password() -> Result<()> {
 
     // Use the new vault
     provider
-        .open_vault(&summary, encryption_passphrase.clone().into(), None)
+        .open_vault(&summary, encryption_passphrase.clone().into())
         .await?;
 
     // Create some secrets

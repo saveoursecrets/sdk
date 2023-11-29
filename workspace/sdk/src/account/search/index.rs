@@ -516,7 +516,7 @@ impl SearchIndex {
             None
         }
     }
-    
+
     /// Commit a prepared key and document.
     pub fn commit(&mut self, doc: Option<(DocumentKey, Document)>) {
         // Prevent duplicates

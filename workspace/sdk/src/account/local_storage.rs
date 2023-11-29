@@ -104,7 +104,6 @@ impl FolderStorage {
         &mut self,
         summary: &Summary,
         key: AccessKey,
-        index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<ReadEvent> {
         let vault_path = self.vault_path(summary);
         let vault = if self.state.mirror() {
@@ -122,7 +121,7 @@ impl FolderStorage {
             self.reduce_event_log(summary).await?
         };
 
-        self.state.open_vault(key, vault, vault_path, index).await?;
+        self.state.open_vault(key, vault, vault_path).await?;
         Ok(ReadEvent::ReadVault)
     }
 
@@ -881,14 +880,13 @@ impl LocalState {
         key: AccessKey,
         vault: Vault,
         vault_path: PathBuf,
-        index: Option<Arc<RwLock<SearchIndex>>>,
     ) -> Result<()> {
         let mut keeper = if self.mirror {
             let vault_file = VaultWriter::open(&vault_path).await?;
             let mirror = VaultWriter::new(vault_path, vault_file)?;
-            Gatekeeper::new_mirror(vault, mirror, index)
+            Gatekeeper::new_mirror(vault, mirror)
         } else {
-            Gatekeeper::new(vault, index)
+            Gatekeeper::new(vault)
         };
 
         keeper

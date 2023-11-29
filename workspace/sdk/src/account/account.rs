@@ -894,7 +894,7 @@ impl<D> Account<D> {
         }
 
         // Ensure the imported secrets are in the search index
-        self.index()?.add_folder_to_search_index(vault, key).await?;
+        self.index()?.add_vault(vault, key).await?;
 
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent = (self.address(), &event).into();
@@ -935,14 +935,12 @@ impl<D> Account<D> {
         let passphrase =
             self.user()?.find_folder_password(summary.id()).await?;
 
-        let index = Arc::clone(&self.index()?.search_index);
+        //let index = Arc::clone(&self.index()?.search_index);
 
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer
-                .open_vault(summary, passphrase.into(), Some(index))
-                .await?
+            writer.open_vault(summary, passphrase.into()).await?
         };
 
         let event = Event::Read(*summary.id(), event);
@@ -1070,9 +1068,10 @@ impl<D> Account<D> {
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.create_secret(id, meta.clone(), secret.clone()).await?
+            writer
+                .create_secret(id, meta.clone(), secret.clone())
+                .await?
         };
-
 
         {
             let search = self.index()?.search();
@@ -1262,7 +1261,8 @@ impl<D> Account<D> {
                 folder.id(),
                 &secret_id,
                 secret_data.meta(),
-                secret_data.secret())
+                secret_data.secret(),
+            )
         };
 
         let event = {
@@ -1406,7 +1406,7 @@ impl<D> Account<D> {
             let mut writer = storage.write().await;
             writer.delete_secret(secret_id).await?
         };
-        
+
         {
             let search = self.index()?.search();
             let mut writer = search.write().await;
@@ -1573,7 +1573,7 @@ impl<D> Account<D> {
             .build()
             .await?;
 
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(passphrase).await?;
 
         {

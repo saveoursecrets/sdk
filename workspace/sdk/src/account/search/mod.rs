@@ -71,14 +71,14 @@ impl AccountSearch {
         writer.remove_vault(vault_id);
     }
 
-    /// Add a folder to the search index.
-    pub async fn add_folder_to_search_index(
+    /// Add a vault to the search index.
+    pub async fn add_vault(
         &self,
         vault: Vault,
         key: AccessKey,
     ) -> Result<()> {
         let mut index = self.search_index.write().await;
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(key).await?;
         index.add_folder(&keeper).await?;
         keeper.lock();

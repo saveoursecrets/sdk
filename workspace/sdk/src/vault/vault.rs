@@ -1166,7 +1166,7 @@ mod tests {
             .await?;
 
         // Owner adds a secret
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(AccessKey::Identity(owner.clone())).await?;
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
@@ -1181,7 +1181,7 @@ mod tests {
         let encoded = encode(&vault).await?;
         let vault: Vault = decode(&encoded).await?;
 
-        let mut keeper_1 = Gatekeeper::new(vault, None);
+        let mut keeper_1 = Gatekeeper::new(vault);
         keeper_1
             .unlock(AccessKey::Identity(other_1.clone()))
             .await?;
@@ -1204,7 +1204,7 @@ mod tests {
         let vault: Vault = keeper_1.into();
 
         // Check the owner can see the updated secret
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(AccessKey::Identity(owner.clone())).await?;
         if let Some((read_meta, read_secret, _)) = keeper.read(&id).await? {
             assert_eq!(new_meta, read_meta);
@@ -1228,7 +1228,7 @@ mod tests {
             VaultBuilder::new().shared(&owner, recipients, true).await?;
 
         // Owner adds a secret
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(AccessKey::Identity(owner.clone())).await?;
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
@@ -1251,7 +1251,7 @@ mod tests {
         let encoded = encode(&vault).await?;
         let vault: Vault = decode(&encoded).await?;
 
-        let mut keeper_1 = Gatekeeper::new(vault, None);
+        let mut keeper_1 = Gatekeeper::new(vault);
         keeper_1
             .unlock(AccessKey::Identity(other_1.clone()))
             .await?;

@@ -172,7 +172,7 @@ mod test {
     use crate::{
         crypto::AccessKey,
         test_utils::*,
-        vault::{Gatekeeper, VaultBuilder, secret::SecretId},
+        vault::{secret::SecretId, Gatekeeper, VaultBuilder},
     };
     use anyhow::Result;
 
@@ -183,7 +183,7 @@ mod test {
             .password(current_key.clone(), None)
             .await?;
 
-        let mut keeper = Gatekeeper::new(mock_vault, None);
+        let mut keeper = Gatekeeper::new(mock_vault);
         keeper.unlock(current_key.clone().into()).await?;
 
         // Propagate some secrets
@@ -195,7 +195,9 @@ mod test {
         for item in notes {
             let (secret_meta, secret_value, _, _) =
                 mock_secret_note(item.0, item.1).await?;
-            keeper.create(SecretId::new_v4(), secret_meta, secret_value).await?;
+            keeper
+                .create(SecretId::new_v4(), secret_meta, secret_value)
+                .await?;
         }
 
         let expected_len = keeper.vault().len();

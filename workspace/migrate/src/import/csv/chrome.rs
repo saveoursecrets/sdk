@@ -146,7 +146,7 @@ mod test {
             .await?;
 
         let mut search = SearchIndex::new();
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(passphrase.into()).await?;
         search.add_folder(&keeper).await?;
 
@@ -177,7 +177,7 @@ mod test {
             .await?;
 
         let mut search = SearchIndex::new();
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(passphrase.into()).await?;
         search.add_folder(&keeper).await?;
 

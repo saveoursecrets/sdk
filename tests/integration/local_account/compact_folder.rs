@@ -4,7 +4,7 @@ use secrecy::ExposeSecret;
 use sos_net::sdk::{
     account::FolderStorage,
     signer::{ecdsa::SingleParty, Signer},
-    vault::secret::{Secret, SecretRow, SecretId},
+    vault::secret::{Secret, SecretId, SecretRow},
 };
 use tempfile::tempdir;
 
@@ -49,9 +49,7 @@ async fn integration_compact_folder() -> Result<()> {
     commit_count!(storage, &summary, 2);
 
     // Open the vault
-    storage
-        .open_vault(&summary, passphrase.clone(), None)
-        .await?;
+    storage.open_vault(&summary, passphrase.clone()).await?;
 
     let (meta, secret) = mock_note("Test Note", "Mock note content.");
     let id = SecretId::new_v4();

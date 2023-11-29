@@ -415,14 +415,13 @@ impl AccountBackup {
             if let Some(passphrase) = &options.password {
                 let identity_vault_file = paths.identity_vault().clone();
                 let mut user = AuthenticatedUser::new(paths.clone());
-                user.login(&identity_vault_file, passphrase.clone())
-                    .await?;
+                user.login(&identity_vault_file, passphrase.clone()).await?;
 
                 /*
                 let identity_buffer = vfs::read(&identity_vault_file).await?;
                 let identity_vault: Vault = decode(&identity_buffer).await?;
                 let mut identity_keeper =
-                    Gatekeeper::new(identity_vault, None);
+                    Gatekeeper::new(identity_vault);
                 identity_keeper.unlock(passphrase.clone().into()).await?;
 
                 let identity_keeper = Arc::new(RwLock::new(identity_keeper));
@@ -438,7 +437,6 @@ impl AccountBackup {
                 let restored_identity: Vault = decode(&identity.1).await?;
                 let mut restored_identity_keeper = Gatekeeper::new(
                     restored_identity,
-                    None,
                 );
                 restored_identity_keeper
                     .unlock(passphrase.clone().into())
@@ -606,7 +604,7 @@ impl AccountBackup {
         if let Some(passphrase) = &options.password {
             // Check the identity vault can be unlocked
             let vault: Vault = decode(&identity.1).await?;
-            let mut keeper = Gatekeeper::new(vault, None);
+            let mut keeper = Gatekeeper::new(vault);
             keeper.unlock(passphrase.clone().into()).await?;
 
             let paths = UserPaths::new_global(UserPaths::data_dir()?);

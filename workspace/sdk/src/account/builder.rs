@@ -11,7 +11,7 @@ use crate::{
     crypto::AccessKey,
     encode,
     vault::{
-        secret::{Secret, SecretMeta, UserData, SecretId},
+        secret::{Secret, SecretId, SecretMeta, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
     },
     vfs, Result,
@@ -166,7 +166,7 @@ impl AccountBuilder {
 
         // Save the master passphrase in the default vault
         if save_passphrase {
-            let mut keeper = Gatekeeper::new(default_folder, None);
+            let mut keeper = Gatekeeper::new(default_folder);
             keeper.unlock(vault_passphrase.clone().into()).await?;
 
             let secret = Secret::Account {

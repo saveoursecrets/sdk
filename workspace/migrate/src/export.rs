@@ -181,7 +181,7 @@ mod test {
     use sos_sdk::{
         passwd::diceware::generate_passphrase,
         test_utils::*,
-        vault::{Gatekeeper, VaultBuilder, VaultFlags, secret::SecretId},
+        vault::{secret::SecretId, Gatekeeper, VaultBuilder, VaultFlags},
     };
 
     async fn create_mock_migration<W: AsyncWrite + AsyncSeek + Unpin>(
@@ -195,7 +195,7 @@ mod test {
             .await?;
 
         let mut migration = PublicExport::new(writer);
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(passphrase.into()).await?;
 
         let (meta, secret, _, _) =

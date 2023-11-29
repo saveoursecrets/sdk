@@ -103,7 +103,7 @@ impl<D> Account<D> {
         let (vault, _) = local_accounts
             .find_local_vault(contacts.id(), false)
             .await?;
-        let mut keeper = Gatekeeper::new(vault, None);
+        let mut keeper = Gatekeeper::new(vault);
         keeper.unlock(contacts_passphrase.into()).await?;
 
         let mut vcf = String::new();
