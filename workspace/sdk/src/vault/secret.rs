@@ -1652,15 +1652,24 @@ impl Secret {
     }
 
     /// Attach a custom field to this secret's user data.
-    pub fn attach(&mut self, attachment: SecretRow) {
+    pub fn add_field(&mut self, attachment: SecretRow) {
         self.user_data_mut().fields_mut().push(attachment);
     }
 
     /// Remove a custom field from this secret's user data.
-    pub fn detach(&mut self, id: &SecretId) {
+    pub fn remove_field(&mut self, id: &SecretId) {
         self.user_data_mut()
             .fields_mut()
             .retain(|row| row.id() != id);
+    }
+
+    /// Insert a custom field at an index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index > len`.
+    pub fn insert_field(&mut self, index: usize, attachment: SecretRow) {
+        self.user_data_mut().fields_mut().insert(index, attachment);
     }
 
     /// Find a custom field by reference.
@@ -1700,14 +1709,6 @@ impl Secret {
         }
     }
 
-    /// Insert a custom field at an index.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index > len`.
-    pub fn insert_field(&mut self, index: usize, attachment: SecretRow) {
-        self.user_data_mut().fields_mut().insert(index, attachment);
-    }
 }
 
 impl PartialEq for Secret {

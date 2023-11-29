@@ -497,7 +497,7 @@ async fn assert_attach_file_secret(
     let (meta, secret, _) = mock::file_text_secret()?;
     let attachment_id = SecretId::new_v4();
     let attachment = SecretRow::new(attachment_id, meta, secret);
-    secret_data.secret_mut().attach(attachment);
+    secret_data.secret_mut().add_field(attachment);
 
     account
         .update_secret(
@@ -729,7 +729,7 @@ async fn assert_attach_file_secret(
         // Delete the original attachment (index 1)
         insert_field_secret_data
             .secret_mut()
-            .detach(&attachment_id);
+            .remove_field(&attachment_id);
 
         let (_, meta, secret) = insert_field_secret_data.into();
         account

@@ -1334,7 +1334,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     let meta = SecretMeta::new(name, secret.kind());
                     let attachment =
                         SecretRow::new(SecretId::new_v4(), meta, secret);
-                    data.secret_mut().attach(attachment);
+                    data.secret_mut().add_field(attachment);
                     Some(data.into())
                 }
                 AttachAddCommand::Note { name, .. } => {
@@ -1348,7 +1348,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     {
                         let attachment =
                             SecretRow::new(SecretId::new_v4(), meta, secret);
-                        data.secret_mut().attach(attachment);
+                        data.secret_mut().add_field(attachment);
                         Some(data.into())
                     } else {
                         None
@@ -1365,7 +1365,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     {
                         let attachment =
                             SecretRow::new(SecretId::new_v4(), meta, secret);
-                        data.secret_mut().attach(attachment);
+                        data.secret_mut().add_field(attachment);
                         Some(data.into())
                     } else {
                         None
@@ -1383,7 +1383,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     {
                         let attachment =
                             SecretRow::new(SecretId::new_v4(), meta, secret);
-                        data.secret_mut().attach(attachment);
+                        data.secret_mut().add_field(attachment);
                         Some(data.into())
                     } else {
                         None
@@ -1423,7 +1423,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 let existing =
                     data.secret().find_field(&attachment).cloned();
                 if let Some(existing) = existing {
-                    data.secret_mut().detach(existing.id());
+                    data.secret_mut().remove_field(existing.id());
                     Some(data.into())
                 } else {
                     return Err(Error::FieldNotFound(attachment));
