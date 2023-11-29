@@ -8,10 +8,10 @@ pub mod contacts;
 pub mod files;
 mod identity;
 mod local;
+mod local_storage;
 mod login;
 mod password;
 mod paths;
-mod provider;
 pub mod search;
 
 #[cfg(feature = "security-report")]
@@ -25,8 +25,8 @@ pub use builder::{AccountBuilder, NewAccount};
 pub use identity::AccountStatus;
 pub use local::{AccountInfo, AccountRef, AccountsList};
 pub use login::{AuthenticatedUser, DeviceSigner};
+pub use local_storage::FolderStorage;
 pub use paths::UserPaths;
-pub use provider::FolderStorage;
 
 /*
 use std::collections::HashMap;
