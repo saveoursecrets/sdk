@@ -235,7 +235,7 @@ impl AuthenticatedUser {
     }
 
     /// Attempt to login using a file path.
-    pub(crate) async fn login_file<P: AsRef<Path>>(
+    pub async fn login_file<P: AsRef<Path>>(
         &mut self,
         file: P,
         password: SecretString,
@@ -468,7 +468,7 @@ impl AuthenticatedUser {
             let mut device_vault_file =
                 vaults_dir.join(summary.id().to_string());
             device_vault_file.set_extension(VAULT_EXT);
-            
+
             vfs::write(device_vault_file, buffer).await?;
 
             Ok(DeviceSigner {
@@ -547,13 +547,11 @@ impl PrivateIdentity {
     pub fn recipient(&self) -> &age::x25519::Recipient {
         &self.shared_public
     }
-        
+
     /// Device signing key.
     #[cfg(feature = "device")]
     pub fn device(&self) -> Result<&DeviceSigner> {
-        self.device
-            .as_ref()
-            .ok_or(Error::NoDevice)
+        self.device.as_ref().ok_or(Error::NoDevice)
     }
 
     /// Generate a folder password.
@@ -684,9 +682,9 @@ impl PrivateIdentity {
 mod tests {
     use anyhow::Result;
     use secrecy::{ExposeSecret, SecretString};
+    use std::path::PathBuf;
     use tempfile::NamedTempFile;
     use urn::Urn;
-    use std::path::PathBuf;
 
     use crate::{
         account::{AuthenticatedUser, UserPaths},
@@ -699,35 +697,6 @@ mod tests {
         },
         vfs, Error,
     };
-
-    // TODO: move to an integration test!!!
-    #[tokio::test]
-    async fn identity_create_login() -> Result<()> {
-        
-        let data_dir = PathBuf::from("target/identity_create_login");
-        vfs::remove_dir_all(&data_dir).await?;
-        vfs::create_dir(&data_dir).await?;
-
-        UserPaths::scaffold(Some(data_dir.clone())).await?;
-
-        let path = data_dir.join("login.vault");
-
-        let (password, _) = generate_passphrase()?;
-        let auth_password =
-            SecretString::new(password.expose_secret().to_owned());
-        let (address, vault) =
-            AuthenticatedUser::new_login_vault("Login".to_owned(), password)
-                .await?;
-        let buffer = encode(&vault).await?;
-        vfs::write(&path, buffer).await?;
-
-        let paths = UserPaths::new(data_dir, address.to_string());
-        paths.ensure().await?;
-        let mut identity = AuthenticatedUser::new(paths);
-        
-        identity.login_file(path, auth_password).await?;
-        Ok(())
-    }
 
     #[tokio::test]
     async fn identity_not_identity_vault() -> Result<()> {
