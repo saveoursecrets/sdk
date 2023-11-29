@@ -123,7 +123,7 @@ impl AccountSearch {
         let index_reader = self.search_index.read().await;
         let mut docs = Vec::new();
         let tags: HashSet<_> = filter.tags.iter().cloned().collect();
-        let predicate = self.query_predicate(filter, tags, None);
+        let predicate = self.query_predicate(filter, tags);
         if !query.is_empty() {
             for doc in index_reader.query_map(query, predicate) {
                 docs.push(doc.clone());
@@ -142,7 +142,6 @@ impl AccountSearch {
         &self,
         filter: QueryFilter,
         tags: HashSet<String>,
-        _archive: Option<ArchiveFilter>,
     ) -> impl Fn(&Document) -> bool {
         move |doc| {
             let tag_match = filter.tags.is_empty() || {

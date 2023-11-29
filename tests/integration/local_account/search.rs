@@ -37,57 +37,63 @@ async fn integration_search() -> Result<()> {
     let default_folder = new_account.default_folder();
     account.sign_in(password.clone()).await?;
     account.open_folder(&default_folder).await?;
+    let archive_folder = account.archive_folder().await.unwrap();
+
+    let default_folder_docs = vec![
+        mock::login("login", TEST_ID, generate_passphrase()?.0),
+        mock::note("note", "secret"),
+        mock::card("card", TEST_ID, "123"),
+        mock::bank("bank", TEST_ID, "12-34-56"),
+        mock::list(
+            "list",
+            hashmap! {
+                "a" => "1",
+                "b" => "2",
+            },
+        ),
+        mock::pem("pem"),
+        mock::internal_file(
+            "file",
+            "file_name.txt",
+            "text/plain",
+            "file_contents".as_bytes(),
+        ),
+        mock::link("link", "https://example.com"),
+        mock::password("password", generate_passphrase()?.0),
+        mock::age("age"),
+        mock::identity("identity", IdentityKind::IdCard, "1234567890"),
+        mock::totp("totp"),
+        mock::contact("contact", "Jane Doe"),
+        mock::page("page", "Title", "Body"),
+    ];
+
+    let (mut fav_meta, fav_secret) = mock::note("favorite", "secret");
+    fav_meta.set_favorite(true);
+    fav_meta.set_tags(hashset!["new_folder".to_owned()]);
+    let (mut tag_meta, tag_secret) = mock::note("tag", "secret");
+    tag_meta.set_tags(hashset!["new_folder".to_owned()]);
+    let new_folder_docs = vec![
+        mock::login("alt-login", TEST_ID, generate_passphrase()?.0),
+        (fav_meta, fav_secret),
+        (tag_meta, tag_secret),
+    ];
+
+    let total_docs = default_folder_docs.len() + new_folder_docs.len();
 
     // Create a document for each secret type
-    let results = account
-        .insert(vec![
-            mock::login("login", TEST_ID, generate_passphrase()?.0),
-            mock::note("note", "secret"),
-            mock::card("card", TEST_ID, "123"),
-            mock::bank("bank", TEST_ID, "12-34-56"),
-            mock::list(
-                "list",
-                hashmap! {
-                    "a" => "1",
-                    "b" => "2",
-                },
-            ),
-            mock::pem("pem"),
-            mock::internal_file(
-                "file",
-                "file_name.txt",
-                "text/plain",
-                "file_contents".as_bytes(),
-            ),
-            mock::link("link", "https://example.com"),
-            mock::password("password", generate_passphrase()?.0),
-            mock::age("age"),
-            mock::identity("identity", IdentityKind::IdCard, "1234567890"),
-            mock::totp("totp"),
-            mock::contact("contact", "Jane Doe"),
-            mock::page("page", "Title", "Body"),
-        ])
-        .await?;
+    let results = account.insert(default_folder_docs).await?;
 
     let ids: Vec<_> = results.into_iter().map(|r| r.0).collect();
+
+    // Secret we will move to the archive
+    let card_id = *ids.get(2).unwrap();
 
     // Create a folder and add secrets to the other folder
     let folder_name = "folder_name";
     let (folder, _, _, _) =
         account.create_folder(folder_name.to_string()).await?;
     account.open_folder(&folder).await?;
-    let (mut fav_meta, fav_secret) = mock::note("favorite", "secret");
-    fav_meta.set_favorite(true);
-
-    let (mut tag_meta, tag_secret) = mock::note("tag", "secret");
-    tag_meta.set_tags(hashset!["notes".to_owned()]);
-    account
-        .insert(vec![
-            mock::login("alt-login", TEST_ID, generate_passphrase()?.0),
-            (fav_meta, fav_secret),
-            (tag_meta, tag_secret),
-        ])
-        .await?;
+    account.insert(new_folder_docs).await?;
 
     // Get all documents in the index.
     let documents = account
@@ -99,7 +105,7 @@ async fn integration_search() -> Result<()> {
             None,
         )
         .await?;
-    assert_eq!(17, documents.len());
+    assert_eq!(total_docs, documents.len());
 
     // Get all documents ignoring some types
     let documents = account
@@ -163,9 +169,49 @@ async fn integration_search() -> Result<()> {
     // Find by tags
     let documents = account
         .index()?
-        .query_view(vec![DocumentView::Tags(vec!["notes".to_owned()])], None)
+        .query_view(
+            vec![DocumentView::Tags(vec!["new_folder".to_owned()])],
+            None,
+        )
         .await?;
-    assert_eq!(1, documents.len());
+    assert_eq!(2, documents.len());
+
+    // Move a secret to the archive
+    account
+        .archive(&default_folder, &card_id, Default::default())
+        .await?;
+
+    // Query all documents but ignore items
+    // in the archive
+    let documents = account
+        .index()?
+        .query_view(
+            vec![DocumentView::All {
+                ignored_types: None,
+            }],
+            Some(ArchiveFilter {
+                id: *archive_folder.id(),
+                include_documents: false,
+            }),
+        )
+        .await?;
+    assert_eq!(total_docs - 1, documents.len());
+
+    // Query all documents and explicitly include items
+    // in the archive
+    let documents = account
+        .index()?
+        .query_view(
+            vec![DocumentView::All {
+                ignored_types: None,
+            }],
+            Some(ArchiveFilter {
+                id: *archive_folder.id(),
+                include_documents: true,
+            }),
+        )
+        .await?;
+    assert_eq!(total_docs, documents.len());
 
     // Gets the two login secrets, "login" and "alt-login"
     let documents = account
@@ -207,7 +253,24 @@ async fn integration_search() -> Result<()> {
         .await?;
     assert_eq!(1, documents.len());
 
-    println!("{:#?}", documents.len());
+    // Empty query gets all documents
+    let documents =
+        account.index()?.query_map("", Default::default()).await?;
+    assert_eq!(total_docs, documents.len());
+
+    // Empty query with a tag filter
+    // gets us those tags only
+    let documents = account
+        .index()?
+        .query_map(
+            "",
+            QueryFilter {
+                tags: vec!["new_folder".to_owned()],
+                ..Default::default()
+            },
+        )
+        .await?;
+    assert_eq!(2, documents.len());
 
     teardown(TEST_ID).await;
 
