@@ -30,6 +30,7 @@ test-utils = ["sos-net/test-utils"]
 
 [workspace.dependencies]
 csv-async = { version = "1", features = ["tokio", "with_serde"] }
+mpc-protocol = "0.4.1"
 
 [workspace.dependencies.binary-stream]
 version = "8.0.0"

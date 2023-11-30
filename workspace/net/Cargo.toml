@@ -48,6 +48,7 @@ mem-fs = ["sos-sdk/mem-fs"]
 test-utils = ["sos-sdk/test-utils"]
 
 [dependencies]
+mpc-protocol.workspace = true
 thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

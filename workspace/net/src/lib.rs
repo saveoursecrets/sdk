@@ -36,4 +36,5 @@ pub use sos_migrate as migrate;
 #[cfg(feature = "client")]
 pub use reqwest;
 
+pub use mpc_protocol as mpc;
 pub use sos_sdk as sdk;

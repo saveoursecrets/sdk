@@ -3,7 +3,8 @@ use anyhow::Result;
 use http::StatusCode;
 use sos_net::{
     client::RpcClient,
-    sdk::{encode, mpc::generate_keypair, vault::Vault},
+    mpc::generate_keypair,
+    sdk::{encode, vault::Vault},
 };
 
 const TEST_ID: &str = "rpc_session";

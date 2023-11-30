@@ -1,4 +1,5 @@
 //! Network aware account.
+use mpc_protocol::generate_keypair;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
@@ -12,7 +13,6 @@ use sos_sdk::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     events::{Event, ReadEvent},
-    mpc::generate_keypair,
     signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},

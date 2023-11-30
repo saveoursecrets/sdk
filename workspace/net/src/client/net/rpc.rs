@@ -18,12 +18,13 @@ use sos_sdk::{
     crypto::SecureAccessKey,
     decode, encode,
     events::Patch,
-    mpc::{
-        channel::{decrypt_server_channel, encrypt_server_channel},
-        snow, Keypair, ProtocolState, PATTERN,
-    },
     signer::ecdsa::BoxedEcdsaSigner,
     vault::{Summary, VaultId},
+};
+
+use mpc_protocol::{
+    channel::{decrypt_server_channel, encrypt_server_channel},
+    snow, Keypair, ProtocolState, PATTERN,
 };
 //use tracing::{span, Level};
 
@@ -649,7 +650,7 @@ impl RpcClient {
         let message: ServerEnvelope = decode(buffer).await?;
         let (encoding, buffer) =
             decrypt_server_channel(protocol, message.envelope).await?;
-        assert!(matches!(encoding, sos_sdk::mpc::Encoding::Blob));
+        assert!(matches!(encoding, mpc_protocol::Encoding::Blob));
         Ok(buffer)
     }
 }

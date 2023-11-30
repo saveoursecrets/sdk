@@ -4,10 +4,9 @@ use std::path::PathBuf;
 //use tokio::{fs, io::AsyncWriteExt};
 
 use crate::{Error, Result};
-use sos_net::sdk::{
-    hex,
+use sos_net::{
     mpc::{encode_keypair, generate_keypair},
-    vfs,
+    sdk::{hex, vfs},
 };
 
 /// Generate keypair and write to file.

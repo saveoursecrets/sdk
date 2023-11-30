@@ -6,10 +6,8 @@ use url::{Host, Url};
 use super::backend::{Backend, FileSystemBackend};
 use super::{Error, Result};
 
-use sos_sdk::{
-    mpc::{decode_keypair, Keypair},
-    vfs,
-};
+use mpc_protocol::{decode_keypair, Keypair};
+use sos_sdk::vfs;
 
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]

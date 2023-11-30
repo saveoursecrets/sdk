@@ -3,7 +3,7 @@
 //! Message identifiers have the same semantics as JSON-RPC;
 //! if a request does not have an `id` than no reply is expected
 //! otherwise a service must reply.
-use sos_sdk::mpc::SealedEnvelope;
+use mpc_protocol::SealedEnvelope;
 
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};

@@ -29,11 +29,8 @@ use tokio::{
 };
 use url::Url;
 
-use sos_sdk::{
-    events::ChangeNotification,
-    mpc::{generate_keypair, Keypair},
-    signer::ecdsa::BoxedEcdsaSigner,
-};
+use mpc_protocol::{generate_keypair, Keypair};
+use sos_sdk::{events::ChangeNotification, signer::ecdsa::BoxedEcdsaSigner};
 
 use crate::client::{Origin, Result, RpcClient};
 

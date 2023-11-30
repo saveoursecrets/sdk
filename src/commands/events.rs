@@ -82,7 +82,7 @@ async fn print_events<T: Default + Encodable + Decodable + LogEvent>(
     } else {
         event_log.iter().await?
     };
-    
+
     let version = event_log.read_file_version().await?;
     let mut count = 0;
     let divider = "-".repeat(80);

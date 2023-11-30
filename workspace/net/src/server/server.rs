@@ -18,8 +18,10 @@ use axum::{
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
+use mpc_protocol::Keypair;
 use serde::{Deserialize, Serialize};
-use sos_sdk::{events::AuditLogFile, mpc::Keypair};
+use sos_sdk::events::AuditLogFile;
+
 use std::time::Duration;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};

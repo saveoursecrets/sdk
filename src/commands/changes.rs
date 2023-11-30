@@ -2,9 +2,9 @@
 use futures::stream::StreamExt;
 use sos_net::{
     client::{changes, connect, Origin},
+    mpc::{generate_keypair, Keypair},
     sdk::{
-        account::AccountRef, hex, mpc::generate_keypair, mpc::Keypair,
-        signer::ecdsa::BoxedEcdsaSigner, url::Url,
+        account::AccountRef, hex, signer::ecdsa::BoxedEcdsaSigner, url::Url,
     },
 };
 

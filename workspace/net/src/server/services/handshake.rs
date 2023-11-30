@@ -1,7 +1,4 @@
-use sos_sdk::{
-    constants::HANDSHAKE_INITIATE,
-    mpc::{snow, ProtocolState, PATTERN},
-};
+use sos_sdk::constants::HANDSHAKE_INITIATE;
 
 use super::Service;
 use crate::{
@@ -10,6 +7,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use axum::http::StatusCode;
+use mpc_protocol::{snow, ProtocolState, PATTERN};
 use std::borrow::Cow;
 
 /// Handshake service.

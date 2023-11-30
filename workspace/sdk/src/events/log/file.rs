@@ -133,21 +133,20 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         }
         header
     }
-    
+
     /// Read encoding version from the file on disc.
     pub async fn read_file_version(&self) -> Result<u16> {
         if let Some(_) = &self.version {
-            let mut file = OpenOptions::new()
-                .read(true)
-                .open(&self.file_path)
+            let mut file =
+                OpenOptions::new().read(true).open(&self.file_path).await?;
+            file.seek(SeekFrom::Start(self.identity.len() as u64))
                 .await?;
-            file.seek(SeekFrom::Start(self.identity.len() as u64)).await?;
             let mut buf = [0; 2];
             file.read_exact(&mut buf).await?;
             let version_bytes: [u8; 2] = buf.as_slice().try_into()?;
             let version = u16::from_le_bytes(version_bytes);
             Ok(version)
-        // Backwards compatible with formats without 
+        // Backwards compatible with formats without
         // version information, just return the default version
         } else {
             Ok(VERSION1)
@@ -157,8 +156,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     /// Get an iterator of the log records.
     pub async fn iter(&self) -> Result<EventLogFileStream> {
         let content_offset = self.header_len() as u64;
-        event_log_stream(
-            &self.file_path, self.identity, content_offset).await
+        event_log_stream(&self.file_path, self.identity, content_offset).await
     }
 
     /// Replace this event log with the contents of the buffer.
@@ -343,7 +341,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
 
     /// Read the last commit hash from the file.
     pub async fn last_commit(&self) -> Result<Option<CommitHash>> {
-        let file_len = self.file.metadata().await?.len() as usize; 
+        let file_len = self.file.metadata().await?.len() as usize;
         if file_len > self.header_len() {
             let mut it = self.iter().await?.rev();
             if let Some(record) = it.next_entry().await? {
@@ -351,7 +349,9 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
             } else {
                 Ok(None)
             }
-        } else { Ok(None) }
+        } else {
+            Ok(None)
+        }
     }
 
     /// Get a diff of the records after the record with the
@@ -540,8 +540,8 @@ mod test {
     use super::*;
     use crate::{events::WriteEvent, test_utils::*, vault::VaultId};
 
-    async fn mock_account_event_log() -> Result<(NamedTempFile, AccountEventLog)>
-    {
+    async fn mock_account_event_log(
+    ) -> Result<(NamedTempFile, AccountEventLog)> {
         let temp = NamedTempFile::new()?;
         let event_log = AccountEventLog::new_account(temp.path()).await?;
         Ok((temp, event_log))
@@ -650,12 +650,14 @@ mod test {
     #[tokio::test]
     async fn account_event_log() -> Result<()> {
         let (temp, mut event_log) = mock_account_event_log().await?;
-        
+
         let folder = VaultId::new_v4();
-        event_log.apply(vec![
-            &AccountEvent::CreateFolder(folder),
-            &AccountEvent::DeleteFolder(folder),
-        ]).await?;
+        event_log
+            .apply(vec![
+                &AccountEvent::CreateFolder(folder),
+                &AccountEvent::DeleteFolder(folder),
+            ])
+            .await?;
 
         assert!(event_log.tree().len() > 0);
         assert!(event_log.tree().root().is_some());

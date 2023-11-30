@@ -11,12 +11,12 @@ use web3_address::ethereum::Address;
 
 use sos_net::{
     client::{NetworkAccount, Origin, RemoteBridge, RemoteSync},
+    mpc::{Keypair, PATTERN},
     sdk::{
         account::FolderStorage,
         crypto::AccessKey,
         events::AuditLogFile,
         hex,
-        mpc::{Keypair, PATTERN},
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
         vault::{secret::SecretId, Summary},

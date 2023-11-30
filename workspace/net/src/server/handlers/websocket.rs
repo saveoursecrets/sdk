@@ -18,7 +18,8 @@ use tokio::sync::{
     mpsc,
 };
 
-use sos_sdk::{encode, mpc::channel::encrypt_server_channel};
+use mpc_protocol::channel::encrypt_server_channel;
+use sos_sdk::encode;
 use tracing::{span, Level};
 use web3_address::ethereum::Address;
 

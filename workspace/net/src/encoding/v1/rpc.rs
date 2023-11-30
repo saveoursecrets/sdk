@@ -4,7 +4,6 @@ use std::{borrow::Cow, io::Result};
 
 use sos_sdk::{
     constants::RPC_IDENTITY, encoding::encoding_error, formats::FileIdentity,
-    mpc::SealedEnvelope,
 };
 
 use async_trait::async_trait;
@@ -12,6 +11,7 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use mpc_protocol::SealedEnvelope;
 
 use crate::rpc::{
     Error, Packet, Payload, RequestMessage, ResponseMessage, ServerEnvelope,

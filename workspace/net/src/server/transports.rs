@@ -1,5 +1,5 @@
 //! Manages noise protocol transports with client connections.
-use sos_sdk::mpc::ProtocolState;
+use mpc_protocol::ProtocolState;
 use std::{
     collections::HashMap,
     time::{Duration, Instant},

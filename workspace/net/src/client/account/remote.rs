@@ -17,13 +17,13 @@ use sos_sdk::{
     crypto::SecureAccessKey,
     decode,
     events::{Event, Patch, WriteEvent},
-    mpc::Keypair,
     signer::ecdsa::BoxedEcdsaSigner,
     url::Url,
     vault::{Summary, VaultId},
     vfs,
 };
 
+use mpc_protocol::Keypair;
 use std::{any::Any, collections::HashMap, fmt, sync::Arc};
 use tokio::sync::RwLock;
 

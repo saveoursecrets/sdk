@@ -39,7 +39,6 @@ pub use timestamp::Timestamp;
 pub use age;
 pub use hex;
 pub use k256;
-pub use mpc_protocol as mpc;
 pub use pem;
 pub use secrecy;
 pub use sha2;

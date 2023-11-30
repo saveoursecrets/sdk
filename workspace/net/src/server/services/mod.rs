@@ -8,11 +8,11 @@ use axum::{
 };
 
 use async_trait::async_trait;
+use mpc_protocol::channel::{decrypt_server_channel, encrypt_server_channel};
 use sos_sdk::{
     constants::MIME_TYPE_RPC,
     decode, encode,
     events::{AuditEvent, AuditProvider, ChangeNotification},
-    mpc::channel::{decrypt_server_channel, encrypt_server_channel},
 };
 use web3_address::ethereum::Address;
 
@@ -192,7 +192,7 @@ pub(crate) async fn private_service(
         )
         .await?;
 
-        assert!(matches!(encoding, sos_sdk::mpc::Encoding::Blob));
+        assert!(matches!(encoding, mpc_protocol::Encoding::Blob));
 
         // Parse the bearer token
         let token = authenticate::bearer(bearer, &body)
