@@ -48,6 +48,29 @@ impl<D> Account<D> {
         let reader = storage.read().await;
         reader.index.query_map(query, filter).await
     }
+
+    /// Get the search index document count statistics.
+    pub async fn document_count(&self) -> Result<DocumentCount> {
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        let search = reader.index.search();
+        let index = search.read().await;
+        Ok(index.statistics().count().clone())
+    }
+
+    /// Determine if a document exists in a folder.
+    pub async fn document_exists_in_folder(
+        &self,
+        vault_id: &VaultId,
+        label: &str,
+        id: Option<&SecretId>,
+    ) -> Result<bool> {
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        let search = reader.index.search();
+        let index = search.read().await;
+        Ok(index.find_by_label(vault_id, label, id).is_some())
+    }
 }
 
 /// Account statistics derived from the search index.

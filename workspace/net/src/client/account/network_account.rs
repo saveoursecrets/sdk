@@ -702,4 +702,19 @@ impl NetworkAccount {
     ) -> Result<Vec<Document>> {
         Ok(self.account.query_map(query, filter).await?)
     }
+
+    /// Get the search index document count statistics.
+    pub async fn document_count(&self) -> Result<DocumentCount> {
+        Ok(self.account.document_count().await?)
+    }
+
+    /// Determine if a document exists in a folder.
+    pub async fn document_exists_in_folder(
+        &self,
+        vault_id: &VaultId,
+        label: &str,
+        id: Option<&SecretId>,
+    ) -> Result<bool> {
+        Ok(self.account.document_exists_in_folder(vault_id, label, id).await?)
+    }
 }
