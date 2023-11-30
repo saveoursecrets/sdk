@@ -1167,7 +1167,8 @@ mod tests {
 
         // Owner adds a secret
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
+        let key = AccessKey::Identity(owner.clone());
+        keeper.unlock(&key).await?;
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
         let id = SecretId::new_v4();
@@ -1182,9 +1183,8 @@ mod tests {
         let vault: Vault = decode(&encoded).await?;
 
         let mut keeper_1 = Gatekeeper::new(vault);
-        keeper_1
-            .unlock(AccessKey::Identity(other_1.clone()))
-            .await?;
+        let key = AccessKey::Identity(other_1.clone());
+        keeper_1.unlock(&key).await?;
         if let Some((read_meta, read_secret, _)) = keeper_1.read(&id).await? {
             assert_eq!(meta, read_meta);
             assert_eq!(secret, read_secret);
@@ -1205,7 +1205,8 @@ mod tests {
 
         // Check the owner can see the updated secret
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
+        let key = AccessKey::Identity(owner.clone());
+        keeper.unlock(&key).await?;
         if let Some((read_meta, read_secret, _)) = keeper.read(&id).await? {
             assert_eq!(new_meta, read_meta);
             assert_eq!(new_secret, read_secret);
@@ -1229,7 +1230,8 @@ mod tests {
 
         // Owner adds a secret
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
+        let key = AccessKey::Identity(owner.clone());
+        keeper.unlock(&key).await?;
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
         let id = SecretId::new_v4();
@@ -1252,9 +1254,8 @@ mod tests {
         let vault: Vault = decode(&encoded).await?;
 
         let mut keeper_1 = Gatekeeper::new(vault);
-        keeper_1
-            .unlock(AccessKey::Identity(other_1.clone()))
-            .await?;
+        let key = AccessKey::Identity(other_1.clone());
+        keeper_1.unlock(&key).await?;
 
         // Other recipient can read the secret
         if let Some((read_meta, read_secret, _)) = keeper_1.read(&id).await? {

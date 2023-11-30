@@ -19,7 +19,7 @@ pub mod security_report;
 
 pub use account::{
     AccessOptions, Account, AccountData, AccountHandler, DetachedView,
-    LocalAccount,
+    FolderKeys, LocalAccount,
 };
 pub use accounts_list::{AccountInfo, AccountRef, AccountsList};
 pub use builder::{AccountBuilder, NewAccount};

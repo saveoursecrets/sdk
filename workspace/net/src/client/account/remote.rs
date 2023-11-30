@@ -606,7 +606,7 @@ impl RemoteSync for RemoteBridge {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "listen")]
 mod listen {
     use crate::client::{
         Error, ListenOptions, RemoteBridge, Result, WebSocketHandle,
@@ -944,4 +944,5 @@ mod listen {
     }
 }
 
+#[cfg(feature = "listen")]
 pub(crate) use listen::{NetworkAccountReceiver, NetworkAccountSender};

@@ -359,7 +359,7 @@ impl Gatekeeper {
     /// Unlock the vault by setting the private key from a passphrase.
     ///
     /// The private key is stored in memory by this gatekeeper.
-    pub async fn unlock(&mut self, key: AccessKey) -> Result<VaultMeta> {
+    pub async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
         if let Some(salt) = self.vault.salt() {
             match key {
                 AccessKey::Password(passphrase) => {
@@ -432,7 +432,8 @@ mod tests {
             .await?;
 
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(passphrase.into()).await?;
+        let key: AccessKey = passphrase.into();
+        keeper.unlock(&key).await?;
 
         //// Decrypt the initialized meta data.
         let meta = keeper.vault_meta().await?;
@@ -477,7 +478,8 @@ mod tests {
             .await?;
 
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(passphrase.into()).await?;
+        let key: AccessKey = passphrase.into();
+        keeper.unlock(&key).await?;
 
         //// Decrypt the initialized meta data.
         let meta = keeper.vault_meta().await?;

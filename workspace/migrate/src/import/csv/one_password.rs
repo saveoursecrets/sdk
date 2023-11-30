@@ -116,7 +116,7 @@ impl Convert for OnePasswordCsv {
         &self,
         source: Self::Input,
         vault: Vault,
-        key: AccessKey,
+        key: &AccessKey,
     ) -> crate::Result<Vault> {
         let records: Vec<GenericCsvEntry> = parse_path(source)
             .await?
@@ -167,6 +167,7 @@ mod test {
 
     use sos_sdk::{
         account::search::SearchIndex,
+        crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         vault::{Gatekeeper, VaultBuilder},
     };
@@ -250,17 +251,14 @@ mod test {
             .password(passphrase.clone(), None)
             .await?;
 
+        let key: AccessKey = passphrase.into();
         let vault = OnePasswordCsv
-            .convert(
-                "fixtures/1password-export.csv".into(),
-                vault,
-                passphrase.clone().into(),
-            )
+            .convert("fixtures/1password-export.csv".into(), vault, &key)
             .await?;
 
         let mut search = SearchIndex::new();
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(passphrase.into()).await?;
+        keeper.unlock(&key).await?;
         search.add_folder(&keeper).await?;
 
         assert_eq!(6, search.len());

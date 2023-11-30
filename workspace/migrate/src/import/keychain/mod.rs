@@ -151,14 +151,14 @@ impl Convert for KeychainImport {
         &self,
         source: Self::Input,
         vault: Vault,
-        key: AccessKey,
+        key: &AccessKey,
     ) -> crate::Result<Vault> {
         let parser = KeychainParser::new(&source);
         let list = parser.parse()?;
 
         let mut index = SearchIndex::new();
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(key).await?;
+        keeper.unlock(&key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
 

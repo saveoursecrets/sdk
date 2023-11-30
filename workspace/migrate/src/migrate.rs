@@ -60,7 +60,7 @@ impl<'a, D> AccountExport<'a, D> {
                 .await?;
 
             let mut keeper = Gatekeeper::new(vault);
-            keeper.unlock(vault_passphrase.into()).await?;
+            keeper.unlock(&vault_passphrase).await?;
 
             // Add the secrets for the vault to the migration
             migration.add(&keeper).await?;
@@ -196,30 +196,22 @@ impl<'a, D> AccountImport<'a, D> {
             .await?;
 
         // Parse the CSV records into the vault
+        let key = vault_passphrase.clone().into();
         let vault = converter
-            .convert(
-                path.as_ref().to_path_buf(),
-                vault,
-                vault_passphrase.clone().into(),
-            )
+            .convert(path.as_ref().to_path_buf(), vault, &key)
             .await?;
 
         let buffer = encode(&vault).await?;
         let (event, summary) = {
             let storage = self.account.storage()?;
             let mut writer = storage.write().await;
-            writer.import_vault(buffer).await?
+            let key: AccessKey = vault_passphrase.clone().into();
+            writer.import_vault(buffer, Some(&key)).await?
         };
 
         self.account
             .user_mut()?
             .save_folder_password(vault.id(), vault_passphrase.clone().into())
-            .await?;
-
-        // Ensure the imported secrets are in the search index
-        self.account
-            .index_mut()?
-            .add_vault(vault, vault_passphrase.into())
             .await?;
 
         let event = Event::Write(*summary.id(), event);

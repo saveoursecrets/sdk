@@ -2,7 +2,10 @@
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        search::{AccountSearch, AccountStatistics, DocumentCount},
+        search::{
+            AccountSearch, AccountStatistics, ArchiveFilter, Document,
+            DocumentCount, DocumentView, QueryFilter, SearchIndex,
+        },
         AccessOptions, Account, AccountBuilder, AccountData,
         AuthenticatedUser, DetachedView, FolderStorage, NewAccount,
         UserPaths,
@@ -56,7 +59,7 @@ pub struct NetworkAccount {
     pub(super) sync_lock: Mutex<()>,
 
     /// Websocket change listeners.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "listen")]
     pub(super) listeners: Mutex<Vec<WebSocketHandle>>,
 }
 
@@ -89,6 +92,7 @@ impl NetworkAccount {
             devices: DeviceManager::new(devices_dir)?,
             remotes,
             sync_lock: Mutex::new(()),
+            #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
         })
     }
@@ -154,6 +158,7 @@ impl NetworkAccount {
             devices: DeviceManager::new(devices_dir)?,
             remotes,
             sync_lock: Mutex::new(()),
+            #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
         };
 
@@ -265,6 +270,7 @@ impl NetworkAccount {
         // Delete the account and sign out
         self.account.delete_account().await?;
         // Shutdown any change listeners
+        #[cfg(feature = "listen")]
         self.shutdown_listeners().await;
         Ok(())
     }
@@ -321,11 +327,14 @@ impl NetworkAccount {
         let _enter = span.enter();
 
         tracing::debug!(address = %self.address());
+        #[cfg(feature = "listen")]
         self.shutdown_listeners().await;
+
         Ok(self.account.sign_out().await?)
     }
 
     /// Close all the websocket connections
+    #[cfg(feature = "listen")]
     async fn shutdown_listeners(&self) {
         let mut listeners = self.listeners.lock().await;
         for handle in listeners.drain(..) {
@@ -592,6 +601,7 @@ impl NetworkAccount {
             .await?)
     }
 
+    /*
     /// Search index reference.
     pub fn index(&self) -> Result<&AccountSearch> {
         Ok(self.account.index()?)
@@ -601,6 +611,7 @@ impl NetworkAccount {
     pub fn index_mut(&mut self) -> Result<&mut AccountSearch> {
         Ok(self.account.index_mut()?)
     }
+    */
 
     /// Initialize the search index.
     ///
@@ -610,11 +621,6 @@ impl NetworkAccount {
         &mut self,
     ) -> Result<(DocumentCount, Vec<Summary>)> {
         Ok(self.account.initialize_search_index().await?)
-    }
-
-    /// Build the search index for all folders.
-    pub async fn build_search_index(&mut self) -> Result<DocumentCount> {
-        Ok(self.account.build_search_index().await?)
     }
 
     /// Create a detached view of an event log until a
@@ -670,5 +676,31 @@ impl NetworkAccount {
             .account
             .download_file(vault_id, secret_id, file_name)
             .await?)
+    }
+}
+
+// Search functions
+impl NetworkAccount {
+    /// Search index for the account.
+    pub async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
+        Ok(self.account.index().await?)
+    }
+
+    /// Query with document views.
+    pub async fn query_view(
+        &self,
+        views: Vec<DocumentView>,
+        archive: Option<ArchiveFilter>,
+    ) -> Result<Vec<Document>> {
+        Ok(self.account.query_view(views, archive).await?)
+    }
+
+    /// Query the search index.
+    pub async fn query_map(
+        &self,
+        query: &str,
+        filter: QueryFilter,
+    ) -> Result<Vec<Document>> {
+        Ok(self.account.query_map(query, filter).await?)
     }
 }

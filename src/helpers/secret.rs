@@ -45,7 +45,7 @@ pub async fn resolve_secret(
     secret: &SecretRef,
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let owner = user.read().await;
-    let search = owner.index()?.search();
+    let search = owner.index().await?;
     let index_reader = search.read().await;
     if let Some(Document {
         secret_id, meta, ..

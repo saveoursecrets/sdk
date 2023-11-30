@@ -27,10 +27,10 @@ use sos_sdk::{
 };
 //use tracing::{span, Level};
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "listen")]
 use sos_sdk::events::ChangeNotification;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "listen")]
 use super::websocket::WebSocketChangeListener;
 
 use std::{
@@ -44,9 +44,12 @@ use tokio::sync::{Mutex, RwLock};
 use url::Url;
 
 use crate::{
-    client::{Error, ListenOptions, Origin, Result, WebSocketHandle},
+    client::{Error, Origin, Result},
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
 };
+
+#[cfg(feature = "listen")]
+use crate::client::{ListenOptions, WebSocketHandle};
 
 use super::{bearer_prefix, encode_signature, AUTHORIZATION};
 
@@ -94,7 +97,7 @@ impl RpcClient {
     /// Spawn a thread that listens for changes
     /// from the remote server using a websocket
     /// that performs automatic re-connection.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "listen")]
     pub(crate) fn listen<F>(
         &self,
         options: ListenOptions,

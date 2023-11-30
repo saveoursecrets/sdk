@@ -184,7 +184,8 @@ mod test {
             .await?;
 
         let mut keeper = Gatekeeper::new(mock_vault);
-        keeper.unlock(current_key.clone().into()).await?;
+        let key: AccessKey = current_key.clone().into();
+        keeper.unlock(&key).await?;
 
         // Propagate some secrets
         let notes = vec![

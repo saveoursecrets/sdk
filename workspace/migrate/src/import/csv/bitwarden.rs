@@ -126,7 +126,7 @@ impl Convert for BitwardenCsv {
         &self,
         source: Self::Input,
         vault: Vault,
-        key: AccessKey,
+        key: &AccessKey,
     ) -> crate::Result<Vault> {
         let records: Vec<GenericCsvEntry> = parse_path(source)
             .await?
@@ -148,6 +148,7 @@ mod test {
 
     use sos_sdk::{
         account::search::SearchIndex,
+        crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         vault::{Gatekeeper, VaultBuilder},
     };
@@ -180,17 +181,15 @@ mod test {
         let vault = VaultBuilder::new()
             .password(passphrase.clone(), None)
             .await?;
+
+        let key: AccessKey = passphrase.into();
         let vault = BitwardenCsv
-            .convert(
-                "fixtures/bitwarden-export.csv".into(),
-                vault,
-                passphrase.clone().into(),
-            )
+            .convert("fixtures/bitwarden-export.csv".into(), vault, &key)
             .await?;
 
         let mut search = SearchIndex::new();
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(passphrase.into()).await?;
+        keeper.unlock(&key).await?;
         search.add_folder(&keeper).await?;
 
         let first = search.find_by_label(keeper.id(), "Mock Login", None);

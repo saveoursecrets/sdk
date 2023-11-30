@@ -9,7 +9,9 @@ mod sync;
 
 pub use account::*;
 pub use error::Error;
-pub use net::{changes, connect, ListenOptions, RpcClient, WebSocketHandle};
+pub use net::RpcClient;
+#[cfg(feature = "listen")]
+pub use net::{changes, connect, ListenOptions, WebSocketHandle};
 pub use sync::{RemoteSync, SyncError, SyncOptions};
 
 /// Result type for the client module.

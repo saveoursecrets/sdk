@@ -194,7 +194,8 @@ impl AuthenticatedUser {
             .await?;
 
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(password.into()).await?;
+        let key: AccessKey = password.into();
+        keeper.unlock(&key).await?;
 
         // Store the signing key
         let signer = SingleParty::new_random();
@@ -267,7 +268,8 @@ impl AuthenticatedUser {
         } else {
             Arc::new(RwLock::new(SearchIndex::new()))
         };
-        keeper.unlock(password.into()).await?;
+        let key: AccessKey = password.into();
+        keeper.unlock(&key).await?;
 
         let mut search = index.write().await;
         search.add_folder(&keeper).await?;
@@ -385,14 +387,15 @@ impl AuthenticatedUser {
         let index = self.identity()?.index();
 
         if let Some(summary) = device_vault {
-            let device_passphrase =
+            let device_password =
                 self.find_folder_password(summary.id()).await?;
 
             let (vault, _) =
                 local_accounts.find_local_vault(summary.id(), true).await?;
             let search_index = self.identity()?.index();
             let mut device_keeper = Gatekeeper::new(vault);
-            device_keeper.unlock(device_passphrase.into()).await?;
+            let key: AccessKey = device_password.into();
+            device_keeper.unlock(&key).await?;
             {
                 let mut index = search_index.write().await;
                 index.add_folder(&device_keeper).await?;
@@ -425,7 +428,7 @@ impl AuthenticatedUser {
             }
         } else {
             // Prepare the passphrase for the device vault
-            let device_passphrase = self.generate_folder_password()?;
+            let device_password = self.generate_folder_password()?;
 
             // Prepare the device vault
             let vault = VaultBuilder::new()
@@ -436,17 +439,18 @@ impl AuthenticatedUser {
                         | VaultFlags::NO_SYNC_SELF
                         | VaultFlags::NO_SYNC_OTHER,
                 )
-                .password(device_passphrase.clone().into(), None)
+                .password(device_password.clone().into(), None)
                 .await?;
 
             self.save_folder_password(
                 vault.id(),
-                device_passphrase.clone().into(),
+                device_password.clone().into(),
             )
             .await?;
 
             let mut device_keeper = Gatekeeper::new(vault);
-            device_keeper.unlock(device_passphrase.into()).await?;
+            let key: AccessKey = device_password.into();
+            device_keeper.unlock(&key).await?;
 
             let key = ed25519::SingleParty::new_random();
             let public_id = key.address()?;
@@ -769,7 +773,8 @@ mod tests {
             .await?;
 
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(password.clone().into()).await?;
+        let key = password.clone().into();
+        keeper.unlock(&key).await?;
 
         // Create a secret using the expected name but of the wrong kind
         let signer_secret = Secret::Note {

@@ -17,6 +17,39 @@ use tokio::sync::RwLock;
 mod index;
 pub use index::*;
 
+use super::account::Account;
+
+impl<D> Account<D> {
+    /// Search index for the account.
+    pub async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        Ok(reader.index.search())
+    }
+
+    /// Query with document views.
+    pub async fn query_view(
+        &self,
+        views: Vec<DocumentView>,
+        archive: Option<ArchiveFilter>,
+    ) -> Result<Vec<Document>> {
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        reader.index.query_view(views, archive).await
+    }
+
+    /// Query the search index.
+    pub async fn query_map(
+        &self,
+        query: &str,
+        filter: QueryFilter,
+    ) -> Result<Vec<Document>> {
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        reader.index.query_map(query, filter).await
+    }
+}
+
 /// Account statistics derived from the search index.
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct AccountStatistics {
@@ -47,12 +80,12 @@ impl AccountSearch {
     }
 
     /// Get a reference to the search index.
-    pub fn search(&self) -> Arc<RwLock<SearchIndex>> {
+    pub(super) fn search(&self) -> Arc<RwLock<SearchIndex>> {
         Arc::clone(&self.search_index)
     }
 
     /// Clear the entire search index.
-    pub async fn clear(&mut self) {
+    pub(super) async fn clear(&mut self) {
         tracing::debug!("clear search index");
         let mut writer = self.search_index.write().await;
         writer.remove_all();
@@ -75,7 +108,7 @@ impl AccountSearch {
     pub async fn add_vault(
         &self,
         vault: Vault,
-        key: AccessKey,
+        key: &AccessKey,
     ) -> Result<()> {
         let mut index = self.search_index.write().await;
         let mut keeper = Gatekeeper::new(vault);

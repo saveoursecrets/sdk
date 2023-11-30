@@ -79,7 +79,7 @@ impl Convert for ChromePasswordCsv {
         &self,
         source: Self::Input,
         vault: Vault,
-        key: AccessKey,
+        key: &AccessKey,
     ) -> crate::Result<Vault> {
         let records: Vec<GenericCsvEntry> = parse_path(source)
             .await?
@@ -98,6 +98,7 @@ mod test {
 
     use sos_sdk::{
         account::search::SearchIndex,
+        crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         vault::{Gatekeeper, VaultBuilder},
     };
@@ -137,17 +138,14 @@ mod test {
             .password(passphrase.clone(), None)
             .await?;
 
+        let key: AccessKey = passphrase.into();
         let vault = ChromePasswordCsv
-            .convert(
-                "fixtures/chrome-export.csv".into(),
-                vault,
-                passphrase.clone().into(),
-            )
+            .convert("fixtures/chrome-export.csv".into(), vault, &key)
             .await?;
 
         let mut search = SearchIndex::new();
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(passphrase.into()).await?;
+        keeper.unlock(&key).await?;
         search.add_folder(&keeper).await?;
 
         let first =
@@ -168,17 +166,14 @@ mod test {
             .password(passphrase.clone(), None)
             .await?;
 
+        let key: AccessKey = passphrase.into();
         let vault = ChromePasswordCsv
-            .convert(
-                "fixtures/chrome-export-note.csv".into(),
-                vault,
-                passphrase.clone().into(),
-            )
+            .convert("fixtures/chrome-export-note.csv".into(), vault, &key)
             .await?;
 
         let mut search = SearchIndex::new();
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(passphrase.into()).await?;
+        keeper.unlock(&key).await?;
         search.add_folder(&keeper).await?;
 
         let first =

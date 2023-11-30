@@ -1,6 +1,7 @@
 //! Support for importing and exporting account contacts.
 use crate::{
     account::{Account, AccountsList},
+    crypto::AccessKey,
     events::{AuditData, AuditEvent, EventKind},
     vault::{
         secret::{Secret, SecretId, SecretMeta},
@@ -104,7 +105,8 @@ impl<D> Account<D> {
             .find_local_vault(contacts.id(), false)
             .await?;
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(contacts_passphrase.into()).await?;
+        let key: AccessKey = contacts_passphrase.into();
+        keeper.unlock(&key).await?;
 
         let mut vcf = String::new();
         let keys: Vec<&SecretId> = keeper.vault().keys().collect();

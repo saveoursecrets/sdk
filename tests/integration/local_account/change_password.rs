@@ -6,7 +6,8 @@ use crate::test_utils::{
 };
 
 use sos_net::sdk::{
-    passwd::diceware::generate_passphrase, signer::ecdsa::SingleParty,
+    crypto::AccessKey, passwd::diceware::generate_passphrase,
+    signer::ecdsa::SingleParty,
 };
 
 const TEST_ID: &str = "change_password";
@@ -30,9 +31,8 @@ async fn integration_change_password() -> Result<()> {
     } = credentials;
 
     // Use the new vault
-    provider
-        .open_vault(&summary, encryption_passphrase.clone().into())
-        .await?;
+    let key: AccessKey = encryption_passphrase.clone().into();
+    provider.open_vault(&summary, &key).await?;
 
     // Create some secrets
     let _notes = create_secrets(&mut provider, &summary).await?;

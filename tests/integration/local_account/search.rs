@@ -98,7 +98,6 @@ async fn integration_search() -> Result<()> {
 
     // Get all documents in the index.
     let documents = account
-        .index()?
         .query_view(
             vec![DocumentView::All {
                 ignored_types: None,
@@ -110,7 +109,6 @@ async fn integration_search() -> Result<()> {
 
     // Get all documents ignoring some types
     let documents = account
-        .index()?
         .query_view(
             vec![DocumentView::All {
                 ignored_types: Some(vec![SecretType::Account]),
@@ -122,7 +120,6 @@ async fn integration_search() -> Result<()> {
 
     // Find favorites
     let documents = account
-        .index()?
         .query_view(vec![DocumentView::Favorites], None)
         .await?;
     assert_eq!(1, documents.len());
@@ -130,7 +127,6 @@ async fn integration_search() -> Result<()> {
     // Query by specific document identifiers
     let identifiers = (&ids[0..4]).into_iter().map(|id| *id).collect();
     let documents = account
-        .index()?
         .query_view(
             vec![DocumentView::Documents {
                 vault_id: *default_folder.id(),
@@ -143,7 +139,6 @@ async fn integration_search() -> Result<()> {
 
     // Find contacts
     let documents = account
-        .index()?
         .query_view(
             vec![DocumentView::Contact {
                 include_types: None,
@@ -155,21 +150,18 @@ async fn integration_search() -> Result<()> {
 
     // Find by type
     let documents = account
-        .index()?
         .query_view(vec![DocumentView::TypeId(SecretType::Account)], None)
         .await?;
     assert_eq!(2, documents.len());
 
     // Find all in a specific folder
     let documents = account
-        .index()?
         .query_view(vec![DocumentView::Vault(*default_folder.id())], None)
         .await?;
     assert_eq!(14, documents.len());
 
     // Find by tags
     let documents = account
-        .index()?
         .query_view(
             vec![DocumentView::Tags(vec!["new_folder".to_owned()])],
             None,
@@ -185,7 +177,6 @@ async fn integration_search() -> Result<()> {
     // Query all documents but ignore items
     // in the archive
     let documents = account
-        .index()?
         .query_view(
             vec![DocumentView::All {
                 ignored_types: None,
@@ -201,7 +192,6 @@ async fn integration_search() -> Result<()> {
     // Query all documents and explicitly include items
     // in the archive
     let documents = account
-        .index()?
         .query_view(
             vec![DocumentView::All {
                 ignored_types: None,
@@ -215,15 +205,11 @@ async fn integration_search() -> Result<()> {
     assert_eq!(total_docs, documents.len());
 
     // Gets the two login secrets, "login" and "alt-login"
-    let documents = account
-        .index()?
-        .query_map("log", Default::default())
-        .await?;
+    let documents = account.query_map("log", Default::default()).await?;
     assert_eq!(2, documents.len());
 
     // Just the "login" secret as we filter by folder
     let documents = account
-        .index()?
         .query_map(
             "log",
             QueryFilter {
@@ -235,15 +221,11 @@ async fn integration_search() -> Result<()> {
     assert_eq!(1, documents.len());
 
     // Gets the "age" and "page" secrets
-    let documents = account
-        .index()?
-        .query_map("age", Default::default())
-        .await?;
+    let documents = account.query_map("age", Default::default()).await?;
     assert_eq!(2, documents.len());
 
     // Just the "page" secret as we filter by type
     let documents = account
-        .index()?
         .query_map(
             "age",
             QueryFilter {
@@ -255,14 +237,12 @@ async fn integration_search() -> Result<()> {
     assert_eq!(1, documents.len());
 
     // Empty query gets all documents
-    let documents =
-        account.index()?.query_map("", Default::default()).await?;
+    let documents = account.query_map("", Default::default()).await?;
     assert_eq!(total_docs, documents.len());
 
     // Empty query with a tag filter
     // gets us those tags only
     let documents = account
-        .index()?
         .query_map(
             "",
             QueryFilter {

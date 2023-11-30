@@ -6,12 +6,14 @@ use web3_signature::Signature;
 
 use super::Result;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "listen")]
 mod websocket;
 
 mod rpc;
 
 pub use rpc::{MaybeRetry, RpcClient};
+
+#[cfg(feature = "listen")]
 pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};
 
 const AUTHORIZATION: &str = "authorization";

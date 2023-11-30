@@ -23,6 +23,7 @@ use crate::{
         AccountInfo, AccountsList, AuthenticatedUser, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
+    crypto::AccessKey,
     decode, encode,
     events::{FolderEventLog, WriteEvent},
     sha2::{Digest, Sha256},
@@ -605,7 +606,8 @@ impl AccountBackup {
             // Check the identity vault can be unlocked
             let vault: Vault = decode(&identity.1).await?;
             let mut keeper = Gatekeeper::new(vault);
-            keeper.unlock(passphrase.clone().into()).await?;
+            let key: AccessKey = passphrase.clone().into();
+            keeper.unlock(&key).await?;
 
             let paths = UserPaths::new_global(UserPaths::data_dir()?);
 

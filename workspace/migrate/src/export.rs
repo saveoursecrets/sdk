@@ -179,6 +179,7 @@ mod test {
 
     use super::*;
     use sos_sdk::{
+        crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         test_utils::*,
         vault::{secret::SecretId, Gatekeeper, VaultBuilder, VaultFlags},
@@ -194,9 +195,10 @@ mod test {
             .password(passphrase.clone(), None)
             .await?;
 
+        let key: AccessKey = passphrase.into();
         let mut migration = PublicExport::new(writer);
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(passphrase.into()).await?;
+        keeper.unlock(&key).await?;
 
         let (meta, secret, _, _) =
             mock_secret_note("Mock note", "Value for the mock note").await?;

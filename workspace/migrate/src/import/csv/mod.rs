@@ -281,7 +281,7 @@ impl Convert for GenericCsvConvert {
         &self,
         source: Self::Input,
         vault: Vault,
-        key: AccessKey,
+        key: &AccessKey,
     ) -> crate::Result<Vault> {
         let mut index = SearchIndex::new();
         let mut keeper = Gatekeeper::new(vault);

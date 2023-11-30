@@ -30,7 +30,7 @@ pub trait Convert {
         &self,
         source: Self::Input,
         vault: Vault,
-        key: AccessKey,
+        key: &AccessKey,
     ) -> Result<Vault>;
 }
 

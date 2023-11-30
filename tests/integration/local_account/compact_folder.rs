@@ -49,7 +49,7 @@ async fn integration_compact_folder() -> Result<()> {
     commit_count!(storage, &summary, 2);
 
     // Open the vault
-    storage.open_vault(&summary, passphrase.clone()).await?;
+    storage.open_vault(&summary, &passphrase).await?;
 
     let (meta, secret) = mock_note("Test Note", "Mock note content.");
     let id = SecretId::new_v4();

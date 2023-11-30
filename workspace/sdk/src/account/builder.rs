@@ -1,9 +1,8 @@
-//! Create new local account.
+//! Create a new local account.
 
-use urn::Urn;
-
+use super::AuthenticatedUser;
 use crate::{
-    account::UserPaths,
+    account::{FolderKeys, UserPaths},
     constants::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
         DEFAULT_CONTACTS_VAULT_NAME, FILE_PASSWORD_URN,
@@ -16,13 +15,11 @@ use crate::{
     },
     vfs, Result,
 };
-use std::{path::PathBuf, sync::Arc};
-use tokio::sync::RwLock;
-use web3_address::ethereum::Address;
-
-use super::AuthenticatedUser;
-
 use secrecy::SecretString;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use tokio::sync::RwLock;
+use urn::Urn;
+use web3_address::ethereum::Address;
 
 /// Information about a new account.
 pub struct NewAccount {
@@ -40,6 +37,8 @@ pub struct NewAccount {
     pub authenticator: Option<Vault>,
     /// Contacts vault.
     pub contacts: Option<Vault>,
+    /// Folder access keys.
+    pub folder_keys: FolderKeys,
 }
 
 impl NewAccount {
@@ -146,6 +145,8 @@ impl AccountBuilder {
         )
         .await?;
 
+        let mut folder_keys = HashMap::new();
+
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault).await?;
@@ -164,10 +165,16 @@ impl AccountBuilder {
         let mut default_folder =
             builder.password(vault_passphrase.clone(), None).await?;
 
+        folder_keys.insert(
+            default_folder.summary().clone(),
+            vault_passphrase.clone().into(),
+        );
+
         // Save the master passphrase in the default vault
         if save_passphrase {
             let mut keeper = Gatekeeper::new(default_folder);
-            keeper.unlock(vault_passphrase.clone().into()).await?;
+            let key: AccessKey = vault_passphrase.clone().into();
+            keeper.unlock(&key).await?;
 
             let secret = Secret::Account {
                 account: account_name,
@@ -209,63 +216,54 @@ impl AccountBuilder {
         }
 
         let archive = if create_archive {
-            // Prepare the passphrase for the archive vault
-            let archive_passphrase = user.generate_folder_password()?;
-
-            // Prepare the archive vault
+            let password = user.generate_folder_password()?;
             let vault = VaultBuilder::new()
                 .public_name(DEFAULT_ARCHIVE_VAULT_NAME.to_string())
                 .flags(VaultFlags::ARCHIVE)
-                .password(archive_passphrase.clone(), None)
+                .password(password.clone(), None)
                 .await?;
 
-            user.save_folder_password(
-                vault.id(),
-                AccessKey::Password(archive_passphrase),
-            )
-            .await?;
+            folder_keys
+                .insert(vault.summary().clone(), password.clone().into());
+
+            user.save_folder_password(vault.id(), password.into())
+                .await?;
             Some(vault)
         } else {
             None
         };
 
         let authenticator = if create_authenticator {
-            // Prepare the passphrase for the authenticator vault
-            let auth_passphrase = user.generate_folder_password()?;
-
-            // Prepare the authenticator vault
+            let password = user.generate_folder_password()?;
             let vault = VaultBuilder::new()
                 .public_name(DEFAULT_AUTHENTICATOR_VAULT_NAME.to_string())
                 .flags(VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC_SELF)
-                .password(auth_passphrase.clone(), None)
+                .password(password.clone(), None)
                 .await?;
 
-            user.save_folder_password(
-                vault.id(),
-                AccessKey::Password(auth_passphrase),
-            )
-            .await?;
+            folder_keys
+                .insert(vault.summary().clone(), password.clone().into());
+
+            user.save_folder_password(vault.id(), password.into())
+                .await?;
             Some(vault)
         } else {
             None
         };
 
         let contacts = if create_contacts {
-            // Prepare the passphrase for the authenticator vault
-            let auth_passphrase = user.generate_folder_password()?;
-
-            // Prepare the authenticator vault
+            let password = user.generate_folder_password()?;
             let vault = VaultBuilder::new()
                 .public_name(DEFAULT_CONTACTS_VAULT_NAME.to_string())
                 .flags(VaultFlags::CONTACT)
-                .password(auth_passphrase.clone(), None)
+                .password(password.clone(), None)
                 .await?;
 
-            user.save_folder_password(
-                vault.id(),
-                AccessKey::Password(auth_passphrase),
-            )
-            .await?;
+            folder_keys
+                .insert(vault.summary().clone(), password.clone().into());
+
+            user.save_folder_password(vault.id(), password.into())
+                .await?;
             Some(vault)
         } else {
             None
@@ -289,6 +287,7 @@ impl AccountBuilder {
                 archive,
                 authenticator,
                 contacts,
+                folder_keys: FolderKeys(folder_keys),
             },
         ))
     }

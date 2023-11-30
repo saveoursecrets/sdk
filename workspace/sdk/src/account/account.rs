@@ -57,6 +57,18 @@ pub trait AccountHandler {
 
 type Handler<D> = Box<dyn AccountHandler<Data = D> + Send + Sync>;
 
+/// Collection of folder access keys.
+pub struct FolderKeys(pub HashMap<Summary, AccessKey>);
+
+impl FolderKeys {
+    /// Find an access key by folder id.
+    pub fn find(&self, id: &VaultId) -> Option<&AccessKey> {
+        self.0
+            .iter()
+            .find_map(|(k, v)| if k.id() == id { Some(v) } else { None })
+    }
+}
+
 /// Read-only view created from a specific event log commit.
 pub struct DetachedView {
     keeper: Gatekeeper,
@@ -121,9 +133,6 @@ struct Authenticated {
 
     /// Storage provider.
     storage: Arc<RwLock<FolderStorage>>,
-
-    /// Search index.
-    index: AccountSearch,
 
     /// Account event log.
     account_log: Arc<RwLock<AccountEventLog>>,
@@ -352,7 +361,6 @@ impl<D> Account<D> {
         self.authenticated = Some(Authenticated {
             user,
             storage: Arc::new(RwLock::new(storage)),
-            index: AccountSearch::new(),
             account_log: Arc::new(RwLock::new(
                 AccountEventLog::new(account_events).await?,
             )),
@@ -405,7 +413,9 @@ impl<D> Account<D> {
     /// a default statistics object (all values will be zero).
     pub async fn statistics(&self) -> AccountStatistics {
         if let Some(auth) = &self.authenticated {
-            let search_index = auth.index.search();
+            let storage = self.storage().unwrap();
+            let reader = storage.read().await;
+            let search_index = reader.index().search();
             let index = search_index.read().await;
             let statistics = index.statistics();
             let count = statistics.count();
@@ -553,7 +563,7 @@ impl<D> Account<D> {
 
         tracing::debug!("clear search index");
         // Remove the search index
-        self.index_mut()?.clear().await;
+        writer.index_mut().clear().await;
 
         tracing::debug!("sign out user identity");
         // Forget private identity information
@@ -631,9 +641,7 @@ impl<D> Account<D> {
         self.user_mut()?
             .remove_folder_password(summary.id())
             .await?;
-        self.index_mut()?
-            .remove_folder_from_search_index(summary.id())
-            .await;
+
         self.delete_folder_files(&summary).await?;
 
         let account_event = AccountEvent::DeleteFolder(*summary.id());
@@ -853,7 +861,7 @@ impl<D> Account<D> {
         let (event, summary) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.import_vault(buffer.as_ref()).await?
+            writer.import_vault(buffer.as_ref(), Some(&key)).await?
         };
 
         // If we are overwriting then we must remove the existing
@@ -887,14 +895,7 @@ impl<D> Account<D> {
                     writer.close_vault();
                 }
             }
-            // Clean entries from the search index
-            self.index_mut()?
-                .remove_folder_from_search_index(summary.id())
-                .await;
         }
-
-        // Ensure the imported secrets are in the search index
-        self.index()?.add_vault(vault, key).await?;
 
         let event = Event::Write(*summary.id(), event);
         let audit_event: AuditEvent = (self.address(), &event).into();
@@ -940,7 +941,8 @@ impl<D> Account<D> {
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.open_vault(summary, passphrase.into()).await?
+            let key: AccessKey = passphrase.into();
+            writer.open_vault(summary, &key).await?
         };
 
         let event = Event::Read(*summary.id(), event);
@@ -1059,11 +1061,13 @@ impl<D> Account<D> {
 
         let id = SecretId::new_v4();
 
+        /*
         let index_doc = {
             let search = self.index()?.search();
             let index = search.read().await;
             index.prepare(folder.id(), &id, &meta, &secret)
         };
+        */
 
         let event = {
             let storage = self.storage()?;
@@ -1073,11 +1077,13 @@ impl<D> Account<D> {
                 .await?
         };
 
+        /*
         {
             let search = self.index()?.search();
             let mut index = search.write().await;
             index.commit(index_doc)
         }
+        */
 
         let secret_data = SecretRow::new(id, meta, secret);
         let current_folder = {
@@ -1254,6 +1260,7 @@ impl<D> Account<D> {
             }
         }
 
+        /*
         let index_doc = {
             let search = self.index()?.search();
             let index = search.read().await;
@@ -1264,6 +1271,7 @@ impl<D> Account<D> {
                 secret_data.secret(),
             )
         };
+        */
 
         let event = {
             let storage = self.storage()?;
@@ -1271,11 +1279,13 @@ impl<D> Account<D> {
             writer.update_secret(secret_id, secret_data).await?
         };
 
+        /*
         {
             let search = self.index()?.search();
             let mut index = search.write().await;
             index.commit(index_doc)
         }
+        */
 
         let event = Event::Write(*folder.id(), event);
         if audit {
@@ -1407,11 +1417,13 @@ impl<D> Account<D> {
             writer.delete_secret(secret_id).await?
         };
 
+        /*
         {
             let search = self.index()?.search();
             let mut writer = search.write().await;
             writer.remove(folder.id(), secret_id);
         }
+        */
 
         let event = Event::Write(*folder.id(), event);
         if audit {
@@ -1474,22 +1486,6 @@ impl<D> Account<D> {
         Ok((to, id, event))
     }
 
-    /// Search index reference.
-    pub fn index(&self) -> Result<&AccountSearch> {
-        self.authenticated
-            .as_ref()
-            .map(|a| &a.index)
-            .ok_or(Error::NotAuthenticated)
-    }
-
-    /// Mutable search index reference.
-    pub fn index_mut(&mut self) -> Result<&mut AccountSearch> {
-        self.authenticated
-            .as_mut()
-            .map(|a| &mut a.index)
-            .ok_or(Error::NotAuthenticated)
-    }
-
     /// Initialize the search index.
     ///
     /// This should be called after a user has signed in to
@@ -1497,52 +1493,35 @@ impl<D> Account<D> {
     pub async fn initialize_search_index(
         &mut self,
     ) -> Result<(DocumentCount, Vec<Summary>)> {
-        // Find the id of an archive folder
-        let summaries = {
-            let summaries = self.list_folders().await?;
-            let mut archive: Option<VaultId> = None;
-            for summary in &summaries {
-                if summary.flags().is_archive() {
-                    archive = Some(*summary.id());
-                    break;
-                }
-            }
-            let mut writer = self.index()?.search_index.write().await;
-            writer.set_archive_id(archive);
-            summaries
-        };
-        Ok((self.build_search_index().await?, summaries))
+        let keys = self.folder_keys().await?;
+        let storage = self.storage()?;
+        let mut writer = storage.write().await;
+        writer.initialize_search_index(&keys).await
     }
 
     /// Build the search index for all folders.
-    pub async fn build_search_index(&mut self) -> Result<DocumentCount> {
-        // Clear search index first
-        self.index_mut()?.clear().await;
+    pub(crate) async fn build_search_index(
+        &mut self,
+    ) -> Result<DocumentCount> {
+        let keys = self.folder_keys().await?;
+        let storage = self.storage()?;
+        let mut writer = storage.write().await;
+        writer.build_search_index(&keys).await
+    }
 
-        // Build search index from all the vaults
-        let summaries = self.list_folders().await?;
-        for summary in summaries {
-            // Must open the vault so the provider state unlocks
-            // the vault
-            self.open_vault(&summary, false).await?;
-
-            {
-                let storage = self.storage()?;
-                let mut writer = storage.write().await;
-
-                let keeper = writer.current().unwrap();
-                self.index_mut()?.add_folder(&keeper).await?;
-
-                /*
-                // Add the vault meta data to the search index
-                writer.create_search_index().await?;
-                */
-                // Close the vault as we are done for now
-                writer.close_vault();
-            }
+    /// Get the access keys for all folders.
+    async fn folder_keys(&self) -> Result<FolderKeys> {
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        let folders = reader.folders();
+        let mut keys = HashMap::new();
+        for folder in folders {
+            keys.insert(
+                folder.clone(),
+                self.user()?.find_folder_password(folder.id()).await?,
+            );
         }
-
-        Ok(self.index()?.document_count().await)
+        Ok(FolderKeys(keys))
     }
 
     /// Create a detached view of an event log until a
@@ -1574,7 +1553,8 @@ impl<D> Account<D> {
             .await?;
 
         let mut keeper = Gatekeeper::new(vault);
-        keeper.unlock(passphrase).await?;
+        let key: AccessKey = passphrase.into();
+        keeper.unlock(&key).await?;
 
         {
             let mut index = search_index.write().await;
