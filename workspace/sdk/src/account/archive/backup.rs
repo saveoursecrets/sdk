@@ -20,7 +20,7 @@ use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
         search::SearchIndex,
-        AccountInfo, AccountsList, AuthenticatedUser, UserPaths,
+        AccountInfo, AccountsList, Identity, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -415,7 +415,7 @@ impl AccountBackup {
 
             if let Some(passphrase) = &options.password {
                 let identity_vault_file = paths.identity_vault().clone();
-                let mut user = AuthenticatedUser::new(paths.clone());
+                let mut user = Identity::new(paths.clone());
                 user.login(&identity_vault_file, passphrase.clone()).await?;
 
                 /*
@@ -428,7 +428,7 @@ impl AccountBackup {
                 let identity_keeper = Arc::new(RwLock::new(identity_keeper));
                 */
 
-                let mut restored_user = AuthenticatedUser::new(paths);
+                let mut restored_user = Identity::new(paths);
                 restored_user
                     .login_buffer(&identity.1, passphrase.clone(), None)
                     .await?;
@@ -613,7 +613,7 @@ impl AccountBackup {
 
             // Get the signing address from the identity vault and
             // verify it matches the manifest address
-            let mut user = AuthenticatedUser::new(paths);
+            let mut user = Identity::new(paths);
             user.login_buffer(&identity.1, passphrase.clone(), None)
                 .await?;
             if user.identity()?.address() != &address {

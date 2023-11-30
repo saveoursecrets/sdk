@@ -6,9 +6,8 @@ use sos_sdk::{
             AccountSearch, AccountStatistics, ArchiveFilter, Document,
             DocumentCount, DocumentView, QueryFilter, SearchIndex,
         },
-        AccessOptions, Account, AccountBuilder, AccountData,
-        AuthenticatedUser, DetachedView, FolderStorage, NewAccount,
-        UserPaths,
+        AccessOptions, Account, AccountBuilder, AccountData, DetachedView,
+        FolderStorage, Identity, NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -171,12 +170,12 @@ impl NetworkAccount {
     }
 
     /// Authenticated user information.
-    pub fn user(&self) -> Result<&AuthenticatedUser> {
+    pub fn user(&self) -> Result<&Identity> {
         Ok(self.account.user()?)
     }
 
     /// Mutable authenticated user information.
-    pub fn user_mut(&mut self) -> Result<&mut AuthenticatedUser> {
+    pub fn user_mut(&mut self) -> Result<&mut Identity> {
         Ok(self.account.user_mut()?)
     }
 

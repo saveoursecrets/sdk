@@ -25,7 +25,7 @@ pub use accounts_list::{AccountInfo, AccountRef, AccountsList};
 pub use builder::{AccountBuilder, NewAccount};
 #[cfg(feature = "device")]
 pub use device::DeviceSigner;
-pub use identity::{AccountStatus, AuthenticatedUser, PrivateIdentity};
+pub use identity::{AccountStatus, Identity, PrivateIdentity};
 pub use local_storage::FolderStorage;
 pub use paths::UserPaths;
 

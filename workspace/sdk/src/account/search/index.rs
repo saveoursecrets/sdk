@@ -691,9 +691,9 @@ mod test {
             user_data: Default::default(),
         };
 
-        idx.add(&vault_id, &id1, meta1, &secret1);
+        idx.add(&vault_id, &id1, &meta1, &secret1);
         assert_eq!(1, idx.documents().len());
-        idx.add(&vault_id, &id2, meta2, &secret2);
+        idx.add(&vault_id, &id2, &meta2, &secret2);
         assert_eq!(2, idx.documents().len());
 
         assert_eq!(2, *idx.statistics.count.vaults.get(&vault_id).unwrap());

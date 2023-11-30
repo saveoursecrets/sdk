@@ -1,7 +1,7 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::{
-    account::{AuthenticatedUser, LocalAccount, UserPaths},
+    account::{Identity, LocalAccount, UserPaths},
     encode,
     passwd::diceware::generate_passphrase,
     vfs,
@@ -25,17 +25,15 @@ async fn integration_identity_login() -> Result<()> {
     UserPaths::new_global(data_dir.clone());
 
     let path = data_dir.join("login.vault");
-    let (address, vault) = AuthenticatedUser::new_login_vault(
-        "Login".to_owned(),
-        password.clone(),
-    )
-    .await?;
+    let (address, vault) =
+        Identity::new_login_vault("Login".to_owned(), password.clone())
+            .await?;
     let buffer = encode(&vault).await?;
     vfs::write(&path, buffer).await?;
 
     let paths = UserPaths::new(data_dir, address.to_string());
     paths.ensure().await?;
-    let mut identity = AuthenticatedUser::new(paths);
+    let mut identity = Identity::new(paths);
 
     identity.login(path, password).await?;
 

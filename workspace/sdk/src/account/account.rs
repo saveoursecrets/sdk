@@ -9,8 +9,8 @@ use std::{
 use crate::{
     account::{
         search::{AccountStatistics, DocumentCount, SearchIndex},
-        AccountBuilder, AccountInfo, AccountsList, AuthenticatedUser,
-        FolderStorage, NewAccount, UserPaths,
+        AccountBuilder, AccountInfo, AccountsList, FolderStorage, Identity,
+        NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, SecureAccessKey},
@@ -129,7 +129,7 @@ pub struct AccountData {
 /// Account information when signed in.
 struct Authenticated {
     /// Authenticated user.
-    user: AuthenticatedUser,
+    user: Identity,
 
     /// Storage provider.
     storage: Arc<RwLock<FolderStorage>>,
@@ -298,7 +298,7 @@ impl<D> Account<D> {
     }
 
     /// Authenticated user information.
-    pub fn user(&self) -> Result<&AuthenticatedUser> {
+    pub fn user(&self) -> Result<&Identity> {
         self.authenticated
             .as_ref()
             .map(|a| &a.user)
@@ -306,7 +306,7 @@ impl<D> Account<D> {
     }
 
     /// Mutable authenticated user information.
-    pub fn user_mut(&mut self) -> Result<&mut AuthenticatedUser> {
+    pub fn user_mut(&mut self) -> Result<&mut Identity> {
         self.authenticated
             .as_mut()
             .map(|a| &mut a.user)
@@ -344,7 +344,7 @@ impl<D> Account<D> {
 
         tracing::debug!(data_dir = ?paths.documents_dir());
 
-        let mut user = AuthenticatedUser::new(paths.clone());
+        let mut user = Identity::new(paths.clone());
         user.sign_in(self.address(), passphrase).await?;
         tracing::debug!("sign in success");
 

@@ -50,13 +50,13 @@ use crate::account::DeviceSigner;
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
 /// User provides access to an identity vault.
-pub struct AuthenticatedUser {
+pub struct Identity {
     paths: UserPaths,
     account: Option<AccountInfo>,
     identity: Option<PrivateIdentity>,
 }
 
-impl AuthenticatedUser {
+impl Identity {
     /// Create a new unauthenticated user.
     pub fn new(paths: UserPaths) -> Self {
         Self {
@@ -754,7 +754,7 @@ mod tests {
     use urn::Urn;
 
     use crate::{
-        account::{AuthenticatedUser, UserPaths},
+        account::{Identity, UserPaths},
         constants::LOGIN_SIGNING_KEY_URN,
         encode,
         passwd::diceware::generate_passphrase,
@@ -772,9 +772,8 @@ mod tests {
             VaultBuilder::new().password(password.clone(), None).await?;
         let buffer = encode(&vault).await?;
 
-        let mut identity = AuthenticatedUser::new(UserPaths::new_global(
-            UserPaths::data_dir()?,
-        ));
+        let mut identity =
+            Identity::new(UserPaths::new_global(UserPaths::data_dir()?));
         let result = identity.login_buffer(buffer, password, None).await;
         if let Err(Error::NotIdentityVault) = result {
             Ok(())
@@ -794,9 +793,8 @@ mod tests {
 
         let buffer = encode(&vault).await?;
 
-        let mut identity = AuthenticatedUser::new(UserPaths::new_global(
-            UserPaths::data_dir()?,
-        ));
+        let mut identity =
+            Identity::new(UserPaths::new_global(UserPaths::data_dir()?));
         let result = identity.login_buffer(buffer, password, None).await;
         if let Err(Error::NoSecretUrn(_, _)) = result {
             Ok(())
@@ -835,9 +833,8 @@ mod tests {
         let vault: Vault = keeper.into();
         let buffer = encode(&vault).await?;
 
-        let mut identity = AuthenticatedUser::new(UserPaths::new_global(
-            UserPaths::data_dir()?,
-        ));
+        let mut identity =
+            Identity::new(UserPaths::new_global(UserPaths::data_dir()?));
         let result = identity.login_buffer(buffer, password, None).await;
         if let Err(Error::WrongSecretKind(_, _)) = result {
             Ok(())

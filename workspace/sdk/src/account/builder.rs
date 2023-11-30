@@ -1,6 +1,6 @@
 //! Create a new local account.
 
-use super::AuthenticatedUser;
+use super::Identity;
 use crate::{
     account::{FolderKeys, UserPaths},
     constants::{
@@ -28,7 +28,7 @@ pub struct NewAccount {
     /// Address of the account signing key.
     pub address: Address,
     /// Identity for the new user.
-    pub user: AuthenticatedUser,
+    pub user: Identity,
     /// Default vault.
     pub default_folder: Vault,
     /// Archive vault.
@@ -139,7 +139,7 @@ impl AccountBuilder {
         UserPaths::scaffold(data_dir.clone()).await?;
 
         // Prepare the identity vault
-        let (address, identity_vault) = AuthenticatedUser::new_login_vault(
+        let (address, identity_vault) = Identity::new_login_vault(
             account_name.clone(),
             passphrase.clone(),
         )
@@ -151,7 +151,7 @@ impl AccountBuilder {
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault).await?;
         let paths = UserPaths::new_global(UserPaths::data_dir()?);
-        let mut user = AuthenticatedUser::new(paths);
+        let mut user = Identity::new(paths);
         user.login_buffer(buffer, passphrase.clone(), None).await?;
 
         // Prepare the passphrase for the default vault
