@@ -520,21 +520,23 @@ impl SearchIndex {
     pub fn commit(&mut self, doc: Option<(DocumentKey, Document)>) {
         // Prevent duplicates
         if let Some((key, doc)) = doc {
+            let exists = self.documents.get(&key).is_some();
             let doc = self.documents.entry(key).or_insert(doc);
+            if !exists {
+                self.index.add_document(
+                    &[label_extract, tags_extract],
+                    tokenizer,
+                    (doc.vault_id, doc.secret_id),
+                    doc,
+                );
 
-            self.index.add_document(
-                &[label_extract, tags_extract],
-                tokenizer,
-                (doc.vault_id, doc.secret_id),
-                doc,
-            );
-
-            self.statistics.count.add(
-                doc.vault_id,
-                doc.meta().kind().into(),
-                doc.meta().tags(),
-                doc.meta().favorite(),
-            );
+                self.statistics.count.add(
+                    doc.vault_id,
+                    doc.meta().kind().into(),
+                    doc.meta().tags(),
+                    doc.meta().favorite(),
+                );
+            }
         }
     }
 
@@ -543,11 +545,10 @@ impl SearchIndex {
         &mut self,
         vault_id: &VaultId,
         id: &SecretId,
-        meta: SecretMeta,
+        meta: &SecretMeta,
         secret: &Secret,
     ) {
-        let data = self.prepare(vault_id, id, &meta, secret);
-        self.commit(data);
+        self.commit(self.prepare(vault_id, id, meta, secret));
     }
 
     /// Update a document in the index.
@@ -555,7 +556,7 @@ impl SearchIndex {
         &mut self,
         vault_id: &VaultId,
         id: &SecretId,
-        meta: SecretMeta,
+        meta: &SecretMeta,
         secret: &Secret,
     ) {
         self.remove(vault_id, id);
@@ -571,7 +572,7 @@ impl SearchIndex {
                 .read(id)
                 .await?
                 .ok_or_else(|| Error::NoSecretId(*folder.id(), *id))?;
-            self.add(folder.id(), id, meta, &secret);
+            self.add(folder.id(), id, &meta, &secret);
         }
         Ok(())
     }

@@ -588,7 +588,11 @@ impl PrivateIdentity {
         vault_id: &VaultId,
         key: AccessKey,
     ) -> Result<()> {
+        let span = span!(Level::DEBUG, "save_folder_password");
+        let _enter = span.enter();
+
         let urn = Vault::vault_urn(vault_id)?;
+        tracing::debug!(folder = %vault_id, urn = %urn);
 
         let secret = match key {
             AccessKey::Password(vault_passphrase) => Secret::Password {
@@ -623,30 +627,6 @@ impl PrivateIdentity {
         Ok(())
     }
 
-    /// Remove a folder password from an identity vault.
-    pub async fn remove_folder_password(
-        &mut self,
-        vault_id: &VaultId,
-    ) -> Result<()> {
-        let id = {
-            let keeper = self.keeper.read().await;
-            let urn = Vault::vault_urn(vault_id)?;
-            let index_reader = self.index.read().await;
-            let document = index_reader
-                .find_by_urn(keeper.id(), &urn)
-                .ok_or(Error::NoVaultEntry(urn.to_string()))?;
-            *document.id()
-        };
-
-        let mut keeper = self.keeper.write().await;
-        keeper.delete(&id).await?;
-
-        let mut index = self.index.write().await;
-        index.remove(vault_id, &id);
-
-        Ok(())
-    }
-
     /// Find a folder password in an identity vault.
     ///
     /// The identity vault must already be unlocked to extract
@@ -655,9 +635,15 @@ impl PrivateIdentity {
         &self,
         vault_id: &VaultId,
     ) -> Result<AccessKey> {
-        let keeper = self.keeper.read().await;
+        let span = span!(Level::DEBUG, "find_folder_password");
+        let _enter = span.enter();
+
         let urn = Vault::vault_urn(vault_id)?;
+        tracing::debug!(folder = %vault_id, urn = %urn);
+
+        let keeper = self.keeper.read().await;
         let index = self.index.read().await;
+
         let document = index
             .find_by_urn(keeper.id(), &urn)
             .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
@@ -665,7 +651,7 @@ impl PrivateIdentity {
         let (_, secret, _) = keeper
             .read(document.id())
             .await?
-            .ok_or_else(|| Error::NoVaultEntry(document.id().to_string()))?;
+            .ok_or_else(|| Error::NoSecretId(*keeper.id(), *document.id()))?;
 
         let key = match secret {
             Secret::Password { password, .. } => {
@@ -679,6 +665,32 @@ impl PrivateIdentity {
             _ => return Err(Error::VaultEntryKind(urn.to_string())),
         };
         Ok(key)
+    }
+
+    /// Remove a folder password from an identity vault.
+    pub async fn remove_folder_password(
+        &mut self,
+        vault_id: &VaultId,
+    ) -> Result<()> {
+        tracing::debug!(folder = %vault_id, "remove folder password");
+
+        let (keeper_id, id) = {
+            let keeper = self.keeper.read().await;
+            let urn = Vault::vault_urn(vault_id)?;
+            let index_reader = self.index.read().await;
+            let document = index_reader
+                .find_by_urn(keeper.id(), &urn)
+                .ok_or(Error::NoVaultEntry(urn.to_string()))?;
+            (*keeper.id(), *document.id())
+        };
+
+        let mut keeper = self.keeper.write().await;
+        keeper.delete(&id).await?;
+
+        let mut index = self.index.write().await;
+        index.remove(&keeper_id, &id);
+
+        Ok(())
     }
 
     /// Find the password used for symmetric file encryption (AGE).

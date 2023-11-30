@@ -86,13 +86,15 @@ async fn integration_folder_lifecycle() -> Result<()> {
     assert!(account.find(|f| f.id() == folder.id()).await.is_none());
 
     // Import the folder we exported
-    account
+    let (imported_folder, _, _) = account
         .import_folder(&exported, folder_password.into(), false)
         .await?;
     assert!(account.find(|f| f.id() == folder.id()).await.is_some());
 
     // Check we can read the secret data
-    let (data, _) = account.read_secret(&id, Some(folder.clone())).await?;
+    let (data, _) = account
+        .read_secret(&id, Some(imported_folder.clone()))
+        .await?;
     assert_eq!(&id, data.id());
     assert_eq!("note", data.meta().label());
 

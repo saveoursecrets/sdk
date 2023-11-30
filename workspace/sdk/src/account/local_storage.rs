@@ -16,12 +16,16 @@ use crate::{
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
-        VaultBuilder, VaultFlags, VaultId, VaultWriter,
+        VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultWriter,
     },
     vfs, Error, Result, Timestamp,
 };
 
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    sync::Arc,
+};
 
 use tokio::sync::RwLock;
 
@@ -378,8 +382,10 @@ impl FolderStorage {
             self.write_vault_file(summary, &buffer).await?;
         }
 
+        let index = self.index.search();
         if let Some(keeper) = self.current_mut() {
             if keeper.id() == summary.id() {
+                /*
                 // Update the in-memory version
                 let new_key = if let Some(new_key) = new_key {
                     if let Some(salt) = vault.salt() {
@@ -406,8 +412,73 @@ impl FolderStorage {
                 } else {
                     None
                 };
+                */
 
-                keeper.replace_vault(vault, new_key).await?;
+                Self::replace_vault(index, keeper, vault, new_key).await?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Replace a vault in a gatekeeper and update the
+    /// search index if the access key for the vault is
+    /// available.
+    async fn replace_vault(
+        index: Arc<RwLock<SearchIndex>>,
+        keeper: &mut Gatekeeper,
+        vault: Vault,
+        new_key: Option<&AccessKey>,
+    ) -> Result<()> {
+        let existing_keys = vault.keys().collect::<HashSet<_>>();
+
+        keeper.lock();
+        keeper.replace_vault(vault.clone()).await?;
+
+        if let Some(key) = new_key {
+            keeper.unlock(key).await?;
+
+            let updated_keys = keeper.vault().keys().collect::<HashSet<_>>();
+            let mut writer = index.write().await;
+
+            for added_key in updated_keys.difference(&existing_keys) {
+                if let Some((meta, secret, _)) = keeper
+                    .read(added_key /*, Some(&vault), derived_key*/)
+                    .await?
+                {
+                    writer.add(keeper.id(), added_key, &meta, &secret);
+                }
+            }
+
+            for deleted_key in existing_keys.difference(&updated_keys) {
+                writer.remove(keeper.id(), deleted_key);
+            }
+
+            for maybe_updated in updated_keys.union(&existing_keys) {
+                if let (
+                    Some(VaultCommit(existing_hash, _)),
+                    Some(VaultCommit(updated_hash, _)),
+                ) = (
+                    keeper.vault().get(maybe_updated),
+                    vault.get(maybe_updated),
+                ) {
+                    if existing_hash != updated_hash {
+                        if let Some((meta, secret, _)) = keeper
+                            .read(
+                                maybe_updated,
+                                //Some(&vault),
+                                //derived_key,
+                            )
+                            .await?
+                        {
+                            writer.update(
+                                keeper.id(),
+                                maybe_updated,
+                                &meta,
+                                &secret,
+                            );
+                        }
+                    }
+                }
             }
         }
         Ok(())

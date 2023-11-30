@@ -59,6 +59,12 @@ impl Gatekeeper {
         }
     }
 
+    /// Indicates whether the gatekeeper is mirroring
+    /// changes to disc.
+    pub fn is_mirror(&self) -> bool {
+        self.mirror.is_some()
+    }
+
     /// Get the vault.
     pub fn vault(&self) -> &Vault {
         &self.vault
@@ -69,70 +75,12 @@ impl Gatekeeper {
         &mut self.vault
     }
 
-    /// Replace this vault with a new updated vault
-    /// and update the search index if possible.
+    /// Replace this vault with a new updated vault.
     ///
-    /// When a password is being changed then we need to use
-    /// the new private key for the vault.
-    pub async fn replace_vault(
-        &mut self,
-        vault: Vault,
-        new_key: Option<PrivateKey>,
-    ) -> Result<()> {
-        let derived_key = new_key.as_ref().or(self.private_key.as_ref());
-
-        if let Some(derived_key) = derived_key {
-            let derived_key = Some(derived_key);
-            let existing_keys = self.vault.keys().collect::<HashSet<_>>();
-            let updated_keys = vault.keys().collect::<HashSet<_>>();
-
-            // FIXME!!!
-
-            /*
-            let mut writer = self.index.write().await;
-
-            for added_key in updated_keys.difference(&existing_keys) {
-                if let Some((meta, secret)) = self
-                    .read_secret(added_key, Some(&vault), derived_key)
-                    .await?
-                {
-                    writer.add(self.vault().id(), added_key, meta, &secret);
-                }
-            }
-
-            for deleted_key in existing_keys.difference(&updated_keys) {
-                writer.remove(self.vault().id(), deleted_key);
-            }
-
-            for maybe_updated in updated_keys.union(&existing_keys) {
-                if let (
-                    Some(VaultCommit(existing_hash, _)),
-                    Some(VaultCommit(updated_hash, _)),
-                ) =
-                    (self.vault.get(maybe_updated), vault.get(maybe_updated))
-                {
-                    if existing_hash != updated_hash {
-                        if let Some((meta, secret)) = self
-                            .read_secret(
-                                maybe_updated,
-                                Some(&vault),
-                                derived_key,
-                            )
-                            .await?
-                        {
-                            writer.update(
-                                self.vault().id(),
-                                maybe_updated,
-                                meta,
-                                &secret,
-                            );
-                        }
-                    }
-                }
-            }
-            */
-        }
-
+    /// Callers should take care to lock beforehand and
+    /// unlock again afterwards if the vault access key
+    /// has been changed.
+    pub async fn replace_vault(&mut self, vault: Vault) -> Result<()> {
         self.vault = vault;
         Ok(())
     }
