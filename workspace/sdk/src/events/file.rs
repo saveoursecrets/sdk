@@ -1,4 +1,5 @@
 //! Event for modifications to external files.
+use super::{EventKind, LogEvent};
 use crate::vault::{secret::SecretId, VaultId};
 
 /// File event records changes to external files
@@ -16,4 +17,19 @@ pub enum FileEvent {
     CreateFile(VaultId, SecretId, String),
     /// File was deleted.
     DeleteFile(VaultId, SecretId, String),
+}
+
+impl LogEvent for FileEvent {
+    fn event_kind(&self) -> EventKind {
+        todo!();
+
+        /*
+        match self {
+            Self::Noop => EventKind::Noop,
+            Self::CreateFolder(_) => EventKind::CreateVault,
+            Self::UpdateFolder(_) => EventKind::UpdateVault,
+            Self::DeleteFolder(_) => EventKind::DeleteVault,
+        }
+        */
+    }
 }

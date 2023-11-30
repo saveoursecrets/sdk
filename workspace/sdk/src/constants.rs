@@ -14,8 +14,14 @@ mod identity {
     /// Audit log identity magic bytes (SOSA).
     pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 
-    /// Write-ahead log identity magic bytes (SOSW).
-    pub const EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
+    /// Account event log identity magic bytes (SOSU).
+    pub const ACCOUNT_EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x55];
+
+    /// Folder event log identity magic bytes (SOSW).
+    pub const FOLDER_EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
+
+    /// File event log identity magic bytes (SOSF).
+    pub const FILE_EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x46];
 
     /// Patch file identity magic bytes (SOSP).
     pub const PATCH_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];

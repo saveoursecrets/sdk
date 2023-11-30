@@ -1,6 +1,6 @@
 //! Encoding of all operations.
 
-use super::{AuditEvent, EventKind, ReadEvent, WriteEvent};
+use super::{AuditEvent, EventKind, LogEvent, ReadEvent, WriteEvent};
 use crate::{vault::VaultId, Error, Result};
 
 /// Events generated in the context of an account.
@@ -20,9 +20,8 @@ pub enum AccountEvent {
     DeleteFolder(VaultId),
 }
 
-impl AccountEvent {
-    /// Get the event kind for this event.
-    pub fn event_kind(&self) -> EventKind {
+impl LogEvent for AccountEvent {
+    fn event_kind(&self) -> EventKind {
         match self {
             Self::Noop => EventKind::Noop,
             Self::CreateFolder(_) => EventKind::CreateVault,

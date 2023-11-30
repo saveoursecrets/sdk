@@ -174,12 +174,15 @@ pub async fn verify(user: Owner) -> Result<bool> {
 /// List local accounts.
 pub async fn list_accounts(verbose: bool) -> Result<()> {
     let accounts = AccountsList::list_accounts(None).await?;
-    for account in accounts {
+    for account in &accounts {
         if verbose {
             println!("{} {}", account.address(), account.label());
         } else {
             println!("{}", account.label());
         }
+    }
+    if accounts.is_empty() {
+        println!("no accounts yet");
     }
     Ok(())
 }

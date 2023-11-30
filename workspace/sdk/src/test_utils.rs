@@ -136,7 +136,7 @@ pub async fn mock_event_log_file(
     let (_, mut vault, buffer) = mock_vault_file().await?;
 
     let temp = NamedTempFile::new()?;
-    let mut event_log = FolderEventLog::new(temp.path()).await?;
+    let mut event_log = FolderEventLog::new_folder(temp.path()).await?;
 
     let mut commits = Vec::new();
 

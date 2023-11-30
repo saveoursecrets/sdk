@@ -209,7 +209,7 @@ mod test {
         let (_, mut vault, buffer) = mock_vault_file().await?;
 
         let temp = NamedTempFile::new()?;
-        let mut event_log = FolderEventLog::new(temp.path()).await?;
+        let mut event_log = FolderEventLog::new_folder(temp.path()).await?;
 
         let mut commits = Vec::new();
 
@@ -313,7 +313,8 @@ mod test {
         assert_eq!(2, events.len());
 
         let compact_temp = NamedTempFile::new()?;
-        let mut compact = FolderEventLog::new(compact_temp.path()).await?;
+        let mut compact =
+            FolderEventLog::new_folder(compact_temp.path()).await?;
         for event in events {
             compact.append_event(&event).await?;
         }

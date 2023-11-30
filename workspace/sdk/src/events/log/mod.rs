@@ -101,7 +101,7 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut server = EventLogFile::new(path).await?;
+        let mut server = EventLogFile::new_folder(path).await?;
         server
             .apply(vec![
                 &WriteEvent::CreateVault(vault_buffer),
@@ -138,7 +138,7 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut server = EventLogFile::new(&server_file).await?;
+        let mut server = EventLogFile::new_folder(&server_file).await?;
         server
             .apply(vec![
                 &WriteEvent::CreateVault(vault_buffer),
@@ -147,7 +147,7 @@ mod test {
             .await?;
 
         // Duplicate the server events on the client
-        let mut client = EventLogFile::new(&client_file).await?;
+        let mut client = EventLogFile::new_folder(&client_file).await?;
         let mut it = server.iter().await?;
         while let Some(record) = it.next_entry().await? {
             let event = server.event_data(&record).await?;
@@ -224,7 +224,8 @@ mod test {
             assert_eq!(vec![1], indices);
             let leaf = leaves.first().unwrap();
             if let Some(buffer) = server.diff(*leaf).await? {
-                let mut partial_log = FolderEventLog::new(&partial).await?;
+                let mut partial_log =
+                    FolderEventLog::new_folder(&partial).await?;
                 partial_log.write_buffer(&buffer).await?;
                 let mut records = Vec::new();
                 let mut it = partial_log.iter().await?;
@@ -253,7 +254,7 @@ mod test {
     async fn event_log_file_load() -> Result<()> {
         mock_event_log_standalone().await?;
         let path = PathBuf::from(MOCK_LOG);
-        let event_log = FolderEventLog::new(path).await?;
+        let event_log = FolderEventLog::new_folder(path).await?;
         let mut it = event_log.iter().await?;
         while let Some(record) = it.next_entry().await? {
             let _event = event_log.event_data(&record).await?;

@@ -9,10 +9,10 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, changes, check, device, folder, secret,
+        account, audit, changes, check, device, events, folder, secret,
         security_report::{self, SecurityReportFormat},
         shell, AccountCommand, AuditCommand, CheckCommand, DeviceCommand,
-        FolderCommand, SecretCommand,
+        EventsCommand, FolderCommand, SecretCommand,
     },
     Result,
 };
@@ -124,6 +124,11 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: CheckCommand,
     },
+    /// Inspect event records.
+    Events {
+        #[clap(subcommand)]
+        cmd: EventsCommand,
+    },
     /// Interactive login shell.
     Shell {
         /// Folder name or identifier.
@@ -179,6 +184,7 @@ pub async fn run() -> Result<()> {
             changes::run(server, server_public_key, account).await?
         }
         Command::Check { cmd } => check::run(cmd).await?,
+        Command::Events { cmd } => events::run(cmd).await?,
         Command::Shell { account, folder } => {
             shell::run(account, folder).await?
         }

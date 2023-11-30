@@ -8,9 +8,7 @@ pub use records::{EventLogFileRecord, FileItem, FileRecord, VaultRecord};
 pub use stream::FormatStream;
 
 use crate::{
-    constants::{
-        AUDIT_IDENTITY, EVENT_LOG_IDENTITY, PATCH_IDENTITY, VAULT_IDENTITY,
-    },
+    constants::{AUDIT_IDENTITY, PATCH_IDENTITY, VAULT_IDENTITY},
     vault::Header,
     vfs::File,
     Result,
@@ -65,14 +63,16 @@ pub async fn vault_stream_buffer<'a>(
 /// Get a stream for a event log file.
 pub async fn event_log_stream<P: AsRef<Path>>(
     path: P,
+    identity: &'static [u8],
+    content_offset: u64,
 ) -> Result<EventLogFileStream> {
-    FileIdentity::read_file(path.as_ref(), &EVENT_LOG_IDENTITY).await?;
+    FileIdentity::read_file(path.as_ref(), &identity).await?;
     let read_stream = File::open(path.as_ref()).await?.compat();
     FormatStream::<EventLogFileRecord, Compat<File>>::new_file(
         read_stream,
-        &EVENT_LOG_IDENTITY,
+        &identity,
         true,
-        None,
+        Some(content_offset),
     )
     .await
 }
@@ -80,14 +80,16 @@ pub async fn event_log_stream<P: AsRef<Path>>(
 /// Get a stream for a vault file buffer.
 pub async fn event_log_stream_buffer<'a>(
     buffer: &'a [u8],
+    identity: &'static [u8],
+    content_offset: u64,
 ) -> Result<EventLogBufferStream<'a>> {
-    FileIdentity::read_slice(&buffer, &EVENT_LOG_IDENTITY)?;
+    FileIdentity::read_slice(&buffer, identity)?;
     let read_stream = BufReader::new(Cursor::new(buffer));
     FormatStream::<EventLogFileRecord, Buffer<'a>>::new_buffer(
         read_stream,
-        &EVENT_LOG_IDENTITY,
+        identity,
         true,
-        None,
+        Some(content_offset),
     )
     .await
 }

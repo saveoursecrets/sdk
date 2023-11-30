@@ -26,6 +26,12 @@ pub use read::ReadEvent;
 pub use types::EventKind;
 pub use write::WriteEvent;
 
+/// Trait for events that can be written to an event log..
+pub trait LogEvent {
+    /// Get the event kind for this event.
+    fn event_kind(&self) -> EventKind;
+}
+
 /// Patch wraps a changeset of events to be sent across the network.
 #[derive(Clone, Debug, Default)]
 pub struct Patch(pub Vec<EventRecord>);

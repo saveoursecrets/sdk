@@ -715,6 +715,9 @@ impl NetworkAccount {
         label: &str,
         id: Option<&SecretId>,
     ) -> Result<bool> {
-        Ok(self.account.document_exists_in_folder(vault_id, label, id).await?)
+        Ok(self
+            .account
+            .document_exists_in_folder(vault_id, label, id)
+            .await?)
     }
 }

@@ -64,6 +64,8 @@ impl<T: FileItem> FormatStream<T, Compat<File>> {
         let header_offset = header_offset.unwrap_or(identity.len() as u64);
         read_stream.seek(SeekFrom::Start(header_offset)).await?;
 
+        println!("HEADER OFFSET {}", header_offset);
+
         Ok(Self {
             header_offset,
             data_length_prefix,

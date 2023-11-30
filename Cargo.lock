@@ -3917,6 +3917,7 @@ dependencies = [
  "arboard",
  "async-recursion",
  "axum-server",
+ "binary-stream",
  "clap",
  "copy_dir",
  "csv-async",

@@ -18,9 +18,12 @@ use crate::{
     commit::{
         event_log_commit_tree_file, CommitHash, CommitState, CommitTree,
     },
-    constants::EVENT_LOG_IDENTITY,
+    constants::{
+        ACCOUNT_EVENT_LOG_IDENTITY, FILE_EVENT_LOG_IDENTITY,
+        FOLDER_EVENT_LOG_IDENTITY,
+    },
     encode,
-    encoding::encoding_options,
+    encoding::{encoding_options, VERSION},
     events::{AccountEvent, FileEvent, Patch, WriteEvent},
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
@@ -61,28 +64,17 @@ where
     file_path: PathBuf,
     file: File,
     tree: CommitTree,
-    identity: [u8; 4],
+    identity: &'static [u8],
+    version: Option<u16>,
     phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Default + Encodable + Decodable> EventLogFile<T> {
-    /// Create a new event log file.
-    pub async fn new<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        let file =
-            Self::create(file_path.as_ref(), &EVENT_LOG_IDENTITY).await?;
-        Ok(Self {
-            file,
-            file_path: file_path.as_ref().to_path_buf(),
-            tree: Default::default(),
-            identity: EVENT_LOG_IDENTITY,
-            phantom: std::marker::PhantomData,
-        })
-    }
-
     /// Create the event log file.
     async fn create<P: AsRef<Path>>(
         path: P,
-        identity: &[u8],
+        identity: &'static [u8],
+        encoding_version: Option<u16>,
     ) -> Result<File> {
         let mut file = OpenOptions::new()
             .create(true)
@@ -92,7 +84,11 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
 
         let size = file.metadata().await?.len();
         if size == 0 {
-            file.write_all(identity).await?;
+            let mut header = identity.to_vec();
+            if let Some(version) = encoding_version {
+                header.extend_from_slice(&version.to_le_bytes());
+            }
+            file.write_all(&header).await?;
             file.flush().await?;
         }
         Ok(file)
@@ -119,6 +115,32 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         Ok((commit, record))
     }
 
+    /// Length of the file magic bytes and optional
+    /// encoding version.
+    fn header_len(&self) -> usize {
+        let mut len = self.identity.len();
+        if let Some(version) = self.version {
+            len += (u16::BITS / 8) as usize;
+        }
+        len
+    }
+
+    /// Header bytes.
+    fn header(&self) -> Vec<u8> {
+        let mut header = self.identity.to_vec();
+        if let Some(version) = self.version {
+            header.extend_from_slice(&version.to_le_bytes());
+        }
+        header
+    }
+
+    /// Get an iterator of the log records.
+    pub async fn iter(&self) -> Result<EventLogFileStream> {
+        let content_offset = self.header_len() as u64;
+        event_log_stream(
+            &self.file_path, self.identity, content_offset).await
+    }
+
     /// Replace this event log with the contents of the buffer.
     ///
     /// The buffer should start with the event log identity bytes.
@@ -133,7 +155,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     /// The buffer should start with the event log identity bytes.
     pub async fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
         // Get buffer of log records after the identity bytes
-        let buffer = &buffer[self.identity.len()..];
+        let buffer = &buffer[self.header_len()..];
 
         let mut file = OpenOptions::new()
             .write(true)
@@ -155,7 +177,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
 
     /// Get the tail after the given item until the end of the log.
     pub async fn tail(&self, item: EventLogFileRecord) -> Result<Vec<u8>> {
-        let mut partial = self.identity.to_vec();
+        let mut partial = self.header();
         let start = item.offset().end as usize;
         let mut file = File::open(&self.file_path).await?;
         let end = file.metadata().await?.len() as usize;
@@ -299,23 +321,17 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         Ok(())
     }
 
-    /// Get an iterator of the log records.
-    pub async fn iter(&self) -> Result<EventLogFileStream> {
-        if self.identity == EVENT_LOG_IDENTITY {
-            event_log_stream(&self.file_path).await
-        } else {
-            patch_stream(&self.file_path).await
-        }
-    }
-
-    /// Get the last commit hash.
+    /// Read the last commit hash from the file.
     pub async fn last_commit(&self) -> Result<Option<CommitHash>> {
-        let mut it = self.iter().await?.rev();
-        if let Some(record) = it.next_entry().await? {
-            Ok(Some(CommitHash(record.commit())))
-        } else {
-            Ok(None)
-        }
+        let file_len = self.file.metadata().await?.len() as usize; 
+        if file_len > self.header_len() {
+            let mut it = self.iter().await?.rev();
+            if let Some(record) = it.next_entry().await? {
+                Ok(Some(CommitHash(record.commit())))
+            } else {
+                Ok(None)
+            }
+        } else { Ok(None) }
     }
 
     /// Get a diff of the records after the record with the
@@ -395,7 +411,48 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     }
 }
 
+impl EventLogFile<AccountEvent> {
+    /// Create a new account event log file.
+    pub async fn new_account<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        let file = Self::create(
+            file_path.as_ref(),
+            &ACCOUNT_EVENT_LOG_IDENTITY,
+            Some(VERSION),
+        )
+        .await?;
+        Ok(Self {
+            file,
+            file_path: file_path.as_ref().to_path_buf(),
+            tree: Default::default(),
+            identity: &ACCOUNT_EVENT_LOG_IDENTITY,
+            version: Some(VERSION),
+            phantom: std::marker::PhantomData,
+        })
+    }
+}
+
 impl EventLogFile<WriteEvent> {
+    /// Create a new folder event log file.
+    pub async fn new_folder<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        // Note that for backwards compatibility we don't
+        // encode a version, later we will need to upgrade
+        // the encoding to include a version
+        let file = Self::create(
+            file_path.as_ref(),
+            &FOLDER_EVENT_LOG_IDENTITY,
+            None,
+        )
+        .await?;
+        Ok(Self {
+            file,
+            file_path: file_path.as_ref().to_path_buf(),
+            tree: Default::default(),
+            identity: &FOLDER_EVENT_LOG_IDENTITY,
+            version: None,
+            phantom: std::marker::PhantomData,
+        })
+    }
+
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.path().metadata()?.len();
@@ -406,7 +463,7 @@ impl EventLogFile<WriteEvent> {
         let temp = NamedTempFile::new()?;
 
         // Apply them to a temporary event log file
-        let mut temp_event_log = Self::new(temp.path()).await?;
+        let mut temp_event_log = Self::new_folder(temp.path()).await?;
         temp_event_log.apply(events.iter().collect()).await?;
 
         let new_size = temp_event_log.file().metadata().await?.len();
@@ -422,7 +479,7 @@ impl EventLogFile<WriteEvent> {
         // determine whether to rename or copy.
         vfs::copy(temp.path(), self.path()).await?;
 
-        let mut new_event_log = Self::new(self.path()).await?;
+        let mut new_event_log = Self::new_folder(self.path()).await?;
         new_event_log.load_tree().await?;
 
         // Verify the new event log tree
@@ -435,17 +492,45 @@ impl EventLogFile<WriteEvent> {
     }
 }
 
+impl EventLogFile<FileEvent> {
+    /// Create a new file event log file.
+    pub async fn new_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        let file = Self::create(
+            file_path.as_ref(),
+            &FILE_EVENT_LOG_IDENTITY,
+            Some(VERSION),
+        )
+        .await?;
+        Ok(Self {
+            file,
+            file_path: file_path.as_ref().to_path_buf(),
+            tree: Default::default(),
+            identity: &FILE_EVENT_LOG_IDENTITY,
+            version: Some(VERSION),
+            phantom: std::marker::PhantomData,
+        })
+    }
+}
+
 #[cfg(test)]
 mod test {
     use anyhow::Result;
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{events::WriteEvent, test_utils::*};
+    use crate::{events::WriteEvent, test_utils::*, vault::VaultId};
 
-    async fn mock_event_log() -> Result<(NamedTempFile, FolderEventLog)> {
+    async fn mock_account_event_log() -> Result<(NamedTempFile, AccountEventLog)>
+    {
         let temp = NamedTempFile::new()?;
-        let event_log = EventLogFile::new(temp.path()).await?;
+        let event_log = AccountEventLog::new_account(temp.path()).await?;
+        Ok((temp, event_log))
+    }
+
+    async fn mock_folder_event_log() -> Result<(NamedTempFile, FolderEventLog)>
+    {
+        let temp = NamedTempFile::new()?;
+        let event_log = FolderEventLog::new_folder(temp.path()).await?;
         Ok((temp, event_log))
     }
 
@@ -454,7 +539,7 @@ mod test {
         let (encryption_key, _, _) = mock_encryption_key()?;
         let (_, mut vault, buffer) = mock_vault_file().await?;
 
-        let (temp, mut event_log) = mock_event_log().await?;
+        let (temp, mut event_log) = mock_folder_event_log().await?;
 
         let mut commits = Vec::new();
 
@@ -489,7 +574,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn event_log_iter_forward() -> Result<()> {
+    async fn folder_event_log_iter_forward() -> Result<()> {
         let (temp, event_log, commits) = mock_event_log_file().await?;
         let mut it = event_log.iter().await?;
         let first_row = it.next_entry().await?.unwrap();
@@ -506,7 +591,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn event_log_iter_backward() -> Result<()> {
+    async fn folder_event_log_iter_backward() -> Result<()> {
         let (temp, event_log, _) = mock_event_log_file().await?;
         let mut it = event_log.iter().await?.rev();
         let _third_row = it.next_entry().await?.unwrap();
@@ -519,7 +604,7 @@ mod test {
 
     #[tokio::test]
     async fn event_log_last_commit() -> Result<()> {
-        let (temp, mut event_log) = mock_event_log().await?;
+        let (temp, mut event_log) = mock_folder_event_log().await?;
         let (_, _vault, buffer) = mock_vault_file().await?;
 
         assert!(event_log.last_commit().await?.is_none());
@@ -537,6 +622,24 @@ mod test {
         let last_commit = event_log.last_commit().await?;
         let patch = event_log.patch_until(last_commit.as_ref()).await?;
         assert_eq!(0, patch.0.len());
+
+        temp.close()?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn account_event_log() -> Result<()> {
+        let (temp, mut event_log) = mock_account_event_log().await?;
+        
+        let folder = VaultId::new_v4();
+        event_log.apply(vec![
+            &AccountEvent::CreateFolder(folder),
+            &AccountEvent::DeleteFolder(folder),
+        ]).await?;
+
+        assert!(event_log.tree().len() > 0);
+        assert!(event_log.tree().root().is_some());
+        assert!(event_log.last_commit().await.is_ok());
 
         temp.close()?;
         Ok(())

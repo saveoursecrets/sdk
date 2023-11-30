@@ -22,6 +22,7 @@ device = []
 security-report = []
 
 [dependencies]
+binary-stream.workspace = true
 sos-vfs = "0.2"
 async-trait = "0.1"
 async-recursion = "1"
@@ -78,11 +79,6 @@ futures-util = "0.3"
 mpc-protocol = "0.4.1"
 
 vsss-rs = {version = "3", optional = true }
-
-[dependencies.binary-stream]
-version = "8.0.0"
-features = ["async"]
-#path = "../../../../binary-stream"
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"

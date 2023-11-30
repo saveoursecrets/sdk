@@ -362,10 +362,10 @@ impl<D> Account<D> {
             user,
             storage: Arc::new(RwLock::new(storage)),
             account_log: Arc::new(RwLock::new(
-                AccountEventLog::new(account_events).await?,
+                AccountEventLog::new_account(account_events).await?,
             )),
             file_log: Arc::new(RwLock::new(
-                FileEventLog::new(file_events).await?,
+                FileEventLog::new_file(file_events).await?,
             )),
         });
 

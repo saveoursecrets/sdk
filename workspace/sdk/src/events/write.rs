@@ -8,7 +8,7 @@ use crate::{
     vault::{secret::SecretId, VaultCommit},
 };
 
-use super::EventKind;
+use super::{EventKind, LogEvent};
 
 /// Write operations.
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -76,9 +76,8 @@ impl PartialOrd for WriteEvent {
     }
 }
 
-impl WriteEvent {
-    /// Get the event kind for this event.
-    pub fn event_kind(&self) -> EventKind {
+impl LogEvent for WriteEvent {
+    fn event_kind(&self) -> EventKind {
         match self {
             WriteEvent::Noop => EventKind::Noop,
             WriteEvent::CreateVault(_) => EventKind::CreateVault,

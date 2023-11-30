@@ -31,8 +31,14 @@ test-utils = ["sos-net/test-utils"]
 [workspace.dependencies]
 csv-async = { version = "1", features = ["tokio", "with_serde"] }
 
+[workspace.dependencies.binary-stream]
+version = "8.0.0"
+features = ["async"]
+#path = "../../../../binary-stream"
+
 [dependencies]
 csv-async.workspace = true
+binary-stream.workspace = true
 thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
