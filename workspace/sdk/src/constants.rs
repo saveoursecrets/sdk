@@ -154,7 +154,7 @@ mod folders {
     pub const ACCOUNT_EVENTS: &str = "account";
 
     /// Name of the file for file events.
-    pub const FILE_EVENTS: &str = "files";
+    pub const FILE_EVENTS: &str = "file";
 
     /// Name of the file for account preferences.
     pub const PREFERENCES_FILE: &str = "preferences";
