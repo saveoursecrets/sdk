@@ -23,7 +23,7 @@ use crate::{
         FOLDER_EVENT_LOG_IDENTITY,
     },
     encode,
-    encoding::{encoding_options, VERSION},
+    encoding::{encoding_options, VERSION, VERSION1},
     events::{AccountEvent, FileEvent, Patch, WriteEvent},
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
@@ -132,6 +132,26 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
             header.extend_from_slice(&version.to_le_bytes());
         }
         header
+    }
+    
+    /// Read encoding version from the file on disc.
+    pub async fn read_file_version(&self) -> Result<u16> {
+        if let Some(_) = &self.version {
+            let mut file = OpenOptions::new()
+                .read(true)
+                .open(&self.file_path)
+                .await?;
+            file.seek(SeekFrom::Start(self.identity.len() as u64)).await?;
+            let mut buf = [0; 2];
+            file.read_exact(&mut buf).await?;
+            let version_bytes: [u8; 2] = buf.as_slice().try_into()?;
+            let version = u16::from_le_bytes(version_bytes);
+            Ok(version)
+        // Backwards compatible with formats without 
+        // version information, just return the default version
+        } else {
+            Ok(VERSION1)
+        }
     }
 
     /// Get an iterator of the log records.

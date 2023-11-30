@@ -1,6 +1,7 @@
 //! Binary encoding implementation.
 mod v1;
 
+pub use v1::VERSION as VERSION1;
 pub use v1::VERSION;
 
 use crate::Result;

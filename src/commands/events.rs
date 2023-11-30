@@ -82,8 +82,10 @@ async fn print_events<T: Default + Encodable + Decodable + LogEvent>(
     } else {
         event_log.iter().await?
     };
+    
+    let version = event_log.read_file_version().await?;
+    let mut count = 0;
     let divider = "-".repeat(80);
-
     while let Some(record) = it.next_entry().await? {
         println!("{}", divider);
         println!("  time: {}", record.time());
@@ -93,8 +95,16 @@ async fn print_events<T: Default + Encodable + Decodable + LogEvent>(
         let event_record: EventRecord = (record, event_buffer).into();
         let event = event_record.decode_event::<T>().await?;
         println!(" event: {}", event.event_kind());
+        count += 1;
     }
-    println!("{}", divider);
+    if count > 0 {
+        println!("{}", divider);
+        println!("  total: {}", count);
+        println!("version: {}", version);
+        println!("{}", divider);
+    } else {
+        println!("no events yet");
+    }
 
     Ok(())
 }

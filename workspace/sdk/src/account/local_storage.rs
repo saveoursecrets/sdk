@@ -608,7 +608,7 @@ impl FolderStorage {
             vfs::remove_file(&vault_path).await?;
         }
 
-        // Rename the local event log file so recovery is still possible
+        // Remove the local event log file
         let event_log_path = self.event_log_path(summary);
         if vfs::try_exists(&event_log_path).await? {
             vfs::remove_file(&event_log_path).await?;
