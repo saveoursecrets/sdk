@@ -584,47 +584,17 @@ impl PrivateIdentity {
 
     /// Save a folder password into an identity vault.
     pub async fn save_folder_password(
-        &mut self,
+        &self,
         vault_id: &VaultId,
         key: AccessKey,
     ) -> Result<()> {
-        let span = span!(Level::DEBUG, "save_folder_password");
-        let _enter = span.enter();
-
-        let urn = Vault::vault_urn(vault_id)?;
-        tracing::debug!(folder = %vault_id, urn = %urn);
-
-        let secret = match key {
-            AccessKey::Password(vault_passphrase) => Secret::Password {
-                name: None,
-                password: vault_passphrase,
-                user_data: Default::default(),
-            },
-            AccessKey::Identity(id) => Secret::Age {
-                version: Default::default(),
-                key: id.to_string(),
-                user_data: Default::default(),
-            },
-        };
-
-        let mut meta =
-            SecretMeta::new(urn.as_str().to_owned(), secret.kind());
-        meta.set_urn(Some(urn));
-
-        let id = SecretId::new_v4();
-        let index_doc = {
-            let keeper = self.keeper.read().await;
-            let index = self.index.read().await;
-            index.prepare(keeper.id(), &id, &meta, &secret)
-        };
-
-        let mut keeper = self.keeper.write().await;
-        keeper.create(id, meta, secret).await?;
-
-        let mut index = self.index.write().await;
-        index.commit(index_doc);
-
-        Ok(())
+        Self::create_folder_password(
+            Arc::clone(&self.keeper),
+            Arc::clone(&self.index),
+            vault_id,
+            key,
+        )
+        .await
     }
 
     /// Find a folder password in an identity vault.
@@ -672,25 +642,12 @@ impl PrivateIdentity {
         &mut self,
         vault_id: &VaultId,
     ) -> Result<()> {
-        tracing::debug!(folder = %vault_id, "remove folder password");
-
-        let (keeper_id, id) = {
-            let keeper = self.keeper.read().await;
-            let urn = Vault::vault_urn(vault_id)?;
-            let index_reader = self.index.read().await;
-            let document = index_reader
-                .find_by_urn(keeper.id(), &urn)
-                .ok_or(Error::NoVaultEntry(urn.to_string()))?;
-            (*keeper.id(), *document.id())
-        };
-
-        let mut keeper = self.keeper.write().await;
-        keeper.delete(&id).await?;
-
-        let mut index = self.index.write().await;
-        index.remove(&keeper_id, &id);
-
-        Ok(())
+        Self::delete_folder_password(
+            Arc::clone(&self.keeper),
+            Arc::clone(&self.index),
+            vault_id,
+        )
+        .await
     }
 
     /// Find the password used for symmetric file encryption (AGE).
@@ -712,6 +669,79 @@ impl PrivateIdentity {
                 return Err(Error::VaultEntryKind(urn.to_string()));
             };
         Ok(password)
+    }
+
+    /// Save a folder password into an identity vault.
+    pub async fn create_folder_password(
+        keeper: Arc<RwLock<Gatekeeper>>,
+        index: Arc<RwLock<SearchIndex>>,
+        vault_id: &VaultId,
+        key: AccessKey,
+    ) -> Result<()> {
+        let span = span!(Level::DEBUG, "save_folder_password");
+        let _enter = span.enter();
+
+        let urn = Vault::vault_urn(vault_id)?;
+        tracing::debug!(folder = %vault_id, urn = %urn);
+
+        let secret = match key {
+            AccessKey::Password(vault_passphrase) => Secret::Password {
+                name: None,
+                password: vault_passphrase,
+                user_data: Default::default(),
+            },
+            AccessKey::Identity(id) => Secret::Age {
+                version: Default::default(),
+                key: id.to_string(),
+                user_data: Default::default(),
+            },
+        };
+
+        let mut meta =
+            SecretMeta::new(urn.as_str().to_owned(), secret.kind());
+        meta.set_urn(Some(urn));
+
+        let id = SecretId::new_v4();
+        let index_doc = {
+            let keeper = keeper.read().await;
+            let index = index.read().await;
+            index.prepare(keeper.id(), &id, &meta, &secret)
+        };
+
+        let mut keeper = keeper.write().await;
+        keeper.create(id, meta, secret).await?;
+
+        let mut index = index.write().await;
+        index.commit(index_doc);
+
+        Ok(())
+    }
+
+    /// Remove a folder password from an identity vault.
+    pub async fn delete_folder_password(
+        keeper: Arc<RwLock<Gatekeeper>>,
+        index: Arc<RwLock<SearchIndex>>,
+        vault_id: &VaultId,
+    ) -> Result<()> {
+        tracing::debug!(folder = %vault_id, "remove folder password");
+
+        let (keeper_id, id) = {
+            let keeper = keeper.read().await;
+            let urn = Vault::vault_urn(vault_id)?;
+            let index_reader = index.read().await;
+            let document = index_reader
+                .find_by_urn(keeper.id(), &urn)
+                .ok_or(Error::NoVaultEntry(urn.to_string()))?;
+            (*keeper.id(), *document.id())
+        };
+
+        let mut keeper = keeper.write().await;
+        keeper.delete(&id).await?;
+
+        let mut index = index.write().await;
+        index.remove(&keeper_id, &id);
+
+        Ok(())
     }
 }
 

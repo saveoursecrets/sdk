@@ -6,7 +6,7 @@ use crate::client::{
     WebSocketHandle,
 };
 use futures::{select, FutureExt};
-use sos_sdk::prelude::SecureAccessKey;
+use sos_sdk::prelude::{PrivateIdentity, SecureAccessKey};
 use std::sync::Arc;
 
 impl NetworkAccount {
@@ -47,6 +47,7 @@ impl NetworkAccount {
         if self.account.is_authenticated() {
             let user = self.user().unwrap();
             let keeper = user.identity().unwrap().keeper();
+            let search_index = user.identity().unwrap().index();
             let secret_key = user.identity().unwrap().signer().to_bytes();
 
             // TODO: needs shutdown hook so this loop exits
@@ -72,18 +73,15 @@ impl NetworkAccount {
                                 .await?;
 
                                 // Save the access key for the synced folder
-                                //
-                                /*
                                 let identity = Arc::clone(&keeper);
-                                LocalAccount::save_folder_password(
+                                let index = Arc::clone(&search_index);
+                                PrivateIdentity::create_folder_password(
                                     identity,
+                                    index,
                                     &folder_id,
                                     access_key.clone(),
                                 )
                                 .await?;
-                                */
-
-                                todo!("fixme saving listen folder password..");
 
                                 tx.access_key_tx.send(access_key).await?;
                             }
@@ -96,15 +94,14 @@ impl NetworkAccount {
                                 // When a folder is removed via remote
                                 // bridge changes we need to clean up the
                                 // passphrase
-                                /*
                                 let identity = Arc::clone(&keeper);
-                                LocalAccount::remove_folder_password(
+                                let index = Arc::clone(&search_index);
+                                PrivateIdentity::delete_folder_password(
                                     identity,
+                                    index,
                                     &folder_id,
                                 )
                                 .await?;
-                                */
-                                todo!("fixme removing listen folder password..");
                             }
                         }
                     )
