@@ -132,43 +132,6 @@ impl AuditEvent {
             LogFlags::empty()
         }
     }
-
-    /*
-    /// Convert from a sync event to an audit event.
-    pub fn from_sync_event(
-        event: &Event,
-        address: &Address,
-        _vault_id: &Uuid,
-    ) -> AuditEvent {
-        let audit_data = match event {
-            Event::Read(vault_id, event) => match event {
-                ReadEvent::ReadVault => AuditData::Vault(*vault_id),
-                ReadEvent::ReadSecret(secret_id) => {
-                    AuditData::Secret(*vault_id, *secret_id)
-                }
-                ReadEvent::Noop => unreachable!(),
-            },
-            Event::Write(vault_id, event) => match event {
-                WriteEvent::CreateVault(_)
-                | WriteEvent::UpdateVault(_)
-                | WriteEvent::DeleteVault
-                | WriteEvent::SetVaultName(_)
-                | WriteEvent::SetVaultMeta(_) => AuditData::Vault(*vault_id),
-                WriteEvent::CreateSecret(secret_id, _) => {
-                    AuditData::Secret(*vault_id, *secret_id)
-                }
-                WriteEvent::UpdateSecret(secret_id, _) => {
-                    AuditData::Secret(*vault_id, *secret_id)
-                }
-                WriteEvent::DeleteSecret(secret_id) => {
-                    AuditData::Secret(*vault_id, *secret_id)
-                }
-                WriteEvent::Noop => unreachable!(),
-            },
-        };
-        AuditEvent::new(event.event_kind(), *address, Some(audit_data))
-    }
-    */
 }
 
 impl<'a> From<(&Address, &Event)> for AuditEvent {

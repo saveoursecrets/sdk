@@ -1,12 +1,16 @@
-//! Log and sync events.
-
-use crate::Result;
-use binary_stream::futures::Decodable;
+//! Events represent changes to accounts, folders and files.
+//!
+//! Events may be appended to *event log* files for persistence.
+//!
+//! Event logs maintain an in-memory merkle tree of commits to 
+//! enable syncing of data between devices.
+//!
+//! They are also used for some read events to maintain 
+//! an audit trail of actions.
 
 #[cfg(feature = "account")]
 mod account;
 mod audit;
-//mod change;
 mod event;
 mod file;
 mod log;

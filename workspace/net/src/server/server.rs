@@ -3,7 +3,6 @@ use super::{
     handlers::{
         api, connections, home,
         service::ServiceHandler,
-        websocket::{upgrade, WebSocketConnection},
     },
     Backend, Result, ServerConfig, TransportManager,
 };
@@ -28,6 +27,9 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_stream::wrappers::IntervalStream;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use web3_address::ethereum::Address;
+
+#[cfg(feature = "listen")]
+use super::handlers::websocket::{upgrade, WebSocketConnection};
 
 async fn session_reaper(state: ServerState, interval_secs: u64) {
     let interval = tokio::time::interval(Duration::from_secs(interval_secs));
@@ -196,11 +198,15 @@ impl Server {
             .route("/", get(home))
             .route("/api", get(api))
             .route("/api/connections", get(connections))
-            .route("/api/changes", get(upgrade))
             .route("/api/handshake", post(ServiceHandler::handshake))
             .route("/api/account", post(ServiceHandler::account))
             .route("/api/vault", post(ServiceHandler::vault))
             .route("/api/events", post(ServiceHandler::events));
+
+        #[cfg(feature = "listen")]
+        {
+            app = app.route("/api/changes", get(upgrade));
+        }
 
         app = app
             .layer(cors)

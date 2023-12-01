@@ -20,12 +20,14 @@ use std::sync::Arc;
 use tokio::sync::RwLockWriteGuard;
 
 use crate::{
-    events::ChangeNotification,
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
     server::{
         authenticate, Error, Result, ServerBackend, ServerState, State,
     },
 };
+
+#[cfg(feature = "listen")]
+use crate::events::ChangeNotification;
 
 /// Trait for implementations that process incoming requests.
 #[async_trait]
@@ -93,6 +95,7 @@ async fn append_audit_logs<'a>(
 }
 
 /// Send change notifications to connected clients.
+#[cfg(feature = "listen")]
 fn send_notification(
     writer: &mut RwLockWriteGuard<'_, State>,
     _caller: &Caller,

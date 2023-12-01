@@ -11,12 +11,17 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use super::Service;
-use super::{append_audit_logs, send_notification, PrivateState};
+use super::{append_audit_logs, PrivateState};
 use crate::{
-    events::{ChangeEvent, ChangeNotification},
     rpc::{RequestMessage, ResponseMessage},
     server::{BackendHandler, Error, Result},
 };
+
+#[cfg(feature = "listen")]
+use crate::events::{ChangeEvent, ChangeNotification};
+
+#[cfg(feature = "listen")]
+use super::send_notification;
 
 /// Vault management service.
 ///
@@ -73,6 +78,7 @@ impl Service for VaultService {
 
                     let vault_id = *summary.id();
 
+                    #[cfg(feature = "listen")]
                     let notification = ChangeNotification::new(
                         caller.address(),
                         caller.public_key(),
@@ -87,6 +93,7 @@ impl Service for VaultService {
                     {
                         let mut writer = state.write().await;
                         append_audit_logs(&mut writer, vec![log]).await?;
+                        #[cfg(feature = "listen")]
                         send_notification(&mut writer, &caller, notification);
                     }
 
@@ -121,6 +128,7 @@ impl Service for VaultService {
                 let reply: ResponseMessage<'_> =
                     (request.id(), &proof).try_into()?;
 
+                #[cfg(feature = "listen")]
                 let notification = ChangeNotification::new(
                     caller.address(),
                     caller.public_key(),
@@ -138,6 +146,8 @@ impl Service for VaultService {
                 {
                     let mut writer = state.write().await;
                     append_audit_logs(&mut writer, vec![log]).await?;
+
+                    #[cfg(feature = "listen")]
                     send_notification(&mut writer, &caller, notification);
                 }
 
@@ -178,6 +188,7 @@ impl Service for VaultService {
 
                 let vault_id = *summary.id();
 
+                #[cfg(feature = "listen")]
                 let notification = ChangeNotification::new(
                     caller.address(),
                     caller.public_key(),
@@ -192,6 +203,8 @@ impl Service for VaultService {
                 {
                     let mut writer = state.write().await;
                     append_audit_logs(&mut writer, vec![log]).await?;
+
+                    #[cfg(feature = "listen")]
                     send_notification(&mut writer, &caller, notification);
                 }
 

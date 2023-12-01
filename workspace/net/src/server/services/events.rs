@@ -14,23 +14,30 @@ use std::{borrow::Cow, sync::Arc};
 use uuid::Uuid;
 
 use super::Service;
-use super::{append_audit_logs, send_notification, PrivateState};
+use super::{append_audit_logs, PrivateState};
 use crate::{
-    events::{ChangeEvent, ChangeNotification, Patch},
+    events::Patch,
     rpc::{RequestMessage, ResponseMessage},
     server::{BackendHandler, Error, Result},
 };
 
+#[cfg(feature = "listen")]
+use crate::events::{ChangeEvent, ChangeNotification};
+
+#[cfg(feature = "listen")]
+use super::send_notification;
+
 enum PatchResult {
     Conflict(CommitProof, Option<CommitProof>),
-    Success(
-        Address,
-        Vec<AuditEvent>,
-        Vec<ChangeEvent>,
-        Vec<CommitHash>,
-        CommitProof,
-        Option<String>,
-    ),
+    Success {
+        address: Address,
+        audit_logs: Vec<AuditEvent>,
+        #[cfg(feature = "listen")]
+        change_events: Vec<ChangeEvent>,
+        commits: Vec<CommitHash>,
+        proof: CommitProof,
+        vault_name: Option<String>,
+    },
 }
 
 /// Event log management service.
@@ -311,16 +318,21 @@ impl Service for EventLogService {
                                 });
 
                             // Changes events for the SSE channel
-                            let mut change_events: Vec<ChangeEvent> =
-                                Vec::new();
-                            for event in change_set.iter() {
-                                let event =
-                                    ChangeEvent::try_from_write_event(event)
-                                        .await;
-                                if event.is_ok() {
-                                    change_events.push(event?);
+                            #[cfg(feature = "listen")]
+                            let change_events = {
+
+                                let mut change_events: Vec<ChangeEvent> =
+                                    Vec::new();
+                                for event in change_set.iter() {
+                                    let event =
+                                        ChangeEvent::try_from_write_event(event)
+                                            .await;
+                                    if event.is_ok() {
+                                        change_events.push(event?);
+                                    }
                                 }
-                            }
+                                change_events
+                            };
 
                             // Audit log events
                             let audit_logs: Vec<AuditEvent> = change_set
@@ -348,14 +360,15 @@ impl Service for EventLogService {
                             // Get a new commit proof for the last leaf hash
                             let proof = event_log.tree().head()?;
 
-                            Ok(PatchResult::Success(
-                                caller.address,
+                            Ok(PatchResult::Success{
+                                address: caller.address,
                                 audit_logs,
+                                #[cfg(feature = "listen")]
                                 change_events,
                                 commits,
                                 proof,
                                 vault_name,
-                            ))
+                            })
                         }
                         Comparison::Contains(indices, _leaves) => {
                             let proof = event_log.tree().head()?;
@@ -376,14 +389,15 @@ impl Service for EventLogService {
                 };
 
                 match result? {
-                    PatchResult::Success(
+                    PatchResult::Success {
                         address,
-                        logs,
+                        audit_logs: logs,
+                        #[cfg(feature = "listen")]
                         change_events,
-                        _commits,
                         proof,
-                        name,
-                    ) => {
+                        vault_name: name,
+                        ..
+                    } => {
                         // Must update the vault name in it's summary
                         if let Some(name) = name {
                             let mut writer = backend.write().await;
@@ -398,6 +412,7 @@ impl Service for EventLogService {
                         let reply: ResponseMessage<'_> =
                             (request.id(), value).try_into()?;
 
+                        #[cfg(feature = "listen")]
                         let notification = ChangeNotification::new(
                             &address,
                             caller.public_key(),
@@ -412,6 +427,7 @@ impl Service for EventLogService {
                             append_audit_logs(&mut writer, logs).await?;
 
                             // Send notifications on the SSE channel
+                            #[cfg(feature = "listen")]
                             send_notification(
                                 &mut writer,
                                 &caller,

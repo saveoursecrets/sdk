@@ -10,6 +10,8 @@ use super::ServerState;
 use serde_json::json;
 
 pub(crate) mod service;
+
+#[cfg(feature = "listen")]
 pub(crate) mod websocket;
 
 /// Serve the home page.
