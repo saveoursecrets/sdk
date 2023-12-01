@@ -37,8 +37,11 @@ use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, RwLock};
 
-use super::{files::FileProgress, search::AccountSearch};
+use super::search::AccountSearch;
 use async_trait::async_trait;
+
+#[cfg(feature = "files")]
+use super::files::FileProgress;
 
 /// Type alias for a local account without a handler.
 pub type LocalAccount = Account<()>;
@@ -164,6 +167,7 @@ pub struct AccessOptions {
     /// folder is not given an error will be returned.
     pub folder: Option<Summary>,
     /// Channel for file progress operations.
+    #[cfg(feature = "files")]
     pub file_progress: Option<mpsc::Sender<FileProgress>>,
 }
 
@@ -171,6 +175,7 @@ impl From<Summary> for AccessOptions {
     fn from(value: Summary) -> Self {
         Self {
             folder: Some(value),
+            #[cfg(feature = "files")]
             file_progress: None,
         }
     }
@@ -205,6 +210,7 @@ struct Authenticated {
     account_log: Arc<RwLock<AccountEventLog>>,
 
     /// File event log.
+    #[cfg(feature = "files")]
     file_log: Arc<RwLock<FileEventLog>>,
 }
 
@@ -494,16 +500,17 @@ impl<D> Account<D> {
                 .await?;
         self.paths = storage.paths();
 
-        let file_events = paths.file_events();
         let account_log = self.initialize_account_log(&self.paths).await?;
+
+        #[cfg(feature = "files")]
+        let file_log = self.initialize_file_log(&self.paths).await?;
 
         self.authenticated = Some(Authenticated {
             user,
             storage: Arc::new(RwLock::new(storage)),
             account_log,
-            file_log: Arc::new(RwLock::new(
-                FileEventLog::new_file(file_events).await?,
-            )),
+            #[cfg(feature = "files")]
+            file_log,
         });
 
         self.load_folders().await?;
@@ -540,6 +547,7 @@ impl<D> Account<D> {
         Ok(Arc::new(RwLock::new(event_log)))
     }
 
+    #[cfg(feature = "files")]
     async fn initialize_file_log(
         &self,
         paths: &UserPaths,
@@ -822,7 +830,8 @@ impl<D> Account<D> {
         self.user_mut()?
             .remove_folder_password(summary.id())
             .await?;
-
+        
+        #[cfg(feature = "files")]
         self.delete_folder_files(&summary).await?;
 
         let account_event = AccountEvent::DeleteFolder(*summary.id());
@@ -1275,6 +1284,7 @@ impl<D> Account<D> {
                 .ok_or(Error::NoOpenFolder)?
         };
 
+        #[cfg(feature = "files")]
         self.create_files(
             &current_folder,
             secret_data,
@@ -1341,6 +1351,7 @@ impl<D> Account<D> {
     /// If the secret exists and is not a file secret it will be
     /// converted to a file secret so take care to ensure you only
     /// use this on file secrets.
+    #[cfg(feature = "files")]
     pub async fn update_file(
         &mut self,
         secret_id: &SecretId,
@@ -1391,6 +1402,7 @@ impl<D> Account<D> {
             .await?;
 
         // Must update the files before moving so checksums are correct
+        #[cfg(feature = "files")]
         self.update_files(
             &folder,
             &folder,
@@ -1514,6 +1526,7 @@ impl<D> Account<D> {
         // move_files operation.
         let delete_event = self.remove_secret(secret_id, None, false).await?;
 
+        #[cfg(feature = "files")]
         self.move_files(
             &move_secret_data,
             from.id(),
@@ -1560,6 +1573,7 @@ impl<D> Account<D> {
             self.get_secret(secret_id, None, false).await?;
         let event = self.remove_secret(secret_id, None, true).await?;
 
+        #[cfg(feature = "files")]
         self.delete_files(
             &folder,
             &secret_data,

@@ -11,6 +11,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 default = []
 full = [
   "archive",
+  "files",
   "client",
   "server",
   "hashcheck",
@@ -36,6 +37,7 @@ server = [
 ]
 hashcheck = []
 archive = ["sos-sdk/archive"]
+files = ["sos-sdk/files"]
 contacts = ["sos-sdk/contacts"]
 migrate = ["sos-migrate"]
 device = [

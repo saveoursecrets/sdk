@@ -15,7 +15,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use tokio::sync::mpsc;
-
 use tracing::{span, Level};
 
 /// File progress operations.

@@ -488,6 +488,7 @@ impl NetworkAccount {
     /// If the secret exists and is not a file secret it will be
     /// converted to a file secret so take care to ensure you only
     /// use this on file secrets.
+    #[cfg(feature = "files")]
     pub async fn update_file(
         &mut self,
         secret_id: &SecretId,
@@ -665,6 +666,7 @@ impl NetworkAccount {
     }
 
     /// Decrypt a file so it can be downloaded from the account.
+    #[cfg(feature = "files")]
     pub async fn download_file(
         &self,
         vault_id: &VaultId,

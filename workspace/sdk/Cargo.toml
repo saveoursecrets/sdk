@@ -12,8 +12,9 @@ repository = "https://github.com/saveoursecrets/sdk"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["archive", "recovery"]
+default = ["archive", "files", "recovery"]
 archive = []
+files = []
 mem-fs = ["sos-vfs/mem-fs"]
 test-utils = ["dep:anyhow"]
 recovery = ["dep:vsss-rs"]

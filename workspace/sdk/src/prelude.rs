@@ -1,6 +1,7 @@
 //! Prelude re-exports common types.
 #[cfg(feature = "archive")]
 pub use crate::account::archive::*;
+#[cfg(feature = "files")]
 pub use crate::account::files::*;
 pub use crate::account::search::*;
 pub use crate::account::*;

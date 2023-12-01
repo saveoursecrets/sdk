@@ -7,6 +7,7 @@ mod builder;
 pub mod contacts;
 #[cfg(feature = "device")]
 mod device;
+#[cfg(feature = "files")]
 pub mod files;
 mod identity;
 mod local_storage;
