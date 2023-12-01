@@ -11,7 +11,7 @@ use uuid::Uuid;
 use vcard4::{self};
 
 use crate::{
-    encoding::encoding_error,
+    encoding::{encoding_error, decode_uuid},
     vault::secret::{
         AgeVersion, FileContent, IdentityKind, Secret, SecretFlags,
         SecretMeta, SecretRow, SecretSigner, SecretType, UserData,
@@ -182,13 +182,7 @@ impl Decodable for SecretRow {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        let uuid: [u8; 16] = reader
-            .read_bytes(16)
-            .await?
-            .as_slice()
-            .try_into()
-            .map_err(encoding_error)?;
-        self.id = Uuid::from_bytes(uuid);
+        self.id = decode_uuid(&mut *reader).await?;
         self.meta.decode(&mut *reader).await?;
         self.secret.decode(&mut *reader).await?;
         Ok(())

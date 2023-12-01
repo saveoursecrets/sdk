@@ -9,9 +9,10 @@ pub use v1::VERSION;
 
 use crate::Result;
 use binary_stream::{
-    futures::{Decodable, Encodable},
+    futures::{Decodable, Encodable, BinaryReader},
     Endian, Options,
 };
+use futures::io::{AsyncRead, AsyncSeek};
 
 /// Helper for mapping an encoding error.
 pub fn encoding_error(
@@ -39,4 +40,17 @@ pub async fn encode(encodable: &impl Encodable) -> Result<Vec<u8>> {
 /// Decode from a binary buffer.
 pub async fn decode<T: Decodable + Default>(buffer: &[u8]) -> Result<T> {
     Ok(binary_stream::futures::decode(buffer, encoding_options()).await?)
+}
+
+/// Helper to decode a UUIDv4.
+pub(crate) async fn decode_uuid<R: AsyncRead + AsyncSeek + Unpin + Send>(
+    reader: &mut BinaryReader<R>,
+) -> std::result::Result<uuid::Uuid, std::io::Error> {
+    let uuid: [u8; 16] = reader
+        .read_bytes(16)
+        .await?
+        .as_slice()
+        .try_into()
+        .map_err(encoding_error)?;
+    Ok(uuid::Uuid::from_bytes(uuid))
 }

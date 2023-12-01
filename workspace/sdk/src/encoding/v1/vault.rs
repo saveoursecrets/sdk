@@ -4,7 +4,7 @@ use crate::{
     commit::CommitHash,
     constants::VAULT_IDENTITY,
     crypto::{AeadPack, SEED_SIZE},
-    encoding::encoding_error,
+    encoding::{encoding_error, decode_uuid},
     formats::FileIdentity,
     vault::{
         secret::SecretId, Auth, Contents, Header, SharedAccess, Summary,
@@ -191,15 +191,7 @@ impl Decodable for Summary {
         self.version = reader.read_u16().await?;
         self.cipher.decode(&mut *reader).await?;
         self.kdf.decode(&mut *reader).await?;
-
-        let uuid: [u8; 16] = reader
-            .read_bytes(16)
-            .await?
-            .as_slice()
-            .try_into()
-            .map_err(encoding_error)?;
-
-        self.id = Uuid::from_bytes(uuid);
+        self.id = decode_uuid(&mut *reader).await?;
         self.name = reader.read_string().await?;
         self.flags = VaultFlags::from_bits(reader.read_u64().await?)
             .ok_or(crate::Error::InvalidVaultFlags)
@@ -377,13 +369,7 @@ impl Contents {
         // Read in the row length
         let _ = reader.read_u32().await?;
 
-        let uuid: [u8; 16] = reader
-            .read_bytes(16)
-            .await?
-            .as_slice()
-            .try_into()
-            .map_err(encoding_error)?;
-        let uuid = Uuid::from_bytes(uuid);
+        let uuid = decode_uuid(&mut *reader).await?;
 
         let mut row: VaultCommit = Default::default();
         row.decode(&mut *reader).await?;

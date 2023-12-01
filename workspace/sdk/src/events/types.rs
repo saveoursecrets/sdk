@@ -53,6 +53,10 @@ const IMPORT_UNSAFE: u16 = 21;
 const EXPORT_CONTACTS: u16 = 22;
 /// Type identifier for importing contacts.
 const IMPORT_CONTACTS: u16 = 23;
+/// Type identifier for creating a file.
+const CREATE_FILE: u16 = 24;
+/// Type identifier for deleting a file.
+const DELETE_FILE: u16 = 25;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -106,6 +110,10 @@ pub enum EventKind {
     ExportContacts,
     /// Event to import contacts.
     ImportContacts,
+    /// Event for creating a file.
+    CreateFile,
+    /// Event for deleting a file.
+    DeleteFile,
 }
 
 impl Default for EventKind {
@@ -142,6 +150,8 @@ impl TryFrom<u16> for EventKind {
             IMPORT_UNSAFE => EventKind::ImportUnsafe,
             EXPORT_CONTACTS => EventKind::ExportContacts,
             IMPORT_CONTACTS => EventKind::ImportContacts,
+            CREATE_FILE => EventKind::CreateFile,
+            DELETE_FILE => EventKind::DeleteFile,
             _ => return Err(Error::UnknownEventKind(value)),
         })
     }
@@ -174,7 +184,15 @@ impl From<&EventKind> for u16 {
             EventKind::ImportUnsafe => IMPORT_UNSAFE,
             EventKind::ExportContacts => EXPORT_CONTACTS,
             EventKind::ImportContacts => IMPORT_CONTACTS,
+            EventKind::CreateFile => CREATE_FILE,
+            EventKind::DeleteFile => DELETE_FILE,
         }
+    }
+}
+
+impl From<EventKind> for u16 {
+    fn from(value: EventKind) -> Self {
+        (&value).into()
     }
 }
 
@@ -206,6 +224,8 @@ impl fmt::Display for EventKind {
                 EventKind::ImportUnsafe => "IMPORT_UNSAFE",
                 EventKind::ExportContacts => "EXPORT_CONTACTS",
                 EventKind::ImportContacts => "IMPORT_CONTACTS",
+                EventKind::CreateFile => "CREATE_FILE",
+                EventKind::DeleteFile => "DELETE_FILE",
             }
         })
     }

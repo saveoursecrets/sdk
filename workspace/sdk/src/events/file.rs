@@ -21,15 +21,10 @@ pub enum FileEvent {
 
 impl LogEvent for FileEvent {
     fn event_kind(&self) -> EventKind {
-        todo!();
-
-        /*
         match self {
             Self::Noop => EventKind::Noop,
-            Self::CreateFolder(_) => EventKind::CreateVault,
-            Self::UpdateFolder(_) => EventKind::UpdateVault,
-            Self::DeleteFolder(_) => EventKind::DeleteVault,
+            Self::CreateFile(_, _, _) => EventKind::CreateFile,
+            Self::DeleteFile(_, _, _) => EventKind::DeleteFile,
         }
-        */
     }
 }
