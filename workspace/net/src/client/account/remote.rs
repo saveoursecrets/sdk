@@ -650,12 +650,14 @@ impl RemoteSync for RemoteBridge {
 
 #[cfg(feature = "listen")]
 mod listen {
-    use crate::client::{
-        Error, ListenOptions, RemoteBridge, Result, WebSocketHandle,
+    use crate::{
+        client::{
+            Error, ListenOptions, RemoteBridge, Result, WebSocketHandle,
+        },
+        events::{ChangeAction, ChangeEvent, ChangeNotification},
     };
     use sos_sdk::prelude::{
-        AccessKey, ChangeAction, ChangeEvent, ChangeNotification, FolderRef,
-        SecureAccessKey, Summary, VaultId,
+        AccessKey, FolderRef, SecureAccessKey, Summary, VaultId,
     };
 
     use std::sync::Arc;

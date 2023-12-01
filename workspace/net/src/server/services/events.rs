@@ -5,10 +5,7 @@ use sos_sdk::{
         EVENT_LOG_DIFF, EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_STATUS,
     },
     decode, encode,
-    events::{
-        AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
-        EventKind, WriteEvent,
-    },
+    events::{AuditData, AuditEvent, Event, EventKind, WriteEvent},
 };
 use web3_address::ethereum::Address;
 
@@ -19,7 +16,7 @@ use uuid::Uuid;
 use super::Service;
 use super::{append_audit_logs, send_notification, PrivateState};
 use crate::{
-    events::Patch,
+    events::{ChangeEvent, ChangeNotification, Patch},
     rpc::{RequestMessage, ResponseMessage},
     server::{BackendHandler, Error, Result},
 };

@@ -9,6 +9,10 @@ pub enum Error {
     #[error("could not determine cache directory")]
     NoCache,
 
+    /// Error generated attempting to convert to a change event.
+    #[error("not compatible with change event")]
+    NoChangeEvent,
+
     /// Error generated attempting acquire a
     /// lock on a file that is already locked.
     #[error("file {0} is already locked")]

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use sos_sdk::{
     account::AccountStatus,
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
-    events::{AuditEvent, ChangeEvent, ChangeNotification, Event, EventKind},
+    events::{AuditEvent, Event, EventKind},
     vault::Header,
 };
 
@@ -13,6 +13,7 @@ use async_trait::async_trait;
 use super::Service;
 use super::{append_audit_logs, send_notification, PrivateState};
 use crate::{
+    events::{ChangeEvent, ChangeNotification},
     rpc::{RequestMessage, ResponseMessage},
     server::{BackendHandler, Error, Result},
 };

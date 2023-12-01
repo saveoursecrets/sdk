@@ -28,7 +28,7 @@ use mpc_protocol::{
 //use tracing::{span, Level};
 
 #[cfg(feature = "listen")]
-use sos_sdk::events::ChangeNotification;
+use crate::events::ChangeNotification;
 
 #[cfg(feature = "listen")]
 use super::websocket::WebSocketChangeListener;

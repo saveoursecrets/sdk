@@ -30,9 +30,12 @@ use tokio::{
 use url::Url;
 
 use mpc_protocol::{generate_keypair, Keypair};
-use sos_sdk::{events::ChangeNotification, signer::ecdsa::BoxedEcdsaSigner};
+use sos_sdk::signer::ecdsa::BoxedEcdsaSigner;
 
-use crate::client::{HostedOrigin, Origin, Result, RpcClient};
+use crate::{
+    client::{HostedOrigin, Origin, Result, RpcClient},
+    events::ChangeNotification,
+};
 
 use super::encode_signature;
 

@@ -3,10 +3,7 @@ use axum::http::StatusCode;
 use sos_sdk::{
     constants::{VAULT_CREATE, VAULT_DELETE, VAULT_SAVE},
     crypto::SecureAccessKey,
-    events::{
-        AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
-        EventKind,
-    },
+    events::{AuditData, AuditEvent, Event, EventKind},
     vault::Header,
 };
 
@@ -16,6 +13,7 @@ use uuid::Uuid;
 use super::Service;
 use super::{append_audit_logs, send_notification, PrivateState};
 use crate::{
+    events::{ChangeEvent, ChangeNotification},
     rpc::{RequestMessage, ResponseMessage},
     server::{BackendHandler, Error, Result},
 };

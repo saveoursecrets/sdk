@@ -12,7 +12,7 @@ use mpc_protocol::channel::{decrypt_server_channel, encrypt_server_channel};
 use sos_sdk::{
     constants::MIME_TYPE_RPC,
     decode, encode,
-    events::{AuditEvent, AuditProvider, ChangeNotification},
+    events::{AuditEvent, AuditProvider},
 };
 use web3_address::ethereum::Address;
 
@@ -20,6 +20,7 @@ use std::sync::Arc;
 use tokio::sync::RwLockWriteGuard;
 
 use crate::{
+    events::ChangeNotification,
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
     server::{
         authenticate, Error, Result, ServerBackend, ServerState, State,

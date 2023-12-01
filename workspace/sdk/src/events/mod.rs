@@ -6,7 +6,7 @@ use binary_stream::futures::Decodable;
 #[cfg(feature = "account")]
 mod account;
 mod audit;
-mod change;
+//mod change;
 mod event;
 mod file;
 mod log;
@@ -29,7 +29,6 @@ pub use account::AccountEvent;
 pub use audit::{
     AuditData, AuditEvent, AuditLogFile, AuditProvider, LogFlags,
 };
-pub use change::{ChangeAction, ChangeEvent, ChangeNotification};
 pub use event::Event;
 #[cfg(feature = "files")]
 pub use file::FileEvent;

@@ -156,6 +156,7 @@ pub enum Error {
     #[error("invalid nonce")]
     InvalidNonce,
 
+    #[deprecated]
     /// Error generated attempting to convert to a change event.
     #[error("not compatible with change event")]
     NoChangeEvent,

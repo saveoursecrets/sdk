@@ -1,15 +1,16 @@
-//! Events emitted over the server-sent events channel to
+//! Events emitted over by the server to
 //! notify connected clients that changes have been made.
 use serde::{Deserialize, Serialize};
-use web3_address::ethereum::Address;
 
-use crate::{
+use sos_sdk::{
     commit::CommitProof,
     crypto::SecureAccessKey,
     events::{Event, WriteEvent},
+    signer::ecdsa::Address,
     vault::{secret::SecretId, Header, Summary, VaultId},
-    Error, Result,
 };
+
+use crate::{Error, Result};
 
 /// Encapsulates a collection of change events.
 ///
