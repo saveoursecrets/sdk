@@ -23,7 +23,7 @@ pub use account::{
 pub use builder::{AccountBuilder, NewAccount};
 #[cfg(feature = "device")]
 pub use device::DeviceSigner;
-pub use identity::{AccountStatus, Identity, PrivateIdentity, FolderKeys};
+pub use identity::{AccountStatus, FolderKeys, Identity, PrivateIdentity};
 pub use local_storage::FolderStorage;
 pub use paths::UserPaths;
 

@@ -35,8 +35,8 @@ use crate::{
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretSigner},
-        Gatekeeper, Vault, VaultAccess, VaultBuilder, VaultFlags, VaultId,
-        VaultWriter, Summary,
+        Gatekeeper, Summary, Vault, VaultAccess, VaultBuilder, VaultFlags,
+        VaultId, VaultWriter,
     },
     vfs, Error, Result,
 };
@@ -61,7 +61,7 @@ impl FolderKeys {
     }
 }
 
-/// Identity manages access to an identity vault 
+/// Identity manages access to an identity vault
 /// and the private keys for a user.
 pub struct Identity {
     paths: UserPaths,
@@ -194,7 +194,7 @@ impl Identity {
     /// Create a new login vault with a master password.
     ///
     /// Generates a new random single party signing key and
-    /// a public identity key for asymmetric encryption and 
+    /// a public identity key for asymmetric encryption and
     /// stores them in the identity vault.
     pub async fn new_login_vault(
         name: String,

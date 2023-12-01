@@ -2,7 +2,7 @@
 use crate::{
     account::{
         search::{AccountSearch, DocumentCount, SearchIndex},
-        AccountStatus, NewAccount, UserPaths, FolderKeys,
+        AccountStatus, FolderKeys, NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitTree},
     constants::VAULT_EXT,

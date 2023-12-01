@@ -394,6 +394,12 @@ impl Summary {
     }
 }
 
+impl From<Summary> for VaultId {
+    fn from(value: Summary) -> Self {
+        value.id
+    }
+}
+
 /// File header, identifier and version information
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Header {

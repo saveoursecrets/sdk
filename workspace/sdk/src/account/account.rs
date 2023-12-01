@@ -11,8 +11,8 @@ use std::{
 use crate::{
     account::{
         search::{AccountStatistics, DocumentCount, SearchIndex},
-        AccountBuilder, FolderStorage, Identity, NewAccount, UserPaths,
-        FolderKeys,
+        AccountBuilder, FolderKeys, FolderStorage, Identity, NewAccount,
+        UserPaths,
     },
     commit::{CommitHash, CommitState},
     constants::VAULT_EXT,
@@ -492,17 +492,15 @@ impl<D> Account<D> {
         let storage =
             FolderStorage::new(signer.address()?.to_string(), Some(data_dir))
                 .await?;
-
-        let account_events = paths.account_events();
-        let file_events = paths.file_events();
-
         self.paths = storage.paths();
+
+        let file_events = paths.file_events();
+        let account_log = self.initialize_account_log(&self.paths).await?;
+
         self.authenticated = Some(Authenticated {
             user,
             storage: Arc::new(RwLock::new(storage)),
-            account_log: Arc::new(RwLock::new(
-                AccountEventLog::new_account(account_events).await?,
-            )),
+            account_log,
             file_log: Arc::new(RwLock::new(
                 FileEventLog::new_file(file_events).await?,
             )),
@@ -513,8 +511,48 @@ impl<D> Account<D> {
         Ok(())
     }
 
-    fn initialize_account_log() -> Result<Arc<RwLock<AccountEventLog>>> {
-        todo!();
+    async fn initialize_account_log(
+        &self,
+        paths: &UserPaths,
+    ) -> Result<Arc<RwLock<AccountEventLog>>> {
+        let log_file = paths.account_events();
+        let needs_init = !vfs::try_exists(&log_file).await?;
+        let mut event_log = AccountEventLog::new_account(log_file).await?;
+
+        // If the account event log does not already exist
+        // we initialize it from the current state on disc
+        // adding create folder events for every folder that
+        // already exists
+        if needs_init {
+            let folders: Vec<Summary> =
+                Self::list_local_folders(paths, false)
+                    .await?
+                    .into_iter()
+                    .map(|(s, _)| s)
+                    .collect();
+            let events: Vec<_> = folders
+                .into_iter()
+                .map(|f| AccountEvent::CreateFolder(f.into()))
+                .collect();
+
+            event_log.apply(events.iter().collect()).await?;
+        }
+        Ok(Arc::new(RwLock::new(event_log)))
+    }
+
+    async fn initialize_file_log(
+        &self,
+        paths: &UserPaths,
+    ) -> Result<Arc<RwLock<FileEventLog>>> {
+        let log_file = paths.file_events();
+        let needs_init = !vfs::try_exists(&log_file).await?;
+        let event_log = FileEventLog::new_file(log_file).await?;
+
+        if needs_init {
+            todo!();
+        }
+
+        Ok(Arc::new(RwLock::new(event_log)))
     }
 
     /// Determine if the account is authenticated.

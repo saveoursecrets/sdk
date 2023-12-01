@@ -85,7 +85,7 @@ async fn print_events<T: Default + Encodable + Decodable + LogEvent>(
 
     let version = event_log.read_file_version().await?;
     let mut count = 0;
-    let divider = "-".repeat(80);
+    let divider = "-".repeat(72);
     while let Some(record) = it.next_entry().await? {
         println!("{}", divider);
         println!("  time: {}", record.time());
