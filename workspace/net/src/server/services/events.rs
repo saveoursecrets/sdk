@@ -7,7 +7,7 @@ use sos_sdk::{
     decode, encode,
     events::{
         AuditData, AuditEvent, ChangeEvent, ChangeNotification, Event,
-        EventKind, Patch, WriteEvent,
+        EventKind, WriteEvent,
     },
 };
 use web3_address::ethereum::Address;
@@ -19,6 +19,7 @@ use uuid::Uuid;
 use super::Service;
 use super::{append_audit_logs, send_notification, PrivateState};
 use crate::{
+    events::Patch,
     rpc::{RequestMessage, ResponseMessage},
     server::{BackendHandler, Error, Result},
 };
@@ -222,7 +223,8 @@ impl Service for EventLogService {
                                 Some(
                                     event_log
                                         .patch_until(Some(&last_commit))
-                                        .await?,
+                                        .await?
+                                        .into(),
                                 )
                             } else {
                                 None
@@ -239,7 +241,7 @@ impl Service for EventLogService {
                     let reply = ResponseMessage::new(
                         request.id(),
                         StatusCode::OK,
-                        Some(Ok(patch.0.len())),
+                        Some(Ok(patch.len())),
                         Cow::Owned(buffer),
                     )?;
                     Ok(reply)
@@ -293,7 +295,7 @@ impl Service for EventLogService {
                             let patch: Patch = decode(request.body()).await?;
 
                             let mut change_set = Vec::new();
-                            for record in &patch.0 {
+                            for record in patch.iter() {
                                 change_set.push(record.decode_event().await?);
                             }
 

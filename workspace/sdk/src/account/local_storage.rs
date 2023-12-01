@@ -580,7 +580,7 @@ impl FolderStorage {
         // Add the summary to the vaults we are managing
         self.state.add_summary(summary.clone());
 
-        // Initialize the local cache for event log and Patch
+        // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault)).await?;
 
         Ok((buffer, key, summary))

@@ -17,7 +17,6 @@ use sos_sdk::{
     },
     crypto::SecureAccessKey,
     decode, encode,
-    events::Patch,
     signer::ecdsa::BoxedEcdsaSigner,
     vault::{Summary, VaultId},
 };
@@ -46,6 +45,7 @@ use url::Url;
 
 use crate::{
     client::{Error, HostedOrigin, Result},
+    events::Patch,
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
 };
 

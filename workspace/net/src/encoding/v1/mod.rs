@@ -1,3 +1,4 @@
+mod events;
 mod rpc;
 
 /// Version number for this encoding.

@@ -24,7 +24,7 @@ use crate::{
     },
     encode,
     encoding::{encoding_options, VERSION, VERSION1},
-    events::{Patch, WriteEvent},
+    events::WriteEvent,
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
@@ -385,13 +385,13 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     pub async fn patch_until(
         &self,
         commit: Option<&CommitHash>,
-    ) -> Result<Patch> {
+    ) -> Result<Vec<EventRecord>> {
         let mut events = Vec::new();
         let mut it = self.iter().await?.rev();
         while let Some(record) = it.next_entry().await? {
             if let Some(commit) = commit {
                 if &record.commit() == commit.as_ref() {
-                    return Ok(Patch(events));
+                    return Ok(events);
                 }
             }
             let buffer = self.read_event_buffer(&record).await?;
@@ -409,7 +409,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
             return Err(Error::CommitNotFound(*commit));
         }
 
-        Ok(Patch(events))
+        Ok(events)
     }
 
     /// Truncate the backing storage to an empty file.
@@ -653,12 +653,12 @@ mod test {
 
         // Patch with all events
         let patch = event_log.patch_until(None).await?;
-        assert_eq!(1, patch.0.len());
+        assert_eq!(1, patch.len());
 
         // Patch is empty as the target commit is the empty commit
         let last_commit = event_log.last_commit().await?;
         let patch = event_log.patch_until(last_commit.as_ref()).await?;
-        assert_eq!(0, patch.0.len());
+        assert_eq!(0, patch.len());
 
         temp.close()?;
         Ok(())

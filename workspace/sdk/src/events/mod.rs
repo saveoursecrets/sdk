@@ -42,21 +42,3 @@ pub trait LogEvent {
     /// Get the event kind for this event.
     fn event_kind(&self) -> EventKind;
 }
-
-/// Patch wraps a changeset of events to be sent across the network.
-#[derive(Clone, Debug, Default)]
-pub struct Patch(pub Vec<EventRecord>);
-
-impl Patch {
-    /// Convert this patch into a collection of events.
-    pub async fn into_events<T: Default + Decodable>(
-        &self,
-    ) -> Result<Vec<T>> {
-        let mut events = Vec::new();
-        for record in &self.0 {
-            let event = record.decode_event::<T>().await?;
-            events.push(event);
-        }
-        Ok(events)
-    }
-}

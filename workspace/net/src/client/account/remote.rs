@@ -5,6 +5,7 @@ use crate::{
         sync::SyncData,
         Error, RemoteSync, Result, SyncError, SyncOptions,
     },
+    events::Patch,
     retry,
 };
 
@@ -17,7 +18,7 @@ use sos_sdk::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     crypto::SecureAccessKey,
     decode,
-    events::{Event, Patch, WriteEvent},
+    events::{Event, WriteEvent},
     signer::ecdsa::BoxedEcdsaSigner,
     url::Url,
     vault::{Summary, VaultId},
@@ -312,12 +313,13 @@ impl RemoteBridge {
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            let patch = event_log.patch_until(Some(from_commit)).await?;
+            let patch: Patch =
+                event_log.patch_until(Some(from_commit)).await?.into();
             let proof = event_log.tree().proof_at(from_commit)?;
             (patch, proof)
         };
 
-        let num_events = patch.0.len();
+        let num_events = patch.len();
 
         tracing::debug!(
             num_events = %num_events,
@@ -432,16 +434,16 @@ impl RemoteBridge {
 
         let (last_commit, commit_proof) = commit_state;
 
-        let patch = {
+        let patch: Patch = {
             let reader = self.local.read().await;
             let event_log = reader
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            event_log.patch_until(Some(last_commit)).await?
+            event_log.patch_until(Some(last_commit)).await?.into()
         };
 
-        tracing::debug!(num_patch_events = %patch.0.len());
+        tracing::debug!(num_patch_events = %patch.len());
 
         let (status, (_server_proof, _match_proof)) = retry!(
             || self.remote.apply_patch(folder.id(), commit_proof, &patch,),

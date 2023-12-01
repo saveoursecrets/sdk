@@ -171,6 +171,7 @@ pub enum ChangeAction {
     /// Vaults was created on a remote node and the
     /// local node has fetched the vault summary
     /// and added it to it's local state.
+    #[deprecated(note = "we must remove SecureAccessKey from this variant")]
     Create(Summary, Option<SecureAccessKey>),
 
     /// Vault was updated on a remote node and the
