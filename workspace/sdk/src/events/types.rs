@@ -57,6 +57,10 @@ const IMPORT_CONTACTS: u16 = 23;
 const CREATE_FILE: u16 = 24;
 /// Type identifier for deleting a file.
 const DELETE_FILE: u16 = 25;
+/// Type identifier for vault event compaction.
+const COMPACT_VAULT: u16 = 26;
+/// Type identifier for changing a password.
+const CHANGE_PASSWORD: u16 = 27;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -114,6 +118,10 @@ pub enum EventKind {
     CreateFile,
     /// Event for deleting a file.
     DeleteFile,
+    /// Event for vault compaction.
+    CompactVault,
+    /// Event for changing a password.
+    ChangePassword,
 }
 
 impl Default for EventKind {
@@ -152,6 +160,8 @@ impl TryFrom<u16> for EventKind {
             IMPORT_CONTACTS => EventKind::ImportContacts,
             CREATE_FILE => EventKind::CreateFile,
             DELETE_FILE => EventKind::DeleteFile,
+            COMPACT_VAULT => EventKind::CompactVault,
+            CHANGE_PASSWORD => EventKind::ChangePassword,
             _ => return Err(Error::UnknownEventKind(value)),
         })
     }
@@ -186,6 +196,8 @@ impl From<&EventKind> for u16 {
             EventKind::ImportContacts => IMPORT_CONTACTS,
             EventKind::CreateFile => CREATE_FILE,
             EventKind::DeleteFile => DELETE_FILE,
+            EventKind::CompactVault => COMPACT_VAULT,
+            EventKind::ChangePassword => CHANGE_PASSWORD,
         }
     }
 }
@@ -226,6 +238,8 @@ impl fmt::Display for EventKind {
                 EventKind::ImportContacts => "IMPORT_CONTACTS",
                 EventKind::CreateFile => "CREATE_FILE",
                 EventKind::DeleteFile => "DELETE_FILE",
+                EventKind::CompactVault => "COMPACT_FOLDER",
+                EventKind::ChangePassword => "CHANGE_PASSWORD",
             }
         })
     }

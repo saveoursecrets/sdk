@@ -77,6 +77,8 @@ impl ChangeNotification {
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum ChangeEvent {
     /// Event emitted when a vault is created.
+    // TODO: use the SecureAccessKey stored in the account event log instead
+    #[deprecated(note = "we must remove SecureAccessKey from this variant")]
     CreateVault(Summary, Option<SecureAccessKey>),
     /// Event emitted when a vault is updated.
     ///

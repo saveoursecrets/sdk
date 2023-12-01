@@ -1,16 +1,19 @@
 use crate::{
     commit::CommitHash,
     constants::PATCH_IDENTITY,
-    crypto::AeadPack,
+    crypto::{AeadPack, SecureAccessKey},
     encoding::{decode_uuid, encoding_error},
     events::{
-        AccountEvent, AuditData, AuditEvent, AuditLogFile, EventKind,
-        EventRecord, LogEvent, LogFlags, Patch, WriteEvent,
+        AuditData, AuditEvent, AuditLogFile, EventKind, EventRecord,
+        LogEvent, LogFlags, Patch, WriteEvent,
     },
     formats::{EventLogFileRecord, FileIdentity, FileRecord, VaultRecord},
     vault::{secret::SecretId, VaultCommit},
     Timestamp,
 };
+
+#[cfg(feature = "account")]
+use crate::events::AccountEvent;
 
 #[cfg(feature = "files")]
 use crate::events::FileEvent;
@@ -491,6 +494,7 @@ impl Decodable for Patch {
     }
 }
 
+#[cfg(feature = "account")]
 #[async_trait]
 impl Encodable for AccountEvent {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
@@ -502,9 +506,17 @@ impl Encodable for AccountEvent {
 
         match self {
             AccountEvent::Noop => panic!("attempt to encode a noop"),
-            AccountEvent::CreateFolder(id)
-            | AccountEvent::UpdateFolder(id) => {
+            AccountEvent::CreateFolder(id, secure_access_key)
+            | AccountEvent::ChangeFolderPassword(id, secure_access_key) => {
                 writer.write_bytes(id.as_bytes()).await?;
+                secure_access_key.encode(&mut *writer).await?;
+            }
+            AccountEvent::CompactFolder(id) => {
+                writer.write_bytes(id.as_bytes()).await?;
+            }
+            AccountEvent::UpdateFolderName(id, name) => {
+                writer.write_bytes(id.as_bytes()).await?;
+                writer.write_string(name).await?;
             }
             AccountEvent::DeleteFolder(id) => {
                 writer.write_bytes(id.as_bytes()).await?;
@@ -514,6 +526,7 @@ impl Encodable for AccountEvent {
     }
 }
 
+#[cfg(feature = "account")]
 #[async_trait]
 impl Decodable for AccountEvent {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
@@ -526,11 +539,27 @@ impl Decodable for AccountEvent {
             EventKind::Noop => panic!("attempt to decode a noop"),
             EventKind::CreateVault => {
                 let id = decode_uuid(&mut *reader).await?;
-                *self = AccountEvent::CreateFolder(id)
+                let mut secure_access_key: SecureAccessKey =
+                    Default::default();
+                secure_access_key.decode(&mut *reader).await?;
+                *self = AccountEvent::CreateFolder(id, secure_access_key)
             }
-            EventKind::UpdateVault => {
+            EventKind::ChangePassword => {
                 let id = decode_uuid(&mut *reader).await?;
-                *self = AccountEvent::UpdateFolder(id)
+                let mut secure_access_key: SecureAccessKey =
+                    Default::default();
+                secure_access_key.decode(&mut *reader).await?;
+                *self =
+                    AccountEvent::ChangeFolderPassword(id, secure_access_key)
+            }
+            EventKind::SetVaultName => {
+                let id = decode_uuid(&mut *reader).await?;
+                let name = reader.read_string().await?;
+                *self = AccountEvent::UpdateFolderName(id, name)
+            }
+            EventKind::CompactVault => {
+                let id = decode_uuid(&mut *reader).await?;
+                *self = AccountEvent::CompactFolder(id)
             }
             EventKind::DeleteVault => {
                 let id = decode_uuid(&mut *reader).await?;

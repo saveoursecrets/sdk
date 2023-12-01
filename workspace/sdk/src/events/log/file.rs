@@ -24,7 +24,7 @@ use crate::{
     },
     encode,
     encoding::{encoding_options, VERSION, VERSION1},
-    events::{AccountEvent, Patch, WriteEvent},
+    events::{Patch, WriteEvent},
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
@@ -33,6 +33,9 @@ use crate::{
     vfs::{self, File, OpenOptions},
     Error, Result,
 };
+
+#[cfg(feature = "account")]
+use crate::events::AccountEvent;
 
 #[cfg(feature = "files")]
 use crate::events::FileEvent;
@@ -51,6 +54,7 @@ use tempfile::NamedTempFile;
 use super::{EventRecord, EventReducer};
 
 /// Event log for changes to an account.
+#[cfg(feature = "account")]
 pub type AccountEventLog = EventLogFile<AccountEvent>;
 
 /// Event log for changes to a folder.
@@ -435,26 +439,6 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     }
 }
 
-impl EventLogFile<AccountEvent> {
-    /// Create a new account event log file.
-    pub async fn new_account<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        let file = Self::create(
-            file_path.as_ref(),
-            &ACCOUNT_EVENT_LOG_IDENTITY,
-            Some(VERSION),
-        )
-        .await?;
-        Ok(Self {
-            file,
-            file_path: file_path.as_ref().to_path_buf(),
-            tree: Default::default(),
-            identity: &ACCOUNT_EVENT_LOG_IDENTITY,
-            version: Some(VERSION),
-            phantom: std::marker::PhantomData,
-        })
-    }
-}
-
 impl EventLogFile<WriteEvent> {
     /// Create a new folder event log file.
     pub async fn new_folder<P: AsRef<Path>>(file_path: P) -> Result<Self> {
@@ -516,6 +500,27 @@ impl EventLogFile<WriteEvent> {
     }
 }
 
+#[cfg(feature = "account")]
+impl EventLogFile<AccountEvent> {
+    /// Create a new account event log file.
+    pub async fn new_account<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        let file = Self::create(
+            file_path.as_ref(),
+            &ACCOUNT_EVENT_LOG_IDENTITY,
+            Some(VERSION),
+        )
+        .await?;
+        Ok(Self {
+            file,
+            file_path: file_path.as_ref().to_path_buf(),
+            tree: Default::default(),
+            identity: &ACCOUNT_EVENT_LOG_IDENTITY,
+            version: Some(VERSION),
+            phantom: std::marker::PhantomData,
+        })
+    }
+}
+
 #[cfg(feature = "files")]
 impl EventLogFile<FileEvent> {
     /// Create a new file event log file.
@@ -543,7 +548,14 @@ mod test {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{events::WriteEvent, test_utils::*, vault::VaultId};
+    use crate::{
+        crypto::{csprng, AccessKey, SecureAccessKey},
+        events::WriteEvent,
+        passwd::diceware::generate_passphrase,
+        test_utils::*,
+        vault::VaultId,
+    };
+    use rand::Rng;
 
     async fn mock_account_event_log(
     ) -> Result<(NamedTempFile, AccountEventLog)> {
@@ -652,14 +664,20 @@ mod test {
         Ok(())
     }
 
+    #[cfg(feature = "account")]
     #[tokio::test]
     async fn account_event_log() -> Result<()> {
         let (temp, mut event_log) = mock_account_event_log().await?;
 
         let folder = VaultId::new_v4();
+        let secret_key: [u8; 32] = csprng().gen();
+        let (password, _) = generate_passphrase()?;
+        let access_key: AccessKey = password.into();
+        let key =
+            SecureAccessKey::encrypt(&access_key, &secret_key, None).await?;
         event_log
             .apply(vec![
-                &AccountEvent::CreateFolder(folder),
+                &AccountEvent::CreateFolder(folder, key),
                 &AccountEvent::DeleteFolder(folder),
             ])
             .await?;

@@ -9,8 +9,8 @@
 //! or other applications that require storing secrets
 //! securely.
 //!
-//! This library provides primitives for syncing but does not 
-//! perform any networking, for networking support use 
+//! This library provides primitives for syncing but does not
+//! perform any networking, for networking support use
 //! the [sos-net crate](https://docs.rs/sos-net/latest/sos_net/).
 //!
 //! # Features

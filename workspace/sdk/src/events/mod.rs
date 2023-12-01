@@ -3,6 +3,8 @@
 use crate::Result;
 use binary_stream::futures::Decodable;
 
+#[cfg(feature = "account")]
+mod account;
 mod audit;
 mod change;
 mod event;
@@ -12,18 +14,24 @@ mod read;
 mod types;
 mod write;
 
+#[cfg(feature = "account")]
+pub use self::log::AccountEventLog;
+
 pub use self::log::{
-    AccountEventLog, EventLogFile, EventRecord, EventReducer, FolderEventLog,
+    EventLogFile, EventRecord, EventReducer, FolderEventLog,
 };
 
 #[cfg(feature = "files")]
 pub use self::log::FileEventLog;
 
+#[cfg(feature = "account")]
+pub use account::AccountEvent;
 pub use audit::{
     AuditData, AuditEvent, AuditLogFile, AuditProvider, LogFlags,
 };
 pub use change::{ChangeAction, ChangeEvent, ChangeNotification};
-pub use event::{AccountEvent, Event};
+pub use event::Event;
+#[cfg(feature = "files")]
 pub use file::FileEvent;
 pub use read::ReadEvent;
 pub use types::EventKind;

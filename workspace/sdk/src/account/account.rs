@@ -502,7 +502,8 @@ impl<D> Account<D> {
                 .await?;
         self.paths = storage.paths();
 
-        let account_log = self.initialize_account_log(&self.paths).await?;
+        let account_log =
+            self.initialize_account_log(&self.paths, &user).await?;
 
         #[cfg(feature = "files")]
         let file_log = self.initialize_file_log(&self.paths).await?;
@@ -525,6 +526,7 @@ impl<D> Account<D> {
     async fn initialize_account_log(
         &self,
         paths: &UserPaths,
+        user: &Identity,
     ) -> Result<Arc<RwLock<AccountEventLog>>> {
         let span = span!(Level::DEBUG, "init_account_log");
         let _enter = span.enter();
@@ -546,10 +548,17 @@ impl<D> Account<D> {
                     .into_iter()
                     .map(|(s, _)| s)
                     .collect();
-            let events: Vec<_> = folders
-                .into_iter()
-                .map(|f| AccountEvent::CreateFolder(f.into()))
-                .collect();
+
+            let mut events = Vec::new();
+
+            for folder in folders {
+                let secure_access_key =
+                    user.secure_access_key(folder.id()).await?;
+                events.push(AccountEvent::CreateFolder(
+                    folder.into(),
+                    secure_access_key,
+                ));
+            }
 
             tracing::debug!(init_events_len = %events.len());
 
@@ -793,22 +802,22 @@ impl<D> Account<D> {
         name: String,
     ) -> Result<(Summary, Event, CommitState, SecureAccessKey)> {
         let passphrase = self.user()?.generate_folder_password()?;
-        let key = AccessKey::Password(passphrase);
+        let key: AccessKey = passphrase.into();
         let (buffer, _, summary) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer.create_vault(name, Some(key.clone())).await?
         };
 
-        let secret_key = self.user()?.identity()?.signer().to_bytes();
-        let secure_key =
-            SecureAccessKey::encrypt(&key, secret_key, None).await?;
-
+        // Must save the password before getting the secure access key
         self.user_mut()?
             .save_folder_password(summary.id(), key)
             .await?;
 
-        let account_event = AccountEvent::CreateFolder(*summary.id());
+        let secure_key = self.user()?.secure_access_key(summary.id()).await?;
+
+        let account_event =
+            AccountEvent::CreateFolder(*summary.id(), secure_key.clone());
 
         let options = AccessOptions {
             folder: Some(summary),

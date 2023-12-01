@@ -25,7 +25,7 @@ use crate::{
         DEVICE_KEY_URN, FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN,
         LOGIN_SIGNING_KEY_URN, VAULT_EXT,
     },
-    crypto::{AccessKey, KeyDerivation},
+    crypto::{AccessKey, KeyDerivation, SecureAccessKey},
     decode, encode,
     events::{AuditEvent, Event, EventKind},
     passwd::diceware::generate_passphrase_words,
@@ -102,6 +102,16 @@ impl Identity {
         self.identity.as_mut().ok_or(Error::NotAuthenticated)
     }
 
+    /// Account signing key.
+    pub(crate) fn signing_key(&self) -> Result<BoxedEcdsaSigner> {
+        Ok(self
+            .identity
+            .as_ref()
+            .ok_or(Error::NotAuthenticated)?
+            .signer
+            .clone())
+    }
+
     /// Verify the passphrase for this account.
     pub async fn verify(&self, key: &AccessKey) -> bool {
         if let Some(identity) = &self.identity {
@@ -176,6 +186,20 @@ impl Identity {
         vault_id: &VaultId,
     ) -> Result<()> {
         self.identity_mut()?.remove_folder_password(vault_id).await
+    }
+
+    /// Find a folder access key and encrypt it using the
+    /// account signing key.
+    pub async fn secure_access_key(
+        &self,
+        vault_id: &VaultId,
+    ) -> Result<SecureAccessKey> {
+        let folder_password = self.find_folder_password(vault_id).await?;
+        let secret_key = self.signing_key()?.to_bytes();
+        Ok(
+            SecureAccessKey::encrypt(&folder_password, &secret_key, None)
+                .await?,
+        )
     }
 
     /// Find a folder password in an identity vault.

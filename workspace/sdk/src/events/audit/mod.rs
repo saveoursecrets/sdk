@@ -8,10 +8,13 @@ use uuid::Uuid;
 use web3_address::ethereum::Address;
 
 use crate::{
-    events::{AccountEvent, Event, EventKind, ReadEvent, WriteEvent},
+    events::{Event, EventKind, ReadEvent, WriteEvent},
     timestamp::Timestamp,
     vault::{secret::SecretId, VaultId},
 };
+
+#[cfg(feature = "account")]
+use crate::events::AccountEvent;
 
 mod log_file;
 pub use log_file::AuditLogFile;
@@ -172,17 +175,26 @@ impl<'a> From<(&Address, &Event)> for AuditEvent {
     fn from(value: (&Address, &Event)) -> Self {
         let (address, event) = value;
         match event {
+            #[cfg(feature = "account")]
             Event::CreateAccount(event) => event.clone(),
             Event::MoveSecret(_, _, _) => {
                 panic!("move secret audit event must be constructed")
             }
+            #[cfg(feature = "account")]
             Event::DeleteAccount(event) => event.clone(),
             _ => {
                 let audit_data = match event {
+                    #[cfg(feature = "account")]
                     Event::Account(event) => match event {
-                        AccountEvent::CreateFolder(vault_id)
-                        | AccountEvent::UpdateFolder(vault_id)
+                        AccountEvent::CreateFolder(vault_id, _)
+                        | AccountEvent::ChangeFolderPassword(vault_id, _) => {
+                            Some(AuditData::Vault(*vault_id))
+                        }
+                        AccountEvent::CompactFolder(vault_id)
                         | AccountEvent::DeleteFolder(vault_id) => {
+                            Some(AuditData::Vault(*vault_id))
+                        }
+                        AccountEvent::UpdateFolderName(vault_id, _) => {
                             Some(AuditData::Vault(*vault_id))
                         }
                         AccountEvent::Noop => None,

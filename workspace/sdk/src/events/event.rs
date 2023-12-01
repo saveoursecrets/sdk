@@ -3,40 +3,17 @@
 use super::{AuditEvent, EventKind, LogEvent, ReadEvent, WriteEvent};
 use crate::{vault::VaultId, Error, Result};
 
-/// Events generated in the context of an account.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub enum AccountEvent {
-    #[default]
-    #[doc(hidden)]
-    Noop,
-
-    /// Create folder.
-    CreateFolder(VaultId),
-
-    /// Update folder.
-    UpdateFolder(VaultId),
-
-    /// Delete folder.
-    DeleteFolder(VaultId),
-}
-
-impl LogEvent for AccountEvent {
-    fn event_kind(&self) -> EventKind {
-        match self {
-            Self::Noop => EventKind::Noop,
-            Self::CreateFolder(_) => EventKind::CreateVault,
-            Self::UpdateFolder(_) => EventKind::UpdateVault,
-            Self::DeleteFolder(_) => EventKind::DeleteVault,
-        }
-    }
-}
+#[cfg(feature = "account")]
+use super::AccountEvent;
 
 /// Events generated when reading or writing.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Event {
+    #[cfg(feature = "account")]
     /// Create account event.
     CreateAccount(AuditEvent),
 
+    #[cfg(feature = "account")]
     /// Account changes.
     Account(AccountEvent),
 
@@ -49,6 +26,7 @@ pub enum Event {
     /// Move secret operation.
     MoveSecret(ReadEvent, WriteEvent, WriteEvent),
 
+    #[cfg(feature = "account")]
     /// Delete account event.
     DeleteAccount(AuditEvent),
 }
@@ -57,11 +35,14 @@ impl Event {
     /// Get the event kind for this event.
     pub fn event_kind(&self) -> EventKind {
         match self {
+            #[cfg(feature = "account")]
             Self::CreateAccount(event) => event.event_kind(),
+            #[cfg(feature = "account")]
             Self::Account(event) => event.event_kind(),
             Self::Read(_, event) => event.event_kind(),
             Self::Write(_, event) => event.event_kind(),
             Self::MoveSecret(_, _, _) => EventKind::MoveSecret,
+            #[cfg(feature = "account")]
             Self::DeleteAccount(event) => event.event_kind(),
         }
     }
