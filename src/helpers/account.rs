@@ -4,7 +4,7 @@ use std::{borrow::Cow, sync::Arc};
 use sos_net::{
     client::NetworkAccount,
     sdk::{
-        account::{AccountInfo, AccountRef, AccountsList, UserPaths},
+        account::{AccountInfo, AccountRef, LocalAccount, UserPaths},
         constants::DEFAULT_VAULT_NAME,
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
@@ -38,7 +38,7 @@ enum AccountPasswordOption {
 
 /// Choose an account.
 pub async fn choose_account() -> Result<Option<AccountInfo>> {
-    let mut accounts = AccountsList::list_accounts(None).await?;
+    let mut accounts = LocalAccount::list_accounts(None).await?;
     if accounts.is_empty() {
         Ok(None)
     } else if accounts.len() == 1 {
@@ -102,7 +102,7 @@ pub async fn resolve_account(
             }
         }
 
-        if let Ok(mut accounts) = AccountsList::list_accounts(None).await {
+        if let Ok(mut accounts) = LocalAccount::list_accounts(None).await {
             if accounts.len() == 1 {
                 return Some(accounts.remove(0).into());
             }
@@ -173,7 +173,7 @@ pub async fn verify(user: Owner) -> Result<bool> {
 
 /// List local accounts.
 pub async fn list_accounts(verbose: bool) -> Result<()> {
-    let accounts = AccountsList::list_accounts(None).await?;
+    let accounts = LocalAccount::list_accounts(None).await?;
     for account in &accounts {
         if verbose {
             println!("{} {}", account.address(), account.label());
@@ -190,7 +190,7 @@ pub async fn list_accounts(verbose: bool) -> Result<()> {
 pub async fn find_account(
     account: &AccountRef,
 ) -> Result<Option<AccountInfo>> {
-    let accounts = AccountsList::list_accounts(None).await?;
+    let accounts = LocalAccount::list_accounts(None).await?;
     match account {
         AccountRef::Address(address) => {
             Ok(accounts.into_iter().find(|a| a.address() == address))

@@ -12,83 +12,7 @@ use crate::{
     vfs,
 };
 
-use crate::{Error, Result};
-
-/// Basic account information.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AccountInfo {
-    /// Address identifier for the account.
-    ///
-    /// This corresponds to the address of the signing key
-    /// for the account.
-    address: Address,
-    /// User label for the account.
-    ///
-    /// This is the name given to the identity vault.
-    label: String,
-}
-
-impl AccountInfo {
-    /// Create new account information.
-    pub fn new(label: String, address: Address) -> Self {
-        Self { label, address }
-    }
-
-    /// Get the address of this account.
-    pub fn address(&self) -> &Address {
-        &self.address
-    }
-
-    /// Get the label of this account.
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-
-    pub(crate) fn set_label(&mut self, label: String) {
-        self.label = label;
-    }
-}
-
-impl From<&AccountInfo> for AccountRef {
-    fn from(value: &AccountInfo) -> Self {
-        AccountRef::Address(*value.address())
-    }
-}
-
-impl From<AccountInfo> for AccountRef {
-    fn from(value: AccountInfo) -> Self {
-        (&value).into()
-    }
-}
-
-/// Reference to an account using an address or a named label.
-#[derive(Debug, Clone)]
-pub enum AccountRef {
-    /// Account identifier.
-    Address(Address),
-    /// Account label.
-    Name(String),
-}
-
-impl fmt::Display for AccountRef {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Address(address) => write!(f, "{}", address),
-            Self::Name(name) => write!(f, "{}", name),
-        }
-    }
-}
-
-impl FromStr for AccountRef {
-    type Err = Error;
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        if let Ok(address) = s.parse::<Address>() {
-            Ok(Self::Address(address))
-        } else {
-            Ok(Self::Name(s.to_string()))
-        }
-    }
-}
+use crate::{Error, Result, account::{AccountInfo}};
 
 /// Inspect the local accounts directory.
 pub struct AccountsList<'a> {
@@ -141,7 +65,8 @@ impl<'a> AccountsList<'a> {
         }
         Ok(vaults)
     }
-
+    
+    /*
     /// List account information for the identity vaults.
     pub async fn list_accounts(
         paths: Option<&UserPaths>,
@@ -172,4 +97,5 @@ impl<'a> AccountsList<'a> {
         keys.sort_by(|a, b| a.label.cmp(&b.label));
         Ok(keys)
     }
+    */
 }

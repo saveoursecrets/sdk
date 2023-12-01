@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_net::sdk::{
-    account::{AccountsList, LocalAccount, UserPaths},
+    account::{LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
 };
 
@@ -22,7 +22,7 @@ async fn integration_account_lifecycle() -> Result<()> {
 
     UserPaths::scaffold(Some(data_dir.clone())).await?;
     let paths = UserPaths::new_global(data_dir.clone());
-    let accounts = AccountsList::list_accounts(Some(&paths)).await?;
+    let accounts = LocalAccount::list_accounts(Some(&paths)).await?;
     assert_eq!(0, accounts.len());
 
     let (mut account, _new_account) = LocalAccount::new_account(
@@ -33,7 +33,7 @@ async fn integration_account_lifecycle() -> Result<()> {
     )
     .await?;
 
-    let accounts = AccountsList::list_accounts(Some(&paths)).await?;
+    let accounts = LocalAccount::list_accounts(Some(&paths)).await?;
     assert_eq!(1, accounts.len());
 
     account.sign_in(passphrase.clone()).await?;

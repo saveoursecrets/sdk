@@ -2,16 +2,19 @@
 use std::{
     borrow::Cow,
     collections::HashMap,
+    fmt,
     path::{Path, PathBuf},
+    str::FromStr,
     sync::Arc,
 };
 
 use crate::{
     account::{
         search::{AccountStatistics, DocumentCount, SearchIndex},
-        AccountBuilder, AccountInfo, AccountsList, FolderStorage, Identity,
+        AccountBuilder, AccountsList, FolderStorage, Identity,
         NewAccount, UserPaths,
     },
+    constants::VAULT_EXT,
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, SecureAccessKey},
     decode, encode,
@@ -23,7 +26,7 @@ use crate::{
     signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
-        Gatekeeper, Summary, Vault, VaultId,
+        Gatekeeper, Summary, Vault, VaultId, Header,
     },
     vfs, Error, Result, Timestamp,
 };
@@ -56,6 +59,83 @@ pub trait AccountHandler {
 }
 
 type Handler<D> = Box<dyn AccountHandler<Data = D> + Send + Sync>;
+
+/// Basic account information.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountInfo {
+    /// Address identifier for the account.
+    ///
+    /// This corresponds to the address of the signing key
+    /// for the account.
+    address: Address,
+    /// User label for the account.
+    ///
+    /// This is the name given to the identity vault.
+    label: String,
+}
+
+impl AccountInfo {
+    /// Create new account information.
+    pub fn new(label: String, address: Address) -> Self {
+        Self { label, address }
+    }
+
+    /// Get the address of this account.
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+
+    /// Get the label of this account.
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    pub(crate) fn set_label(&mut self, label: String) {
+        self.label = label;
+    }
+}
+
+impl From<&AccountInfo> for AccountRef {
+    fn from(value: &AccountInfo) -> Self {
+        AccountRef::Address(*value.address())
+    }
+}
+
+impl From<AccountInfo> for AccountRef {
+    fn from(value: AccountInfo) -> Self {
+        (&value).into()
+    }
+}
+
+/// Reference to an account using an address or a named label.
+#[derive(Debug, Clone)]
+pub enum AccountRef {
+    /// Account identifier.
+    Address(Address),
+    /// Account label.
+    Name(String),
+}
+
+impl fmt::Display for AccountRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Address(address) => write!(f, "{}", address),
+            Self::Name(name) => write!(f, "{}", name),
+        }
+    }
+}
+
+impl FromStr for AccountRef {
+    type Err = Error;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        if let Ok(address) = s.parse::<Address>() {
+            Ok(Self::Address(address))
+        } else {
+            Ok(Self::Name(s.to_string()))
+        }
+    }
+}
+
 
 /// Collection of folder access keys.
 pub struct FolderKeys(pub HashMap<Summary, AccessKey>);
@@ -175,6 +255,38 @@ pub struct Account<D> {
 }
 
 impl<D> Account<D> {
+
+    /// List account information for the identity vaults.
+    pub async fn list_accounts(
+        paths: Option<&UserPaths>,
+    ) -> Result<Vec<AccountInfo>> {
+        let mut keys = Vec::new();
+        let paths = if let Some(paths) = paths {
+            paths.clone()
+        } else {
+            UserPaths::new_global(UserPaths::data_dir()?)
+        };
+
+        let mut dir = vfs::read_dir(paths.identity_dir()).await?;
+
+        while let Some(entry) = dir.next_entry().await? {
+            if let (Some(extension), Some(file_stem)) =
+                (entry.path().extension(), entry.path().file_stem())
+            {
+                if extension == VAULT_EXT {
+                    let summary =
+                        Header::read_summary_file(entry.path()).await?;
+                    keys.push(AccountInfo {
+                        address: file_stem.to_string_lossy().parse()?,
+                        label: summary.name().to_owned(),
+                    });
+                }
+            }
+        }
+        keys.sort_by(|a, b| a.label.cmp(&b.label));
+        Ok(keys)
+    }
+
     /// Prepare an account for sign in.
     ///
     /// After preparing an account call `sign_in`
@@ -373,6 +485,12 @@ impl<D> Account<D> {
 
         Ok(())
     }
+    
+    /*
+    fn initialize_account_log() -> Result<Arc<RwLock<AccountEventLog>>> {
+
+    }
+    */
 
     /// Determine if the account is authenticated.
     pub fn is_authenticated(&self) -> bool {

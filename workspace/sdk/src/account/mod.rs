@@ -19,9 +19,9 @@ pub mod security_report;
 
 pub use account::{
     AccessOptions, Account, AccountData, AccountHandler, DetachedView,
-    FolderKeys, LocalAccount,
+    FolderKeys, LocalAccount, AccountInfo, AccountRef,
 };
-pub use accounts_list::{AccountInfo, AccountRef, AccountsList};
+pub use accounts_list::AccountsList;
 pub use builder::{AccountBuilder, NewAccount};
 #[cfg(feature = "device")]
 pub use device::DeviceSigner;

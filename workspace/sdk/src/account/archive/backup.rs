@@ -20,7 +20,8 @@ use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
         search::SearchIndex,
-        AccountInfo, AccountsList, Identity, UserPaths,
+        AccountInfo, LocalAccount, Identity, UserPaths,
+        AccountsList,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -402,7 +403,7 @@ impl AccountBackup {
             // The GUI should check the identity already exists
             // but we will double check here to be safe
             let paths = UserPaths::new_global(data_dir.clone());
-            let keys = AccountsList::list_accounts(Some(&paths)).await?;
+            let keys = LocalAccount::list_accounts(Some(&paths)).await?;
             let existing_account =
                 keys.iter().find(|k| k.address() == address);
             let account = existing_account
@@ -478,7 +479,7 @@ impl AccountBackup {
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
             let paths = UserPaths::new_global(data_dir.clone());
-            let keys = AccountsList::list_accounts(Some(&paths)).await?;
+            let keys = LocalAccount::list_accounts(Some(&paths)).await?;
             let existing_account = keys
                 .iter()
                 .find(|k| k.address() == &restore_targets.address);

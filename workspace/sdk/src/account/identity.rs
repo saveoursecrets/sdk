@@ -19,7 +19,7 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    account::{search::SearchIndex, AccountInfo, AccountsList, UserPaths},
+    account::{search::SearchIndex, AccountInfo, AccountsList, LocalAccount, UserPaths},
     commit::CommitState,
     constants::{
         DEVICE_KEY_URN, FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN,
@@ -342,7 +342,7 @@ impl Identity {
         let span = span!(Level::DEBUG, "login");
         let _enter = span.enter();
 
-        let accounts = AccountsList::list_accounts(Some(&self.paths)).await?;
+        let accounts = LocalAccount::list_accounts(Some(&self.paths)).await?;
         let account = accounts
             .into_iter()
             .find(|a| a.address() == address)
