@@ -36,7 +36,7 @@ use crate::{
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretSigner},
         Gatekeeper, Vault, VaultAccess, VaultBuilder, VaultFlags, VaultId,
-        VaultWriter,
+        VaultWriter, Summary,
     },
     vfs, Error, Result,
 };
@@ -49,7 +49,20 @@ use crate::account::DeviceSigner;
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
-/// User provides access to an identity vault.
+/// Collection of folder access keys.
+pub struct FolderKeys(pub HashMap<Summary, AccessKey>);
+
+impl FolderKeys {
+    /// Find an access key by folder id.
+    pub fn find(&self, id: &VaultId) -> Option<&AccessKey> {
+        self.0
+            .iter()
+            .find_map(|(k, v)| if k.id() == id { Some(v) } else { None })
+    }
+}
+
+/// Identity manages access to an identity vault 
+/// and the private keys for a user.
 pub struct Identity {
     paths: UserPaths,
     account: Option<AccountInfo>,
@@ -75,7 +88,7 @@ impl Identity {
         self.account.as_mut().ok_or(Error::NotAuthenticated)
     }
 
-    /// User identity reference.
+    /// Private identity.
     pub fn identity(&self) -> Result<&PrivateIdentity> {
         self.identity.as_ref().ok_or(Error::NotAuthenticated)
     }
@@ -178,11 +191,11 @@ impl Identity {
         self.identity()?.find_file_encryption_password().await
     }
 
-    /// Create a new login vault with a master passphrase.
+    /// Create a new login vault with a master password.
     ///
     /// Generates a new random single party signing key and
-    /// stores it in the new vault along with an encryption
-    /// passphrase to use for vaults accessed by this identity.
+    /// a public identity key for asymmetric encryption and 
+    /// stores them in the identity vault.
     pub async fn new_login_vault(
         name: String,
         password: SecretString,
@@ -586,7 +599,7 @@ impl PrivateIdentity {
         Ok(vault_passphrase)
     }
 
-    /// Save a folder password into an identity vault.
+    /// Save a folder password into this identity.
     pub async fn save_folder_password(
         &self,
         vault_id: &VaultId,
@@ -601,10 +614,10 @@ impl PrivateIdentity {
         .await
     }
 
-    /// Find a folder password in an identity vault.
+    /// Find a folder password in this identity.
     ///
     /// The identity vault must already be unlocked to extract
-    /// the secret passphrase.
+    /// the secret password.
     pub async fn find_folder_password(
         &self,
         vault_id: &VaultId,
@@ -641,7 +654,7 @@ impl PrivateIdentity {
         Ok(key)
     }
 
-    /// Remove a folder password from an identity vault.
+    /// Remove a folder password from this identity.
     pub async fn remove_folder_password(
         &mut self,
         vault_id: &VaultId,

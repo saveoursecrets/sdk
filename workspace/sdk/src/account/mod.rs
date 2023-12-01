@@ -18,12 +18,12 @@ pub mod security_report;
 
 pub use account::{
     AccessOptions, Account, AccountData, AccountHandler, AccountInfo,
-    AccountRef, DetachedView, FolderKeys, LocalAccount,
+    AccountRef, DetachedView, LocalAccount,
 };
 pub use builder::{AccountBuilder, NewAccount};
 #[cfg(feature = "device")]
 pub use device::DeviceSigner;
-pub use identity::{AccountStatus, Identity, PrivateIdentity};
+pub use identity::{AccountStatus, Identity, PrivateIdentity, FolderKeys};
 pub use local_storage::FolderStorage;
 pub use paths::UserPaths;
 

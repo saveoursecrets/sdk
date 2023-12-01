@@ -1,7 +1,10 @@
 //! Binary encoding implementation.
 mod v1;
 
+/// Version 1 encoding.
 pub use v1::VERSION as VERSION1;
+
+/// Current encoding version.
 pub use v1::VERSION;
 
 use crate::Result;
@@ -17,6 +20,7 @@ pub fn encoding_error(
     std::io::Error::new(std::io::ErrorKind::Other, e)
 }
 
+/// Maximum buffer size allowed when encoding and decoding.
 const MAX_BUFFER_SIZE: usize = 1024 * 1024 * 16;
 
 /// Standard encoding options.

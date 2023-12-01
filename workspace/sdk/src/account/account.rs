@@ -12,6 +12,7 @@ use crate::{
     account::{
         search::{AccountStatistics, DocumentCount, SearchIndex},
         AccountBuilder, FolderStorage, Identity, NewAccount, UserPaths,
+        FolderKeys,
     },
     commit::{CommitHash, CommitState},
     constants::VAULT_EXT,
@@ -132,18 +133,6 @@ impl FromStr for AccountRef {
         } else {
             Ok(Self::Name(s.to_string()))
         }
-    }
-}
-
-/// Collection of folder access keys.
-pub struct FolderKeys(pub HashMap<Summary, AccessKey>);
-
-impl FolderKeys {
-    /// Find an access key by folder id.
-    pub fn find(&self, id: &VaultId) -> Option<&AccessKey> {
-        self.0
-            .iter()
-            .find_map(|(k, v)| if k.id() == id { Some(v) } else { None })
     }
 }
 
@@ -524,11 +513,9 @@ impl<D> Account<D> {
         Ok(())
     }
 
-    /*
     fn initialize_account_log() -> Result<Arc<RwLock<AccountEventLog>>> {
-
+        todo!();
     }
-    */
 
     /// Determine if the account is authenticated.
     pub fn is_authenticated(&self) -> bool {

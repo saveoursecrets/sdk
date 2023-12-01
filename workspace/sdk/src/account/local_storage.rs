@@ -2,7 +2,7 @@
 use crate::{
     account::{
         search::{AccountSearch, DocumentCount, SearchIndex},
-        AccountStatus, NewAccount, UserPaths,
+        AccountStatus, NewAccount, UserPaths, FolderKeys,
     },
     commit::{CommitHash, CommitTree},
     constants::VAULT_EXT,
@@ -28,8 +28,6 @@ use std::{
 };
 
 use tokio::sync::RwLock;
-
-use super::account::FolderKeys;
 
 #[cfg(feature = "archive")]
 use crate::account::archive::RestoreTargets;
