@@ -226,7 +226,7 @@ impl NetworkAccount {
         self.save_remotes(&*remotes).await?;
         Ok(remote)
     }
-    
+
     /// List the origin servers.
     pub async fn servers(&self) -> Vec<Origin> {
         let remotes = self.remotes.read().await;
@@ -259,10 +259,10 @@ impl NetworkAccount {
             let mut remotes: Remotes = Default::default();
             for origin in origins {
                 match &origin {
-                   Origin::Hosted(host) => {
-                       let remote = self.remote_bridge(host).await?;
-                       remotes.insert(origin, Box::new(remote));
-                   } 
+                    Origin::Hosted(host) => {
+                        let remote = self.remote_bridge(host).await?;
+                        remotes.insert(origin, Box::new(remote));
+                    }
                 }
             }
             self.remotes = Arc::new(RwLock::new(remotes));

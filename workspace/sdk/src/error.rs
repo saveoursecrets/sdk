@@ -198,9 +198,15 @@ pub enum Error {
     #[error("vault {0} does not contain {1}")]
     NoSecretId(VaultId, SecretId),
 
-    /// Error generated when a secret is of the wrong kind.
-    #[error("secret {1} in vault {0} is of the wrong kind")]
-    WrongSecretKind(VaultId, SecretId),
+    /// Error generated when a signing key could not be
+    /// found in an identity vault.
+    #[error("identity vault does not contain a valid account signing key")]
+    NoSigningKey,
+
+    /// Error generated when an identity key could not be
+    /// found in an identity vault.
+    #[error("identity vault does not contain a valid account identity key")]
+    NoIdentityKey,
 
     /// Error generated when a vault has not been initialized (no encrypted meta data).
     #[error("vault is not initialized")]

@@ -19,7 +19,6 @@ use walkdir::WalkDir;
 use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
-        search::SearchIndex,
         AccountInfo, Identity, LocalAccount, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
@@ -415,36 +414,10 @@ impl AccountBackup {
                 let mut user = Identity::new(paths.clone());
                 user.login(&identity_vault_file, passphrase.clone()).await?;
 
-                /*
-                let identity_buffer = vfs::read(&identity_vault_file).await?;
-                let identity_vault: Vault = decode(&identity_buffer).await?;
-                let mut identity_keeper =
-                    Gatekeeper::new(identity_vault);
-                identity_keeper.unlock(passphrase.clone().into()).await?;
-
-                let identity_keeper = Arc::new(RwLock::new(identity_keeper));
-                */
-
                 let mut restored_user = Identity::new(paths);
                 restored_user
                     .login_buffer(&identity.1, passphrase.clone(), None)
                     .await?;
-
-                /*
-                let search_index = Arc::new(RwLock::new(SearchIndex::new()));
-                let restored_identity: Vault = decode(&identity.1).await?;
-                let mut restored_identity_keeper = Gatekeeper::new(
-                    restored_identity,
-                );
-                restored_identity_keeper
-                    .unlock(passphrase.clone().into())
-                    .await?;
-
-                {
-                    let mut index = search_index.write().await;
-                    index.add_folder(&restored_identity_keeper).await?;
-                }
-                */
 
                 for (_, vault) in vaults {
                     let vault_passphrase = restored_user

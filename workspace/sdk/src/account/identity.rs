@@ -19,7 +19,7 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    account::{search::SearchIndex, AccountInfo, LocalAccount, UserPaths},
+    account::{AccountInfo, LocalAccount, UserPaths},
     commit::CommitState,
     constants::{
         DEVICE_KEY_URN, FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN,
@@ -60,6 +60,11 @@ impl FolderKeys {
             .find_map(|(k, v)| if k.id() == id { Some(v) } else { None })
     }
 }
+
+/// Cache of mapping between secret URN
+/// and secret identifiers to we can find identity
+/// vault secrets quickly.
+pub type UrnLookup = HashMap<(VaultId, Urn), SecretId>;
 
 /// Identity manages access to an identity vault
 /// and the private keys for a user.
@@ -276,49 +281,45 @@ impl Identity {
             Gatekeeper::new(vault)
         };
 
-        let mut index = if let Some(identity) = &self.identity {
-            identity.index()
-        } else {
-            Arc::new(RwLock::new(SearchIndex::new()))
-        };
         let key: AccessKey = password.into();
         keeper.unlock(&key).await?;
 
-        let mut search = index.write().await;
-        search.add_folder(&keeper).await?;
+        let mut index: UrnLookup = Default::default();
 
-        let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
-        let document = search
-            .find_by_urn(keeper.id(), &urn)
-            .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
-        let data = keeper
-            .read(document.id())
-            .await?
-            .ok_or(Error::NoSecretId(*keeper.id(), *document.id()))?;
+        let signer_urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
+        let identity_urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
 
-        let (_, secret, _) = data;
+        let mut signer_secret: Option<Secret> = None;
+        let mut identity_secret: Option<Secret> = None;
 
-        let signer = if let Secret::Signer { private_key, .. } = secret {
+        for id in keeper.vault().keys() {
+            if let Some((meta, secret, _)) = keeper.read(id).await? {
+                if let Some(urn) = meta.urn() {
+                    if urn == &signer_urn {
+                        signer_secret = Some(secret);
+                    } else if urn == &identity_urn {
+                        identity_secret = Some(secret);
+                    }
+                    // Add to the URN lookup index
+                    index.insert((*keeper.id(), urn.clone()), *id);
+                }
+            }
+        }
+
+        let signer = signer_secret.ok_or(Error::NoSigningKey)?;
+        let identity = identity_secret.ok_or(Error::NoIdentityKey)?;
+
+        // Account signing key extraction
+        let signer = if let Secret::Signer { private_key, .. } = signer {
             Some(private_key.try_into_ecdsa_signer()?)
         } else {
             None
         };
-        let signer = signer
-            .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
+        let signer = signer.ok_or(Error::NoSigningKey)?;
         let address = signer.address()?;
 
-        let urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
-        let document = search
-            .find_by_urn(keeper.id(), &urn)
-            .ok_or(Error::NoSecretUrn(*keeper.id(), urn))?;
-        let data = keeper
-            .read(document.id())
-            .await?
-            .ok_or(Error::NoSecretId(*keeper.id(), *document.id()))?;
-
-        let (_, secret, _) = data;
-
-        let identity = if let Secret::Age { key, .. } = secret {
+        // Identity key extraction
+        let identity = if let Secret::Age { key, .. } = identity {
             let identity: age::x25519::Identity =
                 key.expose_secret().parse().map_err(|s: &'static str| {
                     Error::AgeIdentityParse(s.to_string())
@@ -327,10 +328,7 @@ impl Identity {
         } else {
             None
         };
-        let shared = identity
-            .ok_or(Error::WrongSecretKind(*keeper.id(), *document.id()))?;
-
-        drop(search);
+        let shared = identity.ok_or(Error::NoIdentityKey)?;
 
         self.identity = Some(PrivateIdentity {
             address,
@@ -340,7 +338,7 @@ impl Identity {
             shared_public: shared.to_public(),
             shared_private: shared,
             keeper: Arc::new(RwLock::new(keeper)),
-            index,
+            index: Arc::new(RwLock::new(index)),
         });
 
         Ok(())
@@ -396,7 +394,7 @@ impl Identity {
             }
         });
 
-        let urn: Urn = DEVICE_KEY_URN.parse()?;
+        let device_key_urn: Urn = DEVICE_KEY_URN.parse()?;
         let index = self.identity()?.index();
 
         if let Some(summary) = device_vault {
@@ -413,24 +411,33 @@ impl Identity {
             let mut device_keeper = Gatekeeper::new(vault);
             let key: AccessKey = device_password.into();
             device_keeper.unlock(&key).await?;
+
+            let mut device_signer_secret: Option<Secret> = None;
+
             {
                 let mut index = search_index.write().await;
-                index.add_folder(&device_keeper).await?;
+                for id in device_keeper.vault().keys() {
+                    if let Some((meta, secret, _)) =
+                        device_keeper.read(id).await?
+                    {
+                        if let Some(urn) = meta.urn() {
+                            if urn == &device_key_urn {
+                                device_signer_secret = Some(secret);
+                            }
+                            // Add to the URN lookup index
+                            index.insert(
+                                (*device_keeper.id(), urn.clone()),
+                                *id,
+                            );
+                        }
+                    }
+                }
             }
 
-            let index_reader = index.read().await;
-            let document = index_reader
-                .find_by_urn(summary.id(), &urn)
-                .ok_or(Error::NoVaultEntry(urn.to_string()))?;
-
-            if let Some((
-                _,
-                Secret::Signer {
-                    private_key: SecretSigner::SinglePartyEd25519(data),
-                    ..
-                },
-                _,
-            )) = device_keeper.read(document.id()).await?
+            if let Some(Secret::Signer {
+                private_key: SecretSigner::SinglePartyEd25519(data),
+                ..
+            }) = device_signer_secret
             {
                 let key: ed25519::SingleParty =
                     data.expose_secret().as_slice().try_into()?;
@@ -441,7 +448,7 @@ impl Identity {
                     public_id,
                 })
             } else {
-                Err(Error::VaultEntryKind(urn.to_string()))
+                Err(Error::VaultEntryKind(device_key_urn.to_string()))
             }
         } else {
             // Prepare the passphrase for the device vault
@@ -478,21 +485,15 @@ impl Identity {
             };
             let mut meta =
                 SecretMeta::new("Device Key".to_string(), secret.kind());
-            meta.set_urn(Some(urn));
+            meta.set_urn(Some(device_key_urn.clone()));
             let id = SecretId::new_v4();
-
-            let index_doc = {
-                let search = self.identity()?.index();
-                let index = search.read().await;
-                index.prepare(device_keeper.id(), &id, &meta, &secret)
-            };
 
             device_keeper.create(id, meta, secret).await?;
 
             {
                 let search = self.identity_mut()?.index();
                 let mut index = search.write().await;
-                index.commit(index_doc);
+                index.insert((*device_keeper.id(), device_key_urn), id);
             }
 
             let device_vault: Vault = device_keeper.into();
@@ -549,8 +550,9 @@ pub struct PrivateIdentity {
     signer: BoxedEcdsaSigner,
     /// Gatekeeper for the identity vault.
     keeper: Arc<RwLock<Gatekeeper>>,
-    /// Search index for the user identity.
-    index: Arc<RwLock<SearchIndex>>,
+    /// Lookup mapping between folders and
+    /// the secret idenitifiers in the identity vault.
+    index: Arc<RwLock<UrnLookup>>,
     /// AGE identity keypair.
     #[allow(dead_code)]
     shared_private: age::x25519::Identity,
@@ -577,7 +579,7 @@ impl PrivateIdentity {
     }
 
     /// Search index for the identity vault.
-    pub fn index(&self) -> Arc<RwLock<SearchIndex>> {
+    pub fn index(&self) -> Arc<RwLock<UrnLookup>> {
         Arc::clone(&self.index)
     }
 
@@ -626,19 +628,20 @@ impl PrivateIdentity {
         let _enter = span.enter();
 
         let urn = Vault::vault_urn(vault_id)?;
+
         tracing::debug!(folder = %vault_id, urn = %urn);
 
         let keeper = self.keeper.read().await;
         let index = self.index.read().await;
 
-        let document = index
-            .find_by_urn(keeper.id(), &urn)
+        let id = index
+            .get(&(*keeper.id(), urn.clone()))
             .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
 
         let (_, secret, _) = keeper
-            .read(document.id())
+            .read(id)
             .await?
-            .ok_or_else(|| Error::NoSecretId(*keeper.id(), *document.id()))?;
+            .ok_or_else(|| Error::NoSecretId(*keeper.id(), *id))?;
 
         let key = match secret {
             Secret::Password { password, .. } => {
@@ -674,12 +677,14 @@ impl PrivateIdentity {
         let keeper = self.keeper.read().await;
         let reader = self.index.read().await;
         let urn: Urn = FILE_PASSWORD_URN.parse()?;
-        let document = reader
-            .find_by_urn(keeper.id(), &urn)
+
+        let id = reader
+            .get(&(*keeper.id(), urn.clone()))
             .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
+
         let password =
             if let Some((_, Secret::Password { password, .. }, _)) =
-                keeper.read(document.id()).await?
+                keeper.read(id).await?
             {
                 password
             } else {
@@ -691,7 +696,7 @@ impl PrivateIdentity {
     /// Save a folder password into an identity vault.
     pub async fn create_folder_password(
         keeper: Arc<RwLock<Gatekeeper>>,
-        index: Arc<RwLock<SearchIndex>>,
+        index: Arc<RwLock<UrnLookup>>,
         vault_id: &VaultId,
         key: AccessKey,
     ) -> Result<()> {
@@ -716,20 +721,15 @@ impl PrivateIdentity {
 
         let mut meta =
             SecretMeta::new(urn.as_str().to_owned(), secret.kind());
-        meta.set_urn(Some(urn));
+        meta.set_urn(Some(urn.clone()));
 
         let id = SecretId::new_v4();
-        let index_doc = {
-            let keeper = keeper.read().await;
-            let index = index.read().await;
-            index.prepare(keeper.id(), &id, &meta, &secret)
-        };
 
         let mut keeper = keeper.write().await;
         keeper.create(id, meta, secret).await?;
 
         let mut index = index.write().await;
-        index.commit(index_doc);
+        index.insert((*keeper.id(), urn), id);
 
         Ok(())
     }
@@ -737,26 +737,26 @@ impl PrivateIdentity {
     /// Remove a folder password from an identity vault.
     pub async fn delete_folder_password(
         keeper: Arc<RwLock<Gatekeeper>>,
-        index: Arc<RwLock<SearchIndex>>,
+        index: Arc<RwLock<UrnLookup>>,
         vault_id: &VaultId,
     ) -> Result<()> {
         tracing::debug!(folder = %vault_id, "remove folder password");
 
-        let (keeper_id, id) = {
+        let (keeper_id, id, urn) = {
             let keeper = keeper.read().await;
             let urn = Vault::vault_urn(vault_id)?;
             let index_reader = index.read().await;
-            let document = index_reader
-                .find_by_urn(keeper.id(), &urn)
+            let id = index_reader
+                .get(&(*keeper.id(), urn.clone()))
                 .ok_or(Error::NoVaultEntry(urn.to_string()))?;
-            (*keeper.id(), *document.id())
+            (*keeper.id(), *id, urn)
         };
 
         let mut keeper = keeper.write().await;
         keeper.delete(&id).await?;
 
         let mut index = index.write().await;
-        index.remove(&keeper_id, &id);
+        index.remove(&(keeper_id, urn));
 
         Ok(())
     }
@@ -800,7 +800,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn identity_no_identity_signer() -> Result<()> {
+    async fn no_signing_key() -> Result<()> {
         let (password, _) = generate_passphrase()?;
 
         let vault = VaultBuilder::new()
@@ -813,7 +813,7 @@ mod tests {
         let mut identity =
             Identity::new(UserPaths::new_global(UserPaths::data_dir()?));
         let result = identity.login_buffer(buffer, password, None).await;
-        if let Err(Error::NoSecretUrn(_, _)) = result {
+        if let Err(Error::NoSigningKey) = result {
             Ok(())
         } else {
             panic!("expecting no identity signer error");
@@ -821,7 +821,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn identity_signer_kind() -> Result<()> {
+    async fn no_identity_key() -> Result<()> {
         let (password, _) = generate_passphrase()?;
 
         let vault = VaultBuilder::new()
@@ -853,7 +853,7 @@ mod tests {
         let mut identity =
             Identity::new(UserPaths::new_global(UserPaths::data_dir()?));
         let result = identity.login_buffer(buffer, password, None).await;
-        if let Err(Error::WrongSecretKind(_, _)) = result {
+        if let Err(Error::NoIdentityKey) = result {
             Ok(())
         } else {
             panic!("expecting identity signer kind error");
