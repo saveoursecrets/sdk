@@ -1,9 +1,11 @@
 //! Prelude re-exports common types.
-#[cfg(feature = "archive")]
+#[cfg(all(feature = "account", feature = "archive"))]
 pub use crate::account::archive::*;
-#[cfg(feature = "files")]
+#[cfg(all(feature = "account", feature = "files"))]
 pub use crate::account::files::*;
+#[cfg(all(feature = "account"))] // TODO: search feature flag
 pub use crate::account::search::*;
+#[cfg(feature = "account")]
 pub use crate::account::*;
 pub use crate::commit::*;
 pub use crate::constants::*;

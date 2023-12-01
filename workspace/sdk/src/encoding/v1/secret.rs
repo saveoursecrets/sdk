@@ -27,6 +27,7 @@ use binary_stream::futures::{
 };
 
 const EMBEDDED_FILE: u8 = 1;
+#[cfg(feature = "files")]
 const EXTERNAL_FILE: u8 = 2;
 
 /// Constants for signer kinds.

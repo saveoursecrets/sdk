@@ -24,7 +24,7 @@ use crate::{
     },
     encode,
     encoding::{encoding_options, VERSION, VERSION1},
-    events::{AccountEvent, FileEvent, Patch, WriteEvent},
+    events::{AccountEvent, Patch, WriteEvent},
     formats::{
         event_log_stream, patch_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
@@ -33,6 +33,9 @@ use crate::{
     vfs::{self, File, OpenOptions},
     Error, Result,
 };
+
+#[cfg(feature = "files")]
+use crate::events::FileEvent;
 
 use std::{
     io::SeekFrom,
@@ -54,6 +57,7 @@ pub type AccountEventLog = EventLogFile<AccountEvent>;
 pub type FolderEventLog = EventLogFile<WriteEvent>;
 
 /// Event log for changes to external files.
+#[cfg(feature = "files")]
 pub type FileEventLog = EventLogFile<FileEvent>;
 
 /// An event log that appends to a file.
@@ -512,6 +516,7 @@ impl EventLogFile<WriteEvent> {
     }
 }
 
+#[cfg(feature = "files")]
 impl EventLogFile<FileEvent> {
     /// Create a new file event log file.
     pub async fn new_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {

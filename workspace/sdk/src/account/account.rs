@@ -20,7 +20,7 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, AuditData, AuditEvent, AuditLogFile,
-        AuditProvider, Event, EventKind, EventReducer, FileEventLog,
+        AuditProvider, Event, EventKind, EventReducer,
         ReadEvent, WriteEvent,
     },
     signer::ecdsa::Address,
@@ -41,7 +41,7 @@ use super::search::AccountSearch;
 use async_trait::async_trait;
 
 #[cfg(feature = "files")]
-use super::files::FileProgress;
+use crate::{account::files::FileProgress, events::{FileEvent, FileEventLog}};
 
 /// Type alias for a local account without a handler.
 pub type LocalAccount = Account<()>;
@@ -512,7 +512,9 @@ impl<D> Account<D> {
             #[cfg(feature = "files")]
             file_log,
         });
-
+        
+        // Load vaults into memory and initialize folder
+        // event log commit trees
         self.load_folders().await?;
 
         Ok(())
@@ -554,10 +556,13 @@ impl<D> Account<D> {
     ) -> Result<Arc<RwLock<FileEventLog>>> {
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
-        let event_log = FileEventLog::new_file(log_file).await?;
+        let mut event_log = FileEventLog::new_file(log_file).await?;
 
         if needs_init {
-            todo!();
+            let files = super::files::list_external_files(paths).await?;
+            let events: Vec<FileEvent> = 
+                files.into_iter().map(|f| f.into()).collect();
+            event_log.apply(events.iter().collect()).await?;
         }
 
         Ok(Arc::new(RwLock::new(event_log)))

@@ -1,10 +1,12 @@
 //! File encryption/decryption and manager for external files.
 use crate::{
     account::UserPaths,
+    events::FileEvent,
     vault::{secret::SecretId, VaultId},
+    hex,
     vfs, Result,
 };
-use std::{collections::HashSet, path::Path};
+use std::{collections::HashSet, path::Path, fmt};
 
 mod external_files;
 mod external_files_sync;
@@ -28,12 +30,30 @@ pub struct EncryptedFile {
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct ExternalFileName([u8; 32]);
 
+impl From<ExternalFileName> for [u8; 32] {
+    fn from(value: ExternalFileName) -> Self {
+        value.0
+    }
+}
+
+impl fmt::Display for ExternalFileName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(self.0))
+    }
+}
+
 /// Pointer to an external file.
 #[derive(Debug, Hash, Eq, PartialEq)]
 pub struct ExternalFile(VaultId, SecretId, ExternalFileName);
 
+impl From<ExternalFile> for FileEvent {
+    fn from(value: ExternalFile) -> Self {
+        FileEvent::CreateFile(value.0, value.1, value.2.to_string())
+    }
+}
+
 /// List all the external files in an account.
-pub async fn list_external_files(
+pub(super) async fn list_external_files(
     paths: &UserPaths,
 ) -> Result<HashSet<ExternalFile>> {
     let mut files = HashSet::new();

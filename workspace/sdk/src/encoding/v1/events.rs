@@ -5,12 +5,15 @@ use crate::{
     encoding::encoding_error,
     events::{
         AccountEvent, AuditData, AuditEvent, AuditLogFile, EventKind,
-        EventRecord, FileEvent, LogEvent, LogFlags, Patch, WriteEvent,
+        EventRecord, LogEvent, LogFlags, Patch, WriteEvent,
     },
     formats::{EventLogFileRecord, FileIdentity, FileRecord, VaultRecord},
     vault::{secret::SecretId, VaultCommit},
     Timestamp,
 };
+
+#[cfg(feature = "files")]
+use crate::events::FileEvent;
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result, SeekFrom};
@@ -623,6 +626,7 @@ impl Decodable for AccountEvent {
     }
 }
 
+#[cfg(feature = "files")]
 #[async_trait]
 impl Encodable for FileEvent {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
@@ -633,6 +637,7 @@ impl Encodable for FileEvent {
     }
 }
 
+#[cfg(feature = "files")]
 #[async_trait]
 impl Decodable for FileEvent {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(

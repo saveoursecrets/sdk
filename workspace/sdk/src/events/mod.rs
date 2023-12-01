@@ -13,9 +13,13 @@ mod types;
 mod write;
 
 pub use self::log::{
-    AccountEventLog, EventLogFile, EventRecord, EventReducer, FileEventLog,
+    AccountEventLog, EventLogFile, EventRecord, EventReducer,
     FolderEventLog,
 };
+
+#[cfg(feature = "files")]
+pub use self::log::FileEventLog;
+
 pub use audit::{
     AuditData, AuditEvent, AuditLogFile, AuditProvider, LogFlags,
 };
