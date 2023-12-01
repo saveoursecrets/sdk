@@ -39,12 +39,13 @@ pub struct HostedOrigin {
     /// URL of the remote server.
     pub url: Url,
     /// Public key of the remote server.
+    #[serde(with = "hex::serde")]
     pub public_key: Vec<u8>,
 }
 
 /// Remote origin information.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
 pub enum Origin {
     /// Self hosted remote.
     Hosted(HostedOrigin),

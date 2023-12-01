@@ -39,6 +39,7 @@ mod multiple_remotes;
 mod multiple_remotes_fallback;
 
 mod offline_manual;
+mod server_definitions;
 
 /*
 mod websocket_reconnect;
@@ -94,7 +95,7 @@ impl SimulatedDevice {
         // Insert the remote for the other owner
         owner
             .insert_remote(self.origin.clone().into(), Box::new(provider))
-            .await;
+            .await?;
 
         // Use the default folder
         owner.open_folder(&self.default_folder).await?;
@@ -165,7 +166,7 @@ pub async fn simulate_device(
     // Insert the remote for the primary owner
     owner
         .insert_remote(origin.clone().into(), Box::new(provider))
-        .await;
+        .await?;
 
     //let default_folder_id = *default_folder.id();
     owner.open_folder(&default_folder).await?;

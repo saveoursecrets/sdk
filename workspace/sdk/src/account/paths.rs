@@ -12,8 +12,8 @@ use crate::{
     constants::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICES_DIR,
         EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR, JSON_EXT,
-        LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, TEMP_DIR, VAULTS_DIR,
-        VAULT_EXT,
+        LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, TEMP_DIR,
+        VAULTS_DIR, VAULT_EXT,
     },
     vfs,
 };
@@ -210,6 +210,13 @@ impl UserPaths {
     pub fn file_events(&self) -> PathBuf {
         let mut vault_path = self.user_dir.join(FILE_EVENTS);
         vault_path.set_extension(EVENT_LOG_EXT);
+        vault_path
+    }
+
+    /// Get the path to the file used to store remote origins.
+    pub fn remote_origins(&self) -> PathBuf {
+        let mut vault_path = self.user_dir.join(REMOTES_FILE);
+        vault_path.set_extension(JSON_EXT);
         vault_path
     }
 

@@ -58,7 +58,7 @@ async fn integration_sync_listen_multiple() -> Result<()> {
     let mut provider = device1
         .owner
         .delete_remote(&(&origin).into())
-        .await
+        .await?
         .unwrap();
     let remote_provider = provider
         .as_any_mut()
@@ -76,7 +76,7 @@ async fn integration_sync_listen_multiple() -> Result<()> {
     let mut provider = device2
         .owner
         .delete_remote(&(&origin).into())
-        .await
+        .await?
         .unwrap();
     let remote_provider = provider
         .as_any_mut()
@@ -94,7 +94,7 @@ async fn integration_sync_listen_multiple() -> Result<()> {
     let mut provider = device3
         .owner
         .delete_remote(&(&origin).into())
-        .await
+        .await?
         .unwrap();
     let remote_provider = provider
         .as_any_mut()

@@ -63,7 +63,7 @@ async fn integration_sync_create_secret() -> Result<()> {
     let mut provider = device1
         .owner
         .delete_remote(&(&origin).into())
-        .await
+        .await?
         .unwrap();
     let remote_provider = provider
         .as_any_mut()
@@ -73,7 +73,7 @@ async fn integration_sync_create_secret() -> Result<()> {
     let mut provider = device2
         .owner
         .delete_remote(&(&origin).into())
-        .await
+        .await?
         .unwrap();
     let other_remote_provider = provider
         .as_any_mut()

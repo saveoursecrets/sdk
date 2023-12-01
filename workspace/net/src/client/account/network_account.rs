@@ -206,15 +206,40 @@ impl NetworkAccount {
     ///
     /// If a remote with the given origin already exists it is
     /// overwritten.
-    pub async fn insert_remote(&mut self, origin: Origin, remote: Remote) {
+    pub async fn insert_remote(
+        &mut self,
+        origin: Origin,
+        remote: Remote,
+    ) -> Result<()> {
         let mut remotes = self.remotes.write().await;
         remotes.insert(origin, remote);
+        self.save_remotes(&*remotes).await
     }
 
     /// Delete a remote if it exists.
-    pub async fn delete_remote(&mut self, origin: &Origin) -> Option<Remote> {
+    pub async fn delete_remote(
+        &mut self,
+        origin: &Origin,
+    ) -> Result<Option<Remote>> {
         let mut remotes = self.remotes.write().await;
-        remotes.remove(origin)
+        let remote = remotes.remove(origin);
+        self.save_remotes(&*remotes).await?;
+        Ok(remote)
+    }
+    
+    /// List the origin servers.
+    pub async fn servers(&self) -> Vec<Origin> {
+        let remotes = self.remotes.read().await;
+        remotes.keys().cloned().collect()
+    }
+
+    /// Save remote definitions to disc.
+    async fn save_remotes(&self, remotes: &Remotes) -> Result<()> {
+        let origins = remotes.keys().collect::<Vec<_>>();
+        let data = serde_json::to_vec_pretty(&origins)?;
+        let file = self.paths().remote_origins();
+        vfs::write(file, data).await?;
+        Ok(())
     }
 
     /// Account address.
@@ -226,7 +251,22 @@ impl NetworkAccount {
     pub async fn sign_in(&mut self, passphrase: SecretString) -> Result<()> {
         self.account.sign_in(passphrase).await?;
 
-        // TODO: load origins from disc
+        // Load origins from disc and create remote definitions
+        let remotes_file = self.paths().remote_origins();
+        if vfs::try_exists(&remotes_file).await? {
+            let contents = vfs::read(&remotes_file).await?;
+            let origins: Vec<Origin> = serde_json::from_slice(&contents)?;
+            let mut remotes: Remotes = Default::default();
+            for origin in origins {
+                match &origin {
+                   Origin::Hosted(host) => {
+                       let remote = self.remote_bridge(host).await?;
+                       remotes.insert(origin, Box::new(remote));
+                   } 
+                }
+            }
+            self.remotes = Arc::new(RwLock::new(remotes));
+        }
 
         Ok(())
     }
@@ -325,6 +365,8 @@ impl NetworkAccount {
         tracing::debug!(address = %self.address());
         #[cfg(feature = "listen")]
         self.shutdown_listeners().await;
+
+        self.remotes = Default::default();
 
         Ok(self.account.sign_out().await?)
     }
