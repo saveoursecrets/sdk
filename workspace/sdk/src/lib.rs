@@ -9,6 +9,10 @@
 //! or other applications that require storing secrets
 //! securely.
 //!
+//! This library provides primitives for syncing but does not 
+//! perform any networking, for networking support use 
+//! the [sos-net crate](https://docs.rs/sos-net/latest/sos_net/).
+//!
 //! # Features
 //!
 //! Default features enable account management, external files, search and
@@ -18,12 +22,13 @@
 //! * `account` Support for local accounts.
 //! * `recovery` Support for social recovery.
 //!
-//! The following features require the `account` feature to be enabled:
+//! The following features require that the `account` feature is enabled:
 //!
 //! * `archive` Support for creating and restoring from account backup archives.
 //! * `contacts` Support for managing account contacts.
 //! * `device` Support for device signing keys and device management.
 //! * `files` Support for managing external encrypted files.
+//! * `search` Support for in-memory account search index.
 //! * `security-report` Support for generating a security report.
 //!
 //! Note the `files` feature affects the encoding of vaults so you should
@@ -41,6 +46,9 @@ compile_error!("account feature must be enabled to use device");
 
 #[cfg(all(not(feature = "account"), feature = "files"))]
 compile_error!("account feature must be enabled to use files");
+
+#[cfg(all(not(feature = "account"), feature = "search"))]
+compile_error!("account feature must be enabled to use search");
 
 #[cfg(all(not(feature = "account"), feature = "security-report"))]
 compile_error!("account feature must be enabled to use security-report");

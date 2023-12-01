@@ -12,6 +12,7 @@ pub mod files;
 mod identity;
 mod local_storage;
 mod paths;
+#[cfg(feature = "search")]
 pub mod search;
 
 #[cfg(feature = "security-report")]

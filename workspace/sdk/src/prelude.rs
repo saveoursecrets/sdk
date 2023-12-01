@@ -3,7 +3,7 @@
 pub use crate::account::archive::*;
 #[cfg(all(feature = "account", feature = "files"))]
 pub use crate::account::files::*;
-#[cfg(all(feature = "account"))] // TODO: search feature flag
+#[cfg(all(feature = "account", feature = "search"))]
 pub use crate::account::search::*;
 #[cfg(feature = "account")]
 pub use crate::account::*;

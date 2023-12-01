@@ -11,14 +11,15 @@ repository = "https://github.com/saveoursecrets/sdk"
 default = []
 full = [
   "archive",
-  "files",
   "client",
-  "server",
+  "contacts",
+  "device",
+  "files",
   "hashcheck",
   "listen",
   "migrate",
-  "contacts",
-  "device",
+  "search",
+  "server",
   "security-report",
 ]
 client = [
@@ -45,6 +46,7 @@ device = [
   "dep:whoami",
   "sos-sdk/device",
 ]
+search = ["sos-sdk/search"]
 security-report = ["sos-sdk/security-report"]
 mem-fs = ["sos-sdk/mem-fs"]
 test-utils = ["sos-sdk/test-utils"]
