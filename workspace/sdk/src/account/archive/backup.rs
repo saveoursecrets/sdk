@@ -20,8 +20,7 @@ use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
         search::SearchIndex,
-        AccountInfo, LocalAccount, Identity, UserPaths,
-        AccountsList,
+        AccountInfo, Identity, LocalAccount, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -196,8 +195,6 @@ impl AccountBackup {
         paths: &UserPaths,
         options: AccountManifestOptions,
     ) -> Result<(AccountManifest, u64)> {
-        let local_accounts = AccountsList::new(paths);
-
         let mut total_size: u64 = 0;
         let mut manifest = AccountManifest::new(*address);
         let path = paths.identity_vault();
@@ -211,7 +208,7 @@ impl AccountBackup {
         manifest.entries.push(entry);
         total_size += size;
 
-        let vaults = local_accounts.list_local_vaults(false).await?;
+        let vaults = LocalAccount::list_local_folders(paths, false).await?;
         for (summary, path) in vaults {
             if options.no_sync_self && summary.flags().is_no_sync_self() {
                 continue;
@@ -324,8 +321,7 @@ impl AccountBackup {
         }
         let identity = vfs::read(identity_path).await?;
 
-        let local_accounts = AccountsList::new(paths);
-        let vaults = local_accounts.list_local_vaults(false).await?;
+        let vaults = LocalAccount::list_local_folders(paths, false).await?;
 
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));

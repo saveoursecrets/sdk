@@ -44,15 +44,15 @@ impl<'a, D> AccountExport<'a, D> {
         path: P,
     ) -> Result<()> {
         let paths = self.account.paths();
-        let local_accounts = AccountsList::new(&paths);
 
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
-        let vaults = local_accounts.list_local_vaults(false).await?;
+        let vaults = LocalAccount::list_local_folders(&paths, false).await?;
 
         for (summary, _) in vaults {
             let (vault, _) =
-                local_accounts.find_local_vault(summary.id(), false).await?;
+                LocalAccount::load_local_vault(paths, summary.id(), false)
+                    .await?;
             let vault_passphrase = self
                 .account
                 .user()?
@@ -71,6 +71,7 @@ impl<'a, D> AccountExport<'a, D> {
         let mut files = HashMap::new();
         let buffer =
             serde_json::to_vec_pretty(self.account.user()?.account()?)?;
+        // FIXME: constant for file name
         files.insert("account.json", buffer.as_slice());
         migration.append_files(files).await?;
         migration.finish().await?;
@@ -173,9 +174,8 @@ impl<'a, D> AccountImport<'a, D> {
         converter: impl Convert<Input = PathBuf>,
     ) -> Result<(Event, Summary)> {
         let paths = self.account.paths();
-        let local_accounts = AccountsList::new(&paths);
 
-        let vaults = local_accounts.list_local_vaults(false).await?;
+        let vaults = LocalAccount::list_local_folders(&paths, false).await?;
         let existing_name =
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 

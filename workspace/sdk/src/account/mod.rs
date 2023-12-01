@@ -1,6 +1,5 @@
 //! Create and manage local accounts.
 mod account;
-mod accounts_list;
 #[cfg(feature = "archive")]
 pub mod archive;
 mod builder;
@@ -18,10 +17,9 @@ pub mod search;
 pub mod security_report;
 
 pub use account::{
-    AccessOptions, Account, AccountData, AccountHandler, DetachedView,
-    FolderKeys, LocalAccount, AccountInfo, AccountRef,
+    AccessOptions, Account, AccountData, AccountHandler, AccountInfo,
+    AccountRef, DetachedView, FolderKeys, LocalAccount,
 };
-pub use accounts_list::AccountsList;
 pub use builder::{AccountBuilder, NewAccount};
 #[cfg(feature = "device")]
 pub use device::DeviceSigner;

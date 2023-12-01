@@ -11,11 +11,10 @@ use std::{
 use crate::{
     account::{
         search::{AccountStatistics, DocumentCount, SearchIndex},
-        AccountBuilder, AccountsList, FolderStorage, Identity,
-        NewAccount, UserPaths,
+        AccountBuilder, FolderStorage, Identity, NewAccount, UserPaths,
     },
-    constants::VAULT_EXT,
     commit::{CommitHash, CommitState},
+    constants::VAULT_EXT,
     crypto::{AccessKey, SecureAccessKey},
     decode, encode,
     events::{
@@ -26,7 +25,7 @@ use crate::{
     signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
-        Gatekeeper, Summary, Vault, VaultId, Header,
+        Gatekeeper, Header, Summary, Vault, VaultId,
     },
     vfs, Error, Result, Timestamp,
 };
@@ -135,7 +134,6 @@ impl FromStr for AccountRef {
         }
     }
 }
-
 
 /// Collection of folder access keys.
 pub struct FolderKeys(pub HashMap<Summary, AccessKey>);
@@ -255,7 +253,6 @@ pub struct Account<D> {
 }
 
 impl<D> Account<D> {
-
     /// List account information for the identity vaults.
     pub async fn list_accounts(
         paths: Option<&UserPaths>,
@@ -285,6 +282,47 @@ impl<D> Account<D> {
         }
         keys.sort_by(|a, b| a.label.cmp(&b.label));
         Ok(keys)
+    }
+
+    /// Find and load a vault.
+    pub async fn load_local_vault(
+        paths: &UserPaths,
+        id: &VaultId,
+        include_system: bool,
+    ) -> Result<(Vault, PathBuf)> {
+        let folders = Self::list_local_folders(paths, include_system).await?;
+        let (_summary, path) = folders
+            .into_iter()
+            .find(|(s, _)| s.id() == id)
+            .ok_or_else(|| Error::NoVaultFile(id.to_string()))?;
+        let buffer = vfs::read(&path).await?;
+        let vault: Vault = decode(&buffer).await?;
+        Ok((vault, path))
+    }
+
+    /// List the folders in an account by inspecting
+    /// the vault files in the vaults directory.
+    pub async fn list_local_folders(
+        paths: &UserPaths,
+        include_system: bool,
+    ) -> Result<Vec<(Summary, PathBuf)>> {
+        let vaults_dir = paths.vaults_dir();
+
+        let mut vaults = Vec::new();
+        let mut dir = vfs::read_dir(vaults_dir).await?;
+        while let Some(entry) = dir.next_entry().await? {
+            if let Some(extension) = entry.path().extension() {
+                if extension == VAULT_EXT {
+                    let summary =
+                        Header::read_summary_file(entry.path()).await?;
+                    if !include_system && summary.flags().is_system() {
+                        continue;
+                    }
+                    vaults.push((summary, entry.path().to_path_buf()));
+                }
+            }
+        }
+        Ok(vaults)
     }
 
     /// Prepare an account for sign in.
@@ -485,7 +523,7 @@ impl<D> Account<D> {
 
         Ok(())
     }
-    
+
     /*
     fn initialize_account_log() -> Result<Arc<RwLock<AccountEventLog>>> {
 
@@ -815,8 +853,6 @@ impl<D> Account<D> {
             .change_folder_password(summary.id(), new_key.clone())
             .await?;
 
-        let local_accounts = AccountsList::new(&self.paths);
-
         if save_key {
             let default_summary = self
                 .default_folder()
@@ -842,9 +878,12 @@ impl<D> Account<D> {
             };
             let meta = SecretMeta::new(label, secret.kind());
 
-            let (vault, _) = local_accounts
-                .find_local_vault(default_summary.id(), false)
-                .await?;
+            let (vault, _) = Self::load_local_vault(
+                &self.paths,
+                default_summary.id(),
+                false,
+            )
+            .await?;
 
             self.add_secret(
                 meta,
@@ -884,9 +923,8 @@ impl<D> Account<D> {
             self.user()?.find_folder_password(vault_id).await?;
 
         // Find the local vault for the account
-        let local_accounts = AccountsList::new(&paths);
         let (vault, _) =
-            local_accounts.find_local_vault(vault_id, false).await?;
+            Self::load_local_vault(&paths, vault_id, false).await?;
 
         // Change the password before exporting
         let (_, vault, _) = ChangePassword::new(
@@ -924,10 +962,8 @@ impl<D> Account<D> {
         // Need to verify the passphrase
         vault.verify(&key).await?;
 
-        let local_accounts = AccountsList::new(&self.paths);
-
         // Check for existing identifier
-        let vaults = local_accounts.list_local_vaults(false).await?;
+        let vaults = Self::list_local_folders(&self.paths, false).await?;
         let existing_id =
             vaults.iter().find(|(s, _)| s.id() == vault.summary().id());
 

@@ -19,7 +19,7 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    account::{search::SearchIndex, AccountInfo, AccountsList, LocalAccount, UserPaths},
+    account::{search::SearchIndex, AccountInfo, LocalAccount, UserPaths},
     commit::CommitState,
     constants::{
         DEVICE_KEY_URN, FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN,
@@ -372,8 +372,8 @@ impl Identity {
     /// information such as the private key used to identify a machine.
     #[cfg(feature = "device")]
     async fn ensure_device_vault(&mut self) -> Result<DeviceSigner> {
-        let local_accounts = AccountsList::new(&self.paths);
-        let vaults = local_accounts.list_local_vaults(true).await?;
+        let vaults =
+            LocalAccount::list_local_folders(&self.paths, true).await?;
 
         let device_vault = vaults.into_iter().find_map(|(summary, _)| {
             if summary.flags().is_system() && summary.flags().is_device() {
@@ -390,8 +390,12 @@ impl Identity {
             let device_password =
                 self.find_folder_password(summary.id()).await?;
 
-            let (vault, _) =
-                local_accounts.find_local_vault(summary.id(), true).await?;
+            let (vault, _) = LocalAccount::load_local_vault(
+                &self.paths,
+                summary.id(),
+                true,
+            )
+            .await?;
             let search_index = self.identity()?.index();
             let mut device_keeper = Gatekeeper::new(vault);
             let key: AccessKey = device_password.into();
