@@ -21,7 +21,7 @@ files = []
 mem-fs = ["sos-vfs/mem-fs"]
 recovery = ["dep:vsss-rs"]
 test-utils = ["dep:anyhow"]
-search = []
+search = ["dep:probly-search"]
 security-report = []
 
 [dependencies]
@@ -84,6 +84,7 @@ vsss-rs = {version = "3", optional = true }
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"
+optional = true
 #path = "../../../../forks/probly-search"
 #git = "https://github.com/tmpfs/probly-search/"
 #branch = "multi-field"
