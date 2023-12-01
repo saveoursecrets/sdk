@@ -20,8 +20,7 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, AuditData, AuditEvent, AuditLogFile,
-        AuditProvider, Event, EventKind, EventReducer,
-        ReadEvent, WriteEvent,
+        AuditProvider, Event, EventKind, EventReducer, ReadEvent, WriteEvent,
     },
     signer::ecdsa::Address,
     vault::{
@@ -41,7 +40,10 @@ use super::search::AccountSearch;
 use async_trait::async_trait;
 
 #[cfg(feature = "files")]
-use crate::{account::files::FileProgress, events::{FileEvent, FileEventLog}};
+use crate::{
+    account::files::FileProgress,
+    events::{FileEvent, FileEventLog},
+};
 
 /// Type alias for a local account without a handler.
 pub type LocalAccount = Account<()>;
@@ -512,7 +514,7 @@ impl<D> Account<D> {
             #[cfg(feature = "files")]
             file_log,
         });
-        
+
         // Load vaults into memory and initialize folder
         // event log commit trees
         self.load_folders().await?;
@@ -524,9 +526,14 @@ impl<D> Account<D> {
         &self,
         paths: &UserPaths,
     ) -> Result<Arc<RwLock<AccountEventLog>>> {
+        let span = span!(Level::DEBUG, "init_account_log");
+        let _enter = span.enter();
+
         let log_file = paths.account_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
         let mut event_log = AccountEventLog::new_account(log_file).await?;
+
+        tracing::debug!(needs_init = %needs_init);
 
         // If the account event log does not already exist
         // we initialize it from the current state on disc
@@ -544,8 +551,11 @@ impl<D> Account<D> {
                 .map(|f| AccountEvent::CreateFolder(f.into()))
                 .collect();
 
+            tracing::debug!(init_events_len = %events.len());
+
             event_log.apply(events.iter().collect()).await?;
         }
+
         Ok(Arc::new(RwLock::new(event_log)))
     }
 
@@ -554,14 +564,22 @@ impl<D> Account<D> {
         &self,
         paths: &UserPaths,
     ) -> Result<Arc<RwLock<FileEventLog>>> {
+        let span = span!(Level::DEBUG, "init_file_log");
+        let _enter = span.enter();
+
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
         let mut event_log = FileEventLog::new_file(log_file).await?;
 
+        tracing::debug!(needs_init = %needs_init);
+
         if needs_init {
             let files = super::files::list_external_files(paths).await?;
-            let events: Vec<FileEvent> = 
+            let events: Vec<FileEvent> =
                 files.into_iter().map(|f| f.into()).collect();
+
+            tracing::debug!(init_events_len = %events.len());
+
             event_log.apply(events.iter().collect()).await?;
         }
 
@@ -835,7 +853,7 @@ impl<D> Account<D> {
         self.user_mut()?
             .remove_folder_password(summary.id())
             .await?;
-        
+
         #[cfg(feature = "files")]
         self.delete_folder_files(&summary).await?;
 

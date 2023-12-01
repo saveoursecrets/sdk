@@ -11,8 +11,8 @@
 //!
 //! # Features
 //!
-//! Default features enable account management, external files, search and 
-//! backup archives. If you want to just use encrypted vaults without 
+//! Default features enable account management, external files, search and
+//! backup archives. If you want to just use encrypted vaults without
 //! the account management support disable `default-features`.
 //!
 //! * `account` Support for local accounts.
@@ -26,8 +26,8 @@
 //! * `files` Support for managing external encrypted files.
 //! * `security-report` Support for generating a security report.
 //!
-//! Note the `files` feature affects the encoding of vaults so you should 
-//! not change this after writing encoded vaults to disc without having a 
+//! Note the `files` feature affects the encoding of vaults so you should
+//! not change this after writing encoded vaults to disc without having a
 //! migration plan.
 
 #[cfg(all(not(feature = "account"), feature = "archive"))]

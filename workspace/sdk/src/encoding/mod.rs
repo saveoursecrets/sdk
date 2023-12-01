@@ -9,7 +9,7 @@ pub use v1::VERSION;
 
 use crate::Result;
 use binary_stream::{
-    futures::{Decodable, Encodable, BinaryReader},
+    futures::{BinaryReader, Decodable, Encodable},
     Endian, Options,
 };
 use futures::io::{AsyncRead, AsyncSeek};

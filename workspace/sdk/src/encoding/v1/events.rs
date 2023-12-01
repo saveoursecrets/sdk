@@ -2,7 +2,7 @@ use crate::{
     commit::CommitHash,
     constants::PATCH_IDENTITY,
     crypto::AeadPack,
-    encoding::{encoding_error, decode_uuid},
+    encoding::{decode_uuid, encoding_error},
     events::{
         AccountEvent, AuditData, AuditEvent, AuditLogFile, EventKind,
         EventRecord, LogEvent, LogFlags, Patch, WriteEvent,
@@ -186,9 +186,8 @@ impl Decodable for AuditEvent {
                         self.data = Some(AuditData::Vault(vault_id));
                     } else {
                         let secret_id = decode_uuid(&mut *reader).await?;
-                        self.data = Some(AuditData::Secret(
-                            vault_id, secret_id,
-                        ));
+                        self.data =
+                            Some(AuditData::Secret(vault_id, secret_id));
                     }
                 } else if flags.contains(LogFlags::MOVE_SECRET) {
                     let from_vault_id = decode_uuid(&mut *reader).await?;

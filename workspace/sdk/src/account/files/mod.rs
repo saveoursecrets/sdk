@@ -2,11 +2,11 @@
 use crate::{
     account::UserPaths,
     events::FileEvent,
-    vault::{secret::SecretId, VaultId},
     hex,
+    vault::{secret::SecretId, VaultId},
     vfs, Result,
 };
-use std::{collections::HashSet, path::Path, fmt};
+use std::{array::TryFromSliceError, collections::HashSet, fmt, path::Path};
 
 mod external_files;
 mod external_files_sync;
@@ -53,6 +53,10 @@ impl From<ExternalFile> for FileEvent {
 }
 
 /// List all the external files in an account.
+///
+/// If a directory name cannot be parsed to a folder or secret
+/// identifier or the file name cannot be converted to `[u8; 32]`
+/// the directory or file will be ignored.
 pub(super) async fn list_external_files(
     paths: &UserPaths,
 ) -> Result<HashSet<ExternalFile>> {
@@ -62,23 +66,31 @@ pub(super) async fn list_external_files(
         let path = entry.path();
         if path.is_dir() {
             if let Some(file_name) = path.file_name() {
-                let folder_id: VaultId =
-                    file_name.to_string_lossy().as_ref().parse()?;
-                let mut folder_dir = vfs::read_dir(path).await?;
-                while let Some(entry) = folder_dir.next_entry().await? {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        if let Some(file_name) = path.file_name() {
-                            let secret_id: SecretId = file_name
-                                .to_string_lossy()
-                                .as_ref()
-                                .parse()?;
-                            let mut external_files =
-                                list_secret_files(path).await?;
-                            for file_name in external_files.drain() {
-                                files.insert(ExternalFile(
-                                    folder_id, secret_id, file_name,
-                                ));
+                if let Ok(folder_id) =
+                    file_name.to_string_lossy().as_ref().parse::<VaultId>()
+                {
+                    let mut folder_dir = vfs::read_dir(path).await?;
+                    while let Some(entry) = folder_dir.next_entry().await? {
+                        let path = entry.path();
+                        if path.is_dir() {
+                            if let Some(file_name) = path.file_name() {
+                                tracing::debug!(file_name = ?file_name);
+                                if let Ok(secret_id) = file_name
+                                    .to_string_lossy()
+                                    .as_ref()
+                                    .parse::<SecretId>()
+                                {
+                                    let mut external_files =
+                                        list_secret_files(path).await?;
+                                    tracing::debug!(
+                                        files_len = external_files.len()
+                                    );
+                                    for file_name in external_files.drain() {
+                                        files.insert(ExternalFile(
+                                            folder_id, secret_id, file_name,
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
@@ -98,12 +110,27 @@ async fn list_secret_files(
         let path = entry.path();
         if path.is_file() {
             if let Some(file_name) = path.file_name() {
-                let checksum: [u8; 32] = file_name
-                    .to_string_lossy()
-                    .as_ref()
-                    .as_bytes()
-                    .try_into()?;
-                files.insert(ExternalFileName(checksum));
+                if let Ok(buf) =
+                    hex::decode(file_name.to_string_lossy().as_ref())
+                {
+                    let checksum: std::result::Result<
+                        [u8; 32],
+                        TryFromSliceError,
+                    > = buf.as_slice().try_into();
+                    if let Ok(checksum) = checksum {
+                        files.insert(ExternalFileName(checksum));
+                    } else {
+                        tracing::warn!(
+                            file_name = %file_name.to_string_lossy().as_ref(),
+                            "skip file (not 32 bytes)",
+                        );
+                    }
+                } else {
+                    tracing::warn!(
+                        file_name = %file_name.to_string_lossy().as_ref(),
+                        "skip file (not hex)",
+                    );
+                }
             }
         }
     }

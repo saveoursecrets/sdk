@@ -11,7 +11,7 @@ use uuid::Uuid;
 use vcard4::{self};
 
 use crate::{
-    encoding::{encoding_error, decode_uuid},
+    encoding::{decode_uuid, encoding_error},
     vault::secret::{
         AgeVersion, FileContent, IdentityKind, Secret, SecretFlags,
         SecretMeta, SecretRow, SecretSigner, SecretType, UserData,

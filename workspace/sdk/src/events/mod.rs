@@ -13,8 +13,7 @@ mod types;
 mod write;
 
 pub use self::log::{
-    AccountEventLog, EventLogFile, EventRecord, EventReducer,
-    FolderEventLog,
+    AccountEventLog, EventLogFile, EventRecord, EventReducer, FolderEventLog,
 };
 
 #[cfg(feature = "files")]

@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     crypto::SEED_SIZE,
-    encoding::{encoding_error, decode_uuid},
+    encoding::{decode_uuid, encoding_error},
     recovery::{RecoveryData, RecoveryOptions, RecoveryPack},
 };
 

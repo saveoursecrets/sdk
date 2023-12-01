@@ -4,7 +4,7 @@ use crate::{
     commit::CommitHash,
     constants::VAULT_IDENTITY,
     crypto::{AeadPack, SEED_SIZE},
-    encoding::{encoding_error, decode_uuid},
+    encoding::{decode_uuid, encoding_error},
     formats::FileIdentity,
     vault::{
         secret::SecretId, Auth, Contents, Header, SharedAccess, Summary,
