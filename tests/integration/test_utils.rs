@@ -10,7 +10,7 @@ use url::Url;
 use web3_address::ethereum::Address;
 
 use sos_net::{
-    client::{NetworkAccount, Origin, RemoteBridge, RemoteSync},
+    client::{HostedOrigin, NetworkAccount, RemoteBridge, RemoteSync},
     mpc::{Keypair, PATTERN},
     sdk::{
         account::FolderStorage,
@@ -54,7 +54,7 @@ pub async fn sync_pause() {
 
 /// Create a remote provider for the given signing key.
 async fn remote_bridge(
-    origin: &Origin,
+    origin: &HostedOrigin,
     signer: BoxedEcdsaSigner,
     data_dir: Option<PathBuf>,
 ) -> Result<RemoteBridge> {
@@ -215,7 +215,7 @@ pub struct TestServer {
     #[allow(dead_code)]
     handle: ShutdownHandle,
     /// Origin for remote connections.
-    pub origin: Origin,
+    pub origin: HostedOrigin,
 }
 
 impl TestServer {
@@ -260,7 +260,7 @@ pub async fn spawn(
     Ok(TestServer {
         test_id: test_id.to_owned(),
         path,
-        origin: Origin {
+        origin: HostedOrigin {
             name: "origin".to_owned(),
             url: url.clone(),
             public_key: hex::decode(SERVER_PUBLIC_KEY)?,
@@ -423,7 +423,7 @@ pub async fn create_local_provider(
 
 pub async fn signup(
     data_dir: PathBuf,
-    origin: &Origin,
+    origin: &HostedOrigin,
 ) -> Result<(Address, AccountCredentials, RemoteBridge, BoxedEcdsaSigner)> {
     let signer: BoxedEcdsaSigner = Box::new(SingleParty::new_random());
 

@@ -35,8 +35,8 @@ use super::device::DeviceManager;
 
 use super::sync::{SyncHandler, SyncHandlerData};
 use crate::client::{
-    sync::SyncData, Origin, Remote, RemoteBridge, RemoteSync, Remotes,
-    Result, SyncError,
+    sync::SyncData, HostedOrigin, Origin, Remote, RemoteBridge, RemoteSync,
+    Remotes, Result, SyncError,
 };
 
 pub(super) type LocalAccount = Account<SyncHandlerData>;
@@ -188,7 +188,7 @@ impl NetworkAccount {
     /// signing identity and perform the initial noise protocol handshake.
     pub async fn remote_bridge(
         &self,
-        origin: &Origin,
+        origin: &HostedOrigin,
     ) -> Result<RemoteBridge> {
         let keypair = generate_keypair()?;
         let signer = self.user()?.identity()?.signer().clone();
@@ -211,13 +211,6 @@ impl NetworkAccount {
         remotes.insert(origin, remote);
     }
 
-    /*
-    /// Get a remote.
-    pub fn get_remote(&self, origin: &Origin) -> Option<&Remote> {
-        self.remotes.get(origin)
-    }
-    */
-
     /// Delete a remote if it exists.
     pub async fn delete_remote(&mut self, origin: &Origin) -> Option<Remote> {
         let mut remotes = self.remotes.write().await;
@@ -231,7 +224,11 @@ impl NetworkAccount {
 
     /// Sign in to an account.
     pub async fn sign_in(&mut self, passphrase: SecretString) -> Result<()> {
-        Ok(self.account.sign_in(passphrase).await?)
+        self.account.sign_in(passphrase).await?;
+
+        // TODO: load origins from disc
+
+        Ok(())
     }
 
     /// User storage paths.

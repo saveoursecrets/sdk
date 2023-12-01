@@ -45,7 +45,7 @@ use tokio::sync::{Mutex, RwLock};
 use url::Url;
 
 use crate::{
-    client::{Error, Origin, Result},
+    client::{Error, HostedOrigin, Result},
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
 };
 
@@ -68,7 +68,7 @@ async fn new_rpc_call<T: Serialize>(
 /// Client implementation for RPC requests.
 #[derive(Clone)]
 pub struct RpcClient {
-    origin: Origin,
+    origin: HostedOrigin,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
     protocol: Arc<RwLock<Option<ProtocolState>>>,
@@ -79,7 +79,7 @@ pub struct RpcClient {
 impl RpcClient {
     /// Create a new client.
     pub fn new(
-        origin: Origin,
+        origin: HostedOrigin,
         signer: BoxedEcdsaSigner,
         keypair: Keypair,
     ) -> Result<Self> {

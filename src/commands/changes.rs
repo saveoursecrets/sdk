@@ -1,7 +1,7 @@
 //! Listen for changes events on the server sent events channel.
 use futures::stream::StreamExt;
 use sos_net::{
-    client::{changes, connect, Origin},
+    client::{changes, connect, HostedOrigin},
     mpc::{generate_keypair, Keypair},
     sdk::{
         account::AccountRef, hex, signer::ecdsa::BoxedEcdsaSigner, url::Url,
@@ -18,7 +18,7 @@ async fn changes_stream(
     keypair: Keypair,
 ) -> sos_net::client::Result<()> {
     let name = hex::encode(&public_key);
-    let origin = Origin {
+    let origin = HostedOrigin {
         url,
         public_key,
         name,

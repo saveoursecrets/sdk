@@ -21,4 +21,4 @@ mod sync;
 pub use device::DeviceManager;
 
 pub use network_account::NetworkAccount;
-pub use remote::{Origin, Remote, RemoteBridge, Remotes};
+pub use remote::{HostedOrigin, Origin, Remote, RemoteBridge, Remotes};

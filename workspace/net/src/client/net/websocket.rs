@@ -32,7 +32,7 @@ use url::Url;
 use mpc_protocol::{generate_keypair, Keypair};
 use sos_sdk::{events::ChangeNotification, signer::ecdsa::BoxedEcdsaSigner};
 
-use crate::client::{Origin, Result, RpcClient};
+use crate::client::{HostedOrigin, Origin, Result, RpcClient};
 
 use super::encode_signature;
 
@@ -165,7 +165,7 @@ impl IntoClientRequest for WebSocketRequest {
 
 /// Create the websocket connection and listen for events.
 pub async fn connect(
-    origin: Origin,
+    origin: HostedOrigin,
     signer: BoxedEcdsaSigner,
     keypair: Keypair,
 ) -> Result<(WsStream, Arc<RpcClient>)> {
@@ -252,7 +252,7 @@ impl WebSocketHandle {
 /// Creates a websocket that listens for changes emitted by a remote
 /// server and invokes a handler with the change notifications.
 pub struct WebSocketChangeListener {
-    origin: Origin,
+    origin: HostedOrigin,
     signer: BoxedEcdsaSigner,
     options: ListenOptions,
     retries: Arc<Mutex<AtomicU64>>,
@@ -263,7 +263,7 @@ pub struct WebSocketChangeListener {
 impl WebSocketChangeListener {
     /// Create a new websocket changes listener.
     pub fn new(
-        origin: Origin,
+        origin: HostedOrigin,
         signer: BoxedEcdsaSigner,
         options: ListenOptions,
     ) -> Self {

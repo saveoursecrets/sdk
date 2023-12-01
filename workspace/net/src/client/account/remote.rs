@@ -10,6 +10,7 @@ use crate::{
 
 use async_trait::async_trait;
 use http::StatusCode;
+use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
     account::{AccountStatus, FolderStorage},
@@ -29,9 +30,10 @@ use tokio::sync::RwLock;
 
 use tracing::{span, Level};
 
-/// Remote origin information.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct Origin {
+/// Self hosted origin.
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostedOrigin {
     /// Name of the origin.
     pub name: String,
     /// URL of the remote server.
@@ -40,9 +42,42 @@ pub struct Origin {
     pub public_key: Vec<u8>,
 }
 
+/// Remote origin information.
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Origin {
+    /// Self hosted remote.
+    Hosted(HostedOrigin),
+}
+
+impl Origin {
+    /// The URL for this origin.
+    pub fn url(&self) -> &Url {
+        match self {
+            Self::Hosted(origin) => &origin.url,
+        }
+    }
+}
+
 impl fmt::Display for Origin {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ({})", self.name, self.url)
+        match self {
+            Self::Hosted(host) => {
+                write!(f, "{} ({})", host.name, host.url)
+            }
+        }
+    }
+}
+
+impl From<&HostedOrigin> for Origin {
+    fn from(value: &HostedOrigin) -> Self {
+        value.clone().into()
+    }
+}
+
+impl From<HostedOrigin> for Origin {
+    fn from(value: HostedOrigin) -> Self {
+        Origin::Hosted(value)
     }
 }
 
@@ -56,7 +91,7 @@ pub type Remotes = HashMap<Origin, Remote>;
 #[derive(Clone)]
 pub struct RemoteBridge {
     /// Origin for this remote.
-    origin: Origin,
+    origin: HostedOrigin,
     /// Local provider.
     local: Arc<RwLock<FolderStorage>>,
     /// Client to use for remote communication.
@@ -68,7 +103,7 @@ impl RemoteBridge {
     /// local provider.
     pub fn new(
         local: Arc<RwLock<FolderStorage>>,
-        origin: Origin,
+        origin: HostedOrigin,
         signer: BoxedEcdsaSigner,
         keypair: Keypair,
     ) -> Result<Self> {
@@ -434,7 +469,11 @@ impl RemoteSync for RemoteBridge {
         options: &SyncOptions,
     ) -> Option<SyncError> {
         let should_sync = options.origins.is_empty()
-            || options.origins.contains(&self.origin);
+            || options
+                .origins
+                .iter()
+                .find(|&o| o == &Origin::Hosted(self.origin.clone()))
+                .is_some();
 
         if !should_sync {
             return None;

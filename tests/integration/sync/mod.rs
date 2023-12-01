@@ -4,8 +4,8 @@ use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
     client::{
-        ListenOptions, NetworkAccount, Origin, RemoteBridge, RemoteSync,
-        WebSocketHandle,
+        HostedOrigin, ListenOptions, NetworkAccount, RemoteBridge,
+        RemoteSync, WebSocketHandle,
     },
     sdk::{
         constants::VAULT_EXT,
@@ -51,7 +51,7 @@ pub struct SimulatedDevice {
     pub owner: NetworkAccount,
     pub default_folder: Summary,
     pub folders: Vec<Summary>,
-    pub origin: Origin,
+    pub origin: HostedOrigin,
     pub dirs: TestDirs,
     pub default_folder_id: VaultId,
     pub data_dir: PathBuf,
@@ -64,7 +64,7 @@ impl SimulatedDevice {
     pub async fn connect(
         &self,
         index: usize,
-        origin: Option<Origin>,
+        origin: Option<HostedOrigin>,
     ) -> Result<SimulatedDevice> {
         let data_dir = self.dirs.clients.get(index).unwrap();
 
@@ -93,7 +93,7 @@ impl SimulatedDevice {
         let provider = owner.remote_bridge(&origin).await?;
         // Insert the remote for the other owner
         owner
-            .insert_remote(self.origin.clone(), Box::new(provider))
+            .insert_remote(self.origin.clone().into(), Box::new(provider))
             .await;
 
         // Use the default folder
@@ -117,7 +117,10 @@ impl SimulatedDevice {
     pub async fn listen(&self) -> Result<WebSocketHandle> {
         Ok(self
             .owner
-            .listen(&self.origin, ListenOptions::new(self.id.clone())?)
+            .listen(
+                &(&self.origin).into(),
+                ListenOptions::new(self.id.clone())?,
+            )
             .await?)
     }
 }
@@ -161,7 +164,7 @@ pub async fn simulate_device(
 
     // Insert the remote for the primary owner
     owner
-        .insert_remote(origin.clone(), Box::new(provider))
+        .insert_remote(origin.clone().into(), Box::new(provider))
         .await;
 
     //let default_folder_id = *default_folder.id();

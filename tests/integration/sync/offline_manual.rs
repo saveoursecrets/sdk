@@ -74,7 +74,11 @@ async fn integration_sync_offline_manual() -> Result<()> {
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
-    let mut provider = device1.owner.delete_remote(&origin).await.unwrap();
+    let mut provider = device1
+        .owner
+        .delete_remote(&(&origin).into())
+        .await
+        .unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
@@ -87,7 +91,11 @@ async fn integration_sync_offline_manual() -> Result<()> {
     )
     .await?;
 
-    let mut provider = device2.owner.delete_remote(&origin).await.unwrap();
+    let mut provider = device2
+        .owner
+        .delete_remote(&(&origin).into())
+        .await
+        .unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
