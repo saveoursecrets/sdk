@@ -873,11 +873,10 @@ impl<D> Account<D> {
         }
 
         let audit_event: AuditEvent =
-            (self.address(), &Event::Account(account_event)).into();
+            (self.address(), &Event::Account(account_event.clone())).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
-        let event = Event::Write(*summary.id(), event);
-        Ok((event, commit_state))
+        Ok((Event::Account(account_event), commit_state))
     }
 
     /// Rename a folder.
@@ -1825,14 +1824,14 @@ impl<D> Account<D> {
 
     /// Compact an event log file.
     pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-
         let (old_size, new_size) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer.compact(&summary).await?
         };
 
-        let auth = self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
+        let auth =
+            self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
         let event = AccountEvent::CompactFolder(*summary.id());
         let mut account_log = auth.account_log.write().await;
         account_log.apply(vec![&event]).await?;

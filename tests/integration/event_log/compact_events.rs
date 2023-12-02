@@ -1,13 +1,12 @@
+use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::{
     events::Patch,
     sdk::{
-        account::{
-            LocalAccount, UserPaths,
-        },
+        account::{LocalAccount, UserPaths},
+        events::{AccountEvent, AccountEventLog, FolderEventLog, WriteEvent},
         passwd::diceware::generate_passphrase,
-        events::{WriteEvent, FolderEventLog, AccountEvent, AccountEventLog},
     },
 };
 
@@ -51,18 +50,19 @@ async fn integration_events_compact() -> Result<()> {
 
     let bank = ids.pop().unwrap();
     let card = ids.pop().unwrap();
-    
+
     // Delete some secrets to create some more events
     account.delete_secret(&bank, Default::default()).await?;
     account.delete_secret(&card, Default::default()).await?;
 
-    let folder_events = account.paths().event_log_path(
-        default_folder.id().to_string());
+    let folder_events = account
+        .paths()
+        .event_log_path(default_folder.id().to_string());
     let mut event_log = FolderEventLog::new_folder(&folder_events).await?;
     let records = event_log.patch_until(None).await?;
     let patch: Patch = records.into();
     let events = patch.into_events::<WriteEvent>().await?;
-    // One create vault event, three create secret events 
+    // One create vault event, three create secret events
     // and two delete events
     assert_eq!(6, events.len());
 
@@ -70,7 +70,7 @@ async fn integration_events_compact() -> Result<()> {
 
     account.compact(&default_folder).await?;
 
-    // Now it's just the create vault and a single create 
+    // Now it's just the create vault and a single create
     // secret event
 
     // Check the in-memory commit tree
@@ -81,10 +81,10 @@ async fn integration_events_compact() -> Result<()> {
         assert_eq!(2, tree.len());
         tree.root().unwrap()
     };
-    
+
     // Trees have diverged
     assert_ne!(old_root.as_ref(), &new_root);
-    
+
     // Load a new patch from disc
     let records = event_log.patch_until(None).await?;
     let patch: Patch = records.into();
@@ -94,11 +94,8 @@ async fn integration_events_compact() -> Result<()> {
     // Check the account event log registered the compact event
     let account_events = account.paths().account_events();
     let mut event_log = AccountEventLog::new_account(&account_events).await?;
-    let records = event_log.patch_until(None).await?;
-    let patch: Patch = records.into();
-    let mut events = patch.into_events::<AccountEvent>().await?;
-    let compact_event = events.pop();
-    assert!(matches!(compact_event, Some(AccountEvent::CompactFolder(_))));
+    let event = last_log_event(&mut event_log, None).await?;
+    assert!(matches!(event, Some(AccountEvent::CompactFolder(_))));
 
     teardown(TEST_ID).await;
 

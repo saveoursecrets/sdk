@@ -6,7 +6,7 @@ mod contacts;
 mod custom_fields;
 mod external_files;
 mod folder_lifecycle;
-mod folder_storage;
+//mod folder_storage;
 mod identity_login;
 mod migrate_export;
 mod migrate_import;

@@ -444,14 +444,8 @@ impl<D> Account<D> {
 
         let event = FileEvent::MoveFile {
             name: file_name.to_owned(),
-            from: (
-                *old_vault_id,
-                *old_secret_id,
-            ),
-            dest: (
-                *new_vault_id,
-                *new_secret_id,
-            ),
+            from: (*old_vault_id, *old_secret_id),
+            dest: (*new_vault_id, *new_secret_id),
         };
 
         Ok(FileMutationEvent::Move(event))

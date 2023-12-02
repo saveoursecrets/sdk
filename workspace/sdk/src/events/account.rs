@@ -20,7 +20,6 @@ pub enum AccountEvent {
     /// Update folder name.
     UpdateFolderName(VaultId, String),
     */
-
     /// Change folder password.
     ChangeFolderPassword(VaultId, SecureAccessKey),
 

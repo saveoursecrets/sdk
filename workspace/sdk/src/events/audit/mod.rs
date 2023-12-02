@@ -176,7 +176,6 @@ impl<'a> From<(&Address, &Event)> for AuditEvent {
                     Event::Write(vault_id, event) => match event {
                         WriteEvent::CreateVault(_)
                         | WriteEvent::UpdateVault(_)
-                        | WriteEvent::DeleteVault
                         | WriteEvent::SetVaultName(_)
                         | WriteEvent::SetVaultMeta(_) => {
                             Some(AuditData::Vault(*vault_id))

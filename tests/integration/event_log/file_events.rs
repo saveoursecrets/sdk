@@ -106,10 +106,7 @@ async fn integration_events_file() -> Result<()> {
     ));
 
     // Moving event
-    assert!(matches!(
-        events.get(1),
-        Some(FileEvent::MoveFile { .. })
-    ));
+    assert!(matches!(events.get(1), Some(FileEvent::MoveFile { .. })));
 
     // Adding the file attachment triggered another create
     assert!(matches!(

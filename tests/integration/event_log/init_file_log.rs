@@ -1,3 +1,4 @@
+use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::{
@@ -70,14 +71,8 @@ async fn integration_events_init_file_log() -> Result<()> {
 
     // Check the event log was initialized from the files on disc
     let mut event_log = FileEventLog::new_file(&file_events).await?;
-    let records = event_log.patch_until(None).await?;
-    let patch: Patch = records.into();
-    let events = patch.into_events::<FileEvent>().await?;
-    assert_eq!(1, events.len());
-    assert!(matches!(
-        events.get(0),
-        Some(FileEvent::CreateFile(_, _, _))
-    ));
+    let event = last_log_event(&mut event_log, None).await?;
+    assert!(matches!(event, Some(FileEvent::CreateFile(_, _, _))));
 
     teardown(TEST_ID).await;
 

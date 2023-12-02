@@ -113,7 +113,7 @@ impl ChangeEvent {
                         .expect("failed to read summary from vault");
                     Some(ChangeEvent::CreateVault(summary, None))
                 }
-                WriteEvent::DeleteVault => Some(ChangeEvent::DeleteVault),
+                //WriteEvent::DeleteVault => Some(ChangeEvent::DeleteVault),
                 WriteEvent::SetVaultName(name) => {
                     Some(ChangeEvent::SetVaultName(name.to_string()))
                 }
@@ -143,7 +143,7 @@ impl ChangeEvent {
                     Header::read_summary_slice(vault.as_ref()).await?;
                 Ok(ChangeEvent::CreateVault(summary, None))
             }
-            WriteEvent::DeleteVault => Ok(ChangeEvent::DeleteVault),
+            //WriteEvent::DeleteVault => Ok(ChangeEvent::DeleteVault),
             WriteEvent::SetVaultName(name) => {
                 Ok(ChangeEvent::SetVaultName(name.to_string()))
             }

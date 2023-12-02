@@ -778,10 +778,7 @@ impl FolderStorage {
     }
 
     /// Remove a vault.
-    pub async fn remove_vault(
-        &mut self,
-        summary: &Summary,
-    ) -> Result<WriteEvent> {
+    pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
         // Remove the files
         self.remove_vault_file(summary).await?;
 
@@ -792,7 +789,7 @@ impl FolderStorage {
             .remove_folder_from_search_index(summary.id())
             .await;
 
-        Ok(WriteEvent::DeleteVault)
+        Ok(())
     }
 
     /// Set the name of a vault.

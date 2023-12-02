@@ -1,3 +1,4 @@
+use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::{
@@ -46,26 +47,20 @@ async fn integration_events_account() -> Result<()> {
     let events = patch.into_events::<AccountEvent>().await?;
     assert_eq!(3, events.len());
 
-    let commit = event_log.last_commit().await?;
-
     // Create a folder
+    let commit = event_log.last_commit().await?;
     let folder_name = "folder_name";
     let (folder, _, _, _) =
         account.create_folder(folder_name.to_string()).await?;
 
-    let records = event_log.patch_until(commit.as_ref()).await?;
-    let patch: Patch = records.into();
-    let mut events = patch.into_events::<AccountEvent>().await?;
-    let event = events.pop();
+    let event = last_log_event(&mut event_log, commit.as_ref()).await?;
     assert!(matches!(event, Some(AccountEvent::CreateFolder(_, _))));
 
     // Now delete the folder
+    let commit = event_log.last_commit().await?;
     account.delete_folder(&folder).await?;
 
-    let records = event_log.patch_until(commit.as_ref()).await?;
-    let patch: Patch = records.into();
-    let mut events = patch.into_events::<AccountEvent>().await?;
-    let event = events.pop();
+    let event = last_log_event(&mut event_log, commit.as_ref()).await?;
     assert!(matches!(event, Some(AccountEvent::DeleteFolder(_))));
 
     teardown(TEST_ID).await;
