@@ -8,7 +8,7 @@ use crate::vault::{secret::SecretId, VaultId};
 /// are content-addressable by SHA256 digest so
 /// changing a file's contents results in a
 /// delete and create.
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub enum FileEvent {
     #[default]
     #[doc(hidden)]

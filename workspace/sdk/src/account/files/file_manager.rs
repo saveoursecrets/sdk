@@ -4,6 +4,7 @@
 use crate::{
     account::files::{basename, EncryptedFile, FileStorage, FileStorageSync},
     account::Account,
+    events::FileEvent,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretRow, UserData},
         Summary, VaultId,
@@ -64,6 +65,29 @@ pub struct FileStorageResult {
     source: FileSource,
     /// Encrypted file data.
     encrypted_file: EncryptedFile,
+}
+
+/// Wraps the file storage information and a 
+/// related file event that can be persisted 
+/// to an event log.
+#[derive(Debug, Clone)]
+pub enum FileMutationEvent {
+    /// File was created.
+    Create {
+        /// Information the created file.
+        result: FileStorageResult,
+        /// An event that can be persisted to an event log.
+        event: FileEvent,
+    },
+    /// File was moved.
+    Move {
+        /// Delete event at the old location.
+        delete: FileEvent,
+        /// Create event at the new location.
+        create: FileEvent,
+    },
+    /// File was deleted.
+    Delete(FileEvent),
 }
 
 impl<D> Account<D> {
@@ -156,7 +180,7 @@ impl<D> Account<D> {
         summary: &Summary,
         secret_data: SecretRow,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<Vec<FileStorageResult>> {
+    ) -> Result<Vec<FileMutationEvent>> {
         self.write_update_checksum(summary, secret_data, None, file_progress)
             .await
     }
@@ -169,7 +193,7 @@ impl<D> Account<D> {
         old_secret: &SecretRow,
         new_secret: SecretRow,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<Vec<FileStorageResult>> {
+    ) -> Result<Vec<FileMutationEvent>> {
         let mut results = Vec::new();
 
         let old_secret_id = old_secret.id();
@@ -187,18 +211,19 @@ impl<D> Account<D> {
 
         // Delete any attachments that no longer exist
         if !deleted.is_empty() {
-            self.delete_files(
+            let deleted = self.delete_files(
                 old_summary,
                 old_secret,
                 Some(deleted),
                 file_progress,
             )
             .await?;
+            results.extend_from_slice(&deleted);
         }
 
         // Move unchanged files
         if has_moved {
-            self.move_files(
+            let moved = self.move_files(
                 &new_secret,
                 old_summary.id(),
                 new_summary.id(),
@@ -208,6 +233,7 @@ impl<D> Account<D> {
                 file_progress,
             )
             .await?;
+            results.extend_from_slice(&moved);
         }
 
         // Write changed files to the new location
@@ -233,7 +259,10 @@ impl<D> Account<D> {
         secret_data: &SecretRow,
         targets: Option<Vec<&Secret>>,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<()> {
+    ) -> Result<Vec<FileMutationEvent>> {
+        
+        let mut events = Vec::new();
+
         let id = secret_data.id();
         let targets = targets.unwrap_or_else(|| {
             get_external_file_secrets(&secret_data.secret)
@@ -265,10 +294,10 @@ impl<D> Account<D> {
             }
 
             let file_name = hex::encode(checksum);
-            self.delete_file(summary.id(), id, &file_name).await?;
+            events.push(
+                self.delete_file(summary.id(), id, &file_name).await?);
         }
-
-        Ok(())
+        Ok(events.into_iter().map(|e| FileMutationEvent::Delete(e)).collect())
     }
 
     /// Delete a file from the storage location.
@@ -277,7 +306,7 @@ impl<D> Account<D> {
         vault_id: &VaultId,
         secret_id: &SecretId,
         file_name: &str,
-    ) -> Result<()> {
+    ) -> Result<FileEvent> {
         let vault_path = self.paths().files_dir().join(vault_id.to_string());
         let secret_path = vault_path.join(secret_id.to_string());
         let path = secret_path.join(file_name);
@@ -294,7 +323,8 @@ impl<D> Account<D> {
             vfs::remove_dir(vault_path).await?;
         }
 
-        Ok(())
+        Ok(FileEvent::DeleteFile(
+            *vault_id, *secret_id, file_name.to_owned()))
     }
 
     /// Move a collection of external storage files.
@@ -307,7 +337,8 @@ impl<D> Account<D> {
         new_secret_id: &SecretId,
         targets: Option<Vec<&Secret>>,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<()> {
+    ) -> Result<Vec<FileMutationEvent>> {
+        let mut events = Vec::new();
         let targets = targets.unwrap_or_else(|| {
             get_external_file_secrets(&secret_data.secret)
         });
@@ -328,17 +359,17 @@ impl<D> Account<D> {
 
                 let file_name = hex::encode(checksum);
 
-                self.move_file(
+                events.push(self.move_file(
                     old_vault_id,
                     new_vault_id,
                     old_secret_id,
                     new_secret_id,
                     &file_name,
                 )
-                .await?;
+                .await?);
             }
         }
-        Ok(())
+        Ok(events)
     }
 
     /// Move the encrypted file for external file storage.
@@ -349,7 +380,7 @@ impl<D> Account<D> {
         old_secret_id: &SecretId,
         new_secret_id: &SecretId,
         file_name: &str,
-    ) -> Result<()> {
+    ) -> Result<FileMutationEvent> {
         let old_vault_path =
             self.paths().files_dir().join(old_vault_id.to_string());
         let old_secret_path = old_vault_path.join(old_secret_id.to_string());
@@ -381,7 +412,12 @@ impl<D> Account<D> {
             vfs::remove_dir(old_vault_path).await?;
         }
 
-        Ok(())
+        let delete = FileEvent::DeleteFile(
+            *old_vault_id, *old_secret_id, file_name.to_owned());
+        let create = FileEvent::CreateFile(
+            *new_vault_id, *new_secret_id, file_name.to_owned());
+
+        Ok(FileMutationEvent::Move { delete, create })
     }
 
     // Encrypt files and write to disc; afterwards update the
@@ -392,7 +428,7 @@ impl<D> Account<D> {
         mut secret_data: SecretRow,
         sources: Option<Vec<FileSource>>,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<Vec<FileStorageResult>> {
+    ) -> Result<Vec<FileMutationEvent>> {
         let span = span!(Level::DEBUG, "write_update_checksum");
         let _enter = span.enter();
 
@@ -421,18 +457,25 @@ impl<D> Account<D> {
                     .encrypt_file_storage(summary.id(), &id, &source.path)
                     .await?;
 
-                tracing::debug!(checksum = %hex::encode(&encrypted_file.digest));
-                results.push(FileStorageResult {
-                    source,
-                    encrypted_file,
-                });
+                let file_name = hex::encode(&encrypted_file.digest);
+                tracing::debug!(checksum = %file_name);
+                
+                let mutation_data = (
+                    FileStorageResult {
+                        source,
+                        encrypted_file,
+                    },
+                    FileEvent::CreateFile(
+                        *summary.id(), id, file_name),
+                );
+                results.push(mutation_data);
             }
         }
 
-        let file = results.iter().find(|r| r.source.field_index.is_none());
+        let file = results.iter().find(|r| r.0.source.field_index.is_none());
         let mut attachments = Vec::new();
         for r in &results {
-            if r.source.field_index.is_some() {
+            if r.0.source.field_index.is_some() {
                 attachments.push(r);
             }
         }
@@ -460,15 +503,15 @@ impl<D> Account<D> {
             {
                 if let Some(attachment) = attachments
                     .iter()
-                    .find(|a| a.source.field_index == Some(index))
+                    .find(|a| a.0.source.field_index == Some(index))
                 {
                     fields.push(SecretRow::new(
                         *field.id(),
                         field.meta().clone(),
                         copy_file_secret(
                             field.secret(),
-                            Some(attachment.encrypted_file.digest.clone()),
-                            Some(attachment.encrypted_file.size),
+                            Some(attachment.0.encrypted_file.digest.clone()),
+                            Some(attachment.0.encrypted_file.size),
                             None,
                         )?,
                     ));
@@ -493,8 +536,8 @@ impl<D> Account<D> {
             (
                 copy_file_secret(
                     &secret_data.secret,
-                    file.as_ref().map(|f| f.encrypted_file.digest.clone()),
-                    file.as_ref().map(|f| f.encrypted_file.size),
+                    file.as_ref().map(|f| f.0.encrypted_file.digest.clone()),
+                    file.as_ref().map(|f| f.0.encrypted_file.size),
                     new_user_data,
                 )?,
                 true,
@@ -513,8 +556,14 @@ impl<D> Account<D> {
             self.write_secret(&id, secret_data, Some(summary.clone()), false)
                 .await?;
         }
-
-        Ok(results)
+        
+        let events = results.into_iter().map(|data| {
+            FileMutationEvent::Create {
+                result: data.0,
+                event: data.1,
+            }
+        }).collect::<Vec<_>>();
+        Ok(events)
     }
 }
 
