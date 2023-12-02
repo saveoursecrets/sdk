@@ -1822,4 +1822,11 @@ impl<D> Account<D> {
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
         Ok(log_file.commit_state().await?)
     }
+
+    /// Compact an event log file.
+    pub async fn compact(&self, summary: &Summary) -> Result<(u64, u64)> {
+        let storage = self.storage()?;
+        let mut writer = storage.write().await;
+        writer.compact(&summary).await
+    }
 }

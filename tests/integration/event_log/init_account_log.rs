@@ -42,8 +42,9 @@ async fn integration_events_init_account_log() -> Result<()> {
     let mut event_log = AccountEventLog::new_account(&account_events).await?;
     let records = event_log.patch_until(None).await?;
     let patch: Patch = records.into();
-    assert_eq!(3, patch.len());
     let events = patch.into_events::<AccountEvent>().await?;
+    assert_eq!(3, events.len());
+
     assert!(matches!(
         events.get(0),
         Some(AccountEvent::CreateFolder(_, _))

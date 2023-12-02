@@ -15,12 +15,11 @@ pub enum AccountEvent {
 
     /// Folder events were compacted.
     CompactFolder(VaultId),
-    
+
     /*
     /// Update folder name.
     UpdateFolderName(VaultId, String),
     */
-
     /// Change folder password.
     ChangeFolderPassword(VaultId, SecureAccessKey),
 

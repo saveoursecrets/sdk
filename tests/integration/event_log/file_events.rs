@@ -77,7 +77,7 @@ async fn integration_events_file() -> Result<()> {
             None,
         )
         .await?;
-    
+
     // Delete the secret should remove the file secret
     // and the file attachment (two delete events)
     account
@@ -120,7 +120,7 @@ async fn integration_events_file() -> Result<()> {
         events.get(3),
         Some(FileEvent::CreateFile(_, _, _))
     ));
-    
+
     // Both files were deleted
     assert!(matches!(
         events.get(4),

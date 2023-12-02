@@ -690,6 +690,11 @@ impl NetworkAccount {
         Ok(self.account.commit_state(summary).await?)
     }
 
+    /// Compact an event log file.
+    pub async fn compact(&self, summary: &Summary) -> Result<(u64, u64)> {
+        Ok(self.account.compact(summary).await?)
+    }
+
     /// Expected location for a file by convention.
     pub fn file_location(
         &self,

@@ -72,8 +72,8 @@ async fn integration_events_init_file_log() -> Result<()> {
     let mut event_log = FileEventLog::new_file(&file_events).await?;
     let records = event_log.patch_until(None).await?;
     let patch: Patch = records.into();
-    assert_eq!(1, patch.len());
     let events = patch.into_events::<FileEvent>().await?;
+    assert_eq!(1, events.len());
     assert!(matches!(
         events.get(0),
         Some(FileEvent::CreateFile(_, _, _))
