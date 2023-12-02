@@ -80,12 +80,7 @@ pub enum FileMutationEvent {
         event: FileEvent,
     },
     /// File was moved.
-    Move {
-        /// Delete event at the old location.
-        delete: FileEvent,
-        /// Create event at the new location.
-        create: FileEvent,
-    },
+    Move(FileEvent),
     /// File was deleted.
     Delete(FileEvent),
 }
@@ -102,10 +97,7 @@ impl<D> Account<D> {
                 FileMutationEvent::Create { event, .. } => {
                     file_events.push(event)
                 }
-                FileMutationEvent::Move { delete, create } => {
-                    file_events.push(delete);
-                    file_events.push(create);
-                }
+                FileMutationEvent::Move(event) => file_events.push(event),
                 FileMutationEvent::Delete(event) => file_events.push(event),
             }
         }
@@ -450,18 +442,19 @@ impl<D> Account<D> {
             vfs::remove_dir(old_vault_path).await?;
         }
 
-        let delete = FileEvent::DeleteFile(
-            *old_vault_id,
-            *old_secret_id,
-            file_name.to_owned(),
-        );
-        let create = FileEvent::CreateFile(
-            *new_vault_id,
-            *new_secret_id,
-            file_name.to_owned(),
-        );
+        let event = FileEvent::MoveFile {
+            name: file_name.to_owned(),
+            from: (
+                *old_vault_id,
+                *old_secret_id,
+            ),
+            dest: (
+                *new_vault_id,
+                *new_secret_id,
+            ),
+        };
 
-        Ok(FileMutationEvent::Move { delete, create })
+        Ok(FileMutationEvent::Move(event))
     }
 
     // Encrypt files and write to disc; afterwards update the

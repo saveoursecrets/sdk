@@ -97,7 +97,7 @@ async fn integration_events_file() -> Result<()> {
     let records = event_log.patch_until(None).await?;
     let patch: Patch = records.into();
     let events = patch.into_events::<FileEvent>().await?;
-    assert_eq!(6, events.len());
+    assert_eq!(5, events.len());
 
     // Initial file secret creation
     assert!(matches!(
@@ -105,29 +105,25 @@ async fn integration_events_file() -> Result<()> {
         Some(FileEvent::CreateFile(_, _, _))
     ));
 
-    // Moving triggered delete and create events
+    // Moving event
     assert!(matches!(
         events.get(1),
-        Some(FileEvent::DeleteFile(_, _, _))
+        Some(FileEvent::MoveFile { .. })
     ));
+
+    // Adding the file attachment triggered another create
     assert!(matches!(
         events.get(2),
         Some(FileEvent::CreateFile(_, _, _))
     ));
 
-    // Adding the file attachment triggered another create
-    assert!(matches!(
-        events.get(3),
-        Some(FileEvent::CreateFile(_, _, _))
-    ));
-
     // Both files were deleted
     assert!(matches!(
-        events.get(4),
+        events.get(3),
         Some(FileEvent::DeleteFile(_, _, _))
     ));
     assert!(matches!(
-        events.get(5),
+        events.get(4),
         Some(FileEvent::DeleteFile(_, _, _))
     ));
 

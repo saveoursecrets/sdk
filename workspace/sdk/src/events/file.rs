@@ -15,6 +15,15 @@ pub enum FileEvent {
     Noop,
     /// File was created.
     CreateFile(VaultId, SecretId, String),
+    /// File was moved.
+    MoveFile {
+        /// File name.
+        name: String,
+        /// From identifiers.
+        from: (VaultId, SecretId),
+        /// Destination identifiers.
+        dest: (VaultId, SecretId),
+    },
     /// File was deleted.
     DeleteFile(VaultId, SecretId, String),
 }
@@ -24,6 +33,7 @@ impl LogEvent for FileEvent {
         match self {
             Self::Noop => EventKind::Noop,
             Self::CreateFile(_, _, _) => EventKind::CreateFile,
+            Self::MoveFile { .. } => EventKind::MoveFile,
             Self::DeleteFile(_, _, _) => EventKind::DeleteFile,
         }
     }

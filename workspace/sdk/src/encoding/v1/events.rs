@@ -562,6 +562,13 @@ impl Encodable for FileEvent {
                 writer.write_bytes(secret_id.as_bytes()).await?;
                 writer.write_string(file_name).await?;
             }
+            FileEvent::MoveFile { name, from, dest } => {
+                writer.write_string(name).await?;
+                writer.write_bytes(from.0.as_bytes()).await?;
+                writer.write_bytes(from.1.as_bytes()).await?;
+                writer.write_bytes(dest.0.as_bytes()).await?;
+                writer.write_bytes(dest.1.as_bytes()).await?;
+            }
         }
         Ok(())
     }
@@ -589,6 +596,18 @@ impl Decodable for FileEvent {
                 let secret_id = decode_uuid(&mut *reader).await?;
                 let file_name = reader.read_string().await?;
                 *self = FileEvent::DeleteFile(folder_id, secret_id, file_name)
+            }
+            EventKind::MoveFile => {
+                let name = reader.read_string().await?;
+                let from = (
+                    decode_uuid(&mut *reader).await?,
+                    decode_uuid(&mut *reader).await?,
+                );
+                let dest = (
+                    decode_uuid(&mut *reader).await?,
+                    decode_uuid(&mut *reader).await?,
+                );
+                *self = FileEvent::MoveFile { name, from, dest }
             }
             _ => {
                 return Err(Error::new(

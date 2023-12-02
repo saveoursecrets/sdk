@@ -55,12 +55,14 @@ const EXPORT_CONTACTS: u16 = 22;
 const IMPORT_CONTACTS: u16 = 23;
 /// Type identifier for creating a file.
 const CREATE_FILE: u16 = 24;
+/// Type identifier for moving a file.
+const MOVE_FILE: u16 = 25;
 /// Type identifier for deleting a file.
-const DELETE_FILE: u16 = 25;
+const DELETE_FILE: u16 = 26;
 /// Type identifier for vault event compaction.
-const COMPACT_VAULT: u16 = 26;
+const COMPACT_VAULT: u16 = 27;
 /// Type identifier for changing a password.
-const CHANGE_PASSWORD: u16 = 27;
+const CHANGE_PASSWORD: u16 = 28;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -116,6 +118,8 @@ pub enum EventKind {
     ImportContacts,
     /// Event for creating a file.
     CreateFile,
+    /// Event for moving a file.
+    MoveFile,
     /// Event for deleting a file.
     DeleteFile,
     /// Event for vault compaction.
@@ -159,6 +163,7 @@ impl TryFrom<u16> for EventKind {
             EXPORT_CONTACTS => EventKind::ExportContacts,
             IMPORT_CONTACTS => EventKind::ImportContacts,
             CREATE_FILE => EventKind::CreateFile,
+            MOVE_FILE => EventKind::MoveFile,
             DELETE_FILE => EventKind::DeleteFile,
             COMPACT_VAULT => EventKind::CompactVault,
             CHANGE_PASSWORD => EventKind::ChangePassword,
@@ -195,6 +200,7 @@ impl From<&EventKind> for u16 {
             EventKind::ExportContacts => EXPORT_CONTACTS,
             EventKind::ImportContacts => IMPORT_CONTACTS,
             EventKind::CreateFile => CREATE_FILE,
+            EventKind::MoveFile => MOVE_FILE,
             EventKind::DeleteFile => DELETE_FILE,
             EventKind::CompactVault => COMPACT_VAULT,
             EventKind::ChangePassword => CHANGE_PASSWORD,
@@ -237,6 +243,7 @@ impl fmt::Display for EventKind {
                 EventKind::ExportContacts => "EXPORT_CONTACTS",
                 EventKind::ImportContacts => "IMPORT_CONTACTS",
                 EventKind::CreateFile => "CREATE_FILE",
+                EventKind::MoveFile => "MOVE_FILE",
                 EventKind::DeleteFile => "DELETE_FILE",
                 EventKind::CompactVault => "COMPACT_FOLDER",
                 EventKind::ChangePassword => "CHANGE_PASSWORD",
