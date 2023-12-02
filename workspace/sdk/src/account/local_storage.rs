@@ -909,7 +909,11 @@ impl FolderStorage {
         
         let index_doc = {
             let search = self.index.search();
-            let index = search.read().await;
+            let mut index = search.write().await;
+            // Must remove from the index before we 
+            // prepare a new document
+            index.remove(summary.id(), id);
+
             index.prepare(
                 summary.id(),
                 id,
@@ -930,7 +934,6 @@ impl FolderStorage {
         {
             let search = self.index.search();
             let mut index = search.write().await;
-            index.remove(summary.id(), id);
             index.commit(index_doc)
         }
 
