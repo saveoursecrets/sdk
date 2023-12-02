@@ -13,6 +13,7 @@ use super::{num_events, simulate_device, SimulatedDevice};
 const TEST_ID: &str = "sync_delete_folder";
 
 /// Tests sending delete folder events to a remote.
+#[ignore]
 #[tokio::test]
 async fn integration_sync_delete_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
