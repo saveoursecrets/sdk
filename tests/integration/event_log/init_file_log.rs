@@ -3,12 +3,11 @@ use anyhow::Result;
 use sos_net::{
     events::Patch,
     sdk::{
-        account::{
-            LocalAccount, UserPaths,
-        },
+        account::{LocalAccount, UserPaths},
         events::{FileEvent, FileEventLog},
         passwd::diceware::generate_passphrase,
         vault::secret::{IdentityKind, SecretType},
+        vfs,
     },
 };
 
@@ -35,24 +34,67 @@ async fn integration_events_init_file_log() -> Result<()> {
         None,
     )
     .await?;
-    
+
     let default_folder = new_account.default_folder();
     account.sign_in(password.clone()).await?;
     account.open_folder(&default_folder).await?;
-    
+
     // Create an external file secret
-    let (meta, secret, file_path) = mock::file_image_secret()?;
-    account.create_secret(meta, secret, Default::default()).await?;
-    
+    let (meta, secret, file_path) = mock::file_text_secret()?;
+    let (id, _, _, _) = account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+
+    account.delete_secret(&id, Default::default()).await?;
+
+    // Create another file for assertion on lazy initialization
+    let (meta, secret, file_path) = mock::file_text_secret()?;
+    let (id, _, _, _) = account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+
     // Store the file events log so we can delete and re-create
     let file_events = account.paths().file_events();
 
     let mut event_log = FileEventLog::new_file(&file_events).await?;
     let records = event_log.patch_until(None).await?;
     let patch: Patch = records.into();
+    assert_eq!(3, patch.len());
+    let events = patch.into_events::<FileEvent>().await?;
+    assert!(matches!(
+        events.get(0),
+        Some(FileEvent::CreateFile(_, _, _))
+    ));
+    assert!(matches!(
+        events.get(1),
+        Some(FileEvent::DeleteFile(_, _, _))
+    ));
+    assert!(matches!(
+        events.get(2),
+        Some(FileEvent::CreateFile(_, _, _))
+    ));
 
-    println!("File events: {}", patch.len());
-    
+    // Sign out the account
+    account.sign_out().await?;
+
+    // Delete the file events stored on disc
+    vfs::remove_file(&file_events).await?;
+
+    // Sign in again to lazily create the file events
+    // from the state on disc
+    account.sign_in(password.clone()).await?;
+
+    // Check the event log was initialized from the files on disc
+    let mut event_log = FileEventLog::new_file(&file_events).await?;
+    let records = event_log.patch_until(None).await?;
+    let patch: Patch = records.into();
+    assert_eq!(1, patch.len());
+    let events = patch.into_events::<FileEvent>().await?;
+    assert!(matches!(
+        events.get(0),
+        Some(FileEvent::CreateFile(_, _, _))
+    ));
+
     teardown(TEST_ID).await;
 
     Ok(())

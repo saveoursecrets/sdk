@@ -201,7 +201,7 @@ pub struct AccountData {
 }
 
 /// Account information when signed in.
-struct Authenticated {
+pub(super) struct Authenticated {
     /// Authenticated user.
     user: Identity,
 
@@ -213,7 +213,7 @@ struct Authenticated {
 
     /// File event log.
     #[cfg(feature = "files")]
-    file_log: Arc<RwLock<FileEventLog>>,
+    pub(super) file_log: Arc<RwLock<FileEventLog>>,
 }
 
 /// User account backed by the filesystem.
@@ -233,7 +233,7 @@ pub struct Account<D> {
 
     /// Account information after a successful
     /// sign in.
-    authenticated: Option<Authenticated>,
+    pub(super) authenticated: Option<Authenticated>,
 
     /// Storage paths.
     pub(super) paths: Arc<UserPaths>,
@@ -1281,14 +1281,6 @@ impl<D> Account<D> {
 
         let id = SecretId::new_v4();
 
-        /*
-        let index_doc = {
-            let search = self.index()?.search();
-            let index = search.read().await;
-            index.prepare(folder.id(), &id, &meta, &secret)
-        };
-        */
-
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
@@ -1296,14 +1288,6 @@ impl<D> Account<D> {
                 .create_secret(id, meta.clone(), secret.clone())
                 .await?
         };
-
-        /*
-        {
-            let search = self.index()?.search();
-            let mut index = search.write().await;
-            index.commit(index_doc)
-        }
-        */
 
         let secret_data = SecretRow::new(id, meta, secret);
         let current_folder = {
@@ -1317,12 +1301,16 @@ impl<D> Account<D> {
         };
 
         #[cfg(feature = "files")]
-        self.create_files(
-            &current_folder,
-            secret_data,
-            &mut options.file_progress,
-        )
-        .await?;
+        {
+            let events = self
+                .create_files(
+                    &current_folder,
+                    secret_data,
+                    &mut options.file_progress,
+                )
+                .await?;
+            self.append_file_mutation_events(&events).await?;
+        }
 
         let event = Event::Write(*folder.id(), event);
         if audit {
@@ -1435,14 +1423,18 @@ impl<D> Account<D> {
 
         // Must update the files before moving so checksums are correct
         #[cfg(feature = "files")]
-        self.update_files(
-            &folder,
-            &folder,
-            &old_secret_data,
-            secret_data,
-            &mut options.file_progress,
-        )
-        .await?;
+        {
+            let events = self
+                .update_files(
+                    &folder,
+                    &folder,
+                    &old_secret_data,
+                    secret_data,
+                    &mut options.file_progress,
+                )
+                .await?;
+            self.append_file_mutation_events(&events).await?;
+        }
 
         let id = if let Some(to) = destination.as_ref() {
             let (new_id, _) =
@@ -1559,16 +1551,20 @@ impl<D> Account<D> {
         let delete_event = self.remove_secret(secret_id, None, false).await?;
 
         #[cfg(feature = "files")]
-        self.move_files(
-            &move_secret_data,
-            from.id(),
-            to.id(),
-            secret_id,
-            &new_id,
-            None,
-            &mut options.file_progress,
-        )
-        .await?;
+        {
+            let events = self
+                .move_files(
+                    &move_secret_data,
+                    from.id(),
+                    to.id(),
+                    secret_id,
+                    &new_id,
+                    None,
+                    &mut options.file_progress,
+                )
+                .await?;
+            self.append_file_mutation_events(&events).await?;
+        }
 
         let (_, create_event) = create_event.try_into()?;
         let (_, delete_event) = delete_event.try_into()?;
@@ -1606,13 +1602,17 @@ impl<D> Account<D> {
         let event = self.remove_secret(secret_id, None, true).await?;
 
         #[cfg(feature = "files")]
-        self.delete_files(
-            &folder,
-            &secret_data,
-            None,
-            &mut options.file_progress,
-        )
-        .await?;
+        {
+            let events = self
+                .delete_files(
+                    &folder,
+                    &secret_data,
+                    None,
+                    &mut options.file_progress,
+                )
+                .await?;
+            self.append_file_mutation_events(&events).await?;
+        }
 
         Ok((event, commit_state, folder))
     }

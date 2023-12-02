@@ -320,13 +320,14 @@ impl Service for EventLogService {
                             // Changes events for the SSE channel
                             #[cfg(feature = "listen")]
                             let change_events = {
-
                                 let mut change_events: Vec<ChangeEvent> =
                                     Vec::new();
                                 for event in change_set.iter() {
                                     let event =
-                                        ChangeEvent::try_from_write_event(event)
-                                            .await;
+                                        ChangeEvent::try_from_write_event(
+                                            event,
+                                        )
+                                        .await;
                                     if event.is_ok() {
                                         change_events.push(event?);
                                     }
@@ -360,7 +361,7 @@ impl Service for EventLogService {
                             // Get a new commit proof for the last leaf hash
                             let proof = event_log.tree().head()?;
 
-                            Ok(PatchResult::Success{
+                            Ok(PatchResult::Success {
                                 address: caller.address,
                                 audit_logs,
                                 #[cfg(feature = "listen")]

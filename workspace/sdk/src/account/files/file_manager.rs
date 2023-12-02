@@ -67,8 +67,8 @@ pub struct FileStorageResult {
     encrypted_file: EncryptedFile,
 }
 
-/// Wraps the file storage information and a 
-/// related file event that can be persisted 
+/// Wraps the file storage information and a
+/// related file event that can be persisted
 /// to an event log.
 #[derive(Debug, Clone)]
 pub enum FileMutationEvent {
@@ -91,6 +91,35 @@ pub enum FileMutationEvent {
 }
 
 impl<D> Account<D> {
+    /// Append file mutation events to the file event log.
+    pub(crate) async fn append_file_mutation_events(
+        &mut self,
+        events: &[FileMutationEvent],
+    ) -> Result<()> {
+        let mut file_events = Vec::new();
+        for event in events {
+            match event {
+                FileMutationEvent::Create { event, .. } => {
+                    file_events.push(event)
+                }
+                FileMutationEvent::Move { delete, create } => {
+                    file_events.push(delete);
+                    file_events.push(create);
+                }
+                FileMutationEvent::Delete(event) => file_events.push(event),
+            }
+        }
+
+        {
+            let auth =
+                self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
+            let mut writer = auth.file_log.write().await;
+            writer.apply(file_events).await?;
+        }
+
+        Ok(())
+    }
+
     /// Encrypt a file and move it to the external file storage location.
     async fn encrypt_file_storage<P: AsRef<Path>>(
         &self,
@@ -211,28 +240,30 @@ impl<D> Account<D> {
 
         // Delete any attachments that no longer exist
         if !deleted.is_empty() {
-            let deleted = self.delete_files(
-                old_summary,
-                old_secret,
-                Some(deleted),
-                file_progress,
-            )
-            .await?;
+            let deleted = self
+                .delete_files(
+                    old_summary,
+                    old_secret,
+                    Some(deleted),
+                    file_progress,
+                )
+                .await?;
             results.extend_from_slice(&deleted);
         }
 
         // Move unchanged files
         if has_moved {
-            let moved = self.move_files(
-                &new_secret,
-                old_summary.id(),
-                new_summary.id(),
-                old_secret_id,
-                new_secret_id,
-                Some(unchanged_files),
-                file_progress,
-            )
-            .await?;
+            let moved = self
+                .move_files(
+                    &new_secret,
+                    old_summary.id(),
+                    new_summary.id(),
+                    old_secret_id,
+                    new_secret_id,
+                    Some(unchanged_files),
+                    file_progress,
+                )
+                .await?;
             results.extend_from_slice(&moved);
         }
 
@@ -260,7 +291,6 @@ impl<D> Account<D> {
         targets: Option<Vec<&Secret>>,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileMutationEvent>> {
-        
         let mut events = Vec::new();
 
         let id = secret_data.id();
@@ -294,10 +324,13 @@ impl<D> Account<D> {
             }
 
             let file_name = hex::encode(checksum);
-            events.push(
-                self.delete_file(summary.id(), id, &file_name).await?);
+            events
+                .push(self.delete_file(summary.id(), id, &file_name).await?);
         }
-        Ok(events.into_iter().map(|e| FileMutationEvent::Delete(e)).collect())
+        Ok(events
+            .into_iter()
+            .map(|e| FileMutationEvent::Delete(e))
+            .collect())
     }
 
     /// Delete a file from the storage location.
@@ -324,7 +357,10 @@ impl<D> Account<D> {
         }
 
         Ok(FileEvent::DeleteFile(
-            *vault_id, *secret_id, file_name.to_owned()))
+            *vault_id,
+            *secret_id,
+            file_name.to_owned(),
+        ))
     }
 
     /// Move a collection of external storage files.
@@ -359,14 +395,16 @@ impl<D> Account<D> {
 
                 let file_name = hex::encode(checksum);
 
-                events.push(self.move_file(
-                    old_vault_id,
-                    new_vault_id,
-                    old_secret_id,
-                    new_secret_id,
-                    &file_name,
-                )
-                .await?);
+                events.push(
+                    self.move_file(
+                        old_vault_id,
+                        new_vault_id,
+                        old_secret_id,
+                        new_secret_id,
+                        &file_name,
+                    )
+                    .await?,
+                );
             }
         }
         Ok(events)
@@ -413,9 +451,15 @@ impl<D> Account<D> {
         }
 
         let delete = FileEvent::DeleteFile(
-            *old_vault_id, *old_secret_id, file_name.to_owned());
+            *old_vault_id,
+            *old_secret_id,
+            file_name.to_owned(),
+        );
         let create = FileEvent::CreateFile(
-            *new_vault_id, *new_secret_id, file_name.to_owned());
+            *new_vault_id,
+            *new_secret_id,
+            file_name.to_owned(),
+        );
 
         Ok(FileMutationEvent::Move { delete, create })
     }
@@ -459,14 +503,13 @@ impl<D> Account<D> {
 
                 let file_name = hex::encode(&encrypted_file.digest);
                 tracing::debug!(checksum = %file_name);
-                
+
                 let mutation_data = (
                     FileStorageResult {
                         source,
                         encrypted_file,
                     },
-                    FileEvent::CreateFile(
-                        *summary.id(), id, file_name),
+                    FileEvent::CreateFile(*summary.id(), id, file_name),
                 );
                 results.push(mutation_data);
             }
@@ -556,13 +599,14 @@ impl<D> Account<D> {
             self.write_secret(&id, secret_data, Some(summary.clone()), false)
                 .await?;
         }
-        
-        let events = results.into_iter().map(|data| {
-            FileMutationEvent::Create {
+
+        let events = results
+            .into_iter()
+            .map(|data| FileMutationEvent::Create {
                 result: data.0,
                 event: data.1,
-            }
-        }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
         Ok(events)
     }
 }

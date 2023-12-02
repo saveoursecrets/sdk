@@ -118,7 +118,7 @@ impl Service for AccountService {
                     (request.id(), &proof).try_into()?;
 
                 let vault_id = *summary.id();
-                
+
                 #[cfg(feature = "listen")]
                 let notification = ChangeNotification::new(
                     caller.address(),

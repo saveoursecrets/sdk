@@ -1,9 +1,6 @@
 use super::{
     config::TlsConfig,
-    handlers::{
-        api, connections, home,
-        service::ServiceHandler,
-    },
+    handlers::{api, connections, home, service::ServiceHandler},
     Backend, Result, ServerConfig, TransportManager,
 };
 use axum::{

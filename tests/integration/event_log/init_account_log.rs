@@ -3,9 +3,7 @@ use anyhow::Result;
 use sos_net::{
     events::Patch,
     sdk::{
-        account::{
-            LocalAccount, UserPaths,
-        },
+        account::{LocalAccount, UserPaths},
         events::{AccountEvent, AccountEventLog},
         passwd::diceware::generate_passphrase,
         vault::secret::{IdentityKind, SecretType},
@@ -35,7 +33,7 @@ async fn integration_events_init_account_log() -> Result<()> {
         None,
     )
     .await?;
-    
+
     // Sign in should lazily initialize the account event log
     // from the folders on disc
     account.sign_in(password.clone()).await?;
@@ -46,10 +44,19 @@ async fn integration_events_init_account_log() -> Result<()> {
     let patch: Patch = records.into();
     assert_eq!(3, patch.len());
     let events = patch.into_events::<AccountEvent>().await?;
-    assert!(matches!(events.get(0), Some(AccountEvent::CreateFolder(_, _))));
-    assert!(matches!(events.get(1), Some(AccountEvent::CreateFolder(_, _))));
-    assert!(matches!(events.get(2), Some(AccountEvent::CreateFolder(_, _))));
-    
+    assert!(matches!(
+        events.get(0),
+        Some(AccountEvent::CreateFolder(_, _))
+    ));
+    assert!(matches!(
+        events.get(1),
+        Some(AccountEvent::CreateFolder(_, _))
+    ));
+    assert!(matches!(
+        events.get(2),
+        Some(AccountEvent::CreateFolder(_, _))
+    ));
+
     teardown(TEST_ID).await;
 
     Ok(())
