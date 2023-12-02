@@ -479,10 +479,12 @@ impl Encodable for AccountEvent {
             AccountEvent::CompactFolder(id) => {
                 writer.write_bytes(id.as_bytes()).await?;
             }
+            /*
             AccountEvent::UpdateFolderName(id, name) => {
                 writer.write_bytes(id.as_bytes()).await?;
                 writer.write_string(name).await?;
             }
+            */
             AccountEvent::DeleteFolder(id) => {
                 writer.write_bytes(id.as_bytes()).await?;
             }
@@ -517,11 +519,13 @@ impl Decodable for AccountEvent {
                 *self =
                     AccountEvent::ChangeFolderPassword(id, secure_access_key)
             }
+            /*
             EventKind::SetVaultName => {
                 let id = decode_uuid(&mut *reader).await?;
                 let name = reader.read_string().await?;
                 *self = AccountEvent::UpdateFolderName(id, name)
             }
+            */
             EventKind::CompactVault => {
                 let id = decode_uuid(&mut *reader).await?;
                 *self = AccountEvent::CompactFolder(id)

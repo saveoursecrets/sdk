@@ -15,9 +15,11 @@ pub enum AccountEvent {
 
     /// Folder events were compacted.
     CompactFolder(VaultId),
-
+    
+    /*
     /// Update folder name.
     UpdateFolderName(VaultId, String),
+    */
 
     /// Change folder password.
     ChangeFolderPassword(VaultId, SecureAccessKey),
@@ -32,7 +34,7 @@ impl LogEvent for AccountEvent {
             Self::Noop => EventKind::Noop,
             Self::CreateFolder(_, _) => EventKind::CreateVault,
             Self::CompactFolder(_) => EventKind::CompactVault,
-            Self::UpdateFolderName(_, _) => EventKind::SetVaultName,
+            //Self::UpdateFolderName(_, _) => EventKind::SetVaultName,
             Self::ChangeFolderPassword(_, _) => EventKind::ChangePassword,
             Self::DeleteFolder(_) => EventKind::DeleteVault,
         }
