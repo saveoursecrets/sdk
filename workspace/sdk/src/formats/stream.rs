@@ -246,7 +246,7 @@ where
         }
 
         let len = stream_length(&mut self.read_stream).await?;
-        if len > 4 {
+        if len > offset {
             // Got to EOF
             if let Some(rpos) = self.backward {
                 if rpos == offset {

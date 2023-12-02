@@ -23,7 +23,7 @@ pub mod device;
 pub mod server;
 
 #[cfg(any(feature = "client", feature = "server"))]
-mod events;
+pub mod events;
 
 #[cfg(any(feature = "client", feature = "server"))]
 pub mod rpc;
