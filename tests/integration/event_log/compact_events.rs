@@ -7,7 +7,7 @@ use sos_net::{
             LocalAccount, UserPaths,
         },
         passwd::diceware::generate_passphrase,
-        events::{WriteEvent, FolderEventLog},
+        events::{WriteEvent, FolderEventLog, AccountEvent, AccountEventLog},
     },
 };
 
@@ -90,6 +90,15 @@ async fn integration_compact_events() -> Result<()> {
     let patch: Patch = records.into();
     let events = patch.into_events::<WriteEvent>().await?;
     assert_eq!(2, events.len());
+
+    // Check the account event log registered the compact event
+    let account_events = account.paths().account_events();
+    let mut event_log = AccountEventLog::new_account(&account_events).await?;
+    let records = event_log.patch_until(None).await?;
+    let patch: Patch = records.into();
+    let mut events = patch.into_events::<AccountEvent>().await?;
+    let compact_event = events.pop();
+    assert!(matches!(compact_event, Some(AccountEvent::CompactFolder(_))));
 
     teardown(TEST_ID).await;
 

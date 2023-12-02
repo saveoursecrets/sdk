@@ -691,7 +691,7 @@ impl NetworkAccount {
     }
 
     /// Compact an event log file.
-    pub async fn compact(&self, summary: &Summary) -> Result<(u64, u64)> {
+    pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
         Ok(self.account.compact(summary).await?)
     }
 
