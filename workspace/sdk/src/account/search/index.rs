@@ -550,7 +550,7 @@ impl SearchIndex {
     ) {
         self.commit(self.prepare(vault_id, id, meta, secret));
     }
-
+    
     /// Update a document in the index.
     pub fn update(
         &mut self,

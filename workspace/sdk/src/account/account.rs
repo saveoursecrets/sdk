@@ -1474,32 +1474,11 @@ impl<D> Account<D> {
             }
         }
 
-        /*
-        let index_doc = {
-            let search = self.index()?.search();
-            let index = search.read().await;
-            index.prepare(
-                folder.id(),
-                &secret_id,
-                secret_data.meta(),
-                secret_data.secret(),
-            )
-        };
-        */
-
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer.update_secret(secret_id, secret_data).await?
         };
-
-        /*
-        {
-            let search = self.index()?.search();
-            let mut index = search.write().await;
-            index.commit(index_doc)
-        }
-        */
 
         let event = Event::Write(*folder.id(), event);
         if audit {
