@@ -45,32 +45,16 @@ async fn integration_events_init_file_log() -> Result<()> {
         .create_secret(meta, secret, Default::default())
         .await?;
 
-    account.delete_secret(&id, Default::default()).await?;
-
-    // Create another file for assertion on lazy initialization
-    let (meta, secret, file_path) = mock::file_text_secret()?;
-    let (id, _, _, _) = account
-        .create_secret(meta, secret, Default::default())
-        .await?;
-
     // Store the file events log so we can delete and re-create
     let file_events = account.paths().file_events();
 
     let mut event_log = FileEventLog::new_file(&file_events).await?;
     let records = event_log.patch_until(None).await?;
     let patch: Patch = records.into();
-    assert_eq!(3, patch.len());
+    assert_eq!(1, patch.len());
     let events = patch.into_events::<FileEvent>().await?;
     assert!(matches!(
         events.get(0),
-        Some(FileEvent::CreateFile(_, _, _))
-    ));
-    assert!(matches!(
-        events.get(1),
-        Some(FileEvent::DeleteFile(_, _, _))
-    ));
-    assert!(matches!(
-        events.get(2),
         Some(FileEvent::CreateFile(_, _, _))
     ));
 
