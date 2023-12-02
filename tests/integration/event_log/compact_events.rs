@@ -15,7 +15,7 @@ const TEST_ID: &str = "compact_events";
 
 /// Tests compacting a folder event log.
 #[tokio::test]
-async fn integration_compact_events() -> Result<()> {
+async fn integration_events_compact() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
