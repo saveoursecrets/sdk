@@ -113,10 +113,10 @@ impl NetworkAccount {
             passphrase,
             |builder| {
                 builder
-                    .save_passphrase(true)
-                    .create_archive(true)
+                    .save_passphrase(false)
+                    .create_archive(false)
                     .create_authenticator(false)
-                    .create_contacts(true)
+                    .create_contacts(false)
                     .create_file_password(true)
             },
             data_dir,
@@ -452,6 +452,19 @@ impl NetworkAccount {
         Ok(self
             .account
             .export_folder(path, summary, new_key, save_key)
+            .await?)
+    }
+
+    /// Export a folder to a buffer.
+    pub async fn export_folder_buffer(
+        &mut self,
+        summary: &Summary,
+        new_key: AccessKey,
+        save_key: bool,
+    ) -> Result<Vec<u8>> {
+        Ok(self
+            .account
+            .export_folder_buffer(summary, new_key, save_key)
             .await?)
     }
 

@@ -40,7 +40,7 @@ async fn integration_account_lifecycle() -> Result<()> {
     assert!(account.is_authenticated());
 
     let folders = account.list_folders().await?;
-    assert_eq!(3, folders.len());
+    assert_eq!(1, folders.len());
 
     account.rename_account("account_name".to_string()).await?;
     let data = account.account_data().await?;

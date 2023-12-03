@@ -5,8 +5,11 @@ use sos_net::{
     sdk::{
         account::{LocalAccount, UserPaths},
         commit::CommitHash,
+        crypto::AccessKey,
+        decode, encode,
         events::{AccountEvent, AccountEventLog, FolderEventLog, WriteEvent},
         passwd::diceware::generate_passphrase,
+        vault::Vault,
     },
 };
 
@@ -86,6 +89,33 @@ async fn integration_events_folder() -> Result<()> {
         .await?;
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
     assert!(matches!(event, Some(WriteEvent::SetVaultName(_))));
+
+    // Export a vault so we can do an import,
+    // this would be the flow used if we wanted 
+    // to move a folder between accounts we own
+    let (vault_password, _) = generate_passphrase()?;
+    let vault_key: AccessKey = vault_password.into();
+    let mut vault: Vault = {
+        let buffer = account.export_folder_buffer(
+            &default_folder, vault_key.clone(), false).await?;
+        decode(&buffer).await?
+    };
+    // We can also rename the vault like this between
+    // the export and import operations
+    vault.set_name("moved_vault".to_owned());
+
+    // Encode and import the vault into the account
+    // overwriting the existing data
+        
+    // When we import the entire event log is reduced 
+    // to a single create vault event, if the vault 
+    // had secrets it would also include the create 
+    // secret events from the vault
+    let buffer = encode(&vault).await?;
+    account.import_folder_buffer(
+        &buffer, vault_key.clone(), true).await?;
+    let event = last_log_event(&mut event_log, None).await?;
+    assert!(matches!(event, Some(WriteEvent::CreateVault(_))));
 
     teardown(TEST_ID).await;
 

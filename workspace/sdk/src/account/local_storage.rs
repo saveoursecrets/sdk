@@ -333,14 +333,13 @@ impl FolderStorage {
         let mut event_log =
             FolderEventLog::new_folder(&event_log_path).await?;
 
-        if let Some(vault) = &vault {
+        if let Some(vault) = vault {
             // Must truncate the event log so that importing vaults
             // does not end up with multiple create vault events
             event_log.truncate().await?;
 
-            let encoded = encode(vault).await?;
-            let event = WriteEvent::CreateVault(encoded);
-            event_log.append_event(&event).await?;
+            let (vault, events) = EventReducer::split(vault).await?;
+            event_log.apply(events.iter().collect()).await?;
         }
         event_log.load_tree().await?;
 

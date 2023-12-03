@@ -22,9 +22,14 @@ async fn integration_archive_unarchive() -> Result<()> {
     UserPaths::scaffold(Some(data_dir.clone())).await?;
     UserPaths::new_global(data_dir.clone());
 
-    let (mut account, new_account) = LocalAccount::new_account(
+    let (mut account, new_account) = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),
+        |builder| {
+            builder
+                .create_archive(true)
+                .create_file_password(true)
+        },
         Some(data_dir.clone()),
         None,
     )

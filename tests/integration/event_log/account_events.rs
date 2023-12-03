@@ -45,7 +45,7 @@ async fn integration_events_account() -> Result<()> {
     let records = event_log.patch_until(None).await?;
     let patch: Patch = records.into();
     let events = patch.into_events::<AccountEvent>().await?;
-    assert_eq!(3, events.len());
+    assert_eq!(1, events.len());
 
     // Create a folder
     let commit = event_log.last_commit().await?;

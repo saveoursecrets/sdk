@@ -367,12 +367,7 @@ impl<D> Account<D> {
             account_name,
             passphrase,
             |builder| {
-                builder
-                    .save_passphrase(true)
-                    .create_archive(true)
-                    .create_authenticator(false)
-                    .create_contacts(true)
-                    .create_file_password(true)
+                builder.create_file_password(true)
             },
             data_dir,
             handler,
@@ -914,6 +909,19 @@ impl<D> Account<D> {
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<()> {
+        let buffer = self.export_folder_buffer(
+            summary, new_key, save_key).await?;
+        vfs::write(path, buffer).await?;
+        Ok(())
+    }
+
+    /// Export a folder to a buffer.
+    pub async fn export_folder_buffer(
+        &mut self,
+        summary: &Summary,
+        new_key: AccessKey,
+        save_key: bool,
+    ) -> Result<Vec<u8>> {
         let buffer = self
             .change_folder_password(summary.id(), new_key.clone())
             .await?;
@@ -959,8 +967,6 @@ impl<D> Account<D> {
             .await?;
         }
 
-        vfs::write(path, buffer).await?;
-
         let audit_event = AuditEvent::new(
             EventKind::ExportVault,
             self.address().clone(),
@@ -968,7 +974,7 @@ impl<D> Account<D> {
         );
         self.append_audit_logs(vec![audit_event]).await?;
 
-        Ok(())
+        Ok(buffer)
     }
 
     /// Export a vault by changing the vault passphrase and
