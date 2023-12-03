@@ -10,11 +10,11 @@ use sos_net::sdk::{
     vault::secret::{IdentityKind, SecretType},
 };
 
-const TEST_ID: &str = "search";
+const TEST_ID: &str = "search_view_query";
 
 /// Tests querying the search index.
 #[tokio::test]
-async fn integration_search() -> Result<()> {
+async fn integration_search_view_query() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -104,9 +104,7 @@ async fn integration_search() -> Result<()> {
     // Get all documents in the index.
     let documents = account
         .query_view(
-            vec![DocumentView::All {
-                ignored_types: None,
-            }],
+            vec![Default::default()],
             None,
         )
         .await?;
@@ -183,9 +181,7 @@ async fn integration_search() -> Result<()> {
     // in the archive
     let documents = account
         .query_view(
-            vec![DocumentView::All {
-                ignored_types: None,
-            }],
+            vec![Default::default()],
             Some(ArchiveFilter {
                 id: *archive_folder.id(),
                 include_documents: false,
@@ -198,9 +194,7 @@ async fn integration_search() -> Result<()> {
     // in the archive
     let documents = account
         .query_view(
-            vec![DocumentView::All {
-                ignored_types: None,
-            }],
+            vec![Default::default()],
             Some(ArchiveFilter {
                 id: *archive_folder.id(),
                 include_documents: true,

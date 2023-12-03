@@ -263,6 +263,12 @@ pub enum DocumentView {
     },
 }
 
+impl Default for DocumentView {
+    fn default() -> Self {
+        Self::All { ignored_types: None }
+    }
+}
+
 impl DocumentView {
     /// Test this view against a search result document.
     pub fn test(
