@@ -27,12 +27,6 @@ pub enum WriteEvent {
     /// vault.
     CreateVault(Vec<u8>),
 
-    /// Event used to indicate a vault was updated.
-    ///
-    /// This occurs when the password for a vault
-    /// has been changed.
-    UpdateVault(Vec<u8>),
-
     /// Event used to indicate the vault name was set.
     SetVaultName(String),
 
@@ -81,7 +75,6 @@ impl LogEvent for WriteEvent {
         match self {
             WriteEvent::Noop => EventKind::Noop,
             WriteEvent::CreateVault(_) => EventKind::CreateVault,
-            WriteEvent::UpdateVault(_) => EventKind::UpdateVault,
             WriteEvent::SetVaultName(_) => EventKind::SetVaultName,
             WriteEvent::SetVaultMeta(_) => EventKind::SetVaultMeta,
             WriteEvent::CreateSecret(_, _) => EventKind::CreateSecret,

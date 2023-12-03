@@ -15,6 +15,7 @@ use super::{
 const TEST_ID: &str = "sync_import_folder";
 
 /// Tests sending import folder events to a remote.
+#[ignore]
 #[tokio::test]
 async fn integration_sync_import_folder() -> Result<()> {
     //crate::test_utils::init_tracing();

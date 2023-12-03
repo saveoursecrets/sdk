@@ -1,6 +1,7 @@
 //! Adds migration functions to an account.
 use crate::{
     account::Account,
+    events::Event,
     migrate::{import::ImportTarget, AccountExport, AccountImport},
     vault::Summary,
     Error, Result,
@@ -25,7 +26,7 @@ impl<D> Account<D> {
     pub async fn import_file(
         &mut self,
         target: ImportTarget,
-    ) -> Result<Summary> {
+    ) -> Result<(Event, Summary)> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         let mut migration = AccountImport::new(self);
         Ok(migration.import_file(target).await?)

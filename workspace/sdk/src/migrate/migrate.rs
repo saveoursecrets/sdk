@@ -1,4 +1,4 @@
-use crate::{prelude::*, vfs, Result};
+use crate::{events::Event, prelude::*, vfs, Result};
 use std::{
     collections::HashMap,
     io::Cursor,
@@ -105,7 +105,7 @@ impl<'a, D> AccountImport<'a, D> {
     pub async fn import_file(
         &mut self,
         target: ImportTarget,
-    ) -> Result<Summary> {
+    ) -> Result<(Event, Summary)> {
         let (event, summary) = match target.format {
             ImportFormat::OnePasswordCsv => {
                 self.import_csv(
@@ -160,11 +160,12 @@ impl<'a, D> AccountImport<'a, D> {
         );
         let create_event: AuditEvent =
             (self.account.address(), &event).into();
+
         self.account
             .append_audit_logs(vec![audit_event, create_event])
             .await?;
 
-        Ok(summary)
+        Ok((event, summary))
     }
 
     /// Generic CSV import implementation.
@@ -215,7 +216,6 @@ impl<'a, D> AccountImport<'a, D> {
             .save_folder_password(vault.id(), vault_passphrase.clone().into())
             .await?;
 
-        let event = Event::Write(*summary.id(), event);
-        Ok((event, summary))
+        Ok((Event::Write(*summary.id(), event), summary))
     }
 }

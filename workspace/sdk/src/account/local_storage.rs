@@ -227,7 +227,7 @@ impl FolderStorage {
             let buffer = encode(archive_vault).await?;
             let (event, summary) = self
                 .import_vault(
-                    buffer,
+                    &buffer,
                     account.folder_keys.find(archive_vault.id()),
                 )
                 .await?;
@@ -238,7 +238,7 @@ impl FolderStorage {
             let buffer = encode(authenticator_vault).await?;
             let (event, summary) = self
                 .import_vault(
-                    buffer,
+                    &buffer,
                     account.folder_keys.find(authenticator_vault.id()),
                 )
                 .await?;
@@ -249,7 +249,7 @@ impl FolderStorage {
             let buffer = encode(contact_vault).await?;
             let (event, summary) = self
                 .import_vault(
-                    buffer,
+                    &buffer,
                     account.folder_keys.find(contact_vault.id()),
                 )
                 .await?;
@@ -704,11 +704,7 @@ impl FolderStorage {
         // Initialize the local cache for event log
         self.create_cache_entry(&summary, Some(vault)).await?;
 
-        Ok(if !exists {
-            (WriteEvent::CreateVault(buffer.as_ref().to_owned()), summary)
-        } else {
-            (WriteEvent::UpdateVault(buffer.as_ref().to_owned()), summary)
-        })
+        Ok((WriteEvent::CreateVault(buffer.as_ref().to_owned()), summary))
     }
 
     /// Update an existing vault by replacing it with a new vault.

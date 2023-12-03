@@ -1,6 +1,6 @@
 //! Adds migration functions to network account.
 use crate::client::{NetworkAccount, Result};
-use sos_sdk::vault::Summary;
+use sos_sdk::{events::Event, vault::Summary};
 use std::path::Path;
 
 use sos_sdk::migrate::import::ImportTarget;
@@ -21,7 +21,7 @@ impl NetworkAccount {
     pub async fn import_file(
         &mut self,
         target: ImportTarget,
-    ) -> Result<Summary> {
+    ) -> Result<(Event, Summary)> {
         let _ = self.sync_lock.lock().await;
         Ok(self.account.import_file(target).await?)
     }

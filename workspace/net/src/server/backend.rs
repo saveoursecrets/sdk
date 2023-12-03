@@ -514,7 +514,7 @@ impl BackendHandler for FileSystemBackend {
         // Write out the vault file (header only)
         tokio::fs::write(&vault_path, &vault_buffer).await?;
 
-        let event = WriteEvent::UpdateVault(vault_buffer);
+        let event = WriteEvent::CreateVault(vault_buffer);
         Ok((event, commit_proof))
     }
 

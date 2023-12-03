@@ -258,8 +258,7 @@ impl Encodable for WriteEvent {
             WriteEvent::Noop => {
                 panic!("attempt to encode a noop")
             }
-            WriteEvent::CreateVault(vault)
-            | WriteEvent::UpdateVault(vault) => {
+            WriteEvent::CreateVault(vault) => {
                 writer.write_u32(vault.len() as u32).await?;
                 writer.write_bytes(vault).await?;
             }
@@ -302,11 +301,6 @@ impl Decodable for WriteEvent {
                 let length = reader.read_u32().await?;
                 let buffer = reader.read_bytes(length as usize).await?;
                 *self = WriteEvent::CreateVault(buffer);
-            }
-            EventKind::UpdateVault => {
-                let length = reader.read_u32().await?;
-                let buffer = reader.read_bytes(length as usize).await?;
-                *self = WriteEvent::UpdateVault(buffer);
             }
             EventKind::SetVaultName => {
                 let name = reader.read_string().await?;

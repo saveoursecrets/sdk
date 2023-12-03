@@ -583,8 +583,8 @@ impl RemoteSync for RemoteBridge {
         let events = events.to_vec();
         let mut patch_events = Vec::new();
         let mut create_folders = Vec::new();
-        let mut update_folders = Vec::new();
-        let mut delete_folders = Vec::new();
+        //let mut update_folders = Vec::new();
+        //let mut delete_folders = Vec::new();
 
         for (index, event) in events.into_iter().enumerate() {
             let item = data.get(index);
@@ -600,9 +600,12 @@ impl RemoteSync for RemoteBridge {
                             );
                         }
                     }
+
+                    /*
                     WriteEvent::UpdateVault(buf) => {
                         update_folders.push((folder.id(), buf))
                     }
+                    */
 
                     /*
                     WriteEvent::DeleteVault => {
@@ -623,6 +626,7 @@ impl RemoteSync for RemoteBridge {
                 .map_err(SyncError::One)?;
         }
 
+        /*
         for (id, buf) in update_folders {
             self.update_folder(id, buf.as_ref())
                 .await
@@ -632,6 +636,7 @@ impl RemoteSync for RemoteBridge {
         for id in delete_folders {
             self.delete_folder(id).await.map_err(SyncError::One)?;
         }
+        */
 
         if !patch_events.is_empty() {
             self.patch(commit_state, folder, patch_events.as_slice())
