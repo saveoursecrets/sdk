@@ -481,6 +481,24 @@ impl FolderStorage {
         }
         Ok(())
     }
+    
+    /// Read a vault from the file on disc.
+    pub(crate) async fn read_vault(
+        &self,
+        summary: &Summary,
+    ) -> Result<Vault> {
+        let buffer = self.read_vault_file(summary).await?;
+        Ok(decode(&buffer).await?)
+    }
+
+    /// Read the buffer for a vault from disc.
+    pub(crate) async fn read_vault_file(
+        &self,
+        summary: &Summary,
+    ) -> Result<Vec<u8>> {
+        let vault_path = self.vault_path(&summary);
+        Ok(vfs::read(vault_path).await?)
+    }
 
     /// Write the buffer for a vault to disc.
     async fn write_vault_file(

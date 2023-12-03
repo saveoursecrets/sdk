@@ -6,6 +6,7 @@ use sos_net::{
 };
 
 mod account_events;
+mod change_password;
 mod compact_events;
 mod file_events;
 mod folder_events;

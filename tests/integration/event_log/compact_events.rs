@@ -23,9 +23,6 @@ async fn integration_events_compact() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    UserPaths::scaffold(Some(data_dir.clone())).await?;
-    UserPaths::new_global(data_dir.clone());
-
     let (mut account, new_account) = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
@@ -37,15 +34,14 @@ async fn integration_events_compact() -> Result<()> {
     let default_folder = new_account.default_folder();
     account.sign_in(password.clone()).await?;
     account.open_folder(&default_folder).await?;
-
-    let default_folder_docs = vec![
+    
+    // Create some secrets
+    let docs = vec![
         mock::note("note", "secret"),
         mock::card("card", TEST_ID, "123"),
         mock::bank("bank", TEST_ID, "12-34-56"),
     ];
-
-    // Create a document for each secret type
-    let results = account.insert_secrets(default_folder_docs).await?;
+    let results = account.insert_secrets(docs).await?;
     let mut ids: Vec<_> = results.into_iter().map(|r| r.0).collect();
 
     let bank = ids.pop().unwrap();

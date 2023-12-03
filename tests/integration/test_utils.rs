@@ -296,39 +296,6 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
     Ok(TestDirs { target, clients })
 }
 
-pub async fn create_secrets(
-    provider: &mut FolderStorage,
-    summary: &Summary,
-) -> Result<Vec<(SecretId, &'static str)>> {
-    let notes = vec![
-        ("note1", "secret1"),
-        ("note2", "secret2"),
-        ("note3", "secret3"),
-    ];
-
-    let keeper = provider.current_mut().unwrap();
-
-    let mut results = Vec::new();
-
-    // Create some notes locally and get the events
-    // to send in a patch.
-    let mut create_events = Vec::new();
-    for item in notes.iter() {
-        let (meta, secret) = mock_note(item.0, item.1);
-        let id = SecretId::new_v4();
-        let event = keeper.create(id, meta, secret).await?;
-        create_events.push(event);
-        results.push((id, item.0));
-    }
-
-    assert_eq!(3, keeper.vault().len());
-
-    // Applt the patch of events
-    provider.patch(summary, create_events).await?;
-
-    Ok(results)
-}
-
 pub async fn delete_secret(
     provider: &mut FolderStorage,
     summary: &Summary,
@@ -339,55 +306,6 @@ pub async fn delete_secret(
     // Send the patch to the remote server
     provider.patch(summary, vec![event]).await?;
     Ok(())
-}
-
-/*
-async fn create_account(
-    server: Url,
-    destination: PathBuf,
-    name: Option<String>,
-    signer: BoxedEcdsaSigner,
-    data_dir: PathBuf,
-) -> Result<(AccountCredentials, RemoteBridge)> {
-    if !vfs::metadata(&destination).await?.is_dir() {
-        bail!("not a directory {}", destination.display());
-    }
-
-    let address = signer.address()?;
-    let (_origin, provider) = remote_bridge(signer, Some(data_dir)).await?;
-
-    let local_provider = provider.local();
-    let mut local_writer = local_provider.write().await;
-
-    let (_, encryption_passphrase, summary) =
-        local_writer.create_account(name, None).await?;
-
-    let account = AccountCredentials {
-        encryption_passphrase,
-        address,
-        summary,
-    };
-
-    Ok((account, provider))
-}
-*/
-
-/// Create a new account and local provider.
-pub async fn create_local_provider(
-    signer: BoxedEcdsaSigner,
-    data_dir: Option<PathBuf>,
-) -> Result<(AccountCredentials, FolderStorage)> {
-    let address = signer.address()?;
-    let mut provider =
-        FolderStorage::new(address.to_string(), data_dir).await?;
-    let (_, encryption_passphrase, summary) =
-        provider.create_account(None, None).await?;
-    let account = AccountCredentials {
-        encryption_passphrase,
-        address,
-        summary,
-    };
-    Ok((account, provider))
 }
 
 pub async fn signup(

@@ -927,7 +927,7 @@ impl<D> Account<D> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
         let buffer = self
-            .change_folder_password(summary.id(), new_key.clone())
+            .change_vault_password(summary.id(), new_key.clone())
             .await?;
 
         if save_key {
@@ -986,15 +986,15 @@ impl<D> Account<D> {
     ///
     /// The identity vault must be unlocked so we can retrieve
     /// the passphrase for the target vault.
-    async fn change_folder_password(
+    async fn change_vault_password(
         &self,
         vault_id: &VaultId,
-        new_passphrase: AccessKey,
+        new_key: AccessKey,
     ) -> Result<Vec<u8>> {
         use crate::passwd::ChangePassword;
         let paths = self.paths().clone();
         // Get the current vault passphrase from the identity vault
-        let current_passphrase =
+        let current_key =
             self.user()?.find_folder_password(vault_id).await?;
 
         // Find the local vault for the account
@@ -1004,8 +1004,8 @@ impl<D> Account<D> {
         // Change the password before exporting
         let (_, vault, _) = ChangePassword::new(
             &vault,
-            current_passphrase,
-            new_passphrase,
+            current_key,
+            new_key,
             None,
         )
         .build()
@@ -1651,20 +1651,61 @@ impl<D> Account<D> {
             writer.delete_secret(secret_id).await?
         };
 
-        /*
-        {
-            let search = self.index()?.search();
-            let mut writer = search.write().await;
-            writer.remove(folder.id(), secret_id);
-        }
-        */
-
         let event = Event::Write(*folder.id(), event);
         if audit {
             let audit_event: AuditEvent = (self.address(), &event).into();
             self.append_audit_logs(vec![audit_event]).await?;
         }
         Ok(event)
+    }
+    
+    /// Change the password for a folder.
+    ///
+    /// If this folder is part of a recovery pack it is 
+    /// the caller's responsbility to ensure the recovery 
+    /// pack is updated with the new folder password.
+    pub async fn change_folder_password(
+        &mut self,
+        folder: &Summary,
+        new_key: AccessKey,
+    ) -> Result<()> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
+        let current_key = self.user()?.find_folder_password(
+            folder.id()).await?;
+        
+        let vault = {
+            let storage = self.storage()?;
+            let reader = storage.read().await;
+            reader.read_vault(folder).await?
+        };
+
+        let storage = self.storage()?;
+        let mut writer = storage.write().await;
+        writer
+            .change_password(
+                &vault,
+                current_key,
+                new_key.clone(),
+            )
+            .await?;
+    
+        // Save the new password
+        self.user_mut()?
+            .save_folder_password(folder.id(), new_key)
+            .await?;
+
+        // Update the account event log
+        let secure_access_key =
+            self.user()?.secure_access_key(folder.id()).await?;
+        let auth =
+            self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
+        let event = AccountEvent::ChangeFolderPassword(
+            *folder.id(), secure_access_key);
+        let mut account_log = auth.account_log.write().await;
+        account_log.apply(vec![&event]).await?;
+
+        Ok(())
     }
 
     /// Move a secret to the archive.
