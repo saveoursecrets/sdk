@@ -11,7 +11,9 @@ mod file_events;
 mod folder_events;
 mod init_account_log;
 mod init_file_log;
+mod move_folder;
 
+/// Get the last event from an event log.
 async fn last_log_event<T: Encodable + Decodable + Default>(
     event_log: &mut EventLogFile<T>,
     commit: Option<&CommitHash>,
@@ -20,4 +22,13 @@ async fn last_log_event<T: Encodable + Decodable + Default>(
     let patch: Patch = records.into();
     let mut events = patch.into_events::<T>().await?;
     Ok(events.pop())
+}
+
+/// Get all events from an event log.
+async fn all_events<T: Encodable + Decodable + Default>(
+    event_log: &mut EventLogFile<T>,
+) -> Result<Vec<T>> {
+    let records = event_log.patch_until(None).await?;
+    let patch: Patch = records.into();
+    Ok(patch.into_events::<T>().await?)
 }

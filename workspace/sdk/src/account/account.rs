@@ -796,6 +796,8 @@ impl<D> Account<D> {
         &mut self,
         name: String,
     ) -> Result<(Summary, Event, CommitState, SecureAccessKey)> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
         let passphrase = self.user()?.generate_folder_password()?;
         let key: AccessKey = passphrase.into();
         let (buffer, _, summary) = {
@@ -922,6 +924,8 @@ impl<D> Account<D> {
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<Vec<u8>> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
         let buffer = self
             .change_folder_password(summary.id(), new_key.clone())
             .await?;
@@ -1017,6 +1021,8 @@ impl<D> Account<D> {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<(Summary, Event, CommitState)> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
         let buffer = vfs::read(path.as_ref()).await?;
         self.import_folder_buffer(&buffer, key, overwrite).await
     }
@@ -1028,18 +1034,24 @@ impl<D> Account<D> {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<(Summary, Event, CommitState)> {
+        let span = span!(Level::DEBUG, "import_folder");
+        let _enter = span.enter();
+
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
         let mut vault: Vault = decode(buffer.as_ref()).await?;
 
-        // Need to verify the passphrase
+        // Need to verify permission to access the data
         vault.verify(&key).await?;
 
-        // Check for existing identifier
-        let vaults = Self::list_local_folders(&self.paths, false).await?;
-        let existing_id =
-            vaults.iter().find(|(s, _)| s.id() == vault.summary().id());
+        tracing::debug!(id = %vault.id(), name = %vault.name());
 
-        let default_vault =
-            vaults.iter().find(|(s, _)| s.flags().is_default());
+        // Check for existing identifier
+        //let vaults = Self::list_local_folders(&self.paths, false).await?;
+        let existing_id =
+            self.find(|s| s.id() == vault.summary().id()).await;
+
+        let default_vault = self.default_folder().await;
 
         let remove_default_flag = !overwrite
             && default_vault.is_some()
@@ -1048,15 +1060,17 @@ impl<D> Account<D> {
         // If we are not overwriting and the identifier already exists
         // then we need to rotate the identifier
         let has_id_changed = if existing_id.is_some() && !overwrite {
+            tracing::debug!("rotate identifier");
             vault.rotate_identifier();
             true
         } else {
             false
         };
 
-        let existing_name = vaults
-            .iter()
-            .find(|(s, _)| s.name() == vault.summary().name());
+        let folder_id = *vault.id();
+
+        let existing_name = self
+            .find(|s| s.name() == vault.summary().name()).await;
 
         let has_name_changed = if existing_name.is_some() && !overwrite {
             let name = format!(
@@ -1064,6 +1078,7 @@ impl<D> Account<D> {
                 vault.summary().name(),
                 vault.summary().id()
             );
+            tracing::debug!("change folder name");
             vault.set_name(name);
             true
         } else {
@@ -1071,6 +1086,7 @@ impl<D> Account<D> {
         };
 
         if remove_default_flag {
+            tracing::debug!("remove default flag");
             vault.set_default_flag(false);
         }
 
@@ -1099,7 +1115,7 @@ impl<D> Account<D> {
         }
 
         self.user_mut()?
-            .save_folder_password(summary.id(), key.clone())
+            .save_folder_password(summary.id(), key)
             .await?;
 
         // If overwriting remove old entries from the index
@@ -1119,6 +1135,16 @@ impl<D> Account<D> {
                 if is_current {
                     writer.close_vault();
                 }
+            }
+        }
+            
+        if existing_id.is_none() {
+            let secure_key = self.user()?
+                .secure_access_key(&folder_id).await?;
+            if let Some(auth) = self.authenticated.as_mut() {
+                let event = AccountEvent::CreateFolder(folder_id, secure_key);
+                let mut account_log = auth.account_log.write().await;
+                account_log.apply(vec![&event]).await?;
             }
         }
 
@@ -1231,7 +1257,7 @@ impl<D> Account<D> {
     }
 
     /// Bulk insert secrets into the currently open folder.
-    pub async fn insert(
+    pub async fn insert_secrets(
         &mut self,
         secrets: Vec<(SecretMeta, Secret)>,
     ) -> Result<Vec<(SecretId, Event, CommitState, Summary)>> {

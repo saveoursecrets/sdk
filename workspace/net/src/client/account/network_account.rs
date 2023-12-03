@@ -506,6 +506,14 @@ impl NetworkAccount {
         Ok(self.account.open_folder(summary).await?)
     }
 
+    /// Bulk insert secrets into the currently open folder.
+    pub async fn insert_secrets(
+        &mut self,
+        secrets: Vec<(SecretMeta, Secret)>,
+    ) -> Result<Vec<(SecretId, Event, CommitState, Summary)>> {
+        Ok(self.account.insert_secrets(secrets).await?)
+    }
+
     /// Create a secret in the current open folder or a specific folder.
     pub async fn create_secret(
         &mut self,

@@ -86,7 +86,7 @@ async fn integration_search() -> Result<()> {
     let total_docs = default_folder_docs.len() + new_folder_docs.len();
 
     // Create a document for each secret type
-    let results = account.insert(default_folder_docs).await?;
+    let results = account.insert_secrets(default_folder_docs).await?;
 
     let ids: Vec<_> = results.into_iter().map(|r| r.0).collect();
 
@@ -99,7 +99,7 @@ async fn integration_search() -> Result<()> {
         account.create_folder(folder_name.to_string()).await?;
 
     account.open_folder(&folder).await?;
-    account.insert(new_folder_docs).await?;
+    account.insert_secrets(new_folder_docs).await?;
 
     // Get all documents in the index.
     let documents = account

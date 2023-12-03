@@ -45,7 +45,7 @@ async fn integration_events_compact() -> Result<()> {
     ];
 
     // Create a document for each secret type
-    let results = account.insert(default_folder_docs).await?;
+    let results = account.insert_secrets(default_folder_docs).await?;
     let mut ids: Vec<_> = results.into_iter().map(|r| r.0).collect();
 
     let bank = ids.pop().unwrap();
