@@ -80,6 +80,14 @@ async fn integration_folder_lifecycle() -> Result<()> {
         )
         .await?;
     assert!(vfs::try_exists(&exported).await?);
+    
+    // Rename a folder
+    let folder_name = "new_name";
+    account
+        .rename_folder(&default_folder, folder_name.to_string())
+        .await?;
+    let default_folder = account.default_folder().await.unwrap();
+    assert_eq!(folder_name, default_folder.name());
 
     // Now delete the folder
     account.delete_folder(&folder).await?;
