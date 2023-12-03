@@ -812,9 +812,6 @@ impl<D> Account<D> {
 
         let secure_key = self.user()?.secure_access_key(summary.id()).await?;
 
-        let account_event =
-            AccountEvent::CreateFolder(*summary.id(), secure_key.clone());
-
         let options = AccessOptions {
             folder: Some(summary),
             ..Default::default()
@@ -823,7 +820,12 @@ impl<D> Account<D> {
         let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
 
-        if let Some(auth) = self.authenticated.as_mut() {
+        let account_event =
+            AccountEvent::CreateFolder(*summary.id(), secure_key.clone());
+
+        {
+            let auth =
+                self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
             let mut account_log = auth.account_log.write().await;
             account_log.append_event(&account_event).await?;
         }
@@ -1132,14 +1134,25 @@ impl<D> Account<D> {
             }
         }
 
+        // If the folder is being created then log it
+        // in the account log
         if existing_id.is_none() {
             let secure_key =
                 self.user()?.secure_access_key(&folder_id).await?;
-            if let Some(auth) = self.authenticated.as_mut() {
-                let event = AccountEvent::CreateFolder(folder_id, secure_key);
-                let mut account_log = auth.account_log.write().await;
-                account_log.apply(vec![&event]).await?;
-            }
+            let auth =
+                self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
+            let event = AccountEvent::CreateFolder(folder_id, secure_key);
+            let mut account_log = auth.account_log.write().await;
+            account_log.apply(vec![&event]).await?;
+        // Otherwise if there is an existing folder
+        // and we are overwriting then log the update
+        // folder event
+        } else if overwrite {
+            let account_event = AccountEvent::UpdateFolder(folder_id);
+            let auth =
+                self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
+            let mut account_log = auth.account_log.write().await;
+            account_log.append_event(&account_event).await?;
         }
 
         let event = Event::Write(*summary.id(), event);

@@ -12,7 +12,7 @@ use sos_net::{
     },
 };
 
-const TEST_ID: &str = "init_file_log";
+const TEST_ID: &str = "events_init_file_log";
 
 /// Tests lazy initialization of the file events log.
 #[tokio::test]

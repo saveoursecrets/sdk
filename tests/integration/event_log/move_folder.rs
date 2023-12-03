@@ -15,7 +15,7 @@ use sos_net::{
 
 use super::all_events;
 
-const TEST_ID: &str = "move_folder";
+const TEST_ID: &str = "events_move_folder";
 
 /// Tests events after moving a folder between accounts.
 #[tokio::test]

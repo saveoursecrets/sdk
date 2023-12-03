@@ -10,7 +10,7 @@ use sos_net::{
     },
 };
 
-const TEST_ID: &str = "init_account_log";
+const TEST_ID: &str = "events_init_account_log";
 
 /// Tests lazy initialization of the account events log.
 #[tokio::test]

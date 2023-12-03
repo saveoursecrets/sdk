@@ -510,7 +510,7 @@ impl Decodable for AccountEvent {
             }
             EventKind::UpdateVault => {
                 let id = decode_uuid(&mut *reader).await?;
-                *self = AccountEvent::CompactFolder(id)
+                *self = AccountEvent::UpdateFolder(id)
             }
             EventKind::CompactVault => {
                 let id = decode_uuid(&mut *reader).await?;

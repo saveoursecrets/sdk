@@ -10,6 +10,7 @@ mod change_password;
 mod compact_events;
 mod file_events;
 mod folder_events;
+mod import_folder;
 mod init_account_log;
 mod init_file_log;
 mod move_folder;

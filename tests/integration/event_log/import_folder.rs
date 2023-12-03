@@ -1,23 +1,26 @@
-use anyhow::Result;
-
 use crate::test_utils::{mock, setup, teardown};
-
-use sos_net::sdk::{
-    account::LocalAccount,
-    crypto::AccessKey,
-    events::{AccountEvent, AccountEventLog},
-    passwd::diceware::generate_passphrase,
-    signer::ecdsa::SingleParty,
+use anyhow::Result;
+use sos_net::{
+    events::Patch,
+    sdk::{
+        account::{LocalAccount, UserPaths},
+        commit::CommitHash,
+        crypto::AccessKey,
+        decode, encode,
+        events::{AccountEvent, AccountEventLog, FolderEventLog, WriteEvent},
+        passwd::diceware::generate_passphrase,
+        vault::Vault,
+    },
 };
 
 use super::last_log_event;
 
-const TEST_ID: &str = "events_change_password";
+const TEST_ID: &str = "events_import_folder";
 
-/// Tests the account events after changing the encryption
-/// password of a folder.
+/// Tests the update folder event when importing a folder
+/// that overwrites an existing folder.
 #[tokio::test]
-async fn integration_events_change_password() -> Result<()> {
+async fn integration_events_import_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -38,39 +41,33 @@ async fn integration_events_change_password() -> Result<()> {
     account.sign_in(password.clone()).await?;
     account.open_folder(&default_folder).await?;
 
-    // Create some secrets
+    // Create some data
     let docs = vec![
         mock::note("note", "secret"),
         mock::card("card", TEST_ID, "123"),
         mock::bank("bank", TEST_ID, "12-34-56"),
     ];
     let results = account.insert_secrets(docs).await?;
-    let mut ids: Vec<_> = results.into_iter().map(|r| r.0).collect();
+    let ids: Vec<_> = results.into_iter().map(|r| r.0).collect();
 
-    let (new_password, _) = generate_passphrase()?;
-    let new_key: AccessKey = new_password.into();
+    // Export the folder to a buffer
+    let (vault_password, _) = generate_passphrase()?;
+    let vault_key: AccessKey = vault_password.into();
+    let buffer = account
+        .export_folder_buffer(&default_folder, vault_key.clone(), false)
+        .await?;
 
     let account_events = account.paths().account_events();
     let mut event_log = AccountEventLog::new_account(&account_events).await?;
-    let commit = event_log.last_commit().await?;
 
-    // Change the folder password
+    // Import overwriting the existing data
+    let commit = event_log.last_commit().await?;
     account
-        .change_folder_password(&default_folder, new_key.clone())
+        .import_folder_buffer(&buffer, vault_key.clone(), true)
         .await?;
 
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
-    assert!(matches!(
-        event,
-        Some(AccountEvent::ChangeFolderPassword(_, _))
-    ));
-
-    // Should be able to continue reading data
-    // from the currently open folder which had
-    // it's password changed.
-    let note_id = ids.remove(0);
-    let (data, _) = account.read_secret(&note_id, None).await?;
-    assert_eq!("note", data.meta().label());
+    assert!(matches!(event, Some(AccountEvent::UpdateFolder(_))));
 
     teardown(TEST_ID).await;
 

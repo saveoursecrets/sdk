@@ -15,22 +15,22 @@ pub enum AccountEvent {
 
     /// Folder events were compacted.
     ///
-    /// This event is destructive as it re-writes 
+    /// This event is destructive as it re-writes
     /// the folder event log.
     CompactFolder(VaultId),
 
     /// Folder was updated.
     ///
-    /// This event happens when a folder is imported and 
+    /// This event happens when a folder is imported and
     /// overwrites an existing folder.
     ///
-    /// This event is destructive as it re-writes 
+    /// This event is destructive as it re-writes
     /// the folder event log.
     UpdateFolder(VaultId),
 
     /// Change folder password.
     ///
-    /// This event is destructive as it re-writes 
+    /// This event is destructive as it re-writes
     /// the folder event log.
     ChangeFolderPassword(VaultId, SecureAccessKey),
 

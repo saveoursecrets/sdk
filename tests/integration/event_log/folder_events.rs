@@ -15,7 +15,7 @@ use sos_net::{
 
 use super::last_log_event;
 
-const TEST_ID: &str = "folder_events";
+const TEST_ID: &str = "events_folder";
 
 /// Tests events saved to a folder event log.
 #[tokio::test]

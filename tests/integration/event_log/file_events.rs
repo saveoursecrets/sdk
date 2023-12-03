@@ -11,7 +11,7 @@ use sos_net::{
     },
 };
 
-const TEST_ID: &str = "file_events";
+const TEST_ID: &str = "events_file";
 
 /// Tests the various file events are being logged.
 #[tokio::test]

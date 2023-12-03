@@ -12,7 +12,7 @@ use sos_net::{
     },
 };
 
-const TEST_ID: &str = "account_events";
+const TEST_ID: &str = "events_account";
 
 /// Tests that basic account events are being logged.
 #[tokio::test]

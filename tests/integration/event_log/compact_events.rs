@@ -10,7 +10,7 @@ use sos_net::{
     },
 };
 
-const TEST_ID: &str = "compact_events";
+const TEST_ID: &str = "events_compact";
 
 /// Tests compacting a folder event log.
 #[tokio::test]
