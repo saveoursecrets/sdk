@@ -112,15 +112,15 @@ async fn integration_events_move_folder() -> Result<()> {
     assert_eq!(4, events.len());
     assert!(matches!(events.get((0)), Some(WriteEvent::CreateVault(_))));
     assert!(matches!(
-        events.get((1)),
+        events.get(1),
         Some(WriteEvent::CreateSecret(_, _))
     ));
     assert!(matches!(
-        events.get((2)),
+        events.get(2),
         Some(WriteEvent::CreateSecret(_, _))
     ));
     assert!(matches!(
-        events.get((3)),
+        events.get(3),
         Some(WriteEvent::CreateSecret(_, _))
     ));
 
