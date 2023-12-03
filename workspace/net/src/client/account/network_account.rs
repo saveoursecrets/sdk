@@ -414,11 +414,11 @@ impl NetworkAccount {
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
 
-        let (event, commit_state) =
+        let (events, commit_state) =
             self.account.delete_folder(summary).await?;
 
         let sync_error = self
-            .sync_send_events(&summary, &commit_state, &[event], &[])
+            .sync_send_events(&summary, &commit_state, &events, &[])
             .await
             .err();
 

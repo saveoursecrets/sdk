@@ -11,7 +11,7 @@ use crate::{
 /// are content-addressable by SHA256 digest so
 /// changing a file's contents results in a
 /// delete and create.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub enum FileEvent {
     #[default]
     #[doc(hidden)]

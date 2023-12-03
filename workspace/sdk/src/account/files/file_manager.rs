@@ -1,10 +1,11 @@
 //! File manager to keep external files in sync
 //! as secrets are created, updated and moved.
 
+use super::list_folder_files;
 use crate::{
     account::files::{basename, EncryptedFile, FileStorage, FileStorageSync},
     account::Account,
-    events::FileEvent,
+    events::{Event, FileEvent},
     vault::{
         secret::{FileContent, Secret, SecretId, SecretRow, UserData},
         Summary, VaultId,
@@ -187,12 +188,24 @@ impl<D> Account<D> {
     pub(crate) async fn delete_folder_files(
         &self,
         summary: &Summary,
-    ) -> Result<()> {
+    ) -> Result<Vec<FileEvent>> {
+        let mut events = Vec::new();
+        let mut folder_files =
+            list_folder_files(self.paths(), summary.id()).await?;
+        for (secret_id, mut external_files) in folder_files.drain(..) {
+            for file_name in external_files.drain() {
+                events.push(FileEvent::DeleteFile(
+                    *summary.id(),
+                    secret_id,
+                    file_name,
+                ));
+            }
+        }
         let folder_files = self.file_folder_location(summary.id());
         if vfs::try_exists(&folder_files).await? {
             vfs::remove_dir_all(&folder_files).await?;
         }
-        Ok(())
+        Ok(events)
     }
 
     /// Create external files when a file secret is created.

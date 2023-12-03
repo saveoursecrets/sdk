@@ -93,35 +93,58 @@ pub(super) async fn list_external_files(
                 if let Ok(folder_id) =
                     file_name.to_string_lossy().as_ref().parse::<VaultId>()
                 {
-                    let mut folder_dir = vfs::read_dir(path).await?;
-                    while let Some(entry) = folder_dir.next_entry().await? {
-                        let path = entry.path();
-                        if path.is_dir() {
-                            if let Some(file_name) = path.file_name() {
-                                tracing::debug!(file_name = ?file_name);
-                                if let Ok(secret_id) = file_name
-                                    .to_string_lossy()
-                                    .as_ref()
-                                    .parse::<SecretId>()
-                                {
-                                    let mut external_files =
-                                        list_secret_files(path).await?;
-                                    tracing::debug!(
-                                        files_len = external_files.len()
-                                    );
-                                    for file_name in external_files.drain() {
-                                        files.insert(ExternalFile(
-                                            folder_id, secret_id, file_name,
-                                        ));
-                                    }
-                                }
-                            }
+                    let mut folder_files =
+                        list_folder_files(paths, &folder_id).await?;
+                    for (secret_id, mut external_files) in
+                        folder_files.drain(..)
+                    {
+                        for file_name in external_files.drain() {
+                            files.insert(ExternalFile(
+                                folder_id, secret_id, file_name,
+                            ));
                         }
                     }
                 }
             }
         }
     }
+    Ok(files)
+}
+
+/// List all the external files in a folder.
+///
+/// If a directory name cannot be parsed to a folder or secret
+/// identifier or the file name cannot be converted to `[u8; 32]`
+/// the directory or file will be ignored.
+pub(super) async fn list_folder_files(
+    paths: &UserPaths,
+    folder_id: &VaultId,
+) -> Result<Vec<(SecretId, HashSet<ExternalFileName>)>> {
+    let mut files = Vec::new();
+    let path = paths.files_dir().join(folder_id.to_string());
+
+    if vfs::try_exists(&path).await? {
+        let mut folder_dir = vfs::read_dir(path).await?;
+        while let Some(entry) = folder_dir.next_entry().await? {
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(file_name) = path.file_name() {
+                    tracing::debug!(file_name = ?file_name);
+                    if let Ok(secret_id) = file_name
+                        .to_string_lossy()
+                        .as_ref()
+                        .parse::<SecretId>()
+                    {
+                        let mut external_files =
+                            list_secret_files(path).await?;
+                        tracing::debug!(files_len = external_files.len());
+                        files.push((secret_id, external_files));
+                    }
+                }
+            }
+        }
+    }
+
     Ok(files)
 }
 

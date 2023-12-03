@@ -6,6 +6,9 @@ use crate::{vault::VaultId, Error, Result};
 #[cfg(feature = "account")]
 use super::AccountEvent;
 
+#[cfg(feature = "files")]
+use super::FileEvent;
+
 /// Events generated when reading or writing.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Event {
@@ -16,6 +19,10 @@ pub enum Event {
     #[cfg(feature = "account")]
     /// Account changes.
     Account(AccountEvent),
+
+    #[cfg(feature = "files")]
+    /// File event.
+    File(FileEvent),
 
     /// Read folder operations.
     Read(VaultId, ReadEvent),
@@ -39,6 +46,8 @@ impl Event {
             Self::CreateAccount(event) => event.event_kind(),
             #[cfg(feature = "account")]
             Self::Account(event) => event.event_kind(),
+            #[cfg(feature = "files")]
+            Self::File(event) => event.event_kind(),
             Self::Read(_, event) => event.event_kind(),
             Self::Write(_, event) => event.event_kind(),
             Self::MoveSecret(_, _, _) => EventKind::MoveSecret,

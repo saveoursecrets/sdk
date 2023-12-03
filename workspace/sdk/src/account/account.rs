@@ -844,7 +844,7 @@ impl<D> Account<D> {
     pub async fn delete_folder(
         &mut self,
         summary: &Summary,
-    ) -> Result<(Event, CommitState)> {
+    ) -> Result<(Vec<Event>, CommitState)> {
         let options = AccessOptions {
             folder: Some(summary.clone()),
             ..Default::default()
@@ -861,8 +861,19 @@ impl<D> Account<D> {
             .remove_folder_password(summary.id())
             .await?;
 
+        let mut events = Vec::new();
+
         #[cfg(feature = "files")]
-        self.delete_folder_files(&summary).await?;
+        {
+            let mut file_events = self.delete_folder_files(&summary).await?;
+            let auth =
+                self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
+            let mut file_log = auth.file_log.write().await;
+            file_log.apply(file_events.iter().collect()).await?;
+            for event in file_events.drain(..) {
+                events.push(Event::File(event));
+            }
+        }
 
         let account_event = AccountEvent::DeleteFolder(*summary.id());
         if let Some(auth) = self.authenticated.as_mut() {
@@ -874,7 +885,8 @@ impl<D> Account<D> {
             (self.address(), &Event::Account(account_event.clone())).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
-        Ok((Event::Account(account_event), commit_state))
+        events.insert(0, Event::Account(account_event));
+        Ok((events, commit_state))
     }
 
     /// Rename a folder.
