@@ -27,10 +27,10 @@ use super::{
 };
 use crate::migrate::{import::read_csv_records, Convert, Result};
 
-#[cfg(test)]
-use tokio::fs as vfs;
 #[cfg(not(test))]
 use crate::vfs;
+#[cfg(test)]
+use tokio::fs as vfs;
 
 /// Record used to deserialize dashlane CSV files.
 #[derive(Debug)]
@@ -673,7 +673,9 @@ mod test {
 
     #[tokio::test]
     async fn dashlane_csv_parse() -> Result<()> {
-        let mut records = parse_path("../../tests/fixtures/migrate/dashlane-export.zip").await?;
+        let mut records =
+            parse_path("../../tests/fixtures/migrate/dashlane-export.zip")
+                .await?;
         assert_eq!(15, records.len());
 
         let first = records.remove(0);
@@ -700,7 +702,11 @@ mod test {
 
         let key: AccessKey = passphrase.into();
         let vault = DashlaneCsvZip
-            .convert("../../tests/fixtures/migrate/dashlane-export.zip".into(), vault, &key)
+            .convert(
+                "../../tests/fixtures/migrate/dashlane-export.zip".into(),
+                vault,
+                &key,
+            )
             .await?;
 
         let mut search = SearchIndex::new();

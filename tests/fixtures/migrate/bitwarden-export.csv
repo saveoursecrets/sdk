@@ -1,0 +1,3 @@
+folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp
+,1,login,Mock Login,Some notes about the login.,,0,https://example.com,mock-user,XXX-MOCK-1,
+,,note,Mock Note,This is a mock note.,,0,,,,

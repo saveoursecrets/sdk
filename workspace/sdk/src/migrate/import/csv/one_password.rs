@@ -20,10 +20,10 @@ use super::{
 };
 use crate::migrate::{import::read_csv_records, Convert, Result};
 
-#[cfg(test)]
-use tokio::fs as vfs;
 #[cfg(not(test))]
 use crate::vfs;
+#[cfg(test)]
+use tokio::fs as vfs;
 
 /// Record for an entry in a MacOS passwords CSV export.
 #[derive(Deserialize)]
@@ -180,7 +180,9 @@ mod test {
 
     #[tokio::test]
     async fn one_password_csv_parse() -> Result<()> {
-        let mut records = parse_path("../../tests/fixtures/migrate/1password-export.csv").await?;
+        let mut records =
+            parse_path("../../tests/fixtures/migrate/1password-export.csv")
+                .await?;
         assert_eq!(6, records.len());
 
         let first = records.remove(0);
@@ -258,7 +260,11 @@ mod test {
 
         let key: AccessKey = passphrase.into();
         let vault = OnePasswordCsv
-            .convert("../../tests/fixtures/migrate/1password-export.csv".into(), vault, &key)
+            .convert(
+                "../../tests/fixtures/migrate/1password-export.csv".into(),
+                vault,
+                &key,
+            )
             .await?;
 
         let mut search = SearchIndex::new();

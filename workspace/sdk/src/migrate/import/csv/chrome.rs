@@ -13,10 +13,10 @@ use super::{
 };
 use crate::migrate::{import::read_csv_records, Convert, Result};
 
-#[cfg(test)]
-use tokio::fs as vfs;
 #[cfg(not(test))]
 use crate::vfs;
+#[cfg(test)]
+use tokio::fs as vfs;
 
 /// Record for an entry in a Chrome passwords CSV export.
 #[derive(Deserialize)]
@@ -111,7 +111,9 @@ mod test {
 
     #[tokio::test]
     async fn chrome_passwords_csv_parse() -> Result<()> {
-        let mut records = parse_path("../../tests/fixtures/migrate/chrome-export.csv").await?;
+        let mut records =
+            parse_path("../../tests/fixtures/migrate/chrome-export.csv")
+                .await?;
         assert_eq!(2, records.len());
 
         let first = records.remove(0);
@@ -145,7 +147,11 @@ mod test {
 
         let key: AccessKey = passphrase.into();
         let vault = ChromePasswordCsv
-            .convert("../../tests/fixtures/migrate/chrome-export.csv".into(), vault, &key)
+            .convert(
+                "../../tests/fixtures/migrate/chrome-export.csv".into(),
+                vault,
+                &key,
+            )
             .await?;
 
         let mut search = SearchIndex::new();
@@ -173,7 +179,11 @@ mod test {
 
         let key: AccessKey = passphrase.into();
         let vault = ChromePasswordCsv
-            .convert("../../tests/fixtures/migrate/chrome-export-note.csv".into(), vault, &key)
+            .convert(
+                "../../tests/fixtures/migrate/chrome-export-note.csv".into(),
+                vault,
+                &key,
+            )
             .await?;
 
         let mut search = SearchIndex::new();

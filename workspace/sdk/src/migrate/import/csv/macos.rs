@@ -8,10 +8,10 @@ use crate::{crypto::AccessKey, vault::Vault};
 use async_trait::async_trait;
 use tokio::io::AsyncRead;
 
-#[cfg(test)]
-use tokio::fs as vfs;
 #[cfg(not(test))]
 use crate::vfs;
+#[cfg(test)]
+use tokio::fs as vfs;
 
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,
@@ -119,7 +119,9 @@ mod test {
 
     #[tokio::test]
     async fn macos_passwords_csv_parse() -> Result<()> {
-        let mut records = parse_path("../../tests/fixtures/migrate/macos-export.csv").await?;
+        let mut records =
+            parse_path("../../tests/fixtures/migrate/macos-export.csv")
+                .await?;
         assert_eq!(2, records.len());
 
         let first = records.remove(0);
@@ -149,7 +151,7 @@ mod test {
         let vault = VaultBuilder::new()
             .password(passphrase.clone(), None)
             .await?;
-        
+
         /*
         println!("{:#?}", std::env::current_dir().unwrap());
         println!("{:#?}", std::path::PathBuf::from("../../tests/fixtures/migrate/macos-export.csv").exists());
@@ -160,7 +162,11 @@ mod test {
 
         let key: AccessKey = passphrase.into();
         let vault = MacPasswordCsv
-            .convert("../../tests/fixtures/migrate/macos-export.csv".into(), vault, &key)
+            .convert(
+                "../../tests/fixtures/migrate/macos-export.csv".into(),
+                vault,
+                &key,
+            )
             .await?;
 
         let mut search = SearchIndex::new();
@@ -185,9 +191,6 @@ mod test {
         Ok(())
     }
 
-    // FIXME: restore this test spec (needs to restore fixture)
-    
-    /*
     #[tokio::test]
     async fn macos_passwords_notes_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
@@ -197,7 +200,11 @@ mod test {
 
         let key: AccessKey = passphrase.into();
         let vault = MacPasswordCsv
-            .convert("../../tests/fixtures/migrate/macos-notes-export.csv".into(), vault, &key)
+            .convert(
+                "../../tests/fixtures/migrate/macos-notes-export.csv".into(),
+                vault,
+                &key,
+            )
             .await?;
 
         let mut search = SearchIndex::new();
@@ -222,5 +229,4 @@ mod test {
 
         Ok(())
     }
-    */
 }

@@ -3,7 +3,7 @@ use crate::{
     account::Account,
     migrate::{import::ImportTarget, AccountExport, AccountImport},
     vault::Summary,
-    Result, Error,
+    Error, Result,
 };
 use std::path::Path;
 

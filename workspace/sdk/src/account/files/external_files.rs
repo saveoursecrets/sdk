@@ -132,7 +132,7 @@ mod test {
         let (passphrase, _) = generate_passphrase()?;
         let input = "../../tests/fixtures/sample.heic";
         let output = "target/file-encrypt-decrypt";
-        
+
         if let Ok(true) = vfs::try_exists(output).await {
             vfs::remove_dir_all(output).await?;
         }

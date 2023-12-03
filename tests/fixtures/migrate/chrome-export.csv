@@ -1,0 +1,3 @@
+name,url,username,password
+mock.example.com,https://mock.example.com/login,mock@example.com,XXX-MOCK-1
+mock2.example.com,https://mock2.example.com/login,mock2@example.com,XXX-MOCK-2

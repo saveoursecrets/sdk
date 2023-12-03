@@ -17,10 +17,10 @@ use super::{
 };
 use crate::migrate::{import::read_csv_records, Convert, Result};
 
-#[cfg(test)]
-use tokio::fs as vfs;
 #[cfg(not(test))]
 use crate::vfs;
+#[cfg(test)]
+use tokio::fs as vfs;
 
 const TYPE_LOGIN: &str = "login";
 const TYPE_NOTE: &str = "note";
@@ -161,7 +161,9 @@ mod test {
 
     #[tokio::test]
     async fn bitwarden_passwords_csv_parse() -> Result<()> {
-        let mut records = parse_path("../../tests/fixtures/migrate/bitwarden-export.csv").await?;
+        let mut records =
+            parse_path("../../tests/fixtures/migrate/bitwarden-export.csv")
+                .await?;
         assert_eq!(2, records.len());
 
         let first = records.remove(0);
@@ -189,7 +191,11 @@ mod test {
 
         let key: AccessKey = passphrase.into();
         let vault = BitwardenCsv
-            .convert("../../tests/fixtures/migrate/bitwarden-export.csv".into(), vault, &key)
+            .convert(
+                "../../tests/fixtures/migrate/bitwarden-export.csv".into(),
+                vault,
+                &key,
+            )
             .await?;
 
         let mut search = SearchIndex::new();

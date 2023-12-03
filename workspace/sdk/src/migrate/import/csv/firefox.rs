@@ -112,7 +112,9 @@ mod test {
 
     #[tokio::test]
     async fn firefox_passwords_csv_parse() -> Result<()> {
-        let mut records = parse_path("../../tests/fixtures/migrate/firefox-export.csv").await?;
+        let mut records =
+            parse_path("../../tests/fixtures/migrate/firefox-export.csv")
+                .await?;
         assert_eq!(2, records.len());
 
         let first = records.remove(0);
@@ -138,7 +140,11 @@ mod test {
 
         let key: AccessKey = passphrase.into();
         let vault = FirefoxPasswordCsv
-            .convert("../../tests/fixtures/migrate/firefox-export.csv".into(), vault, &key)
+            .convert(
+                "../../tests/fixtures/migrate/firefox-export.csv".into(),
+                vault,
+                &key,
+            )
             .await?;
 
         let mut search = SearchIndex::new();

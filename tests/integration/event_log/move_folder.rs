@@ -91,11 +91,11 @@ async fn integration_events_move_folder() -> Result<()> {
     // one for the default folder and one for the imported folder
     assert_eq!(2, events.len());
     assert!(matches!(
-        events.get((0)),
+        events.get(0),
         Some(AccountEvent::CreateFolder(_, _))
     ));
     assert!(matches!(
-        events.get((1)),
+        events.get(1),
         Some(AccountEvent::CreateFolder(_, _))
     ));
 

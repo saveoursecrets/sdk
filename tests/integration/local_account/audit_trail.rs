@@ -4,10 +4,9 @@ use secrecy::SecretString;
 use std::path::{Path, PathBuf};
 
 use sos_net::{
-    client::NetworkAccount,
     migrate::import::ImportTarget,
     sdk::{
-        account::archive::RestoreOptions,
+        account::{archive::RestoreOptions, LocalAccount},
         events::{AuditEvent, AuditLogFile, EventKind},
         passwd::diceware::generate_passphrase,
         vault::Summary,
@@ -26,7 +25,7 @@ async fn integration_audit_trail() -> Result<()> {
 
     let account_name = TEST_ID.to_string();
     let (passphrase, _) = generate_passphrase()?;
-    let (mut owner, new_account) = NetworkAccount::new_account_with_builder(
+    let (mut owner, new_account) = LocalAccount::new_account_with_builder(
         account_name.to_owned(),
         passphrase.clone(),
         |builder| {
@@ -122,14 +121,14 @@ async fn integration_audit_trail() -> Result<()> {
 }
 
 async fn simulate_session(
-    owner: &mut NetworkAccount,
+    owner: &mut LocalAccount,
     default_folder: &Summary,
     passphrase: SecretString,
     data_dir: &PathBuf,
 ) -> Result<()> {
     // Create a secret
     let (meta, secret) = mock::note("Audit note", "Note value");
-    let (id, _) = owner
+    let (id, _, _, _) = owner
         .create_secret(meta, secret, default_folder.clone().into())
         .await?;
     // Read the secret
@@ -138,7 +137,7 @@ async fn simulate_session(
     // Update the secret
     let mut new_meta = secret_data.meta().clone();
     new_meta.set_label("Audit note updated".to_string());
-    let (id, _) = owner
+    let (id, _, _, _) = owner
         .update_secret(
             &id,
             new_meta,
@@ -154,7 +153,7 @@ async fn simulate_session(
     // Create a new secret so we can archive it
     let (meta, secret) =
         mock::note("Audit note to archive", "Note value to archive");
-    let (id, _) = owner
+    let (id, _, _, _) = owner
         .create_secret(meta, secret, default_folder.clone().into())
         .await?;
     // Archive the secret to generate move event
@@ -162,7 +161,7 @@ async fn simulate_session(
         .archive(default_folder, &id, Default::default())
         .await?;
     // Create a new folder
-    let (new_folder, _) =
+    let (new_folder, _, _, _) =
         owner.create_folder("New folder".to_string()).await?;
     // Rename the folder
     owner
@@ -201,14 +200,14 @@ async fn simulate_session(
         files_dir: None,
     };
 
-    NetworkAccount::restore_backup_archive(
+    LocalAccount::restore_backup_archive(
         Some(owner),
         archive,
         restore_options,
         Some(data_dir.clone()),
     )
     .await?;
-    
+
     let unsafe_archive = "target/audit-trail-unsafe-archive.zip";
     owner.export_unsafe_archive(unsafe_archive).await?;
 
