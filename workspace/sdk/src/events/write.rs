@@ -23,15 +23,17 @@ pub enum WriteEvent {
 
     /// Event used to indicate a vault was created.
     ///
-    /// The buffer is the header of the newly created
-    /// vault.
+    /// The buffer is the initial state of the vault,
+    /// if the vault contains secrets they should be
+    /// separated using an [EventReducer::split]() beforehand
+    /// and appended to the event log as create secret events.
     CreateVault(Vec<u8>),
 
     /// Event used to indicate the vault name was set.
     SetVaultName(String),
 
     /// Event used to indicate the vault meta data was set.
-    SetVaultMeta(Option<AeadPack>),
+    SetVaultMeta(AeadPack),
 
     /// Event used to indicate a secret was created.
     CreateSecret(SecretId, VaultCommit),

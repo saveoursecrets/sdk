@@ -28,6 +28,7 @@
 //! * `contacts` Support for managing account contacts.
 //! * `device` Support for device signing keys and device management.
 //! * `files` Support for managing external encrypted files.
+//! * `migrate` Support for importing and exporting unencrypted secrets.
 //! * `search` Support for in-memory account search index.
 //! * `security-report` Support for generating a security report.
 //!

@@ -811,8 +811,6 @@ impl FolderStorage {
         summary: &Summary,
         name: impl AsRef<str>,
     ) -> Result<WriteEvent> {
-        // Log the event log event
-        //
         let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
         self.patch(summary, vec![event.clone()]).await?;
 
@@ -837,6 +835,42 @@ impl FolderStorage {
         access.set_vault_name(name.as_ref().to_owned()).await?;
 
         Ok(event)
+    }
+
+    /// Set the description of a vault.
+    pub async fn set_vault_description(
+        &mut self,
+        summary: &Summary,
+        description: impl AsRef<str>,
+    ) -> Result<WriteEvent> {
+        todo!();
+
+        /*
+        let event = WriteEvent::SetVaultMeta(name.as_ref().to_owned());
+        self.patch(summary, vec![event.clone()]).await?;
+
+        // Update the in-memory name.
+        for item in self.state.summaries_mut().iter_mut() {
+            if item.id() == summary.id() {
+                item.set_name(name.as_ref().to_owned());
+            }
+        }
+
+        // Now update the in-memory name for the current selected vault
+        if let Some(keeper) = self.current_mut() {
+            if keeper.vault().id() == summary.id() {
+                keeper.set_vault_name(name.as_ref().to_owned()).await?;
+            }
+        }
+
+        // Update the vault on disc
+        let vault_path = self.vault_path(summary);
+        let vault_file = VaultWriter::open(&vault_path).await?;
+        let mut access = VaultWriter::new(vault_path, vault_file)?;
+        access.set_vault_name(name.as_ref().to_owned()).await?;
+
+        Ok(event)
+        */
     }
 
     /// Apply events to the event log.

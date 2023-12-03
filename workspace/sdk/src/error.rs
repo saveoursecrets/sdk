@@ -221,33 +221,11 @@ pub enum Error {
     #[error("unknown key type identifier")]
     UnknownKeyTypeId,
 
-    /// Error generated when the leading byte for a compressed public key is invalid.
-    #[error(
-        "compressed public key has wrong first byte, must be 0x02 0r 0x03"
-    )]
-    BadPublicKeyByte,
-
-    /// Error generated when a public key is not compressed.
-    #[error("not a compressed public key")]
-    NotCompressedPublicKey,
-
-    /// Error generated when a response to a challenge is invalid.
-    #[error("invalid challenge response")]
-    InvalidChallengeResponse,
-
-    /// Error generated when a challenge could not be found.
-    #[error("challenge not found")]
-    ChallengeNotFound,
-
     /// Error generated when a public key has the wrong length.
     #[error(
         "public key is wrong length, expecting {0} bytes but got {1} bytes"
     )]
     InvalidPublicKeyLength(u8, usize),
-
-    /// Error generated when an address has the wrong prefix.
-    #[error("address must begin with 0x")]
-    BadAddressPrefix,
 
     /// Error generated when event log row data does not match the commit hash.
     #[error("row checksums do not match, expected {commit} but got {value}")]

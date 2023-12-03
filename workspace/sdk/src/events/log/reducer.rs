@@ -17,7 +17,7 @@ pub struct EventReducer {
     /// Last encountered vault name.
     vault_name: Option<String>,
     /// Last encountered vault meta data.
-    vault_meta: Option<Option<AeadPack>>,
+    vault_meta: Option<AeadPack>,
     /// Map of the reduced secrets.
     secrets: HashMap<SecretId, VaultCommit>,
     /// Reduce events until a particular commit.
@@ -39,7 +39,7 @@ impl EventReducer {
     }
 
     /// Split a vault into a truncated vault and a collection
-    /// of events that represent the vault.
+    /// of events that represent the vault content.
     ///
     /// The truncated vault represents the header of the vault and
     /// has no contents.
@@ -144,7 +144,7 @@ impl EventReducer {
             }
 
             if let Some(meta) = self.vault_meta {
-                vault.header_mut().set_meta(meta);
+                vault.header_mut().set_meta(Some(meta));
             }
 
             let buffer = encode(&vault).await?;
@@ -167,7 +167,7 @@ impl EventReducer {
             }
 
             if let Some(meta) = self.vault_meta {
-                vault.header_mut().set_meta(meta);
+                vault.header_mut().set_meta(Some(meta));
             }
 
             for (id, entry) in self.secrets {

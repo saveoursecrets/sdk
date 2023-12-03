@@ -231,7 +231,7 @@ pub trait VaultAccess {
     /// Set the vault meta data.
     async fn set_vault_meta(
         &mut self,
-        meta_data: Option<AeadPack>,
+        meta_data: AeadPack,
     ) -> Result<WriteEvent>;
 
     /// Add an encrypted secret to the vault.
@@ -1024,11 +1024,10 @@ impl VaultAccess for Vault {
 
     async fn set_vault_meta(
         &mut self,
-        meta_data: Option<AeadPack>,
+        meta_data: AeadPack,
     ) -> Result<WriteEvent> {
-        self.header.set_meta(meta_data);
-        let meta = self.header.meta().cloned();
-        Ok(WriteEvent::SetVaultMeta(meta))
+        self.header.set_meta(Some(meta_data.clone()));
+        Ok(WriteEvent::SetVaultMeta(meta_data))
     }
 
     async fn create(

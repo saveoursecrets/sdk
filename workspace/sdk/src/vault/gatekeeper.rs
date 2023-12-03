@@ -145,9 +145,9 @@ impl Gatekeeper {
         let meta_blob = encode(&meta_data).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
         if let Some(mirror) = self.mirror.as_mut() {
-            mirror.set_vault_meta(Some(meta_aead.clone())).await?;
+            mirror.set_vault_meta(meta_aead.clone()).await?;
         }
-        self.vault.set_vault_meta(Some(meta_aead)).await
+        self.vault.set_vault_meta(meta_aead).await
     }
 
     /// Get a secret from the vault.

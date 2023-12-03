@@ -266,10 +266,7 @@ impl Encodable for WriteEvent {
                 writer.write_string(name).await?;
             }
             WriteEvent::SetVaultMeta(meta) => {
-                writer.write_bool(meta.is_some()).await?;
-                if let Some(meta) = meta {
-                    meta.encode(&mut *writer).await?;
-                }
+                meta.encode(&mut *writer).await?;
             }
             WriteEvent::CreateSecret(uuid, value) => {
                 writer.write_bytes(uuid.as_bytes()).await?;
@@ -307,14 +304,8 @@ impl Decodable for WriteEvent {
                 *self = WriteEvent::SetVaultName(name);
             }
             EventKind::SetVaultMeta => {
-                let has_meta = reader.read_bool().await?;
-                let aead_pack = if has_meta {
-                    let mut aead_pack: AeadPack = Default::default();
-                    aead_pack.decode(&mut *reader).await?;
-                    Some(aead_pack)
-                } else {
-                    None
-                };
+                let mut aead_pack: AeadPack = Default::default();
+                aead_pack.decode(&mut *reader).await?;
                 *self = WriteEvent::SetVaultMeta(aead_pack);
             }
             EventKind::CreateSecret => {

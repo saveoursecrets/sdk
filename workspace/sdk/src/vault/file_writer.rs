@@ -213,11 +213,11 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
 
     async fn set_vault_meta(
         &mut self,
-        meta_data: Option<AeadPack>,
+        meta_data: AeadPack,
     ) -> Result<WriteEvent> {
         let content_offset = self.check_identity().await?;
         let mut header = Header::read_header_file(&self.file_path).await?;
-        header.set_meta(meta_data.clone());
+        header.set_meta(Some(meta_data.clone()));
         self.write_header(content_offset, &header).await?;
         Ok(WriteEvent::SetVaultMeta(meta_data))
     }

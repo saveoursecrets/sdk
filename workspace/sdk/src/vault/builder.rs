@@ -124,6 +124,6 @@ async fn encrypt_meta(
 ) -> Result<()> {
     let meta_blob = encode(&meta).await?;
     let meta_aead = vault.encrypt(private_key, &meta_blob).await?;
-    vault.set_vault_meta(Some(meta_aead)).await?;
+    vault.set_vault_meta(meta_aead).await?;
     Ok(())
 }
