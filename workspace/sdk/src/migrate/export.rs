@@ -1,6 +1,5 @@
-//! Export an archive of unencrypted secrets.
-//!
-//! Used to migrate to another service.
+//! Export an archive of unencrypted secrets that 
+//! can be used to migrate data to another app.
 
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
@@ -18,7 +17,7 @@ use crate::{
     Result,
 };
 
-/// Migration encapsulates a collection of vaults
+/// Public export encapsulates a collection of vaults
 /// and their unencrypted secrets.
 pub struct PublicExport<W: AsyncWrite + Unpin> {
     writer: ZipFileWriter<W>,
