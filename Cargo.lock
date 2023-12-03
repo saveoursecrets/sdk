@@ -3966,35 +3966,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos-migrate"
-version = "0.7.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "async_zip",
- "csv-async",
- "dirs",
- "futures",
- "futures-util",
- "hex",
- "logos",
- "parking_lot",
- "plist",
- "rustc_version",
- "secrecy",
- "security-framework",
- "serde",
- "serde_json",
- "sos-sdk 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "thiserror",
- "time",
- "tokio",
- "tokio-util",
- "url",
- "vcard4",
-]
-
-[[package]]
 name = "sos-net"
 version = "0.7.0"
 dependencies = [
@@ -4027,7 +3998,7 @@ dependencies = [
  "serde_json",
  "serde_with 2.3.3",
  "sha3",
- "sos-sdk 0.7.0",
+ "sos-sdk",
  "tempfile",
  "thiserror",
  "tokio",
@@ -4094,73 +4065,6 @@ dependencies = [
  "sha2",
  "sha3",
  "sos-vfs 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "subtle",
- "tempfile",
- "thiserror",
- "time",
- "tokio",
- "tokio-util",
- "totp-rs",
- "tracing",
- "unicode-segmentation",
- "url",
- "urn",
- "uuid",
- "vcard4",
- "vsss-rs",
- "walkdir",
- "web3-address",
- "web3-signature",
- "zeroize",
- "zxcvbn",
-]
-
-[[package]]
-name = "sos-sdk"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1386c0d9a051b3a09b5807a7d16ce2fcf04d076d601d6548328be91df273750"
-dependencies = [
- "aes-gcm",
- "age",
- "anyhow",
- "app_dirs2",
- "argon2",
- "async-recursion",
- "async-trait",
- "async_zip",
- "balloon-hash",
- "binary-stream",
- "bitflags 1.3.2",
- "bs58",
- "chacha20poly1305",
- "chbs",
- "ed25519-dalek",
- "filetime",
- "futures",
- "futures-util",
- "getrandom 0.2.11",
- "hex",
- "http",
- "k256",
- "log",
- "mime_guess",
- "mpc-protocol 0.4.1",
- "once_cell",
- "parking_lot",
- "pem 3.0.2",
- "probly-search",
- "rand 0.8.5",
- "rs_merkle",
- "rustc_version",
- "sanitize-filename",
- "secrecy",
- "serde",
- "serde_json",
- "serde_with 3.4.0",
- "sha1",
- "sha2",
- "sha3",
  "subtle",
  "tempfile",
  "thiserror",

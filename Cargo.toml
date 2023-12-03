@@ -17,7 +17,6 @@ categories = [
 [workspace]
 members = [
   "workspace/artifact",
-  "workspace/migrate",
   "workspace/net",
   "workspace/sdk",
   "workspace/vfs",
