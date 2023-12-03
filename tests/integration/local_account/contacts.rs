@@ -8,9 +8,9 @@ use sos_net::sdk::{
 
 const TEST_ID: &str = "contacts";
 const CONTACT: &str =
-    include_str!("../../../workspace/sdk/fixtures/contact.vcf");
+    include_str!("../../../tests/fixtures/contact.vcf");
 const AVATAR: &str =
-    include_str!("../../../workspace/sdk/fixtures/avatar.vcf");
+    include_str!("../../../tests/fixtures/avatar.vcf");
 
 /// Tests importing and exporting contacts from vCard
 /// files.

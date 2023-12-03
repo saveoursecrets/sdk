@@ -787,13 +787,13 @@ mod test {
     #[tokio::test]
     async fn keychain_unescape_octal() -> Result<()> {
         let expected =
-            vfs::read_to_string("fixtures/plist-data-unescaped.txt").await?;
+            vfs::read_to_string("../../tests/fixtures/migrate/plist-data-unescaped.txt").await?;
         let contents =
-            vfs::read_to_string("fixtures/plist-data-escaped.txt").await?;
+            vfs::read_to_string("../../tests/fixtures/migrate/plist-data-escaped.txt").await?;
         let plist = unescape_octal(&contents)?;
         /*
         vfs::write(
-            "fixtures/plist-data-unescaped.txt", plist.as_ref()).await?;
+            "tests/fixtures/plist-data-unescaped.txt", plist.as_ref()).await?;
         */
         assert_eq!(&expected, plist.as_ref());
         Ok(())
@@ -801,7 +801,7 @@ mod test {
 
     #[tokio::test]
     async fn keychain_parse_basic() -> Result<()> {
-        let contents = vfs::read_to_string("fixtures/sos-mock.txt").await?;
+        let contents = vfs::read_to_string("../../tests/fixtures/migrate/sos-mock.txt").await?;
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 
@@ -817,7 +817,7 @@ mod test {
     #[tokio::test]
     async fn keychain_parse_certificate() -> Result<()> {
         let contents =
-            vfs::read_to_string("fixtures/mock-certificate.txt").await?;
+            vfs::read_to_string("../../tests/fixtures/migrate/mock-certificate.txt").await?;
         let parser = KeychainParser::new(&contents);
         let _list = parser.parse()?;
         Ok(())
@@ -826,7 +826,7 @@ mod test {
     #[tokio::test]
     async fn keychain_parse_data() -> Result<()> {
         let contents =
-            vfs::read_to_string("fixtures/sos-mock-data.txt").await?;
+            vfs::read_to_string("../../tests/fixtures/migrate/sos-mock-data.txt").await?;
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 

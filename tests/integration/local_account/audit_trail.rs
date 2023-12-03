@@ -208,11 +208,11 @@ async fn simulate_session(
         Some(data_dir.clone()),
     )
     .await?;
-
+    
     let unsafe_archive = "target/audit-trail-unsafe-archive.zip";
     owner.export_unsafe_archive(unsafe_archive).await?;
 
-    let import_file = "workspace/migrate/fixtures/bitwarden-export.csv";
+    let import_file = "tests/fixtures/migrate/bitwarden-export.csv";
     let import_target = ImportTarget {
         format: "bitwarden.csv".parse()?,
         path: PathBuf::from(import_file),

@@ -49,7 +49,7 @@ pub fn init_tracing() {
 ///
 /// Declared here as we may need to adjust for CI.
 pub async fn sync_pause() {
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
 }
 
 /// Create a remote provider for the given signing key.
@@ -446,7 +446,7 @@ pub mod mock {
 
     pub fn pem(label: &str) -> (SecretMeta, Secret) {
         const CERTIFICATE: &str =
-            include_str!("../../workspace/sdk/fixtures/mock-cert.pem");
+            include_str!("../../tests/fixtures/mock-cert.pem");
         let certificates = pem::parse_many(CERTIFICATE).unwrap();
         let secret_value = Secret::Pem {
             certificates,

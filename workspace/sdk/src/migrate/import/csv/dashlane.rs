@@ -669,7 +669,7 @@ mod test {
 
     #[tokio::test]
     async fn dashlane_csv_parse() -> Result<()> {
-        let mut records = parse_path("fixtures/dashlane-export.zip").await?;
+        let mut records = parse_path("../../tests/fixtures/migrate/dashlane-export.zip").await?;
         assert_eq!(15, records.len());
 
         let first = records.remove(0);
@@ -696,7 +696,7 @@ mod test {
 
         let key: AccessKey = passphrase.into();
         let vault = DashlaneCsvZip
-            .convert("fixtures/dashlane-export.zip".into(), vault, &key)
+            .convert("../../tests/fixtures/migrate/dashlane-export.zip".into(), vault, &key)
             .await?;
 
         let mut search = SearchIndex::new();

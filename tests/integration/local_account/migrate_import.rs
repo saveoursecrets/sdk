@@ -39,7 +39,7 @@ async fn integration_migrate_import() -> Result<()> {
     let target = ImportTarget {
         format: ImportFormat::OnePasswordCsv,
         path: PathBuf::from(
-            "workspace/migrate/fixtures/1password-export.csv",
+            "tests/fixtures/migrate/1password-export.csv",
         ),
         folder_name: "1password".to_string(),
     };
@@ -51,7 +51,7 @@ async fn integration_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::DashlaneZip,
-        path: PathBuf::from("workspace/migrate/fixtures/dashlane-export.zip"),
+        path: PathBuf::from("tests/fixtures/migrate/dashlane-export.zip"),
         folder_name: "dashlane".to_string(),
     };
     let mut importer = LocalImport::new(&mut account);
@@ -63,7 +63,7 @@ async fn integration_migrate_import() -> Result<()> {
     let target = ImportTarget {
         format: ImportFormat::BitwardenCsv,
         path: PathBuf::from(
-            "workspace/migrate/fixtures/bitwarden-export.csv",
+            "tests/fixtures/migrate/bitwarden-export.csv",
         ),
         folder_name: "bitwarden".to_string(),
     };
@@ -75,7 +75,7 @@ async fn integration_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::ChromeCsv,
-        path: PathBuf::from("workspace/migrate/fixtures/chrome-export.csv"),
+        path: PathBuf::from("tests/fixtures/migrate/chrome-export.csv"),
         folder_name: "chrome".to_string(),
     };
     let mut importer = LocalImport::new(&mut account);
@@ -86,7 +86,7 @@ async fn integration_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::FirefoxCsv,
-        path: PathBuf::from("workspace/migrate/fixtures/firefox-export.csv"),
+        path: PathBuf::from("tests/fixtures/migrate/firefox-export.csv"),
         folder_name: "firefox".to_string(),
     };
     let mut importer = LocalImport::new(&mut account);
@@ -97,7 +97,7 @@ async fn integration_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::MacosCsv,
-        path: PathBuf::from("workspace/migrate/fixtures/macos-export.csv"),
+        path: PathBuf::from("tests/fixtures/migrate/macos-export.csv"),
         folder_name: "macos".to_string(),
     };
     let mut importer = LocalImport::new(&mut account);

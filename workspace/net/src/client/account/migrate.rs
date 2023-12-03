@@ -3,7 +3,7 @@ use crate::client::{NetworkAccount, Result};
 use sos_sdk::vault::Summary;
 use std::path::Path;
 
-use sos_sdk::migrate::{import::ImportTarget, AccountExport, AccountImport};
+use sos_sdk::migrate::import::ImportTarget;
 
 impl NetworkAccount {
     /// Write a zip archive containing all the secrets
@@ -14,18 +14,15 @@ impl NetworkAccount {
         &self,
         path: P,
     ) -> Result<()> {
-        let migration = AccountExport::new(&self.account);
-        Ok(migration.export_unsafe_archive(path).await?)
+        Ok(self.account.export_unsafe_archive(path).await?)
     }
 
     /// Import secrets from another app.
-    #[cfg(feature = "migrate")]
     pub async fn import_file(
         &mut self,
         target: ImportTarget,
     ) -> Result<Summary> {
         let _ = self.sync_lock.lock().await;
-        let mut migration = AccountImport::new(&mut self.account);
-        Ok(migration.import_file(target).await?)
+        Ok(self.account.import_file(target).await?)
     }
 }

@@ -11,6 +11,8 @@ mod device;
 pub mod files;
 mod identity;
 mod local_storage;
+#[cfg(feature = "migrate")]
+mod migrate;
 mod paths;
 #[cfg(feature = "search")]
 pub mod search;

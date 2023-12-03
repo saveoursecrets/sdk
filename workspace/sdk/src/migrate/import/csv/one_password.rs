@@ -175,7 +175,7 @@ mod test {
 
     #[tokio::test]
     async fn one_password_csv_parse() -> Result<()> {
-        let mut records = parse_path("fixtures/1password-export.csv").await?;
+        let mut records = parse_path("../../tests/fixtures/1password-export.csv").await?;
         assert_eq!(6, records.len());
 
         let first = records.remove(0);
@@ -253,7 +253,7 @@ mod test {
 
         let key: AccessKey = passphrase.into();
         let vault = OnePasswordCsv
-            .convert("fixtures/1password-export.csv".into(), vault, &key)
+            .convert("../../tests/fixtures/1password-export.csv".into(), vault, &key)
             .await?;
 
         let mut search = SearchIndex::new();
