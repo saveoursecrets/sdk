@@ -1,19 +1,17 @@
 use anyhow::Result;
-use sos_net::{
-    client::NetworkAccount,
-    sdk::{
-        account::{files::FileProgress, AccessOptions},
-        hex,
-        vault::{
-            secret::{FileContent, Secret, SecretId, SecretRow},
-            Summary,
-        },
-        vfs,
+use sos_net::sdk::{
+    account::{files::FileProgress, AccessOptions, LocalAccount},
+    hex,
+    passwd::diceware::generate_passphrase,
+    vault::{
+        secret::{FileContent, Secret, SecretId, SecretRow},
+        Summary,
     },
+    vfs,
 };
 use std::{path::PathBuf, sync::Arc};
 
-use crate::test_utils::{create_local_account, mock, setup, teardown};
+use crate::test_utils::{mock, setup, teardown};
 use tokio::sync::{mpsc, Mutex};
 
 const ZERO_CHECKSUM: [u8; 32] = [0; 32];
@@ -25,10 +23,20 @@ async fn integration_external_files() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
-    let test_data_dir = dirs.clients.remove(0);
+    let data_dir = dirs.clients.remove(0);
 
-    let (mut account, summary, _) =
-        create_local_account("external_files", Some(test_data_dir)).await?;
+    let account_name = TEST_ID.to_string();
+    let (password, _) = generate_passphrase()?;
+
+    let (mut account, new_account) = LocalAccount::new_account(
+        account_name.clone(),
+        password.clone(),
+        Some(data_dir.clone()),
+        None,
+    )
+    .await?;
+    let summary = new_account.default_folder().clone();
+    account.sign_in(password.clone()).await?;
 
     let operations: Arc<Mutex<Vec<FileProgress>>> =
         Arc::new(Mutex::new(Vec::new()));
@@ -170,7 +178,7 @@ async fn integration_external_files() -> Result<()> {
 }
 
 async fn create_file_secret(
-    account: &mut NetworkAccount,
+    account: &mut LocalAccount,
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(SecretId, SecretRow, PathBuf)> {
@@ -181,7 +189,7 @@ async fn create_file_secret(
         folder: Some(default_folder.clone()),
         file_progress: Some(progress_tx),
     };
-    let (id, _) = account.create_secret(meta, secret, options).await?;
+    let (id, _, _, _) = account.create_secret(meta, secret, options).await?;
     let (secret_data, _) = account
         .read_secret(&id, Some(default_folder.clone()))
         .await?;
@@ -190,7 +198,7 @@ async fn create_file_secret(
 }
 
 async fn update_file_secret(
-    account: &mut NetworkAccount,
+    account: &mut LocalAccount,
     default_folder: &Summary,
     secret_data: &SecretRow,
     destination: Option<&Summary>,
@@ -201,7 +209,7 @@ async fn update_file_secret(
     let mut new_meta = secret_data.meta().clone();
     new_meta.set_label("Text file".to_string());
 
-    let (new_id, _) = account
+    let (new_id, _, _, _) = account
         .update_file(
             &id,
             new_meta,
@@ -224,7 +232,7 @@ async fn update_file_secret(
 }
 
 async fn assert_create_file_secret(
-    account: &mut NetworkAccount,
+    account: &mut LocalAccount,
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(SecretId, SecretRow, [u8; 32])> {
@@ -268,7 +276,7 @@ async fn assert_create_file_secret(
 }
 
 async fn assert_update_file_secret(
-    account: &mut NetworkAccount,
+    account: &mut LocalAccount,
     default_folder: &Summary,
     id: &SecretId,
     secret_data: &SecretRow,
@@ -320,14 +328,15 @@ async fn assert_update_file_secret(
 }
 
 async fn assert_move_file_secret(
-    account: &mut NetworkAccount,
+    account: &mut LocalAccount,
     default_folder: &Summary,
     id: &SecretId,
     updated_checksum: &[u8; 32],
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(Summary, SecretId, SecretRow, [u8; 32])> {
     let new_folder_name = "Mock folder".to_string();
-    let (destination, _) = account.create_folder(new_folder_name).await?;
+    let (destination, _, _, _) =
+        account.create_folder(new_folder_name).await?;
 
     let (new_id, _) = account
         .move_secret(
@@ -382,7 +391,7 @@ async fn assert_move_file_secret(
 }
 
 async fn assert_delete_file_secret(
-    account: &mut NetworkAccount,
+    account: &mut LocalAccount,
     folder: &Summary,
     id: &SecretId,
     checksum: &[u8; 32],
@@ -404,7 +413,7 @@ async fn assert_delete_file_secret(
 }
 
 async fn assert_create_update_move_file_secret(
-    account: &mut NetworkAccount,
+    account: &mut LocalAccount,
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(Summary, SecretId, [u8; 32])> {
@@ -423,7 +432,8 @@ async fn assert_create_update_move_file_secret(
     };
 
     let new_folder_name = "Mock folder".to_string();
-    let (destination, _) = account.create_folder(new_folder_name).await?;
+    let (destination, _, _, _) =
+        account.create_folder(new_folder_name).await?;
 
     let new_secret_data = update_file_secret(
         account,
@@ -471,7 +481,7 @@ async fn assert_create_update_move_file_secret(
 }
 
 async fn assert_delete_folder_file_secrets(
-    account: &mut NetworkAccount,
+    account: &mut LocalAccount,
     folder: &Summary,
     id: &SecretId,
     checksum: &[u8; 32],
@@ -486,7 +496,7 @@ async fn assert_delete_folder_file_secrets(
 }
 
 async fn assert_attach_file_secret(
-    account: &mut NetworkAccount,
+    account: &mut LocalAccount,
     folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<()> {
@@ -518,7 +528,7 @@ async fn assert_attach_file_secret(
 
     // We never modify the root secret so assert on every change
     async fn assert_root_file_secret(
-        account: &mut NetworkAccount,
+        account: &mut LocalAccount,
         folder: &Summary,
         id: &SecretId,
         root: &Secret,

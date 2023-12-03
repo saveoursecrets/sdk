@@ -3,7 +3,7 @@ use secrecy::SecretString;
 use sos_net::{
     client::NetworkAccount,
     sdk::{
-        account::security_report::SecurityReportOptions,
+        account::{security_report::SecurityReportOptions, LocalAccount},
         passwd::diceware::generate_passphrase,
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
@@ -12,7 +12,7 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::{create_local_account, setup, teardown};
+use crate::test_utils::{setup, teardown};
 
 const TEST_ID: &str = "security_report";
 
@@ -21,13 +21,23 @@ async fn integration_security_report() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
-    let test_data_dir = dirs.clients.remove(0);
+    let data_dir = dirs.clients.remove(0);
 
-    let (mut owner, summary, passphrase) =
-        create_local_account("security_report", Some(test_data_dir)).await?;
+    let account_name = TEST_ID.to_string();
+    let (password, _) = generate_passphrase()?;
+
+    let (mut account, new_account) = LocalAccount::new_account(
+        account_name.clone(),
+        password.clone(),
+        Some(data_dir.clone()),
+        None,
+    )
+    .await?;
+    let summary = new_account.default_folder().clone();
+    account.sign_in(password.clone()).await?;
 
     // Make changes to generate data
-    let mock_ids = simulate_session(&mut owner, &summary, passphrase).await?;
+    let mock_ids = simulate_session(&mut account, &summary, password).await?;
 
     let report_options = SecurityReportOptions {
         excludes: vec![],
@@ -37,7 +47,7 @@ async fn integration_security_report() -> Result<()> {
         target: None,
     };
 
-    let report = owner
+    let report = account
         .generate_security_report::<bool, _, _>(report_options)
         .await?;
 
@@ -65,7 +75,7 @@ async fn integration_security_report() -> Result<()> {
     assert!(field_record.entropy.as_ref().unwrap().score() >= 3);
 
     // Delete the account
-    owner.delete_account().await?;
+    account.delete_account().await?;
 
     teardown(TEST_ID).await;
 
@@ -79,7 +89,7 @@ struct MockSecretIds {
 }
 
 async fn simulate_session(
-    owner: &mut NetworkAccount,
+    account: &mut LocalAccount,
     default_folder: &Summary,
     _passphrase: SecretString,
 ) -> Result<MockSecretIds> {
@@ -93,7 +103,7 @@ async fn simulate_session(
     let weak_meta =
         SecretMeta::new("Weak password".to_string(), weak_secret.kind());
 
-    let (weak_id, _) = owner
+    let (weak_id, _, _, _) = account
         .create_secret(weak_meta, weak_secret, default_folder.clone().into())
         .await?;
 
@@ -125,7 +135,7 @@ async fn simulate_session(
     let strong_meta =
         SecretMeta::new("Strong password".to_string(), strong_secret.kind());
 
-    let (strong_id, _) = owner
+    let (strong_id, _, _, _) = account
         .create_secret(
             strong_meta,
             strong_secret,

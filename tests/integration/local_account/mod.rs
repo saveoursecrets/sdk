@@ -1,12 +1,12 @@
 mod account_lifecycle;
 mod account_statistics;
 mod archive_unarchive;
+mod audit_trail;
 mod change_password;
 mod contacts;
 mod custom_fields;
 mod external_files;
 mod folder_lifecycle;
-//mod folder_storage;
 mod identity_login;
 mod migrate_export;
 mod migrate_import;

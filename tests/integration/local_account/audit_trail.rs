@@ -15,22 +15,37 @@ use sos_net::{
     },
 };
 
-use crate::test_utils::{create_local_account, mock_note, setup, teardown};
+use crate::test_utils::{mock, setup, teardown};
 
 const TEST_ID: &str = "audit_trail";
 
 #[tokio::test]
 async fn integration_audit_trail() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
-    let test_data_dir = dirs.clients.remove(0);
+    let data_dir = dirs.clients.remove(0);
 
-    let (mut owner, summary, passphrase) =
-        create_local_account("audit_trail", Some(test_data_dir.clone()))
-            .await?;
+    let account_name = TEST_ID.to_string();
+    let (passphrase, _) = generate_passphrase()?;
+    let (mut owner, new_account) = NetworkAccount::new_account_with_builder(
+        account_name.to_owned(),
+        passphrase.clone(),
+        |builder| {
+            builder
+                .save_passphrase(false)
+                .create_archive(true)
+                .create_authenticator(false)
+                .create_contacts(true)
+                .create_file_password(true)
+        },
+        Some(data_dir.clone()),
+        None,
+    )
+    .await?;
+    let summary = new_account.default_folder().clone();
+    owner.sign_in(passphrase.clone()).await?;
 
     // Make changes to generate audit logs
-    simulate_session(&mut owner, &summary, passphrase, &test_data_dir)
-        .await?;
+    simulate_session(&mut owner, &summary, passphrase, &data_dir).await?;
 
     // Read in the audit log events
     let paths = owner.paths();
@@ -110,10 +125,10 @@ async fn simulate_session(
     owner: &mut NetworkAccount,
     default_folder: &Summary,
     passphrase: SecretString,
-    test_data_dir: &PathBuf,
+    data_dir: &PathBuf,
 ) -> Result<()> {
     // Create a secret
-    let (meta, secret) = mock_note("Audit note", "Note value");
+    let (meta, secret) = mock::note("Audit note", "Note value");
     let (id, _) = owner
         .create_secret(meta, secret, default_folder.clone().into())
         .await?;
@@ -138,7 +153,7 @@ async fn simulate_session(
         .await?;
     // Create a new secret so we can archive it
     let (meta, secret) =
-        mock_note("Audit note to archive", "Note value to archive");
+        mock::note("Audit note to archive", "Note value to archive");
     let (id, _) = owner
         .create_secret(meta, secret, default_folder.clone().into())
         .await?;
@@ -190,7 +205,7 @@ async fn simulate_session(
         Some(owner),
         archive,
         restore_options,
-        Some(test_data_dir.clone()),
+        Some(data_dir.clone()),
     )
     .await?;
 

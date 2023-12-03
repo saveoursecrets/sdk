@@ -265,7 +265,9 @@ pub enum DocumentView {
 
 impl Default for DocumentView {
     fn default() -> Self {
-        Self::All { ignored_types: None }
+        Self::All {
+            ignored_types: None,
+        }
     }
 }
 

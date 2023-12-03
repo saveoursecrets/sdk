@@ -366,9 +366,7 @@ impl<D> Account<D> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
-            |builder| {
-                builder.create_file_password(true)
-            },
+            |builder| builder.create_file_password(true),
             data_dir,
             handler,
         )
@@ -468,7 +466,10 @@ impl<D> Account<D> {
     }
 
     /// Get access to an account by signing in.
-    pub async fn sign_in(&mut self, passphrase: SecretString) -> Result<()> {
+    pub async fn sign_in(
+        &mut self,
+        passphrase: SecretString,
+    ) -> Result<Vec<Summary>> {
         let span = span!(Level::DEBUG, "sign_in");
         let _enter = span.enter();
 
@@ -513,9 +514,7 @@ impl<D> Account<D> {
 
         // Load vaults into memory and initialize folder
         // event log commit trees
-        self.load_folders().await?;
-
-        Ok(())
+        Ok(self.load_folders().await?)
     }
 
     async fn initialize_account_log(
@@ -911,8 +910,9 @@ impl<D> Account<D> {
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<()> {
-        let buffer = self.export_folder_buffer(
-            summary, new_key, save_key).await?;
+        let buffer = self
+            .export_folder_buffer(summary, new_key, save_key)
+            .await?;
         vfs::write(path, buffer).await?;
         Ok(())
     }
@@ -1048,8 +1048,7 @@ impl<D> Account<D> {
 
         // Check for existing identifier
         //let vaults = Self::list_local_folders(&self.paths, false).await?;
-        let existing_id =
-            self.find(|s| s.id() == vault.summary().id()).await;
+        let existing_id = self.find(|s| s.id() == vault.summary().id()).await;
 
         let default_vault = self.default_folder().await;
 
@@ -1069,8 +1068,8 @@ impl<D> Account<D> {
 
         let folder_id = *vault.id();
 
-        let existing_name = self
-            .find(|s| s.name() == vault.summary().name()).await;
+        let existing_name =
+            self.find(|s| s.name() == vault.summary().name()).await;
 
         let has_name_changed = if existing_name.is_some() && !overwrite {
             let name = format!(
@@ -1137,10 +1136,10 @@ impl<D> Account<D> {
                 }
             }
         }
-            
+
         if existing_id.is_none() {
-            let secure_key = self.user()?
-                .secure_access_key(&folder_id).await?;
+            let secure_key =
+                self.user()?.secure_access_key(&folder_id).await?;
             if let Some(auth) = self.authenticated.as_mut() {
                 let event = AccountEvent::CreateFolder(folder_id, secure_key);
                 let mut account_log = auth.account_log.write().await;

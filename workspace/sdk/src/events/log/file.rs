@@ -406,7 +406,6 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         // but it doesn't exist we error otherwise we would return
         // all the events
         if let Some(commit) = commit {
-
             /*
             if let Some(last_commit) = self.last_commit().await? {
                 if &last_commit != commit {

@@ -37,30 +37,25 @@ async fn integration_search_favorites() -> Result<()> {
     let default_folder = new_account.default_folder();
     account.sign_in(password.clone()).await?;
     account.open_folder(&default_folder).await?;
-    
+
     // Create a secret
-    let (meta, secret) = mock::login(
-        "login", TEST_ID, generate_passphrase()?.0);
-    let (id, _, _, _) = account.create_secret(
-        meta, secret, Default::default()).await?;
+    let (meta, secret) =
+        mock::login("login", TEST_ID, generate_passphrase()?.0);
+    let (id, _, _, _) = account
+        .create_secret(meta, secret, Default::default())
+        .await?;
 
     // No favorites yet
     let documents = account
         .query_view(vec![DocumentView::Favorites], None)
         .await?;
     assert_eq!(0, documents.len());
-    
+
     // Mark a secret as favorite
     let (mut data, _) = account.read_secret(&id, None).await?;
     data.meta_mut().set_favorite(true);
     let (_, _, _, _) = account
-        .update_secret(
-            &id,
-            data.into(),
-            None,
-            Default::default(),
-            None,
-        )
+        .update_secret(&id, data.into(), None, Default::default(), None)
         .await?;
 
     // Should have a favorite now
@@ -73,16 +68,10 @@ async fn integration_search_favorites() -> Result<()> {
     let (mut data, _) = account.read_secret(&id, None).await?;
     data.meta_mut().set_favorite(false);
     let (_, _, _, _) = account
-        .update_secret(
-            &id,
-            data.into(),
-            None,
-            Default::default(),
-            None,
-        )
+        .update_secret(&id, data.into(), None, Default::default(), None)
         .await?;
 
-    // Not in the favorites view anymore 
+    // Not in the favorites view anymore
     let documents = account
         .query_view(vec![DocumentView::Favorites], None)
         .await?;

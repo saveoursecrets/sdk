@@ -30,11 +30,7 @@ async fn integration_contacts() -> Result<()> {
     let (mut account, new_account) = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),
-        |builder| {
-            builder
-                .create_contacts(true)
-                .create_file_password(true)
-        },
+        |builder| builder.create_contacts(true).create_file_password(true),
         Some(data_dir.clone()),
         None,
     )

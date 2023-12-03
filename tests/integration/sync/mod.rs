@@ -1,4 +1,4 @@
-use crate::test_utils::{create_local_account, setup, TestDirs, TestServer};
+use crate::test_utils::{setup, TestDirs, TestServer};
 use anyhow::Result;
 use copy_dir::copy_dir;
 use secrecy::SecretString;
@@ -8,7 +8,9 @@ use sos_net::{
         RemoteSync, WebSocketHandle,
     },
     sdk::{
+        account::LocalAccount,
         constants::VAULT_EXT,
+        passwd::diceware::generate_passphrase,
         vault::{Summary, VaultId},
         vfs,
     },
@@ -78,15 +80,6 @@ impl SimulatedDevice {
 
         owner.sign_in(self.password.clone()).await?;
 
-        /*
-        let mut owner = NetworkAccount::sign_in(
-            self.owner.address(),
-            self.password.clone(),
-            Some(data_dir.clone()),
-        )
-        .await?;
-        */
-
         let origin = origin.unwrap_or_else(|| self.origin.clone());
 
         // Mimic account owner on another owner connected to
@@ -135,20 +128,16 @@ pub async fn simulate_device(
     let dirs = setup(test_id, num_clients).await?;
     let data_dir = dirs.clients.get(0).unwrap().clone();
 
-    let (mut owner, default_folder, password) =
-        create_local_account(test_id, Some(data_dir.clone())).await?;
-
-    // Folders on the local account must be loaded into memory
-    let folders: Vec<Summary> = {
-        let storage = owner.storage()?;
-        let mut writer = storage.write().await;
-        writer
-            .load_vaults()
-            .await?
-            .into_iter()
-            .map(|s| s.clone())
-            .collect()
-    };
+    let (password, _) = generate_passphrase()?;
+    let (mut owner, new_account) = NetworkAccount::new_account(
+        test_id.to_owned(),
+        password.clone(),
+        Some(data_dir.clone()),
+        None,
+    )
+    .await?;
+    let default_folder = new_account.default_folder().clone();
+    let folders = owner.sign_in(password.clone()).await?;
 
     // Copy the initial data directory for the
     // alternative devices as they need to share

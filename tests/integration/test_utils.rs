@@ -296,37 +296,6 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
     Ok(TestDirs { target, clients })
 }
 
-pub async fn create_local_account(
-    account_name: &str,
-    data_dir: Option<PathBuf>,
-) -> Result<(NetworkAccount, Summary, SecretString)> {
-    let (passphrase, _) = generate_passphrase()?;
-    let (mut owner, new_account) = NetworkAccount::new_account_with_builder(
-        account_name.to_owned(),
-        passphrase.clone(),
-        |builder| {
-            builder
-                .save_passphrase(false)
-                .create_archive(true)
-                .create_authenticator(false)
-                .create_contacts(true)
-                .create_file_password(true)
-        },
-        data_dir,
-        None,
-    )
-    .await?;
-
-    let summary = new_account.default_folder().clone();
-
-    owner.sign_in(passphrase.clone()).await?;
-
-    owner.initialize_search_index().await?;
-
-    let summary = summary.to_owned();
-    Ok((owner, summary, passphrase))
-}
-
 pub async fn create_secrets(
     provider: &mut FolderStorage,
     summary: &Summary,

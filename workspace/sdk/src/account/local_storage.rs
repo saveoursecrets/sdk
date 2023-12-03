@@ -905,13 +905,13 @@ impl FolderStorage {
         };
 
         secret_data.meta.touch();
-        
+
         let index_doc = {
             let search = self.index.search();
             let mut index = search.write().await;
-            // Must remove from the index before we 
-            // prepare a new document otherwise the 
-            // document would be stale as `prepare()` 
+            // Must remove from the index before we
+            // prepare a new document otherwise the
+            // document would be stale as `prepare()`
             // and `commit()` are for new documents
             index.remove(summary.id(), id);
 

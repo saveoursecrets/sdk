@@ -29,11 +29,7 @@ async fn integration_search_view_query() -> Result<()> {
     let (mut account, new_account) = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),
-        |builder| {
-            builder
-                .create_archive(true)
-                .create_file_password(true)
-        },
+        |builder| builder.create_archive(true).create_file_password(true),
         Some(data_dir.clone()),
         None,
     )
@@ -102,12 +98,8 @@ async fn integration_search_view_query() -> Result<()> {
     account.insert_secrets(new_folder_docs).await?;
 
     // Get all documents in the index.
-    let documents = account
-        .query_view(
-            vec![Default::default()],
-            None,
-        )
-        .await?;
+    let documents =
+        account.query_view(vec![Default::default()], None).await?;
     assert_eq!(total_docs, documents.len());
 
     // Get all documents ignoring some types
