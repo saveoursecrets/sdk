@@ -3,10 +3,8 @@ use crate::client::{NetworkAccount, Result};
 use sos_sdk::vault::Summary;
 use std::path::Path;
 
-#[cfg(feature = "migrate")]
-use sos_migrate::{import::ImportTarget, AccountExport, AccountImport};
+use sos_sdk::migrate::{import::ImportTarget, AccountExport, AccountImport};
 
-#[cfg(feature = "migrate")]
 impl NetworkAccount {
     /// Write a zip archive containing all the secrets
     /// for the account unencrypted.

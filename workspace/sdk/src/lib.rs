@@ -47,6 +47,9 @@ compile_error!("account feature must be enabled to use device");
 #[cfg(all(not(feature = "account"), feature = "files"))]
 compile_error!("account feature must be enabled to use files");
 
+#[cfg(all(not(feature = "account"), feature = "migrate"))]
+compile_error!("account feature must be enabled to use migrate");
+
 #[cfg(all(not(feature = "account"), feature = "search"))]
 compile_error!("account feature must be enabled to use search");
 
@@ -62,6 +65,9 @@ pub mod encoding;
 mod error;
 pub mod events;
 pub mod formats;
+
+#[cfg(feature = "migrate")]
+pub mod migrate;
 
 pub mod passwd;
 pub mod prelude;

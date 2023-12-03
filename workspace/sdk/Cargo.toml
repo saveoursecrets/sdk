@@ -14,11 +14,13 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["account", "archive", "files", "search"]
 account = []
-archive = []
+archive = ["dep:async_zip"]
 contacts = []
 device = []
 files = []
 mem-fs = ["sos-vfs/mem-fs"]
+migrate = ["dep:async_zip", "dep:csv-async", "keychain-access"]
+keychain-access = ["dep:security-framework", "dep:plist", "dep:logos"]
 recovery = ["dep:vsss-rs"]
 test-utils = ["dep:anyhow"]
 search = ["dep:probly-search"]
@@ -26,6 +28,8 @@ security-report = []
 
 [dependencies]
 binary-stream.workspace = true
+async_zip = { version = "0.0.15", default-features = false, features = ["deflate", "tokio"], optional = true }
+csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
 sos-vfs = "0.2"
 async-trait = "0.1"
 async-recursion = "1"
@@ -75,12 +79,13 @@ unicode-segmentation = "1.10"
 mime_guess = { version = "2" }
 anyhow = {version = "1", optional = true }
 futures = "0.3"
-async_zip = { version = "0.0.15", default-features = false, features = ["deflate", "tokio"] }
 sanitize-filename = "0.4"
 tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
 futures-util = "0.3"
-
 vsss-rs = {version = "3", optional = true }
+security-framework = { version = "2.8", optional = true}
+logos = { version = "0.12", optional = true }
+plist = { version = "1", optional = true }
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"

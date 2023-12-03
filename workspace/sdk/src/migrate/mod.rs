@@ -5,13 +5,10 @@
 //! or to import unencrypted data.
 //!
 //! Used to move between different software providers.
-//!
-//! This library is now obsolete as it has been folded in to the 
-//! main [sos-sdk crate](https://docs.rs/sos-sdk/latest/sos_sdk/).
 
 use async_trait::async_trait;
 
-use sos_sdk::{crypto::AccessKey, vault::Vault};
+use crate::{crypto::AccessKey, vault::Vault};
 
 mod error;
 
@@ -34,7 +31,7 @@ pub trait Convert {
         source: Self::Input,
         vault: Vault,
         key: &AccessKey,
-    ) -> Result<Vault>;
+    ) -> crate::Result<Vault>;
 }
 
 pub mod export;

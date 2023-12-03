@@ -40,7 +40,7 @@ hashcheck = []
 archive = ["sos-sdk/archive"]
 files = ["sos-sdk/files"]
 contacts = ["sos-sdk/contacts"]
-migrate = ["sos-migrate"]
+migrate = ["sos-sdk/migrate"]
 device = [
   "dep:if-addrs",
   "dep:whoami",
@@ -99,11 +99,6 @@ if-addrs = { version = "0.10.1", optional = true }
 [dependencies.sos-sdk]
 version = "0.7"
 path = "../sdk"
-
-[dependencies.sos-migrate]
-version = "0.7"
-optional = true
-path = "../migrate"
 
 [dependencies.binary-stream]
 version = "8.0.0"

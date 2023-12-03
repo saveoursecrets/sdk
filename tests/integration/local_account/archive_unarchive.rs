@@ -19,9 +19,6 @@ async fn integration_archive_unarchive() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    UserPaths::scaffold(Some(data_dir.clone())).await?;
-    UserPaths::new_global(data_dir.clone());
-
     let (mut account, new_account) = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),

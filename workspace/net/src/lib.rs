@@ -41,7 +41,7 @@ pub use error::Error;
 pub use file_locks::FileLocks;
 
 #[cfg(feature = "migrate")]
-pub use sos_migrate as migrate;
+pub use sos_sdk::migrate;
 
 #[cfg(feature = "client")]
 pub use reqwest;

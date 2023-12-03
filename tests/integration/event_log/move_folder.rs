@@ -29,9 +29,6 @@ async fn integration_events_move_folder() -> Result<()> {
     let (password1, _) = generate_passphrase()?;
     let (password2, _) = generate_passphrase()?;
 
-    UserPaths::scaffold(Some(data_dir.clone())).await?;
-    UserPaths::new_global(data_dir.clone());
-
     let (mut account1, new_account1) = LocalAccount::new_account(
         account_name.clone(),
         password1.clone(),
