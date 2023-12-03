@@ -1,6 +1,5 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_net::migrate::LocalExport;
 use sos_net::sdk::{
     account::{LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
@@ -34,8 +33,7 @@ async fn integration_migrate_export() -> Result<()> {
     account.sign_in(password.clone()).await?;
 
     let zip = data_dir.join("export.zip");
-    let exporter = LocalExport::new(&account);
-    exporter.export_unsafe_archive(&zip).await?;
+    account.export_unsafe_archive(&zip).await?;
     assert!(vfs::try_exists(&zip).await?);
 
     // TODO: assert on exported data!

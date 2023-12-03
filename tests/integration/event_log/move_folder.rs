@@ -110,7 +110,7 @@ async fn integration_events_move_folder() -> Result<()> {
     let events = all_events(&mut event_log).await?;
     // Should have the create vault and 3 create secret events
     assert_eq!(4, events.len());
-    assert!(matches!(events.get((0)), Some(WriteEvent::CreateVault(_))));
+    assert!(matches!(events.get(0), Some(WriteEvent::CreateVault(_))));
     assert!(matches!(
         events.get(1),
         Some(WriteEvent::CreateSecret(_, _))

@@ -600,7 +600,7 @@ impl<D> Account<D> {
     }
 
     /// Append to the audit log.
-    pub async fn append_audit_logs(
+    pub(super) async fn append_audit_logs(
         &self,
         events: Vec<AuditEvent>,
     ) -> Result<()> {

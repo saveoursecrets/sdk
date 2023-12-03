@@ -1,9 +1,6 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_net::migrate::{
-    import::{ImportFormat, ImportTarget},
-    LocalImport,
-};
+use sos_net::migrate::import::{ImportFormat, ImportTarget};
 use sos_net::sdk::{
     account::{LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
@@ -41,8 +38,7 @@ async fn integration_migrate_import() -> Result<()> {
         path: PathBuf::from("tests/fixtures/migrate/1password-export.csv"),
         folder_name: "1password".to_string(),
     };
-    let mut importer = LocalImport::new(&mut account);
-    importer.import_file(target).await?;
+    account.import_file(target).await?;
 
     let folder = account.find(|s| s.name() == "1password").await;
     assert!(folder.is_some());
@@ -52,8 +48,7 @@ async fn integration_migrate_import() -> Result<()> {
         path: PathBuf::from("tests/fixtures/migrate/dashlane-export.zip"),
         folder_name: "dashlane".to_string(),
     };
-    let mut importer = LocalImport::new(&mut account);
-    importer.import_file(target).await?;
+    account.import_file(target).await?;
 
     let folder = account.find(|s| s.name() == "dashlane").await;
     assert!(folder.is_some());
@@ -63,8 +58,7 @@ async fn integration_migrate_import() -> Result<()> {
         path: PathBuf::from("tests/fixtures/migrate/bitwarden-export.csv"),
         folder_name: "bitwarden".to_string(),
     };
-    let mut importer = LocalImport::new(&mut account);
-    importer.import_file(target).await?;
+    account.import_file(target).await?;
 
     let folder = account.find(|s| s.name() == "bitwarden").await;
     assert!(folder.is_some());
@@ -74,8 +68,7 @@ async fn integration_migrate_import() -> Result<()> {
         path: PathBuf::from("tests/fixtures/migrate/chrome-export.csv"),
         folder_name: "chrome".to_string(),
     };
-    let mut importer = LocalImport::new(&mut account);
-    importer.import_file(target).await?;
+    account.import_file(target).await?;
 
     let folder = account.find(|s| s.name() == "chrome").await;
     assert!(folder.is_some());
@@ -85,8 +78,7 @@ async fn integration_migrate_import() -> Result<()> {
         path: PathBuf::from("tests/fixtures/migrate/firefox-export.csv"),
         folder_name: "firefox".to_string(),
     };
-    let mut importer = LocalImport::new(&mut account);
-    importer.import_file(target).await?;
+    account.import_file(target).await?;
 
     let folder = account.find(|s| s.name() == "firefox").await;
     assert!(folder.is_some());
@@ -96,8 +88,7 @@ async fn integration_migrate_import() -> Result<()> {
         path: PathBuf::from("tests/fixtures/migrate/macos-export.csv"),
         folder_name: "macos".to_string(),
     };
-    let mut importer = LocalImport::new(&mut account);
-    importer.import_file(target).await?;
+    account.import_file(target).await?;
 
     let folder = account.find(|s| s.name() == "macos").await;
     assert!(folder.is_some());
