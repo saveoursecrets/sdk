@@ -34,7 +34,7 @@ async fn integration_events_compact() -> Result<()> {
     let default_folder = new_account.default_folder();
     account.sign_in(password.clone()).await?;
     account.open_folder(&default_folder).await?;
-    
+
     // Create some secrets
     let docs = vec![
         mock::note("note", "secret"),

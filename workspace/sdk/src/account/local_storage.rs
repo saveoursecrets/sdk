@@ -481,7 +481,7 @@ impl FolderStorage {
         }
         Ok(())
     }
-    
+
     /// Read a vault from the file on disc.
     pub(crate) async fn read_vault(
         &self,

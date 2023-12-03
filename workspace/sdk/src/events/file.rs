@@ -1,6 +1,9 @@
 //! Event for modifications to external files.
 use super::{EventKind, LogEvent};
-use crate::vault::{secret::SecretId, VaultId};
+use crate::{
+    account::files::ExternalFileName,
+    vault::{secret::SecretId, VaultId},
+};
 
 /// File event records changes to external files
 ///
@@ -14,18 +17,18 @@ pub enum FileEvent {
     #[doc(hidden)]
     Noop,
     /// File was created.
-    CreateFile(VaultId, SecretId, String),
+    CreateFile(VaultId, SecretId, ExternalFileName),
     /// File was moved.
     MoveFile {
         /// File name.
-        name: String,
+        name: ExternalFileName,
         /// From identifiers.
         from: (VaultId, SecretId),
         /// Destination identifiers.
         dest: (VaultId, SecretId),
     },
     /// File was deleted.
-    DeleteFile(VaultId, SecretId, String),
+    DeleteFile(VaultId, SecretId, ExternalFileName),
 }
 
 impl LogEvent for FileEvent {

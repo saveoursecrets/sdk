@@ -351,7 +351,7 @@ impl<D> Account<D> {
         Ok(FileEvent::DeleteFile(
             *vault_id,
             *secret_id,
-            file_name.to_owned(),
+            file_name.parse()?,
         ))
     }
 
@@ -443,7 +443,7 @@ impl<D> Account<D> {
         }
 
         let event = FileEvent::MoveFile {
-            name: file_name.to_owned(),
+            name: file_name.parse()?,
             from: (*old_vault_id, *old_secret_id),
             dest: (*new_vault_id, *new_secret_id),
         };
@@ -496,7 +496,11 @@ impl<D> Account<D> {
                         source,
                         encrypted_file,
                     },
-                    FileEvent::CreateFile(*summary.id(), id, file_name),
+                    FileEvent::CreateFile(
+                        *summary.id(),
+                        id,
+                        file_name.parse()?,
+                    ),
                 );
                 results.push(mutation_data);
             }

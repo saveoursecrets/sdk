@@ -4,9 +4,12 @@ use crate::{
     events::FileEvent,
     hex,
     vault::{secret::SecretId, VaultId},
-    vfs, Result,
+    vfs, Error, Result,
 };
-use std::{array::TryFromSliceError, collections::HashSet, fmt, path::Path};
+use std::{
+    array::TryFromSliceError, collections::HashSet, fmt, path::Path,
+    str::FromStr,
+};
 
 mod external_files;
 mod external_files_sync;
@@ -36,9 +39,30 @@ impl From<ExternalFileName> for [u8; 32] {
     }
 }
 
+impl AsRef<[u8]> for ExternalFileName {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl From<[u8; 32]> for ExternalFileName {
+    fn from(value: [u8; 32]) -> Self {
+        Self(value)
+    }
+}
+
 impl fmt::Display for ExternalFileName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", hex::encode(self.0))
+    }
+}
+
+impl FromStr for ExternalFileName {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let buf: [u8; 32] = hex::decode(s)?.as_slice().try_into()?;
+        Ok(Self(buf))
     }
 }
 
@@ -48,7 +72,7 @@ pub struct ExternalFile(VaultId, SecretId, ExternalFileName);
 
 impl From<ExternalFile> for FileEvent {
     fn from(value: ExternalFile) -> Self {
-        FileEvent::CreateFile(value.0, value.1, value.2.to_string())
+        FileEvent::CreateFile(value.0, value.1, value.2)
     }
 }
 
@@ -110,25 +134,16 @@ async fn list_secret_files(
         let path = entry.path();
         if path.is_file() {
             if let Some(file_name) = path.file_name() {
-                if let Ok(buf) =
-                    hex::decode(file_name.to_string_lossy().as_ref())
+                if let Ok(name) = file_name
+                    .to_string_lossy()
+                    .as_ref()
+                    .parse::<ExternalFileName>()
                 {
-                    let checksum: std::result::Result<
-                        [u8; 32],
-                        TryFromSliceError,
-                    > = buf.as_slice().try_into();
-                    if let Ok(checksum) = checksum {
-                        files.insert(ExternalFileName(checksum));
-                    } else {
-                        tracing::warn!(
-                            file_name = %file_name.to_string_lossy().as_ref(),
-                            "skip file (not 32 bytes)",
-                        );
-                    }
+                    files.insert(name);
                 } else {
                     tracing::warn!(
                         file_name = %file_name.to_string_lossy().as_ref(),
-                        "skip file (not hex)",
+                        "skip file (invalid file name)",
                     );
                 }
             }

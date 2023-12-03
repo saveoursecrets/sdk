@@ -1,13 +1,12 @@
 use anyhow::Result;
 
-use crate::test_utils::{
-    setup, teardown, mock,
-};
+use crate::test_utils::{mock, setup, teardown};
 
 use sos_net::sdk::{
     account::LocalAccount,
+    crypto::AccessKey,
     events::{AccountEvent, AccountEventLog},
-    crypto::AccessKey, passwd::diceware::generate_passphrase,
+    passwd::diceware::generate_passphrase,
     signer::ecdsa::SingleParty,
 };
 
@@ -54,15 +53,20 @@ async fn integration_change_password() -> Result<()> {
     let account_events = account.paths().account_events();
     let mut event_log = AccountEventLog::new_account(&account_events).await?;
     let commit = event_log.last_commit().await?;
-    
+
     // Change the folder password
-    account.change_folder_password(&default_folder, new_key.clone()).await?;
+    account
+        .change_folder_password(&default_folder, new_key.clone())
+        .await?;
 
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
-    assert!(matches!(event, Some(AccountEvent::ChangeFolderPassword(_, _))));
-    
-    // Should be able to continue reading data 
-    // from the currently open folder which had 
+    assert!(matches!(
+        event,
+        Some(AccountEvent::ChangeFolderPassword(_, _))
+    ));
+
+    // Should be able to continue reading data
+    // from the currently open folder which had
     // it's password changed.
     let note_id = ids.remove(0);
     let (data, _) = account.read_secret(&note_id, None).await?;

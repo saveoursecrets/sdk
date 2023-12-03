@@ -552,14 +552,14 @@ impl Encodable for FileEvent {
         op.encode(&mut *writer).await?;
         match self {
             FileEvent::Noop => panic!("attempt to encode a noop"),
-            FileEvent::CreateFile(folder_id, secret_id, file_name)
-            | FileEvent::DeleteFile(folder_id, secret_id, file_name) => {
+            FileEvent::CreateFile(folder_id, secret_id, name)
+            | FileEvent::DeleteFile(folder_id, secret_id, name) => {
                 writer.write_bytes(folder_id.as_bytes()).await?;
                 writer.write_bytes(secret_id.as_bytes()).await?;
-                writer.write_string(file_name).await?;
+                writer.write_bytes(name.as_ref()).await?;
             }
             FileEvent::MoveFile { name, from, dest } => {
-                writer.write_string(name).await?;
+                writer.write_bytes(name.as_ref()).await?;
                 writer.write_bytes(from.0.as_bytes()).await?;
                 writer.write_bytes(from.1.as_bytes()).await?;
                 writer.write_bytes(dest.0.as_bytes()).await?;
@@ -584,17 +584,25 @@ impl Decodable for FileEvent {
             EventKind::CreateFile => {
                 let folder_id = decode_uuid(&mut *reader).await?;
                 let secret_id = decode_uuid(&mut *reader).await?;
-                let file_name = reader.read_string().await?;
-                *self = FileEvent::CreateFile(folder_id, secret_id, file_name)
+                let name = reader.read_bytes(32).await?;
+                let name: [u8; 32] =
+                    name.as_slice().try_into().map_err(encoding_error)?;
+                *self =
+                    FileEvent::CreateFile(folder_id, secret_id, name.into())
             }
             EventKind::DeleteFile => {
                 let folder_id = decode_uuid(&mut *reader).await?;
                 let secret_id = decode_uuid(&mut *reader).await?;
-                let file_name = reader.read_string().await?;
-                *self = FileEvent::DeleteFile(folder_id, secret_id, file_name)
+                let name = reader.read_bytes(32).await?;
+                let name: [u8; 32] =
+                    name.as_slice().try_into().map_err(encoding_error)?;
+                *self =
+                    FileEvent::DeleteFile(folder_id, secret_id, name.into())
             }
             EventKind::MoveFile => {
-                let name = reader.read_string().await?;
+                let name = reader.read_bytes(32).await?;
+                let name: [u8; 32] =
+                    name.as_slice().try_into().map_err(encoding_error)?;
                 let from = (
                     decode_uuid(&mut *reader).await?,
                     decode_uuid(&mut *reader).await?,
@@ -603,7 +611,11 @@ impl Decodable for FileEvent {
                     decode_uuid(&mut *reader).await?,
                     decode_uuid(&mut *reader).await?,
                 );
-                *self = FileEvent::MoveFile { name, from, dest }
+                *self = FileEvent::MoveFile {
+                    name: name.into(),
+                    from,
+                    dest,
+                }
             }
             _ => {
                 return Err(Error::new(

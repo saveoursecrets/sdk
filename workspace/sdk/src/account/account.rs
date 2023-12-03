@@ -994,22 +994,17 @@ impl<D> Account<D> {
         use crate::passwd::ChangePassword;
         let paths = self.paths().clone();
         // Get the current vault passphrase from the identity vault
-        let current_key =
-            self.user()?.find_folder_password(vault_id).await?;
+        let current_key = self.user()?.find_folder_password(vault_id).await?;
 
         // Find the local vault for the account
         let (vault, _) =
             Self::load_local_vault(&paths, vault_id, false).await?;
 
         // Change the password before exporting
-        let (_, vault, _) = ChangePassword::new(
-            &vault,
-            current_key,
-            new_key,
-            None,
-        )
-        .build()
-        .await?;
+        let (_, vault, _) =
+            ChangePassword::new(&vault, current_key, new_key, None)
+                .build()
+                .await?;
 
         encode(&vault).await
     }
@@ -1658,11 +1653,11 @@ impl<D> Account<D> {
         }
         Ok(event)
     }
-    
+
     /// Change the password for a folder.
     ///
-    /// If this folder is part of a recovery pack it is 
-    /// the caller's responsbility to ensure the recovery 
+    /// If this folder is part of a recovery pack it is
+    /// the caller's responsbility to ensure the recovery
     /// pack is updated with the new folder password.
     pub async fn change_folder_password(
         &mut self,
@@ -1671,9 +1666,9 @@ impl<D> Account<D> {
     ) -> Result<()> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
-        let current_key = self.user()?.find_folder_password(
-            folder.id()).await?;
-        
+        let current_key =
+            self.user()?.find_folder_password(folder.id()).await?;
+
         let vault = {
             let storage = self.storage()?;
             let reader = storage.read().await;
@@ -1683,13 +1678,9 @@ impl<D> Account<D> {
         let storage = self.storage()?;
         let mut writer = storage.write().await;
         writer
-            .change_password(
-                &vault,
-                current_key,
-                new_key.clone(),
-            )
+            .change_password(&vault, current_key, new_key.clone())
             .await?;
-    
+
         // Save the new password
         self.user_mut()?
             .save_folder_password(folder.id(), new_key)
@@ -1701,7 +1692,9 @@ impl<D> Account<D> {
         let auth =
             self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
         let event = AccountEvent::ChangeFolderPassword(
-            *folder.id(), secure_access_key);
+            *folder.id(),
+            secure_access_key,
+        );
         let mut account_log = auth.account_log.write().await;
         account_log.apply(vec![&event]).await?;
 
