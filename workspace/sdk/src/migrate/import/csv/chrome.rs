@@ -4,7 +4,7 @@ use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use url::Url;
 
-use crate::{crypto::AccessKey, vault::Vault, vfs};
+use crate::{crypto::AccessKey, vault::Vault};
 use async_trait::async_trait;
 use tokio::io::AsyncRead;
 
@@ -12,6 +12,11 @@ use super::{
     GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,
 };
 use crate::migrate::{import::read_csv_records, Convert, Result};
+
+#[cfg(test)]
+use tokio::fs as vfs;
+#[cfg(not(test))]
+use crate::vfs;
 
 /// Record for an entry in a Chrome passwords CSV export.
 #[derive(Deserialize)]

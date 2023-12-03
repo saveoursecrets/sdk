@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use crate::{
     crypto::AccessKey,
     vault::{secret::IdentityKind, Vault},
-    vfs::File,
     Timestamp,
 };
 use serde::Deserialize;
@@ -27,6 +26,11 @@ use super::{
     GenericPaymentRecord, UNTITLED,
 };
 use crate::migrate::{import::read_csv_records, Convert, Result};
+
+#[cfg(test)]
+use tokio::fs as vfs;
+#[cfg(not(test))]
+use crate::vfs;
 
 /// Record used to deserialize dashlane CSV files.
 #[derive(Debug)]
@@ -539,7 +543,7 @@ impl From<DashlaneContactRecord> for GenericContactRecord {
 pub async fn parse_path<P: AsRef<Path>>(
     path: P,
 ) -> Result<Vec<DashlaneRecord>> {
-    parse(File::open(path.as_ref()).await?).await
+    parse(vfs::File::open(path.as_ref()).await?).await
 }
 
 async fn read_entry<R: AsyncRead + AsyncSeek + Unpin>(

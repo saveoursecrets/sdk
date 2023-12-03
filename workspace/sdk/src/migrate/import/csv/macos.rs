@@ -4,9 +4,14 @@ use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use url::Url;
 
-use crate::{crypto::AccessKey, vault::Vault, vfs};
+use crate::{crypto::AccessKey, vault::Vault};
 use async_trait::async_trait;
 use tokio::io::AsyncRead;
+
+#[cfg(test)]
+use tokio::fs as vfs;
+#[cfg(not(test))]
+use crate::vfs;
 
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,
@@ -179,6 +184,8 @@ mod test {
 
         Ok(())
     }
+
+    // FIXME: restore this test spec (needs to restore fixture)
     
     /*
     #[tokio::test]
