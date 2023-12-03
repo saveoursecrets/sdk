@@ -14,13 +14,24 @@ pub enum AccountEvent {
     CreateFolder(VaultId, SecureAccessKey),
 
     /// Folder events were compacted.
+    ///
+    /// This event is destructive as it re-writes 
+    /// the folder event log.
     CompactFolder(VaultId),
 
-    /*
-    /// Update folder name.
-    UpdateFolderName(VaultId, String),
-    */
+    /// Folder was updated.
+    ///
+    /// This event happens when a folder is imported and 
+    /// overwrites an existing folder.
+    ///
+    /// This event is destructive as it re-writes 
+    /// the folder event log.
+    UpdateFolder(VaultId),
+
     /// Change folder password.
+    ///
+    /// This event is destructive as it re-writes 
+    /// the folder event log.
     ChangeFolderPassword(VaultId, SecureAccessKey),
 
     /// Delete folder.
@@ -33,7 +44,7 @@ impl LogEvent for AccountEvent {
             Self::Noop => EventKind::Noop,
             Self::CreateFolder(_, _) => EventKind::CreateVault,
             Self::CompactFolder(_) => EventKind::CompactVault,
-            //Self::UpdateFolderName(_, _) => EventKind::SetVaultName,
+            Self::UpdateFolder(_) => EventKind::UpdateVault,
             Self::ChangeFolderPassword(_, _) => EventKind::ChangePassword,
             Self::DeleteFolder(_) => EventKind::DeleteVault,
         }

@@ -153,15 +153,11 @@ impl<'a> From<(&Address, &Event)> for AuditEvent {
                         | AccountEvent::ChangeFolderPassword(vault_id, _) => {
                             Some(AuditData::Vault(*vault_id))
                         }
-                        AccountEvent::CompactFolder(vault_id)
+                        AccountEvent::UpdateFolder(vault_id)
+                        | AccountEvent::CompactFolder(vault_id)
                         | AccountEvent::DeleteFolder(vault_id) => {
                             Some(AuditData::Vault(*vault_id))
                         }
-                        /*
-                        AccountEvent::UpdateFolderName(vault_id, _) => {
-                            Some(AuditData::Vault(*vault_id))
-                        }
-                        */
                         AccountEvent::Noop => None,
                     },
                     Event::Read(vault_id, event) => match event {
