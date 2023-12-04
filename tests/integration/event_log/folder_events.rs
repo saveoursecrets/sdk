@@ -90,7 +90,10 @@ async fn integration_events_folder() -> Result<()> {
     // Set the folder description
     let commit = event_log.last_commit().await?;
     account
-        .set_folder_description(&default_folder, "new_description".to_string())
+        .set_folder_description(
+            &default_folder,
+            "new_description".to_string(),
+        )
         .await?;
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
     assert!(matches!(event, Some(WriteEvent::SetVaultMeta(_))));

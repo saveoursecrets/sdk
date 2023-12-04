@@ -1,4 +1,4 @@
-//! Export an archive of unencrypted secrets that 
+//! Export an archive of unencrypted secrets that
 //! can be used to migrate data to another app.
 
 use secrecy::ExposeSecret;

@@ -838,9 +838,7 @@ impl FolderStorage {
     }
 
     /// Get the description of the currently open vault.
-    pub async fn description(
-        &self,
-    ) -> Result<String> {
+    pub async fn description(&self) -> Result<String> {
         let keeper = self.current().ok_or(Error::NoOpenVault)?;
         let meta = keeper.vault_meta().await?;
         Ok(meta.description().to_owned())
@@ -874,30 +872,53 @@ impl FolderStorage {
         Ok(event)
     }
 
-    /// Apply events to the event log.
+    /// Apply events to an existing folder.
+    ///
+    /// If the storage is mirroring changes to vault files
+    /// the events are written to the vault file before
+    /// applying to the folder event log.
     pub async fn patch(
         &mut self,
         summary: &Summary,
         events: Vec<&WriteEvent>,
     ) -> Result<()> {
-        // Apply events to the event log file
-        {
-            let event_log = self
-                .cache
-                .get_mut(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            event_log.apply(events).await?;
+        // Apply events to the vault file on disc
+        if self.state.mirror {
+            let vault_path = self.paths.vault_path(summary.id().to_string());
+            let vault_file = VaultWriter::open(&vault_path).await?;
+            let mut mirror = VaultWriter::new(vault_path, vault_file)?;
+            for event in events.clone() {
+                match event {
+                    WriteEvent::CreateSecret(secret_id, vault_commit) => {
+                        let hash = vault_commit.0.clone();
+                        let entry = vault_commit.1.clone();
+                        mirror.insert(*secret_id, hash, entry).await?;
+                    }
+                    WriteEvent::UpdateSecret(secret_id, vault_commit) => {
+                        let hash = vault_commit.0.clone();
+                        let entry = vault_commit.1.clone();
+                        mirror.update(secret_id, hash, entry).await?;
+                    }
+                    WriteEvent::SetVaultName(name) => {
+                        mirror.set_vault_name(name.to_owned()).await?;
+                    }
+                    WriteEvent::SetVaultMeta(meta) => {
+                        mirror.set_vault_meta(meta.clone()).await?;
+                    }
+                    WriteEvent::DeleteSecret(secret_id) => {
+                        mirror.delete(secret_id).await?;
+                    }
+                    _ => {} // Ignore CreateVault and Noop
+                }
+            }
         }
 
-        // Update the vault file on disc.
-        //
-        // TODO: we could be smarter about how we update 
-        // TODO: the vault here and only process the events
-        // TODO: in the patch rather then reducing all events 
-        // TODO: in the log
-        let vault = self.reduce_event_log(summary).await?;
-        let buffer = encode(&vault).await?;
-        self.write_vault_file(summary, &buffer).await?;
+        // Apply events to the event log file
+        let event_log = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        event_log.apply(events).await?;
 
         Ok(())
     }
