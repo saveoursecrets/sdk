@@ -20,8 +20,8 @@ pub mod search;
 pub mod security_report;
 
 pub use account::{
-    AccessOptions, Account, AccountData, AccountHandler, AccountInfo,
-    AccountRef, DetachedView, LocalAccount,
+    Account, AccountData, AccountHandler, AccountInfo, AccountRef,
+    DetachedView, LocalAccount,
 };
 pub use builder::{AccountBuilder, NewAccount};
 #[cfg(feature = "device")]

@@ -22,16 +22,6 @@ use tokio::sync::mpsc;
 use tracing::{span, Level};
 
 impl<D> Account<D> {
-    /// Append file mutation events to the file event log.
-    pub(crate) async fn append_file_mutation_events(
-        &mut self,
-        events: &[FileMutationEvent],
-    ) -> Result<()> {
-        let storage = self.storage()?;
-        let mut writer = storage.write().await;
-        writer.append_file_mutation_events(events).await
-    }
-
     /// Decrypt a file and return the buffer.
     pub async fn download_file(
         &self,
@@ -44,18 +34,14 @@ impl<D> Account<D> {
         reader.download_file(vault_id, secret_id, file_name).await
     }
 
-    /// Create external files when a file secret is created.
-    pub(crate) async fn create_files(
+    /// Append file mutation events to the file event log.
+    pub(crate) async fn append_file_mutation_events(
         &mut self,
-        summary: &Summary,
-        secret_data: SecretRow,
-        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<Vec<FileMutationEvent>> {
+        events: &[FileMutationEvent],
+    ) -> Result<()> {
         let storage = self.storage()?;
         let mut writer = storage.write().await;
-        writer
-            .create_files(summary, secret_data, file_progress)
-            .await
+        writer.append_file_mutation_events(events).await
     }
 
     /// Update external files when a file secret is updated.

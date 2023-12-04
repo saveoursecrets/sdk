@@ -2,8 +2,9 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::{hashmap, hashset};
 use sos_net::sdk::{
-    account::{AccessOptions, LocalAccount, UserPaths},
+    account::{LocalAccount, UserPaths},
     passwd::diceware::generate_passphrase,
+    storage::AccessOptions,
     vault::secret::{IdentityKind, SecretType},
 };
 

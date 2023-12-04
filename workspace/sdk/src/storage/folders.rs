@@ -10,7 +10,10 @@ use crate::{
         ReadEvent, WriteEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
-    storage::search::{AccountSearch, DocumentCount, SearchIndex},
+    storage::{
+        search::{AccountSearch, DocumentCount, SearchIndex},
+        AccessOptions,
+    },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
@@ -850,7 +853,10 @@ impl FolderStorage {
     }
 
     /// Remove a vault.
-    pub async fn remove_vault(&mut self, summary: &Summary) -> Result<Vec<Event>> {
+    pub async fn remove_vault(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<Vec<Event>> {
         // Remove the files
         self.remove_vault_file(summary).await?;
 
@@ -867,7 +873,7 @@ impl FolderStorage {
                 events.push(Event::File(event));
             }
         }
-        
+
         // Clean the search index
         if let Some(index) = self.index.as_mut() {
             index.remove_folder(summary.id()).await;
@@ -983,9 +989,8 @@ impl FolderStorage {
     /// Create a secret in the currently open vault.
     pub(crate) async fn create_secret(
         &mut self,
-        id: SecretId,
-        meta: SecretMeta,
-        secret: Secret,
+        secret_data: SecretRow,
+        mut options: AccessOptions,
     ) -> Result<WriteEvent> {
         let summary = {
             let keeper = self.current().ok_or(Error::NoOpenVault)?;
@@ -995,15 +1000,36 @@ impl FolderStorage {
         let index_doc = if let Some(index) = &self.index {
             let search = index.search();
             let index = search.read().await;
-            Some(index.prepare(summary.id(), &id, &meta, &secret))
+            Some(index.prepare(
+                summary.id(),
+                secret_data.id(),
+                secret_data.meta(),
+                secret_data.secret(),
+            ))
         } else {
             None
         };
 
+        let (id, meta, secret) = secret_data.into();
+
         let event = {
             let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-            keeper.create(id, meta, secret).await?
+            keeper.create(id, meta.clone(), secret.clone()).await?
         };
+
+        #[cfg(feature = "files")]
+        {
+            let secret_data = SecretRow::new(id, meta, secret);
+            let events = self
+                .create_files(
+                    &summary,
+                    secret_data,
+                    &mut options.file_progress,
+                )
+                .await?;
+            self.append_file_mutation_events(&events).await?;
+        }
+
         self.patch(&summary, vec![&event]).await?;
 
         if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {

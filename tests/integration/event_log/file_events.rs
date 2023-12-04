@@ -4,9 +4,10 @@ use anyhow::Result;
 use sos_net::{
     events::Patch,
     sdk::{
-        account::{AccessOptions, LocalAccount, UserPaths},
+        account::{LocalAccount, UserPaths},
         events::{FileEvent, FileEventLog},
         passwd::diceware::generate_passphrase,
+        storage::AccessOptions,
         vault::secret::{IdentityKind, SecretId, SecretRow, SecretType},
         vfs,
     },

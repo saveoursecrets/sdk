@@ -1,9 +1,9 @@
 use anyhow::Result;
 use sos_net::sdk::{
-    account::{AccessOptions, LocalAccount},
+    account::LocalAccount,
     hex,
     passwd::diceware::generate_passphrase,
-    storage::files::FileProgress,
+    storage::{files::FileProgress, AccessOptions},
     vault::{
         secret::{FileContent, Secret, SecretId, SecretRow},
         Summary,

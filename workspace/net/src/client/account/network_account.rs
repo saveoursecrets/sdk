@@ -3,8 +3,8 @@ use mpc_protocol::generate_keypair;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        AccessOptions, Account, AccountBuilder, AccountData, DetachedView,
-        Identity, NewAccount, UserPaths,
+        Account, AccountBuilder, AccountData, DetachedView, Identity,
+        NewAccount, UserPaths,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -15,7 +15,7 @@ use sos_sdk::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
         },
-        FolderStorage,
+        AccessOptions, FolderStorage,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},

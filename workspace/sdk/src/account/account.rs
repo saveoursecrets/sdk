@@ -21,7 +21,7 @@ use crate::{
     signer::ecdsa::Address,
     storage::{
         search::{DocumentCount, SearchIndex},
-        FolderStorage,
+        AccessOptions, FolderStorage,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
@@ -34,7 +34,7 @@ use tracing::{span, Level};
 
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 
 use async_trait::async_trait;
 
@@ -155,30 +155,6 @@ impl DetachedView {
     /// Search index for the detached view.
     pub fn index(&self) -> Arc<RwLock<SearchIndex>> {
         Arc::clone(&self.index)
-    }
-}
-
-/// Options used when accessing account data.
-#[derive(Default)]
-pub struct AccessOptions {
-    /// Target folder for the operation.
-    ///
-    /// If no target folder is given the current open folder
-    /// will be used. When no folder is open and the target
-    /// folder is not given an error will be returned.
-    pub folder: Option<Summary>,
-    /// Channel for file progress operations.
-    #[cfg(feature = "files")]
-    pub file_progress: Option<mpsc::Sender<FileProgress>>,
-}
-
-impl From<Summary> for AccessOptions {
-    fn from(value: Summary) -> Self {
-        Self {
-            folder: Some(value),
-            #[cfg(feature = "files")]
-            file_progress: None,
-        }
     }
 }
 
@@ -790,7 +766,7 @@ impl<D> Account<D> {
         self.user_mut()?
             .remove_folder_password(summary.id())
             .await?;
-        
+
         let account_event = AccountEvent::DeleteFolder(*summary.id());
         if let Some(auth) = self.authenticated.as_mut() {
             let mut account_log = auth.account_log.write().await;
@@ -1267,6 +1243,7 @@ impl<D> Account<D> {
             let reader = storage.read().await;
             options
                 .folder
+                .take()
                 .or_else(|| reader.current().map(|g| g.summary().clone()))
                 .ok_or(Error::NoOpenFolder)?
         };
@@ -1280,16 +1257,13 @@ impl<D> Account<D> {
         }
 
         let id = SecretId::new_v4();
-
+        let secret_data = SecretRow::new(id, meta, secret);
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer
-                .create_secret(id, meta.clone(), secret.clone())
-                .await?
+            writer.create_secret(secret_data, options).await?
         };
 
-        let secret_data = SecretRow::new(id, meta, secret);
         let current_folder = {
             let storage = self.storage()?;
             let reader = storage.read().await;
@@ -1299,18 +1273,6 @@ impl<D> Account<D> {
                 .map(|g| g.summary().clone())
                 .ok_or(Error::NoOpenFolder)?
         };
-
-        #[cfg(feature = "files")]
-        {
-            let events = self
-                .create_files(
-                    &current_folder,
-                    secret_data,
-                    &mut options.file_progress,
-                )
-                .await?;
-            self.append_file_mutation_events(&events).await?;
-        }
 
         let event = Event::Write(*folder.id(), event);
         if audit {
