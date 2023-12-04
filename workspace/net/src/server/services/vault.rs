@@ -54,7 +54,7 @@ impl Service for VaultService {
                 let reader = backend.read().await;
                 let (exists, proof) = reader
                     .handler()
-                    .event_log_exists(caller.address(), summary.id())
+                    .folder_exists(caller.address(), summary.id())
                     .await?;
                 drop(reader);
 
@@ -66,7 +66,7 @@ impl Service for VaultService {
                     let mut writer = backend.write().await;
                     let (sync_event, proof) = writer
                         .handler_mut()
-                        .create_event_log(
+                        .create_folder(
                             caller.address(),
                             summary.id(),
                             request.body(),
@@ -107,7 +107,7 @@ impl Service for VaultService {
                     let reader = backend.read().await;
                     let (exists, proof) = reader
                         .handler()
-                        .event_log_exists(caller.address(), &vault_id)
+                        .folder_exists(caller.address(), &vault_id)
                         .await?;
 
                     if !exists {
@@ -122,7 +122,7 @@ impl Service for VaultService {
                 let mut writer = backend.write().await;
                 writer
                     .handler_mut()
-                    .delete_event_log(caller.address(), &vault_id)
+                    .delete_folder(caller.address(), &vault_id)
                     .await?;
 
                 let reply: ResponseMessage<'_> =
@@ -168,7 +168,7 @@ impl Service for VaultService {
                     let reader = backend.read().await;
                     let (exists, _) = reader
                         .handler()
-                        .event_log_exists(caller.address(), summary.id())
+                        .folder_exists(caller.address(), summary.id())
                         .await?;
                     if !exists {
                         return Ok(
@@ -180,7 +180,7 @@ impl Service for VaultService {
                 let mut writer = backend.write().await;
                 let (sync_event, proof) = writer
                     .handler_mut()
-                    .set_vault(caller.address(), request.body())
+                    .import_folder(caller.address(), request.body())
                     .await?;
 
                 let reply: ResponseMessage<'_> =

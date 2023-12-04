@@ -60,7 +60,7 @@ impl Service for AccountService {
                     Header::read_summary_slice(request.body()).await?;
 
                 let mut writer = backend.write().await;
-                
+
                 let (sync_event, proof) = writer
                     .handler_mut()
                     .create_account(
@@ -105,8 +105,10 @@ impl Service for AccountService {
 
                 let result: AccountStatus = if account_exists {
                     let reader = backend.read().await;
-                    let summaries =
-                        reader.handler().list(caller.address()).await?;
+                    let summaries = reader
+                        .handler()
+                        .list_folders(caller.address())
+                        .await?;
 
                     let mut proofs = HashMap::new();
                     let accounts = reader.accounts();
@@ -114,12 +116,12 @@ impl Service for AccountService {
                     for summary in summaries {
                         let account =
                             backend.get(caller.address()).ok_or_else(
-                                || Error::AccountNotExist(*caller.address()),
+                                || Error::NoAccount(*caller.address()),
                             )?;
                         let account = account.read().await;
 
-                        let (last_commit, proof) = account
-                            .folders.commit_state(&summary).await?;
+                        let (last_commit, proof) =
+                            account.folders.commit_state(&summary).await?;
 
                         proofs.insert(*summary.id(), (last_commit, proof));
                     }
@@ -143,7 +145,7 @@ impl Service for AccountService {
                 }
 
                 let summaries =
-                    reader.handler().list(caller.address()).await?;
+                    reader.handler().list_folders(caller.address()).await?;
 
                 let reply: ResponseMessage<'_> =
                     (request.id(), summaries).try_into()?;

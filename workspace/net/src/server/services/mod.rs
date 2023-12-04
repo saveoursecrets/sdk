@@ -122,14 +122,14 @@ fn send_notification(
 }
 
 mod account;
-//mod events;
+mod events;
 mod handshake;
-//mod vault;
+mod vault;
 
 pub use account::AccountService;
-//pub use events::EventLogService;
+pub use events::EventLogService;
 pub use handshake::HandshakeService;
-//pub use vault::VaultService;
+pub use vault::VaultService;
 
 /// Execute a request message in the context of a service
 /// that does not require session authentication.

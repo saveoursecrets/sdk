@@ -793,7 +793,6 @@ mod tests {
     use anyhow::Result;
     use secrecy::{ExposeSecret, SecretString};
     use std::path::PathBuf;
-    use tempfile::NamedTempFile;
     use urn::Urn;
 
     use crate::{
@@ -805,7 +804,7 @@ mod tests {
             secret::{Secret, SecretId, SecretMeta, SecretRow},
             Gatekeeper, Vault, VaultBuilder, VaultFlags,
         },
-        vfs, Error,
+        Error,
     };
 
     #[tokio::test]

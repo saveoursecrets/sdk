@@ -13,6 +13,7 @@ use sos_net::{
     client::{HostedOrigin, NetworkAccount, RemoteBridge, RemoteSync},
     mpc::{Keypair, PATTERN},
     sdk::{
+        account::UserPaths,
         crypto::AccessKey,
         events::AuditLogFile,
         hex,
@@ -124,11 +125,6 @@ impl MockServer {
 
         let mut backend = config.backend().await?;
 
-        let mut locks = FileLocks::new();
-        locks.add(config.audit_file())?;
-        // Move into the backend so it can manage lock files too
-        backend.handler_mut().set_file_locks(locks)?;
-
         // Set up the audit log
         let audit_log = AuditLogFile::new(config.audit_file()).await?;
 
@@ -222,7 +218,8 @@ pub struct TestServer {
 impl TestServer {
     /// Path to the server account data.
     pub fn account_path(&self, address: &Address) -> PathBuf {
-        PathBuf::from(format!("{}/{}", self.path.display(), address,))
+        let paths = UserPaths::new(self.path.clone(), address.to_string());
+        paths.user_dir().to_owned()
     }
 }
 
@@ -297,6 +294,7 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
     Ok(TestDirs { target, clients })
 }
 
+/*
 pub async fn delete_secret(
     provider: &mut FolderStorage,
     summary: &Summary,
@@ -308,6 +306,7 @@ pub async fn delete_secret(
     provider.patch(summary, vec![&event]).await?;
     Ok(())
 }
+*/
 
 pub async fn signup(
     data_dir: PathBuf,

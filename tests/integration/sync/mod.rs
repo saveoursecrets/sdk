@@ -8,7 +8,7 @@ use sos_net::{
         RemoteSync, WebSocketHandle,
     },
     sdk::{
-        account::LocalAccount,
+        account::{LocalAccount, UserPaths},
         constants::VAULT_EXT,
         passwd::diceware::generate_passphrase,
         vault::{Summary, VaultId},
@@ -211,8 +211,12 @@ pub async fn assert_local_remote_vaults_eq(
     // Compare vault buffers
     for summary in expected_summaries {
         let local_folder = reader.vault_path(&summary);
-        let remote_folder =
-            server_path.join(format!("{}.{}", summary.id(), VAULT_EXT));
+        let remote_folder = server_path.join("vaults").join(format!(
+            "{}.{}",
+            summary.id(),
+            VAULT_EXT
+        ));
+
         let local_buffer = vfs::read(&local_folder).await?;
         let remote_buffer = vfs::read(&remote_folder).await?;
         assert_eq!(local_buffer, remote_buffer);

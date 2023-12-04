@@ -68,7 +68,7 @@ impl Service for EventLogService {
                     let reader = backend.read().await;
                     let (exists, _) = reader
                         .handler()
-                        .event_log_exists(caller.address(), &vault_id)
+                        .folder_exists(caller.address(), &vault_id)
                         .await?;
 
                     if !exists {
@@ -82,17 +82,21 @@ impl Service for EventLogService {
                     let reader = backend.read().await;
                     let accounts = reader.accounts();
                     let reader = accounts.read().await;
-                    let account =
-                        reader.get(caller.address()).ok_or_else(|| {
-                            Error::AccountNotExist(*caller.address())
+                    let account = reader
+                        .get(caller.address())
+                        .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+
+                    let account = account.read().await;
+                    let folder = account
+                        .folders
+                        .find(|s| s.id() == &vault_id)
+                        .ok_or_else(|| {
+                            Error::NoFolder(*caller.address(), vault_id)
                         })?;
 
-                    let vaults = account.read().await;
-                    let event_log = vaults
-                        .get(&vault_id)
-                        .ok_or_else(|| Error::VaultNotExist(vault_id))?;
-
-                    event_log.tree().head()?
+                    let (_, proof) =
+                        account.folders.commit_state(&folder).await?;
+                    proof
                 };
 
                 let result = {
@@ -100,7 +104,7 @@ impl Service for EventLogService {
                     // Otherwise get the entire event log buffer
                     if let Ok(buffer) = reader
                         .handler()
-                        .get_event_log(caller.address(), &vault_id)
+                        .read_events_buffer(caller.address(), &vault_id)
                         .await
                     {
                         Ok((StatusCode::OK, buffer))
@@ -140,7 +144,7 @@ impl Service for EventLogService {
                     let reader = backend.read().await;
                     let (exists, _) = reader
                         .handler()
-                        .event_log_exists(caller.address(), &vault_id)
+                        .folder_exists(caller.address(), &vault_id)
                         .await?;
 
                     if !exists {
@@ -154,24 +158,28 @@ impl Service for EventLogService {
                     let reader = backend.read().await;
                     let accounts = reader.accounts();
                     let reader = accounts.read().await;
-                    let account =
-                        reader.get(caller.address()).ok_or_else(|| {
-                            Error::AccountNotExist(*caller.address())
+                    let account = reader
+                        .get(caller.address())
+                        .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+
+                    let account = account.read().await;
+                    let folder = account
+                        .folders
+                        .find(|s| s.id() == &vault_id)
+                        .ok_or_else(|| {
+                            Error::NoFolder(*caller.address(), vault_id)
                         })?;
 
-                    let vaults = account.read().await;
-                    let event_log = vaults
-                        .get(&vault_id)
-                        .ok_or_else(|| Error::VaultNotExist(vault_id))?;
+                    let (last_commit, proof) =
+                        account.folders.commit_state(&folder).await?;
 
-                    let last_commit = event_log
-                        .last_commit()
-                        .await?
-                        .ok_or(Error::NoCommitProof)?;
-                    let proof = event_log.tree().head()?;
                     let match_proof = if let Some(client_proof) = commit_proof
                     {
-                        event_log.tree().contains(&client_proof)?
+                        account
+                            .folders
+                            .commit_tree(&folder)
+                            .unwrap()
+                            .contains(&client_proof)?
                     } else {
                         None
                     };
@@ -191,7 +199,7 @@ impl Service for EventLogService {
                     let reader = backend.read().await;
                     let (exists, _) = reader
                         .handler()
-                        .event_log_exists(caller.address(), &vault_id)
+                        .folder_exists(caller.address(), &vault_id)
                         .await?;
                     if !exists {
                         return Ok(
@@ -204,24 +212,38 @@ impl Service for EventLogService {
                     let reader = backend.read().await;
                     let accounts = reader.accounts();
                     let reader = accounts.read().await;
-                    let account =
-                        reader.get(caller.address()).ok_or_else(|| {
-                            Error::AccountNotExist(*caller.address())
+                    let account = reader
+                        .get(caller.address())
+                        .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+
+                    let account = account.read().await;
+                    let folder = account
+                        .folders
+                        .find(|s| s.id() == &vault_id)
+                        .ok_or_else(|| {
+                            Error::NoFolder(*caller.address(), vault_id)
                         })?;
 
-                    let vaults = account.read().await;
-                    let event_log = vaults
-                        .get(&vault_id)
-                        .ok_or_else(|| Error::VaultNotExist(vault_id))?;
-
-                    let comparison =
-                        event_log.tree().compare(&client_proof)?;
+                    let comparison = account
+                        .folders
+                        .commit_tree(&folder)
+                        .unwrap()
+                        .compare(&client_proof)?;
 
                     let patch: Option<Patch> = match comparison {
                         Comparison::Equal => Some(Default::default()),
                         Comparison::Contains(_indices, _leaves) => {
-                            let match_proof =
-                                event_log.tree().contains(&client_proof)?;
+                            let match_proof = account
+                                .folders
+                                .commit_tree(&folder)
+                                .unwrap()
+                                .contains(&client_proof)?;
+
+                            let event_log = account
+                                .folders
+                                .cache()
+                                .get(folder.id())
+                                .unwrap();
 
                             if match_proof.is_some() {
                                 Some(
@@ -261,7 +283,7 @@ impl Service for EventLogService {
                     let reader = backend.read().await;
                     let (exists, _) = reader
                         .handler()
-                        .event_log_exists(caller.address(), &vault_id)
+                        .folder_exists(caller.address(), &vault_id)
                         .await?;
                     if !exists {
                         return Ok(
@@ -280,18 +302,26 @@ impl Service for EventLogService {
                         let reader = accounts.read().await;
                         let account =
                             reader.get(caller.address()).ok_or_else(
-                                || Error::AccountNotExist(*caller.address()),
+                                || Error::NoAccount(*caller.address()),
                             )?;
                         Arc::clone(account)
                     };
 
-                    let mut vaults = account.write().await;
-                    let event_log = vaults
-                        .get_mut(&vault_id)
-                        .ok_or_else(|| Error::VaultNotExist(vault_id))?;
+                    let mut account = account.write().await;
+                    let folder = account
+                        .folders
+                        .find(|s| s.id() == &vault_id)
+                        .ok_or_else(|| {
+                            Error::NoFolder(*caller.address(), vault_id)
+                        })?;
 
-                    let comparison =
-                        event_log.tree().compare(&before_proof)?;
+                    let comparison = account
+                        .folders
+                        .commit_tree(&folder)
+                        .unwrap()
+                        .compare(&before_proof)?;
+
+                    let folder_id = *folder.id();
 
                     match comparison {
                         Comparison::Equal => {
@@ -353,6 +383,12 @@ impl Service for EventLogService {
                                 changes.push(event);
                             }
 
+                            let event_log = account
+                                .folders
+                                .cache_mut()
+                                .get_mut(&folder_id)
+                                .unwrap();
+
                             // Apply the change set of events to the log
                             let commits = event_log
                                 .apply(changes.iter().collect())
@@ -372,18 +408,22 @@ impl Service for EventLogService {
                             })
                         }
                         Comparison::Contains(indices, _leaves) => {
-                            let proof = event_log.tree().head()?;
+                            let tree =
+                                account.folders.commit_tree(&folder).unwrap();
+
+                            let proof = tree.head()?;
                             // Prepare the proof that this event log contains the
                             // matched leaf node
-                            let match_proof =
-                                event_log.tree().proof(&indices)?;
+                            let match_proof = tree.proof(&indices)?;
                             Ok(PatchResult::Conflict(
                                 proof,
                                 Some(match_proof),
                             ))
                         }
                         Comparison::Unknown => {
-                            let proof = event_log.tree().head()?;
+                            let tree =
+                                account.folders.commit_tree(&folder).unwrap();
+                            let proof = tree.head()?;
                             Ok(PatchResult::Conflict(proof, None))
                         }
                     }
@@ -404,7 +444,7 @@ impl Service for EventLogService {
                             let mut writer = backend.write().await;
                             writer
                                 .handler_mut()
-                                .set_vault_name(&address, &vault_id, name)
+                                .rename_folder(&address, &vault_id, name)
                                 .await?;
                         }
 

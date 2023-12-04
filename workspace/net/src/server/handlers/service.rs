@@ -9,8 +9,8 @@ use axum::{
 
 use crate::server::{
     services::{
-        private_service, public_service, AccountService, /*EventLogService,*/
-        HandshakeService, /*VaultService,*/
+        private_service, public_service, AccountService, EventLogService,
+        HandshakeService, VaultService,
     },
     ServerBackend, ServerState,
 };
@@ -43,8 +43,7 @@ impl ServiceHandler {
             Err(error) => error.into_response(),
         }
     }
-        
-    /*
+
     /// Handle requests for the vault service.
     pub(crate) async fn vault(
         Extension(state): Extension<ServerState>,
@@ -72,5 +71,4 @@ impl ServiceHandler {
             Err(error) => error.into_response(),
         }
     }
-    */
 }

@@ -35,17 +35,16 @@ async fn integration_rpc_session() -> Result<()> {
     // Try to create a new account
     let (status, _) = client.create_account(body).await?.unwrap();
     assert_eq!(StatusCode::CONFLICT, status);
-    
-    // List vaults for the account
+
+    // List folders for the account
     let (_, summaries) = client.list_folders().await?.unwrap();
-        
-    // New account with a single vault
+
+    // New account with a single folder
     assert_eq!(1, summaries.len());
 
     let (_, account_status) = client.account_status().await?.unwrap();
     assert!(account_status.is_some());
 
-    /*
     let mut vault: Vault = Default::default();
     vault.set_name(String::from("Mock vault"));
     let body = encode(&vault).await?;
@@ -58,7 +57,7 @@ async fn integration_rpc_session() -> Result<()> {
     let (_, summaries) = client.list_folders().await?.unwrap();
     assert_eq!(2, summaries.len());
 
-    // Update and save a vault
+    // Update and save a folder
     let name = "New vault name";
     vault.set_name(String::from(name));
     let body = encode(&vault).await?;
@@ -67,12 +66,12 @@ async fn integration_rpc_session() -> Result<()> {
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 
-    // Check the list of summaries includes one with the updated name
+    // Check the list of folders includes one with the updated name
     let (_, summaries) = client.list_folders().await?.unwrap();
     let new_vault_summary = summaries.iter().find(|s| s.name() == name);
     assert!(new_vault_summary.is_some());
 
-    // Delete a vault
+    // Delete a folder
     let (status, proof) = client.delete_folder(vault.id()).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
@@ -81,7 +80,7 @@ async fn integration_rpc_session() -> Result<()> {
     let (_, summaries) = client.list_folders().await?.unwrap();
     assert_eq!(1, summaries.len());
 
-    // Check it was the right vault that was deleted
+    // Check it was the right folder that was deleted
     let del_vault_summary = summaries.iter().find(|s| s.id() == vault.id());
     assert!(del_vault_summary.is_none());
 
@@ -93,12 +92,11 @@ async fn integration_rpc_session() -> Result<()> {
     assert!(buffer.is_some());
     assert!(buffer.unwrap().len() > 4);
 
-    // Get the status of a remote vault
+    // Get the status of a remote folder
     let (status, (_last_commit, _server_proof, match_proof)) =
         client.folder_status(login.id(), None).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(match_proof.is_none());
-    */
 
     teardown(TEST_ID).await;
 

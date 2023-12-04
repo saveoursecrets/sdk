@@ -40,17 +40,6 @@ pub async fn run(
 
     let audit_log_file = audit_log.unwrap_or_else(|| config.audit_file());
 
-    let mut locks = FileLocks::new();
-    locks.add(&audit_log_file)?;
-    // Move into the backend so it can manage lock files too
-    backend.handler_mut().set_file_locks(locks)?;
-
-    tracing::debug!(
-        target: TARGET,
-        "lock files {:#?}",
-        backend.handler().file_locks().paths()
-    );
-
     // Set up the audit log
     let audit_log = AuditLogFile::new(&audit_log_file).await?;
 

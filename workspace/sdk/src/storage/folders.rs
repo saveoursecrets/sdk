@@ -1,7 +1,7 @@
 //! Storage backed by the filesystem.
 use crate::{
     account::{AccountStatus, FolderKeys, NewAccount, UserPaths},
-    commit::{CommitHash, CommitTree, CommitState},
+    commit::{CommitHash, CommitState, CommitTree},
     constants::VAULT_EXT,
     crypto::AccessKey,
     decode, encode,
@@ -424,8 +424,13 @@ impl FolderStorage {
             // does not end up with multiple create vault events
             event_log.truncate().await?;
 
-            let (_, events) = EventReducer::split(vault).await?;
+            let (vault, events) = EventReducer::split(vault).await?;
             event_log.apply(events.iter().collect()).await?;
+
+            if self.state.head_only && self.state.mirror {
+                let buffer = encode(&vault).await?;
+                self.write_vault_file(summary, buffer).await?;
+            }
         }
         event_log.load_tree().await?;
 
@@ -754,6 +759,18 @@ impl FolderStorage {
         if !exists {
             // Add the summary to the vaults we are managing
             self.state.add_summary(summary.clone());
+        } else {
+            // Otherwise update with the new summary
+            if let Some(position) = self
+                .state
+                .summaries()
+                .iter()
+                .position(|s| s.id() == summary.id())
+            {
+                let mut existing =
+                    self.state.summaries_mut().get_mut(position).unwrap();
+                *existing = summary.clone();
+            }
         }
 
         if let Some(key) = key {
@@ -1052,7 +1069,8 @@ impl FolderStorage {
         &self,
         summary: &Summary,
     ) -> Result<CommitState> {
-        let log_file = self.cache
+        let log_file = self
+            .cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
         Ok(log_file.commit_state().await?)
