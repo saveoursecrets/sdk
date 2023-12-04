@@ -33,6 +33,10 @@ pub enum Error {
     #[error("could not determine cache directory")]
     NoCache,
 
+    /// Error generated when a search index is required.
+    #[error("no search index")]
+    NoSearchIndex,
+
     /// Error generated when an open folder is expected.
     #[error("no open folder")]
     NoOpenFolder,

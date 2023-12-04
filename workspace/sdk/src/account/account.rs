@@ -399,7 +399,8 @@ impl<D> Account<D> {
         let signer = new_account.user.identity()?.signer().clone();
         let address = signer.address()?;
         let mut storage =
-            FolderStorage::new(address.to_string(), data_dir.clone()).await?;
+            FolderStorage::new_client(address.to_string(), data_dir.clone())
+                .await?;
 
         tracing::debug!("prepared storage provider");
 
@@ -493,9 +494,11 @@ impl<D> Account<D> {
 
         // Signing key for the storage provider
         let signer = user.identity()?.signer().clone();
-        let storage =
-            FolderStorage::new(signer.address()?.to_string(), Some(data_dir))
-                .await?;
+        let storage = FolderStorage::new_client(
+            signer.address()?.to_string(),
+            Some(data_dir),
+        )
+        .await?;
         self.paths = storage.paths();
 
         let account_log =
@@ -622,47 +625,6 @@ impl<D> Account<D> {
         Ok(vfs::read(identity_path).await?)
     }
 
-    /// Compute the account statistics.
-    ///
-    /// If the account is not authenticated returns
-    /// a default statistics object (all values will be zero).
-    pub async fn statistics(&self) -> AccountStatistics {
-        if let Some(auth) = &self.authenticated {
-            let storage = self.storage().unwrap();
-            let reader = storage.read().await;
-            let search_index = reader.index().search();
-            let index = search_index.read().await;
-            let statistics = index.statistics();
-            let count = statistics.count();
-
-            let documents: usize = count.vaults().values().sum();
-            let mut folders = Vec::new();
-            let mut types = HashMap::new();
-
-            for (id, v) in count.vaults() {
-                if let Some(summary) = self.find(|s| s.id() == id).await {
-                    folders.push((summary, *v));
-                }
-            }
-
-            for (k, v) in count.kinds() {
-                if let Ok(kind) = SecretType::try_from(*k) {
-                    types.insert(kind, *v);
-                }
-            }
-
-            AccountStatistics {
-                documents,
-                folders,
-                types,
-                tags: count.tags().clone(),
-                favorites: count.favorites(),
-            }
-        } else {
-            Default::default()
-        }
-    }
-
     /// Account data.
     pub async fn account_data(&self) -> Result<AccountData> {
         let storage = self.storage()?;
@@ -778,7 +740,7 @@ impl<D> Account<D> {
 
         tracing::debug!("clear search index");
         // Remove the search index
-        writer.index_mut().clear().await;
+        writer.index_mut()?.clear().await;
 
         tracing::debug!("sign out user identity");
         // Forget private identity information

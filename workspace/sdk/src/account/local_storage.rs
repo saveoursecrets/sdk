@@ -41,16 +41,15 @@ pub struct FolderStorage {
     paths: Arc<UserPaths>,
 
     /// Search index.
-    pub(super) index: AccountSearch,
+    pub(super) index: Option<AccountSearch>,
 
     /// Folder event logs.
     cache: HashMap<VaultId, FolderEventLog>,
 }
 
 impl FolderStorage {
-    /// Create a new local provider for an account with the given
-    /// identifier.
-    pub async fn new(
+    /// Create folder storage for client-side access.
+    pub async fn new_client(
         id: impl AsRef<str>,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
@@ -61,11 +60,30 @@ impl FolderStorage {
         };
 
         let dirs = UserPaths::new(data_dir, id);
-        Self::new_paths(Arc::new(dirs)).await
+        Self::new_paths(Arc::new(dirs), true, false).await
     }
 
-    /// Create new node cache backed by files on disc.
-    async fn new_paths(paths: Arc<UserPaths>) -> Result<FolderStorage> {
+    /// Create folder storage for server-side access.
+    pub async fn new_server(
+        id: impl AsRef<str>,
+        data_dir: Option<PathBuf>,
+    ) -> Result<Self> {
+        let data_dir = if let Some(data_dir) = data_dir {
+            data_dir
+        } else {
+            UserPaths::data_dir().map_err(|_| Error::NoCache)?
+        };
+
+        let dirs = UserPaths::new(data_dir, id);
+        Self::new_paths(Arc::new(dirs), true, true).await
+    }
+
+    /// Create new storage backed by files on disc.
+    async fn new_paths(
+        paths: Arc<UserPaths>,
+        mirror: bool,
+        head_only: bool,
+    ) -> Result<FolderStorage> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 paths.documents_dir().to_path_buf(),
@@ -75,21 +93,21 @@ impl FolderStorage {
         paths.ensure().await?;
 
         Ok(Self {
-            state: LocalState::new(true),
+            state: LocalState::new(mirror, head_only),
             cache: Default::default(),
             paths,
-            index: AccountSearch::new(),
+            index: Some(AccountSearch::new()),
         })
     }
 
     /// Search index reference.
-    pub fn index(&self) -> &AccountSearch {
-        &self.index
+    pub fn index(&self) -> Result<&AccountSearch> {
+        self.index.as_ref().ok_or(Error::NoSearchIndex)
     }
 
     /// Mutable search index reference.
-    pub fn index_mut(&mut self) -> &mut AccountSearch {
-        &mut self.index
+    pub fn index_mut(&mut self) -> Result<&mut AccountSearch> {
+        self.index.as_mut().ok_or(Error::NoSearchIndex)
     }
 
     /// Get the event log cache.
@@ -124,7 +142,7 @@ impl FolderStorage {
     ///
     /// This should be called after a user has signed in to
     /// create the initial search index.
-    pub async fn initialize_search_index(
+    pub(crate) async fn initialize_search_index(
         &mut self,
         keys: &FolderKeys,
     ) -> Result<(DocumentCount, Vec<Summary>)> {
@@ -138,8 +156,10 @@ impl FolderStorage {
                     break;
                 }
             }
-            let mut writer = self.index.search_index.write().await;
-            writer.set_archive_id(archive);
+            if let Some(index) = &self.index {
+                let mut writer = index.search_index.write().await;
+                writer.set_archive_id(archive);
+            }
             summaries
         };
         let folders = summaries.to_vec();
@@ -147,35 +167,42 @@ impl FolderStorage {
     }
 
     /// Build the search index for all folders.
-    pub async fn build_search_index(
+    pub(crate) async fn build_search_index(
         &mut self,
         keys: &FolderKeys,
     ) -> Result<DocumentCount> {
-        // Clear search index first
-        self.index.clear().await;
+        {
+            let index = self.index.as_ref().ok_or(Error::NoSearchIndex)?;
+            let search_index = index.search();
+            let mut writer = search_index.write().await;
 
-        for (summary, key) in &keys.0 {
-            // Must open the vault so the provider state unlocks
-            // the vault
-            self.open_vault(summary, key).await?;
+            // Clear search index first
+            writer.remove_all();
 
-            let keeper = self.current().unwrap();
-            self.index.add_folder(&keeper).await?;
+            for (summary, key) in &keys.0 {
+                // Must open the vault so the provider state unlocks
+                // the vault
+                self.open_vault(summary, key).await?;
 
-            /*
-            // Add the vault meta data to the search index
-            writer.create_search_index().await?;
-            */
+                let folder = self.current().unwrap();
+                writer.add_folder(folder).await?;
 
-            // Close the vault as we are done for now
-            self.close_vault();
+                // Close the vault as we are done for now
+                self.close_vault();
+            }
         }
 
-        Ok(self.index.document_count().await)
+        let count = if let Some(index) = &self.index {
+            index.document_count().await
+        } else {
+            Default::default()
+        };
+
+        Ok(count)
     }
 
     /// Load a vault, unlock it and set it as the current vault.
-    pub async fn open_vault(
+    pub(crate) async fn open_vault(
         &mut self,
         summary: &Summary,
         key: &AccessKey,
@@ -380,39 +407,13 @@ impl FolderStorage {
             self.write_vault_file(summary, &buffer).await?;
         }
 
-        let index = self.index.search();
-        if let Some(keeper) = self.current_mut() {
-            if keeper.id() == summary.id() {
-                /*
-                // Update the in-memory version
-                let new_key = if let Some(new_key) = new_key {
-                    if let Some(salt) = vault.salt() {
-                        match new_key {
-                            AccessKey::Password(password) => {
-                                let salt = KeyDerivation::parse_salt(salt)?;
-                                let deriver = vault.deriver();
-                                let derived_private_key = deriver.derive(
-                                    &password,
-                                    &salt,
-                                    keeper.vault().seed(),
-                                )?;
-                                Some(PrivateKey::Symmetric(
-                                    derived_private_key,
-                                ))
-                            }
-                            AccessKey::Identity(id) => {
-                                Some(PrivateKey::Asymmetric(id.clone()))
-                            }
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-                */
-
-                Self::replace_vault(index, keeper, vault, new_key).await?;
+        if let Some(index) = &self.index {
+            let index = index.search();
+            if let Some(keeper) = self.current_mut() {
+                if keeper.id() == summary.id() {
+                    Self::replace_vault(index, keeper, vault, new_key)
+                        .await?;
+                }
             }
         }
         Ok(())
@@ -557,7 +558,7 @@ impl FolderStorage {
     }
 
     /// Create a new account or vault.
-    pub async fn create_vault_or_account(
+    pub(crate) async fn create_vault_or_account(
         &mut self,
         name: Option<String>,
         key: Option<AccessKey>,
@@ -680,10 +681,10 @@ impl FolderStorage {
         let summary = vault.summary().clone();
 
         if exists {
-            // Clean entries from the search index
-            self.index
-                .remove_folder_from_search_index(summary.id())
-                .await;
+            if let Some(index) = self.index.as_mut() {
+                // Clean entries from the search index
+                index.remove_folder_from_search_index(summary.id()).await;
+            }
         }
 
         // Always write out the updated buffer
@@ -697,8 +698,10 @@ impl FolderStorage {
         }
 
         if let Some(key) = key {
-            // Ensure the imported secrets are in the search index
-            self.index.add_vault(vault.clone(), key).await?;
+            if let Some(index) = self.index.as_mut() {
+                // Ensure the imported secrets are in the search index
+                index.add_vault(vault.clone(), key).await?;
+            }
         }
 
         // Initialize the local cache for event log
@@ -798,9 +801,9 @@ impl FolderStorage {
         // Remove local state
         self.remove_local_cache(summary)?;
 
-        self.index
-            .remove_folder_from_search_index(summary.id())
-            .await;
+        if let Some(index) = self.index.as_mut() {
+            index.remove_folder_from_search_index(summary.id()).await;
+        }
 
         Ok(())
     }
@@ -838,28 +841,14 @@ impl FolderStorage {
     }
 
     /// Get the description of the currently open vault.
-    pub async fn description(&self) -> Result<String> {
+    pub(crate) async fn description(&self) -> Result<String> {
         let keeper = self.current().ok_or(Error::NoOpenVault)?;
         let meta = keeper.vault_meta().await?;
         Ok(meta.description().to_owned())
     }
 
     /// Set the description of the currently open vault.
-    pub async fn set_description(
-        &mut self,
-        description: impl AsRef<str>,
-    ) -> Result<WriteEvent> {
-        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-        let summary = keeper.summary().clone();
-        let mut meta = keeper.vault_meta().await?;
-        meta.set_description(description.as_ref().to_owned());
-        let event = keeper.set_vault_meta(&meta).await?;
-        self.patch(&summary, vec![&event]).await?;
-        Ok(event)
-    }
-
-    /// Set the description of the currently open vault.
-    pub async fn set_vault_description(
+    pub(crate) async fn set_description(
         &mut self,
         description: impl AsRef<str>,
     ) -> Result<WriteEvent> {
@@ -883,7 +872,7 @@ impl FolderStorage {
         events: Vec<&WriteEvent>,
     ) -> Result<()> {
         // Apply events to the vault file on disc
-        if self.state.mirror {
+        if self.state.mirror && !self.state.head_only {
             let vault_path = self.paths.vault_path(summary.id().to_string());
             let vault_file = VaultWriter::open(&vault_path).await?;
             let mut mirror = VaultWriter::new(vault_path, vault_file)?;
@@ -935,10 +924,12 @@ impl FolderStorage {
             keeper.summary().clone()
         };
 
-        let index_doc = {
-            let search = self.index.search();
+        let index_doc = if let Some(index) = &self.index {
+            let search = index.search();
             let index = search.read().await;
-            index.prepare(summary.id(), &id, &meta, &secret)
+            Some(index.prepare(summary.id(), &id, &meta, &secret))
+        } else {
+            None
         };
 
         let event = {
@@ -947,8 +938,8 @@ impl FolderStorage {
         };
         self.patch(&summary, vec![&event]).await?;
 
-        {
-            let search = self.index.search();
+        if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
+            let search = index.search();
             let mut index = search.write().await;
             index.commit(index_doc)
         }
@@ -981,8 +972,8 @@ impl FolderStorage {
 
         secret_data.meta.touch();
 
-        let index_doc = {
-            let search = self.index.search();
+        let index_doc = if let Some(index) = &self.index {
+            let search = index.search();
             let mut index = search.write().await;
             // Must remove from the index before we
             // prepare a new document otherwise the
@@ -990,12 +981,14 @@ impl FolderStorage {
             // and `commit()` are for new documents
             index.remove(summary.id(), id);
 
-            index.prepare(
+            Some(index.prepare(
                 summary.id(),
                 id,
                 secret_data.meta(),
                 secret_data.secret(),
-            )
+            ))
+        } else {
+            None
         };
 
         let event = {
@@ -1007,8 +1000,8 @@ impl FolderStorage {
         };
         self.patch(&summary, vec![&event]).await?;
 
-        {
-            let search = self.index.search();
+        if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
+            let search = index.search();
             let mut index = search.write().await;
             index.commit(index_doc)
         }
@@ -1032,8 +1025,8 @@ impl FolderStorage {
         };
         self.patch(&summary, vec![&event]).await?;
 
-        {
-            let search = self.index.search();
+        if let Some(index) = &self.index {
+            let search = index.search();
             let mut writer = search.write().await;
             writer.remove(summary.id(), id);
         }
@@ -1105,6 +1098,10 @@ impl FolderStorage {
 struct LocalState {
     /// Whether this state should mirror changes to disc.
     mirror: bool,
+    /// Vault files should only contain header information.
+    ///
+    /// Useful for server implementations.
+    head_only: bool,
     /// Vaults managed by this state.
     summaries: Vec<Summary>,
     /// Currently selected in-memory vault.
@@ -1113,9 +1110,10 @@ struct LocalState {
 
 impl LocalState {
     /// Create a new node state.
-    pub fn new(mirror: bool) -> Self {
+    pub fn new(mirror: bool, head_only: bool) -> Self {
         Self {
             mirror,
+            head_only,
             summaries: Default::default(),
             current: None,
         }
@@ -1160,10 +1158,10 @@ impl LocalState {
 
     /// Remove a summary from this state.
     fn remove_summary(&mut self, summary: &Summary) {
-        let index =
-            self.summaries.iter().position(|s| s.id() == summary.id());
-        if let Some(index) = index {
-            self.summaries.remove(index);
+        if let Some(position) =
+            self.summaries.iter().position(|s| s.id() == summary.id())
+        {
+            self.summaries.remove(position);
             self.summaries.sort();
         }
     }

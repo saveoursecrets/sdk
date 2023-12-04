@@ -83,7 +83,7 @@ fn tags_extract(d: &Document) -> Vec<&str> {
 }
 
 /// Count of documents by vault identitier and secret kind.
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct DocumentCount {
     /// Count number of documents in each vault.
     vaults: HashMap<VaultId, usize>,
