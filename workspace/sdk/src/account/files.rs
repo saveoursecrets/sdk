@@ -3,13 +3,19 @@
 
 use crate::{
     account::Account,
-    events::FileEvent,
-    storage::files::{
-        basename, list_folder_files, EncryptedFile, FileMutationEvent,
-        FileProgress, FileStorage, FileStorageSync,
+    commit::CommitState,
+    events::{Event, FileEvent},
+    storage::{
+        files::{
+            basename, list_folder_files, EncryptedFile, FileMutationEvent,
+            FileProgress, FileStorage, FileStorageSync,
+        },
+        AccessOptions,
     },
     vault::{
-        secret::{FileContent, Secret, SecretId, SecretRow, UserData},
+        secret::{
+            FileContent, Secret, SecretId, SecretMeta, SecretRow, UserData,
+        },
         Summary, VaultId,
     },
     vfs, Error, Result,
@@ -34,88 +40,28 @@ impl<D> Account<D> {
         reader.download_file(vault_id, secret_id, file_name).await
     }
 
-    /// Append file mutation events to the file event log.
-    pub(crate) async fn append_file_mutation_events(
+    /// Update a file secret.
+    ///
+    /// If the secret exists and is not a file secret it will be
+    /// converted to a file secret so take care to ensure you only
+    /// use this on file secrets.
+    pub async fn update_file(
         &mut self,
-        events: &[FileMutationEvent],
-    ) -> Result<()> {
-        let storage = self.storage()?;
-        let mut writer = storage.write().await;
-        writer.append_file_mutation_events(events).await
-    }
-
-    /// Delete a collection of files from the external storage.
-    pub(crate) async fn delete_files(
-        &self,
-        summary: &Summary,
-        secret_data: &SecretRow,
-        targets: Option<Vec<&Secret>>,
-        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<Vec<FileMutationEvent>> {
-        let storage = self.storage()?;
-        let mut writer = storage.write().await;
-        writer
-            .delete_files(summary, secret_data, targets, file_progress)
-            .await
-    }
-
-    /// Delete a file from the storage location.
-    pub(crate) async fn delete_file(
-        &self,
-        vault_id: &VaultId,
         secret_id: &SecretId,
-        file_name: &str,
-    ) -> Result<FileEvent> {
-        let storage = self.storage()?;
-        let mut writer = storage.write().await;
-        writer.delete_file(vault_id, secret_id, file_name).await
-    }
-
-    /// Move a collection of external storage files.
-    pub(crate) async fn move_files(
-        &self,
-        secret_data: &SecretRow,
-        old_vault_id: &VaultId,
-        new_vault_id: &VaultId,
-        old_secret_id: &SecretId,
-        new_secret_id: &SecretId,
-        targets: Option<Vec<&Secret>>,
-        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<Vec<FileMutationEvent>> {
-        let storage = self.storage()?;
-        let reader = storage.read().await;
-        reader
-            .move_files(
-                secret_data,
-                old_vault_id,
-                new_vault_id,
-                old_secret_id,
-                new_secret_id,
-                targets,
-                file_progress,
-            )
-            .await
-    }
-
-    /// Move the encrypted file for external file storage.
-    pub(crate) async fn move_file(
-        &self,
-        old_vault_id: &VaultId,
-        new_vault_id: &VaultId,
-        old_secret_id: &SecretId,
-        new_secret_id: &SecretId,
-        file_name: &str,
-    ) -> Result<FileMutationEvent> {
-        let storage = self.storage()?;
-        let reader = storage.read().await;
-        reader
-            .move_file(
-                old_vault_id,
-                new_vault_id,
-                old_secret_id,
-                new_secret_id,
-                file_name,
-            )
-            .await
+        meta: SecretMeta,
+        path: impl AsRef<Path>,
+        options: AccessOptions,
+        destination: Option<&Summary>,
+    ) -> Result<(SecretId, Event, CommitState, Summary)> {
+        let path = path.as_ref().to_path_buf();
+        let secret: Secret = path.try_into()?;
+        self.update_secret(
+            secret_id,
+            meta,
+            Some(secret),
+            options,
+            destination,
+        )
+        .await
     }
 }

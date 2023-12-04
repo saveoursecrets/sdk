@@ -38,12 +38,6 @@ use tokio::sync::RwLock;
 
 use async_trait::async_trait;
 
-#[cfg(feature = "files")]
-use crate::{
-    events::{FileEvent, FileEventLog},
-    storage::files::FileProgress,
-};
-
 /// Type alias for a local account without a handler.
 pub type LocalAccount = Account<()>;
 
@@ -1328,32 +1322,6 @@ impl<D> Account<D> {
         Ok((SecretRow::new(*secret_id, meta, secret), read_event))
     }
 
-    /// Update a file secret.
-    ///
-    /// If the secret exists and is not a file secret it will be
-    /// converted to a file secret so take care to ensure you only
-    /// use this on file secrets.
-    #[cfg(feature = "files")]
-    pub async fn update_file(
-        &mut self,
-        secret_id: &SecretId,
-        meta: SecretMeta,
-        path: impl AsRef<Path>,
-        options: AccessOptions,
-        destination: Option<&Summary>,
-    ) -> Result<(SecretId, Event, CommitState, Summary)> {
-        let path = path.as_ref().to_path_buf();
-        let secret: Secret = path.try_into()?;
-        self.update_secret(
-            secret_id,
-            meta,
-            Some(secret),
-            options,
-            destination,
-        )
-        .await
-    }
-
     /// Update a secret in the current open folder or a specific folder.
     pub async fn update_secret(
         &mut self,
@@ -1368,23 +1336,6 @@ impl<D> Account<D> {
 
         self.open_folder(&folder).await?;
 
-        //let (old_secret_data, _) =
-            //self.get_secret(secret_id, None, false).await?;
-        
-        /*
-        let secret_data = if let Some(secret) = secret {
-            SecretRow::new(*secret_id, meta, secret)
-        } else {
-            let mut secret_data = old_secret_data.clone();
-            secret_data.meta = meta;
-            secret_data
-        };
-        */
-
-        //let event = self
-            //.write_secret(secret_id, meta, secret, None, true)
-            //.await?;
-
         if let Some(Secret::Pem { certificates, .. }) = &secret {
             if certificates.is_empty() {
                 return Err(Error::PemEncoding);
@@ -1394,11 +1345,13 @@ impl<D> Account<D> {
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.update_secret(secret_id, meta, secret, options.clone()).await?
+            writer
+                .update_secret(secret_id, meta, secret, options.clone())
+                .await?
         };
 
         let event = Event::Write(*folder.id(), event);
-        
+
         let id = if let Some(to) = destination.as_ref() {
             let (new_id, _) =
                 self.mv_secret(secret_id, &folder, to, options).await?;
@@ -1412,7 +1365,7 @@ impl<D> Account<D> {
 
         Ok((id, event, commit_state, folder))
     }
-    
+
     /// Move a secret between folders.
     pub async fn move_secret(
         &mut self,
@@ -1450,11 +1403,18 @@ impl<D> Account<D> {
         // Note that we call `remove_secret()` and not `delete_secret()`
         // as we need the original external files for the
         // move_files operation.
-        let delete_event = self.remove_secret(secret_id, None, false).await?;
+        let delete_event = {
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
+            writer.remove_secret(secret_id).await?
+        };
 
         #[cfg(feature = "files")]
         {
-            let events = self
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
+
+            let events = writer
                 .move_files(
                     &move_secret_data,
                     from.id(),
@@ -1465,11 +1425,11 @@ impl<D> Account<D> {
                     &mut options.file_progress,
                 )
                 .await?;
-            self.append_file_mutation_events(&events).await?;
+            writer.append_file_mutation_events(&events).await?;
         }
 
         let (_, create_event) = create_event.try_into()?;
-        let (_, delete_event) = delete_event.try_into()?;
+        //let (_, delete_event) = delete_event.try_into()?;
 
         let event = Event::MoveSecret(read_event, create_event, delete_event);
 
@@ -1499,57 +1459,18 @@ impl<D> Account<D> {
 
         self.open_folder(&folder).await?;
 
-        let (secret_data, _) =
-            self.get_secret(secret_id, None, false).await?;
-        let event = self.remove_secret(secret_id, None, true).await?;
-
-        #[cfg(feature = "files")]
-        {
-            let events = self
-                .delete_files(
-                    &folder,
-                    &secret_data,
-                    None,
-                    &mut options.file_progress,
-                )
-                .await?;
-            self.append_file_mutation_events(&events).await?;
-        }
-
-        Ok((event, commit_state, folder))
-    }
-
-    /// Remove a secret.
-    ///
-    /// Any external files for the secret are left intact.
-    pub(crate) async fn remove_secret(
-        &mut self,
-        secret_id: &SecretId,
-        folder: Option<Summary>,
-        audit: bool,
-    ) -> Result<Event> {
-        let folder = {
-            let storage = self.storage()?;
-            let reader = storage.read().await;
-            folder
-                .or_else(|| reader.current().map(|g| g.summary().clone()))
-                .ok_or(Error::NoOpenFolder)?
-        };
-
-        self.open_folder(&folder).await?;
-
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.delete_secret(secret_id).await?
+            writer.delete_secret(secret_id, options).await?
         };
 
         let event = Event::Write(*folder.id(), event);
-        if audit {
-            let audit_event: AuditEvent = (self.address(), &event).into();
-            self.append_audit_logs(vec![audit_event]).await?;
-        }
-        Ok(event)
+
+        let audit_event: AuditEvent = (self.address(), &event).into();
+        self.append_audit_logs(vec![audit_event]).await?;
+
+        Ok((event, commit_state, folder))
     }
 
     /// Change the password for a folder.

@@ -986,196 +986,6 @@ impl FolderStorage {
         Ok(())
     }
 
-    /// Create a secret in the currently open vault.
-    pub(crate) async fn create_secret(
-        &mut self,
-        secret_data: SecretRow,
-        mut options: AccessOptions,
-    ) -> Result<WriteEvent> {
-        let summary = {
-            let keeper = self.current().ok_or(Error::NoOpenVault)?;
-            keeper.summary().clone()
-        };
-
-        let index_doc = if let Some(index) = &self.index {
-            let search = index.search();
-            let index = search.read().await;
-            Some(index.prepare(
-                summary.id(),
-                secret_data.id(),
-                secret_data.meta(),
-                secret_data.secret(),
-            ))
-        } else {
-            None
-        };
-
-        let (id, meta, secret) = secret_data.into();
-
-        let event = {
-            let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-            keeper.create(id, meta.clone(), secret.clone()).await?
-        };
-
-        #[cfg(feature = "files")]
-        {
-            let secret_data = SecretRow::new(id, meta, secret);
-            let events = self
-                .create_files(
-                    &summary,
-                    secret_data,
-                    &mut options.file_progress,
-                )
-                .await?;
-            self.append_file_mutation_events(&events).await?;
-        }
-
-        self.patch(&summary, vec![&event]).await?;
-
-        if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
-            let search = index.search();
-            let mut index = search.write().await;
-            index.commit(index_doc)
-        }
-
-        Ok(event)
-    }
-
-    /// Read a secret in the currently open folder.
-    pub(crate) async fn read_secret(
-        &mut self,
-        id: &SecretId,
-    ) -> Result<(SecretMeta, Secret, ReadEvent)> {
-        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-        let _summary = keeper.summary().clone();
-        let result =
-            keeper.read(id).await?.ok_or(Error::SecretNotFound(*id))?;
-        Ok(result)
-    }
-
-    /// Update a secret in the currently open folder.
-    pub(crate) async fn update_secret(
-        &mut self,
-        secret_id: &SecretId,
-        meta: SecretMeta,
-        secret: Option<Secret>,
-        mut options: AccessOptions,
-    ) -> Result<WriteEvent> {
-        let (old_meta, old_secret, _) = self.read_secret(secret_id).await?;
-        let old_secret_data = SecretRow::new(*secret_id, old_meta, old_secret);
-
-        let secret_data = if let Some(secret) = secret {
-            SecretRow::new(*secret_id, meta, secret)
-        } else {
-            let mut secret_data = old_secret_data.clone();
-            secret_data.meta = meta;
-            secret_data
-        };
-
-        let event = self.write_secret(secret_id, secret_data.clone()).await?;
-
-        // Must update the files before moving so checksums are correct
-        #[cfg(feature = "files")]
-        {
-            let folder= {
-                let keeper = self.current().ok_or(Error::NoOpenVault)?;
-                keeper.summary().clone()
-            };
-            let events = self
-                .update_files(
-                    &folder,
-                    &folder,
-                    &old_secret_data,
-                    secret_data,
-                    &mut options.file_progress,
-                )
-                .await?;
-            self.append_file_mutation_events(&events).await?;
-        }
-        
-        Ok(event)
-    }
-
-    /// Write a secret in the current open folder.
-    ///
-    /// Unlike `update_secret()` this function does not support moving
-    /// between folders or managing external files which allows us
-    /// to avoid recursion when handling embedded file secrets which
-    /// require rewriting the secret once the files have been encrypted.
-    pub(crate) async fn write_secret(
-        &mut self,
-        id: &SecretId,
-        mut secret_data: SecretRow,
-    ) -> Result<WriteEvent> {
-        let summary = {
-            let keeper = self.current().ok_or(Error::NoOpenVault)?;
-            keeper.summary().clone()
-        };
-
-        secret_data.meta.touch();
-
-        let index_doc = if let Some(index) = &self.index {
-            let search = index.search();
-            let mut index = search.write().await;
-            // Must remove from the index before we
-            // prepare a new document otherwise the
-            // document would be stale as `prepare()`
-            // and `commit()` are for new documents
-            index.remove(summary.id(), id);
-
-            Some(index.prepare(
-                summary.id(),
-                id,
-                secret_data.meta(),
-                secret_data.secret(),
-            ))
-        } else {
-            None
-        };
-
-        let event = {
-            let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-            keeper
-                .update(id, secret_data.meta, secret_data.secret)
-                .await?
-                .ok_or(Error::SecretNotFound(*id))?
-        };
-        self.patch(&summary, vec![&event]).await?;
-
-        if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
-            let search = index.search();
-            let mut index = search.write().await;
-            index.commit(index_doc)
-        }
-
-        Ok(event)
-    }
-
-    /// Delete a secret in the currently open vault.
-    pub(crate) async fn delete_secret(
-        &mut self,
-        id: &SecretId,
-    ) -> Result<WriteEvent> {
-        let summary = {
-            let keeper = self.current().ok_or(Error::NoOpenVault)?;
-            keeper.summary().clone()
-        };
-
-        let event = {
-            let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-            keeper.delete(id).await?.ok_or(Error::SecretNotFound(*id))?
-        };
-        self.patch(&summary, vec![&event]).await?;
-
-        if let Some(index) = &self.index {
-            let search = index.search();
-            let mut writer = search.write().await;
-            writer.remove(summary.id(), id);
-        }
-
-        Ok(event)
-    }
-
     /// Change the password for a vault.
     ///
     /// If the target vault is the currently selected vault
@@ -1359,5 +1169,233 @@ impl LocalState {
             current.lock();
         }
         self.current = None;
+    }
+}
+
+#[cfg(feature = "account")]
+impl FolderStorage {
+    /// Create a secret in the currently open vault.
+    pub(crate) async fn create_secret(
+        &mut self,
+        secret_data: SecretRow,
+        mut options: AccessOptions,
+    ) -> Result<WriteEvent> {
+        let summary = {
+            let keeper = self.current().ok_or(Error::NoOpenVault)?;
+            keeper.summary().clone()
+        };
+
+        let index_doc = if let Some(index) = &self.index {
+            let search = index.search();
+            let index = search.read().await;
+            Some(index.prepare(
+                summary.id(),
+                secret_data.id(),
+                secret_data.meta(),
+                secret_data.secret(),
+            ))
+        } else {
+            None
+        };
+
+        let (id, meta, secret) = secret_data.into();
+
+        let event = {
+            let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+            keeper.create(id, meta.clone(), secret.clone()).await?
+        };
+
+        #[cfg(feature = "files")]
+        {
+            let secret_data = SecretRow::new(id, meta, secret);
+            let events = self
+                .create_files(
+                    &summary,
+                    secret_data,
+                    &mut options.file_progress,
+                )
+                .await?;
+            self.append_file_mutation_events(&events).await?;
+        }
+
+        self.patch(&summary, vec![&event]).await?;
+
+        if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
+            let search = index.search();
+            let mut index = search.write().await;
+            index.commit(index_doc)
+        }
+
+        Ok(event)
+    }
+
+    /// Read a secret in the currently open folder.
+    pub(crate) async fn read_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<(SecretMeta, Secret, ReadEvent)> {
+        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let _summary = keeper.summary().clone();
+        let result =
+            keeper.read(id).await?.ok_or(Error::SecretNotFound(*id))?;
+        Ok(result)
+    }
+
+    /// Update a secret in the currently open folder.
+    pub(crate) async fn update_secret(
+        &mut self,
+        secret_id: &SecretId,
+        meta: SecretMeta,
+        secret: Option<Secret>,
+        mut options: AccessOptions,
+    ) -> Result<WriteEvent> {
+        let (old_meta, old_secret, _) = self.read_secret(secret_id).await?;
+        let old_secret_data =
+            SecretRow::new(*secret_id, old_meta, old_secret);
+
+        let secret_data = if let Some(secret) = secret {
+            SecretRow::new(*secret_id, meta, secret)
+        } else {
+            let mut secret_data = old_secret_data.clone();
+            secret_data.meta = meta;
+            secret_data
+        };
+
+        let event = self.write_secret(secret_id, secret_data.clone()).await?;
+
+        // Must update the files before moving so checksums are correct
+        #[cfg(feature = "files")]
+        {
+            let folder = {
+                let keeper = self.current().ok_or(Error::NoOpenVault)?;
+                keeper.summary().clone()
+            };
+            let events = self
+                .update_files(
+                    &folder,
+                    &folder,
+                    &old_secret_data,
+                    secret_data,
+                    &mut options.file_progress,
+                )
+                .await?;
+            self.append_file_mutation_events(&events).await?;
+        }
+
+        Ok(event)
+    }
+
+    /// Write a secret in the current open folder.
+    ///
+    /// Unlike `update_secret()` this function does not support moving
+    /// between folders or managing external files which allows us
+    /// to avoid recursion when handling embedded file secrets which
+    /// require rewriting the secret once the files have been encrypted.
+    pub(crate) async fn write_secret(
+        &mut self,
+        id: &SecretId,
+        mut secret_data: SecretRow,
+    ) -> Result<WriteEvent> {
+        let summary = {
+            let keeper = self.current().ok_or(Error::NoOpenVault)?;
+            keeper.summary().clone()
+        };
+
+        secret_data.meta.touch();
+
+        let index_doc = if let Some(index) = &self.index {
+            let search = index.search();
+            let mut index = search.write().await;
+            // Must remove from the index before we
+            // prepare a new document otherwise the
+            // document would be stale as `prepare()`
+            // and `commit()` are for new documents
+            index.remove(summary.id(), id);
+
+            Some(index.prepare(
+                summary.id(),
+                id,
+                secret_data.meta(),
+                secret_data.secret(),
+            ))
+        } else {
+            None
+        };
+
+        let event = {
+            let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+            keeper
+                .update(id, secret_data.meta, secret_data.secret)
+                .await?
+                .ok_or(Error::SecretNotFound(*id))?
+        };
+        self.patch(&summary, vec![&event]).await?;
+
+        if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
+            let search = index.search();
+            let mut index = search.write().await;
+            index.commit(index_doc)
+        }
+
+        Ok(event)
+    }
+
+    /// Delete a secret in the currently open vault.
+    pub(crate) async fn delete_secret(
+        &mut self,
+        secret_id: &SecretId,
+        mut options: AccessOptions,
+    ) -> Result<WriteEvent> {
+        let (meta, secret, _) = self.read_secret(secret_id).await?;
+        let secret_data = SecretRow::new(*secret_id, meta, secret);
+
+        let event = self.remove_secret(secret_id).await?;
+
+        #[cfg(feature = "files")]
+        {
+            let folder = {
+                let keeper = self.current().ok_or(Error::NoOpenVault)?;
+                keeper.summary().clone()
+            };
+
+            let events = self
+                .delete_files(
+                    &folder,
+                    &secret_data,
+                    None,
+                    &mut options.file_progress,
+                )
+                .await?;
+            self.append_file_mutation_events(&events).await?;
+        }
+
+        Ok(event)
+    }
+
+    /// Remove a secret.
+    ///
+    /// Any external files for the secret are left intact.
+    pub(crate) async fn remove_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<WriteEvent> {
+        let summary = {
+            let keeper = self.current().ok_or(Error::NoOpenVault)?;
+            keeper.summary().clone()
+        };
+
+        let event = {
+            let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+            keeper.delete(id).await?.ok_or(Error::SecretNotFound(*id))?
+        };
+        self.patch(&summary, vec![&event]).await?;
+
+        if let Some(index) = &self.index {
+            let search = index.search();
+            let mut writer = search.write().await;
+            writer.remove(summary.id(), id);
+        }
+
+        Ok(event)
     }
 }
