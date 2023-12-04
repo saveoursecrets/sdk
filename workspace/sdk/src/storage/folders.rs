@@ -1,4 +1,4 @@
-//! Storage provider backed by the local filesystem.
+//! Storage backed by the filesystem.
 use crate::{
     account::{
         search::{AccountSearch, DocumentCount, SearchIndex},
@@ -41,6 +41,7 @@ pub struct FolderStorage {
     paths: Arc<UserPaths>,
 
     /// Search index.
+    #[cfg(feature = "search")]
     pub(super) index: Option<AccountSearch>,
 
     /// Folder event logs.
@@ -96,16 +97,19 @@ impl FolderStorage {
             state: LocalState::new(mirror, head_only),
             cache: Default::default(),
             paths,
+            #[cfg(feature = "search")]
             index: Some(AccountSearch::new()),
         })
     }
 
     /// Search index reference.
+    #[cfg(feature = "search")]
     pub fn index(&self) -> Result<&AccountSearch> {
         self.index.as_ref().ok_or(Error::NoSearchIndex)
     }
 
     /// Mutable search index reference.
+    #[cfg(feature = "search")]
     pub fn index_mut(&mut self) -> Result<&mut AccountSearch> {
         self.index.as_mut().ok_or(Error::NoSearchIndex)
     }
@@ -142,6 +146,7 @@ impl FolderStorage {
     ///
     /// This should be called after a user has signed in to
     /// create the initial search index.
+    #[cfg(feature = "search")]
     pub(crate) async fn initialize_search_index(
         &mut self,
         keys: &FolderKeys,
@@ -167,6 +172,7 @@ impl FolderStorage {
     }
 
     /// Build the search index for all folders.
+    #[cfg(feature = "search")]
     pub(crate) async fn build_search_index(
         &mut self,
         keys: &FolderKeys,

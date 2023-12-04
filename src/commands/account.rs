@@ -10,8 +10,9 @@ use sos_net::{
                 AccountBackup, ExtractFilesLocation, Inventory,
                 RestoreOptions,
             },
-            AccountInfo, AccountRef, FolderStorage, UserPaths,
+            AccountInfo, AccountRef, UserPaths,
         },
+        storage::FolderStorage,
         vfs,
     },
 };

@@ -14,12 +14,13 @@ use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
-    account::{AccountStatus, FolderStorage},
+    account::AccountStatus,
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     crypto::SecureAccessKey,
     decode,
     events::{Event, WriteEvent},
     signer::ecdsa::BoxedEcdsaSigner,
+    storage::FolderStorage,
     url::Url,
     vault::{Summary, VaultId},
     vfs,

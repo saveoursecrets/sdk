@@ -5,9 +5,10 @@ use crate::client::{
 };
 use async_trait::async_trait;
 use sos_sdk::{
-    account::{AccountHandler, FolderStorage},
+    account::AccountHandler,
     commit::CommitState,
     events::Event,
+    storage::FolderStorage,
     vault::Summary,
 };
 use std::{any::Any, sync::Arc};

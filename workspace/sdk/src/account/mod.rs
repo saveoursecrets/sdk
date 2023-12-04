@@ -10,7 +10,6 @@ mod device;
 #[cfg(feature = "files")]
 pub mod files;
 mod identity;
-mod local_storage;
 #[cfg(feature = "migrate")]
 mod migrate;
 mod paths;
@@ -28,7 +27,6 @@ pub use builder::{AccountBuilder, NewAccount};
 #[cfg(feature = "device")]
 pub use device::DeviceSigner;
 pub use identity::{AccountStatus, FolderKeys, Identity, PrivateIdentity};
-pub use local_storage::FolderStorage;
 pub use paths::UserPaths;
 
 /*

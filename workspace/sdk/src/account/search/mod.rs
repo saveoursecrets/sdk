@@ -136,7 +136,7 @@ pub struct AccountStatistics {
 /// Modify and query the search index for an account.
 pub struct AccountSearch {
     /// Search index.
-    pub(super) search_index: Arc<RwLock<SearchIndex>>,
+    pub(crate) search_index: Arc<RwLock<SearchIndex>>,
 }
 
 impl AccountSearch {
@@ -148,12 +148,12 @@ impl AccountSearch {
     }
 
     /// Get a reference to the search index.
-    pub(super) fn search(&self) -> Arc<RwLock<SearchIndex>> {
+    pub(crate) fn search(&self) -> Arc<RwLock<SearchIndex>> {
         Arc::clone(&self.search_index)
     }
 
     /// Clear the entire search index.
-    pub(super) async fn clear(&mut self) {
+    pub(crate) async fn clear(&mut self) {
         tracing::debug!("clear search index");
         let mut writer = self.search_index.write().await;
         writer.remove_all();

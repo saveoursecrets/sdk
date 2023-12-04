@@ -13,12 +13,12 @@ use sos_net::{
     client::{HostedOrigin, NetworkAccount, RemoteBridge, RemoteSync},
     mpc::{Keypair, PATTERN},
     sdk::{
-        account::FolderStorage,
         crypto::AccessKey,
         events::AuditLogFile,
         hex,
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
+        storage::FolderStorage,
         vault::{secret::SecretId, Summary},
         vfs,
     },

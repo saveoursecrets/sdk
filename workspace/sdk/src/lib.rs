@@ -77,6 +77,7 @@ pub mod prelude;
 pub mod recovery;
 
 pub mod signer;
+pub mod storage;
 mod timestamp;
 pub mod vault;
 

@@ -11,7 +11,7 @@ use std::{
 use crate::{
     account::{
         search::{DocumentCount, SearchIndex},
-        AccountBuilder, FolderKeys, FolderStorage, Identity, NewAccount,
+        AccountBuilder, FolderKeys, Identity, NewAccount,
         UserPaths,
     },
     commit::{CommitHash, CommitState},
@@ -23,6 +23,7 @@ use crate::{
         AuditProvider, Event, EventKind, EventReducer, ReadEvent, WriteEvent,
     },
     signer::ecdsa::Address,
+    storage::FolderStorage,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
         Gatekeeper, Header, Summary, Vault, VaultId,
