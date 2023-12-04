@@ -74,8 +74,7 @@ impl FolderStorage {
         };
 
         let dirs = UserPaths::new(data_dir, id);
-        Self::new_paths(Arc::new(dirs), true, false)
-            .await
+        Self::new_paths(Arc::new(dirs), true, false).await
     }
 
     /// Create folder storage for server-side access.
@@ -122,7 +121,7 @@ impl FolderStorage {
             file_password: None,
         })
     }
-    
+
     /// Set the password for file encryption.
     #[cfg(feature = "files")]
     pub fn set_file_password(&mut self, file_password: Option<SecretString>) {

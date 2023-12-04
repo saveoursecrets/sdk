@@ -19,18 +19,18 @@
 //! backup archives. If you want to just use encrypted vaults without
 //! the account management support disable `default-features`.
 //!
-//! * `account` Support for local accounts.
-//! * `recovery` Support for social recovery.
-//! * `search` Support for in-memory account search index.
+//! * `account` Local account management.
+//! * `files` Store external encrypted files.
+//! * `recovery` Primitives for social recovery.
+//! * `search` In-memory search index.
 //!
 //! The following features require that the `account` feature is enabled:
 //!
-//! * `archive` Support for creating and restoring from account backup archives.
-//! * `contacts` Support for managing account contacts.
-//! * `device` Support for device signing keys and device management.
-//! * `files` Support for managing external encrypted files.
-//! * `migrate` Support for importing and exporting unencrypted secrets.
-//! * `security-report` Support for generating a security report.
+//! * `archive` Create and restore from account backup archives.
+//! * `contacts` Manage account contacts.
+//! * `device` Device signing keys and device management.
+//! * `migrate` Import and export unencrypted secrets.
+//! * `security-report` Generate a security report.
 //!
 //! Note the `files` feature affects the encoding of vaults so you should
 //! not change this after writing encoded vaults to disc without having a

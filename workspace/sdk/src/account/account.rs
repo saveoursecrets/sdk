@@ -398,11 +398,9 @@ impl<D> Account<D> {
         let signer = new_account.user.identity()?.signer().clone();
         let address = signer.address()?;
 
-        let mut storage = FolderStorage::new_client(
-            address.to_string(),
-            data_dir.clone(),
-        )
-        .await?;
+        let mut storage =
+            FolderStorage::new_client(address.to_string(), data_dir.clone())
+                .await?;
 
         tracing::debug!("prepared storage provider");
 
@@ -505,7 +503,7 @@ impl<D> Account<D> {
         self.paths = storage.paths();
 
         let file_password = user.find_file_encryption_password().await?;
-        storage.set_file_password(Some(file_password)); 
+        storage.set_file_password(Some(file_password));
 
         let account_log =
             self.initialize_account_log(&self.paths, &user).await?;
