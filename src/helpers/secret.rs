@@ -9,8 +9,8 @@ use terminal_banner::{Banner, Padding};
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_net::sdk::{
-    account::search::Document,
     hex, secrecy,
+    storage::search::Document,
     url::Url,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},

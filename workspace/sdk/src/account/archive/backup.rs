@@ -6,9 +6,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use tokio::{
-    io::{AsyncRead, AsyncSeek},
-};
+use tokio::io::{AsyncRead, AsyncSeek};
 use web3_address::ethereum::Address;
 
 use uuid::Uuid;

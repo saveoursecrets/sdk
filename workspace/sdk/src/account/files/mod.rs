@@ -6,10 +6,7 @@ use crate::{
     vault::{secret::SecretId, VaultId},
     vfs, Error, Result,
 };
-use std::{
-    collections::HashSet, fmt, path::Path,
-    str::FromStr,
-};
+use std::{collections::HashSet, fmt, path::Path, str::FromStr};
 
 mod external_files;
 mod external_files_sync;
@@ -135,8 +132,7 @@ pub(super) async fn list_folder_files(
                         .as_ref()
                         .parse::<SecretId>()
                     {
-                        let external_files =
-                            list_secret_files(path).await?;
+                        let external_files = list_secret_files(path).await?;
                         tracing::debug!(files_len = external_files.len());
                         files.push((secret_id, external_files));
                     }

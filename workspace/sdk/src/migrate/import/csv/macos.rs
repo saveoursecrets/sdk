@@ -110,9 +110,9 @@ mod test {
     use anyhow::Result;
 
     use crate::{
-        account::search::SearchIndex,
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
+        storage::search::SearchIndex,
         vault::{Gatekeeper, VaultBuilder},
     };
     use url::Url;

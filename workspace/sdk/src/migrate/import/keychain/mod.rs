@@ -13,14 +13,12 @@ use std::{
     io::{BufRead, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::{
-        mpsc::{channel, Receiver},
-    },
+    sync::mpsc::{channel, Receiver},
 };
 
 use crate::{
-    account::search::SearchIndex,
     crypto::AccessKey,
+    storage::search::SearchIndex,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Gatekeeper, Vault,

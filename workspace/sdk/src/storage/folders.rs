@@ -1,9 +1,6 @@
 //! Storage backed by the filesystem.
 use crate::{
-    account::{
-        search::{AccountSearch, DocumentCount, SearchIndex},
-        AccountStatus, FolderKeys, NewAccount, UserPaths,
-    },
+    account::{AccountStatus, FolderKeys, NewAccount, UserPaths},
     commit::{CommitHash, CommitTree},
     constants::VAULT_EXT,
     crypto::AccessKey,
@@ -13,6 +10,7 @@ use crate::{
         ReadEvent, WriteEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
+    storage::search::{AccountSearch, DocumentCount, SearchIndex},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,

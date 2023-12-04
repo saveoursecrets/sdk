@@ -9,11 +9,7 @@ use std::{
 };
 
 use crate::{
-    account::{
-        search::{DocumentCount, SearchIndex},
-        AccountBuilder, FolderKeys, Identity, NewAccount,
-        UserPaths,
-    },
+    account::{AccountBuilder, FolderKeys, Identity, NewAccount, UserPaths},
     commit::{CommitHash, CommitState},
     constants::VAULT_EXT,
     crypto::{AccessKey, SecureAccessKey},
@@ -23,7 +19,10 @@ use crate::{
         AuditProvider, Event, EventKind, EventReducer, ReadEvent, WriteEvent,
     },
     signer::ecdsa::Address,
-    storage::FolderStorage,
+    storage::{
+        search::{DocumentCount, SearchIndex},
+        FolderStorage,
+    },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
         Gatekeeper, Header, Summary, Vault, VaultId,

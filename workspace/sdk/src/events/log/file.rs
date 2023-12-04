@@ -22,8 +22,7 @@ use crate::{
     encoding::{encoding_options, VERSION1},
     events::WriteEvent,
     formats::{
-        event_log_stream, EventLogFileRecord,
-        EventLogFileStream, FileItem,
+        event_log_stream, EventLogFileRecord, EventLogFileStream, FileItem,
     },
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
@@ -501,7 +500,9 @@ impl EventLogFile<WriteEvent> {
 impl EventLogFile<AccountEvent> {
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        use crate::{constants::{ACCOUNT_EVENT_LOG_IDENTITY}, encoding::VERSION};
+        use crate::{
+            constants::ACCOUNT_EVENT_LOG_IDENTITY, encoding::VERSION,
+        };
         let file = Self::create(
             file_path.as_ref(),
             &ACCOUNT_EVENT_LOG_IDENTITY,
@@ -523,7 +524,7 @@ impl EventLogFile<AccountEvent> {
 impl EventLogFile<FileEvent> {
     /// Create a new file event log file.
     pub async fn new_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
-        use crate::{constants::{FILE_EVENT_LOG_IDENTITY}, encoding::VERSION};
+        use crate::{constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION};
         let file = Self::create(
             file_path.as_ref(),
             &FILE_EVENT_LOG_IDENTITY,

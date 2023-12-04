@@ -51,9 +51,6 @@ compile_error!("account feature must be enabled to use files");
 #[cfg(all(not(feature = "account"), feature = "migrate"))]
 compile_error!("account feature must be enabled to use migrate");
 
-#[cfg(all(not(feature = "account"), feature = "search"))]
-compile_error!("account feature must be enabled to use search");
-
 #[cfg(all(not(feature = "account"), feature = "security-report"))]
 compile_error!("account feature must be enabled to use security-report");
 
