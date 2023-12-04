@@ -6,7 +6,7 @@ use crate::{
     },
     commit::{CommitHash, CommitTree},
     constants::VAULT_EXT,
-    crypto::{AccessKey, KeyDerivation, PrivateKey},
+    crypto::AccessKey,
     decode, encode,
     events::{
         AuditEvent, Event, EventKind, EventReducer, FolderEventLog,
@@ -365,7 +365,7 @@ impl FolderStorage {
             // does not end up with multiple create vault events
             event_log.truncate().await?;
 
-            let (vault, events) = EventReducer::split(vault).await?;
+            let (_, events) = EventReducer::split(vault).await?;
             event_log.apply(events.iter().collect()).await?;
         }
         event_log.load_tree().await?;
@@ -852,7 +852,7 @@ impl FolderStorage {
         &mut self,
         description: impl AsRef<str>,
     ) -> Result<WriteEvent> {
-        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
         let summary = keeper.summary().clone();
         let mut meta = keeper.vault_meta().await?;
         meta.set_description(description.as_ref().to_owned());
@@ -992,7 +992,7 @@ impl FolderStorage {
         };
 
         let event = {
-            let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+            let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
             keeper
                 .update(id, secret_data.meta, secret_data.secret)
                 .await?
@@ -1020,7 +1020,7 @@ impl FolderStorage {
         };
 
         let event = {
-            let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+            let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
             keeper.delete(id).await?.ok_or(Error::SecretNotFound(*id))?
         };
         self.patch(&summary, vec![&event]).await?;

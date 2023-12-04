@@ -17,7 +17,7 @@ use crate::{
         Convert,
     },
     vault::{Gatekeeper, Summary, VaultBuilder, VaultId},
-    vfs, Error, Result,
+    vfs, Result,
 };
 use std::{
     collections::HashMap,

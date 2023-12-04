@@ -15,7 +15,6 @@ use std::{
     process::{Command, Stdio},
     sync::{
         mpsc::{channel, Receiver},
-        Arc,
     },
 };
 
@@ -27,8 +26,6 @@ use crate::{
         Gatekeeper, Vault,
     },
 };
-
-use tokio::sync::RwLock;
 
 use parser::{AttributeName, KeychainParser};
 use secrecy::{ExposeSecret, SecretString};

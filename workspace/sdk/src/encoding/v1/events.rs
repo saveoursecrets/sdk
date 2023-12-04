@@ -1,14 +1,13 @@
 use crate::{
     commit::CommitHash,
-    constants::PATCH_IDENTITY,
-    crypto::{AeadPack, SecureAccessKey},
+    crypto::AeadPack,
     encoding::{decode_uuid, encoding_error},
     events::{
         AuditData, AuditEvent, AuditLogFile, EventKind, EventRecord,
         LogEvent, LogFlags, WriteEvent,
     },
-    formats::{EventLogFileRecord, FileIdentity, FileRecord, VaultRecord},
-    vault::{secret::SecretId, VaultCommit},
+    formats::{EventLogFileRecord, FileRecord, VaultRecord},
+    vault::VaultCommit,
     Timestamp,
 };
 
@@ -25,8 +24,6 @@ use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
-
-use uuid::Uuid;
 
 #[async_trait]
 impl Encodable for EventKind {
@@ -474,6 +471,7 @@ impl Decodable for AccountEvent {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
+        use crate::crypto::SecureAccessKey;
         let mut op: EventKind = Default::default();
         op.decode(&mut *reader).await?;
         match op {

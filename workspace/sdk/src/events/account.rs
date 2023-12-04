@@ -1,7 +1,6 @@
 //! Event for operations at the account level.
-
 use super::{EventKind, LogEvent};
-use crate::{crypto::SecureAccessKey, vault::VaultId, Error, Result};
+use crate::{crypto::SecureAccessKey, vault::VaultId};
 
 /// Events generated in the context of an account.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]

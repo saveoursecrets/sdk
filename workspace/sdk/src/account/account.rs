@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     account::{
-        search::{AccountStatistics, DocumentCount, SearchIndex},
+        search::{DocumentCount, SearchIndex},
         AccountBuilder, FolderKeys, FolderStorage, Identity, NewAccount,
         UserPaths,
     },
@@ -36,7 +36,6 @@ use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, RwLock};
 
-use super::search::AccountSearch;
 use async_trait::async_trait;
 
 #[cfg(feature = "files")]
@@ -814,11 +813,11 @@ impl<D> Account<D> {
         let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
 
-        let event = {
+        {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer.remove_vault(&summary).await?
-        };
+        }
         self.user_mut()?
             .remove_folder_password(summary.id())
             .await?;

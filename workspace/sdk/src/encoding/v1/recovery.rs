@@ -1,6 +1,5 @@
 use secrecy::{ExposeSecret, SecretString};
 use std::io::Result;
-use uuid::Uuid;
 
 use crate::{
     crypto::SEED_SIZE,

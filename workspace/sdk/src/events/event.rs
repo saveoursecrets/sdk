@@ -1,10 +1,10 @@
 //! Encoding of all operations.
 
-use super::{AuditEvent, EventKind, LogEvent, ReadEvent, WriteEvent};
+use super::{EventKind, LogEvent, ReadEvent, WriteEvent};
 use crate::{vault::VaultId, Error, Result};
 
 #[cfg(feature = "account")]
-use super::AccountEvent;
+use super::{AccountEvent, AuditEvent};
 
 #[cfg(feature = "files")]
 use super::FileEvent;

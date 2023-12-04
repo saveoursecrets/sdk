@@ -7,7 +7,6 @@ use std::{
 use totp_rs::TOTP;
 use url::Url;
 
-use uuid::Uuid;
 use vcard4::{self};
 
 use crate::{

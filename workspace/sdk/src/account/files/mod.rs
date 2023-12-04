@@ -7,7 +7,7 @@ use crate::{
     vfs, Error, Result,
 };
 use std::{
-    array::TryFromSliceError, collections::HashSet, fmt, path::Path,
+    collections::HashSet, fmt, path::Path,
     str::FromStr,
 };
 
@@ -135,7 +135,7 @@ pub(super) async fn list_folder_files(
                         .as_ref()
                         .parse::<SecretId>()
                     {
-                        let mut external_files =
+                        let external_files =
                             list_secret_files(path).await?;
                         tracing::debug!(files_len = external_files.len());
                         files.push((secret_id, external_files));

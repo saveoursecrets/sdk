@@ -1,5 +1,3 @@
-use uuid::Uuid;
-
 use crate::{
     commit::CommitHash,
     constants::VAULT_IDENTITY,

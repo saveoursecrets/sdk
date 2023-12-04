@@ -419,7 +419,6 @@ impl Identity {
         });
 
         let device_key_urn: Urn = DEVICE_KEY_URN.parse()?;
-        let index = self.identity()?.index();
 
         if let Some(summary) = device_vault {
             let device_password =

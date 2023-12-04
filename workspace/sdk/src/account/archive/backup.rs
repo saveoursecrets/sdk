@@ -3,13 +3,11 @@
 use std::{
     io::Cursor,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 use serde::{Deserialize, Serialize};
 use tokio::{
     io::{AsyncRead, AsyncSeek},
-    sync::RwLock,
 };
 use web3_address::ethereum::Address;
 

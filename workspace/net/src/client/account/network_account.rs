@@ -4,7 +4,7 @@ use secrecy::SecretString;
 use sos_sdk::{
     account::{
         search::{
-            AccountSearch, AccountStatistics, ArchiveFilter, Document,
+            AccountStatistics, ArchiveFilter, Document,
             DocumentCount, DocumentView, QueryFilter, SearchIndex,
         },
         AccessOptions, Account, AccountBuilder, AccountData, DetachedView,

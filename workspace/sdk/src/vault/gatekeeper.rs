@@ -10,7 +10,6 @@ use crate::{
     },
     vfs, Error, Result,
 };
-use std::collections::HashSet;
 use tracing::{span, Level};
 
 use uuid::Uuid;
@@ -201,8 +200,6 @@ impl Gatekeeper {
 
         self.enforce_shared_readonly(private_key).await?;
 
-        let vault_id = *self.vault().id();
-
         let meta_blob = encode(&secret_meta).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
 
@@ -255,8 +252,6 @@ impl Gatekeeper {
 
         self.enforce_shared_readonly(private_key).await?;
 
-        let vault_id = *self.vault().id();
-
         let meta_blob = encode(&secret_meta).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
 
@@ -291,8 +286,6 @@ impl Gatekeeper {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         self.enforce_shared_readonly(private_key).await?;
-
-        let vault_id = *self.vault().id();
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.delete(id).await?;
         }

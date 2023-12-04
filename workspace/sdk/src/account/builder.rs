@@ -16,8 +16,7 @@ use crate::{
     vfs, Result,
 };
 use secrecy::SecretString;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
-use tokio::sync::RwLock;
+use std::{collections::HashMap, path::PathBuf};
 use urn::Urn;
 use web3_address::ethereum::Address;
 

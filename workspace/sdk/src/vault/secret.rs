@@ -13,7 +13,6 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     fmt,
-    path::PathBuf,
     str::FromStr,
 };
 use totp_rs::TOTP;
@@ -31,6 +30,9 @@ use crate::{
     },
     Error, Result, Timestamp,
 };
+
+#[cfg(feature = "files")]
+use std::path::PathBuf;
 
 bitflags! {
     /// Bit flags for a secret.

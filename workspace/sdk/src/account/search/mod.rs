@@ -25,7 +25,7 @@ impl<D> Account<D> {
     /// If the account is not authenticated returns
     /// a default statistics object (all values will be zero).
     pub async fn statistics(&self) -> AccountStatistics {
-        if let Some(auth) = &self.authenticated {
+        if self.authenticated.is_some() {
             let storage = self.storage().unwrap();
             let reader = storage.read().await;
             if let Ok(index) = reader.index() {

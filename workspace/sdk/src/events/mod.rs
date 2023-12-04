@@ -12,6 +12,7 @@
 mod account;
 mod audit;
 mod event;
+#[cfg(all(feature = "account", feature = "files"))]
 mod file;
 mod log;
 mod read;
@@ -34,7 +35,7 @@ pub use audit::{
     AuditData, AuditEvent, AuditLogFile, AuditProvider, LogFlags,
 };
 pub use event::Event;
-#[cfg(feature = "files")]
+#[cfg(all(feature = "account", feature = "files"))]
 pub use file::FileEvent;
 pub use read::ReadEvent;
 pub use types::EventKind;

@@ -18,15 +18,11 @@ use crate::{
     commit::{
         event_log_commit_tree_file, CommitHash, CommitState, CommitTree,
     },
-    constants::{
-        ACCOUNT_EVENT_LOG_IDENTITY, FILE_EVENT_LOG_IDENTITY,
-        FOLDER_EVENT_LOG_IDENTITY,
-    },
     encode,
-    encoding::{encoding_options, VERSION, VERSION1},
+    encoding::{encoding_options, VERSION1},
     events::WriteEvent,
     formats::{
-        event_log_stream, patch_stream, EventLogFileRecord,
+        event_log_stream, EventLogFileRecord,
         EventLogFileStream, FileItem,
     },
     timestamp::Timestamp,
@@ -127,7 +123,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     /// encoding version.
     fn header_len(&self) -> usize {
         let mut len = self.identity.len();
-        if let Some(version) = self.version {
+        if self.version.is_some() {
             len += (u16::BITS / 8) as usize;
         }
         len
@@ -406,15 +402,6 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         // but it doesn't exist we error otherwise we would return
         // all the events
         if let Some(commit) = commit {
-            /*
-            if let Some(last_commit) = self.last_commit().await? {
-                if &last_commit != commit {
-                    return Err(Error::CommitNotFound(*commit));
-                }
-            } else {
-            }
-            */
-
             return Err(Error::CommitNotFound(*commit));
         }
 
@@ -451,6 +438,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
 impl EventLogFile<WriteEvent> {
     /// Create a new folder event log file.
     pub async fn new_folder<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
         // Note that for backwards compatibility we don't
         // encode a version, later we will need to upgrade
         // the encoding to include a version
@@ -513,6 +501,7 @@ impl EventLogFile<WriteEvent> {
 impl EventLogFile<AccountEvent> {
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        use crate::{constants::{ACCOUNT_EVENT_LOG_IDENTITY}, encoding::VERSION};
         let file = Self::create(
             file_path.as_ref(),
             &ACCOUNT_EVENT_LOG_IDENTITY,
@@ -534,6 +523,7 @@ impl EventLogFile<AccountEvent> {
 impl EventLogFile<FileEvent> {
     /// Create a new file event log file.
     pub async fn new_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+        use crate::{constants::{FILE_EVENT_LOG_IDENTITY}, encoding::VERSION};
         let file = Self::create(
             file_path.as_ref(),
             &FILE_EVENT_LOG_IDENTITY,

@@ -11,9 +11,7 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
 };
-use tokio::sync::RwLock;
 use url::Url;
 use vcard4::Vcard;
 

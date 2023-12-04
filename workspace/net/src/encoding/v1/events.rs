@@ -4,7 +4,7 @@ use sos_sdk::{
 };
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use std::io::{Error, ErrorKind, Result, SeekFrom};
+use std::io::Result;
 
 use async_trait::async_trait;
 use binary_stream::futures::{
@@ -12,8 +12,6 @@ use binary_stream::futures::{
 };
 
 use crate::events::Patch;
-
-use uuid::Uuid;
 
 #[async_trait]
 impl Encodable for Patch {
