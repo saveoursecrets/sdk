@@ -11,7 +11,7 @@ pub mod search;
 pub use folders::FolderStorage;
 
 /// Options used when accessing account data.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct AccessOptions {
     /// Target folder for the operation.
     ///

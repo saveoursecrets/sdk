@@ -1056,10 +1056,44 @@ impl FolderStorage {
     /// Update a secret in the currently open folder.
     pub(crate) async fn update_secret(
         &mut self,
-        id: &SecretId,
-        mut secret_data: SecretRow,
+        secret_id: &SecretId,
+        meta: SecretMeta,
+        secret: Option<Secret>,
+        mut options: AccessOptions,
     ) -> Result<WriteEvent> {
-        self.write_secret(id, secret_data).await
+        let (old_meta, old_secret, _) = self.read_secret(secret_id).await?;
+        let old_secret_data = SecretRow::new(*secret_id, old_meta, old_secret);
+
+        let secret_data = if let Some(secret) = secret {
+            SecretRow::new(*secret_id, meta, secret)
+        } else {
+            let mut secret_data = old_secret_data.clone();
+            secret_data.meta = meta;
+            secret_data
+        };
+
+        let event = self.write_secret(secret_id, secret_data.clone()).await?;
+
+        // Must update the files before moving so checksums are correct
+        #[cfg(feature = "files")]
+        {
+            let folder= {
+                let keeper = self.current().ok_or(Error::NoOpenVault)?;
+                keeper.summary().clone()
+            };
+            let events = self
+                .update_files(
+                    &folder,
+                    &folder,
+                    &old_secret_data,
+                    secret_data,
+                    &mut options.file_progress,
+                )
+                .await?;
+            self.append_file_mutation_events(&events).await?;
+        }
+        
+        Ok(event)
     }
 
     /// Write a secret in the current open folder.

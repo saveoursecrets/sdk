@@ -44,28 +44,6 @@ impl<D> Account<D> {
         writer.append_file_mutation_events(events).await
     }
 
-    /// Update external files when a file secret is updated.
-    pub(crate) async fn update_files(
-        &mut self,
-        old_summary: &Summary,
-        new_summary: &Summary,
-        old_secret: &SecretRow,
-        new_secret: SecretRow,
-        file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<Vec<FileMutationEvent>> {
-        let storage = self.storage()?;
-        let mut writer = storage.write().await;
-        writer
-            .update_files(
-                old_summary,
-                new_summary,
-                old_secret,
-                new_secret,
-                file_progress,
-            )
-            .await
-    }
-
     /// Delete a collection of files from the external storage.
     pub(crate) async fn delete_files(
         &self,

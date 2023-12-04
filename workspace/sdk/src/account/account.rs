@@ -1368,9 +1368,10 @@ impl<D> Account<D> {
 
         self.open_folder(&folder).await?;
 
-        let (old_secret_data, _) =
-            self.get_secret(secret_id, None, false).await?;
-
+        //let (old_secret_data, _) =
+            //self.get_secret(secret_id, None, false).await?;
+        
+        /*
         let secret_data = if let Some(secret) = secret {
             SecretRow::new(*secret_id, meta, secret)
         } else {
@@ -1378,60 +1379,13 @@ impl<D> Account<D> {
             secret_data.meta = meta;
             secret_data
         };
+        */
 
-        let event = self
-            .write_secret(secret_id, secret_data.clone(), None, true)
-            .await?;
+        //let event = self
+            //.write_secret(secret_id, meta, secret, None, true)
+            //.await?;
 
-        // Must update the files before moving so checksums are correct
-        #[cfg(feature = "files")]
-        {
-            let events = self
-                .update_files(
-                    &folder,
-                    &folder,
-                    &old_secret_data,
-                    secret_data,
-                    &mut options.file_progress,
-                )
-                .await?;
-            self.append_file_mutation_events(&events).await?;
-        }
-
-        let id = if let Some(to) = destination.as_ref() {
-            let (new_id, _) =
-                self.mv_secret(secret_id, &folder, to, options).await?;
-            new_id
-        } else {
-            *secret_id
-        };
-
-        Ok((id, event, commit_state, folder))
-    }
-
-    /// Write a secret in the current open folder or a specific folder.
-    ///
-    /// Unlike `update_secret()` this function does not support moving
-    /// between folders or managing external files which allows us
-    /// to avoid recursion when handling embedded file secrets which
-    /// require rewriting the secret once the files have been encrypted.
-    pub(crate) async fn write_secret(
-        &mut self,
-        secret_id: &SecretId,
-        secret_data: SecretRow,
-        folder: Option<Summary>,
-        audit: bool,
-    ) -> Result<Event> {
-        let folder = {
-            let storage = self.storage()?;
-            let reader = storage.read().await;
-            folder
-                .or_else(|| reader.current().map(|g| g.summary().clone()))
-                .ok_or(Error::NoOpenFolder)?
-        };
-        self.open_folder(&folder).await?;
-
-        if let Secret::Pem { certificates, .. } = secret_data.secret() {
+        if let Some(Secret::Pem { certificates, .. }) = &secret {
             if certificates.is_empty() {
                 return Err(Error::PemEncoding);
             }
@@ -1440,18 +1394,25 @@ impl<D> Account<D> {
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.update_secret(secret_id, secret_data).await?
+            writer.update_secret(secret_id, meta, secret, options.clone()).await?
         };
 
         let event = Event::Write(*folder.id(), event);
-        if audit {
-            let audit_event: AuditEvent = (self.address(), &event).into();
-            self.append_audit_logs(vec![audit_event]).await?;
-        }
+        
+        let id = if let Some(to) = destination.as_ref() {
+            let (new_id, _) =
+                self.mv_secret(secret_id, &folder, to, options).await?;
+            new_id
+        } else {
+            *secret_id
+        };
 
-        Ok(event)
+        let audit_event: AuditEvent = (self.address(), &event).into();
+        self.append_audit_logs(vec![audit_event]).await?;
+
+        Ok((id, event, commit_state, folder))
     }
-
+    
     /// Move a secret between folders.
     pub async fn move_secret(
         &mut self,
