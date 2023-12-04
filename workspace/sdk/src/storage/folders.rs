@@ -409,7 +409,7 @@ impl FolderStorage {
         self.state.current_mut()
     }
 
-    /// Create new patch and event log cache entries.
+    /// Create new event log cache entries.
     async fn create_cache_entry(
         &mut self,
         summary: &Summary,

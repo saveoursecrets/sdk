@@ -746,7 +746,7 @@ mod listen {
             let local = bridge.local();
             tracing::debug!(
                 folder = %folder.id(),
-                "pull new folder");
+                "create_or_update_folder");
 
             let id = *folder.id();
 
@@ -812,6 +812,7 @@ mod listen {
             remote_bridge_tx: Arc<RemoteBridgeSender>,
             remote_bridge_rx: Arc<Mutex<RemoteBridgeReceiver>>,
         ) -> Result<()> {
+            tracing::debug!("on_change_notification");
             let actions = Self::notification_actions(&change);
             let local = bridge.local();
             // Consume and react to the actions

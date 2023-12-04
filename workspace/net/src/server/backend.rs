@@ -318,6 +318,7 @@ impl BackendHandler for FileSystemBackend {
             .ok_or(Error::NoFolder(owner.to_owned(), *vault_id))?;
 
         writer.folders.set_vault_name(&folder, name).await?;
+
         Ok(())
     }
 
