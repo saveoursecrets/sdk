@@ -25,6 +25,7 @@ There are also requirements concerning the recovery process itself.
 
 - The recovery process must occur over a prolonged period of time, so that an account owner can thwart any attempts at theft conducted by a dishonest recovery group.
 - The recovery shareholders can initiate the recovery countdown only if a threshold of shareholders agree on whom to send the encrypted recovery package to. Since this cannot be enforced cryptographically, the SoS backend server must enforce it.
+- The recovery shareholders should not need to be physically present in the same room for them to initiate the recovery countdown.
 - When the recovery countdown starts, the account owner and all other shareholders in the group must be alerted with push notifications or email.
 - Once the recovery countdown is completed, the backend server must distribute an encrypted package which only a threshold of the recovery group can cooperatively decrypt.
 - The recovery group must be able to decrypt the exact vaults selected by the account owner by cooperating in-person.
@@ -119,7 +120,7 @@ For each of these $t-1$ reserved share indexes $q - t \lt j \lt q$, the client c
 
 The client computes the _contact encryption key_ $c = H(Z(0))$, and uses $c$ to encrypt `shareholders` into `shareholders_enc`. The `shareholders_enc` binary blob can be padded to avoid exposing the shareholders count $n$. `shareholders_enc` should also embed `cipher` and optional KDF algorithm identifiers to aid the server in later decryption.
 
-By encrypting `shareholders` in this way, we ensure that the server will be able to decrypt `shareholders_enc` only if it learns any evaluation of $Z(x)$ which it doesn't already know. Any of the shareholders who knows $s_i$ will be able to provide that, by simply computing $s_i Q$. We thus avoid the need to expose $n$, or to embed additional keys into recovery shares.
+By encrypting `shareholders` in this way, we ensure that the server will be able to decrypt `shareholders_enc` only if it learns any evaluation of $Z(x)$ which it doesn't already know. Any of the shareholders who knows $s_i$ will be able to provide that, by simply giving the server $S_i' = s_i Q$. We thus avoid the need to expose $n$, or to embed additional keys into recovery shares.
 
 ### Upload
 
@@ -185,7 +186,88 @@ If the account owner wishes to issue a new share of $k$ without invalidating the
 
 ## Stage 2: Initiation
 
-TODO
+To initiate the countdown, a `recovery_group` at least a threshold $t$ of `shareholders` must cooperate.
+
+Assume each shareholder is in contact through some outside medium. The account owner has either requested assistance from them, or the account owner has died and their account needs to be recovered.
+
+### Identifying the Group
+
+First things first: The SoS backend server must be able to identify which account the group wants to recover, and also which specific recovery group for that account is trying to do so.
+
+Recall that each share embeds `account_id_prefix` and `group_index`. A shareholder will upload both to the server at recovery initiation time. The server will look up all accounts starting with `account_id_prefix`, which will probably be only the one - maybe 2 or 3 if we're very unlucky. The server then checks if either account has a recovery group with the given `group_index`.
+
+This is the server's source of truth for which account is being recovered and which group is doing the recovering.
+
+The recovery group must now prove that they hold shares in one of these recovery groups, and that they agree on what they want to do with the account upon recovery.
+
+### Proving Cooperation
+
+A `destination` must be chosen. This will be the recipient of the recovery pack, who will ultimately decrypt and regain access to the account. `destination` could be an email address, phone number, or SoS account ID - Any contact method, basically. If the account owner is alive, this should obviously be them. If not, it can be a trusted executor, family, etc.
+
+Once the `recovery_group` agrees on `destination` offline, they must use their shares to initiate the recovery countdown by demonstrating their cooperation and intent to recover.
+
+Recall this requirement:
+
+> The recovery shareholders should not need to be physically present in the same room for them to initiate the recovery countdown.
+
+We need a way for each shareholder to prove their commitment to `destination`, while also proving they hold a valid share of $f(x)$.
+
+Recall that each share $s_i = f(i)$ is basically a secret key, which has corresponding public key $S_i = f(i) \cdot G = F(i)$. Also recall that the SoS backend server knows the group key public verification polynomial $F(x)$, and can thus calculate any $F(i)$.
+
+Therefore, to commit to `destination` and prove their legitimacy, shareholders can simply sign `destination` as a message, using their share $s_i$ as a secret key. Let `dest_sig` be that signature.
+
+### Decrypting Shareholder Contact Info
+
+Remember how the server has `shareholders_enc` - an encrypted blob of shareholder contact info.
+
+Once a single shareholder starts recovery, all other shareholders should be sent a notification which informs them that recovery has been initiated. The server can only do this if it can decrypt `shareholders_enc`.
+
+As described above in Stage 1, we can provide the server with means for this decryption, by providing the curve point $S_i' = s_i Q$. The server can then use $S_i'$ plus the $t-1$ shares it already knows to interpolate the polynomial $Z(x)$, and thus compute the contact encryption key $c = H(Z(0))$, and decrypt `shareholders_enc`.
+
+### Initial Upload
+
+To initiate recovery, the first recovery shareholder must enter their share into an SoS client, and which then computes and uploads the following data to the SoS backend server:
+
+| Data point | Description |
+|:----------:|:-----------:|
+| `account_id_prefix` | The prefix of the account ID to which this recovery share belongs. |
+| `group_index` | The index of the recovery group, identifying it among other groups for the same account. |
+| $i$ | The share index. |
+| $S_i' = s_i Q$ | Shareholder contact info share. |
+| `destination` | A contact method describing where to send the recovery pack. Determines the ultimate beneficiary of the recovery process. |
+| `dest_sig` | A signature made by $s_i$ on `destination`. |
+
+### Verification
+
+The SoS backend server can use `account_id_prefix` and `group_index` to look up a set of recovery groups. Each recovery group has the group key verification polynomial $F(x)$.
+
+For each possible recovery group, the server computes $S_i = F(i)$, and checks if `dest_sig` is a valid signature on `destination` under the key $S_i$.
+
+It also attempts to decrypt `shareholders_enc` by using $S_i'$ to interpolate $Z(x)$.
+
+If any of the above steps fail, the server must fail the recovery attempt and optionally report it to the account owner.
+
+Note that if `dest_sig` is valid, but decryption of `shareholders_enc` fails, then the server **must not proceed,** because the shareholder might be attempting to perform the account takeover independently and stealthily without cooperation of other shareholders.
+
+### Confirmations
+
+After the initial upload, the server sends notifications to all other `shareholders`. This notification might include a hyperlink to a web-app or a deep link to the SoS client app. It should include `destination` in obvious clear text, so that shareholders can verify who will reap the rewards of the account recovery process.
+
+If the shareholder agrees with the recovery attempt, they can submit their share into the client app. Internally, the app will then perform most of the same logic as the initial shareholder did, except subsequent shareholders do not need to compute and upload $S_i' = s_i Q$. Specifically they must submit these fields:
+
+| Data point | Description |
+|:----------:|:-----------:|
+| `account_id_prefix` | The prefix of the account ID to which this recovery share belongs. Optionally we could also embed the full `account_id` in the hyperlink at this point, since it might already be known server-side. |
+| `group_index` | The index of the recovery group, identifying it among other groups for the same account. |
+| $i$ | The share index. |
+| `destination` | A contact method describing where to send the recovery pack. Determines the ultimate beneficiary of the recovery process. |
+| `dest_sig` | A signature made by $s_i$ on `destination`. |
+
+The SoS backend server verifies this confirmation attempt in exactly the same way as the initial recovery submission.
+
+If at least $t$ distinct shareholders submit valid `dest_sig`s within `init_window` time after the first recovery submission _for the same_ `account_id`, and _for the same_ `destination`, then a threshold group of shareholders is confirmed to exist, and they are cooperating. The server then proceeds to the next stage.
+
+If `init_window` elapses without sufficient confirmations, the server abandons the recovery attempt.
 
 ## Stage 3: Countdown
 
