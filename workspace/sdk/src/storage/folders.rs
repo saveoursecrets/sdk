@@ -1,16 +1,17 @@
 //! Storage backed by the filesystem.
 use crate::{
-    account::{AccountStatus, FolderKeys, NewAccount, UserPaths},
+    account::{FolderKeys, NewAccount, UserPaths},
     commit::{CommitHash, CommitState, CommitTree},
     constants::VAULT_EXT,
-    crypto::AccessKey,
+    crypto::{AccessKey, SecureAccessKey},
     decode, encode,
     events::{
         AccountEventLog, AuditEvent, Event, EventKind, EventReducer,
-        FolderEventLog, ReadEvent, WriteEvent,
+        FolderEventLog, ReadEvent, WriteEvent, AccountEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
     storage::{
+        AccountStatus,
         search::{AccountSearch, DocumentCount, SearchIndex},
         AccessOptions,
     },
@@ -314,7 +315,7 @@ impl FolderStorage {
 
         // Save the default vault
         let buffer = encode(&account.default_folder).await?;
-        let (event, summary) = self
+        let (_, event, summary) = self
             .upsert_vault_buffer(
                 buffer,
                 account.folder_keys.find(account.default_folder.id()),
@@ -323,33 +324,44 @@ impl FolderStorage {
         events.push(Event::Write(*summary.id(), event));
 
         if let Some(archive_vault) = &account.archive {
+            let secure_key = account.user.secure_access_key(
+                archive_vault.id()).await?;
+
             let buffer = encode(archive_vault).await?;
-            let (event, summary) = self
+            let (event, summary, _) = self
                 .import_vault(
                     &buffer,
                     account.folder_keys.find(archive_vault.id()),
+                    secure_key,
                 )
                 .await?;
             events.push(Event::Write(*summary.id(), event));
         }
 
         if let Some(authenticator_vault) = &account.authenticator {
+            let secure_key = account.user.secure_access_key(
+                authenticator_vault.id()).await?;
+
             let buffer = encode(authenticator_vault).await?;
-            let (event, summary) = self
+            let (event, summary, _) = self
                 .import_vault(
                     &buffer,
                     account.folder_keys.find(authenticator_vault.id()),
+                    secure_key,
                 )
                 .await?;
             events.push(Event::Write(*summary.id(), event));
         }
 
         if let Some(contact_vault) = &account.contacts {
+            let secure_key = account.user.secure_access_key(
+                contact_vault.id()).await?;
             let buffer = encode(contact_vault).await?;
-            let (event, summary) = self
+            let (event, summary, _) = self
                 .import_vault(
                     &buffer,
                     account.folder_keys.find(contact_vault.id()),
+                    secure_key,
                 )
                 .await?;
             events.push(Event::Write(*summary.id(), event));
@@ -689,8 +701,22 @@ impl FolderStorage {
         &mut self,
         buffer: impl AsRef<[u8]>,
         key: Option<&AccessKey>,
-    ) -> Result<(WriteEvent, Summary)> {
-        self.upsert_vault_buffer(buffer, key).await
+        secure_key: SecureAccessKey,
+    ) -> Result<(WriteEvent, Summary, AccountEvent)> {
+        let (exists, create_event, summary) =
+            self.upsert_vault_buffer(buffer, key).await?;
+
+        // If there is an existing folder
+        // and we are overwriting then log the update
+        // folder event
+        let account_event = if exists {
+            AccountEvent::UpdateFolder(*summary.id())
+        // Otherwise a create event
+        } else {
+            AccountEvent::CreateFolder(*summary.id(), secure_key)
+        };
+        
+        Ok((create_event, summary, account_event))
     }
 
     /// Remove a vault file and event log file.
@@ -710,7 +736,16 @@ impl FolderStorage {
     }
 
     /// Get the account status.
-    pub async fn account_status(&mut self) -> Result<AccountStatus> {
+    pub async fn account_status(&self) -> Result<AccountStatus> {
+        let account = {
+            let reader = self.account_log.read().await;
+            if reader.tree().is_empty() {
+                None
+            } else {
+                Some(reader.tree().head()?)
+            }
+        };
+
         let summaries = self.state.summaries();
         let mut proofs = HashMap::new();
         for summary in summaries {
@@ -725,6 +760,7 @@ impl FolderStorage {
         }
         Ok(AccountStatus {
             exists: true,
+            account,
             proofs,
         })
     }
@@ -738,13 +774,22 @@ impl FolderStorage {
         self.create_vault_or_account(name, key, true).await
     }
 
-    /// Create a new vault.
-    pub async fn create_vault(
+    /// Create a new folder.
+    pub async fn create_folder(
         &mut self,
         name: String,
+        secure_key: SecureAccessKey,
         key: Option<AccessKey>,
-    ) -> Result<(Vec<u8>, AccessKey, Summary)> {
-        self.create_vault_or_account(Some(name), key, false).await
+    ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
+        let (buf, key, summary) =
+            self.create_vault_or_account(Some(name), key, false).await?;
+
+        let account_event =
+            AccountEvent::CreateFolder(*summary.id(), secure_key);
+        let mut account_log = self.account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
+
+        Ok((buf, key, summary, account_event))
     }
 
     /// Create or update a vault.
@@ -752,7 +797,7 @@ impl FolderStorage {
         &mut self,
         buffer: impl AsRef<[u8]>,
         key: Option<&AccessKey>,
-    ) -> Result<(WriteEvent, Summary)> {
+    ) -> Result<(bool, WriteEvent, Summary)> {
         let vault: Vault = decode(buffer.as_ref()).await?;
         let exists = self.find(|s| s.id() == vault.id()).is_some();
         let summary = vault.summary().clone();
@@ -796,7 +841,7 @@ impl FolderStorage {
         // Initialize the local cache for event log
         self.create_cache_entry(&summary, Some(vault)).await?;
 
-        Ok((WriteEvent::CreateVault(buffer.as_ref().to_owned()), summary))
+        Ok((exists, WriteEvent::CreateVault(buffer.as_ref().to_owned()), summary))
     }
 
     /// Update an existing vault by replacing it with a new vault.
@@ -825,6 +870,8 @@ impl FolderStorage {
 
     /// Compact an event log file.
     pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+        let account_event = AccountEvent::CompactFolder(*summary.id());
+
         let event_log_file = self
             .cache
             .get_mut(summary.id())
@@ -839,6 +886,9 @@ impl FolderStorage {
 
         // Refresh in-memory vault and mirrored copy
         self.refresh_vault(summary, None).await?;
+
+        let mut account_log = self.account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
 
         Ok((old_size, new_size))
     }
@@ -882,8 +932,8 @@ impl FolderStorage {
         Ok(self.folders())
     }
 
-    /// Remove a vault.
-    pub async fn remove_vault(
+    /// Delete a folder.
+    pub async fn delete_folder(
         &mut self,
         summary: &Summary,
     ) -> Result<Vec<Event>> {
@@ -908,6 +958,12 @@ impl FolderStorage {
         if let Some(index) = self.index.as_mut() {
             index.remove_folder(summary.id()).await;
         }
+
+        let account_event = AccountEvent::DeleteFolder(*summary.id());
+        let mut account_log = self.account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
+
+        events.insert(0, Event::Account(account_event));
 
         Ok(events)
     }
@@ -1026,7 +1082,14 @@ impl FolderStorage {
         vault: &Vault,
         current_key: AccessKey,
         new_key: AccessKey,
+        secure_access_key: SecureAccessKey,
     ) -> Result<AccessKey> {
+
+        let account_event = AccountEvent::ChangeFolderPassword(
+            *vault.id(),
+            secure_access_key,
+        );
+
         let (new_key, new_vault, event_log_events) =
             ChangePassword::new(vault, current_key, new_key, None)
                 .build()
@@ -1043,6 +1106,9 @@ impl FolderStorage {
                 keeper.unlock(&new_key).await?;
             }
         }
+
+        let mut account_log = self.account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
 
         Ok(new_key)
     }

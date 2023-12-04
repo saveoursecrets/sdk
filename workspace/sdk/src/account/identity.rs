@@ -195,9 +195,17 @@ impl Identity {
         vault_id: &VaultId,
     ) -> Result<SecureAccessKey> {
         let folder_password = self.find_folder_password(vault_id).await?;
+        self.to_secure_access_key(&folder_password).await
+    }
+
+    /// Convert a secret key to a secure access key.
+    pub async fn to_secure_access_key(
+        &self,
+        folder_password: &AccessKey,
+    ) -> Result<SecureAccessKey> {
         let secret_key = self.signing_key()?.to_bytes();
         Ok(
-            SecureAccessKey::encrypt(&folder_password, &secret_key, None)
+            SecureAccessKey::encrypt(folder_password, &secret_key, None)
                 .await?,
         )
     }
@@ -550,19 +558,6 @@ impl Identity {
         self.identity = None;
         Ok(())
     }
-}
-
-/// Provides a status overview of an account.
-///
-/// Intended to be used during a synchronization protocol.
-#[derive(Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
-#[serde(default)]
-pub struct AccountStatus {
-    /// Indicates whether the account exists.
-    pub exists: bool,
-    /// Commit proofs for the account vaults.
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub proofs: HashMap<VaultId, CommitState>,
 }
 
 /// Private identity containing the in-memory identity vault

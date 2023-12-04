@@ -14,13 +14,12 @@ use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
-    account::AccountStatus,
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     crypto::SecureAccessKey,
     decode,
     events::{Event, WriteEvent},
     signer::ecdsa::BoxedEcdsaSigner,
-    storage::FolderStorage,
+    storage::{FolderStorage, AccountStatus},
     url::Url,
     vault::{Summary, VaultId},
     vfs,
@@ -890,7 +889,7 @@ mod listen {
                                 .find(|s| s.id() == &id)
                                 .cloned()
                                 .ok_or(Error::CacheNotAvailable(id))?;
-                            writer.remove_vault(&summary).await?;
+                            writer.delete_folder(&summary).await?;
                         }
 
                         // Notify the account storage of the folder

@@ -1,5 +1,7 @@
 //! Folder storage backed by the file system.
-use crate::vault::Summary;
+use crate::{vault::{Summary, VaultId}, commit::{CommitProof, CommitState}};
+use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 use tokio::sync::mpsc;
 
 #[cfg(feature = "files")]
@@ -9,6 +11,22 @@ mod folders;
 pub mod search;
 
 pub use folders::FolderStorage;
+
+/// Provides a status overview of an account.
+///
+/// Intended to be used during a synchronization protocol.
+#[derive(Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(default)]
+pub struct AccountStatus {
+    /// Indicates whether the account exists.
+    pub exists: bool,
+    /// Account log commit proof.
+    pub account: Option<CommitProof>,
+    /// Commit proofs for the account folders.
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub proofs: HashMap<VaultId, CommitState>,
+}
+
 
 /// Options used when accessing account data.
 #[derive(Default, Clone)]

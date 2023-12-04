@@ -176,11 +176,12 @@ impl<D> Account<D> {
             .await?;
 
         let buffer = encode(&vault).await?;
-        let (event, summary) = {
+        let (event, summary, _) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             let key: AccessKey = vault_passphrase.clone().into();
-            writer.import_vault(buffer, Some(&key)).await?
+            let secure_key = self.user()?.to_secure_access_key(&key).await?;
+            writer.import_vault(buffer, Some(&key), secure_key).await?
         };
 
         self.user_mut()?

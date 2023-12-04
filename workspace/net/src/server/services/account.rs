@@ -2,9 +2,9 @@ use axum::http::StatusCode;
 use std::collections::HashMap;
 
 use sos_sdk::{
-    account::AccountStatus,
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
     events::{AuditEvent, Event, EventKind},
+    storage::AccountStatus,
     vault::Header,
 };
 
@@ -105,30 +105,11 @@ impl Service for AccountService {
 
                 let result: AccountStatus = if account_exists {
                     let reader = backend.read().await;
-                    let summaries = reader
-                        .handler()
-                        .list_folders(caller.address())
-                        .await?;
-
-                    let mut proofs = HashMap::new();
                     let accounts = reader.accounts();
-                    let backend = accounts.read().await;
-                    for summary in summaries {
-                        let account =
-                            backend.get(caller.address()).ok_or_else(
-                                || Error::NoAccount(*caller.address()),
-                            )?;
-                        let account = account.read().await;
-
-                        let (last_commit, proof) =
-                            account.folders.commit_state(&summary).await?;
-
-                        proofs.insert(*summary.id(), (last_commit, proof));
-                    }
-                    AccountStatus {
-                        exists: true,
-                        proofs,
-                    }
+                    let reader = accounts.read().await;
+                    let account = reader.get(caller.address()).unwrap();
+                    let account = account.read().await;
+                    account.folders.account_status().await?
                 } else {
                     Default::default()
                 };

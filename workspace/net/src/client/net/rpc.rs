@@ -7,7 +7,6 @@ use http::{
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use sos_sdk::{
-    account::AccountStatus,
     commit::{CommitHash, CommitProof},
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
@@ -18,6 +17,7 @@ use sos_sdk::{
     crypto::SecureAccessKey,
     decode, encode,
     signer::ecdsa::BoxedEcdsaSigner,
+    storage::AccountStatus,
     vault::{Summary, VaultId},
 };
 

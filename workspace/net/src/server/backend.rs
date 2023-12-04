@@ -283,7 +283,7 @@ impl BackendHandler for FileSystemBackend {
             .find(|s| s.id() == vault_id)
             .cloned()
             .ok_or(Error::NoFolder(owner.to_owned(), *vault_id))?;
-        writer.folders.remove_vault(&folder).await?;
+        writer.folders.delete_folder(&folder).await?;
         Ok(())
     }
 
