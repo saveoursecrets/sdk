@@ -1046,132 +1046,6 @@ impl FolderStorage {
     }
 }
 
-/// Collection of in-memory vaults.
-struct LocalState {
-    /// Whether this state should mirror changes to disc.
-    mirror: bool,
-    /// Vault files should only contain header information.
-    ///
-    /// Useful for server implementations.
-    head_only: bool,
-    /// Vaults managed by this state.
-    summaries: Vec<Summary>,
-    /// Currently selected in-memory vault.
-    current: Option<Gatekeeper>,
-}
-
-impl LocalState {
-    /// Create a new node state.
-    pub fn new(mirror: bool, head_only: bool) -> Self {
-        Self {
-            mirror,
-            head_only,
-            summaries: Default::default(),
-            current: None,
-        }
-    }
-
-    /// Determine if mirroring is enabled.
-    fn mirror(&self) -> bool {
-        self.mirror
-    }
-
-    /// Current in-memory vault.
-    fn current(&self) -> Option<&Gatekeeper> {
-        self.current.as_ref()
-    }
-
-    /// Mutable reference to the current in-memory vault.
-    fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
-        self.current.as_mut()
-    }
-
-    /// Vault summaries.
-    fn summaries(&self) -> &[Summary] {
-        self.summaries.as_slice()
-    }
-
-    /// Mutable reference to the vault summaries.
-    fn summaries_mut(&mut self) -> &mut [Summary] {
-        self.summaries.as_mut_slice()
-    }
-
-    /// Set the summaries for this state.
-    fn set_summaries(&mut self, summaries: Vec<Summary>) {
-        self.summaries = summaries;
-        self.summaries.sort();
-    }
-
-    /// Add a summary to this state.
-    fn add_summary(&mut self, summary: Summary) {
-        self.summaries.push(summary);
-        self.summaries.sort();
-    }
-
-    /// Remove a summary from this state.
-    fn remove_summary(&mut self, summary: &Summary) {
-        if let Some(position) =
-            self.summaries.iter().position(|s| s.id() == summary.id())
-        {
-            self.summaries.remove(position);
-            self.summaries.sort();
-        }
-    }
-
-    /// Find a summary in this state by reference.
-    fn find_vault(&self, vault: &FolderRef) -> Option<&Summary> {
-        match vault {
-            FolderRef::Name(name) => {
-                self.summaries.iter().find(|s| s.name() == name)
-            }
-            FolderRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
-        }
-    }
-
-    /// Find a summary in this state.
-    fn find<F>(&self, predicate: F) -> Option<&Summary>
-    where
-        F: FnMut(&&Summary) -> bool,
-    {
-        self.summaries.iter().find(predicate)
-    }
-
-    /// Set the current folder and unlock it.
-    async fn open_vault(
-        &mut self,
-        key: &AccessKey,
-        vault: Vault,
-        vault_path: PathBuf,
-    ) -> Result<()> {
-        let mut keeper = if self.mirror {
-            let vault_file = VaultWriter::open(&vault_path).await?;
-            let mirror = VaultWriter::new(vault_path, vault_file)?;
-            Gatekeeper::new_mirror(vault, mirror)
-        } else {
-            Gatekeeper::new(vault)
-        };
-
-        keeper
-            .unlock(key)
-            .await
-            .map_err(|_| Error::VaultUnlockFail)?;
-        self.current = Some(keeper);
-        Ok(())
-    }
-
-    /// Close the currently open vault.
-    ///
-    /// When a vault is open it is locked before being closed.
-    ///
-    /// If no vault is open this is a noop.
-    fn close_vault(&mut self) {
-        if let Some(current) = self.current_mut() {
-            current.lock();
-        }
-        self.current = None;
-    }
-}
-
 #[cfg(feature = "account")]
 impl FolderStorage {
     /// Create a secret in the currently open vault.
@@ -1399,3 +1273,130 @@ impl FolderStorage {
         Ok(event)
     }
 }
+
+/// Collection of in-memory vaults.
+struct LocalState {
+    /// Whether this state should mirror changes to disc.
+    mirror: bool,
+    /// Vault files should only contain header information.
+    ///
+    /// Useful for server implementations.
+    head_only: bool,
+    /// Vaults managed by this state.
+    summaries: Vec<Summary>,
+    /// Currently selected in-memory vault.
+    current: Option<Gatekeeper>,
+}
+
+impl LocalState {
+    /// Create a new node state.
+    pub fn new(mirror: bool, head_only: bool) -> Self {
+        Self {
+            mirror,
+            head_only,
+            summaries: Default::default(),
+            current: None,
+        }
+    }
+
+    /// Determine if mirroring is enabled.
+    fn mirror(&self) -> bool {
+        self.mirror
+    }
+
+    /// Current in-memory vault.
+    fn current(&self) -> Option<&Gatekeeper> {
+        self.current.as_ref()
+    }
+
+    /// Mutable reference to the current in-memory vault.
+    fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
+        self.current.as_mut()
+    }
+
+    /// Vault summaries.
+    fn summaries(&self) -> &[Summary] {
+        self.summaries.as_slice()
+    }
+
+    /// Mutable reference to the vault summaries.
+    fn summaries_mut(&mut self) -> &mut [Summary] {
+        self.summaries.as_mut_slice()
+    }
+
+    /// Set the summaries for this state.
+    fn set_summaries(&mut self, summaries: Vec<Summary>) {
+        self.summaries = summaries;
+        self.summaries.sort();
+    }
+
+    /// Add a summary to this state.
+    fn add_summary(&mut self, summary: Summary) {
+        self.summaries.push(summary);
+        self.summaries.sort();
+    }
+
+    /// Remove a summary from this state.
+    fn remove_summary(&mut self, summary: &Summary) {
+        if let Some(position) =
+            self.summaries.iter().position(|s| s.id() == summary.id())
+        {
+            self.summaries.remove(position);
+            self.summaries.sort();
+        }
+    }
+
+    /// Find a summary in this state by reference.
+    fn find_vault(&self, vault: &FolderRef) -> Option<&Summary> {
+        match vault {
+            FolderRef::Name(name) => {
+                self.summaries.iter().find(|s| s.name() == name)
+            }
+            FolderRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
+        }
+    }
+
+    /// Find a summary in this state.
+    fn find<F>(&self, predicate: F) -> Option<&Summary>
+    where
+        F: FnMut(&&Summary) -> bool,
+    {
+        self.summaries.iter().find(predicate)
+    }
+
+    /// Set the current folder and unlock it.
+    async fn open_vault(
+        &mut self,
+        key: &AccessKey,
+        vault: Vault,
+        vault_path: PathBuf,
+    ) -> Result<()> {
+        let mut keeper = if self.mirror {
+            let vault_file = VaultWriter::open(&vault_path).await?;
+            let mirror = VaultWriter::new(vault_path, vault_file)?;
+            Gatekeeper::new_mirror(vault, mirror)
+        } else {
+            Gatekeeper::new(vault)
+        };
+
+        keeper
+            .unlock(key)
+            .await
+            .map_err(|_| Error::VaultUnlockFail)?;
+        self.current = Some(keeper);
+        Ok(())
+    }
+
+    /// Close the currently open vault.
+    ///
+    /// When a vault is open it is locked before being closed.
+    ///
+    /// If no vault is open this is a noop.
+    fn close_vault(&mut self) {
+        if let Some(current) = self.current_mut() {
+            current.lock();
+        }
+        self.current = None;
+    }
+}
+
