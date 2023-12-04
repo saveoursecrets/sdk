@@ -17,5 +17,8 @@ origins = [
 #cert = "cert.pem"
 #key = "key.pem"
 
+#[storage]
+#url = "file://./accounts"
+
 [storage]
-url = "file://./accounts"
+url = "file:///Users/muji/Library/Application Support/SaveOurSecrets/debug"

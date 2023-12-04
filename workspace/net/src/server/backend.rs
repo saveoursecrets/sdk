@@ -1,11 +1,13 @@
 use super::{Error, Result};
 use async_trait::async_trait;
 use sos_sdk::{
+    account::UserPaths,
     commit::{event_log_commit_tree_file, CommitProof},
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     decode, encode,
     events::WriteEvent,
     events::{EventReducer, FolderEventLog},
+    storage::FolderStorage,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
     vfs,
 };
@@ -20,11 +22,16 @@ use web3_address::ethereum::Address;
 
 use crate::FileLocks;
 
-/// Individual account maps vault identifiers to the event logs.
-pub type VaultMap = Arc<RwLock<HashMap<VaultId, FolderEventLog>>>;
+/// Server storage for an account.
+pub struct AccountStorage {
+    pub(crate) folders: FolderStorage,
+}
+
+/// Individual account.
+pub type ServerAccount = Arc<RwLock<AccountStorage>>;
 
 /// Collection of accounts by address.
-pub type AccountsMap = Arc<RwLock<HashMap<Address, VaultMap>>>;
+pub type AccountsMap = Arc<RwLock<HashMap<Address, ServerAccount>>>;
 
 /// Backend for a server.
 pub enum Backend {
@@ -183,7 +190,11 @@ impl FileSystemBackend {
         if !vfs::metadata(&self.directory).await?.is_dir() {
             return Err(Error::NotDirectory(self.directory.clone()));
         }
-        let mut dir = vfs::read_dir(&self.directory).await?;
+
+        let paths = UserPaths::new_global(self.directory.clone());
+        paths.ensure().await?;
+
+        let mut dir = vfs::read_dir(paths.local_dir()).await?;
         while let Some(entry) = dir.next_entry().await? {
             let path = entry.path();
             if vfs::metadata(&path).await?.is_dir() {
@@ -191,60 +202,23 @@ impl FileSystemBackend {
                     if let Ok(owner) =
                         name.to_string_lossy().parse::<Address>()
                     {
-                        {
-                            let mut accounts = self.accounts.write().await;
-                            accounts.insert(owner, Default::default());
-                        }
+                        let account = AccountStorage {
+                            folders: FolderStorage::new_server(
+                                owner.to_string(), None).await?,
+                        };
 
-                        let mut dir = vfs::read_dir(&path).await?;
-                        while let Some(entry) = dir.next_entry().await? {
-                            let event_log_path = entry.path();
-                            if let Some(ext) = event_log_path.extension() {
-                                if ext == EVENT_LOG_EXT {
-                                    let mut vault_path =
-                                        event_log_path.to_path_buf();
-                                    vault_path.set_extension(VAULT_EXT);
-                                    if !vfs::try_exists(&vault_path).await? {
-                                        return Err(Error::NotFile(
-                                            vault_path,
-                                        ));
-                                    }
-
-                                    let summary = Header::read_summary_file(
-                                        &vault_path,
-                                    )
-                                    .await?;
-                                    let id = *summary.id();
-
-                                    let mut event_log_file =
-                                        FolderEventLog::new_folder(
-                                            &event_log_path,
-                                        )
-                                        .await?;
-                                    event_log_file.load_tree().await?;
-
-                                    // Store these file paths so locks
-                                    // are acquired later
-                                    self.startup_files
-                                        .push(vault_path.to_path_buf());
-                                    self.startup_files
-                                        .push(event_log_path.to_path_buf());
-
-                                    self.add_event_log_path(
-                                        owner,
-                                        id,
-                                        event_log_path,
-                                        event_log_file,
-                                    )
-                                    .await?;
-                                }
-                            }
-                        }
+                        let mut accounts = self.accounts.write().await;
+                        let mut account = accounts.entry(
+                            owner.clone())
+                            .or_insert(
+                                Arc::new(RwLock::new(account)),
+                            );
+                        let mut writer = account.write().await;
+                        writer.folders.load_vaults().await?;
                     }
                 }
             }
         }
-
         Ok(())
     }
 
@@ -288,7 +262,7 @@ impl FileSystemBackend {
         event_log_file.set_extension(EVENT_LOG_EXT);
         event_log_file
     }
-
+    
     fn vault_file_path(
         &self,
         owner: &Address,
@@ -299,6 +273,7 @@ impl FileSystemBackend {
         vault_path
     }
 
+    /*
     /// Add a event log file path to the in-memory account.
     async fn add_event_log_path(
         &mut self,
@@ -315,6 +290,7 @@ impl FileSystemBackend {
         writer.insert(vault_id, event_log_file);
         Ok(())
     }
+    */
 }
 
 #[async_trait]
@@ -343,22 +319,17 @@ impl BackendHandler for FileSystemBackend {
             return Err(Error::DirectoryExists(account_dir));
         }
 
-        // Check it looks like a vault payload
-        let summary = Header::read_summary_slice(vault).await?;
+        let account = AccountStorage {
+            folders: FolderStorage::new_server(
+                owner.to_string(), None).await?,
+        };
 
-        tokio::fs::create_dir(account_dir).await?;
-        let (event_log_path, event_log_file) =
-            self.new_event_log_file(owner, vault_id, vault).await?;
-        let proof = event_log_file.tree().head()?;
-
-        self.add_event_log_path(
-            *owner,
-            *summary.id(),
-            event_log_path,
-            event_log_file,
-        )
-        .await?;
-
+        let mut accounts = self.accounts.write().await;
+        let mut account = 
+            accounts.entry(owner.clone()).or_insert(Arc::new(RwLock::new(account)));
+        let mut writer = account.write().await;
+        let (event, summary) = writer.folders.import_vault(vault, None).await?;
+        let (_, proof) = writer.folders.commit_state(&summary).await?;
         let event = WriteEvent::CreateVault(vault.to_owned());
         Ok((event, proof))
     }
@@ -373,7 +344,8 @@ impl BackendHandler for FileSystemBackend {
         if !vfs::metadata(&account_dir).await?.is_dir() {
             return Err(Error::NotDirectory(account_dir));
         }
-
+        
+        /*
         // Check it looks like a vault payload
         let summary = Header::read_summary_slice(vault).await?;
 
@@ -390,6 +362,9 @@ impl BackendHandler for FileSystemBackend {
         .await?;
         let event = WriteEvent::CreateVault(vault.to_owned());
         Ok((event, proof))
+        */
+
+        todo!("import vault into folders storage");
     }
 
     async fn delete_event_log(
@@ -401,7 +376,8 @@ impl BackendHandler for FileSystemBackend {
         if !vfs::metadata(&account_dir).await?.is_dir() {
             return Err(Error::NotDirectory(account_dir));
         }
-
+        
+        /*
         let mut accounts = self.accounts.write().await;
         let account = accounts
             .get_mut(owner)
@@ -426,13 +402,14 @@ impl BackendHandler for FileSystemBackend {
         self.locks.remove(&event_log_path)?;
 
         Ok(())
+        */
+
+        todo!("delete folder from account");
     }
 
     async fn account_exists(&self, owner: &Address) -> Result<bool> {
-        let account_dir = self.directory.join(owner.to_string());
         let accounts = self.accounts.read().await;
-        Ok(accounts.get(owner).is_some()
-            && vfs::metadata(&account_dir).await?.is_dir())
+        Ok(accounts.get(owner).is_some())
     }
 
     async fn set_vault_name(
@@ -453,12 +430,7 @@ impl BackendHandler for FileSystemBackend {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
             let reader = account.read().await;
-            for id in reader.keys() {
-                let mut vault_path = self.event_log_file_path(owner, id);
-                vault_path.set_extension(VAULT_EXT);
-                let summary = Header::read_summary_file(&vault_path).await?;
-                summaries.push(summary);
-            }
+            summaries = reader.folders.folders().to_vec();
         }
         Ok(summaries)
     }
@@ -517,12 +489,14 @@ impl BackendHandler for FileSystemBackend {
         let event = WriteEvent::CreateVault(vault_buffer);
         Ok((event, commit_proof))
     }
-
+    
     async fn event_log_exists(
         &self,
         owner: &Address,
         vault_id: &VaultId,
     ) -> Result<(bool, Option<CommitProof>)> {
+
+        /*
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
             let vaults = account.read().await;
@@ -534,6 +508,9 @@ impl BackendHandler for FileSystemBackend {
         } else {
             Ok((false, None))
         }
+        */
+
+        todo!("check folder exists...");
     }
 
     async fn get_event_log(
@@ -541,6 +518,8 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault_id: &VaultId,
     ) -> Result<Vec<u8>> {
+
+        /*
         let accounts = self.accounts.read().await;
         let account = accounts
             .get(owner)
@@ -554,6 +533,9 @@ impl BackendHandler for FileSystemBackend {
         let event_log_file = self.event_log_file_path(owner, vault_id);
         let buffer = tokio::fs::read(event_log_file).await?;
         Ok(buffer)
+        */
+
+        todo!("get event log");
     }
 
     async fn replace_event_log(
@@ -563,6 +545,10 @@ impl BackendHandler for FileSystemBackend {
         root_hash: [u8; 32],
         mut buffer: &[u8],
     ) -> Result<CommitProof> {
+
+        todo!("replace event log");
+
+        /*
         {
             let accounts = self.accounts.read().await;
             accounts
@@ -646,5 +632,6 @@ impl BackendHandler for FileSystemBackend {
             return Err(Error::EventValidateMismatch);
         }
         Ok(head)
+        */
     }
 }

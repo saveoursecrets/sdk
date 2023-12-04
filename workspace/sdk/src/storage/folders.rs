@@ -1,7 +1,7 @@
 //! Storage backed by the filesystem.
 use crate::{
     account::{AccountStatus, FolderKeys, NewAccount, UserPaths},
-    commit::{CommitHash, CommitTree},
+    commit::{CommitHash, CommitTree, CommitState},
     constants::VAULT_EXT,
     crypto::AccessKey,
     decode, encode,
@@ -1043,6 +1043,19 @@ impl FolderStorage {
             records.push((commit, time, event));
         }
         Ok(records)
+    }
+
+    /// Get the commit state for a folder.
+    ///
+    /// The folder must have at least one commit.
+    pub async fn commit_state(
+        &self,
+        summary: &Summary,
+    ) -> Result<CommitState> {
+        let log_file = self.cache
+            .get(summary.id())
+            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
+        Ok(log_file.commit_state().await?)
     }
 }
 

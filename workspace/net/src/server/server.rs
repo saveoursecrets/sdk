@@ -196,9 +196,9 @@ impl Server {
             .route("/api", get(api))
             .route("/api/connections", get(connections))
             .route("/api/handshake", post(ServiceHandler::handshake))
-            .route("/api/account", post(ServiceHandler::account))
-            .route("/api/vault", post(ServiceHandler::vault))
-            .route("/api/events", post(ServiceHandler::events));
+            .route("/api/account", post(ServiceHandler::account));
+            //.route("/api/vault", post(ServiceHandler::vault))
+            //.route("/api/events", post(ServiceHandler::events));
 
         #[cfg(feature = "listen")]
         {

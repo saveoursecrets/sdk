@@ -1678,11 +1678,7 @@ impl<D> Account<D> {
     ) -> Result<CommitState> {
         let storage = self.storage()?;
         let reader = storage.read().await;
-        let cache = reader.cache();
-        let log_file = cache
-            .get(summary.id())
-            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
-        Ok(log_file.commit_state().await?)
+        Ok(reader.commit_state(summary).await?)
     }
 
     /// Compact an event log file.

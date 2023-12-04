@@ -42,51 +42,6 @@ impl Service for AccountService {
         let (caller, (state, backend)) = state;
 
         match request.method() {
-            ACCOUNT_STATUS => {
-                let account_exists = {
-                    let reader = backend.read().await;
-                    reader.handler().account_exists(caller.address()).await?
-                };
-
-                let result: AccountStatus = if account_exists {
-                    let reader = backend.read().await;
-                    let summaries =
-                        reader.handler().list(caller.address()).await?;
-
-                    let mut proofs = HashMap::new();
-                    let accounts = reader.accounts();
-                    let backend = accounts.read().await;
-                    for summary in summaries {
-                        let account =
-                            backend.get(caller.address()).ok_or_else(
-                                || Error::AccountNotExist(*caller.address()),
-                            )?;
-                        let vaults = account.read().await;
-                        let event_log =
-                            vaults.get(summary.id()).ok_or_else(|| {
-                                Error::VaultNotExist(*summary.id())
-                            })?;
-
-                        let last_commit = event_log
-                            .last_commit()
-                            .await?
-                            .ok_or(Error::NoCommitProof)?;
-                        let head = event_log.tree().head()?;
-                        proofs.insert(*summary.id(), (last_commit, head));
-                    }
-                    AccountStatus {
-                        exists: true,
-                        proofs,
-                    }
-                } else {
-                    Default::default()
-                };
-
-                let reply: ResponseMessage<'_> =
-                    (request.id(), result).try_into()?;
-
-                Ok(reply)
-            }
             ACCOUNT_CREATE => {
                 {
                     let reader = backend.read().await;
@@ -105,6 +60,7 @@ impl Service for AccountService {
                     Header::read_summary_slice(request.body()).await?;
 
                 let mut writer = backend.write().await;
+                
                 let (sync_event, proof) = writer
                     .handler_mut()
                     .create_account(
@@ -138,6 +94,45 @@ impl Service for AccountService {
                     #[cfg(feature = "listen")]
                     send_notification(&mut writer, &caller, notification);
                 }
+
+                Ok(reply)
+            }
+            ACCOUNT_STATUS => {
+                let account_exists = {
+                    let reader = backend.read().await;
+                    reader.handler().account_exists(caller.address()).await?
+                };
+
+                let result: AccountStatus = if account_exists {
+                    let reader = backend.read().await;
+                    let summaries =
+                        reader.handler().list(caller.address()).await?;
+
+                    let mut proofs = HashMap::new();
+                    let accounts = reader.accounts();
+                    let backend = accounts.read().await;
+                    for summary in summaries {
+                        let account =
+                            backend.get(caller.address()).ok_or_else(
+                                || Error::AccountNotExist(*caller.address()),
+                            )?;
+                        let account = account.read().await;
+
+                        let (last_commit, proof) = account
+                            .folders.commit_state(&summary).await?;
+
+                        proofs.insert(*summary.id(), (last_commit, proof));
+                    }
+                    AccountStatus {
+                        exists: true,
+                        proofs,
+                    }
+                } else {
+                    Default::default()
+                };
+
+                let reply: ResponseMessage<'_> =
+                    (request.id(), result).try_into()?;
 
                 Ok(reply)
             }
