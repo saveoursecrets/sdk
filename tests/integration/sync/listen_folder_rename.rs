@@ -50,6 +50,9 @@ async fn integration_sync_listen_rename_folder() -> Result<()> {
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
         .expect("to be a remote provider");
+    
+    println!("CHECK VAULTS");
+
     assert_local_remote_vaults_eq(
         folders.clone(),
         &server_path,
@@ -57,6 +60,9 @@ async fn integration_sync_listen_rename_folder() -> Result<()> {
         remote_provider,
     )
     .await?;
+
+    println!("AFTER CHECK VAULTS");
+
     assert_local_remote_events_eq(
         folders.clone(),
         &mut device1.owner,
@@ -74,6 +80,9 @@ async fn integration_sync_listen_rename_folder() -> Result<()> {
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
         .expect("to be a remote provider");
+
+    println!("CHECK VAULTS 2");
+
     assert_local_remote_vaults_eq(
         folders.clone(),
         &server_path,
@@ -81,6 +90,9 @@ async fn integration_sync_listen_rename_folder() -> Result<()> {
         remote_provider,
     )
     .await?;
+
+    println!("AFTER CHECK VAULTS 2");
+
     assert_local_remote_events_eq(
         folders,
         &mut device2.owner,

@@ -330,9 +330,25 @@ impl Service for EventLogService {
 
                             let mut vault_name = None;
 
+                            #[cfg(feature = "listen")]
+                            let mut change_events = 
+                                Vec::new();
+
                             let mut change_set = Vec::new();
                             for record in patch.iter() {
                                 let event = record.decode_event().await?;
+                                
+                                #[cfg(feature = "listen")]
+                                {
+                                    let event =
+                                        ChangeEvent::try_from_write_event(
+                                            &event,
+                                        )
+                                        .await;
+                                    if event.is_ok() {
+                                        change_events.push(event?);
+                                    }
+                                }
 
                                 // Setting vault name requires special handling
                                 // as we need to update the vault header on disc
@@ -344,25 +360,7 @@ impl Service for EventLogService {
                                 }
                                 change_set.push(event);
                             }
-
-                            // Change event notifications
-                            #[cfg(feature = "listen")]
-                            let change_events = {
-                                let mut change_events: Vec<ChangeEvent> =
-                                    Vec::new();
-                                for event in change_set.iter() {
-                                    let event =
-                                        ChangeEvent::try_from_write_event(
-                                            event,
-                                        )
-                                        .await;
-                                    if event.is_ok() {
-                                        change_events.push(event?);
-                                    }
-                                }
-                                change_events
-                            };
-
+                            
                             // Audit log events
                             let audit_logs: Vec<AuditEvent> = change_set
                                 .iter()
@@ -375,12 +373,6 @@ impl Service for EventLogService {
                                 })
                                 .collect();
 
-                            // Changes to apply to the event log
-                            let mut changes = Vec::new();
-                            for event in change_set {
-                                changes.push(event);
-                            }
-
                             let event_log = account
                                 .folders
                                 .cache_mut()
@@ -389,7 +381,7 @@ impl Service for EventLogService {
 
                             // Apply the change set of events to the log
                             let commits = event_log
-                                .apply(changes.iter().collect())
+                                .apply(change_set.iter().collect())
                                 .await?;
 
                             // Get a new commit proof for the last leaf hash
