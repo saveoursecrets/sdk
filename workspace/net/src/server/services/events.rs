@@ -33,9 +33,7 @@ enum PatchResult {
         address: Address,
         audit_logs: Vec<AuditEvent>,
         change_set: Vec<WriteEvent>,
-        commits: Vec<CommitHash>,
         proof: CommitProof,
-        vault_name: Option<String>,
     },
 }
 
@@ -325,27 +323,24 @@ impl Service for EventLogService {
                         (folder, comparison)
                     };
 
-                    let folder_id = *folder.id();
-
                     match comparison {
                         Comparison::Equal => {
                             // TODO: |_| StatusCode::BAD_REQUEST
                             let patch: Patch = decode(request.body()).await?;
 
-                            let mut vault_name = None;
-
+                            let mut account = account.write().await;
                             let mut change_set = Vec::new();
                             for record in patch.iter() {
                                 let event = record.decode_event().await?;
 
-                                // Setting vault name requires special handling
-                                // as we need to update the vault header on disc
-                                // as well so summary listings are kept up to date
-                                // and must be performed here so that the new commit proof
-                                // computation is included in change notifications
+                                // Setting vault name requires special
+                                // handling as we need to update the
+                                // vault header on disc and must be
+                                // performed here so that the new
+                                // commit proof computation is included
+                                // in change notifications
                                 if let WriteEvent::SetVaultName(name) = &event
                                 {
-                                    let mut account = account.write().await;
                                     account
                                         .folders
                                         .set_vault_name(
@@ -353,7 +348,15 @@ impl Service for EventLogService {
                                             name.to_owned(),
                                         )
                                         .await?;
+                                } else {
+                                    let event_log = account
+                                        .folders
+                                        .cache_mut()
+                                        .get_mut(folder.id())
+                                        .unwrap();
+                                    event_log.apply(vec![&event]).await?;
                                 }
+
                                 change_set.push(event);
                             }
 
@@ -369,27 +372,12 @@ impl Service for EventLogService {
                                 })
                                 .collect();
 
-                            let mut account = account.write().await;
+                            // Get a new commit proof after applying changes
                             let event_log = account
                                 .folders
                                 .cache_mut()
-                                .get_mut(&folder_id)
+                                .get_mut(folder.id())
                                 .unwrap();
-
-                            // Setting the vault name already updated
-                            // the event log so we don't apply that change
-                            let apply_changes: Vec<_> = change_set
-                                .iter()
-                                .filter(|e| {
-                                    !matches!(e, WriteEvent::SetVaultName(_))
-                                })
-                                .collect();
-
-                            // Apply the change set of events to the log
-                            let commits =
-                                event_log.apply(apply_changes).await?;
-
-                            // Get a new commit proof for the last leaf hash
                             let proof = event_log.tree().head()?;
 
                             Ok(PatchResult::Success {
@@ -397,9 +385,7 @@ impl Service for EventLogService {
                                 audit_logs,
                                 #[cfg(feature = "listen")]
                                 change_set,
-                                commits,
                                 proof,
-                                vault_name,
                             })
                         }
                         Comparison::Contains(indices, _leaves) => {
@@ -408,8 +394,8 @@ impl Service for EventLogService {
                                 account.folders.commit_tree(&folder).unwrap();
 
                             let proof = tree.head()?;
-                            // Prepare the proof that this event log contains the
-                            // matched leaf node
+                            // Prepare the proof that this event
+                            // log contains the matched leaf node
                             let match_proof = tree.proof(&indices)?;
                             Ok(PatchResult::Conflict(
                                 proof,
@@ -429,23 +415,11 @@ impl Service for EventLogService {
                 match result? {
                     PatchResult::Success {
                         address,
-                        audit_logs: logs,
+                        audit_logs,
                         change_set,
                         proof,
-                        vault_name: name,
                         ..
                     } => {
-                        /*
-                        // Must update the vault name in it's summary
-                        if let Some(name) = name {
-                            let mut writer = backend.write().await;
-                            writer
-                                .handler_mut()
-                                .rename_folder(&address, &vault_id, name)
-                                .await?;
-                        }
-                        */
-
                         let value: (&CommitProof, Option<CommitProof>) =
                             (&proof, None);
                         let reply: ResponseMessage<'_> =
@@ -477,8 +451,10 @@ impl Service for EventLogService {
 
                         {
                             let mut writer = state.write().await;
+
                             // Append audit logs
-                            append_audit_logs(&mut writer, logs).await?;
+                            append_audit_logs(&mut writer, audit_logs)
+                                .await?;
 
                             // Send notifications on the SSE channel
                             #[cfg(feature = "listen")]

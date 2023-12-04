@@ -84,14 +84,6 @@ pub trait BackendHandler {
     /// List folders for an account.
     async fn list_folders(&self, owner: &Address) -> Result<Vec<Summary>>;
 
-    /// Set the name of a folder.
-    async fn rename_folder(
-        &self,
-        owner: &Address,
-        vault_id: &VaultId,
-        name: String,
-    ) -> Result<()>;
-
     /// Import a folder overwriting any existing data.
     async fn import_folder<'a>(
         &mut self,
@@ -298,28 +290,6 @@ impl BackendHandler for FileSystemBackend {
     async fn account_exists(&self, owner: &Address) -> Result<bool> {
         let accounts = self.accounts.read().await;
         Ok(accounts.get(owner).is_some())
-    }
-
-    async fn rename_folder(
-        &self,
-        owner: &Address,
-        vault_id: &VaultId,
-        name: String,
-    ) -> Result<()> {
-        let accounts = self.accounts.read().await;
-        let account = accounts
-            .get(owner)
-            .ok_or(Error::NoAccount(owner.to_owned()))?;
-        let mut writer = account.write().await;
-        let folder = writer
-            .folders
-            .find(|s| s.id() == vault_id)
-            .cloned()
-            .ok_or(Error::NoFolder(owner.to_owned(), *vault_id))?;
-
-        writer.folders.set_vault_name(&folder, name).await?;
-
-        Ok(())
     }
 
     async fn list_folders(&self, owner: &Address) -> Result<Vec<Summary>> {
