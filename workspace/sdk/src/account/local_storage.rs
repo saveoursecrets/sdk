@@ -525,7 +525,7 @@ impl FolderStorage {
     }
 
     /// Close the current open vault.
-    pub fn close_vault(&mut self) {
+    pub(crate) fn close_vault(&mut self) {
         self.state.close_vault();
     }
 
@@ -913,7 +913,7 @@ impl FolderStorage {
     }
 
     /// Create a secret in the currently open vault.
-    pub async fn create_secret(
+    pub(crate) async fn create_secret(
         &mut self,
         id: SecretId,
         meta: SecretMeta,
@@ -948,7 +948,7 @@ impl FolderStorage {
     }
 
     /// Read a secret in the currently open folder.
-    pub async fn read_secret(
+    pub(crate) async fn read_secret(
         &mut self,
         id: &SecretId,
     ) -> Result<(SecretMeta, Secret, ReadEvent)> {
@@ -960,7 +960,7 @@ impl FolderStorage {
     }
 
     /// Update a secret in the currently open folder.
-    pub async fn update_secret(
+    pub(crate) async fn update_secret(
         &mut self,
         id: &SecretId,
         mut secret_data: SecretRow,
@@ -1010,7 +1010,7 @@ impl FolderStorage {
     }
 
     /// Delete a secret in the currently open vault.
-    pub async fn delete_secret(
+    pub(crate) async fn delete_secret(
         &mut self,
         id: &SecretId,
     ) -> Result<WriteEvent> {
@@ -1039,7 +1039,7 @@ impl FolderStorage {
     /// If the target vault is the currently selected vault
     /// the currently selected vault is unlocked with the new
     /// passphrase on success.
-    pub async fn change_password(
+    pub(crate) async fn change_password(
         &mut self,
         vault: &Vault,
         current_key: AccessKey,
