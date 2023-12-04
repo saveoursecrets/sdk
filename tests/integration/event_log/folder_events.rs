@@ -87,6 +87,14 @@ async fn integration_events_folder() -> Result<()> {
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
     assert!(matches!(event, Some(WriteEvent::SetVaultName(_))));
 
+    // Set the folder description
+    let commit = event_log.last_commit().await?;
+    account
+        .set_folder_description(&default_folder, "new_description".to_string())
+        .await?;
+    let event = last_log_event(&mut event_log, commit.as_ref()).await?;
+    assert!(matches!(event, Some(WriteEvent::SetVaultMeta(_))));
+
     // Export a vault so we can do an import,
     // this would be the flow used if we wanted
     // to move a folder between accounts we own

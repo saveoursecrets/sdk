@@ -916,6 +916,38 @@ impl<D> Account<D> {
         Ok((event, commit_state))
     }
 
+    /// Get the description of a folder.
+    ///
+    /// The target folder will become the currently open folder.
+    pub async fn folder_description(
+        &mut self,
+        folder: &Summary,
+    ) -> Result<String> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.open_folder(folder).await?;
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        Ok(reader.description().await?)
+    }
+
+    /// Set the description of a folder.
+    ///
+    /// The target folder will become the currently open folder.
+    pub async fn set_folder_description(
+        &mut self,
+        folder: &Summary,
+        description: impl AsRef<str>,
+    ) -> Result<WriteEvent> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.open_folder(folder).await?;
+        let event = {
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
+            writer.set_description(description).await?
+        };
+        Ok(event)
+    }
+
     /// Export a folder as a vault file.
     pub async fn export_folder<P: AsRef<Path>>(
         &mut self,

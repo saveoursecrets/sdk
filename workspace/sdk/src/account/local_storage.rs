@@ -811,9 +811,6 @@ impl FolderStorage {
         summary: &Summary,
         name: impl AsRef<str>,
     ) -> Result<WriteEvent> {
-        let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
-        self.patch(summary, vec![event.clone()]).await?;
-
         // Update the in-memory name.
         for item in self.state.summaries_mut().iter_mut() {
             if item.id() == summary.id() {
@@ -833,51 +830,55 @@ impl FolderStorage {
         let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
         access.set_vault_name(name.as_ref().to_owned()).await?;
+
+        let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
+        self.patch(summary, vec![&event]).await?;
 
         Ok(event)
     }
 
-    /// Set the description of a vault.
-    pub async fn set_vault_description(
+    /// Get the description of the currently open vault.
+    pub async fn description(
+        &self,
+    ) -> Result<String> {
+        let keeper = self.current().ok_or(Error::NoOpenVault)?;
+        let meta = keeper.vault_meta().await?;
+        Ok(meta.description().to_owned())
+    }
+
+    /// Set the description of the currently open vault.
+    pub async fn set_description(
         &mut self,
-        summary: &Summary,
         description: impl AsRef<str>,
     ) -> Result<WriteEvent> {
-        todo!();
-
-        /*
-        let event = WriteEvent::SetVaultMeta(name.as_ref().to_owned());
-        self.patch(summary, vec![event.clone()]).await?;
-
-        // Update the in-memory name.
-        for item in self.state.summaries_mut().iter_mut() {
-            if item.id() == summary.id() {
-                item.set_name(name.as_ref().to_owned());
-            }
-        }
-
-        // Now update the in-memory name for the current selected vault
-        if let Some(keeper) = self.current_mut() {
-            if keeper.vault().id() == summary.id() {
-                keeper.set_vault_name(name.as_ref().to_owned()).await?;
-            }
-        }
-
-        // Update the vault on disc
-        let vault_path = self.vault_path(summary);
-        let vault_file = VaultWriter::open(&vault_path).await?;
-        let mut access = VaultWriter::new(vault_path, vault_file)?;
-        access.set_vault_name(name.as_ref().to_owned()).await?;
-
+        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let summary = keeper.summary().clone();
+        let mut meta = keeper.vault_meta().await?;
+        meta.set_description(description.as_ref().to_owned());
+        let event = keeper.set_vault_meta(&meta).await?;
+        self.patch(&summary, vec![&event]).await?;
         Ok(event)
-        */
+    }
+
+    /// Set the description of the currently open vault.
+    pub async fn set_vault_description(
+        &mut self,
+        description: impl AsRef<str>,
+    ) -> Result<WriteEvent> {
+        let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
+        let summary = keeper.summary().clone();
+        let mut meta = keeper.vault_meta().await?;
+        meta.set_description(description.as_ref().to_owned());
+        let event = keeper.set_vault_meta(&meta).await?;
+        self.patch(&summary, vec![&event]).await?;
+        Ok(event)
     }
 
     /// Apply events to the event log.
     pub async fn patch(
         &mut self,
         summary: &Summary,
-        events: Vec<WriteEvent>,
+        events: Vec<&WriteEvent>,
     ) -> Result<()> {
         // Apply events to the event log file
         {
@@ -885,10 +886,15 @@ impl FolderStorage {
                 .cache
                 .get_mut(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            event_log.apply(events.iter().collect()).await?;
+            event_log.apply(events).await?;
         }
 
-        // Update the vault file on disc
+        // Update the vault file on disc.
+        //
+        // TODO: we could be smarter about how we update 
+        // TODO: the vault here and only process the events
+        // TODO: in the patch rather then reducing all events 
+        // TODO: in the log
         let vault = self.reduce_event_log(summary).await?;
         let buffer = encode(&vault).await?;
         self.write_vault_file(summary, &buffer).await?;
@@ -918,7 +924,7 @@ impl FolderStorage {
             let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
             keeper.create(id, meta, secret).await?
         };
-        self.patch(&summary, vec![event.clone()]).await?;
+        self.patch(&summary, vec![&event]).await?;
 
         {
             let search = self.index.search();
@@ -978,7 +984,7 @@ impl FolderStorage {
                 .await?
                 .ok_or(Error::SecretNotFound(*id))?
         };
-        self.patch(&summary, vec![event.clone()]).await?;
+        self.patch(&summary, vec![&event]).await?;
 
         {
             let search = self.index.search();
@@ -1003,7 +1009,7 @@ impl FolderStorage {
             let mut keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
             keeper.delete(id).await?.ok_or(Error::SecretNotFound(*id))?
         };
-        self.patch(&summary, vec![event.clone()]).await?;
+        self.patch(&summary, vec![&event]).await?;
 
         {
             let search = self.index.search();

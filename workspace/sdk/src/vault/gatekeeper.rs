@@ -138,11 +138,11 @@ impl Gatekeeper {
     /// Set the meta data for the vault.
     pub async fn set_vault_meta(
         &mut self,
-        meta_data: VaultMeta,
+        meta_data: &VaultMeta,
     ) -> Result<WriteEvent> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
-        let meta_blob = encode(&meta_data).await?;
+        let meta_blob = encode(meta_data).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.set_vault_meta(meta_aead.clone()).await?;

@@ -288,7 +288,7 @@ impl RemoteBridge {
             let patch: Patch = decode(&body).await?;
             let events = patch.into_events().await?;
             let mut writer = self.local.write().await;
-            writer.patch(folder, events).await?;
+            writer.patch(folder, events.iter().collect()).await?;
         }
 
         Ok(num_events > 0)
