@@ -3,7 +3,6 @@
 use super::{EventKind, LogEvent, ReadEvent, WriteEvent};
 use crate::{vault::VaultId, Error, Result};
 
-#[cfg(feature = "account")]
 use super::{AccountEvent, AuditEvent};
 
 #[cfg(feature = "files")]
@@ -12,11 +11,9 @@ use super::FileEvent;
 /// Events generated when reading or writing.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Event {
-    #[cfg(feature = "account")]
     /// Create account event.
     CreateAccount(AuditEvent),
 
-    #[cfg(feature = "account")]
     /// Account changes.
     Account(AccountEvent),
 
@@ -33,7 +30,6 @@ pub enum Event {
     /// Move secret operation.
     MoveSecret(ReadEvent, WriteEvent, WriteEvent),
 
-    #[cfg(feature = "account")]
     /// Delete account event.
     DeleteAccount(AuditEvent),
 }
@@ -42,16 +38,13 @@ impl Event {
     /// Get the event kind for this event.
     pub fn event_kind(&self) -> EventKind {
         match self {
-            #[cfg(feature = "account")]
             Self::CreateAccount(event) => event.event_kind(),
-            #[cfg(feature = "account")]
             Self::Account(event) => event.event_kind(),
             #[cfg(feature = "files")]
             Self::File(event) => event.event_kind(),
             Self::Read(_, event) => event.event_kind(),
             Self::Write(_, event) => event.event_kind(),
             Self::MoveSecret(_, _, _) => EventKind::MoveSecret,
-            #[cfg(feature = "account")]
             Self::DeleteAccount(event) => event.event_kind(),
         }
     }

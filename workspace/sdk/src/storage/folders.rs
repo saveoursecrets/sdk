@@ -6,8 +6,8 @@ use crate::{
     crypto::AccessKey,
     decode, encode,
     events::{
-        AuditEvent, Event, EventKind, EventReducer, FolderEventLog,
-        ReadEvent, WriteEvent,
+        AccountEventLog, AuditEvent, Event, EventKind, EventReducer,
+        FolderEventLog, ReadEvent, WriteEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
     storage::{
@@ -51,6 +51,9 @@ pub struct FolderStorage {
     /// Search index.
     #[cfg(feature = "search")]
     pub(super) index: Option<AccountSearch>,
+
+    /// Account event log.
+    account_log: Arc<RwLock<AccountEventLog>>,
 
     /// Folder event logs.
     cache: HashMap<VaultId, FolderEventLog>,
@@ -109,6 +112,10 @@ impl FolderStorage {
 
         paths.ensure().await?;
 
+        let log_file = paths.account_events();
+        let mut event_log = AccountEventLog::new_account(log_file).await?;
+        let account_log = Arc::new(RwLock::new(event_log));
+
         #[cfg(feature = "files")]
         let file_log = Self::initialize_file_log(&*paths).await?;
 
@@ -116,6 +123,7 @@ impl FolderStorage {
             state: LocalState::new(mirror, head_only),
             cache: Default::default(),
             paths,
+            account_log,
             #[cfg(feature = "search")]
             index: Some(AccountSearch::new()),
             #[cfg(feature = "files")]
@@ -123,6 +131,11 @@ impl FolderStorage {
             #[cfg(feature = "files")]
             file_password: None,
         })
+    }
+
+    /// Access to the account log.
+    pub fn account_log(&self) -> Arc<RwLock<AccountEventLog>> {
+        Arc::clone(&self.account_log)
     }
 
     /// Set the password for file encryption.

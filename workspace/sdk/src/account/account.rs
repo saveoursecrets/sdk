@@ -176,9 +176,6 @@ pub(super) struct Authenticated {
 
     /// Storage provider.
     storage: Arc<RwLock<FolderStorage>>,
-
-    /// Account event log.
-    account_log: Arc<RwLock<AccountEventLog>>,
 }
 
 /// User account backed by the filesystem.
@@ -471,13 +468,16 @@ impl<D> Account<D> {
         let file_password = user.find_file_encryption_password().await?;
         storage.set_file_password(Some(file_password));
 
-        let account_log =
-            self.initialize_account_log(&self.paths, &user).await?;
+        Self::initialize_account_log(
+            &*self.paths,
+            storage.account_log(),
+            &user,
+        )
+        .await?;
 
         self.authenticated = Some(Authenticated {
             user,
             storage: Arc::new(RwLock::new(storage)),
-            account_log,
         });
 
         // Load vaults into memory and initialize folder
@@ -486,16 +486,16 @@ impl<D> Account<D> {
     }
 
     async fn initialize_account_log(
-        &self,
         paths: &UserPaths,
+        account_log: Arc<RwLock<AccountEventLog>>,
         user: &Identity,
-    ) -> Result<Arc<RwLock<AccountEventLog>>> {
+    ) -> Result<()> {
         let span = span!(Level::DEBUG, "init_account_log");
         let _enter = span.enter();
 
-        let log_file = paths.account_events();
-        let needs_init = !vfs::try_exists(&log_file).await?;
-        let mut event_log = AccountEventLog::new_account(log_file).await?;
+        let mut event_log = account_log.write().await;
+
+        let needs_init = event_log.tree().root().is_none();
 
         tracing::debug!(needs_init = %needs_init);
 
@@ -527,7 +527,7 @@ impl<D> Account<D> {
             event_log.apply(events.iter().collect()).await?;
         }
 
-        Ok(Arc::new(RwLock::new(event_log)))
+        Ok(())
     }
 
     /// Determine if the account is authenticated.
@@ -722,13 +722,7 @@ impl<D> Account<D> {
 
         let account_event =
             AccountEvent::CreateFolder(*summary.id(), secure_key.clone());
-
-        {
-            let auth =
-                self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
-            let mut account_log = auth.account_log.write().await;
-            account_log.append_event(&account_event).await?;
-        }
+        self.write_account_log_event(&account_event).await?;
 
         let audit_event: AuditEvent =
             (self.address(), &Event::Account(account_event)).into();
@@ -762,10 +756,7 @@ impl<D> Account<D> {
             .await?;
 
         let account_event = AccountEvent::DeleteFolder(*summary.id());
-        if let Some(auth) = self.authenticated.as_mut() {
-            let mut account_log = auth.account_log.write().await;
-            account_log.append_event(&account_event).await?;
-        }
+        self.write_account_log_event(&account_event).await?;
 
         let audit_event: AuditEvent =
             (self.address(), &Event::Account(account_event.clone())).into();
@@ -1071,19 +1062,13 @@ impl<D> Account<D> {
         // folder event
         let account_event = if existing_id.is_some() && overwrite {
             let account_event = AccountEvent::UpdateFolder(folder_id);
-            let auth =
-                self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
-            let mut account_log = auth.account_log.write().await;
-            account_log.append_event(&account_event).await?;
+            self.write_account_log_event(&account_event).await?;
             account_event
         // Otherwise a create event
         } else {
             let account_event =
                 AccountEvent::CreateFolder(folder_id, secure_key);
-            let auth =
-                self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
-            let mut account_log = auth.account_log.write().await;
-            account_log.apply(vec![&account_event]).await?;
+            self.write_account_log_event(&account_event).await?;
             account_event
         };
 
@@ -1099,6 +1084,18 @@ impl<D> Account<D> {
             self.compute_folder_state(&options, false).await?;
 
         Ok((summary, event, commit_state))
+    }
+
+    async fn write_account_log_event(
+        &self,
+        event: &AccountEvent,
+    ) -> Result<()> {
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        let account_log = reader.account_log();
+        let mut account_log = account_log.write().await;
+        account_log.apply(vec![event]).await?;
+        Ok(())
     }
 
     /// Open a vault.
@@ -1494,11 +1491,13 @@ impl<D> Account<D> {
             reader.read_vault(folder).await?
         };
 
-        let storage = self.storage()?;
-        let mut writer = storage.write().await;
-        writer
-            .change_password(&vault, current_key, new_key.clone())
-            .await?;
+        {
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
+            writer
+                .change_password(&vault, current_key, new_key.clone())
+                .await?;
+        }
 
         // Save the new password
         self.user_mut()?
@@ -1510,12 +1509,11 @@ impl<D> Account<D> {
             self.user()?.secure_access_key(folder.id()).await?;
         let auth =
             self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
-        let event = AccountEvent::ChangeFolderPassword(
+        let account_event = AccountEvent::ChangeFolderPassword(
             *folder.id(),
             secure_access_key,
         );
-        let mut account_log = auth.account_log.write().await;
-        account_log.apply(vec![&event]).await?;
+        self.write_account_log_event(&account_event).await?;
 
         Ok(())
     }
@@ -1689,11 +1687,9 @@ impl<D> Account<D> {
             writer.compact(&summary).await?
         };
 
-        let auth =
-            self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
-        let event = AccountEvent::CompactFolder(*summary.id());
-        let mut account_log = auth.account_log.write().await;
-        account_log.apply(vec![&event]).await?;
+        let account_event = AccountEvent::CompactFolder(*summary.id());
+        self.write_account_log_event(&account_event).await?;
+
         Ok((old_size, new_size))
     }
 }
