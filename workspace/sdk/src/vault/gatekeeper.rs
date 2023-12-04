@@ -4,7 +4,7 @@ use crate::{
     decode, encode,
     events::{ReadEvent, WriteEvent},
     vault::{
-        secret::{Secret, SecretId, SecretMeta},
+        secret::{Secret, SecretId, SecretMeta, SecretRow},
         SharedAccess, Summary, Vault, VaultAccess, VaultCommit, VaultEntry,
         VaultId, VaultMeta, VaultWriter,
     },
@@ -191,19 +191,18 @@ impl Gatekeeper {
     /// Add a secret to the vault.
     pub async fn create(
         &mut self,
-        id: Uuid,
-        secret_meta: SecretMeta,
-        secret: Secret,
+        secret_data: &SecretRow,
     ) -> Result<WriteEvent> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
         self.enforce_shared_readonly(private_key).await?;
 
-        let meta_blob = encode(&secret_meta).await?;
+        let id = *secret_data.id();
+        let meta_blob = encode(secret_data.meta()).await?;
         let meta_aead = self.vault.encrypt(private_key, &meta_blob).await?;
 
-        let secret_blob = encode(&secret).await?;
+        let secret_blob = encode(secret_data.secret()).await?;
         let secret_aead =
             self.vault.encrypt(private_key, &secret_blob).await?;
 
@@ -355,7 +354,10 @@ mod tests {
     //use crate::test_utils::*;
     use crate::{
         constants::DEFAULT_VAULT_NAME,
-        vault::{secret::Secret, VaultBuilder},
+        vault::{
+            secret::{Secret, SecretRow},
+            VaultBuilder,
+        },
     };
     use anyhow::Result;
     use secrecy::SecretString;
@@ -389,9 +391,12 @@ mod tests {
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
-        let event = keeper
-            .create(SecretId::new_v4(), secret_meta.clone(), secret.clone())
-            .await?;
+        let secret_data = SecretRow::new(
+            SecretId::new_v4(),
+            secret_meta.clone(),
+            secret.clone(),
+        );
+        let event = keeper.create(&secret_data).await?;
         if let WriteEvent::CreateSecret(secret_uuid, _) = event {
             let (saved_secret_meta, saved_secret) =
                 keeper.read_secret(&secret_uuid, None, None).await?.unwrap();
@@ -438,9 +443,9 @@ mod tests {
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
 
         let id = SecretId::new_v4();
-        let event = keeper
-            .create(id, secret_meta.clone(), secret.clone())
-            .await?;
+        let secret_data =
+            SecretRow::new(id, secret_meta.clone(), secret.clone());
+        let event = keeper.create(&secret_data).await?;
 
         if let WriteEvent::CreateSecret(secret_uuid, _) = event {
             let (saved_secret_meta, saved_secret) =

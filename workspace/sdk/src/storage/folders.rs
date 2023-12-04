@@ -915,14 +915,14 @@ impl FolderStorage {
     }
 
     /// Get the description of the currently open vault.
-    pub(crate) async fn description(&self) -> Result<String> {
+    pub async fn description(&self) -> Result<String> {
         let keeper = self.current().ok_or(Error::NoOpenVault)?;
         let meta = keeper.vault_meta().await?;
         Ok(meta.description().to_owned())
     }
 
     /// Set the description of the currently open vault.
-    pub(crate) async fn set_description(
+    pub async fn set_description(
         &mut self,
         description: impl AsRef<str>,
     ) -> Result<WriteEvent> {
@@ -1072,16 +1072,13 @@ impl FolderStorage {
             None
         };
 
-        let (id, meta, secret) = secret_data.into();
-
         let event = {
             let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-            keeper.create(id, meta.clone(), secret.clone()).await?
+            keeper.create(&secret_data).await?
         };
 
         #[cfg(feature = "files")]
         {
-            let secret_data = SecretRow::new(id, meta, secret);
             let events = self
                 .create_files(
                     &summary,
@@ -1399,4 +1396,3 @@ impl LocalState {
         self.current = None;
     }
 }
-

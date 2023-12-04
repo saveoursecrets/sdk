@@ -1094,7 +1094,7 @@ mod tests {
         decode, encode,
         passwd::diceware::generate_passphrase,
         test_utils::*,
-        vault::{Gatekeeper, VaultBuilder},
+        vault::{secret::SecretRow, Gatekeeper, VaultBuilder},
         Error,
     };
 
@@ -1177,7 +1177,8 @@ mod tests {
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
         let id = SecretId::new_v4();
-        keeper.create(id, meta.clone(), secret.clone()).await?;
+        let secret_data = SecretRow::new(id, meta.clone(), secret.clone());
+        keeper.create(&secret_data).await?;
 
         // In the real world this exchange of the vault
         // would happen via a sync operation
@@ -1240,7 +1241,8 @@ mod tests {
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
         let id = SecretId::new_v4();
-        keeper.create(id, meta.clone(), secret.clone()).await?;
+        let secret_data = SecretRow::new(id, meta.clone(), secret.clone());
+        keeper.create(&secret_data).await?;
 
         // Check the owner can update
         let (new_meta, new_secret, _, _) =
@@ -1284,9 +1286,9 @@ mod tests {
 
         // Trying to create a secret is also denied
         let id = SecretId::new_v4();
-        let result = keeper_1
-            .create(id, updated_meta.clone(), updated_secret.clone())
-            .await;
+        let secret_data =
+            SecretRow::new(id, updated_meta.clone(), updated_secret.clone());
+        let result = keeper_1.create(&secret_data).await;
         assert!(matches!(result, Err(Error::PermissionDenied)));
 
         // Trying to delete a secret is also denied

@@ -10,7 +10,7 @@ use crate::{
     crypto::AccessKey,
     encode,
     vault::{
-        secret::{Secret, SecretId, SecretMeta, UserData},
+        secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
     },
     vfs, Result,
@@ -186,7 +186,10 @@ impl AccountBuilder {
                 secret.kind(),
             );
             meta.set_favorite(true);
-            keeper.create(SecretId::new_v4(), meta, secret).await?;
+
+            let secret_data =
+                SecretRow::new(SecretId::new_v4(), meta, secret);
+            keeper.create(&secret_data).await?;
 
             default_folder = keeper.into();
         }
@@ -211,7 +214,9 @@ impl AccountBuilder {
 
             let keeper = user.identity()?.keeper();
             let mut writer = keeper.write().await;
-            writer.create(SecretId::new_v4(), meta, secret).await?;
+            let secret_data =
+                SecretRow::new(SecretId::new_v4(), meta, secret);
+            writer.create(&secret_data).await?;
         }
 
         let archive = if create_archive {

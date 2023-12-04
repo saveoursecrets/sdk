@@ -17,7 +17,7 @@ use crate::{
     crypto::AccessKey,
     storage::search::SearchIndex,
     vault::{
-        secret::{IdentityKind, Secret, SecretId, SecretMeta},
+        secret::{IdentityKind, Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Vault,
     },
     Timestamp,
@@ -320,7 +320,8 @@ impl Convert for GenericCsvConvert {
 
             let id = SecretId::new_v4();
             let index_doc = index.prepare(keeper.id(), &id, &meta, &secret);
-            keeper.create(id, meta, secret).await?;
+            let secret_data = SecretRow::new(id, meta, secret);
+            keeper.create(&secret_data).await?;
             index.commit(index_doc);
         }
 

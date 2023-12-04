@@ -34,7 +34,7 @@ use crate::{
         ed25519, Signer,
     },
     vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretSigner},
+        secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
         Gatekeeper, Summary, Vault, VaultAccess, VaultBuilder, VaultFlags,
         VaultId, VaultWriter,
     },
@@ -253,9 +253,9 @@ impl Identity {
             SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
 
-        keeper
-            .create(SecretId::new_v4(), signer_meta, signer_secret)
-            .await?;
+        let secret_data =
+            SecretRow::new(SecretId::new_v4(), signer_meta, signer_secret);
+        keeper.create(&secret_data).await?;
 
         // Store the AGE identity
         let age_secret = Secret::Age {
@@ -268,9 +268,9 @@ impl Identity {
             SecretMeta::new(urn.as_str().to_owned(), age_secret.kind());
         age_meta.set_urn(Some(urn));
 
-        keeper
-            .create(SecretId::new_v4(), age_meta, age_secret)
-            .await?;
+        let secret_data =
+            SecretRow::new(SecretId::new_v4(), age_meta, age_secret);
+        keeper.create(&secret_data).await?;
 
         Ok((address, keeper.into()))
     }
@@ -511,7 +511,8 @@ impl Identity {
             meta.set_urn(Some(device_key_urn.clone()));
             let id = SecretId::new_v4();
 
-            device_keeper.create(id, meta, secret).await?;
+            let secret_data = SecretRow::new(id, meta, secret);
+            device_keeper.create(&secret_data).await?;
 
             {
                 let search = self.identity_mut()?.index();
@@ -749,7 +750,9 @@ impl PrivateIdentity {
         let id = SecretId::new_v4();
 
         let mut keeper = keeper.write().await;
-        keeper.create(id, meta, secret).await?;
+
+        let secret_data = SecretRow::new(id, meta, secret);
+        keeper.create(&secret_data).await?;
 
         let mut index = index.write().await;
         index.insert((*keeper.id(), urn), id);
@@ -799,7 +802,7 @@ mod tests {
         encode,
         passwd::diceware::generate_passphrase,
         vault::{
-            secret::{Secret, SecretId, SecretMeta},
+            secret::{Secret, SecretId, SecretMeta, SecretRow},
             Gatekeeper, Vault, VaultBuilder, VaultFlags,
         },
         vfs, Error,
@@ -866,9 +869,9 @@ mod tests {
         let mut signer_meta =
             SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
         signer_meta.set_urn(Some(urn));
-        keeper
-            .create(SecretId::new_v4(), signer_meta, signer_secret)
-            .await?;
+        let secret_data =
+            SecretRow::new(SecretId::new_v4(), signer_meta, signer_secret);
+        keeper.create(&secret_data).await?;
 
         let vault: Vault = keeper.into();
         let buffer = encode(&vault).await?;

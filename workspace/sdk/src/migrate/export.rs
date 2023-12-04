@@ -181,7 +181,10 @@ mod test {
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         test_utils::*,
-        vault::{secret::SecretId, Gatekeeper, VaultBuilder, VaultFlags},
+        vault::{
+            secret::{SecretId, SecretRow},
+            Gatekeeper, VaultBuilder, VaultFlags,
+        },
     };
 
     async fn create_mock_migration<W: AsyncWrite + AsyncSeek + Unpin>(
@@ -201,7 +204,8 @@ mod test {
 
         let (meta, secret, _, _) =
             mock_secret_note("Mock note", "Value for the mock note").await?;
-        keeper.create(SecretId::new_v4(), meta, secret).await?;
+        let secret_data = SecretRow::new(SecretId::new_v4(), meta, secret);
+        keeper.create(&secret_data).await?;
 
         let (meta, secret, _, _) = mock_secret_file(
             "Mock file",
@@ -210,7 +214,8 @@ mod test {
             "Test value".as_bytes().to_vec(),
         )
         .await?;
-        keeper.create(SecretId::new_v4(), meta, secret).await?;
+        let secret_data = SecretRow::new(SecretId::new_v4(), meta, secret);
+        keeper.create(&secret_data).await?;
 
         migration.add(&keeper).await?;
         Ok(migration)
