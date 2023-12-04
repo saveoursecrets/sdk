@@ -705,7 +705,7 @@ impl AccountSearch {
     }
 
     /// Remove a folder from the search index.
-    pub async fn remove_folder_from_search_index(&self, vault_id: &VaultId) {
+    pub async fn remove_folder(&self, vault_id: &VaultId) {
         // Clean entries from the search index
         let mut writer = self.search_index.write().await;
         writer.remove_vault(vault_id);
@@ -732,7 +732,7 @@ impl AccountSearch {
     }
 
     /// Determine if a document exists in a folder.
-    pub async fn document_exists_in_folder(
+    pub async fn document_exists(
         &self,
         vault_id: &VaultId,
         label: &str,

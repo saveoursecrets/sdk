@@ -782,7 +782,7 @@ impl NetworkAccount {
     }
 
     /// Determine if a document exists in a folder.
-    pub async fn document_exists_in_folder(
+    pub async fn document_exists(
         &self,
         vault_id: &VaultId,
         label: &str,
@@ -790,7 +790,7 @@ impl NetworkAccount {
     ) -> Result<bool> {
         Ok(self
             .account
-            .document_exists_in_folder(vault_id, label, id)
+            .document_exists(vault_id, label, id)
             .await?)
     }
 }

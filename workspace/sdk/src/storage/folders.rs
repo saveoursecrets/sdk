@@ -687,7 +687,7 @@ impl FolderStorage {
         if exists {
             if let Some(index) = self.index.as_mut() {
                 // Clean entries from the search index
-                index.remove_folder_from_search_index(summary.id()).await;
+                index.remove_folder(summary.id()).await;
             }
         }
 
@@ -806,7 +806,7 @@ impl FolderStorage {
         self.remove_local_cache(summary)?;
 
         if let Some(index) = self.index.as_mut() {
-            index.remove_folder_from_search_index(summary.id()).await;
+            index.remove_folder(summary.id()).await;
         }
 
         Ok(())
