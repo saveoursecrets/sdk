@@ -44,16 +44,6 @@ impl<D> Account<D> {
         reader.download_file(vault_id, secret_id, file_name).await
     }
 
-    /// Remove the directory containing all the files for a folder.
-    pub(crate) async fn delete_folder_files(
-        &self,
-        summary: &Summary,
-    ) -> Result<Vec<FileEvent>> {
-        let storage = self.storage()?;
-        let reader = storage.read().await;
-        reader.delete_folder_files(summary).await
-    }
-
     /// Create external files when a file secret is created.
     pub(crate) async fn create_files(
         &mut self,

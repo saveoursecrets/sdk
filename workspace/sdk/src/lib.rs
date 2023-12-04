@@ -45,9 +45,6 @@ compile_error!("account feature must be enabled to use contacts");
 #[cfg(all(not(feature = "account"), feature = "device"))]
 compile_error!("account feature must be enabled to use device");
 
-#[cfg(all(not(feature = "account"), feature = "files"))]
-compile_error!("account feature must be enabled to use files");
-
 #[cfg(all(not(feature = "account"), feature = "migrate"))]
 compile_error!("account feature must be enabled to use migrate");
 

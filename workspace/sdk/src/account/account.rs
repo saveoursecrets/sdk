@@ -209,10 +209,6 @@ pub(super) struct Authenticated {
 
     /// Account event log.
     account_log: Arc<RwLock<AccountEventLog>>,
-
-    /// File event log.
-    #[cfg(feature = "files")]
-    pub(super) file_log: Arc<RwLock<FileEventLog>>,
 }
 
 /// User account backed by the filesystem.
@@ -508,15 +504,10 @@ impl<D> Account<D> {
         let account_log =
             self.initialize_account_log(&self.paths, &user).await?;
 
-        #[cfg(feature = "files")]
-        let file_log = self.initialize_file_log(&self.paths).await?;
-
         self.authenticated = Some(Authenticated {
             user,
             storage: Arc::new(RwLock::new(storage)),
             account_log,
-            #[cfg(feature = "files")]
-            file_log,
         });
 
         // Load vaults into memory and initialize folder
@@ -560,34 +551,6 @@ impl<D> Account<D> {
                     secure_access_key,
                 ));
             }
-
-            tracing::debug!(init_events_len = %events.len());
-
-            event_log.apply(events.iter().collect()).await?;
-        }
-
-        Ok(Arc::new(RwLock::new(event_log)))
-    }
-
-    #[cfg(feature = "files")]
-    async fn initialize_file_log(
-        &self,
-        paths: &UserPaths,
-    ) -> Result<Arc<RwLock<FileEventLog>>> {
-        let span = span!(Level::DEBUG, "init_file_log");
-        let _enter = span.enter();
-
-        let log_file = paths.file_events();
-        let needs_init = !vfs::try_exists(&log_file).await?;
-        let mut event_log = FileEventLog::new_file(log_file).await?;
-
-        tracing::debug!(needs_init = %needs_init);
-
-        if needs_init {
-            let files =
-                crate::storage::files::list_external_files(paths).await?;
-            let events: Vec<FileEvent> =
-                files.into_iter().map(|f| f.into()).collect();
 
             tracing::debug!(init_events_len = %events.len());
 
@@ -819,29 +782,15 @@ impl<D> Account<D> {
         let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
 
-        {
+        let mut events = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer.remove_vault(&summary).await?
-        }
+        };
         self.user_mut()?
             .remove_folder_password(summary.id())
             .await?;
-
-        let mut events = Vec::new();
-
-        #[cfg(feature = "files")]
-        {
-            let mut file_events = self.delete_folder_files(&summary).await?;
-            let auth =
-                self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
-            let mut file_log = auth.file_log.write().await;
-            file_log.apply(file_events.iter().collect()).await?;
-            for event in file_events.drain(..) {
-                events.push(Event::File(event));
-            }
-        }
-
+        
         let account_event = AccountEvent::DeleteFolder(*summary.id());
         if let Some(auth) = self.authenticated.as_mut() {
             let mut account_log = auth.account_log.write().await;

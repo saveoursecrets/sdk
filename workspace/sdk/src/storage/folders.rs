@@ -850,18 +850,30 @@ impl FolderStorage {
     }
 
     /// Remove a vault.
-    pub async fn remove_vault(&mut self, summary: &Summary) -> Result<()> {
+    pub async fn remove_vault(&mut self, summary: &Summary) -> Result<Vec<Event>> {
         // Remove the files
         self.remove_vault_file(summary).await?;
 
         // Remove local state
         self.remove_local_cache(summary)?;
 
+        let mut events = Vec::new();
+
+        #[cfg(feature = "files")]
+        {
+            let mut file_events = self.delete_folder_files(&summary).await?;
+            self.file_log.apply(file_events.iter().collect()).await?;
+            for event in file_events.drain(..) {
+                events.push(Event::File(event));
+            }
+        }
+        
+        // Clean the search index
         if let Some(index) = self.index.as_mut() {
             index.remove_folder(summary.id()).await;
         }
 
-        Ok(())
+        Ok(events)
     }
 
     /// Set the name of a vault.
