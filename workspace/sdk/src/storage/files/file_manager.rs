@@ -150,13 +150,6 @@ impl FolderStorage {
         .await?)
     }
 
-    /// Expected location for the directory containing all the
-    /// external files for a folder.
-    #[deprecated(note = "call directly on paths instead")]
-    pub(crate) fn file_folder_location(&self, vault_id: &VaultId) -> PathBuf {
-        self.paths.file_folder_location(vault_id)
-    }
-
     /// Decrypt a file and return the buffer.
     pub async fn download_file(
         &self,
@@ -166,17 +159,6 @@ impl FolderStorage {
     ) -> Result<Vec<u8>> {
         self.decrypt_file_storage(vault_id, secret_id, file_name)
             .await
-    }
-
-    /// Expected location for a file by convention.
-    #[deprecated(note = "call directly on paths instead")]
-    pub fn file_location(
-        &self,
-        vault_id: &VaultId,
-        secret_id: &SecretId,
-        file_name: &str,
-    ) -> PathBuf {
-        self.paths.file_location(vault_id, secret_id, file_name)
     }
 
     /// Remove the directory containing all the files for a folder.
@@ -196,7 +178,7 @@ impl FolderStorage {
                 ));
             }
         }
-        let folder_files = self.file_folder_location(summary.id());
+        let folder_files = self.paths.file_folder_location(summary.id());
         if vfs::try_exists(&folder_files).await? {
             vfs::remove_dir_all(&folder_files).await?;
         }
