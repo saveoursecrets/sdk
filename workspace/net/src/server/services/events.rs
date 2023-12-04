@@ -328,26 +328,24 @@ impl Service for EventLogService {
                             // TODO: |_| StatusCode::BAD_REQUEST
                             let patch: Patch = decode(request.body()).await?;
 
+                            let mut vault_name = None;
+
                             let mut change_set = Vec::new();
                             for record in patch.iter() {
-                                change_set.push(record.decode_event().await?);
+                                let event = record.decode_event().await?;
+
+                                // Setting vault name requires special handling
+                                // as we need to update the vault header on disc
+                                // as well so summary listings are kept up to date
+                                if let WriteEvent::SetVaultName(name) = &event
+                                {
+                                    vault_name = Some(name.to_owned());
+                                    continue;
+                                }
+                                change_set.push(event);
                             }
 
-                            // Setting vault name requires special handling
-                            // as we need to update the vault header on disc
-                            // as well so summary listings are kept up to date
-                            let vault_name =
-                                change_set.iter().find_map(|event| {
-                                    if let WriteEvent::SetVaultName(name) =
-                                        event
-                                    {
-                                        Some(name.to_string())
-                                    } else {
-                                        None
-                                    }
-                                });
-
-                            // Changes events for the SSE channel
+                            // Change event notifications
                             #[cfg(feature = "listen")]
                             let change_events = {
                                 let mut change_events: Vec<ChangeEvent> =

@@ -316,6 +316,7 @@ impl BackendHandler for FileSystemBackend {
             .find(|s| s.id() == vault_id)
             .cloned()
             .ok_or(Error::NoFolder(owner.to_owned(), *vault_id))?;
+
         writer.folders.set_vault_name(&folder, name).await?;
         Ok(())
     }
