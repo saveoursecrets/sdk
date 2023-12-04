@@ -1,7 +1,7 @@
 //! Event for modifications to external files.
 use super::{EventKind, LogEvent};
 use crate::{
-    account::files::ExternalFileName,
+    storage::files::ExternalFileName,
     vault::{secret::SecretId, VaultId},
 };
 

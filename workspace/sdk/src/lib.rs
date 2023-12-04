@@ -21,6 +21,7 @@
 //!
 //! * `account` Support for local accounts.
 //! * `recovery` Support for social recovery.
+//! * `search` Support for in-memory account search index.
 //!
 //! The following features require that the `account` feature is enabled:
 //!
@@ -29,7 +30,6 @@
 //! * `device` Support for device signing keys and device management.
 //! * `files` Support for managing external encrypted files.
 //! * `migrate` Support for importing and exporting unencrypted secrets.
-//! * `search` Support for in-memory account search index.
 //! * `security-report` Support for generating a security report.
 //!
 //! Note the `files` feature affects the encoding of vaults so you should

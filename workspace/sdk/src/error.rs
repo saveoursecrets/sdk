@@ -37,6 +37,10 @@ pub enum Error {
     #[error("no search index")]
     NoSearchIndex,
 
+    /// Error generated when a file encryption password is required.
+    #[error("no file password")]
+    NoFilePassword,
+
     /// Error generated when an open folder is expected.
     #[error("no open folder")]
     NoOpenFolder,

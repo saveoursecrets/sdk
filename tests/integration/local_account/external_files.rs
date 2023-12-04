@@ -1,8 +1,9 @@
 use anyhow::Result;
 use sos_net::sdk::{
-    account::{files::FileProgress, AccessOptions, LocalAccount},
+    account::{AccessOptions, LocalAccount},
     hex,
     passwd::diceware::generate_passphrase,
+    storage::files::FileProgress,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretRow},
         Summary,
@@ -257,8 +258,11 @@ async fn assert_create_file_secret(
         assert_eq!("image/heic", mime);
 
         let file_name = hex::encode(checksum);
-        let expected_file_path =
-            account.file_location(default_folder.id(), &id, &file_name);
+        let expected_file_path = account.paths().file_location(
+            default_folder.id(),
+            &id,
+            &file_name,
+        );
 
         assert!(vfs::try_exists(&expected_file_path).await?);
 
@@ -310,13 +314,19 @@ async fn assert_update_file_secret(
         assert_eq!("text/plain", mime);
 
         let file_name = hex::encode(checksum);
-        let expected_file_path =
-            account.file_location(default_folder.id(), id, &file_name);
+        let expected_file_path = account.paths().file_location(
+            default_folder.id(),
+            id,
+            &file_name,
+        );
         assert!(vfs::try_exists(&expected_file_path).await?);
 
         let old_file_name = hex::encode(original_checksum);
-        let old_file_path =
-            account.file_location(default_folder.id(), id, &old_file_name);
+        let old_file_path = account.paths().file_location(
+            default_folder.id(),
+            id,
+            &old_file_name,
+        );
         assert!(!vfs::try_exists(&old_file_path).await?);
 
         *checksum
@@ -374,12 +384,18 @@ async fn assert_move_file_secret(
         assert_eq!(&updated_checksum, &checksum);
 
         let file_name = hex::encode(checksum);
-        let expected_file_path =
-            account.file_location(destination.id(), &new_id, &file_name);
+        let expected_file_path = account.paths().file_location(
+            destination.id(),
+            &new_id,
+            &file_name,
+        );
         assert!(vfs::try_exists(&expected_file_path).await?);
 
-        let old_file_path =
-            account.file_location(default_folder.id(), id, &file_name);
+        let old_file_path = account.paths().file_location(
+            default_folder.id(),
+            id,
+            &file_name,
+        );
         assert!(!vfs::try_exists(&old_file_path).await?);
 
         *checksum
@@ -406,7 +422,7 @@ async fn assert_delete_file_secret(
     // Check deleting the secret also removed the external file
     let file_name = hex::encode(checksum);
     let deleted_file_path =
-        account.file_location(folder.id(), id, &file_name);
+        account.paths().file_location(folder.id(), id, &file_name);
     assert!(!vfs::try_exists(&deleted_file_path).await?);
 
     Ok(())
@@ -463,13 +479,19 @@ async fn assert_create_update_move_file_secret(
         assert_eq!("text/plain", mime);
 
         let file_name = hex::encode(checksum);
-        let expected_file_path =
-            account.file_location(destination.id(), &new_id, &file_name);
+        let expected_file_path = account.paths().file_location(
+            destination.id(),
+            &new_id,
+            &file_name,
+        );
         assert!(vfs::try_exists(&expected_file_path).await?);
 
         let old_file_name = hex::encode(original_checksum);
-        let old_file_path =
-            account.file_location(default_folder.id(), &id, &old_file_name);
+        let old_file_path = account.paths().file_location(
+            default_folder.id(),
+            &id,
+            &old_file_name,
+        );
         assert!(!vfs::try_exists(&old_file_path).await?);
 
         *checksum
@@ -489,7 +511,8 @@ async fn assert_delete_folder_file_secrets(
     account.delete_folder(folder).await?;
 
     let file_name = hex::encode(checksum);
-    let file_path = account.file_location(folder.id(), id, &file_name);
+    let file_path =
+        account.paths().file_location(folder.id(), id, &file_name);
     assert!(!vfs::try_exists(&file_path).await?);
 
     Ok(())
@@ -552,7 +575,7 @@ async fn assert_attach_file_secret(
 
             let file_name = hex::encode(checksum);
             let file_path =
-                account.file_location(folder.id(), id, &file_name);
+                account.paths().file_location(folder.id(), id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
         } else {
             panic!("expecting file secret variant");
@@ -594,7 +617,7 @@ async fn assert_attach_file_secret(
 
             let file_name = hex::encode(checksum);
             let file_path =
-                account.file_location(folder.id(), &id, &file_name);
+                account.paths().file_location(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
 
             *checksum
@@ -651,12 +674,15 @@ async fn assert_attach_file_secret(
 
             let file_name = hex::encode(checksum);
             let file_path =
-                account.file_location(folder.id(), &id, &file_name);
+                account.paths().file_location(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
 
             let old_file_name = hex::encode(attachment_checksum);
-            let old_file_path =
-                account.file_location(folder.id(), &id, &old_file_name);
+            let old_file_path = account.paths().file_location(
+                folder.id(),
+                &id,
+                &old_file_name,
+            );
             assert!(!vfs::try_exists(&old_file_path).await?);
 
             checksum
@@ -709,7 +735,7 @@ async fn assert_attach_file_secret(
             assert_ne!(ZERO_CHECKSUM, *checksum);
             let file_name = hex::encode(checksum);
             let file_path =
-                account.file_location(folder.id(), &id, &file_name);
+                account.paths().file_location(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
 
             *checksum
@@ -725,7 +751,7 @@ async fn assert_attach_file_secret(
             assert_eq!(updated_attachment_checksum, checksum);
             let file_name = hex::encode(checksum);
             let file_path =
-                account.file_location(folder.id(), &id, &file_name);
+                account.paths().file_location(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
         } else {
             panic!("expecting file secret variant (attachment)");
@@ -773,7 +799,7 @@ async fn assert_attach_file_secret(
             assert_ne!(&file_checksum, checksum);
             let file_name = hex::encode(checksum);
             let file_path =
-                account.file_location(folder.id(), &id, &file_name);
+                account.paths().file_location(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
         } else {
             panic!("expecting file secret variant (attachment)");
@@ -796,8 +822,11 @@ async fn assert_attach_file_secret(
         .await?;
 
     for checksum in checksums {
-        let file_path =
-            account.file_location(folder.id(), &id, &hex::encode(checksum));
+        let file_path = account.paths().file_location(
+            folder.id(),
+            &id,
+            &hex::encode(checksum),
+        );
         assert!(!vfs::try_exists(&file_path).await?);
     }
 

@@ -14,7 +14,7 @@ mod file_manager;
 
 pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;
-pub use file_manager::{FileProgress, FileSource};
+pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
 
 /// Meta data about an encrypted file.
 #[derive(Debug, Clone)]
@@ -78,7 +78,7 @@ impl From<ExternalFile> for FileEvent {
 /// If a directory name cannot be parsed to a folder or secret
 /// identifier or the file name cannot be converted to `[u8; 32]`
 /// the directory or file will be ignored.
-pub(super) async fn list_external_files(
+pub(crate) async fn list_external_files(
     paths: &UserPaths,
 ) -> Result<HashSet<ExternalFile>> {
     let mut files = HashSet::new();
@@ -113,7 +113,7 @@ pub(super) async fn list_external_files(
 /// If a directory name cannot be parsed to a folder or secret
 /// identifier or the file name cannot be converted to `[u8; 32]`
 /// the directory or file will be ignored.
-pub(super) async fn list_folder_files(
+pub(crate) async fn list_folder_files(
     paths: &UserPaths,
     folder_id: &VaultId,
 ) -> Result<Vec<(SecretId, HashSet<ExternalFileName>)>> {

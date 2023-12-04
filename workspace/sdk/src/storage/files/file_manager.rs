@@ -3,9 +3,11 @@
 
 use super::list_folder_files;
 use crate::{
-    account::files::{basename, EncryptedFile, FileStorage, FileStorageSync},
-    account::Account,
     events::FileEvent,
+    storage::{
+        files::{basename, EncryptedFile, FileStorage, FileStorageSync},
+        FolderStorage,
+    },
     vault::{
         secret::{FileContent, Secret, SecretId, SecretRow, UserData},
         Summary, VaultId,
@@ -86,7 +88,7 @@ pub enum FileMutationEvent {
     Delete(FileEvent),
 }
 
-impl<D> Account<D> {
+impl FolderStorage {
     /// Append file mutation events to the file event log.
     pub(crate) async fn append_file_mutation_events(
         &mut self,
@@ -103,12 +105,7 @@ impl<D> Account<D> {
             }
         }
 
-        {
-            let auth =
-                self.authenticated.as_mut().ok_or(Error::NotAuthenticated)?;
-            let mut writer = auth.file_log.write().await;
-            writer.apply(file_events).await?;
-        }
+        self.file_log.apply(file_events).await?;
 
         Ok(())
     }
@@ -120,16 +117,16 @@ impl<D> Account<D> {
         secret_id: &SecretId,
         source: P,
     ) -> Result<EncryptedFile> {
-        // Find the file encryption password
-        let password = self.user()?.find_file_encryption_password().await?;
+        let file_password =
+            self.file_password.as_ref().ok_or(Error::NoFilePassword)?;
 
         // Encrypt and write to disc
         Ok(FileStorageSync::encrypt_file_storage(
-            password,
+            file_password.clone(),
             source,
             &self.paths,
-            vault_id.to_string(),
-            secret_id.to_string(),
+            vault_id,
+            secret_id,
         )?)
     }
 
@@ -140,14 +137,14 @@ impl<D> Account<D> {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<Vec<u8>> {
-        // Find the file encryption password
-        let password = self.user()?.find_file_encryption_password().await?;
+        let file_password =
+            self.file_password.as_ref().ok_or(Error::NoFilePassword)?;
 
         Ok(FileStorage::decrypt_file_storage(
-            &password,
+            file_password,
             &self.paths,
-            vault_id.to_string(),
-            secret_id.to_string(),
+            vault_id,
+            secret_id,
             file_name,
         )
         .await?)
@@ -155,8 +152,9 @@ impl<D> Account<D> {
 
     /// Expected location for the directory containing all the
     /// external files for a folder.
+    #[deprecated(note = "call directly on paths instead")]
     pub(crate) fn file_folder_location(&self, vault_id: &VaultId) -> PathBuf {
-        self.paths.file_folder_location(vault_id.to_string())
+        self.paths.file_folder_location(vault_id)
     }
 
     /// Decrypt a file and return the buffer.
@@ -171,17 +169,14 @@ impl<D> Account<D> {
     }
 
     /// Expected location for a file by convention.
+    #[deprecated(note = "call directly on paths instead")]
     pub fn file_location(
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
         file_name: &str,
     ) -> PathBuf {
-        self.paths.file_location(
-            vault_id.to_string(),
-            secret_id.to_string(),
-            file_name,
-        )
+        self.paths.file_location(vault_id, secret_id, file_name)
     }
 
     /// Remove the directory containing all the files for a folder.
@@ -191,7 +186,7 @@ impl<D> Account<D> {
     ) -> Result<Vec<FileEvent>> {
         let mut events = Vec::new();
         let mut folder_files =
-            list_folder_files(self.paths(), summary.id()).await?;
+            list_folder_files(&*self.paths, summary.id()).await?;
         for (secret_id, mut external_files) in folder_files.drain(..) {
             for file_name in external_files.drain() {
                 events.push(FileEvent::DeleteFile(
@@ -599,9 +594,9 @@ impl<D> Account<D> {
         if changed {
             let secret_data =
                 SecretRow::new(id, secret_data.meta, new_secret);
+
             // Update with new checksum(s)
-            self.write_secret(&id, secret_data, Some(summary.clone()), false)
-                .await?;
+            self.write_secret(&id, secret_data).await?;
         }
 
         let events = results

@@ -40,8 +40,8 @@ use async_trait::async_trait;
 
 #[cfg(feature = "files")]
 use crate::{
-    account::files::FileProgress,
     events::{FileEvent, FileEventLog},
+    storage::files::FileProgress,
 };
 
 /// Type alias for a local account without a handler.
@@ -397,9 +397,12 @@ impl<D> Account<D> {
         // Must import the new account before signing in
         let signer = new_account.user.identity()?.signer().clone();
         let address = signer.address()?;
-        let mut storage =
-            FolderStorage::new_client(address.to_string(), data_dir.clone())
-                .await?;
+
+        let mut storage = FolderStorage::new_client(
+            address.to_string(),
+            data_dir.clone(),
+        )
+        .await?;
 
         tracing::debug!("prepared storage provider");
 
@@ -493,12 +496,16 @@ impl<D> Account<D> {
 
         // Signing key for the storage provider
         let signer = user.identity()?.signer().clone();
-        let storage = FolderStorage::new_client(
+
+        let mut storage = FolderStorage::new_client(
             signer.address()?.to_string(),
             Some(data_dir),
         )
         .await?;
         self.paths = storage.paths();
+
+        let file_password = user.find_file_encryption_password().await?;
+        storage.set_file_password(Some(file_password)); 
 
         let account_log =
             self.initialize_account_log(&self.paths, &user).await?;
@@ -579,7 +586,8 @@ impl<D> Account<D> {
         tracing::debug!(needs_init = %needs_init);
 
         if needs_init {
-            let files = super::files::list_external_files(paths).await?;
+            let files =
+                crate::storage::files::list_external_files(paths).await?;
             let events: Vec<FileEvent> =
                 files.into_iter().map(|f| f.into()).collect();
 

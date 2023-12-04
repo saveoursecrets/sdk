@@ -372,7 +372,7 @@ impl SearchIndex {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-    
+
     /*
     /// Find document by URN.
     pub fn find_by_urn<'a>(

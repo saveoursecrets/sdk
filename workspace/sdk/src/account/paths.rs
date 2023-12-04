@@ -15,6 +15,7 @@ use crate::{
         LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, TEMP_DIR,
         VAULTS_DIR, VAULT_EXT,
     },
+    vault::{secret::SecretId, VaultId},
     vfs,
 };
 
@@ -148,23 +149,20 @@ impl UserPaths {
 
     /// Get the expected location for the directory containing
     /// all the external files for a folder.
-    pub fn file_folder_location<V: AsRef<Path>>(
-        &self,
-        vault_id: V,
-    ) -> PathBuf {
-        self.files_dir.join(vault_id)
+    pub fn file_folder_location(&self, vault_id: &VaultId) -> PathBuf {
+        self.files_dir.join(vault_id.to_string())
     }
 
     /// Get the expected location for a file.
-    pub fn file_location<V: AsRef<Path>, S: AsRef<Path>, F: AsRef<Path>>(
+    pub fn file_location(
         &self,
-        vault_id: V,
-        secret_id: S,
-        file_name: F,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
+        file_name: impl AsRef<str>,
     ) -> PathBuf {
         self.file_folder_location(vault_id)
-            .join(secret_id)
-            .join(file_name)
+            .join(secret_id.to_string())
+            .join(file_name.as_ref())
     }
 
     /// Get the user vaults storage directory.

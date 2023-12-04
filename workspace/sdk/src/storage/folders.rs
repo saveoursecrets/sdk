@@ -19,16 +19,23 @@ use crate::{
     vfs, Error, Result, Timestamp,
 };
 
+use secrecy::SecretString;
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
     sync::Arc,
 };
-
 use tokio::sync::RwLock;
+use tracing::{span, Level};
 
 #[cfg(feature = "archive")]
 use crate::account::archive::RestoreTargets;
+
+#[cfg(feature = "files")]
+use crate::{
+    events::{FileEvent, FileEventLog},
+    storage::files::FileProgress,
+};
 
 /// Manages multiple folders loaded into memory and mirrored to disc.
 pub struct FolderStorage {
@@ -36,7 +43,7 @@ pub struct FolderStorage {
     state: LocalState,
 
     /// Directories for file storage.
-    paths: Arc<UserPaths>,
+    pub(super) paths: Arc<UserPaths>,
 
     /// Search index.
     #[cfg(feature = "search")]
@@ -44,6 +51,14 @@ pub struct FolderStorage {
 
     /// Folder event logs.
     cache: HashMap<VaultId, FolderEventLog>,
+
+    /// File event log.
+    #[cfg(feature = "files")]
+    pub(super) file_log: FileEventLog,
+
+    /// Password for file encryption.
+    #[cfg(feature = "files")]
+    pub(super) file_password: Option<SecretString>,
 }
 
 impl FolderStorage {
@@ -59,7 +74,8 @@ impl FolderStorage {
         };
 
         let dirs = UserPaths::new(data_dir, id);
-        Self::new_paths(Arc::new(dirs), true, false).await
+        Self::new_paths(Arc::new(dirs), true, false)
+            .await
     }
 
     /// Create folder storage for server-side access.
@@ -91,13 +107,50 @@ impl FolderStorage {
 
         paths.ensure().await?;
 
+        #[cfg(feature = "files")]
+        let file_log = Self::initialize_file_log(&*paths).await?;
+
         Ok(Self {
             state: LocalState::new(mirror, head_only),
             cache: Default::default(),
             paths,
             #[cfg(feature = "search")]
             index: Some(AccountSearch::new()),
+            #[cfg(feature = "files")]
+            file_log,
+            #[cfg(feature = "files")]
+            file_password: None,
         })
+    }
+    
+    /// Set the password for file encryption.
+    #[cfg(feature = "files")]
+    pub fn set_file_password(&mut self, file_password: Option<SecretString>) {
+        self.file_password = file_password;
+    }
+
+    #[cfg(feature = "files")]
+    async fn initialize_file_log(paths: &UserPaths) -> Result<FileEventLog> {
+        let span = span!(Level::DEBUG, "init_file_log");
+        let _enter = span.enter();
+
+        let log_file = paths.file_events();
+        let needs_init = !vfs::try_exists(&log_file).await?;
+        let mut event_log = FileEventLog::new_file(log_file).await?;
+
+        tracing::debug!(needs_init = %needs_init);
+
+        if needs_init {
+            let files = super::files::list_external_files(paths).await?;
+            let events: Vec<FileEvent> =
+                files.into_iter().map(|f| f.into()).collect();
+
+            tracing::debug!(init_events_len = %events.len());
+
+            event_log.apply(events.iter().collect()).await?;
+        }
+
+        Ok(event_log)
     }
 
     /// Search index reference.
@@ -965,6 +1018,20 @@ impl FolderStorage {
 
     /// Update a secret in the currently open folder.
     pub(crate) async fn update_secret(
+        &mut self,
+        id: &SecretId,
+        mut secret_data: SecretRow,
+    ) -> Result<WriteEvent> {
+        self.write_secret(id, secret_data).await
+    }
+
+    /// Write a secret in the current open folder.
+    ///
+    /// Unlike `update_secret()` this function does not support moving
+    /// between folders or managing external files which allows us
+    /// to avoid recursion when handling embedded file secrets which
+    /// require rewriting the secret once the files have been encrypted.
+    pub(crate) async fn write_secret(
         &mut self,
         id: &SecretId,
         mut secret_data: SecretRow,

@@ -13,7 +13,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{account::UserPaths, Error, Result};
+use crate::{
+    account::UserPaths,
+    vault::{secret::SecretId, VaultId},
+    Error, Result,
+};
 
 use super::EncryptedFile;
 
@@ -76,18 +80,17 @@ impl FileStorageSync {
     ///
     /// Returns an SHA256 digest of the encrypted data
     /// and the size of the original file.
-    pub fn encrypt_file_storage<
-        P: AsRef<Path>,
-        V: AsRef<Path>,
-        S: AsRef<Path>,
-    >(
+    pub fn encrypt_file_storage<P: AsRef<Path>>(
         password: SecretString,
         path: P,
         paths: &UserPaths,
-        vault_id: V,
-        secret_id: S,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
     ) -> Result<EncryptedFile> {
-        let target = paths.files_dir().join(vault_id).join(secret_id);
+        let target = paths
+            .files_dir()
+            .join(vault_id.to_string())
+            .join(secret_id.to_string());
 
         if !target.exists() {
             std::fs::create_dir_all(&target)?;
@@ -100,16 +103,12 @@ impl FileStorageSync {
     }
 
     /// Decrypt a file in the storage location and return the buffer.
-    pub fn decrypt_file_storage<
-        V: AsRef<Path>,
-        S: AsRef<Path>,
-        F: AsRef<Path>,
-    >(
+    pub fn decrypt_file_storage(
         password: &SecretString,
         paths: &UserPaths,
-        vault_id: V,
-        secret_id: S,
-        file_name: F,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
+        file_name: impl AsRef<str>,
     ) -> Result<Vec<u8>> {
         let path = paths.file_location(vault_id, secret_id, file_name);
         Self::decrypt_file_passphrase(path, password)

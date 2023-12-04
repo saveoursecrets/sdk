@@ -59,9 +59,11 @@ async fn remote_bridge(
     data_dir: Option<PathBuf>,
 ) -> Result<RemoteBridge> {
     let keypair = Keypair::new(PATTERN.parse()?)?;
-    let local =
-        FolderStorage::new_client(signer.address()?.to_string(), data_dir)
-            .await?;
+    let local = FolderStorage::new_client(
+        signer.address()?.to_string(),
+        data_dir,
+    )
+    .await?;
     let provider = RemoteBridge::new(
         Arc::new(RwLock::new(local)),
         origin.clone(),

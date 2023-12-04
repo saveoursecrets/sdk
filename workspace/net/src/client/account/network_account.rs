@@ -729,11 +729,7 @@ impl NetworkAccount {
         secret_id: &SecretId,
         file_name: &str,
     ) -> PathBuf {
-        self.paths().file_location(
-            vault_id.to_string(),
-            secret_id.to_string(),
-            file_name,
-        )
+        self.paths().file_location(vault_id, secret_id, file_name)
     }
 
     /// Decrypt a file so it can be downloaded from the account.
@@ -788,9 +784,6 @@ impl NetworkAccount {
         label: &str,
         id: Option<&SecretId>,
     ) -> Result<bool> {
-        Ok(self
-            .account
-            .document_exists(vault_id, label, id)
-            .await?)
+        Ok(self.account.document_exists(vault_id, label, id).await?)
     }
 }

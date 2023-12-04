@@ -2044,10 +2044,10 @@ impl TryFrom<PathBuf> for Secret {
     fn try_from(path: PathBuf) -> Result<Self> {
         Ok(Secret::File {
             content: FileContent::External {
-                name: crate::account::files::basename(&path),
+                name: crate::storage::files::basename(&path),
                 size: 0,
                 checksum: [0; 32],
-                mime: crate::account::files::guess_mime(&path)?,
+                mime: crate::storage::files::guess_mime(&path)?,
                 path: Some(path),
             },
             user_data: Default::default(),
