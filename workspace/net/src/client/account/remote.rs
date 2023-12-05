@@ -44,6 +44,12 @@ pub struct HostedOrigin {
     pub public_key: Vec<u8>,
 }
 
+impl fmt::Display for HostedOrigin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.name, self.url)
+    }
+}
+
 /// Remote origin information.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -64,9 +70,7 @@ impl Origin {
 impl fmt::Display for Origin {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Hosted(host) => {
-                write!(f, "{} ({})", host.name, host.url)
-            }
+            Self::Hosted(host) => host.fmt(f),
         }
     }
 }
@@ -491,6 +495,9 @@ impl RemoteSync for RemoteBridge {
         &self,
         options: &SyncOptions,
     ) -> Option<SyncError> {
+        let span = span!(Level::DEBUG, "sync");
+        let _enter = span.enter();
+
         let should_sync = options.origins.is_empty()
             || options
                 .origins
@@ -499,11 +506,9 @@ impl RemoteSync for RemoteBridge {
                 .is_some();
 
         if !should_sync {
+            tracing::warn!(prigin = %self.origin, "skip sync");
             return None;
         }
-
-        let span = span!(Level::DEBUG, "sync");
-        let _enter = span.enter();
 
         // Ensure our folder state is the latest version on disc
         {
