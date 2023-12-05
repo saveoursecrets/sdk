@@ -17,6 +17,14 @@ pub enum Event {
     /// Account changes.
     Account(AccountEvent),
 
+    /// Combined event that encapsulates an account
+    /// event with a folder write event.
+    ///
+    /// Typically used to combine the folder creation
+    /// (which includes the secure access key) with the
+    /// create vault event which contains the vault buffer.
+    Folder(AccountEvent, WriteEvent),
+
     #[cfg(feature = "files")]
     /// File event.
     File(FileEvent),
@@ -40,6 +48,7 @@ impl Event {
         match self {
             Self::CreateAccount(event) => event.event_kind(),
             Self::Account(event) => event.event_kind(),
+            Self::Folder(event, _) => event.event_kind(),
             #[cfg(feature = "files")]
             Self::File(event) => event.event_kind(),
             Self::Read(_, event) => event.event_kind(),

@@ -8,7 +8,7 @@ use uuid::Uuid;
 use web3_address::ethereum::Address;
 
 use crate::{
-    events::{Event, EventKind, ReadEvent, WriteEvent},
+    events::{Event, EventKind, LogEvent, ReadEvent, WriteEvent},
     timestamp::Timestamp,
     vault::{secret::SecretId, VaultId},
 };
@@ -134,7 +134,7 @@ impl AuditEvent {
     }
 }
 
-impl<'a> From<(&Address, &Event)> for AuditEvent {
+impl From<(&Address, &Event)> for AuditEvent {
     fn from(value: (&Address, &Event)) -> Self {
         let (address, event) = value;
         match event {
@@ -150,11 +150,11 @@ impl<'a> From<(&Address, &Event)> for AuditEvent {
                     #[cfg(feature = "account")]
                     Event::Account(event) => match event {
                         AccountEvent::CreateFolder(vault_id, _)
+                        | AccountEvent::UpdateFolder(vault_id, _)
                         | AccountEvent::ChangeFolderPassword(vault_id, _) => {
                             Some(AuditData::Vault(*vault_id))
                         }
-                        AccountEvent::UpdateFolder(vault_id)
-                        | AccountEvent::CompactFolder(vault_id)
+                        AccountEvent::CompactFolder(vault_id)
                         | AccountEvent::DeleteFolder(vault_id) => {
                             Some(AuditData::Vault(*vault_id))
                         }
@@ -199,6 +199,29 @@ impl<'a> From<(&Address, &Event)> for AuditEvent {
                     unreachable!();
                 }
             }
+        }
+    }
+}
+
+impl From<(&Address, &AccountEvent)> for AuditEvent {
+    fn from(value: (&Address, &AccountEvent)) -> Self {
+        let (address, event) = value;
+        let audit_data = match &event {
+            AccountEvent::CreateFolder(vault_id, _)
+            | AccountEvent::UpdateFolder(vault_id, _)
+            | AccountEvent::ChangeFolderPassword(vault_id, _) => {
+                Some(AuditData::Vault(*vault_id))
+            }
+            AccountEvent::CompactFolder(vault_id)
+            | AccountEvent::DeleteFolder(vault_id) => {
+                Some(AuditData::Vault(*vault_id))
+            }
+            AccountEvent::Noop => None,
+        };
+        if let Some(audit_data) = audit_data {
+            AuditEvent::new(event.event_kind(), *address, Some(audit_data))
+        } else {
+            unreachable!();
         }
     }
 }

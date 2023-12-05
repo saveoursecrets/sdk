@@ -450,12 +450,12 @@ impl Encodable for AccountEvent {
         match self {
             AccountEvent::Noop => panic!("attempt to encode a noop"),
             AccountEvent::CreateFolder(id, secure_access_key)
+            | AccountEvent::UpdateFolder(id, secure_access_key)
             | AccountEvent::ChangeFolderPassword(id, secure_access_key) => {
                 writer.write_bytes(id.as_bytes()).await?;
                 secure_access_key.encode(&mut *writer).await?;
             }
             AccountEvent::CompactFolder(id)
-            | AccountEvent::UpdateFolder(id)
             | AccountEvent::DeleteFolder(id) => {
                 writer.write_bytes(id.as_bytes()).await?;
             }
@@ -493,7 +493,10 @@ impl Decodable for AccountEvent {
             }
             EventKind::UpdateVault => {
                 let id = decode_uuid(&mut *reader).await?;
-                *self = AccountEvent::UpdateFolder(id)
+                let mut secure_access_key: SecureAccessKey =
+                    Default::default();
+                secure_access_key.decode(&mut *reader).await?;
+                *self = AccountEvent::UpdateFolder(id, secure_access_key)
             }
             EventKind::CompactVault => {
                 let id = decode_uuid(&mut *reader).await?;

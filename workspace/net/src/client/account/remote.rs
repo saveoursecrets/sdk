@@ -17,7 +17,7 @@ use sos_sdk::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     crypto::SecureAccessKey,
     decode,
-    events::{Event, WriteEvent},
+    events::{AccountEvent, AccountReducer, Event, WriteEvent},
     signer::ecdsa::BoxedEcdsaSigner,
     storage::{AccountStatus, FolderStorage},
     url::Url,
@@ -138,13 +138,16 @@ impl RemoteBridge {
     }
 
     /// Create an account on the remote.
-    async fn create_account(&self, buffer: Vec<u8>) -> Result<()> {
+    async fn create_account(
+        &self,
+        buffer: &[u8],
+        secure_access_key: &SecureAccessKey,
+    ) -> Result<()> {
         let span = span!(Level::DEBUG, "create_account");
         let _enter = span.enter();
 
-        /*
         let (status, _) = retry!(
-            || self.remote.create_account(buffer.clone()),
+            || self.remote.create_account(buffer, secure_access_key),
             self.remote
         );
 
@@ -155,9 +158,6 @@ impl RemoteBridge {
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
         Ok(())
-        */
-
-        todo!("restore create account");
     }
 
     /// Load all events from a remote event log.
@@ -393,44 +393,49 @@ impl RemoteBridge {
 
     /// Create an account on the remote.
     async fn prepare_account(&self) -> Result<()> {
-        let folder_buffer = {
+        let canonical_folders = {
             let local = self.local.read().await;
-            let default_folder = local
-                .find(|s| s.flags().is_default())
-                .ok_or(Error::NoDefaultFolder)?
-                .clone();
-
-            let folder_path = local.vault_path(&default_folder);
-            vfs::read(folder_path).await?
+            let log = local.account_log();
+            let mut event_log = log.write().await;
+            let reducer = AccountReducer::new(&mut *event_log);
+            let canonical_folders = reducer.reduce().await?;
+            let mut folders = Vec::new();
+            for (id, secure_access_key) in canonical_folders {
+                if let Some(folder) = local.find(|s| s.id() == &id) {
+                    let buffer = local.read_vault_file(&folder).await?;
+                    folders.push((folder.clone(), buffer, secure_access_key));
+                } else {
+                    tracing::warn!(id = %id, "missing folder");
+                }
+            }
+            folders
         };
+
+        let mut other_folders = Vec::new();
+        let mut default_folder: Option<(Summary, Vec<u8>, SecureAccessKey)> =
+            None;
+        for (folder, buffer, secure_access_key) in canonical_folders {
+            if folder.flags().is_default() && default_folder.is_none() {
+                default_folder = Some((folder, buffer, secure_access_key));
+            } else {
+                other_folders.push((folder, buffer, secure_access_key));
+            }
+        }
+
+        // Choose a folder to send for the create account
+        if default_folder.is_none() && !other_folders.is_empty() {
+            default_folder = Some(other_folders.remove(0));
+        }
 
         // Create the account and default folder on the remote
-        self.create_account(folder_buffer).await?;
-
-        // Import other folders into the remote
-        let other_folders: Vec<Summary> = {
-            let local = self.local.read().await;
-            local
-                .folders()
-                .into_iter()
-                .filter(|s| !s.flags().is_default())
-                .map(|s| s.clone())
-                .collect()
-        };
-
-        /*
-        for folder in other_folders {
-            let folder_buffer = {
-                let local = self.local.read().await;
-                let folder_path = local.vault_path(&folder);
-                vfs::read(folder_path).await?
-            };
-
-            self.create_folder(&folder_buffer, None).await?;
+        if let Some((_, buffer, secure_access_key)) = default_folder.take() {
+            self.create_account(&buffer, &secure_access_key).await?;
+            for (_, buffer, secure_access_key) in other_folders {
+                self.create_folder(&buffer, &secure_access_key).await?;
+            }
+        } else {
+            tracing::warn!("no default folder for sync");
         }
-        */
-
-        todo!("handle creating folders with secure access key");
 
         // FIXME: import files here!
 
@@ -596,55 +601,51 @@ impl RemoteSync for RemoteBridge {
     ) -> std::result::Result<(), SyncError> {
         let events = events.to_vec();
         let mut patch_events = Vec::new();
-        //let mut create_folders = Vec::new();
-        //let mut update_folders = Vec::new();
-        //let mut delete_folders = Vec::new();
+        let mut create_folders = Vec::new();
+        let mut update_folders = Vec::new();
+        let mut delete_folders = Vec::new();
 
-        for (index, event) in events.into_iter().enumerate() {
+        for event in events {
             match event {
+                Event::Folder(
+                    AccountEvent::CreateFolder(_, secure_access_key),
+                    WriteEvent::CreateVault(buf),
+                ) => {
+                    create_folders.push((buf, secure_access_key));
+                }
+                Event::Folder(
+                    AccountEvent::UpdateFolder(id, secure_access_key),
+                    WriteEvent::CreateVault(buf),
+                ) => {
+                    update_folders.push((id, buf, secure_access_key));
+                }
+                Event::Account(AccountEvent::DeleteFolder(id)) => {
+                    delete_folders.push(id)
+                }
                 Event::Write(_, event) => match event {
-                    WriteEvent::CreateVault(buf) => {
-                        todo!("LOOKUP SECURE ACCESS KEY FOR VAULT");
-                    }
-
-                    /*
-                    WriteEvent::UpdateVault(buf) => {
-                        update_folders.push((folder.id(), buf))
-                    }
-                    */
-
-                    /*
-                    WriteEvent::DeleteVault => {
-                        delete_folders.push(folder.id())
-                    }
-                    */
                     _ => patch_events.push(event),
                 },
                 _ => {}
             }
         }
 
-        /*
         // New folders must go via the vaults service,
         // and must not be included in any patch events
         for (buf, secure_key) in create_folders {
-            self.create_folder(buf.as_ref(), secure_key)
+            self.create_folder(buf.as_ref(), &secure_key)
                 .await
                 .map_err(SyncError::One)?;
         }
-        */
 
-        /*
-        for (id, buf) in update_folders {
-            self.update_folder(id, buf.as_ref())
+        for (id, buf, secure_key) in update_folders {
+            self.update_folder(&id, buf.as_ref(), &secure_key)
                 .await
                 .map_err(SyncError::One)?;
         }
 
         for id in delete_folders {
-            self.delete_folder(id).await.map_err(SyncError::One)?;
+            self.delete_folder(&id).await.map_err(SyncError::One)?;
         }
-        */
 
         if !patch_events.is_empty() {
             self.patch(commit_state, folder, patch_events.as_slice())

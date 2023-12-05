@@ -269,7 +269,7 @@ impl BackendHandler for FileSystemBackend {
             return Err(Error::BadRequest);
         }
 
-        let (event, summary, _) = writer
+        let (_, summary, event) = writer
             .folders
             .import_vault(vault, None, secure_access_key)
             .await?;
@@ -324,7 +324,7 @@ impl BackendHandler for FileSystemBackend {
             .ok_or(Error::NoAccount(owner.to_owned()))?;
 
         let mut writer = account.write().await;
-        let (event, summary, _) = writer
+        let (_, summary, event) = writer
             .folders
             .import_vault(vault, None, secure_access_key)
             .await?;

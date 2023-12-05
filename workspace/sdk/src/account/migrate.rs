@@ -176,7 +176,7 @@ impl<D> Account<D> {
             .await?;
 
         let buffer = encode(&vault).await?;
-        let (event, summary, _) = {
+        let (_, summary, event) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             let key: AccessKey = vault_passphrase.clone().into();

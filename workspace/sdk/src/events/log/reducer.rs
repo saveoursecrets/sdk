@@ -2,12 +2,46 @@ use std::collections::HashMap;
 
 use crate::{
     commit::CommitHash,
-    crypto::AeadPack,
+    crypto::{AeadPack, SecureAccessKey},
     decode, encode,
-    events::{FolderEventLog, WriteEvent},
-    vault::{secret::SecretId, Vault, VaultCommit},
+    events::{AccountEvent, AccountEventLog, FolderEventLog, WriteEvent},
+    vault::{secret::SecretId, Vault, VaultCommit, VaultId},
     Error, Result,
 };
+
+/// Reduce account events to a collection of folders.
+pub struct AccountReducer<'a> {
+    log: &'a mut AccountEventLog,
+}
+
+impl<'a> AccountReducer<'a> {
+    /// Create a new account reducer.
+    pub fn new(log: &'a mut AccountEventLog) -> Self {
+        Self { log }
+    }
+
+    /// Reduce account events to the canonical collection
+    /// of folders.
+    pub async fn reduce(
+        mut self,
+    ) -> Result<HashMap<VaultId, SecureAccessKey>> {
+        let mut folders = HashMap::new();
+        let events = self.log.patch_until(None).await?;
+        for record in events {
+            let event = record.decode_event().await?;
+            match event {
+                AccountEvent::CreateFolder(id, secure_access_key)
+                | AccountEvent::UpdateFolder(id, secure_access_key)
+                | AccountEvent::ChangeFolderPassword(id, secure_access_key) =>
+                {
+                    folders.insert(id, secure_access_key);
+                }
+                _ => {}
+            }
+        }
+        Ok(folders)
+    }
+}
 
 /// Reduce log events to a vault.
 #[derive(Default)]

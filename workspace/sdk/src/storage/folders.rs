@@ -323,12 +323,11 @@ impl FolderStorage {
         events.push(Event::Write(*summary.id(), event));
 
         if let Some(archive_vault) = &account.archive {
-            let secure_key = account
-                .user
-                .find_secure_access_key(archive_vault.id())?;
+            let secure_key =
+                account.user.find_secure_access_key(archive_vault.id())?;
 
             let buffer = encode(archive_vault).await?;
-            let (event, summary, _) = self
+            let (_, summary, event) = self
                 .import_vault(
                     &buffer,
                     account.folder_keys.find(archive_vault.id()),
@@ -344,7 +343,7 @@ impl FolderStorage {
                 .find_secure_access_key(authenticator_vault.id())?;
 
             let buffer = encode(authenticator_vault).await?;
-            let (event, summary, _) = self
+            let (_, summary, event) = self
                 .import_vault(
                     &buffer,
                     account.folder_keys.find(authenticator_vault.id()),
@@ -355,11 +354,10 @@ impl FolderStorage {
         }
 
         if let Some(contact_vault) = &account.contacts {
-            let secure_key = account
-                .user
-                .find_secure_access_key(contact_vault.id())?;
+            let secure_key =
+                account.user.find_secure_access_key(contact_vault.id())?;
             let buffer = encode(contact_vault).await?;
-            let (event, summary, _) = self
+            let (_, summary, event) = self
                 .import_vault(
                     &buffer,
                     account.folder_keys.find(contact_vault.id()),
@@ -575,16 +573,13 @@ impl FolderStorage {
     }
 
     /// Read a vault from the file on disc.
-    pub(crate) async fn read_vault(
-        &self,
-        summary: &Summary,
-    ) -> Result<Vault> {
+    pub async fn read_vault(&self, summary: &Summary) -> Result<Vault> {
         let buffer = self.read_vault_file(summary).await?;
         Ok(decode(&buffer).await?)
     }
 
     /// Read the buffer for a vault from disc.
-    pub(crate) async fn read_vault_file(
+    pub async fn read_vault_file(
         &self,
         summary: &Summary,
     ) -> Result<Vec<u8>> {
@@ -704,21 +699,21 @@ impl FolderStorage {
         buffer: impl AsRef<[u8]>,
         key: Option<&AccessKey>,
         secure_key: SecureAccessKey,
-    ) -> Result<(WriteEvent, Summary, AccountEvent)> {
-        let (exists, create_event, summary) =
+    ) -> Result<(AccountEvent, Summary, WriteEvent)> {
+        let (exists, write_event, summary) =
             self.upsert_vault_buffer(buffer, key).await?;
 
         // If there is an existing folder
         // and we are overwriting then log the update
         // folder event
         let account_event = if exists {
-            AccountEvent::UpdateFolder(*summary.id())
+            AccountEvent::UpdateFolder(*summary.id(), secure_key)
         // Otherwise a create event
         } else {
             AccountEvent::CreateFolder(*summary.id(), secure_key)
         };
 
-        Ok((create_event, summary, account_event))
+        Ok((account_event, summary, write_event))
     }
 
     /// Remove a vault file and event log file.

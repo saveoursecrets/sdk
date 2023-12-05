@@ -13,7 +13,7 @@ pub use file::AccountEventLog;
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
 pub use file::{EventLogFile, FolderEventLog};
-pub use reducer::EventReducer;
+pub use reducer::{AccountReducer, EventReducer};
 
 /// Record for a row in the event log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]

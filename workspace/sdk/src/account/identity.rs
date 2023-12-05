@@ -237,7 +237,11 @@ impl Identity {
         &self,
         vault_id: &VaultId,
     ) -> Result<&SecureAccessKey> {
-        Ok(self.secure_keys.0.get(vault_id).ok_or(Error::NoSecureAccessKey(*vault_id))?)
+        Ok(self
+            .secure_keys
+            .0
+            .get(vault_id)
+            .ok_or(Error::NoSecureAccessKey(*vault_id))?)
     }
 
     /// Convert a secret key to a secure access key.

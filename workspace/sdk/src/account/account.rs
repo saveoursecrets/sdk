@@ -697,7 +697,7 @@ impl<D> Account<D> {
         let key: AccessKey = passphrase.into();
         let secure_key = self.user()?.to_secure_access_key(&key).await?;
 
-        let (buffer, _, summary, account_event) = {
+        let (buffer, event, summary, account_event) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer
@@ -718,13 +718,11 @@ impl<D> Account<D> {
         let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
 
-        let audit_event: AuditEvent =
-            (self.address(), &Event::Account(account_event)).into();
+        let audit_event: AuditEvent = (self.address(), &account_event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
         let event =
-            Event::Write(*summary.id(), WriteEvent::CreateVault(buffer));
-
+            Event::Folder(account_event, WriteEvent::CreateVault(buffer));
         Ok((summary, event, commit_state, secure_key))
     }
 
@@ -1009,7 +1007,7 @@ impl<D> Account<D> {
         let secure_key = self.user()?.to_secure_access_key(&key).await?;
 
         // Import the vault
-        let (_, summary, account_event) = {
+        let (account_event, summary, write_event) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer
@@ -1050,8 +1048,7 @@ impl<D> Account<D> {
             }
         }
 
-        let event = Event::Account(account_event.clone());
-        let audit_event: AuditEvent = (self.address(), &event).into();
+        let audit_event: AuditEvent = (self.address(), &account_event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
         let options = AccessOptions {
@@ -1060,6 +1057,8 @@ impl<D> Account<D> {
         };
         let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
+
+        let event = Event::Folder(account_event, write_event);
 
         Ok((summary, event, commit_state))
     }
