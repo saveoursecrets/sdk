@@ -2,7 +2,6 @@
 use crate::{
     client::{
         net::{MaybeRetry, RpcClient},
-        sync::SyncData,
         Error, RemoteSync, Result, SyncError, SyncOptions,
     },
     events::Patch,
@@ -19,7 +18,7 @@ use sos_sdk::{
     decode,
     events::{Event, WriteEvent},
     signer::ecdsa::BoxedEcdsaSigner,
-    storage::{FolderStorage, AccountStatus},
+    storage::{AccountStatus, FolderStorage},
     url::Url,
     vault::{Summary, VaultId},
     vfs,
@@ -142,6 +141,7 @@ impl RemoteBridge {
         let span = span!(Level::DEBUG, "create_account");
         let _enter = span.enter();
 
+        /*
         let (status, _) = retry!(
             || self.remote.create_account(buffer.clone()),
             self.remote
@@ -154,6 +154,9 @@ impl RemoteBridge {
             .then_some(())
             .ok_or(Error::ResponseCode(status.into()))?;
         Ok(())
+        */
+
+        todo!("restore create account");
     }
 
     /// Load all events from a remote event log.
@@ -181,13 +184,13 @@ impl RemoteBridge {
     async fn create_folder(
         &self,
         buffer: &[u8],
-        secure_key: Option<&SecureAccessKey>,
+        secure_key: &SecureAccessKey,
     ) -> Result<()> {
         let span = span!(Level::DEBUG, "import_folder");
         let _enter = span.enter();
 
         let (status, _) = retry!(
-            || self.remote.create_folder(buffer, secure_key.cloned()),
+            || self.remote.create_folder(buffer, secure_key),
             self.remote
         );
 
@@ -201,12 +204,19 @@ impl RemoteBridge {
     }
 
     /// Update a folder on the remote.
-    async fn update_folder(&self, id: &VaultId, buffer: &[u8]) -> Result<()> {
+    async fn update_folder(
+        &self,
+        id: &VaultId,
+        buffer: &[u8],
+        secure_access_key: &SecureAccessKey,
+    ) -> Result<()> {
         let span = span!(Level::DEBUG, "update_folder");
         let _enter = span.enter();
 
-        let (status, _) =
-            retry!(|| self.remote.update_folder(id, buffer), self.remote);
+        let (status, _) = retry!(
+            || self.remote.update_folder(id, buffer, secure_access_key),
+            self.remote
+        );
 
         tracing::debug!(status = %status);
 
@@ -407,6 +417,7 @@ impl RemoteBridge {
                 .collect()
         };
 
+        /*
         for folder in other_folders {
             let folder_buffer = {
                 let local = self.local.read().await;
@@ -416,6 +427,9 @@ impl RemoteBridge {
 
             self.create_folder(&folder_buffer, None).await?;
         }
+        */
+
+        todo!("handle creating folders with secure access key");
 
         // FIXME: import files here!
 
@@ -578,27 +592,18 @@ impl RemoteSync for RemoteBridge {
         folder: &Summary,
         commit_state: &CommitState,
         events: &[Event],
-        data: &[SyncData],
     ) -> std::result::Result<(), SyncError> {
         let events = events.to_vec();
         let mut patch_events = Vec::new();
-        let mut create_folders = Vec::new();
+        //let mut create_folders = Vec::new();
         //let mut update_folders = Vec::new();
         //let mut delete_folders = Vec::new();
 
         for (index, event) in events.into_iter().enumerate() {
-            let item = data.get(index);
             match event {
                 Event::Write(_, event) => match event {
                     WriteEvent::CreateVault(buf) => {
-                        if let Some(SyncData::CreateVault(secure_key)) = item
-                        {
-                            create_folders.push((buf, secure_key))
-                        } else {
-                            panic!(
-                                "sync data is required for create vault event"
-                            );
-                        }
+                        todo!("LOOKUP SECURE ACCESS KEY FOR VAULT");
                     }
 
                     /*
@@ -618,13 +623,15 @@ impl RemoteSync for RemoteBridge {
             }
         }
 
+        /*
         // New folders must go via the vaults service,
         // and must not be included in any patch events
         for (buf, secure_key) in create_folders {
-            self.create_folder(buf.as_ref(), Some(secure_key))
+            self.create_folder(buf.as_ref(), secure_key)
                 .await
                 .map_err(SyncError::One)?;
         }
+        */
 
         /*
         for (id, buf) in update_folders {
@@ -715,11 +722,8 @@ mod listen {
             let mut actions = Vec::new();
             for event in change.changes() {
                 let action = match event {
-                    ChangeEvent::CreateVault(summary, secure_key) => {
-                        ChangeAction::Create(
-                            summary.clone(),
-                            secure_key.clone(),
-                        )
+                    ChangeEvent::CreateVault(summary) => {
+                        ChangeAction::Create(summary.clone())
                     }
                     ChangeEvent::UpdateVault(summary) => {
                         ChangeAction::Update(summary.clone())
@@ -900,12 +904,12 @@ mod listen {
                             .send(*summary.id())
                             .await?;
                     }
-                    (ChangeAction::Create(folder, secure_key), None) => {
+                    (ChangeAction::Create(folder), None) => {
                         Self::create_or_update_folder(
                             Arc::clone(&bridge),
                             folder,
                             folder_exists,
-                            secure_key,
+                            None,
                             Arc::clone(&remote_bridge_tx),
                             Arc::clone(&remote_bridge_rx),
                         )

@@ -6,13 +6,6 @@ use sos_sdk::{
 };
 use std::any::Any;
 
-/// Additional sync data.
-pub enum SyncData {
-    /// Secure access key needs to be sent
-    /// along with the create vault event.
-    CreateVault(SecureAccessKey),
-}
-
 /// Enumeration of error types that can be returned
 /// from a sync operation.
 pub enum SyncError {
@@ -62,7 +55,6 @@ pub trait RemoteSync: Sync + Send + Any {
         folder: &Summary,
         commit_state: &CommitState,
         events: &[Event],
-        data: &[SyncData],
     ) -> std::result::Result<(), SyncError>;
 
     /// Cast to the Any trait.

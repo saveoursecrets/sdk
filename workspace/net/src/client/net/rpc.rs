@@ -310,7 +310,8 @@ impl RpcClient {
     /// Create a new account.
     pub async fn create_account(
         &self,
-        vault: Vec<u8>,
+        vault: impl AsRef<[u8]>,
+        secure_access_key: &SecureAccessKey,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.origin.url.join("api/account")?;
 
@@ -318,8 +319,8 @@ impl RpcClient {
         let request = RequestMessage::new(
             Some(id),
             ACCOUNT_CREATE,
-            (),
-            Cow::Owned(vault),
+            secure_access_key,
+            Cow::Borrowed(vault.as_ref()),
         )?;
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
@@ -362,7 +363,7 @@ impl RpcClient {
     pub async fn create_folder(
         &self,
         vault: impl AsRef<[u8]>,
-        secure_key: Option<SecureAccessKey>,
+        secure_key: &SecureAccessKey,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.origin.url.join("api/vault")?;
         let id = self.next_id().await;
@@ -422,6 +423,7 @@ impl RpcClient {
         &self,
         vault_id: &VaultId,
         vault: impl AsRef<[u8]>,
+        secure_access_key: &SecureAccessKey,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let vault_id = *vault_id;
         let url = self.origin.url.join("api/vault")?;
@@ -429,7 +431,7 @@ impl RpcClient {
         let request = RequestMessage::new(
             Some(id),
             VAULT_SAVE,
-            vault_id,
+            (vault_id, secure_access_key),
             Cow::Borrowed(vault.as_ref()),
         )?;
         let packet = Packet::new_request(request);

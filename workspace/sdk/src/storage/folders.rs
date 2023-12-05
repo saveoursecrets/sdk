@@ -6,14 +6,13 @@ use crate::{
     crypto::{AccessKey, SecureAccessKey},
     decode, encode,
     events::{
-        AccountEventLog, AuditEvent, Event, EventKind, EventReducer,
-        FolderEventLog, ReadEvent, WriteEvent, AccountEvent,
+        AccountEvent, AccountEventLog, AuditEvent, Event, EventKind,
+        EventReducer, FolderEventLog, ReadEvent, WriteEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
     storage::{
-        AccountStatus,
         search::{AccountSearch, DocumentCount, SearchIndex},
-        AccessOptions,
+        AccessOptions, AccountStatus,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
@@ -324,8 +323,8 @@ impl FolderStorage {
         events.push(Event::Write(*summary.id(), event));
 
         if let Some(archive_vault) = &account.archive {
-            let secure_key = account.user.secure_access_key(
-                archive_vault.id()).await?;
+            let secure_key =
+                account.user.secure_access_key(archive_vault.id()).await?;
 
             let buffer = encode(archive_vault).await?;
             let (event, summary, _) = self
@@ -339,8 +338,10 @@ impl FolderStorage {
         }
 
         if let Some(authenticator_vault) = &account.authenticator {
-            let secure_key = account.user.secure_access_key(
-                authenticator_vault.id()).await?;
+            let secure_key = account
+                .user
+                .secure_access_key(authenticator_vault.id())
+                .await?;
 
             let buffer = encode(authenticator_vault).await?;
             let (event, summary, _) = self
@@ -354,8 +355,8 @@ impl FolderStorage {
         }
 
         if let Some(contact_vault) = &account.contacts {
-            let secure_key = account.user.secure_access_key(
-                contact_vault.id()).await?;
+            let secure_key =
+                account.user.secure_access_key(contact_vault.id()).await?;
             let buffer = encode(contact_vault).await?;
             let (event, summary, _) = self
                 .import_vault(
@@ -715,7 +716,7 @@ impl FolderStorage {
         } else {
             AccountEvent::CreateFolder(*summary.id(), secure_key)
         };
-        
+
         Ok((create_event, summary, account_event))
     }
 
@@ -841,7 +842,11 @@ impl FolderStorage {
         // Initialize the local cache for event log
         self.create_cache_entry(&summary, Some(vault)).await?;
 
-        Ok((exists, WriteEvent::CreateVault(buffer.as_ref().to_owned()), summary))
+        Ok((
+            exists,
+            WriteEvent::CreateVault(buffer.as_ref().to_owned()),
+            summary,
+        ))
     }
 
     /// Update an existing vault by replacing it with a new vault.
@@ -1084,7 +1089,6 @@ impl FolderStorage {
         new_key: AccessKey,
         secure_access_key: SecureAccessKey,
     ) -> Result<AccessKey> {
-
         let account_event = AccountEvent::ChangeFolderPassword(
             *vault.id(),
             secure_access_key,

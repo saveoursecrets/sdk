@@ -4,6 +4,7 @@ use sos_sdk::{
     account::UserPaths,
     commit::{event_log_commit_tree_file, CommitProof},
     constants::{EVENT_LOG_EXT, VAULT_EXT},
+    crypto::SecureAccessKey,
     decode, encode,
     events::WriteEvent,
     events::{EventReducer, FolderEventLog},
@@ -74,6 +75,7 @@ pub trait BackendHandler {
         owner: &Address,
         vault_id: &VaultId,
         vault: &[u8],
+        secure_access_key: SecureAccessKey,
     ) -> Result<(WriteEvent, CommitProof)>;
 
     // TODO: support account deletion
@@ -89,6 +91,7 @@ pub trait BackendHandler {
         &mut self,
         owner: &Address,
         vault: &'a [u8],
+        secure_access_key: SecureAccessKey,
     ) -> Result<(WriteEvent, CommitProof)>;
 
     /// Create a folder.
@@ -97,6 +100,7 @@ pub trait BackendHandler {
         owner: &Address,
         vault_id: &VaultId,
         vault: &[u8],
+        secure_access_key: SecureAccessKey,
     ) -> Result<(WriteEvent, CommitProof)>;
 
     /// Delete a folder.
@@ -196,6 +200,7 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault_id: &VaultId,
         vault: &[u8],
+        secure_access_key: SecureAccessKey,
     ) -> Result<(WriteEvent, CommitProof)> {
         {
             let accounts = self.accounts.read().await;
@@ -226,8 +231,10 @@ impl BackendHandler for FileSystemBackend {
             .or_insert(Arc::new(RwLock::new(account)));
         let mut writer = account.write().await;
 
-        let (event, summary) =
-            writer.folders.import_vault(vault, None).await?;
+        let (event, summary, _) = writer
+            .folders
+            .import_vault(vault, None, secure_access_key)
+            .await?;
 
         tracing::debug!(folder_id = %summary.id());
 
@@ -242,6 +249,7 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault_id: &VaultId,
         vault: &[u8],
+        secure_access_key: SecureAccessKey,
     ) -> Result<(WriteEvent, CommitProof)> {
         let accounts = self.accounts.read().await;
         let account = accounts
@@ -261,8 +269,10 @@ impl BackendHandler for FileSystemBackend {
             return Err(Error::BadRequest);
         }
 
-        let (event, summary) =
-            writer.folders.import_vault(vault, None).await?;
+        let (event, summary, _) = writer
+            .folders
+            .import_vault(vault, None, secure_access_key)
+            .await?;
         let (_, proof) = writer.folders.commit_state(&summary).await?;
 
         Ok((event, proof))
@@ -306,6 +316,7 @@ impl BackendHandler for FileSystemBackend {
         &mut self,
         owner: &Address,
         vault: &'a [u8],
+        secure_access_key: SecureAccessKey,
     ) -> Result<(WriteEvent, CommitProof)> {
         let accounts = self.accounts.read().await;
         let account = accounts
@@ -313,8 +324,10 @@ impl BackendHandler for FileSystemBackend {
             .ok_or(Error::NoAccount(owner.to_owned()))?;
 
         let mut writer = account.write().await;
-        let (event, summary) =
-            writer.folders.import_vault(vault, None).await?;
+        let (event, summary, _) = writer
+            .folders
+            .import_vault(vault, None, secure_access_key)
+            .await?;
 
         let (_, proof) = writer.folders.commit_state(&summary).await?;
         Ok((event, proof))

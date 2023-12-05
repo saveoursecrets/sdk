@@ -1,39 +1,85 @@
-use crate::test_utils::{setup, signup, spawn, teardown};
+use crate::test_utils::{setup, spawn, teardown};
 use anyhow::Result;
 use http::StatusCode;
+use secrecy::SecretString;
 use sos_net::{
-    client::RpcClient,
-    mpc::generate_keypair,
-    sdk::{encode, vault::Vault},
+    client::{HostedOrigin, RemoteBridge, RemoteSync, RpcClient},
+    mpc::{generate_keypair, Keypair, PATTERN},
+    sdk::{
+        crypto::{AccessKey, SecureAccessKey},
+        encode,
+        passwd::diceware::generate_passphrase,
+        signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
+        storage::FolderStorage,
+        vault::{Vault, VaultBuilder},
+    },
 };
+use std::{path::PathBuf, sync::Arc};
+use tokio::sync::RwLock;
 
 const TEST_ID: &str = "rpc_session";
 
-#[tokio::test]
-async fn integration_rpc_session() -> Result<()> {
-    //crate::test_utils::init_tracing();
+/// Helper to convert a folder password into
+/// a secure access key.
+async fn to_secure_key(
+    signer: &BoxedEcdsaSigner,
+    folder_password: &SecretString,
+) -> Result<SecureAccessKey> {
+    let secret_key = signer.to_bytes();
+    let access_key: AccessKey = folder_password.clone().into();
+    Ok(SecureAccessKey::encrypt(&access_key, &secret_key, None).await?)
+}
 
-    let mut dirs = setup(TEST_ID, 1).await?;
-    let test_data_dir = dirs.clients.remove(0);
+async fn create_rpc_client(
+    data_dir: PathBuf,
+    origin: &HostedOrigin,
+) -> Result<(RpcClient, BoxedEcdsaSigner)> {
+    let signer: BoxedEcdsaSigner = Box::new(SingleParty::new_random());
 
-    let server = spawn(TEST_ID, None, None).await?;
+    // Set up local storage in case we need to use it
+    FolderStorage::new_client(signer.address()?.to_string(), Some(data_dir))
+        .await?;
 
-    let (_address, _credentials, _, signer) =
-        signup(test_data_dir, &server.origin).await?;
-
-    let origin = server.origin.clone();
-    let client = RpcClient::new(origin, signer, generate_keypair()?)?;
+    let address = signer.address()?;
+    let client =
+        RpcClient::new(origin.clone(), signer.clone(), generate_keypair()?)?;
 
     client.handshake().await?;
 
     // Noise protocol transport should be ready
     assert!(client.is_transport_ready().await);
 
-    let vault: Vault = Default::default();
+    Ok((client, signer))
+}
+
+#[tokio::test]
+async fn integration_rpc_session() -> Result<()> {
+    //crate::test_utils::init_tracing();
+
+    let mut dirs = setup(TEST_ID, 1).await?;
+    let data_dir = dirs.clients.remove(0);
+
+    let server = spawn(TEST_ID, None, None).await?;
+
+    let origin = server.origin.clone();
+    let (client, signer) =
+        create_rpc_client(data_dir, &server.origin).await?;
+
+    let (folder_password, _) = generate_passphrase()?;
+    let secure_key = to_secure_key(&signer, &folder_password).await?;
+
+    let vault = VaultBuilder::new().password(folder_password, None).await?;
+
     let body = encode(&vault).await?;
 
-    // Try to create a new account
-    let (status, _) = client.create_account(body).await?.unwrap();
+    // Create an account on the remote
+    let (status, _) =
+        client.create_account(&body, &secure_key).await?.unwrap();
+    assert_eq!(StatusCode::OK, status);
+
+    // Try to create the same account again
+    let (status, _) =
+        client.create_account(&body, &secure_key).await?.unwrap();
     assert_eq!(StatusCode::CONFLICT, status);
 
     // List folders for the account
@@ -45,11 +91,16 @@ async fn integration_rpc_session() -> Result<()> {
     let (_, account_status) = client.account_status().await?.unwrap();
     assert!(account_status.is_some());
 
-    let mut vault: Vault = Default::default();
+    let (folder_password, _) = generate_passphrase()?;
+    let secure_key = to_secure_key(&signer, &folder_password).await?;
+
+    let mut vault =
+        VaultBuilder::new().password(folder_password, None).await?;
     vault.set_name(String::from("Mock vault"));
     let body = encode(&vault).await?;
 
-    let (status, proof) = client.create_folder(&body, None).await?.unwrap();
+    let (status, proof) =
+        client.create_folder(&body, &secure_key).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 
@@ -61,8 +112,10 @@ async fn integration_rpc_session() -> Result<()> {
     let name = "New vault name";
     vault.set_name(String::from(name));
     let body = encode(&vault).await?;
-    let (status, proof) =
-        client.update_folder(vault.id(), body).await?.unwrap();
+    let (status, proof) = client
+        .update_folder(vault.id(), body, &secure_key)
+        .await?
+        .unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 

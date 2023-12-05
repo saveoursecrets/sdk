@@ -53,40 +53,6 @@ pub async fn sync_pause() {
     tokio::time::sleep(Duration::from_millis(200)).await;
 }
 
-/// Create a remote provider for the given signing key.
-async fn remote_bridge(
-    origin: &HostedOrigin,
-    signer: BoxedEcdsaSigner,
-    data_dir: Option<PathBuf>,
-) -> Result<RemoteBridge> {
-    let keypair = Keypair::new(PATTERN.parse()?)?;
-    let local =
-        FolderStorage::new_client(signer.address()?.to_string(), data_dir)
-            .await?;
-    let provider = RemoteBridge::new(
-        Arc::new(RwLock::new(local)),
-        origin.clone(),
-        signer,
-        keypair,
-    )?;
-
-    // Noise protocol handshake
-    provider.handshake().await?;
-
-    Ok(provider)
-}
-
-/// Encapsulates the credentials for a new account signup.
-pub struct AccountCredentials {
-    /// Passphrase for the vault encryption.
-    pub encryption_passphrase: AccessKey,
-    /// Address of the signing key.
-    pub address: Address,
-    /// Summary that represents the login vault
-    /// created when the account was created.
-    pub summary: Summary,
-}
-
 /// Convert a socket address to a URL.
 fn socket_addr_url(addr: &SocketAddr) -> Url {
     let server = format!("http://{}:{}", addr.ip(), addr.port());
@@ -307,35 +273,6 @@ pub async fn delete_secret(
     Ok(())
 }
 */
-
-pub async fn signup(
-    data_dir: PathBuf,
-    origin: &HostedOrigin,
-) -> Result<(Address, AccountCredentials, RemoteBridge, BoxedEcdsaSigner)> {
-    let signer: BoxedEcdsaSigner = Box::new(SingleParty::new_random());
-
-    let address = signer.address()?;
-    let provider =
-        remote_bridge(origin, signer.clone(), Some(data_dir)).await?;
-
-    let (encryption_passphrase, summary) = {
-        let local_provider = provider.local();
-        let mut local_writer = local_provider.write().await;
-        let (_, encryption_passphrase, summary) =
-            local_writer.create_account(None, None).await?;
-        (encryption_passphrase, summary)
-    };
-
-    assert!(provider.sync().await.is_none());
-
-    let credentials = AccountCredentials {
-        encryption_passphrase,
-        address,
-        summary,
-    };
-
-    Ok((address, credentials, provider, signer))
-}
 
 /// Clean up test resources on disc.
 pub async fn teardown(test_id: &str) {

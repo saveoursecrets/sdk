@@ -457,7 +457,7 @@ impl<D> Account<D> {
 
         // Signing key for the storage provider
         let signer = user.identity()?.signer().clone();
-        
+
         let mut storage = FolderStorage::new_client(
             signer.address()?.to_string(),
             Some(data_dir),
@@ -469,7 +469,11 @@ impl<D> Account<D> {
         storage.set_file_password(Some(file_password));
 
         Self::initialize_account_log(
-            &*self.paths, storage.account_log(), &user).await?;
+            &*self.paths,
+            storage.account_log(),
+            &user,
+        )
+        .await?;
 
         self.authenticated = Some(Authenticated {
             user,
@@ -499,7 +503,6 @@ impl<D> Account<D> {
         // adding create folder events for every folder that
         // already exists
         if needs_init {
-
             let folders: Vec<Summary> =
                 Self::list_local_folders(paths, false)
                     .await?
@@ -700,8 +703,9 @@ impl<D> Account<D> {
         let (buffer, _, summary, account_event) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.create_folder(
-                name, secure_key.clone(), Some(key.clone())).await?
+            writer
+                .create_folder(name, secure_key.clone(), Some(key.clone()))
+                .await?
         };
 
         // Must save the password before getting the secure access key
@@ -716,7 +720,7 @@ impl<D> Account<D> {
 
         let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
-        
+
         let audit_event: AuditEvent =
             (self.address(), &Event::Account(account_event)).into();
         self.append_audit_logs(vec![audit_event]).await?;
@@ -749,9 +753,8 @@ impl<D> Account<D> {
             .await?;
 
         let account_event = events.get(0).unwrap();
-        
-        let audit_event: AuditEvent =
-            (self.address(), account_event).into();
+
+        let audit_event: AuditEvent = (self.address(), account_event).into();
         self.append_audit_logs(vec![audit_event]).await?;
 
         Ok((events, commit_state))
@@ -1012,8 +1015,9 @@ impl<D> Account<D> {
         let (_, summary, account_event) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.import_vault(
-                buffer.as_ref(), Some(&key), secure_key).await?
+            writer
+                .import_vault(buffer.as_ref(), Some(&key), secure_key)
+                .await?
         };
 
         // If we are overwriting then we must remove the existing
@@ -1458,12 +1462,17 @@ impl<D> Account<D> {
             let reader = storage.read().await;
             reader.read_vault(folder).await?
         };
-        
+
         {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer
-                .change_password(&vault, current_key, new_key.clone(), secure_access_key)
+                .change_password(
+                    &vault,
+                    current_key,
+                    new_key.clone(),
+                    secure_access_key,
+                )
                 .await?;
         }
 
@@ -1471,7 +1480,7 @@ impl<D> Account<D> {
         self.user_mut()?
             .save_folder_password(folder.id(), new_key)
             .await?;
-        
+
         Ok(())
     }
 

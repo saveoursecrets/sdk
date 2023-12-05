@@ -38,8 +38,8 @@ use super::device::DeviceManager;
 
 use super::sync::{SyncHandler, SyncHandlerData};
 use crate::client::{
-    sync::SyncData, HostedOrigin, Origin, Remote, RemoteBridge, RemoteSync,
-    Remotes, Result, SyncError,
+    HostedOrigin, Origin, Remote, RemoteBridge, RemoteSync, Remotes, Result,
+    SyncError,
 };
 
 pub(super) type LocalAccount = Account<SyncHandlerData>;
@@ -398,12 +398,7 @@ impl NetworkAccount {
             self.account.create_folder(name).await?;
 
         let sync_error = self
-            .sync_send_events(
-                &summary,
-                &commit_state,
-                &[event],
-                &[SyncData::CreateVault(secure_key)],
-            )
+            .sync_send_events(&summary, &commit_state, &[event])
             .await
             .err();
 
@@ -421,7 +416,7 @@ impl NetworkAccount {
             self.account.delete_folder(summary).await?;
 
         let sync_error = self
-            .sync_send_events(&summary, &commit_state, &events, &[])
+            .sync_send_events(&summary, &commit_state, &events)
             .await
             .err();
 
@@ -440,7 +435,7 @@ impl NetworkAccount {
             self.account.rename_folder(summary, name).await?;
 
         let sync_error = self
-            .sync_send_events(&summary, &commit_state, &[event], &[])
+            .sync_send_events(&summary, &commit_state, &[event])
             .await
             .err();
 
@@ -500,7 +495,7 @@ impl NetworkAccount {
             .await?;
 
         let sync_error = self
-            .sync_send_events(&summary, &commit_state, &[event], &[])
+            .sync_send_events(&summary, &commit_state, &[event])
             .await
             .err();
 
@@ -533,7 +528,7 @@ impl NetworkAccount {
             self.account.create_secret(meta, secret, options).await?;
 
         let sync_error = self
-            .sync_send_events(&folder, &commit_state, &[event], &[])
+            .sync_send_events(&folder, &commit_state, &[event])
             .await
             .err();
 
@@ -571,7 +566,7 @@ impl NetworkAccount {
             .await?;
 
         let sync_error = self
-            .sync_send_events(&folder, &commit_state, &[event], &[])
+            .sync_send_events(&folder, &commit_state, &[event])
             .await
             .err();
 
@@ -595,7 +590,7 @@ impl NetworkAccount {
             .await?;
 
         let sync_error = self
-            .sync_send_events(&folder, &commit_state, &[event], &[])
+            .sync_send_events(&folder, &commit_state, &[event])
             .await
             .err();
 
@@ -629,7 +624,7 @@ impl NetworkAccount {
             self.account.delete_secret(secret_id, options).await?;
 
         let sync_error = self
-            .sync_send_events(&folder, &commit_state, &[event], &[])
+            .sync_send_events(&folder, &commit_state, &[event])
             .await
             .err();
 

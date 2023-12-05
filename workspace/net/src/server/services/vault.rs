@@ -44,8 +44,7 @@ impl Service for VaultService {
 
         match request.method() {
             VAULT_CREATE => {
-                let secure_key =
-                    request.parameters::<Option<SecureAccessKey>>()?;
+                let secure_key = request.parameters::<SecureAccessKey>()?;
 
                 // Check it looks like a vault payload
                 let summary =
@@ -70,6 +69,7 @@ impl Service for VaultService {
                             caller.address(),
                             summary.id(),
                             request.body(),
+                            secure_key,
                         )
                         .await?;
 
@@ -84,7 +84,7 @@ impl Service for VaultService {
                         caller.public_key(),
                         &vault_id,
                         proof,
-                        vec![ChangeEvent::CreateVault(summary, secure_key)],
+                        vec![ChangeEvent::CreateVault(summary)],
                     );
 
                     let event = Event::Write(vault_id, sync_event);
@@ -154,7 +154,8 @@ impl Service for VaultService {
                 Ok(reply)
             }
             VAULT_SAVE => {
-                let vault_id = request.parameters::<Uuid>()?;
+                let (vault_id, secure_access_key) =
+                    request.parameters::<(Uuid, SecureAccessKey)>()?;
 
                 // Check it looks like a vault payload
                 let summary =
@@ -180,7 +181,11 @@ impl Service for VaultService {
                 let mut writer = backend.write().await;
                 let (sync_event, proof) = writer
                     .handler_mut()
-                    .import_folder(caller.address(), request.body())
+                    .import_folder(
+                        caller.address(),
+                        request.body(),
+                        secure_access_key,
+                    )
                     .await?;
 
                 let reply: ResponseMessage<'_> =

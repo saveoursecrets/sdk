@@ -204,10 +204,8 @@ impl Identity {
         folder_password: &AccessKey,
     ) -> Result<SecureAccessKey> {
         let secret_key = self.signing_key()?.to_bytes();
-        Ok(
-            SecureAccessKey::encrypt(folder_password, &secret_key, None)
-                .await?,
-        )
+        Ok(SecureAccessKey::encrypt(folder_password, &secret_key, None)
+            .await?)
     }
 
     /// Find a folder password in an identity vault.

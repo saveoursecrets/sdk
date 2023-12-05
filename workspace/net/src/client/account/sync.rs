@@ -1,7 +1,7 @@
 //! Adds sync capability to network account.
 use crate::client::{
-    sync::SyncData, Error, NetworkAccount, RemoteSync, Remotes, Result,
-    SyncError, SyncOptions,
+    Error, NetworkAccount, RemoteSync, Remotes, Result, SyncError,
+    SyncOptions,
 };
 use async_trait::async_trait;
 use sos_sdk::{
@@ -170,15 +170,13 @@ impl RemoteSync for NetworkAccount {
         folder: &Summary,
         commit_state: &CommitState,
         events: &[Event],
-        data: &[SyncData],
     ) -> std::result::Result<(), SyncError> {
         let _ = self.sync_lock.lock().await;
         let mut errors = Vec::new();
         let remotes = self.remotes.read().await;
         for (origin, remote) in &*remotes {
-            if let Err(e) = remote
-                .sync_send_events(folder, commit_state, events, data)
-                .await
+            if let Err(e) =
+                remote.sync_send_events(folder, commit_state, events).await
             {
                 match e {
                     SyncError::One(e) => errors.push((origin.clone(), e)),

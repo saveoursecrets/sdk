@@ -1,7 +1,10 @@
 //! Folder storage backed by the file system.
-use crate::{vault::{Summary, VaultId}, commit::{CommitProof, CommitState}};
+use crate::{
+    commit::{CommitProof, CommitState},
+    vault::{Summary, VaultId},
+};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 use tokio::sync::mpsc;
 
 #[cfg(feature = "files")]
@@ -26,7 +29,6 @@ pub struct AccountStatus {
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub proofs: HashMap<VaultId, CommitState>,
 }
-
 
 /// Options used when accessing account data.
 #[derive(Default, Clone)]

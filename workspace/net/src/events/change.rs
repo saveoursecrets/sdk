@@ -78,9 +78,7 @@ impl ChangeNotification {
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum ChangeEvent {
     /// Event emitted when a vault is created.
-    // TODO: use the SecureAccessKey stored in the account event log instead
-    #[deprecated(note = "we must remove SecureAccessKey from this variant")]
-    CreateVault(Summary, Option<SecureAccessKey>),
+    CreateVault(Summary),
     /// Event emitted when a vault is updated.
     ///
     /// This event can occur when a vault is imported
@@ -111,7 +109,7 @@ impl ChangeEvent {
                     let summary = Header::read_summary_slice(vault)
                         .await
                         .expect("failed to read summary from vault");
-                    Some(ChangeEvent::CreateVault(summary, None))
+                    Some(ChangeEvent::CreateVault(summary))
                 }
                 //WriteEvent::DeleteVault => Some(ChangeEvent::DeleteVault),
                 WriteEvent::SetVaultName(name) => {
@@ -141,7 +139,7 @@ impl ChangeEvent {
             WriteEvent::CreateVault(vault) => {
                 let summary =
                     Header::read_summary_slice(vault.as_ref()).await?;
-                Ok(ChangeEvent::CreateVault(summary, None))
+                Ok(ChangeEvent::CreateVault(summary))
             }
             //WriteEvent::DeleteVault => Ok(ChangeEvent::DeleteVault),
             WriteEvent::SetVaultName(name) => {
@@ -172,8 +170,7 @@ pub enum ChangeAction {
     /// Vaults was created on a remote node and the
     /// local node has fetched the vault summary
     /// and added it to it's local state.
-    #[deprecated(note = "we must remove SecureAccessKey from this variant")]
-    Create(Summary, Option<SecureAccessKey>),
+    Create(Summary),
 
     /// Vault was updated on a remote node and the
     /// local node has fetched the vault summary
