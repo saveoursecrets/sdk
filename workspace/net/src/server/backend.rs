@@ -92,7 +92,7 @@ pub trait BackendHandler {
         owner: &Address,
         vault: &'a [u8],
         secure_access_key: SecureAccessKey,
-    ) -> Result<(WriteEvent, CommitProof)>;
+    ) -> Result<(Event, CommitProof)>;
 
     /// Create a folder.
     async fn create_folder(
@@ -101,7 +101,7 @@ pub trait BackendHandler {
         vault_id: &VaultId,
         vault: &[u8],
         secure_access_key: SecureAccessKey,
-    ) -> Result<(WriteEvent, CommitProof)>;
+    ) -> Result<(Event, CommitProof)>;
 
     /// Delete a folder.
     async fn delete_folder(
@@ -249,7 +249,7 @@ impl BackendHandler for FileSystemBackend {
         vault_id: &VaultId,
         vault: &[u8],
         secure_access_key: SecureAccessKey,
-    ) -> Result<(WriteEvent, CommitProof)> {
+    ) -> Result<(Event, CommitProof)> {
         let accounts = self.accounts.read().await;
         let account = accounts
             .get(owner)
@@ -268,13 +268,13 @@ impl BackendHandler for FileSystemBackend {
             return Err(Error::BadRequest);
         }
 
-        let (_, summary, event) = writer
+        let (account_event, summary, write_event) = writer
             .folders
             .import_vault(vault, None, secure_access_key)
             .await?;
         let (_, proof) = writer.folders.commit_state(&summary).await?;
 
-        Ok((event, proof))
+        Ok((Event::Folder(account_event, write_event), proof))
     }
 
     async fn delete_folder(
@@ -316,20 +316,20 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault: &'a [u8],
         secure_access_key: SecureAccessKey,
-    ) -> Result<(WriteEvent, CommitProof)> {
+    ) -> Result<(Event, CommitProof)> {
         let accounts = self.accounts.read().await;
         let account = accounts
             .get(owner)
             .ok_or(Error::NoAccount(owner.to_owned()))?;
 
         let mut writer = account.write().await;
-        let (_, summary, event) = writer
+        let (account_event, summary, write_event) = writer
             .folders
             .import_vault(vault, None, secure_access_key)
             .await?;
 
         let (_, proof) = writer.folders.commit_state(&summary).await?;
-        Ok((event, proof))
+        Ok((Event::Folder(account_event, write_event), proof))
     }
 
     async fn folder_exists(

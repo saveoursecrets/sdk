@@ -85,7 +85,7 @@ impl Service for AccountService {
                     caller.public_key(),
                     &vault_id,
                     proof,
-                    vec![ChangeEvent::CreateVault(summary)],
+                    vec![ChangeEvent::CreateFolder(event.clone())],
                 );
 
                 let log: AuditEvent = (caller.address(), &event).into();

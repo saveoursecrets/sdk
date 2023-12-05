@@ -1,9 +1,10 @@
 //! Event for operations at the account level.
 use super::{EventKind, LogEvent};
 use crate::{crypto::SecureAccessKey, vault::VaultId};
+use serde::{Deserialize, Serialize};
 
 /// Events generated in the context of an account.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum AccountEvent {
     #[default]
     #[doc(hidden)]

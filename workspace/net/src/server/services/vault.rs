@@ -63,7 +63,7 @@ impl Service for VaultService {
                         .try_into()?)
                 } else {
                     let mut writer = backend.write().await;
-                    let (sync_event, proof) = writer
+                    let (event, proof) = writer
                         .handler_mut()
                         .create_folder(
                             caller.address(),
@@ -84,10 +84,9 @@ impl Service for VaultService {
                         caller.public_key(),
                         &vault_id,
                         proof,
-                        vec![ChangeEvent::CreateVault(summary)],
+                        vec![ChangeEvent::CreateFolder(event.clone())],
                     );
 
-                    let event = Event::Write(vault_id, sync_event);
                     let log: AuditEvent = (caller.address(), &event).into();
 
                     {
@@ -179,7 +178,7 @@ impl Service for VaultService {
                 }
 
                 let mut writer = backend.write().await;
-                let (sync_event, proof) = writer
+                let (event, proof) = writer
                     .handler_mut()
                     .import_folder(
                         caller.address(),
@@ -199,10 +198,9 @@ impl Service for VaultService {
                     caller.public_key(),
                     &vault_id,
                     proof,
-                    vec![ChangeEvent::UpdateVault(summary)],
+                    vec![ChangeEvent::UpdateFolder(event.clone())],
                 );
 
-                let event = Event::Write(vault_id, sync_event);
                 let log: AuditEvent = (caller.address(), &event).into();
 
                 {

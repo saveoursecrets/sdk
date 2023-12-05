@@ -362,7 +362,7 @@ impl FolderStorage {
         secure_key: SecureAccessKey,
     ) -> Result<(Event, Summary)> {
         let (account_event, summary, write_event) =
-            self.import_vault(buffer, None, secure_key.clone()).await?;
+            self.import_vault(buffer, None, secure_key).await?;
         Ok((Event::Folder(account_event, write_event), summary))
     }
 

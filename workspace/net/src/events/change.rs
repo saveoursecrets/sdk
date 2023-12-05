@@ -77,15 +77,15 @@ impl ChangeNotification {
 /// Server notifications sent over the server sent events stream.
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum ChangeEvent {
-    /// Event emitted when a vault is created.
-    CreateVault(Summary),
+    /// Event emitted when a folder is created.
+    CreateFolder(Event),
     /// Event emitted when a vault is updated.
     ///
     /// This event can occur when a vault is imported
     /// that overwrites an existing vault or if the
     /// vault is compacted or the password changed (which
     /// requires re-writing the event log).
-    UpdateVault(Summary),
+    UpdateFolder(Event),
     /// Event emitted when a vault is deleted.
     DeleteVault,
     /// Event emitted when a vault name is set.
@@ -101,47 +101,9 @@ pub enum ChangeEvent {
 }
 
 impl ChangeEvent {
-    /// Convert from a sync event.
-    pub async fn from_sync_event(event: &Event) -> Option<Self> {
-        match event {
-            Event::Write(_, event) => match event {
-                WriteEvent::CreateVault(vault) => {
-                    let summary = Header::read_summary_slice(vault)
-                        .await
-                        .expect("failed to read summary from vault");
-                    Some(ChangeEvent::CreateVault(summary))
-                }
-                //WriteEvent::DeleteVault => Some(ChangeEvent::DeleteVault),
-                WriteEvent::SetVaultName(name) => {
-                    Some(ChangeEvent::SetVaultName(name.to_string()))
-                }
-                WriteEvent::SetVaultMeta(_) => {
-                    Some(ChangeEvent::SetVaultMeta)
-                }
-                WriteEvent::CreateSecret(secret_id, _) => {
-                    Some(ChangeEvent::CreateSecret(*secret_id))
-                }
-                WriteEvent::UpdateSecret(secret_id, _) => {
-                    Some(ChangeEvent::UpdateSecret(*secret_id))
-                }
-                WriteEvent::DeleteSecret(secret_id) => {
-                    Some(ChangeEvent::DeleteSecret(*secret_id))
-                }
-                _ => None,
-            },
-            _ => None,
-        }
-    }
-
     /// Convert from a write operation.
     pub async fn try_from_write_event(event: &WriteEvent) -> Result<Self> {
         match event {
-            WriteEvent::CreateVault(vault) => {
-                let summary =
-                    Header::read_summary_slice(vault.as_ref()).await?;
-                Ok(ChangeEvent::CreateVault(summary))
-            }
-            //WriteEvent::DeleteVault => Ok(ChangeEvent::DeleteVault),
             WriteEvent::SetVaultName(name) => {
                 Ok(ChangeEvent::SetVaultName(name.to_string()))
             }
@@ -170,12 +132,12 @@ pub enum ChangeAction {
     /// Vaults was created on a remote node and the
     /// local node has fetched the vault summary
     /// and added it to it's local state.
-    Create(Summary),
+    CreateFolder(Event),
 
     /// Vault was updated on a remote node and the
     /// local node has fetched the vault summary
     /// and added it to it's local state.
-    Update(Summary),
+    UpdateFolder(Event),
 
     /// Vault was removed on a remote node and
     /// the local node has removed it from it's

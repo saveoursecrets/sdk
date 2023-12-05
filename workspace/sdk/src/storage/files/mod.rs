@@ -6,6 +6,7 @@ use crate::{
     vault::{secret::SecretId, VaultId},
     vfs, Error, Result,
 };
+use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt, path::Path, str::FromStr};
 
 mod external_files;
@@ -27,8 +28,8 @@ pub struct EncryptedFile {
 
 /// External file name is an SHA2-256 checksum of
 /// the encrypted file contents.
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
-pub struct ExternalFileName([u8; 32]);
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ExternalFileName(#[serde(with = "hex::serde")] [u8; 32]);
 
 impl From<ExternalFileName> for [u8; 32] {
     fn from(value: ExternalFileName) -> Self {

@@ -4,6 +4,7 @@ use crate::{
     storage::files::ExternalFileName,
     vault::{secret::SecretId, VaultId},
 };
+use serde::{Deserialize, Serialize};
 
 /// File event records changes to external files
 ///
@@ -11,7 +12,7 @@ use crate::{
 /// are content-addressable by SHA256 digest so
 /// changing a file's contents results in a
 /// delete and create.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum FileEvent {
     #[default]
     #[doc(hidden)]
