@@ -22,9 +22,7 @@ impl<'a> AccountReducer<'a> {
 
     /// Reduce account events to the canonical collection
     /// of folders.
-    pub async fn reduce(
-        mut self,
-    ) -> Result<HashMap<VaultId, SecureAccessKey>> {
+    pub async fn reduce(self) -> Result<HashMap<VaultId, SecureAccessKey>> {
         let mut folders = HashMap::new();
         let events = self.log.patch_until(None).await?;
         for record in events {

@@ -6,7 +6,7 @@ use sos_sdk::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::SecureAccessKey,
     decode, encode,
-    events::WriteEvent,
+    events::{Event, WriteEvent},
     events::{EventReducer, FolderEventLog},
     storage::FolderStorage,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
@@ -76,7 +76,7 @@ pub trait BackendHandler {
         vault_id: &VaultId,
         vault: &[u8],
         secure_access_key: SecureAccessKey,
-    ) -> Result<(WriteEvent, CommitProof)>;
+    ) -> Result<(Event, CommitProof)>;
 
     // TODO: support account deletion
 
@@ -201,7 +201,7 @@ impl BackendHandler for FileSystemBackend {
         vault_id: &VaultId,
         vault: &[u8],
         secure_access_key: SecureAccessKey,
-    ) -> Result<(WriteEvent, CommitProof)> {
+    ) -> Result<(Event, CommitProof)> {
         {
             let accounts = self.accounts.read().await;
             let account = accounts.get(owner);
@@ -231,16 +231,15 @@ impl BackendHandler for FileSystemBackend {
             .or_insert(Arc::new(RwLock::new(account)));
         let mut writer = account.write().await;
 
-        let (event, summary, _) = writer
+        let (event, summary) = writer
             .folders
-            .import_vault(vault, None, secure_access_key)
+            .import_account_folder(vault, secure_access_key)
             .await?;
 
         tracing::debug!(folder_id = %summary.id());
 
         let (_, proof) = writer.folders.commit_state(&summary).await?;
 
-        let event = WriteEvent::CreateVault(vault.to_owned());
         Ok((event, proof))
     }
 

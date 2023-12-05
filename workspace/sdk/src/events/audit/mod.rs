@@ -147,8 +147,19 @@ impl From<(&Address, &Event)> for AuditEvent {
             Event::DeleteAccount(event) => event.clone(),
             _ => {
                 let audit_data = match event {
-                    #[cfg(feature = "account")]
                     Event::Account(event) => match event {
+                        AccountEvent::CreateFolder(vault_id, _)
+                        | AccountEvent::UpdateFolder(vault_id, _)
+                        | AccountEvent::ChangeFolderPassword(vault_id, _) => {
+                            Some(AuditData::Vault(*vault_id))
+                        }
+                        AccountEvent::CompactFolder(vault_id)
+                        | AccountEvent::DeleteFolder(vault_id) => {
+                            Some(AuditData::Vault(*vault_id))
+                        }
+                        AccountEvent::Noop => None,
+                    },
+                    Event::Folder(event, _) => match event {
                         AccountEvent::CreateFolder(vault_id, _)
                         | AccountEvent::UpdateFolder(vault_id, _)
                         | AccountEvent::ChangeFolderPassword(vault_id, _) => {
@@ -196,7 +207,7 @@ impl From<(&Address, &Event)> for AuditEvent {
                         Some(audit_data),
                     )
                 } else {
-                    unreachable!();
+                    unreachable!("{:#?}", event);
                 }
             }
         }

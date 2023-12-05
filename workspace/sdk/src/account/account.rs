@@ -367,7 +367,7 @@ impl<D> Account<D> {
 
         tracing::debug!("prepared storage provider");
 
-        let events = storage.import_new_account(&new_account).await?;
+        let events = storage.create_account(&new_account).await?;
 
         tracing::debug!("imported new account");
 
@@ -491,6 +491,7 @@ impl<D> Account<D> {
         let _enter = span.enter();
 
         let mut event_log = account_log.write().await;
+        event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
         tracing::debug!(needs_init = %needs_init);

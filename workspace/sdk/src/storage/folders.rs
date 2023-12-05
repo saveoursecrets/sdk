@@ -299,8 +299,8 @@ impl FolderStorage {
         Ok(ReadEvent::ReadVault)
     }
 
-    /// Import the vaults for a new account.
-    pub async fn import_new_account(
+    /// Create a new account.
+    pub async fn create_account(
         &mut self,
         account: &NewAccount,
     ) -> Result<Vec<Event>> {
@@ -313,61 +313,63 @@ impl FolderStorage {
         )));
 
         // Save the default vault
+        let secure_key = account
+            .user
+            .find_secure_access_key(account.default_folder.id())?;
         let buffer = encode(&account.default_folder).await?;
-        let (_, event, summary) = self
-            .upsert_vault_buffer(
-                buffer,
-                account.folder_keys.find(account.default_folder.id()),
-            )
+        let (event, _) = self
+            .import_account_folder(&buffer, secure_key.clone())
             .await?;
-        events.push(Event::Write(*summary.id(), event));
+        events.push(event);
 
-        if let Some(archive_vault) = &account.archive {
+        if let Some(vault) = &account.archive {
             let secure_key =
-                account.user.find_secure_access_key(archive_vault.id())?;
-
-            let buffer = encode(archive_vault).await?;
-            let (_, summary, event) = self
-                .import_vault(
-                    &buffer,
-                    account.folder_keys.find(archive_vault.id()),
-                    secure_key.to_owned(),
-                )
+                account.user.find_secure_access_key(vault.id())?;
+            let buffer = encode(vault).await?;
+            let (event, _) = self
+                .import_account_folder(buffer, secure_key.clone())
                 .await?;
-            events.push(Event::Write(*summary.id(), event));
+            events.push(event);
         }
 
-        if let Some(authenticator_vault) = &account.authenticator {
-            let secure_key = account
-                .user
-                .find_secure_access_key(authenticator_vault.id())?;
-
-            let buffer = encode(authenticator_vault).await?;
-            let (_, summary, event) = self
-                .import_vault(
-                    &buffer,
-                    account.folder_keys.find(authenticator_vault.id()),
-                    secure_key.to_owned(),
-                )
+        if let Some(vault) = &account.authenticator {
+            let secure_key =
+                account.user.find_secure_access_key(vault.id())?;
+            let buffer = encode(vault).await?;
+            let (event, _) = self
+                .import_account_folder(buffer, secure_key.clone())
                 .await?;
-            events.push(Event::Write(*summary.id(), event));
+            events.push(event);
         }
 
-        if let Some(contact_vault) = &account.contacts {
+        if let Some(vault) = &account.contacts {
             let secure_key =
-                account.user.find_secure_access_key(contact_vault.id())?;
-            let buffer = encode(contact_vault).await?;
-            let (_, summary, event) = self
-                .import_vault(
-                    &buffer,
-                    account.folder_keys.find(contact_vault.id()),
-                    secure_key.to_owned(),
-                )
+                account.user.find_secure_access_key(vault.id())?;
+            let buffer = encode(vault).await?;
+            let (event, _) = self
+                .import_account_folder(buffer, secure_key.clone())
                 .await?;
-            events.push(Event::Write(*summary.id(), event));
+            events.push(event);
         }
 
         Ok(events)
+    }
+
+    /// Import a folder into a new account.
+    pub async fn import_account_folder(
+        &mut self,
+        buffer: impl AsRef<[u8]>,
+        secure_key: SecureAccessKey,
+    ) -> Result<(Event, Summary)> {
+        let (_, summary, write_event) =
+            self.import_vault(buffer, None, secure_key.clone()).await?;
+
+        let account_event =
+            AccountEvent::CreateFolder(*summary.id(), secure_key);
+        let mut account_log = self.account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
+
+        Ok((Event::Folder(account_event, write_event), summary))
     }
 
     /// Restore vaults from an archive.
@@ -644,7 +646,7 @@ impl FolderStorage {
     }
 
     /// Create a new account or vault.
-    pub(crate) async fn create_vault_or_account(
+    pub(crate) async fn prepare_folder(
         &mut self,
         name: Option<String>,
         key: Option<AccessKey>,
@@ -762,15 +764,6 @@ impl FolderStorage {
         })
     }
 
-    /// Create a new account and default login vault.
-    pub async fn create_account(
-        &mut self,
-        name: Option<String>,
-        key: Option<AccessKey>,
-    ) -> Result<(Vec<u8>, AccessKey, Summary)> {
-        self.create_vault_or_account(name, key, true).await
-    }
-
     /// Create a new folder.
     pub async fn create_folder(
         &mut self,
@@ -779,7 +772,7 @@ impl FolderStorage {
         key: Option<AccessKey>,
     ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
         let (buf, key, summary) =
-            self.create_vault_or_account(Some(name), key, false).await?;
+            self.prepare_folder(Some(name), key, false).await?;
 
         let account_event =
             AccountEvent::CreateFolder(*summary.id(), secure_key);

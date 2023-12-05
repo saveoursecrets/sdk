@@ -64,7 +64,7 @@ impl Service for AccountService {
 
                 let mut writer = backend.write().await;
 
-                let (sync_event, proof) = writer
+                let (event, proof) = writer
                     .handler_mut()
                     .create_account(
                         caller.address(),
@@ -88,7 +88,6 @@ impl Service for AccountService {
                     vec![ChangeEvent::CreateVault(summary)],
                 );
 
-                let event = Event::Write(vault_id, sync_event);
                 let log: AuditEvent = (caller.address(), &event).into();
 
                 {
