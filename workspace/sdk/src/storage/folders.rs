@@ -361,14 +361,8 @@ impl FolderStorage {
         buffer: impl AsRef<[u8]>,
         secure_key: SecureAccessKey,
     ) -> Result<(Event, Summary)> {
-        let (_, summary, write_event) =
+        let (account_event, summary, write_event) =
             self.import_vault(buffer, None, secure_key.clone()).await?;
-
-        let account_event =
-            AccountEvent::CreateFolder(*summary.id(), secure_key);
-        let mut account_log = self.account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
-
         Ok((Event::Folder(account_event, write_event), summary))
     }
 
@@ -714,6 +708,9 @@ impl FolderStorage {
         } else {
             AccountEvent::CreateFolder(*summary.id(), secure_key)
         };
+
+        let mut account_log = self.account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
 
         Ok((account_event, summary, write_event))
     }
