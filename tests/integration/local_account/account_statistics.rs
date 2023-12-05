@@ -1,12 +1,7 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::{hashmap, hashset};
-use sos_net::sdk::{
-    account::{LocalAccount, UserPaths},
-    passwd::diceware::generate_passphrase,
-    storage::AccessOptions,
-    vault::secret::{IdentityKind, SecretType},
-};
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "account_statistics";
 
@@ -30,7 +25,8 @@ async fn integration_account_statistics() -> Result<()> {
     .await?;
 
     let default_folder = new_account.default_folder();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
     account.list_folders().await?;
     account.open_folder(&default_folder).await?;
 

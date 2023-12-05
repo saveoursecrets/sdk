@@ -2,13 +2,7 @@ use anyhow::Result;
 
 use crate::test_utils::{mock, setup, teardown};
 
-use sos_net::sdk::{
-    account::LocalAccount,
-    crypto::AccessKey,
-    events::{AccountEvent, AccountEventLog},
-    passwd::diceware::generate_passphrase,
-    signer::ecdsa::SingleParty,
-};
+use sos_net::sdk::prelude::*;
 
 use super::last_log_event;
 
@@ -35,7 +29,8 @@ async fn integration_events_change_password() -> Result<()> {
     .await?;
 
     let default_folder = new_account.default_folder();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
 
     // Create some secrets

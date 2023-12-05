@@ -1,10 +1,6 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::{
-    account::{LocalAccount, UserPaths},
-    passwd::diceware::generate_passphrase,
-    vfs,
-};
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "contacts";
 const CONTACT: &str = include_str!("../../../tests/fixtures/contact.vcf");
@@ -34,7 +30,8 @@ async fn integration_contacts() -> Result<()> {
     )
     .await?;
 
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
 
     let contacts = account.contacts_folder().await.unwrap();
     account.open_folder(&contacts).await?;

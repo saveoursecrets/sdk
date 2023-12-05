@@ -323,8 +323,10 @@ impl FolderStorage {
         events.push(Event::Write(*summary.id(), event));
 
         if let Some(archive_vault) = &account.archive {
-            let secure_key =
-                account.user.secure_access_key(archive_vault.id()).await?;
+            let secure_key = account
+                .user
+                .find_secure_access_key(archive_vault.id())
+                .await?;
 
             let buffer = encode(archive_vault).await?;
             let (event, summary, _) = self
@@ -340,7 +342,7 @@ impl FolderStorage {
         if let Some(authenticator_vault) = &account.authenticator {
             let secure_key = account
                 .user
-                .secure_access_key(authenticator_vault.id())
+                .find_secure_access_key(authenticator_vault.id())
                 .await?;
 
             let buffer = encode(authenticator_vault).await?;
@@ -355,8 +357,10 @@ impl FolderStorage {
         }
 
         if let Some(contact_vault) = &account.contacts {
-            let secure_key =
-                account.user.secure_access_key(contact_vault.id()).await?;
+            let secure_key = account
+                .user
+                .find_secure_access_key(contact_vault.id())
+                .await?;
             let buffer = encode(contact_vault).await?;
             let (event, summary, _) = self
                 .import_vault(

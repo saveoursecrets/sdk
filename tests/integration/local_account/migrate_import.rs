@@ -1,10 +1,7 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_net::migrate::import::{ImportFormat, ImportTarget};
-use sos_net::sdk::{
-    account::{LocalAccount, UserPaths},
-    passwd::diceware::generate_passphrase,
-};
+use sos_net::sdk::prelude::*;
 use std::path::PathBuf;
 
 const TEST_ID: &str = "migrate_import";
@@ -31,7 +28,8 @@ async fn integration_migrate_import() -> Result<()> {
     )
     .await?;
 
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
 
     let target = ImportTarget {
         format: ImportFormat::OnePasswordCsv,

@@ -1,9 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::{
-    account::{LocalAccount, UserPaths},
-    passwd::diceware::generate_passphrase,
-};
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "move_secret";
 
@@ -30,7 +27,8 @@ async fn integration_move_secret() -> Result<()> {
     .await?;
 
     let default_folder = new_account.default_folder();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
 
     // Create secret

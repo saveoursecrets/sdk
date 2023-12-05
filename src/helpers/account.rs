@@ -217,7 +217,8 @@ pub async fn sign_in(
     )
     .await?;
 
-    owner.sign_in(passphrase.clone()).await?;
+    let key: AccessKey = passphrase.clone().into();
+    owner.sign_in(&key).await?;
 
     Ok((owner, passphrase))
 }
@@ -341,7 +342,8 @@ pub async fn new_account(
         .await?;
         let address = owner.address().to_string();
 
-        owner.sign_in(passphrase).await?;
+        let key: AccessKey = passphrase.into();
+        owner.sign_in(&key).await?;
 
         let data_dir = UserPaths::data_dir()?;
         let message = format!(

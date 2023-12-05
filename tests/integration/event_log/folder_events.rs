@@ -1,17 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{
-    events::Patch,
-    sdk::{
-        account::{LocalAccount, UserPaths},
-        commit::CommitHash,
-        crypto::AccessKey,
-        decode, encode,
-        events::{AccountEvent, AccountEventLog, FolderEventLog, WriteEvent},
-        passwd::diceware::generate_passphrase,
-        vault::Vault,
-    },
-};
+use sos_net::{events::Patch, sdk::prelude::*};
 
 use super::last_log_event;
 
@@ -37,7 +26,8 @@ async fn integration_events_folder() -> Result<()> {
     .await?;
 
     let default_folder = new_account.default_folder();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
 
     let folder_events = account

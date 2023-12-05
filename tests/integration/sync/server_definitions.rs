@@ -1,6 +1,7 @@
 use super::simulate_device;
 use crate::test_utils::{spawn, teardown};
 use anyhow::Result;
+use sos_net::sdk::crypto::AccessKey;
 
 const TEST_ID: &str = "server_definitions";
 
@@ -26,7 +27,8 @@ async fn integration_sync_server_definitions() -> Result<()> {
     assert_eq!(0, servers.len());
 
     // Sign in to load the remote definitions from disc
-    device.owner.sign_in(device.password.clone()).await?;
+    let key: AccessKey = device.password.clone().into();
+    device.owner.sign_in(&key).await?;
 
     // The servers config should be loaded
     let servers = device.owner.servers().await;

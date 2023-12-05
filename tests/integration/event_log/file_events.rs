@@ -1,17 +1,7 @@
 use super::all_events;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{
-    events::Patch,
-    sdk::{
-        account::{LocalAccount, UserPaths},
-        events::{FileEvent, FileEventLog},
-        passwd::diceware::generate_passphrase,
-        storage::AccessOptions,
-        vault::secret::{IdentityKind, SecretId, SecretRow, SecretType},
-        vfs,
-    },
-};
+use sos_net::{events::Patch, sdk::prelude::*};
 
 /// Tests the various file events are being logged.
 #[tokio::test]
@@ -35,7 +25,8 @@ async fn integration_events_file() -> Result<()> {
     .await?;
 
     let default_folder = new_account.default_folder();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
 
     // Create a folder so we can move the secret
@@ -151,7 +142,8 @@ async fn integration_events_file_folder_delete() -> Result<()> {
     .await?;
 
     let default_folder = new_account.default_folder();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
 
     // Create some external file secrets

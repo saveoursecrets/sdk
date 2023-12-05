@@ -1,16 +1,11 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::{
-    account::{Identity, LocalAccount, UserPaths},
-    encode,
-    passwd::diceware::generate_passphrase,
-    vfs,
-};
+use sos_net::sdk::{prelude::*, vfs};
 
 const TEST_ID: &str = "identity_login";
 
 /// Tests creating an identity vault and logging in
-/// with the new vault.
+/// with the new vault and managing delegated passwords.
 #[tokio::test]
 async fn integration_identity_login() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -35,7 +30,33 @@ async fn integration_identity_login() -> Result<()> {
     paths.ensure().await?;
     let mut identity = Identity::new(paths);
 
-    identity.login(path, password).await?;
+    let key: AccessKey = password.into();
+    identity.login(&path, &key).await?;
+
+    let folder1 = VaultId::new_v4();
+    let access_key: AccessKey = identity.generate_folder_password()?.into();
+    identity
+        .save_folder_password(&folder1, access_key.clone())
+        .await?;
+
+    assert_eq!(1, identity.secure_keys().len());
+
+    // Should be able to find the password we saved
+    assert!(identity.find_folder_password(&folder1).await.is_ok());
+
+    /*
+    // Remove a folder password
+    identity.remove_folder_password(&folder1).await?;
+    assert_eq!(0, identity.secure_keys().len());
+    */
+
+    identity.sign_out().await?;
+
+    // Login again and check the secure access keys
+    // are loaded at login
+    identity.login(&path, &key).await?;
+
+    assert_eq!(1, identity.secure_keys().len());
 
     teardown(TEST_ID).await;
 

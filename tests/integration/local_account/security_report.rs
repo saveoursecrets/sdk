@@ -1,16 +1,6 @@
 use anyhow::Result;
 use secrecy::SecretString;
-use sos_net::{
-    client::NetworkAccount,
-    sdk::{
-        account::{security_report::SecurityReportOptions, LocalAccount},
-        passwd::diceware::generate_passphrase,
-        vault::{
-            secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
-            Summary,
-        },
-    },
-};
+use sos_net::{client::NetworkAccount, sdk::prelude::*};
 
 use crate::test_utils::{setup, teardown};
 
@@ -34,7 +24,8 @@ async fn integration_security_report() -> Result<()> {
     )
     .await?;
     let summary = new_account.default_folder().clone();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.clone().into();
+    account.sign_in(&key).await?;
 
     // Make changes to generate data
     let mock_ids = simulate_session(&mut account, &summary, password).await?;

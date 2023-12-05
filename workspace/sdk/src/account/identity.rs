@@ -61,6 +61,34 @@ impl FolderKeys {
     }
 }
 
+/// Collection of secure access keys.
+#[derive(Default, Clone)]
+pub struct SecureKeys(HashMap<VaultId, SecureAccessKey>);
+
+impl SecureKeys {
+    /// Number of folders with secure access keys.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Whether this collection is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Iterator for the secure access keys.
+    pub fn iter(&self) -> impl Iterator<Item = (&VaultId, &SecureAccessKey)> {
+        self.0.iter()
+    }
+
+    /// Find an access key by folder id.
+    pub fn find(&self, id: &VaultId) -> Option<&SecureAccessKey> {
+        self.0
+            .iter()
+            .find_map(|(k, v)| if k == id { Some(v) } else { None })
+    }
+}
+
 /// Cache of mapping between secret URN
 /// and secret identifiers to we can find identity
 /// vault secrets quickly.
@@ -72,6 +100,7 @@ pub struct Identity {
     paths: UserPaths,
     account: Option<AccountInfo>,
     identity: Option<PrivateIdentity>,
+    secure_keys: SecureKeys,
 }
 
 impl Identity {
@@ -81,7 +110,14 @@ impl Identity {
             paths,
             identity: None,
             account: None,
+            secure_keys: Default::default(),
         }
+    }
+
+    /// Collection of secure access keys for folders
+    /// managed by this identity.
+    pub fn secure_keys(&self) -> &SecureKeys {
+        &self.secure_keys
     }
 
     /// Account information.
@@ -175,9 +211,12 @@ impl Identity {
         vault_id: &VaultId,
         key: AccessKey,
     ) -> Result<()> {
+        let secure_key = self.to_secure_access_key(&key).await?;
         self.identity_mut()?
             .save_folder_password(vault_id, key)
-            .await
+            .await?;
+        self.secure_keys.0.insert(*vault_id, secure_key);
+        Ok(())
     }
 
     /// Remove a folder password from an identity vault.
@@ -185,12 +224,16 @@ impl Identity {
         &mut self,
         vault_id: &VaultId,
     ) -> Result<()> {
-        self.identity_mut()?.remove_folder_password(vault_id).await
+        self.identity_mut()?
+            .remove_folder_password(vault_id)
+            .await?;
+        self.secure_keys.0.remove(vault_id);
+        Ok(())
     }
 
     /// Find a folder access key and encrypt it using the
     /// account signing key.
-    pub async fn secure_access_key(
+    pub async fn find_secure_access_key(
         &self,
         vault_id: &VaultId,
     ) -> Result<SecureAccessKey> {
@@ -199,7 +242,7 @@ impl Identity {
     }
 
     /// Convert a secret key to a secure access key.
-    pub async fn to_secure_access_key(
+    pub(crate) async fn to_secure_access_key(
         &self,
         folder_password: &AccessKey,
     ) -> Result<SecureAccessKey> {
@@ -285,19 +328,19 @@ impl Identity {
     pub async fn login<P: AsRef<Path>>(
         &mut self,
         file: P,
-        password: SecretString,
+        key: &AccessKey,
     ) -> Result<()> {
         let vault_file = VaultWriter::open(file.as_ref()).await?;
         let mirror = VaultWriter::new(file.as_ref(), vault_file)?;
         let buffer = vfs::read(file.as_ref()).await?;
-        self.login_buffer(buffer, password, Some(mirror)).await
+        self.login_buffer(buffer, key, Some(mirror)).await
     }
 
     /// Attempt to login using a buffer.
     pub(crate) async fn login_buffer<B: AsRef<[u8]>>(
         &mut self,
         buffer: B,
-        password: SecretString,
+        key: &AccessKey,
         mirror: Option<VaultWriter<vfs::File>>,
     ) -> Result<()> {
         let vault: Vault = decode(buffer.as_ref()).await?;
@@ -311,7 +354,7 @@ impl Identity {
             Gatekeeper::new(vault)
         };
 
-        let key: AccessKey = password.into();
+        //let key: AccessKey = password.into();
         keeper.unlock(&key).await?;
 
         let mut index: UrnLookup = Default::default();
@@ -321,15 +364,49 @@ impl Identity {
 
         let mut signer_secret: Option<Secret> = None;
         let mut identity_secret: Option<Secret> = None;
+        let mut folder_secrets = HashMap::new();
 
         for id in keeper.vault().keys() {
             if let Some((meta, secret, _)) = keeper.read(id).await? {
                 if let Some(urn) = meta.urn() {
+                    if urn.nss().starts_with("vault:") {
+                        let id: VaultId =
+                            urn.nss().trim_start_matches("vault:").parse()?;
+                        if let Secret::Password { password, .. } = &secret {
+                            let key: AccessKey = password.clone().into();
+                            folder_secrets.insert(id, key);
+                        }
+                    }
+
                     if urn == &signer_urn {
                         signer_secret = Some(secret);
                     } else if urn == &identity_urn {
                         identity_secret = Some(secret);
                     }
+
+                    // Add to the URN lookup index
+                    index.insert((*keeper.id(), urn.clone()), *id);
+                }
+            }
+        }
+
+        for id in keeper.vault().keys() {
+            if let Some((meta, secret, _)) = keeper.read(id).await? {
+                if let Some(urn) = meta.urn() {
+                    if urn.nss().starts_with("vault:") {
+                        let id: VaultId =
+                            urn.nss().trim_start_matches("vault:").parse()?;
+                        if let Secret::Password { password, .. } = &secret {
+                            let key: AccessKey = password.clone().into();
+                        }
+                    }
+
+                    if urn == &signer_urn {
+                        signer_secret = Some(secret);
+                    } else if urn == &identity_urn {
+                        identity_secret = Some(secret);
+                    }
+
                     // Add to the URN lookup index
                     index.insert((*keeper.id(), urn.clone()), *id);
                 }
@@ -371,6 +448,13 @@ impl Identity {
             index: Arc::new(RwLock::new(index)),
         });
 
+        // Load folder secure access keys after we have
+        // the signing key
+        for (id, key) in folder_secrets {
+            let secure_access_key = self.to_secure_access_key(&key).await?;
+            self.secure_keys.0.insert(id, secure_access_key);
+        }
+
         Ok(())
     }
 
@@ -378,7 +462,7 @@ impl Identity {
     pub async fn sign_in(
         &mut self,
         address: &Address,
-        passphrase: SecretString,
+        key: &AccessKey,
     ) -> Result<()> {
         let span = span!(Level::DEBUG, "login");
         let _enter = span.enter();
@@ -393,7 +477,7 @@ impl Identity {
 
         tracing::debug!(identity_path = ?identity_path);
 
-        self.login(identity_path, passphrase).await?;
+        self.login(identity_path, key).await?;
 
         tracing::debug!("identity verified");
 
@@ -554,6 +638,7 @@ impl Identity {
 
         self.account = None;
         self.identity = None;
+        self.secure_keys = Default::default();
         Ok(())
     }
 }
@@ -612,14 +697,14 @@ impl PrivateIdentity {
     }
 
     /// Generate a folder password.
-    pub fn generate_folder_password(&self) -> Result<SecretString> {
+    fn generate_folder_password(&self) -> Result<SecretString> {
         let (vault_passphrase, _) =
             generate_passphrase_words(VAULT_PASSPHRASE_WORDS)?;
         Ok(vault_passphrase)
     }
 
     /// Save a folder password into this identity.
-    pub async fn save_folder_password(
+    async fn save_folder_password(
         &self,
         vault_id: &VaultId,
         key: AccessKey,
@@ -637,7 +722,7 @@ impl PrivateIdentity {
     ///
     /// The identity vault must already be unlocked to extract
     /// the secret password.
-    pub async fn find_folder_password(
+    async fn find_folder_password(
         &self,
         vault_id: &VaultId,
     ) -> Result<AccessKey> {
@@ -675,7 +760,7 @@ impl PrivateIdentity {
     }
 
     /// Remove a folder password from this identity.
-    pub async fn remove_folder_password(
+    async fn remove_folder_password(
         &mut self,
         vault_id: &VaultId,
     ) -> Result<()> {
@@ -791,6 +876,7 @@ mod tests {
     use crate::{
         account::{Identity, UserPaths},
         constants::LOGIN_SIGNING_KEY_URN,
+        crypto::AccessKey,
         encode,
         passwd::diceware::generate_passphrase,
         vault::{
@@ -809,7 +895,8 @@ mod tests {
 
         let mut identity =
             Identity::new(UserPaths::new_global(UserPaths::data_dir()?));
-        let result = identity.login_buffer(buffer, password, None).await;
+        let key: AccessKey = password.into();
+        let result = identity.login_buffer(buffer, &key, None).await;
         if let Err(Error::NotIdentityVault) = result {
             Ok(())
         } else {
@@ -830,7 +917,8 @@ mod tests {
 
         let mut identity =
             Identity::new(UserPaths::new_global(UserPaths::data_dir()?));
-        let result = identity.login_buffer(buffer, password, None).await;
+        let key: AccessKey = password.into();
+        let result = identity.login_buffer(buffer, &key, None).await;
         if let Err(Error::NoSigningKey) = result {
             Ok(())
         } else {
@@ -870,7 +958,8 @@ mod tests {
 
         let mut identity =
             Identity::new(UserPaths::new_global(UserPaths::data_dir()?));
-        let result = identity.login_buffer(buffer, password, None).await;
+        let key: AccessKey = password.into();
+        let result = identity.login_buffer(buffer, &key, None).await;
         if let Err(Error::NoIdentityKey) = result {
             Ok(())
         } else {

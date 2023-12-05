@@ -1,17 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{
-    events::Patch,
-    sdk::{
-        account::{LocalAccount, UserPaths},
-        commit::CommitHash,
-        crypto::AccessKey,
-        decode, encode,
-        events::{AccountEvent, AccountEventLog, FolderEventLog, WriteEvent},
-        passwd::diceware::generate_passphrase,
-        vault::Vault,
-    },
-};
+use sos_net::{events::Patch, sdk::prelude::*};
 
 use super::all_events;
 
@@ -46,7 +35,8 @@ async fn integration_events_move_folder() -> Result<()> {
     .await?;
 
     let default_folder1 = new_account1.default_folder();
-    account1.sign_in(password1.clone()).await?;
+    let key: AccessKey = password1.into();
+    account1.sign_in(&key).await?;
     account1.open_folder(&default_folder1).await?;
 
     // Create some data in the first folder
@@ -76,7 +66,8 @@ async fn integration_events_move_folder() -> Result<()> {
 
     // Encode and import the vault into the account
     // overwriting the existing data
-    account2.sign_in(password2.clone()).await?;
+    let key: AccessKey = password2.into();
+    account2.sign_in(&key).await?;
 
     // Import the folder into the other account
     let buffer = encode(&vault).await?;

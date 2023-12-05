@@ -430,10 +430,7 @@ impl<D> Account<D> {
     }
 
     /// Get access to an account by signing in.
-    pub async fn sign_in(
-        &mut self,
-        passphrase: SecretString,
-    ) -> Result<Vec<Summary>> {
+    pub async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let span = span!(Level::DEBUG, "sign_in");
         let _enter = span.enter();
 
@@ -452,7 +449,7 @@ impl<D> Account<D> {
         tracing::debug!(data_dir = ?paths.documents_dir());
 
         let mut user = Identity::new(paths.clone());
-        user.sign_in(self.address(), passphrase).await?;
+        user.sign_in(self.address(), key).await?;
         tracing::debug!("sign in success");
 
         // Signing key for the storage provider
@@ -514,7 +511,7 @@ impl<D> Account<D> {
 
             for folder in folders {
                 let secure_access_key =
-                    user.secure_access_key(folder.id()).await?;
+                    user.find_secure_access_key(folder.id()).await?;
                 events.push(AccountEvent::CreateFolder(
                     folder.into(),
                     secure_access_key,

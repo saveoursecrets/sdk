@@ -1,8 +1,5 @@
 use anyhow::Result;
-use sos_net::sdk::{
-    account::{LocalAccount, UserPaths},
-    passwd::diceware::generate_passphrase,
-};
+use sos_net::sdk::prelude::*;
 
 use crate::test_utils::{setup, teardown};
 
@@ -36,7 +33,8 @@ async fn integration_account_lifecycle() -> Result<()> {
     let accounts = LocalAccount::list_accounts(Some(&paths)).await?;
     assert_eq!(1, accounts.len());
 
-    account.sign_in(passphrase.clone()).await?;
+    let key: AccessKey = passphrase.into();
+    account.sign_in(&key).await?;
     assert!(account.is_authenticated());
 
     let folders = account.list_folders().await?;
@@ -50,7 +48,7 @@ async fn integration_account_lifecycle() -> Result<()> {
     assert!(!account.is_authenticated());
 
     // Must sign in again to delete the account
-    account.sign_in(passphrase.clone()).await?;
+    account.sign_in(&key).await?;
 
     account.delete_account().await?;
 

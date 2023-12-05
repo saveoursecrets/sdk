@@ -1,15 +1,5 @@
 use anyhow::Result;
-use sos_net::sdk::{
-    account::LocalAccount,
-    hex,
-    passwd::diceware::generate_passphrase,
-    storage::{files::FileProgress, AccessOptions},
-    vault::{
-        secret::{FileContent, Secret, SecretId, SecretRow},
-        Summary,
-    },
-    vfs,
-};
+use sos_net::sdk::{hex, prelude::*};
 use std::{path::PathBuf, sync::Arc};
 
 use crate::test_utils::{mock, setup, teardown};
@@ -37,7 +27,8 @@ async fn integration_external_files() -> Result<()> {
     )
     .await?;
     let summary = new_account.default_folder().clone();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
 
     let operations: Arc<Mutex<Vec<FileProgress>>> =
         Arc::new(Mutex::new(Vec::new()));

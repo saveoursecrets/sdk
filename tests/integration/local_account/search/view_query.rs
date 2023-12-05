@@ -1,12 +1,7 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::{hashmap, hashset};
-use sos_net::sdk::{
-    account::{LocalAccount, UserPaths},
-    passwd::diceware::generate_passphrase,
-    storage::search::{ArchiveFilter, DocumentView, QueryFilter},
-    vault::secret::{IdentityKind, SecretType},
-};
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "search_view_query";
 
@@ -34,7 +29,8 @@ async fn integration_search_view_query() -> Result<()> {
     .await?;
 
     let default_folder = new_account.default_folder();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.clone().into();
+    account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
     let archive_folder = account.archive_folder().await.unwrap();
 

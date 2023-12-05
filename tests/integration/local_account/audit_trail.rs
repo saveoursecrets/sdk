@@ -3,16 +3,7 @@ use anyhow::Result;
 use secrecy::SecretString;
 use std::path::{Path, PathBuf};
 
-use sos_net::{
-    migrate::import::ImportTarget,
-    sdk::{
-        account::{archive::RestoreOptions, LocalAccount},
-        events::{AuditEvent, AuditLogFile, EventKind},
-        passwd::diceware::generate_passphrase,
-        vault::Summary,
-        vfs::{self, File},
-    },
-};
+use sos_net::{migrate::import::ImportTarget, sdk::prelude::*};
 
 use crate::test_utils::{mock, setup, teardown};
 
@@ -41,7 +32,8 @@ async fn integration_audit_trail() -> Result<()> {
     )
     .await?;
     let summary = new_account.default_folder().clone();
-    owner.sign_in(passphrase.clone()).await?;
+    let key: AccessKey = passphrase.clone().into();
+    owner.sign_in(&key).await?;
 
     // Make changes to generate audit logs
     simulate_session(&mut owner, &summary, passphrase, &data_dir).await?;
@@ -237,7 +229,7 @@ async fn read_audit_events(
 ) -> Result<Vec<AuditEvent>> {
     let mut events = Vec::new();
     let log_file = AuditLogFile::new(audit_log.as_ref()).await?;
-    let mut file = File::open(audit_log.as_ref()).await?;
+    let mut file = vfs::File::open(audit_log.as_ref()).await?;
     let mut it = log_file.iter().await?;
     while let Some(record) = it.next_entry().await? {
         events.push(log_file.read_event(&mut file, &record).await?);

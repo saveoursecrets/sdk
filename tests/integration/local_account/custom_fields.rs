@@ -1,10 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::{
-    account::{LocalAccount, UserPaths},
-    passwd::diceware::generate_passphrase,
-    vault::secret::{SecretId, SecretRef, SecretRow},
-};
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "custom_fields";
 
@@ -32,7 +28,8 @@ async fn integration_custom_fields() -> Result<()> {
     .await?;
 
     let default_folder = new_account.default_folder();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
 
     // Create secret

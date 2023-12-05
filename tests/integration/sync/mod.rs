@@ -10,6 +10,7 @@ use sos_net::{
     sdk::{
         account::{LocalAccount, UserPaths},
         constants::VAULT_EXT,
+        crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         vault::{Summary, VaultId},
         vfs,
@@ -78,7 +79,8 @@ impl SimulatedDevice {
         )
         .await?;
 
-        owner.sign_in(self.password.clone()).await?;
+        let key: AccessKey = self.password.clone().into();
+        owner.sign_in(&key).await?;
 
         let origin = origin.unwrap_or_else(|| self.origin.clone());
 
@@ -137,7 +139,9 @@ pub async fn simulate_device(
     )
     .await?;
     let default_folder = new_account.default_folder().clone();
-    let folders = owner.sign_in(password.clone()).await?;
+
+    let key: AccessKey = password.clone().into();
+    let folders = owner.sign_in(&key).await?;
 
     // Copy the initial data directory for the
     // alternative devices as they need to share

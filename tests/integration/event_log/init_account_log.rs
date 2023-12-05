@@ -1,14 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{
-    events::Patch,
-    sdk::{
-        account::{LocalAccount, UserPaths},
-        events::{AccountEvent, AccountEventLog},
-        passwd::diceware::generate_passphrase,
-        vault::secret::{IdentityKind, SecretType},
-    },
-};
+use sos_net::{events::Patch, sdk::prelude::*};
 
 const TEST_ID: &str = "events_init_account_log";
 
@@ -33,7 +25,8 @@ async fn integration_events_init_account_log() -> Result<()> {
 
     // Sign in should lazily initialize the account event log
     // from the folders on disc
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
 
     let account_events = account.paths().account_events();
     let mut event_log = AccountEventLog::new_account(&account_events).await?;

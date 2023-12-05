@@ -251,11 +251,8 @@ impl NetworkAccount {
     }
 
     /// Sign in to an account.
-    pub async fn sign_in(
-        &mut self,
-        passphrase: SecretString,
-    ) -> Result<Vec<Summary>> {
-        let folders = self.account.sign_in(passphrase).await?;
+    pub async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
+        let folders = self.account.sign_in(key).await?;
 
         // Load origins from disc and create remote definitions
         let remotes_file = self.paths().remote_origins();

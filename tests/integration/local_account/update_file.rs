@@ -1,12 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::{
-    account::{LocalAccount, UserPaths},
-    hex,
-    passwd::diceware::generate_passphrase,
-    vault::secret::{FileContent, Secret},
-    vfs,
-};
+use sos_net::sdk::{hex, prelude::*, vfs};
 
 const TEST_ID: &str = "update_file";
 
@@ -30,7 +24,8 @@ async fn integration_update_file() -> Result<()> {
     .await?;
 
     let default_folder = new_account.default_folder();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.clone().into();
+    account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
 
     // Create the file secret

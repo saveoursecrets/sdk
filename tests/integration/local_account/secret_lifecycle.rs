@@ -1,10 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::{
-    account::{archive::RestoreOptions, LocalAccount, UserPaths},
-    passwd::diceware::generate_passphrase,
-    vfs,
-};
+use sos_net::sdk::{prelude::*, vfs};
 
 const TEST_ID: &str = "secret_lifecycle";
 
@@ -35,8 +31,8 @@ async fn integration_secret_lifecycle() -> Result<()> {
     let address = account.address().clone();
 
     let default_folder = new_account.default_folder();
-
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.clone().into();
+    account.sign_in(&key).await?;
     let folders = account.list_folders().await?;
     account.open_folder(&default_folder).await?;
 
@@ -110,7 +106,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
     )
     .await?;
 
-    account.sign_in(password.clone()).await?;
+    account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
 
     // Assert on the restored secret

@@ -1,10 +1,6 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::{
-    account::{LocalAccount, UserPaths},
-    passwd::diceware::generate_passphrase,
-    vfs,
-};
+use sos_net::sdk::{prelude::*, vfs};
 
 const TEST_ID: &str = "migrate_export";
 
@@ -30,7 +26,8 @@ async fn integration_migrate_export() -> Result<()> {
     )
     .await?;
 
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
 
     let zip = data_dir.join("export.zip");
     account.export_unsafe_archive(&zip).await?;

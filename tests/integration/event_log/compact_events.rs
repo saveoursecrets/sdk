@@ -1,14 +1,7 @@
 use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{
-    events::Patch,
-    sdk::{
-        account::{LocalAccount, UserPaths},
-        events::{AccountEvent, AccountEventLog, FolderEventLog, WriteEvent},
-        passwd::diceware::generate_passphrase,
-    },
-};
+use sos_net::{events::Patch, sdk::prelude::*};
 
 const TEST_ID: &str = "events_compact";
 
@@ -32,7 +25,8 @@ async fn integration_events_compact() -> Result<()> {
     .await?;
 
     let default_folder = new_account.default_folder();
-    account.sign_in(password.clone()).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
 
     // Create some secrets
