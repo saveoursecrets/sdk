@@ -137,7 +137,7 @@ impl FolderStorage {
     pub fn account_log(&self) -> Arc<RwLock<AccountEventLog>> {
         Arc::clone(&self.account_log)
     }
-
+    
     /// Set the password for file encryption.
     #[cfg(feature = "files")]
     pub fn set_file_password(&mut self, file_password: Option<SecretString>) {
@@ -279,12 +279,12 @@ impl FolderStorage {
         summary: &Summary,
         key: &AccessKey,
     ) -> Result<ReadEvent> {
-        let vault_path = self.vault_path(summary);
+        let vault_path = self.paths.vault_path(summary.id().to_string());
         let vault = if self.state.mirror() {
             if !vfs::try_exists(&vault_path).await? {
                 let vault = self.reduce_event_log(summary).await?;
                 let buffer = encode(&vault).await?;
-                self.write_vault_file(summary, &buffer).await?;
+                self.write_vault_file(summary.id(), &buffer).await?;
                 vault
             } else {
                 let buffer = vfs::read(&vault_path).await?;
@@ -399,17 +399,7 @@ impl FolderStorage {
 
         Ok(())
     }
-
-    /// Get the path to a event log file.
-    pub fn event_log_path(&self, summary: &Summary) -> PathBuf {
-        self.paths.event_log_path(summary.id().to_string())
-    }
-
-    /// Get the path to a vault file.
-    pub fn vault_path(&self, summary: &Summary) -> PathBuf {
-        self.paths.vault_path(summary.id().to_string())
-    }
-
+    
     /// Get the folder summaries for this storage.
     pub fn folders(&self) -> &[Summary] {
         self.state.summaries()
@@ -436,7 +426,7 @@ impl FolderStorage {
         summary: &Summary,
         vault: Option<Vault>,
     ) -> Result<()> {
-        let event_log_path = self.event_log_path(summary);
+        let event_log_path = self.paths.event_log_path(summary.id().to_string());
         let mut event_log =
             FolderEventLog::new_folder(&event_log_path).await?;
 
@@ -450,7 +440,7 @@ impl FolderStorage {
 
             if self.state.head_only && self.state.mirror {
                 let buffer = encode(&vault).await?;
-                self.write_vault_file(summary, buffer).await?;
+                self.write_vault_file(summary.id(), buffer).await?;
             }
         }
         event_log.load_tree().await?;
@@ -489,7 +479,7 @@ impl FolderStorage {
         // Rewrite the on-disc version if we are mirroring
         if self.state.mirror() {
             let buffer = encode(&vault).await?;
-            self.write_vault_file(summary, &buffer).await?;
+            self.write_vault_file(summary.id(), &buffer).await?;
         }
 
         if let Some(index) = &self.index {
@@ -569,27 +559,27 @@ impl FolderStorage {
     }
 
     /// Read a vault from the file on disc.
-    pub async fn read_vault(&self, summary: &Summary) -> Result<Vault> {
-        let buffer = self.read_vault_file(summary).await?;
+    pub async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
+        let buffer = self.read_vault_file(id).await?;
         Ok(decode(&buffer).await?)
     }
 
     /// Read the buffer for a vault from disc.
     pub async fn read_vault_file(
         &self,
-        summary: &Summary,
+        id: &VaultId,
     ) -> Result<Vec<u8>> {
-        let vault_path = self.vault_path(&summary);
+        let vault_path = self.paths.vault_path(id.to_string());
         Ok(vfs::read(vault_path).await?)
     }
 
     /// Write the buffer for a vault to disc.
     async fn write_vault_file(
         &self,
-        summary: &Summary,
+        vault_id: &VaultId,
         buffer: impl AsRef<[u8]>,
     ) -> Result<()> {
-        let vault_path = self.vault_path(&summary);
+        let vault_path = self.paths.vault_path(vault_id.to_string());
         vfs::write(vault_path, buffer.as_ref()).await?;
         Ok(())
     }
@@ -674,7 +664,7 @@ impl FolderStorage {
         let summary = vault.summary().clone();
 
         if self.state.mirror() {
-            self.write_vault_file(&summary, &buffer).await?;
+            self.write_vault_file(summary.id(), &buffer).await?;
         }
 
         // Add the summary to the vaults we are managing
@@ -718,13 +708,13 @@ impl FolderStorage {
     /// Remove a vault file and event log file.
     pub async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
         // Remove local vault mirror if it exists
-        let vault_path = self.vault_path(summary);
+        let vault_path = self.paths.vault_path(summary.id().to_string());
         if vfs::try_exists(&vault_path).await? {
             vfs::remove_file(&vault_path).await?;
         }
 
         // Remove the local event log file
-        let event_log_path = self.event_log_path(summary);
+        let event_log_path = self.paths.event_log_path(summary.id().to_string());
         if vfs::try_exists(&event_log_path).await? {
             vfs::remove_file(&event_log_path).await?;
         }
@@ -798,7 +788,7 @@ impl FolderStorage {
 
         // Always write out the updated buffer
         if self.state.mirror() {
-            self.write_vault_file(&summary, &buffer).await?;
+            self.write_vault_file(summary.id(), &buffer).await?;
         }
 
         if !exists {
@@ -845,7 +835,7 @@ impl FolderStorage {
         if self.state.mirror() {
             // Write the vault to disc
             let buffer = encode(vault).await?;
-            self.write_vault_file(summary, &buffer).await?;
+            self.write_vault_file(summary.id(), &buffer).await?;
         }
 
         // Apply events to the event log
@@ -980,7 +970,7 @@ impl FolderStorage {
         }
 
         // Update the vault on disc
-        let vault_path = self.vault_path(summary);
+        let vault_path = self.paths.vault_path(summary.id().to_string());
         let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
         access.set_vault_name(name.as_ref().to_owned()).await?;
@@ -1106,7 +1096,7 @@ impl FolderStorage {
     /// Verify an event log.
     pub async fn verify(&self, summary: &Summary) -> Result<()> {
         use crate::commit::event_log_commit_tree_file;
-        let event_log_path = self.event_log_path(summary);
+        let event_log_path = self.paths.event_log_path(summary.id().to_string());
         event_log_commit_tree_file(&event_log_path, true, |_| {}).await?;
         Ok(())
     }

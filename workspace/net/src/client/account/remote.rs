@@ -185,6 +185,43 @@ impl RemoteBridge {
         Ok((proof, buffer.ok_or(Error::NoEventBuffer)?))
     }
 
+    /// Send a patch of account log events to the remote.
+    async fn send_account_log_events(
+        &self,
+        from: Option<&CommitHash>
+    ) -> Result<()> {
+        let patch: Patch = {
+            let local = self.local.read().await;
+            let account_log = local.account_log();
+            let account_log = account_log.read().await;
+            let records = account_log.patch_until(from).await?;
+            records.into()
+        };
+
+        for record in patch.iter() {
+            let event = record.decode_event::<AccountEvent>().await?;
+            println!("{:#?}", event);
+            match event {
+                AccountEvent::CreateFolder(id, secure_key) => {
+                    let local = self.local.read().await;
+                    let buffer = local.read_vault_file(&id).await?;
+                    self.create_folder(&buffer, &secure_key).await?;
+                }
+                AccountEvent::UpdateFolder(id, secure_key) => {
+                    let local = self.local.read().await;
+                    let buffer = local.read_vault_file(&id).await?;
+                    self.update_folder(&id, &buffer, &secure_key).await?;
+                }
+                AccountEvent::DeleteFolder(id) => {
+                    self.delete_folder(&id).await?;
+                }
+                _ => todo!("handle other account log events"),
+            }
+        }
+
+        Ok(())
+    }
+
     /// Create a folder on the remote.
     async fn create_folder(
         &self,
@@ -406,7 +443,7 @@ impl RemoteBridge {
             let mut folders = Vec::new();
             for (id, secure_access_key) in canonical_folders {
                 if let Some(folder) = local.find(|s| s.id() == &id) {
-                    let buffer = local.read_vault_file(&folder).await?;
+                    let buffer = local.read_vault_file(&id).await?;
                     folders.push((folder.clone(), buffer, secure_access_key));
                 } else {
                     tracing::warn!(id = %id, "missing folder");
@@ -518,25 +555,44 @@ impl RemoteSync for RemoteBridge {
             }
         }
 
+        let mut errors = Vec::new();
+
         tracing::debug!(origin = %self.origin.url);
 
         match self.account_status().await {
             Ok(account_status) => {
                 if !account_status.exists {
                     if let Err(e) = self.prepare_account().await {
-                        Some(SyncError::One(e))
-                    } else {
-                        None
+                        errors.push(e);
                     }
                 } else {
+
+                    // Need to initialize the account log 
+                    // on the remote
+                    if account_status.account.is_none() {
+                        if let Err(e) = self.send_account_log_events(None).await {
+                            errors.push(e);
+                        }
+                    }
+
                     if let Err(e) = self.pull_account(account_status).await {
-                        Some(SyncError::One(e))
-                    } else {
-                        None
+                        errors.push(e);
                     }
                 }
             }
-            Err(e) => Some(SyncError::One(e)),
+            Err(e) => {
+                errors.push(e);
+            },
+        }
+
+        if errors.is_empty() {
+            None
+        } else {
+            let errors = errors.into_iter().map(|e| {
+                let origin: Origin = self.origin.clone().into();
+                (origin, e)
+            }).collect::<Vec<_>>();
+            Some(SyncError::Multiple(errors))
         }
     }
 

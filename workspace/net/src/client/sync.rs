@@ -8,6 +8,7 @@ use std::any::Any;
 
 /// Enumeration of error types that can be returned
 /// from a sync operation.
+#[derive(Debug)]
 pub enum SyncError {
     /// Single remote error.
     One(Error),

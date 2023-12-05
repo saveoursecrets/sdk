@@ -1457,7 +1457,7 @@ impl<D> Account<D> {
         let vault = {
             let storage = self.storage()?;
             let reader = storage.read().await;
-            reader.read_vault(folder).await?
+            reader.read_vault(folder.id()).await?
         };
 
         {
