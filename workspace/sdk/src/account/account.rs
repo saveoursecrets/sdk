@@ -511,10 +511,10 @@ impl<D> Account<D> {
 
             for folder in folders {
                 let secure_access_key =
-                    user.find_secure_access_key(folder.id()).await?;
+                    user.find_secure_access_key(folder.id())?;
                 events.push(AccountEvent::CreateFolder(
                     folder.into(),
-                    secure_access_key,
+                    secure_access_key.to_owned(),
                 ));
             }
 

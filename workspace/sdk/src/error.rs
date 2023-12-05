@@ -100,6 +100,11 @@ pub enum Error {
     #[error("no encryption recipients")]
     NoRecipients,
 
+    /// Error generated when a secure access key for a folder 
+    /// could not be found.
+    #[error("secure access key for folder '{0}' could not be found")]
+    NoSecureAccessKey(VaultId),
+
     /// Error generated when a signing key is required.
     #[error("no signer")]
     NoSigner,

@@ -233,12 +233,11 @@ impl Identity {
 
     /// Find a folder access key and encrypt it using the
     /// account signing key.
-    pub async fn find_secure_access_key(
+    pub fn find_secure_access_key(
         &self,
         vault_id: &VaultId,
-    ) -> Result<SecureAccessKey> {
-        let folder_password = self.find_folder_password(vault_id).await?;
-        self.to_secure_access_key(&folder_password).await
+    ) -> Result<&SecureAccessKey> {
+        Ok(self.secure_keys.0.get(vault_id).ok_or(Error::NoSecureAccessKey(*vault_id))?)
     }
 
     /// Convert a secret key to a secure access key.

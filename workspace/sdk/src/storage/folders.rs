@@ -325,15 +325,14 @@ impl FolderStorage {
         if let Some(archive_vault) = &account.archive {
             let secure_key = account
                 .user
-                .find_secure_access_key(archive_vault.id())
-                .await?;
+                .find_secure_access_key(archive_vault.id())?;
 
             let buffer = encode(archive_vault).await?;
             let (event, summary, _) = self
                 .import_vault(
                     &buffer,
                     account.folder_keys.find(archive_vault.id()),
-                    secure_key,
+                    secure_key.to_owned(),
                 )
                 .await?;
             events.push(Event::Write(*summary.id(), event));
@@ -342,15 +341,14 @@ impl FolderStorage {
         if let Some(authenticator_vault) = &account.authenticator {
             let secure_key = account
                 .user
-                .find_secure_access_key(authenticator_vault.id())
-                .await?;
+                .find_secure_access_key(authenticator_vault.id())?;
 
             let buffer = encode(authenticator_vault).await?;
             let (event, summary, _) = self
                 .import_vault(
                     &buffer,
                     account.folder_keys.find(authenticator_vault.id()),
-                    secure_key,
+                    secure_key.to_owned(),
                 )
                 .await?;
             events.push(Event::Write(*summary.id(), event));
@@ -359,14 +357,13 @@ impl FolderStorage {
         if let Some(contact_vault) = &account.contacts {
             let secure_key = account
                 .user
-                .find_secure_access_key(contact_vault.id())
-                .await?;
+                .find_secure_access_key(contact_vault.id())?;
             let buffer = encode(contact_vault).await?;
             let (event, summary, _) = self
                 .import_vault(
                     &buffer,
                     account.folder_keys.find(contact_vault.id()),
-                    secure_key,
+                    secure_key.to_owned(),
                 )
                 .await?;
             events.push(Event::Write(*summary.id(), event));
