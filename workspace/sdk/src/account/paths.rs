@@ -3,6 +3,7 @@
 use crate::{Error, Result};
 use app_dirs2::{get_app_root, AppDataType, AppInfo};
 use once_cell::sync::Lazy;
+use async_once_cell::OnceCell;
 use std::{
     path::{Path, PathBuf},
     sync::RwLock,
@@ -15,14 +16,18 @@ use crate::{
         LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, TEMP_DIR,
         VAULTS_DIR, VAULT_EXT,
     },
+    events::{AuditEvent, AuditProvider, AuditLogFile},
     vault::{secret::SecretId, VaultId},
     vfs,
 };
+use tokio::sync::Mutex;
 
 const APP_INFO: AppInfo = AppInfo {
     name: APP_NAME,
     author: APP_AUTHOR,
 };
+
+static shared: OnceCell::<Mutex<AuditLogFile>> = OnceCell::new();
 
 static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
@@ -316,6 +321,20 @@ impl UserPaths {
         } else {
             dir
         }
+    }
+
+    /// Append to the audit log.
+    pub(crate) async fn append_audit_events(
+        &self,
+        events: Vec<AuditEvent>,
+    ) -> Result<()> {
+        let log_file = shared.get_or_init(async move {
+            Mutex::new(AuditLogFile::new(self.audit_file()).await
+                .expect("could not create audit log file"))
+        }).await;
+        let mut writer = log_file.lock().await;
+        writer.append_audit_events(events).await?;
+        Ok(())
     }
 }
 

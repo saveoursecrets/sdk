@@ -1,4 +1,4 @@
-//! Account storage and search index..as_ref()
+//! Account storage and search index.
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -541,8 +541,7 @@ impl<D> Account<D> {
         &self,
         events: Vec<AuditEvent>,
     ) -> Result<()> {
-        let mut writer = self.audit_log.write().await;
-        writer.append_audit_events(events).await?;
+        self.paths.append_audit_events(events).await?;
         Ok(())
     }
 

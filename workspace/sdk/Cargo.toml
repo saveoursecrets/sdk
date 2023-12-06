@@ -69,6 +69,7 @@ totp-rs = { version = "5.3", features = ["qr", "serde_support", "zeroize"] }
 vcard4 = { version = "0.4.4", features = ["serde"] }
 parking_lot = "0.12"
 once_cell = "1"
+async-once-cell = "0.5"
 age = { version = "0.9", features = ["async"] }
 ed25519-dalek = { version = "2.0.0-pre.0", features = ["rand_core"] }
 bs58 = "0.4"
