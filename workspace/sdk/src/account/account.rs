@@ -362,7 +362,7 @@ impl<D> Account<D> {
         let address = signer.address()?;
 
         let mut storage =
-            FolderStorage::new_client(address.to_string(), data_dir.clone())
+            FolderStorage::new_client(address.clone(), data_dir.clone())
                 .await?;
 
         tracing::debug!("prepared storage provider");
@@ -456,7 +456,7 @@ impl<D> Account<D> {
         let signer = user.identity()?.signer().clone();
 
         let mut storage = FolderStorage::new_client(
-            signer.address()?.to_string(),
+            signer.address()?,
             Some(data_dir),
         )
         .await?;
@@ -535,7 +535,7 @@ impl<D> Account<D> {
     pub fn paths(&self) -> &UserPaths {
         &self.paths
     }
-
+    
     /// Append to the audit log.
     pub(super) async fn append_audit_logs(
         &self,
@@ -716,9 +716,6 @@ impl<D> Account<D> {
 
         let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
-
-        let audit_event: AuditEvent = (self.address(), &account_event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
 
         let event =
             Event::Folder(account_event, WriteEvent::CreateVault(buffer));

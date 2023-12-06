@@ -199,7 +199,7 @@ impl FileSystemBackend {
                         tracing::debug!(account = %owner);
                         let account = AccountStorage {
                             folders: FolderStorage::new_server(
-                                owner.to_string(),
+                                owner.clone(),
                                 Some(self.directory.clone()),
                             )
                             .await?,
@@ -245,7 +245,7 @@ impl BackendHandler for FileSystemBackend {
 
         let account = AccountStorage {
             folders: FolderStorage::new_server(
-                owner.to_string(),
+                owner.clone(),
                 Some(self.directory.clone()),
             )
             .await?,

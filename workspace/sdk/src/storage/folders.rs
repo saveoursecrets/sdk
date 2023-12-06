@@ -10,6 +10,7 @@ use crate::{
         EventReducer, FolderEventLog, ReadEvent, WriteEvent,
     },
     passwd::{diceware::generate_passphrase, ChangePassword},
+    signer::ecdsa::Address,
     storage::{
         search::{AccountSearch, DocumentCount, SearchIndex},
         AccessOptions, AccountStatus,
@@ -42,6 +43,9 @@ use crate::{
 
 /// Manages multiple folders loaded into memory and mirrored to disc.
 pub struct FolderStorage {
+    /// Address of the account owner.
+    address: Address,
+
     /// State of this storage.
     state: LocalState,
 
@@ -70,7 +74,7 @@ pub struct FolderStorage {
 impl FolderStorage {
     /// Create folder storage for client-side access.
     pub async fn new_client(
-        id: impl AsRef<str>,
+        address: Address,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
@@ -79,13 +83,13 @@ impl FolderStorage {
             UserPaths::data_dir().map_err(|_| Error::NoCache)?
         };
 
-        let dirs = UserPaths::new(data_dir, id);
-        Self::new_paths(Arc::new(dirs), true, false).await
+        let dirs = UserPaths::new(data_dir, address.to_string());
+        Self::new_paths(Arc::new(dirs), address, true, false).await
     }
 
     /// Create folder storage for server-side access.
     pub async fn new_server(
-        id: impl AsRef<str>,
+        address: Address,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
@@ -94,13 +98,14 @@ impl FolderStorage {
             UserPaths::data_dir().map_err(|_| Error::NoCache)?
         };
 
-        let dirs = UserPaths::new(data_dir, id);
-        Self::new_paths(Arc::new(dirs), true, true).await
+        let dirs = UserPaths::new(data_dir, address.to_string());
+        Self::new_paths(Arc::new(dirs), address, true, true).await
     }
 
     /// Create new storage backed by files on disc.
     async fn new_paths(
         paths: Arc<UserPaths>,
+        address: Address,
         mirror: bool,
         head_only: bool,
     ) -> Result<FolderStorage> {
@@ -121,6 +126,7 @@ impl FolderStorage {
         let file_log = Self::initialize_file_log(&*paths).await?;
 
         Ok(Self {
+            address,
             state: LocalState::new(mirror, head_only),
             cache: Default::default(),
             paths,
@@ -132,6 +138,11 @@ impl FolderStorage {
             #[cfg(feature = "files")]
             file_password: None,
         })
+    }
+    
+    /// Address of the account owner.
+    pub fn address(&self) -> &Address {
+        &self.address
     }
 
     /// Access to the account log.
@@ -765,6 +776,9 @@ impl FolderStorage {
             AccountEvent::CreateFolder(*summary.id(), secure_key);
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
+
+        let audit_event: AuditEvent = (self.address(), &account_event).into();
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok((buf, key, summary, account_event))
     }
