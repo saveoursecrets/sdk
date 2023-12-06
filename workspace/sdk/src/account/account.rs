@@ -743,11 +743,6 @@ impl<D> Account<D> {
             .remove_folder_password(summary.id())
             .await?;
 
-        let account_event = events.get(0).unwrap();
-
-        let audit_event: AuditEvent = (self.address(), account_event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
-
         Ok((events, commit_state))
     }
 
