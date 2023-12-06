@@ -68,7 +68,7 @@ impl Service for EventLogService {
                         .folder_exists(caller.address(), &vault_id)
                         .await?;
 
-                    if !exists {
+                    if exists.is_none() {
                         return Ok(
                             (StatusCode::NOT_FOUND, request.id()).into()
                         );
@@ -144,7 +144,7 @@ impl Service for EventLogService {
                         .folder_exists(caller.address(), &vault_id)
                         .await?;
 
-                    if !exists {
+                    if exists.is_none() {
                         return Ok(
                             (StatusCode::NOT_FOUND, request.id()).into()
                         );
@@ -198,7 +198,7 @@ impl Service for EventLogService {
                         .handler()
                         .folder_exists(caller.address(), &vault_id)
                         .await?;
-                    if !exists {
+                    if exists.is_none() {
                         return Ok(
                             (StatusCode::NOT_FOUND, request.id()).into()
                         );
@@ -282,7 +282,7 @@ impl Service for EventLogService {
                         .handler()
                         .folder_exists(caller.address(), &vault_id)
                         .await?;
-                    if !exists {
+                    if exists.is_none() {
                         return Ok(
                             (StatusCode::NOT_FOUND, request.id()).into()
                         );

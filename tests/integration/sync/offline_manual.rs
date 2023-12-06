@@ -64,7 +64,6 @@ async fn integration_sync_offline_manual() -> Result<()> {
     //
     // This should push the local changes to the remote.
     let result  = device1.owner.sync().await;
-    println!("{:#?}", result);
 
     /*
     assert!(device1.owner.sync().await.is_none());

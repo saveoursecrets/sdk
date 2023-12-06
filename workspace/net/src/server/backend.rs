@@ -115,7 +115,7 @@ pub trait BackendHandler {
         &self,
         owner: &Address,
         vault_id: &VaultId,
-    ) -> Result<(bool, Option<CommitProof>)>;
+    ) -> Result<(Option<Summary>, Option<CommitProof>)>;
 
     /// Load a event log buffer for an account.
     async fn read_events_buffer(
@@ -336,19 +336,19 @@ impl BackendHandler for FileSystemBackend {
         &self,
         owner: &Address,
         vault_id: &VaultId,
-    ) -> Result<(bool, Option<CommitProof>)> {
+    ) -> Result<(Option<Summary>, Option<CommitProof>)> {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
             let account = account.read().await;
             let folder = account.folders.find(|s| s.id() == vault_id);
             if let Some(folder) = folder {
                 let (_, proof) = account.folders.commit_state(folder).await?;
-                Ok((true, Some(proof)))
+                Ok((Some(folder.clone()), Some(proof)))
             } else {
-                Ok((false, None))
+                Ok((None, None))
             }
         } else {
-            Ok((false, None))
+            Ok((None, None))
         }
     }
 

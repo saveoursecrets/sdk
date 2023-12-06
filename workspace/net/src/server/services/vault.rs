@@ -57,7 +57,30 @@ impl Service for VaultService {
                     .await?;
                 drop(reader);
 
-                if exists {
+                if let Some(folder) = exists {
+
+                    /*
+                    // If the folder already exists it's possible 
+                    // we don't have it on our 
+                    let canonical_folders = {
+                        let local = self.local.read().await;
+                        let log = local.account_log();
+                        let mut event_log = log.write().await;
+                        let reducer = AccountReducer::new(&mut *event_log);
+                        let canonical_folders = reducer.reduce().await?;
+                        let mut folders = Vec::new();
+                        for (id, secure_access_key) in canonical_folders {
+                            if let Some(folder) = local.find(|s| s.id() == &id) {
+                                let buffer = local.read_vault_file(&id).await?;
+                                folders.push((folder.clone(), buffer, secure_access_key));
+                            } else {
+                                tracing::warn!(id = %id, "missing folder");
+                            }
+                        }
+                        folders
+                    };
+                    */
+
                     // Send commit proof back with conflict response
                     Ok((StatusCode::CONFLICT, request.id(), proof)
                         .try_into()?)
@@ -109,7 +132,7 @@ impl Service for VaultService {
                         .folder_exists(caller.address(), &vault_id)
                         .await?;
 
-                    if !exists {
+                    if exists.is_none() {
                         return Ok(
                             (StatusCode::NOT_FOUND, request.id()).into()
                         );
@@ -170,7 +193,7 @@ impl Service for VaultService {
                         .handler()
                         .folder_exists(caller.address(), summary.id())
                         .await?;
-                    if !exists {
+                    if exists.is_none() {
                         return Ok(
                             (StatusCode::NOT_FOUND, request.id()).into()
                         );
