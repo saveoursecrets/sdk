@@ -10,6 +10,7 @@ pub use crate::constants::*;
 pub use crate::crypto::*;
 pub use crate::events::*;
 pub use crate::formats::*;
+pub use crate::identity::*;
 pub use crate::signer::ecdsa::Address;
 #[cfg(feature = "files")]
 pub use crate::storage::files::*;

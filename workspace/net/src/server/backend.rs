@@ -7,8 +7,8 @@ use sos_sdk::{
     crypto::SecureAccessKey,
     decode, encode,
     events::{
-        AccountReducer, Event, EventReducer, FolderEventLog, WriteEvent,
-        AuditEvent, EventKind,
+        AccountReducer, AuditEvent, Event, EventKind, EventReducer,
+        FolderEventLog, WriteEvent,
     },
     storage::FolderStorage,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
@@ -134,7 +134,7 @@ pub trait BackendHandler {
         owner: &Address,
         vault_id: &VaultId,
     ) -> Result<(Option<Summary>, Option<CommitProof>)>;
-    
+
     /*
     /// Determine if a folders exists in the account log.
     async fn canonical_folder_exists(
@@ -335,12 +335,13 @@ impl BackendHandler for FileSystemBackend {
             let reader = account.read().await;
             summaries = reader.folders.folders().to_vec();
 
-            let log = AuditEvent::new(
-                EventKind::ListVaults,
-                owner.clone(),
-                None,
-            );
-            reader.folders.paths().append_audit_events(vec![log]).await?;
+            let log =
+                AuditEvent::new(EventKind::ListVaults, owner.clone(), None);
+            reader
+                .folders
+                .paths()
+                .append_audit_events(vec![log])
+                .await?;
         }
         Ok(summaries)
     }
@@ -385,7 +386,7 @@ impl BackendHandler for FileSystemBackend {
             Ok((None, None))
         }
     }
-    
+
     /*
     async fn canonical_folder_exists(
         &self,

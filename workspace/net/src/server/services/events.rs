@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use std::{borrow::Cow, sync::Arc};
 use uuid::Uuid;
 
-use super::{Service, PrivateState};
+use super::{PrivateState, Service};
 use crate::{
     events::Patch,
     rpc::{RequestMessage, ResponseMessage},
@@ -360,7 +360,6 @@ impl Service for EventLogService {
                                 })
                                 .collect();
 
-
                             // Get a new commit proof after applying changes
                             let event_log = account
                                 .folders
@@ -369,8 +368,11 @@ impl Service for EventLogService {
                                 .unwrap();
                             let proof = event_log.tree().head()?;
 
-                            account.folders.paths()
-                                .append_audit_events(audit_logs).await?;
+                            account
+                                .folders
+                                .paths()
+                                .append_audit_events(audit_logs)
+                                .await?;
 
                             Ok(PatchResult::Success {
                                 address: caller.address,
@@ -425,8 +427,10 @@ impl Service for EventLogService {
                                 let mut change_events = Vec::new();
                                 for event in &change_set {
                                     let event =
-                                        ChangeEvent::try_from_write_event(event)
-                                            .await;
+                                        ChangeEvent::try_from_write_event(
+                                            event,
+                                        )
+                                        .await;
                                     if event.is_ok() {
                                         change_events.push(event?);
                                     }

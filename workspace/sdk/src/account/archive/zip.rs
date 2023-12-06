@@ -350,7 +350,7 @@ fn sanitize_file_path(path: &str) -> PathBuf {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{account::Identity, encode, vault::Vault};
+    use crate::{encode, identity::Identity, vault::Vault};
     use anyhow::Result;
     use secrecy::SecretString;
     use std::io::Cursor;

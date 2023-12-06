@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-    account::{AccountBuilder, FolderKeys, Identity, NewAccount, UserPaths},
+    account::{AccountBuilder, NewAccount, UserPaths},
     commit::{CommitHash, CommitState},
     constants::VAULT_EXT,
     crypto::{AccessKey, SecureAccessKey},
@@ -18,6 +18,7 @@ use crate::{
         AccountEvent, AccountEventLog, AuditData, AuditEvent, AuditLogFile,
         AuditProvider, Event, EventKind, EventReducer, ReadEvent, WriteEvent,
     },
+    identity::{FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::Address,
     storage::{
         search::{DocumentCount, SearchIndex},
@@ -57,82 +58,6 @@ pub trait AccountHandler {
 }
 
 type Handler<D> = Box<dyn AccountHandler<Data = D> + Send + Sync>;
-
-/// Public account identity information.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PublicIdentity {
-    /// Address identifier for the account.
-    ///
-    /// This corresponds to the address of the signing key
-    /// for the account.
-    address: Address,
-    /// User label for the account.
-    ///
-    /// This is the name given to the identity vault.
-    label: String,
-}
-
-impl PublicIdentity {
-    /// Create new account information.
-    pub fn new(label: String, address: Address) -> Self {
-        Self { label, address }
-    }
-
-    /// Get the address of this account.
-    pub fn address(&self) -> &Address {
-        &self.address
-    }
-
-    /// Get the label of this account.
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-
-    pub(crate) fn set_label(&mut self, label: String) {
-        self.label = label;
-    }
-}
-
-impl From<&PublicIdentity> for AccountRef {
-    fn from(value: &PublicIdentity) -> Self {
-        AccountRef::Address(*value.address())
-    }
-}
-
-impl From<PublicIdentity> for AccountRef {
-    fn from(value: PublicIdentity) -> Self {
-        (&value).into()
-    }
-}
-
-/// Reference to an account using an address or a named label.
-#[derive(Debug, Clone)]
-pub enum AccountRef {
-    /// Account identifier.
-    Address(Address),
-    /// Account label.
-    Name(String),
-}
-
-impl fmt::Display for AccountRef {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Address(address) => write!(f, "{}", address),
-            Self::Name(name) => write!(f, "{}", name),
-        }
-    }
-}
-
-impl FromStr for AccountRef {
-    type Err = Error;
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        if let Ok(address) = s.parse::<Address>() {
-            Ok(Self::Address(address))
-        } else {
-            Ok(Self::Name(s.to_string()))
-        }
-    }
-}
 
 /// Read-only view created from a specific event log commit.
 pub struct DetachedView {
@@ -209,37 +134,6 @@ pub struct Account<D> {
 }
 
 impl<D> Account<D> {
-    /// List account information for the identity vaults.
-    pub async fn list_accounts(
-        paths: Option<&UserPaths>,
-    ) -> Result<Vec<PublicIdentity>> {
-        let mut keys = Vec::new();
-        let paths = if let Some(paths) = paths {
-            paths.clone()
-        } else {
-            UserPaths::new_global(UserPaths::data_dir()?)
-        };
-
-        let mut dir = vfs::read_dir(paths.identity_dir()).await?;
-
-        while let Some(entry) = dir.next_entry().await? {
-            if let (Some(extension), Some(file_stem)) =
-                (entry.path().extension(), entry.path().file_stem())
-            {
-                if extension == VAULT_EXT {
-                    let summary =
-                        Header::read_summary_file(entry.path()).await?;
-                    keys.push(PublicIdentity {
-                        address: file_stem.to_string_lossy().parse()?,
-                        label: summary.name().to_owned(),
-                    });
-                }
-            }
-        }
-        keys.sort_by(|a, b| a.label.cmp(&b.label));
-        Ok(keys)
-    }
-
     /// Find and load a vault.
     pub async fn load_local_vault(
         paths: &UserPaths,
@@ -378,7 +272,7 @@ impl<D> Account<D> {
             authenticated: None,
             handler,
         };
-        
+
         Ok((owner, new_account))
     }
 
@@ -436,11 +330,9 @@ impl<D> Account<D> {
         // Signing key for the storage provider
         let signer = user.identity()?.signer().clone();
 
-        let mut storage = FolderStorage::new_client(
-            signer.address()?,
-            Some(data_dir),
-        )
-        .await?;
+        let mut storage =
+            FolderStorage::new_client(signer.address()?, Some(data_dir))
+                .await?;
         self.paths = storage.paths();
 
         let file_password = user.find_file_encryption_password().await?;
@@ -516,7 +408,7 @@ impl<D> Account<D> {
     pub fn paths(&self) -> &UserPaths {
         &self.paths
     }
-    
+
     /// Load the buffer of the encrypted vault for this account.
     ///
     /// Used when a client needs to authenticate other devices;

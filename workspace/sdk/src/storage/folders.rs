@@ -1,6 +1,6 @@
 //! Storage backed by the filesystem.
 use crate::{
-    account::{FolderKeys, NewAccount, UserPaths},
+    account::{NewAccount, UserPaths},
     commit::{CommitHash, CommitState, CommitTree},
     constants::VAULT_EXT,
     crypto::{AccessKey, SecureAccessKey},
@@ -9,6 +9,7 @@ use crate::{
         AccountEvent, AccountEventLog, AuditEvent, Event, EventKind,
         EventReducer, FolderEventLog, ReadEvent, WriteEvent,
     },
+    identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
     signer::ecdsa::Address,
     storage::{
@@ -139,7 +140,7 @@ impl FolderStorage {
             file_password: None,
         })
     }
-    
+
     /// Address of the account owner.
     pub fn address(&self) -> &Address {
         &self.address
@@ -324,7 +325,8 @@ impl FolderStorage {
             None,
         ));
 
-        let audit_event: AuditEvent = (self.address(), &create_account).into();
+        let audit_event: AuditEvent =
+            (self.address(), &create_account).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
 
         // Save the default vault
@@ -341,9 +343,8 @@ impl FolderStorage {
             let secure_key =
                 account.user.find_secure_access_key(vault.id())?;
             let buffer = encode(vault).await?;
-            let (event, _) = self
-                .import_folder(buffer, secure_key.clone(), None)
-                .await?;
+            let (event, _) =
+                self.import_folder(buffer, secure_key.clone(), None).await?;
             events.push(event);
         }
 
@@ -351,9 +352,8 @@ impl FolderStorage {
             let secure_key =
                 account.user.find_secure_access_key(vault.id())?;
             let buffer = encode(vault).await?;
-            let (event, _) = self
-                .import_folder(buffer, secure_key.clone(), None)
-                .await?;
+            let (event, _) =
+                self.import_folder(buffer, secure_key.clone(), None).await?;
             events.push(event);
         }
 
@@ -361,9 +361,8 @@ impl FolderStorage {
             let secure_key =
                 account.user.find_secure_access_key(vault.id())?;
             let buffer = encode(vault).await?;
-            let (event, _) = self
-                .import_folder(buffer, secure_key.clone(), None)
-                .await?;
+            let (event, _) =
+                self.import_folder(buffer, secure_key.clone(), None).await?;
             events.push(event);
         }
 

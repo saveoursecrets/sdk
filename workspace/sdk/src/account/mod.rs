@@ -9,7 +9,6 @@ pub mod contacts;
 mod device;
 #[cfg(feature = "files")]
 pub mod files;
-mod identity;
 #[cfg(feature = "migrate")]
 mod migrate;
 mod paths;
@@ -20,13 +19,12 @@ pub mod search;
 pub mod security_report;
 
 pub use account::{
-    Account, AccountData, AccountHandler, PublicIdentity, AccountRef,
-    DetachedView, LocalAccount,
+    Account, AccountData, AccountHandler, DetachedView, LocalAccount,
 };
 pub use builder::{AccountBuilder, NewAccount};
 #[cfg(feature = "device")]
 pub use device::DeviceSigner;
-pub use identity::{FolderKeys, Identity, PrivateIdentity, SecureKeys};
+//pub use identity::{FolderKeys, Identity, PrivateIdentity, SecureKeys};
 pub use paths::UserPaths;
 
 /*

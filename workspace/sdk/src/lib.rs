@@ -60,6 +60,7 @@ pub mod encoding;
 mod error;
 pub mod events;
 pub mod formats;
+pub mod identity;
 
 #[cfg(feature = "migrate")]
 pub mod migrate;

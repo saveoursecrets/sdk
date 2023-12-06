@@ -13,11 +13,11 @@ use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
-    account::SecureKeys,
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     crypto::SecureAccessKey,
     decode,
-    events::{AccountEvent, AccountReducer, Event, WriteEvent, LogEvent},
+    events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
+    identity::SecureKeys,
     signer::ecdsa::BoxedEcdsaSigner,
     storage::{AccountStatus, FolderStorage},
     url::Url,
@@ -208,10 +208,13 @@ impl RemoteBridge {
                 AccountEvent::CreateFolder(id, secure_key) => {
                     let local = self.local.read().await;
                     let buffer = local.read_vault_file(&id).await?;
-                    if let Err(e) = self.create_folder(&buffer, &secure_key).await {
+                    if let Err(e) =
+                        self.create_folder(&buffer, &secure_key).await
+                    {
                         if let Error::ResponseCode(StatusCode::CONFLICT) = e {
                             tracing::debug!(
-                                "ignore conflict (409) on create folder");
+                                "ignore conflict (409) on create folder"
+                            );
                         } else {
                             return Err(e);
                         }
@@ -579,9 +582,7 @@ impl RemoteSync for RemoteBridge {
                     // Need to initialize the account log
                     // on the remote
                     if account_status.account.is_none() {
-                        if let Err(e) =
-                            self.send_account_events(None).await
-                        {
+                        if let Err(e) = self.send_account_events(None).await {
                             errors.push(e);
                         }
                     }

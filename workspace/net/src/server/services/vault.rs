@@ -10,7 +10,7 @@ use sos_sdk::{
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use super::{Service, PrivateState};
+use super::{PrivateState, Service};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
     server::{BackendHandler, Error, Result},
@@ -48,7 +48,7 @@ impl Service for VaultService {
                 // Check it looks like a vault payload
                 let summary =
                     Header::read_summary_slice(request.body()).await?;
-                
+
                 let (exists, proof) = {
                     let reader = backend.read().await;
                     reader

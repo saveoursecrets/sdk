@@ -8,9 +8,10 @@ pub use backup::{
 };
 pub use zip::*;
 
-use super::{Account, PublicIdentity, LocalAccount, UserPaths};
 use crate::{
+    account::{Account, LocalAccount, UserPaths},
     events::{AuditEvent, EventKind},
+    identity::{Identity, PublicIdentity},
     vfs::File,
     Result,
 };
@@ -45,7 +46,7 @@ impl<D> Account<D> {
     ) -> Result<Inventory> {
         let mut inventory =
             AccountBackup::restore_archive_inventory(buffer).await?;
-        let accounts = LocalAccount::list_accounts(None).await?;
+        let accounts = Identity::list_accounts(None).await?;
         let exists_local = accounts
             .iter()
             .any(|account| account.address() == &inventory.manifest.address);

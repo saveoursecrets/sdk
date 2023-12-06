@@ -5,21 +5,9 @@
 //! for folders managed by an account.
 //!
 //! This enables user interfaces to protect both the signing
-//! key and encryption passphrase using a single master
-//! passphrase.
-use secrecy::{ExposeSecret, SecretString, SecretVec};
-
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
-
-use std::path::Path;
-
-use serde::{Deserialize, Serialize};
-use urn::Urn;
-use web3_address::ethereum::Address;
-
+//! key and folder passwords using a single master password.
 use crate::{
-    account::{PublicIdentity, LocalAccount, UserPaths},
+    account::{LocalAccount, UserPaths},
     commit::CommitState,
     constants::{
         DEVICE_KEY_URN, FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN,
@@ -30,24 +18,105 @@ use crate::{
     events::{AuditEvent, Event, EventKind},
     passwd::diceware::generate_passphrase_words,
     signer::{
-        ecdsa::{BoxedEcdsaSigner, SingleParty},
+        ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
         ed25519, Signer,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
-        Gatekeeper, Summary, Vault, VaultAccess, VaultBuilder, VaultFlags,
-        VaultId, VaultWriter,
+        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
+        VaultFlags, VaultId, VaultWriter,
     },
     vfs, Error, Result,
 };
-
+use secrecy::{ExposeSecret, SecretString, SecretVec};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, sync::Arc};
+use std::{fmt, path::Path, str::FromStr};
+use tokio::sync::RwLock;
 use tracing::{span, Level};
+use urn::Urn;
 
 #[cfg(feature = "device")]
 use crate::account::DeviceSigner;
 
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
+
+/// Public account identity information.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PublicIdentity {
+    /// Address identifier for the account.
+    ///
+    /// This corresponds to the address of the signing key
+    /// for the account.
+    address: Address,
+    /// User label for the account.
+    ///
+    /// This is the name given to the identity vault.
+    label: String,
+}
+
+impl PublicIdentity {
+    /// Create new account information.
+    pub fn new(label: String, address: Address) -> Self {
+        Self { label, address }
+    }
+
+    /// Get the address of this account.
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+
+    /// Get the label of this account.
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    pub(crate) fn set_label(&mut self, label: String) {
+        self.label = label;
+    }
+}
+
+impl From<&PublicIdentity> for AccountRef {
+    fn from(value: &PublicIdentity) -> Self {
+        AccountRef::Address(*value.address())
+    }
+}
+
+impl From<PublicIdentity> for AccountRef {
+    fn from(value: PublicIdentity) -> Self {
+        (&value).into()
+    }
+}
+
+/// Reference to an account using an address or a named label.
+#[derive(Debug, Clone)]
+pub enum AccountRef {
+    /// Account identifier.
+    Address(Address),
+    /// Account label.
+    Name(String),
+}
+
+impl fmt::Display for AccountRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Address(address) => write!(f, "{}", address),
+            Self::Name(name) => write!(f, "{}", name),
+        }
+    }
+}
+
+impl FromStr for AccountRef {
+    type Err = Error;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        if let Ok(address) = s.parse::<Address>() {
+            Ok(Self::Address(address))
+        } else {
+            Ok(Self::Name(s.to_string()))
+        }
+    }
+}
 
 /// Collection of folder access keys.
 pub struct FolderKeys(pub HashMap<Summary, AccessKey>);
@@ -104,6 +173,37 @@ pub struct Identity {
 }
 
 impl Identity {
+    /// List account information for the identity vaults.
+    pub async fn list_accounts(
+        paths: Option<&UserPaths>,
+    ) -> Result<Vec<PublicIdentity>> {
+        let mut keys = Vec::new();
+        let paths = if let Some(paths) = paths {
+            paths.clone()
+        } else {
+            UserPaths::new_global(UserPaths::data_dir()?)
+        };
+
+        let mut dir = vfs::read_dir(paths.identity_dir()).await?;
+
+        while let Some(entry) = dir.next_entry().await? {
+            if let (Some(extension), Some(file_stem)) =
+                (entry.path().extension(), entry.path().file_stem())
+            {
+                if extension == VAULT_EXT {
+                    let summary =
+                        Header::read_summary_file(entry.path()).await?;
+                    keys.push(PublicIdentity {
+                        address: file_stem.to_string_lossy().parse()?,
+                        label: summary.name().to_owned(),
+                    });
+                }
+            }
+        }
+        keys.sort_by(|a, b| a.label.cmp(&b.label));
+        Ok(keys)
+    }
+
     /// Create a new unauthenticated user.
     pub fn new(paths: UserPaths) -> Self {
         Self {
@@ -470,7 +570,7 @@ impl Identity {
         let span = span!(Level::DEBUG, "login");
         let _enter = span.enter();
 
-        let accounts = LocalAccount::list_accounts(Some(&self.paths)).await?;
+        let accounts = Self::list_accounts(Some(&self.paths)).await?;
         let account = accounts
             .into_iter()
             .find(|a| a.address() == address)
@@ -877,10 +977,11 @@ mod tests {
     use urn::Urn;
 
     use crate::{
-        account::{Identity, UserPaths},
+        account::UserPaths,
         constants::LOGIN_SIGNING_KEY_URN,
         crypto::AccessKey,
         encode,
+        identity::Identity,
         passwd::diceware::generate_passphrase,
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},

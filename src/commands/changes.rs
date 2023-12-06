@@ -4,7 +4,7 @@ use sos_net::{
     client::{changes, connect, HostedOrigin},
     mpc::{generate_keypair, Keypair},
     sdk::{
-        account::AccountRef, hex, signer::ecdsa::BoxedEcdsaSigner, url::Url,
+        hex, identity::AccountRef, signer::ecdsa::BoxedEcdsaSigner, url::Url,
     },
 };
 

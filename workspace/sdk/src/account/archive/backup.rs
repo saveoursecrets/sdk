@@ -15,12 +15,13 @@ use walkdir::WalkDir;
 use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
-        PublicIdentity, Identity, LocalAccount, UserPaths,
+        LocalAccount, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
     decode, encode,
     events::{FolderEventLog, WriteEvent},
+    identity::{Identity, PublicIdentity},
     sha2::{Digest, Sha256},
     vault::{
         secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess, VaultId,
@@ -394,7 +395,7 @@ impl AccountBackup {
             // The GUI should check the identity already exists
             // but we will double check here to be safe
             let paths = UserPaths::new_global(data_dir.clone());
-            let keys = LocalAccount::list_accounts(Some(&paths)).await?;
+            let keys = Identity::list_accounts(Some(&paths)).await?;
             let existing_account =
                 keys.iter().find(|k| k.address() == address);
             let account = existing_account
@@ -443,7 +444,7 @@ impl AccountBackup {
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
             let paths = UserPaths::new_global(data_dir.clone());
-            let keys = LocalAccount::list_accounts(Some(&paths)).await?;
+            let keys = Identity::list_accounts(Some(&paths)).await?;
             let existing_account = keys
                 .iter()
                 .find(|k| k.address() == &restore_targets.address);

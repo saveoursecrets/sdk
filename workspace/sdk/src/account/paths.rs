@@ -2,8 +2,8 @@
 //! and user-specific account folders.
 use crate::{Error, Result};
 use app_dirs2::{get_app_root, AppDataType, AppInfo};
-use once_cell::sync::Lazy;
 use async_once_cell::OnceCell;
+use once_cell::sync::Lazy;
 use std::{
     path::{Path, PathBuf},
     sync::RwLock,
@@ -16,7 +16,7 @@ use crate::{
         LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, TEMP_DIR,
         VAULTS_DIR, VAULT_EXT,
     },
-    events::{AuditEvent, AuditProvider, AuditLogFile},
+    events::{AuditEvent, AuditLogFile, AuditProvider},
     vault::{secret::SecretId, VaultId},
     vfs,
 };
@@ -27,7 +27,7 @@ const APP_INFO: AppInfo = AppInfo {
     author: APP_AUTHOR,
 };
 
-static shared: OnceCell::<Mutex<AuditLogFile>> = OnceCell::new();
+static shared: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 
 static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
@@ -328,10 +328,16 @@ impl UserPaths {
         &self,
         events: Vec<AuditEvent>,
     ) -> Result<()> {
-        let log_file = shared.get_or_init(async move {
-            Mutex::new(AuditLogFile::new(self.audit_file()).await
-                .expect("could not create audit log file"))
-        }).await;
+        let log_file = shared
+            .get_or_init(async move {
+                println!("INITIALIZE AUDIT FILE IN {:#?}", self.audit_file());
+                Mutex::new(
+                    AuditLogFile::new(self.audit_file())
+                        .await
+                        .expect("could not create audit log file"),
+                )
+            })
+            .await;
         let mut writer = log_file.lock().await;
         writer.append_audit_events(events).await?;
         Ok(())

@@ -4,11 +4,7 @@ use terminal_banner::{Banner, Padding};
 
 use sos_net::{
     client::NetworkAccount,
-    sdk::{
-        account::{AccountRef, UserPaths},
-        vault::FolderRef,
-        vfs,
-    },
+    sdk::{account::UserPaths, identity::AccountRef, vault::FolderRef, vfs},
     FileLocks,
 };
 

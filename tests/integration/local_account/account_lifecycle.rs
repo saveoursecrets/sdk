@@ -19,7 +19,7 @@ async fn integration_account_lifecycle() -> Result<()> {
 
     UserPaths::scaffold(Some(data_dir.clone())).await?;
     let paths = UserPaths::new_global(data_dir.clone());
-    let accounts = LocalAccount::list_accounts(Some(&paths)).await?;
+    let accounts = Identity::list_accounts(Some(&paths)).await?;
     assert_eq!(0, accounts.len());
 
     let (mut account, _new_account) = LocalAccount::new_account(
@@ -30,7 +30,7 @@ async fn integration_account_lifecycle() -> Result<()> {
     )
     .await?;
 
-    let accounts = LocalAccount::list_accounts(Some(&paths)).await?;
+    let accounts = Identity::list_accounts(Some(&paths)).await?;
     assert_eq!(1, accounts.len());
 
     let key: AccessKey = passphrase.into();

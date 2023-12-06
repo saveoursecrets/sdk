@@ -1,14 +1,14 @@
 //! Create a new local account.
 
-use super::Identity;
 use crate::{
-    account::{FolderKeys, UserPaths},
+    account::UserPaths,
     constants::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
         DEFAULT_CONTACTS_VAULT_NAME, FILE_PASSWORD_URN,
     },
     crypto::AccessKey,
     encode,
+    identity::{FolderKeys, Identity},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,

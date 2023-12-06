@@ -41,11 +41,12 @@ async fn integration_audit_trail() -> Result<()> {
     // Read in the audit log events
     let paths = owner.paths();
     let audit_log = paths.audit_file();
+        
     let events = read_audit_events(audit_log).await?;
     let mut kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
 
     //println!("events {:#?}", events);
-    //println!("kinds {:#?}", kinds);
+    println!("kinds {:#?}", kinds);
 
     // Created the account
     assert!(matches!(kinds.remove(0), EventKind::CreateAccount));

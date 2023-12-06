@@ -37,8 +37,7 @@ async fn create_rpc_client(
     let signer: BoxedEcdsaSigner = Box::new(SingleParty::new_random());
 
     // Set up local storage in case we need to use it
-    FolderStorage::new_client(signer.address()?, Some(data_dir))
-        .await?;
+    FolderStorage::new_client(signer.address()?, Some(data_dir)).await?;
 
     let address = signer.address()?;
     let client =

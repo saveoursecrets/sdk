@@ -3,12 +3,13 @@ use mpc_protocol::generate_keypair;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        Account, AccountBuilder, AccountData, DetachedView, Identity,
-        NewAccount, UserPaths,
+        Account, AccountBuilder, AccountData, DetachedView, NewAccount,
+        UserPaths,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     events::{Event, ReadEvent},
+    identity::Identity,
     signer::ecdsa::Address,
     storage::{
         search::{

@@ -2,7 +2,7 @@ use clap::Subcommand;
 
 use human_bytes::human_bytes;
 use sos_net::sdk::{
-    account::AccountRef, events::LogEvent, hex, vault::FolderRef,
+    events::LogEvent, hex, identity::AccountRef, vault::FolderRef,
 };
 
 use crate::{

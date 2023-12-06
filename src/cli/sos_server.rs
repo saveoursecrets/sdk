@@ -63,13 +63,8 @@ pub async fn run() -> Result<()> {
             bind,
             config,
         } => {
-            server::run(
-                reap_interval,
-                session_duration,
-                bind,
-                config,
-            )
-            .await?;
+            server::run(reap_interval, session_duration, bind, config)
+                .await?;
         }
     }
 

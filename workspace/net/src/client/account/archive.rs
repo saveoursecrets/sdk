@@ -1,9 +1,9 @@
 //! Adds backup archive functions to network account.
 use super::network_account::LocalAccount;
 use crate::client::{NetworkAccount, Result};
-use sos_sdk::account::{
-    archive::{Inventory, RestoreOptions},
-    PublicIdentity,
+use sos_sdk::{
+    account::archive::{Inventory, RestoreOptions},
+    identity::PublicIdentity,
 };
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncRead, AsyncSeek};

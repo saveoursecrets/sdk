@@ -11,7 +11,7 @@ use sos_sdk::{
 
 use async_trait::async_trait;
 
-use super::{Service, PrivateState};
+use super::{PrivateState, Service};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
     server::{BackendHandler, Error, Result},

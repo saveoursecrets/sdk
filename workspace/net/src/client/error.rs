@@ -1,6 +1,7 @@
 //! Error type for the client module.
 #[cfg(feature = "client")]
 use crate::client::{Origin, SyncError};
+use http::StatusCode;
 use serde_json::Value;
 use sos_sdk::{
     commit::CommitHash,
@@ -8,7 +9,6 @@ use sos_sdk::{
     events::WriteEvent,
     vault::{Summary, VaultId},
 };
-use http::StatusCode;
 use std::path::PathBuf;
 use thiserror::Error;
 use uuid::Uuid;

@@ -1,8 +1,5 @@
-use sos_net::{
-    server::{
-        Result, Server, ServerConfig, ServerInfo, State,
-        TransportManager,
-    },
+use sos_net::server::{
+    Result, Server, ServerConfig, ServerInfo, State, TransportManager,
 };
 
 use axum_server::Handle;
