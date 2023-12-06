@@ -343,7 +343,7 @@ impl Service for EventLogService {
                                 {
                                     account
                                         .folders
-                                        .set_vault_name(
+                                        .rename_folder(
                                             &folder,
                                             name.to_owned(),
                                         )

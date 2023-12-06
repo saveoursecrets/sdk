@@ -71,7 +71,7 @@ impl<D> Account<D> {
             self.address().clone(),
             None,
         );
-        self.append_audit_logs(vec![audit_event]).await?;
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(())
     }
@@ -128,16 +128,6 @@ impl<D> Account<D> {
             }
         };
 
-        let audit_event = AuditEvent::new(
-            EventKind::ImportUnsafe,
-            self.address().clone(),
-            None,
-        );
-        let create_event: AuditEvent = (self.address(), &event).into();
-
-        self.append_audit_logs(vec![audit_event, create_event])
-            .await?;
-
         Ok((event, summary))
     }
 
@@ -149,6 +139,13 @@ impl<D> Account<D> {
         converter: impl Convert<Input = PathBuf>,
     ) -> Result<(Event, Summary)> {
         let paths = self.paths();
+
+        let audit_event = AuditEvent::new(
+            EventKind::ImportUnsafe,
+            self.address().clone(),
+            None,
+        );
+        paths.append_audit_events(vec![audit_event]).await?;
 
         let vaults = Self::list_local_folders(&paths, false).await?;
         let existing_name =
@@ -176,18 +173,18 @@ impl<D> Account<D> {
             .await?;
 
         let buffer = encode(&vault).await?;
-        let (_, summary, event) = {
+        let (event, summary) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             let key: AccessKey = vault_passphrase.clone().into();
             let secure_key = self.user()?.to_secure_access_key(&key).await?;
-            writer.import_vault(buffer, Some(&key), secure_key).await?
+            writer.import_folder(buffer, secure_key, Some(&key)).await?
         };
 
         self.user_mut()?
             .save_folder_password(vault.id(), vault_passphrase.clone().into())
             .await?;
 
-        Ok((Event::Write(*summary.id(), event), summary))
+        Ok((event, summary))
     }
 }

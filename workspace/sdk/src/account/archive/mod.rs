@@ -32,7 +32,7 @@ impl<D> Account<D> {
             self.address().clone(),
             None,
         );
-        self.append_audit_logs(vec![audit_event]).await?;
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(())
     }
@@ -71,7 +71,7 @@ impl<D> Account<D> {
                 owner.address().clone(),
                 None,
             );
-            owner.append_audit_logs(vec![audit_event]).await?;
+            owner.paths.append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(account)

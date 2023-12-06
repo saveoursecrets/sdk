@@ -200,9 +200,6 @@ pub struct Account<D> {
     /// Storage paths.
     pub(super) paths: Arc<UserPaths>,
 
-    /// Audit log for this provider.
-    audit_log: Arc<RwLock<AuditLogFile>>,
-
     /// Hook called before making local changes.
     ///
     /// Allows network aware accounts to sync
@@ -300,15 +297,11 @@ impl<D> Account<D> {
         };
 
         let paths = UserPaths::new_global(data_dir);
-        let audit_log = Arc::new(RwLock::new(
-            AuditLogFile::new(paths.audit_file()).await?,
-        ));
 
         Ok(Self {
             address,
             paths: Arc::new(paths),
             authenticated: None,
-            audit_log,
             handler,
         })
     }
@@ -378,26 +371,14 @@ impl<D> Account<D> {
         };
 
         let paths = UserPaths::new_global(data_dir);
-        let audit_log = Arc::new(RwLock::new(
-            AuditLogFile::new(paths.audit_file()).await?,
-        ));
 
         let owner = Self {
             address,
             paths: Arc::new(paths),
             authenticated: None,
-            audit_log,
             handler,
         };
-
-        let mut audit_events = Vec::new();
-        for event in events {
-            let audit_event: AuditEvent =
-                (new_account.address(), &event).into();
-            audit_events.push(audit_event);
-        }
-        owner.append_audit_logs(audit_events).await?;
-
+        
         Ok((owner, new_account))
     }
 
@@ -536,15 +517,6 @@ impl<D> Account<D> {
         &self.paths
     }
     
-    /// Append to the audit log.
-    pub(super) async fn append_audit_logs(
-        &self,
-        events: Vec<AuditEvent>,
-    ) -> Result<()> {
-        self.paths.append_audit_events(events).await?;
-        Ok(())
-    }
-
     /// Load the buffer of the encrypted vault for this account.
     ///
     /// Used when a client needs to authenticate other devices;
@@ -589,7 +561,7 @@ impl<D> Account<D> {
         let paths = self.paths().clone();
         let event = self.user_mut()?.delete_account(&paths).await?;
         let audit_event: AuditEvent = (self.address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+        self.paths.append_audit_events(vec![audit_event]).await?;
         self.sign_out().await?;
         Ok(())
     }
@@ -763,12 +735,8 @@ impl<D> Account<D> {
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.set_vault_name(&summary, &name).await?
+            writer.rename_folder(&summary, &name).await?
         };
-
-        let event = Event::Write(*summary.id(), event);
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
 
         Ok((event, commit_state))
     }
@@ -879,7 +847,7 @@ impl<D> Account<D> {
             self.address().clone(),
             Some(AuditData::Vault(*summary.id())),
         );
-        self.append_audit_logs(vec![audit_event]).await?;
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(buffer)
     }
@@ -998,11 +966,11 @@ impl<D> Account<D> {
         let secure_key = self.user()?.to_secure_access_key(&key).await?;
 
         // Import the vault
-        let (account_event, summary, write_event) = {
+        let (event, summary) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer
-                .import_vault(buffer.as_ref(), Some(&key), secure_key)
+                .import_folder(buffer.as_ref(), secure_key, Some(&key))
                 .await?
         };
 
@@ -1039,17 +1007,12 @@ impl<D> Account<D> {
             }
         }
 
-        let audit_event: AuditEvent = (self.address(), &account_event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
-
         let options = AccessOptions {
             folder: Some(summary.clone()),
             ..Default::default()
         };
         let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
-
-        let event = Event::Folder(account_event, write_event);
 
         Ok((summary, event, commit_state))
     }
@@ -1089,10 +1052,9 @@ impl<D> Account<D> {
         };
 
         let event = Event::Read(*summary.id(), event);
-
         if audit {
             let audit_event: AuditEvent = (self.address(), &event).into();
-            self.append_audit_logs(vec![audit_event]).await?;
+            self.paths.append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(())
@@ -1224,7 +1186,7 @@ impl<D> Account<D> {
         let event = Event::Write(*folder.id(), event);
         if audit {
             let audit_event: AuditEvent = (self.address(), &event).into();
-            self.append_audit_logs(vec![audit_event]).await?;
+            self.paths.append_audit_events(vec![audit_event]).await?;
         }
 
         Ok((id, event, folder))
@@ -1269,7 +1231,7 @@ impl<D> Account<D> {
         if audit {
             let event = Event::Read(*folder.id(), read_event.clone());
             let audit_event: AuditEvent = (self.address(), &event).into();
-            self.append_audit_logs(vec![audit_event]).await?;
+            self.paths.append_audit_events(vec![audit_event]).await?;
         }
 
         Ok((SecretRow::new(*secret_id, meta, secret), read_event))
@@ -1314,7 +1276,7 @@ impl<D> Account<D> {
         };
 
         let audit_event: AuditEvent = (self.address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok((id, event, commit_state, folder))
     }
@@ -1396,7 +1358,7 @@ impl<D> Account<D> {
                 to_secret_id: new_id.clone(),
             }),
         );
-        self.append_audit_logs(vec![audit_event]).await?;
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok((new_id, event))
     }
@@ -1421,7 +1383,7 @@ impl<D> Account<D> {
         let event = Event::Write(*folder.id(), event);
 
         let audit_event: AuditEvent = (self.address(), &event).into();
-        self.append_audit_logs(vec![audit_event]).await?;
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok((event, commit_state, folder))
     }

@@ -82,7 +82,7 @@ impl<D> Account<D> {
             self.address().clone(),
             Some(AuditData::Secret(*current_folder.id(), *secret_id)),
         );
-        self.append_audit_logs(vec![audit_event]).await?;
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(())
     }
@@ -121,7 +121,7 @@ impl<D> Account<D> {
             self.address().clone(),
             None,
         );
-        self.append_audit_logs(vec![audit_event]).await?;
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(())
     }
@@ -183,7 +183,7 @@ impl<D> Account<D> {
             self.address().clone(),
             None,
         );
-        self.append_audit_logs(vec![audit_event]).await?;
+        self.paths.append_audit_events(vec![audit_event]).await?;
         Ok(ids)
     }
 }

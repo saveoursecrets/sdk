@@ -318,11 +318,14 @@ impl FolderStorage {
     ) -> Result<Vec<Event>> {
         let mut events = Vec::new();
 
-        events.push(Event::CreateAccount(AuditEvent::new(
+        let create_account = Event::CreateAccount(AuditEvent::new(
             EventKind::CreateAccount,
             account.address.clone(),
             None,
-        )));
+        ));
+
+        let audit_event: AuditEvent = (self.address(), &create_account).into();
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         // Save the default vault
         let secure_key = account
@@ -330,7 +333,7 @@ impl FolderStorage {
             .find_secure_access_key(account.default_folder.id())?;
         let buffer = encode(&account.default_folder).await?;
         let (event, _) = self
-            .import_account_folder(&buffer, secure_key.clone())
+            .import_folder(&buffer, secure_key.clone(), None)
             .await?;
         events.push(event);
 
@@ -339,7 +342,7 @@ impl FolderStorage {
                 account.user.find_secure_access_key(vault.id())?;
             let buffer = encode(vault).await?;
             let (event, _) = self
-                .import_account_folder(buffer, secure_key.clone())
+                .import_folder(buffer, secure_key.clone(), None)
                 .await?;
             events.push(event);
         }
@@ -349,7 +352,7 @@ impl FolderStorage {
                 account.user.find_secure_access_key(vault.id())?;
             let buffer = encode(vault).await?;
             let (event, _) = self
-                .import_account_folder(buffer, secure_key.clone())
+                .import_folder(buffer, secure_key.clone(), None)
                 .await?;
             events.push(event);
         }
@@ -359,23 +362,14 @@ impl FolderStorage {
                 account.user.find_secure_access_key(vault.id())?;
             let buffer = encode(vault).await?;
             let (event, _) = self
-                .import_account_folder(buffer, secure_key.clone())
+                .import_folder(buffer, secure_key.clone(), None)
                 .await?;
             events.push(event);
         }
 
-        Ok(events)
-    }
+        events.insert(0, create_account);
 
-    /// Import a folder into a new account.
-    pub async fn import_account_folder(
-        &mut self,
-        buffer: impl AsRef<[u8]>,
-        secure_key: SecureAccessKey,
-    ) -> Result<(Event, Summary)> {
-        let (account_event, summary, write_event) =
-            self.import_vault(buffer, None, secure_key).await?;
-        Ok((Event::Folder(account_event, write_event), summary))
+        Ok(events)
     }
 
     /// Restore vaults from an archive.
@@ -686,16 +680,16 @@ impl FolderStorage {
         Ok((buffer, key, summary))
     }
 
-    /// Import a vault buffer into an existing account.
+    /// Import a folder into an existing account.
     ///
-    /// If a vault with the same identifier already exists
+    /// If a folder with the same identifier already exists
     /// it is overwritten.
-    pub async fn import_vault(
+    pub async fn import_folder(
         &mut self,
         buffer: impl AsRef<[u8]>,
-        key: Option<&AccessKey>,
         secure_key: SecureAccessKey,
-    ) -> Result<(AccountEvent, Summary, WriteEvent)> {
+        key: Option<&AccessKey>,
+    ) -> Result<(Event, Summary)> {
         let (exists, write_event, summary) =
             self.upsert_vault_buffer(buffer, key).await?;
 
@@ -712,7 +706,11 @@ impl FolderStorage {
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
 
-        Ok((account_event, summary, write_event))
+        let audit_event: AuditEvent = (self.address(), &account_event).into();
+        self.paths.append_audit_events(vec![audit_event]).await?;
+
+        let event = Event::Folder(account_event, write_event);
+        Ok((event, summary))
     }
 
     /// Remove a vault file and event log file.
@@ -967,11 +965,11 @@ impl FolderStorage {
     }
 
     /// Set the name of a vault.
-    pub async fn set_vault_name(
+    pub async fn rename_folder(
         &mut self,
         summary: &Summary,
         name: impl AsRef<str>,
-    ) -> Result<WriteEvent> {
+    ) -> Result<Event> {
         // Update the in-memory name.
         for item in self.state.summaries_mut().iter_mut() {
             if item.id() == summary.id() {
@@ -994,6 +992,10 @@ impl FolderStorage {
 
         let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
         self.patch(summary, vec![&event]).await?;
+
+        let event = Event::Write(*summary.id(), event);
+        let audit_event: AuditEvent = (self.address(), &event).into();
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(event)
     }

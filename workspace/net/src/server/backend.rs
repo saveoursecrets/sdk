@@ -259,7 +259,7 @@ impl BackendHandler for FileSystemBackend {
 
         let (event, summary) = writer
             .folders
-            .import_account_folder(vault, secure_access_key)
+            .import_folder(vault, secure_access_key, None)
             .await?;
 
         tracing::debug!(folder_id = %summary.id());
@@ -294,13 +294,13 @@ impl BackendHandler for FileSystemBackend {
             return Err(Error::BadRequest);
         }
 
-        let (account_event, summary, write_event) = writer
+        let (event, summary) = writer
             .folders
-            .import_vault(vault, None, secure_access_key)
+            .import_folder(vault, secure_access_key, None)
             .await?;
         let (_, proof) = writer.folders.commit_state(&summary).await?;
 
-        Ok((Event::Folder(account_event, write_event), proof))
+        Ok((event, proof))
     }
 
     async fn delete_folder(
@@ -349,13 +349,13 @@ impl BackendHandler for FileSystemBackend {
             .ok_or(Error::NoAccount(owner.to_owned()))?;
 
         let mut writer = account.write().await;
-        let (account_event, summary, write_event) = writer
+        let (event, summary) = writer
             .folders
-            .import_vault(vault, None, secure_access_key)
+            .import_folder(vault, secure_access_key, None)
             .await?;
 
         let (_, proof) = writer.folders.commit_state(&summary).await?;
-        Ok((Event::Folder(account_event, write_event), proof))
+        Ok((event, proof))
     }
 
     async fn folder_exists(

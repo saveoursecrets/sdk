@@ -833,7 +833,7 @@ mod listen {
             let (_, folder) = {
                 let mut writer = local.write().await;
                 writer
-                    .import_account_folder(buffer, secure_key.clone())
+                    .import_folder(buffer, secure_key.clone(), None)
                     .await?
             };
 
