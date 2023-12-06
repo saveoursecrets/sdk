@@ -334,7 +334,6 @@ impl UserPaths {
         &self,
         events: Vec<AuditEvent>,
     ) -> Result<()> {
-        println!("NON-TEST CODE RUNNING");
         let log_file = AUDIT_LOG
             .get_or_init(async move {
                 Mutex::new(

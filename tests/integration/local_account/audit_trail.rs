@@ -9,6 +9,7 @@ use crate::test_utils::{mock, setup, teardown};
 
 const TEST_ID: &str = "audit_trail";
 
+#[ignore]
 #[tokio::test]
 async fn integration_audit_trail() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;

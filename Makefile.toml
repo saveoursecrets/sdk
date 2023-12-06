@@ -95,9 +95,14 @@ args = ["test", "--all", "--lib", "--", "--nocapture"]
 command = "cargo"
 args = ["test", "command_line", "--", "--nocapture"]
 
+[tasks.test-audit-trail]
+command = "cargo"
+args = ["test", "audit", "--", "--ignored"]
+
 [tasks.integration]
 command = "cargo"
 args = ["test", "integration"]
+dependencies = ["test-audit-trail"]
 
 [tasks.test-wasm]
 command = "wasm-pack"
