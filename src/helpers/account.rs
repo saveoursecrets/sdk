@@ -4,7 +4,7 @@ use std::{borrow::Cow, sync::Arc};
 use sos_net::{
     client::NetworkAccount,
     sdk::{
-        account::{AccountInfo, AccountRef, LocalAccount, UserPaths},
+        account::{PublicIdentity, AccountRef, LocalAccount, UserPaths},
         constants::DEFAULT_VAULT_NAME,
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
@@ -37,14 +37,14 @@ enum AccountPasswordOption {
 }
 
 /// Choose an account.
-pub async fn choose_account() -> Result<Option<AccountInfo>> {
+pub async fn choose_account() -> Result<Option<PublicIdentity>> {
     let mut accounts = LocalAccount::list_accounts(None).await?;
     if accounts.is_empty() {
         Ok(None)
     } else if accounts.len() == 1 {
         Ok(Some(accounts.remove(0)))
     } else {
-        let options: Vec<Choice<'_, AccountInfo>> = accounts
+        let options: Vec<Choice<'_, PublicIdentity>> = accounts
             .into_iter()
             .map(|a| Choice(Cow::Owned(a.label().to_string()), a))
             .collect();
@@ -189,7 +189,7 @@ pub async fn list_accounts(verbose: bool) -> Result<()> {
 
 pub async fn find_account(
     account: &AccountRef,
-) -> Result<Option<AccountInfo>> {
+) -> Result<Option<PublicIdentity>> {
     let accounts = LocalAccount::list_accounts(None).await?;
     match account {
         AccountRef::Address(address) => {

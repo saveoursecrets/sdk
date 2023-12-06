@@ -19,7 +19,7 @@ use urn::Urn;
 use web3_address::ethereum::Address;
 
 use crate::{
-    account::{AccountInfo, LocalAccount, UserPaths},
+    account::{PublicIdentity, LocalAccount, UserPaths},
     commit::CommitState,
     constants::{
         DEVICE_KEY_URN, FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN,
@@ -98,7 +98,7 @@ pub type UrnLookup = HashMap<(VaultId, Urn), SecretId>;
 /// and the private keys for a user.
 pub struct Identity {
     paths: UserPaths,
-    account: Option<AccountInfo>,
+    account: Option<PublicIdentity>,
     identity: Option<PrivateIdentity>,
     secure_keys: SecureKeys,
 }
@@ -121,11 +121,11 @@ impl Identity {
     }
 
     /// Account information.
-    pub fn account(&self) -> Result<&AccountInfo> {
+    pub fn account(&self) -> Result<&PublicIdentity> {
         self.account.as_ref().ok_or(Error::NotAuthenticated)
     }
 
-    fn account_mut(&mut self) -> Result<&mut AccountInfo> {
+    fn account_mut(&mut self) -> Result<&mut PublicIdentity> {
         self.account.as_mut().ok_or(Error::NotAuthenticated)
     }
 

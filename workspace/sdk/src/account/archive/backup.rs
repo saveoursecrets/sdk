@@ -15,7 +15,7 @@ use walkdir::WalkDir;
 use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
-        AccountInfo, Identity, LocalAccount, UserPaths,
+        PublicIdentity, Identity, LocalAccount, UserPaths,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -370,7 +370,7 @@ impl AccountBackup {
         options: RestoreOptions,
         existing_account: bool,
         mut data_dir: Option<PathBuf>,
-    ) -> Result<(RestoreTargets, AccountInfo)> {
+    ) -> Result<(RestoreTargets, PublicIdentity)> {
         // FIXME: ensure we still have ONE vault marked as default vault!!!
         //
 
@@ -510,7 +510,7 @@ impl AccountBackup {
                 event_log.apply(event_log_events.iter().collect()).await?;
             }
 
-            let account = AccountInfo::new(label, restore_targets.address);
+            let account = PublicIdentity::new(label, restore_targets.address);
 
             (restore_targets, account)
         };

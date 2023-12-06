@@ -20,7 +20,7 @@ pub mod search;
 pub mod security_report;
 
 pub use account::{
-    Account, AccountData, AccountHandler, AccountInfo, AccountRef,
+    Account, AccountData, AccountHandler, PublicIdentity, AccountRef,
     DetachedView, LocalAccount,
 };
 pub use builder::{AccountBuilder, NewAccount};

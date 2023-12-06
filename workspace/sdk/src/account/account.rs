@@ -58,9 +58,9 @@ pub trait AccountHandler {
 
 type Handler<D> = Box<dyn AccountHandler<Data = D> + Send + Sync>;
 
-/// Basic account information.
+/// Public account identity information.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AccountInfo {
+pub struct PublicIdentity {
     /// Address identifier for the account.
     ///
     /// This corresponds to the address of the signing key
@@ -72,7 +72,7 @@ pub struct AccountInfo {
     label: String,
 }
 
-impl AccountInfo {
+impl PublicIdentity {
     /// Create new account information.
     pub fn new(label: String, address: Address) -> Self {
         Self { label, address }
@@ -93,14 +93,14 @@ impl AccountInfo {
     }
 }
 
-impl From<&AccountInfo> for AccountRef {
-    fn from(value: &AccountInfo) -> Self {
+impl From<&PublicIdentity> for AccountRef {
+    fn from(value: &PublicIdentity) -> Self {
         AccountRef::Address(*value.address())
     }
 }
 
-impl From<AccountInfo> for AccountRef {
-    fn from(value: AccountInfo) -> Self {
+impl From<PublicIdentity> for AccountRef {
+    fn from(value: PublicIdentity) -> Self {
         (&value).into()
     }
 }
@@ -157,7 +157,7 @@ impl DetachedView {
 pub struct AccountData {
     /// Main account information.
     #[serde(flatten)]
-    pub account: AccountInfo,
+    pub account: PublicIdentity,
     /// AGE identity public recipient.
     pub identity: String,
     /// Account folders.
@@ -212,7 +212,7 @@ impl<D> Account<D> {
     /// List account information for the identity vaults.
     pub async fn list_accounts(
         paths: Option<&UserPaths>,
-    ) -> Result<Vec<AccountInfo>> {
+    ) -> Result<Vec<PublicIdentity>> {
         let mut keys = Vec::new();
         let paths = if let Some(paths) = paths {
             paths.clone()
@@ -229,7 +229,7 @@ impl<D> Account<D> {
                 if extension == VAULT_EXT {
                     let summary =
                         Header::read_summary_file(entry.path()).await?;
-                    keys.push(AccountInfo {
+                    keys.push(PublicIdentity {
                         address: file_stem.to_string_lossy().parse()?,
                         label: summary.name().to_owned(),
                     });

@@ -10,7 +10,7 @@ use sos_net::{
                 AccountBackup, ExtractFilesLocation, Inventory,
                 RestoreOptions,
             },
-            AccountInfo, AccountRef, UserPaths,
+            PublicIdentity, AccountRef, UserPaths,
         },
         storage::FolderStorage,
         vfs,
@@ -391,7 +391,7 @@ async fn account_backup(
 }
 
 /// Restore from a zip archive.
-async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
+async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
     if !vfs::try_exists(&input).await?
         || !vfs::metadata(&input).await?.is_file()
     {

@@ -8,7 +8,7 @@ pub use backup::{
 };
 pub use zip::*;
 
-use super::{Account, AccountInfo, LocalAccount, UserPaths};
+use super::{Account, PublicIdentity, LocalAccount, UserPaths};
 use crate::{
     events::{AuditEvent, EventKind},
     vfs::File,
@@ -59,7 +59,7 @@ impl<D> Account<D> {
         path: P,
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
-    ) -> Result<AccountInfo> {
+    ) -> Result<PublicIdentity> {
         let file = File::open(path).await?;
         let (account, owner) =
             Self::restore_archive_reader(owner, file, options, data_dir)
@@ -83,7 +83,7 @@ impl<D> Account<D> {
         buffer: R,
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
-    ) -> Result<(AccountInfo, Option<&mut Account<D>>)> {
+    ) -> Result<(PublicIdentity, Option<&mut Account<D>>)> {
         let files_dir = if let Some(owner) = owner.as_ref() {
             ExtractFilesLocation::Path(owner.paths().files_dir().clone())
         } else {

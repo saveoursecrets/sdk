@@ -3,7 +3,7 @@ use super::network_account::LocalAccount;
 use crate::client::{NetworkAccount, Result};
 use sos_sdk::account::{
     archive::{Inventory, RestoreOptions},
-    AccountInfo,
+    PublicIdentity,
 };
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncRead, AsyncSeek};
@@ -33,7 +33,7 @@ impl NetworkAccount {
         path: P,
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
-    ) -> Result<AccountInfo> {
+    ) -> Result<PublicIdentity> {
         Ok(LocalAccount::restore_backup_archive(
             owner.map(|o| &mut o.account),
             path,
