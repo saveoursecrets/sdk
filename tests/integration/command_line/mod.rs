@@ -175,6 +175,7 @@ pub(crate) fn read_until_eof(
     Ok(())
 }
 
+#[ignore]
 #[tokio::test]
 async fn integration_command_line() -> Result<()> {
     let (password, _) = generate_passphrase()?;

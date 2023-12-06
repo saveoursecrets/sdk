@@ -27,10 +27,14 @@ const APP_INFO: AppInfo = AppInfo {
     author: APP_AUTHOR,
 };
 
-static shared: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
-
 static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
+
+#[cfg(not(test))]
+static AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
+
+#[cfg(test)]
+pub static mut AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 
 /// Encapsulates the paths for a user account.
 #[derive(Default, Debug, Clone)]
@@ -60,6 +64,7 @@ pub struct UserPaths {
 }
 
 impl UserPaths {
+
     /// Create new paths.
     pub fn new<D: AsRef<Path>>(
         documents_dir: D,
@@ -322,15 +327,16 @@ impl UserPaths {
             dir
         }
     }
-
+    
     /// Append to the audit log.
+    #[cfg(not(test))]
     pub async fn append_audit_events(
         &self,
         events: Vec<AuditEvent>,
     ) -> Result<()> {
-        let log_file = shared
+        println!("NON-TEST CODE RUNNING");
+        let log_file = AUDIT_LOG
             .get_or_init(async move {
-                println!("INITIALIZE AUDIT FILE IN {:#?}", self.audit_file());
                 Mutex::new(
                     AuditLogFile::new(self.audit_file())
                         .await
@@ -338,10 +344,49 @@ impl UserPaths {
                 )
             })
             .await;
+
         let mut writer = log_file.lock().await;
         writer.append_audit_events(events).await?;
         Ok(())
     }
+
+    /// Append to the audit log.
+    ///
+    /// For test purposes we need unsafe so we can 
+    /// reset the log file location between test executions.
+    #[cfg(test)]
+    pub async fn append_audit_events(
+        &self,
+        events: Vec<AuditEvent>,
+    ) -> Result<()> {
+        unsafe {
+            let log_file = AUDIT_LOG
+                .get_or_init(async move {
+                    Mutex::new(
+                        AuditLogFile::new(self.audit_file())
+                            .await
+                            .expect("could not create audit log file"),
+                    )
+                })
+                .await;
+            let mut writer = log_file.lock().await;
+            writer.append_audit_events(events).await?;
+        }
+        Ok(())
+    }
+
+    #[doc(hidden)]
+    #[cfg(test)]
+    pub fn reset_audit_log() {
+        //println!("TEST RESET CALLED");
+        unsafe {
+            AUDIT_LOG.take();
+        }
+    }
+    
+    #[doc(hidden)]
+    #[cfg(not(test))]
+    pub fn reset_audit_log() {}
 }
 
 #[cfg(not(target_arch = "wasm32"))]
