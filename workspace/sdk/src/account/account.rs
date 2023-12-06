@@ -491,7 +491,6 @@ impl<D> Account<D> {
         let _enter = span.enter();
 
         let mut event_log = account_log.write().await;
-        event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
         tracing::debug!(needs_init = %needs_init);

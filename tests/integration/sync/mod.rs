@@ -216,7 +216,8 @@ pub async fn assert_local_remote_vaults_eq(
     for summary in expected_summaries {
         tracing::debug!(id = %summary.id(), "assert_local_remote_vaults_eq");
 
-        let local_folder = reader.paths().vault_path(summary.id().to_string());
+        let local_folder =
+            reader.paths().vault_path(summary.id().to_string());
         let remote_folder = server_path.join("vaults").join(format!(
             "{}.{}",
             summary.id(),
@@ -244,8 +245,8 @@ pub async fn assert_local_remote_events_eq(
     };
     let remote_status = provider.account_status().await?;
 
-    //println!("{:#?}", local_status);
-    //println!("{:#?}", remote_status);
+    //println!(" local {:#?}", local_status);
+    //println!("remote {:#?}", remote_status);
 
     assert_eq!(local_status, remote_status);
 

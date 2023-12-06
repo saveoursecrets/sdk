@@ -17,7 +17,7 @@ use sos_sdk::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     crypto::SecureAccessKey,
     decode,
-    events::{AccountEvent, AccountReducer, Event, WriteEvent},
+    events::{AccountEvent, AccountReducer, Event, WriteEvent, LogEvent},
     signer::ecdsa::BoxedEcdsaSigner,
     storage::{AccountStatus, FolderStorage},
     url::Url,
@@ -160,7 +160,7 @@ impl RemoteBridge {
         status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+            .ok_or(Error::ResponseCode(status))?;
         Ok(())
     }
 
@@ -180,15 +180,15 @@ impl RemoteBridge {
         status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+            .ok_or(Error::ResponseCode(status))?;
 
         Ok((proof, buffer.ok_or(Error::NoEventBuffer)?))
     }
 
     /// Send a patch of account log events to the remote.
-    async fn send_account_log_events(
+    async fn send_account_events(
         &self,
-        from: Option<&CommitHash>
+        from: Option<&CommitHash>,
     ) -> Result<()> {
         let patch: Patch = {
             let local = self.local.read().await;
@@ -200,12 +200,22 @@ impl RemoteBridge {
 
         for record in patch.iter() {
             let event = record.decode_event::<AccountEvent>().await?;
-            println!("{:#?}", event);
+            tracing::debug!(event_kind = %event.event_kind(), "send account event");
+
+            println!("send account event {}", event.event_kind());
+
             match event {
                 AccountEvent::CreateFolder(id, secure_key) => {
                     let local = self.local.read().await;
                     let buffer = local.read_vault_file(&id).await?;
-                    self.create_folder(&buffer, &secure_key).await?;
+                    if let Err(e) = self.create_folder(&buffer, &secure_key).await {
+                        if let Error::ResponseCode(StatusCode::CONFLICT) = e {
+                            tracing::debug!(
+                                "ignore conflict (409) on create folder");
+                        } else {
+                            return Err(e);
+                        }
+                    }
                 }
                 AccountEvent::UpdateFolder(id, secure_key) => {
                     let local = self.local.read().await;
@@ -241,7 +251,7 @@ impl RemoteBridge {
         status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+            .ok_or(Error::ResponseCode(status))?;
         Ok(())
     }
 
@@ -265,7 +275,7 @@ impl RemoteBridge {
         status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+            .ok_or(Error::ResponseCode(status))?;
         Ok(())
     }
 
@@ -282,7 +292,7 @@ impl RemoteBridge {
         status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+            .ok_or(Error::ResponseCode(status))?;
         Ok(())
     }
 
@@ -304,7 +314,7 @@ impl RemoteBridge {
         status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+            .ok_or(Error::ResponseCode(status))?;
         Ok(((last_commit, remote_proof), match_proof))
     }
 
@@ -332,7 +342,7 @@ impl RemoteBridge {
         status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+            .ok_or(Error::ResponseCode(status))?;
 
         tracing::debug!(num_events = ?num_events);
 
@@ -388,7 +398,7 @@ impl RemoteBridge {
         status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+            .ok_or(Error::ResponseCode(status))?;
 
         Ok(num_events > 0)
     }
@@ -516,7 +526,7 @@ impl RemoteBridge {
         status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+            .ok_or(Error::ResponseCode(status))?;
 
         Ok(())
     }
@@ -566,11 +576,12 @@ impl RemoteSync for RemoteBridge {
                         errors.push(e);
                     }
                 } else {
-
-                    // Need to initialize the account log 
+                    // Need to initialize the account log
                     // on the remote
                     if account_status.account.is_none() {
-                        if let Err(e) = self.send_account_log_events(None).await {
+                        if let Err(e) =
+                            self.send_account_events(None).await
+                        {
                             errors.push(e);
                         }
                     }
@@ -582,16 +593,19 @@ impl RemoteSync for RemoteBridge {
             }
             Err(e) => {
                 errors.push(e);
-            },
+            }
         }
 
         if errors.is_empty() {
             None
         } else {
-            let errors = errors.into_iter().map(|e| {
-                let origin: Origin = self.origin.clone().into();
-                (origin, e)
-            }).collect::<Vec<_>>();
+            let errors = errors
+                .into_iter()
+                .map(|e| {
+                    let origin: Origin = self.origin.clone().into();
+                    (origin, e)
+                })
+                .collect::<Vec<_>>();
             Some(SyncError::Multiple(errors))
         }
     }
@@ -824,8 +838,8 @@ mod listen {
             };
 
             // We dont have the ability to decrypt the secure
-            // key which nees to be saved so the folder can be 
-            // written to immediately and we need it in order 
+            // key which nees to be saved so the folder can be
+            // written to immediately and we need it in order
             // to refresh the in-memory vault also
             let access_key: Option<AccessKey> = {
                 // Send the secure access key to the

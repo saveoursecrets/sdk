@@ -258,7 +258,7 @@ impl RpcClient {
                 if content_type == &rpc_type {
                     Ok(response)
                 } else {
-                    Err(Error::ResponseCode(status.into()))
+                    Err(Error::ResponseCode(status))
                 }
             }
             // Unauthorized responses can be retried
@@ -270,12 +270,12 @@ impl RpcClient {
                 if let Some(content_type) = content_type {
                     if content_type == json_type {
                         let value: Value = response.json().await?;
-                        Err(Error::ResponseJson(status.into(), value))
+                        Err(Error::ResponseJson(status, value))
                     } else {
-                        Err(Error::ResponseCode(status.into()))
+                        Err(Error::ResponseCode(status))
                     }
                 } else {
-                    Err(Error::ResponseCode(status.into()))
+                    Err(Error::ResponseCode(status))
                 }
             }
         }
@@ -612,7 +612,7 @@ impl RpcClient {
         status
             .is_success()
             .then_some(())
-            .ok_or(Error::ResponseCode(status.into()))?;
+            .ok_or(Error::ResponseCode(status))?;
 
         let reply: Packet<'static> = decode(buffer).await?;
         let response: ResponseMessage<'static> = reply.try_into()?;
@@ -639,7 +639,7 @@ impl RpcClient {
             let result = result.ok_or(Error::NoReturnValue)?;
             Ok(RetryResponse::Complete(status, result, body))
         } else {
-            Err(Error::ResponseCode(http_status.into()))
+            Err(Error::ResponseCode(http_status))
         }
     }
 

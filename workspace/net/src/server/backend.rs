@@ -6,8 +6,9 @@ use sos_sdk::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::SecureAccessKey,
     decode, encode,
-    events::{Event, WriteEvent},
-    events::{EventReducer, FolderEventLog},
+    events::{
+        AccountReducer, Event, EventReducer, FolderEventLog, WriteEvent,
+    },
     storage::FolderStorage,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
     vfs,
@@ -28,6 +29,22 @@ use crate::FileLocks;
 pub struct AccountStorage {
     pub(crate) folders: FolderStorage,
 }
+
+/*
+impl AccountStorage {
+    /// Canonical collection of folders
+    /// defined in the account log.
+    pub async fn canonical_folders(
+        &self,
+    ) -> Result<HashMap<VaultId, SecureAccessKey>> {
+        let event_log = self.folders.account_log();
+        let mut event_log = event_log.write().await;
+        let reducer = AccountReducer::new(&mut *event_log);
+        let folders = reducer.reduce().await?;
+        Ok(folders)
+    }
+}
+*/
 
 /// Individual account.
 pub type ServerAccount = Arc<RwLock<AccountStorage>>;
@@ -116,6 +133,15 @@ pub trait BackendHandler {
         owner: &Address,
         vault_id: &VaultId,
     ) -> Result<(Option<Summary>, Option<CommitProof>)>;
+    
+    /*
+    /// Determine if a folders exists in the account log.
+    async fn canonical_folder_exists(
+        &self,
+        owner: &Address,
+        vault_id: &VaultId,
+    ) -> Result<Option<SecureAccessKey>>;
+    */
 
     /// Load a event log buffer for an account.
     async fn read_events_buffer(
@@ -351,6 +377,23 @@ impl BackendHandler for FileSystemBackend {
             Ok((None, None))
         }
     }
+    
+    /*
+    async fn canonical_folder_exists(
+        &self,
+        owner: &Address,
+        vault_id: &VaultId,
+    ) -> Result<Option<SecureAccessKey>> {
+        let accounts = self.accounts.read().await;
+        if let Some(account) = accounts.get(owner) {
+            let account = account.read().await;
+            let folders = account.canonical_folders().await?;
+            Ok(folders.get(vault_id).cloned())
+        } else {
+            Ok(None)
+        }
+    }
+    */
 
     async fn read_events_buffer(
         &self,

@@ -23,9 +23,7 @@ macro_rules! retry {
                             if status == StatusCode::UNAUTHORIZED {
                                 return Err(Error::NotAuthorized);
                             } else {
-                                return Err(Error::ResponseCode(
-                                    status.into(),
-                                ));
+                                return Err(Error::ResponseCode(status));
                             }
                         }
                         MaybeRetry::Complete(status, result) => {

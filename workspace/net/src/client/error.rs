@@ -8,6 +8,7 @@ use sos_sdk::{
     events::WriteEvent,
     vault::{Summary, VaultId},
 };
+use http::StatusCode;
 use std::path::PathBuf;
 use thiserror::Error;
 use uuid::Uuid;
@@ -97,11 +98,11 @@ pub enum Error {
     */
     /// Error generated when an unexpected response code is received.
     #[error("unexpected response status code {0}")]
-    ResponseCode(u16),
+    ResponseCode(StatusCode),
 
     /// Error generated when an unexpected response code is received.
     #[error("unexpected response {1} (code: {0})")]
-    ResponseJson(u16, Value),
+    ResponseJson(StatusCode, Value),
 
     /// Error generated when root commit hashes do not match.
     #[error("local and remote root hashes do not match; local = {0}, remote = {1}; you may need to pull or push to sync changes")]

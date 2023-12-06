@@ -114,6 +114,7 @@ impl FolderStorage {
 
         let log_file = paths.account_events();
         let mut event_log = AccountEventLog::new_account(log_file).await?;
+        event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
         #[cfg(feature = "files")]
@@ -137,7 +138,7 @@ impl FolderStorage {
     pub fn account_log(&self) -> Arc<RwLock<AccountEventLog>> {
         Arc::clone(&self.account_log)
     }
-    
+
     /// Set the password for file encryption.
     #[cfg(feature = "files")]
     pub fn set_file_password(&mut self, file_password: Option<SecretString>) {
@@ -399,7 +400,7 @@ impl FolderStorage {
 
         Ok(())
     }
-    
+
     /// Get the folder summaries for this storage.
     pub fn folders(&self) -> &[Summary] {
         self.state.summaries()
@@ -426,7 +427,8 @@ impl FolderStorage {
         summary: &Summary,
         vault: Option<Vault>,
     ) -> Result<()> {
-        let event_log_path = self.paths.event_log_path(summary.id().to_string());
+        let event_log_path =
+            self.paths.event_log_path(summary.id().to_string());
         let mut event_log =
             FolderEventLog::new_folder(&event_log_path).await?;
 
@@ -565,10 +567,7 @@ impl FolderStorage {
     }
 
     /// Read the buffer for a vault from disc.
-    pub async fn read_vault_file(
-        &self,
-        id: &VaultId,
-    ) -> Result<Vec<u8>> {
+    pub async fn read_vault_file(&self, id: &VaultId) -> Result<Vec<u8>> {
         let vault_path = self.paths.vault_path(id.to_string());
         Ok(vfs::read(vault_path).await?)
     }
@@ -714,7 +713,8 @@ impl FolderStorage {
         }
 
         // Remove the local event log file
-        let event_log_path = self.paths.event_log_path(summary.id().to_string());
+        let event_log_path =
+            self.paths.event_log_path(summary.id().to_string());
         if vfs::try_exists(&event_log_path).await? {
             vfs::remove_file(&event_log_path).await?;
         }
@@ -1096,7 +1096,8 @@ impl FolderStorage {
     /// Verify an event log.
     pub async fn verify(&self, summary: &Summary) -> Result<()> {
         use crate::commit::event_log_commit_tree_file;
-        let event_log_path = self.paths.event_log_path(summary.id().to_string());
+        let event_log_path =
+            self.paths.event_log_path(summary.id().to_string());
         event_log_commit_tree_file(&event_log_path, true, |_| {}).await?;
         Ok(())
     }

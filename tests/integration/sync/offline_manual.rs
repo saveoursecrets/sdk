@@ -1,5 +1,5 @@
 use super::{assert_local_remote_events_eq, num_events, simulate_device};
-use crate::test_utils::{mock_note, spawn, sync_pause, teardown};
+use crate::test_utils::{mock, spawn, sync_pause, teardown};
 use anyhow::Result;
 use sos_net::client::{RemoteBridge, RemoteSync};
 
@@ -10,7 +10,7 @@ const TEST_ID: &str = "sync_offline_manual";
 /// to local storage whilst disconnected.
 #[tokio::test]
 async fn integration_sync_offline_manual() -> Result<()> {
-    crate::test_utils::init_tracing();
+    //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -32,14 +32,14 @@ async fn integration_sync_offline_manual() -> Result<()> {
 
     // Perform all the basic CRUD operations to make sure
     // we are not affected by the remote being offline
-    let (meta, secret) = mock_note("note", "offline_secret");
+    let (meta, secret) = mock::note("note", "offline_secret");
     let (id, sync_error) = device1
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
     assert!(sync_error.is_some());
     let (_, _) = device1.owner.read_secret(&id, Default::default()).await?;
-    let (meta, secret) = mock_note("note_edited", "offline_secret_edit");
+    let (meta, secret) = mock::note("note_edited", "offline_secret_edit");
     let (_, sync_error) = device1
         .owner
         .update_secret(&id, meta, Some(secret), Default::default(), None)
@@ -63,9 +63,8 @@ async fn integration_sync_offline_manual() -> Result<()> {
     // they signed in again (which is a natural time to sync).
     //
     // This should push the local changes to the remote.
-    let result  = device1.owner.sync().await;
+    let result = device1.owner.sync().await;
 
-    /*
     assert!(device1.owner.sync().await.is_none());
 
     // The client explicitly sync from the other device too.
@@ -110,7 +109,6 @@ async fn integration_sync_offline_manual() -> Result<()> {
         remote_provider,
     )
     .await?;
-    */
 
     teardown(TEST_ID).await;
 

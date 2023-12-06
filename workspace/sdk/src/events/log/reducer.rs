@@ -4,7 +4,7 @@ use crate::{
     commit::CommitHash,
     crypto::{AeadPack, SecureAccessKey},
     decode, encode,
-    events::{AccountEvent, AccountEventLog, FolderEventLog, WriteEvent},
+    events::{AccountEvent, AccountEventLog, FolderEventLog, WriteEvent, LogEvent},
     vault::{secret::SecretId, Vault, VaultCommit, VaultId},
     Error, Result,
 };
@@ -26,7 +26,7 @@ impl<'a> AccountReducer<'a> {
         let mut folders = HashMap::new();
         let events = self.log.patch_until(None).await?;
         for record in events {
-            let event = record.decode_event().await?;
+            let event = record.decode_event::<AccountEvent>().await?;
             match event {
                 AccountEvent::CreateFolder(id, secure_access_key)
                 | AccountEvent::UpdateFolder(id, secure_access_key)
