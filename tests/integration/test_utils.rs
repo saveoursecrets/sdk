@@ -15,7 +15,6 @@ use sos_net::{
     sdk::{
         account::UserPaths,
         crypto::AccessKey,
-        events::AuditLogFile,
         hex,
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
@@ -91,9 +90,6 @@ impl MockServer {
 
         let mut backend = config.backend().await?;
 
-        // Set up the audit log
-        let audit_log = AuditLogFile::new(config.audit_file()).await?;
-
         let state = Arc::new(RwLock::new(State {
             info: ServerInfo {
                 name: String::from("integration-test"),
@@ -102,7 +98,6 @@ impl MockServer {
             },
             keypair,
             config,
-            audit_log,
             sockets: Default::default(),
             transports: TransportManager::new(3000),
         }));

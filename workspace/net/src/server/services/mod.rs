@@ -85,15 +85,6 @@ impl Caller {
 /// Type used for the state of private services.
 pub type PrivateState = (Caller, (ServerState, ServerBackend));
 
-/// Append to the audit log.
-async fn append_audit_logs<'a>(
-    writer: &mut RwLockWriteGuard<'a, State>,
-    events: Vec<AuditEvent>,
-) -> Result<()> {
-    writer.audit_log.append_audit_events(events).await?;
-    Ok(())
-}
-
 /// Send change notifications to connected clients.
 #[cfg(feature = "listen")]
 fn send_notification(

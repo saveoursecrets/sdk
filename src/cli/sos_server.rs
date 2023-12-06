@@ -30,10 +30,6 @@ pub enum Command {
 
     /// Start a server.
     Start {
-        /// Override the audit log file path.
-        #[clap(short, long)]
-        audit_log: Option<PathBuf>,
-
         /// Override the reap interval for expired sessions in seconds.
         #[clap(long)]
         reap_interval: Option<u64>,
@@ -62,14 +58,12 @@ pub async fn run() -> Result<()> {
             public_key,
         } => generate_keypair::run(file, force, public_key).await?,
         Command::Start {
-            audit_log,
             reap_interval,
             session_duration,
             bind,
             config,
         } => {
             server::run(
-                audit_log,
                 reap_interval,
                 session_duration,
                 bind,

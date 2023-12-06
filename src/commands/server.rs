@@ -1,21 +1,16 @@
 use sos_net::{
-    sdk::events::AuditLogFile,
     server::{
-        BackendHandler, Result, Server, ServerConfig, ServerInfo, State,
+        Result, Server, ServerConfig, ServerInfo, State,
         TransportManager,
     },
-    FileLocks,
 };
 
 use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 
-use crate::TARGET;
-
 /// Run a web server.
 pub async fn run(
-    audit_log: Option<PathBuf>,
     reap_interval: Option<u64>,
     session_duration: Option<u64>,
     bind: String,
@@ -36,12 +31,7 @@ pub async fn run(
 
     let transports = TransportManager::new(config.session.duration);
 
-    let mut backend = config.backend().await?;
-
-    let audit_log_file = audit_log.unwrap_or_else(|| config.audit_file());
-
-    // Set up the audit log
-    let audit_log = AuditLogFile::new(&audit_log_file).await?;
+    let backend = config.backend().await?;
 
     let state = Arc::new(RwLock::new(State {
         info: ServerInfo {
@@ -51,7 +41,6 @@ pub async fn run(
         },
         keypair,
         config,
-        audit_log,
         sockets: Default::default(),
         transports,
     }));

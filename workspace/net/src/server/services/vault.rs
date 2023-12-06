@@ -10,8 +10,7 @@ use sos_sdk::{
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use super::Service;
-use super::{append_audit_logs, PrivateState};
+use super::{Service, PrivateState};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
     server::{BackendHandler, Error, Result},
@@ -80,20 +79,16 @@ impl Service for VaultService {
                     let vault_id = *summary.id();
 
                     #[cfg(feature = "listen")]
-                    let notification = ChangeNotification::new(
-                        caller.address(),
-                        caller.public_key(),
-                        &vault_id,
-                        proof,
-                        vec![ChangeEvent::CreateFolder(event.clone())],
-                    );
-
-                    let log: AuditEvent = (caller.address(), &event).into();
-
                     {
+                        let notification = ChangeNotification::new(
+                            caller.address(),
+                            caller.public_key(),
+                            &vault_id,
+                            proof,
+                            vec![ChangeEvent::CreateFolder(event.clone())],
+                        );
+
                         let mut writer = state.write().await;
-                        append_audit_logs(&mut writer, vec![log]).await?;
-                        #[cfg(feature = "listen")]
                         send_notification(&mut writer, &caller, notification);
                     }
 
@@ -129,25 +124,16 @@ impl Service for VaultService {
                     (request.id(), &proof).try_into()?;
 
                 #[cfg(feature = "listen")]
-                let notification = ChangeNotification::new(
-                    caller.address(),
-                    caller.public_key(),
-                    &vault_id,
-                    proof,
-                    vec![ChangeEvent::DeleteVault],
-                );
-
-                let log = AuditEvent::new(
-                    EventKind::DeleteVault,
-                    *caller.address(),
-                    Some(AuditData::Vault(vault_id)),
-                );
-
                 {
-                    let mut writer = state.write().await;
-                    append_audit_logs(&mut writer, vec![log]).await?;
+                    let notification = ChangeNotification::new(
+                        caller.address(),
+                        caller.public_key(),
+                        &vault_id,
+                        proof,
+                        vec![ChangeEvent::DeleteVault],
+                    );
 
-                    #[cfg(feature = "listen")]
+                    let mut writer = state.write().await;
                     send_notification(&mut writer, &caller, notification);
                 }
 
@@ -194,21 +180,16 @@ impl Service for VaultService {
                 let vault_id = *summary.id();
 
                 #[cfg(feature = "listen")]
-                let notification = ChangeNotification::new(
-                    caller.address(),
-                    caller.public_key(),
-                    &vault_id,
-                    proof,
-                    vec![ChangeEvent::UpdateFolder(event.clone())],
-                );
-
-                let log: AuditEvent = (caller.address(), &event).into();
-
                 {
-                    let mut writer = state.write().await;
-                    append_audit_logs(&mut writer, vec![log]).await?;
+                    let notification = ChangeNotification::new(
+                        caller.address(),
+                        caller.public_key(),
+                        &vault_id,
+                        proof,
+                        vec![ChangeEvent::UpdateFolder(event.clone())],
+                    );
 
-                    #[cfg(feature = "listen")]
+                    let mut writer = state.write().await;
                     send_notification(&mut writer, &caller, notification);
                 }
 

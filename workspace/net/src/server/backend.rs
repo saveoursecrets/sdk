@@ -8,6 +8,7 @@ use sos_sdk::{
     decode, encode,
     events::{
         AccountReducer, Event, EventReducer, FolderEventLog, WriteEvent,
+        AuditEvent, EventKind,
     },
     storage::FolderStorage,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
@@ -333,6 +334,13 @@ impl BackendHandler for FileSystemBackend {
         if let Some(account) = accounts.get(owner) {
             let reader = account.read().await;
             summaries = reader.folders.folders().to_vec();
+
+            let log = AuditEvent::new(
+                EventKind::ListVaults,
+                owner.clone(),
+                None,
+            );
+            reader.folders.paths().append_audit_events(vec![log]).await?;
         }
         Ok(summaries)
     }

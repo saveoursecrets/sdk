@@ -324,7 +324,7 @@ impl UserPaths {
     }
 
     /// Append to the audit log.
-    pub(crate) async fn append_audit_events(
+    pub async fn append_audit_events(
         &self,
         events: Vec<AuditEvent>,
     ) -> Result<()> {

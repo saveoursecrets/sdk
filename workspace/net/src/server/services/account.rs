@@ -11,8 +11,7 @@ use sos_sdk::{
 
 use async_trait::async_trait;
 
-use super::Service;
-use super::{append_audit_logs, PrivateState};
+use super::{Service, PrivateState};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
     server::{BackendHandler, Error, Result},
@@ -80,21 +79,16 @@ impl Service for AccountService {
                 let vault_id = *summary.id();
 
                 #[cfg(feature = "listen")]
-                let notification = ChangeNotification::new(
-                    caller.address(),
-                    caller.public_key(),
-                    &vault_id,
-                    proof,
-                    vec![ChangeEvent::CreateFolder(event.clone())],
-                );
-
-                let log: AuditEvent = (caller.address(), &event).into();
-
                 {
-                    let mut writer = state.write().await;
-                    append_audit_logs(&mut writer, vec![log]).await?;
+                    let notification = ChangeNotification::new(
+                        caller.address(),
+                        caller.public_key(),
+                        &vault_id,
+                        proof,
+                        vec![ChangeEvent::CreateFolder(event.clone())],
+                    );
 
-                    #[cfg(feature = "listen")]
+                    let mut writer = state.write().await;
                     send_notification(&mut writer, &caller, notification);
                 }
 
@@ -133,17 +127,6 @@ impl Service for AccountService {
 
                 let reply: ResponseMessage<'_> =
                     (request.id(), summaries).try_into()?;
-
-                let log = AuditEvent::new(
-                    EventKind::ListVaults,
-                    caller.address,
-                    None,
-                );
-
-                {
-                    let mut writer = state.write().await;
-                    append_audit_logs(&mut writer, vec![log]).await?;
-                }
 
                 Ok(reply)
             }

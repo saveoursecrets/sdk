@@ -13,8 +13,7 @@ use async_trait::async_trait;
 use std::{borrow::Cow, sync::Arc};
 use uuid::Uuid;
 
-use super::Service;
-use super::{append_audit_logs, PrivateState};
+use super::{Service, PrivateState};
 use crate::{
     events::Patch,
     rpc::{RequestMessage, ResponseMessage},
@@ -31,7 +30,6 @@ enum PatchResult {
     Conflict(CommitProof, Option<CommitProof>),
     Success {
         address: Address,
-        audit_logs: Vec<AuditEvent>,
         change_set: Vec<WriteEvent>,
         proof: CommitProof,
     },
@@ -112,16 +110,6 @@ impl Service for EventLogService {
 
                 match result {
                     Ok((status, buffer)) => {
-                        if status == StatusCode::OK {
-                            let mut writer = state.write().await;
-                            let log = AuditEvent::new(
-                                EventKind::ReadEventLog,
-                                caller.address,
-                                Some(AuditData::Vault(vault_id)),
-                            );
-                            append_audit_logs(&mut writer, vec![log]).await?;
-                        }
-
                         let reply = ResponseMessage::new(
                             request.id(),
                             status,
@@ -372,6 +360,7 @@ impl Service for EventLogService {
                                 })
                                 .collect();
 
+
                             // Get a new commit proof after applying changes
                             let event_log = account
                                 .folders
@@ -380,9 +369,11 @@ impl Service for EventLogService {
                                 .unwrap();
                             let proof = event_log.tree().head()?;
 
+                            account.folders.paths()
+                                .append_audit_events(audit_logs).await?;
+
                             Ok(PatchResult::Success {
                                 address: caller.address,
-                                audit_logs,
                                 #[cfg(feature = "listen")]
                                 change_set,
                                 proof,
@@ -415,7 +406,7 @@ impl Service for EventLogService {
                 match result? {
                     PatchResult::Success {
                         address,
-                        audit_logs,
+                        #[cfg(feature = "listen")]
                         change_set,
                         proof,
                         ..
@@ -426,38 +417,30 @@ impl Service for EventLogService {
                             (request.id(), value).try_into()?;
 
                         #[cfg(feature = "listen")]
-                        let notification = {
-                            // Note that we must compute the change
-                            // events after setting the folder name
-                            // so the commit proof is correct
-                            let mut change_events = Vec::new();
-                            for event in &change_set {
-                                let event =
-                                    ChangeEvent::try_from_write_event(event)
-                                        .await;
-                                if event.is_ok() {
-                                    change_events.push(event?);
-                                }
-                            }
-
-                            ChangeNotification::new(
-                                &address,
-                                caller.public_key(),
-                                &vault_id,
-                                proof,
-                                change_events,
-                            )
-                        };
-
                         {
+                            let notification = {
+                                // Note that we must compute the change
+                                // events after setting the folder name
+                                // so the commit proof is correct
+                                let mut change_events = Vec::new();
+                                for event in &change_set {
+                                    let event =
+                                        ChangeEvent::try_from_write_event(event)
+                                            .await;
+                                    if event.is_ok() {
+                                        change_events.push(event?);
+                                    }
+                                }
+
+                                ChangeNotification::new(
+                                    &address,
+                                    caller.public_key(),
+                                    &vault_id,
+                                    proof,
+                                    change_events,
+                                )
+                            };
                             let mut writer = state.write().await;
-
-                            // Append audit logs
-                            append_audit_logs(&mut writer, audit_logs)
-                                .await?;
-
-                            // Send notifications on the SSE channel
-                            #[cfg(feature = "listen")]
                             send_notification(
                                 &mut writer,
                                 &caller,
