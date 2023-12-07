@@ -1,4 +1,4 @@
-//! Account device manager.
+//! Expose the device manager on an account.
 use crate::{
     client::{NetworkAccount, Result},
     sdk::device::DeviceManager,

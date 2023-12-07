@@ -641,36 +641,30 @@ impl Identity {
     /// information such as the private key used to identify a machine.
     #[cfg(feature = "device")]
     async fn ensure_device_vault(&mut self) -> Result<DeviceSigner> {
-        let vaults =
-            Self::list_local_folders(&self.paths, true).await?;
+        let device_vault_name = format!("devices.{}", VAULT_EXT);
+        let device_vault_path = self.paths.user_dir().join(
+            &device_vault_name);
 
-        let device_vault = vaults.into_iter().find_map(|(summary, _)| {
-            if summary.flags().is_system() && summary.flags().is_device() {
-                Some(summary)
-            } else {
-                None
-            }
-        });
-
+        let device_vault = if vfs::try_exists(&device_vault_path).await? {
+            let buffer = vfs::read(&device_vault_path).await?;
+            let vault: Vault = decode(&buffer).await?;
+            Some(vault)
+        } else {
+            None
+        };
+            
         let device_key_urn: Urn = DEVICE_KEY_URN.parse()?;
-
-        if let Some(summary) = device_vault {
+        if let Some(vault) = device_vault {
+            let summary = vault.summary().clone();
             let device_password =
                 self.find_folder_password(summary.id()).await?;
 
-            let (vault, _) = Self::load_local_vault(
-                &self.paths,
-                summary.id(),
-                true,
-            )
-            .await?;
             let search_index = self.identity()?.index();
             let mut device_keeper = Gatekeeper::new(vault);
             let key: AccessKey = device_password.into();
             device_keeper.unlock(&key).await?;
 
             let mut device_signer_secret: Option<Secret> = None;
-
             {
                 let mut index = search_index.write().await;
                 for id in device_keeper.vault().keys() {
@@ -735,7 +729,6 @@ impl Identity {
 
             let key = ed25519::SingleParty::new_random();
             let public_id = key.address()?;
-
             let secret = Secret::Signer {
                 private_key: key.clone().into(),
                 user_data: Default::default(),
@@ -743,8 +736,8 @@ impl Identity {
             let mut meta =
                 SecretMeta::new("Device Key".to_string(), secret.kind());
             meta.set_urn(Some(device_key_urn.clone()));
-            let id = SecretId::new_v4();
 
+            let id = SecretId::new_v4();
             let secret_data = SecretRow::new(id, meta, secret);
             device_keeper.create(&secret_data).await?;
 
@@ -758,12 +751,7 @@ impl Identity {
             let summary = device_vault.summary().clone();
 
             let buffer = encode(&device_vault).await?;
-            let vaults_dir = self.paths.vaults_dir();
-            let mut device_vault_file =
-                vaults_dir.join(summary.id().to_string());
-            device_vault_file.set_extension(VAULT_EXT);
-
-            vfs::write(device_vault_file, buffer).await?;
+            vfs::write(device_vault_path, buffer).await?;
 
             Ok(DeviceSigner {
                 summary,

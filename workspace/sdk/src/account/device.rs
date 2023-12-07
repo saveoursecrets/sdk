@@ -1,4 +1,4 @@
-//! Types for device support.
+//! Expose the device manager on an account.
 use crate::{
     account::Account,
     device::DeviceManager,
