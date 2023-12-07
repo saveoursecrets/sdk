@@ -4,6 +4,7 @@ use crate::{
     crypto::AccessKey,
     encode,
     events::{AuditEvent, Event, EventKind},
+    identity::Identity,
     migrate::{
         export::PublicExport,
         import::{
@@ -38,11 +39,11 @@ impl<D> Account<D> {
 
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
-        let vaults = Self::list_local_folders(&paths, false).await?;
+        let vaults = Identity::list_local_folders(&paths, false).await?;
 
         for (summary, _) in vaults {
             let (vault, _) =
-                Self::load_local_vault(paths, summary.id(), false)
+                Identity::load_local_vault(paths, summary.id(), false)
                     .await
                     .map_err(Box::from)?;
             let vault_passphrase =
@@ -147,7 +148,7 @@ impl<D> Account<D> {
         );
         paths.append_audit_events(vec![audit_event]).await?;
 
-        let vaults = Self::list_local_folders(&paths, false).await?;
+        let vaults = Identity::list_local_folders(&paths, false).await?;
         let existing_name =
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 

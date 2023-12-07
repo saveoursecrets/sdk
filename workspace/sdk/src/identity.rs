@@ -7,7 +7,7 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single master password.
 use crate::{
-    account::{LocalAccount, UserPaths},
+    account::{UserPaths},
     commit::CommitState,
     constants::{
         DEVICE_KEY_URN, FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN,
@@ -30,8 +30,7 @@ use crate::{
 };
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
-use std::{fmt, path::Path, str::FromStr};
+use std::{collections::HashMap, sync::Arc, fmt, path::{Path, PathBuf}, str::FromStr};
 use tokio::sync::RwLock;
 use tracing::{span, Level};
 use urn::Urn;
@@ -203,6 +202,48 @@ impl Identity {
         keys.sort_by(|a, b| a.label.cmp(&b.label));
         Ok(keys)
     }
+
+    /// Find and load a vault.
+    pub(crate) async fn load_local_vault(
+        paths: &UserPaths,
+        id: &VaultId,
+        include_system: bool,
+    ) -> Result<(Vault, PathBuf)> {
+        let folders = Self::list_local_folders(paths, include_system).await?;
+        let (_summary, path) = folders
+            .into_iter()
+            .find(|(s, _)| s.id() == id)
+            .ok_or_else(|| Error::NoVaultFile(id.to_string()))?;
+        let buffer = vfs::read(&path).await?;
+        let vault: Vault = decode(&buffer).await?;
+        Ok((vault, path))
+    }
+
+    /// List the folders in an account by inspecting
+    /// the vault files in the vaults directory.
+    pub(crate) async fn list_local_folders(
+        paths: &UserPaths,
+        include_system: bool,
+    ) -> Result<Vec<(Summary, PathBuf)>> {
+        let vaults_dir = paths.vaults_dir();
+
+        let mut vaults = Vec::new();
+        let mut dir = vfs::read_dir(vaults_dir).await?;
+        while let Some(entry) = dir.next_entry().await? {
+            if let Some(extension) = entry.path().extension() {
+                if extension == VAULT_EXT {
+                    let summary =
+                        Header::read_summary_file(entry.path()).await?;
+                    if !include_system && summary.flags().is_system() {
+                        continue;
+                    }
+                    vaults.push((summary, entry.path().to_path_buf()));
+                }
+            }
+        }
+        Ok(vaults)
+    }
+
 
     /// Create a new unauthenticated user.
     pub fn new(paths: UserPaths) -> Self {
@@ -601,7 +642,7 @@ impl Identity {
     #[cfg(feature = "device")]
     async fn ensure_device_vault(&mut self) -> Result<DeviceSigner> {
         let vaults =
-            LocalAccount::list_local_folders(&self.paths, true).await?;
+            Self::list_local_folders(&self.paths, true).await?;
 
         let device_vault = vaults.into_iter().find_map(|(summary, _)| {
             if summary.flags().is_system() && summary.flags().is_device() {
@@ -617,7 +658,7 @@ impl Identity {
             let device_password =
                 self.find_folder_password(summary.id()).await?;
 
-            let (vault, _) = LocalAccount::load_local_vault(
+            let (vault, _) = Self::load_local_vault(
                 &self.paths,
                 summary.id(),
                 true,

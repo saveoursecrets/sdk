@@ -204,7 +204,7 @@ impl AccountBackup {
         manifest.entries.push(entry);
         total_size += size;
 
-        let vaults = LocalAccount::list_local_folders(paths, false).await?;
+        let vaults = Identity::list_local_folders(paths, false).await?;
         for (summary, path) in vaults {
             if options.no_sync_self && summary.flags().is_no_sync_self() {
                 continue;
@@ -317,7 +317,7 @@ impl AccountBackup {
         }
         let identity = vfs::read(identity_path).await?;
 
-        let vaults = LocalAccount::list_local_folders(paths, false).await?;
+        let vaults = Identity::list_local_folders(paths, false).await?;
 
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));

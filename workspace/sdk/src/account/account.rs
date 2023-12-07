@@ -137,47 +137,6 @@ pub struct Account<D> {
 }
 
 impl<D> Account<D> {
-    /// Find and load a vault.
-    pub async fn load_local_vault(
-        paths: &UserPaths,
-        id: &VaultId,
-        include_system: bool,
-    ) -> Result<(Vault, PathBuf)> {
-        let folders = Self::list_local_folders(paths, include_system).await?;
-        let (_summary, path) = folders
-            .into_iter()
-            .find(|(s, _)| s.id() == id)
-            .ok_or_else(|| Error::NoVaultFile(id.to_string()))?;
-        let buffer = vfs::read(&path).await?;
-        let vault: Vault = decode(&buffer).await?;
-        Ok((vault, path))
-    }
-
-    /// List the folders in an account by inspecting
-    /// the vault files in the vaults directory.
-    pub async fn list_local_folders(
-        paths: &UserPaths,
-        include_system: bool,
-    ) -> Result<Vec<(Summary, PathBuf)>> {
-        let vaults_dir = paths.vaults_dir();
-
-        let mut vaults = Vec::new();
-        let mut dir = vfs::read_dir(vaults_dir).await?;
-        while let Some(entry) = dir.next_entry().await? {
-            if let Some(extension) = entry.path().extension() {
-                if extension == VAULT_EXT {
-                    let summary =
-                        Header::read_summary_file(entry.path()).await?;
-                    if !include_system && summary.flags().is_system() {
-                        continue;
-                    }
-                    vaults.push((summary, entry.path().to_path_buf()));
-                }
-            }
-        }
-        Ok(vaults)
-    }
-
     /// Prepare an account for sign in.
     ///
     /// After preparing an account call `sign_in`
@@ -381,7 +340,7 @@ impl<D> Account<D> {
         // already exists
         if needs_init {
             let folders: Vec<Summary> =
-                Self::list_local_folders(paths, false)
+                Identity::list_local_folders(paths, false)
                     .await?
                     .into_iter()
                     .map(|(s, _)| s)
@@ -725,7 +684,7 @@ impl<D> Account<D> {
             };
             let meta = SecretMeta::new(label, secret.kind());
 
-            let (vault, _) = Self::load_local_vault(
+            let (vault, _) = Identity::load_local_vault(
                 &self.paths,
                 default_summary.id(),
                 false,
@@ -768,7 +727,7 @@ impl<D> Account<D> {
 
         // Find the local vault for the account
         let (vault, _) =
-            Self::load_local_vault(&paths, vault_id, false).await?;
+            Identity::load_local_vault(&paths, vault_id, false).await?;
 
         // Change the password before exporting
         let (_, vault, _) =
