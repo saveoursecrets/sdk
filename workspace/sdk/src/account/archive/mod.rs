@@ -13,7 +13,7 @@ use crate::{
     events::{AuditEvent, EventKind},
     identity::{Identity, PublicIdentity},
     vfs::File,
-    Result, Paths,
+    Paths, Result,
 };
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncRead, AsyncSeek};

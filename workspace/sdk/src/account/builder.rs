@@ -12,7 +12,7 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
     },
-    vfs, Result, Paths,
+    vfs, Paths, Result,
 };
 use secrecy::SecretString;
 use std::{collections::HashMap, path::PathBuf};

@@ -3,7 +3,7 @@ use crate::{
     events::FileEvent,
     hex,
     vault::{secret::SecretId, VaultId},
-    vfs, Error, Result, Paths,
+    vfs, Error, Paths, Result,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt, path::Path, str::FromStr};

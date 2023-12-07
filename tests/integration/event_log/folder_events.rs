@@ -30,9 +30,7 @@ async fn integration_events_folder() -> Result<()> {
     account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
 
-    let folder_events = account
-        .paths()
-        .event_log_path(default_folder.id().to_string());
+    let folder_events = account.paths().event_log_path(default_folder.id());
 
     // Just has the create vault event to begin with
     let mut event_log = FolderEventLog::new_folder(&folder_events).await?;

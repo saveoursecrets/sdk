@@ -17,7 +17,7 @@ use crate::{
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
         VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultWriter,
     },
-    vfs, Error, Result, Timestamp, Paths,
+    vfs, Error, Paths, Result, Timestamp,
 };
 
 use secrecy::SecretString;
@@ -294,7 +294,7 @@ impl FolderStorage {
         summary: &Summary,
         key: &AccessKey,
     ) -> Result<ReadEvent> {
-        let vault_path = self.paths.vault_path(summary.id().to_string());
+        let vault_path = self.paths.vault_path(summary.id());
         let vault = if self.state.mirror() {
             if !vfs::try_exists(&vault_path).await? {
                 let vault = self.reduce_event_log(summary).await?;
@@ -434,8 +434,7 @@ impl FolderStorage {
         summary: &Summary,
         vault: Option<Vault>,
     ) -> Result<()> {
-        let event_log_path =
-            self.paths.event_log_path(summary.id().to_string());
+        let event_log_path = self.paths.event_log_path(summary.id());
         let mut event_log =
             FolderEventLog::new_folder(&event_log_path).await?;
 
@@ -577,7 +576,7 @@ impl FolderStorage {
 
     /// Read the buffer for a vault from disc.
     pub async fn read_vault_file(&self, id: &VaultId) -> Result<Vec<u8>> {
-        let vault_path = self.paths.vault_path(id.to_string());
+        let vault_path = self.paths.vault_path(id);
         Ok(vfs::read(vault_path).await?)
     }
 
@@ -587,7 +586,7 @@ impl FolderStorage {
         vault_id: &VaultId,
         buffer: impl AsRef<[u8]>,
     ) -> Result<()> {
-        let vault_path = self.paths.vault_path(vault_id.to_string());
+        let vault_path = self.paths.vault_path(vault_id);
         vfs::write(vault_path, buffer.as_ref()).await?;
         Ok(())
     }
@@ -720,14 +719,13 @@ impl FolderStorage {
     /// Remove a vault file and event log file.
     pub async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
         // Remove local vault mirror if it exists
-        let vault_path = self.paths.vault_path(summary.id().to_string());
+        let vault_path = self.paths.vault_path(summary.id());
         if vfs::try_exists(&vault_path).await? {
             vfs::remove_file(&vault_path).await?;
         }
 
         // Remove the local event log file
-        let event_log_path =
-            self.paths.event_log_path(summary.id().to_string());
+        let event_log_path = self.paths.event_log_path(summary.id());
         if vfs::try_exists(&event_log_path).await? {
             vfs::remove_file(&event_log_path).await?;
         }
@@ -992,7 +990,7 @@ impl FolderStorage {
         }
 
         // Update the vault on disc
-        let vault_path = self.paths.vault_path(summary.id().to_string());
+        let vault_path = self.paths.vault_path(summary.id());
         let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
         access.set_vault_name(name.as_ref().to_owned()).await?;
@@ -1040,7 +1038,7 @@ impl FolderStorage {
     ) -> Result<()> {
         // Apply events to the vault file on disc
         if self.state.mirror && !self.state.head_only {
-            let vault_path = self.paths.vault_path(summary.id().to_string());
+            let vault_path = self.paths.vault_path(summary.id());
             let vault_file = VaultWriter::open(&vault_path).await?;
             let mut mirror = VaultWriter::new(vault_path, vault_file)?;
             for event in events.clone() {
@@ -1122,8 +1120,7 @@ impl FolderStorage {
     /// Verify an event log.
     pub async fn verify(&self, summary: &Summary) -> Result<()> {
         use crate::commit::event_log_commit_tree_file;
-        let event_log_path =
-            self.paths.event_log_path(summary.id().to_string());
+        let event_log_path = self.paths.event_log_path(summary.id());
         event_log_commit_tree_file(&event_log_path, true, |_| {}).await?;
         Ok(())
     }

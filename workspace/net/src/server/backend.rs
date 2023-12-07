@@ -420,7 +420,7 @@ impl BackendHandler for FileSystemBackend {
             .ok_or(Error::NoFolder(owner.to_owned(), *vault_id))?;
 
         let paths = reader.folders.paths();
-        let event_log = paths.event_log_path(vault_id.to_string());
+        let event_log = paths.event_log_path(vault_id);
         Ok(vfs::read(event_log).await?)
     }
 }

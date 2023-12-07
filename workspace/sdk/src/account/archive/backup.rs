@@ -28,7 +28,7 @@ use crate::{
         VaultWriter,
     },
     vfs::{self, File},
-    Error, Result, Paths,
+    Error, Paths, Result,
 };
 
 use secrecy::SecretString;

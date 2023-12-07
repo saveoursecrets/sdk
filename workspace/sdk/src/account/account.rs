@@ -28,7 +28,7 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
         Gatekeeper, Header, Summary, Vault, VaultId,
     },
-    vfs, Error, Result, Timestamp, Paths,
+    vfs, Error, Paths, Result, Timestamp,
 };
 
 use tracing::{span, Level};
@@ -274,11 +274,8 @@ impl<D> Account<D> {
         tracing::debug!(address = %address);
 
         // Ensure all paths before sign_in
-        let paths = Paths::ensure_paths(
-            address.to_string(),
-            Some(data_dir.clone()),
-        )
-        .await?;
+        let paths = Paths::new(&data_dir, address.to_string());
+        paths.ensure().await?;
 
         tracing::debug!(data_dir = ?paths.documents_dir());
 

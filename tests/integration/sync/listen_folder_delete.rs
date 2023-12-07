@@ -67,26 +67,18 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
     assert!(!vfs::try_exists(expected_event_file).await?);
 
     // Assert first device
-    let expected_vault_file = device1
-        .owner
-        .paths()
-        .vault_path(new_folder.id().to_string());
-    let expected_event_file = device1
-        .owner
-        .paths()
-        .vault_path(new_folder.id().to_string());
+    let expected_vault_file =
+        device1.owner.paths().vault_path(new_folder.id());
+    let expected_event_file =
+        device1.owner.paths().vault_path(new_folder.id());
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
 
     // Assert second device
-    let expected_vault_file = device2
-        .owner
-        .paths()
-        .vault_path(new_folder.id().to_string());
-    let expected_event_file = device2
-        .owner
-        .paths()
-        .vault_path(new_folder.id().to_string());
+    let expected_vault_file =
+        device2.owner.paths().vault_path(new_folder.id());
+    let expected_event_file =
+        device2.owner.paths().vault_path(new_folder.id());
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
 

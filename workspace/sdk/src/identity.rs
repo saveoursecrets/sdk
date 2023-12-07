@@ -25,7 +25,7 @@ use crate::{
         Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
         VaultFlags, VaultId, VaultWriter,
     },
-    vfs, Error, Result, Paths,
+    vfs, Error, Paths, Result,
 };
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{Deserialize, Serialize};

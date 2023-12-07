@@ -13,8 +13,8 @@ use crate::{
     constants::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICES_FILE,
         EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR, JSON_EXT,
-        LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, TEMP_DIR,
-        VAULTS_DIR, VAULT_EXT,
+        LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, VAULTS_DIR,
+        VAULT_EXT,
     },
     events::{AuditEvent, AuditLogFile, AuditProvider},
     vault::{secret::SecretId, VaultId},
@@ -37,6 +37,10 @@ static AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 pub static mut AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 
 /// File system paths.
+///
+/// Several functions require a user identifier and will panic if
+/// a user identifier has not been set, see the function documentation
+/// for details.
 #[derive(Default, Debug, Clone)]
 pub struct Paths {
     /// User identifier.
@@ -49,8 +53,6 @@ pub struct Paths {
     local_dir: PathBuf,
     /// Directory for application logs.
     logs_dir: PathBuf,
-    /// Directory for temporary storage.
-    temp_dir: PathBuf,
     /// File for local audit logs.
     audit_file: PathBuf,
     /// User segregated storage.
@@ -74,7 +76,6 @@ impl Paths {
         let logs_dir = documents_dir.join(LOGS_DIR);
         let identity_dir = documents_dir.join(IDENTITY_DIR);
         let audit_file = local_dir.join(AUDIT_FILE_NAME);
-        let temp_dir = local_dir.join(TEMP_DIR);
         let user_dir = local_dir.join(user_id.as_ref());
         let files_dir = user_dir.join(FILES_DIR);
         let vaults_dir = user_dir.join(VAULTS_DIR);
@@ -87,7 +88,6 @@ impl Paths {
             identity_dir,
             local_dir,
             logs_dir,
-            temp_dir,
             audit_file,
             user_dir,
             files_dir,
@@ -104,65 +104,93 @@ impl Paths {
         Self::new(documents_dir, "")
     }
 
-    /// Ensure all the user directories exist.
+    /// Ensure the local storage directory exists.
+    ///
+    /// If a user identifier is available this will
+    /// also create some user-specific directories.
     pub async fn ensure(&self) -> Result<()> {
-        vfs::create_dir_all(&self.documents_dir).await?;
-        //vfs::create_dir_all(&self.identity_dir).await?;
+        //vfs::create_dir_all(&self.documents_dir).await?;
         vfs::create_dir_all(&self.local_dir).await?;
-        //vfs::create_dir_all(&self.logs_dir).await?;
-        vfs::create_dir_all(&self.user_dir).await?;
-        vfs::create_dir_all(&self.files_dir).await?;
-        vfs::create_dir_all(&self.vaults_dir).await?;
+        if !self.is_global() {
+            vfs::create_dir_all(&self.user_dir).await?;
+            vfs::create_dir_all(&self.files_dir).await?;
+            vfs::create_dir_all(&self.vaults_dir).await?;
+        }
         Ok(())
     }
 
-    /// Get the documents storage directory.
+    /// Top-level storage directory.
     pub fn documents_dir(&self) -> &PathBuf {
         &self.documents_dir
     }
 
-    /// Get the path to the identity vault file for this account.
+    /// Determine if the paths are global.
+    ///
+    /// Paths are global when a user identifier
+    /// is not available.
+    pub fn is_global(&self) -> bool {
+        self.user_id.is_empty()
+    }
+
+    /// Path to the identity vault directory.
     pub fn identity_dir(&self) -> &PathBuf {
         &self.identity_dir
     }
 
-    /// Get the path to the local storage.
+    /// Path to the local storage.
     pub fn local_dir(&self) -> &PathBuf {
         &self.local_dir
     }
 
-    /// Get the app logs directory.
+    /// Path to the logs directory.
     pub fn logs_dir(&self) -> &PathBuf {
         &self.logs_dir
     }
 
-    /// Get the temporary directory.
-    pub fn temp_dir(&self) -> &PathBuf {
-        &self.temp_dir
-    }
-
-    /// Audit file location.
+    /// Path to the audit file.
     pub fn audit_file(&self) -> &PathBuf {
         &self.audit_file
     }
 
-    /// Get the user storage directory.
+    /// User specific storage directory.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
     pub fn user_dir(&self) -> &PathBuf {
+        if self.is_global() {
+            panic!("user directory is not accessible for global paths");
+        }
         &self.user_dir
     }
 
-    /// Get the user files directory.
+    /// User's files directory.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
     pub fn files_dir(&self) -> &PathBuf {
+        if self.is_global() {
+            panic!("files directory is not accessible for global paths");
+        }
         &self.files_dir
     }
 
-    /// Get the expected location for the directory containing
+    /// Expected location for the directory containing
     /// all the external files for a folder.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
     pub fn file_folder_location(&self, vault_id: &VaultId) -> PathBuf {
-        self.files_dir.join(vault_id.to_string())
+        self.files_dir().join(vault_id.to_string())
     }
 
-    /// Get the expected location for a file.
+    /// Expected location for a file.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
     pub fn file_location(
         &self,
         vault_id: &VaultId,
@@ -174,80 +202,126 @@ impl Paths {
             .join(file_name.as_ref())
     }
 
-    /// Get the user vaults storage directory.
+    /// User's vaults storage directory.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
     pub fn vaults_dir(&self) -> &PathBuf {
+        if self.is_global() {
+            panic!("vaults directory is not accessible for global paths");
+        }
         &self.vaults_dir
     }
 
-    /// Get the user devices file.
+    /// User's devices vault file.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
     pub fn devices_file(&self) -> &PathBuf {
+        if self.is_global() {
+            panic!("devices file is not accessible for global paths");
+        }
         &self.devices_file
     }
 
-    /// Get the path to the identity vault file for this account.
+    /// Path to the identity vault file for this user.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
     pub fn identity_vault(&self) -> PathBuf {
+        if self.is_global() {
+            panic!("identity vault is not accessible for global paths");
+        }
         let mut identity_vault_file = self.identity_dir.join(&self.user_id);
         identity_vault_file.set_extension(VAULT_EXT);
         identity_vault_file
     }
 
-    /// Get the path to a vault file from it's identifier.
-    pub fn vault_path<V: AsRef<Path>>(&self, id: V) -> PathBuf {
-        let mut vault_path = self.vaults_dir.join(id);
+    /// Path to a vault file from it's identifier.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn vault_path(&self, id: &VaultId) -> PathBuf {
+        if self.is_global() {
+            panic!("vault path is not accessible for global paths");
+        }
+        let mut vault_path = self.vaults_dir.join(id.to_string());
         vault_path.set_extension(VAULT_EXT);
         vault_path
     }
 
-    /// Get the path to an event log file from it's identifier.
-    pub fn event_log_path<V: AsRef<Path>>(&self, id: V) -> PathBuf {
-        let mut vault_path = self.vaults_dir.join(id);
+    /// Path to an event log file from it's identifier.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn event_log_path(&self, id: &VaultId) -> PathBuf {
+        if self.is_global() {
+            panic!("event log path is not accessible for global paths");
+        }
+        let mut vault_path = self.vaults_dir.join(id.to_string());
         vault_path.set_extension(EVENT_LOG_EXT);
         vault_path
     }
 
-    /// Get the path to the account event log file.
+    /// Path to the user's account event log file.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
     pub fn account_events(&self) -> PathBuf {
+        if self.is_global() {
+            panic!("account events are not accessible for global paths");
+        }
         let mut vault_path = self.user_dir.join(ACCOUNT_EVENTS);
         vault_path.set_extension(EVENT_LOG_EXT);
         vault_path
     }
 
-    /// Get the path to the event log file that records
-    /// changes to external files.
+    /// Path to the user's event log of external file changes.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
     pub fn file_events(&self) -> PathBuf {
+        if self.is_global() {
+            panic!("file events are not accessible for global paths");
+        }
         let mut vault_path = self.user_dir.join(FILE_EVENTS);
         vault_path.set_extension(EVENT_LOG_EXT);
         vault_path
     }
 
-    /// Get the path to the file used to store remote origins.
+    /// Path to the file used to store remote origins.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
     pub fn remote_origins(&self) -> PathBuf {
+        if self.is_global() {
+            panic!("remote origins are not accessible for global paths");
+        }
         let mut vault_path = self.user_dir.join(REMOTES_FILE);
         vault_path.set_extension(JSON_EXT);
         vault_path
     }
 
-    /// Get the path to the account preferences.
+    /// Path to the user's preferences.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
     pub fn preferences(&self) -> PathBuf {
+        if self.is_global() {
+            panic!("preferences are not accessible for global paths");
+        }
         let mut vault_path = self.user_dir.join(PREFERENCES_FILE);
         vault_path.set_extension(JSON_EXT);
         vault_path
-    }
-
-    /// Helper to get paths for an optional data directory
-    /// and ensure the paths exist on disc.
-    pub async fn ensure_paths(
-        address: impl AsRef<str>,
-        data_dir: Option<PathBuf>,
-    ) -> Result<Paths> {
-        // Ensure all paths before sign_in
-        let paths = if let Some(data_dir) = data_dir {
-            Paths::new(data_dir, address)
-        } else {
-            Paths::new(Paths::data_dir()?, address)
-        };
-        paths.ensure().await?;
-        Ok(paths)
     }
 
     /// Ensure the root directories exist.

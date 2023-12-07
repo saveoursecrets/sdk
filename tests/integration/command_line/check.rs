@@ -14,7 +14,7 @@ pub fn vault(
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
     let paths = Paths::new(Paths::data_dir()?, address);
-    let vault_path = paths.vault_path(vault_id.to_string());
+    let vault_path = paths.vault_path(vault_id);
 
     let cmd = format!("{} check vault {}", exe, vault_path.display());
     run!(repl, cmd, true, |ps: &mut PtySession,
@@ -43,7 +43,7 @@ pub fn keys(
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
     let paths = Paths::new(Paths::data_dir()?, address);
-    let vault_path = paths.vault_path(vault_id.to_string());
+    let vault_path = paths.vault_path(vault_id);
     let cmd = format!("{} check keys {}", exe, vault_path.display());
     read_until_eof(cmd, None, repl)
 }
@@ -55,7 +55,7 @@ pub fn header(
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
     let paths = Paths::new(Paths::data_dir()?, address);
-    let vault_path = paths.vault_path(vault_id.to_string());
+    let vault_path = paths.vault_path(vault_id);
     let cmd = format!("{} check header {}", exe, vault_path.display());
     read_until_eof(cmd, None, repl)
 }
@@ -67,7 +67,7 @@ pub fn log(
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
     let paths = Paths::new(Paths::data_dir()?, address);
-    let log_path = paths.event_log_path(vault_id.to_string());
+    let log_path = paths.event_log_path(vault_id);
 
     let cmd = format!("{} check log {}", exe, log_path.display());
     read_until_eof(cmd, None, repl.clone())?;

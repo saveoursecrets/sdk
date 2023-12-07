@@ -216,8 +216,7 @@ pub async fn assert_local_remote_vaults_eq(
     for summary in expected_summaries {
         tracing::debug!(id = %summary.id(), "assert_local_remote_vaults_eq");
 
-        let local_folder =
-            reader.paths().vault_path(summary.id().to_string());
+        let local_folder = reader.paths().vault_path(summary.id());
         let remote_folder = server_path.join("vaults").join(format!(
             "{}.{}",
             summary.id(),
