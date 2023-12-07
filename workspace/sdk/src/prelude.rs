@@ -8,6 +8,8 @@ pub use crate::account::*;
 pub use crate::commit::*;
 pub use crate::constants::*;
 pub use crate::crypto::*;
+#[cfg(feature = "device")]
+pub use crate::device::*;
 pub use crate::events::*;
 pub use crate::formats::*;
 pub use crate::identity::*;

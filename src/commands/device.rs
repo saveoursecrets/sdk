@@ -60,7 +60,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             for device in devices {
                 println!("{}", device.public_id()?);
                 if verbose {
-                    print!("{}", device.extra_info);
+                    print!("{}", device.extra_info());
                 }
             }
         }

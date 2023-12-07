@@ -715,13 +715,7 @@ impl Identity {
             {
                 let key: ed25519::SingleParty =
                     data.expose_secret().as_slice().try_into()?;
-                let public_id = key.address()?;
-                let signer = DeviceSigner {
-                    summary,
-                    signer: Box::new(key),
-                    public_id,
-                };
-
+                let signer = DeviceSigner(Box::new(key));
                 Ok(DeviceManager::new(signer, device_keeper))
             } else {
                 Err(Error::VaultEntryKind(device_key_urn.to_string()))
@@ -758,7 +752,6 @@ impl Identity {
             device_keeper.unlock(&key).await?;
 
             let key = ed25519::SingleParty::new_random();
-            let public_id = key.address()?;
             let secret = Secret::Signer {
                 private_key: key.clone().into(),
                 user_data: Default::default(),
@@ -778,12 +771,7 @@ impl Identity {
             }
 
             let summary = device_keeper.summary().clone();
-            let signer = DeviceSigner {
-                summary,
-                signer: Box::new(key),
-                public_id,
-            };
-
+            let signer = DeviceSigner(Box::new(key));
             Ok(DeviceManager::new(signer, device_keeper))
         }
     }
