@@ -1,9 +1,9 @@
 use anyhow::Result;
 
-use secrecy::SecretString;
-use std::path::{Path, PathBuf};
-use sos_net::sdk::prelude::*;
 use crate::test_utils::{mock, setup, teardown};
+use secrecy::SecretString;
+use sos_net::sdk::prelude::*;
+use std::path::{Path, PathBuf};
 
 const TEST_ID: &str = "audit_trail";
 

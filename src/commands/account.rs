@@ -2,16 +2,14 @@ use clap::Subcommand;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
-use sos_net::{
-    sdk::{
-        account::archive::{
-            AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
-        },
-        identity::{AccountRef, PublicIdentity},
-        migrate::import::{ImportFormat, ImportTarget},
-        storage::FolderStorage,
-        vfs, Paths,
+use sos_net::sdk::{
+    account::archive::{
+        AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
     },
+    identity::{AccountRef, PublicIdentity},
+    migrate::import::{ImportFormat, ImportTarget},
+    storage::FolderStorage,
+    vfs, Paths,
 };
 
 use crate::{
