@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     constants::{
-        ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICES_DIR,
+        ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICES_FILE,
         EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR, JSON_EXT,
         LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, TEMP_DIR,
         VAULTS_DIR, VAULT_EXT,
@@ -60,7 +60,7 @@ pub struct UserPaths {
     /// User vault storage.
     vaults_dir: PathBuf,
     /// User devices storage.
-    devices_dir: PathBuf,
+    devices_file: PathBuf,
 }
 
 impl UserPaths {
@@ -78,7 +78,8 @@ impl UserPaths {
         let user_dir = local_dir.join(user_id.as_ref());
         let files_dir = user_dir.join(FILES_DIR);
         let vaults_dir = user_dir.join(VAULTS_DIR);
-        let devices_dir = user_dir.join(DEVICES_DIR);
+        let devices_file =
+            user_dir.join(format!("{}.{}", DEVICES_FILE, VAULT_EXT));
 
         Self {
             user_id: user_id.as_ref().to_owned(),
@@ -91,7 +92,7 @@ impl UserPaths {
             user_dir,
             files_dir,
             vaults_dir,
-            devices_dir,
+            devices_file,
         }
     }
 
@@ -112,7 +113,6 @@ impl UserPaths {
         vfs::create_dir_all(&self.user_dir).await?;
         vfs::create_dir_all(&self.files_dir).await?;
         vfs::create_dir_all(&self.vaults_dir).await?;
-        vfs::create_dir_all(&self.devices_dir).await?;
         Ok(())
     }
 
@@ -179,9 +179,9 @@ impl UserPaths {
         &self.vaults_dir
     }
 
-    /// Get the user devices directory.
-    pub fn devices_dir(&self) -> &PathBuf {
-        &self.devices_dir
+    /// Get the user devices file.
+    pub fn devices_file(&self) -> &PathBuf {
+        &self.devices_file
     }
 
     /// Get the path to the identity vault file for this account.

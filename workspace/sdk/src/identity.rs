@@ -10,8 +10,8 @@ use crate::{
     account::UserPaths,
     commit::CommitState,
     constants::{
-        DEVICE_KEY_URN, FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN,
-        LOGIN_SIGNING_KEY_URN, VAULT_EXT,
+        FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
+        VAULT_EXT,
     },
     crypto::{AccessKey, KeyDerivation, SecureAccessKey},
     decode, encode,
@@ -42,7 +42,7 @@ use tracing::{span, Level};
 use urn::Urn;
 
 #[cfg(feature = "device")]
-use crate::device::{DeviceSigner, DeviceManager};
+use crate::device::{DeviceManager, DeviceSigner};
 
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
@@ -258,7 +258,8 @@ impl Identity {
     /// Device manager.
     #[cfg(feature = "device")]
     pub fn devices(&self) -> Result<&DeviceManager> {
-        self.identity.as_ref()
+        self.identity
+            .as_ref()
             .ok_or(Error::NotAuthenticated)?
             .devices()
     }
@@ -266,7 +267,8 @@ impl Identity {
     /// Device manager.
     #[cfg(feature = "device")]
     pub fn devices_mut(&mut self) -> Result<&mut DeviceManager> {
-        self.identity.as_mut()
+        self.identity
+            .as_mut()
             .ok_or(Error::NotAuthenticated)?
             .devices_mut()
     }
@@ -653,13 +655,12 @@ impl Identity {
     }
 
     /// Ensure that the account has a vault for storing device specific
-    /// information such as the private key used to identify a machine 
+    /// information such as the private key used to identify a machine
     /// and the account's trusted devices.
     #[cfg(feature = "device")]
     async fn ensure_device_vault(&mut self) -> Result<DeviceManager> {
-        let device_vault_name = format!("devices.{}", VAULT_EXT);
-        let device_vault_path =
-            self.paths.user_dir().join(&device_vault_name);
+        use crate::constants::DEVICE_KEY_URN;
+        let device_vault_path = self.paths.devices_file().to_owned();
 
         let device_vault = if vfs::try_exists(&device_vault_path).await? {
             let buffer = vfs::read(&device_vault_path).await?;
@@ -743,7 +744,7 @@ impl Identity {
                 device_password.clone().into(),
             )
             .await?;
-            
+
             let buffer = encode(&vault).await?;
             vfs::write(&device_vault_path, &buffer).await?;
             let vault_file = VaultWriter::open(&device_vault_path).await?;

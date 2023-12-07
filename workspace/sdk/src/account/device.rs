@@ -7,7 +7,8 @@ impl<D> Account<D> {
         self.authenticated
             .as_ref()
             .ok_or(Error::NotAuthenticated)?
-            .user.devices()
+            .user
+            .devices()
     }
 
     /// Devices mutable reference.
@@ -15,6 +16,7 @@ impl<D> Account<D> {
         self.authenticated
             .as_mut()
             .ok_or(Error::NotAuthenticated)?
-            .user.devices_mut()
+            .user
+            .devices_mut()
     }
 }

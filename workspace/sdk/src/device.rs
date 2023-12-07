@@ -3,13 +3,15 @@ use crate::{
     account::{Account, UserPaths},
     identity::UrnLookup,
     signer::ed25519::{BoxedEd25519Signer, VerifyingKey},
-    vault::{Summary, Gatekeeper, secret::{SecretMeta, Secret, SecretId, SecretRow}},
+    vault::{
+        secret::{Secret, SecretId, SecretMeta, SecretRow},
+        Gatekeeper, Summary,
+    },
     vfs, Error, Result,
 };
-use secrecy::{SecretString, ExposeSecret};
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use urn::Urn;
 use std::{
     collections::HashMap,
     fmt,
@@ -17,6 +19,7 @@ use std::{
     sync::Arc,
 };
 use time::OffsetDateTime;
+use urn::Urn;
 
 /// Encapsulate device specific information for an account.
 #[derive(Clone)]
@@ -56,8 +59,8 @@ impl DeviceSigner {
 pub struct DeviceManager {
     /// Signing key for this device.
     signer: DeviceSigner,
-    /// Access to the vault that stores 
-    /// trusted device information for 
+    /// Access to the vault that stores
+    /// trusted device information for
     /// the account.
     keeper: Gatekeeper,
     /// Devices loaded into memory.
@@ -69,12 +72,12 @@ pub struct DeviceManager {
 impl DeviceManager {
     /// Create a new device manager.
     ///
-    /// Device manager stores the signing key for this device and 
+    /// Device manager stores the signing key for this device and
     /// documents for devices that have been trusted by this device.
     ///
     /// Trusted device documents are stored as JSON in secret notes.
     ///
-    /// The gatekeeper should be unlocked before assigning to a 
+    /// The gatekeeper should be unlocked before assigning to a
     /// device manager.
     pub(super) fn new(signer: DeviceSigner, keeper: Gatekeeper) -> Self {
         Self {
@@ -91,13 +94,18 @@ impl DeviceManager {
             if let Some((meta, secret, _)) = self.keeper.read(id).await? {
                 if let Some(urn) = meta.urn() {
                     if urn.nss().starts_with("device:") {
-                        let device_id: String =
-                            urn.nss().trim_start_matches("device:").to_owned();
+                        let device_id: String = urn
+                            .nss()
+                            .trim_start_matches("device:")
+                            .to_owned();
                         if let Secret::Note { text, .. } = &secret {
                             let device: TrustedDevice =
                                 serde_json::from_str(text.expose_secret())?;
                             self.devices.insert(device_id, device);
-                            self.lookup.insert((*self.keeper.id(), urn.clone()), *id);
+                            self.lookup.insert(
+                                (*self.keeper.id(), urn.clone()),
+                                *id,
+                            );
                         }
                     }
                 }
@@ -105,7 +113,7 @@ impl DeviceManager {
         }
         Ok(())
     }
-    
+
     /// List trusted devices.
     pub fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {
         self.devices.values().collect()

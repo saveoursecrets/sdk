@@ -141,9 +141,6 @@ mod folders {
     /// Directory to store files.
     pub const FILES_DIR: &str = "files";
 
-    /// Directory to store trusted devices public keys.
-    pub const DEVICES_DIR: &str = "devices";
-
     /// Directory to store temporary files.
     pub const TEMP_DIR: &str = "temp";
 
@@ -161,6 +158,10 @@ mod folders {
 
     /// Name of the file for remote origins.
     pub const REMOTES_FILE: &str = "servers";
+
+    /// Name of the vault file that stores the device
+    /// signing key.
+    pub const DEVICES_FILE: &str = "devices";
 }
 
 /// File names.

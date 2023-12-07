@@ -80,7 +80,6 @@ impl NetworkAccount {
             Some(Box::new(handler)),
         )
         .await?;
-        let devices_dir = account.paths().devices_dir().clone();
 
         Ok(Self {
             account,
@@ -143,8 +142,6 @@ impl NetworkAccount {
             Some(Box::new(handler)),
         )
         .await?;
-
-        let devices_dir = account.paths().devices_dir().clone();
 
         let owner = Self {
             account,
