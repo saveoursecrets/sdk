@@ -28,7 +28,7 @@ use crate::{
         VaultWriter,
     },
     vfs::{self, File},
-    Error, Result, UserPaths,
+    Error, Result, Paths,
 };
 
 use secrecy::SecretString;
@@ -188,7 +188,7 @@ impl AccountBackup {
     /// Build a manifest for an account.
     pub async fn manifest(
         address: &Address,
-        paths: &UserPaths,
+        paths: &Paths,
         options: AccountManifestOptions,
     ) -> Result<(AccountManifest, u64)> {
         let mut total_size: u64 = 0;
@@ -262,7 +262,7 @@ impl AccountBackup {
     /// Resolve a manifest entry to a path.
     pub fn resolve_manifest_entry(
         _address: &Address,
-        paths: &UserPaths,
+        paths: &Paths,
         entry: &ManifestEntry,
     ) -> Result<PathBuf> {
         match entry {
@@ -309,7 +309,7 @@ impl AccountBackup {
     /// identity vault and all user vaults.
     pub async fn export_archive_buffer(
         address: &Address,
-        paths: &UserPaths,
+        paths: &Paths,
     ) -> Result<Vec<u8>> {
         let identity_path = paths.identity_vault();
         if !vfs::try_exists(&identity_path).await? {
@@ -348,7 +348,7 @@ impl AccountBackup {
     pub async fn export_archive_file<P: AsRef<Path>>(
         path: P,
         address: &Address,
-        paths: &UserPaths,
+        paths: &Paths,
     ) -> Result<()> {
         let buffer = Self::export_archive_buffer(address, paths).await?;
         vfs::write(path.as_ref(), buffer).await?;
@@ -378,7 +378,7 @@ impl AccountBackup {
         let data_dir = if let Some(data_dir) = data_dir.take() {
             data_dir
         } else {
-            UserPaths::data_dir()?
+            Paths::data_dir()?
         };
 
         // Signed in so use the existing provider
@@ -394,7 +394,7 @@ impl AccountBackup {
 
             // The GUI should check the identity already exists
             // but we will double check here to be safe
-            let paths = UserPaths::new_global(data_dir.clone());
+            let paths = Paths::new_global(data_dir.clone());
             let keys = Identity::list_accounts(Some(&paths)).await?;
             let existing_account =
                 keys.iter().find(|k| k.address() == address);
@@ -404,7 +404,7 @@ impl AccountBackup {
 
             let address = address.to_string();
 
-            let paths = UserPaths::new(data_dir, &address);
+            let paths = Paths::new(data_dir, &address);
 
             if let Some(passphrase) = &options.password {
                 let identity_vault_file = paths.identity_vault().clone();
@@ -443,7 +443,7 @@ impl AccountBackup {
 
             // The GUI should check the identity does not already exist
             // but we will double check here to be safe
-            let paths = UserPaths::new_global(data_dir.clone());
+            let paths = Paths::new_global(data_dir.clone());
             let keys = Identity::list_accounts(Some(&paths)).await?;
             let existing_account = keys
                 .iter()
@@ -455,7 +455,7 @@ impl AccountBackup {
             }
 
             let address_path = restore_targets.address.to_string();
-            let paths = UserPaths::new(data_dir, &address_path);
+            let paths = Paths::new(data_dir, &address_path);
 
             // Write out the identity vault
             let identity_vault_file = paths.identity_vault();
@@ -575,7 +575,7 @@ impl AccountBackup {
             let key: AccessKey = passphrase.clone().into();
             keeper.unlock(&key).await?;
 
-            let paths = UserPaths::new_global(UserPaths::data_dir()?);
+            let paths = Paths::new_global(Paths::data_dir()?);
 
             // Get the signing address from the identity vault and
             // verify it matches the manifest address

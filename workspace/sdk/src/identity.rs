@@ -25,7 +25,7 @@ use crate::{
         Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
         VaultFlags, VaultId, VaultWriter,
     },
-    vfs, Error, Result, UserPaths,
+    vfs, Error, Result, Paths,
 };
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{Deserialize, Serialize};
@@ -170,7 +170,7 @@ pub type UrnLookup = HashMap<(VaultId, Urn), SecretId>;
 /// Identity manages access to an identity vault
 /// and the private keys for a user.
 pub struct Identity {
-    paths: Arc<UserPaths>,
+    paths: Arc<Paths>,
     account: Option<PublicIdentity>,
     identity: Option<PrivateIdentity>,
     secure_keys: SecureKeys,
@@ -179,13 +179,13 @@ pub struct Identity {
 impl Identity {
     /// List account information for the identity vaults.
     pub async fn list_accounts(
-        paths: Option<&UserPaths>,
+        paths: Option<&Paths>,
     ) -> Result<Vec<PublicIdentity>> {
         let mut keys = Vec::new();
         let paths = if let Some(paths) = paths {
             paths.clone()
         } else {
-            UserPaths::new_global(UserPaths::data_dir()?)
+            Paths::new_global(Paths::data_dir()?)
         };
 
         let mut dir = vfs::read_dir(paths.identity_dir()).await?;
@@ -210,7 +210,7 @@ impl Identity {
 
     /// Find and load a vault.
     pub(crate) async fn load_local_vault(
-        paths: &UserPaths,
+        paths: &Paths,
         id: &VaultId,
     ) -> Result<(Vault, PathBuf)> {
         let folders = Self::list_local_folders(paths).await?;
@@ -226,7 +226,7 @@ impl Identity {
     /// List the folders in an account by inspecting
     /// the vault files in the vaults directory.
     pub(crate) async fn list_local_folders(
-        paths: &UserPaths,
+        paths: &Paths,
     ) -> Result<Vec<(Summary, PathBuf)>> {
         let vaults_dir = paths.vaults_dir();
 
@@ -245,7 +245,7 @@ impl Identity {
     }
 
     /// Create a new unauthenticated user.
-    pub fn new(paths: UserPaths) -> Self {
+    pub fn new(paths: Paths) -> Self {
         Self {
             paths: Arc::new(paths),
             identity: None,
@@ -319,7 +319,7 @@ impl Identity {
     }
 
     /// Delete the account for this user.
-    pub async fn delete_account(&self, paths: &UserPaths) -> Result<Event> {
+    pub async fn delete_account(&self, paths: &Paths) -> Result<Event> {
         vfs::remove_file(paths.identity_vault()).await?;
         vfs::remove_dir_all(paths.user_dir()).await?;
 
@@ -335,7 +335,7 @@ impl Identity {
     /// Rename this account by changing the name of the identity vault.
     pub async fn rename_account(
         &mut self,
-        paths: &UserPaths,
+        paths: &Paths,
         account_name: String,
     ) -> Result<()> {
         // Update in-memory vault
@@ -1070,7 +1070,7 @@ mod tests {
             secret::{Secret, SecretId, SecretMeta, SecretRow},
             Gatekeeper, Vault, VaultBuilder, VaultFlags,
         },
-        Error, UserPaths,
+        Error, Paths,
     };
 
     #[tokio::test]
@@ -1081,7 +1081,7 @@ mod tests {
         let buffer = encode(&vault).await?;
 
         let mut identity =
-            Identity::new(UserPaths::new_global(UserPaths::data_dir()?));
+            Identity::new(Paths::new_global(Paths::data_dir()?));
         let key: AccessKey = password.into();
         let result = identity.login_buffer(buffer, &key, None).await;
         if let Err(Error::NotIdentityVault) = result {
@@ -1103,7 +1103,7 @@ mod tests {
         let buffer = encode(&vault).await?;
 
         let mut identity =
-            Identity::new(UserPaths::new_global(UserPaths::data_dir()?));
+            Identity::new(Paths::new_global(Paths::data_dir()?));
         let key: AccessKey = password.into();
         let result = identity.login_buffer(buffer, &key, None).await;
         if let Err(Error::NoSigningKey) = result {
@@ -1144,7 +1144,7 @@ mod tests {
         let buffer = encode(&vault).await?;
 
         let mut identity =
-            Identity::new(UserPaths::new_global(UserPaths::data_dir()?));
+            Identity::new(Paths::new_global(Paths::data_dir()?));
         let key: AccessKey = password.into();
         let result = identity.login_buffer(buffer, &key, None).await;
         if let Err(Error::NoIdentityKey) = result {

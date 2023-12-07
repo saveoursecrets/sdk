@@ -28,7 +28,7 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
         Gatekeeper, Header, Summary, Vault, VaultId,
     },
-    vfs, Error, Result, Timestamp, UserPaths,
+    vfs, Error, Result, Timestamp, Paths,
 };
 
 use tracing::{span, Level};
@@ -123,7 +123,7 @@ pub struct Account<D> {
     pub(super) authenticated: Option<Authenticated>,
 
     /// Storage paths.
-    pub(super) paths: Arc<UserPaths>,
+    pub(super) paths: Arc<Paths>,
 
     /// Hook called before making local changes.
     ///
@@ -146,10 +146,10 @@ impl<D> Account<D> {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
         } else {
-            UserPaths::data_dir()?
+            Paths::data_dir()?
         };
 
-        let paths = UserPaths::new_global(data_dir);
+        let paths = Paths::new_global(data_dir);
 
         Ok(Self {
             address,
@@ -220,10 +220,10 @@ impl<D> Account<D> {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
         } else {
-            UserPaths::data_dir()?
+            Paths::data_dir()?
         };
 
-        let paths = UserPaths::new_global(data_dir);
+        let paths = Paths::new_global(data_dir);
 
         let owner = Self {
             address,
@@ -274,7 +274,7 @@ impl<D> Account<D> {
         tracing::debug!(address = %address);
 
         // Ensure all paths before sign_in
-        let paths = UserPaths::ensure_paths(
+        let paths = Paths::ensure_paths(
             address.to_string(),
             Some(data_dir.clone()),
         )
@@ -315,7 +315,7 @@ impl<D> Account<D> {
     }
 
     async fn initialize_account_log(
-        paths: &UserPaths,
+        paths: &Paths,
         account_log: Arc<RwLock<AccountEventLog>>,
         user: &Identity,
     ) -> Result<()> {
@@ -363,7 +363,7 @@ impl<D> Account<D> {
     }
 
     /// User storage paths.
-    pub fn paths(&self) -> &UserPaths {
+    pub fn paths(&self) -> &Paths {
         &self.paths
     }
 

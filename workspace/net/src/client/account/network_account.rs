@@ -21,7 +21,7 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Summary, VaultId,
     },
-    vfs, UserPaths,
+    vfs, Paths,
 };
 use std::{
     path::{Path, PathBuf},
@@ -261,7 +261,7 @@ impl NetworkAccount {
     }
 
     /// User storage paths.
-    pub fn paths(&self) -> &UserPaths {
+    pub fn paths(&self) -> &Paths {
         self.account.paths()
     }
 

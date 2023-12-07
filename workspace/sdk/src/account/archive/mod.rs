@@ -13,7 +13,7 @@ use crate::{
     events::{AuditEvent, EventKind},
     identity::{Identity, PublicIdentity},
     vfs::File,
-    Result, UserPaths,
+    Result, Paths,
 };
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncRead, AsyncSeek};
@@ -89,8 +89,8 @@ impl<D> Account<D> {
             ExtractFilesLocation::Path(owner.paths().files_dir().clone())
         } else {
             ExtractFilesLocation::Builder(Box::new(|address| {
-                let data_dir = UserPaths::data_dir().unwrap();
-                let paths = UserPaths::new(data_dir, address);
+                let data_dir = Paths::data_dir().unwrap();
+                let paths = Paths::new(data_dir, address);
                 Some(paths.files_dir().to_owned())
             }))
         };

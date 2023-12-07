@@ -2,7 +2,7 @@ use anyhow::Result;
 use rexpect::{session::PtySession, spawn, ReadUntil};
 use secrecy::SecretString;
 use sos_net::sdk::{
-    account::UserPaths,
+    account::Paths,
     constants::{DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_VAULT_NAME},
     passwd::diceware::generate_passphrase,
     secrecy::ExposeSecret,
@@ -187,8 +187,8 @@ async fn integration_command_line() -> Result<()> {
     std::env::set_var("SOS_DATA_DIR", data_dir.clone());
 
     // Set so test functions can access
-    UserPaths::set_data_dir(data_dir.clone());
-    UserPaths::scaffold(Some(data_dir)).await?;
+    Paths::set_data_dir(data_dir.clone());
+    Paths::scaffold(Some(data_dir)).await?;
 
     if is_ci() {
         std::env::set_var("SOS_YES", true.to_string());
@@ -264,7 +264,7 @@ async fn integration_command_line() -> Result<()> {
 
     account::delete(&exe, &address, &password, None)?;
 
-    UserPaths::clear_data_dir();
+    Paths::clear_data_dir();
 
     std::env::remove_var("SOS_DATA_DIR");
     std::env::remove_var("SOS_YES");

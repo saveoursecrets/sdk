@@ -17,8 +17,8 @@ async fn integration_account_lifecycle() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (passphrase, _) = generate_passphrase()?;
 
-    UserPaths::scaffold(Some(data_dir.clone())).await?;
-    let paths = UserPaths::new_global(data_dir.clone());
+    Paths::scaffold(Some(data_dir.clone())).await?;
+    let paths = Paths::new_global(data_dir.clone());
     let accounts = Identity::list_accounts(Some(&paths)).await?;
     assert_eq!(0, accounts.len());
 

@@ -11,7 +11,7 @@ use sos_net::{
         passwd::diceware::generate_passphrase,
         secrecy::{ExposeSecret, SecretString},
         vault::{FolderRef, Summary},
-        UserPaths,
+        Paths,
     },
 };
 use terminal_banner::{Banner, Padding};
@@ -347,7 +347,7 @@ pub async fn new_account(
         let key: AccessKey = passphrase.into();
         owner.sign_in(&key).await?;
 
-        let data_dir = UserPaths::data_dir()?;
+        let data_dir = Paths::data_dir()?;
         let message = format!(
             r#"* Account: {} ({})
 * Storage: {}"#,

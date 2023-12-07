@@ -17,7 +17,7 @@ use crate::{
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
         VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultWriter,
     },
-    vfs, Error, Result, Timestamp, UserPaths,
+    vfs, Error, Result, Timestamp, Paths,
 };
 
 use secrecy::SecretString;
@@ -53,7 +53,7 @@ pub struct FolderStorage {
     state: LocalState,
 
     /// Directories for file storage.
-    pub(super) paths: Arc<UserPaths>,
+    pub(super) paths: Arc<Paths>,
 
     /// Search index.
     #[cfg(feature = "search")]
@@ -83,10 +83,10 @@ impl FolderStorage {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
         } else {
-            UserPaths::data_dir().map_err(|_| Error::NoCache)?
+            Paths::data_dir().map_err(|_| Error::NoCache)?
         };
 
-        let dirs = UserPaths::new(data_dir, address.to_string());
+        let dirs = Paths::new(data_dir, address.to_string());
         Self::new_paths(Arc::new(dirs), address, true, false).await
     }
 
@@ -98,16 +98,16 @@ impl FolderStorage {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
         } else {
-            UserPaths::data_dir().map_err(|_| Error::NoCache)?
+            Paths::data_dir().map_err(|_| Error::NoCache)?
         };
 
-        let dirs = UserPaths::new(data_dir, address.to_string());
+        let dirs = Paths::new(data_dir, address.to_string());
         Self::new_paths(Arc::new(dirs), address, true, true).await
     }
 
     /// Create new storage backed by files on disc.
     async fn new_paths(
-        paths: Arc<UserPaths>,
+        paths: Arc<Paths>,
         address: Address,
         mirror: bool,
         head_only: bool,
@@ -160,7 +160,7 @@ impl FolderStorage {
     }
 
     #[cfg(feature = "files")]
-    async fn initialize_file_log(paths: &UserPaths) -> Result<FileEventLog> {
+    async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
         let span = span!(Level::DEBUG, "init_file_log");
         let _enter = span.enter();
 
@@ -219,7 +219,7 @@ impl FolderStorage {
     }
 
     /// Get the computed storage directories for the provider.
-    pub fn paths(&self) -> Arc<UserPaths> {
+    pub fn paths(&self) -> Arc<Paths> {
         Arc::clone(&self.paths)
     }
 

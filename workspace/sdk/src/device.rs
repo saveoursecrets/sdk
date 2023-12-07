@@ -8,7 +8,7 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Summary,
     },
-    vfs, Error, Result, UserPaths,
+    vfs, Error, Result, Paths,
 };
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};

@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use sos_net::sdk::{
-    hex, identity::AccountRef, url::Url, vault::FolderRef, UserPaths,
+    hex, identity::AccountRef, url::Url, vault::FolderRef, Paths,
 };
 use std::path::PathBuf;
 
@@ -141,9 +141,9 @@ pub async fn run() -> Result<()> {
     let mut args = Sos::parse();
 
     if let Some(storage) = &args.storage {
-        UserPaths::set_data_dir(storage.clone());
+        Paths::set_data_dir(storage.clone());
     }
-    UserPaths::scaffold(args.storage).await?;
+    Paths::scaffold(args.storage).await?;
 
     #[cfg(any(test, debug_assertions))]
     if let Some(password) = args.password.take() {

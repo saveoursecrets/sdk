@@ -3,7 +3,7 @@ use crate::{
     events::FileEvent,
     hex,
     vault::{secret::SecretId, VaultId},
-    vfs, Error, Result, UserPaths,
+    vfs, Error, Result, Paths,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt, path::Path, str::FromStr};
@@ -79,7 +79,7 @@ impl From<ExternalFile> for FileEvent {
 /// identifier or the file name cannot be converted to `[u8; 32]`
 /// the directory or file will be ignored.
 pub(crate) async fn list_external_files(
-    paths: &UserPaths,
+    paths: &Paths,
 ) -> Result<HashSet<ExternalFile>> {
     let mut files = HashSet::new();
     let mut dir = vfs::read_dir(paths.files_dir()).await?;
@@ -114,7 +114,7 @@ pub(crate) async fn list_external_files(
 /// identifier or the file name cannot be converted to `[u8; 32]`
 /// the directory or file will be ignored.
 pub(crate) async fn list_folder_files(
-    paths: &UserPaths,
+    paths: &Paths,
     folder_id: &VaultId,
 ) -> Result<Vec<(SecretId, HashSet<ExternalFileName>)>> {
     let mut files = Vec::new();

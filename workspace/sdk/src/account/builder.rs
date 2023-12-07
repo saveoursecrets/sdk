@@ -12,7 +12,7 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
     },
-    vfs, Result, UserPaths,
+    vfs, Result, Paths,
 };
 use secrecy::SecretString;
 use std::{collections::HashMap, path::PathBuf};
@@ -134,7 +134,7 @@ impl AccountBuilder {
             mut default_folder_name,
         } = self;
 
-        UserPaths::scaffold(data_dir.clone()).await?;
+        Paths::scaffold(data_dir.clone()).await?;
 
         // Prepare the identity vault
         let (address, identity_vault) = Identity::new_login_vault(
@@ -148,7 +148,7 @@ impl AccountBuilder {
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let buffer = encode(&identity_vault).await?;
-        let paths = UserPaths::new_global(UserPaths::data_dir()?);
+        let paths = Paths::new_global(Paths::data_dir()?);
         let mut user = Identity::new(paths);
         let key: AccessKey = passphrase.clone().into();
         user.login_buffer(buffer, &key, None).await?;
@@ -305,9 +305,9 @@ impl AccountBuilder {
         let data_dir = if let Some(data_dir) = &account.data_dir {
             data_dir.clone()
         } else {
-            UserPaths::data_dir()?
+            Paths::data_dir()?
         };
-        let paths = UserPaths::new(data_dir, &address);
+        let paths = Paths::new(data_dir, &address);
         // Persist the identity vault to disc, MUST re-encode the buffer
         // as we have modified the identity vault
         let identity_vault_file = paths.identity_vault();

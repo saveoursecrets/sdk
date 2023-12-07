@@ -36,9 +36,9 @@ static AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 #[cfg(test)]
 pub static mut AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 
-/// Encapsulates the paths for a user account.
+/// File system paths.
 #[derive(Default, Debug, Clone)]
-pub struct UserPaths {
+pub struct Paths {
     /// User identifier.
     user_id: String,
     /// Top-level documents folder.
@@ -63,7 +63,7 @@ pub struct UserPaths {
     devices_file: PathBuf,
 }
 
-impl UserPaths {
+impl Paths {
     /// Create new paths.
     pub fn new<D: AsRef<Path>>(
         documents_dir: D,
@@ -239,12 +239,12 @@ impl UserPaths {
     pub async fn ensure_paths(
         address: impl AsRef<str>,
         data_dir: Option<PathBuf>,
-    ) -> Result<UserPaths> {
+    ) -> Result<Paths> {
         // Ensure all paths before sign_in
         let paths = if let Some(data_dir) = data_dir {
-            UserPaths::new(data_dir, address)
+            Paths::new(data_dir, address)
         } else {
-            UserPaths::new(UserPaths::data_dir()?, address)
+            Paths::new(Paths::data_dir()?, address)
         };
         paths.ensure().await?;
         Ok(paths)
@@ -255,7 +255,7 @@ impl UserPaths {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
         } else {
-            UserPaths::data_dir()?
+            Paths::data_dir()?
         };
         let paths = Self::new_global(data_dir);
         vfs::create_dir_all(paths.documents_dir()).await?;

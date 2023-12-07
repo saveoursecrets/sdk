@@ -11,7 +11,7 @@ use sos_sdk::{
     },
     storage::FolderStorage,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
-    vfs, UserPaths,
+    vfs, Paths,
 };
 use std::{
     collections::HashMap,
@@ -181,8 +181,8 @@ impl FileSystemBackend {
         let span = span!(Level::DEBUG, "server init");
         tracing::debug!(directory = %self.directory.display());
 
-        UserPaths::scaffold(Some(self.directory.clone())).await?;
-        let paths = UserPaths::new_global(self.directory.clone());
+        Paths::scaffold(Some(self.directory.clone())).await?;
+        let paths = Paths::new_global(self.directory.clone());
 
         if !vfs::try_exists(paths.local_dir()).await? {
             vfs::create_dir(paths.local_dir()).await?;
@@ -240,7 +240,7 @@ impl BackendHandler for FileSystemBackend {
         let span = span!(Level::DEBUG, "create_account");
         tracing::debug!(address = %owner);
 
-        let paths = UserPaths::new(self.directory.clone(), owner.to_string());
+        let paths = Paths::new(self.directory.clone(), owner.to_string());
         paths.ensure().await?;
 
         let account = AccountStorage {

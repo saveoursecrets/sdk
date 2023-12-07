@@ -13,7 +13,7 @@ use sos_net::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         vault::{Summary, VaultId},
-        vfs, UserPaths,
+        vfs, Paths,
     },
 };
 use std::path::PathBuf;

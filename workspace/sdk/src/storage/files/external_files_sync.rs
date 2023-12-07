@@ -15,7 +15,7 @@ use std::{
 
 use crate::{
     vault::{secret::SecretId, VaultId},
-    Error, Result, UserPaths,
+    Error, Result, Paths,
 };
 
 use super::EncryptedFile;
@@ -82,7 +82,7 @@ impl FileStorageSync {
     pub fn encrypt_file_storage<P: AsRef<Path>>(
         password: SecretString,
         path: P,
-        paths: &UserPaths,
+        paths: &Paths,
         vault_id: &VaultId,
         secret_id: &SecretId,
     ) -> Result<EncryptedFile> {
@@ -104,7 +104,7 @@ impl FileStorageSync {
     /// Decrypt a file in the storage location and return the buffer.
     pub fn decrypt_file_storage(
         password: &SecretString,
-        paths: &UserPaths,
+        paths: &Paths,
         vault_id: &VaultId,
         secret_id: &SecretId,
         file_name: impl AsRef<str>,

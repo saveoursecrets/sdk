@@ -13,7 +13,7 @@
 use crate::{
     vault::{secret::SecretId, VaultId},
     vfs::{self, File},
-    Error, Result, UserPaths,
+    Error, Result, Paths,
 };
 use age::Encryptor;
 use futures::io::AsyncReadExt;
@@ -84,7 +84,7 @@ impl FileStorage {
     pub async fn encrypt_file_storage<P: AsRef<Path>>(
         password: SecretString,
         path: P,
-        paths: &UserPaths,
+        paths: &Paths,
         vault_id: &VaultId,
         secret_id: &SecretId,
     ) -> Result<EncryptedFile> {
@@ -106,7 +106,7 @@ impl FileStorage {
     /// Decrypt a file in the storage location and return the buffer.
     pub async fn decrypt_file_storage(
         password: &SecretString,
-        paths: &UserPaths,
+        paths: &Paths,
         vault_id: &VaultId,
         secret_id: &SecretId,
         file_name: impl AsRef<str>,

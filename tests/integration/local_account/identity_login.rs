@@ -16,8 +16,8 @@ async fn integration_identity_login() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    UserPaths::scaffold(Some(data_dir.clone())).await?;
-    UserPaths::new_global(data_dir.clone());
+    Paths::scaffold(Some(data_dir.clone())).await?;
+    Paths::new_global(data_dir.clone());
 
     let path = data_dir.join("login.vault");
     let (address, vault) =
@@ -26,7 +26,7 @@ async fn integration_identity_login() -> Result<()> {
     let buffer = encode(&vault).await?;
     vfs::write(&path, buffer).await?;
 
-    let paths = UserPaths::new(data_dir, address.to_string());
+    let paths = Paths::new(data_dir, address.to_string());
     paths.ensure().await?;
     let mut identity = Identity::new(paths);
 

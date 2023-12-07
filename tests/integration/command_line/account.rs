@@ -5,7 +5,7 @@ use secrecy::SecretString;
 use sos_net::{
     migrate::import::ImportFormat,
     sdk::{
-        account::UserPaths, constants::DEFAULT_VAULT_NAME,
+        account::Paths, constants::DEFAULT_VAULT_NAME,
         secrecy::ExposeSecret,
     },
 };
@@ -74,7 +74,7 @@ pub fn backup_restore(
     account_name: &str,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let data_dir = UserPaths::data_dir().unwrap();
+    let data_dir = Paths::data_dir().unwrap();
     let backup_file = data_dir.join(format!("{}-backup.zip", address));
 
     let cmd = format!(
@@ -226,7 +226,7 @@ pub fn migrate(
     password: &SecretString,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let data_dir = UserPaths::data_dir().unwrap();
+    let data_dir = Paths::data_dir().unwrap();
     let export_file = data_dir.join(format!("{}-export.zip", address));
     let fixtures = PathBuf::from("workspace/migrate/fixtures");
 
@@ -397,7 +397,7 @@ pub fn contacts(
 ) -> Result<()> {
     let import_file = PathBuf::from("tests/fixtures/contacts.vcf");
 
-    let data_dir = UserPaths::data_dir().unwrap();
+    let data_dir = Paths::data_dir().unwrap();
     let export_file = data_dir.join(format!("{}-contacts.vcf", address));
 
     let cmd = format!(

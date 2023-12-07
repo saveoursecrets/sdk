@@ -19,7 +19,7 @@ use sos_net::{
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
         storage::FolderStorage,
         vault::{secret::SecretId, Summary},
-        vfs, UserPaths,
+        vfs, Paths,
     },
     server::{
         BackendHandler, Server, ServerConfig, ServerInfo, State,
@@ -178,7 +178,7 @@ pub struct TestServer {
 impl TestServer {
     /// Path to the server account data.
     pub fn account_path(&self, address: &Address) -> PathBuf {
-        let paths = UserPaths::new(self.path.clone(), address.to_string());
+        let paths = Paths::new(self.path.clone(), address.to_string());
         paths.user_dir().to_owned()
     }
 }
@@ -237,7 +237,7 @@ pub struct TestDirs {
 
 /// Setup prepares directories for the given number of clients.
 pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
-    UserPaths::reset_audit_log();
+    Paths::reset_audit_log();
 
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
