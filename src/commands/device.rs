@@ -4,7 +4,7 @@ use tokio::sync::RwLock;
 
 use sos_net::{
     client::NetworkAccount,
-    sdk::{account::device::TrustedDevice, identity::AccountRef},
+    sdk::{device::TrustedDevice, identity::AccountRef},
 };
 
 use crate::{

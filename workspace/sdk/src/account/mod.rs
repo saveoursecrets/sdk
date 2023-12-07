@@ -6,7 +6,7 @@ mod builder;
 #[cfg(feature = "contacts")]
 pub mod contacts;
 #[cfg(feature = "device")]
-pub mod device;
+mod device;
 #[cfg(feature = "files")]
 pub mod files;
 #[cfg(feature = "migrate")]

@@ -1,7 +1,7 @@
 //! Account device manager.
 use crate::{
     client::{NetworkAccount, Result},
-    sdk::account::device::DeviceManager,
+    sdk::device::DeviceManager,
 };
 
 impl NetworkAccount {

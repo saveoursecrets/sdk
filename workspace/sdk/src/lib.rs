@@ -20,6 +20,7 @@
 //! the account management support disable `default-features`.
 //!
 //! * `account` Local account management.
+//! * `device` Device signing keys and device management.
 //! * `files` Store external encrypted files.
 //! * `recovery` Primitives for social recovery.
 //! * `search` In-memory search index.
@@ -28,7 +29,6 @@
 //!
 //! * `archive` Create and restore from account backup archives.
 //! * `contacts` Manage account contacts.
-//! * `device` Device signing keys and device management.
 //! * `migrate` Import and export unencrypted secrets.
 //! * `security-report` Generate a security report.
 //!
@@ -42,9 +42,6 @@ compile_error!("account feature must be enabled to use archive");
 #[cfg(all(not(feature = "account"), feature = "contacts"))]
 compile_error!("account feature must be enabled to use contacts");
 
-#[cfg(all(not(feature = "account"), feature = "device"))]
-compile_error!("account feature must be enabled to use device");
-
 #[cfg(all(not(feature = "account"), feature = "migrate"))]
 compile_error!("account feature must be enabled to use migrate");
 
@@ -56,6 +53,8 @@ pub mod account;
 pub mod commit;
 pub mod constants;
 pub mod crypto;
+#[cfg(feature = "device")]
+pub mod device;
 pub mod encoding;
 mod error;
 pub mod events;
