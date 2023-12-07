@@ -6,15 +6,15 @@ impl<D> Account<D> {
     pub fn devices(&self) -> Result<&DeviceManager> {
         self.authenticated
             .as_ref()
-            .map(|a| &a.devices)
-            .ok_or(Error::NotAuthenticated)
+            .ok_or(Error::NotAuthenticated)?
+            .user.devices()
     }
 
     /// Devices mutable reference.
     pub fn devices_mut(&mut self) -> Result<&mut DeviceManager> {
         self.authenticated
             .as_mut()
-            .map(|a| &mut a.devices)
-            .ok_or(Error::NotAuthenticated)
+            .ok_or(Error::NotAuthenticated)?
+            .user.devices_mut()
     }
 }
