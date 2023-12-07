@@ -51,7 +51,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
     assert_local_remote_events_eq(folders, &mut owner, remote_provider)
         .await?;
 
-    teardown(TEST_ID).await;
+    //teardown(TEST_ID).await;
 
     Ok(())
 }

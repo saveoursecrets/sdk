@@ -145,8 +145,11 @@ mod folders {
     /// Directory to store vaults.
     pub const VAULTS_DIR: &str = "vaults";
 
-    /// Directory to store local provider data.
+    /// Directory to store data for clients.
     pub const LOCAL_DIR: &str = "local";
+
+    /// Directory to store data for servers.
+    pub const REMOTE_DIR: &str = "remote";
 
     /// Directory to store identity vaults.
     pub const IDENTITY_DIR: &str = "identity";

@@ -101,7 +101,7 @@ impl FolderStorage {
             Paths::data_dir().map_err(|_| Error::NoCache)?
         };
 
-        let dirs = Paths::new(data_dir, address.to_string());
+        let dirs = Paths::new_server(data_dir, address.to_string());
         Self::new_paths(Arc::new(dirs), address, true, true).await
     }
 

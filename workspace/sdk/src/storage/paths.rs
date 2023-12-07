@@ -13,8 +13,8 @@ use crate::{
     constants::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICES_FILE,
         EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR, JSON_EXT,
-        LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, VAULTS_DIR,
-        VAULT_EXT,
+        LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, REMOTE_DIR,
+        VAULTS_DIR, VAULT_EXT,
     },
     events::{AuditEvent, AuditLogFile, AuditProvider},
     vault::{secret::SecretId, VaultId},
@@ -37,6 +37,13 @@ static AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 pub static mut AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 
 /// File system paths.
+///
+/// Clients and servers may be configured to run on the same machine
+/// and point to the same data directory so different prefixes are
+/// used to distinguish.
+///
+/// Clients write to a `local` directory whilst servers write to a
+/// `remote` directory.
 ///
 /// Several functions require a user identifier and will panic if
 /// a user identifier has not been set, see the function documentation
@@ -66,13 +73,45 @@ pub struct Paths {
 }
 
 impl Paths {
-    /// Create new paths.
-    pub fn new<D: AsRef<Path>>(
-        documents_dir: D,
+    /// Create new paths for a client.
+    pub fn new(
+        documents_dir: impl AsRef<Path>,
         user_id: impl AsRef<str>,
     ) -> Self {
+        Self::new_with_prefix(documents_dir, user_id, LOCAL_DIR)
+    }
+
+    /// Create new paths for a server.
+    pub fn new_server(
+        documents_dir: impl AsRef<Path>,
+        user_id: impl AsRef<str>,
+    ) -> Self {
+        Self::new_with_prefix(documents_dir, user_id, REMOTE_DIR)
+    }
+
+    /// Create new paths for a client with an empty user identifier.
+    ///
+    /// Used to get application level paths when a user identifier
+    /// is not available.
+    pub fn new_global(documents_dir: impl AsRef<Path>) -> Self {
+        Self::new(documents_dir, "")
+    }
+
+    /// Create new paths for a client with an empty user identifier.
+    ///
+    /// Used to get application level paths when a user identifier
+    /// is not available.
+    pub fn new_global_server(documents_dir: impl AsRef<Path>) -> Self {
+        Self::new_server(documents_dir, "")
+    }
+
+    fn new_with_prefix(
+        documents_dir: impl AsRef<Path>,
+        user_id: impl AsRef<str>,
+        prefix: impl AsRef<Path>,
+    ) -> Self {
         let documents_dir = documents_dir.as_ref().to_path_buf();
-        let local_dir = documents_dir.join(LOCAL_DIR);
+        let local_dir = documents_dir.join(prefix);
         let logs_dir = documents_dir.join(LOGS_DIR);
         let identity_dir = documents_dir.join(IDENTITY_DIR);
         let audit_file = local_dir.join(AUDIT_FILE_NAME);
@@ -81,7 +120,6 @@ impl Paths {
         let vaults_dir = user_dir.join(VAULTS_DIR);
         let devices_file =
             user_dir.join(format!("{}.{}", DEVICES_FILE, VAULT_EXT));
-
         Self {
             user_id: user_id.as_ref().to_owned(),
             documents_dir,
@@ -96,20 +134,11 @@ impl Paths {
         }
     }
 
-    /// Create new paths with an empty user identifier.
-    ///
-    /// Used to get application level paths when a user identifier
-    /// is not available.
-    pub fn new_global<D: AsRef<Path>>(documents_dir: D) -> Self {
-        Self::new(documents_dir, "")
-    }
-
     /// Ensure the local storage directory exists.
     ///
     /// If a user identifier is available this will
     /// also create some user-specific directories.
     pub async fn ensure(&self) -> Result<()> {
-        //vfs::create_dir_all(&self.documents_dir).await?;
         vfs::create_dir_all(&self.local_dir).await?;
         if !self.is_global() {
             vfs::create_dir_all(&self.user_dir).await?;

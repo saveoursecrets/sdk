@@ -182,7 +182,7 @@ impl FileSystemBackend {
         tracing::debug!(directory = %self.directory.display());
 
         Paths::scaffold(Some(self.directory.clone())).await?;
-        let paths = Paths::new_global(self.directory.clone());
+        let paths = Paths::new_global_server(self.directory.clone());
 
         if !vfs::try_exists(paths.local_dir()).await? {
             vfs::create_dir(paths.local_dir()).await?;
@@ -240,7 +240,8 @@ impl BackendHandler for FileSystemBackend {
         let span = span!(Level::DEBUG, "create_account");
         tracing::debug!(address = %owner);
 
-        let paths = Paths::new(self.directory.clone(), owner.to_string());
+        let paths =
+            Paths::new_server(self.directory.clone(), owner.to_string());
         paths.ensure().await?;
 
         let account = AccountStorage {

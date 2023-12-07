@@ -178,7 +178,7 @@ pub struct TestServer {
 impl TestServer {
     /// Path to the server account data.
     pub fn account_path(&self, address: &Address) -> PathBuf {
-        let paths = Paths::new(self.path.clone(), address.to_string());
+        let paths = Paths::new_server(self.path.clone(), address.to_string());
         paths.user_dir().to_owned()
     }
 }
