@@ -82,6 +82,26 @@ account sign in flow and to store delegated passwords.
 Delegated passwords are passwords for other folders managed 
 by the account owner.
 
+The identity vault must only be shared between devices belonging 
+by the account owner.
+
+## Device Vault
+
+The device vault contains the signing key that identifies a single 
+device and a collection of other trusted devices.
+
+A trusted device contains meta data about a device (operating system, 
+hostname, hardware information etc) that allows the owner to easily 
+identify the device and the public key of the device's signing key.
+
+The device vault must never leave that device.
+
+Device vaults are not included in backup archives, they are lazily 
+created when an account owner signs in so after restoring from a 
+backup archive a new device signing key would be created and the 
+account owner would need to pair with other devices to add them 
+to the collection of trusted devices again.
+
 ## Cloud Account
 
 A cloud account refers to a paid subscription to a cloud-hosted 
