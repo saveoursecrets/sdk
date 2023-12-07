@@ -11,6 +11,12 @@ pub use crate::crypto::*;
 pub use crate::events::*;
 pub use crate::formats::*;
 pub use crate::identity::*;
+#[cfg(feature = "migrate")]
+pub use crate::migrate::*;
+#[cfg(feature = "migrate")]
+pub use crate::migrate::import::*;
+#[cfg(feature = "migrate")]
+pub use crate::migrate::export::*;
 pub use crate::signer::ecdsa::Address;
 #[cfg(feature = "files")]
 pub use crate::storage::files::*;

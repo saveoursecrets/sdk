@@ -2,9 +2,7 @@ use anyhow::Result;
 
 use secrecy::SecretString;
 use std::path::{Path, PathBuf};
-
-use sos_net::{migrate::import::ImportTarget, sdk::prelude::*};
-
+use sos_net::sdk::prelude::*;
 use crate::test_utils::{mock, setup, teardown};
 
 const TEST_ID: &str = "audit_trail";
