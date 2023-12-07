@@ -42,11 +42,10 @@ async fn resolve_device(
     id: &str,
 ) -> Result<Option<TrustedDevice>> {
     let owner = user.read().await;
-    let devices = owner.devices()?.load().await?;
+    let devices = owner.devices()?.list_trusted_devices();
     for device in devices {
-        let address = device.address()?;
-        if address == id {
-            return Ok(Some(device));
+        if device.public_id()? == id {
+            return Ok(Some(device.clone()));
         }
     }
     Ok(None)
@@ -57,9 +56,9 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::List { account, verbose } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
-            let devices = owner.devices()?.load().await?;
+            let devices = owner.devices()?.list_trusted_devices();
             for device in devices {
-                println!("{}", device.address()?);
+                println!("{}", device.public_id()?);
                 if verbose {
                     print!("{}", device.extra_info);
                 }

@@ -1,12 +1,15 @@
 //! Types for device support.
 use crate::{
     account::{Account, UserPaths},
+    identity::UrnLookup,
     signer::ed25519::{BoxedEd25519Signer, VerifyingKey},
-    vault::Summary,
+    vault::{Summary, Gatekeeper, secret::{SecretMeta, Secret, SecretId, SecretRow}},
     vfs, Error, Result,
 };
+use secrecy::{SecretString, ExposeSecret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use urn::Urn;
 use std::{
     collections::HashMap,
     fmt,
@@ -51,36 +54,91 @@ impl DeviceSigner {
 
 /// Manages the devices for a user.
 pub struct DeviceManager {
-    paths: Arc<UserPaths>,
+    /// Signing key for this device.
+    signer: DeviceSigner,
+    /// Access to the vault that stores 
+    /// trusted device information for 
+    /// the account.
+    keeper: Gatekeeper,
+    /// Devices loaded into memory.
+    devices: HashMap<String, TrustedDevice>,
+    /// Lookup table by URN.
+    lookup: UrnLookup,
 }
 
 impl DeviceManager {
-    /// Create a new devices manager.
-    pub(super) fn new(paths: Arc<UserPaths>) -> Self {
-        Self { paths }
+    /// Create a new device manager.
+    ///
+    /// Device manager stores the signing key for this device and 
+    /// documents for devices that have been trusted by this device.
+    ///
+    /// Trusted device documents are stored as JSON in secret notes.
+    ///
+    /// The gatekeeper should be unlocked before assigning to a 
+    /// device manager.
+    pub(super) fn new(signer: DeviceSigner, keeper: Gatekeeper) -> Self {
+        Self {
+            signer,
+            keeper,
+            devices: Default::default(),
+            lookup: Default::default(),
+        }
     }
 
     /// Load trusted devices.
-    pub async fn load(&self) -> Result<Vec<TrustedDevice>> {
-        let devices =
-            TrustedDevice::load_devices(self.paths.devices_dir()).await?;
-        let mut trusted = Vec::new();
-        for device in devices {
-            trusted.push(device);
+    pub async fn load(&mut self) -> Result<()> {
+        for id in self.keeper.vault().keys() {
+            if let Some((meta, secret, _)) = self.keeper.read(id).await? {
+                if let Some(urn) = meta.urn() {
+                    if urn.nss().starts_with("device:") {
+                        let device_id: String =
+                            urn.nss().trim_start_matches("device:").to_owned();
+                        if let Secret::Note { text, .. } = &secret {
+                            let device: TrustedDevice =
+                                serde_json::from_str(text.expose_secret())?;
+                            self.devices.insert(device_id, device);
+                            self.lookup.insert((*self.keeper.id(), urn.clone()), *id);
+                        }
+                    }
+                }
+            }
         }
-        Ok(trusted)
+        Ok(())
+    }
+    
+    /// List trusted devices.
+    pub fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {
+        self.devices.values().collect()
     }
 
     /// Add a trusted device.
     pub async fn add(&mut self, device: TrustedDevice) -> Result<()> {
-        TrustedDevice::add_device(self.paths.devices_dir(), device).await?;
+        let urn = device.device_urn()?;
+        let device_id = device.public_id()?;
+        let secret_id = SecretId::new_v4();
+        let text = serde_json::to_string_pretty(&device)?;
+        let secret = Secret::Note {
+            text: SecretString::new(text),
+            user_data: Default::default(),
+        };
+        let meta = SecretMeta::new(urn.to_string(), secret.kind());
+        let secret_data = SecretRow::new(secret_id, meta, secret);
+        self.keeper.create(&secret_data).await?;
+        self.devices.insert(device_id, device);
+        self.lookup.insert((*self.keeper.id(), urn), secret_id);
         Ok(())
     }
 
     /// Remove a trusted device.
     pub async fn remove(&mut self, device: &TrustedDevice) -> Result<()> {
-        TrustedDevice::remove_device(self.paths.devices_dir(), device)
-            .await?;
+        let urn = device.device_urn()?;
+        let device_id = device.public_id()?;
+        let key = (*self.keeper.id(), urn);
+        if let Some(secret_id) = self.lookup.get(&key) {
+            self.keeper.delete(secret_id).await?;
+            self.devices.remove(&device_id);
+            self.lookup.remove(&key);
+        }
         Ok(())
     }
 }
@@ -193,66 +251,16 @@ impl TryFrom<TrustedDevice> for (Vec<u8>, String) {
 }
 
 impl TrustedDevice {
-    /// Compute a base58 address string of this public key.
-    pub fn address(&self) -> Result<String> {
+    /// Public identifier derived from the public key (base58 encoded).
+    pub fn public_id(&self) -> Result<String> {
         let mut encoded = String::new();
         bs58::encode(&self.public_key).into(&mut encoded)?;
         Ok(encoded)
     }
 
-    /// Add a device to the trusted devices for an account.
-    ///
-    /// If a device already exists it is overwritten.
-    pub async fn add_device<P: AsRef<Path>>(
-        device_dir: P,
-        device: TrustedDevice,
-    ) -> Result<()> {
-        let device_path = Self::device_path(device_dir, &device).await?;
-        let json = serde_json::to_vec_pretty(&device)?;
-        vfs::write(&device_path, &json).await?;
-        Ok(())
-    }
-
-    /// Remove a device from the trusted devices for an account.
-    pub async fn remove_device<P: AsRef<Path>>(
-        device_dir: P,
-        device: &TrustedDevice,
-    ) -> Result<()> {
-        let device_path = Self::device_path(device_dir, device).await?;
-        vfs::remove_file(device_path).await?;
-        Ok(())
-    }
-
-    /// Load all trusted devices for an account.
-    pub async fn load_devices<P: AsRef<Path>>(
-        device_dir: P,
-    ) -> Result<Vec<TrustedDevice>> {
-        let mut devices = Vec::new();
-        if !vfs::try_exists(device_dir.as_ref()).await? {
-            vfs::create_dir_all(device_dir.as_ref()).await?;
-        }
-
-        let mut dir = vfs::read_dir(device_dir.as_ref()).await?;
-        while let Some(entry) = dir.next_entry().await? {
-            let buffer = vfs::read(entry.path()).await?;
-            let device: TrustedDevice = serde_json::from_slice(&buffer)?;
-            devices.push(device);
-        }
-        Ok(devices)
-    }
-
-    async fn device_path<P: AsRef<Path>>(
-        device_dir: P,
-        device: &TrustedDevice,
-    ) -> Result<PathBuf> {
-        let device_address = device.address()?;
-        let mut device_path = device_dir.as_ref().join(device_address);
-        device_path.set_extension("json");
-        if let Some(parent) = device_path.parent() {
-            if !vfs::try_exists(&parent).await? {
-                vfs::create_dir_all(parent).await?;
-            }
-        }
-        Ok(device_path)
+    /// Get the URN for this device.
+    pub fn device_urn(&self) -> Result<Urn> {
+        let device_urn = format!("urn:sos:device:{}", self.public_id()?);
+        Ok(device_urn.parse()?)
     }
 }

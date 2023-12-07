@@ -259,14 +259,16 @@ impl Identity {
     #[cfg(feature = "device")]
     pub fn devices(&self) -> Result<&DeviceManager> {
         self.identity.as_ref()
-            .map(|i| i.devices()).ok_or(Error::NotAuthenticated)
+            .ok_or(Error::NotAuthenticated)?
+            .devices()
     }
 
     /// Device manager.
     #[cfg(feature = "device")]
     pub fn devices_mut(&mut self) -> Result<&mut DeviceManager> {
         self.identity.as_mut()
-            .map(|i| i.devices_mut()).ok_or(Error::NotAuthenticated)
+            .ok_or(Error::NotAuthenticated)?
+            .devices_mut()
     }
 
     /// Collection of secure access keys for folders
@@ -598,9 +600,7 @@ impl Identity {
             address,
             signer,
             #[cfg(feature = "device")]
-            devices: crate::device::DeviceManager::new(Arc::clone(
-                &self.paths,
-            )),
+            devices: None,
             shared_public: shared.to_public(),
             shared_private: shared,
             keeper: Arc::new(RwLock::new(keeper)),
@@ -643,10 +643,9 @@ impl Identity {
         // Lazily create or retrieve a device specific signing key
         #[cfg(feature = "device")]
         {
-            let (keeper, device) = self.ensure_device_vault().await?;
-            //let identity = self.identity.as_mut().unwrap();
-            //identity.device = Some(device);
-            //todo!("Assign devices...");
+            let mut device_manager = self.ensure_device_vault().await?;
+            device_manager.load().await?;
+            self.identity.as_mut().unwrap().devices = Some(device_manager);
         }
 
         self.account = Some(account);
@@ -654,9 +653,10 @@ impl Identity {
     }
 
     /// Ensure that the account has a vault for storing device specific
-    /// information such as the private key used to identify a machine.
+    /// information such as the private key used to identify a machine 
+    /// and the account's trusted devices.
     #[cfg(feature = "device")]
-    async fn ensure_device_vault(&mut self) -> Result<(Gatekeeper, DeviceSigner)> {
+    async fn ensure_device_vault(&mut self) -> Result<DeviceManager> {
         let device_vault_name = format!("devices.{}", VAULT_EXT);
         let device_vault_path =
             self.paths.user_dir().join(&device_vault_name);
@@ -675,8 +675,11 @@ impl Identity {
             let device_password =
                 self.find_folder_password(summary.id()).await?;
 
+            let vault_file = VaultWriter::open(&device_vault_path).await?;
+            let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
+
             let search_index = self.identity()?.index();
-            let mut device_keeper = Gatekeeper::new(vault);
+            let mut device_keeper = Gatekeeper::new_mirror(vault, mirror);
             let key: AccessKey = device_password.into();
             device_keeper.unlock(&key).await?;
 
@@ -709,11 +712,13 @@ impl Identity {
                 let key: ed25519::SingleParty =
                     data.expose_secret().as_slice().try_into()?;
                 let public_id = key.address()?;
-                Ok((device_keeper, DeviceSigner {
+                let signer = DeviceSigner {
                     summary,
                     signer: Box::new(key),
                     public_id,
-                }))
+                };
+
+                Ok(DeviceManager::new(signer, device_keeper))
             } else {
                 Err(Error::VaultEntryKind(device_key_urn.to_string()))
             }
@@ -738,8 +743,13 @@ impl Identity {
                 device_password.clone().into(),
             )
             .await?;
+            
+            let buffer = encode(&vault).await?;
+            vfs::write(&device_vault_path, &buffer).await?;
+            let vault_file = VaultWriter::open(&device_vault_path).await?;
+            let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
 
-            let mut device_keeper = Gatekeeper::new(vault);
+            let mut device_keeper = Gatekeeper::new_mirror(vault, mirror);
             let key: AccessKey = device_password.into();
             device_keeper.unlock(&key).await?;
 
@@ -764,14 +774,13 @@ impl Identity {
             }
 
             let summary = device_keeper.summary().clone();
-            let buffer = encode(device_keeper.vault()).await?;
-            vfs::write(device_vault_path, buffer).await?;
-
-            Ok((device_keeper, DeviceSigner {
+            let signer = DeviceSigner {
                 summary,
                 signer: Box::new(key),
                 public_id,
-            }))
+            };
+
+            Ok(DeviceManager::new(signer, device_keeper))
         }
     }
 
@@ -806,12 +815,8 @@ pub struct PrivateIdentity {
     shared_private: age::x25519::Identity,
     /// AGE recipient public key.
     shared_public: age::x25519::Recipient,
-
-    //#[cfg(feature = "device")]
-    //device: Option<DeviceSigner>,
-
     #[cfg(feature = "device")]
-    devices: crate::device::DeviceManager,
+    devices: Option<crate::device::DeviceManager>,
 }
 
 impl PrivateIdentity {
@@ -842,14 +847,14 @@ impl PrivateIdentity {
 
     /// Device manager.
     #[cfg(feature = "device")]
-    pub fn devices(&self) -> &DeviceManager {
-        &self.devices
+    pub fn devices(&self) -> Result<&DeviceManager> {
+        self.devices.as_ref().ok_or(Error::NotAuthenticated)
     }
 
     /// Device manager.
     #[cfg(feature = "device")]
-    pub fn devices_mut(&mut self) -> &mut DeviceManager {
-        &mut self.devices
+    pub fn devices_mut(&mut self) -> Result<&mut DeviceManager> {
+        self.devices.as_mut().ok_or(Error::NotAuthenticated)
     }
 
     /// Device signing key.
