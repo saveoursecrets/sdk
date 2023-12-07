@@ -6,7 +6,7 @@ mod builder;
 #[cfg(feature = "contacts")]
 pub mod contacts;
 #[cfg(feature = "device")]
-mod device;
+pub mod device;
 #[cfg(feature = "files")]
 pub mod files;
 #[cfg(feature = "migrate")]
@@ -22,8 +22,6 @@ pub use account::{
     Account, AccountData, AccountHandler, DetachedView, LocalAccount,
 };
 pub use builder::{AccountBuilder, NewAccount};
-#[cfg(feature = "device")]
-pub use device::DeviceSigner;
 pub use paths::UserPaths;
 
 /*

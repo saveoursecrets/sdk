@@ -16,7 +16,9 @@ default = ["account", "archive", "files", "search"]
 account = []
 archive = ["dep:async_zip"]
 contacts = []
-device = []
+device = [
+  "dep:whoami",
+]
 files = []
 mem-fs = ["sos-vfs/mem-fs"]
 migrate = ["dep:async_zip", "dep:csv-async", "keychain-access"]
@@ -87,6 +89,7 @@ vsss-rs = {version = "3", optional = true }
 security-framework = { version = "2.8", optional = true}
 logos = { version = "0.12", optional = true }
 plist = { version = "1", optional = true }
+whoami = { version = "1.4", optional = true }
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"

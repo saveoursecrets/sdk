@@ -4019,7 +4019,6 @@ dependencies = [
  "uuid",
  "web3-address",
  "web3-signature",
- "whoami",
 ]
 
 [[package]]
@@ -4089,6 +4088,7 @@ dependencies = [
  "walkdir",
  "web3-address",
  "web3-signature",
+ "whoami",
  "zeroize",
  "zxcvbn",
 ]

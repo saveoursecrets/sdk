@@ -101,6 +101,9 @@ pub(super) struct Authenticated {
 
     /// Storage provider.
     storage: Arc<RwLock<FolderStorage>>,
+
+    #[cfg(feature = "device")]
+    pub(super) devices: super::device::DeviceManager,
 }
 
 /// User account backed by the filesystem.
@@ -348,6 +351,10 @@ impl<D> Account<D> {
         self.authenticated = Some(Authenticated {
             user,
             storage: Arc::new(RwLock::new(storage)),
+            #[cfg(feature = "device")]
+            devices: super::device::DeviceManager::new(Arc::clone(
+                &self.paths,
+            )),
         });
 
         // Load vaults into memory and initialize folder

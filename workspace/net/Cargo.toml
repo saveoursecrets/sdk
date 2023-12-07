@@ -43,7 +43,6 @@ contacts = ["sos-sdk/contacts"]
 migrate = ["sos-sdk/migrate"]
 device = [
   "dep:if-addrs",
-  "dep:whoami",
   "sos-sdk/device",
 ]
 recovery = ["sos-sdk/recovery"]
@@ -93,7 +92,6 @@ tokio-stream = { version = "0.1", optional = true }
 tokio-tungstenite = { version = "0.20", features = ["rustls-tls-native-roots"] , optional = true}
 
 # device
-whoami = { version = "1.4", optional = true }
 if-addrs = { version = "0.10.1", optional = true }
 
 [dependencies.sos-sdk]

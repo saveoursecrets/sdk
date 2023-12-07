@@ -17,8 +17,5 @@ mod remote;
 mod security_report;
 mod sync;
 
-#[cfg(feature = "device")]
-pub use device::DeviceManager;
-
 pub use network_account::NetworkAccount;
 pub use remote::{HostedOrigin, Origin, Remote, RemoteBridge, Remotes};

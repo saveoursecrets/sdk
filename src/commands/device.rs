@@ -3,7 +3,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use sos_net::{
-    client::NetworkAccount, device::TrustedDevice, sdk::identity::AccountRef,
+    client::NetworkAccount,
+    sdk::{account::device::TrustedDevice, identity::AccountRef},
 };
 
 use crate::{
@@ -41,7 +42,7 @@ async fn resolve_device(
     id: &str,
 ) -> Result<Option<TrustedDevice>> {
     let owner = user.read().await;
-    let devices = owner.devices().load().await?;
+    let devices = owner.devices()?.load().await?;
     for device in devices {
         let address = device.address()?;
         if address == id {
@@ -56,7 +57,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::List { account, verbose } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
-            let devices = owner.devices().load().await?;
+            let devices = owner.devices()?.load().await?;
             for device in devices {
                 println!("{}", device.address()?);
                 if verbose {
@@ -72,7 +73,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let prompt = format!(r#"Remove device "{}" (y/n)? "#, &id);
                 if read_flag(Some(&prompt))? {
                     let mut owner = user.write().await;
-                    owner.devices_mut().remove(&device).await?;
+                    owner.devices_mut()?.remove(&device).await?;
                     println!("Device removed ✓");
                 }
             } else {

@@ -35,7 +35,7 @@ impl AuditLogFile {
         let file = AuditLogFile::create(path.as_ref()).await?.compat_write();
         Ok(Self { file, file_path })
     }
-    
+
     /// Log file path.
     pub fn file_path(&self) -> &PathBuf {
         &self.file_path

@@ -64,7 +64,6 @@ pub struct UserPaths {
 }
 
 impl UserPaths {
-
     /// Create new paths.
     pub fn new<D: AsRef<Path>>(
         documents_dir: D,
@@ -327,7 +326,7 @@ impl UserPaths {
             dir
         }
     }
-    
+
     /// Append to the audit log.
     #[cfg(not(test))]
     pub async fn append_audit_events(
@@ -351,7 +350,7 @@ impl UserPaths {
 
     /// Append to the audit log.
     ///
-    /// For test purposes we need unsafe so we can 
+    /// For test purposes we need unsafe so we can
     /// reset the log file location between test executions.
     #[cfg(test)]
     pub async fn append_audit_events(
@@ -382,7 +381,7 @@ impl UserPaths {
             AUDIT_LOG.take();
         }
     }
-    
+
     #[doc(hidden)]
     #[cfg(not(test))]
     pub fn reset_audit_log() {}

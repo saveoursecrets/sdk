@@ -37,7 +37,7 @@ use tracing::{span, Level};
 use urn::Urn;
 
 #[cfg(feature = "device")]
-use crate::account::DeviceSigner;
+use crate::account::device::DeviceSigner;
 
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;

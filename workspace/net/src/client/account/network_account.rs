@@ -34,9 +34,6 @@ use tracing::{span, Level};
 #[cfg(feature = "listen")]
 use crate::client::WebSocketHandle;
 
-#[cfg(feature = "device")]
-use super::device::DeviceManager;
-
 use super::sync::{SyncHandler, SyncHandlerData};
 use crate::client::{
     HostedOrigin, Origin, Remote, RemoteBridge, RemoteSync, Remotes, Result,
@@ -49,10 +46,6 @@ pub(super) type LocalAccount = Account<SyncHandlerData>;
 pub struct NetworkAccount {
     /// Local account.
     pub(super) account: LocalAccount,
-
-    /// Devices for this user.
-    #[cfg(feature = "device")]
-    pub(super) devices: DeviceManager,
 
     /// Remote targets for synchronization.
     pub(super) remotes: Arc<RwLock<Remotes>>,
@@ -91,8 +84,6 @@ impl NetworkAccount {
 
         Ok(Self {
             account,
-            #[cfg(feature = "device")]
-            devices: DeviceManager::new(devices_dir)?,
             remotes,
             sync_lock: Mutex::new(()),
             #[cfg(feature = "listen")]
@@ -157,8 +148,6 @@ impl NetworkAccount {
 
         let owner = Self {
             account,
-            #[cfg(feature = "device")]
-            devices: DeviceManager::new(devices_dir)?,
             remotes,
             sync_lock: Mutex::new(()),
             #[cfg(feature = "listen")]
