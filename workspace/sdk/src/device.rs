@@ -261,10 +261,10 @@ impl TryFrom<(Vec<u8>, String)> for TrustedDevice {
     }
 }
 
-impl TryFrom<TrustedDevice> for (Vec<u8>, String) {
+impl TryFrom<&TrustedDevice> for (Vec<u8>, String) {
     type Error = Error;
-    fn try_from(value: TrustedDevice) -> Result<Self> {
-        Ok((value.public_key, serde_json::to_string(&value.extra_info)?))
+    fn try_from(value: &TrustedDevice) -> Result<Self> {
+        Ok((value.public_key.clone(), serde_json::to_string(&value.extra_info)?))
     }
 }
 
