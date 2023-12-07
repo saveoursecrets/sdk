@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-    account::{AccountBuilder, NewAccount, UserPaths},
+    account::{AccountBuilder, NewAccount},
     commit::{CommitHash, CommitState},
     constants::VAULT_EXT,
     crypto::{AccessKey, SecureAccessKey},
@@ -28,7 +28,7 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
         Gatekeeper, Header, Summary, Vault, VaultId,
     },
-    vfs, Error, Result, Timestamp,
+    vfs, Error, Result, Timestamp, UserPaths,
 };
 
 use tracing::{span, Level};

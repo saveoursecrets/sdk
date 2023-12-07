@@ -11,10 +11,9 @@
 //! stored on disc.
 
 use crate::{
-    account::UserPaths,
     vault::{secret::SecretId, VaultId},
     vfs::{self, File},
-    Error, Result,
+    Error, Result, UserPaths,
 };
 use age::Encryptor;
 use futures::io::AsyncReadExt;

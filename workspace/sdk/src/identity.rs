@@ -7,7 +7,6 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single master password.
 use crate::{
-    account::UserPaths,
     commit::CommitState,
     constants::{
         FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
@@ -26,7 +25,7 @@ use crate::{
         Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
         VaultFlags, VaultId, VaultWriter,
     },
-    vfs, Error, Result,
+    vfs, Error, Result, UserPaths,
 };
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{Deserialize, Serialize};
@@ -1045,6 +1044,7 @@ impl PrivateIdentity {
         writer.lock();
 
         // Lock the devices vault
+        #[cfg(feature = "device")]
         if let Some(devices) = self.devices.as_mut() {
             devices.sign_out();
         }
@@ -1061,7 +1061,6 @@ mod tests {
     use urn::Urn;
 
     use crate::{
-        account::UserPaths,
         constants::LOGIN_SIGNING_KEY_URN,
         crypto::AccessKey,
         encode,
@@ -1071,7 +1070,7 @@ mod tests {
             secret::{Secret, SecretId, SecretMeta, SecretRow},
             Gatekeeper, Vault, VaultBuilder, VaultFlags,
         },
-        Error,
+        Error, UserPaths,
     };
 
     #[tokio::test]

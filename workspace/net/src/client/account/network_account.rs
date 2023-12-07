@@ -4,7 +4,6 @@ use secrecy::SecretString;
 use sos_sdk::{
     account::{
         Account, AccountBuilder, AccountData, DetachedView, NewAccount,
-        UserPaths,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -22,7 +21,7 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Summary, VaultId,
     },
-    vfs,
+    vfs, UserPaths,
 };
 use std::{
     path::{Path, PathBuf},

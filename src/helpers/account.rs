@@ -4,13 +4,14 @@ use std::{borrow::Cow, sync::Arc};
 use sos_net::{
     client::NetworkAccount,
     sdk::{
-        account::{LocalAccount, UserPaths},
+        account::LocalAccount,
         constants::DEFAULT_VAULT_NAME,
         crypto::AccessKey,
         identity::{AccountRef, Identity, PublicIdentity},
         passwd::diceware::generate_passphrase,
         secrecy::{ExposeSecret, SecretString},
         vault::{FolderRef, Summary},
+        UserPaths,
     },
 };
 use terminal_banner::{Banner, Padding};

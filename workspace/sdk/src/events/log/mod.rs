@@ -8,7 +8,6 @@ use binary_stream::futures::Decodable;
 mod file;
 mod reducer;
 
-#[cfg(feature = "account")]
 pub use file::AccountEventLog;
 #[cfg(feature = "files")]
 pub use file::FileEventLog;

@@ -8,12 +8,12 @@ use sos_net::{
         RemoteSync, WebSocketHandle,
     },
     sdk::{
-        account::{LocalAccount, UserPaths},
+        account::LocalAccount,
         constants::VAULT_EXT,
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         vault::{Summary, VaultId},
-        vfs,
+        vfs, UserPaths,
     },
 };
 use std::path::PathBuf;

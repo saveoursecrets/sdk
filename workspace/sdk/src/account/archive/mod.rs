@@ -9,11 +9,11 @@ pub use backup::{
 pub use zip::*;
 
 use crate::{
-    account::{Account, LocalAccount, UserPaths},
+    account::{Account, LocalAccount},
     events::{AuditEvent, EventKind},
     identity::{Identity, PublicIdentity},
     vfs::File,
-    Result,
+    Result, UserPaths,
 };
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncRead, AsyncSeek};

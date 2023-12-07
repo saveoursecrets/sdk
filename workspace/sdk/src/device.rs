@@ -1,6 +1,6 @@
 //! Types for device support.
 use crate::{
-    account::{Account, UserPaths},
+    account::Account,
     constants::DEVICES_NSS,
     identity::UrnLookup,
     signer::ed25519::{BoxedEd25519Signer, VerifyingKey},
@@ -8,7 +8,7 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Summary,
     },
-    vfs, Error, Result,
+    vfs, Error, Result, UserPaths,
 };
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};

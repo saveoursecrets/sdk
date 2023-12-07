@@ -13,14 +13,13 @@ use sos_net::{
     client::{HostedOrigin, NetworkAccount, RemoteBridge, RemoteSync},
     mpc::{Keypair, PATTERN},
     sdk::{
-        account::UserPaths,
         crypto::AccessKey,
         hex,
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
         storage::FolderStorage,
         vault::{secret::SecretId, Summary},
-        vfs,
+        vfs, UserPaths,
     },
     server::{
         BackendHandler, Server, ServerConfig, ServerInfo, State,

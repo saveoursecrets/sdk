@@ -29,7 +29,6 @@ use crate::{
     Error, Result,
 };
 
-#[cfg(feature = "account")]
 use crate::events::AccountEvent;
 
 #[cfg(feature = "files")]
@@ -49,7 +48,6 @@ use tempfile::NamedTempFile;
 use super::{EventRecord, EventReducer};
 
 /// Event log for changes to an account.
-#[cfg(feature = "account")]
 pub type AccountEventLog = EventLogFile<AccountEvent>;
 
 /// Event log for changes to a folder.
@@ -496,7 +494,6 @@ impl EventLogFile<WriteEvent> {
     }
 }
 
-#[cfg(feature = "account")]
 impl EventLogFile<AccountEvent> {
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(file_path: P) -> Result<Self> {

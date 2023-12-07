@@ -15,7 +15,7 @@ use walkdir::WalkDir;
 use crate::{
     account::{
         archive::{ArchiveItem, Inventory, Reader, Writer},
-        LocalAccount, UserPaths,
+        LocalAccount,
     },
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -28,7 +28,7 @@ use crate::{
         VaultWriter,
     },
     vfs::{self, File},
-    Error, Result,
+    Error, Result, UserPaths,
 };
 
 use secrecy::SecretString;

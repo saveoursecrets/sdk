@@ -1,7 +1,6 @@
 use super::{Error, Result};
 use async_trait::async_trait;
 use sos_sdk::{
-    account::UserPaths,
     commit::{event_log_commit_tree_file, CommitProof},
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::SecureAccessKey,
@@ -12,7 +11,7 @@ use sos_sdk::{
     },
     storage::FolderStorage,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
-    vfs,
+    vfs, UserPaths,
 };
 use std::{
     collections::HashMap,

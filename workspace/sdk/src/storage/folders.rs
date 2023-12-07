@@ -1,6 +1,5 @@
 //! Storage backed by the filesystem.
 use crate::{
-    account::{NewAccount, UserPaths},
     commit::{CommitHash, CommitState, CommitTree},
     constants::VAULT_EXT,
     crypto::{AccessKey, SecureAccessKey},
@@ -12,16 +11,13 @@ use crate::{
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
     signer::ecdsa::Address,
-    storage::{
-        search::{AccountSearch, DocumentCount, SearchIndex},
-        AccessOptions, AccountStatus,
-    },
+    storage::{AccessOptions, AccountStatus},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
         VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultWriter,
     },
-    vfs, Error, Result, Timestamp,
+    vfs, Error, Result, Timestamp, UserPaths,
 };
 
 use secrecy::SecretString;
@@ -33,6 +29,9 @@ use std::{
 use tokio::sync::RwLock;
 use tracing::{span, Level};
 
+#[cfg(feature = "account")]
+use crate::account::NewAccount;
+
 #[cfg(feature = "archive")]
 use crate::account::archive::RestoreTargets;
 
@@ -41,6 +40,9 @@ use crate::{
     events::{FileEvent, FileEventLog},
     storage::files::FileProgress,
 };
+
+#[cfg(feature = "search")]
+use crate::storage::search::{AccountSearch, DocumentCount, SearchIndex};
 
 /// Manages multiple folders loaded into memory and mirrored to disc.
 pub struct FolderStorage {
@@ -313,6 +315,7 @@ impl FolderStorage {
     }
 
     /// Create a new account.
+    #[cfg(feature = "account")]
     pub async fn create_account(
         &mut self,
         account: &NewAccount,
@@ -488,6 +491,7 @@ impl FolderStorage {
             self.write_vault_file(summary.id(), &buffer).await?;
         }
 
+        #[cfg(feature = "search")]
         if let Some(index) = &self.index {
             let index = index.search();
             if let Some(keeper) = self.current_mut() {
@@ -503,6 +507,7 @@ impl FolderStorage {
     /// Replace a vault in a gatekeeper and update the
     /// search index if the access key for the vault is
     /// available.
+    #[cfg(feature = "search")]
     async fn replace_vault(
         index: Arc<RwLock<SearchIndex>>,
         keeper: &mut Gatekeeper,
@@ -790,6 +795,7 @@ impl FolderStorage {
         let exists = self.find(|s| s.id() == vault.id()).is_some();
         let summary = vault.summary().clone();
 
+        #[cfg(feature = "search")]
         if exists {
             if let Some(index) = self.index.as_mut() {
                 // Clean entries from the search index
@@ -819,6 +825,7 @@ impl FolderStorage {
             }
         }
 
+        #[cfg(feature = "search")]
         if let Some(key) = key {
             if let Some(index) = self.index.as_mut() {
                 // Ensure the imported secrets are in the search index
@@ -947,6 +954,7 @@ impl FolderStorage {
         }
 
         // Clean the search index
+        #[cfg(feature = "search")]
         if let Some(index) = self.index.as_mut() {
             index.remove_folder(summary.id()).await;
         }

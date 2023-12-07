@@ -11,7 +11,6 @@ use crate::{
     Timestamp,
 };
 
-#[cfg(feature = "account")]
 use crate::events::AccountEvent;
 
 #[cfg(feature = "files")]
@@ -437,7 +436,6 @@ impl AuditLogFile {
     }
 }
 
-#[cfg(feature = "account")]
 #[async_trait]
 impl Encodable for AccountEvent {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
@@ -464,7 +462,6 @@ impl Encodable for AccountEvent {
     }
 }
 
-#[cfg(feature = "account")]
 #[async_trait]
 impl Decodable for AccountEvent {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(

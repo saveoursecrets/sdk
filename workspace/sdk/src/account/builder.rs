@@ -1,7 +1,6 @@
 //! Create a new local account.
 
 use crate::{
-    account::UserPaths,
     constants::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
         DEFAULT_CONTACTS_VAULT_NAME, FILE_PASSWORD_URN,
@@ -13,7 +12,7 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
     },
-    vfs, Result,
+    vfs, Result, UserPaths,
 };
 use secrecy::SecretString;
 use std::{collections::HashMap, path::PathBuf};

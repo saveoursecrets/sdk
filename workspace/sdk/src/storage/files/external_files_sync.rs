@@ -14,9 +14,8 @@ use std::{
 };
 
 use crate::{
-    account::UserPaths,
     vault::{secret::SecretId, VaultId},
-    Error, Result,
+    Error, Result, UserPaths,
 };
 
 use super::EncryptedFile;

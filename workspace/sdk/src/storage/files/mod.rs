@@ -1,10 +1,9 @@
 //! File encryption/decryption and manager for external files.
 use crate::{
-    account::UserPaths,
     events::FileEvent,
     hex,
     vault::{secret::SecretId, VaultId},
-    vfs, Error, Result,
+    vfs, Error, Result, UserPaths,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt, path::Path, str::FromStr};

@@ -13,7 +13,6 @@ use crate::{
     vault::{secret::SecretId, VaultId},
 };
 
-#[cfg(feature = "account")]
 use crate::events::AccountEvent;
 
 mod log_file;
@@ -138,12 +137,10 @@ impl From<(&Address, &Event)> for AuditEvent {
     fn from(value: (&Address, &Event)) -> Self {
         let (address, event) = value;
         match event {
-            #[cfg(feature = "account")]
             Event::CreateAccount(event) => event.clone(),
             Event::MoveSecret(_, _, _) => {
                 panic!("move secret audit event must be constructed")
             }
-            #[cfg(feature = "account")]
             Event::DeleteAccount(event) => event.clone(),
             _ => {
                 let audit_data = match event {

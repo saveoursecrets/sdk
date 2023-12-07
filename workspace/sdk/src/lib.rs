@@ -80,6 +80,7 @@ pub mod test_utils;
 
 pub use encoding::{decode, encode};
 pub use error::Error;
+pub use storage::paths::UserPaths;
 pub use timestamp::Timestamp;
 
 // Re-exports

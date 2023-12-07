@@ -10,6 +10,7 @@ use tokio::sync::mpsc;
 #[cfg(feature = "files")]
 pub mod files;
 mod folders;
+pub(crate) mod paths;
 #[cfg(feature = "search")]
 pub mod search;
 

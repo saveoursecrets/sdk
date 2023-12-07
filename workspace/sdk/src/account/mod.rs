@@ -11,9 +11,8 @@ mod device;
 pub mod files;
 #[cfg(feature = "migrate")]
 mod migrate;
-mod paths;
 #[cfg(feature = "search")]
-pub mod search;
+mod search;
 
 #[cfg(feature = "security-report")]
 pub mod security_report;
@@ -22,7 +21,6 @@ pub use account::{
     Account, AccountData, AccountHandler, DetachedView, LocalAccount,
 };
 pub use builder::{AccountBuilder, NewAccount};
-pub use paths::UserPaths;
 
 /*
 use std::collections::HashMap;

@@ -5,16 +5,12 @@ use tokio::sync::RwLock;
 use sos_net::{
     migrate::import::{ImportFormat, ImportTarget},
     sdk::{
-        account::{
-            archive::{
-                AccountBackup, ExtractFilesLocation, Inventory,
-                RestoreOptions,
-            },
-            UserPaths,
+        account::archive::{
+            AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
         },
         identity::{AccountRef, PublicIdentity},
         storage::FolderStorage,
-        vfs,
+        vfs, UserPaths,
     },
 };
 
