@@ -39,13 +39,12 @@ impl<D> Account<D> {
 
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
-        let vaults = Identity::list_local_folders(&paths, false).await?;
+        let vaults = Identity::list_local_folders(&paths).await?;
 
         for (summary, _) in vaults {
-            let (vault, _) =
-                Identity::load_local_vault(paths, summary.id(), false)
-                    .await
-                    .map_err(Box::from)?;
+            let (vault, _) = Identity::load_local_vault(paths, summary.id())
+                .await
+                .map_err(Box::from)?;
             let vault_passphrase =
                 self.user()?.find_folder_password(summary.id()).await?;
 
@@ -148,7 +147,7 @@ impl<D> Account<D> {
         );
         paths.append_audit_events(vec![audit_event]).await?;
 
-        let vaults = Identity::list_local_folders(&paths, false).await?;
+        let vaults = Identity::list_local_folders(&paths).await?;
         let existing_name =
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 

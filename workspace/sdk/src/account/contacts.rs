@@ -101,7 +101,7 @@ impl<D> Account<D> {
         let contacts_passphrase =
             self.user()?.find_folder_password(contacts.id()).await?;
         let (vault, _) =
-            Identity::load_local_vault(&self.paths, contacts.id(), false).await?;
+            Identity::load_local_vault(&self.paths, contacts.id()).await?;
         let mut keeper = Gatekeeper::new(vault);
         let key: AccessKey = contacts_passphrase.into();
         keeper.unlock(&key).await?;

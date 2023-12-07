@@ -7,7 +7,7 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single master password.
 use crate::{
-    account::{UserPaths},
+    account::UserPaths,
     commit::CommitState,
     constants::{
         DEVICE_KEY_URN, FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN,
@@ -30,7 +30,13 @@ use crate::{
 };
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc, fmt, path::{Path, PathBuf}, str::FromStr};
+use std::{
+    collections::HashMap,
+    fmt,
+    path::{Path, PathBuf},
+    str::FromStr,
+    sync::Arc,
+};
 use tokio::sync::RwLock;
 use tracing::{span, Level};
 use urn::Urn;
@@ -207,9 +213,8 @@ impl Identity {
     pub(crate) async fn load_local_vault(
         paths: &UserPaths,
         id: &VaultId,
-        include_system: bool,
     ) -> Result<(Vault, PathBuf)> {
-        let folders = Self::list_local_folders(paths, include_system).await?;
+        let folders = Self::list_local_folders(paths).await?;
         let (_summary, path) = folders
             .into_iter()
             .find(|(s, _)| s.id() == id)
@@ -223,7 +228,6 @@ impl Identity {
     /// the vault files in the vaults directory.
     pub(crate) async fn list_local_folders(
         paths: &UserPaths,
-        include_system: bool,
     ) -> Result<Vec<(Summary, PathBuf)>> {
         let vaults_dir = paths.vaults_dir();
 
@@ -234,16 +238,12 @@ impl Identity {
                 if extension == VAULT_EXT {
                     let summary =
                         Header::read_summary_file(entry.path()).await?;
-                    if !include_system && summary.flags().is_system() {
-                        continue;
-                    }
                     vaults.push((summary, entry.path().to_path_buf()));
                 }
             }
         }
         Ok(vaults)
     }
-
 
     /// Create a new unauthenticated user.
     pub fn new(paths: UserPaths) -> Self {
@@ -642,8 +642,8 @@ impl Identity {
     #[cfg(feature = "device")]
     async fn ensure_device_vault(&mut self) -> Result<DeviceSigner> {
         let device_vault_name = format!("devices.{}", VAULT_EXT);
-        let device_vault_path = self.paths.user_dir().join(
-            &device_vault_name);
+        let device_vault_path =
+            self.paths.user_dir().join(&device_vault_name);
 
         let device_vault = if vfs::try_exists(&device_vault_path).await? {
             let buffer = vfs::read(&device_vault_path).await?;
@@ -652,7 +652,7 @@ impl Identity {
         } else {
             None
         };
-            
+
         let device_key_urn: Urn = DEVICE_KEY_URN.parse()?;
         if let Some(vault) = device_vault {
             let summary = vault.summary().clone();

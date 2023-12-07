@@ -339,12 +339,11 @@ impl<D> Account<D> {
         // adding create folder events for every folder that
         // already exists
         if needs_init {
-            let folders: Vec<Summary> =
-                Identity::list_local_folders(paths, false)
-                    .await?
-                    .into_iter()
-                    .map(|(s, _)| s)
-                    .collect();
+            let folders: Vec<Summary> = Identity::list_local_folders(paths)
+                .await?
+                .into_iter()
+                .map(|(s, _)| s)
+                .collect();
 
             let mut events = Vec::new();
 
@@ -684,12 +683,9 @@ impl<D> Account<D> {
             };
             let meta = SecretMeta::new(label, secret.kind());
 
-            let (vault, _) = Identity::load_local_vault(
-                &self.paths,
-                default_summary.id(),
-                false,
-            )
-            .await?;
+            let (vault, _) =
+                Identity::load_local_vault(&self.paths, default_summary.id())
+                    .await?;
 
             self.add_secret(
                 meta,
@@ -726,8 +722,7 @@ impl<D> Account<D> {
         let current_key = self.user()?.find_folder_password(vault_id).await?;
 
         // Find the local vault for the account
-        let (vault, _) =
-            Identity::load_local_vault(&paths, vault_id, false).await?;
+        let (vault, _) = Identity::load_local_vault(&paths, vault_id).await?;
 
         // Change the password before exporting
         let (_, vault, _) =

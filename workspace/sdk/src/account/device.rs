@@ -1,9 +1,5 @@
 //! Expose the device manager on an account.
-use crate::{
-    account::Account,
-    device::DeviceManager,
-    Error, Result,
-};
+use crate::{account::Account, device::DeviceManager, Error, Result};
 
 impl<D> Account<D> {
     /// Devices reference.
