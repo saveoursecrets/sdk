@@ -72,7 +72,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let prompt = format!(r#"Remove device "{}" (y/n)? "#, &id);
                 if read_flag(Some(&prompt))? {
                     let mut owner = user.write().await;
-                    owner.devices_mut()?.remove(&device).await?;
+                    owner.devices_mut()?.remove_device(&device).await?;
                     println!("Device removed ✓");
                 }
             } else {

@@ -292,11 +292,15 @@ pub mod mock {
     use secrecy::SecretString;
     use sha2::{Digest, Sha256};
     use sos_net::sdk::{
-        age, pem,
+        age,
+        device::TrustedDevice,
+        pem,
         vault::secret::{FileContent, IdentityKind, Secret, SecretMeta},
     };
     use std::collections::HashMap;
     use std::path::PathBuf;
+
+    const IPHONE: &str = include_str!("../fixtures/devices/iphone.json");
 
     pub fn login(
         label: &str,
@@ -536,6 +540,11 @@ END:VCARD"#,
         let secret: Secret = file_path.clone().try_into()?;
         let meta = SecretMeta::new("text".to_string(), secret.kind());
         Ok((meta, secret, file_path))
+    }
+
+    pub fn device() -> Result<TrustedDevice> {
+        let device: TrustedDevice = serde_json::from_str(IPHONE)?;
+        Ok(device)
     }
 }
 

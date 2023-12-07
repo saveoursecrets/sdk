@@ -58,7 +58,9 @@ mod vault {
 
     /// Default name for the authenticator vault.
     pub const DEFAULT_AUTHENTICATOR_VAULT_NAME: &str = "Authenticator";
+}
 
+mod urn {
     /// Login vault signing key name.
     pub const LOGIN_SIGNING_KEY_URN: &str = "urn:sos:identity:signer";
 
@@ -73,8 +75,19 @@ mod vault {
     /// embedded in a vault.
     pub const FILE_PASSWORD_URN: &str = "urn:sos:identity:file";
 
-    /// Device key used to identify a device.
+    /// Namespace for vault passwords.
+    ///
+    /// The namespace is followed by the vault identifier.
+    pub const VAULT_NSS: &str = "vault:";
+
+    /// Device signing key.
     pub const DEVICE_KEY_URN: &str = "urn:sos:device:key";
+
+    /// Namespace for trusted devices.
+    ///
+    /// The namespace is followed by the trusted
+    /// device public identifier.
+    pub const DEVICES_NSS: &str = "devices:trusted:";
 }
 
 /// Constants for MIME types.
@@ -176,4 +189,5 @@ pub use folders::*;
 pub use identity::*;
 pub use mime::*;
 pub use rpc::*;
+pub use urn::*;
 pub use vault::*;

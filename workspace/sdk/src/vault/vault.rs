@@ -20,7 +20,7 @@ use uuid::Uuid;
 
 use crate::{
     commit::CommitHash,
-    constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY},
+    constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY, VAULT_NSS},
     crypto::{
         AccessKey, AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed,
     },
@@ -621,7 +621,7 @@ impl Vault {
 
     /// Get the URN for a vault identifier.
     pub fn vault_urn(id: &VaultId) -> Result<Urn> {
-        let vault_urn = format!("urn:sos:vault:{}", id);
+        let vault_urn = format!("urn:sos:{}{}", VAULT_NSS, id);
         Ok(vault_urn.parse()?)
     }
 

@@ -11,7 +11,7 @@ use crate::{
     commit::CommitState,
     constants::{
         FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
-        VAULT_EXT,
+        VAULT_EXT, VAULT_NSS,
     },
     crypto::{AccessKey, KeyDerivation, SecureAccessKey},
     decode, encode,
@@ -530,9 +530,11 @@ impl Identity {
         for id in keeper.vault().keys() {
             if let Some((meta, secret, _)) = keeper.read(id).await? {
                 if let Some(urn) = meta.urn() {
-                    if urn.nss().starts_with("vault:") {
-                        let id: VaultId =
-                            urn.nss().trim_start_matches("vault:").parse()?;
+                    if urn.nss().starts_with(VAULT_NSS) {
+                        let id: VaultId = urn
+                            .nss()
+                            .trim_start_matches(VAULT_NSS)
+                            .parse()?;
                         if let Secret::Password { password, .. } = &secret {
                             let key: AccessKey = password.clone().into();
                             folder_secrets.insert(id, key);
@@ -554,9 +556,11 @@ impl Identity {
         for id in keeper.vault().keys() {
             if let Some((meta, secret, _)) = keeper.read(id).await? {
                 if let Some(urn) = meta.urn() {
-                    if urn.nss().starts_with("vault:") {
-                        let id: VaultId =
-                            urn.nss().trim_start_matches("vault:").parse()?;
+                    if urn.nss().starts_with(VAULT_NSS) {
+                        let id: VaultId = urn
+                            .nss()
+                            .trim_start_matches(VAULT_NSS)
+                            .parse()?;
                         if let Secret::Password { password, .. } = &secret {
                             let key: AccessKey = password.clone().into();
                         }
@@ -788,9 +792,8 @@ impl Identity {
     /// Sign out this user by locking the account identity vault.
     pub async fn sign_out(&mut self) -> Result<()> {
         tracing::debug!("identity vault sign out");
-        let keeper = self.identity()?.keeper();
-        let mut writer = keeper.write().await;
-        writer.lock();
+        // Sign out the private identity
+        self.identity_mut()?.sign_out().await?;
 
         self.account = None;
         self.identity = None;
@@ -1029,6 +1032,22 @@ impl PrivateIdentity {
 
         let mut index = index.write().await;
         index.remove(&(keeper_id, urn));
+
+        Ok(())
+    }
+
+    /// Sign out the private identity.
+    ///
+    /// Locks the identity vault and device vault.
+    pub async fn sign_out(&mut self) -> Result<()> {
+        // Lock the identity vault
+        let mut writer = self.keeper.write().await;
+        writer.lock();
+
+        // Lock the devices vault
+        if let Some(devices) = self.devices.as_mut() {
+            devices.sign_out();
+        }
 
         Ok(())
     }

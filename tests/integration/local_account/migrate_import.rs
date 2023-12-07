@@ -17,9 +17,6 @@ async fn integration_migrate_import() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    UserPaths::scaffold(Some(data_dir.clone())).await?;
-    UserPaths::new_global(data_dir.clone());
-
     let (mut account, _new_account) = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
