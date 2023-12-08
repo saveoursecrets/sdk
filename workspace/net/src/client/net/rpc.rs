@@ -319,11 +319,13 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.origin.url.join("api/account")?;
 
+        let device_public_key = self.device.verifying_key().to_bytes();
+
         let id = self.next_id().await;
         let request = RequestMessage::new(
             Some(id),
             ACCOUNT_CREATE,
-            secure_access_key,
+            (device_public_key, secure_access_key),
             Cow::Borrowed(vault.as_ref()),
         )?;
         let packet = Packet::new_request(request);

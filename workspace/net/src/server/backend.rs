@@ -140,6 +140,7 @@ pub trait BackendHandler {
         owner: &Address,
         vault_id: &VaultId,
         vault: &[u8],
+        device_public_key: DevicePublicKey,
         secure_access_key: SecureAccessKey,
     ) -> Result<(Event, CommitProof)>;
 
@@ -290,6 +291,7 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault_id: &VaultId,
         vault: &[u8],
+        device_public_key: DevicePublicKey,
         secure_access_key: SecureAccessKey,
     ) -> Result<(Event, CommitProof)> {
         {
@@ -308,7 +310,7 @@ impl BackendHandler for FileSystemBackend {
             Paths::new_server(self.directory.clone(), owner.to_string());
         paths.ensure().await?;
 
-        let account = AccountStorage {
+        let mut account = AccountStorage {
             folders: FolderStorage::new_server(
                 owner.clone(),
                 Some(self.directory.clone()),
@@ -316,6 +318,8 @@ impl BackendHandler for FileSystemBackend {
             .await?,
             devices: Default::default(),
         };
+
+        account.trust_device(device_public_key).await?;
 
         let mut accounts = self.accounts.write().await;
         let mut account = accounts

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use sos_sdk::{
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
     crypto::SecureAccessKey,
+    device::DevicePublicKey,
     events::{AuditEvent, Event, EventKind},
     storage::AccountStatus,
     vault::Header,
@@ -56,7 +57,8 @@ impl Service for AccountService {
                     }
                 }
 
-                let secure_key = request.parameters::<SecureAccessKey>()?;
+                let (device_public_key, secure_key) =
+                    request.parameters::<(DevicePublicKey, SecureAccessKey)>()?;
 
                 let summary =
                     Header::read_summary_slice(request.body()).await?;
@@ -69,6 +71,7 @@ impl Service for AccountService {
                         caller.address(),
                         summary.id(),
                         request.body(),
+                        device_public_key,
                         secure_key,
                     )
                     .await?;
