@@ -15,7 +15,7 @@ Several events logs are stored so that complete deterministic, incremental synch
 
 It is important to note that the folder event log stores secret data in the same encrypted format as a vault and is therefore inaccessible to the untrusted server.
 
-The account and file logs MUST not be compacted.
+The account and file logs **must not be compacted**.
 
 ## Divergence 
 
@@ -32,7 +32,7 @@ Conflicts can happen when two devices write to the same folder whilst both devic
 
 An account is identified by the [account address](/doc/overview.md#account-address) derived from the [account signing key](/doc/overview.md#signing-key).
 
-Client requests that access an account MUST include a valid signature and the server MUST use the address of the public key from the signature to identify the account.
+Client requests that access an account **must include a valid signature** and the server **must use the address of the public key from the signature** to identify the account.
 
 Signatures prove account ownership as the account signing key is protected by the [identity vault](/doc/overview.md#identity-vault).
 

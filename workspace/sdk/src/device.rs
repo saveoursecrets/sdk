@@ -3,7 +3,7 @@ use crate::{
     account::Account,
     constants::DEVICES_NSS,
     identity::UrnLookup,
-    signer::ed25519::{BoxedEd25519Signer, VerifyingKey},
+    signer::ed25519::{SingleParty, BoxedEd25519Signer, VerifyingKey},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Summary,
@@ -30,14 +30,32 @@ pub type DevicePublicKey = [u8; 32];
 pub struct DeviceSigner(pub(crate) BoxedEd25519Signer);
 
 impl DeviceSigner {
+    /// Create a new random device signing key.
+    pub fn new_random() -> Self {
+        let key = SingleParty::new_random();
+        Self(Box::new(key))
+    }
+
     /// Device signing key.
-    pub fn signer(&self) -> &BoxedEd25519Signer {
+    pub fn signing_key(&self) -> &BoxedEd25519Signer {
         &self.0
     }
 
     /// Public verifying key as bytes.
     pub fn public_key(&self) -> DevicePublicKey {
         *self.0.verifying_key().as_bytes()
+    }
+}
+
+impl From<DeviceSigner> for BoxedEd25519Signer {
+    fn from(value: DeviceSigner) -> Self {
+        value.0
+    }
+}
+
+impl From<SingleParty> for DeviceSigner {
+    fn from(value: SingleParty) -> Self {
+        Self(Box::new(value))
     }
 }
 
