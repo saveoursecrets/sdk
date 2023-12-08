@@ -1,5 +1,7 @@
 //! Functions for getting the local LAN IP address.
-use crate::Result;
+use crate::{Result, sdk::device::DevicePublicKey};
+use serde::{Serialize, Deserialize};
+use std::collections::HashSet;
 use if_addrs::{get_if_addrs, IfAddr, Ifv4Addr};
 
 /// Get v4 IP addresses that are not the loopback or link
@@ -28,3 +30,7 @@ pub fn v4_lan_ip() -> Result<Option<Ifv4Addr>> {
         None
     })
 }
+
+/// Set of device public keys.
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct DeviceSet(pub HashSet<DevicePublicKey>);

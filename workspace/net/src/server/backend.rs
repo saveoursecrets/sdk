@@ -1,37 +1,81 @@
 use super::{Error, Result};
 use async_trait::async_trait;
-use sos_sdk::{
-    commit::{event_log_commit_tree_file, CommitProof},
-    constants::{EVENT_LOG_EXT, VAULT_EXT},
-    crypto::SecureAccessKey,
-    decode, encode,
-    events::{
-        AccountReducer, AuditEvent, Event, EventKind, EventReducer,
-        FolderEventLog, WriteEvent,
+use crate::{
+    device::DeviceSet,
+    sdk::{
+        commit::CommitProof,
+        constants::{EVENT_LOG_EXT, VAULT_EXT, DEVICES_FILE, JSON_EXT},
+        crypto::SecureAccessKey,
+        decode, encode,
+        device::DevicePublicKey,
+        events::{
+            AccountReducer, AuditEvent, Event, EventKind, EventReducer,
+            FolderEventLog, WriteEvent,
+        },
+        signer::ecdsa::Address,
+        storage::FolderStorage,
+        vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
+        vfs, Paths,
     },
-    storage::FolderStorage,
-    vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
-    vfs, Paths,
 };
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tempfile::NamedTempFile;
 use tokio::sync::RwLock;
 use tracing::{span, Level};
-use web3_address::ethereum::Address;
 
-use crate::FileLocks;
-
-/// Server storage for an account.
+/// Account storage.
 pub struct AccountStorage {
     pub(crate) folders: FolderStorage,
+    /// Set of trusted devices.
+    devices: DeviceSet,
 }
 
-/*
 impl AccountStorage {
+
+    /// Trust a device.
+    pub async fn trust_device(
+        &mut self, public_key: DevicePublicKey) -> Result<()> {
+        self.devices.0.insert(public_key);
+        self.save_devices().await?; 
+        Ok(())
+    }
+
+    /// Revoke trust in a device.
+    pub async fn revoke_device(
+        &mut self, public_key: &DevicePublicKey) -> Result<()> {
+        self.devices.0.remove(public_key);
+        self.save_devices().await?; 
+        Ok(())
+    }
+
+    /// Devices file for server-side storage.
+    fn devices_file(&self) -> PathBuf {
+        let mut path = self.folders.paths().user_dir().join(DEVICES_FILE);
+        path.set_extension(JSON_EXT);
+        path
+    }
+    
+    async fn save_devices(&self) -> Result<()> {
+        let path = self.devices_file();
+        let contents = serde_json::to_vec(&self.devices)?;
+        vfs::write(&path, contents).await?;
+        Ok(())
+    }
+
+    async fn load_devices(&mut self) -> Result<()> {
+        let path = self.devices_file();
+        if vfs::try_exists(&path).await? {
+            let contents = vfs::read(&path).await?;
+            let devices: DeviceSet = serde_json::from_slice(&contents)?;
+            self.devices = devices;
+        }
+        Ok(())
+    }
+
+    /*
     /// Canonical collection of folders
     /// defined in the account log.
     pub async fn canonical_folders(
@@ -43,8 +87,8 @@ impl AccountStorage {
         let folders = reducer.reduce().await?;
         Ok(folders)
     }
+    */
 }
-*/
 
 /// Individual account.
 pub type ServerAccount = Arc<RwLock<AccountStorage>>;
@@ -135,7 +179,7 @@ pub trait BackendHandler {
     ) -> Result<(Option<Summary>, Option<CommitProof>)>;
 
     /*
-    /// Determine if a folders exists in the account log.
+    /// Determine if a folder exists in the account log.
     async fn canonical_folder_exists(
         &self,
         owner: &Address,
@@ -197,13 +241,15 @@ impl FileSystemBackend {
                         name.to_string_lossy().parse::<Address>()
                     {
                         tracing::debug!(account = %owner);
-                        let account = AccountStorage {
+                        let mut account = AccountStorage {
                             folders: FolderStorage::new_server(
                                 owner.clone(),
                                 Some(self.directory.clone()),
                             )
                             .await?,
+                            devices: Default::default(),
                         };
+                        account.load_devices().await?;
 
                         let mut accounts = self.accounts.write().await;
                         let mut account = accounts
@@ -250,6 +296,7 @@ impl BackendHandler for FileSystemBackend {
                 Some(self.directory.clone()),
             )
             .await?,
+            devices: Default::default(),
         };
 
         let mut accounts = self.accounts.write().await;
