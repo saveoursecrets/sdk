@@ -118,6 +118,12 @@ mod rpc {
     /// Account list vaults method call.
     pub const ACCOUNT_LIST_VAULTS: &str = "Account.list_vaults";
 
+    /// Device trust method call.
+    pub const DEVICE_TRUST: &str = "Device.trust";
+
+    /// Device revoke method call.
+    pub const DEVICE_REVOKE: &str = "Device.revoke";
+
     /// Vault create method call.
     pub const VAULT_CREATE: &str = "Vault.create";
 

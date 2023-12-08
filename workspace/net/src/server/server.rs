@@ -194,6 +194,7 @@ impl Server {
             .route("/api/connections", get(connections))
             .route("/api/handshake", post(ServiceHandler::handshake))
             .route("/api/account", post(ServiceHandler::account))
+            .route("/api/device", post(ServiceHandler::device))
             .route("/api/vault", post(ServiceHandler::vault))
             .route("/api/events", post(ServiceHandler::events));
 

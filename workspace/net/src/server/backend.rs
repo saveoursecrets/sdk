@@ -143,6 +143,18 @@ pub trait BackendHandler {
 
     /// Determine if an account exists.
     async fn account_exists(&self, owner: &Address) -> Result<bool>;
+    
+    /// Trust a device.
+    async fn trust_device(
+        &mut self,
+        owner: &Address,
+        device_public_key: DevicePublicKey) -> Result<()>;
+
+    /// Revoke trust in a device.
+    async fn revoke_device(
+        &mut self,
+        owner: &Address,
+        device_public_key: DevicePublicKey) -> Result<()>;
 
     /// List folders for an account.
     async fn list_folders(&self, owner: &Address) -> Result<Vec<Summary>>;
@@ -315,6 +327,35 @@ impl BackendHandler for FileSystemBackend {
         let (_, proof) = writer.folders.commit_state(&summary).await?;
 
         Ok((event, proof))
+    }
+
+    async fn trust_device(
+        &mut self,
+        owner: &Address,
+        device_public_key: DevicePublicKey) -> Result<()> {
+        let accounts = self.accounts.read().await;
+        let account = accounts
+            .get(owner)
+            .ok_or(Error::NoAccount(owner.to_owned()))?;
+
+        let mut writer = account.write().await;
+        writer.trust_device(device_public_key).await?;
+        Ok(())
+    }
+
+    async fn revoke_device(
+        &mut self,
+        owner: &Address,
+        device_public_key: DevicePublicKey) -> Result<()> {
+
+        let accounts = self.accounts.read().await;
+        let account = accounts
+            .get(owner)
+            .ok_or(Error::NoAccount(owner.to_owned()))?;
+
+        let mut writer = account.write().await;
+        writer.revoke_device(&device_public_key).await?;
+        Ok(())
     }
 
     async fn create_folder(

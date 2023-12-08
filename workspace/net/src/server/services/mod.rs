@@ -29,6 +29,18 @@ use crate::{
 #[cfg(feature = "listen")]
 use crate::events::ChangeNotification;
 
+mod account;
+mod device;
+mod events;
+mod handshake;
+mod vault;
+
+pub use account::AccountService;
+pub use device::DeviceService;
+pub use events::EventLogService;
+pub use handshake::HandshakeService;
+pub use vault::VaultService;
+
 /// Trait for implementations that process incoming requests.
 #[async_trait]
 pub trait Service {
@@ -111,16 +123,6 @@ fn send_notification(
         }
     }
 }
-
-mod account;
-mod events;
-mod handshake;
-mod vault;
-
-pub use account::AccountService;
-pub use events::EventLogService;
-pub use handshake::HandshakeService;
-pub use vault::VaultService;
 
 /// Execute a request message in the context of a service
 /// that does not require session authentication.
