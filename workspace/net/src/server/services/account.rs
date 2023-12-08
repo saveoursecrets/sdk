@@ -58,7 +58,8 @@ impl Service for AccountService {
                 }
 
                 let (device_public_key, secure_key) =
-                    request.parameters::<(DevicePublicKey, SecureAccessKey)>()?;
+                    request
+                        .parameters::<(DevicePublicKey, SecureAccessKey)>()?;
 
                 let summary =
                     Header::read_summary_slice(request.body()).await?;

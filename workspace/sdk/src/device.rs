@@ -11,7 +11,9 @@ use crate::{
     vfs, Error, Paths, Result,
 };
 use secrecy::{ExposeSecret, SecretString};
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize, Serialize,
+};
 use serde_json::Value;
 use std::{
     collections::HashMap,
@@ -23,7 +25,38 @@ use time::OffsetDateTime;
 use urn::Urn;
 
 /// Type of a device public key.
-pub type DevicePublicKey = [u8; 32];
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
+pub struct DevicePublicKey(
+    #[serde(with = "hex::serde")]
+    [u8; 32]
+);
+
+impl hex::FromHex for DevicePublicKey {
+    type Error = Error;
+    fn from_hex<T: AsRef<[u8]>>(value: T) -> Result<Self> {
+        let buf = hex::decode(value)?;
+        let buf: [u8; 32] = buf.as_slice().try_into()?;
+        Ok(Self(buf))
+    }
+}
+
+impl From<[u8; 32]> for DevicePublicKey {
+    fn from(value: [u8; 32]) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&[u8; 32]> for DevicePublicKey {
+    fn from(value: &[u8; 32]) -> Self {
+        Self(*value)
+    }
+}
+
+impl AsRef<[u8]> for DevicePublicKey {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
 
 /// Signing key for a device.
 #[derive(Clone)]
@@ -43,7 +76,7 @@ impl DeviceSigner {
 
     /// Public verifying key as bytes.
     pub fn public_key(&self) -> DevicePublicKey {
-        *self.0.verifying_key().as_bytes()
+        self.0.verifying_key().as_bytes().into()
     }
 }
 
@@ -240,7 +273,6 @@ impl fmt::Display for ExtraDeviceInfo {
 #[serde(rename_all = "camelCase")]
 pub struct TrustedDevice {
     /// Public key of the device.
-    #[serde(with = "hex::serde")]
     public_key: DevicePublicKey,
     /// Extra device information.
     extra_info: ExtraDeviceInfo,

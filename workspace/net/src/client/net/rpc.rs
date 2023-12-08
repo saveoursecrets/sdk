@@ -16,6 +16,7 @@ use sos_sdk::{
     },
     crypto::SecureAccessKey,
     decode, encode,
+    device::DevicePublicKey,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::AccountStatus,
     vault::{Summary, VaultId},
@@ -319,7 +320,8 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.origin.url.join("api/account")?;
 
-        let device_public_key = self.device.verifying_key().to_bytes();
+        let device_public_key: DevicePublicKey = 
+            self.device.verifying_key().to_bytes().into();
 
         let id = self.next_id().await;
         let request = RequestMessage::new(
