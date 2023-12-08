@@ -53,6 +53,9 @@ Assuming an event log has not been rewritten then it also
 allows an owner to *time travel* to an earlier point in the 
 history and recover deleted or edited secrets.
 
+See the [sync docs](/doc/sync.md) for more information 
+on event logs.
+
 ## Folder
 
 Folder is the term used to refer to the combined vault and event 
@@ -80,9 +83,6 @@ The identity vault is a special kind of vault whose purpose is
 to protect the account signing key, provide a single password 
 account sign in flow and to store delegated passwords. 
 Delegated passwords are passwords for other folders managed 
-by the account owner.
-
-The identity vault must only be shared between devices belonging 
 by the account owner.
 
 ## Device Vault

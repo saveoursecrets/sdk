@@ -34,7 +34,7 @@ An account is identified by the [account address](/doc/overview.md#account-addre
 
 Client requests that access an account MUST include a valid signature and the server MUST use the address of the public key from the signature to identify the account.
 
-Signatures prove account ownership as the only way to access the account signing key and generate a valid signature is to unlock the [identity vault](/doc/overview.md#identity-vault).
+Signatures prove account ownership as the account signing key is protected by the [identity vault](/doc/overview.md#identity-vault).
 
 [^1]: The application event log when implemented will allow account deletion to be synchronized with a server.
 [^2]: Document the strategy for resolving conflicts.
