@@ -30,7 +30,7 @@ use tokio::{
 use url::Url;
 
 use mpc_protocol::{generate_keypair, Keypair};
-use sos_sdk::signer::ecdsa::BoxedEcdsaSigner;
+use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 
 use crate::{
     client::{HostedOrigin, Result, RpcClient},
@@ -170,13 +170,14 @@ impl IntoClientRequest for WebSocketRequest {
 pub async fn connect(
     origin: HostedOrigin,
     signer: BoxedEcdsaSigner,
+    device: BoxedEd25519Signer,
     keypair: Keypair,
 ) -> Result<(WsStream, Arc<RpcClient>)> {
     let url_origin = origin.url.origin();
     let endpoint = origin.url.clone();
     let public_key = keypair.public_key().to_vec();
 
-    let client = RpcClient::new(origin, signer, keypair)?;
+    let client = RpcClient::new(origin, signer, device, keypair)?;
     client.handshake().await?;
 
     let host = endpoint.host_str().unwrap().to_string();
@@ -257,6 +258,7 @@ impl WebSocketHandle {
 pub struct WebSocketChangeListener {
     origin: HostedOrigin,
     signer: BoxedEcdsaSigner,
+    device: BoxedEd25519Signer,
     options: ListenOptions,
     retries: Arc<Mutex<AtomicU64>>,
     notify: Arc<Notify>,
@@ -268,12 +270,14 @@ impl WebSocketChangeListener {
     pub fn new(
         origin: HostedOrigin,
         signer: BoxedEcdsaSigner,
+        device: BoxedEd25519Signer,
         options: ListenOptions,
     ) -> Self {
         let notify = Arc::new(Notify::new());
         Self {
             origin,
             signer,
+            device,
             options,
             retries: Arc::new(Mutex::new(AtomicU64::from(1))),
             notify,
@@ -350,6 +354,7 @@ impl WebSocketChangeListener {
         connect(
             self.origin.clone(),
             self.signer.clone(),
+            self.device.clone(),
             self.options.keypair.clone(),
         )
         .await

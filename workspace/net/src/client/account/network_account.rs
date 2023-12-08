@@ -181,9 +181,15 @@ impl NetworkAccount {
     ) -> Result<RemoteBridge> {
         let keypair = generate_keypair()?;
         let signer = self.user()?.identity()?.signer().clone();
+        let device = self.user()?.identity()?.device().clone();
         let local = self.storage()?;
-        let provider =
-            RemoteBridge::new(local, origin.clone(), signer, keypair)?;
+        let provider = RemoteBridge::new(
+            local,
+            origin.clone(),
+            signer,
+            device.into(),
+            keypair,
+        )?;
 
         // Noise protocol handshake
         provider.handshake().await?;

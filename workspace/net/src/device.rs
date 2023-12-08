@@ -1,8 +1,8 @@
 //! Functions for getting the local LAN IP address.
-use crate::{Result, sdk::device::DevicePublicKey};
-use serde::{Serialize, Deserialize};
-use std::collections::HashSet;
+use crate::{sdk::device::DevicePublicKey, Result};
 use if_addrs::{get_if_addrs, IfAddr, Ifv4Addr};
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 /// Get v4 IP addresses that are not the loopback or link
 /// local addresses.

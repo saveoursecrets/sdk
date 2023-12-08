@@ -1,13 +1,13 @@
 use super::{Error, Result};
-use async_trait::async_trait;
 use crate::{
     device::DeviceSet,
     sdk::{
         commit::CommitProof,
-        constants::{EVENT_LOG_EXT, VAULT_EXT, DEVICES_FILE, JSON_EXT},
+        constants::{DEVICES_FILE, EVENT_LOG_EXT, JSON_EXT, VAULT_EXT},
         crypto::SecureAccessKey,
-        decode, encode,
+        decode,
         device::DevicePublicKey,
+        encode,
         events::{
             AccountReducer, AuditEvent, Event, EventKind, EventReducer,
             FolderEventLog, WriteEvent,
@@ -18,6 +18,7 @@ use crate::{
         vfs, Paths,
     },
 };
+use async_trait::async_trait;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -34,20 +35,23 @@ pub struct AccountStorage {
 }
 
 impl AccountStorage {
-
     /// Trust a device.
     pub async fn trust_device(
-        &mut self, public_key: DevicePublicKey) -> Result<()> {
+        &mut self,
+        public_key: DevicePublicKey,
+    ) -> Result<()> {
         self.devices.0.insert(public_key);
-        self.save_devices().await?; 
+        self.save_devices().await?;
         Ok(())
     }
 
     /// Revoke trust in a device.
     pub async fn revoke_device(
-        &mut self, public_key: &DevicePublicKey) -> Result<()> {
+        &mut self,
+        public_key: &DevicePublicKey,
+    ) -> Result<()> {
         self.devices.0.remove(public_key);
-        self.save_devices().await?; 
+        self.save_devices().await?;
         Ok(())
     }
 
@@ -57,7 +61,7 @@ impl AccountStorage {
         path.set_extension(JSON_EXT);
         path
     }
-    
+
     async fn save_devices(&self) -> Result<()> {
         let path = self.devices_file();
         let contents = serde_json::to_vec(&self.devices)?;
@@ -143,18 +147,20 @@ pub trait BackendHandler {
 
     /// Determine if an account exists.
     async fn account_exists(&self, owner: &Address) -> Result<bool>;
-    
+
     /// Trust a device.
     async fn trust_device(
         &mut self,
         owner: &Address,
-        device_public_key: DevicePublicKey) -> Result<()>;
+        device_public_key: DevicePublicKey,
+    ) -> Result<()>;
 
     /// Revoke trust in a device.
     async fn revoke_device(
         &mut self,
         owner: &Address,
-        device_public_key: DevicePublicKey) -> Result<()>;
+        device_public_key: DevicePublicKey,
+    ) -> Result<()>;
 
     /// List folders for an account.
     async fn list_folders(&self, owner: &Address) -> Result<Vec<Summary>>;
@@ -332,7 +338,8 @@ impl BackendHandler for FileSystemBackend {
     async fn trust_device(
         &mut self,
         owner: &Address,
-        device_public_key: DevicePublicKey) -> Result<()> {
+        device_public_key: DevicePublicKey,
+    ) -> Result<()> {
         let accounts = self.accounts.read().await;
         let account = accounts
             .get(owner)
@@ -346,8 +353,8 @@ impl BackendHandler for FileSystemBackend {
     async fn revoke_device(
         &mut self,
         owner: &Address,
-        device_public_key: DevicePublicKey) -> Result<()> {
-
+        device_public_key: DevicePublicKey,
+    ) -> Result<()> {
         let accounts = self.accounts.read().await;
         let account = accounts
             .get(owner)

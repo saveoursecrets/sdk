@@ -753,7 +753,7 @@ impl Identity {
             let signer = DeviceSigner::new_random();
             let secret = Secret::Signer {
                 private_key: SecretSigner::SinglePartyEd25519(
-                    SecretVec::new(signer.signing_key().to_bytes())
+                    SecretVec::new(signer.signing_key().to_bytes()),
                 ),
                 user_data: Default::default(),
             };
@@ -820,6 +820,16 @@ impl PrivateIdentity {
         &self.signer
     }
 
+    /// Signing key for this device.
+    ///
+    /// # Panics
+    ///
+    /// If the device manager has not been initialized.
+    #[cfg(feature = "device")]
+    pub fn device(&self) -> &DeviceSigner {
+        self.devices.as_ref().unwrap().signer()
+    }
+
     /// Reference to the gatekeeper for the identity vault.
     pub fn keeper(&self) -> Arc<RwLock<Gatekeeper>> {
         Arc::clone(&self.keeper)
@@ -845,12 +855,6 @@ impl PrivateIdentity {
     #[cfg(feature = "device")]
     pub fn devices_mut(&mut self) -> Result<&mut DeviceManager> {
         self.devices.as_mut().ok_or(Error::NotAuthenticated)
-    }
-
-    /// Device signing key.
-    #[cfg(feature = "device")]
-    pub fn device(&self) -> Result<&DeviceSigner> {
-        todo!("restore access to device signer");
     }
 
     /// Generate a folder password.

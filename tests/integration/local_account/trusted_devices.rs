@@ -28,7 +28,9 @@ async fn integration_trusted_devices() -> Result<()> {
     account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;
 
-    let _ = account.devices()?.current_device(DeviceManager::device_info());
+    let _ = account
+        .devices()?
+        .current_device(DeviceManager::device_info());
 
     // No trusted devices yet
     assert!(account.devices()?.list_trusted_devices().is_empty());

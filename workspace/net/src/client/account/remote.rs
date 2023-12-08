@@ -18,7 +18,7 @@ use sos_sdk::{
     decode,
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
     identity::SecureKeys,
-    signer::ecdsa::BoxedEcdsaSigner,
+    signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::{AccountStatus, FolderStorage},
     url::Url,
     vault::{Summary, VaultId},
@@ -111,9 +111,10 @@ impl RemoteBridge {
         local: Arc<RwLock<FolderStorage>>,
         origin: HostedOrigin,
         signer: BoxedEcdsaSigner,
+        device: BoxedEd25519Signer,
         keypair: Keypair,
     ) -> Result<Self> {
-        let remote = RpcClient::new(origin.clone(), signer, keypair)?;
+        let remote = RpcClient::new(origin.clone(), signer, device, keypair)?;
         Ok(Self {
             origin,
             local,

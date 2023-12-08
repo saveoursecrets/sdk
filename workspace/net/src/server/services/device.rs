@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use std::collections::HashMap;
 
 use sos_sdk::{
-    constants::{DEVICE_TRUST, DEVICE_REVOKE},
+    constants::{DEVICE_REVOKE, DEVICE_TRUST},
     device::DevicePublicKey,
 };
 
@@ -36,8 +36,10 @@ impl Service for DeviceService {
                 let device_public_key =
                     request.parameters::<DevicePublicKey>()?;
                 let mut writer = backend.write().await;
-                let result = writer.handler_mut().trust_device(
-                    caller.address(), device_public_key).await?;
+                let result = writer
+                    .handler_mut()
+                    .trust_device(caller.address(), device_public_key)
+                    .await?;
                 let reply: ResponseMessage<'_> =
                     (request.id(), result).try_into()?;
                 Ok(reply)
@@ -46,8 +48,10 @@ impl Service for DeviceService {
                 let device_public_key =
                     request.parameters::<DevicePublicKey>()?;
                 let mut writer = backend.write().await;
-                let result = writer.handler_mut().revoke_device(
-                    caller.address(), device_public_key).await?;
+                let result = writer
+                    .handler_mut()
+                    .revoke_device(caller.address(), device_public_key)
+                    .await?;
                 let reply: ResponseMessage<'_> =
                     (request.id(), result).try_into()?;
                 Ok(reply)

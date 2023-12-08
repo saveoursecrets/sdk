@@ -3,7 +3,7 @@ use crate::{
     account::Account,
     constants::DEVICES_NSS,
     identity::UrnLookup,
-    signer::ed25519::{SingleParty, BoxedEd25519Signer, VerifyingKey},
+    signer::ed25519::{BoxedEd25519Signer, SingleParty, VerifyingKey},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Summary,
@@ -94,9 +94,14 @@ impl DeviceManager {
         }
     }
 
+    /// Signing key for this device.
+    pub(crate) fn signer(&self) -> &DeviceSigner {
+        &self.signer
+    }
+
     /// Basic device information.
     ///
-    /// Most applications will want to use other platform native 
+    /// Most applications will want to use other platform native
     /// code to get more information about the device hardware.
     pub fn device_info() -> ExtraDeviceInfo {
         let mut info = HashMap::new();

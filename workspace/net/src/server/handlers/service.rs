@@ -9,8 +9,8 @@ use axum::{
 
 use crate::server::{
     services::{
-        private_service, public_service, AccountService, DeviceService, EventLogService,
-        HandshakeService, VaultService,
+        private_service, public_service, AccountService, DeviceService,
+        EventLogService, HandshakeService, VaultService,
     },
     ServerBackend, ServerState,
 };

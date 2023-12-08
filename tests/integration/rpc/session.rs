@@ -7,6 +7,7 @@ use sos_net::{
     mpc::{generate_keypair, Keypair, PATTERN},
     sdk::{
         crypto::{AccessKey, SecureAccessKey},
+        device::DeviceSigner,
         encode,
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
@@ -40,8 +41,13 @@ async fn create_rpc_client(
     FolderStorage::new_client(signer.address()?, Some(data_dir)).await?;
 
     let address = signer.address()?;
-    let client =
-        RpcClient::new(origin.clone(), signer.clone(), generate_keypair()?)?;
+    let device = DeviceSigner::new_random();
+    let client = RpcClient::new(
+        origin.clone(),
+        signer.clone(),
+        device.into(),
+        generate_keypair()?,
+    )?;
 
     client.handshake().await?;
 

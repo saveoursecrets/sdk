@@ -4,7 +4,10 @@ use sos_net::{
     client::{changes, connect, HostedOrigin},
     mpc::{generate_keypair, Keypair},
     sdk::{
-        hex, identity::AccountRef, signer::ecdsa::BoxedEcdsaSigner, url::Url,
+        hex,
+        identity::AccountRef,
+        signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
+        url::Url,
     },
 };
 
@@ -15,6 +18,7 @@ async fn changes_stream(
     url: Url,
     public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
+    device: BoxedEd25519Signer,
     keypair: Keypair,
 ) -> sos_net::client::Result<()> {
     let name = hex::encode(&public_key);
@@ -24,7 +28,7 @@ async fn changes_stream(
         name,
     };
 
-    let (stream, client) = connect(origin, signer, keypair).await?;
+    let (stream, client) = connect(origin, signer, device, keypair).await?;
     let mut stream = changes(stream, client);
     while let Some(notification) = stream.next().await {
         let notification = notification?.await?;
@@ -45,9 +49,16 @@ pub async fn run(
 ) -> Result<()> {
     let (owner, _) = sign_in(&account).await?;
     let signer = owner.user()?.identity()?.signer().clone();
+    let device = owner.user()?.identity()?.device().clone();
     let keypair = generate_keypair()?;
-    if let Err(e) =
-        changes_stream(server, server_public_key, signer, keypair).await
+    if let Err(e) = changes_stream(
+        server,
+        server_public_key,
+        signer,
+        device.into(),
+        keypair,
+    )
+    .await
     {
         tracing::error!(target: TARGET, "{}", e);
         std::process::exit(1);

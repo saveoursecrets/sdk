@@ -16,7 +16,7 @@ use sos_sdk::{
     },
     crypto::SecureAccessKey,
     decode, encode,
-    signer::ecdsa::BoxedEcdsaSigner,
+    signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::AccountStatus,
     vault::{Summary, VaultId},
 };
@@ -70,6 +70,7 @@ async fn new_rpc_call<T: Serialize>(
 pub struct RpcClient {
     origin: HostedOrigin,
     signer: BoxedEcdsaSigner,
+    device: BoxedEd25519Signer,
     keypair: Keypair,
     protocol: Arc<RwLock<Option<ProtocolState>>>,
     client: reqwest::Client,
@@ -81,6 +82,7 @@ impl RpcClient {
     pub fn new(
         origin: HostedOrigin,
         signer: BoxedEcdsaSigner,
+        device: BoxedEd25519Signer,
         keypair: Keypair,
     ) -> Result<Self> {
         let client = reqwest::Client::new();
@@ -88,6 +90,7 @@ impl RpcClient {
         Ok(Self {
             origin,
             signer,
+            device,
             keypair,
             protocol: Arc::new(RwLock::new(protocol)),
             client,
@@ -110,6 +113,7 @@ impl RpcClient {
         let listener = WebSocketChangeListener::new(
             self.origin.clone(),
             self.signer.clone(),
+            self.device.clone(),
             options,
         );
         listener.spawn(handler)
