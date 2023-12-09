@@ -41,6 +41,69 @@ use crate::events::{FileEvent, FileEventLog};
 #[cfg(feature = "search")]
 use crate::storage::search::{AccountSearch, DocumentCount, SearchIndex};
 
+/// Folder is a combined vault and event log.
+pub struct Folder {
+    keeper: Gatekeeper,
+    events: FolderEventLog,
+}
+
+impl Folder {
+    /// Create a new folder.
+    pub fn new(keeper: Gatekeeper, events: FolderEventLog) -> Self {
+        Self { keeper, events }
+    }
+
+    /// Create a secret.
+    pub async fn create_secret(
+        &mut self,
+        secret_data: &SecretRow,
+    ) -> Result<WriteEvent> {
+        let event = self.keeper.create(secret_data).await?;
+        self.events.apply(vec![&event]).await?;
+        Ok(event)
+    }
+
+    /// Get a secret and it's meta data.
+    pub async fn read(
+        &self,
+        id: &SecretId,
+    ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
+        self.keeper.read(id).await
+    }
+
+    /// Update a secret.
+    pub async fn update(
+        &mut self,
+        id: &SecretId,
+        secret_meta: SecretMeta,
+        secret: Secret,
+    ) -> Result<Option<WriteEvent>> {
+        if let Some(event) =
+            self.keeper.update(id, secret_meta, secret).await?
+        {
+            self.events.apply(vec![&event]).await?;
+            Ok(Some(event))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Delete a secret and it's meta data.
+    pub async fn delete(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent>> {
+        if let Some(event) =
+            self.keeper.delete(id).await?
+        {
+            self.events.apply(vec![&event]).await?;
+            Ok(Some(event))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 /// Manages multiple folders loaded into memory and mirrored to disc.
 pub struct Storage {
     /// Address of the account owner.

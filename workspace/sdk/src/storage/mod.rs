@@ -9,12 +9,12 @@ use tokio::sync::mpsc;
 
 #[cfg(feature = "files")]
 pub mod files;
-mod folders;
 pub(crate) mod paths;
 #[cfg(feature = "search")]
 pub mod search;
+mod storage;
 
-pub use folders::Storage;
+pub use storage::{Folder, Storage};
 
 /// Provides a status overview of an account.
 ///

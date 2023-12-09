@@ -225,7 +225,7 @@ impl Gatekeeper {
         Ok(result)
     }
 
-    /// Get a secret and it's meta data from the vault.
+    /// Get a secret and it's meta data.
     pub async fn read(
         &self,
         id: &SecretId,
@@ -237,7 +237,7 @@ impl Gatekeeper {
             .map(|(meta, secret)| (meta, secret, payload)))
     }
 
-    /// Update a secret in the vault.
+    /// Update a secret.
     pub async fn update(
         &mut self,
         id: &SecretId,
@@ -275,7 +275,7 @@ impl Gatekeeper {
             .await?)
     }
 
-    /// Delete a secret and it's meta data from the vault.
+    /// Delete a secret and it's meta data.
     pub async fn delete(
         &mut self,
         id: &SecretId,
