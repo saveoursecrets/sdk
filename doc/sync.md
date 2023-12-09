@@ -2,11 +2,11 @@
 
 Synchronization between devices uses an eventually consistent strategy. Applications can choose how to deal with conflicts, however, due to the nature of the folder event logs and the ability to go back in time a merge on conflict with a last-write wins approach is acceptable.
 
-Synchronization is performed using an untrusted intermediary server.
+Synchronization is achieved via an untrusted intermediary server.
 
 ## Event Logs
 
-Several events logs are stored so that complete deterministic, incremental synchronization is possible for an account.
+Several events logs are stored on both the client and server so that complete deterministic, incremental synchronization is possible for an account.
 
 1) Application event log tracks changes to accounts. [^1]
 2) Account event log tracks changes to folders.
