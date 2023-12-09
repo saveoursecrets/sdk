@@ -136,7 +136,7 @@ impl DeviceManager {
     ///
     /// Most applications will want to use other platform native
     /// code to get more information about the device hardware.
-    pub fn device_info() -> ExtraDeviceInfo {
+    pub fn device_info() -> DeviceMetaData {
         let mut info = HashMap::new();
         info.insert("realname".to_owned(), Value::String(whoami::realname()));
         info.insert("username".to_owned(), Value::String(whoami::username()));
@@ -158,13 +158,13 @@ impl DeviceManager {
             "desktop".to_owned(),
             Value::String(whoami::desktop_env().to_string()),
         );
-        ExtraDeviceInfo { info }
+        DeviceMetaData { info }
     }
 
     /// Current device information.
     pub fn current_device(
         &self,
-        extra_info: ExtraDeviceInfo,
+        extra_info: DeviceMetaData,
     ) -> TrustedDevice {
         TrustedDevice::new(
             self.signer.public_key(),
@@ -248,12 +248,12 @@ impl DeviceManager {
 /// Additional information about the device such as the
 /// device name, manufacturer and model.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct ExtraDeviceInfo {
+pub struct DeviceMetaData {
     #[serde(flatten)]
     info: HashMap<String, Value>,
 }
 
-impl fmt::Display for ExtraDeviceInfo {
+impl fmt::Display for DeviceMetaData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (o, v) in &self.info {
             if let Value::Object(map) = v {
@@ -275,7 +275,7 @@ pub struct TrustedDevice {
     /// Public key of the device.
     public_key: DevicePublicKey,
     /// Extra device information.
-    extra_info: ExtraDeviceInfo,
+    extra_info: DeviceMetaData,
     /// When this device was trusted.
     created_date: OffsetDateTime,
 }
@@ -284,7 +284,7 @@ impl TrustedDevice {
     /// Create a new trusted device.
     pub fn new(
         public_key: DevicePublicKey,
-        extra_info: ExtraDeviceInfo,
+        extra_info: DeviceMetaData,
         created_date: OffsetDateTime,
     ) -> Self {
         Self {
@@ -302,7 +302,7 @@ impl TrustedDevice {
     }
 
     /// Extra device information.
-    pub fn extra_info(&self) -> &ExtraDeviceInfo {
+    pub fn extra_info(&self) -> &DeviceMetaData {
         &self.extra_info
     }
 
