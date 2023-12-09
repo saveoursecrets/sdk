@@ -2,12 +2,9 @@ use super::*;
 use anyhow::Result;
 use rexpect::{session::PtySession, spawn};
 use secrecy::SecretString;
-use sos_net::{
-    migrate::import::ImportFormat,
-    sdk::{
-        account::Paths, constants::DEFAULT_VAULT_NAME,
-        secrecy::ExposeSecret,
-    },
+use sos_net::sdk::{
+    constants::DEFAULT_VAULT_NAME, migrate::import::ImportFormat,
+    secrecy::ExposeSecret, Paths,
 };
 use std::{
     ops::DerefMut,

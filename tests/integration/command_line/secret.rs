@@ -3,8 +3,8 @@ use anyhow::Result;
 use rexpect::spawn;
 use secrecy::SecretString;
 use sos_net::sdk::{
-    account::Paths, constants::DEFAULT_VAULT_NAME,
-    passwd::diceware::generate_passphrase, secrecy::ExposeSecret, vfs,
+    constants::DEFAULT_VAULT_NAME, passwd::diceware::generate_passphrase,
+    secrecy::ExposeSecret, vfs, Paths,
 };
 use std::{ops::DerefMut, path::PathBuf};
 

@@ -1,7 +1,7 @@
 use super::*;
 use anyhow::Result;
 use rexpect::{session::PtySession, spawn, ReadUntil};
-use sos_net::sdk::{account::Paths, vault::VaultId};
+use sos_net::sdk::{vault::VaultId, Paths};
 use std::{
     ops::DerefMut,
     sync::{Arc, Mutex},

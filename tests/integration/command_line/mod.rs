@@ -2,11 +2,10 @@ use anyhow::Result;
 use rexpect::{session::PtySession, spawn, ReadUntil};
 use secrecy::SecretString;
 use sos_net::sdk::{
-    account::Paths,
     constants::{DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_VAULT_NAME},
     passwd::diceware::generate_passphrase,
     secrecy::ExposeSecret,
-    vfs,
+    vfs, Paths,
 };
 use std::{
     ops::DerefMut,
@@ -175,7 +174,7 @@ pub(crate) fn read_until_eof(
     Ok(())
 }
 
-#[ignore]
+#[ignore = "needs fixing"]
 #[tokio::test]
 async fn integration_command_line() -> Result<()> {
     let (password, _) = generate_passphrase()?;
