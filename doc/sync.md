@@ -14,6 +14,14 @@ For development and self-hosting it is convenient to use HTTP rather than config
 
 Note that the self-hosted server implementation supports TLS certificate configuration if desired which would add any extra layer of security on top of the [noise protocol](https://noiseprotocol.org/).
 
+## Endpoints
+
+Servers provide endpoints with different levels of protection from unauthorized access:
+
+1) Public endpoints require no authentication.
+2) Private endpoints require a signature from the account signing key.
+3) Restricted endpoints require a signature from the account signing key and a signature from a trusted device.
+
 ## Event Logs
 
 Several events logs are stored on both the client and server so that complete deterministic, incremental synchronization is possible for an account.
@@ -66,7 +74,7 @@ The server API endpoint for trusting devices **must only require a signature fro
 
 ### Revoking Devices
 
-If a device has been lost or stolen an account owner can revoke the public key for the device so it is no longer trusted and will not be allowed to communicate server endpoints that require a signature from a device.
+If a device has been lost or stolen an account owner can revoke the public key for the device so it is no longer trusted and will not be allowed to communicate with server endpoints that require a signature from a device.
 
 The server API endpoint for revoking devices **must require signatures from both the account signing key and a trusted device** for authentication.
 
