@@ -42,9 +42,11 @@ Devices are represented by Ed25519 signing keys and handled differently by clien
 
 Clients store the device signing key in a [device vault](/doc/overview.md#device-vault) along with meta data about trusted devices so that applications can show information about a device (hardware, operating system etc).
 
-The [device vault](/doc/overview.md#device-vault) is *not included in synchronization* and should *never leave the device*.
+The [device vault](/doc/overview.md#device-vault) is **not included in synchronization** and should **never leave the device**.
 
-Servers do not need the device meta data and just store the public keys of devices that have been explicitly trusted by the account owner.
+When a client sends account vaults to create an account on a server it **must include** the public key of the device creating the account and the server **must trust** the device. 
+
+Servers that do not provide an interface to the account owner to view trusted devices do not need the device meta data and can just store the public keys of devices that have been explicitly trusted by the account owner.
 
 [^1]: The application event log when implemented will allow account deletion to be synchronized with a server.
 [^2]: Document the strategy for resolving conflicts.
