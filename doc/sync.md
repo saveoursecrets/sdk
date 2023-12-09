@@ -12,7 +12,7 @@ Servers should either use TLS or to support HTTP transport they can use the [noi
 
 For development and self-hosting it is convenient to use HTTP rather than configure certificates for TLS however in a production environment we recommend securing connections with TLS.
 
-Note that the self-hosted server implementation supports TLS certificate configuration if desired which would add any extra layer of security on top of the [noise protocol](https://noiseprotocol.org/).
+Note that the self-hosted server implementation supports TLS certificate configuration if desired which would add an extra layer of security on top of the [noise protocol](https://noiseprotocol.org/).
 
 ## Endpoints
 

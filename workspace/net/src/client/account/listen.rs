@@ -39,6 +39,7 @@ impl NetworkAccount {
         }
     }
 
+    #[deprecated(note = "bridge channels need to be removed")]
     fn spawn_remote_bridge_channels(
         &self,
         mut rx: NetworkAccountReceiver,
@@ -47,8 +48,8 @@ impl NetworkAccount {
         if self.account.is_authenticated() {
             let user = self.user().unwrap();
             let keeper = user.identity().unwrap().keeper();
-            let search_index = user.identity().unwrap().index();
-            let secret_key = user.identity().unwrap().signer().to_bytes();
+            //let search_index = user.identity().unwrap().index();
+            //let secret_key = user.identity().unwrap().signer().to_bytes();
 
             // TODO: needs shutdown hook so this loop exits
             // TODO: when the websocket connection is closed
@@ -61,6 +62,7 @@ impl NetworkAccount {
                             .fuse() => {
                             if let Some((folder_id, secure_key)) = event {
 
+                                /*
                                 // Decrypt the secure access key received
                                 // when creating or importing a folder,
                                 // must be done here as the remote bridge
@@ -84,6 +86,7 @@ impl NetworkAccount {
                                 .await?;
 
                                 tx.access_key_tx.send(access_key).await?;
+                                */
                             }
                         }
                         event = rx
@@ -91,6 +94,8 @@ impl NetworkAccount {
                             .recv()
                             .fuse() => {
                             if let Some(folder_id) = event {
+
+                                /*
                                 // When a folder is removed via remote
                                 // bridge changes we need to clean up the
                                 // passphrase
@@ -102,6 +107,7 @@ impl NetworkAccount {
                                     &folder_id,
                                 )
                                 .await?;
+                                */
                             }
                         }
                     )

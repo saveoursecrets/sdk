@@ -1,5 +1,5 @@
 //! Private identity manages the identity vault,
-//! account signing key, device signing key and delegated 
+//! account signing key, device signing key and delegated
 //! passwords.
 use crate::{
     commit::CommitState,
@@ -39,9 +39,6 @@ use urn::Urn;
 #[cfg(feature = "device")]
 use crate::device::{DeviceManager, DeviceSigner};
 
-/// Number of words to use when generating passphrases for vaults.
-const VAULT_PASSPHRASE_WORDS: usize = 12;
-
 /// Private identity containing the in-memory identity vault
 /// and signing keys.
 pub struct PrivateIdentity {
@@ -49,18 +46,19 @@ pub struct PrivateIdentity {
     pub(super) address: Address,
     /// Private signing key for the identity.
     pub(super) signer: BoxedEcdsaSigner,
+
+    /*
     /// Gatekeeper for the identity vault.
     pub(super) keeper: Arc<RwLock<Gatekeeper>>,
     /// Lookup mapping between folders and
     /// the secret idenitifiers in the identity vault.
     pub(super) index: Arc<RwLock<UrnLookup>>,
+    */
     /// AGE identity keypair.
     #[allow(dead_code)]
     pub(super) shared_private: age::x25519::Identity,
     /// AGE recipient public key.
     pub(super) shared_public: age::x25519::Recipient,
-    #[cfg(feature = "device")]
-    pub(super) devices: Option<crate::device::DeviceManager>,
 }
 
 impl PrivateIdentity {
@@ -74,43 +72,12 @@ impl PrivateIdentity {
         &self.signer
     }
 
-    /// Signing key for this device.
-    ///
-    /// # Panics
-    ///
-    /// If the device manager has not been initialized.
-    #[cfg(feature = "device")]
-    pub fn device(&self) -> &DeviceSigner {
-        self.devices.as_ref().unwrap().signer()
-    }
-
-    /// Reference to the gatekeeper for the identity vault.
-    pub fn keeper(&self) -> Arc<RwLock<Gatekeeper>> {
-        Arc::clone(&self.keeper)
-    }
-
-    /// Search index for the identity vault.
-    pub fn index(&self) -> Arc<RwLock<UrnLookup>> {
-        Arc::clone(&self.index)
-    }
-
     /// Recipient public key for sharing.
     pub fn recipient(&self) -> &age::x25519::Recipient {
         &self.shared_public
     }
 
-    /// Device manager.
-    #[cfg(feature = "device")]
-    pub fn devices(&self) -> Result<&DeviceManager> {
-        self.devices.as_ref().ok_or(Error::NotAuthenticated)
-    }
-
-    /// Device manager.
-    #[cfg(feature = "device")]
-    pub fn devices_mut(&mut self) -> Result<&mut DeviceManager> {
-        self.devices.as_mut().ok_or(Error::NotAuthenticated)
-    }
-
+    /*
     /// Generate a folder password.
     pub(super) fn generate_folder_password(&self) -> Result<SecretString> {
         let (vault_passphrase, _) =
@@ -279,21 +246,5 @@ impl PrivateIdentity {
 
         Ok(())
     }
-
-    /// Sign out the private identity.
-    ///
-    /// Locks the identity vault and device vault.
-    pub async fn sign_out(&mut self) -> Result<()> {
-        // Lock the identity vault
-        let mut writer = self.keeper.write().await;
-        writer.lock();
-
-        // Lock the devices vault
-        #[cfg(feature = "device")]
-        if let Some(devices) = self.devices.as_mut() {
-            devices.sign_out();
-        }
-
-        Ok(())
-    }
+    */
 }

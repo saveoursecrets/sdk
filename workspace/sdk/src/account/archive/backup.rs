@@ -413,7 +413,7 @@ impl AccountBackup {
                 user.login(&identity_vault_file, &key).await?;
 
                 let mut restored_user = Identity::new(paths);
-                restored_user.login_buffer(&identity.1, &key, None).await?;
+                restored_user.login_buffer(&identity.1, &key).await?;
 
                 for (_, vault) in vaults {
                     let vault_passphrase = restored_user
@@ -426,8 +426,7 @@ impl AccountBackup {
 
                 let vault = {
                     let keeper = user.identity()?.keeper();
-                    let reader = keeper.read().await;
-                    reader.vault().clone()
+                    keeper.vault().clone()
                 };
 
                 // Must re-write the identity vault
@@ -581,7 +580,7 @@ impl AccountBackup {
             // verify it matches the manifest address
             let mut user = Identity::new(paths);
             let key: AccessKey = passphrase.clone().into();
-            user.login_buffer(&identity.1, &key, None).await?;
+            user.login_buffer(&identity.1, &key).await?;
             if user.identity()?.address() != &address {
                 return Err(Error::ArchiveAddressMismatch);
             }

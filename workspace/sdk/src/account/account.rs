@@ -384,7 +384,11 @@ impl<D> Account<D> {
         let user = self.user()?;
         Ok(AccountData {
             account: user.account()?.clone(),
-            identity: user.identity()?.recipient().to_string(),
+            identity: user
+                .identity()?
+                .private_identity()
+                .recipient()
+                .to_string(),
             folders: reader.folders().to_vec(),
         })
     }

@@ -151,7 +151,7 @@ impl AccountBuilder {
         let paths = Paths::new_global(Paths::data_dir()?);
         let mut user = Identity::new(paths);
         let key: AccessKey = passphrase.clone().into();
-        user.login_buffer(buffer, &key, None).await?;
+        user.login_buffer(buffer, &key).await?;
 
         // Prepare the passphrase for the default vault
         let vault_passphrase = user.generate_folder_password()?;
@@ -201,22 +201,7 @@ impl AccountBuilder {
         .await?;
 
         if create_file_password {
-            let file_passphrase = user.generate_folder_password()?;
-            let secret = Secret::Password {
-                password: file_passphrase,
-                name: None,
-                user_data: UserData::new_comment(address.to_string()),
-            };
-            let mut meta =
-                SecretMeta::new("File Encryption".to_string(), secret.kind());
-            let urn: Urn = FILE_PASSWORD_URN.parse()?;
-            meta.set_urn(Some(urn));
-
-            let keeper = user.identity()?.keeper();
-            let mut writer = keeper.write().await;
-            let secret_data =
-                SecretRow::new(SecretId::new_v4(), meta, secret);
-            writer.create(&secret_data).await?;
+            user.create_file_encryption_password().await?;
         }
 
         let archive = if create_archive {
@@ -275,8 +260,7 @@ impl AccountBuilder {
 
         let vault = {
             let keeper = user.identity()?.keeper();
-            let reader = keeper.read().await;
-            reader.vault().clone()
+            keeper.vault().clone()
         };
 
         //let user = user.private_identity()?;

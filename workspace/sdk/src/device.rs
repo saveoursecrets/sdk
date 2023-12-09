@@ -11,9 +11,7 @@ use crate::{
     vfs, Error, Paths, Result,
 };
 use secrecy::{ExposeSecret, SecretString};
-use serde::{
-    Deserialize, Serialize,
-};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::HashMap,
@@ -26,10 +24,7 @@ use urn::Urn;
 
 /// Type of a device public key.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
-pub struct DevicePublicKey(
-    #[serde(with = "hex::serde")]
-    [u8; 32]
-);
+pub struct DevicePublicKey(#[serde(with = "hex::serde")] [u8; 32]);
 
 impl hex::FromHex for DevicePublicKey {
     type Error = Error;
