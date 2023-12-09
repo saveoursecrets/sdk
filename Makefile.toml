@@ -97,7 +97,7 @@ args = ["test", "command_line", "--", "--nocapture"]
 
 [tasks.test-audit-trail]
 command = "cargo"
-args = ["test", "audit", "--", "--ignored"]
+args = ["test", "audit", "--", "--nocapture"]
 
 [tasks.integration]
 command = "cargo"

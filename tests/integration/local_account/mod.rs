@@ -1,7 +1,6 @@
 mod account_lifecycle;
 mod account_statistics;
 mod archive_unarchive;
-mod audit_trail;
 mod contacts;
 mod custom_fields;
 mod external_files;

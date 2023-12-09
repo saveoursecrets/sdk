@@ -7,9 +7,8 @@ use std::path::{Path, PathBuf};
 
 const TEST_ID: &str = "audit_trail";
 
-#[ignore]
 #[tokio::test]
-async fn integration_audit_trail() -> Result<()> {
+async fn audit_trail_local() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
 
@@ -45,7 +44,7 @@ async fn integration_audit_trail() -> Result<()> {
     let mut kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
 
     //println!("events {:#?}", events);
-    println!("kinds {:#?}", kinds);
+    //println!("kinds {:#?}", kinds);
 
     // Created the account
     assert!(matches!(kinds.remove(0), EventKind::CreateAccount));
