@@ -350,7 +350,7 @@ fn sanitize_file_path(path: &str) -> PathBuf {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{encode, identity::Identity, vault::Vault};
+    use crate::{encode, identity::IdentityVault, vault::Vault};
     use anyhow::Result;
     use secrecy::SecretString;
     use std::io::Cursor;
@@ -360,11 +360,11 @@ mod test {
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));
 
-        let (address, identity_vault) = Identity::new_login_vault(
+        let identity_vault = IdentityVault::new(
             "Mock".to_string(),
             SecretString::new("mock-password".to_string()),
-        )
-        .await?;
+        ).await?;
+        let (address, identity_vault) = identity_vault.into();
 
         let identity = encode(&identity_vault).await?;
 

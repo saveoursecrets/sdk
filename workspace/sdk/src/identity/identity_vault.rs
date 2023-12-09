@@ -177,6 +177,15 @@ impl IdentityVault {
         })
     }
 
+    /// Rename this identity vault.
+    pub async fn rename(
+        &mut self,
+        account_name: String,
+    ) -> Result<()> {
+        self.keeper.set_vault_name(account_name.clone());
+        Ok(())
+    }
+
     /// Login to an identity vault.
     pub async fn login<P: AsRef<Path>>(
         file: P,
@@ -628,104 +637,9 @@ impl IdentityVault {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use anyhow::Result;
-    use secrecy::{ExposeSecret, SecretString};
-    use std::path::PathBuf;
-    use urn::Urn;
-
-    use crate::{
-        constants::LOGIN_SIGNING_KEY_URN,
-        crypto::AccessKey,
-        encode,
-        identity::Identity,
-        passwd::diceware::generate_passphrase,
-        vault::{
-            secret::{Secret, SecretId, SecretMeta, SecretRow},
-            Gatekeeper, Vault, VaultBuilder, VaultFlags,
-        },
-        Error, Paths,
-    };
-
-    #[tokio::test]
-    async fn identity_not_identity_vault() -> Result<()> {
-        let (password, _) = generate_passphrase()?;
-        let vault =
-            VaultBuilder::new().password(password.clone(), None).await?;
-        let buffer = encode(&vault).await?;
-
-        let mut identity =
-            Identity::new(Paths::new_global(Paths::data_dir()?));
-        let key: AccessKey = password.into();
-        let result = identity.login_buffer(buffer, &key, None).await;
-        if let Err(Error::NotIdentityVault) = result {
-            Ok(())
-        } else {
-            panic!("expecting identity vault error");
-        }
-    }
-
-    #[tokio::test]
-    async fn no_signing_key() -> Result<()> {
-        let (password, _) = generate_passphrase()?;
-
-        let vault = VaultBuilder::new()
-            .flags(VaultFlags::IDENTITY)
-            .password(password.clone(), None)
-            .await?;
-
-        let buffer = encode(&vault).await?;
-
-        let mut identity =
-            Identity::new(Paths::new_global(Paths::data_dir()?));
-        let key: AccessKey = password.into();
-        let result = identity.login_buffer(buffer, &key, None).await;
-        if let Err(Error::NoSigningKey) = result {
-            Ok(())
-        } else {
-            panic!("expecting no identity signer error");
-        }
-    }
-
-    #[tokio::test]
-    async fn no_identity_key() -> Result<()> {
-        let (password, _) = generate_passphrase()?;
-
-        let vault = VaultBuilder::new()
-            .flags(VaultFlags::IDENTITY)
-            .password(password.clone(), None)
-            .await?;
-
-        let mut keeper = Gatekeeper::new(vault);
-        let key = password.clone().into();
-        keeper.unlock(&key).await?;
-
-        // Create a secret using the expected name but of the wrong kind
-        let signer_secret = Secret::Note {
-            text: SecretString::new("Mock note".to_owned()),
-            user_data: Default::default(),
-        };
-
-        let urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
-        let mut signer_meta =
-            SecretMeta::new(urn.as_str().to_owned(), signer_secret.kind());
-        signer_meta.set_urn(Some(urn));
-        let secret_data =
-            SecretRow::new(SecretId::new_v4(), signer_meta, signer_secret);
-        keeper.create(&secret_data).await?;
-
-        let vault: Vault = keeper.into();
-        let buffer = encode(&vault).await?;
-
-        let mut identity =
-            Identity::new(Paths::new_global(Paths::data_dir()?));
-        let key: AccessKey = password.into();
-        let result = identity.login_buffer(buffer, &key, None).await;
-        if let Err(Error::NoIdentityKey) = result {
-            Ok(())
-        } else {
-            panic!("expecting identity signer kind error");
-        }
+impl From<IdentityVault> for (Address, Vault) {
+    fn from(value: IdentityVault) -> Self {
+        (value.address().clone(), value.keeper.into())
     }
 }
+

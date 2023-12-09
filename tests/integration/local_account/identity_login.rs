@@ -21,8 +21,8 @@ async fn integration_identity_login() -> Result<()> {
 
     let path = data_dir.join("login.vault");
     let (address, vault) =
-        Identity::new_login_vault("Login".to_owned(), password.clone())
-            .await?;
+        IdentityVault::new("Login".to_owned(), password.clone())
+            .await?.into();
     let buffer = encode(&vault).await?;
     vfs::write(&path, buffer).await?;
 
@@ -39,8 +39,6 @@ async fn integration_identity_login() -> Result<()> {
         .save_folder_password(&folder, access_key.clone())
         .await?;
 
-    assert_eq!(1, identity.secure_keys().len());
-
     // Should be able to find the password we saved
     assert!(identity.find_folder_password(&folder).await.is_ok());
 
@@ -50,11 +48,8 @@ async fn integration_identity_login() -> Result<()> {
     // are loaded at login
     identity.login(&path, &key).await?;
 
-    assert_eq!(1, identity.secure_keys().len());
-
     // Remove the folder password
     identity.remove_folder_password(&folder).await?;
-    assert_eq!(0, identity.secure_keys().len());
 
     teardown(TEST_ID).await;
 

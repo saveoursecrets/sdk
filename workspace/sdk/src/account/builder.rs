@@ -7,7 +7,7 @@ use crate::{
     },
     crypto::AccessKey,
     encode,
-    identity::{FolderKeys, Identity},
+    identity::{FolderKeys, Identity, IdentityVault},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
@@ -137,11 +137,11 @@ impl AccountBuilder {
         Paths::scaffold(data_dir.clone()).await?;
 
         // Prepare the identity vault
-        let (address, identity_vault) = Identity::new_login_vault(
+        let identity_vault = IdentityVault::new(
             account_name.clone(),
             passphrase.clone(),
-        )
-        .await?;
+        ).await?;
+        let (address, identity_vault) = identity_vault.into();
 
         let mut folder_keys = HashMap::new();
 
