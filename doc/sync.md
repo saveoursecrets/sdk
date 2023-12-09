@@ -48,9 +48,9 @@ When a client sends account vaults to create an account on a server it **must in
 
 ### Trusting Devices
 
-To add trusted devices the account owner can share the account [signing key](/docs/overview.md#signing-key) via a QR code (or text) which will allow the device to communicate with the server and add it's own public key and device meta data as a trusted device. 
+To add trusted devices the account owner can share the account [signing key](/doc/overview.md#signing-key) via a QR code (or hex-encoded string) which will allow the device to communicate with the server and add it's own public key and device meta data as a trusted device. 
 
-Once the server has established that the device is trusted it is able to retrieve the [identity vault](/docs/overview.md#identity-vault) and account folders to perform an initial synchronization. The account owner can then provide the [primary password](/docs/overview.md#primary-password) to sign in to the account on the new device.
+Once the server has established that the device is trusted it is able to retrieve the [identity vault](/doc/overview.md#identity-vault) and account folders to perform an initial synchronization. The account owner can then provide the [primary password](/doc/overview.md#primary-password) to sign in to the account on the new device.
 
 The server API endpoint for trusting devices should only require a signature from the account signing key for authentication.
 
