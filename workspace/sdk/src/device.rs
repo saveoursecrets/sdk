@@ -52,6 +52,15 @@ impl From<&[u8; 32]> for DevicePublicKey {
     }
 }
 
+impl TryFrom<&[u8]> for DevicePublicKey {
+    type Error = Error;
+
+    fn try_from(value: &[u8]) -> Result<Self> {
+        let value: [u8; 32] = value.try_into()?;
+        Ok(Self(value))
+    }
+}
+
 impl AsRef<[u8]> for DevicePublicKey {
     fn as_ref(&self) -> &[u8] {
         &self.0
