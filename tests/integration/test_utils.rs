@@ -243,7 +243,7 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
 
 /*
 pub async fn delete_secret(
-    provider: &mut FolderStorage,
+    provider: &mut Storage,
     summary: &Summary,
     id: &SecretId,
 ) -> Result<()> {

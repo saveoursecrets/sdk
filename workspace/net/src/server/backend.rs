@@ -7,7 +7,7 @@ use crate::{
         device::DevicePublicKey,
         events::{AuditEvent, Event, EventKind},
         signer::ecdsa::Address,
-        storage::FolderStorage,
+        storage::Storage,
         vault::{Header, Summary, VaultId},
         vfs, Paths,
     },
@@ -23,7 +23,7 @@ use tracing::{span, Level};
 
 /// Account storage.
 pub struct AccountStorage {
-    pub(crate) folders: FolderStorage,
+    pub(crate) folders: Storage,
     /// Set of trusted devices.
     devices: DeviceSet,
 }
@@ -229,7 +229,7 @@ impl FileSystemBackend {
                     {
                         tracing::debug!(account = %owner);
                         let mut account = AccountStorage {
-                            folders: FolderStorage::new_server(
+                            folders: Storage::new_server(
                                 owner.clone(),
                                 Some(self.directory.clone()),
                             )
@@ -278,7 +278,7 @@ impl BackendHandler for FileSystemBackend {
         paths.ensure().await?;
 
         let mut account = AccountStorage {
-            folders: FolderStorage::new_server(
+            folders: Storage::new_server(
                 owner.clone(),
                 Some(self.directory.clone()),
             )

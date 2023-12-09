@@ -19,7 +19,7 @@ use crate::{
     signer::ecdsa::Address,
     storage::{
         search::{DocumentCount, SearchIndex},
-        AccessOptions, FolderStorage,
+        AccessOptions, Storage,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
@@ -48,7 +48,7 @@ pub trait AccountHandler {
     /// Called before changes to the account.
     async fn before_change(
         &self,
-        storage: Arc<RwLock<FolderStorage>>,
+        storage: Arc<RwLock<Storage>>,
         folder: &Summary,
         commit_state: &CommitState,
     ) -> Option<CommitState>;
@@ -97,7 +97,7 @@ pub(super) struct Authenticated {
     pub(super) user: Identity,
 
     /// Storage provider.
-    storage: Arc<RwLock<FolderStorage>>,
+    storage: Arc<RwLock<Storage>>,
 }
 
 /// User account backed by the filesystem.
@@ -205,8 +205,7 @@ impl<D> Account<D> {
         let address = signer.address()?;
 
         let mut storage =
-            FolderStorage::new_client(address.clone(), data_dir.clone())
-                .await?;
+            Storage::new_client(address.clone(), data_dir.clone()).await?;
 
         tracing::debug!("prepared storage provider");
 
@@ -249,7 +248,7 @@ impl<D> Account<D> {
     }
 
     /// Storage provider.
-    pub fn storage(&self) -> Result<Arc<RwLock<FolderStorage>>> {
+    pub fn storage(&self) -> Result<Arc<RwLock<Storage>>> {
         let auth =
             self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         Ok(Arc::clone(&auth.storage))
@@ -284,8 +283,7 @@ impl<D> Account<D> {
         let signer = user.identity()?.signer().clone();
 
         let mut storage =
-            FolderStorage::new_client(signer.address()?, Some(data_dir))
-                .await?;
+            Storage::new_client(signer.address()?, Some(data_dir)).await?;
         self.paths = storage.paths();
 
         let file_password = user.find_file_encryption_password().await?;

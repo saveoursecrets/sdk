@@ -8,7 +8,7 @@ use sos_net::sdk::{
     },
     identity::{AccountRef, PublicIdentity},
     migrate::import::{ImportFormat, ImportTarget},
-    storage::FolderStorage,
+    storage::Storage,
     vfs, Paths,
 };
 
@@ -399,7 +399,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
     let account_ref = AccountRef::Address(inventory.manifest.address);
     let account = find_account(&account_ref).await?;
 
-    let provider: Option<Arc<RwLock<FolderStorage>>> =
+    let provider: Option<Arc<RwLock<Storage>>> =
         if let Some(account) = account {
             let confirmed = read_flag(Some(
                 "Overwrite all account data from backup? (y/n) ",

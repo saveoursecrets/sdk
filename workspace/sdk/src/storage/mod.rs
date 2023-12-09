@@ -14,7 +14,7 @@ pub(crate) mod paths;
 #[cfg(feature = "search")]
 pub mod search;
 
-pub use folders::FolderStorage;
+pub use folders::Storage;
 
 /// Provides a status overview of an account.
 ///

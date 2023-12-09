@@ -17,7 +17,7 @@ use sos_sdk::{
     decode,
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::{AccountStatus, FolderStorage},
+    storage::{AccountStatus, Storage},
     url::Url,
     vault::{Summary, VaultId},
 };
@@ -96,7 +96,7 @@ pub struct RemoteBridge {
     /// Origin for this remote.
     origin: HostedOrigin,
     /// Local provider.
-    local: Arc<RwLock<FolderStorage>>,
+    local: Arc<RwLock<Storage>>,
     /// Client to use for remote communication.
     remote: RpcClient,
 }
@@ -105,7 +105,7 @@ impl RemoteBridge {
     /// Create a new remote bridge that wraps the given
     /// local provider.
     pub fn new(
-        local: Arc<RwLock<FolderStorage>>,
+        local: Arc<RwLock<Storage>>,
         origin: HostedOrigin,
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
@@ -120,7 +120,7 @@ impl RemoteBridge {
     }
 
     /// Clone of the local provider.
-    pub fn local(&self) -> Arc<RwLock<FolderStorage>> {
+    pub fn local(&self) -> Arc<RwLock<Storage>> {
         Arc::clone(&self.local)
     }
 }

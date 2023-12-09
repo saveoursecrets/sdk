@@ -6,7 +6,7 @@ use crate::client::{
 use async_trait::async_trait;
 use sos_sdk::{
     account::AccountHandler, commit::CommitState, events::Event,
-    storage::FolderStorage, vault::Summary,
+    storage::Storage, vault::Summary,
 };
 use std::{any::Any, sync::Arc};
 use tokio::sync::RwLock;
@@ -21,7 +21,7 @@ impl SyncHandler {
     /// Try to sync the target folder against all remotes.
     async fn try_sync_folder(
         &self,
-        storage: Arc<RwLock<FolderStorage>>,
+        storage: Arc<RwLock<Storage>>,
         folder: &Summary,
         commit_state: &CommitState,
     ) -> Result<Option<CommitState>> {
@@ -68,7 +68,7 @@ impl AccountHandler for SyncHandler {
 
     async fn before_change(
         &self,
-        storage: Arc<RwLock<FolderStorage>>,
+        storage: Arc<RwLock<Storage>>,
         folder: &Summary,
         commit_state: &CommitState,
     ) -> Option<CommitState> {

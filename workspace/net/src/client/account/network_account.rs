@@ -15,7 +15,7 @@ use sos_sdk::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
         },
-        AccessOptions, FolderStorage,
+        AccessOptions, Storage,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
@@ -169,7 +169,7 @@ impl NetworkAccount {
     }
 
     /// Storage provider.
-    pub fn storage(&self) -> Result<Arc<RwLock<FolderStorage>>> {
+    pub fn storage(&self) -> Result<Arc<RwLock<Storage>>> {
         Ok(self.account.storage()?)
     }
 

@@ -42,7 +42,7 @@ use crate::events::{FileEvent, FileEventLog};
 use crate::storage::search::{AccountSearch, DocumentCount, SearchIndex};
 
 /// Manages multiple folders loaded into memory and mirrored to disc.
-pub struct FolderStorage {
+pub struct Storage {
     /// Address of the account owner.
     address: Address,
 
@@ -71,7 +71,7 @@ pub struct FolderStorage {
     pub(super) file_password: Option<SecretString>,
 }
 
-impl FolderStorage {
+impl Storage {
     /// Create folder storage for client-side access.
     pub async fn new_client(
         address: Address,
@@ -108,7 +108,7 @@ impl FolderStorage {
         address: Address,
         mirror: bool,
         head_only: bool,
-    ) -> Result<FolderStorage> {
+    ) -> Result<Storage> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 paths.documents_dir().to_path_buf(),
@@ -1137,7 +1137,7 @@ impl FolderStorage {
 }
 
 #[cfg(feature = "account")]
-impl FolderStorage {
+impl Storage {
     /// Create a secret in the currently open vault.
     pub(crate) async fn create_secret(
         &mut self,
