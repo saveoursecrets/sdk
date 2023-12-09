@@ -36,5 +36,15 @@ Client requests that access an account **must include a valid signature** and th
 
 Signatures prove account ownership as the account signing key is protected by the [identity vault](/doc/overview.md#identity-vault).
 
+## Devices
+
+Devices are represented by Ed25519 signing keys and handled differently by clients and servers.
+
+Clients store the device signing key in a [device vault](/doc/overview.md#device-vault) along with meta data about trusted devices so that applications can show information about a device (hardware, operating system etc).
+
+The [device vault](/doc/overview.md#device-vault) is *not included in synchronization* and should *never leave the device*.
+
+Servers do not need the device meta data and just store the public keys of devices that have been explicitly trusted by the account owner.
+
 [^1]: The application event log when implemented will allow account deletion to be synchronized with a server.
 [^2]: Document the strategy for resolving conflicts.
