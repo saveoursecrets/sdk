@@ -46,13 +46,11 @@ The [device vault](/doc/overview.md#device-vault) is **not included in synchroni
 
 When a client sends account vaults to create an account on a server it **must include** the public key of the device creating the account and the server **must trust** the device. 
 
-Servers that do not provide an interface to the account owner to view trusted devices do not need the device meta data and can just store the public keys of devices that have been explicitly trusted by the account owner.
-
 ### Trusting Devices
 
 To add trusted devices the account owner can share the account [signing key](/docs/overview.md#signing-key) via a QR code (or text) which will allow the device to communicate with the server and add it's own public key and device meta data as a trusted device. 
 
-Once the server has established that the device is trusted it is able to retrieve the [identity vault](/docs/overview.md#identity-vault) and account folders to perform an initial synchronization.
+Once the server has established that the device is trusted it is able to retrieve the [identity vault](/docs/overview.md#identity-vault) and account folders to perform an initial synchronization. The account owner can then provide the [primary password](/docs/overview.md#primary-password) to sign in to the account on the new device.
 
 The server API endpoint for trusting devices should only require a signature from the account signing key for authentication.
 

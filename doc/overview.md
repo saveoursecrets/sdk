@@ -85,6 +85,11 @@ account sign in flow and to store delegated passwords.
 Delegated passwords are passwords for other folders managed 
 by the account owner.
 
+## Primary Password
+
+The primary password is the password used to unlock the identity 
+vault granting access to an account.
+
 ## Device Vault
 
 The device vault contains the signing key that identifies a single 
