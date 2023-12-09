@@ -294,9 +294,10 @@ impl Gatekeeper {
         self.vault.verify(key).await
     }
 
-    /// Unlock the vault by setting the private key from a passphrase.
+    /// Unlock the vault using the access key.
     ///
-    /// The private key is stored in memory by this gatekeeper.
+    /// The derived private key is stored in memory
+    /// until [Gatekeeper::lock] is called.
     pub async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
         if let Some(salt) = self.vault.salt() {
             match key {

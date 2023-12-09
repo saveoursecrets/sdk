@@ -421,10 +421,7 @@ impl AccountBackup {
                         .await?;
                 }
 
-                let vault = {
-                    let keeper = user.identity()?.keeper();
-                    keeper.vault().clone()
-                };
+                let vault = user.identity()?.vault().clone();
 
                 // Must re-write the identity vault
                 let buffer = encode(&vault).await?;

@@ -256,13 +256,7 @@ impl AccountBuilder {
             None
         };
 
-        let vault = {
-            let keeper = user.identity()?.keeper();
-            keeper.vault().clone()
-        };
-
-        //let user = user.private_identity()?;
-
+        let vault = user.identity()?.vault().clone();
         Ok((
             vault,
             NewAccount {

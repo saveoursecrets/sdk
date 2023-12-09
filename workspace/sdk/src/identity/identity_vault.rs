@@ -19,6 +19,7 @@ use crate::{
         ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
         ed25519, Signer,
     },
+    storage::Folder,
     vault::{
         secret::{
             Secret, SecretId, SecretMeta, SecretRow, SecretSigner, UserData,
@@ -28,7 +29,10 @@ use crate::{
     vfs, Error, Paths, Result,
 };
 use secrecy::{ExposeSecret, SecretString, SecretVec};
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use tracing::{span, Level};
 use urn::Urn;
 
@@ -38,10 +42,19 @@ use crate::device::{DeviceManager, DeviceSigner};
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
+/// Login variants.
+pub enum Login<'a> {
+    /// Login using an identity vault on disc.
+    File(PathBuf),
+    /// Login using an in-memory buffer of an
+    /// identity vault.
+    Buffer(&'a [u8]),
+}
+
 /// Identity vault stores the account signing key,
 /// asymmetric encryption key and delegated passwords.
 pub struct IdentityVault {
-    keeper: Gatekeeper,
+    folder: Folder,
     index: UrnLookup,
     private_identity: PrivateIdentity,
     #[cfg(feature = "device")]
@@ -64,9 +77,14 @@ impl IdentityVault {
         self.private_identity.address()
     }
 
-    /// Gatekeeper of the identity vault.
-    pub fn keeper(&self) -> &Gatekeeper {
-        &self.keeper
+    /// Get the vault.
+    pub fn vault(&self) -> &Vault {
+        self.folder.keeper().vault()
+    }
+
+    /// Verify the access key for this account.
+    pub async fn verify(&self, key: &AccessKey) -> bool {
+        self.folder.keeper().verify(key).await.ok().is_some()
     }
 
     /// Signing key for this device.
@@ -103,9 +121,9 @@ impl IdentityVault {
             .password(password.clone(), Some(KeyDerivation::generate_seed()))
             .await?;
 
-        let mut keeper = Gatekeeper::new(vault);
+        let mut folder = Folder::new_vault(vault);
         let key: AccessKey = password.into();
-        keeper.unlock(&key).await?;
+        folder.unlock(&key).await?;
 
         // Store the signing key
         let signer = SingleParty::new_random();
@@ -126,7 +144,7 @@ impl IdentityVault {
         let signer_id = SecretId::new_v4();
         let secret_data =
             SecretRow::new(signer_id, signer_meta, signer_secret);
-        keeper.create(&secret_data).await?;
+        folder.create(&secret_data).await?;
 
         // Store the AGE identity
         let identity_id = SecretId::new_v4();
@@ -144,7 +162,7 @@ impl IdentityVault {
         age_meta.set_urn(Some(identity_urn.clone()));
 
         let secret_data = SecretRow::new(identity_id, age_meta, age_secret);
-        keeper.create(&secret_data).await?;
+        folder.create(&secret_data).await?;
 
         let private_identity = PrivateIdentity {
             address,
@@ -154,11 +172,11 @@ impl IdentityVault {
         };
 
         let mut index: UrnLookup = Default::default();
-        index.insert((*keeper.id(), signer_urn), signer_id);
-        index.insert((*keeper.id(), identity_urn), identity_id);
+        index.insert((*folder.id(), signer_urn), signer_id);
+        index.insert((*folder.id(), identity_urn), identity_id);
 
         Ok(Self {
-            keeper,
+            folder,
             index,
             private_identity,
             #[cfg(feature = "device")]
@@ -168,7 +186,10 @@ impl IdentityVault {
 
     /// Rename this identity vault.
     pub async fn rename(&mut self, account_name: String) -> Result<()> {
-        self.keeper.set_vault_name(account_name.clone()).await?;
+        self.folder
+            .keeper
+            .set_vault_name(account_name.clone())
+            .await?;
         Ok(())
     }
 
@@ -177,30 +198,29 @@ impl IdentityVault {
         file: P,
         key: &AccessKey,
     ) -> Result<Self> {
-        let vault_file = VaultWriter::open(file.as_ref()).await?;
-        let mirror = VaultWriter::new(file.as_ref(), vault_file)?;
-        let buffer = vfs::read(file.as_ref()).await?;
-        Self::login_buffer(buffer, key, Some(mirror)).await
+        Self::do_login(Login::File(file.as_ref().to_path_buf()), key).await
     }
 
     /// Attempt to login using a buffer.
-    pub(crate) async fn login_buffer<B: AsRef<[u8]>>(
-        buffer: B,
+    pub(crate) async fn do_login(
+        login: Login<'_>,
         key: &AccessKey,
-        mirror: Option<VaultWriter<vfs::File>>,
     ) -> Result<Self> {
-        let vault: Vault = decode(buffer.as_ref()).await?;
-        if !vault.flags().contains(VaultFlags::IDENTITY) {
+        let mut folder = match login {
+            Login::File(path) => Folder::new_file(path).await?,
+            Login::Buffer(buffer) => Folder::new_buffer(buffer).await?,
+        };
+
+        if !folder
+            .keeper()
+            .vault()
+            .flags()
+            .contains(VaultFlags::IDENTITY)
+        {
             return Err(Error::NotIdentityVault);
         }
 
-        let mut keeper = if let Some(mirror) = mirror {
-            Gatekeeper::new_mirror(vault, mirror)
-        } else {
-            Gatekeeper::new(vault)
-        };
-
-        keeper.unlock(&key).await?;
+        folder.unlock(&key).await?;
 
         let mut index: UrnLookup = Default::default();
 
@@ -211,8 +231,8 @@ impl IdentityVault {
         let mut identity_secret: Option<Secret> = None;
         let mut folder_secrets = HashMap::new();
 
-        for id in keeper.vault().keys() {
-            if let Some((meta, secret, _)) = keeper.read(id).await? {
+        for id in folder.keeper().vault().keys() {
+            if let Some((meta, secret, _)) = folder.read(id).await? {
                 if let Some(urn) = meta.urn() {
                     if urn.nss().starts_with(VAULT_NSS) {
                         let id: VaultId = urn
@@ -232,38 +252,10 @@ impl IdentityVault {
                     }
 
                     // Add to the URN lookup index
-                    index.insert((*keeper.id(), urn.clone()), *id);
+                    index.insert((*folder.keeper().id(), urn.clone()), *id);
                 }
             }
         }
-
-        /*
-        for id in keeper.vault().keys() {
-            if let Some((meta, secret, _)) = keeper.read(id).await? {
-                if let Some(urn) = meta.urn() {
-
-                    if urn.nss().starts_with(VAULT_NSS) {
-                        let id: VaultId = urn
-                            .nss()
-                            .trim_start_matches(VAULT_NSS)
-                            .parse()?;
-                        if let Secret::Password { password, .. } = &secret {
-                            let key: AccessKey = password.clone().into();
-                        }
-                    }
-
-                    if urn == &signer_urn {
-                        signer_secret = Some(secret);
-                    } else if urn == &identity_urn {
-                        identity_secret = Some(secret);
-                    }
-
-                    // Add to the URN lookup index
-                    index.insert((*keeper.id(), urn.clone()), *id);
-                }
-            }
-        }
-        */
 
         let signer = signer_secret.ok_or(Error::NoSigningKey)?;
         let identity = identity_secret.ok_or(Error::NoIdentityKey)?;
@@ -297,7 +289,7 @@ impl IdentityVault {
         };
 
         Ok(Self {
-            keeper,
+            folder,
             index,
             private_identity,
             #[cfg(feature = "device")]
@@ -441,119 +433,6 @@ impl IdentityVault {
         vault_id: &VaultId,
         key: AccessKey,
     ) -> Result<()> {
-        Self::create_folder_password(
-            &mut self.keeper,
-            &mut self.index,
-            vault_id,
-            key,
-        )
-        .await
-    }
-
-    /// Find a folder password in this identity.
-    ///
-    /// The identity vault must already be unlocked to extract
-    /// the secret password.
-    pub(super) async fn find_folder_password(
-        &self,
-        vault_id: &VaultId,
-    ) -> Result<AccessKey> {
-        let span = span!(Level::DEBUG, "find_folder_password");
-        let _enter = span.enter();
-
-        let urn = Vault::vault_urn(vault_id)?;
-
-        tracing::debug!(folder = %vault_id, urn = %urn);
-
-        let id = self
-            .index
-            .get(&(*self.keeper.id(), urn.clone()))
-            .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
-
-        let (_, secret, _) = self
-            .keeper
-            .read(id)
-            .await?
-            .ok_or_else(|| Error::NoSecretId(*self.keeper.id(), *id))?;
-
-        let key = match secret {
-            Secret::Password { password, .. } => {
-                AccessKey::Password(password)
-            }
-            Secret::Age { key, .. } => {
-                AccessKey::Identity(key.expose_secret().parse().map_err(
-                    |s: &str| Error::InvalidX25519Identity(s.to_owned()),
-                )?)
-            }
-            _ => return Err(Error::VaultEntryKind(urn.to_string())),
-        };
-        Ok(key)
-    }
-
-    /// Remove a folder password from this identity.
-    pub(super) async fn remove_folder_password(
-        &mut self,
-        vault_id: &VaultId,
-    ) -> Result<()> {
-        Self::delete_folder_password(
-            &mut self.keeper,
-            &mut self.index,
-            vault_id,
-        )
-        .await
-    }
-
-    pub(crate) async fn create_file_encryption_password(
-        &mut self,
-    ) -> Result<()> {
-        let file_passphrase = self.generate_folder_password()?;
-        let secret = Secret::Password {
-            password: file_passphrase,
-            name: None,
-            user_data: UserData::new_comment(self.address().to_string()),
-        };
-        let mut meta =
-            SecretMeta::new("File Encryption".to_string(), secret.kind());
-        let urn: Urn = FILE_PASSWORD_URN.parse()?;
-        meta.set_urn(Some(urn.clone()));
-
-        let secret_id = SecretId::new_v4();
-        let secret_data = SecretRow::new(secret_id, meta, secret);
-        self.keeper.create(&secret_data).await?;
-        self.index.insert((*self.keeper.id(), urn), secret_id);
-
-        Ok(())
-    }
-
-    /// Find the password used for symmetric file encryption (AGE).
-    pub(crate) async fn find_file_encryption_password(
-        &self,
-    ) -> Result<SecretString> {
-        let urn: Urn = FILE_PASSWORD_URN.parse()?;
-
-        let id = self
-            .index
-            .get(&(*self.keeper.id(), urn.clone()))
-            .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
-
-        let password =
-            if let Some((_, Secret::Password { password, .. }, _)) =
-                self.keeper.read(id).await?
-            {
-                password
-            } else {
-                return Err(Error::VaultEntryKind(urn.to_string()));
-            };
-        Ok(password)
-    }
-
-    /// Save a folder password into an identity vault.
-    pub async fn create_folder_password(
-        keeper: &mut Gatekeeper,
-        index: &mut UrnLookup,
-        vault_id: &VaultId,
-        key: AccessKey,
-    ) -> Result<()> {
         let span = span!(Level::DEBUG, "save_folder_password");
         let _enter = span.enter();
 
@@ -580,33 +459,117 @@ impl IdentityVault {
         let id = SecretId::new_v4();
 
         let secret_data = SecretRow::new(id, meta, secret);
-        keeper.create(&secret_data).await?;
+        self.folder.create(&secret_data).await?;
 
-        index.insert((*keeper.id(), urn), id);
+        self.index.insert((*self.folder.id(), urn), id);
 
         Ok(())
     }
 
-    /// Remove a folder password from an identity vault.
-    pub async fn delete_folder_password(
-        keeper: &mut Gatekeeper,
-        index: &mut UrnLookup,
+    /// Find a folder password in this identity.
+    ///
+    /// The identity vault must already be unlocked to extract
+    /// the secret password.
+    pub(super) async fn find_folder_password(
+        &self,
+        vault_id: &VaultId,
+    ) -> Result<AccessKey> {
+        let span = span!(Level::DEBUG, "find_folder_password");
+        let _enter = span.enter();
+
+        let urn = Vault::vault_urn(vault_id)?;
+
+        tracing::debug!(folder = %vault_id, urn = %urn);
+
+        let id = self
+            .index
+            .get(&(*self.folder.id(), urn.clone()))
+            .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
+
+        let (_, secret, _) = self
+            .folder
+            .read(id)
+            .await?
+            .ok_or_else(|| Error::NoSecretId(*self.folder.id(), *id))?;
+
+        let key = match secret {
+            Secret::Password { password, .. } => {
+                AccessKey::Password(password)
+            }
+            Secret::Age { key, .. } => {
+                AccessKey::Identity(key.expose_secret().parse().map_err(
+                    |s: &str| Error::InvalidX25519Identity(s.to_owned()),
+                )?)
+            }
+            _ => return Err(Error::VaultEntryKind(urn.to_string())),
+        };
+        Ok(key)
+    }
+
+    /// Remove a folder password from this identity.
+    pub(super) async fn remove_folder_password(
+        &mut self,
         vault_id: &VaultId,
     ) -> Result<()> {
         tracing::debug!(folder = %vault_id, "remove folder password");
 
         let (keeper_id, id, urn) = {
             let urn = Vault::vault_urn(vault_id)?;
-            let id = index
-                .get(&(*keeper.id(), urn.clone()))
+            let id = self
+                .index
+                .get(&(*self.folder.keeper().id(), urn.clone()))
                 .ok_or(Error::NoVaultEntry(urn.to_string()))?;
-            (*keeper.id(), *id, urn)
+            (*self.folder.keeper().id(), *id, urn)
         };
 
-        keeper.delete(&id).await?;
-        index.remove(&(keeper_id, urn));
+        self.folder.delete(&id).await?;
+        self.index.remove(&(keeper_id, urn));
 
         Ok(())
+    }
+
+    pub(crate) async fn create_file_encryption_password(
+        &mut self,
+    ) -> Result<()> {
+        let file_passphrase = self.generate_folder_password()?;
+        let secret = Secret::Password {
+            password: file_passphrase,
+            name: None,
+            user_data: UserData::new_comment(self.address().to_string()),
+        };
+        let mut meta =
+            SecretMeta::new("File Encryption".to_string(), secret.kind());
+        let urn: Urn = FILE_PASSWORD_URN.parse()?;
+        meta.set_urn(Some(urn.clone()));
+
+        let secret_id = SecretId::new_v4();
+        let secret_data = SecretRow::new(secret_id, meta, secret);
+        self.folder.create(&secret_data).await?;
+        self.index.insert((*self.folder.id(), urn), secret_id);
+
+        Ok(())
+    }
+
+    /// Find the password used for symmetric file encryption (AGE).
+    pub(crate) async fn find_file_encryption_password(
+        &self,
+    ) -> Result<SecretString> {
+        let urn: Urn = FILE_PASSWORD_URN.parse()?;
+
+        let id = self
+            .index
+            .get(&(*self.folder.id(), urn.clone()))
+            .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
+
+        let password =
+            if let Some((_, Secret::Password { password, .. }, _)) =
+                self.folder.read(id).await?
+            {
+                password
+            } else {
+                return Err(Error::VaultEntryKind(urn.to_string()));
+            };
+        Ok(password)
     }
 
     /// Sign out the identity vault.
@@ -616,7 +579,7 @@ impl IdentityVault {
         tracing::debug!("identity vault sign out");
 
         // Lock the identity vault
-        self.keeper.lock();
+        self.folder.lock();
         self.index = Default::default();
 
         // Lock the devices vault
@@ -631,6 +594,6 @@ impl IdentityVault {
 
 impl From<IdentityVault> for (Address, Vault) {
     fn from(value: IdentityVault) -> Self {
-        (value.address().clone(), value.keeper.into())
+        (value.address().clone(), value.folder.keeper.into())
     }
 }

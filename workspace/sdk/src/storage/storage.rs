@@ -1,7 +1,7 @@
 //! Storage backed by the filesystem.
 use crate::{
     commit::{CommitHash, CommitState, CommitTree},
-    constants::VAULT_EXT,
+    constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
     decode, encode,
     events::{
@@ -15,7 +15,8 @@ use crate::{
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
-        VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultWriter,
+        VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultMeta,
+        VaultWriter,
     },
     vfs, Error, Paths, Result, Timestamp,
 };
@@ -23,7 +24,7 @@ use crate::{
 use secrecy::SecretString;
 use std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::sync::RwLock;
@@ -43,23 +44,87 @@ use crate::storage::search::{AccountSearch, DocumentCount, SearchIndex};
 
 /// Folder is a combined vault and event log.
 pub struct Folder {
-    keeper: Gatekeeper,
-    events: FolderEventLog,
+    pub(crate) keeper: Gatekeeper,
+    events: Option<FolderEventLog>,
 }
 
 impl Folder {
     /// Create a new folder.
-    pub fn new(keeper: Gatekeeper, events: FolderEventLog) -> Self {
+    pub fn new(keeper: Gatekeeper, events: Option<FolderEventLog>) -> Self {
         Self { keeper, events }
     }
 
+    /// Create a new folder from a vault buffer.
+    ///
+    /// Changes are not mirrored to disc and events are not logged.
+    pub async fn new_buffer(buffer: impl AsRef<[u8]>) -> Result<Self> {
+        let vault: Vault = decode(buffer.as_ref()).await?;
+        let keeper = Gatekeeper::new(vault);
+        Ok(Self::new(keeper, None))
+    }
+
+    /// Create a new folder from a vault.
+    ///
+    /// Changes are not mirrored to disc and events are not logged.
+    pub fn new_vault(vault: Vault) -> Self {
+        let keeper = Gatekeeper::new(vault);
+        Self::new(keeper, None)
+    }
+
+    /// Create a new folder from a vault file.
+    ///
+    /// Changes to the in-memory vault are mirrored to disc and
+    /// and if an event log does not exist it is created.
+    pub async fn new_file(path: impl AsRef<Path>) -> Result<Self> {
+        let mut events_path = path.as_ref().to_owned();
+        events_path.set_extension(EVENT_LOG_EXT);
+
+        let buffer = vfs::read(path.as_ref()).await?;
+        let vault: Vault = decode(&buffer).await?;
+        let vault_file = VaultWriter::open(path.as_ref()).await?;
+        let mirror = VaultWriter::new(path.as_ref(), vault_file)?;
+        let keeper = Gatekeeper::new_mirror(vault, mirror);
+
+        let mut events = FolderEventLog::new_folder(events_path).await?;
+        events.load_tree().await?;
+        let needs_init = events.tree().root().is_none();
+        if needs_init {
+            let event = WriteEvent::CreateVault(buffer);
+            events.apply(vec![&event]).await?;
+        }
+
+        Ok(Self::new(keeper, Some(events)))
+    }
+
+    /// Folder identifier.
+    pub fn id(&self) -> &VaultId {
+        self.keeper.id()
+    }
+
+    /// Gatekeeper for this folder.
+    pub fn keeper(&self) -> &Gatekeeper {
+        &self.keeper
+    }
+
+    /// Unlock using the folder access key.
+    pub async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
+        self.keeper.unlock(key).await
+    }
+
+    /// Lock the folder.
+    pub fn lock(&mut self) {
+        self.keeper.lock();
+    }
+
     /// Create a secret.
-    pub async fn create_secret(
+    pub async fn create(
         &mut self,
         secret_data: &SecretRow,
     ) -> Result<WriteEvent> {
         let event = self.keeper.create(secret_data).await?;
-        self.events.apply(vec![&event]).await?;
+        if let Some(events) = self.events.as_mut() {
+            events.apply(vec![&event]).await?;
+        }
         Ok(event)
     }
 
@@ -81,7 +146,9 @@ impl Folder {
         if let Some(event) =
             self.keeper.update(id, secret_meta, secret).await?
         {
-            self.events.apply(vec![&event]).await?;
+            if let Some(events) = self.events.as_mut() {
+                events.apply(vec![&event]).await?;
+            }
             Ok(Some(event))
         } else {
             Ok(None)
@@ -93,10 +160,10 @@ impl Folder {
         &mut self,
         id: &SecretId,
     ) -> Result<Option<WriteEvent>> {
-        if let Some(event) =
-            self.keeper.delete(id).await?
-        {
-            self.events.apply(vec![&event]).await?;
+        if let Some(event) = self.keeper.delete(id).await? {
+            if let Some(events) = self.events.as_mut() {
+                events.apply(vec![&event]).await?;
+            }
             Ok(Some(event))
         } else {
             Ok(None)

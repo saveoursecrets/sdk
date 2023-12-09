@@ -9,7 +9,7 @@
 use crate::{
     crypto::AccessKey,
     events::{AuditEvent, Event, EventKind},
-    identity::{IdentityVault, PublicIdentity},
+    identity::{IdentityVault, Login, PublicIdentity},
     signer::ecdsa::Address,
     vault::{secret::SecretId, Summary, Vault, VaultId},
     vfs, Error, Paths, Result,
@@ -132,12 +132,10 @@ impl Identity {
     }
     */
 
-    /// Verify the passphrase for this account.
+    /// Verify the access key for this account.
     pub async fn verify(&self, key: &AccessKey) -> bool {
         if let Some(identity) = &self.identity {
-            let keeper = identity.keeper();
-            let result = keeper.verify(key).await.ok();
-            result.is_some()
+            identity.verify(key).await
         } else {
             false
         }
@@ -236,14 +234,16 @@ impl Identity {
         Ok(())
     }
 
-    /// Attempt to login using a buffer.
+    /// Login using a buffer.
     pub(crate) async fn login_buffer<B: AsRef<[u8]>>(
         &mut self,
         buffer: B,
         key: &AccessKey,
     ) -> Result<()> {
-        self.identity =
-            Some(IdentityVault::login_buffer(buffer, key, None).await?);
+        self.identity = Some(
+            IdentityVault::do_login(Login::Buffer(buffer.as_ref()), key)
+                .await?,
+        );
         Ok(())
     }
 
