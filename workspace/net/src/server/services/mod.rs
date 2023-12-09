@@ -9,11 +9,7 @@ use axum::{
 
 use async_trait::async_trait;
 use mpc_protocol::channel::{decrypt_server_channel, encrypt_server_channel};
-use sos_sdk::{
-    constants::MIME_TYPE_RPC,
-    decode, encode,
-    events::{AuditEvent, AuditProvider},
-};
+use sos_sdk::{constants::MIME_TYPE_RPC, decode, encode};
 use web3_address::ethereum::Address;
 
 use std::sync::Arc;

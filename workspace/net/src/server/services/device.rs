@@ -1,6 +1,3 @@
-use axum::http::StatusCode;
-use std::collections::HashMap;
-
 use sos_sdk::{
     constants::{DEVICE_REVOKE, DEVICE_TRUST},
     device::DevicePublicKey,
@@ -29,7 +26,7 @@ impl Service for DeviceService {
         state: Self::State,
         request: RequestMessage<'a>,
     ) -> Result<ResponseMessage<'a>> {
-        let (caller, (state, backend)) = state;
+        let (caller, (_state, backend)) = state;
 
         match request.method() {
             DEVICE_TRUST => {

@@ -8,12 +8,11 @@ use sos_net::{
         RemoteSync, WebSocketHandle,
     },
     sdk::{
-        account::LocalAccount,
         constants::VAULT_EXT,
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         vault::{Summary, VaultId},
-        vfs, Paths,
+        vfs,
     },
 };
 use std::path::PathBuf;
@@ -239,8 +238,8 @@ pub async fn assert_local_remote_events_eq(
     // Compare event log status (commit proofs)
     let local_status = {
         let storage = owner.storage()?;
-        let mut writer = storage.write().await;
-        writer.account_status().await?
+        let reader = storage.read().await;
+        reader.account_status().await?
     };
     let remote_status = provider.account_status().await?;
 

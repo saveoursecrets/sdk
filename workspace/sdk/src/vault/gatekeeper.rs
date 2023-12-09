@@ -12,8 +12,6 @@ use crate::{
 };
 use tracing::{span, Level};
 
-use uuid::Uuid;
-
 /// Access to an in-memory vault optionally mirroring changes to disc.
 ///
 /// It stores the derived private key in memory so should only be

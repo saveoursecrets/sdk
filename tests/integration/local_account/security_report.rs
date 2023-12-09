@@ -1,6 +1,6 @@
 use anyhow::Result;
 use secrecy::SecretString;
-use sos_net::{client::NetworkAccount, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 use crate::test_utils::{setup, teardown};
 

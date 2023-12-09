@@ -4,7 +4,6 @@ use crate::client::{
     Error, ListenOptions, NetworkAccount, Origin, RemoteBridge, Result,
     WebSocketHandle,
 };
-use futures::{select, FutureExt};
 use std::sync::Arc;
 
 impl NetworkAccount {

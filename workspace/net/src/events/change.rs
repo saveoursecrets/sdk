@@ -6,7 +6,7 @@ use sos_sdk::{
     commit::CommitProof,
     events::{Event, WriteEvent},
     signer::ecdsa::Address,
-    vault::{secret::SecretId, Header, Summary, VaultId},
+    vault::{secret::SecretId, VaultId},
 };
 
 use crate::{Error, Result};

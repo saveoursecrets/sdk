@@ -3,11 +3,12 @@
 use crate::{
     constants::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
-        DEFAULT_CONTACTS_VAULT_NAME, FILE_PASSWORD_URN,
+        DEFAULT_CONTACTS_VAULT_NAME,
     },
     crypto::AccessKey,
     encode,
     identity::{FolderKeys, Identity, IdentityVault},
+    signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
@@ -16,8 +17,6 @@ use crate::{
 };
 use secrecy::SecretString;
 use std::{collections::HashMap, path::PathBuf};
-use urn::Urn;
-use web3_address::ethereum::Address;
 
 /// Information about a new account.
 pub struct NewAccount {

@@ -1,31 +1,16 @@
 use anyhow::Result;
 use axum_server::Handle;
 
-use secrecy::SecretString;
 use std::{
     net::SocketAddr, path::PathBuf, sync::Arc, thread, time::Duration,
 };
 use tokio::sync::{oneshot, RwLock};
 use url::Url;
-use web3_address::ethereum::Address;
 
 use sos_net::{
-    client::{HostedOrigin, NetworkAccount, RemoteBridge, RemoteSync},
-    mpc::{Keypair, PATTERN},
-    sdk::{
-        crypto::AccessKey,
-        hex,
-        passwd::diceware::generate_passphrase,
-        signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
-        storage::FolderStorage,
-        vault::{secret::SecretId, Summary},
-        vfs, Paths,
-    },
-    server::{
-        BackendHandler, Server, ServerConfig, ServerInfo, State,
-        TransportManager,
-    },
-    FileLocks,
+    client::HostedOrigin,
+    sdk::{hex, signer::ecdsa::Address, vfs, Paths},
+    server::{Server, ServerConfig, ServerInfo, State, TransportManager},
 };
 
 const ADDR: &str = "127.0.0.1:0";
@@ -87,7 +72,7 @@ impl MockServer {
         config.storage.url =
             Url::parse(&format!("file://{}", self.path.display()))?;
 
-        let mut backend = config.backend().await?;
+        let backend = config.backend().await?;
 
         let state = Arc::new(RwLock::new(State {
             info: ServerInfo {

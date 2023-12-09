@@ -2,13 +2,12 @@
 use age::x25519::Identity;
 use argon2::password_hash::SaltString;
 use secrecy::{ExposeSecret, SecretString, SecretVec};
-use serde::{Deserialize, Serialize};
 use std::convert::AsRef;
 use std::fmt;
 
 use crate::{
-    crypto::{AeadPack, Cipher, KeyDerivation, Seed},
-    Error, Result,
+    crypto::{KeyDerivation, Seed},
+    Result,
 };
 
 /// Access key used to unlock a vault.

@@ -13,10 +13,7 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::{
-    account::{
-        archive::{ArchiveItem, Inventory, Reader, Writer},
-        LocalAccount,
-    },
+    account::archive::{ArchiveItem, Inventory, Reader, Writer},
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
     decode, encode,

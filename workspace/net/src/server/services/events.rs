@@ -5,7 +5,7 @@ use sos_sdk::{
         EVENT_LOG_DIFF, EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_STATUS,
     },
     decode, encode,
-    events::{AuditData, AuditEvent, Event, EventKind, WriteEvent},
+    events::{AuditEvent, Event, WriteEvent},
 };
 use web3_address::ethereum::Address;
 

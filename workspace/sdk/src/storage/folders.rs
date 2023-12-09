@@ -36,10 +36,7 @@ use crate::account::NewAccount;
 use crate::account::archive::RestoreTargets;
 
 #[cfg(feature = "files")]
-use crate::{
-    events::{FileEvent, FileEventLog},
-    storage::files::FileProgress,
-};
+use crate::events::{FileEvent, FileEventLog};
 
 #[cfg(feature = "search")]
 use crate::storage::search::{AccountSearch, DocumentCount, SearchIndex};
@@ -800,7 +797,7 @@ impl FolderStorage {
                 .iter()
                 .position(|s| s.id() == summary.id())
             {
-                let mut existing =
+                let existing =
                     self.state.summaries_mut().get_mut(position).unwrap();
                 *existing = summary.clone();
             }

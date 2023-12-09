@@ -1,6 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{events::Patch, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 use super::all_events;
 
@@ -26,7 +26,7 @@ async fn integration_events_move_folder() -> Result<()> {
     )
     .await?;
 
-    let (mut account2, new_account2) = LocalAccount::new_account(
+    let (mut account2, _new_account2) = LocalAccount::new_account(
         account_name.clone(),
         password2.clone(),
         Some(data_dir.clone()),
@@ -45,8 +45,7 @@ async fn integration_events_move_folder() -> Result<()> {
         mock::card("card", TEST_ID, "123"),
         mock::bank("bank", TEST_ID, "12-34-56"),
     ];
-    let results = account1.insert_secrets(docs).await?;
-    let ids: Vec<_> = results.into_iter().map(|r| r.0).collect();
+    account1.insert_secrets(docs).await?;
 
     // Export a vault so we can do an import,
     // this would be the flow used if we wanted

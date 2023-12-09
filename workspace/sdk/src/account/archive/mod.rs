@@ -9,7 +9,7 @@ pub use backup::{
 pub use zip::*;
 
 use crate::{
-    account::{Account, LocalAccount},
+    account::Account,
     events::{AuditEvent, EventKind},
     identity::{Identity, PublicIdentity},
     vfs::File,

@@ -1,10 +1,8 @@
 use axum::http::StatusCode;
-use std::collections::HashMap;
 
 use sos_sdk::{
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
     device::DevicePublicKey,
-    events::{AuditEvent, Event, EventKind},
     storage::AccountStatus,
     vault::Header,
 };
@@ -68,7 +66,6 @@ impl Service for AccountService {
                     .handler_mut()
                     .create_account(
                         caller.address(),
-                        summary.id(),
                         request.body(),
                         device_public_key,
                     )

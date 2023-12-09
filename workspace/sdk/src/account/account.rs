@@ -2,21 +2,18 @@
 use std::{
     borrow::Cow,
     collections::HashMap,
-    fmt,
     path::{Path, PathBuf},
-    str::FromStr,
     sync::Arc,
 };
 
 use crate::{
     account::{AccountBuilder, NewAccount},
     commit::{CommitHash, CommitState},
-    constants::VAULT_EXT,
     crypto::AccessKey,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, AuditData, AuditEvent, AuditLogFile,
-        AuditProvider, Event, EventKind, EventReducer, ReadEvent, WriteEvent,
+        AccountEvent, AccountEventLog, AuditData, AuditEvent, Event,
+        EventKind, EventReducer, ReadEvent, WriteEvent,
     },
     identity::{FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::Address,
@@ -26,7 +23,7 @@ use crate::{
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
-        Gatekeeper, Header, Summary, Vault, VaultId,
+        Gatekeeper, Summary, Vault, VaultId,
     },
     vfs, Error, Paths, Result, Timestamp,
 };
@@ -213,7 +210,7 @@ impl<D> Account<D> {
 
         tracing::debug!("prepared storage provider");
 
-        let events = storage.create_account(&new_account).await?;
+        storage.create_account(&new_account).await?;
 
         tracing::debug!("imported new account");
 
@@ -294,12 +291,8 @@ impl<D> Account<D> {
         let file_password = user.find_file_encryption_password().await?;
         storage.set_file_password(Some(file_password));
 
-        Self::initialize_account_log(
-            &*self.paths,
-            storage.account_log(),
-            &user,
-        )
-        .await?;
+        Self::initialize_account_log(&*self.paths, storage.account_log())
+            .await?;
 
         self.authenticated = Some(Authenticated {
             user,
@@ -314,7 +307,6 @@ impl<D> Account<D> {
     async fn initialize_account_log(
         paths: &Paths,
         account_log: Arc<RwLock<AccountEventLog>>,
-        user: &Identity,
     ) -> Result<()> {
         let span = span!(Level::DEBUG, "init_account_log");
         let _enter = span.enter();
@@ -417,11 +409,7 @@ impl<D> Account<D> {
         &mut self,
         account_name: String,
     ) -> Result<()> {
-        let paths = self.paths().clone();
-        Ok(self
-            .user_mut()?
-            .rename_account(&paths, account_name)
-            .await?)
+        Ok(self.user_mut()?.rename_account(account_name).await?)
     }
 
     /// Try to find a folder using a predicate.
@@ -513,7 +501,7 @@ impl<D> Account<D> {
         let passphrase = self.user()?.generate_folder_password()?;
         let key: AccessKey = passphrase.into();
 
-        let (buffer, event, summary, account_event) = {
+        let (buffer, _, summary, account_event) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer.create_folder(name, Some(key.clone())).await?
@@ -549,7 +537,7 @@ impl<D> Account<D> {
         let (summary, commit_state) =
             self.compute_folder_state(&options, false).await?;
 
-        let mut events = {
+        let events = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer.delete_folder(&summary).await?
@@ -770,8 +758,6 @@ impl<D> Account<D> {
         } else {
             false
         };
-
-        let folder_id = *vault.id();
 
         let existing_name =
             self.find(|s| s.name() == vault.summary().name()).await;
@@ -1008,16 +994,6 @@ impl<D> Account<D> {
             writer.create_secret(secret_data, options).await?
         };
 
-        let current_folder = {
-            let storage = self.storage()?;
-            let reader = storage.read().await;
-            reader
-                .current()
-                .as_ref()
-                .map(|g| g.summary().clone())
-                .ok_or(Error::NoOpenFolder)?
-        };
-
         let event = Event::Write(*folder.id(), event);
         if audit {
             let audit_event: AuditEvent = (self.address(), &event).into();
@@ -1078,7 +1054,7 @@ impl<D> Account<D> {
         secret_id: &SecretId,
         meta: SecretMeta,
         secret: Option<Secret>,
-        mut options: AccessOptions,
+        options: AccessOptions,
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Event, CommitState, Summary)> {
         let (folder, commit_state) =
@@ -1202,7 +1178,7 @@ impl<D> Account<D> {
     pub async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
-        mut options: AccessOptions,
+        options: AccessOptions,
     ) -> Result<(Event, CommitState, Summary)> {
         let (folder, commit_state) =
             self.compute_folder_state(&options, true).await?;

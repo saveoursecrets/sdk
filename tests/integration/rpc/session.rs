@@ -1,22 +1,19 @@
 use crate::test_utils::{setup, spawn, teardown};
 use anyhow::Result;
 use http::StatusCode;
-use secrecy::SecretString;
 use sos_net::{
-    client::{HostedOrigin, RemoteBridge, RemoteSync, RpcClient},
-    mpc::{generate_keypair, Keypair, PATTERN},
+    client::{HostedOrigin, RpcClient},
+    mpc::generate_keypair,
     sdk::{
-        crypto::AccessKey,
         device::DeviceSigner,
         encode,
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
         storage::FolderStorage,
-        vault::{Vault, VaultBuilder},
+        vault::VaultBuilder,
     },
 };
-use std::{path::PathBuf, sync::Arc};
-use tokio::sync::RwLock;
+use std::path::PathBuf;
 
 const TEST_ID: &str = "rpc_session";
 
@@ -29,7 +26,6 @@ async fn create_rpc_client(
     // Set up local storage in case we need to use it
     FolderStorage::new_client(signer.address()?, Some(data_dir)).await?;
 
-    let address = signer.address()?;
     let device = DeviceSigner::new_random();
     let client = RpcClient::new(
         origin.clone(),
@@ -55,8 +51,7 @@ async fn integration_rpc_session() -> Result<()> {
 
     let server = spawn(TEST_ID, None, None).await?;
 
-    let origin = server.origin.clone();
-    let (client, signer) =
+    let (client, _signer) =
         create_rpc_client(data_dir, &server.origin).await?;
 
     let (folder_password, _) = generate_passphrase()?;

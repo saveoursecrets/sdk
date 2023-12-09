@@ -1,6 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::{prelude::*, vfs};
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "trusted_devices";
 

@@ -1,41 +1,13 @@
 //! Public identity information.
 use crate::{
-    commit::CommitState,
-    constants::{
-        FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
-        VAULT_EXT, VAULT_NSS,
-    },
-    crypto::{AccessKey, KeyDerivation},
-    decode, encode,
-    events::{AuditEvent, Event, EventKind},
-    identity::PrivateIdentity,
-    passwd::diceware::generate_passphrase_words,
-    signer::{
-        ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
-        ed25519, Signer,
-    },
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
-        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
-        VaultFlags, VaultId, VaultWriter,
-    },
+    constants::VAULT_EXT,
+    decode,
+    signer::ecdsa::Address,
+    vault::{Header, Summary, Vault, VaultId},
     vfs, Error, Paths, Result,
 };
-use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    fmt,
-    path::{Path, PathBuf},
-    str::FromStr,
-    sync::Arc,
-};
-use tokio::sync::RwLock;
-use tracing::{span, Level};
-use urn::Urn;
-
-#[cfg(feature = "device")]
-use crate::device::{DeviceManager, DeviceSigner};
+use std::{fmt, path::PathBuf, str::FromStr};
 
 /// Public account identity information.
 #[derive(Debug, Clone, Serialize, Deserialize)]

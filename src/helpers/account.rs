@@ -4,7 +4,6 @@ use std::{borrow::Cow, sync::Arc};
 use sos_net::{
     client::NetworkAccount,
     sdk::{
-        account::LocalAccount,
         constants::DEFAULT_VAULT_NAME,
         crypto::AccessKey,
         identity::{AccountRef, Identity, PublicIdentity},

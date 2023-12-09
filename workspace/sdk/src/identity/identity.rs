@@ -7,42 +7,24 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single master password.
 use crate::{
-    commit::CommitState,
-    constants::{
-        FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
-        VAULT_EXT, VAULT_NSS,
-    },
-    crypto::{AccessKey, KeyDerivation},
-    decode, encode,
+    crypto::AccessKey,
     events::{AuditEvent, Event, EventKind},
-    identity::{IdentityVault, PrivateIdentity, PublicIdentity},
-    passwd::diceware::generate_passphrase_words,
-    signer::{
-        ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
-        ed25519, Signer,
-    },
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
-        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
-        VaultFlags, VaultId, VaultWriter,
-    },
+    identity::{IdentityVault, PublicIdentity},
+    signer::ecdsa::Address,
+    vault::{secret::SecretId, Summary, Vault, VaultId},
     vfs, Error, Paths, Result,
 };
-use secrecy::{ExposeSecret, SecretString, SecretVec};
-use serde::{Deserialize, Serialize};
+use secrecy::SecretString;
 use std::{
     collections::HashMap,
-    fmt,
     path::{Path, PathBuf},
-    str::FromStr,
     sync::Arc,
 };
-use tokio::sync::RwLock;
 use tracing::{span, Level};
 use urn::Urn;
 
 #[cfg(feature = "device")]
-use crate::device::{DeviceManager, DeviceSigner};
+use crate::device::DeviceManager;
 
 /// Collection of folder access keys.
 pub struct FolderKeys(pub HashMap<Summary, AccessKey>);
@@ -138,6 +120,7 @@ impl Identity {
         self.identity.as_mut().ok_or(Error::NotAuthenticated)
     }
 
+    /*
     /// Account signing key.
     pub(crate) fn signing_key(&self) -> Result<BoxedEcdsaSigner> {
         Ok(self
@@ -147,6 +130,7 @@ impl Identity {
             .signer()
             .clone())
     }
+    */
 
     /// Verify the passphrase for this account.
     pub async fn verify(&self, key: &AccessKey) -> bool {
@@ -176,20 +160,10 @@ impl Identity {
     /// Rename this account by changing the name of the identity vault.
     pub async fn rename_account(
         &mut self,
-        paths: &Paths,
         account_name: String,
     ) -> Result<()> {
         // Update identity vault
         self.identity_mut()?.rename(account_name.clone()).await?;
-
-        /*
-        // Update vault file on disc
-        let identity_vault_file = paths.identity_vault();
-
-        let vault_file = VaultWriter::open(&identity_vault_file).await?;
-        let mut access = VaultWriter::new(identity_vault_file, vault_file)?;
-        access.set_vault_name(account_name.clone()).await?;
-        */
 
         // Update in-memory account information
         self.account_mut()?.set_label(account_name);
@@ -299,7 +273,7 @@ impl Identity {
         // Lazily create or retrieve a device specific signing key
         #[cfg(feature = "device")]
         {
-            let mut identity = self.identity.as_mut().unwrap();
+            let identity = self.identity.as_mut().unwrap();
             identity.ensure_device_vault(&self.paths).await?;
         }
 
@@ -323,8 +297,7 @@ impl Identity {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use secrecy::{ExposeSecret, SecretString};
-    use std::path::PathBuf;
+    use secrecy::SecretString;
     use urn::Urn;
 
     use crate::{

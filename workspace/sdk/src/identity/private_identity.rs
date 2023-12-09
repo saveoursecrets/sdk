@@ -1,43 +1,7 @@
 //! Private identity manages the identity vault,
 //! account signing key, device signing key and delegated
 //! passwords.
-use crate::{
-    commit::CommitState,
-    constants::{
-        FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
-        VAULT_EXT, VAULT_NSS,
-    },
-    crypto::{AccessKey, KeyDerivation},
-    decode, encode,
-    events::{AuditEvent, Event, EventKind},
-    identity::UrnLookup,
-    passwd::diceware::generate_passphrase_words,
-    signer::{
-        ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
-        ed25519, Signer,
-    },
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
-        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
-        VaultFlags, VaultId, VaultWriter,
-    },
-    vfs, Error, Paths, Result,
-};
-use secrecy::{ExposeSecret, SecretString, SecretVec};
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    fmt,
-    path::{Path, PathBuf},
-    str::FromStr,
-    sync::Arc,
-};
-use tokio::sync::RwLock;
-use tracing::{span, Level};
-use urn::Urn;
-
-#[cfg(feature = "device")]
-use crate::device::{DeviceManager, DeviceSigner};
+use crate::signer::ecdsa::{Address, BoxedEcdsaSigner};
 
 /// Private identity containing the in-memory identity vault
 /// and signing keys.

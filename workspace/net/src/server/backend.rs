@@ -3,17 +3,12 @@ use crate::{
     device::DeviceSet,
     sdk::{
         commit::CommitProof,
-        constants::{DEVICES_FILE, EVENT_LOG_EXT, JSON_EXT, VAULT_EXT},
-        decode,
+        constants::{DEVICES_FILE, JSON_EXT},
         device::DevicePublicKey,
-        encode,
-        events::{
-            AccountReducer, AuditEvent, Event, EventKind, EventReducer,
-            FolderEventLog, WriteEvent,
-        },
+        events::{AuditEvent, Event, EventKind},
         signer::ecdsa::Address,
         storage::FolderStorage,
-        vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
+        vault::{Header, Summary, VaultId},
         vfs, Paths,
     },
 };
@@ -123,7 +118,6 @@ pub trait BackendHandler {
     async fn create_account(
         &mut self,
         owner: &Address,
-        vault_id: &VaultId,
         vault: &[u8],
         device_public_key: DevicePublicKey,
     ) -> Result<(Event, CommitProof)>;
@@ -215,6 +209,7 @@ impl FileSystemBackend {
         }
 
         let span = span!(Level::DEBUG, "server init");
+        let _enter = span.enter();
         tracing::debug!(directory = %self.directory.display());
 
         Paths::scaffold(Some(self.directory.clone())).await?;
@@ -244,7 +239,7 @@ impl FileSystemBackend {
                         account.load_devices().await?;
 
                         let mut accounts = self.accounts.write().await;
-                        let mut account = accounts
+                        let account = accounts
                             .entry(owner.clone())
                             .or_insert(Arc::new(RwLock::new(account)));
                         let mut writer = account.write().await;
@@ -262,7 +257,6 @@ impl BackendHandler for FileSystemBackend {
     async fn create_account(
         &mut self,
         owner: &Address,
-        vault_id: &VaultId,
         vault: &[u8],
         device_public_key: DevicePublicKey,
     ) -> Result<(Event, CommitProof)> {
@@ -276,6 +270,7 @@ impl BackendHandler for FileSystemBackend {
         }
 
         let span = span!(Level::DEBUG, "create_account");
+        let _enter = span.enter();
         tracing::debug!(address = %owner);
 
         let paths =
@@ -294,7 +289,7 @@ impl BackendHandler for FileSystemBackend {
         account.trust_device(device_public_key).await?;
 
         let mut accounts = self.accounts.write().await;
-        let mut account = accounts
+        let account = accounts
             .entry(owner.clone())
             .or_insert(Arc::new(RwLock::new(account)));
         let mut writer = account.write().await;
@@ -460,7 +455,8 @@ impl BackendHandler for FileSystemBackend {
             .get(owner)
             .ok_or(Error::NoAccount(owner.to_owned()))?;
         let reader = account.read().await;
-        let folder = reader
+
+        reader
             .folders
             .find(|s| s.id() == vault_id)
             .cloned()

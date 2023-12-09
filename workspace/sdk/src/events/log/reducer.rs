@@ -4,9 +4,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     decode, encode,
-    events::{
-        AccountEvent, AccountEventLog, FolderEventLog, LogEvent, WriteEvent,
-    },
+    events::{AccountEvent, AccountEventLog, FolderEventLog, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit, VaultId},
     Error, Result,
 };

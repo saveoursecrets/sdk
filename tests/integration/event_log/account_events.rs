@@ -1,5 +1,5 @@
 use super::last_log_event;
-use crate::test_utils::{mock, setup, teardown};
+use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_net::{events::Patch, sdk::prelude::*};
 

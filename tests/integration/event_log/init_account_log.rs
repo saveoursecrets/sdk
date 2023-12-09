@@ -1,4 +1,4 @@
-use crate::test_utils::{mock, setup, teardown};
+use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_net::{events::Patch, sdk::prelude::*};
 
@@ -15,7 +15,7 @@ async fn integration_events_init_account_log() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let (mut account, new_account) = LocalAccount::new_account(
+    let (mut account, _new_account) = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
@@ -29,7 +29,7 @@ async fn integration_events_init_account_log() -> Result<()> {
     account.sign_in(&key).await?;
 
     let account_events = account.paths().account_events();
-    let mut event_log = AccountEventLog::new_account(&account_events).await?;
+    let event_log = AccountEventLog::new_account(&account_events).await?;
     let records = event_log.patch_until(None).await?;
     let patch: Patch = records.into();
     let events = patch.into_events::<AccountEvent>().await?;

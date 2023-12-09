@@ -145,7 +145,7 @@ impl RemoteSync for NetworkAccount {
                     )
                     .await
                 {
-                    Ok(changes) => {}
+                    Ok(changes) => changed = changed || changes,
                     Err(e) => match e {
                         SyncError::One(e) => errors.push((origin.clone(), e)),
                         SyncError::Multiple(mut errs) => {

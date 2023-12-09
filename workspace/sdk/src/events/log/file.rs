@@ -545,14 +545,7 @@ mod test {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{
-        crypto::{csprng, AccessKey},
-        events::WriteEvent,
-        passwd::diceware::generate_passphrase,
-        test_utils::*,
-        vault::VaultId,
-    };
-    use rand::Rng;
+    use crate::{events::WriteEvent, test_utils::*, vault::VaultId};
 
     async fn mock_account_event_log(
     ) -> Result<(NamedTempFile, AccountEventLog)> {
@@ -667,9 +660,6 @@ mod test {
         let (temp, mut event_log) = mock_account_event_log().await?;
 
         let folder = VaultId::new_v4();
-        let secret_key: [u8; 32] = csprng().gen();
-        let (password, _) = generate_passphrase()?;
-        let access_key: AccessKey = password.into();
         event_log
             .apply(vec![
                 &AccountEvent::CreateFolder(folder),

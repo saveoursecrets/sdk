@@ -16,7 +16,6 @@ use std::{
 };
 use tokio::sync::RwLock;
 use unicode_segmentation::UnicodeSegmentation;
-use urn::Urn;
 
 /// Create a set of ngrams of the given size.
 fn ngram_slice(s: &str, n: usize) -> HashSet<&str> {

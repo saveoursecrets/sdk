@@ -30,15 +30,15 @@ async fn integration_events_init_file_log() -> Result<()> {
     account.open_folder(&default_folder).await?;
 
     // Create an external file secret
-    let (meta, secret, file_path) = mock::file_text_secret()?;
-    let (id, _, _, _) = account
+    let (meta, secret, _file_path) = mock::file_text_secret()?;
+    account
         .create_secret(meta, secret, Default::default())
         .await?;
 
     // Store the file events log so we can delete and re-create
     let file_events = account.paths().file_events();
 
-    let mut event_log = FileEventLog::new_file(&file_events).await?;
+    let event_log = FileEventLog::new_file(&file_events).await?;
     let records = event_log.patch_until(None).await?;
     let patch: Patch = records.into();
     assert_eq!(1, patch.len());

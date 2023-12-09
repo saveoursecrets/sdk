@@ -1,24 +1,18 @@
 //! Types for device support.
 use crate::{
-    account::Account,
     constants::DEVICES_NSS,
     identity::UrnLookup,
-    signer::ed25519::{BoxedEd25519Signer, SingleParty, VerifyingKey},
+    signer::ed25519::{BoxedEd25519Signer, SingleParty},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        Gatekeeper, Summary,
+        Gatekeeper,
     },
-    vfs, Error, Paths, Result,
+    Error, Result,
 };
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{
-    collections::HashMap,
-    fmt,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{collections::HashMap, fmt};
 use time::OffsetDateTime;
 use urn::Urn;
 

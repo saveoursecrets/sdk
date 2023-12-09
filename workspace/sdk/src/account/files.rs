@@ -4,28 +4,15 @@
 use crate::{
     account::Account,
     commit::CommitState,
-    events::{Event, FileEvent},
-    storage::{
-        files::{
-            basename, list_folder_files, EncryptedFile, FileMutationEvent,
-            FileProgress, FileStorage, FileStorageSync,
-        },
-        AccessOptions,
-    },
+    events::Event,
+    storage::AccessOptions,
     vault::{
-        secret::{
-            FileContent, Secret, SecretId, SecretMeta, SecretRow, UserData,
-        },
+        secret::{Secret, SecretId, SecretMeta},
         Summary, VaultId,
     },
-    vfs, Error, Result,
+    Result,
 };
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
-use tokio::sync::mpsc;
-use tracing::{span, Level};
+use std::path::Path;
 
 impl<D> Account<D> {
     /// Decrypt a file and return the buffer.

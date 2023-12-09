@@ -7,14 +7,12 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single master password.
 use crate::{
-    commit::CommitState,
     constants::{
         FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
-        VAULT_EXT, VAULT_NSS,
+        VAULT_NSS,
     },
     crypto::{AccessKey, KeyDerivation},
     decode, encode,
-    events::{AuditEvent, Event, EventKind},
     identity::{PrivateIdentity, UrnLookup},
     passwd::diceware::generate_passphrase_words,
     signer::{
@@ -25,21 +23,12 @@ use crate::{
         secret::{
             Secret, SecretId, SecretMeta, SecretRow, SecretSigner, UserData,
         },
-        Gatekeeper, Header, Summary, Vault, VaultAccess, VaultBuilder,
-        VaultFlags, VaultId, VaultWriter,
+        Gatekeeper, Vault, VaultBuilder, VaultFlags, VaultId, VaultWriter,
     },
     vfs, Error, Paths, Result,
 };
 use secrecy::{ExposeSecret, SecretString, SecretVec};
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    fmt,
-    path::{Path, PathBuf},
-    str::FromStr,
-    sync::Arc,
-};
-use tokio::sync::RwLock;
+use std::{collections::HashMap, path::Path};
 use tracing::{span, Level};
 use urn::Urn;
 
@@ -248,9 +237,11 @@ impl IdentityVault {
             }
         }
 
+        /*
         for id in keeper.vault().keys() {
             if let Some((meta, secret, _)) = keeper.read(id).await? {
                 if let Some(urn) = meta.urn() {
+
                     if urn.nss().starts_with(VAULT_NSS) {
                         let id: VaultId = urn
                             .nss()
@@ -272,6 +263,7 @@ impl IdentityVault {
                 }
             }
         }
+        */
 
         let signer = signer_secret.ok_or(Error::NoSigningKey)?;
         let identity = identity_secret.ok_or(Error::NoIdentityKey)?;

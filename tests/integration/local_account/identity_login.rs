@@ -1,4 +1,4 @@
-use crate::test_utils::{mock, setup, teardown};
+use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::{prelude::*, vfs};
 
@@ -20,10 +20,9 @@ async fn integration_identity_login() -> Result<()> {
     Paths::new_global(data_dir.clone());
 
     let path = data_dir.join("login.vault");
-    let (address, vault) =
-        IdentityVault::new("Login".to_owned(), password.clone())
-            .await?
-            .into();
+    let (address, vault) = IdentityVault::new(account_name, password.clone())
+        .await?
+        .into();
     let buffer = encode(&vault).await?;
     vfs::write(&path, buffer).await?;
 

@@ -20,7 +20,6 @@ use sos_sdk::{
     storage::{AccountStatus, FolderStorage},
     url::Url,
     vault::{Summary, VaultId},
-    vfs,
 };
 
 use mpc_protocol::Keypair;
@@ -157,6 +156,7 @@ impl RemoteBridge {
         Ok(())
     }
 
+    /*
     /// Load all events from a remote event log.
     async fn load_events(
         &self,
@@ -177,6 +177,7 @@ impl RemoteBridge {
 
         Ok((proof, buffer.ok_or(Error::NoEventBuffer)?))
     }
+    */
 
     /// Send a patch of account log events to the remote.
     async fn send_account_events(
@@ -591,7 +592,7 @@ impl RemoteSync for RemoteBridge {
         folder: &Summary,
         commit_state: &CommitState,
         remote: Option<CommitState>,
-        options: &SyncOptions,
+        _options: &SyncOptions,
     ) -> std::result::Result<bool, SyncError> {
         let (last_commit, commit_proof) = commit_state;
 
@@ -725,12 +726,10 @@ mod listen {
         events::{ChangeAction, ChangeEvent, ChangeNotification},
     };
     use sos_sdk::prelude::{
-        decode, AccessKey, AccountEvent, Event, FolderRef, Summary, Vault,
-        VaultId, WriteEvent,
+        AccountEvent, Event, FolderRef, VaultId, WriteEvent,
     };
 
     use std::sync::Arc;
-    use tokio::sync::{mpsc, Mutex};
     use tracing::{span, Level};
 
     // Listen and respond to change notifications
@@ -793,8 +792,6 @@ mod listen {
                         .cloned()
                 };
 
-                let folder_exists = summary.is_some();
-
                 match (action, summary) {
                     (ChangeAction::Pull(_), Some(summary)) => {
                         let head = {
@@ -850,12 +847,8 @@ mod listen {
                                 "proofs match, up to date");
                         }
                     }
-                    (ChangeAction::Remove(id), Some(summary)) => {
+                    (ChangeAction::Remove(_), Some(summary)) => {
                         let mut writer = local.write().await;
-                        let summary = writer
-                            .find(|s| s.id() == &id)
-                            .cloned()
-                            .ok_or(Error::CacheNotAvailable(id))?;
                         writer.delete_folder(&summary).await?;
                     }
                     (ChangeAction::CreateFolder(event), None) => {

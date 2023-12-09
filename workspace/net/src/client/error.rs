@@ -3,12 +3,7 @@
 use crate::client::{Origin, SyncError};
 use http::StatusCode;
 use serde_json::Value;
-use sos_sdk::{
-    commit::CommitHash,
-    crypto::AccessKey,
-    events::WriteEvent,
-    vault::{Summary, VaultId},
-};
+use sos_sdk::{commit::CommitHash, events::WriteEvent, vault::Summary};
 use std::path::PathBuf;
 use thiserror::Error;
 use uuid::Uuid;

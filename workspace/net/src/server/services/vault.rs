@@ -2,7 +2,6 @@ use axum::http::StatusCode;
 
 use sos_sdk::{
     constants::{VAULT_CREATE, VAULT_DELETE, VAULT_SAVE},
-    events::{AuditData, AuditEvent, Event, EventKind},
     vault::Header,
 };
 
@@ -54,7 +53,7 @@ impl Service for VaultService {
                         .await?
                 };
 
-                if let Some(folder) = exists {
+                if exists.is_some() {
                     // Send commit proof back with conflict response
                     Ok((StatusCode::CONFLICT, request.id(), proof)
                         .try_into()?)

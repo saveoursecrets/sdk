@@ -63,8 +63,6 @@ async fn integration_sync_offline_manual() -> Result<()> {
     // they signed in again (which is a natural time to sync).
     //
     // This should push the local changes to the remote.
-    let result = device1.owner.sync().await;
-
     assert!(device1.owner.sync().await.is_none());
 
     // The client explicitly sync from the other device too.

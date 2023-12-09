@@ -46,7 +46,7 @@ async fn integration_events_compact() -> Result<()> {
     account.delete_secret(&card, Default::default()).await?;
 
     let folder_events = account.paths().event_log_path(default_folder.id());
-    let mut event_log = FolderEventLog::new_folder(&folder_events).await?;
+    let event_log = FolderEventLog::new_folder(&folder_events).await?;
     let records = event_log.patch_until(None).await?;
     let patch: Patch = records.into();
     let events = patch.into_events::<WriteEvent>().await?;
