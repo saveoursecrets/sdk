@@ -177,8 +177,7 @@ impl<D> Account<D> {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             let key: AccessKey = vault_passphrase.clone().into();
-            let secure_key = self.user()?.to_secure_access_key(&key).await?;
-            writer.import_folder(buffer, secure_key, Some(&key)).await?
+            writer.import_folder(buffer, Some(&key)).await?
         };
 
         self.user_mut()?

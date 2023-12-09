@@ -137,10 +137,9 @@ impl AccountBuilder {
         Paths::scaffold(data_dir.clone()).await?;
 
         // Prepare the identity vault
-        let identity_vault = IdentityVault::new(
-            account_name.clone(),
-            passphrase.clone(),
-        ).await?;
+        let identity_vault =
+            IdentityVault::new(account_name.clone(), passphrase.clone())
+                .await?;
         let (address, identity_vault) = identity_vault.into();
 
         let mut folder_keys = HashMap::new();

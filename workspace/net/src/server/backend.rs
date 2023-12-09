@@ -4,7 +4,6 @@ use crate::{
     sdk::{
         commit::CommitProof,
         constants::{DEVICES_FILE, EVENT_LOG_EXT, JSON_EXT, VAULT_EXT},
-        crypto::SecureAccessKey,
         decode,
         device::DevicePublicKey,
         encode,
@@ -78,20 +77,6 @@ impl AccountStorage {
         }
         Ok(())
     }
-
-    /*
-    /// Canonical collection of folders
-    /// defined in the account log.
-    pub async fn canonical_folders(
-        &self,
-    ) -> Result<HashMap<VaultId, SecureAccessKey>> {
-        let event_log = self.folders.account_log();
-        let mut event_log = event_log.write().await;
-        let reducer = AccountReducer::new(&mut *event_log);
-        let folders = reducer.reduce().await?;
-        Ok(folders)
-    }
-    */
 }
 
 /// Individual account.
@@ -141,7 +126,6 @@ pub trait BackendHandler {
         vault_id: &VaultId,
         vault: &[u8],
         device_public_key: DevicePublicKey,
-        secure_access_key: SecureAccessKey,
     ) -> Result<(Event, CommitProof)>;
 
     // TODO: support account deletion
@@ -171,7 +155,6 @@ pub trait BackendHandler {
         &mut self,
         owner: &Address,
         vault: &'a [u8],
-        secure_access_key: SecureAccessKey,
     ) -> Result<(Event, CommitProof)>;
 
     /// Create a folder.
@@ -180,7 +163,6 @@ pub trait BackendHandler {
         owner: &Address,
         vault_id: &VaultId,
         vault: &[u8],
-        secure_access_key: SecureAccessKey,
     ) -> Result<(Event, CommitProof)>;
 
     /// Delete a folder.
@@ -196,15 +178,6 @@ pub trait BackendHandler {
         owner: &Address,
         vault_id: &VaultId,
     ) -> Result<(Option<Summary>, Option<CommitProof>)>;
-
-    /*
-    /// Determine if a folder exists in the account log.
-    async fn canonical_folder_exists(
-        &self,
-        owner: &Address,
-        vault_id: &VaultId,
-    ) -> Result<Option<SecureAccessKey>>;
-    */
 
     /// Load a event log buffer for an account.
     async fn read_events_buffer(
@@ -292,7 +265,6 @@ impl BackendHandler for FileSystemBackend {
         vault_id: &VaultId,
         vault: &[u8],
         device_public_key: DevicePublicKey,
-        secure_access_key: SecureAccessKey,
     ) -> Result<(Event, CommitProof)> {
         {
             let accounts = self.accounts.read().await;
@@ -327,10 +299,8 @@ impl BackendHandler for FileSystemBackend {
             .or_insert(Arc::new(RwLock::new(account)));
         let mut writer = account.write().await;
 
-        let (event, summary) = writer
-            .folders
-            .import_folder(vault, secure_access_key, None)
-            .await?;
+        let (event, summary) =
+            writer.folders.import_folder(vault, None).await?;
 
         tracing::debug!(folder_id = %summary.id());
 
@@ -374,7 +344,6 @@ impl BackendHandler for FileSystemBackend {
         owner: &Address,
         vault_id: &VaultId,
         vault: &[u8],
-        secure_access_key: SecureAccessKey,
     ) -> Result<(Event, CommitProof)> {
         let accounts = self.accounts.read().await;
         let account = accounts
@@ -394,10 +363,8 @@ impl BackendHandler for FileSystemBackend {
             return Err(Error::BadRequest);
         }
 
-        let (event, summary) = writer
-            .folders
-            .import_folder(vault, secure_access_key, None)
-            .await?;
+        let (event, summary) =
+            writer.folders.import_folder(vault, None).await?;
         let (_, proof) = writer.folders.commit_state(&summary).await?;
 
         Ok((event, proof))
@@ -449,7 +416,6 @@ impl BackendHandler for FileSystemBackend {
         &mut self,
         owner: &Address,
         vault: &'a [u8],
-        secure_access_key: SecureAccessKey,
     ) -> Result<(Event, CommitProof)> {
         let accounts = self.accounts.read().await;
         let account = accounts
@@ -457,10 +423,8 @@ impl BackendHandler for FileSystemBackend {
             .ok_or(Error::NoAccount(owner.to_owned()))?;
 
         let mut writer = account.write().await;
-        let (event, summary) = writer
-            .folders
-            .import_folder(vault, secure_access_key, None)
-            .await?;
+        let (event, summary) =
+            writer.folders.import_folder(vault, None).await?;
 
         let (_, proof) = writer.folders.commit_state(&summary).await?;
         Ok((event, proof))
@@ -485,23 +449,6 @@ impl BackendHandler for FileSystemBackend {
             Ok((None, None))
         }
     }
-
-    /*
-    async fn canonical_folder_exists(
-        &self,
-        owner: &Address,
-        vault_id: &VaultId,
-    ) -> Result<Option<SecureAccessKey>> {
-        let accounts = self.accounts.read().await;
-        if let Some(account) = accounts.get(owner) {
-            let account = account.read().await;
-            let folders = account.canonical_folders().await?;
-            Ok(folders.get(vault_id).cloned())
-        } else {
-            Ok(None)
-        }
-    }
-    */
 
     async fn read_events_buffer(
         &self,

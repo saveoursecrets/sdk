@@ -145,24 +145,20 @@ impl From<(&Address, &Event)> for AuditEvent {
             _ => {
                 let audit_data = match event {
                     Event::Account(event) => match event {
-                        AccountEvent::CreateFolder(vault_id, _)
-                        | AccountEvent::UpdateFolder(vault_id, _)
-                        | AccountEvent::ChangeFolderPassword(vault_id, _) => {
-                            Some(AuditData::Vault(*vault_id))
-                        }
-                        AccountEvent::CompactFolder(vault_id)
+                        AccountEvent::CreateFolder(vault_id)
+                        | AccountEvent::UpdateFolder(vault_id)
+                        | AccountEvent::ChangeFolderPassword(vault_id)
+                        | AccountEvent::CompactFolder(vault_id)
                         | AccountEvent::DeleteFolder(vault_id) => {
                             Some(AuditData::Vault(*vault_id))
                         }
                         AccountEvent::Noop => None,
                     },
                     Event::Folder(event, _) => match event {
-                        AccountEvent::CreateFolder(vault_id, _)
-                        | AccountEvent::UpdateFolder(vault_id, _)
-                        | AccountEvent::ChangeFolderPassword(vault_id, _) => {
-                            Some(AuditData::Vault(*vault_id))
-                        }
-                        AccountEvent::CompactFolder(vault_id)
+                        AccountEvent::CreateFolder(vault_id)
+                        | AccountEvent::UpdateFolder(vault_id)
+                        | AccountEvent::ChangeFolderPassword(vault_id)
+                        | AccountEvent::CompactFolder(vault_id)
                         | AccountEvent::DeleteFolder(vault_id) => {
                             Some(AuditData::Vault(*vault_id))
                         }
@@ -215,12 +211,10 @@ impl From<(&Address, &AccountEvent)> for AuditEvent {
     fn from(value: (&Address, &AccountEvent)) -> Self {
         let (address, event) = value;
         let audit_data = match &event {
-            AccountEvent::CreateFolder(vault_id, _)
-            | AccountEvent::UpdateFolder(vault_id, _)
-            | AccountEvent::ChangeFolderPassword(vault_id, _) => {
-                Some(AuditData::Vault(*vault_id))
-            }
-            AccountEvent::CompactFolder(vault_id)
+            AccountEvent::CreateFolder(vault_id)
+            | AccountEvent::UpdateFolder(vault_id)
+            | AccountEvent::ChangeFolderPassword(vault_id)
+            | AccountEvent::CompactFolder(vault_id)
             | AccountEvent::DeleteFolder(vault_id) => {
                 Some(AuditData::Vault(*vault_id))
             }

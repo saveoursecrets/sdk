@@ -363,7 +363,8 @@ mod test {
         let identity_vault = IdentityVault::new(
             "Mock".to_string(),
             SecretString::new("mock-password".to_string()),
-        ).await?;
+        )
+        .await?;
         let (address, identity_vault) = identity_vault.into();
 
         let identity = encode(&identity_vault).await?;

@@ -6,7 +6,7 @@ use sos_net::{
     client::{HostedOrigin, RemoteBridge, RemoteSync, RpcClient},
     mpc::{generate_keypair, Keypair, PATTERN},
     sdk::{
-        crypto::{AccessKey, SecureAccessKey},
+        crypto::AccessKey,
         device::DeviceSigner,
         encode,
         passwd::diceware::generate_passphrase,
@@ -19,17 +19,6 @@ use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 const TEST_ID: &str = "rpc_session";
-
-/// Helper to convert a folder password into
-/// a secure access key.
-async fn to_secure_key(
-    signer: &BoxedEcdsaSigner,
-    folder_password: &SecretString,
-) -> Result<SecureAccessKey> {
-    let secret_key = signer.to_bytes();
-    let access_key: AccessKey = folder_password.clone().into();
-    Ok(SecureAccessKey::encrypt(&access_key, &secret_key, None).await?)
-}
 
 async fn create_rpc_client(
     data_dir: PathBuf,
@@ -71,20 +60,17 @@ async fn integration_rpc_session() -> Result<()> {
         create_rpc_client(data_dir, &server.origin).await?;
 
     let (folder_password, _) = generate_passphrase()?;
-    let secure_key = to_secure_key(&signer, &folder_password).await?;
 
     let vault = VaultBuilder::new().password(folder_password, None).await?;
 
     let body = encode(&vault).await?;
 
     // Create an account on the remote
-    let (status, _) =
-        client.create_account(&body, &secure_key).await?.unwrap();
+    let (status, _) = client.create_account(&body).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
 
     // Try to create the same account again
-    let (status, _) =
-        client.create_account(&body, &secure_key).await?.unwrap();
+    let (status, _) = client.create_account(&body).await?.unwrap();
     assert_eq!(StatusCode::CONFLICT, status);
 
     // List folders for the account
@@ -97,15 +83,13 @@ async fn integration_rpc_session() -> Result<()> {
     assert!(account_status.is_some());
 
     let (folder_password, _) = generate_passphrase()?;
-    let secure_key = to_secure_key(&signer, &folder_password).await?;
 
     let mut vault =
         VaultBuilder::new().password(folder_password, None).await?;
     vault.set_name(String::from("Mock vault"));
     let body = encode(&vault).await?;
 
-    let (status, proof) =
-        client.create_folder(&body, &secure_key).await?.unwrap();
+    let (status, proof) = client.create_folder(&body).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 
@@ -117,10 +101,8 @@ async fn integration_rpc_session() -> Result<()> {
     let name = "New vault name";
     vault.set_name(String::from(name));
     let body = encode(&vault).await?;
-    let (status, proof) = client
-        .update_folder(vault.id(), body, &secure_key)
-        .await?
-        .unwrap();
+    let (status, proof) =
+        client.update_folder(vault.id(), body).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
     assert!(proof.is_some());
 

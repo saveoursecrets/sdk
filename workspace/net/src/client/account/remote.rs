@@ -14,10 +14,8 @@ use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
-    crypto::SecureAccessKey,
     decode,
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
-    identity::SecureKeys,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::{AccountStatus, FolderStorage},
     url::Url,
@@ -143,18 +141,12 @@ impl RemoteBridge {
     }
 
     /// Create an account on the remote.
-    async fn create_account(
-        &self,
-        buffer: &[u8],
-        secure_access_key: &SecureAccessKey,
-    ) -> Result<()> {
+    async fn create_account(&self, buffer: &[u8]) -> Result<()> {
         let span = span!(Level::DEBUG, "create_account");
         let _enter = span.enter();
 
-        let (status, _) = retry!(
-            || self.remote.create_account(buffer, secure_access_key),
-            self.remote
-        );
+        let (status, _) =
+            retry!(|| self.remote.create_account(buffer), self.remote);
 
         tracing::debug!(status = %status);
 
@@ -203,15 +195,11 @@ impl RemoteBridge {
             let event = record.decode_event::<AccountEvent>().await?;
             tracing::debug!(event_kind = %event.event_kind(), "send account event");
 
-            println!("send account event {}", event.event_kind());
-
             match event {
-                AccountEvent::CreateFolder(id, secure_key) => {
+                AccountEvent::CreateFolder(id) => {
                     let local = self.local.read().await;
                     let buffer = local.read_vault_file(&id).await?;
-                    if let Err(e) =
-                        self.create_folder(&buffer, &secure_key).await
-                    {
+                    if let Err(e) = self.create_folder(&buffer).await {
                         if let Error::ResponseCode(StatusCode::CONFLICT) = e {
                             tracing::debug!(
                                 "ignore conflict (409) on create folder"
@@ -221,10 +209,10 @@ impl RemoteBridge {
                         }
                     }
                 }
-                AccountEvent::UpdateFolder(id, secure_key) => {
+                AccountEvent::UpdateFolder(id) => {
                     let local = self.local.read().await;
                     let buffer = local.read_vault_file(&id).await?;
-                    self.update_folder(&id, &buffer, &secure_key).await?;
+                    self.update_folder(&id, &buffer).await?;
                 }
                 AccountEvent::DeleteFolder(id) => {
                     self.delete_folder(&id).await?;
@@ -237,18 +225,12 @@ impl RemoteBridge {
     }
 
     /// Create a folder on the remote.
-    async fn create_folder(
-        &self,
-        buffer: &[u8],
-        secure_key: &SecureAccessKey,
-    ) -> Result<()> {
+    async fn create_folder(&self, buffer: &[u8]) -> Result<()> {
         let span = span!(Level::DEBUG, "import_folder");
         let _enter = span.enter();
 
-        let (status, _) = retry!(
-            || self.remote.create_folder(buffer, secure_key),
-            self.remote
-        );
+        let (status, _) =
+            retry!(|| self.remote.create_folder(buffer), self.remote);
 
         tracing::debug!(status = %status);
 
@@ -260,19 +242,12 @@ impl RemoteBridge {
     }
 
     /// Update a folder on the remote.
-    async fn update_folder(
-        &self,
-        id: &VaultId,
-        buffer: &[u8],
-        secure_access_key: &SecureAccessKey,
-    ) -> Result<()> {
+    async fn update_folder(&self, id: &VaultId, buffer: &[u8]) -> Result<()> {
         let span = span!(Level::DEBUG, "update_folder");
         let _enter = span.enter();
 
-        let (status, _) = retry!(
-            || self.remote.update_folder(id, buffer, secure_access_key),
-            self.remote
-        );
+        let (status, _) =
+            retry!(|| self.remote.update_folder(id, buffer), self.remote);
 
         tracing::debug!(status = %status);
 
@@ -455,10 +430,10 @@ impl RemoteBridge {
             let reducer = AccountReducer::new(&mut *event_log);
             let canonical_folders = reducer.reduce().await?;
             let mut folders = Vec::new();
-            for (id, secure_access_key) in canonical_folders {
+            for id in canonical_folders {
                 if let Some(folder) = local.find(|s| s.id() == &id) {
                     let buffer = local.read_vault_file(&id).await?;
-                    folders.push((folder.clone(), buffer, secure_access_key));
+                    folders.push((folder.clone(), buffer));
                 } else {
                     tracing::warn!(id = %id, "missing folder");
                 }
@@ -467,13 +442,12 @@ impl RemoteBridge {
         };
 
         let mut other_folders = Vec::new();
-        let mut default_folder: Option<(Summary, Vec<u8>, SecureAccessKey)> =
-            None;
-        for (folder, buffer, secure_access_key) in canonical_folders {
+        let mut default_folder: Option<(Summary, Vec<u8>)> = None;
+        for (folder, buffer) in canonical_folders {
             if folder.flags().is_default() && default_folder.is_none() {
-                default_folder = Some((folder, buffer, secure_access_key));
+                default_folder = Some((folder, buffer));
             } else {
-                other_folders.push((folder, buffer, secure_access_key));
+                other_folders.push((folder, buffer));
             }
         }
 
@@ -483,10 +457,10 @@ impl RemoteBridge {
         }
 
         // Create the account and default folder on the remote
-        if let Some((_, buffer, secure_access_key)) = default_folder.take() {
-            self.create_account(&buffer, &secure_access_key).await?;
-            for (_, buffer, secure_access_key) in other_folders {
-                self.create_folder(&buffer, &secure_access_key).await?;
+        if let Some((_, buffer)) = default_folder.take() {
+            self.create_account(&buffer).await?;
+            for (_, buffer) in other_folders {
+                self.create_folder(&buffer).await?;
             }
         } else {
             tracing::warn!("no default folder for sync");
@@ -685,16 +659,16 @@ impl RemoteSync for RemoteBridge {
         for event in events {
             match event {
                 Event::Folder(
-                    AccountEvent::CreateFolder(_, secure_access_key),
+                    AccountEvent::CreateFolder(_),
                     WriteEvent::CreateVault(buf),
                 ) => {
-                    create_folders.push((buf, secure_access_key));
+                    create_folders.push(buf);
                 }
                 Event::Folder(
-                    AccountEvent::UpdateFolder(id, secure_access_key),
+                    AccountEvent::UpdateFolder(id),
                     WriteEvent::CreateVault(buf),
                 ) => {
-                    update_folders.push((id, buf, secure_access_key));
+                    update_folders.push((id, buf));
                 }
                 Event::Account(AccountEvent::DeleteFolder(id)) => {
                     delete_folders.push(id)
@@ -708,14 +682,14 @@ impl RemoteSync for RemoteBridge {
 
         // New folders must go via the vaults service,
         // and must not be included in any patch events
-        for (buf, secure_key) in create_folders {
-            self.create_folder(buf.as_ref(), &secure_key)
+        for buf in create_folders {
+            self.create_folder(buf.as_ref())
                 .await
                 .map_err(SyncError::One)?;
         }
 
-        for (id, buf, secure_key) in update_folders {
-            self.update_folder(&id, buf.as_ref(), &secure_key)
+        for (id, buf) in update_folders {
+            self.update_folder(&id, buf.as_ref())
                 .await
                 .map_err(SyncError::One)?;
         }
@@ -751,46 +725,13 @@ mod listen {
         events::{ChangeAction, ChangeEvent, ChangeNotification},
     };
     use sos_sdk::prelude::{
-        decode, AccessKey, AccountEvent, Event, FolderRef, SecureAccessKey,
-        Summary, Vault, VaultId, WriteEvent,
+        decode, AccessKey, AccountEvent, Event, FolderRef, Summary, Vault,
+        VaultId, WriteEvent,
     };
 
     use std::sync::Arc;
     use tokio::sync::{mpsc, Mutex};
     use tracing::{span, Level};
-
-    /// Channels we use to communicate with the
-    /// user account storage.
-    pub(crate) struct NetworkAccountReceiver {
-        /// Receive a secure access key from the remote listener.
-        pub secure_access_key_rx: mpsc::Receiver<(VaultId, SecureAccessKey)>,
-
-        /// Receive a message when a vault is removed.
-        pub remove_vault_rx: mpsc::Receiver<VaultId>,
-    }
-
-    /// Channels used to get a reply from the account storage.
-    pub(crate) struct NetworkAccountSender {
-        /// Sends the decrypted access key from the
-        /// storage to the remote bridge.
-        pub access_key_tx: mpsc::Sender<AccessKey>,
-    }
-
-    /// Messages sent from the remote bridge.
-    #[derive(Clone)]
-    pub(crate) struct RemoteBridgeSender {
-        /// Send a secure access key to the account storage for decryption.
-        pub secure_access_key_tx: mpsc::Sender<(VaultId, SecureAccessKey)>,
-
-        /// Send a message when a vault is removed.
-        pub remove_vault_tx: mpsc::Sender<VaultId>,
-    }
-
-    /// Messages sent from the remote bridge.
-    pub(crate) struct RemoteBridgeReceiver {
-        /// Receive the decrypted access key from the account storage.
-        pub access_key_rx: mpsc::Receiver<AccessKey>,
-    }
 
     // Listen and respond to change notifications
     #[cfg(not(target_arch = "wasm32"))]
@@ -818,51 +759,18 @@ mod listen {
             actions
         }
 
-        async fn create_or_update_folder(
+        async fn import_folder(
             bridge: Arc<RemoteBridge>,
             folder_id: VaultId,
             buffer: impl AsRef<[u8]>,
-            folder_exists: bool,
-            secure_key: SecureAccessKey,
-            remote_bridge_tx: Arc<RemoteBridgeSender>,
-            remote_bridge_rx: Arc<Mutex<RemoteBridgeReceiver>>,
         ) -> Result<()> {
             let local = bridge.local();
             tracing::debug!(
                 folder = %folder_id,
-                "create_or_update_folder");
+                "import_folder");
 
-            let (_, folder) = {
-                let mut writer = local.write().await;
-                writer
-                    .import_folder(buffer, secure_key.clone(), None)
-                    .await?
-            };
-
-            // We dont have the ability to decrypt the secure
-            // key which nees to be saved so the folder can be
-            // written to immediately and we need it in order
-            // to refresh the in-memory vault also
-            let access_key: Option<AccessKey> = {
-                // Send the secure access key to the
-                // account storage for decryption
-                remote_bridge_tx
-                    .secure_access_key_tx
-                    .send((folder_id, secure_key))
-                    .await?;
-
-                // Get the decrypted access key back
-                // so we can use it when refreshing the
-                // in-memory vault
-                let mut receiver = remote_bridge_rx.lock().await;
-                receiver.access_key_rx.recv().await
-            };
-
-            // Updating an existing folder
-            if folder_exists {
-                let mut writer = local.write().await;
-                writer.refresh_vault(&folder, access_key.as_ref()).await?;
-            }
+            let mut writer = local.write().await;
+            writer.import_folder(buffer, None).await?;
 
             Ok(())
         }
@@ -870,8 +778,6 @@ mod listen {
         async fn on_change_notification(
             bridge: Arc<RemoteBridge>,
             change: ChangeNotification,
-            remote_bridge_tx: Arc<RemoteBridgeSender>,
-            remote_bridge_rx: Arc<Mutex<RemoteBridgeReceiver>>,
         ) -> Result<()> {
             tracing::debug!("on_change_notification");
             let actions = Self::notification_actions(&change);
@@ -945,57 +851,31 @@ mod listen {
                         }
                     }
                     (ChangeAction::Remove(id), Some(summary)) => {
-                        {
-                            let mut writer = local.write().await;
-                            let summary = writer
-                                .find(|s| s.id() == &id)
-                                .cloned()
-                                .ok_or(Error::CacheNotAvailable(id))?;
-                            writer.delete_folder(&summary).await?;
-                        }
-
-                        // Notify the account storage of the folder
-                        // removal so it can clean up the delegated
-                        // passphrase from the identity vault
-                        remote_bridge_tx
-                            .remove_vault_tx
-                            .send(*summary.id())
-                            .await?;
+                        let mut writer = local.write().await;
+                        let summary = writer
+                            .find(|s| s.id() == &id)
+                            .cloned()
+                            .ok_or(Error::CacheNotAvailable(id))?;
+                        writer.delete_folder(&summary).await?;
                     }
                     (ChangeAction::CreateFolder(event), None) => {
                         if let Event::Folder(
-                            AccountEvent::CreateFolder(id, secure_key),
+                            AccountEvent::CreateFolder(id),
                             WriteEvent::CreateVault(buf),
                         ) = event
                         {
-                            Self::create_or_update_folder(
-                                Arc::clone(&bridge),
-                                id,
-                                buf,
-                                folder_exists,
-                                secure_key,
-                                Arc::clone(&remote_bridge_tx),
-                                Arc::clone(&remote_bridge_rx),
-                            )
-                            .await?;
+                            Self::import_folder(Arc::clone(&bridge), id, buf)
+                                .await?;
                         }
                     }
                     (ChangeAction::UpdateFolder(event), Some(_)) => {
                         if let Event::Folder(
-                            AccountEvent::UpdateFolder(id, secure_key),
+                            AccountEvent::UpdateFolder(id),
                             WriteEvent::CreateVault(buf),
                         ) = event
                         {
-                            Self::create_or_update_folder(
-                                Arc::clone(&bridge),
-                                id,
-                                buf,
-                                folder_exists,
-                                secure_key,
-                                Arc::clone(&remote_bridge_tx),
-                                Arc::clone(&remote_bridge_rx),
-                            )
-                            .await?;
+                            Self::import_folder(Arc::clone(&bridge), id, buf)
+                                .await?;
                         }
                     }
                     _ => {}
@@ -1016,62 +896,25 @@ mod listen {
         pub(crate) fn listen(
             bridge: Arc<RemoteBridge>,
             options: ListenOptions,
-        ) -> (
-            WebSocketHandle,
-            NetworkAccountReceiver,
-            NetworkAccountSender,
-        ) {
+        ) -> WebSocketHandle {
             let remote_bridge = Arc::clone(&bridge);
-
-            let (secure_access_key_tx, secure_access_key_rx) =
-                mpsc::channel::<(VaultId, SecureAccessKey)>(16);
-
-            let (remove_vault_tx, remove_vault_rx) =
-                mpsc::channel::<VaultId>(16);
-
-            let (access_key_tx, access_key_rx) =
-                mpsc::channel::<AccessKey>(16);
-
-            let user_storage_rx = NetworkAccountReceiver {
-                secure_access_key_rx,
-                remove_vault_rx,
-            };
-
-            let user_storage_tx = NetworkAccountSender { access_key_tx };
-
-            let remote_bridge_tx = Arc::new(RemoteBridgeSender {
-                secure_access_key_tx,
-                remove_vault_tx,
-            });
-
-            let remote_bridge_rx =
-                Arc::new(Mutex::new(RemoteBridgeReceiver { access_key_rx }));
 
             let handle = bridge.remote.listen(options, move |notification| {
                 let bridge = Arc::clone(&remote_bridge);
-                let tx = Arc::clone(&remote_bridge_tx);
-                let rx = Arc::clone(&remote_bridge_rx);
                 async move {
                     let span = span!(Level::DEBUG, "on_change_event");
                     let _enter = span.enter();
                     tracing::debug!(notification = ?notification);
-                    if let Err(e) = Self::on_change_notification(
-                        bridge,
-                        notification,
-                        Arc::clone(&tx),
-                        Arc::clone(&rx),
-                    )
-                    .await
+                    if let Err(e) =
+                        Self::on_change_notification(bridge, notification)
+                            .await
                     {
                         tracing::error!(error = ?e);
                     }
                 }
             });
 
-            (handle, user_storage_rx, user_storage_tx)
+            handle
         }
     }
 }
-
-#[cfg(feature = "listen")]
-pub(crate) use listen::{NetworkAccountReceiver, NetworkAccountSender};

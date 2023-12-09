@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     commit::CommitHash,
-    crypto::{AeadPack, SecureAccessKey},
+    crypto::AeadPack,
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, FolderEventLog, LogEvent, WriteEvent,
@@ -22,19 +22,21 @@ impl<'a> AccountReducer<'a> {
         Self { log }
     }
 
-    /// Reduce account events to the canonical collection
+    /// Reduce account events to a canonical collection
     /// of folders.
-    pub async fn reduce(self) -> Result<HashMap<VaultId, SecureAccessKey>> {
-        let mut folders = HashMap::new();
+    pub async fn reduce(self) -> Result<HashSet<VaultId>> {
+        let mut folders = HashSet::new();
         let events = self.log.patch_until(None).await?;
         for record in events {
             let event = record.decode_event::<AccountEvent>().await?;
             match event {
-                AccountEvent::CreateFolder(id, secure_access_key)
-                | AccountEvent::UpdateFolder(id, secure_access_key)
-                | AccountEvent::ChangeFolderPassword(id, secure_access_key) =>
-                {
-                    folders.insert(id, secure_access_key);
+                AccountEvent::CreateFolder(id)
+                | AccountEvent::UpdateFolder(id)
+                | AccountEvent::ChangeFolderPassword(id) => {
+                    folders.insert(id);
+                }
+                AccountEvent::DeleteFolder(id) => {
+                    folders.remove(&id);
                 }
                 _ => {}
             }

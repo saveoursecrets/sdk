@@ -1,6 +1,6 @@
 //! Event for operations at the account level.
 use super::{EventKind, LogEvent};
-use crate::{crypto::SecureAccessKey, vault::VaultId};
+use crate::vault::VaultId;
 use serde::{Deserialize, Serialize};
 
 /// Events generated in the context of an account.
@@ -11,7 +11,7 @@ pub enum AccountEvent {
     Noop,
 
     /// Create folder.
-    CreateFolder(VaultId, SecureAccessKey),
+    CreateFolder(VaultId),
 
     /// Folder was updated.
     ///
@@ -20,7 +20,7 @@ pub enum AccountEvent {
     ///
     /// This event is destructive as it re-writes
     /// the folder event log.
-    UpdateFolder(VaultId, SecureAccessKey),
+    UpdateFolder(VaultId),
 
     /// Folder events were compacted.
     ///
@@ -32,7 +32,7 @@ pub enum AccountEvent {
     ///
     /// This event is destructive as it re-writes
     /// the folder event log.
-    ChangeFolderPassword(VaultId, SecureAccessKey),
+    ChangeFolderPassword(VaultId),
 
     /// Delete folder.
     DeleteFolder(VaultId),
@@ -42,10 +42,10 @@ impl LogEvent for AccountEvent {
     fn event_kind(&self) -> EventKind {
         match self {
             Self::Noop => EventKind::Noop,
-            Self::CreateFolder(_, _) => EventKind::CreateVault,
+            Self::CreateFolder(_) => EventKind::CreateVault,
             Self::CompactFolder(_) => EventKind::CompactVault,
-            Self::UpdateFolder(_, _) => EventKind::UpdateVault,
-            Self::ChangeFolderPassword(_, _) => EventKind::ChangePassword,
+            Self::UpdateFolder(_) => EventKind::UpdateVault,
+            Self::ChangeFolderPassword(_) => EventKind::ChangePassword,
             Self::DeleteFolder(_) => EventKind::DeleteVault,
         }
     }

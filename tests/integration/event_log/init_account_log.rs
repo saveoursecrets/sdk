@@ -35,21 +35,7 @@ async fn integration_events_init_account_log() -> Result<()> {
     let events = patch.into_events::<AccountEvent>().await?;
     assert_eq!(1, events.len());
 
-    assert!(matches!(
-        events.get(0),
-        Some(AccountEvent::CreateFolder(_, _))
-    ));
-
-    /*
-    assert!(matches!(
-        events.get(1),
-        Some(AccountEvent::CreateFolder(_, _))
-    ));
-    assert!(matches!(
-        events.get(2),
-        Some(AccountEvent::CreateFolder(_, _))
-    ));
-    */
+    assert!(matches!(events.get(0), Some(AccountEvent::CreateFolder(_))));
 
     teardown(TEST_ID).await;
 

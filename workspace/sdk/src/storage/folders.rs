@@ -2,7 +2,7 @@
 use crate::{
     commit::{CommitHash, CommitState, CommitTree},
     constants::VAULT_EXT,
-    crypto::{AccessKey, SecureAccessKey},
+    crypto::AccessKey,
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, AuditEvent, Event, EventKind,
@@ -333,39 +333,25 @@ impl FolderStorage {
         self.paths.append_audit_events(vec![audit_event]).await?;
 
         // Save the default vault
-        let secure_key = account
-            .user
-            .find_secure_access_key(account.default_folder.id())?;
         let buffer = encode(&account.default_folder).await?;
-        let (event, _) = self
-            .import_folder(&buffer, secure_key.clone(), None)
-            .await?;
+        let (event, _) = self.import_folder(&buffer, None).await?;
         events.push(event);
 
         if let Some(vault) = &account.archive {
-            let secure_key =
-                account.user.find_secure_access_key(vault.id())?;
             let buffer = encode(vault).await?;
-            let (event, _) =
-                self.import_folder(buffer, secure_key.clone(), None).await?;
+            let (event, _) = self.import_folder(buffer, None).await?;
             events.push(event);
         }
 
         if let Some(vault) = &account.authenticator {
-            let secure_key =
-                account.user.find_secure_access_key(vault.id())?;
             let buffer = encode(vault).await?;
-            let (event, _) =
-                self.import_folder(buffer, secure_key.clone(), None).await?;
+            let (event, _) = self.import_folder(buffer, None).await?;
             events.push(event);
         }
 
         if let Some(vault) = &account.contacts {
-            let secure_key =
-                account.user.find_secure_access_key(vault.id())?;
             let buffer = encode(vault).await?;
-            let (event, _) =
-                self.import_folder(buffer, secure_key.clone(), None).await?;
+            let (event, _) = self.import_folder(buffer, None).await?;
             events.push(event);
         }
 
@@ -690,7 +676,6 @@ impl FolderStorage {
     pub async fn import_folder(
         &mut self,
         buffer: impl AsRef<[u8]>,
-        secure_key: SecureAccessKey,
         key: Option<&AccessKey>,
     ) -> Result<(Event, Summary)> {
         let (exists, write_event, summary) =
@@ -700,10 +685,10 @@ impl FolderStorage {
         // and we are overwriting then log the update
         // folder event
         let account_event = if exists {
-            AccountEvent::UpdateFolder(*summary.id(), secure_key)
+            AccountEvent::UpdateFolder(*summary.id())
         // Otherwise a create event
         } else {
-            AccountEvent::CreateFolder(*summary.id(), secure_key)
+            AccountEvent::CreateFolder(*summary.id())
         };
 
         let mut account_log = self.account_log.write().await;
@@ -766,14 +751,12 @@ impl FolderStorage {
     pub async fn create_folder(
         &mut self,
         name: String,
-        secure_key: SecureAccessKey,
         key: Option<AccessKey>,
     ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
         let (buf, key, summary) =
             self.prepare_folder(Some(name), key, false).await?;
 
-        let account_event =
-            AccountEvent::CreateFolder(*summary.id(), secure_key);
+        let account_event = AccountEvent::CreateFolder(*summary.id());
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
 
@@ -1087,12 +1070,8 @@ impl FolderStorage {
         vault: &Vault,
         current_key: AccessKey,
         new_key: AccessKey,
-        secure_access_key: SecureAccessKey,
     ) -> Result<AccessKey> {
-        let account_event = AccountEvent::ChangeFolderPassword(
-            *vault.id(),
-            secure_access_key,
-        );
+        let account_event = AccountEvent::ChangeFolderPassword(*vault.id());
 
         let (new_key, new_vault, event_log_events) =
             ChangePassword::new(vault, current_key, new_key, None)

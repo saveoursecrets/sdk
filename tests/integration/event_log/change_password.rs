@@ -55,10 +55,7 @@ async fn integration_events_change_password() -> Result<()> {
         .await?;
 
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
-    assert!(matches!(
-        event,
-        Some(AccountEvent::ChangeFolderPassword(_, _))
-    ));
+    assert!(matches!(event, Some(AccountEvent::ChangeFolderPassword(_))));
 
     // Should be able to continue reading data
     // from the currently open folder which had

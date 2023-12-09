@@ -12,7 +12,7 @@ use crate::{
         FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
         VAULT_EXT, VAULT_NSS,
     },
-    crypto::{AccessKey, KeyDerivation, SecureAccessKey},
+    crypto::{AccessKey, KeyDerivation},
     decode, encode,
     events::{AuditEvent, Event, EventKind},
     identity::{PrivateIdentity, UrnLookup},
@@ -178,11 +178,8 @@ impl IdentityVault {
     }
 
     /// Rename this identity vault.
-    pub async fn rename(
-        &mut self,
-        account_name: String,
-    ) -> Result<()> {
-        self.keeper.set_vault_name(account_name.clone());
+    pub async fn rename(&mut self, account_name: String) -> Result<()> {
+        self.keeper.set_vault_name(account_name.clone()).await?;
         Ok(())
     }
 
@@ -432,7 +429,10 @@ impl IdentityVault {
             Ok(DeviceManager::new(signer, device_keeper))
         };
 
-        self.devices = Some(device_manager?);
+        let mut device_manager = device_manager?;
+        device_manager.load().await?;
+
+        self.devices = Some(device_manager);
         Ok(())
     }
 
@@ -642,4 +642,3 @@ impl From<IdentityVault> for (Address, Vault) {
         (value.address().clone(), value.keeper.into())
     }
 }
-

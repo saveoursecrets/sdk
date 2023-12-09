@@ -336,8 +336,7 @@ async fn assert_move_file_secret(
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(Summary, SecretId, SecretRow, [u8; 32])> {
     let new_folder_name = "Mock folder".to_string();
-    let (destination, _, _, _) =
-        account.create_folder(new_folder_name).await?;
+    let (destination, _, _) = account.create_folder(new_folder_name).await?;
 
     let (new_id, _) = account
         .move_secret(
@@ -439,8 +438,7 @@ async fn assert_create_update_move_file_secret(
     };
 
     let new_folder_name = "Mock folder".to_string();
-    let (destination, _, _, _) =
-        account.create_folder(new_folder_name).await?;
+    let (destination, _, _) = account.create_folder(new_folder_name).await?;
 
     let new_secret_data = update_file_secret(
         account,

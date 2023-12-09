@@ -58,7 +58,7 @@ async fn integration_events_import_folder() -> Result<()> {
 
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
     println!("{:#?}", event);
-    assert!(matches!(event, Some(AccountEvent::UpdateFolder(_, _))));
+    assert!(matches!(event, Some(AccountEvent::UpdateFolder(_))));
 
     teardown(TEST_ID).await;
 

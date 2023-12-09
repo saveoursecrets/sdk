@@ -12,7 +12,7 @@ use crate::{
         FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
         VAULT_EXT, VAULT_NSS,
     },
-    crypto::{AccessKey, KeyDerivation, SecureAccessKey},
+    crypto::{AccessKey, KeyDerivation},
     decode, encode,
     events::{AuditEvent, Event, EventKind},
     identity::{IdentityVault, PrivateIdentity, PublicIdentity},
@@ -56,34 +56,6 @@ impl FolderKeys {
     }
 }
 
-/// Collection of secure access keys.
-#[derive(Default, Clone)]
-pub struct SecureKeys(HashMap<VaultId, SecureAccessKey>);
-
-impl SecureKeys {
-    /// Number of folders with secure access keys.
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Whether this collection is empty.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Iterator for the secure access keys.
-    pub fn iter(&self) -> impl Iterator<Item = (&VaultId, &SecureAccessKey)> {
-        self.0.iter()
-    }
-
-    /// Find an access key by folder id.
-    pub fn find(&self, id: &VaultId) -> Option<&SecureAccessKey> {
-        self.0
-            .iter()
-            .find_map(|(k, v)| if k == id { Some(v) } else { None })
-    }
-}
-
 /// Cache of mapping between secret URN
 /// and secret identifiers to we can find identity
 /// vault secrets quickly.
@@ -95,7 +67,6 @@ pub struct Identity {
     paths: Arc<Paths>,
     account: Option<PublicIdentity>,
     identity: Option<IdentityVault>,
-    secure_keys: SecureKeys,
 }
 
 impl Identity {
@@ -128,7 +99,6 @@ impl Identity {
             paths: Arc::new(paths),
             identity: None,
             account: None,
-            secure_keys: Default::default(),
         }
     }
 
@@ -148,12 +118,6 @@ impl Identity {
             .as_mut()
             .ok_or(Error::NotAuthenticated)?
             .devices_mut()
-    }
-
-    /// Collection of secure access keys for folders
-    /// managed by this identity.
-    pub fn secure_keys(&self) -> &SecureKeys {
-        &self.secure_keys
     }
 
     /// Account information.
@@ -215,10 +179,9 @@ impl Identity {
         paths: &Paths,
         account_name: String,
     ) -> Result<()> {
-
         // Update identity vault
         self.identity_mut()?.rename(account_name.clone()).await?;
-        
+
         /*
         // Update vault file on disc
         let identity_vault_file = paths.identity_vault();
@@ -245,12 +208,9 @@ impl Identity {
         vault_id: &VaultId,
         key: AccessKey,
     ) -> Result<()> {
-        let secure_key = self.to_secure_access_key(&key).await?;
         self.identity_mut()?
             .save_folder_password(vault_id, key)
             .await?;
-
-        self.secure_keys.0.insert(*vault_id, secure_key);
 
         Ok(())
     }
@@ -264,32 +224,7 @@ impl Identity {
             .remove_folder_password(vault_id)
             .await?;
 
-        self.secure_keys.0.remove(vault_id);
-
         Ok(())
-    }
-
-    /// Find a folder access key and encrypt it using the
-    /// account signing key.
-    pub fn find_secure_access_key(
-        &self,
-        vault_id: &VaultId,
-    ) -> Result<&SecureAccessKey> {
-        Ok(self
-            .secure_keys
-            .0
-            .get(vault_id)
-            .ok_or(Error::NoSecureAccessKey(*vault_id))?)
-    }
-
-    /// Convert a secret key to a secure access key.
-    pub(crate) async fn to_secure_access_key(
-        &self,
-        folder_password: &AccessKey,
-    ) -> Result<SecureAccessKey> {
-        let secret_key = self.signing_key()?.to_bytes();
-        Ok(SecureAccessKey::encrypt(folder_password, &secret_key, None)
-            .await?)
     }
 
     /// Find a folder password in an identity vault.
@@ -381,7 +316,6 @@ impl Identity {
 
         self.account = None;
         self.identity = None;
-        self.secure_keys = Default::default();
         Ok(())
     }
 }

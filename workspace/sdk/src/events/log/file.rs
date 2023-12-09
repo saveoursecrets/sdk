@@ -546,7 +546,7 @@ mod test {
 
     use super::*;
     use crate::{
-        crypto::{csprng, AccessKey, SecureAccessKey},
+        crypto::{csprng, AccessKey},
         events::WriteEvent,
         passwd::diceware::generate_passphrase,
         test_utils::*,
@@ -670,11 +670,9 @@ mod test {
         let secret_key: [u8; 32] = csprng().gen();
         let (password, _) = generate_passphrase()?;
         let access_key: AccessKey = password.into();
-        let key =
-            SecureAccessKey::encrypt(&access_key, &secret_key, None).await?;
         event_log
             .apply(vec![
-                &AccountEvent::CreateFolder(folder, key),
+                &AccountEvent::CreateFolder(folder),
                 &AccountEvent::DeleteFolder(folder),
             ])
             .await?;

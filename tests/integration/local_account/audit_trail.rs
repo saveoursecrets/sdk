@@ -153,7 +153,7 @@ async fn simulate_session(
         .archive(default_folder, &id, Default::default())
         .await?;
     // Create a new folder
-    let (new_folder, _, _, _) =
+    let (new_folder, _, _) =
         owner.create_folder("New folder".to_string()).await?;
     // Rename the folder
     owner

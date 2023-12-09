@@ -383,7 +383,7 @@ impl NetworkAccount {
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (summary, event, commit_state, secure_key) =
+        let (summary, event, commit_state) =
             self.account.create_folder(name).await?;
 
         let sync_error = self

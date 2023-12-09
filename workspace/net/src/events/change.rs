@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
     commit::CommitProof,
-    crypto::SecureAccessKey,
     events::{Event, WriteEvent},
     signer::ecdsa::Address,
     vault::{secret::SecretId, Header, Summary, VaultId},

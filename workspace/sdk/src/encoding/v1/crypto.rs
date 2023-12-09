@@ -1,7 +1,7 @@
 use crate::{
     crypto::{
-        AeadPack, Cipher, KeyDerivation, Nonce, SecureAccessKey, AES_GCM_256,
-        ARGON_2_ID, BALLOON_HASH, X25519, X_CHACHA20_POLY1305,
+        AeadPack, Cipher, KeyDerivation, Nonce, AES_GCM_256, ARGON_2_ID,
+        BALLOON_HASH, X25519, X_CHACHA20_POLY1305,
     },
     encoding::encoding_error,
 };
@@ -136,68 +136,6 @@ impl Decodable for KeyDerivation {
                 ));
             }
         };
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Encodable for SecureAccessKey {
-    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> Result<()> {
-        let id: u8 = match self {
-            Self::Password(_, _) => 1,
-            Self::Identity(_, _) => 2,
-            _ => unreachable!(),
-        };
-        writer.write_u8(id).await?;
-
-        match self {
-            Self::Password(cipher, aead) => {
-                cipher.encode(&mut *writer).await?;
-                aead.encode(&mut *writer).await?;
-            }
-            Self::Identity(cipher, aead) => {
-                cipher.encode(&mut *writer).await?;
-                aead.encode(&mut *writer).await?;
-            }
-            _ => unreachable!(),
-        }
-
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Decodable for SecureAccessKey {
-    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> Result<()> {
-        let id = reader.read_u8().await?;
-        match id {
-            1 => {
-                let mut cipher: Cipher = Default::default();
-                cipher.decode(&mut *reader).await?;
-                let mut aead: AeadPack = Default::default();
-                aead.decode(&mut *reader).await?;
-                *self = Self::Password(cipher, aead);
-            }
-            2 => {
-                let mut cipher: Cipher = Default::default();
-                cipher.decode(&mut *reader).await?;
-                let mut aead: AeadPack = Default::default();
-                aead.decode(&mut *reader).await?;
-                *self = Self::Identity(cipher, aead);
-            }
-            _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    format!("unknown secure access key variant {}", id),
-                ));
-            }
-        }
         Ok(())
     }
 }

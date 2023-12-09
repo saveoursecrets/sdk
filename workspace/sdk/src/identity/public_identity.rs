@@ -5,7 +5,7 @@ use crate::{
         FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
         VAULT_EXT, VAULT_NSS,
     },
-    crypto::{AccessKey, KeyDerivation, SecureAccessKey},
+    crypto::{AccessKey, KeyDerivation},
     decode, encode,
     events::{AuditEvent, Event, EventKind},
     identity::PrivateIdentity,

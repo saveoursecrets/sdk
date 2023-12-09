@@ -2,7 +2,6 @@ use axum::http::StatusCode;
 
 use sos_sdk::{
     constants::{VAULT_CREATE, VAULT_DELETE, VAULT_SAVE},
-    crypto::SecureAccessKey,
     events::{AuditData, AuditEvent, Event, EventKind},
     vault::Header,
 };
@@ -43,8 +42,6 @@ impl Service for VaultService {
 
         match request.method() {
             VAULT_CREATE => {
-                let secure_key = request.parameters::<SecureAccessKey>()?;
-
                 // Check it looks like a vault payload
                 let summary =
                     Header::read_summary_slice(request.body()).await?;
@@ -69,7 +66,6 @@ impl Service for VaultService {
                             caller.address(),
                             summary.id(),
                             request.body(),
-                            secure_key,
                         )
                         .await?;
 
@@ -140,8 +136,7 @@ impl Service for VaultService {
                 Ok(reply)
             }
             VAULT_SAVE => {
-                let (vault_id, secure_access_key) =
-                    request.parameters::<(Uuid, SecureAccessKey)>()?;
+                let vault_id = request.parameters::<Uuid>()?;
 
                 // Check it looks like a vault payload
                 let summary =
@@ -167,11 +162,7 @@ impl Service for VaultService {
                 let mut writer = backend.write().await;
                 let (event, proof) = writer
                     .handler_mut()
-                    .import_folder(
-                        caller.address(),
-                        request.body(),
-                        secure_access_key,
-                    )
+                    .import_folder(caller.address(), request.body())
                     .await?;
 
                 let reply: ResponseMessage<'_> =

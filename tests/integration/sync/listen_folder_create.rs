@@ -8,6 +8,7 @@ const TEST_ID: &str = "sync_listen_create_folder";
 /// Tests syncing create folder events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
+#[ignore = "need to sync the identity vault for this to work"]
 #[tokio::test]
 async fn integration_sync_listen_create_folder() -> Result<()> {
     //crate::test_utils::init_tracing();

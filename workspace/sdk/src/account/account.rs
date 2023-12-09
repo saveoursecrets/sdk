@@ -12,7 +12,7 @@ use crate::{
     account::{AccountBuilder, NewAccount},
     commit::{CommitHash, CommitState},
     constants::VAULT_EXT,
-    crypto::{AccessKey, SecureAccessKey},
+    crypto::AccessKey,
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, AuditData, AuditEvent, AuditLogFile,
@@ -338,12 +338,7 @@ impl<D> Account<D> {
             let mut events = Vec::new();
 
             for folder in folders {
-                let secure_access_key =
-                    user.find_secure_access_key(folder.id())?;
-                events.push(AccountEvent::CreateFolder(
-                    folder.into(),
-                    secure_access_key.to_owned(),
-                ));
+                events.push(AccountEvent::CreateFolder(folder.into()));
             }
 
             tracing::debug!(init_events_len = %events.len());
@@ -512,19 +507,16 @@ impl<D> Account<D> {
     pub async fn create_folder(
         &mut self,
         name: String,
-    ) -> Result<(Summary, Event, CommitState, SecureAccessKey)> {
+    ) -> Result<(Summary, Event, CommitState)> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
         let passphrase = self.user()?.generate_folder_password()?;
         let key: AccessKey = passphrase.into();
-        let secure_key = self.user()?.to_secure_access_key(&key).await?;
 
         let (buffer, event, summary, account_event) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer
-                .create_folder(name, secure_key.clone(), Some(key.clone()))
-                .await?
+            writer.create_folder(name, Some(key.clone())).await?
         };
 
         // Must save the password before getting the secure access key
@@ -542,7 +534,7 @@ impl<D> Account<D> {
 
         let event =
             Event::Folder(account_event, WriteEvent::CreateVault(buffer));
-        Ok((summary, event, commit_state, secure_key))
+        Ok((summary, event, commit_state))
     }
 
     /// Delete a folder.
@@ -810,15 +802,11 @@ impl<D> Account<D> {
                 Cow::Borrowed(buffer.as_ref())
             };
 
-        let secure_key = self.user()?.to_secure_access_key(&key).await?;
-
         // Import the vault
         let (event, summary) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer
-                .import_folder(buffer.as_ref(), secure_key, Some(&key))
-                .await?
+            writer.import_folder(buffer.as_ref(), Some(&key)).await?
         };
 
         // If we are overwriting then we must remove the existing
@@ -1250,9 +1238,6 @@ impl<D> Account<D> {
         let current_key =
             self.user()?.find_folder_password(folder.id()).await?;
 
-        let secure_access_key =
-            self.user()?.to_secure_access_key(&new_key).await?;
-
         let vault = {
             let storage = self.storage()?;
             let reader = storage.read().await;
@@ -1263,12 +1248,7 @@ impl<D> Account<D> {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
             writer
-                .change_password(
-                    &vault,
-                    current_key,
-                    new_key.clone(),
-                    secure_access_key,
-                )
+                .change_password(&vault, current_key, new_key.clone())
                 .await?;
         }
 

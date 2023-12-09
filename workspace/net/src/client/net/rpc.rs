@@ -14,7 +14,6 @@ use sos_sdk::{
         HANDSHAKE_INITIATE, MIME_TYPE_RPC, VAULT_CREATE, VAULT_DELETE,
         VAULT_SAVE,
     },
-    crypto::SecureAccessKey,
     decode,
     device::DevicePublicKey,
     encode,
@@ -317,7 +316,6 @@ impl RpcClient {
     pub async fn create_account(
         &self,
         vault: impl AsRef<[u8]>,
-        secure_access_key: &SecureAccessKey,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.origin.url.join("api/account")?;
 
@@ -328,7 +326,7 @@ impl RpcClient {
         let request = RequestMessage::new(
             Some(id),
             ACCOUNT_CREATE,
-            (device_public_key, secure_access_key),
+            device_public_key,
             Cow::Borrowed(vault.as_ref()),
         )?;
         let packet = Packet::new_request(request);
@@ -372,14 +370,13 @@ impl RpcClient {
     pub async fn create_folder(
         &self,
         vault: impl AsRef<[u8]>,
-        secure_key: &SecureAccessKey,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let url = self.origin.url.join("api/vault")?;
         let id = self.next_id().await;
         let request = RequestMessage::new(
             Some(id),
             VAULT_CREATE,
-            secure_key,
+            (),
             Cow::Borrowed(vault.as_ref()),
         )?;
         let packet = Packet::new_request(request);
@@ -432,7 +429,6 @@ impl RpcClient {
         &self,
         vault_id: &VaultId,
         vault: impl AsRef<[u8]>,
-        secure_access_key: &SecureAccessKey,
     ) -> Result<MaybeRetry<Option<CommitProof>>> {
         let vault_id = *vault_id;
         let url = self.origin.url.join("api/vault")?;
@@ -440,7 +436,7 @@ impl RpcClient {
         let request = RequestMessage::new(
             Some(id),
             VAULT_SAVE,
-            (vault_id, secure_access_key),
+            vault_id,
             Cow::Borrowed(vault.as_ref()),
         )?;
         let packet = Packet::new_request(request);

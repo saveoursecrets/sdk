@@ -447,13 +447,10 @@ impl Encodable for AccountEvent {
 
         match self {
             AccountEvent::Noop => panic!("attempt to encode a noop"),
-            AccountEvent::CreateFolder(id, secure_access_key)
-            | AccountEvent::UpdateFolder(id, secure_access_key)
-            | AccountEvent::ChangeFolderPassword(id, secure_access_key) => {
-                writer.write_bytes(id.as_bytes()).await?;
-                secure_access_key.encode(&mut *writer).await?;
-            }
             AccountEvent::CompactFolder(id)
+            | AccountEvent::CreateFolder(id)
+            | AccountEvent::UpdateFolder(id)
+            | AccountEvent::ChangeFolderPassword(id)
             | AccountEvent::DeleteFolder(id) => {
                 writer.write_bytes(id.as_bytes()).await?;
             }
@@ -468,32 +465,21 @@ impl Decodable for AccountEvent {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        use crate::crypto::SecureAccessKey;
         let mut op: EventKind = Default::default();
         op.decode(&mut *reader).await?;
         match op {
             EventKind::Noop => panic!("attempt to decode a noop"),
             EventKind::CreateVault => {
                 let id = decode_uuid(&mut *reader).await?;
-                let mut secure_access_key: SecureAccessKey =
-                    Default::default();
-                secure_access_key.decode(&mut *reader).await?;
-                *self = AccountEvent::CreateFolder(id, secure_access_key)
+                *self = AccountEvent::CreateFolder(id)
             }
             EventKind::ChangePassword => {
                 let id = decode_uuid(&mut *reader).await?;
-                let mut secure_access_key: SecureAccessKey =
-                    Default::default();
-                secure_access_key.decode(&mut *reader).await?;
-                *self =
-                    AccountEvent::ChangeFolderPassword(id, secure_access_key)
+                *self = AccountEvent::ChangeFolderPassword(id)
             }
             EventKind::UpdateVault => {
                 let id = decode_uuid(&mut *reader).await?;
-                let mut secure_access_key: SecureAccessKey =
-                    Default::default();
-                secure_access_key.decode(&mut *reader).await?;
-                *self = AccountEvent::UpdateFolder(id, secure_access_key)
+                *self = AccountEvent::UpdateFolder(id)
             }
             EventKind::CompactVault => {
                 let id = decode_uuid(&mut *reader).await?;

@@ -22,7 +22,8 @@ async fn integration_identity_login() -> Result<()> {
     let path = data_dir.join("login.vault");
     let (address, vault) =
         IdentityVault::new("Login".to_owned(), password.clone())
-            .await?.into();
+            .await?
+            .into();
     let buffer = encode(&vault).await?;
     vfs::write(&path, buffer).await?;
 

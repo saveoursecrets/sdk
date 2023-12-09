@@ -81,14 +81,8 @@ async fn integration_events_move_folder() -> Result<()> {
     // The account should have two create folder events now,
     // one for the default folder and one for the imported folder
     assert_eq!(2, events.len());
-    assert!(matches!(
-        events.get(0),
-        Some(AccountEvent::CreateFolder(_, _))
-    ));
-    assert!(matches!(
-        events.get(1),
-        Some(AccountEvent::CreateFolder(_, _))
-    ));
+    assert!(matches!(events.get(0), Some(AccountEvent::CreateFolder(_))));
+    assert!(matches!(events.get(1), Some(AccountEvent::CreateFolder(_))));
 
     // Find the imported folder and check the name
     let folder = account2.find(|s| s.id() == &folder_id).await.unwrap();
