@@ -52,11 +52,11 @@ To add trusted devices the account owner can share the account [signing key](/do
 
 Once the server has established that the device is trusted it is able to retrieve the [identity vault](/doc/overview.md#identity-vault) and account folders to perform an initial synchronization. The account owner can then provide the [primary password](/doc/overview.md#primary-password) to sign in to the account on the new device.
 
-The server API endpoint for trusting devices should only require a signature from the account signing key for authentication.
+The server API endpoint for trusting devices **must only require a signature from the account signing key** for authentication.
 
 ### Revoking Devices
 
-If a device has been lost or stolen an account owner can revoke the public key for the trusted device so it is no longer allowed to communicate with the server.
+If a device has been lost or stolen an account owner can revoke the public key for the device so it is no longer trusted and will not be allowed to communicate server endpoints that require a signature from a device.
 
 The server API endpoint for revoking devices **must require signatures from both the account signing key and a trusted device** for authentication.
 
