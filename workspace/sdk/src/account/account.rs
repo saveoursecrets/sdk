@@ -167,7 +167,7 @@ impl<D> Account<D> {
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
         handler: Option<Handler<D>>,
-    ) -> Result<(Self, PrivateNewAccount)> {
+    ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
@@ -187,7 +187,7 @@ impl<D> Account<D> {
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
         handler: Option<Handler<D>>,
-    ) -> Result<(Self, PrivateNewAccount)> {
+    ) -> Result<Self> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
 
@@ -207,12 +207,12 @@ impl<D> Account<D> {
             Storage::new_client(address.clone(), data_dir.clone()).await?;
 
         tracing::debug!("prepared storage provider");
-        
+
         let public_account: PublicNewAccount = (&new_account).into();
         storage.create_account(public_account).await?;
 
         tracing::debug!("imported new account");
-        
+
         let owner = Self {
             address,
             paths: storage.paths(),
@@ -220,7 +220,7 @@ impl<D> Account<D> {
             handler,
         };
 
-        Ok((owner, new_account))
+        Ok(owner)
     }
 
     /// Authenticated user information.
@@ -251,7 +251,10 @@ impl<D> Account<D> {
         &self.address
     }
 
-    /// Get access to an account by signing in.
+    /// Access an account by signing in.
+    ///
+    /// If a default folder exists for the account it 
+    /// is opened.
     pub async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let span = span!(Level::DEBUG, "sign_in");
         let _enter = span.enter();
@@ -291,7 +294,13 @@ impl<D> Account<D> {
 
         // Load vaults into memory and initialize folder
         // event log commit trees
-        Ok(self.load_folders().await?)
+        let folders = self.load_folders().await?;
+
+        if let Some(default_folder) = self.default_folder().await {
+            self.open_folder(&default_folder).await?;
+        }
+
+        Ok(folders)
     }
 
     async fn initialize_account_log(

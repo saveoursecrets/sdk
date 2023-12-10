@@ -18,7 +18,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let (mut account, new_account) = LocalAccount::new_account(
+    let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
@@ -27,18 +27,16 @@ async fn integration_secret_lifecycle() -> Result<()> {
     .await?;
     let address = account.address().clone();
 
-    let default_folder = new_account.default_folder();
     let key: AccessKey = password.clone().into();
-    account.sign_in(&key).await?;
-    let folders = account.list_folders().await?;
-    account.open_folder(&default_folder).await?;
+    let folders = account.sign_in(&key).await?;
+    let default_folder = account.default_folder().await.unwrap();
 
     // Create secret
     let (meta, secret) = mock::note("note", TEST_ID);
     let (id, _, _, folder) = account
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert_eq!(default_folder, &folder);
+    assert_eq!(&default_folder, &folder);
 
     // Read secret
     let (data, _) = account.read_secret(&id, Default::default()).await?;

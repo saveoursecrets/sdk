@@ -15,7 +15,7 @@ async fn integration_update_file() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let (mut account, new_account) = LocalAccount::new_account(
+    let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
@@ -23,10 +23,9 @@ async fn integration_update_file() -> Result<()> {
     )
     .await?;
 
-    let default_folder = new_account.default_folder();
     let key: AccessKey = password.clone().into();
     account.sign_in(&key).await?;
-    account.open_folder(&default_folder).await?;
+    let default_folder = account.default_folder().await.unwrap();
 
     // Create the file secret
     let (meta, secret, _) = mock::file_image_secret()?;

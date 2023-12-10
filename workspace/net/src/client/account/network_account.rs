@@ -100,7 +100,7 @@ impl NetworkAccount {
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
-    ) -> Result<(Self, PrivateNewAccount)> {
+    ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
@@ -127,13 +127,13 @@ impl NetworkAccount {
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
-    ) -> Result<(Self, PrivateNewAccount)> {
+    ) -> Result<Self> {
         let remotes = Arc::new(RwLock::new(remotes.unwrap_or_default()));
         let handler = SyncHandler {
             remotes: Arc::clone(&remotes),
         };
 
-        let (account, new_account) = LocalAccount::new_account_with_builder(
+        let account = LocalAccount::new_account_with_builder(
             account_name,
             passphrase.clone(),
             builder,
@@ -150,7 +150,7 @@ impl NetworkAccount {
             listeners: Mutex::new(Default::default()),
         };
 
-        Ok((owner, new_account))
+        Ok(owner)
     }
 
     /// Determine if the account is authenticated.

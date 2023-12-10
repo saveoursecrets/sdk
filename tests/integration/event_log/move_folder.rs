@@ -18,7 +18,7 @@ async fn integration_events_move_folder() -> Result<()> {
     let (password1, _) = generate_passphrase()?;
     let (password2, _) = generate_passphrase()?;
 
-    let (mut account1, new_account1) = LocalAccount::new_account(
+    let mut account1 = LocalAccount::new_account(
         account_name.clone(),
         password1.clone(),
         Some(data_dir.clone()),
@@ -26,7 +26,7 @@ async fn integration_events_move_folder() -> Result<()> {
     )
     .await?;
 
-    let (mut account2, _new_account2) = LocalAccount::new_account(
+    let mut account2 = LocalAccount::new_account(
         account_name.clone(),
         password2.clone(),
         Some(data_dir.clone()),
@@ -34,10 +34,9 @@ async fn integration_events_move_folder() -> Result<()> {
     )
     .await?;
 
-    let default_folder1 = new_account1.default_folder();
     let key: AccessKey = password1.into();
     account1.sign_in(&key).await?;
-    account1.open_folder(&default_folder1).await?;
+    let default_folder1 = account1.default_folder().await.unwrap();
 
     // Create some data in the first folder
     let docs = vec![

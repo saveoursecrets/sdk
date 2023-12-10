@@ -462,7 +462,7 @@ impl Storage {
         let audit_event: AuditEvent =
             (self.address(), &create_account).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
-        
+
         // Save the default folder
         let buffer = encode(account.default_folder.as_ref()).await?;
         let (event, _) = self.import_folder(buffer, None).await?;
@@ -474,7 +474,7 @@ impl Storage {
             let (event, _) = self.import_folder(buffer, None).await?;
             events.push(event);
         }
-        
+
         events.insert(0, create_account);
 
         Ok(events)

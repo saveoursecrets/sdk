@@ -16,7 +16,7 @@ async fn integration_events_file() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let (mut account, new_account) = LocalAccount::new_account(
+    let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
@@ -24,10 +24,9 @@ async fn integration_events_file() -> Result<()> {
     )
     .await?;
 
-    let default_folder = new_account.default_folder();
     let key: AccessKey = password.into();
     account.sign_in(&key).await?;
-    account.open_folder(&default_folder).await?;
+    let default_folder = account.default_folder().await.unwrap();
 
     // Create a folder so we can move the secret
     let folder_name = "folder_name";
@@ -133,7 +132,7 @@ async fn integration_events_file_folder_delete() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let (mut account, new_account) = LocalAccount::new_account(
+    let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
@@ -141,10 +140,9 @@ async fn integration_events_file_folder_delete() -> Result<()> {
     )
     .await?;
 
-    let default_folder = new_account.default_folder();
     let key: AccessKey = password.into();
     account.sign_in(&key).await?;
-    account.open_folder(&default_folder).await?;
+    let default_folder = account.default_folder().await.unwrap();
 
     // Create some external file secrets
     let (meta, secret, _) = mock::file_text_secret()?;

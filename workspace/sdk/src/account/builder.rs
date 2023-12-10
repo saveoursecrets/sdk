@@ -16,7 +16,7 @@ use crate::{
     vfs, Paths, Result,
 };
 use secrecy::SecretString;
-use std::{collections::HashMap, path::PathBuf, borrow::Cow};
+use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 
 /// Private information about a new account.
 pub struct PrivateNewAccount {
@@ -71,7 +71,7 @@ impl<'a> From<&'a PrivateNewAccount> for PublicNewAccount<'a> {
     }
 }
 
-/// Public information about a new account that can 
+/// Public information about a new account that can
 /// be sent over the network.
 pub struct PublicNewAccount<'a> {
     /// Address of the account signing key.
@@ -80,7 +80,7 @@ pub struct PublicNewAccount<'a> {
     pub identity_vault: Cow<'a, Vault>,
     /// Default folder.
     pub default_folder: Cow<'a, Vault>,
-    /// Addtional folders to be imported 
+    /// Addtional folders to be imported
     /// into the new account.
     pub folders: Vec<Cow<'a, Vault>>,
 }

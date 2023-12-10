@@ -16,16 +16,17 @@ async fn integration_security_report() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let (mut account, new_account) = LocalAccount::new_account(
+    let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
         None,
     )
     .await?;
-    let summary = new_account.default_folder().clone();
+
     let key: AccessKey = password.clone().into();
     account.sign_in(&key).await?;
+    let summary = account.default_folder().await.unwrap();
 
     // Make changes to generate data
     let mock_ids = simulate_session(&mut account, &summary, password).await?;

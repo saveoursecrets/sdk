@@ -130,17 +130,17 @@ pub async fn simulate_device(
     let data_dir = dirs.clients.get(0).unwrap().clone();
 
     let (password, _) = generate_passphrase()?;
-    let (mut owner, new_account) = NetworkAccount::new_account(
+    let mut owner = NetworkAccount::new_account(
         test_id.to_owned(),
         password.clone(),
         Some(data_dir.clone()),
         None,
     )
     .await?;
-    let default_folder = new_account.default_folder().clone();
 
     let key: AccessKey = password.clone().into();
     let folders = owner.sign_in(&key).await?;
+    let default_folder = owner.default_folder().await.unwrap();
 
     // Copy the initial data directory for the
     // alternative devices as they need to share
@@ -159,9 +159,6 @@ pub async fn simulate_device(
     owner
         .insert_remote(origin.clone().into(), Box::new(provider))
         .await?;
-
-    //let default_folder_id = *default_folder.id();
-    owner.open_folder(&default_folder).await?;
 
     // Sync the local account to create the account on remote
     assert!(owner.sync().await.is_none());

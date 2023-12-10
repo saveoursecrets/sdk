@@ -19,16 +19,17 @@ async fn integration_external_files() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let (mut account, new_account) = LocalAccount::new_account(
+    let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
         None,
     )
     .await?;
-    let summary = new_account.default_folder().clone();
+
     let key: AccessKey = password.into();
     account.sign_in(&key).await?;
+    let summary = account.default_folder().await.unwrap();
 
     let operations: Arc<Mutex<Vec<FileProgress>>> =
         Arc::new(Mutex::new(Vec::new()));

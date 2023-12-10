@@ -22,7 +22,7 @@ async fn integration_account_lifecycle() -> Result<()> {
     let accounts = Identity::list_accounts(Some(&paths)).await?;
     assert_eq!(0, accounts.len());
 
-    let (mut account, _new_account) = LocalAccount::new_account(
+    let mut account = LocalAccount::new_account(
         account_name.clone(),
         passphrase.clone(),
         Some(data_dir.clone()),

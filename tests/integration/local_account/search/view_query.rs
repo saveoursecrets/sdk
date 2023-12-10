@@ -16,7 +16,7 @@ async fn integration_search_view_query() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let (mut account, new_account) = LocalAccount::new_account_with_builder(
+    let mut account = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),
         |builder| builder.create_archive(true).create_file_password(true),
@@ -25,10 +25,9 @@ async fn integration_search_view_query() -> Result<()> {
     )
     .await?;
 
-    let default_folder = new_account.default_folder();
     let key: AccessKey = password.clone().into();
     account.sign_in(&key).await?;
-    account.open_folder(&default_folder).await?;
+    let default_folder = account.default_folder().await.unwrap();
     let archive_folder = account.archive_folder().await.unwrap();
 
     let default_folder_docs = vec![

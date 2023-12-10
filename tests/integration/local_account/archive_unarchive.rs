@@ -16,7 +16,7 @@ async fn integration_archive_unarchive() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let (mut account, new_account) = LocalAccount::new_account_with_builder(
+    let mut account = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),
         |builder| builder.create_archive(true).create_file_password(true),
@@ -25,10 +25,9 @@ async fn integration_archive_unarchive() -> Result<()> {
     )
     .await?;
 
-    let default_folder = new_account.default_folder();
     let key: AccessKey = password.into();
     account.sign_in(&key).await?;
-    account.open_folder(&default_folder).await?;
+    let default_folder = account.default_folder().await.unwrap();
     let archive_folder = account.archive_folder().await.unwrap();
 
     // Create secret
@@ -36,7 +35,7 @@ async fn integration_archive_unarchive() -> Result<()> {
     let (id, _, _, folder) = account
         .create_secret(meta.clone(), secret, Default::default())
         .await?;
-    assert_eq!(default_folder, &folder);
+    assert_eq!(&default_folder, &folder);
 
     // Archive the secret and get the new identifier
     let (id, _) = account

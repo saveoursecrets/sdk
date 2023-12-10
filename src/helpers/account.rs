@@ -334,7 +334,7 @@ pub async fn new_account(
             display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
 
-        let (mut owner, _) = NetworkAccount::new_account(
+        let mut owner = NetworkAccount::new_account(
             account_name.clone(),
             passphrase.clone(),
             None,

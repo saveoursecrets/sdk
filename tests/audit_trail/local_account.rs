@@ -14,7 +14,7 @@ async fn audit_trail_local() -> Result<()> {
 
     let account_name = TEST_ID.to_string();
     let (passphrase, _) = generate_passphrase()?;
-    let (mut owner, new_account) = LocalAccount::new_account_with_builder(
+    let mut account = LocalAccount::new_account_with_builder(
         account_name.to_owned(),
         passphrase.clone(),
         |builder| {
@@ -29,15 +29,15 @@ async fn audit_trail_local() -> Result<()> {
         None,
     )
     .await?;
-    let summary = new_account.default_folder().clone();
     let key: AccessKey = passphrase.clone().into();
-    owner.sign_in(&key).await?;
+    account.sign_in(&key).await?;
+    let summary = account.default_folder().await.unwrap();
 
     // Make changes to generate audit logs
-    simulate_session(&mut owner, &summary, passphrase, &data_dir).await?;
+    simulate_session(&mut account, &summary, passphrase, &data_dir).await?;
 
     // Read in the audit log events
-    let paths = owner.paths();
+    let paths = account.paths();
     let audit_log = paths.audit_file();
 
     let events = read_audit_events(audit_log).await?;
@@ -112,23 +112,24 @@ async fn audit_trail_local() -> Result<()> {
 }
 
 async fn simulate_session(
-    owner: &mut LocalAccount,
+    account: &mut LocalAccount,
     default_folder: &Summary,
     passphrase: SecretString,
     data_dir: &PathBuf,
 ) -> Result<()> {
     // Create a secret
     let (meta, secret) = mock::note("Audit note", "Note value");
-    let (id, _, _, _) = owner
+    let (id, _, _, _) = account
         .create_secret(meta, secret, default_folder.clone().into())
         .await?;
     // Read the secret
-    let (secret_data, _) =
-        owner.read_secret(&id, Some(default_folder.clone())).await?;
+    let (secret_data, _) = account
+        .read_secret(&id, Some(default_folder.clone()))
+        .await?;
     // Update the secret
     let mut new_meta = secret_data.meta().clone();
     new_meta.set_label("Audit note updated".to_string());
-    let (id, _, _, _) = owner
+    let (id, _, _, _) = account
         .update_secret(
             &id,
             new_meta,
@@ -138,30 +139,30 @@ async fn simulate_session(
         )
         .await?;
     // Delete the secret
-    owner
+    account
         .delete_secret(&id, default_folder.clone().into())
         .await?;
     // Create a new secret so we can archive it
     let (meta, secret) =
         mock::note("Audit note to archive", "Note value to archive");
-    let (id, _, _, _) = owner
+    let (id, _, _, _) = account
         .create_secret(meta, secret, default_folder.clone().into())
         .await?;
     // Archive the secret to generate move event
-    owner
+    account
         .archive(default_folder, &id, Default::default())
         .await?;
     // Create a new folder
     let (new_folder, _, _) =
-        owner.create_folder("New folder".to_string()).await?;
+        account.create_folder("New folder".to_string()).await?;
     // Rename the folder
-    owner
+    account
         .rename_folder(&new_folder, "New name".to_string())
         .await?;
 
     let exported_folder = "target/audit-trail-vault-export.vault";
     let (export_passphrase, _) = generate_passphrase()?;
-    owner
+    account
         .export_folder(
             exported_folder,
             &new_folder,
@@ -170,7 +171,7 @@ async fn simulate_session(
         )
         .await?;
 
-    owner
+    account
         .import_folder(
             exported_folder,
             export_passphrase.clone().into(),
@@ -179,11 +180,11 @@ async fn simulate_session(
         .await?;
 
     // Delete the new folder
-    owner.delete_folder(&new_folder).await?;
+    account.delete_folder(&new_folder).await?;
 
     // Export an account backup archive
     let archive = "target/audit-trail-exported-archive.zip";
-    owner.export_backup_archive(archive).await?;
+    account.export_backup_archive(archive).await?;
 
     let restore_options = RestoreOptions {
         selected: vec![default_folder.clone()],
@@ -192,7 +193,7 @@ async fn simulate_session(
     };
 
     LocalAccount::restore_backup_archive(
-        Some(owner),
+        Some(account),
         archive,
         restore_options,
         Some(data_dir.clone()),
@@ -200,7 +201,7 @@ async fn simulate_session(
     .await?;
 
     let unsafe_archive = "target/audit-trail-unsafe-archive.zip";
-    owner.export_unsafe_archive(unsafe_archive).await?;
+    account.export_unsafe_archive(unsafe_archive).await?;
 
     let import_file = "tests/fixtures/migrate/bitwarden-export.csv";
     let import_target = ImportTarget {
@@ -208,17 +209,17 @@ async fn simulate_session(
         path: PathBuf::from(import_file),
         folder_name: "Bitwarden folder".to_string(),
     };
-    owner.import_file(import_target).await?;
+    account.import_file(import_target).await?;
 
     let contacts = "tests/fixtures/contacts.vcf";
     let vcard = vfs::read_to_string(contacts).await?;
-    owner.import_contacts(&vcard, |_| {}).await?;
+    account.import_contacts(&vcard, |_| {}).await?;
 
     let exported_contacts = "target/audit-trail-exported-contacts.vcf";
-    owner.export_all_contacts(exported_contacts).await?;
+    account.export_all_contacts(exported_contacts).await?;
 
     // Delete the account
-    owner.delete_account().await?;
+    account.delete_account().await?;
 
     Ok(())
 }
