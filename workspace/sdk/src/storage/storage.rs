@@ -79,46 +79,57 @@ impl Folder {
         let mut events_path = path.as_ref().to_owned();
         events_path.set_extension(EVENT_LOG_EXT);
 
-        let buffer = vfs::read(path.as_ref()).await?;
-        let vault: Vault = decode(&buffer).await?;
+        let mut event_log = FolderEventLog::new_folder(events_path).await?;
+        event_log.load_tree().await?;
+        let needs_init = event_log.tree().root().is_none();
+        
+        let vault = if needs_init {
+            // For the client-side we must split the events
+            // out but keep the existing vault data (not the head-only)
+            // version so that the event log here will match what the 
+            // server will have when an account is first synced
+            let buffer = vfs::read(path.as_ref()).await?;
+            let vault: Vault = decode(&buffer).await?;
+            let (_, events) = EventReducer::split(vault.clone()).await?;
+            event_log.apply(events.iter().collect()).await?;
+            vault
+        } else {
+            let buffer = vfs::read(path.as_ref()).await?;
+            let vault: Vault = decode(&buffer).await?;
+            vault
+        };
+
         let vault_file = VaultWriter::open(path.as_ref()).await?;
         let mirror = VaultWriter::new(path.as_ref(), vault_file)?;
         let keeper = Gatekeeper::new_mirror(vault, mirror);
 
-        let mut events = FolderEventLog::new_folder(events_path).await?;
-        events.load_tree().await?;
-        let needs_init = events.tree().root().is_none();
-        if needs_init {
-            let event = WriteEvent::CreateVault(buffer);
-            events.apply(vec![&event]).await?;
-        }
-
-        Ok(Self::new(keeper, Some(events)))
+        Ok(Self::new(keeper, Some(event_log)))
     }
-    
-    /// Create a new vault file on disc and the associated 
+
+    /// Create a new vault file on disc and the associated
     /// event log.
     ///
-    /// If a vault file already exists it is overwritten if an 
-    /// event log exists it is truncated and the single create 
+    /// If a vault file already exists it is overwritten if an
+    /// event log exists it is truncated and the single create
     /// vault event is written.
     ///
-    /// Intended to be used by a server to create the identity 
+    /// Intended to be used by a server to create the identity
     /// vault and event log when a new account is created.
     pub async fn initialize(
-        path: impl AsRef<Path>, vault: &Vault) -> Result<()> {
+        path: impl AsRef<Path>,
+        vault: &Vault,
+    ) -> Result<()> {
+        let (vault, events) = EventReducer::split(vault.clone()).await?;
 
-        let buffer = encode(vault).await?;
+        let buffer = encode(&vault).await?;
         vfs::write(path.as_ref(), &buffer).await?;
 
         let mut events_path = path.as_ref().to_owned();
         events_path.set_extension(EVENT_LOG_EXT);
 
-        let mut events = FolderEventLog::new_folder(events_path).await?;
-        events.truncate().await?;
-
-        let event = WriteEvent::CreateVault(buffer);
-        events.apply(vec![&event]).await?;
+        let mut event_log = FolderEventLog::new_folder(events_path).await?;
+        event_log.truncate().await?;
+        event_log.apply(events.iter().collect()).await?;
 
         Ok(())
     }
@@ -482,22 +493,21 @@ impl Storage {
             None,
         ));
 
+        // If we don't have an identity vault then initialize
+        // it and it's associated event log
         if !vfs::try_exists(self.paths.identity_vault()).await? {
             Folder::initialize(
                 self.paths.identity_vault(),
-                &account.identity_vault).await?;
+                &account.identity_vault,
+            )
+            .await?;
         }
 
         let audit_event: AuditEvent =
             (self.address(), &create_account).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
 
-        // Save the default folder
-        let buffer = encode(&account.default_folder).await?;
-        let (event, _) = self.import_folder(buffer, None).await?;
-        events.push(event);
-
-        // Import additional folders
+        // Import folders
         for folder in &account.folders {
             let buffer = encode(folder).await?;
             let (event, _) = self.import_folder(buffer, None).await?;
@@ -507,6 +517,25 @@ impl Storage {
         events.insert(0, create_account);
 
         Ok(events)
+    }
+
+    /// Public account including all vaults.
+    ///
+    /// Used by network aware implementations to send
+    /// account information to a server.
+    #[cfg(feature = "account")]
+    pub async fn public_account(&self) -> Result<PublicNewAccount> {
+        let address = self.address.clone();
+        let identity_vault = vfs::read(self.paths.identity_vault()).await?;
+        let mut folders = Vec::new();
+        for summary in &self.state.summaries {
+            folders.push(self.read_vault(summary.id()).await?);
+        }
+        Ok(PublicNewAccount {
+            address,
+            identity_vault: decode(&identity_vault).await?,
+            folders,
+        })
     }
 
     /// Restore vaults from an archive.

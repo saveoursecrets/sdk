@@ -7,6 +7,7 @@ use http::{
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use sos_sdk::{
+    account::PublicNewAccount,
     commit::{CommitHash, CommitProof},
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
@@ -315,19 +316,20 @@ impl RpcClient {
     /// Create a new account.
     pub async fn create_account(
         &self,
-        vault: impl AsRef<[u8]>,
-    ) -> Result<MaybeRetry<Option<CommitProof>>> {
+        account: &PublicNewAccount,
+    ) -> Result<MaybeRetry<Option<()>>> {
         let url = self.origin.url.join("api/account")?;
 
         let device_public_key: DevicePublicKey =
             self.device.verifying_key().to_bytes().into();
 
         let id = self.next_id().await;
+        let body = encode(account).await?;
         let request = RequestMessage::new(
             Some(id),
             ACCOUNT_CREATE,
             device_public_key,
-            Cow::Borrowed(vault.as_ref()),
+            Cow::Owned(body),
         )?;
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
@@ -338,7 +340,7 @@ impl RpcClient {
         let response = self.send_request(url, signature, body).await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
-            .read_encrypted_response::<CommitProof>(
+            .read_encrypted_response::<()>(
                 response.status(),
                 &response.bytes().await?,
             )

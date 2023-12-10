@@ -13,6 +13,7 @@ use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
+    account::PublicNewAccount,
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     decode,
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
@@ -140,12 +141,12 @@ impl RemoteBridge {
     }
 
     /// Create an account on the remote.
-    async fn create_account(&self, buffer: &[u8]) -> Result<()> {
+    async fn create_account(&self, account: &PublicNewAccount) -> Result<()> {
         let span = span!(Level::DEBUG, "create_account");
         let _enter = span.enter();
 
         let (status, _) =
-            retry!(|| self.remote.create_account(buffer), self.remote);
+            retry!(|| self.remote.create_account(account), self.remote);
 
         tracing::debug!(status = %status);
 
@@ -424,48 +425,10 @@ impl RemoteBridge {
 
     /// Create an account on the remote.
     async fn prepare_account(&self) -> Result<()> {
-        let canonical_folders = {
-            let local = self.local.read().await;
-            let log = local.account_log();
-            let mut event_log = log.write().await;
-            let reducer = AccountReducer::new(&mut *event_log);
-            let canonical_folders = reducer.reduce().await?;
-            let mut folders = Vec::new();
-            for id in canonical_folders {
-                if let Some(folder) = local.find(|s| s.id() == &id) {
-                    let buffer = local.read_vault_file(&id).await?;
-                    folders.push((folder.clone(), buffer));
-                } else {
-                    tracing::warn!(id = %id, "missing folder");
-                }
-            }
-            folders
-        };
+        let local = self.local.read().await;
+        let public_account = local.public_account().await?;
 
-        let mut other_folders = Vec::new();
-        let mut default_folder: Option<(Summary, Vec<u8>)> = None;
-        for (folder, buffer) in canonical_folders {
-            if folder.flags().is_default() && default_folder.is_none() {
-                default_folder = Some((folder, buffer));
-            } else {
-                other_folders.push((folder, buffer));
-            }
-        }
-
-        // Choose a folder to send for the create account
-        if default_folder.is_none() && !other_folders.is_empty() {
-            default_folder = Some(other_folders.remove(0));
-        }
-
-        // Create the account and default folder on the remote
-        if let Some((_, buffer)) = default_folder.take() {
-            self.create_account(&buffer).await?;
-            for (_, buffer) in other_folders {
-                self.create_folder(&buffer).await?;
-            }
-        } else {
-            tracing::warn!("no default folder for sync");
-        }
+        self.create_account(&public_account).await?;
 
         // FIXME: import files here!
 

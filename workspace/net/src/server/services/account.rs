@@ -1,7 +1,9 @@
 use axum::http::StatusCode;
 
 use sos_sdk::{
+    account::PublicNewAccount,
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
+    decode,
     device::DevicePublicKey,
     storage::AccountStatus,
     vault::Header,
@@ -57,23 +59,29 @@ impl Service for AccountService {
                 let device_public_key =
                     request.parameters::<DevicePublicKey>()?;
 
-                let summary =
-                    Header::read_summary_slice(request.body()).await?;
+                let account: PublicNewAccount =
+                    decode(request.body()).await?;
+
+                // Address of the account being created
+                // does not match the caller's address
+                if &account.address != caller.address() {
+                    return Ok((StatusCode::BAD_REQUEST, request.id()).into());
+                }
 
                 let mut writer = backend.write().await;
-
-                let (event, proof) = writer
+                writer
                     .handler_mut()
                     .create_account(
                         caller.address(),
-                        request.body(),
+                        account,
                         device_public_key,
                     )
                     .await?;
 
                 let reply: ResponseMessage<'_> =
-                    (request.id(), &proof).try_into()?;
+                    (request.id(), ()).try_into()?;
 
+                /*
                 let vault_id = *summary.id();
 
                 #[cfg(feature = "listen")]
@@ -89,6 +97,7 @@ impl Service for AccountService {
                     let mut writer = state.write().await;
                     send_notification(&mut writer, &caller, notification);
                 }
+                */
 
                 Ok(reply)
             }

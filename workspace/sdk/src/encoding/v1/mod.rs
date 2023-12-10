@@ -1,3 +1,5 @@
+#[cfg(feature = "account")]
+mod account;
 mod commit;
 mod crypto;
 mod events;

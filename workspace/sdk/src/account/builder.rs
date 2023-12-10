@@ -40,7 +40,7 @@ pub struct PrivateNewAccount {
 
 impl From<PrivateNewAccount> for PublicNewAccount {
     fn from(mut value: PrivateNewAccount) -> Self {
-        let mut folders = Vec::new();
+        let mut folders = vec![value.default_folder];
         if let Some(archive) = value.archive.take() {
             folders.push(archive);
         }
@@ -53,7 +53,6 @@ impl From<PrivateNewAccount> for PublicNewAccount {
         Self {
             address: value.address,
             identity_vault: value.identity_vault,
-            default_folder: value.default_folder,
             folders,
         }
     }
@@ -61,13 +60,12 @@ impl From<PrivateNewAccount> for PublicNewAccount {
 
 /// Public information about a new account that can
 /// be sent over the network.
+#[derive(Default)]
 pub struct PublicNewAccount {
     /// Address of the account signing key.
     pub address: Address,
     /// Identity vault.
     pub identity_vault: Vault,
-    /// Default folder.
-    pub default_folder: Vault,
     /// Addtional folders to be imported
     /// into the new account.
     pub folders: Vec<Vault>,

@@ -265,6 +265,17 @@ impl Paths {
         identity_vault_file
     }
 
+    /// Path to the identity events log for this user.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn identity_events(&self) -> PathBuf {
+        let mut events_path = self.identity_vault();
+        events_path.set_extension(EVENT_LOG_EXT);
+        events_path
+    }
+
     /// Path to a vault file from it's identifier.
     ///
     /// # Panics

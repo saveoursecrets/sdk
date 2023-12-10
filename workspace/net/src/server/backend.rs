@@ -2,6 +2,7 @@ use super::{Error, Result};
 use crate::{
     device::DeviceSet,
     sdk::{
+        account::PublicNewAccount,
         commit::CommitProof,
         constants::{DEVICES_FILE, JSON_EXT},
         device::DevicePublicKey,
@@ -118,9 +119,9 @@ pub trait BackendHandler {
     async fn create_account(
         &mut self,
         owner: &Address,
-        vault: &[u8],
+        account_data: PublicNewAccount,
         device_public_key: DevicePublicKey,
-    ) -> Result<(Event, CommitProof)>;
+    ) -> Result<()>;
 
     // TODO: support account deletion
 
@@ -257,9 +258,9 @@ impl BackendHandler for FileSystemBackend {
     async fn create_account(
         &mut self,
         owner: &Address,
-        vault: &[u8],
+        account_data: PublicNewAccount,
         device_public_key: DevicePublicKey,
-    ) -> Result<(Event, CommitProof)> {
+    ) -> Result<()> {
         {
             let accounts = self.accounts.read().await;
             let account = accounts.get(owner);
@@ -277,31 +278,24 @@ impl BackendHandler for FileSystemBackend {
             Paths::new_server(self.directory.clone(), owner.to_string());
         paths.ensure().await?;
 
+        let mut storage =
+            Storage::new_server(owner.clone(), Some(self.directory.clone()))
+                .await?;
+        storage.create_account(&account_data).await?;
+
         let mut account = AccountStorage {
-            folders: Storage::new_server(
-                owner.clone(),
-                Some(self.directory.clone()),
-            )
-            .await?,
+            folders: storage,
             devices: Default::default(),
         };
 
         account.trust_device(device_public_key).await?;
 
         let mut accounts = self.accounts.write().await;
-        let account = accounts
+        accounts
             .entry(owner.clone())
             .or_insert(Arc::new(RwLock::new(account)));
-        let mut writer = account.write().await;
 
-        let (event, summary) =
-            writer.folders.import_folder(vault, None).await?;
-
-        tracing::debug!(folder_id = %summary.id());
-
-        let (_, proof) = writer.folders.commit_state(&summary).await?;
-
-        Ok((event, proof))
+        Ok(())
     }
 
     async fn trust_device(

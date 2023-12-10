@@ -5,6 +5,7 @@ use sos_net::{
     client::{HostedOrigin, RpcClient},
     mpc::generate_keypair,
     sdk::{
+        account::PublicNewAccount,
         device::DeviceSigner,
         encode,
         passwd::diceware::generate_passphrase,
@@ -51,21 +52,29 @@ async fn integration_rpc_session() -> Result<()> {
 
     let server = spawn(TEST_ID, None, None).await?;
 
-    let (client, _signer) =
+    let (client, signer) =
         create_rpc_client(data_dir, &server.origin).await?;
 
+    let (primary_password, _) = generate_passphrase()?;
     let (folder_password, _) = generate_passphrase()?;
 
-    let vault = VaultBuilder::new().password(folder_password, None).await?;
+    let identity_vault = VaultBuilder::new()
+        .password(primary_password, None).await?;
+    let default_folder = VaultBuilder::new()
+        .password(folder_password, None).await?;
 
-    let body = encode(&vault).await?;
+    let account = PublicNewAccount {
+        address: signer.address()?.clone(),
+        identity_vault,
+        folders: vec![default_folder],
+    };
 
     // Create an account on the remote
-    let (status, _) = client.create_account(&body).await?.unwrap();
+    let (status, _) = client.create_account(&account).await?.unwrap();
     assert_eq!(StatusCode::OK, status);
 
     // Try to create the same account again
-    let (status, _) = client.create_account(&body).await?.unwrap();
+    let (status, _) = client.create_account(&account).await?.unwrap();
     assert_eq!(StatusCode::CONFLICT, status);
 
     // List folders for the account
@@ -77,10 +86,10 @@ async fn integration_rpc_session() -> Result<()> {
     let (_, account_status) = client.account_status().await?.unwrap();
     assert!(account_status.is_some());
 
-    let (folder_password, _) = generate_passphrase()?;
+    let (primary_password, _) = generate_passphrase()?;
 
     let mut vault =
-        VaultBuilder::new().password(folder_password, None).await?;
+        VaultBuilder::new().password(primary_password, None).await?;
     vault.set_name(String::from("Mock vault"));
     let body = encode(&vault).await?;
 

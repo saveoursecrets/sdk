@@ -194,13 +194,14 @@ impl<D> Account<D> {
             builder,
             data_dir,
             handler,
-        ).await?;
+        )
+        .await?;
         Ok(account)
     }
-    
+
     /// Create a new account with the vault data.
     ///
-    /// Used by network aware implementations to send 
+    /// Used by network aware implementations to send
     /// the account vaults to a server.
     #[doc(hidden)]
     pub async fn new_account_with_data(
@@ -275,7 +276,7 @@ impl<D> Account<D> {
 
     /// Access an account by signing in.
     ///
-    /// If a default folder exists for the account it 
+    /// If a default folder exists for the account it
     /// is opened.
     pub async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let span = span!(Level::DEBUG, "sign_in");
