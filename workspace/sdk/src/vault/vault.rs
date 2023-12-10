@@ -9,6 +9,7 @@ use tokio_util::compat::TokioAsyncReadCompatExt;
 
 use age::x25519::{Identity, Recipient};
 use bitflags::bitflags;
+use indexmap::IndexMap;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
@@ -589,7 +590,7 @@ impl SharedAccess {
 /// The vault contents
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    pub(crate) data: HashMap<SecretId, VaultCommit>,
+    pub(crate) data: IndexMap<SecretId, VaultCommit>,
 }
 
 /// Vault file storage.
@@ -998,8 +999,7 @@ impl From<Header> for Vault {
 
 impl IntoIterator for Vault {
     type Item = (SecretId, VaultCommit);
-    type IntoIter =
-        std::collections::hash_map::IntoIter<SecretId, VaultCommit>;
+    type IntoIter = indexmap::map::IntoIter<SecretId, VaultCommit>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.contents.data.into_iter()

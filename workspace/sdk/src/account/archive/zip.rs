@@ -359,13 +359,16 @@ mod test {
     async fn archive_buffer_async() -> Result<()> {
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));
+        let dir = tempfile::tempdir()?;
 
         let identity_vault = IdentityVault::new(
             "Mock".to_string(),
             SecretString::new("mock-password".to_string()),
+            Some(dir.path().to_owned()),
         )
         .await?;
-        let (address, identity_vault) = identity_vault.into();
+        let address = identity_vault.address().clone();
+        let identity_vault: Vault = identity_vault.into();
 
         let identity = encode(&identity_vault).await?;
 

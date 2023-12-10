@@ -13,6 +13,7 @@ use crate::{
     },
     crypto::{AccessKey, KeyDerivation},
     decode, encode,
+    events::FolderEventLog,
     identity::{PrivateIdentity, UrnLookup},
     passwd::diceware::generate_passphrase_words,
     signer::{
@@ -32,7 +33,9 @@ use secrecy::{ExposeSecret, SecretString, SecretVec};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    sync::Arc,
 };
+use tokio::sync::RwLock;
 use tracing::{span, Level};
 use urn::Urn;
 
@@ -82,6 +85,11 @@ impl IdentityVault {
         self.folder.keeper().vault()
     }
 
+    /// Get the event log.
+    pub fn event_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(self.folder.event_log().ok_or(Error::NoIdentityEventLog)?)
+    }
+
     /// Verify the access key for this account.
     pub async fn verify(&self, key: &AccessKey) -> bool {
         self.folder.keeper().verify(key).await.ok().is_some()
@@ -114,20 +122,35 @@ impl IdentityVault {
     /// Generates a new random single party signing key and
     /// a public identity key for asymmetric encryption and
     /// stores them in the identity vault.
-    pub async fn new(name: String, password: SecretString) -> Result<Self> {
+    pub async fn new(
+        name: String,
+        password: SecretString,
+        data_dir: Option<PathBuf>,
+    ) -> Result<Self> {
+        let signer = SingleParty::new_random();
+        let address = signer.address()?;
+
+        let data_dir = if let Some(data_dir) = &data_dir {
+            data_dir.clone()
+        } else {
+            Paths::data_dir()?
+        };
+        let paths = Paths::new(data_dir, address.to_string());
+
         let vault = VaultBuilder::new()
             .public_name(name)
             .flags(VaultFlags::IDENTITY)
             .password(password.clone(), Some(KeyDerivation::generate_seed()))
             .await?;
 
-        let mut folder = Folder::new_vault(vault);
+        let buffer = encode(&vault).await?;
+        vfs::write(paths.identity_vault(), buffer).await?;
+
+        let mut folder = Folder::new_file(paths.identity_vault()).await?;
         let key: AccessKey = password.into();
         folder.unlock(&key).await?;
 
         // Store the signing key
-        let signer = SingleParty::new_random();
-        let address = signer.address()?;
         let private_key =
             SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
         let signer_secret = Secret::Signer {
@@ -592,8 +615,8 @@ impl IdentityVault {
     }
 }
 
-impl From<IdentityVault> for (Address, Vault) {
+impl From<IdentityVault> for Vault {
     fn from(value: IdentityVault) -> Self {
-        (value.address().clone(), value.folder.keeper.into())
+        value.folder.keeper.into()
     }
 }

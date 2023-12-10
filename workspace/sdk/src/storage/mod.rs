@@ -38,6 +38,8 @@ pub struct AccountPack {
 pub struct AccountStatus {
     /// Indicates whether the account exists.
     pub exists: bool,
+    /// Identity vault commit proof.
+    pub identity: CommitProof,
     /// Account log commit proof.
     pub account: Option<CommitProof>,
     /// Commit proofs for the account folders.

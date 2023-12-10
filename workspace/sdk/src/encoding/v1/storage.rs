@@ -77,9 +77,9 @@ mod test {
 
     #[tokio::test]
     async fn encode_decode_account_pack() -> Result<()> {
-        let mut account_data: AccountPack = Default::default();
+        let account_data: AccountPack = Default::default();
         let buffer = encode(&account_data).await?;
-        let account_data: AccountPack = decode(&buffer).await?;
+        let _: AccountPack = decode(&buffer).await?;
         Ok(())
     }
 }

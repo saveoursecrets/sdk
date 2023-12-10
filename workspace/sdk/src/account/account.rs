@@ -20,7 +20,7 @@ use crate::{
     storage::AccountPack,
     storage::{
         search::{DocumentCount, SearchIndex},
-        AccessOptions, Storage,
+        AccessOptions, Folder, Storage,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
@@ -227,8 +227,15 @@ impl<D> Account<D> {
         // Must import the new account before signing in
         let address = new_account.address.clone();
 
-        let mut storage =
-            Storage::new_client(address.clone(), data_dir.clone()).await?;
+        let identity_log = new_account.identity_vault.event_log()?;
+        //.ok_or(Error::NoIdentityEventLog)?;
+
+        let mut storage = Storage::new_client(
+            address.clone(),
+            data_dir.clone(),
+            identity_log,
+        )
+        .await?;
 
         tracing::debug!("prepared storage provider");
 
@@ -301,8 +308,14 @@ impl<D> Account<D> {
         // Signing key for the storage provider
         let signer = user.identity()?.signer().clone();
 
-        let mut storage =
-            Storage::new_client(signer.address()?, Some(data_dir)).await?;
+        let identity_log = user.identity().as_ref().unwrap().event_log()?;
+
+        let mut storage = Storage::new_client(
+            signer.address()?,
+            Some(data_dir),
+            identity_log,
+        )
+        .await?;
         self.paths = storage.paths();
 
         let file_password = user.find_file_encryption_password().await?;

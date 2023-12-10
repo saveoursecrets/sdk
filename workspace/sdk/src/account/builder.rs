@@ -9,7 +9,7 @@ use crate::{
     encode,
     identity::{FolderKeys, Identity, IdentityVault},
     signer::ecdsa::Address,
-    storage::AccountPack,
+    storage::{AccountPack, Folder},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
@@ -26,7 +26,7 @@ pub struct PrivateNewAccount {
     /// Address of the account signing key.
     pub address: Address,
     /// Identity vault.
-    pub identity_vault: Vault,
+    pub identity_vault: IdentityVault,
     /// Default folder.
     pub default_folder: Vault,
     /// Archive folder.
@@ -53,7 +53,7 @@ impl From<PrivateNewAccount> for AccountPack {
         }
         Self {
             address: value.address,
-            identity_vault: value.identity_vault,
+            identity_vault: value.identity_vault.into(),
             folders,
         }
     }
@@ -129,7 +129,7 @@ impl AccountBuilder {
     }
 
     /// Create a new identity vault and account folders.
-    pub async fn build(self) -> Result<(Vault, PrivateNewAccount)> {
+    async fn build(self) -> Result<PrivateNewAccount> {
         let AccountBuilder {
             data_dir,
             account_name,
@@ -145,20 +145,29 @@ impl AccountBuilder {
         Paths::scaffold(data_dir.clone()).await?;
 
         // Prepare the identity vault
-        let identity_vault =
-            IdentityVault::new(account_name.clone(), passphrase.clone())
-                .await?;
-        let (address, identity_vault) = identity_vault.into();
+        let identity_vault = IdentityVault::new(
+            account_name.clone(),
+            passphrase.clone(),
+            data_dir.clone(),
+        )
+        .await?;
+        let address = identity_vault.address().clone();
 
         let mut folder_keys = HashMap::new();
 
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
-        let buffer = encode(&identity_vault).await?;
-        let paths = Paths::new_global(Paths::data_dir()?);
-        let mut user = Identity::new(paths);
+        let buffer = encode(identity_vault.vault()).await?;
+
+        let paths = if let Some(data_dir) = &data_dir {
+            Paths::new(data_dir, address.to_string())
+        } else {
+            Paths::new(Paths::data_dir()?, address.to_string())
+        };
+
+        let mut user = Identity::new(paths.clone());
         let key: AccessKey = passphrase.clone().into();
-        user.login_buffer(buffer, &key).await?;
+        user.login(paths.identity_vault(), &key).await?;
 
         // Prepare the passphrase for the default vault
         let vault_passphrase = user.generate_folder_password()?;
@@ -265,46 +274,21 @@ impl AccountBuilder {
             None
         };
 
-        let vault = user.identity()?.vault().clone();
-        Ok((
-            vault,
-            PrivateNewAccount {
-                data_dir,
-                address,
-                identity_vault,
-                default_folder,
-                archive,
-                authenticator,
-                contacts,
-                folder_keys: FolderKeys(folder_keys),
-            },
-        ))
-    }
-
-    /// Write the identity vault to disc and prepare storage directories.
-    async fn write(
-        identity_vault: Vault,
-        account: PrivateNewAccount,
-    ) -> Result<PrivateNewAccount> {
-        let address = account.address.to_string();
-        let data_dir = if let Some(data_dir) = &account.data_dir {
-            data_dir.clone()
-        } else {
-            Paths::data_dir()?
-        };
-        let paths = Paths::new(data_dir, &address);
-        // Persist the identity vault to disc, MUST re-encode the buffer
-        // as we have modified the identity vault
-        let identity_vault_file = paths.identity_vault();
-        let buffer = encode(&identity_vault).await?;
-        vfs::write(identity_vault_file, buffer).await?;
-
-        Ok(account)
+        //let vault = user.identity()?.vault().clone();
+        Ok(PrivateNewAccount {
+            data_dir,
+            address,
+            identity_vault,
+            default_folder,
+            archive,
+            authenticator,
+            contacts,
+            folder_keys: FolderKeys(folder_keys),
+        })
     }
 
     /// Create a new account and write the identity vault to disc.
     pub async fn finish(self) -> Result<PrivateNewAccount> {
-        let (identity_vault, account) = self.build().await?;
-        Self::write(identity_vault, account).await
+        self.build().await
     }
 }

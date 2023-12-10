@@ -4048,6 +4048,7 @@ dependencies = [
  "getrandom 0.2.11",
  "hex",
  "http",
+ "indexmap 2.1.0",
  "k256",
  "log",
  "logos",

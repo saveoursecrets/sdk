@@ -160,7 +160,7 @@ impl<'a> ChangePassword<'a> {
             event_log_events.push(sync_event);
         }
 
-        event_log_events.sort();
+        //event_log_events.sort();
 
         Ok((self.new_key, new_vault, event_log_events))
     }

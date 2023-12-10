@@ -90,6 +90,7 @@ security-framework = { version = "2.8", optional = true}
 logos = { version = "0.12", optional = true }
 plist = { version = "1", optional = true }
 whoami = { version = "1.4", optional = true }
+indexmap = "2"
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"

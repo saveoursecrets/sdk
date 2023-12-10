@@ -9,6 +9,8 @@ use crate::{
     Error, Result,
 };
 
+use indexmap::IndexMap;
+
 /// Reduce account events to a collection of folders.
 pub struct AccountReducer<'a> {
     log: &'a mut AccountEventLog,
@@ -53,7 +55,7 @@ pub struct EventReducer {
     /// Last encountered vault meta data.
     vault_meta: Option<AeadPack>,
     /// Map of the reduced secrets.
-    secrets: HashMap<SecretId, VaultCommit>,
+    secrets: IndexMap<SecretId, VaultCommit>,
     /// Reduce events until a particular commit.
     until_commit: Option<CommitHash>,
 }
@@ -85,11 +87,8 @@ impl EventReducer {
         let buffer = encode(&head).await?;
         events.push(WriteEvent::CreateVault(buffer));
         for (id, entry) in vault {
-            let event = WriteEvent::CreateSecret(id, entry);
-            events.push(event);
+            events.push(WriteEvent::CreateSecret(id, entry));
         }
-
-        events.sort();
 
         Ok((head, events))
     }
@@ -121,16 +120,16 @@ impl EventReducer {
                             return Err(Error::CreateEventOnlyFirst)
                         }
                         WriteEvent::SetVaultName(name) => {
-                            self.vault_name = Some(name.clone());
+                            self.vault_name = Some(name);
                         }
                         WriteEvent::SetVaultMeta(meta) => {
-                            self.vault_meta = Some(meta.clone());
+                            self.vault_meta = Some(meta);
                         }
                         WriteEvent::CreateSecret(id, entry) => {
-                            self.secrets.insert(id, entry.clone());
+                            self.secrets.insert(id, entry);
                         }
                         WriteEvent::UpdateSecret(id, entry) => {
-                            self.secrets.insert(id, entry.clone());
+                            self.secrets.insert(id, entry);
                         }
                         WriteEvent::DeleteSecret(id) => {
                             self.secrets.remove(&id);

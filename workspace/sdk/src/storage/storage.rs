@@ -43,13 +43,16 @@ use crate::storage::search::{AccountSearch, DocumentCount, SearchIndex};
 /// Folder is a combined vault and event log.
 pub struct Folder {
     pub(crate) keeper: Gatekeeper,
-    events: Option<FolderEventLog>,
+    events: Option<Arc<RwLock<FolderEventLog>>>,
 }
 
 impl Folder {
     /// Create a new folder.
     pub fn new(keeper: Gatekeeper, events: Option<FolderEventLog>) -> Self {
-        Self { keeper, events }
+        Self {
+            keeper,
+            events: events.map(|e| Arc::new(RwLock::new(e))),
+        }
     }
 
     /// Create a new folder from a vault buffer.
@@ -104,6 +107,16 @@ impl Folder {
         Ok(Self::new(keeper, Some(event_log)))
     }
 
+    /// Load an event log from the given paths.
+    pub async fn new_event_log(
+        paths: &Paths,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let mut event_log =
+            FolderEventLog::new_folder(paths.identity_events()).await?;
+        event_log.load_tree().await?;
+        Ok(Arc::new(RwLock::new(event_log)))
+    }
+
     /// Create a new vault file on disc and the associated
     /// event log.
     ///
@@ -116,7 +129,7 @@ impl Folder {
     pub async fn initialize(
         path: impl AsRef<Path>,
         vault: &Vault,
-    ) -> Result<()> {
+    ) -> Result<Folder> {
         let (vault, events) = EventReducer::split(vault.clone()).await?;
 
         let buffer = encode(&vault).await?;
@@ -129,7 +142,12 @@ impl Folder {
         event_log.truncate().await?;
         event_log.apply(events.iter().collect()).await?;
 
-        Ok(())
+        Ok(Self::new(Gatekeeper::new(vault), Some(event_log)))
+    }
+
+    /// Clone of the event log.
+    pub fn event_log(&self) -> Option<Arc<RwLock<FolderEventLog>>> {
+        self.events.clone()
     }
 
     /// Folder identifier.
@@ -159,6 +177,7 @@ impl Folder {
     ) -> Result<WriteEvent> {
         let event = self.keeper.create(secret_data).await?;
         if let Some(events) = self.events.as_mut() {
+            let mut events = events.write().await;
             events.apply(vec![&event]).await?;
         }
         Ok(event)
@@ -183,6 +202,7 @@ impl Folder {
             self.keeper.update(id, secret_meta, secret).await?
         {
             if let Some(events) = self.events.as_mut() {
+                let mut events = events.write().await;
                 events.apply(vec![&event]).await?;
             }
             Ok(Some(event))
@@ -198,6 +218,7 @@ impl Folder {
     ) -> Result<Option<WriteEvent>> {
         if let Some(event) = self.keeper.delete(id).await? {
             if let Some(events) = self.events.as_mut() {
+                let mut events = events.write().await;
                 events.apply(vec![&event]).await?;
             }
             Ok(Some(event))
@@ -222,6 +243,9 @@ pub struct Storage {
     #[cfg(feature = "search")]
     pub(super) index: Option<AccountSearch>,
 
+    /// Identity vault event log.
+    identity_log: Arc<RwLock<FolderEventLog>>,
+
     /// Account event log.
     account_log: Arc<RwLock<AccountEventLog>>,
 
@@ -242,6 +266,7 @@ impl Storage {
     pub async fn new_client(
         address: Address,
         data_dir: Option<PathBuf>,
+        identity_log: Arc<RwLock<FolderEventLog>>,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
@@ -250,13 +275,15 @@ impl Storage {
         };
 
         let dirs = Paths::new(data_dir, address.to_string());
-        Self::new_paths(Arc::new(dirs), address, true, false).await
+        Self::new_paths(Arc::new(dirs), address, identity_log, true, false)
+            .await
     }
 
     /// Create folder storage for server-side access.
     pub async fn new_server(
         address: Address,
         data_dir: Option<PathBuf>,
+        identity_log: Arc<RwLock<FolderEventLog>>,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
@@ -265,13 +292,15 @@ impl Storage {
         };
 
         let dirs = Paths::new_server(data_dir, address.to_string());
-        Self::new_paths(Arc::new(dirs), address, true, true).await
+        Self::new_paths(Arc::new(dirs), address, identity_log, true, true)
+            .await
     }
 
     /// Create new storage backed by files on disc.
     async fn new_paths(
         paths: Arc<Paths>,
         address: Address,
+        identity_log: Arc<RwLock<FolderEventLog>>,
         mirror: bool,
         head_only: bool,
     ) -> Result<Storage> {
@@ -296,6 +325,7 @@ impl Storage {
             state: LocalState::new(mirror, head_only),
             cache: Default::default(),
             paths,
+            identity_log,
             account_log,
             #[cfg(feature = "search")]
             index: Some(AccountSearch::new()),
@@ -477,6 +507,23 @@ impl Storage {
         Ok(ReadEvent::ReadVault)
     }
 
+    /// Initialize the identity vault for an account.
+    pub async fn initialize_account(
+        paths: &Paths,
+        identity_vault: &Vault,
+    ) -> Result<Option<Folder>> {
+        // If we don't have an identity vault then initialize
+        // it and it's associated event log
+        if !vfs::try_exists(paths.identity_vault()).await? {
+            Ok(Some(
+                Folder::initialize(paths.identity_vault(), identity_vault)
+                    .await?,
+            ))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Create a new account.
     pub async fn create_account(
         &mut self,
@@ -489,16 +536,6 @@ impl Storage {
             account.address.clone(),
             None,
         ));
-
-        // If we don't have an identity vault then initialize
-        // it and it's associated event log
-        if !vfs::try_exists(self.paths.identity_vault()).await? {
-            Folder::initialize(
-                self.paths.identity_vault(),
-                &account.identity_vault,
-            )
-            .await?;
-        }
 
         let audit_event: AuditEvent =
             (self.address(), &create_account).into();
@@ -522,14 +559,19 @@ impl Storage {
     /// account information to a server.
     pub async fn public_account(&self) -> Result<AccountPack> {
         let address = self.address.clone();
-        let identity_vault = vfs::read(self.paths.identity_vault()).await?;
+        let reader = self.identity_log.read().await;
+
+        println!("Reducing event logs...");
+        let identity_vault =
+            EventReducer::new().reduce(&*reader).await?.build().await?;
+
         let mut folders = Vec::new();
         for summary in &self.state.summaries {
             folders.push(self.read_vault(summary.id()).await?);
         }
         Ok(AccountPack {
             address,
-            identity_vault: decode(&identity_vault).await?,
+            identity_vault,
             folders,
         })
     }
@@ -902,6 +944,11 @@ impl Storage {
             }
         };
 
+        let identity = {
+            let identity_log = self.identity_log.read().await;
+            identity_log.tree().head()?
+        };
+
         let summaries = self.state.summaries();
         let mut proofs = HashMap::new();
         for summary in summaries {
@@ -916,6 +963,7 @@ impl Storage {
         }
         Ok(AccountStatus {
             exists: true,
+            identity,
             account,
             proofs,
         })

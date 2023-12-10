@@ -7,24 +7,39 @@ use sos_net::{
     sdk::{
         device::DeviceSigner,
         encode,
+        events::{FolderEventLog, WriteEvent},
+        identity::IdentityVault,
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
         storage::{AccountPack, Storage},
-        vault::VaultBuilder,
+        vault::{Vault, VaultBuilder},
+        Paths,
     },
 };
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
+use tokio::sync::RwLock;
 
 const TEST_ID: &str = "rpc_session";
 
 async fn create_rpc_client(
     data_dir: PathBuf,
     origin: &HostedOrigin,
-) -> Result<(RpcClient, BoxedEcdsaSigner)> {
+) -> Result<(RpcClient, BoxedEcdsaSigner, IdentityVault)> {
+    Paths::scaffold(Some(data_dir.clone())).await?;
+
+    let (primary_password, _) = generate_passphrase()?;
     let signer: BoxedEcdsaSigner = Box::new(SingleParty::new_random());
+    let identity_vault = IdentityVault::new(
+        TEST_ID.to_string(),
+        primary_password,
+        Some(data_dir.clone()),
+    )
+    .await?;
+    let identity_log = identity_vault.event_log()?;
 
     // Set up local storage in case we need to use it
-    Storage::new_client(signer.address()?, Some(data_dir)).await?;
+    Storage::new_client(signer.address()?, Some(data_dir), identity_log)
+        .await?;
 
     let device = DeviceSigner::new_random();
     let client = RpcClient::new(
@@ -39,7 +54,7 @@ async fn create_rpc_client(
     // Noise protocol transport should be ready
     assert!(client.is_transport_ready().await);
 
-    Ok((client, signer))
+    Ok((client, signer, identity_vault))
 }
 
 #[tokio::test]
@@ -51,20 +66,17 @@ async fn integration_rpc_session() -> Result<()> {
 
     let server = spawn(TEST_ID, None, None).await?;
 
-    let (client, signer) =
-        create_rpc_client(data_dir, &server.origin).await?;
-
-    let (primary_password, _) = generate_passphrase()?;
     let (folder_password, _) = generate_passphrase()?;
 
-    let identity_vault =
-        VaultBuilder::new().password(primary_password, None).await?;
     let default_folder =
         VaultBuilder::new().password(folder_password, None).await?;
 
+    let (client, signer, identity_vault) =
+        create_rpc_client(data_dir, &server.origin).await?;
+
     let account = AccountPack {
         address: signer.address()?.clone(),
-        identity_vault,
+        identity_vault: identity_vault.into(),
         folders: vec![default_folder],
     };
 

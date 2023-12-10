@@ -45,6 +45,7 @@ pub enum WriteEvent {
     DeleteSecret(SecretId),
 }
 
+/*
 impl Ord for WriteEvent {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, &other) {
@@ -71,6 +72,7 @@ impl PartialOrd for WriteEvent {
         Some(self.cmp(other))
     }
 }
+*/
 
 impl LogEvent for WriteEvent {
     fn event_kind(&self) -> EventKind {

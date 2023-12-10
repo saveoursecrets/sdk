@@ -7,7 +7,7 @@ use crate::{
         device::DevicePublicKey,
         events::{AuditEvent, Event, EventKind},
         signer::ecdsa::Address,
-        storage::{AccountPack, Storage},
+        storage::{AccountPack, Folder, Storage},
         vault::{Header, Summary, VaultId},
         vfs, Paths,
     },
@@ -228,10 +228,19 @@ impl FileSystemBackend {
                         name.to_string_lossy().parse::<Address>()
                     {
                         tracing::debug!(account = %owner);
+
+                        let user_paths = Paths::new_server(
+                            self.directory.clone(),
+                            owner.to_string(),
+                        );
+                        let identity_log =
+                            Folder::new_event_log(&user_paths).await?;
+
                         let mut account = AccountStorage {
                             folders: Storage::new_server(
                                 owner.clone(),
                                 Some(self.directory.clone()),
+                                identity_log,
                             )
                             .await?,
                             devices: Default::default(),
@@ -277,9 +286,21 @@ impl BackendHandler for FileSystemBackend {
             Paths::new_server(self.directory.clone(), owner.to_string());
         paths.ensure().await?;
 
-        let mut storage =
-            Storage::new_server(owner.clone(), Some(self.directory.clone()))
+        let identity_folder =
+            Storage::initialize_account(&paths, &account_data.identity_vault)
                 .await?;
+        let identity_log = identity_folder
+            .ok_or(crate::sdk::Error::NoIdentityEventLog)?
+            .event_log()
+            .take()
+            .ok_or(crate::sdk::Error::NoIdentityEventLog)?;
+
+        let mut storage = Storage::new_server(
+            owner.clone(),
+            Some(self.directory.clone()),
+            identity_log,
+        )
+        .await?;
         storage.create_account(&account_data).await?;
 
         let mut account = AccountStorage {
