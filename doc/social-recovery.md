@@ -65,7 +65,7 @@ The account owner chooses several other public parameters to be shared with the 
 |:---------:|:----:|:-----------:|:-------:|
 | `init_window` | Duration | A time window within which shareholders must cooperate to initiate the recovery countdown. | 24h |
 | `countdown_duration` | Duration | How long the countdown lasts. The longer this is, the more time an account owner will have to abort the recovery process, but the longer the recovery group must wait to finish recovery. | 2 weeks |
-| `vaults` | Set | The set of vaults which the account owner would like to be recoverable by this group. | |
+| `vaults` | Set | The set of vaults which the account owner would like to be recoverable by this group. Unless the account owner desires the _whole account_ to be recoverable, this set should not include the identity vault. | |
 | `group_index` | uint4 | The index of the group. If this is the first recovery group to be registered on the user's account, this will be zero. Otherwise it should be incremented upwards as more groups are added. This index does not need to be unique, but it would improve user experience if it were. | 0 |
 | $t$ | uint8 | The group recovery threshold. If $t$ or more shareholders cooperate, they can recover and decrypt the SoS account. | 3 |
 
@@ -269,25 +269,50 @@ If at least $t$ distinct shareholders submit valid `dest_sig`s within `init_wind
 
 If `init_window` elapses without sufficient confirmations, the server abandons the recovery attempt.
 
+### Aborting
+
+Once the initial upload is submitted, the server also sends a notification to the account owner, which allows them to abort the recovery attempt unilaterally. This is a safety measure which ensures a colluding group of shareholders cannot steal the account from the rightful owner.
+
 ## Stage 3: Countdown
 
-TODO
+Once a sufficient number of signed confirmations are received from shareholders, the _countdown_ begins, for a length of `countdown_duration`. This is a time delay enforced by the SoS backend server. The countdown gives the rightful account owner time to receive the notification, to recognize and abort a non-consensual recovery attempt.
+
+During the countdown, the SoS backend server's job is to preserve the account's encrypted data, and wait for a possible abort request by the account owner.
 
 ## Stage 4: Transmission
 
-TODO
+If `countdown_duration` elapses without an abort issued, then the recovery is deemed authentic. The server can now send the recovery pack to the agreed `destination`. The recovery pack contains:
+
+| Data point | Description |
+|:----------:|:-----------:|
+| `recovery_pack_header` | Contains a mapping of `vaults` to encrypted passphrases, a `cipher`, and optionally a KDF algorithm for deriving the encryption key from $k$. |
+| `vaults` | The set of encrypted vaults whose passwords are encrypted in the header. This does not include event logs, only the most up-to-date snapshot of each encrypted vault. |
+
+Upon receipt, the `destination` agent cannot immediately decrypt the `vaults` unless they have $t$ or more shares. `destination` is probably a trusted executor or the account owner herself.
 
 ## Stage 5: Decryption
 
-TODO
+To decrypt the recovery pack, $t$ or more shares must be brought together on the same trusted machine. Note that these do not necessarily have to be the same set of shares as the `recovery_group`.
+
+The group uses their shares to interpolate the original secret sharing polynomial $f(x)$, and then compute the group key $k = f(0)$. The group key $k$ is then used to decrypt the passwords in the `recovery_pack_header`. Those passwords are then used to decrypt the relevant vaults.
 
 ## Stage 6: Finalization
 
+TODO
+
 # Appendix
 
-TODO:
-- Security
-- Privacy
+## Live Modification
+
+TODO
+
+## Security
+
+TODO
+
+## Privacy
+
+TODO
 
 [sss]: https://en.wikipedia.org/wiki/Shamir%27s_secret_sharing
 [vss]: https://en.wikipedia.org/wiki/Verifiable_secret_sharing
