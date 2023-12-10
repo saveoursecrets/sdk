@@ -120,18 +120,6 @@ impl Identity {
         self.identity.as_mut().ok_or(Error::NotAuthenticated)
     }
 
-    /*
-    /// Account signing key.
-    pub(crate) fn signing_key(&self) -> Result<BoxedEcdsaSigner> {
-        Ok(self
-            .identity
-            .as_ref()
-            .ok_or(Error::NotAuthenticated)?
-            .signer()
-            .clone())
-    }
-    */
-
     /// Verify the access key for this account.
     pub async fn verify(&self, key: &AccessKey) -> bool {
         if let Some(identity) = &self.identity {

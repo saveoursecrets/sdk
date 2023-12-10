@@ -3,7 +3,7 @@ use mpc_protocol::generate_keypair;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        Account, AccountBuilder, AccountData, DetachedView, NewAccount,
+        Account, AccountBuilder, AccountData, DetachedView, PrivateNewAccount,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -100,7 +100,7 @@ impl NetworkAccount {
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
-    ) -> Result<(Self, NewAccount)> {
+    ) -> Result<(Self, PrivateNewAccount)> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
@@ -127,7 +127,7 @@ impl NetworkAccount {
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
-    ) -> Result<(Self, NewAccount)> {
+    ) -> Result<(Self, PrivateNewAccount)> {
         let remotes = Arc::new(RwLock::new(remotes.unwrap_or_default()));
         let handler = SyncHandler {
             remotes: Arc::clone(&remotes),

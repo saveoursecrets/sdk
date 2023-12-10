@@ -31,7 +31,7 @@ use tokio::sync::RwLock;
 use tracing::{span, Level};
 
 #[cfg(feature = "account")]
-use crate::account::NewAccount;
+use crate::account::PublicNewAccount;
 
 #[cfg(feature = "archive")]
 use crate::account::archive::RestoreTargets;
@@ -445,7 +445,7 @@ impl Storage {
     #[cfg(feature = "account")]
     pub async fn create_account(
         &mut self,
-        account: &NewAccount,
+        account: PublicNewAccount<'_>,
     ) -> Result<Vec<Event>> {
         let mut events = Vec::new();
 
@@ -455,33 +455,26 @@ impl Storage {
             None,
         ));
 
+        if !vfs::try_exists(self.paths.identity_vault()).await? {
+            todo!("write identity vault to disc");
+        }
+
         let audit_event: AuditEvent =
             (self.address(), &create_account).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
-
-        // Save the default vault
-        let buffer = encode(&account.default_folder).await?;
-        let (event, _) = self.import_folder(&buffer, None).await?;
+        
+        // Save the default folder
+        let buffer = encode(account.default_folder.as_ref()).await?;
+        let (event, _) = self.import_folder(buffer, None).await?;
         events.push(event);
 
-        if let Some(vault) = &account.archive {
-            let buffer = encode(vault).await?;
+        // Import additional folders
+        for folder in account.folders {
+            let buffer = encode(folder.as_ref()).await?;
             let (event, _) = self.import_folder(buffer, None).await?;
             events.push(event);
         }
-
-        if let Some(vault) = &account.authenticator {
-            let buffer = encode(vault).await?;
-            let (event, _) = self.import_folder(buffer, None).await?;
-            events.push(event);
-        }
-
-        if let Some(vault) = &account.contacts {
-            let buffer = encode(vault).await?;
-            let (event, _) = self.import_folder(buffer, None).await?;
-            events.push(event);
-        }
-
+        
         events.insert(0, create_account);
 
         Ok(events)

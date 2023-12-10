@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    account::{AccountBuilder, NewAccount},
+    account::{AccountBuilder, PrivateNewAccount, PublicNewAccount},
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     decode, encode,
@@ -167,7 +167,7 @@ impl<D> Account<D> {
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
         handler: Option<Handler<D>>,
-    ) -> Result<(Self, NewAccount)> {
+    ) -> Result<(Self, PrivateNewAccount)> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
@@ -187,7 +187,7 @@ impl<D> Account<D> {
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
         handler: Option<Handler<D>>,
-    ) -> Result<(Self, NewAccount)> {
+    ) -> Result<(Self, PrivateNewAccount)> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
 
@@ -201,29 +201,21 @@ impl<D> Account<D> {
         tracing::debug!(address = %new_account.address, "created account");
 
         // Must import the new account before signing in
-        let signer = new_account.user.identity()?.signer().clone();
-        let address = signer.address()?;
+        let address = new_account.address().clone();
 
         let mut storage =
             Storage::new_client(address.clone(), data_dir.clone()).await?;
 
         tracing::debug!("prepared storage provider");
-
-        storage.create_account(&new_account).await?;
+        
+        let public_account: PublicNewAccount = (&new_account).into();
+        storage.create_account(public_account).await?;
 
         tracing::debug!("imported new account");
-
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
-        } else {
-            Paths::data_dir()?
-        };
-
-        let paths = Paths::new_global(data_dir);
-
+        
         let owner = Self {
             address,
-            paths: Arc::new(paths),
+            paths: storage.paths(),
             authenticated: None,
             handler,
         };

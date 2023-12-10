@@ -16,29 +16,29 @@ use crate::{
     vfs, Paths, Result,
 };
 use secrecy::SecretString;
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, borrow::Cow};
 
-/// Information about a new account.
-pub struct NewAccount {
+/// Private information about a new account.
+pub struct PrivateNewAccount {
     /// Directory for the new account.
     pub data_dir: Option<PathBuf>,
     /// Address of the account signing key.
     pub address: Address,
-    /// Identity for the new user.
-    pub user: Identity,
-    /// Default vault.
+    /// Identity vault.
+    pub identity_vault: Vault,
+    /// Default folder.
     pub default_folder: Vault,
-    /// Archive vault.
+    /// Archive folder.
     pub archive: Option<Vault>,
-    /// Authenticator vault.
+    /// Authenticator folder.
     pub authenticator: Option<Vault>,
-    /// Contacts vault.
+    /// Contacts folder.
     pub contacts: Option<Vault>,
     /// Folder access keys.
     pub folder_keys: FolderKeys,
 }
 
-impl NewAccount {
+impl PrivateNewAccount {
     /// Account address.
     pub fn address(&self) -> &Address {
         &self.address
@@ -48,6 +48,41 @@ impl NewAccount {
     pub fn default_folder(&self) -> &Summary {
         self.default_folder.summary()
     }
+}
+
+impl<'a> From<&'a PrivateNewAccount> for PublicNewAccount<'a> {
+    fn from(value: &'a PrivateNewAccount) -> Self {
+        let mut folders = Vec::new();
+        if let Some(archive) = &value.archive {
+            folders.push(Cow::Borrowed(archive));
+        }
+        if let Some(authenticator) = &value.authenticator {
+            folders.push(Cow::Borrowed(authenticator));
+        }
+        if let Some(contacts) = &value.contacts {
+            folders.push(Cow::Borrowed(contacts));
+        }
+        Self {
+            address: value.address.clone(),
+            identity_vault: Cow::Borrowed(&value.identity_vault),
+            default_folder: Cow::Borrowed(&value.default_folder),
+            folders,
+        }
+    }
+}
+
+/// Public information about a new account that can 
+/// be sent over the network.
+pub struct PublicNewAccount<'a> {
+    /// Address of the account signing key.
+    pub address: Address,
+    /// Identity vault.
+    pub identity_vault: Cow<'a, Vault>,
+    /// Default folder.
+    pub default_folder: Cow<'a, Vault>,
+    /// Addtional folders to be imported 
+    /// into the new account.
+    pub folders: Vec<Cow<'a, Vault>>,
 }
 
 /// Create a new account.
@@ -120,7 +155,7 @@ impl AccountBuilder {
     }
 
     /// Create a new identity vault and account folders.
-    pub async fn build(self) -> Result<(Vault, NewAccount)> {
+    pub async fn build(self) -> Result<(Vault, PrivateNewAccount)> {
         let AccountBuilder {
             data_dir,
             account_name,
@@ -259,10 +294,10 @@ impl AccountBuilder {
         let vault = user.identity()?.vault().clone();
         Ok((
             vault,
-            NewAccount {
+            PrivateNewAccount {
                 data_dir,
                 address,
-                user,
+                identity_vault,
                 default_folder,
                 archive,
                 authenticator,
@@ -275,8 +310,8 @@ impl AccountBuilder {
     /// Write the identity vault to disc and prepare storage directories.
     async fn write(
         identity_vault: Vault,
-        account: NewAccount,
-    ) -> Result<NewAccount> {
+        account: PrivateNewAccount,
+    ) -> Result<PrivateNewAccount> {
         let address = account.address.to_string();
         let data_dir = if let Some(data_dir) = &account.data_dir {
             data_dir.clone()
@@ -294,7 +329,7 @@ impl AccountBuilder {
     }
 
     /// Create a new account and write the identity vault to disc.
-    pub async fn finish(self) -> Result<NewAccount> {
+    pub async fn finish(self) -> Result<PrivateNewAccount> {
         let (identity_vault, account) = self.build().await?;
         Self::write(identity_vault, account).await
     }
