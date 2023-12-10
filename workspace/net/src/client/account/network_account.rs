@@ -133,7 +133,7 @@ impl NetworkAccount {
             remotes: Arc::clone(&remotes),
         };
 
-        let account = LocalAccount::new_account_with_builder(
+        let (account, _) = LocalAccount::new_account_with_data(
             account_name,
             passphrase.clone(),
             builder,

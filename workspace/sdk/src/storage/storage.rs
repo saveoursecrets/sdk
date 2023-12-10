@@ -95,6 +95,33 @@ impl Folder {
 
         Ok(Self::new(keeper, Some(events)))
     }
+    
+    /// Create a new vault file on disc and the associated 
+    /// event log.
+    ///
+    /// If a vault file already exists it is overwritten if an 
+    /// event log exists it is truncated and the single create 
+    /// vault event is written.
+    ///
+    /// Intended to be used by a server to create the identity 
+    /// vault and event log when a new account is created.
+    pub async fn initialize(
+        path: impl AsRef<Path>, vault: &Vault) -> Result<()> {
+
+        let buffer = encode(vault).await?;
+        vfs::write(path.as_ref(), &buffer).await?;
+
+        let mut events_path = path.as_ref().to_owned();
+        events_path.set_extension(EVENT_LOG_EXT);
+
+        let mut events = FolderEventLog::new_folder(events_path).await?;
+        events.truncate().await?;
+
+        let event = WriteEvent::CreateVault(buffer);
+        events.apply(vec![&event]).await?;
+
+        Ok(())
+    }
 
     /// Folder identifier.
     pub fn id(&self) -> &VaultId {
@@ -445,7 +472,7 @@ impl Storage {
     #[cfg(feature = "account")]
     pub async fn create_account(
         &mut self,
-        account: PublicNewAccount<'_>,
+        account: &PublicNewAccount,
     ) -> Result<Vec<Event>> {
         let mut events = Vec::new();
 
@@ -456,7 +483,9 @@ impl Storage {
         ));
 
         if !vfs::try_exists(self.paths.identity_vault()).await? {
-            todo!("write identity vault to disc");
+            Folder::initialize(
+                self.paths.identity_vault(),
+                &account.identity_vault).await?;
         }
 
         let audit_event: AuditEvent =
@@ -464,13 +493,13 @@ impl Storage {
         self.paths.append_audit_events(vec![audit_event]).await?;
 
         // Save the default folder
-        let buffer = encode(account.default_folder.as_ref()).await?;
+        let buffer = encode(&account.default_folder).await?;
         let (event, _) = self.import_folder(buffer, None).await?;
         events.push(event);
 
         // Import additional folders
-        for folder in account.folders {
-            let buffer = encode(folder.as_ref()).await?;
+        for folder in &account.folders {
+            let buffer = encode(folder).await?;
             let (event, _) = self.import_folder(buffer, None).await?;
             events.push(event);
         }

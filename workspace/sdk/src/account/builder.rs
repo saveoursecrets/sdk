@@ -16,7 +16,7 @@ use crate::{
     vfs, Paths, Result,
 };
 use secrecy::SecretString;
-use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 /// Private information about a new account.
 pub struct PrivateNewAccount {
@@ -38,34 +38,22 @@ pub struct PrivateNewAccount {
     pub folder_keys: FolderKeys,
 }
 
-impl PrivateNewAccount {
-    /// Account address.
-    pub fn address(&self) -> &Address {
-        &self.address
-    }
-
-    /// Summary of the default folder.
-    pub fn default_folder(&self) -> &Summary {
-        self.default_folder.summary()
-    }
-}
-
-impl<'a> From<&'a PrivateNewAccount> for PublicNewAccount<'a> {
-    fn from(value: &'a PrivateNewAccount) -> Self {
+impl From<PrivateNewAccount> for PublicNewAccount {
+    fn from(mut value: PrivateNewAccount) -> Self {
         let mut folders = Vec::new();
-        if let Some(archive) = &value.archive {
-            folders.push(Cow::Borrowed(archive));
+        if let Some(archive) = value.archive.take() {
+            folders.push(archive);
         }
-        if let Some(authenticator) = &value.authenticator {
-            folders.push(Cow::Borrowed(authenticator));
+        if let Some(authenticator) = value.authenticator.take() {
+            folders.push(authenticator);
         }
-        if let Some(contacts) = &value.contacts {
-            folders.push(Cow::Borrowed(contacts));
+        if let Some(contacts) = value.contacts.take() {
+            folders.push(contacts);
         }
         Self {
-            address: value.address.clone(),
-            identity_vault: Cow::Borrowed(&value.identity_vault),
-            default_folder: Cow::Borrowed(&value.default_folder),
+            address: value.address,
+            identity_vault: value.identity_vault,
+            default_folder: value.default_folder,
             folders,
         }
     }
@@ -73,16 +61,16 @@ impl<'a> From<&'a PrivateNewAccount> for PublicNewAccount<'a> {
 
 /// Public information about a new account that can
 /// be sent over the network.
-pub struct PublicNewAccount<'a> {
+pub struct PublicNewAccount {
     /// Address of the account signing key.
     pub address: Address,
     /// Identity vault.
-    pub identity_vault: Cow<'a, Vault>,
+    pub identity_vault: Vault,
     /// Default folder.
-    pub default_folder: Cow<'a, Vault>,
+    pub default_folder: Vault,
     /// Addtional folders to be imported
     /// into the new account.
-    pub folders: Vec<Cow<'a, Vault>>,
+    pub folders: Vec<Vault>,
 }
 
 /// Create a new account.

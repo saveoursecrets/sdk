@@ -188,6 +188,28 @@ impl<D> Account<D> {
         data_dir: Option<PathBuf>,
         handler: Option<Handler<D>>,
     ) -> Result<Self> {
+        let (account, _) = Self::new_account_with_data(
+            account_name,
+            passphrase,
+            builder,
+            data_dir,
+            handler,
+        ).await?;
+        Ok(account)
+    }
+    
+    /// Create a new account with the vault data.
+    ///
+    /// Used by network aware implementations to send 
+    /// the account vaults to a server.
+    #[doc(hidden)]
+    pub async fn new_account_with_data(
+        account_name: String,
+        passphrase: SecretString,
+        builder: impl Fn(AccountBuilder) -> AccountBuilder,
+        data_dir: Option<PathBuf>,
+        handler: Option<Handler<D>>,
+    ) -> Result<(Self, PublicNewAccount)> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
 
@@ -201,15 +223,15 @@ impl<D> Account<D> {
         tracing::debug!(address = %new_account.address, "created account");
 
         // Must import the new account before signing in
-        let address = new_account.address().clone();
+        let address = new_account.address.clone();
 
         let mut storage =
             Storage::new_client(address.clone(), data_dir.clone()).await?;
 
         tracing::debug!("prepared storage provider");
 
-        let public_account: PublicNewAccount = (&new_account).into();
-        storage.create_account(public_account).await?;
+        let public_account: PublicNewAccount = new_account.into();
+        storage.create_account(&public_account).await?;
 
         tracing::debug!("imported new account");
 
@@ -220,7 +242,7 @@ impl<D> Account<D> {
             handler,
         };
 
-        Ok(owner)
+        Ok((owner, public_account))
     }
 
     /// Authenticated user information.
