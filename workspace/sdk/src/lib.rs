@@ -1,7 +1,7 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::module_inception)]
 #![deny(missing_docs)]
-#![cfg_attr(not(test), forbid(unsafe_code))]
+#![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! High-level software development kit for a
 //! distributed encrypted database that can be used

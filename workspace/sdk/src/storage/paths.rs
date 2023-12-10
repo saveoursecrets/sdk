@@ -30,11 +30,7 @@ const APP_INFO: AppInfo = AppInfo {
 static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
 
-#[cfg(not(test))]
 static AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
-
-#[cfg(test)]
-pub static mut AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 
 /// File system paths.
 ///
@@ -431,7 +427,6 @@ impl Paths {
     }
 
     /// Append to the audit log.
-    #[cfg(not(test))]
     pub async fn append_audit_events(
         &self,
         events: Vec<AuditEvent>,
@@ -445,49 +440,10 @@ impl Paths {
                 )
             })
             .await;
-
         let mut writer = log_file.lock().await;
         writer.append_audit_events(events).await?;
         Ok(())
     }
-
-    /// Append to the audit log.
-    ///
-    /// For test purposes we need unsafe so we can
-    /// reset the log file location between test executions.
-    #[cfg(test)]
-    pub async fn append_audit_events(
-        &self,
-        events: Vec<AuditEvent>,
-    ) -> Result<()> {
-        unsafe {
-            let log_file = AUDIT_LOG
-                .get_or_init(async move {
-                    Mutex::new(
-                        AuditLogFile::new(self.audit_file())
-                            .await
-                            .expect("could not create audit log file"),
-                    )
-                })
-                .await;
-            let mut writer = log_file.lock().await;
-            writer.append_audit_events(events).await?;
-        }
-        Ok(())
-    }
-
-    #[doc(hidden)]
-    #[cfg(test)]
-    pub fn reset_audit_log() {
-        //println!("TEST RESET CALLED");
-        unsafe {
-            AUDIT_LOG.take();
-        }
-    }
-
-    #[doc(hidden)]
-    #[cfg(not(test))]
-    pub fn reset_audit_log() {}
 }
 
 #[cfg(not(target_arch = "wasm32"))]

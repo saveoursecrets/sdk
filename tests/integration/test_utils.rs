@@ -222,8 +222,6 @@ pub struct TestDirs {
 
 /// Setup prepares directories for the given number of clients.
 pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
-    Paths::reset_audit_log();
-
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
     let target = current_dir.join("target/integration-test");
