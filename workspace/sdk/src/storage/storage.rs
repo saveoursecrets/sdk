@@ -48,13 +48,13 @@ pub struct Folder {
 
 impl Folder {
     /// Create a new folder.
-    pub fn new(keeper: Gatekeeper, events: Option<FolderEventLog>) -> Self {
+    fn new(keeper: Gatekeeper, events: Option<FolderEventLog>) -> Self {
         Self {
             keeper,
             events: events.map(|e| Arc::new(RwLock::new(e))),
         }
     }
-
+        
     /// Create a new folder from a vault buffer.
     ///
     /// Changes are not mirrored to disc and events are not logged.
@@ -62,14 +62,6 @@ impl Folder {
         let vault: Vault = decode(buffer.as_ref()).await?;
         let keeper = Gatekeeper::new(vault);
         Ok(Self::new(keeper, None))
-    }
-
-    /// Create a new folder from a vault.
-    ///
-    /// Changes are not mirrored to disc and events are not logged.
-    pub fn new_vault(vault: Vault) -> Self {
-        let keeper = Gatekeeper::new(vault);
-        Self::new(keeper, None)
     }
 
     /// Create a new folder from a vault file.
@@ -107,7 +99,7 @@ impl Folder {
         Ok(Self::new(keeper, Some(event_log)))
     }
 
-    /// Load an event log from the given paths.
+    /// Load an identity vault event log from the given paths.
     pub async fn new_event_log(
         paths: &Paths,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
