@@ -1,5 +1,3 @@
-#[cfg(feature = "account")]
-mod account;
 mod commit;
 mod crypto;
 mod events;
@@ -7,6 +5,7 @@ mod events;
 mod recovery;
 mod secret;
 mod signer;
+mod storage;
 mod timestamp;
 mod vault;
 

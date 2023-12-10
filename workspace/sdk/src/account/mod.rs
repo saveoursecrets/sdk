@@ -20,7 +20,7 @@ pub mod security_report;
 pub use account::{
     Account, AccountData, AccountHandler, DetachedView, LocalAccount,
 };
-pub use builder::{AccountBuilder, PrivateNewAccount, PublicNewAccount};
+pub use builder::{AccountBuilder, PrivateNewAccount};
 
 /*
 use std::collections::HashMap;

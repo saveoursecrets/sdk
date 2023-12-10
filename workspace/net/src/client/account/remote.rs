@@ -13,12 +13,11 @@ use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
-    account::PublicNewAccount,
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     decode,
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::{AccountStatus, Storage},
+    storage::{AccountPack, AccountStatus, Storage},
     url::Url,
     vault::{Summary, VaultId},
 };
@@ -141,7 +140,7 @@ impl RemoteBridge {
     }
 
     /// Create an account on the remote.
-    async fn create_account(&self, account: &PublicNewAccount) -> Result<()> {
+    async fn create_account(&self, account: &AccountPack) -> Result<()> {
         let span = span!(Level::DEBUG, "create_account");
         let _enter = span.enter();
 

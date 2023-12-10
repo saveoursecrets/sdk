@@ -5,12 +5,11 @@ use sos_net::{
     client::{HostedOrigin, RpcClient},
     mpc::generate_keypair,
     sdk::{
-        account::PublicNewAccount,
         device::DeviceSigner,
         encode,
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
-        storage::Storage,
+        storage::{AccountPack, Storage},
         vault::VaultBuilder,
     },
 };
@@ -58,12 +57,12 @@ async fn integration_rpc_session() -> Result<()> {
     let (primary_password, _) = generate_passphrase()?;
     let (folder_password, _) = generate_passphrase()?;
 
-    let identity_vault = VaultBuilder::new()
-        .password(primary_password, None).await?;
-    let default_folder = VaultBuilder::new()
-        .password(folder_password, None).await?;
+    let identity_vault =
+        VaultBuilder::new().password(primary_password, None).await?;
+    let default_folder =
+        VaultBuilder::new().password(folder_password, None).await?;
 
-    let account = PublicNewAccount {
+    let account = AccountPack {
         address: signer.address()?.clone(),
         identity_vault,
         folders: vec![default_folder],

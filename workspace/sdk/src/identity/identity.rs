@@ -39,7 +39,7 @@ impl FolderKeys {
 }
 
 /// Cache of mapping between secret URN
-/// and secret identifiers to we can find identity
+/// and secret identifiers so we can find identity
 /// vault secrets quickly.
 pub type UrnLookup = HashMap<(VaultId, Urn), SecretId>;
 

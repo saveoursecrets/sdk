@@ -1,11 +1,10 @@
 use axum::http::StatusCode;
 
 use sos_sdk::{
-    account::PublicNewAccount,
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
     decode,
     device::DevicePublicKey,
-    storage::AccountStatus,
+    storage::{AccountPack, AccountStatus},
     vault::Header,
 };
 
@@ -59,8 +58,7 @@ impl Service for AccountService {
                 let device_public_key =
                     request.parameters::<DevicePublicKey>()?;
 
-                let account: PublicNewAccount =
-                    decode(request.body()).await?;
+                let account: AccountPack = decode(request.body()).await?;
 
                 // Address of the account being created
                 // does not match the caller's address

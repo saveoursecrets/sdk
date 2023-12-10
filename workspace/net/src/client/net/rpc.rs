@@ -7,7 +7,6 @@ use http::{
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use sos_sdk::{
-    account::PublicNewAccount,
     commit::{CommitHash, CommitProof},
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
@@ -19,7 +18,7 @@ use sos_sdk::{
     device::DevicePublicKey,
     encode,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::AccountStatus,
+    storage::{AccountPack, AccountStatus},
     vault::{Summary, VaultId},
 };
 
@@ -316,7 +315,7 @@ impl RpcClient {
     /// Create a new account.
     pub async fn create_account(
         &self,
-        account: &PublicNewAccount,
+        account: &AccountPack,
     ) -> Result<MaybeRetry<Option<()>>> {
         let url = self.origin.url.join("api/account")?;
 

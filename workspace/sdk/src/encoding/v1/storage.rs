@@ -1,5 +1,5 @@
 use crate::{
-    account::PublicNewAccount, decode, encode, encoding::encoding_error,
+    decode, encode, encoding::encoding_error, storage::AccountPack,
     vault::Vault,
 };
 
@@ -11,7 +11,7 @@ use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result};
 
 #[async_trait]
-impl Encodable for PublicNewAccount {
+impl Encodable for AccountPack {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -39,7 +39,7 @@ impl Encodable for PublicNewAccount {
 }
 
 #[async_trait]
-impl Decodable for PublicNewAccount {
+impl Decodable for AccountPack {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -72,14 +72,14 @@ impl Decodable for PublicNewAccount {
 
 #[cfg(test)]
 mod test {
-    use crate::{account::PublicNewAccount, decode, encode};
+    use crate::{decode, encode, storage::AccountPack};
     use anyhow::Result;
 
     #[tokio::test]
     async fn encode_decode_account_pack() -> Result<()> {
-        let mut account_data: PublicNewAccount = Default::default();
+        let mut account_data: AccountPack = Default::default();
         let buffer = encode(&account_data).await?;
-        let account_data: PublicNewAccount = decode(&buffer).await?;
+        let account_data: AccountPack = decode(&buffer).await?;
         Ok(())
     }
 }

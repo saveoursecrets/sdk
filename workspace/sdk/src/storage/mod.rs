@@ -1,7 +1,8 @@
 //! Folder storage backed by the file system.
 use crate::{
     commit::{CommitProof, CommitState},
-    vault::{Summary, VaultId},
+    signer::ecdsa::Address,
+    vault::{Summary, Vault, VaultId},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -15,6 +16,19 @@ pub mod search;
 mod storage;
 
 pub use storage::{Folder, Storage};
+
+/// Collection of vaults for an account that can
+/// be sent over the network.
+#[derive(Default)]
+pub struct AccountPack {
+    /// Address of the account signing key.
+    pub address: Address,
+    /// Identity vault.
+    pub identity_vault: Vault,
+    /// Addtional folders to be imported
+    /// into the new account.
+    pub folders: Vec<Vault>,
+}
 
 /// Provides a status overview of an account.
 ///

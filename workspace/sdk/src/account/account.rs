@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    account::{AccountBuilder, PrivateNewAccount, PublicNewAccount},
+    account::{AccountBuilder, PrivateNewAccount},
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     decode, encode,
@@ -17,6 +17,7 @@ use crate::{
     },
     identity::{FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::Address,
+    storage::AccountPack,
     storage::{
         search::{DocumentCount, SearchIndex},
         AccessOptions, Storage,
@@ -210,7 +211,7 @@ impl<D> Account<D> {
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
         handler: Option<Handler<D>>,
-    ) -> Result<(Self, PublicNewAccount)> {
+    ) -> Result<(Self, AccountPack)> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
 
@@ -231,7 +232,7 @@ impl<D> Account<D> {
 
         tracing::debug!("prepared storage provider");
 
-        let public_account: PublicNewAccount = new_account.into();
+        let public_account: AccountPack = new_account.into();
         storage.create_account(&public_account).await?;
 
         tracing::debug!("imported new account");

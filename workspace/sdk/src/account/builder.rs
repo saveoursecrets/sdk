@@ -9,6 +9,7 @@ use crate::{
     encode,
     identity::{FolderKeys, Identity, IdentityVault},
     signer::ecdsa::Address,
+    storage::AccountPack,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
         Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
@@ -38,7 +39,7 @@ pub struct PrivateNewAccount {
     pub folder_keys: FolderKeys,
 }
 
-impl From<PrivateNewAccount> for PublicNewAccount {
+impl From<PrivateNewAccount> for AccountPack {
     fn from(mut value: PrivateNewAccount) -> Self {
         let mut folders = vec![value.default_folder];
         if let Some(archive) = value.archive.take() {
@@ -56,19 +57,6 @@ impl From<PrivateNewAccount> for PublicNewAccount {
             folders,
         }
     }
-}
-
-/// Public information about a new account that can
-/// be sent over the network.
-#[derive(Default)]
-pub struct PublicNewAccount {
-    /// Address of the account signing key.
-    pub address: Address,
-    /// Identity vault.
-    pub identity_vault: Vault,
-    /// Addtional folders to be imported
-    /// into the new account.
-    pub folders: Vec<Vault>,
 }
 
 /// Create a new account.

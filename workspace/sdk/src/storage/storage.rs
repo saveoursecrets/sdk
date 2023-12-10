@@ -11,6 +11,7 @@ use crate::{
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
     signer::ecdsa::Address,
+    storage::AccountPack,
     storage::{AccessOptions, AccountStatus},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
@@ -29,9 +30,6 @@ use std::{
 };
 use tokio::sync::RwLock;
 use tracing::{span, Level};
-
-#[cfg(feature = "account")]
-use crate::account::PublicNewAccount;
 
 #[cfg(feature = "archive")]
 use crate::account::archive::RestoreTargets;
@@ -82,11 +80,11 @@ impl Folder {
         let mut event_log = FolderEventLog::new_folder(events_path).await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
-        
+
         let vault = if needs_init {
             // For the client-side we must split the events
             // out but keep the existing vault data (not the head-only)
-            // version so that the event log here will match what the 
+            // version so that the event log here will match what the
             // server will have when an account is first synced
             let buffer = vfs::read(path.as_ref()).await?;
             let vault: Vault = decode(&buffer).await?;
@@ -480,10 +478,9 @@ impl Storage {
     }
 
     /// Create a new account.
-    #[cfg(feature = "account")]
     pub async fn create_account(
         &mut self,
-        account: &PublicNewAccount,
+        account: &AccountPack,
     ) -> Result<Vec<Event>> {
         let mut events = Vec::new();
 
@@ -523,15 +520,14 @@ impl Storage {
     ///
     /// Used by network aware implementations to send
     /// account information to a server.
-    #[cfg(feature = "account")]
-    pub async fn public_account(&self) -> Result<PublicNewAccount> {
+    pub async fn public_account(&self) -> Result<AccountPack> {
         let address = self.address.clone();
         let identity_vault = vfs::read(self.paths.identity_vault()).await?;
         let mut folders = Vec::new();
         for summary in &self.state.summaries {
             folders.push(self.read_vault(summary.id()).await?);
         }
-        Ok(PublicNewAccount {
+        Ok(AccountPack {
             address,
             identity_vault: decode(&identity_vault).await?,
             folders,

@@ -2,13 +2,12 @@ use super::{Error, Result};
 use crate::{
     device::DeviceSet,
     sdk::{
-        account::PublicNewAccount,
         commit::CommitProof,
         constants::{DEVICES_FILE, JSON_EXT},
         device::DevicePublicKey,
         events::{AuditEvent, Event, EventKind},
         signer::ecdsa::Address,
-        storage::Storage,
+        storage::{AccountPack, Storage},
         vault::{Header, Summary, VaultId},
         vfs, Paths,
     },
@@ -119,7 +118,7 @@ pub trait BackendHandler {
     async fn create_account(
         &mut self,
         owner: &Address,
-        account_data: PublicNewAccount,
+        account_data: AccountPack,
         device_public_key: DevicePublicKey,
     ) -> Result<()>;
 
@@ -258,7 +257,7 @@ impl BackendHandler for FileSystemBackend {
     async fn create_account(
         &mut self,
         owner: &Address,
-        account_data: PublicNewAccount,
+        account_data: AccountPack,
         device_public_key: DevicePublicKey,
     ) -> Result<()> {
         {
