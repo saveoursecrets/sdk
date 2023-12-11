@@ -131,7 +131,7 @@ impl Folder {
         events_path.set_extension(EVENT_LOG_EXT);
 
         let mut event_log = FolderEventLog::new_folder(events_path).await?;
-        event_log.truncate().await?;
+        event_log.clear().await?;
         event_log.apply(events.iter().collect()).await?;
 
         Ok(Self::new(Gatekeeper::new(vault), Some(event_log)))
@@ -639,7 +639,7 @@ impl Storage {
         if let Some(vault) = vault {
             // Must truncate the event log so that importing vaults
             // does not end up with multiple create vault events
-            event_log.truncate().await?;
+            event_log.clear().await?;
 
             let (vault, events) = EventReducer::split(vault).await?;
             event_log.apply(events.iter().collect()).await?;
