@@ -1,7 +1,7 @@
 use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{events::Patch, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "events_compact";
 
@@ -46,9 +46,8 @@ async fn integration_events_compact() -> Result<()> {
 
     let folder_events = account.paths().event_log_path(default_folder.id());
     let event_log = FolderEventLog::new_folder(&folder_events).await?;
-    let records = event_log.diff_records(None).await?;
-    let patch: Patch = records.into();
-    let events = patch.into_events::<WriteEvent>().await?;
+    let patch = event_log.diff(None).await?;
+    let events: Vec<WriteEvent> = patch.into();
     // One create vault event, three create secret events
     // and two delete events
     assert_eq!(6, events.len());
@@ -73,9 +72,8 @@ async fn integration_events_compact() -> Result<()> {
     assert_ne!(old_root.as_ref(), &new_root);
 
     // Load a new patch from disc
-    let records = event_log.diff_records(None).await?;
-    let patch: Patch = records.into();
-    let events = patch.into_events::<WriteEvent>().await?;
+    let patch = event_log.diff(None).await?;
+    let events: Vec<WriteEvent> = patch.into();
     assert_eq!(2, events.len());
 
     // Check the account event log registered the compact event

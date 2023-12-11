@@ -17,8 +17,10 @@ use sos_sdk::{
     decode,
     device::DevicePublicKey,
     encode,
+    events::WriteEvent,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::{AccountPack, AccountStatus},
+    sync::Patch,
     vault::{Summary, VaultId},
 };
 
@@ -46,7 +48,6 @@ use url::Url;
 
 use crate::{
     client::{Error, HostedOrigin, Result},
-    events::Patch,
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
 };
 
@@ -546,7 +547,7 @@ impl RpcClient {
         &self,
         vault_id: &VaultId,
         before_proof: &CommitProof,
-        patch: &Patch,
+        patch: &Patch<WriteEvent>,
     ) -> Result<MaybeRetry<(Option<CommitProof>, Option<CommitProof>)>> {
         let url = self.origin.url.join("api/events")?;
 

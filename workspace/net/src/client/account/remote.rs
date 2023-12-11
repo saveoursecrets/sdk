@@ -4,7 +4,6 @@ use crate::{
         net::{MaybeRetry, RpcClient},
         Error, RemoteSync, Result, SyncError, SyncOptions,
     },
-    events::Patch,
     retry,
 };
 
@@ -18,6 +17,7 @@ use sos_sdk::{
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::{AccountPack, AccountStatus, Storage},
+    sync::Patch,
     url::Url,
     vault::{Summary, VaultId},
 };
@@ -184,16 +184,15 @@ impl RemoteBridge {
         &self,
         from: Option<&CommitHash>,
     ) -> Result<()> {
-        let patch: Patch = {
+        let patch: Patch<AccountEvent> = {
             let local = self.local.read().await;
             let account_log = local.account_log();
             let account_log = account_log.read().await;
-            let records = account_log.diff_records(from).await?;
-            records.into()
+            account_log.diff(from).await?
         };
 
-        for record in patch.iter() {
-            let event = record.decode_event::<AccountEvent>().await?;
+        for event in patch.iter() {
+            //let event = record.decode_event::<AccountEvent>().await?;
             tracing::debug!(event_kind = %event.event_kind(), "send account event");
 
             match event {
@@ -327,10 +326,9 @@ impl RemoteBridge {
         tracing::debug!(num_events = ?num_events);
 
         if num_events > 0 {
-            let patch: Patch = decode(&body).await?;
-            let events = patch.into_events().await?;
+            let patch: Patch<WriteEvent> = decode(&body).await?;
             let mut writer = self.local.write().await;
-            writer.patch(folder, events.iter().collect()).await?;
+            writer.patch(folder, (&patch).into()).await?;
         }
 
         Ok(num_events > 0)
@@ -355,8 +353,8 @@ impl RemoteBridge {
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            let patch: Patch =
-                event_log.diff_records(Some(from_commit)).await?.into();
+            let patch: Patch<WriteEvent> =
+                event_log.diff(Some(from_commit)).await?;
             let proof = event_log.tree().proof_at(from_commit)?;
             (patch, proof)
         };
@@ -446,13 +444,13 @@ impl RemoteBridge {
 
         let (last_commit, commit_proof) = commit_state;
 
-        let patch: Patch = {
+        let patch: Patch<WriteEvent> = {
             let reader = self.local.read().await;
             let event_log = reader
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            event_log.diff_records(Some(last_commit)).await?.into()
+            event_log.diff(Some(last_commit)).await?
         };
 
         tracing::debug!(num_patch_events = %patch.len());

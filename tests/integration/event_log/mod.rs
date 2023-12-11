@@ -1,9 +1,6 @@
 use anyhow::Result;
 use binary_stream::futures::{Decodable, Encodable};
-use sos_net::{
-    events::Patch,
-    sdk::{commit::CommitHash, events::EventLogFile},
-};
+use sos_net::sdk::{commit::CommitHash, events::EventLogFile, sync::Patch};
 
 mod account_events;
 mod change_password;
@@ -20,9 +17,8 @@ async fn last_log_event<T: Encodable + Decodable + Default>(
     event_log: &mut EventLogFile<T>,
     commit: Option<&CommitHash>,
 ) -> Result<Option<T>> {
-    let records = event_log.diff_records(commit).await?;
-    let patch: Patch = records.into();
-    let mut events = patch.into_events::<T>().await?;
+    let patch = event_log.diff(commit).await?;
+    let mut events: Vec<T> = patch.into();
     Ok(events.pop())
 }
 
@@ -30,7 +26,6 @@ async fn last_log_event<T: Encodable + Decodable + Default>(
 async fn all_events<T: Encodable + Decodable + Default>(
     event_log: &mut EventLogFile<T>,
 ) -> Result<Vec<T>> {
-    let records = event_log.diff_records(None).await?;
-    let patch: Patch = records.into();
-    Ok(patch.into_events::<T>().await?)
+    let patch = event_log.diff(None).await?;
+    Ok(patch.into())
 }

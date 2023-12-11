@@ -1,7 +1,7 @@
 use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{events::Patch, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "events_init_file_log";
 
@@ -37,10 +37,9 @@ async fn integration_events_init_file_log() -> Result<()> {
     let file_events = account.paths().file_events();
 
     let event_log = FileEventLog::new_file(&file_events).await?;
-    let records = event_log.diff_records(None).await?;
-    let patch: Patch = records.into();
+    let patch = event_log.diff(None).await?;
     assert_eq!(1, patch.len());
-    let events = patch.into_events::<FileEvent>().await?;
+    let events: Vec<FileEvent> = patch.into();
     assert!(matches!(
         events.get(0),
         Some(FileEvent::CreateFile(_, _, _))

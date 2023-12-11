@@ -2,8 +2,8 @@
 
 #[cfg(feature = "listen")]
 mod change;
-mod patch;
+//mod patch;
 
 #[cfg(feature = "listen")]
 pub use change::{ChangeAction, ChangeEvent, ChangeNotification};
-pub use patch::Patch;
+//pub use patch::Patch;

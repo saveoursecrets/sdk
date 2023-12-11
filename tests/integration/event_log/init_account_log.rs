@@ -1,6 +1,6 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_net::{events::Patch, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "events_init_account_log";
 
@@ -30,9 +30,8 @@ async fn integration_events_init_account_log() -> Result<()> {
 
     let account_events = account.paths().account_events();
     let event_log = AccountEventLog::new_account(&account_events).await?;
-    let records = event_log.diff_records(None).await?;
-    let patch: Patch = records.into();
-    let events = patch.into_events::<AccountEvent>().await?;
+    let patch = event_log.diff(None).await?;
+    let events: Vec<AccountEvent> = patch.into();
     assert_eq!(1, events.len());
 
     assert!(matches!(events.get(0), Some(AccountEvent::CreateFolder(_))));

@@ -1,7 +1,7 @@
 use super::all_events;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{events::Patch, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 /// Tests the various file events are being logged.
 #[tokio::test]
@@ -83,9 +83,8 @@ async fn integration_events_file() -> Result<()> {
     let file_events = account.paths().file_events();
 
     let event_log = FileEventLog::new_file(&file_events).await?;
-    let records = event_log.diff_records(None).await?;
-    let patch: Patch = records.into();
-    let events = patch.into_events::<FileEvent>().await?;
+    let patch = event_log.diff(None).await?;
+    let events: Vec<FileEvent> = patch.into();
     assert_eq!(5, events.len());
 
     // Initial file secret creation

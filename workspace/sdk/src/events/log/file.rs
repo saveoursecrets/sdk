@@ -102,7 +102,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     pub fn path(&self) -> &PathBuf {
         &self.file_path
     }
-    
+
     /// Commit tree for the log records.
     pub fn tree(&self) -> &CommitTree {
         &self.tree
@@ -194,7 +194,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         let content_offset = self.header_len() as u64;
         event_log_stream(&self.file_path, self.identity, content_offset).await
     }
-    
+
     /*
     /// Replace this event log with the contents of the buffer.
     ///
@@ -205,7 +205,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         Ok(())
     }
     */
-    
+
     /*
     /// Append the buffer to the contents of this event log.
     ///
@@ -232,7 +232,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         Ok(())
     }
     */
-    
+
     /*
     /// Get the tail after the given item until the end of the log.
     pub async fn tail(&self, item: EventLogFileRecord) -> Result<Vec<u8>> {
@@ -270,11 +270,13 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
 
         Ok(buf)
     }
-    
+
     /// Append a patch to this event log.
     #[cfg(feature = "sync")]
     pub async fn patch_unchecked(
-        &mut self, patch: &Patch<T>) -> Result<Vec<CommitHash>> {
+        &mut self,
+        patch: &Patch<T>,
+    ) -> Result<Vec<CommitHash>> {
         self.apply(patch.into()).await
     }
 
@@ -336,8 +338,8 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         self.tree.commit();
         Ok(())
     }
-    
-    /// Delete all events from the log file on disc 
+
+    /// Delete all events from the log file on disc
     /// and in-memory.
     pub async fn clear(&mut self) -> Result<()> {
         self.truncate().await?;

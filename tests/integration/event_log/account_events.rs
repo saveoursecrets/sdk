@@ -1,7 +1,7 @@
 use super::last_log_event;
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_net::{events::Patch, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "events_account";
 
@@ -29,9 +29,8 @@ async fn integration_events_account() -> Result<()> {
 
     let account_events = account.paths().account_events();
     let mut event_log = AccountEventLog::new_account(&account_events).await?;
-    let records = event_log.diff_records(None).await?;
-    let patch: Patch = records.into();
-    let events = patch.into_events::<AccountEvent>().await?;
+    let patch = event_log.diff(None).await?;
+    let events: Vec<AccountEvent> = patch.into();
     assert_eq!(1, events.len());
 
     // Create a folder

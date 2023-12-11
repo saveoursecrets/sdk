@@ -26,13 +26,18 @@ impl<T: Default + Encodable + Decodable> Patch<T> {
         self.0.is_empty()
     }
 
-    /// Iterator of the event records.
+    /// Iterator of the events.
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.0.iter()
     }
 
+    /// Iterator of the owned events.
+    pub fn into_iter(self) -> impl Iterator<Item = T> {
+        self.0.into_iter()
+    }
+
     /// Append an event record to this patch.
-    pub fn append(&mut self, record: T) {
+    pub(crate) fn append(&mut self, record: T) {
         self.0.push(record);
     }
 }
@@ -43,7 +48,15 @@ impl<T: Default + Encodable + Decodable> From<Vec<T>> for Patch<T> {
     }
 }
 
-impl<'a, T: Default + Encodable + Decodable> From<&'a Patch<T>> for Vec<&'a T> {
+impl<T: Default + Encodable + Decodable> From<Patch<T>> for Vec<T> {
+    fn from(value: Patch<T>) -> Self {
+        value.0
+    }
+}
+
+impl<'a, T: Default + Encodable + Decodable> From<&'a Patch<T>>
+    for Vec<&'a T>
+{
     fn from(value: &'a Patch<T>) -> Self {
         value.0.iter().collect()
     }

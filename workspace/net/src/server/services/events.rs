@@ -6,6 +6,7 @@ use sos_sdk::{
     },
     decode, encode,
     events::{AuditEvent, Event, WriteEvent},
+    sync::Patch,
 };
 use web3_address::ethereum::Address;
 
@@ -15,7 +16,6 @@ use uuid::Uuid;
 
 use super::{PrivateState, Service};
 use crate::{
-    events::Patch,
     rpc::{RequestMessage, ResponseMessage},
     server::{BackendHandler, Error, Result},
 };
@@ -215,7 +215,7 @@ impl Service for EventLogService {
                         .unwrap()
                         .compare(&client_proof)?;
 
-                    let patch: Option<Patch> = match comparison {
+                    let patch: Option<Patch<WriteEvent>> = match comparison {
                         Comparison::Equal => Some(Default::default()),
                         Comparison::Contains(_indices, _leaves) => {
                             let match_proof = account
@@ -233,9 +233,8 @@ impl Service for EventLogService {
                             if match_proof.is_some() {
                                 Some(
                                     event_log
-                                        .diff_records(Some(&last_commit))
-                                        .await?
-                                        .into(),
+                                        .diff(Some(&last_commit))
+                                        .await?,
                                 )
                             } else {
                                 None
@@ -314,13 +313,12 @@ impl Service for EventLogService {
                     match comparison {
                         Comparison::Equal => {
                             // TODO: |_| StatusCode::BAD_REQUEST
-                            let patch: Patch = decode(request.body()).await?;
+                            let patch: Patch<WriteEvent> =
+                                decode(request.body()).await?;
 
                             let mut account = account.write().await;
                             let mut change_set = Vec::new();
-                            for record in patch.iter() {
-                                let event = record.decode_event().await?;
-
+                            for event in patch.into_iter() {
                                 // Setting vault name requires special
                                 // handling as we need to update the
                                 // vault header on disc and must be
