@@ -54,7 +54,7 @@ impl Folder {
             events: events.map(|e| Arc::new(RwLock::new(e))),
         }
     }
-        
+
     /// Create a new folder from a vault buffer.
     ///
     /// Changes are not mirrored to disc and events are not logged.
@@ -236,6 +236,10 @@ pub struct Storage {
     pub(super) index: Option<AccountSearch>,
 
     /// Identity vault event log.
+    ///
+    /// This is a clone of the main identity vault
+    /// event log and is defined here so we can
+    /// get the commit state for synchronization.
     identity_log: Arc<RwLock<FolderEventLog>>,
 
     /// Account event log.

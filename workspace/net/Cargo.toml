@@ -96,6 +96,7 @@ if-addrs = { version = "0.10.1", optional = true }
 
 [dependencies.sos-sdk]
 version = "0.7"
+features = ["sync"]
 path = "../sdk"
 
 [dependencies.binary-stream]

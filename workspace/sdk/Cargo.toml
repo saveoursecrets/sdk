@@ -27,6 +27,7 @@ recovery = ["dep:vsss-rs"]
 test-utils = ["dep:anyhow"]
 search = ["dep:probly-search"]
 security-report = []
+sync = []
 
 [dependencies]
 binary-stream.workspace = true

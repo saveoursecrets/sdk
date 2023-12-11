@@ -34,6 +34,9 @@ use crate::events::AccountEvent;
 #[cfg(feature = "files")]
 use crate::events::FileEvent;
 
+#[cfg(feature = "sync")]
+use crate::sync::Patch;
+
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
@@ -299,7 +302,10 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     }
 
     /// Read the event data from an item.
-    pub async fn event_data(&self, item: &EventLogFileRecord) -> Result<T> {
+    pub(crate) async fn event_data(
+        &self,
+        item: &EventLogFileRecord,
+    ) -> Result<T> {
         let value = item.value();
 
         // Use a different file handle as the owned `file` should
@@ -317,8 +323,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         Ok(event)
     }
 
-    /// Load any cached data into the event log implementation
-    /// to build a commit tree in memory.
+    /// Load data from disc to build a commit tree in memory.
     pub async fn load_tree(&mut self) -> Result<()> {
         let mut commits = Vec::new();
         let mut it = self.iter().await?;
@@ -355,11 +360,12 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         }
     }
 
+    /*
     /// Get a diff of the records after the record with the
     /// given commit hash.
     ///
     /// Iterates backwards from the end of the event log.
-    pub async fn diff(&self, commit: [u8; 32]) -> Result<Option<Vec<u8>>> {
+    pub(crate) async fn diff_buffer(&self, commit: [u8; 32]) -> Result<Option<Vec<u8>>> {
         let mut it = self.iter().await?.rev();
         while let Some(record) = it.next_entry().await? {
             if record.commit() == commit {
@@ -368,8 +374,19 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         }
         Ok(None)
     }
+    */
 
-    /// Get a patch from these event logs until a specific commit.
+    /// Patch from a commit.
+    #[cfg(feature = "sync")]
+    pub async fn patch(
+        &self,
+        commit: Option<&CommitHash>,
+    ) -> Result<Patch<T>> {
+        let records = self.patch_until(commit).await?;
+        Ok(Patch::new(records).await?)
+    }
+
+    /// Patch event records until a specific commit.
     ///
     /// Searches backwards until it finds the specified commit if given; if
     /// no commit is given the patch will include all events.
@@ -670,6 +687,12 @@ mod test {
         assert!(event_log.tree().len() > 0);
         assert!(event_log.tree().root().is_some());
         assert!(event_log.last_commit().await.is_ok());
+
+        #[cfg(feature = "sync")]
+        {
+            let patch = event_log.patch(None).await?;
+            assert_eq!(2, patch.len());
+        }
 
         temp.close()?;
         Ok(())

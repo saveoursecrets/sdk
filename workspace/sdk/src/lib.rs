@@ -72,6 +72,8 @@ pub mod recovery;
 
 pub mod signer;
 pub mod storage;
+#[cfg(feature = "sync")]
+pub mod sync;
 mod timestamp;
 pub mod vault;
 
