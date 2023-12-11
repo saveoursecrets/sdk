@@ -29,7 +29,7 @@ pub struct AccountStatus {
     pub account: Option<CommitProof>,
     /// Commit proofs for the account folders.
     #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub proofs: HashMap<VaultId, CommitState>,
+    pub folders: HashMap<VaultId, CommitState>,
 }
 
 /// Collection of patches for an account.

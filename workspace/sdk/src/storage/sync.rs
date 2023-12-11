@@ -126,7 +126,7 @@ impl Storage {
         };
 
         let summaries = self.state.summaries();
-        let mut proofs = HashMap::new();
+        let mut folders = HashMap::new();
         for summary in summaries {
             let event_log = self
                 .cache
@@ -135,13 +135,13 @@ impl Storage {
             let last_commit =
                 event_log.last_commit().await?.ok_or(Error::NoRootCommit)?;
             let head = event_log.tree().head()?;
-            proofs.insert(*summary.id(), (last_commit, head));
+            folders.insert(*summary.id(), (last_commit, head));
         }
         Ok(AccountStatus {
             exists: true,
             identity,
             account,
-            proofs,
+            folders,
         })
     }
 

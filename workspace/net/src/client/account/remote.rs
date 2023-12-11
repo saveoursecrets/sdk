@@ -386,7 +386,7 @@ impl RemoteBridge {
         account_status: AccountStatus,
     ) -> Result<()> {
         for (folder_id, (remote_commit, remote_proof)) in
-            account_status.proofs
+            account_status.folders
         {
             let (folder, last_commit, commit_proof) = {
                 let local = self.local.read().await;
