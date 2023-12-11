@@ -11,6 +11,8 @@ use sos_net::sdk::{
     vfs,
 };
 
+use futures::{pin_mut, stream::StreamExt};
+
 use crate::{Error, Result};
 
 #[derive(Subcommand, Debug)]
@@ -77,26 +79,23 @@ async fn print_events<T: Default + Encodable + Decodable + LogEvent>(
     event_log: EventLogFile<T>,
     reverse: bool,
 ) -> Result<()> {
-    let mut it = if reverse {
-        event_log.iter().await?.rev()
-    } else {
-        event_log.iter().await?
-    };
-
     let version = event_log.read_file_version().await?;
     let mut count = 0;
     let divider = "-".repeat(72);
-    while let Some(record) = it.next_entry().await? {
+
+    let stream = event_log.stream(reverse).await;
+    pin_mut!(stream);
+
+    while let Some(event) = stream.next().await {
+        let (record, event) = event?;
         println!("{}", divider);
         println!("  time: {}", record.time());
-        println!("before: {}", CommitHash(record.last_commit()));
-        println!("commit: {}", CommitHash(record.commit()));
-        let event_buffer = event_log.read_event_buffer(&record).await?;
-        let event_record: EventRecord = (record, event_buffer).into();
-        let event = event_record.decode_event::<T>().await?;
+        println!("before: {}", record.last_commit());
+        println!("commit: {}", record.commit());
         println!(" event: {}", event.event_kind());
         count += 1;
     }
+
     if count > 0 {
         println!("{}", divider);
         println!("  total: {}", count);

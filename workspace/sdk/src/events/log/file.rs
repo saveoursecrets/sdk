@@ -30,6 +30,8 @@ use crate::{
 };
 
 use crate::events::AccountEvent;
+use async_stream::try_stream;
+use futures::Stream;
 
 #[cfg(feature = "files")]
 use crate::events::FileEvent;
@@ -189,7 +191,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         }
     }
 
-    /// Get an iterator of the log records.
+    /// Iterator of the log records.
     pub async fn iter(&self) -> Result<EventLogFileStream> {
         let content_offset = self.header_len() as u64;
         event_log_stream(&self.file_path, self.identity, content_offset).await
@@ -253,13 +255,13 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     }
     */
 
-    /// Read the bytes for the encoded write event
+    /// Read the bytes for the encoded event
     /// inside the log record.
-    pub async fn read_event_buffer(
-        &self,
+    async fn read_event_buffer(
+        path: &PathBuf,
         record: &EventLogFileRecord,
     ) -> Result<Vec<u8>> {
-        let mut file = File::open(&self.file_path).await?;
+        let mut file = File::open(path).await?;
         let offset = record.value();
         let row_len = offset.end - offset.start;
 
@@ -378,6 +380,35 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         }
     }
 
+    /// Stream of event records and decoded events.
+    ///
+    /// # Panics
+    ///
+    /// If the file iterator cannot read the event log file. 
+    pub async fn stream(
+        &self,
+        reverse: bool,
+    ) -> impl Stream<Item = Result<(EventRecord, T)>> {
+        let mut it = if reverse {
+            self.iter()
+                .await
+                .expect("failed to initialize stream")
+                .rev()
+        } else {
+            self.iter().await.expect("failed to initialize stream")
+        };
+
+        let path = self.file_path.clone();
+        try_stream! {
+            while let Some(record) = it.next_entry().await? {
+                let event_buffer = Self::read_event_buffer(&path, &record).await?;
+                let event_record: EventRecord = (record, event_buffer).into();
+                let event = event_record.decode_event::<T>().await?;
+                yield (event_record, event);
+            }
+        }
+    }
+
     /*
     /// Get a diff of the records after the record with the
     /// given commit hash.
@@ -422,7 +453,8 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
                     return Ok(events);
                 }
             }
-            let buffer = self.read_event_buffer(&record).await?;
+            let buffer =
+                Self::read_event_buffer(&self.file_path, &record).await?;
             // Iterating in reverse order as we would typically
             // be looking for commits near the end of the event log
             // but we want the patch events in the order they were
@@ -440,7 +472,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         Ok(events)
     }
 
-    /// Get the commit state of this event log.
+    /// Commit state of this event log.
     ///
     /// The event log must already have some commits.
     pub async fn commit_state(&self) -> Result<CommitState> {
