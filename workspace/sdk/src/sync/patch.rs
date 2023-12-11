@@ -1,4 +1,7 @@
-use crate::{events::{EventRecord, AccountEvent, WriteEvent}, Error, Result};
+use crate::{
+    events::{AccountEvent, EventRecord, WriteEvent},
+    Error, Result,
+};
 use binary_stream::futures::{Decodable, Encodable};
 
 #[cfg(feature = "files")]

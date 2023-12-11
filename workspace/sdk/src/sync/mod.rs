@@ -1,10 +1,11 @@
 //! Types and traits for synchronization.
 
-use crate::signer::ecdsa::Address;
+use crate::{signer::ecdsa::Address, vault::VaultId};
+use std::collections::HashMap;
 
 mod patch;
 
-pub use patch::{Patch, AccountPatch, FolderPatch};
+pub use patch::{AccountPatch, FolderPatch, Patch};
 
 #[cfg(feature = "files")]
 pub use patch::FilePatch;
@@ -18,8 +19,6 @@ pub struct ChangeSet {
     pub identity: FolderPatch,
     /// Account event logs.
     pub account: AccountPatch,
-    /// Addtional folders to be imported
-    /// into the new account.
-    pub folders: Vec<FolderPatch>,
+    /// Folders to be imported into the new account.
+    pub folders: HashMap<VaultId, FolderPatch>,
 }
-

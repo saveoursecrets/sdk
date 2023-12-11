@@ -73,7 +73,7 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
         ),
         Secret::Signer { .. } | Secret::Age { .. } => {
             // TODO: handle this more gracefully
-            todo!("secret type is not editable (yet!)")
+            unimplemented!("secret type is not editable (yet!)")
         }
         Secret::Contact { vcard, .. } => {
             (vcard.to_string().as_bytes().to_vec(), ".txt".to_string())
@@ -141,7 +141,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         },
         Secret::Signer { .. } | Secret::Age { .. } => {
             // TODO: handle this more gracefully
-            todo!("secret type is not editable (yet!)")
+            unimplemented!("secret type is not editable (yet!)")
         }
         Secret::Contact { user_data, .. } => {
             let value = std::str::from_utf8(content)?;

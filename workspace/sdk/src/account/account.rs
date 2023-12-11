@@ -1388,7 +1388,7 @@ impl<D> Account<D> {
         let vault = EventReducer::new_until_commit(commit)
             .reduce(log_file)
             .await?
-            .build()
+            .build(true)
             .await?;
 
         let mut keeper = Gatekeeper::new(vault);

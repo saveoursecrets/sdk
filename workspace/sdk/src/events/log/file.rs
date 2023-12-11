@@ -384,7 +384,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     ///
     /// # Panics
     ///
-    /// If the file iterator cannot read the event log file. 
+    /// If the file iterator cannot read the event log file.
     pub async fn stream(
         &self,
         reverse: bool,

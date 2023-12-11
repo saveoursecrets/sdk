@@ -192,7 +192,7 @@ impl EventReducer {
     }
 
     /// Consume this reducer and build a vault.
-    pub async fn build(self) -> Result<Vault> {
+    pub async fn build(self, include_secrets: bool) -> Result<Vault> {
         if let Some(vault) = self.vault {
             let mut vault: Vault = decode(&vault).await?;
             if let Some(name) = self.vault_name {
@@ -203,8 +203,10 @@ impl EventReducer {
                 vault.header_mut().set_meta(Some(meta));
             }
 
-            for (id, entry) in self.secrets {
-                vault.insert_entry(id, entry);
+            if include_secrets {
+                for (id, entry) in self.secrets {
+                    vault.insert_entry(id, entry);
+                }
             }
             Ok(vault)
         } else {
@@ -293,7 +295,7 @@ mod test {
         let vault = EventReducer::new()
             .reduce(&event_log)
             .await?
-            .build()
+            .build(true)
             .await?;
 
         assert_eq!(1, vault.len());
@@ -333,7 +335,7 @@ mod test {
         let vault = EventReducer::new()
             .reduce(&event_log)
             .await?
-            .build()
+            .build(true)
             .await?;
 
         // Get the compacted series of events
@@ -352,8 +354,11 @@ mod test {
             compact.apply(vec![&event]).await?;
         }
 
-        let compact_vault =
-            EventReducer::new().reduce(&compact).await?.build().await?;
+        let compact_vault = EventReducer::new()
+            .reduce(&compact)
+            .await?
+            .build(true)
+            .await?;
         assert_eq!(vault, compact_vault);
 
         Ok(())

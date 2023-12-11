@@ -7,7 +7,8 @@ use crate::{
         device::DevicePublicKey,
         events::{AuditEvent, Event, EventKind},
         signer::ecdsa::Address,
-        storage::{AccountPack, Folder, Storage},
+        storage::{Folder, Storage},
+        sync::ChangeSet,
         vault::{Header, Summary, VaultId},
         vfs, Paths,
     },
@@ -118,7 +119,7 @@ pub trait BackendHandler {
     async fn create_account(
         &mut self,
         owner: &Address,
-        account_data: AccountPack,
+        account_data: ChangeSet,
         device_public_key: DevicePublicKey,
     ) -> Result<()>;
 
@@ -266,7 +267,7 @@ impl BackendHandler for FileSystemBackend {
     async fn create_account(
         &mut self,
         owner: &Address,
-        account_data: AccountPack,
+        account_data: ChangeSet,
         device_public_key: DevicePublicKey,
     ) -> Result<()> {
         {
@@ -286,22 +287,17 @@ impl BackendHandler for FileSystemBackend {
             Paths::new_server(self.directory.clone(), owner.to_string());
         paths.ensure().await?;
 
-        let identity_folder =
-            Storage::initialize_account(&paths, &account_data.identity_vault)
+        let identity_log =
+            Storage::initialize_account(&paths, &account_data.identity)
                 .await?;
-        let identity_log = identity_folder
-            .ok_or(crate::sdk::Error::NoIdentityEventLog)?
-            .event_log()
-            .take()
-            .ok_or(crate::sdk::Error::NoIdentityEventLog)?;
 
         let mut storage = Storage::new_server(
             owner.clone(),
             Some(self.directory.clone()),
-            identity_log,
+            Arc::new(RwLock::new(identity_log)),
         )
         .await?;
-        storage.create_account(&account_data).await?;
+        storage.import_account(&account_data).await?;
 
         let mut account = AccountStorage {
             folders: storage,

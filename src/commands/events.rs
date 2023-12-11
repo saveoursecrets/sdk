@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use binary_stream::futures::{Decodable, Encodable};
 use sos_net::sdk::{
     events::{
-        AccountEvent, AccountEventLog, EventLogFile, FileEvent,
-        FileEventLog, FolderEventLog, LogEvent, WriteEvent,
+        AccountEvent, AccountEventLog, EventLogFile, FileEvent, FileEventLog,
+        FolderEventLog, LogEvent, WriteEvent,
     },
     vfs,
 };

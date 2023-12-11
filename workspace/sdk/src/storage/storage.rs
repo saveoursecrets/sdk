@@ -41,7 +41,7 @@ use crate::events::{FileEvent, FileEventLog};
 use crate::storage::search::{AccountSearch, DocumentCount, SearchIndex};
 
 #[cfg(feature = "sync")]
-use crate::sync::ChangeSet;
+use crate::sync::{ChangeSet, FolderPatch};
 
 /// Folder is a combined vault and event log.
 pub struct Folder {
@@ -110,34 +110,6 @@ impl Folder {
             FolderEventLog::new_folder(paths.identity_events()).await?;
         event_log.load_tree().await?;
         Ok(Arc::new(RwLock::new(event_log)))
-    }
-
-    /// Create a new vault file on disc and the associated
-    /// event log.
-    ///
-    /// If a vault file already exists it is overwritten if an
-    /// event log exists it is truncated and the single create
-    /// vault event is written.
-    ///
-    /// Intended to be used by a server to create the identity
-    /// vault and event log when a new account is created.
-    pub async fn initialize(
-        path: impl AsRef<Path>,
-        vault: &Vault,
-    ) -> Result<Folder> {
-        let (vault, events) = EventReducer::split(vault.clone()).await?;
-
-        let buffer = encode(&vault).await?;
-        vfs::write(path.as_ref(), &buffer).await?;
-
-        let mut events_path = path.as_ref().to_owned();
-        events_path.set_extension(EVENT_LOG_EXT);
-
-        let mut event_log = FolderEventLog::new_folder(events_path).await?;
-        event_log.clear().await?;
-        event_log.apply(events.iter().collect()).await?;
-
-        Ok(Self::new(Gatekeeper::new(vault), Some(event_log)))
     }
 
     /// Clone of the event log.
@@ -506,21 +478,81 @@ impl Storage {
         Ok(ReadEvent::ReadVault)
     }
 
-    /// Initialize the identity vault for an account.
+    /// Create a new vault file on disc and the associated
+    /// event log.
+    ///
+    /// If a vault file already exists it is overwritten if an
+    /// event log exists it is truncated and the single create
+    /// vault event is written.
+    ///
+    /// Intended to be used by a server to create the identity
+    /// vault and event log when a new account is created.
+    #[cfg(feature = "sync")]
     pub async fn initialize_account(
         paths: &Paths,
-        identity_vault: &Vault,
-    ) -> Result<Option<Folder>> {
-        // If we don't have an identity vault then initialize
-        // it and it's associated event log
-        if !vfs::try_exists(paths.identity_vault()).await? {
-            Ok(Some(
-                Folder::initialize(paths.identity_vault(), identity_vault)
-                    .await?,
-            ))
-        } else {
-            Ok(None)
+        identity_patch: &FolderPatch,
+    ) -> Result<FolderEventLog> {
+        let events: Vec<&WriteEvent> = identity_patch.into();
+
+        let mut event_log =
+            FolderEventLog::new_folder(paths.identity_events()).await?;
+        event_log.clear().await?;
+        event_log.apply(events).await?;
+
+        let vault = EventReducer::new()
+            .reduce(&event_log)
+            .await?
+            .build(false)
+            .await?;
+
+        let buffer = encode(&vault).await?;
+        vfs::write(paths.identity_vault(), buffer).await?;
+
+        Ok(event_log)
+    }
+
+    /// Import an account from a change set of event logs.
+    ///
+    /// Does not prepare the identity vault event log 
+    /// which should be done by calling `initialize_account()` 
+    /// before creating new storage.
+    ///
+    /// Intended to be used on a server to create a new
+    /// account from a collection of patches.
+    #[cfg(feature = "sync")]
+    pub async fn import_account(
+        &mut self,
+        account_data: &ChangeSet,
+    ) -> Result<()> {
+        {
+            let mut writer = self.account_log.write().await;
+            writer.patch_unchecked(&account_data.account).await?;
         }
+
+        for (id, folder) in &account_data.folders {
+            let vault_path = self.paths.vault_path(id);
+            let events_path = self.paths.event_log_path(id);
+
+            let mut event_log =
+                FolderEventLog::new_folder(events_path).await?;
+            event_log.patch_unchecked(folder).await?;
+
+            let vault = EventReducer::new()
+                .reduce(&event_log)
+                .await?
+                .build(false)
+                .await?;
+
+            let summary = vault.summary().clone();
+
+            let buffer = encode(&vault).await?;
+            vfs::write(vault_path, buffer).await?;
+
+            self.cache_mut().insert(*id, event_log);
+            self.state.add_summary(summary);
+        }
+
+        Ok(())
     }
 
     /// Create a new account.
@@ -552,32 +584,39 @@ impl Storage {
         Ok(events)
     }
 
-    /// Public account including all event logs.
+    /// Change set of all event logs.
     ///
     /// Used by network aware implementations to send
     /// account information to a server.
     #[cfg(feature = "sync")]
-    pub async fn change_pack(&self) -> Result<ChangeSet> {
-        todo!();
-        /*
+    pub async fn change_set(&self) -> Result<ChangeSet> {
         let address = self.address.clone();
-        let reader = self.identity_log.read().await;
 
-        println!("Reducing event logs...");
+        let identity = {
+            let reader = self.identity_log.read().await;
+            reader.diff(None).await?
+        };
 
-        let identity_vault =
-            EventReducer::new().reduce(&*reader).await?.build().await?;
+        let account = {
+            let reader = self.account_log.read().await;
+            reader.diff(None).await?
+        };
 
-        let mut folders = Vec::new();
+        let mut folders = HashMap::new();
         for summary in &self.state.summaries {
-            folders.push(self.read_vault(summary.id()).await?);
+            let folder_log = self
+                .cache
+                .get(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            folders.insert(*summary.id(), folder_log.diff(None).await?);
         }
-        Ok(AccountPack {
+
+        Ok(ChangeSet {
             address,
-            identity_vault,
+            identity,
+            account,
             folders,
         })
-        */
     }
 
     /// Restore vaults from an archive.
@@ -1111,7 +1150,7 @@ impl Storage {
         Ok(EventReducer::new()
             .reduce(event_log_file)
             .await?
-            .build()
+            .build(true)
             .await?)
     }
 

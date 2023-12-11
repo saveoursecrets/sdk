@@ -38,9 +38,9 @@ async fn create_rpc_client(
     let identity_log = identity_vault.event_log()?;
 
     // Set up local storage in case we need to use it
-    let storage = Storage::new_client(
-        signer.address()?, Some(data_dir), identity_log)
-        .await?;
+    let storage =
+        Storage::new_client(signer.address()?, Some(data_dir), identity_log)
+            .await?;
 
     let device = DeviceSigner::new_random();
     let client = RpcClient::new(
@@ -71,11 +71,14 @@ async fn integration_rpc_session() -> Result<()> {
 
     let default_folder =
         VaultBuilder::new().password(folder_password, None).await?;
+    let default_folder_buffer = encode(&default_folder).await?;
 
-    let (client, signer, identity_vault, storage) =
+    let (client, signer, identity_vault, mut storage) =
         create_rpc_client(data_dir, &server.origin).await?;
 
-    let account = storage.change_pack().await?;
+    storage.import_folder(&default_folder_buffer, None).await?;
+
+    let account = storage.change_set().await?;
 
     // Create an account on the remote
     let (status, _) = client.create_account(&account).await?.unwrap();

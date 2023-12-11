@@ -17,7 +17,7 @@ use sos_sdk::{
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::{AccountStatus, Storage},
-    sync::{Patch, ChangeSet},
+    sync::{ChangeSet, Patch},
     url::Url,
     vault::{Summary, VaultId},
 };
@@ -423,7 +423,7 @@ impl RemoteBridge {
     /// Create an account on the remote.
     async fn prepare_account(&self) -> Result<()> {
         let local = self.local.read().await;
-        let public_account = local.change_pack().await?;
+        let public_account = local.change_set().await?;
 
         self.create_account(&public_account).await?;
 

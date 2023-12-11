@@ -4,7 +4,8 @@ use sos_sdk::{
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
     decode,
     device::DevicePublicKey,
-    storage::{AccountPack, AccountStatus},
+    storage::AccountStatus,
+    sync::ChangeSet,
     vault::Header,
 };
 
@@ -58,7 +59,7 @@ impl Service for AccountService {
                 let device_public_key =
                     request.parameters::<DevicePublicKey>()?;
 
-                let account: AccountPack = decode(request.body()).await?;
+                let account: ChangeSet = decode(request.body()).await?;
 
                 // Address of the account being created
                 // does not match the caller's address
