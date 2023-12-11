@@ -153,7 +153,7 @@ mod test {
         let mut client = EventLogFile::new_folder(&client_file).await?;
         let mut it = server.iter().await?;
         while let Some(record) = it.next_entry().await? {
-            let event = server.event_data(&record).await?;
+            let event = server.decode_event(&record).await?;
             client.apply(vec![&event]).await?;
         }
 
@@ -262,7 +262,7 @@ mod test {
         let event_log = FolderEventLog::new_folder(path).await?;
         let mut it = event_log.iter().await?;
         while let Some(record) = it.next_entry().await? {
-            let _event = event_log.event_data(&record).await?;
+            let _event = event_log.decode_event(&record).await?;
         }
 
         Ok(())

@@ -188,7 +188,7 @@ impl RemoteBridge {
             let local = self.local.read().await;
             let account_log = local.account_log();
             let account_log = account_log.read().await;
-            let records = account_log.patch_until(from).await?;
+            let records = account_log.diff_records(from).await?;
             records.into()
         };
 
@@ -356,7 +356,7 @@ impl RemoteBridge {
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
             let patch: Patch =
-                event_log.patch_until(Some(from_commit)).await?.into();
+                event_log.diff_records(Some(from_commit)).await?.into();
             let proof = event_log.tree().proof_at(from_commit)?;
             (patch, proof)
         };
@@ -452,7 +452,7 @@ impl RemoteBridge {
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            event_log.patch_until(Some(last_commit)).await?.into()
+            event_log.diff_records(Some(last_commit)).await?.into()
         };
 
         tracing::debug!(num_patch_events = %patch.len());

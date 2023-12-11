@@ -1334,7 +1334,7 @@ impl Storage {
         let mut records = Vec::new();
         let mut it = event_log.iter().await?;
         while let Some(record) = it.next_entry().await? {
-            let event = event_log.event_data(&record).await?;
+            let event = event_log.decode_event(&record).await?;
             let commit = CommitHash(record.commit());
             let time = record.time().clone();
             records.push((commit, time, event));

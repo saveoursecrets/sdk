@@ -233,7 +233,7 @@ impl Service for EventLogService {
                             if match_proof.is_some() {
                                 Some(
                                     event_log
-                                        .patch_until(Some(&last_commit))
+                                        .diff_records(Some(&last_commit))
                                         .await?
                                         .into(),
                                 )

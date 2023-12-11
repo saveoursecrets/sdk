@@ -29,7 +29,7 @@ async fn integration_events_account() -> Result<()> {
 
     let account_events = account.paths().account_events();
     let mut event_log = AccountEventLog::new_account(&account_events).await?;
-    let records = event_log.patch_until(None).await?;
+    let records = event_log.diff_records(None).await?;
     let patch: Patch = records.into();
     let events = patch.into_events::<AccountEvent>().await?;
     assert_eq!(1, events.len());

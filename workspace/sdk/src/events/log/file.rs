@@ -98,6 +98,16 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         Ok(file)
     }
 
+    /// Path to the event log file.
+    pub fn path(&self) -> &PathBuf {
+        &self.file_path
+    }
+    
+    /// Commit tree for the log records.
+    pub fn tree(&self) -> &CommitTree {
+        &self.tree
+    }
+
     /// Encode an event into a record.
     async fn encode_event(
         &self,
@@ -117,6 +127,28 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
 
         let record = EventRecord(time, last_commit, commit, bytes);
         Ok((commit, record))
+    }
+
+    /// Read the event data from an item.
+    pub(crate) async fn decode_event(
+        &self,
+        item: &EventLogFileRecord,
+    ) -> Result<T> {
+        let value = item.value();
+
+        // Use a different file handle as the owned `file` should
+        // be used exclusively for appending
+        let mut file = File::open(&self.file_path).await?;
+
+        file.seek(SeekFrom::Start(value.start)).await?;
+        let mut buffer = vec![0; (value.end - value.start) as usize];
+        file.read_exact(buffer.as_mut_slice()).await?;
+
+        let mut stream = BufReader::new(Cursor::new(&mut buffer));
+        let mut reader = BinaryReader::new(&mut stream, encoding_options());
+        let mut event: T = Default::default();
+        event.decode(&mut reader).await?;
+        Ok(event)
     }
 
     /// Length of the file magic bytes and optional
@@ -162,7 +194,8 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         let content_offset = self.header_len() as u64;
         event_log_stream(&self.file_path, self.identity, content_offset).await
     }
-
+    
+    /*
     /// Replace this event log with the contents of the buffer.
     ///
     /// The buffer should start with the event log identity bytes.
@@ -171,7 +204,9 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         self.load_tree().await?;
         Ok(())
     }
-
+    */
+    
+    /*
     /// Append the buffer to the contents of this event log.
     ///
     /// The buffer should start with the event log identity bytes.
@@ -196,7 +231,9 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
 
         Ok(())
     }
-
+    */
+    
+    /*
     /// Get the tail after the given item until the end of the log.
     pub async fn tail(&self, item: EventLogFileRecord) -> Result<Vec<u8>> {
         let mut partial = self.header();
@@ -214,6 +251,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
             Ok(partial)
         }
     }
+    */
 
     /// Read the bytes for the encoded write event
     /// inside the log record.
@@ -231,21 +269,6 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         file.read_exact(&mut buf).await?;
 
         Ok(buf)
-    }
-
-    /// Get the path for this provider.
-    pub fn path(&self) -> &PathBuf {
-        &self.file_path
-    }
-
-    /// Get the file for this provider.
-    pub fn file(&self) -> &File {
-        &self.file
-    }
-
-    /// Get the commit tree for the log records.
-    pub fn tree(&self) -> &CommitTree {
-        &self.tree
     }
 
     /// Append a collection of events and commit the tree hashes
@@ -273,12 +296,11 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
             commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
 
         let len = self.file.metadata().await?.len();
-
         match self.file.write_all(&buffer).await {
             Ok(_) => {
+                self.file.flush().await?;
                 self.tree.append(&mut hashes);
                 self.tree.commit();
-                self.file.flush().await?;
                 Ok(commits)
             }
             Err(e) => {
@@ -293,28 +315,6 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
                 Err(Error::from(e))
             }
         }
-    }
-
-    /// Read the event data from an item.
-    pub(crate) async fn event_data(
-        &self,
-        item: &EventLogFileRecord,
-    ) -> Result<T> {
-        let value = item.value();
-
-        // Use a different file handle as the owned `file` should
-        // be used exclusively for appending
-        let mut file = File::open(&self.file_path).await?;
-
-        file.seek(SeekFrom::Start(value.start)).await?;
-        let mut buffer = vec![0; (value.end - value.start) as usize];
-        file.read_exact(buffer.as_mut_slice()).await?;
-
-        let mut stream = BufReader::new(Cursor::new(&mut buffer));
-        let mut reader = BinaryReader::new(&mut stream, encoding_options());
-        let mut event: T = Default::default();
-        event.decode(&mut reader).await?;
-        Ok(event)
     }
 
     /// Load data from disc to build a commit tree in memory.
@@ -385,23 +385,23 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     }
     */
 
-    /// Patch from a commit.
+    /// Diff of events until a specific commit.
     #[cfg(feature = "sync")]
-    pub async fn patch(
+    pub async fn diff(
         &self,
         commit: Option<&CommitHash>,
     ) -> Result<Patch<T>> {
-        let records = self.patch_until(commit).await?;
+        let records = self.diff_records(commit).await?;
         Ok(Patch::new(records).await?)
     }
 
-    /// Patch event records until a specific commit.
+    /// Diff of event records until a specific commit.
     ///
     /// Searches backwards until it finds the specified commit if given; if
-    /// no commit is given the patch will include all events.
+    /// no commit is given the diff will include all event records.
     ///
-    /// Does not include the target commit in the patch.
-    pub async fn patch_until(
+    /// Does not include the target commit.
+    pub async fn diff_records(
         &self,
         commit: Option<&CommitHash>,
     ) -> Result<Vec<EventRecord>> {
@@ -478,7 +478,7 @@ impl EventLogFile<WriteEvent> {
         let mut temp_event_log = Self::new_folder(temp.path()).await?;
         temp_event_log.apply(events.iter().collect()).await?;
 
-        let new_size = temp_event_log.file().metadata().await?.len();
+        let new_size = temp_event_log.file.metadata().await?.len();
 
         // Remove the existing event log file
         vfs::remove_file(self.path()).await?;
@@ -652,12 +652,12 @@ mod test {
         assert!(event_log.last_commit().await?.is_some());
 
         // Patch with all events
-        let patch = event_log.patch_until(None).await?;
+        let patch = event_log.diff_records(None).await?;
         assert_eq!(1, patch.len());
 
         // Patch is empty as the target commit is the empty commit
         let last_commit = event_log.last_commit().await?;
-        let patch = event_log.patch_until(last_commit.as_ref()).await?;
+        let patch = event_log.diff_records(last_commit.as_ref()).await?;
         assert_eq!(0, patch.len());
 
         temp.close()?;
@@ -683,7 +683,7 @@ mod test {
 
         #[cfg(feature = "sync")]
         {
-            let patch = event_log.patch(None).await?;
+            let patch = event_log.diff(None).await?;
             assert_eq!(2, patch.len());
         }
 

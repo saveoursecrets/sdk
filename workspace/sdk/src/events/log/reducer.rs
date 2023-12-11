@@ -26,7 +26,7 @@ impl<'a> AccountReducer<'a> {
     /// of folders.
     pub async fn reduce(self) -> Result<HashSet<VaultId>> {
         let mut folders = HashSet::new();
-        let events = self.log.patch_until(None).await?;
+        let events = self.log.diff_records(None).await?;
         for record in events {
             let event = record.decode_event::<AccountEvent>().await?;
             match event {
@@ -100,7 +100,7 @@ impl EventReducer {
     ) -> Result<EventReducer> {
         let mut it = event_log.iter().await?;
         if let Some(log) = it.next_entry().await? {
-            let event = event_log.event_data(&log).await?;
+            let event = event_log.decode_event(&log).await?;
 
             if let WriteEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
@@ -114,7 +114,7 @@ impl EventReducer {
                 }
 
                 while let Some(log) = it.next_entry().await? {
-                    let event = event_log.event_data(&log).await?;
+                    let event = event_log.decode_event(&log).await?;
                     match event {
                         WriteEvent::CreateVault(_) => {
                             return Err(Error::CreateEventOnlyFirst)
