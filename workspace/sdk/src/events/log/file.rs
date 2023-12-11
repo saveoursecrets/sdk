@@ -270,6 +270,13 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
 
         Ok(buf)
     }
+    
+    /// Append a patch to this event log.
+    #[cfg(feature = "sync")]
+    pub async fn patch_unchecked(
+        &mut self, patch: &Patch<T>) -> Result<Vec<CommitHash>> {
+        self.apply(patch.into()).await
+    }
 
     /// Append a collection of events and commit the tree hashes
     /// only if all the events were successfully persisted.

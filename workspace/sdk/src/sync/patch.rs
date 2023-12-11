@@ -42,3 +42,9 @@ impl<T: Default + Encodable + Decodable> From<Vec<T>> for Patch<T> {
         Self(value)
     }
 }
+
+impl<'a, T: Default + Encodable + Decodable> From<&'a Patch<T>> for Vec<&'a T> {
+    fn from(value: &'a Patch<T>) -> Self {
+        value.0.iter().collect()
+    }
+}
