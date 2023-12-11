@@ -1,5 +1,18 @@
-use crate::{events::EventRecord, Error, Result};
+use crate::{events::{EventRecord, AccountEvent, WriteEvent}, Error, Result};
 use binary_stream::futures::{Decodable, Encodable};
+
+#[cfg(feature = "files")]
+use crate::events::FileEvent;
+
+/// Patch of account events.
+pub type AccountPatch = Patch<AccountEvent>;
+
+/// Patch of folder events.
+pub type FolderPatch = Patch<WriteEvent>;
+
+/// Patch of file events.
+#[cfg(feature = "files")]
+pub type FilePatch = Patch<FileEvent>;
 
 /// Patch wraps a changeset of events to be sent across the network.
 #[derive(Clone, Debug, Default)]

@@ -3,9 +3,8 @@ use std::path::PathBuf;
 
 use binary_stream::futures::{Decodable, Encodable};
 use sos_net::sdk::{
-    commit::CommitHash,
     events::{
-        AccountEvent, AccountEventLog, EventLogFile, EventRecord, FileEvent,
+        AccountEvent, AccountEventLog, EventLogFile, FileEvent,
         FileEventLog, FolderEventLog, LogEvent, WriteEvent,
     },
     vfs,
