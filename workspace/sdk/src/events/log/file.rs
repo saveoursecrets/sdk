@@ -410,7 +410,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     /// no commit is given the diff will include all event records.
     ///
     /// Does not include the target commit.
-    pub async fn diff_records(
+    pub(crate) async fn diff_records(
         &self,
         commit: Option<&CommitHash>,
     ) -> Result<Vec<EventRecord>> {
