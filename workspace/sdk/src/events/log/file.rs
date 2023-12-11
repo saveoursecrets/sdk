@@ -295,12 +295,6 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         }
     }
 
-    /// Append a log event and commit the hash to the commit tree.
-    pub async fn append_event(&mut self, event: &T) -> Result<CommitHash> {
-        let mut commits = self.apply(vec![event]).await?;
-        Ok(commits.remove(0))
-    }
-
     /// Read the event data from an item.
     pub(crate) async fn event_data(
         &self,
@@ -589,7 +583,7 @@ mod test {
 
         // Create the vault
         let event = WriteEvent::CreateVault(buffer);
-        commits.push(event_log.append_event(&event).await?);
+        commits.append(&mut event_log.apply(vec![&event]).await?);
 
         // Create a secret
         let (secret_id, _, _, _, event) = mock_vault_note(
@@ -599,7 +593,7 @@ mod test {
             "This a event log note secret.",
         )
         .await?;
-        commits.push(event_log.append_event(&event).await?);
+        commits.append(&mut event_log.apply(vec![&event]).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -611,7 +605,7 @@ mod test {
         )
         .await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(&event).await?);
+            commits.append(&mut event_log.apply(vec![&event]).await?);
         }
 
         Ok((temp, event_log, commits))
@@ -654,7 +648,7 @@ mod test {
         assert!(event_log.last_commit().await?.is_none());
 
         let event = WriteEvent::CreateVault(buffer);
-        event_log.append_event(&event).await?;
+        event_log.apply(vec![&event]).await?;
 
         assert!(event_log.last_commit().await?.is_some());
 

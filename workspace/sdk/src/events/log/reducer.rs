@@ -248,13 +248,13 @@ mod test {
 
         // Create the vault
         let event = WriteEvent::CreateVault(buffer);
-        commits.push(event_log.append_event(&event).await?);
+        commits.append(&mut event_log.apply(vec![&event]).await?);
 
         // Create a secret
         let (secret_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")
                 .await?;
-        commits.push(event_log.append_event(&event).await?);
+        commits.append(&mut event_log.apply(vec![&event]).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -266,18 +266,18 @@ mod test {
         )
         .await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(&event).await?);
+            commits.append(&mut event_log.apply(vec![&event]).await?);
         }
 
         // Create another secret
         let (del_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "qux", "baz")
                 .await?;
-        commits.push(event_log.append_event(&event).await?);
+        commits.append(&mut event_log.apply(vec![&event]).await?);
 
         let event = vault.delete(&del_id).await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(&event).await?);
+            commits.append(&mut event_log.apply(vec![&event]).await?);
         }
 
         Ok((temp, event_log, commits, encryption_key, secret_id))
@@ -349,7 +349,7 @@ mod test {
         let mut compact =
             FolderEventLog::new_folder(compact_temp.path()).await?;
         for event in events {
-            compact.append_event(&event).await?;
+            compact.apply(vec![&event]).await?;
         }
 
         let compact_vault =
