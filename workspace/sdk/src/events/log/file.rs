@@ -16,7 +16,8 @@
 //!
 use crate::{
     commit::{
-        event_log_commit_tree_file, CommitHash, CommitState, CommitTree,
+        event_log_commit_tree_file, CommitHash, CommitProof, CommitState,
+        CommitTree, Comparison,
     },
     encode,
     encoding::{encoding_options, VERSION1},
@@ -37,7 +38,7 @@ use futures::Stream;
 use crate::events::FileEvent;
 
 #[cfg(feature = "sync")]
-use crate::sync::Patch;
+use crate::sync::{CheckedPatch, Patch};
 
 use std::{
     io::SeekFrom,
@@ -280,6 +281,39 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         patch: &Patch<T>,
     ) -> Result<Vec<CommitHash>> {
         self.apply(patch.into()).await
+    }
+
+    /// Append a patch to this event log only if the
+    /// head of the tree matches the given proof.
+    #[cfg(feature = "sync")]
+    pub async fn patch_checked(
+        &mut self,
+        commit_proof: &CommitProof,
+        patch: &Patch<T>,
+    ) -> Result<CheckedPatch> {
+        let comparison = self.tree.compare(&commit_proof)?;
+        match comparison {
+            Comparison::Equal => {
+                let commits = self.patch_unchecked(patch).await?;
+                let proof = self.tree.head()?;
+                Ok(CheckedPatch::Success(proof, commits))
+            }
+            Comparison::Contains(indices, _leaves) => {
+                let head = self.tree.head()?;
+                let contains = self.tree.proof(&indices)?;
+                Ok(CheckedPatch::Conflict {
+                    head,
+                    contains: Some(contains),
+                })
+            }
+            Comparison::Unknown => {
+                let head = self.tree.head()?;
+                Ok(CheckedPatch::Conflict {
+                    head,
+                    contains: None,
+                })
+            }
+        }
     }
 
     /// Append a collection of events and commit the tree hashes

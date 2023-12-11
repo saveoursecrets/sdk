@@ -11,15 +11,15 @@ use sos_sdk::{
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
         EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_STATUS,
-        HANDSHAKE_INITIATE, MIME_TYPE_RPC, VAULT_CREATE, VAULT_DELETE,
-        VAULT_SAVE,
+        HANDSHAKE_INITIATE, IDENTITY_PATCH, MIME_TYPE_RPC, VAULT_CREATE,
+        VAULT_DELETE, VAULT_SAVE,
     },
     decode,
     device::DevicePublicKey,
     encode,
     events::WriteEvent,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{AccountStatus, ChangeSet, Patch},
+    sync::{AccountStatus, ChangeSet, FolderPatch, Patch},
     vault::{Summary, VaultId},
 };
 
@@ -346,6 +346,37 @@ impl RpcClient {
             .await?;
 
         maybe_retry.map(|result, _| Ok(result.ok()))
+    }
+
+    /// Send a patch of events for an identity vault.
+    pub async fn patch_identity_events(
+        &self,
+        commit_proof: &CommitProof,
+        patch: &FolderPatch,
+    ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
+        let url = self.origin.url.join("api/identity")?;
+        let id = self.next_id().await;
+        let buffer = encode(patch).await?;
+        let request = RequestMessage::new(
+            Some(id),
+            IDENTITY_PATCH,
+            commit_proof,
+            Cow::Owned(buffer),
+        )?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
+        let signature =
+            encode_signature(self.signer.sign(&body).await?).await?;
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
+        let response = self.check_response(response).await?;
+        let maybe_retry = self
+            .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
+                response.status(),
+                &response.bytes().await?,
+            )
+            .await?;
+        maybe_retry.map(|result, _| Ok(result?))
     }
 
     /// List folders for an account.

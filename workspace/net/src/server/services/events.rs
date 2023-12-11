@@ -6,7 +6,7 @@ use sos_sdk::{
     },
     decode, encode,
     events::{AuditEvent, Event, WriteEvent},
-    sync::Patch,
+    sync::{FolderPatch, Patch},
 };
 use web3_address::ethereum::Address;
 
@@ -291,6 +291,8 @@ impl Service for EventLogService {
                         Arc::clone(account)
                     };
 
+                    // FIXME: use patch_checked() here instead
+
                     let (folder, comparison) = {
                         let account = account.read().await;
                         let folder = account
@@ -313,7 +315,7 @@ impl Service for EventLogService {
                     match comparison {
                         Comparison::Equal => {
                             // TODO: |_| StatusCode::BAD_REQUEST
-                            let patch: Patch<WriteEvent> =
+                            let patch: FolderPatch =
                                 decode(request.body()).await?;
 
                             let mut account = account.write().await;

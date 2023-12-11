@@ -383,15 +383,22 @@ impl NetworkAccount {
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
+        let identity_state = self.account.identity_state().await?;
+
         let (summary, event, commit_state) =
             self.account.create_folder(name).await?;
 
-        let sync_error = self
-            .sync_send_events(&summary, &commit_state, &[event])
-            .await
-            .err();
+        match self.sync_identity(&identity_state).await {
+            Ok(_) => {
+                let sync_error = self
+                    .sync_send_events(&summary, &commit_state, &[event])
+                    .await
+                    .err();
 
-        Ok((summary, sync_error))
+                Ok((summary, sync_error))
+            }
+            Err(e) => Ok((summary, Some(e))),
+        }
     }
 
     /// Delete a folder.

@@ -1,7 +1,7 @@
 //! Types and traits for synchronization.
 
 use crate::{
-    commit::{CommitProof, CommitState},
+    commit::{CommitHash, CommitProof, CommitState},
     signer::ecdsa::Address,
     vault::VaultId,
 };
@@ -14,6 +14,21 @@ pub use patch::{AccountPatch, FolderPatch, Patch};
 
 #[cfg(feature = "files")]
 pub use patch::FilePatch;
+
+/// Result of a checked patch on an event log.
+#[derive(Debug)]
+pub enum CheckedPatch {
+    /// Patch was applied.
+    Success(CommitProof, Vec<CommitHash>),
+    /// Patch conflict.
+    Conflict {
+        /// Head of the event log.
+        head: CommitProof,
+        /// If the checked proof is contained
+        /// in the event log.
+        contains: Option<CommitProof>,
+    },
+}
 
 /// Provides a status overview of an account.
 ///

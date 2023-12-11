@@ -17,7 +17,7 @@ use sos_sdk::{
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
-    sync::{AccountStatus, ChangeSet, Patch},
+    sync::{AccountStatus, ChangeSet, FolderPatch, Patch},
     url::Url,
     vault::{Summary, VaultId},
 };
@@ -224,9 +224,54 @@ impl RemoteBridge {
         Ok(())
     }
 
+    async fn sync_identity_events(
+        &self,
+        commit_state: &CommitState,
+    ) -> Result<()> {
+        println!("SYNC IDENTITY EVENTS {:#?}", commit_state);
+
+        let patch: FolderPatch = {
+            let local = self.local.read().await;
+            let log = local.identity_log();
+            let reader = log.read().await;
+            reader.diff(Some(&commit_state.0)).await?
+        };
+
+        println!("got events to send: {}", patch.len());
+
+        if !patch.is_empty() {
+            self.patch_identity_events(commit_state, &patch).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Patch identity events.
+    async fn patch_identity_events(
+        &self,
+        commit_state: &CommitState,
+        patch: &FolderPatch,
+    ) -> Result<()> {
+        let span = span!(Level::DEBUG, "patch_identity_events");
+        let _enter = span.enter();
+
+        let (status, _) = retry!(
+            || self.remote.patch_identity_events(&commit_state.1, patch),
+            self.remote
+        );
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(())
+    }
+
     /// Create a folder on the remote.
     async fn create_folder(&self, buffer: &[u8]) -> Result<()> {
-        let span = span!(Level::DEBUG, "import_folder");
+        let span = span!(Level::DEBUG, "create_folder");
         let _enter = span.enter();
 
         let (status, _) =
@@ -605,6 +650,15 @@ impl RemoteSync for RemoteBridge {
         Ok(local_changed)
     }
 
+    async fn sync_identity(
+        &self,
+        commit_state: &CommitState,
+    ) -> std::result::Result<(), SyncError> {
+        self.sync_identity_events(commit_state)
+            .await
+            .map_err(|e| SyncError::One(e))
+    }
+
     async fn sync_send_events(
         &self,
         folder: &Summary,
@@ -640,6 +694,8 @@ impl RemoteSync for RemoteBridge {
                 _ => {}
             }
         }
+
+        //let sync_account = !create_folders.is_empty() || !update_folders.is_empty() || !delete_folders.is_empty();
 
         // New folders must go via the vaults service,
         // and must not be included in any patch events

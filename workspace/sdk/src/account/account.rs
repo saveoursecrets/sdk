@@ -1421,6 +1421,15 @@ impl<D> Account<D> {
             .ok_or_else(|| Error::NoRootCommit)?)
     }
 
+    /// Commit state of the identity vault.
+    ///
+    /// The folder must have at least one commit.
+    pub async fn identity_state(&self) -> Result<CommitState> {
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        Ok(reader.identity_state().await?)
+    }
+
     /// Get the commit state for a folder.
     ///
     /// The folder must have at least one commit.

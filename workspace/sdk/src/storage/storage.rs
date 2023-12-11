@@ -309,6 +309,11 @@ impl Storage {
         &self.address
     }
 
+    /// Access to the identity log.
+    pub fn identity_log(&self) -> Arc<RwLock<FolderEventLog>> {
+        Arc::clone(&self.identity_log)
+    }
+
     /// Access to the account log.
     pub fn account_log(&self) -> Arc<RwLock<AccountEventLog>> {
         Arc::clone(&self.account_log)
@@ -1236,6 +1241,12 @@ impl Storage {
             records.push((commit, time, event));
         }
         Ok(records)
+    }
+
+    /// Commit state of the identity folder.
+    pub async fn identity_state(&self) -> Result<CommitState> {
+        let reader = self.identity_log.read().await;
+        Ok(reader.commit_state().await?)
     }
 
     /// Get the commit state for a folder.

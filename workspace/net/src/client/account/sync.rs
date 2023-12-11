@@ -165,6 +165,28 @@ impl RemoteSync for NetworkAccount {
         }
     }
 
+    async fn sync_identity(
+        &self,
+        commit_state: &CommitState,
+    ) -> std::result::Result<(), SyncError> {
+        let _ = self.sync_lock.lock().await;
+        let mut errors = Vec::new();
+        let remotes = self.remotes.read().await;
+        for (origin, remote) in &*remotes {
+            if let Err(e) = remote.sync_identity(commit_state).await {
+                match e {
+                    SyncError::One(e) => errors.push((origin.clone(), e)),
+                    SyncError::Multiple(mut errs) => errors.append(&mut errs),
+                }
+            }
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(SyncError::Multiple(errors))
+        }
+    }
+
     async fn sync_send_events(
         &self,
         folder: &Summary,
