@@ -14,6 +14,8 @@ pub(crate) mod paths;
 #[cfg(feature = "search")]
 pub mod search;
 mod storage;
+#[cfg(feature = "sync")]
+mod sync;
 
 pub use storage::{Folder, Storage};
 
@@ -30,23 +32,6 @@ pub struct AccountPack {
     /// Addtional folders to be imported
     /// into the new account.
     pub folders: Vec<Vault>,
-}
-
-/// Provides a status overview of an account.
-///
-/// Intended to be used during a synchronization protocol.
-#[derive(Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
-#[serde(default)]
-pub struct AccountStatus {
-    /// Indicates whether the account exists.
-    pub exists: bool,
-    /// Identity vault commit proof.
-    pub identity: CommitProof,
-    /// Account log commit proof.
-    pub account: Option<CommitProof>,
-    /// Commit proofs for the account folders.
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub proofs: HashMap<VaultId, CommitState>,
 }
 
 /// Options used when accessing account data.

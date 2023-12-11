@@ -16,8 +16,8 @@ use sos_sdk::{
     decode,
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::{AccountStatus, Storage},
-    sync::{ChangeSet, Patch},
+    storage::Storage,
+    sync::{AccountStatus, ChangeSet, Patch},
     url::Url,
     vault::{Summary, VaultId},
 };

@@ -19,8 +19,7 @@ use sos_sdk::{
     encode,
     events::WriteEvent,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::AccountStatus,
-    sync::{ChangeSet, Patch},
+    sync::{AccountStatus, ChangeSet, Patch},
     vault::{Summary, VaultId},
 };
 

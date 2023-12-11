@@ -11,8 +11,8 @@ use crate::{
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
     signer::ecdsa::Address,
+    storage::AccessOptions,
     storage::AccountPack,
-    storage::{AccessOptions, AccountStatus},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
@@ -39,9 +39,6 @@ use crate::events::{FileEvent, FileEventLog};
 
 #[cfg(feature = "search")]
 use crate::storage::search::{AccountSearch, DocumentCount, SearchIndex};
-
-#[cfg(feature = "sync")]
-use crate::sync::{ChangeSet, FolderPatch};
 
 /// Folder is a combined vault and event log.
 pub struct Folder {
@@ -198,10 +195,10 @@ impl Folder {
 /// Manages multiple folders loaded into memory and mirrored to disc.
 pub struct Storage {
     /// Address of the account owner.
-    address: Address,
+    pub(super) address: Address,
 
     /// State of this storage.
-    state: LocalState,
+    pub(super) state: LocalState,
 
     /// Directories for file storage.
     pub(super) paths: Arc<Paths>,
@@ -215,13 +212,13 @@ pub struct Storage {
     /// This is a clone of the main identity vault
     /// event log and is defined here so we can
     /// get the commit state for synchronization.
-    identity_log: Arc<RwLock<FolderEventLog>>,
+    pub(super) identity_log: Arc<RwLock<FolderEventLog>>,
 
     /// Account event log.
-    account_log: Arc<RwLock<AccountEventLog>>,
+    pub(super) account_log: Arc<RwLock<AccountEventLog>>,
 
     /// Folder event logs.
-    cache: HashMap<VaultId, FolderEventLog>,
+    pub(super) cache: HashMap<VaultId, FolderEventLog>,
 
     /// File event log.
     #[cfg(feature = "files")]
@@ -478,83 +475,6 @@ impl Storage {
         Ok(ReadEvent::ReadVault)
     }
 
-    /// Create a new vault file on disc and the associated
-    /// event log.
-    ///
-    /// If a vault file already exists it is overwritten if an
-    /// event log exists it is truncated and the single create
-    /// vault event is written.
-    ///
-    /// Intended to be used by a server to create the identity
-    /// vault and event log when a new account is created.
-    #[cfg(feature = "sync")]
-    pub async fn initialize_account(
-        paths: &Paths,
-        identity_patch: &FolderPatch,
-    ) -> Result<FolderEventLog> {
-        let events: Vec<&WriteEvent> = identity_patch.into();
-
-        let mut event_log =
-            FolderEventLog::new_folder(paths.identity_events()).await?;
-        event_log.clear().await?;
-        event_log.apply(events).await?;
-
-        let vault = EventReducer::new()
-            .reduce(&event_log)
-            .await?
-            .build(false)
-            .await?;
-
-        let buffer = encode(&vault).await?;
-        vfs::write(paths.identity_vault(), buffer).await?;
-
-        Ok(event_log)
-    }
-
-    /// Import an account from a change set of event logs.
-    ///
-    /// Does not prepare the identity vault event log 
-    /// which should be done by calling `initialize_account()` 
-    /// before creating new storage.
-    ///
-    /// Intended to be used on a server to create a new
-    /// account from a collection of patches.
-    #[cfg(feature = "sync")]
-    pub async fn import_account(
-        &mut self,
-        account_data: &ChangeSet,
-    ) -> Result<()> {
-        {
-            let mut writer = self.account_log.write().await;
-            writer.patch_unchecked(&account_data.account).await?;
-        }
-
-        for (id, folder) in &account_data.folders {
-            let vault_path = self.paths.vault_path(id);
-            let events_path = self.paths.event_log_path(id);
-
-            let mut event_log =
-                FolderEventLog::new_folder(events_path).await?;
-            event_log.patch_unchecked(folder).await?;
-
-            let vault = EventReducer::new()
-                .reduce(&event_log)
-                .await?
-                .build(false)
-                .await?;
-
-            let summary = vault.summary().clone();
-
-            let buffer = encode(&vault).await?;
-            vfs::write(vault_path, buffer).await?;
-
-            self.cache_mut().insert(*id, event_log);
-            self.state.add_summary(summary);
-        }
-
-        Ok(())
-    }
-
     /// Create a new account.
     pub async fn create_account(
         &mut self,
@@ -582,41 +502,6 @@ impl Storage {
         events.insert(0, create_account);
 
         Ok(events)
-    }
-
-    /// Change set of all event logs.
-    ///
-    /// Used by network aware implementations to send
-    /// account information to a server.
-    #[cfg(feature = "sync")]
-    pub async fn change_set(&self) -> Result<ChangeSet> {
-        let address = self.address.clone();
-
-        let identity = {
-            let reader = self.identity_log.read().await;
-            reader.diff(None).await?
-        };
-
-        let account = {
-            let reader = self.account_log.read().await;
-            reader.diff(None).await?
-        };
-
-        let mut folders = HashMap::new();
-        for summary in &self.state.summaries {
-            let folder_log = self
-                .cache
-                .get(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            folders.insert(*summary.id(), folder_log.diff(None).await?);
-        }
-
-        Ok(ChangeSet {
-            address,
-            identity,
-            account,
-            folders,
-        })
     }
 
     /// Restore vaults from an archive.
@@ -974,42 +859,6 @@ impl Storage {
             vfs::remove_file(&event_log_path).await?;
         }
         Ok(())
-    }
-
-    /// Get the account status.
-    pub async fn account_status(&self) -> Result<AccountStatus> {
-        let account = {
-            let reader = self.account_log.read().await;
-            if reader.tree().is_empty() {
-                None
-            } else {
-                Some(reader.tree().head()?)
-            }
-        };
-
-        let identity = {
-            let identity_log = self.identity_log.read().await;
-            identity_log.tree().head()?
-        };
-
-        let summaries = self.state.summaries();
-        let mut proofs = HashMap::new();
-        for summary in summaries {
-            let event_log = self
-                .cache
-                .get(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            let last_commit =
-                event_log.last_commit().await?.ok_or(Error::NoRootCommit)?;
-            let head = event_log.tree().head()?;
-            proofs.insert(*summary.id(), (last_commit, head));
-        }
-        Ok(AccountStatus {
-            exists: true,
-            identity,
-            account,
-            proofs,
-        })
     }
 
     /// Create a new folder.
@@ -1630,7 +1479,7 @@ impl Storage {
 }
 
 /// Collection of in-memory vaults.
-struct LocalState {
+pub(super) struct LocalState {
     /// Whether this state should mirror changes to disc.
     mirror: bool,
     /// Vault files should only contain header information.
@@ -1670,7 +1519,7 @@ impl LocalState {
     }
 
     /// Vault summaries.
-    fn summaries(&self) -> &[Summary] {
+    pub fn summaries(&self) -> &[Summary] {
         self.summaries.as_slice()
     }
 
@@ -1686,7 +1535,7 @@ impl LocalState {
     }
 
     /// Add a summary to this state.
-    fn add_summary(&mut self, summary: Summary) {
+    pub fn add_summary(&mut self, summary: Summary) {
         self.summaries.push(summary);
         self.summaries.sort();
     }

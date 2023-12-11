@@ -4,8 +4,7 @@ use sos_sdk::{
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
     decode,
     device::DevicePublicKey,
-    storage::AccountStatus,
-    sync::ChangeSet,
+    sync::{AccountStatus, ChangeSet},
     vault::Header,
 };
 
