@@ -24,7 +24,7 @@ const TEST_ID: &str = "rpc_session";
 async fn create_rpc_client(
     data_dir: PathBuf,
     origin: &HostedOrigin,
-) -> Result<(RpcClient, BoxedEcdsaSigner, IdentityVault)> {
+) -> Result<(RpcClient, BoxedEcdsaSigner, IdentityVault, Storage)> {
     Paths::scaffold(Some(data_dir.clone())).await?;
 
     let (primary_password, _) = generate_passphrase()?;
@@ -38,7 +38,8 @@ async fn create_rpc_client(
     let identity_log = identity_vault.event_log()?;
 
     // Set up local storage in case we need to use it
-    Storage::new_client(signer.address()?, Some(data_dir), identity_log)
+    let storage = Storage::new_client(
+        signer.address()?, Some(data_dir), identity_log)
         .await?;
 
     let device = DeviceSigner::new_random();
@@ -54,7 +55,7 @@ async fn create_rpc_client(
     // Noise protocol transport should be ready
     assert!(client.is_transport_ready().await);
 
-    Ok((client, signer, identity_vault))
+    Ok((client, signer, identity_vault, storage))
 }
 
 #[tokio::test]
@@ -71,14 +72,10 @@ async fn integration_rpc_session() -> Result<()> {
     let default_folder =
         VaultBuilder::new().password(folder_password, None).await?;
 
-    let (client, signer, identity_vault) =
+    let (client, signer, identity_vault, storage) =
         create_rpc_client(data_dir, &server.origin).await?;
 
-    let account = AccountPack {
-        address: signer.address()?.clone(),
-        identity_vault: identity_vault.into(),
-        folders: vec![default_folder],
-    };
+    let account = storage.change_pack().await?;
 
     // Create an account on the remote
     let (status, _) = client.create_account(&account).await?.unwrap();

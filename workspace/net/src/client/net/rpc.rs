@@ -19,8 +19,8 @@ use sos_sdk::{
     encode,
     events::WriteEvent,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::{AccountPack, AccountStatus},
-    sync::Patch,
+    storage::AccountStatus,
+    sync::{ChangeSet, Patch},
     vault::{Summary, VaultId},
 };
 
@@ -316,7 +316,7 @@ impl RpcClient {
     /// Create a new account.
     pub async fn create_account(
         &self,
-        account: &AccountPack,
+        account: &ChangeSet,
     ) -> Result<MaybeRetry<Option<()>>> {
         let url = self.origin.url.join("api/account")?;
 

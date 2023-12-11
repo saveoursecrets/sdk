@@ -17,8 +17,10 @@ mod storage;
 
 pub use storage::{Folder, Storage};
 
-/// Collection of vaults for an account that can
-/// be sent over the network.
+#[cfg(feature = "sync")]
+use crate::sync::{AccountPatch, FolderPatch};
+
+/// Collection of vaults for an account.
 #[derive(Default)]
 pub struct AccountPack {
     /// Address of the account signing key.

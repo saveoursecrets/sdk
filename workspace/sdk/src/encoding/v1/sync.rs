@@ -11,7 +11,7 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 
-use crate::sync::Patch;
+use crate::sync::{Patch, ChangeSet};
 
 #[async_trait]
 impl<T> Encodable for Patch<T>
@@ -50,6 +50,30 @@ where
             self.append(event);
             pos = reader.stream_position().await?;
         }
+        Ok(())
+    }
+}
+
+
+#[async_trait]
+impl Encodable for ChangeSet {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        todo!("encode change set");
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for ChangeSet
+{
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        todo!("decode change set");
         Ok(())
     }
 }

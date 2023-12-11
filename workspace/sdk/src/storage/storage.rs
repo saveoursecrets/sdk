@@ -40,6 +40,9 @@ use crate::events::{FileEvent, FileEventLog};
 #[cfg(feature = "search")]
 use crate::storage::search::{AccountSearch, DocumentCount, SearchIndex};
 
+#[cfg(feature = "sync")]
+use crate::sync::ChangeSet;
+
 /// Folder is a combined vault and event log.
 pub struct Folder {
     pub(crate) keeper: Gatekeeper,
@@ -549,15 +552,19 @@ impl Storage {
         Ok(events)
     }
 
-    /// Public account including all vaults.
+    /// Public account including all event logs.
     ///
     /// Used by network aware implementations to send
     /// account information to a server.
-    pub async fn public_account(&self) -> Result<AccountPack> {
+    #[cfg(feature = "sync")]
+    pub async fn change_pack(&self) -> Result<ChangeSet> {
+        todo!();
+        /*
         let address = self.address.clone();
         let reader = self.identity_log.read().await;
 
         println!("Reducing event logs...");
+
         let identity_vault =
             EventReducer::new().reduce(&*reader).await?.build().await?;
 
@@ -570,6 +577,7 @@ impl Storage {
             identity_vault,
             folders,
         })
+        */
     }
 
     /// Restore vaults from an archive.
