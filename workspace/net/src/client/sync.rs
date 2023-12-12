@@ -53,15 +53,6 @@ pub trait RemoteSync: Sync + Send + Any {
         options: &SyncOptions,
     ) -> std::result::Result<bool, SyncError>;
 
-    /// Sync changes to the identity vault.
-    ///
-    /// The commit state should be taken before
-    /// the changes to the identity vault were applied.
-    async fn sync_identity(
-        &self,
-        commit_state: &CommitState,
-    ) -> std::result::Result<(), SyncError>;
-
     /// Send events after changes to the local storage
     /// to a remote.
     ///

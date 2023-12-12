@@ -135,7 +135,8 @@ impl RemoteBridge {
     pub async fn handshake(&self) -> Result<()> {
         Ok(self.remote.handshake().await?)
     }
-
+    
+    /*
     async fn sync_identity_events(
         &self,
         commit_state: &CommitState,
@@ -153,6 +154,7 @@ impl RemoteBridge {
 
         Ok(())
     }
+    */
 
     async fn pull_folder(
         &self,
@@ -542,15 +544,6 @@ impl RemoteSync for RemoteBridge {
         };
 
         Ok(local_changed)
-    }
-
-    async fn sync_identity(
-        &self,
-        commit_state: &CommitState,
-    ) -> std::result::Result<(), SyncError> {
-        self.sync_identity_events(commit_state)
-            .await
-            .map_err(|e| SyncError::One(e))
     }
 
     async fn sync_send_events(
