@@ -490,7 +490,7 @@ impl<D> Account<D> {
         tracing::debug!("load folders");
         let storage = self.storage()?;
         let mut writer = storage.write().await;
-        Ok(writer.load_vaults().await?.to_vec())
+        Ok(writer.load_folders().await?.to_vec())
     }
 
     /// List in-memory folders managed by this account.

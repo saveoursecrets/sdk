@@ -368,14 +368,6 @@ impl RemoteSync for RemoteBridge {
             return None;
         }
 
-        // Ensure our folder state is the latest version on disc
-        {
-            let mut local = self.local.write().await;
-            if let Err(e) = local.load_vaults().await {
-                return Some(SyncError::One(e.into()));
-            }
-        }
-
         let mut errors = Vec::new();
 
         tracing::debug!(origin = %self.origin.url);

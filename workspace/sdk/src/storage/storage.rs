@@ -995,8 +995,10 @@ impl Storage {
             .await?)
     }
 
-    /// Load vault summaries from the local disc.
-    pub async fn load_vaults(&mut self) -> Result<&[Summary]> {
+    /// Load folders from the local disc.
+    ///
+    /// Creates the in-memory event logs for each folder on disc.
+    pub async fn load_folders(&mut self) -> Result<&[Summary]> {
         let storage = self.paths.vaults_dir();
         let mut summaries = Vec::new();
         let mut contents = vfs::read_dir(&storage).await?;

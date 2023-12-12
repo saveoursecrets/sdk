@@ -253,7 +253,7 @@ impl FileSystemBackend {
                             .entry(owner.clone())
                             .or_insert(Arc::new(RwLock::new(account)));
                         let mut writer = account.write().await;
-                        writer.folders.load_vaults().await?;
+                        writer.folders.load_folders().await?;
                     }
                 }
             }
