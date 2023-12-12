@@ -11,6 +11,7 @@ use sos_net::{
         constants::VAULT_EXT,
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
+        sync::Client,
         vault::{Summary, VaultId},
         vfs,
     },

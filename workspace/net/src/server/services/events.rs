@@ -172,8 +172,7 @@ impl Service for EventLogService {
                 };
 
                 let reply: ResponseMessage<'_> =
-                    (request.id(), (commit_state, match_proof))
-                        .try_into()?;
+                    (request.id(), (commit_state, match_proof)).try_into()?;
                 Ok(reply)
             }
             EVENT_LOG_DIFF => {

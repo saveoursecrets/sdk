@@ -11,7 +11,7 @@ mod websocket;
 
 mod rpc;
 
-pub use rpc::{MaybeRetry, RpcClient};
+pub use rpc::RpcClient;
 
 #[cfg(feature = "listen")]
 pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};

@@ -12,6 +12,7 @@ use sos_net::{
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
         storage::{AccountPack, Storage},
+        sync::Client,
         vault::{Vault, VaultBuilder},
         Paths,
     },
@@ -136,15 +137,11 @@ async fn integration_rpc_session() -> Result<()> {
 
     // Load the entire event log buffer
     let login = summaries.get(0).unwrap();
-    let (status, (_proof, buffer)) =
-        client.load_events(login.id()).await?.unwrap();
-    assert_eq!(StatusCode::OK, status);
-    assert!(buffer.is_some());
-    assert!(buffer.unwrap().len() > 4);
+    let (_proof, buffer) = client.folder_events(login.id()).await?;
+    assert!(buffer.len() > 4);
 
     // Get the status of a remote folder
-    let (_, match_proof) =
-        client.folder_status(login.id(), None).await?;
+    let (_, match_proof) = client.folder_status(login.id(), None).await?;
     assert!(match_proof.is_none());
 
     teardown(TEST_ID).await;

@@ -1,10 +1,6 @@
 //! Bridge between local storage and a remote server.
-use crate::{
-    client::{
-        net::{MaybeRetry, RpcClient},
-        Error, RemoteSync, Result, SyncError, SyncOptions,
-    },
-    retry,
+use crate::client::{
+    net::RpcClient, Error, RemoteSync, Result, SyncError, SyncOptions,
 };
 
 use async_trait::async_trait;
@@ -17,7 +13,7 @@ use sos_sdk::{
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
-    sync::{ChangeSet, FolderPatch, Patch, SyncStatus},
+    sync::{ChangeSet, Client, FolderPatch, Patch, SyncStatus},
     url::Url,
     vault::{Summary, VaultId},
 };
@@ -194,32 +190,9 @@ impl RemoteBridge {
         };
 
         if !patch.is_empty() {
-            self.patch_identity_events(commit_state, &patch).await?;
+            self.remote.patch_identity(&commit_state.1, &patch).await?;
         }
 
-        Ok(())
-    }
-
-    /// Patch identity events.
-    async fn patch_identity_events(
-        &self,
-        commit_state: &CommitState,
-        patch: &FolderPatch,
-    ) -> Result<()> {
-        let span = span!(Level::DEBUG, "patch_identity_events");
-        let _enter = span.enter();
-
-        let (status, _) = retry!(
-            || self.remote.patch_identity_events(&commit_state.1, patch),
-            self.remote
-        );
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
         Ok(())
     }
 
@@ -285,17 +258,9 @@ impl RemoteBridge {
             proof = ?proof,
         );
 
-        let (status, (_server_proof, _match_proof)) = retry!(
-            || self.remote.apply_patch(folder.id(), &proof, &patch,),
-            self.remote
-        );
-
-        tracing::debug!(push_status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
+        self.remote
+            .patch_folder(folder.id(), &proof, &patch)
+            .await?;
 
         Ok(num_events > 0)
     }
@@ -370,17 +335,9 @@ impl RemoteBridge {
 
         tracing::debug!(num_patch_events = %patch.len());
 
-        let (status, (_server_proof, _match_proof)) = retry!(
-            || self.remote.apply_patch(folder.id(), commit_proof, &patch,),
-            self.remote
-        );
-
-        tracing::debug!(patch_status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
+        self.remote
+            .patch_folder(folder.id(), commit_proof, &patch)
+            .await?;
 
         Ok(())
     }

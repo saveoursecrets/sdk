@@ -1,4 +1,5 @@
 //! Remote procedure call (RPC) client implementation.
+use async_trait::async_trait;
 use futures::Future;
 use http::{
     header::{self, HeaderValue},
@@ -19,11 +20,10 @@ use sos_sdk::{
     encode,
     events::WriteEvent,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, FolderPatch, Patch, SyncStatus},
+    sync::{ChangeSet, Client, FolderPatch, Patch, SyncStatus},
     vault::{Summary, VaultId},
 };
 
-use crate::retry;
 use mpc_protocol::{
     channel::{decrypt_server_channel, encrypt_server_channel},
     snow, Keypair, ProtocolState, PATTERN,
@@ -56,6 +56,74 @@ use crate::client::{ListenOptions, WebSocketHandle};
 
 use super::{bearer_prefix, encode_signature, AUTHORIZATION};
 
+/// Retry a request after renewing a session if an
+/// UNAUTHORIZED response is returned.
+#[doc(hidden)]
+macro_rules! retry {
+    ($future:expr, $client:expr) => {{
+        let future = $future();
+        let maybe_retry = future.await?;
+
+        match maybe_retry {
+            MaybeRetry::Retry(status) => {
+                if status == StatusCode::UNAUTHORIZED
+                    && $client.is_transport_ready().await
+                {
+                    tracing::debug!("renew client session");
+                    $client.handshake().await?;
+                    let future = $future();
+                    let maybe_retry = future.await?;
+                    match maybe_retry {
+                        MaybeRetry::Retry(status) => {
+                            if status == StatusCode::UNAUTHORIZED {
+                                return Err(Error::NotAuthorized);
+                            } else {
+                                return Err(Error::ResponseCode(status));
+                            }
+                        }
+                        MaybeRetry::Complete(status, result) => {
+                            (status, result)
+                        }
+                    }
+                } else {
+                    return Err(Error::NotAuthorized);
+                }
+            }
+            MaybeRetry::Complete(status, result) => (status, result),
+        }
+    }};
+}
+
+/// Result for a request that may be retried.
+#[derive(Debug)]
+enum MaybeRetry<T> {
+    /// Indicates the previous request should be retried.
+    Retry(StatusCode),
+    /// Indicates the request was completed.
+    Complete(StatusCode, T),
+}
+
+/// Response that may retry the request.
+enum RetryResponse<T> {
+    Retry(StatusCode),
+    Complete(StatusCode, crate::rpc::Result<T>, Vec<u8>),
+}
+
+impl<T> RetryResponse<T> {
+    fn map<E>(
+        self,
+        func: impl FnOnce(crate::rpc::Result<T>, Vec<u8>) -> Result<E>,
+    ) -> Result<MaybeRetry<E>> {
+        match self {
+            RetryResponse::Retry(status) => Ok(MaybeRetry::Retry(status)),
+            RetryResponse::Complete(status, result, body) => {
+                let res = func(result, body)?;
+                Ok(MaybeRetry::Complete(status, res))
+            }
+        }
+    }
+}
+
 /// Create an RPC call without a body.
 async fn new_rpc_call<T: Serialize>(
     id: u64,
@@ -67,11 +135,12 @@ async fn new_rpc_call<T: Serialize>(
     Ok(encode(&packet).await?)
 }
 
-/// Client implementation for RPC requests.
+/// Client for the self-hosted server that
+/// communicates using RPC messages.
 #[derive(Clone)]
 pub struct RpcClient {
     origin: HostedOrigin,
-    signer: BoxedEcdsaSigner,
+    pub(super) signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
     keypair: Keypair,
     protocol: Arc<RwLock<Option<ProtocolState>>>,
@@ -127,14 +196,14 @@ impl RpcClient {
         Ok(client.get(url).send().await?)
     }
 
-    /// Get the server information.
+    /// Server information.
     pub async fn server_info(server: Url) -> Result<reqwest::Response> {
         let client = reqwest::Client::new();
         let url = server.join("api")?;
         Ok(client.get(url).send().await?)
     }
 
-    /// Get the total number of websocket connections.
+    /// Total number of websocket connections on remote.
     pub async fn num_connections(server: &Url) -> Result<usize> {
         let client = reqwest::Client::new();
         let url = server.join("api/connections")?;
@@ -156,17 +225,7 @@ impl RpcClient {
         Ok(Some(protocol))
     }
 
-    /// Get the signer for this client.
-    pub fn signer(&self) -> &BoxedEcdsaSigner {
-        &self.signer
-    }
-
-    /// Get the URL for the remote node.
-    pub fn remote(&self) -> &Url {
-        &self.origin.url
-    }
-
-    /// Get the noise protocol public key for this client.
+    /// Noise protocol public key for this client.
     pub fn public_key(&self) -> &[u8] {
         self.keypair.public_key()
     }
@@ -287,13 +346,6 @@ impl RpcClient {
         }
     }
 
-    /// Sync status on remote, the result is `None` when the
-    /// account does not exist.
-    pub async fn sync_status(&self) -> Result<Option<SyncStatus>> {
-        let (_, value) = retry!(|| self.try_sync_status(), self);
-        Ok(value)
-    }
-
     /// Try to sync status on remote.
     async fn try_sync_status(
         &self,
@@ -323,22 +375,6 @@ impl RpcClient {
             .await?;
 
         maybe_retry.map(|result, _| Ok(result?))
-    }
-
-    /// Create a new account.
-    pub async fn create_account(&self, account: &ChangeSet) -> Result<()> {
-        let span = span!(Level::DEBUG, "create_account");
-        let _enter = span.enter();
-
-        let (status, _) = retry!(|| self.try_create_account(account), self);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(())
     }
 
     /// Try to create a new account.
@@ -377,8 +413,7 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result.ok()))
     }
 
-    /// Send a patch of events for an identity vault.
-    pub async fn patch_identity_events(
+    async fn try_patch_identity(
         &self,
         commit_proof: &CommitProof,
         patch: &FolderPatch,
@@ -408,22 +443,6 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// List folders on the remote.
-    pub async fn list_folders(&self) -> Result<Vec<Summary>> {
-        let span = span!(Level::DEBUG, "list_folders");
-        let _enter = span.enter();
-
-        let (status, value) = retry!(|| self.try_list_folders(), self);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(value)
-    }
-
     /// List folders for an account.
     async fn try_list_folders(&self) -> Result<MaybeRetry<Vec<Summary>>> {
         let url = self.origin.url.join("api/account")?;
@@ -441,22 +460,6 @@ impl RpcClient {
             )
             .await?;
         maybe_retry.map(|result, _| Ok(result?))
-    }
-
-    /// Create a folder on the remote.
-    pub async fn create_folder(&self, buffer: &[u8]) -> Result<CommitProof> {
-        let span = span!(Level::DEBUG, "create_folder");
-        let _enter = span.enter();
-
-        let (status, value) = retry!(|| self.try_create_folder(buffer), self);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(value)
     }
 
     /// Try to create a new folder on a remote node.
@@ -488,32 +491,16 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// Delete a folder on remote.
-    pub async fn delete_folder(&self, id: &VaultId) -> Result<CommitProof> {
-        let span = span!(Level::DEBUG, "delete_folder");
-        let _enter = span.enter();
-
-        let (status, value) = retry!(|| self.try_delete_folder(id), self);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(value)
-    }
-
     /// Try to delete a folder on remote.
     async fn try_delete_folder(
         &self,
-        vault_id: &VaultId,
+        folder_id: &VaultId,
     ) -> Result<MaybeRetry<CommitProof>> {
-        let vault_id = *vault_id;
+        let folder_id = *folder_id;
         let url = self.origin.url.join("api/vault")?;
 
         let id = self.next_id().await;
-        let body = new_rpc_call(id, VAULT_DELETE, vault_id).await?;
+        let body = new_rpc_call(id, VAULT_DELETE, folder_id).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
@@ -529,43 +516,18 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// Update an existing folder.
-    ///
-    /// This should be used when the commit tree has been
-    /// rewritten, for example if the history was compacted
-    /// or the password for a vault was changed.
-    pub async fn update_folder(
-        &self,
-        id: &VaultId,
-        buffer: impl AsRef<[u8]>,
-    ) -> Result<CommitProof> {
-        let span = span!(Level::DEBUG, "update_folder");
-        let _enter = span.enter();
-
-        let (status, value) =
-            retry!(|| self.try_update_folder(id, buffer.as_ref()), self);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(value)
-    }
-
     async fn try_update_folder(
         &self,
-        vault_id: &VaultId,
+        folder_id: &VaultId,
         vault: impl AsRef<[u8]>,
     ) -> Result<MaybeRetry<CommitProof>> {
-        let vault_id = *vault_id;
+        let folder_id = *folder_id;
         let url = self.origin.url.join("api/vault")?;
         let id = self.next_id().await;
         let request = RequestMessage::new(
             Some(id),
             VAULT_SAVE,
-            vault_id,
+            folder_id,
             Cow::Borrowed(vault.as_ref()),
         )?;
         let packet = Packet::new_request(request);
@@ -586,44 +548,16 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// Diff of events for a folder on remote.
-    ///
-    /// Returns the number of events in the patch and
-    /// a buffer that can be decoded to a `Patch`.
-    pub async fn diff_folder(
-        &self,
-        vault_id: &VaultId,
-        last_commit: &CommitHash,
-        proof: &CommitProof,
-    ) -> Result<(usize, Vec<u8>)> {
-        let span = span!(Level::DEBUG, "diff_folder");
-        let _enter = span.enter();
-
-        let (status, value) = retry!(
-            || self.try_diff_folder(vault_id, last_commit, proof),
-            self
-        );
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok(value)
-    }
-
     async fn try_diff_folder(
         &self,
-        vault_id: &VaultId,
+        folder_id: &VaultId,
         last_commit: &CommitHash,
         proof: &CommitProof,
     ) -> Result<MaybeRetry<(usize, Vec<u8>)>> {
         let url = self.origin.url.join("api/events")?;
         let id = self.next_id().await;
         let body =
-            new_rpc_call(id, EVENT_LOG_DIFF, (vault_id, last_commit, proof))
+            new_rpc_call(id, EVENT_LOG_DIFF, (folder_id, last_commit, proof))
                 .await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
@@ -640,14 +574,13 @@ impl RpcClient {
         maybe_retry.map(|result, body| Ok((result?, body)))
     }
 
-    /// Load a buffer of the entire event log on a remote.
-    pub async fn load_events(
+    async fn try_folder_events(
         &self,
-        vault_id: &VaultId,
-    ) -> Result<MaybeRetry<(CommitProof, Option<Vec<u8>>)>> {
+        folder_id: &VaultId,
+    ) -> Result<MaybeRetry<(CommitProof, Vec<u8>)>> {
         let url = self.origin.url.join("api/events")?;
         let id = self.next_id().await;
-        let body = new_rpc_call(id, EVENT_LOG_LOAD, vault_id).await?;
+        let body = new_rpc_call(id, EVENT_LOG_LOAD, folder_id).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
@@ -660,43 +593,18 @@ impl RpcClient {
             )
             .await?;
 
-        maybe_retry.map(|result, body| Ok((result?, Some(body))))
-    }
-
-    /// Commit state of a folder on a remote.
-    pub async fn folder_status(
-        &self,
-        vault_id: &VaultId,
-        proof: Option<&CommitProof>,
-    ) -> Result<(CommitState, Option<CommitProof>)> {
-        let span = span!(Level::DEBUG, "folder_status");
-        let _enter = span.enter();
-
-        let (status, value) = retry!(
-            || self.try_folder_status(vault_id, proof),
-            self
-        );
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok(value)
+        maybe_retry.map(|result, body| Ok((result?, body)))
     }
 
     async fn try_folder_status(
         &self,
-        vault_id: &VaultId,
+        folder_id: &VaultId,
         proof: Option<&CommitProof>,
-    ) -> Result<MaybeRetry<(CommitState, Option<CommitProof>)>>
-    {
+    ) -> Result<MaybeRetry<(CommitState, Option<CommitProof>)>> {
         let url = self.origin.url.join("api/events")?;
         let id = self.next_id().await;
         let body =
-            new_rpc_call(id, EVENT_LOG_STATUS, (vault_id, proof)).await?;
+            new_rpc_call(id, EVENT_LOG_STATUS, (folder_id, proof)).await?;
         let signature =
             encode_signature(self.signer.sign(&body).await?).await?;
         let body = self.encrypt_request(&body).await?;
@@ -712,14 +620,12 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// Apply a patch to the vault on a remote node.
-    /// TODO: remove the Option from the server_proof ???
-    pub async fn apply_patch(
+    async fn try_patch_folder(
         &self,
-        vault_id: &VaultId,
-        before_proof: &CommitProof,
-        patch: &Patch<WriteEvent>,
-    ) -> Result<MaybeRetry<(Option<CommitProof>, Option<CommitProof>)>> {
+        folder_id: &VaultId,
+        proof: &CommitProof,
+        patch: &FolderPatch,
+    ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
         let url = self.origin.url.join("api/events")?;
 
         let id = self.next_id().await;
@@ -727,7 +633,7 @@ impl RpcClient {
         let request = RequestMessage::new(
             Some(id),
             EVENT_LOG_PATCH,
-            (vault_id, before_proof),
+            (folder_id, proof),
             Cow::Owned(body),
         )?;
         let packet = Packet::new_request(request);
@@ -745,10 +651,7 @@ impl RpcClient {
             )
             .await?;
 
-        maybe_retry.map(|result, _| {
-            let (server_proof, match_proof) = result?;
-            Ok((Some(server_proof), match_proof))
-        })
+        maybe_retry.map(|result, _| Ok(result?))
     }
 
     /// Build an encrypted request.
@@ -835,56 +738,203 @@ impl RpcClient {
     }
 }
 
-/// Enumeration for a response that allows for retrying the request.
-enum RetryResponse<T> {
-    Retry(StatusCode),
-    Complete(StatusCode, crate::rpc::Result<T>, Vec<u8>),
-}
+#[async_trait]
+impl Client for RpcClient {
+    type Error = Error;
 
-impl<T> RetryResponse<T> {
-    fn map<E>(
-        self,
-        func: impl FnOnce(crate::rpc::Result<T>, Vec<u8>) -> Result<E>,
-    ) -> Result<MaybeRetry<E>> {
-        match self {
-            RetryResponse::Retry(status) => Ok(MaybeRetry::Retry(status)),
-            RetryResponse::Complete(status, result, body) => {
-                let res = func(result, body)?;
-                Ok(MaybeRetry::Complete(status, res))
-            }
-        }
-    }
-}
-
-/// Enumeration for a mapped result that may be retried
-#[derive(Debug)]
-pub enum MaybeRetry<T> {
-    /// Indicates the previous request should be retried.
-    Retry(StatusCode),
-    /// Indicates the request was completed.
-    Complete(StatusCode, T),
-}
-
-impl<T> MaybeRetry<T> {
-    /// Consume self into the underlying status code.
-    pub fn into_status(self) -> StatusCode {
-        match self {
-            MaybeRetry::Complete(status, _) => status,
-            MaybeRetry::Retry(status) => status,
-        }
+    fn url(&self) -> &Url {
+        &self.origin.url
     }
 
-    /// Unwrap as a completed request.
-    ///
-    /// Panics if the request should be retried.
-    pub fn unwrap(self) -> (StatusCode, T) {
-        match self {
-            MaybeRetry::Complete(status, result) => (status, result),
-            _ => {
-                panic!(
-                    "unwrap called on a maybe retry that should be retried"
-                );
-            }
-        }
+    async fn sync_status(&self) -> Result<Option<SyncStatus>> {
+        let (_, value) = retry!(|| self.try_sync_status(), self);
+        Ok(value)
+    }
+
+    async fn create_account(&self, account: &ChangeSet) -> Result<()> {
+        let span = span!(Level::DEBUG, "create_account");
+        let _enter = span.enter();
+
+        let (status, _) = retry!(|| self.try_create_account(account), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(())
+    }
+
+    async fn patch_identity(
+        &self,
+        proof: &CommitProof,
+        patch: &FolderPatch,
+    ) -> Result<()> {
+        let span = span!(Level::DEBUG, "patch_identity");
+        let _enter = span.enter();
+
+        let (status, _) =
+            retry!(|| self.try_patch_identity(proof, patch), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(())
+    }
+
+    async fn list_folders(&self) -> Result<Vec<Summary>> {
+        let span = span!(Level::DEBUG, "list_folders");
+        let _enter = span.enter();
+
+        let (status, value) = retry!(|| self.try_list_folders(), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(value)
+    }
+
+    async fn create_folder(&self, buffer: &[u8]) -> Result<CommitProof> {
+        let span = span!(Level::DEBUG, "create_folder");
+        let _enter = span.enter();
+
+        let (status, value) = retry!(|| self.try_create_folder(buffer), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(value)
+    }
+
+    async fn update_folder(
+        &self,
+        id: &VaultId,
+        buffer: impl AsRef<[u8]> + Send,
+    ) -> Result<CommitProof> {
+        let span = span!(Level::DEBUG, "update_folder");
+        let _enter = span.enter();
+
+        let (status, value) =
+            retry!(|| self.try_update_folder(id, buffer.as_ref()), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(value)
+    }
+
+    async fn delete_folder(&self, id: &VaultId) -> Result<CommitProof> {
+        let span = span!(Level::DEBUG, "delete_folder");
+        let _enter = span.enter();
+
+        let (status, value) = retry!(|| self.try_delete_folder(id), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(value)
+    }
+
+    async fn diff_folder(
+        &self,
+        folder_id: &VaultId,
+        last_commit: &CommitHash,
+        proof: &CommitProof,
+    ) -> Result<(usize, Vec<u8>)> {
+        let span = span!(Level::DEBUG, "diff_folder");
+        let _enter = span.enter();
+
+        let (status, value) = retry!(
+            || self.try_diff_folder(folder_id, last_commit, proof),
+            self
+        );
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(value)
+    }
+
+    async fn folder_events(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<(CommitProof, Vec<u8>)> {
+        let span = span!(Level::DEBUG, "folder_events");
+        let _enter = span.enter();
+
+        let (status, value) =
+            retry!(|| self.try_folder_events(folder_id), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(value)
+    }
+
+    async fn folder_status(
+        &self,
+        folder_id: &VaultId,
+        proof: Option<&CommitProof>,
+    ) -> Result<(CommitState, Option<CommitProof>)> {
+        let span = span!(Level::DEBUG, "folder_status");
+        let _enter = span.enter();
+
+        let (status, value) =
+            retry!(|| self.try_folder_status(folder_id, proof), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(value)
+    }
+
+    async fn patch_folder(
+        &self,
+        folder_id: &VaultId,
+        proof: &CommitProof,
+        patch: &FolderPatch,
+    ) -> Result<(CommitProof, Option<CommitProof>)> {
+        let span = span!(Level::DEBUG, "patch_folder");
+        let _enter = span.enter();
+
+        let (status, value) =
+            retry!(|| self.try_patch_folder(folder_id, &proof, &patch), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(value)
     }
 }

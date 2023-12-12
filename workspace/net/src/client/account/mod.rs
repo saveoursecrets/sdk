@@ -8,7 +8,6 @@ mod contacts;
 mod device;
 #[cfg(feature = "listen")]
 mod listen;
-mod macros;
 #[cfg(feature = "migrate")]
 mod migrate;
 mod network_account;
