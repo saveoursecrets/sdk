@@ -401,17 +401,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
 
     /// Read the last commit hash from the file.
     pub async fn last_commit(&self) -> Result<Option<CommitHash>> {
-        let file_len = self.file.metadata().await?.len() as usize;
-        if file_len > self.header_len() {
-            let mut it = self.iter().await?.rev();
-            if let Some(record) = it.next_entry().await? {
-                Ok(Some(CommitHash(record.commit())))
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(None)
-        }
+        Ok(self.tree.last_commit())
     }
 
     /// Stream of event records and decoded events.

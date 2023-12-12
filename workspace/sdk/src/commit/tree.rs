@@ -168,6 +168,11 @@ impl CommitTree {
         }
     }
 
+    /// Last commit hash in the underlying merkle tree.
+    pub fn last_commit(&self) -> Option<CommitHash> {
+        self.last_commit.map(CommitHash)
+    }
+
     /// Root hash of the underlying merkle tree.
     pub fn root(&self) -> Option<<Sha256 as Hasher>::Hash> {
         self.tree.root()
