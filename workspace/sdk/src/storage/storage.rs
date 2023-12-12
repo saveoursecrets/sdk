@@ -480,7 +480,7 @@ impl Storage {
         Ok(ReadEvent::ReadVault)
     }
 
-    /// Create a new account.
+    /// Create the data for a new account.
     pub async fn create_account(
         &mut self,
         account: &AccountPack,
@@ -489,7 +489,7 @@ impl Storage {
 
         let create_account = Event::CreateAccount(AuditEvent::new(
             EventKind::CreateAccount,
-            account.address.clone(),
+            self.address.clone(),
             None,
         ));
 

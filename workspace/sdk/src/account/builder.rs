@@ -52,7 +52,6 @@ impl From<PrivateNewAccount> for AccountPack {
             folders.push(contacts);
         }
         Self {
-            address: value.address,
             identity_vault: value.identity_vault.into(),
             folders,
         }

@@ -25,8 +25,6 @@ use crate::sync::{AccountPatch, FolderPatch};
 /// Collection of vaults for an account.
 #[derive(Default)]
 pub struct AccountPack {
-    /// Address of the account signing key.
-    pub address: Address,
     /// Identity vault.
     pub identity_vault: Vault,
     /// Addtional folders to be imported
