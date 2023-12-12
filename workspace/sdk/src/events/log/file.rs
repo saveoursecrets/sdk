@@ -493,17 +493,6 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
 
         Ok(events)
     }
-
-    /// Commit state of this event log.
-    ///
-    /// The event log must already have some commits.
-    #[deprecated(note = "call commit_state() on the tree directly")]
-    pub async fn commit_state(&self) -> Result<CommitState> {
-        let last_commit =
-            self.tree.last_commit().ok_or(Error::NoRootCommit)?;
-        let head = self.tree.head()?;
-        Ok((last_commit, head))
-    }
 }
 
 impl EventLogFile<WriteEvent> {

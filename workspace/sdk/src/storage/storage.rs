@@ -1235,7 +1235,7 @@ impl Storage {
     /// Commit state of the identity folder.
     pub async fn identity_state(&self) -> Result<CommitState> {
         let reader = self.identity_log.read().await;
-        Ok(reader.commit_state().await?)
+        reader.tree().commit_state()
     }
 
     /// Get the commit state for a folder.
@@ -1249,7 +1249,7 @@ impl Storage {
             .cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
-        Ok(log_file.commit_state().await?)
+        log_file.tree().commit_state()
     }
 }
 
