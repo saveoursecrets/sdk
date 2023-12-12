@@ -124,6 +124,9 @@ mod rpc {
     /// Device revoke method call.
     pub const DEVICE_REVOKE: &str = "Device.revoke";
 
+    /// Sync pull method call.
+    pub const SYNC_PULL: &str = "Sync.pull";
+
     /// Vault create method call.
     pub const VAULT_CREATE: &str = "Vault.create";
 
