@@ -88,18 +88,14 @@ impl Storage {
 
     /// Get the sync status.
     pub async fn sync_status(&self) -> Result<SyncStatus> {
-        let account = {
-            let reader = self.account_log.read().await;
-            if reader.tree().is_empty() {
-                None
-            } else {
-                Some(reader.tree().head()?)
-            }
+        let identity = {
+            let reader = self.identity_log.read().await;
+            reader.tree().commit_state()?
         };
 
-        let identity = {
-            let identity_log = self.identity_log.read().await;
-            identity_log.tree().head()?
+        let account = {
+            let reader = self.account_log.read().await;
+            reader.tree().commit_state()?
         };
 
         let summaries = self.state.summaries();

@@ -37,10 +37,10 @@ pub enum CheckedPatch {
 #[derive(Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(default)]
 pub struct SyncStatus {
-    /// Identity vault commit proof.
-    pub identity: CommitProof,
-    /// Account log commit proof.
-    pub account: Option<CommitProof>,
+    /// Identity vault commit state.
+    pub identity: CommitState,
+    /// Account log commit state.
+    pub account: CommitState,
     /// Commit proofs for the account folders.
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub folders: HashMap<VaultId, CommitState>,

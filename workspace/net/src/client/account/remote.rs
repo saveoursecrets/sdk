@@ -132,7 +132,8 @@ impl RemoteBridge {
     pub async fn handshake(&self) -> Result<()> {
         Ok(self.remote.handshake().await?)
     }
-
+    
+    /*
     /// Send a patch of account log events to the remote.
     async fn send_account_events(
         &self,
@@ -177,6 +178,7 @@ impl RemoteBridge {
 
         Ok(())
     }
+    */
 
     async fn sync_identity_events(
         &self,
@@ -375,6 +377,8 @@ impl RemoteSync for RemoteBridge {
         match self.remote.sync_status().await {
             Ok(sync_status) => {
                 if let Some(sync_status) = sync_status {
+
+                    /*
                     // Need to initialize the account log
                     // on the remote
                     if sync_status.account.is_none() {
@@ -382,6 +386,7 @@ impl RemoteSync for RemoteBridge {
                             errors.push(e);
                         }
                     }
+                    */
 
                     if let Err(e) = self.pull_account(sync_status).await {
                         errors.push(e);
