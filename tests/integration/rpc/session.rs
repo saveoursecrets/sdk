@@ -94,8 +94,8 @@ async fn integration_rpc_session() -> Result<()> {
     // New account with a single folder
     assert_eq!(1, summaries.len());
 
-    let (_, account_status) = client.account_status().await?.unwrap();
-    assert!(account_status.is_some());
+    let (_, sync_status) = client.sync_status().await?.unwrap();
+    assert!(sync_status.is_some());
 
     let (primary_password, _) = generate_passphrase()?;
 

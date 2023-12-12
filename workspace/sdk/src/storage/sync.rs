@@ -109,8 +109,8 @@ impl Storage {
         Ok(())
     }
 
-    /// Get the account status.
-    pub async fn account_status(&self) -> Result<SyncStatus> {
+    /// Get the sync status.
+    pub async fn sync_status(&self) -> Result<SyncStatus> {
         let account = {
             let reader = self.account_log.read().await;
             if reader.tree().is_empty() {

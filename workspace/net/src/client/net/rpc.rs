@@ -287,7 +287,7 @@ impl RpcClient {
     }
 
     /// Get the account status.
-    pub async fn account_status(
+    pub async fn sync_status(
         &self,
     ) -> Result<MaybeRetry<Option<SyncStatus>>> {
         let url = self.origin.url.join("api/account")?;

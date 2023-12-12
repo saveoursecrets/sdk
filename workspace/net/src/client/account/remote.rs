@@ -133,9 +133,9 @@ impl RemoteBridge {
     }
 
     /// Get account status from remote.
-    pub async fn account_status(&self) -> Result<SyncStatus> {
+    pub async fn sync_status(&self) -> Result<SyncStatus> {
         let (_, status) =
-            retry!(|| self.remote.account_status(), self.remote);
+            retry!(|| self.remote.sync_status(), self.remote);
         status.ok_or(Error::NoSyncStatus)
     }
 
@@ -428,10 +428,10 @@ impl RemoteBridge {
 
     async fn pull_account(
         &self,
-        account_status: SyncStatus,
+        sync_status: SyncStatus,
     ) -> Result<()> {
         for (folder_id, (remote_commit, remote_proof)) in
-            account_status.folders
+            sync_status.folders
         {
             let (folder, last_commit, commit_proof) = {
                 let local = self.local.read().await;
@@ -553,22 +553,22 @@ impl RemoteSync for RemoteBridge {
 
         tracing::debug!(origin = %self.origin.url);
 
-        match self.account_status().await {
-            Ok(account_status) => {
-                if !account_status.exists {
+        match self.sync_status().await {
+            Ok(sync_status) => {
+                if !sync_status.exists {
                     if let Err(e) = self.prepare_account().await {
                         errors.push(e);
                     }
                 } else {
                     // Need to initialize the account log
                     // on the remote
-                    if account_status.account.is_none() {
+                    if sync_status.account.is_none() {
                         if let Err(e) = self.send_account_events(None).await {
                             errors.push(e);
                         }
                     }
 
-                    if let Err(e) = self.pull_account(account_status).await {
+                    if let Err(e) = self.pull_account(sync_status).await {
                         errors.push(e);
                     }
                 }

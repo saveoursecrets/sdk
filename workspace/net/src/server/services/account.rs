@@ -111,7 +111,7 @@ impl Service for AccountService {
                     let reader = accounts.read().await;
                     let account = reader.get(caller.address()).unwrap();
                     let account = account.read().await;
-                    account.folders.account_status().await?
+                    account.folders.sync_status().await?
                 } else {
                     Default::default()
                 };
