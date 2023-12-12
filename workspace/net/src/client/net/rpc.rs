@@ -7,7 +7,7 @@ use http::{
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use sos_sdk::{
-    commit::{CommitHash, CommitProof},
+    commit::{CommitHash, CommitProof, CommitState},
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
         EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_STATUS,
@@ -287,7 +287,8 @@ impl RpcClient {
         }
     }
 
-    /// Sync status on remote.
+    /// Sync status on remote, the result is `None` when the
+    /// account does not exist.
     pub async fn sync_status(&self) -> Result<Option<SyncStatus>> {
         let (_, value) = retry!(|| self.try_sync_status(), self);
         Ok(value)
@@ -329,8 +330,7 @@ impl RpcClient {
         let span = span!(Level::DEBUG, "create_account");
         let _enter = span.enter();
 
-        let (status, _) =
-            retry!(|| self.try_create_account(account), self);
+        let (status, _) = retry!(|| self.try_create_account(account), self);
 
         tracing::debug!(status = %status);
 
@@ -408,8 +408,24 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
+    /// List folders on the remote.
+    pub async fn list_folders(&self) -> Result<Vec<Summary>> {
+        let span = span!(Level::DEBUG, "list_folders");
+        let _enter = span.enter();
+
+        let (status, value) = retry!(|| self.try_list_folders(), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(value)
+    }
+
     /// List folders for an account.
-    pub async fn list_folders(&self) -> Result<MaybeRetry<Vec<Summary>>> {
+    async fn try_list_folders(&self) -> Result<MaybeRetry<Vec<Summary>>> {
         let url = self.origin.url.join("api/account")?;
         let id = self.next_id().await;
         let body = new_rpc_call(id, ACCOUNT_LIST_VAULTS, ()).await?;
@@ -427,11 +443,27 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// Create a new folder on a remote node.
-    pub async fn create_folder(
+    /// Create a folder on the remote.
+    pub async fn create_folder(&self, buffer: &[u8]) -> Result<CommitProof> {
+        let span = span!(Level::DEBUG, "create_folder");
+        let _enter = span.enter();
+
+        let (status, value) = retry!(|| self.try_create_folder(buffer), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(value)
+    }
+
+    /// Try to create a new folder on a remote node.
+    async fn try_create_folder(
         &self,
         vault: impl AsRef<[u8]>,
-    ) -> Result<MaybeRetry<Option<CommitProof>>> {
+    ) -> Result<MaybeRetry<CommitProof>> {
         let url = self.origin.url.join("api/vault")?;
         let id = self.next_id().await;
         let request = RequestMessage::new(
@@ -448,7 +480,7 @@ impl RpcClient {
         let response = self.send_request(url, signature, body).await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
-            .read_encrypted_response::<Option<CommitProof>>(
+            .read_encrypted_response::<CommitProof>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -456,11 +488,27 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// Delete a vault on a remote node.
-    pub async fn delete_folder(
+    /// Delete a folder on remote.
+    pub async fn delete_folder(&self, id: &VaultId) -> Result<CommitProof> {
+        let span = span!(Level::DEBUG, "delete_folder");
+        let _enter = span.enter();
+
+        let (status, value) = retry!(|| self.try_delete_folder(id), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(value)
+    }
+
+    /// Try to delete a folder on remote.
+    async fn try_delete_folder(
         &self,
         vault_id: &VaultId,
-    ) -> Result<MaybeRetry<Option<CommitProof>>> {
+    ) -> Result<MaybeRetry<CommitProof>> {
         let vault_id = *vault_id;
         let url = self.origin.url.join("api/vault")?;
 
@@ -472,7 +520,7 @@ impl RpcClient {
         let response = self.send_request(url, signature, body).await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
-            .read_encrypted_response::<Option<CommitProof>>(
+            .read_encrypted_response::<CommitProof>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -488,9 +536,29 @@ impl RpcClient {
     /// or the password for a vault was changed.
     pub async fn update_folder(
         &self,
+        id: &VaultId,
+        buffer: impl AsRef<[u8]>,
+    ) -> Result<CommitProof> {
+        let span = span!(Level::DEBUG, "update_folder");
+        let _enter = span.enter();
+
+        let (status, value) =
+            retry!(|| self.try_update_folder(id, buffer.as_ref()), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(value)
+    }
+
+    async fn try_update_folder(
+        &self,
         vault_id: &VaultId,
         vault: impl AsRef<[u8]>,
-    ) -> Result<MaybeRetry<Option<CommitProof>>> {
+    ) -> Result<MaybeRetry<CommitProof>> {
         let vault_id = *vault_id;
         let url = self.origin.url.join("api/vault")?;
         let id = self.next_id().await;
@@ -509,7 +577,7 @@ impl RpcClient {
         let response = self.send_request(url, signature, body).await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
-            .read_encrypted_response::<Option<CommitProof>>(
+            .read_encrypted_response::<CommitProof>(
                 response.status(),
                 &response.bytes().await?,
             )
@@ -518,11 +586,35 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// Get a diff of events from a remote event log.
+    /// Diff of events for a folder on remote.
     ///
     /// Returns the number of events in the patch and
     /// a buffer that can be decoded to a `Patch`.
-    pub async fn diff(
+    pub async fn diff_folder(
+        &self,
+        vault_id: &VaultId,
+        last_commit: &CommitHash,
+        proof: &CommitProof,
+    ) -> Result<(usize, Vec<u8>)> {
+        let span = span!(Level::DEBUG, "diff_folder");
+        let _enter = span.enter();
+
+        let (status, value) = retry!(
+            || self.try_diff_folder(vault_id, last_commit, proof),
+            self
+        );
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(value)
+    }
+
+    async fn try_diff_folder(
         &self,
         vault_id: &VaultId,
         last_commit: &CommitHash,
@@ -571,12 +663,35 @@ impl RpcClient {
         maybe_retry.map(|result, body| Ok((result?, Some(body))))
     }
 
-    /// Get the commit state of a folder on a remote node.
+    /// Commit state of a folder on a remote.
     pub async fn folder_status(
         &self,
         vault_id: &VaultId,
-        proof: Option<CommitProof>,
-    ) -> Result<MaybeRetry<(CommitHash, CommitProof, Option<CommitProof>)>>
+        proof: Option<&CommitProof>,
+    ) -> Result<(CommitState, Option<CommitProof>)> {
+        let span = span!(Level::DEBUG, "folder_status");
+        let _enter = span.enter();
+
+        let (status, value) = retry!(
+            || self.try_folder_status(vault_id, proof),
+            self
+        );
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(value)
+    }
+
+    async fn try_folder_status(
+        &self,
+        vault_id: &VaultId,
+        proof: Option<&CommitProof>,
+    ) -> Result<MaybeRetry<(CommitState, Option<CommitProof>)>>
     {
         let url = self.origin.url.join("api/events")?;
         let id = self.next_id().await;
@@ -588,16 +703,13 @@ impl RpcClient {
         let response = self.send_request(url, signature, body).await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
-            .read_encrypted_response::<(CommitHash, CommitProof, Option<CommitProof>)>(
+            .read_encrypted_response::<(CommitState, Option<CommitProof>)>(
                 response.status(),
                 &response.bytes().await?,
             )
             .await?;
 
-        maybe_retry.map(|result, _| {
-            let (last_commit, server_proof, match_proof) = result?;
-            Ok((last_commit, server_proof, match_proof))
-        })
+        maybe_retry.map(|result, _| Ok(result?))
     }
 
     /// Apply a patch to the vault on a remote node.

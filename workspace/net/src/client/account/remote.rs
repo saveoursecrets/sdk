@@ -137,29 +137,6 @@ impl RemoteBridge {
         Ok(self.remote.handshake().await?)
     }
 
-    /*
-    /// Load all events from a remote event log.
-    async fn load_events(
-        &self,
-        id: &VaultId,
-    ) -> Result<(CommitProof, Vec<u8>)> {
-        let span = span!(Level::DEBUG, "load_events");
-        let _enter = span.enter();
-
-        let (status, (proof, buffer)) =
-            retry!(|| self.remote.load_events(id), self.remote);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok((proof, buffer.ok_or(Error::NoEventBuffer)?))
-    }
-    */
-
     /// Send a patch of account log events to the remote.
     async fn send_account_events(
         &self,
@@ -180,7 +157,7 @@ impl RemoteBridge {
                 AccountEvent::CreateFolder(id) => {
                     let local = self.local.read().await;
                     let buffer = local.read_vault_file(&id).await?;
-                    if let Err(e) = self.create_folder(&buffer).await {
+                    if let Err(e) = self.remote.create_folder(&buffer).await {
                         if let Error::ResponseCode(StatusCode::CONFLICT) = e {
                             tracing::debug!(
                                 "ignore conflict (409) on create folder"
@@ -193,10 +170,10 @@ impl RemoteBridge {
                 AccountEvent::UpdateFolder(id) => {
                     let local = self.local.read().await;
                     let buffer = local.read_vault_file(&id).await?;
-                    self.update_folder(&id, &buffer).await?;
+                    self.remote.update_folder(&id, &buffer).await?;
                 }
                 AccountEvent::DeleteFolder(id) => {
-                    self.delete_folder(&id).await?;
+                    self.remote.delete_folder(&id).await?;
                 }
                 _ => todo!("handle other account log events"),
             }
@@ -209,16 +186,12 @@ impl RemoteBridge {
         &self,
         commit_state: &CommitState,
     ) -> Result<()> {
-        println!("SYNC IDENTITY EVENTS {:#?}", commit_state);
-
         let patch: FolderPatch = {
             let local = self.local.read().await;
             let log = local.identity_log();
             let reader = log.read().await;
             reader.diff(Some(&commit_state.0)).await?
         };
-
-        println!("got events to send: {}", patch.len());
 
         if !patch.is_empty() {
             self.patch_identity_events(commit_state, &patch).await?;
@@ -250,79 +223,6 @@ impl RemoteBridge {
         Ok(())
     }
 
-    /// Create a folder on the remote.
-    async fn create_folder(&self, buffer: &[u8]) -> Result<()> {
-        let span = span!(Level::DEBUG, "create_folder");
-        let _enter = span.enter();
-
-        let (status, _) =
-            retry!(|| self.remote.create_folder(buffer), self.remote);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(())
-    }
-
-    /// Update a folder on the remote.
-    async fn update_folder(&self, id: &VaultId, buffer: &[u8]) -> Result<()> {
-        let span = span!(Level::DEBUG, "update_folder");
-        let _enter = span.enter();
-
-        let (status, _) =
-            retry!(|| self.remote.update_folder(id, buffer), self.remote);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(())
-    }
-
-    /// Import a folder into an account that already exists on the remote.
-    async fn delete_folder(&self, id: &VaultId) -> Result<()> {
-        let span = span!(Level::DEBUG, "delete_folder");
-        let _enter = span.enter();
-
-        let (status, _) =
-            retry!(|| self.remote.delete_folder(id), self.remote);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(())
-    }
-
-    async fn folder_status(
-        &self,
-        vault_id: &VaultId,
-        proof: Option<CommitProof>,
-    ) -> Result<(CommitState, Option<CommitProof>)> {
-        let span = span!(Level::DEBUG, "folder_status");
-        let _enter = span.enter();
-
-        let (status, (last_commit, remote_proof, match_proof)) = retry!(
-            || self.remote.folder_status(vault_id, proof.clone()),
-            self.remote
-        );
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(((last_commit, remote_proof), match_proof))
-    }
-
     async fn pull_folder(
         &self,
         folder: &Summary,
@@ -337,17 +237,10 @@ impl RemoteBridge {
             last_commit = ?last_commit,
             client_proof = ?client_proof);
 
-        let (status, (num_events, body)) = retry!(
-            || self.remote.diff(folder.id(), last_commit, client_proof),
-            self.remote
-        );
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
+        let (num_events, body) = self
+            .remote
+            .diff_folder(folder.id(), last_commit, client_proof)
+            .await?;
 
         tracing::debug!(num_events = ?num_events);
 
@@ -582,7 +475,8 @@ impl RemoteSync for RemoteBridge {
             remote
         } else {
             let (remote, _) = self
-                .folder_status(folder.id(), Some(commit_proof.clone()))
+                .remote
+                .folder_status(folder.id(), Some(&commit_proof))
                 .await
                 .map_err(SyncError::One)?;
             remote
@@ -677,19 +571,24 @@ impl RemoteSync for RemoteBridge {
         // New folders must go via the vaults service,
         // and must not be included in any patch events
         for buf in create_folders {
-            self.create_folder(buf.as_ref())
+            self.remote
+                .create_folder(buf.as_ref())
                 .await
                 .map_err(SyncError::One)?;
         }
 
         for (id, buf) in update_folders {
-            self.update_folder(&id, buf.as_ref())
+            self.remote
+                .update_folder(&id, buf)
                 .await
                 .map_err(SyncError::One)?;
         }
 
         for id in delete_folders {
-            self.delete_folder(&id).await.map_err(SyncError::One)?;
+            self.remote
+                .delete_folder(&id)
+                .await
+                .map_err(SyncError::One)?;
         }
 
         if !patch_events.is_empty() {

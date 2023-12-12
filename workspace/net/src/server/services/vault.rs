@@ -69,7 +69,7 @@ impl Service for VaultService {
                         .await?;
 
                     let reply: ResponseMessage<'_> =
-                        (request.id(), Some(&proof)).try_into()?;
+                        (request.id(), &proof).try_into()?;
 
                     let vault_id = *summary.id();
 
@@ -165,7 +165,7 @@ impl Service for VaultService {
                     .await?;
 
                 let reply: ResponseMessage<'_> =
-                    (request.id(), Some(&proof)).try_into()?;
+                    (request.id(), &proof).try_into()?;
 
                 let vault_id = *summary.id();
 

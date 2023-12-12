@@ -139,7 +139,7 @@ impl Service for EventLogService {
                     }
                 }
 
-                let (last_commit, proof, match_proof) = {
+                let (commit_state, match_proof) = {
                     let reader = backend.read().await;
                     let accounts = reader.accounts();
                     let reader = accounts.read().await;
@@ -155,7 +155,7 @@ impl Service for EventLogService {
                             Error::NoFolder(*caller.address(), vault_id)
                         })?;
 
-                    let (last_commit, proof) =
+                    let commit_state =
                         account.folders.commit_state(&folder).await?;
 
                     let match_proof = if let Some(client_proof) = commit_proof
@@ -168,11 +168,11 @@ impl Service for EventLogService {
                     } else {
                         None
                     };
-                    (last_commit, proof, match_proof)
+                    (commit_state, match_proof)
                 };
 
                 let reply: ResponseMessage<'_> =
-                    (request.id(), (last_commit, proof, match_proof))
+                    (request.id(), (commit_state, match_proof))
                         .try_into()?;
                 Ok(reply)
             }

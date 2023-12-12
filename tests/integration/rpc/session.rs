@@ -2,7 +2,7 @@ use crate::test_utils::{setup, spawn, teardown};
 use anyhow::Result;
 use http::StatusCode;
 use sos_net::{
-    client::{HostedOrigin, RpcClient, Error},
+    client::{Error, HostedOrigin, RpcClient},
     mpc::generate_keypair,
     sdk::{
         device::DeviceSigner,
@@ -86,11 +86,13 @@ async fn integration_rpc_session() -> Result<()> {
     // Try to create the same account again
     // should yield a conflict
     let result = client.create_account(&account).await;
-    assert!(matches!(result, Err(Error::ResponseCode(StatusCode::CONFLICT))));
+    assert!(matches!(
+        result,
+        Err(Error::ResponseCode(StatusCode::CONFLICT))
+    ));
 
     // List folders for the account
-    let (_, summaries) = client.list_folders().await?.unwrap();
-
+    let summaries = client.list_folders().await?;
     // New account with a single folder
     assert_eq!(1, summaries.len());
 
@@ -104,35 +106,28 @@ async fn integration_rpc_session() -> Result<()> {
     vault.set_name(String::from("Mock vault"));
     let body = encode(&vault).await?;
 
-    let (status, proof) = client.create_folder(&body).await?.unwrap();
-    assert_eq!(StatusCode::OK, status);
-    assert!(proof.is_some());
+    assert!(client.create_folder(&body).await.is_ok());
 
     // Verify new summaries length
-    let (_, summaries) = client.list_folders().await?.unwrap();
+    let summaries = client.list_folders().await?;
     assert_eq!(2, summaries.len());
 
     // Update and save a folder
     let name = "New vault name";
     vault.set_name(String::from(name));
     let body = encode(&vault).await?;
-    let (status, proof) =
-        client.update_folder(vault.id(), body).await?.unwrap();
-    assert_eq!(StatusCode::OK, status);
-    assert!(proof.is_some());
+    assert!(client.update_folder(vault.id(), body).await.is_ok());
 
     // Check the list of folders includes one with the updated name
-    let (_, summaries) = client.list_folders().await?.unwrap();
+    let summaries = client.list_folders().await?;
     let new_vault_summary = summaries.iter().find(|s| s.name() == name);
     assert!(new_vault_summary.is_some());
 
     // Delete a folder
-    let (status, proof) = client.delete_folder(vault.id()).await?.unwrap();
-    assert_eq!(StatusCode::OK, status);
-    assert!(proof.is_some());
+    assert!(client.delete_folder(vault.id()).await.is_ok());
 
     // Verify summaries length after deletion
-    let (_, summaries) = client.list_folders().await?.unwrap();
+    let summaries = client.list_folders().await?;
     assert_eq!(1, summaries.len());
 
     // Check it was the right folder that was deleted
@@ -148,9 +143,8 @@ async fn integration_rpc_session() -> Result<()> {
     assert!(buffer.unwrap().len() > 4);
 
     // Get the status of a remote folder
-    let (status, (_last_commit, _server_proof, match_proof)) =
-        client.folder_status(login.id(), None).await?.unwrap();
-    assert_eq!(StatusCode::OK, status);
+    let (_, match_proof) =
+        client.folder_status(login.id(), None).await?;
     assert!(match_proof.is_none());
 
     teardown(TEST_ID).await;
