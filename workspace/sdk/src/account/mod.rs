@@ -18,8 +18,8 @@ mod search;
 pub mod security_report;
 
 pub use account::{
-    Account, AccountData, AccountHandler, DetachedView, LocalAccount,
-    BeforeChange,
+    Account, AccountData, AccountHandler, BeforeChange, DetachedView,
+    LocalAccount,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};
 

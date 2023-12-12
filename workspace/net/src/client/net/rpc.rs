@@ -19,7 +19,7 @@ use sos_sdk::{
     device::DevicePublicKey,
     encode,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, Client, FolderPatch, SyncStatus},
+    sync::{ChangeSet, Client, FolderPatch, SyncDiff, SyncStatus},
     vault::{Summary, VaultId},
 };
 
@@ -768,7 +768,7 @@ impl Client for RpcClient {
     async fn pull(
         &self,
         local_status: &SyncStatus,
-    ) -> std::result::Result<(), Self::Error> {
+    ) -> std::result::Result<SyncDiff, Self::Error> {
         todo!();
     }
 

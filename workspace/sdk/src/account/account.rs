@@ -961,7 +961,8 @@ impl<D> Account<D> {
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            let last_commit = event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
+            let last_commit =
+                event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
             let commit_proof = event_log.tree().head()?;
             BeforeChange {
                 folder,
@@ -974,14 +975,9 @@ impl<D> Account<D> {
         if apply_changes {
             let storage = self.storage()?;
             if let Some(handler) = &self.handler {
-                let before_result = handler
-                    .before_change(
-                        storage,
-                        &before_change,
-                    )
-                    .await;
+                let before_result =
+                    handler.before_change(storage, &before_change).await;
 
-                
                 if let Some(new_state) = before_result {
                     before_change.commit_state = new_state;
                 }

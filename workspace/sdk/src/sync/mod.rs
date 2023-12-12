@@ -46,8 +46,10 @@ where
     Patch {
         /// Contents of the patch.
         patch: Patch<T>,
-        /// Head of the event log.
-        head: CommitProof,
+        /// Head of the event log before applying the patch.
+        before: CommitProof,
+        /// Head of the event log after applying the patch.
+        after: CommitProof,
     },
     /// Both local and remote are even.
     Even,
@@ -62,7 +64,7 @@ pub type FolderDiff = Diff<WriteEvent>;
 /// Provides a status overview of an account.
 ///
 /// Intended to be used during a synchronization protocol.
-#[derive(Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(default)]
 pub struct SyncStatus {
     /// Identity vault commit state.
@@ -121,7 +123,7 @@ pub trait Client {
     async fn pull(
         &self,
         local_status: &SyncStatus,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> std::result::Result<SyncDiff, Self::Error>;
 
     /// Patch identity events.
     async fn patch_identity(

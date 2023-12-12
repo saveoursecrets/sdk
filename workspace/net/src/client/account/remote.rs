@@ -13,7 +13,7 @@ use sos_sdk::{
     events::{AccountEvent, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
-    sync::{Client, FolderPatch, Patch, SyncStatus},
+    sync::{AccountDiff, Client, FolderDiff, FolderPatch, Patch, SyncStatus},
     url::Url,
     vault::Summary,
 };
@@ -420,9 +420,69 @@ impl RemoteSync for RemoteBridge {
         local_status: &SyncStatus,
         options: &SyncOptions,
     ) -> std::result::Result<SyncStatus, SyncError> {
-        let diff = self.remote.pull(local_status).await.map_err(|e| SyncError::One(e))?;
+        let diff = self
+            .remote
+            .pull(local_status)
+            .await
+            .map_err(|e| SyncError::One(e))?;
 
-        todo!("apply diff to the local data");
+        match &diff.identity {
+            FolderDiff::Patch { before, after, patch } => {
+                let storage = self.local.read().await;
+                let identity = storage.identity_log();
+                let mut writer = identity.write().await;
+                writer
+                    .patch_checked(before, patch)
+                    .await
+                    .map_err(|e| SyncError::One(e.into()))?;
+
+                // FIXME: assert on after commit proofs
+            }
+            _ => {}
+        }
+
+        match &diff.account {
+            AccountDiff::Patch { before, after, patch } => {
+                let storage = self.local.read().await;
+                let account = storage.account_log();
+                let mut writer = account.write().await;
+                writer
+                    .patch_checked(before, patch)
+                    .await
+                    .map_err(|e| SyncError::One(e.into()))?;
+
+                // FIXME: assert on after commit proofs
+            }
+            _ => {}
+        }
+
+        for (id, folder) in &diff.folders {
+            match folder {
+                FolderDiff::Patch { before, after, patch } => {
+                    let mut storage = self.local.write().await;
+                    let mut event_log = storage
+                        .cache_mut()
+                        .get_mut(id)
+                        .ok_or(Error::CacheNotAvailable(*id))
+                        .map_err(|e| SyncError::One(e))?;
+                    event_log
+                        .patch_checked(before, patch)
+                        .await
+                        .map_err(|e| SyncError::One(e.into()))?;
+
+                    // FIXME: assert on after commit proofs
+                }
+                _ => {}
+            }
+        }
+
+        let storage = self.local.read().await;
+        let sync_status = storage
+            .sync_status()
+            .await
+            .map_err(|e| SyncError::One(e.into()))?;
+
+        Ok(sync_status)
     }
 
     async fn sync_folder(

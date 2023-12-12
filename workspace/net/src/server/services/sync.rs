@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 /// Sync service.
 ///
-/// * `Sync.pull`: Pull changes to an account.
+/// * `Sync.pull`: Pull changes from a remote account.
 ///
 pub struct SyncService;
 
@@ -53,18 +53,23 @@ impl Service for SyncService {
                 let local_status = request.parameters::<SyncStatus>()?;
                 let reader = account.read().await;
 
+                // FIXME: do not trust the client-side proof as `before`
+                // FIXME: instead get the proof of the last commit
+                // FIXME: from each event log
+
                 let identity: FolderDiff = {
                     let identity_log = reader.folders.identity_log();
                     let reader = identity_log.read().await;
-                    let head = reader.tree().head()?;
-                    if &head == &local_status.identity.1 {
+                    let after = reader.tree().head()?;
+                    if &after == &local_status.identity.1 {
                         FolderDiff::Even
                     } else {
                         FolderDiff::Patch {
                             patch: reader
                                 .diff(Some(&local_status.identity.0))
                                 .await?,
-                            head,
+                            after,
+                            before: local_status.identity.1.clone(),
                         }
                     }
                 };
@@ -72,15 +77,16 @@ impl Service for SyncService {
                 let account: AccountDiff = {
                     let account_log = reader.folders.account_log();
                     let reader = account_log.read().await;
-                    let head = reader.tree().head()?;
-                    if &head == &local_status.identity.1 {
+                    let after = reader.tree().head()?;
+                    if &after == &local_status.account.1 {
                         AccountDiff::Even
                     } else {
                         AccountDiff::Patch {
                             patch: reader
-                                .diff(Some(&local_status.identity.0))
+                                .diff(Some(&local_status.account.0))
                                 .await?,
-                            head,
+                            after,
+                            before: local_status.account.1.clone(),
                         }
                     }
                 };
@@ -93,16 +99,17 @@ impl Service for SyncService {
                                 || Error::NoFolder(*caller.address(), id),
                             )?;
 
-                        let head = event_log.tree().head()?;
+                        let after = event_log.tree().head()?;
 
-                        let folder = if &head == &commit_state.1 {
+                        let folder = if &after == &commit_state.1 {
                             FolderDiff::Even
                         } else {
                             FolderDiff::Patch {
                                 patch: event_log
                                     .diff(Some(&commit_state.0))
                                     .await?,
-                                head,
+                                after,
+                                before: commit_state.1,
                             }
                         };
 

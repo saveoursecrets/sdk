@@ -179,9 +179,10 @@ where
             Self::Even => {
                 writer.write_u8(DIFF_EVEN).await?;
             }
-            Self::Patch { head, patch } => {
+            Self::Patch { before, after, patch } => {
                 writer.write_u8(DIFF_PATCH).await?;
-                head.encode(&mut *writer).await?;
+                before.encode(&mut *writer).await?;
+                after.encode(&mut *writer).await?;
                 patch.encode(&mut *writer).await?;
             }
             Self::Noop => panic!("attempt to encode a noop"),
@@ -203,11 +204,13 @@ where
         match op {
             DIFF_EVEN => *self = Self::Even,
             DIFF_PATCH => {
-                let mut head: CommitProof = Default::default();
-                head.decode(&mut *reader).await?;
+                let mut before: CommitProof = Default::default();
+                before.decode(&mut *reader).await?;
+                let mut after: CommitProof = Default::default();
+                after.decode(&mut *reader).await?;
                 let mut patch: Patch<T> = Default::default();
                 patch.decode(&mut *reader).await?;
-                *self = Self::Patch { head, patch }
+                *self = Self::Patch { before, after, patch }
             }
             _ => {
                 return Err(Error::new(

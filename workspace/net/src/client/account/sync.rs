@@ -5,9 +5,12 @@ use crate::client::{
 };
 use async_trait::async_trait;
 use sos_sdk::{
-    account::{AccountHandler, BeforeChange}, commit::CommitState, events::Event,
+    account::{AccountHandler, BeforeChange},
+    commit::CommitState,
+    events::Event,
+    storage::Storage,
     sync::SyncStatus,
-    storage::Storage, vault::Summary,
+    vault::Summary,
 };
 use std::{any::Any, sync::Arc};
 use tokio::sync::RwLock;
@@ -19,22 +22,28 @@ pub(super) struct SyncHandler {
 }
 
 impl SyncHandler {
-    /// Try to sync the target folder against all remotes.
-    async fn try_sync_folder(
+    /// Try to pull from all remotes.
+    async fn try_pull_all(
         &self,
         storage: Arc<RwLock<Storage>>,
         data: &BeforeChange,
     ) -> Result<Option<CommitState>> {
+        let mut folder_commit: Option<CommitState> = None;
         let remotes = self.remotes.read().await;
         for remote in remotes.values() {
-            let result = remote
-                .pull(&data.sync_status, &Default::default())
-                .await?;
-
-            todo!("see if the folder changed and return the new commit state");
+            let result =
+                remote.pull(&data.sync_status, &Default::default()).await?;
+            // If the folder was changed we need to return the new
+            // commit state so subsequent logic to send data to a remote
+            // uses the updated commit state
+            if let Some(new_state) = result.folders.get(data.folder.id()) {
+                if new_state != &data.commit_state {
+                    folder_commit = Some(new_state.clone());
+                }
+            }
         }
 
-        todo!();
+        Ok(folder_commit)
 
         /*
         let mut changed = false;
@@ -84,7 +93,7 @@ impl AccountHandler for SyncHandler {
         storage: Arc<RwLock<Storage>>,
         data: &BeforeChange,
     ) -> Option<CommitState> {
-        match self.try_sync_folder(storage, data).await {
+        match self.try_pull_all(storage, data).await {
             Ok(commit_state) => commit_state,
             Err(e) => {
                 tracing::error!(error = ?e, "failed to sync before change");
@@ -137,8 +146,41 @@ impl RemoteSync for NetworkAccount {
         local_status: &SyncStatus,
         options: &SyncOptions,
     ) -> std::result::Result<SyncStatus, SyncError> {
-        //let diff = self.remote.pull(local_status).await?;
-        todo!("pull in network account");
+        let _ = self.sync_lock.lock().await;
+        let mut errors = Vec::new();
+        let remotes = self.remotes.read().await;
+
+        let mut new_status: Option<SyncStatus> = None;
+        for (origin, remote) in &*remotes {
+            let sync_remote = options.origins.is_empty()
+                || options.origins.contains(origin);
+
+            let status = if let Some(updated_status) = &new_status {
+                updated_status
+            } else {
+                local_status
+            };
+
+            if sync_remote {
+                match remote.pull(status, options).await {
+                    Ok(updated_status) => new_status = Some(updated_status),
+                    Err(e) => match e {
+                        SyncError::One(e) => errors.push((origin.clone(), e)),
+                        SyncError::Multiple(mut errs) => {
+                            errors.append(&mut errs)
+                        }
+                    },
+                }
+            }
+        }
+        if errors.is_empty() {
+            Ok(new_status.unwrap_or_else(|| local_status.clone()))
+        } else {
+            for error in &errors {
+                tracing::error!(error = ?error);
+            }
+            Err(SyncError::Multiple(errors))
+        }
     }
 
     async fn sync_folder(

@@ -1,6 +1,8 @@
 use super::{Error, Origin};
 use async_trait::async_trait;
-use sos_sdk::{commit::CommitState, events::Event, vault::Summary, sync::SyncStatus};
+use sos_sdk::{
+    commit::CommitState, events::Event, sync::SyncStatus, vault::Summary,
+};
 use std::any::Any;
 
 /// Enumeration of error types that can be returned
