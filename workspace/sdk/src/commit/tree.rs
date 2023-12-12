@@ -11,6 +11,8 @@ use super::{
 #[derive(Default)]
 pub struct CommitTree {
     tree: MerkleTree<Sha256>,
+    maybe_last_commit: Option<<Sha256 as Hasher>::Hash>,
+    last_commit: Option<<Sha256 as Hasher>::Hash>,
 }
 
 impl CommitTree {
@@ -18,6 +20,8 @@ impl CommitTree {
     pub fn new() -> Self {
         Self {
             tree: MerkleTree::<Sha256>::new(),
+            maybe_last_commit: None,
+            last_commit: None,
         }
     }
 
@@ -38,6 +42,7 @@ impl CommitTree {
 
     /// Insert a commit hash into the tree,
     pub fn insert(&mut self, hash: <Sha256 as Hasher>::Hash) -> &mut Self {
+        self.maybe_last_commit = Some(hash.clone());
         self.tree.insert(hash);
         self
     }
@@ -47,13 +52,15 @@ impl CommitTree {
         &mut self,
         hashes: &mut Vec<<Sha256 as Hasher>::Hash>,
     ) -> &mut Self {
+        self.maybe_last_commit = hashes.last().cloned();
         self.tree.append(hashes);
         self
     }
 
     /// Commit changes to the tree to compute the root.
     pub fn commit(&mut self) {
-        self.tree.commit()
+        self.tree.commit();
+        self.last_commit = self.maybe_last_commit.take();
     }
 
     /// Revert changes to the tree.
@@ -161,11 +168,11 @@ impl CommitTree {
         }
     }
 
-    /// Get the root hash of the underlying merkle tree.
+    /// Root hash of the underlying merkle tree.
     pub fn root(&self) -> Option<<Sha256 as Hasher>::Hash> {
         self.tree.root()
     }
-
+    
     /// Get the root hash of the underlying merkle tree as hexadecimal.
     pub fn root_hex(&self) -> Option<String> {
         self.tree.root_hex()
