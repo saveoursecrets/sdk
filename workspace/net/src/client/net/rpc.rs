@@ -12,8 +12,8 @@ use sos_sdk::{
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
         EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_STATUS,
-        HANDSHAKE_INITIATE, IDENTITY_PATCH, MIME_TYPE_RPC, VAULT_CREATE,
-        VAULT_DELETE, VAULT_SAVE, SYNC_PULL,
+        HANDSHAKE_INITIATE, IDENTITY_PATCH, MIME_TYPE_RPC, SYNC_PULL,
+        VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
     },
     decode,
     device::DevicePublicKey,
@@ -379,8 +379,8 @@ impl RpcClient {
         let url = self.origin.url.join("api/sync")?;
 
         let id = self.next_id().await;
-        let request = RequestMessage::new_call(
-            Some(id), SYNC_PULL, local_status)?;
+        let request =
+            RequestMessage::new_call(Some(id), SYNC_PULL, local_status)?;
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
         let signature =
@@ -795,8 +795,7 @@ impl Client for RpcClient {
         let span = span!(Level::DEBUG, "pull");
         let _enter = span.enter();
 
-        let (status, body) =
-            retry!(|| self.try_pull(local_status), self);
+        let (status, body) = retry!(|| self.try_pull(local_status), self);
 
         tracing::debug!(status = %status);
 

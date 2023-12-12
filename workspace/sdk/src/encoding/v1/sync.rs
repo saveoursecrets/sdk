@@ -179,7 +179,11 @@ where
             Self::Even => {
                 writer.write_u8(DIFF_EVEN).await?;
             }
-            Self::Patch { before, after, patch } => {
+            Self::Patch {
+                before,
+                after,
+                patch,
+            } => {
                 writer.write_u8(DIFF_PATCH).await?;
                 before.encode(&mut *writer).await?;
                 after.encode(&mut *writer).await?;
@@ -210,7 +214,11 @@ where
                 after.decode(&mut *reader).await?;
                 let mut patch: Patch<T> = Default::default();
                 patch.decode(&mut *reader).await?;
-                *self = Self::Patch { before, after, patch }
+                *self = Self::Patch {
+                    before,
+                    after,
+                    patch,
+                }
             }
             _ => {
                 return Err(Error::new(

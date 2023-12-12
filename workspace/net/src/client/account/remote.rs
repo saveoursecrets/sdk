@@ -133,53 +133,6 @@ impl RemoteBridge {
         Ok(self.remote.handshake().await?)
     }
 
-    /*
-    /// Send a patch of account log events to the remote.
-    async fn send_account_events(
-        &self,
-        from: Option<&CommitHash>,
-    ) -> Result<()> {
-        let patch: Patch<AccountEvent> = {
-            let local = self.local.read().await;
-            let account_log = local.account_log();
-            let account_log = account_log.read().await;
-            account_log.diff(from).await?
-        };
-
-        for event in patch.iter() {
-            //let event = record.decode_event::<AccountEvent>().await?;
-            tracing::debug!(event_kind = %event.event_kind(), "send account event");
-
-            match event {
-                AccountEvent::CreateFolder(id) => {
-                    let local = self.local.read().await;
-                    let buffer = local.read_vault_file(&id).await?;
-                    if let Err(e) = self.remote.create_folder(&buffer).await {
-                        if let Error::ResponseCode(StatusCode::CONFLICT) = e {
-                            tracing::debug!(
-                                "ignore conflict (409) on create folder"
-                            );
-                        } else {
-                            return Err(e);
-                        }
-                    }
-                }
-                AccountEvent::UpdateFolder(id) => {
-                    let local = self.local.read().await;
-                    let buffer = local.read_vault_file(&id).await?;
-                    self.remote.update_folder(&id, &buffer).await?;
-                }
-                AccountEvent::DeleteFolder(id) => {
-                    self.remote.delete_folder(&id).await?;
-                }
-                _ => todo!("handle other account log events"),
-            }
-        }
-
-        Ok(())
-    }
-    */
-
     async fn sync_identity_events(
         &self,
         commit_state: &CommitState,
@@ -266,20 +219,21 @@ impl RemoteBridge {
 
         Ok(num_events > 0)
     }
-
-    async fn pull_account(&self, sync_status: SyncStatus) -> Result<()> {
-        for (folder_id, (remote_commit, remote_proof)) in sync_status.folders
+    
+    #[deprecated(note = "use pull_account2() instead")]
+    async fn pull_account(&self, sync_status: &SyncStatus) -> Result<()> {
+        for (folder_id, (remote_commit, remote_proof)) in &sync_status.folders
         {
             let (folder, last_commit, commit_proof) = {
                 let local = self.local.read().await;
                 let folder = local
                     .find_folder(&(folder_id.clone().into()))
                     .cloned()
-                    .ok_or(Error::CacheNotAvailable(folder_id))?;
+                    .ok_or(Error::CacheNotAvailable(*folder_id))?;
                 let event_log = local
                     .cache()
                     .get(&folder_id)
-                    .ok_or(Error::CacheNotAvailable(folder_id))?;
+                    .ok_or(Error::CacheNotAvailable(*folder_id))?;
 
                 let last_commit = event_log
                     .tree()
@@ -289,7 +243,7 @@ impl RemoteBridge {
                 (folder, last_commit, commit_proof)
             };
 
-            let remote = (remote_commit, remote_proof);
+            let remote = (remote_commit.clone(), remote_proof.clone());
             self.sync_folder(
                 &folder,
                 &(last_commit, commit_proof),
@@ -302,11 +256,75 @@ impl RemoteBridge {
         Ok(())
     }
 
+    async fn pull_account2(
+        &self,
+        local_status: &SyncStatus,
+        options: &SyncOptions,
+    ) -> Result<SyncStatus> {
+        let diff = self.remote.pull(local_status).await?;
+
+        match &diff.identity {
+            FolderDiff::Patch {
+                before,
+                after,
+                patch,
+            } => {
+                let storage = self.local.read().await;
+                let identity = storage.identity_log();
+                let mut writer = identity.write().await;
+                writer.patch_checked(before, patch).await?;
+
+                // FIXME: assert on after commit proofs
+            }
+            _ => {}
+        }
+
+        match &diff.account {
+            AccountDiff::Patch {
+                before,
+                after,
+                patch,
+            } => {
+                let storage = self.local.read().await;
+                let account = storage.account_log();
+                let mut writer = account.write().await;
+                writer.patch_checked(before, patch).await?;
+
+                // FIXME: assert on after commit proofs
+            }
+            _ => {}
+        }
+
+        for (id, folder) in &diff.folders {
+            match folder {
+                FolderDiff::Patch {
+                    before,
+                    after,
+                    patch,
+                } => {
+                    let mut storage = self.local.write().await;
+                    let mut event_log = storage
+                        .cache_mut()
+                        .get_mut(id)
+                        .ok_or(Error::CacheNotAvailable(*id))?;
+                    event_log.patch_checked(before, patch).await?;
+
+                    // FIXME: assert on after commit proofs
+                }
+                _ => {}
+            }
+        }
+
+        let storage = self.local.read().await;
+        let sync_status = storage.sync_status().await?;
+
+        Ok(sync_status)
+    }
+
     /// Create an account on the remote.
     async fn prepare_account(&self) -> Result<()> {
         let local = self.local.read().await;
         let public_account = local.change_set().await?;
-
         self.remote.create_account(&public_account).await?;
 
         // FIXME: import files here!
@@ -376,17 +394,7 @@ impl RemoteSync for RemoteBridge {
 
         match self.remote.sync_status().await {
             Ok(sync_status) => {
-                if let Some(sync_status) = sync_status {
-                    /*
-                    // Need to initialize the account log
-                    // on the remote
-                    if sync_status.account.is_none() {
-                        if let Err(e) = self.send_account_events(None).await {
-                            errors.push(e);
-                        }
-                    }
-                    */
-
+                if let Some(sync_status) = &sync_status {
                     if let Err(e) = self.pull_account(sync_status).await {
                         errors.push(e);
                     }
@@ -404,7 +412,7 @@ impl RemoteSync for RemoteBridge {
         if errors.is_empty() {
             None
         } else {
-            let errors = errors
+            let mut errors = errors
                 .into_iter()
                 .map(|e| {
                     let origin: Origin = self.origin.clone().into();
@@ -420,69 +428,9 @@ impl RemoteSync for RemoteBridge {
         local_status: &SyncStatus,
         options: &SyncOptions,
     ) -> std::result::Result<SyncStatus, SyncError> {
-        let diff = self
-            .remote
-            .pull(local_status)
+        self.pull_account2(local_status, options)
             .await
-            .map_err(|e| SyncError::One(e))?;
-
-        match &diff.identity {
-            FolderDiff::Patch { before, after, patch } => {
-                let storage = self.local.read().await;
-                let identity = storage.identity_log();
-                let mut writer = identity.write().await;
-                writer
-                    .patch_checked(before, patch)
-                    .await
-                    .map_err(|e| SyncError::One(e.into()))?;
-
-                // FIXME: assert on after commit proofs
-            }
-            _ => {}
-        }
-
-        match &diff.account {
-            AccountDiff::Patch { before, after, patch } => {
-                let storage = self.local.read().await;
-                let account = storage.account_log();
-                let mut writer = account.write().await;
-                writer
-                    .patch_checked(before, patch)
-                    .await
-                    .map_err(|e| SyncError::One(e.into()))?;
-
-                // FIXME: assert on after commit proofs
-            }
-            _ => {}
-        }
-
-        for (id, folder) in &diff.folders {
-            match folder {
-                FolderDiff::Patch { before, after, patch } => {
-                    let mut storage = self.local.write().await;
-                    let mut event_log = storage
-                        .cache_mut()
-                        .get_mut(id)
-                        .ok_or(Error::CacheNotAvailable(*id))
-                        .map_err(|e| SyncError::One(e))?;
-                    event_log
-                        .patch_checked(before, patch)
-                        .await
-                        .map_err(|e| SyncError::One(e.into()))?;
-
-                    // FIXME: assert on after commit proofs
-                }
-                _ => {}
-            }
-        }
-
-        let storage = self.local.read().await;
-        let sync_status = storage
-            .sync_status()
-            .await
-            .map_err(|e| SyncError::One(e.into()))?;
-
-        Ok(sync_status)
+            .map_err(|e| SyncError::One(e))
     }
 
     async fn sync_folder(
@@ -588,8 +536,6 @@ impl RemoteSync for RemoteBridge {
                 _ => {}
             }
         }
-
-        //let sync_account = !create_folders.is_empty() || !update_folders.is_empty() || !delete_folders.is_empty();
 
         // New folders must go via the vaults service,
         // and must not be included in any patch events

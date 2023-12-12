@@ -86,6 +86,10 @@ pub enum Error {
     #[error("file {0} already exists")]
     FileExists(PathBuf),
 
+    /// Error generated when a single sync error is expected.
+    #[error("single sync error expected")]
+    SyncErrorOne,
+
     /*
     /// Error generated when unlocking a vault failed.
     #[error("failed to unlock vault")]
