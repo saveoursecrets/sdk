@@ -152,8 +152,8 @@ impl SyncComparison {
             Comparison::Contains(_, _) => {
                 // Need to push changes to remote
                 let identity: FolderDiff = {
-                    let identity_log = storage.identity_log();
-                    let reader = identity_log.read().await;
+                    let log = storage.identity_log();
+                    let reader = log.read().await;
                     let after = reader.tree().head()?;
                     FolderDiff {
                         patch: reader
@@ -173,12 +173,52 @@ impl SyncComparison {
         match self.account {
             Comparison::Equal => {},
             Comparison::Contains(_, _) => {
-                // Need to apply changes to remote
+                // Need to push changes to remote
+                let account: AccountDiff = {
+                    let log = storage.account_log();
+                    let reader = log.read().await;
+                    let after = reader.tree().head()?;
+                    AccountDiff {
+                        patch: reader
+                            .diff(Some(&self.local_status.account.0))
+                            .await?,
+                        after,
+                        before: self.local_status.account.1.clone(),
+                    }
+                };
+                diff.account = Some(account);
             }
             Comparison::Unknown => {
                 unreachable!("account event log is never rewritten");
             }
         } 
+        
+        for (id, folder) in &self.folders {
+            match folder {
+                Comparison::Equal => {},
+                Comparison::Contains(_, _) => {
+                    // Need to push changes to remote
+                    let log = storage
+                        .cache()
+                        .get(id)
+                        .ok_or(Error::CacheNotAvailable(*id))?;
+
+                    let after = log.tree().head()?;
+                    let folder = FolderDiff {
+                        patch: log
+                            .diff(Some(&self.local_status.identity.0))
+                            .await?,
+                        after,
+                        before: self.local_status.identity.1.clone(),
+                    };
+                    
+                    diff.folders.insert(*id, folder);
+                }
+                Comparison::Unknown => {
+                    todo!("handle folder with diverged trees");
+                }
+            } 
+        }
 
         Ok(diff)
     }
