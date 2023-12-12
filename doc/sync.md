@@ -16,7 +16,7 @@ Note that the self-hosted server implementation supports TLS certificate configu
 
 ## Reference Implementation
 
-The [sos-net](/workspace/net) crate provides a client and server reference implementation. The server is suitable to be hosted on a LAN and is permissionless so should not be exposed to the internet, configuring a network for self-hosting is beyond the scope of this document and will vary depending upon the network.
+The [sos-net](/workspace/net) crate provides a client and server reference implementation. The server is suitable to be hosted on a LAN and is permissionless so should **not be exposed to the internet**, configuring a network for self-hosting is beyond the scope of this document and will vary depending upon the network.
 
 It is **strongly recommended** to use the `allow` and `deny` access controls to determine which accounts are allowed to store data otherwise your server may be abused to store data on behalf of unknown connections.
 
