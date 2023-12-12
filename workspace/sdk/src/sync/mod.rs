@@ -50,8 +50,6 @@ pub struct SyncStatus {
 /// Collection of patches for an account.
 #[derive(Default)]
 pub struct ChangeSet {
-    /// Address of the account signing key.
-    pub address: Address,
     /// Identity vault event logs.
     pub identity: FolderPatch,
     /// Account event logs.

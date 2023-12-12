@@ -61,9 +61,6 @@ impl Encodable for ChangeSet {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        // Address
-        writer.write_bytes(self.address.as_ref()).await?;
-
         // Identity patch
         let buffer = encode(&self.identity).await.map_err(encoding_error)?;
         let length = buffer.len();
@@ -96,12 +93,6 @@ impl Decodable for ChangeSet {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        // Address
-        let address = reader.read_bytes(20).await?;
-        let address: [u8; 20] =
-            address.as_slice().try_into().map_err(encoding_error)?;
-        self.address = address.into();
-
         // Identity patch
         let length = reader.read_u32().await?;
         let buffer = reader.read_bytes(length as usize).await?;

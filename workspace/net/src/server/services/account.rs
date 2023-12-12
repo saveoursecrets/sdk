@@ -60,12 +60,6 @@ impl Service for AccountService {
 
                 let account: ChangeSet = decode(request.body()).await?;
 
-                // Address of the account being created
-                // does not match the caller's address
-                if &account.address != caller.address() {
-                    return Ok((StatusCode::BAD_REQUEST, request.id()).into());
-                }
-
                 let mut writer = backend.write().await;
                 writer
                     .handler_mut()

@@ -172,7 +172,6 @@ impl Storage {
         }
 
         Ok(ChangeSet {
-            address,
             identity,
             account,
             folders,
