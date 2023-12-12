@@ -38,7 +38,7 @@ deny = [
 ]
 ```
 
-Denied addresses take precedence so take care when combining `allow` and `deny`as it's possible block all connections:
+Denied addresses take precedence so take care when combining `allow` and `deny`as it's possible to block all access:
 
 ```toml
 [access]
