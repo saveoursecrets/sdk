@@ -591,20 +591,7 @@ impl Storage {
         self.cache_mut().insert(*summary.id(), event_log);
         Ok(())
     }
-
-    /// Prepare to receive data for a new vault by
-    /// creating an empty event log file on disc
-    /// and adding the target to the list of vaults
-    /// being managed by this local provider.
-    pub async fn prepare_vault(&mut self, summary: Summary) -> Result<()> {
-        // Add to our cache of managed vaults
-        self.create_cache_entry(&summary, None).await?;
-
-        // Add to the state of managed vaults
-        self.state.add_summary(summary);
-        Ok(())
-    }
-
+    
     /// Refresh the in-memory vault from the contents
     /// of the current event log file.
     ///
