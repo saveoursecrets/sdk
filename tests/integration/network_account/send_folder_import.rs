@@ -15,7 +15,7 @@ use super::{
 const TEST_ID: &str = "sync_import_folder";
 
 /// Tests sending import folder events to a remote.
-#[ignore]
+#[ignore = "need to sync identity for this test to pass"]
 #[tokio::test]
 async fn integration_sync_import_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -70,7 +70,7 @@ async fn integration_sync_import_folder() -> Result<()> {
     let folders: Vec<Summary> = {
         let storage = device.owner.storage()?;
         let reader = storage.read().await;
-        reader.folders().to_vec()
+        reader.list_folders().to_vec()
     };
 
     // Get the remote out of the owner so we can

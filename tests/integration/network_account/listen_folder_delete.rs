@@ -12,7 +12,7 @@ const TEST_ID: &str = "sync_listen_delete_folder";
 /// Tests syncing delete folder events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
-#[ignore]
+#[ignore = "need to sync identity for this test to pass"]
 #[tokio::test]
 async fn integration_sync_listen_delete_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -48,7 +48,7 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
     let updated_summaries: Vec<Summary> = {
         let storage = device1.owner.storage()?;
         let reader = storage.read().await;
-        reader.folders().to_vec()
+        reader.list_folders().to_vec()
     };
     assert_eq!(folders.len(), updated_summaries.len());
 

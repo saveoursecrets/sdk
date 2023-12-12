@@ -412,7 +412,7 @@ impl<D> Account<D> {
                 .private_identity()
                 .recipient()
                 .to_string(),
-            folders: reader.folders().to_vec(),
+            folders: reader.list_folders().to_vec(),
         })
     }
 
@@ -497,7 +497,7 @@ impl<D> Account<D> {
     pub async fn list_folders(&self) -> Result<Vec<Summary>> {
         let storage = self.storage()?;
         let reader = storage.read().await;
-        Ok(reader.folders().to_vec())
+        Ok(reader.list_folders().to_vec())
     }
 
     /// Sign out of the account.
@@ -1352,7 +1352,7 @@ impl<D> Account<D> {
     async fn folder_keys(&self) -> Result<FolderKeys> {
         let storage = self.storage()?;
         let reader = storage.read().await;
-        let folders = reader.folders();
+        let folders = reader.list_folders();
         let mut keys = HashMap::new();
         for folder in folders {
             keys.insert(

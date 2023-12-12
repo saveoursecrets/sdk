@@ -201,7 +201,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let storage = owner.storage()?;
             let mut writer = storage.write().await;
-            let folders = writer.list_folders().await?;
+            let folders = writer.list_folders();
             for summary in folders {
                 if verbose {
                     println!("{} {}", summary.id(), summary.name());

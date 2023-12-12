@@ -13,7 +13,7 @@ use super::{num_events, simulate_device, SimulatedDevice};
 const TEST_ID: &str = "sync_delete_folder";
 
 /// Tests sending delete folder events to a remote.
-#[ignore]
+#[ignore = "need to sync identity for this test to pass"]
 #[tokio::test]
 async fn integration_sync_delete_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -47,7 +47,7 @@ async fn integration_sync_delete_folder() -> Result<()> {
     let updated_summaries: Vec<Summary> = {
         let storage = owner.storage()?;
         let reader = storage.read().await;
-        reader.folders().to_vec()
+        reader.list_folders().to_vec()
     };
 
     assert_eq!(folders.len(), updated_summaries.len());

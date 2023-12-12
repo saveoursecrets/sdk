@@ -400,7 +400,7 @@ impl Storage {
     ) -> Result<(DocumentCount, Vec<Summary>)> {
         // Find the id of an archive folder
         let summaries = {
-            let summaries = self.folders();
+            let summaries = self.list_folders();
             let mut archive: Option<VaultId> = None;
             for summary in summaries {
                 if summary.flags().is_archive() {
@@ -543,8 +543,8 @@ impl Storage {
         Ok(())
     }
 
-    /// Get the folder summaries for this storage.
-    pub fn folders(&self) -> &[Summary] {
+    /// List the folder summaries for this storage.
+    pub fn list_folders(&self) -> &[Summary] {
         self.state.summaries()
     }
 
@@ -591,7 +591,7 @@ impl Storage {
         self.cache_mut().insert(*summary.id(), event_log);
         Ok(())
     }
-    
+
     /// Refresh the in-memory vault from the contents
     /// of the current event log file.
     ///
@@ -1017,7 +1017,7 @@ impl Storage {
 
         self.load_caches(&summaries).await?;
         self.state.set_summaries(summaries);
-        Ok(self.folders())
+        Ok(self.list_folders())
     }
 
     /// Delete a folder.

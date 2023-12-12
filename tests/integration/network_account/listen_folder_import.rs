@@ -11,7 +11,7 @@ const TEST_ID: &str = "sync_listen_import_folder";
 /// Tests syncing update folder events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
-#[ignore]
+#[ignore = "need to sync identity for this test to pass"]
 #[tokio::test]
 async fn integration_sync_listen_import_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -87,7 +87,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
     let expected_summaries: Vec<Summary> = {
         let storage = device1.owner.storage()?;
         let reader = storage.read().await;
-        reader.folders().to_vec()
+        reader.list_folders().to_vec()
     };
 
     // Assert first device

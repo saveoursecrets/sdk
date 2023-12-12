@@ -404,7 +404,12 @@ impl BackendHandler for FileSystemBackend {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
             let reader = account.read().await;
-            summaries = reader.folders.folders().to_vec();
+            summaries = reader
+                .folders
+                .list_folders()
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>();
 
             let log =
                 AuditEvent::new(EventKind::ListVaults, owner.clone(), None);
