@@ -49,7 +49,7 @@ async fn integration_events_import_folder() -> Result<()> {
     let mut event_log = AccountEventLog::new_account(&account_events).await?;
 
     // Import overwriting the existing data
-    let commit = event_log.last_commit().await?;
+    let commit = event_log.tree().last_commit();
     account
         .import_folder_buffer(&buffer, vault_key.clone(), true)
         .await?;

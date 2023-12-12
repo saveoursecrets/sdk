@@ -280,8 +280,8 @@ impl RemoteBridge {
                     .ok_or(Error::CacheNotAvailable(folder_id))?;
 
                 let last_commit = event_log
+                    .tree()
                     .last_commit()
-                    .await?
                     .ok_or(Error::NoRootCommit)?;
                 let commit_proof = event_log.tree().head()?;
                 (folder, last_commit, commit_proof)
@@ -664,8 +664,8 @@ mod listen {
                                         *summary.id(),
                                     ))?;
                                 let last_commit = event_log
+                                    .tree()
                                     .last_commit()
-                                    .await?
                                     .ok_or(Error::NoRootCommit)?;
                                 let commit_proof = event_log.tree().head()?;
                                 (last_commit, commit_proof)

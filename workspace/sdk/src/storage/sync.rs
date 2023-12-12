@@ -133,7 +133,7 @@ impl Storage {
                 .get(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
             let last_commit =
-                event_log.last_commit().await?.ok_or(Error::NoRootCommit)?;
+                event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
             let head = event_log.tree().head()?;
             folders.insert(*summary.id(), (last_commit, head));
         }

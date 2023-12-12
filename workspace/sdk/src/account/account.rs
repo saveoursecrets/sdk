@@ -940,7 +940,7 @@ impl<D> Account<D> {
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            let last_commit = event_log.last_commit().await?;
+            let last_commit = event_log.tree().last_commit();
             let commit_proof = event_log.tree().head()?;
             (folder, last_commit, commit_proof)
         };

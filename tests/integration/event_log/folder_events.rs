@@ -37,7 +37,7 @@ async fn integration_events_folder() -> Result<()> {
     assert!(matches!(event, Some(WriteEvent::CreateVault(_))));
 
     // Create secret event
-    let commit = event_log.last_commit().await?;
+    let commit = event_log.tree().last_commit();
     let (meta, secret) = mock::note("note", TEST_ID);
     let (id, _, _, _) = account
         .create_secret(meta, secret, Default::default())
@@ -46,7 +46,7 @@ async fn integration_events_folder() -> Result<()> {
     assert!(matches!(event, Some(WriteEvent::CreateSecret(_, _))));
 
     // Update secret event
-    let commit = event_log.last_commit().await?;
+    let commit = event_log.tree().last_commit();
     let (meta, secret) = mock::note("note_edited", TEST_ID);
     let (_, _, _, _) = account
         .update_secret(
@@ -61,13 +61,13 @@ async fn integration_events_folder() -> Result<()> {
     assert!(matches!(event, Some(WriteEvent::UpdateSecret(_, _))));
 
     // Delete secret event
-    let commit = event_log.last_commit().await?;
+    let commit = event_log.tree().last_commit();
     account.delete_secret(&id, Default::default()).await?;
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
     assert!(matches!(event, Some(WriteEvent::DeleteSecret(_))));
 
     // Rename the folder
-    let commit = event_log.last_commit().await?;
+    let commit = event_log.tree().last_commit();
     account
         .rename_folder(&default_folder, "new_name".to_string())
         .await?;
@@ -75,7 +75,7 @@ async fn integration_events_folder() -> Result<()> {
     assert!(matches!(event, Some(WriteEvent::SetVaultName(_))));
 
     // Set the folder description
-    let commit = event_log.last_commit().await?;
+    let commit = event_log.tree().last_commit();
     account
         .set_folder_description(
             &default_folder,

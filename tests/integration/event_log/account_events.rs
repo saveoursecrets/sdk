@@ -34,7 +34,7 @@ async fn integration_events_account() -> Result<()> {
     assert_eq!(1, events.len());
 
     // Create a folder
-    let commit = event_log.last_commit().await?;
+    let commit = event_log.tree().last_commit();
     let folder_name = "folder_name";
     let (folder, _, _) =
         account.create_folder(folder_name.to_string()).await?;
@@ -43,7 +43,7 @@ async fn integration_events_account() -> Result<()> {
     assert!(matches!(event, Some(AccountEvent::CreateFolder(_))));
 
     // Now delete the folder
-    let commit = event_log.last_commit().await?;
+    let commit = event_log.tree().last_commit();
     account.delete_folder(&folder).await?;
 
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;

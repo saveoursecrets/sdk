@@ -45,8 +45,8 @@ impl SyncHandler {
                     .get(folder.id())
                     .ok_or(Error::CacheNotAvailable(*folder.id()))?;
                 last_commit = event_log
+                    .tree()
                     .last_commit()
-                    .await?
                     .ok_or(Error::NoRootCommit)?;
                 commit_proof = event_log.tree().head()?;
             }

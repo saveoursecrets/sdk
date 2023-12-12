@@ -4,6 +4,7 @@ use std::ops::Range;
 
 use super::{
     CommitHash, CommitPair, CommitProof, CommitRelationship, Comparison,
+    CommitState,
 };
 
 /// Encapsulates a Merkle tree and provides functions
@@ -171,6 +172,15 @@ impl CommitTree {
     /// Last commit hash in the underlying merkle tree.
     pub fn last_commit(&self) -> Option<CommitHash> {
         self.last_commit.map(CommitHash)
+    }
+
+    /// Commit state of this tree.
+    ///
+    /// The tree must already have some commits.
+    pub fn commit_state(&self) -> Result<CommitState> {
+        let last_commit = self.last_commit()
+            .ok_or(Error::NoRootCommit)?;
+        Ok((last_commit, self.head()?))
     }
 
     /// Root hash of the underlying merkle tree.

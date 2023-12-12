@@ -53,6 +53,9 @@ use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};
 
+/// Commit hash of zeroes.
+pub const ZERO: [u8; 32] = [0u8; 32];
+
 /// Event log for changes to an account.
 pub type AccountEventLog = EventLogFile<AccountEvent>;
 
@@ -125,7 +128,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         let last_commit = if let Some(last_commit) = last_commit {
             last_commit
         } else {
-            self.last_commit().await?.unwrap_or(CommitHash([0u8; 32]))
+            self.tree.last_commit().unwrap_or(CommitHash(ZERO))
         };
 
         let record = EventRecord(time, last_commit, commit, bytes);
@@ -327,7 +330,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
-        let mut last_commit_hash = self.last_commit().await?;
+        let mut last_commit_hash = self.tree.last_commit();
         for event in events {
             let (commit, record) =
                 self.encode_event(event, last_commit_hash).await?;
@@ -397,11 +400,6 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         self.file.write_all(&self.identity).await?;
         self.file.flush().await?;
         Ok(())
-    }
-
-    /// Read the last commit hash from the file.
-    pub async fn last_commit(&self) -> Result<Option<CommitHash>> {
-        Ok(self.tree.last_commit())
     }
 
     /// Stream of event records and decoded events.
@@ -499,9 +497,10 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
     /// Commit state of this event log.
     ///
     /// The event log must already have some commits.
+    #[deprecated(note = "call commit_state() on the tree directly")]
     pub async fn commit_state(&self) -> Result<CommitState> {
         let last_commit =
-            self.last_commit().await?.ok_or(Error::NoRootCommit)?;
+            self.tree.last_commit().ok_or(Error::NoRootCommit)?;
         let head = self.tree.head()?;
         Ok((last_commit, head))
     }
@@ -709,19 +708,19 @@ mod test {
         let (temp, mut event_log) = mock_folder_event_log().await?;
         let (_, _vault, buffer) = mock_vault_file().await?;
 
-        assert!(event_log.last_commit().await?.is_none());
+        assert!(event_log.tree().last_commit().is_none());
 
         let event = WriteEvent::CreateVault(buffer);
         event_log.apply(vec![&event]).await?;
 
-        assert!(event_log.last_commit().await?.is_some());
+        assert!(event_log.tree().last_commit().is_some());
 
         // Patch with all events
         let patch = event_log.diff_records(None).await?;
         assert_eq!(1, patch.len());
 
         // Patch is empty as the target commit is the empty commit
-        let last_commit = event_log.last_commit().await?;
+        let last_commit = event_log.tree().last_commit();
         let patch = event_log.diff_records(last_commit.as_ref()).await?;
         assert_eq!(0, patch.len());
 
@@ -744,7 +743,7 @@ mod test {
 
         assert!(event_log.tree().len() > 0);
         assert!(event_log.tree().root().is_some());
-        assert!(event_log.last_commit().await.is_ok());
+        assert!(event_log.tree().last_commit().is_some());
 
         #[cfg(feature = "sync")]
         {
