@@ -5,7 +5,6 @@ use std::{path::PathBuf, sync::Arc};
 use crate::test_utils::{mock, setup, teardown};
 use tokio::sync::{mpsc, Mutex};
 
-const ZERO_CHECKSUM: [u8; 32] = [0; 32];
 const TEST_ID: &str = "external_files";
 
 /// Tests for the external file logic for a local account.
@@ -246,7 +245,7 @@ async fn assert_create_file_secret(
     {
         assert!(path.is_none());
         assert!(*size > 0);
-        assert_ne!(&ZERO_CHECKSUM, checksum);
+        assert_ne!(&ZERO, checksum);
         assert_eq!("image/heic", mime);
 
         let file_name = hex::encode(checksum);
@@ -302,7 +301,7 @@ async fn assert_update_file_secret(
     {
         assert!(path.is_none());
         assert!(*size > 0);
-        assert_ne!(&ZERO_CHECKSUM, checksum);
+        assert_ne!(&ZERO, checksum);
         assert_eq!("text/plain", mime);
 
         let file_name = hex::encode(checksum);
@@ -369,7 +368,7 @@ async fn assert_move_file_secret(
     {
         assert!(path.is_none());
         assert!(*size > 0);
-        assert_ne!(&ZERO_CHECKSUM, checksum);
+        assert_ne!(&ZERO, checksum);
         assert_eq!("text/plain", mime);
 
         assert_eq!(&updated_checksum, &checksum);
@@ -465,7 +464,7 @@ async fn assert_create_update_move_file_secret(
     {
         assert!(path.is_none());
         assert!(*size > 0);
-        assert_ne!(&ZERO_CHECKSUM, checksum);
+        assert_ne!(&ZERO, checksum);
         assert_eq!("text/plain", mime);
 
         let file_name = hex::encode(checksum);
@@ -560,7 +559,7 @@ async fn assert_attach_file_secret(
         {
             assert!(path.is_none());
             assert!(*size > 0);
-            assert_ne!(&ZERO_CHECKSUM, checksum);
+            assert_ne!(&ZERO, checksum);
             assert_eq!("image/heic", mime);
 
             let file_name = hex::encode(checksum);
@@ -602,7 +601,7 @@ async fn assert_attach_file_secret(
         {
             assert!(path.is_none());
             assert!(*size > 0);
-            assert_ne!(&ZERO_CHECKSUM, checksum);
+            assert_ne!(&ZERO, checksum);
             assert_eq!("text/plain", mime);
 
             let file_name = hex::encode(checksum);
@@ -659,7 +658,7 @@ async fn assert_attach_file_secret(
         {
             assert!(path.is_none());
             assert!(*size > 0);
-            assert_ne!(ZERO_CHECKSUM, *checksum);
+            assert_ne!(ZERO, *checksum);
             assert_eq!("image/heic", mime);
 
             let file_name = hex::encode(checksum);
@@ -722,7 +721,7 @@ async fn assert_attach_file_secret(
             ..
         } = inserted_attachment.secret()
         {
-            assert_ne!(ZERO_CHECKSUM, *checksum);
+            assert_ne!(ZERO, *checksum);
             let file_name = hex::encode(checksum);
             let file_path =
                 account.paths().file_location(folder.id(), &id, &file_name);

@@ -53,9 +53,6 @@ use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};
 
-/// Commit hash of zeroes.
-pub const ZERO: [u8; 32] = [0u8; 32];
-
 /// Event log for changes to an account.
 pub type AccountEventLog = EventLogFile<AccountEvent>;
 
@@ -128,7 +125,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         let last_commit = if let Some(last_commit) = last_commit {
             last_commit
         } else {
-            self.tree.last_commit().unwrap_or(CommitHash(ZERO))
+            self.tree.last_commit().unwrap_or_default()
         };
 
         let record = EventRecord(time, last_commit, commit, bytes);
