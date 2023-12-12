@@ -29,6 +29,10 @@ pub enum Error {
     #[error("bad request")]
     BadRequest,
 
+    /// Forbidden access.
+    #[error("forbidden")]
+    Forbidden,
+
     /// Error generated when an RPC method is not supported.
     #[error("unknown rpc method '{0}'")]
     RpcUnknownMethod(String),
@@ -176,8 +180,8 @@ impl Error {
             Self::NoFolder(_, _) => StatusCode::NOT_FOUND,
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::BadRequest => StatusCode::BAD_REQUEST,
-            /*
             Self::Forbidden => StatusCode::FORBIDDEN,
+            /*
             Self::Conflict => StatusCode::CONFLICT,
             */
             _ => StatusCode::INTERNAL_SERVER_ERROR,

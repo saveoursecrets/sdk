@@ -13,6 +13,11 @@ origins = [
   "https://localhost:8080",
 ]
 
+[access]
+deny = [
+  "0x6f4e977644ca8f21d335ab13271616b615ea28cb"
+]
+
 #[tls]
 #cert = "cert.pem"
 #key = "key.pem"

@@ -211,6 +211,13 @@ pub(crate) async fn private_service(
         public_key: client_public_key.clone(),
     };
 
+    {
+        let reader = state.read().await;
+        if !reader.config.access.is_allowed_access(&owner.address) {
+            return Err(Error::Forbidden);
+        }
+    }
+
     tracing::debug!(method = ?request.method(), "serve");
     let reply = service
         .serve((owner, (Arc::clone(&state), Arc::clone(&backend))), request)

@@ -14,6 +14,21 @@ For development and self-hosting it is convenient to use HTTP rather than config
 
 Note that the self-hosted server implementation supports TLS certificate configuration if desired which would add an extra layer of security on top of the [noise protocol](https://noiseprotocol.org/).
 
+## Reference Implementation
+
+The [sos-net](/workspace/net) crate provides a client and server reference implementation. The server is suitable to be hosted on a LAN and is permissionless so should not be exposed to the internet, configuring a network for self-hosting is beyond the scope of this document and will vary depending upon the network.
+
+It is **strongly recommended** to use the `allow` and `deny` access controls to determine which accounts are allowed to store data otherwise your server may be abused to store data on behalf of unknown connections.
+
+For example, to deny a specific address add this to the server configuration:
+
+```toml
+[access]
+deny = [
+  "0x6f4e977644ca8f21d335ab13271616b615ea28cb"
+]
+```
+
 ## Endpoints
 
 Servers provide endpoints with different levels of protection from unauthorized access:

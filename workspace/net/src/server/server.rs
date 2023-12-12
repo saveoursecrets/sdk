@@ -126,10 +126,9 @@ impl Server {
         };
 
         let tls = RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
-        let app = Server::router(state, backend, origins)?;
+        let app = Server::router(Arc::clone(&state), backend, origins)?;
 
-        tracing::info!("listening on {}", addr);
-        tracing::info!("public key {}", hex::encode(&public_key));
+        self.startup_message(state, &addr, &public_key, true).await;
 
         axum_server::bind_rustls(addr, tls)
             .handle(handle)
@@ -152,16 +151,39 @@ impl Server {
             reader.keypair.public_key().to_vec()
         };
 
-        let app = Server::router(state, backend, origins)?;
+        let app = Server::router(Arc::clone(&state), backend, origins)?;
 
-        tracing::info!("listening on {}", addr);
-        tracing::info!("public key {}", hex::encode(&public_key));
+        self.startup_message(state, &addr, &public_key, false).await;
 
         axum_server::bind(addr)
             .handle(handle)
             .serve(app.into_make_service())
             .await?;
         Ok(())
+    }
+
+    async fn startup_message(&self,
+        state: ServerState,
+        addr: &SocketAddr,
+        public_key: &[u8],
+        tls: bool,
+    ) {
+        tracing::info!(addr = %addr);
+        tracing::info!(public_key = %hex::encode(public_key));
+        tracing::info!(tls = %tls);
+        {
+            let reader = state.read().await;
+            if let Some(allow) = &reader.config.access.allow {
+                for address in allow {
+                    tracing::info!(allow = %address);
+                }
+            }
+            if let Some(deny) = &reader.config.access.deny {
+                for address in deny {
+                    tracing::info!(deny = %address);
+                }
+            }
+        }
     }
 
     fn read_origins(

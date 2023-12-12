@@ -1,13 +1,13 @@
 //! Server configuration.
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::{path::{Path, PathBuf}, collections::HashSet};
 use url::{Host, Url};
 
 use super::backend::{Backend, FileSystemBackend};
 use super::{Error, Result};
 
 use mpc_protocol::{decode_keypair, Keypair};
-use sos_sdk::vfs;
+use sos_sdk::{vfs, signer::ecdsa::Address};
 
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -27,6 +27,9 @@ pub struct ServerConfig {
 
     /// Configuration for TLS encryption.
     pub tls: Option<TlsConfig>,
+    
+    /// Access controls.
+    pub access: AccessControlConfig,
 
     /// Configuration for CORS.
     pub cors: CorsConfig,
@@ -47,6 +50,41 @@ impl ServerConfig {
         }
     }
     */
+}
+
+/// Access control configuration.
+///
+/// Denied entries take precedence so if you allow and 
+/// deny the same address it will be denied.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct AccessControlConfig {
+    /// Addresses that are explicitly allowed.
+    pub allow: Option<HashSet<Address>>,
+    /// Addresses that are explicitly denied.
+    pub deny: Option<HashSet<Address>>,
+}
+
+impl AccessControlConfig {
+    /// Determine if a signing key address is allowed access
+    /// to this server.
+    pub fn is_allowed_access(&self, address: &Address) -> bool {
+        let has_definitions = self.allow.is_some() || self.deny.is_some();
+        if has_definitions {
+            if let Some(deny) = &self.deny {
+                if deny.iter().any(|a| a == address) {
+                    return false;
+                }
+            }
+            if let Some(allow) = &self.allow {
+                if allow.iter().any(|a| a == address) {
+                    return true;
+                }
+            }
+            false
+        } else {
+            true
+        }
+    }
 }
 
 /// Certificate and key for TLS.
