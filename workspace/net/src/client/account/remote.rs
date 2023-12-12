@@ -13,7 +13,10 @@ use sos_sdk::{
     events::{AccountEvent, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
-    sync::{AccountDiff, Client, FolderDiff, FolderPatch, Patch, SyncStatus},
+    sync::{
+        AccountDiff, Client, FolderDiff, FolderPatch, Patch, SyncComparison,
+        SyncStatus,
+    },
     url::Url,
     vault::Summary,
 };
@@ -219,7 +222,7 @@ impl RemoteBridge {
 
         Ok(num_events > 0)
     }
-    
+
     #[deprecated(note = "use pull_account2() instead")]
     async fn pull_account(&self, sync_status: &SyncStatus) -> Result<()> {
         for (folder_id, (remote_commit, remote_proof)) in &sync_status.folders
@@ -321,17 +324,6 @@ impl RemoteBridge {
         Ok(sync_status)
     }
 
-    /// Create an account on the remote.
-    async fn prepare_account(&self) -> Result<()> {
-        let local = self.local.read().await;
-        let public_account = local.change_set().await?;
-        self.remote.create_account(&public_account).await?;
-
-        // FIXME: import files here!
-
-        Ok(())
-    }
-
     /// Send a local patch of events to the remote.
     async fn patch(
         &self,
@@ -361,6 +353,84 @@ impl RemoteBridge {
 
         Ok(())
     }
+
+    async fn compare_status(
+        &self,
+        remote_status: SyncStatus,
+    ) -> Result<SyncComparison> {
+        let local_status = {
+            let local = self.local.read().await;
+            local.sync_status().await?
+        };
+
+        let identity = {
+            let local = self.local.read().await;
+            let identity = local.identity_log();
+            let reader = identity.read().await;
+            reader.tree().compare(&remote_status.identity.1)?
+        };
+
+        let account = {
+            let local = self.local.read().await;
+            let account = local.account_log();
+            let reader = account.read().await;
+            reader.tree().compare(&remote_status.account.1)?
+        };
+
+        let folders = {
+            let local = self.local.read().await;
+            let mut folders = HashMap::new();
+            for (id, folder) in &remote_status.folders {
+                let event_log = local
+                    .cache()
+                    .get(id)
+                    .ok_or(Error::CacheNotAvailable(*id))?;
+                folders.insert(*id, event_log.tree().compare(&folder.1)?);
+            }
+            folders
+        };
+
+        Ok(SyncComparison {
+            local_status,
+            remote_status,
+            identity,
+            account,
+            folders,
+        })
+    }
+
+    async fn execute_sync(&self) -> Vec<Error> {
+        let mut errors = Vec::new();
+        match self.remote.sync_status().await {
+            Ok(sync_status) => {
+                if let Some(sync_status) = &sync_status {
+                    if let Err(e) = self.pull_account(sync_status).await {
+                        errors.push(e);
+                    }
+                } else {
+                    if let Err(e) = self.create_remote_account().await {
+                        errors.push(e);
+                    }
+                }
+            }
+            Err(e) => {
+                errors.push(e);
+            }
+        }
+        errors
+    }
+
+    /// Create an account on the remote.
+    async fn create_remote_account(&self) -> Result<()> {
+        let local = self.local.read().await;
+        let public_account = local.change_set().await?;
+        self.remote.create_account(&public_account).await?;
+
+        // FIXME: import files here!
+
+        Ok(())
+    }
+
 }
 
 #[async_trait]
@@ -384,31 +454,13 @@ impl RemoteSync for RemoteBridge {
                 .is_some();
 
         if !should_sync {
-            tracing::warn!(prigin = %self.origin, "skip sync");
+            tracing::warn!(origin = %self.origin, "skip sync");
             return None;
         }
 
-        let mut errors = Vec::new();
-
         tracing::debug!(origin = %self.origin.url);
 
-        match self.remote.sync_status().await {
-            Ok(sync_status) => {
-                if let Some(sync_status) = &sync_status {
-                    if let Err(e) = self.pull_account(sync_status).await {
-                        errors.push(e);
-                    }
-                } else {
-                    if let Err(e) = self.prepare_account().await {
-                        errors.push(e);
-                    }
-                }
-            }
-            Err(e) => {
-                errors.push(e);
-            }
-        }
-
+        let errors = self.execute_sync().await;
         if errors.is_empty() {
             None
         } else {

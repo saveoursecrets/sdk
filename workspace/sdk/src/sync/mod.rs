@@ -1,7 +1,7 @@
 //! Synchronization primitives.
 
 use crate::{
-    commit::{CommitHash, CommitProof, CommitState},
+    commit::{CommitHash, CommitProof, CommitState, Comparison},
     events::{AccountEvent, WriteEvent},
     vault::{Summary, VaultId},
 };
@@ -85,6 +85,27 @@ pub struct SyncDiff {
     pub account: AccountDiff,
     /// Diff for each folder in the account..
     pub folders: HashMap<VaultId, FolderDiff>,
+}
+
+/// Comparison between local and remote status.
+pub struct SyncComparison {
+    /// Local sync status.
+    pub local_status: SyncStatus,
+    /// Remote sync status.
+    pub remote_status: SyncStatus,
+    /// Comparison of the identity event log.
+    pub identity: Comparison,
+    /// Comparison of the account event log.
+    pub account: Comparison,
+    /// Comparison for each folder in the account.
+    pub folders: HashMap<VaultId, Comparison>,
+}
+
+impl SyncComparison {
+    /// Determine if all event logs are equal.
+    pub fn is_equal(&self) -> bool {
+        self.local_status == self.remote_status
+    }
 }
 
 /// Collection of patches for an account.
