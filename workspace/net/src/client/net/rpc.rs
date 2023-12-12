@@ -13,7 +13,7 @@ use sos_sdk::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
         EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_STATUS,
         HANDSHAKE_INITIATE, IDENTITY_PATCH, MIME_TYPE_RPC, VAULT_CREATE,
-        VAULT_DELETE, VAULT_SAVE,
+        VAULT_DELETE, VAULT_SAVE, SYNC_PULL,
     },
     decode,
     device::DevicePublicKey,
@@ -360,11 +360,6 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
-
-        if response.status() == StatusCode::NOT_FOUND {
-            return Ok(MaybeRetry::Complete(StatusCode::NOT_FOUND, None));
-        }
-
         let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<Option<SyncStatus>>(
@@ -374,6 +369,34 @@ impl RpcClient {
             .await?;
 
         maybe_retry.map(|result, _| Ok(result?))
+    }
+
+    /// Try to pull from a remote.
+    async fn try_pull(
+        &self,
+        local_status: &SyncStatus,
+    ) -> Result<MaybeRetry<Vec<u8>>> {
+        let url = self.origin.url.join("api/sync")?;
+
+        let id = self.next_id().await;
+        let request = RequestMessage::new_call(
+            Some(id), SYNC_PULL, local_status)?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
+        let signature =
+            encode_signature(self.signer.sign(&body).await?).await?;
+
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
+        let response = self.check_response(response).await?;
+        let maybe_retry = self
+            .read_encrypted_response::<()>(
+                response.status(),
+                &response.bytes().await?,
+            )
+            .await?;
+
+        maybe_retry.map(|result, body| Ok(body))
     }
 
     /// Try to create a new account.
@@ -769,7 +792,20 @@ impl Client for RpcClient {
         &self,
         local_status: &SyncStatus,
     ) -> std::result::Result<SyncDiff, Self::Error> {
-        todo!();
+        let span = span!(Level::DEBUG, "pull");
+        let _enter = span.enter();
+
+        let (status, body) =
+            retry!(|| self.try_pull(local_status), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(decode(&body).await?)
     }
 
     async fn patch_identity(
