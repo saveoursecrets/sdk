@@ -52,7 +52,8 @@ impl Service for SyncService {
 
                 let local_status = request.parameters::<SyncStatus>()?;
                 let reader = account.read().await;
-
+                
+                /*
                 // FIXME: do not trust the client-side proof as `before`
                 // FIXME: instead get the proof of the last commit
                 // FIXME: from each event log
@@ -132,6 +133,9 @@ impl Service for SyncService {
                     Cow::Owned(buffer),
                 )?;
                 Ok(reply)
+                */
+
+                todo!();
             }
             _ => Err(Error::RpcUnknownMethod(request.method().to_owned())),
         }

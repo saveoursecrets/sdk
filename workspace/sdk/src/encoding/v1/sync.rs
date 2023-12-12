@@ -127,8 +127,17 @@ impl Encodable for SyncDiff {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        self.identity.encode(&mut *writer).await?;
-        self.account.encode(&mut *writer).await?;
+        
+        writer.write_bool(self.identity.is_some()).await?;
+        if let Some(identity) = &self.identity {
+            identity.encode(&mut *writer).await?;
+        }
+
+        writer.write_bool(self.account.is_some()).await?;
+        if let Some(account) = &self.account {
+            account.encode(&mut *writer).await?;
+        }
+
         writer.write_u16(self.folders.len() as u16).await?;
         for (id, diff) in &self.folders {
             writer.write_bytes(id.as_ref()).await?;
@@ -144,13 +153,20 @@ impl Decodable for SyncDiff {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        let mut identity: FolderDiff = Default::default();
-        identity.decode(&mut *reader).await?;
-        self.identity = identity;
 
-        let mut account: AccountDiff = Default::default();
-        account.decode(&mut *reader).await?;
-        self.account = account;
+        let has_identity = reader.read_bool().await?;
+        if has_identity {
+            let mut identity: FolderDiff = Default::default();
+            identity.decode(&mut *reader).await?;
+            self.identity = Some(identity);
+        }
+
+        let has_account = reader.read_bool().await?;
+        if has_account {
+            let mut account: AccountDiff = Default::default();
+            account.decode(&mut *reader).await?;
+            self.account = Some(account);
+        }
 
         let num_folders = reader.read_u16().await?;
         for _ in 0..num_folders {
@@ -163,9 +179,6 @@ impl Decodable for SyncDiff {
     }
 }
 
-const DIFF_EVEN: u8 = 1;
-const DIFF_PATCH: u8 = 2;
-
 #[async_trait]
 impl<T> Encodable for Diff<T>
 where
@@ -175,22 +188,9 @@ where
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        match self {
-            Self::Even => {
-                writer.write_u8(DIFF_EVEN).await?;
-            }
-            Self::Patch {
-                before,
-                after,
-                patch,
-            } => {
-                writer.write_u8(DIFF_PATCH).await?;
-                before.encode(&mut *writer).await?;
-                after.encode(&mut *writer).await?;
-                patch.encode(&mut *writer).await?;
-            }
-            Self::Noop => panic!("attempt to encode a noop"),
-        }
+        self.before.encode(&mut *writer).await?;
+        self.after.encode(&mut *writer).await?;
+        self.patch.encode(&mut *writer).await?;
         Ok(())
     }
 }
@@ -204,29 +204,14 @@ where
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        let op = reader.read_u8().await?;
-        match op {
-            DIFF_EVEN => *self = Self::Even,
-            DIFF_PATCH => {
-                let mut before: CommitProof = Default::default();
-                before.decode(&mut *reader).await?;
-                let mut after: CommitProof = Default::default();
-                after.decode(&mut *reader).await?;
-                let mut patch: Patch<T> = Default::default();
-                patch.decode(&mut *reader).await?;
-                *self = Self::Patch {
-                    before,
-                    after,
-                    patch,
-                }
-            }
-            _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    format!("unknown diff variant kind {}", op),
-                ));
-            }
-        }
+
+        //let mut before: CommitProof = Default::default();
+        self.before.decode(&mut *reader).await?;
+        //let mut after: CommitProof = Default::default();
+        self.after.decode(&mut *reader).await?;
+        //let mut patch: Patch<T> = Default::default();
+        self.patch.decode(&mut *reader).await?;
+
         Ok(())
     }
 }

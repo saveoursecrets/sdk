@@ -15,7 +15,7 @@ use sos_sdk::{
     storage::Storage,
     sync::{
         AccountDiff, Client, FolderDiff, FolderPatch, Patch, SyncComparison,
-        SyncStatus,
+        SyncStatus, SyncDiff,
     },
     url::Url,
     vault::Summary,
@@ -137,7 +137,7 @@ impl RemoteBridge {
     }
     
     /*
-    async fn sync_identity_events(
+    async fn push_identity(
         &self,
         commit_state: &CommitState,
     ) -> Result<()> {
@@ -260,7 +260,7 @@ impl RemoteBridge {
 
         Ok(())
     }
-
+    
     async fn pull_account2(
         &self,
         local_status: &SyncStatus,
@@ -268,56 +268,31 @@ impl RemoteBridge {
     ) -> Result<SyncStatus> {
         let diff = self.remote.pull(local_status).await?;
 
-        match &diff.identity {
-            FolderDiff::Patch {
-                before,
-                after,
-                patch,
-            } => {
-                let storage = self.local.read().await;
-                let identity = storage.identity_log();
-                let mut writer = identity.write().await;
-                writer.patch_checked(before, patch).await?;
+        if let Some(diff) = &diff.identity {
+            let storage = self.local.read().await;
+            let identity = storage.identity_log();
+            let mut writer = identity.write().await;
+            writer.patch_checked(&diff.before, &diff.patch).await?;
 
-                // FIXME: assert on after commit proofs
-            }
-            _ => {}
+            // FIXME: assert on after commit proofs
         }
 
-        match &diff.account {
-            AccountDiff::Patch {
-                before,
-                after,
-                patch,
-            } => {
-                let storage = self.local.read().await;
-                let account = storage.account_log();
-                let mut writer = account.write().await;
-                writer.patch_checked(before, patch).await?;
-
-                // FIXME: assert on after commit proofs
-            }
-            _ => {}
+        if let Some(diff) = &diff.account {
+            let storage = self.local.read().await;
+            let account = storage.account_log();
+            let mut writer = account.write().await;
+            writer.patch_checked(&diff.before, &diff.patch).await?;
         }
 
-        for (id, folder) in &diff.folders {
-            match folder {
-                FolderDiff::Patch {
-                    before,
-                    after,
-                    patch,
-                } => {
-                    let mut storage = self.local.write().await;
-                    let mut event_log = storage
-                        .cache_mut()
-                        .get_mut(id)
-                        .ok_or(Error::CacheNotAvailable(*id))?;
-                    event_log.patch_checked(before, patch).await?;
+        for (id, diff) in &diff.folders {
+            let mut storage = self.local.write().await;
+            let mut event_log = storage
+                .cache_mut()
+                .get_mut(id)
+                .ok_or(Error::CacheNotAvailable(*id))?;
+            event_log.patch_checked(&diff.before, &diff.patch).await?;
 
-                    // FIXME: assert on after commit proofs
-                }
-                _ => {}
-            }
+            // FIXME: assert on after commit proofs
         }
 
         let storage = self.local.read().await;
@@ -356,49 +331,22 @@ impl RemoteBridge {
         Ok(())
     }
 
-    async fn compare_status(
-        &self,
-        remote_status: SyncStatus,
-    ) -> Result<SyncComparison> {
-        let local_status = {
-            let local = self.local.read().await;
-            local.sync_status().await?
+    async fn sync_account(&self, remote_status: SyncStatus) -> Result<()> {
+
+        let comparison = {
+            let storage = self.local.read().await;
+            // Compare local status to the remote
+            SyncComparison::new(&*storage, remote_status).await?
         };
 
-        let identity = {
-            let local = self.local.read().await;
-            let identity = local.identity_log();
-            let reader = identity.read().await;
-            reader.tree().compare(&remote_status.identity.1)?
-        };
-
-        let account = {
-            let local = self.local.read().await;
-            let account = local.account_log();
-            let reader = account.read().await;
-            reader.tree().compare(&remote_status.account.1)?
-        };
-
-        let folders = {
-            let local = self.local.read().await;
-            let mut folders = HashMap::new();
-            for (id, folder) in &remote_status.folders {
-                let event_log = local
-                    .cache()
-                    .get(id)
-                    .ok_or(Error::CacheNotAvailable(*id))?;
-                folders.insert(*id, event_log.tree().compare(&folder.1)?);
-            }
-            folders
-        };
-
-        Ok(SyncComparison {
-            local_status,
-            remote_status,
-            identity,
-            account,
-            folders,
-        })
+        // Only make network requests when the 
+        // status differ
+        if comparison.needs_sync() {
+            let mut storage = self.local.write().await;
+            let diff = comparison.diff(&*storage).await?;
+            
+        }
+        Ok(())
     }
 
     async fn execute_sync(&self) -> Vec<Error> {

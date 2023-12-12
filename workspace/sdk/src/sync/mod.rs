@@ -3,7 +3,9 @@
 use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     events::{AccountEvent, WriteEvent},
+    storage::Storage,
     vault::{Summary, VaultId},
+    Error, Result,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
@@ -35,24 +37,16 @@ pub enum CheckedPatch {
 
 /// Diff between local and remote.
 #[derive(Default)]
-pub enum Diff<T>
+pub struct Diff<T>
 where
     T: Default + Encodable + Decodable,
 {
-    #[doc(hidden)]
-    #[default]
-    Noop,
-    /// Patch that should be able to be applied cleanly.
-    Patch {
-        /// Contents of the patch.
-        patch: Patch<T>,
-        /// Head of the event log before applying the patch.
-        before: CommitProof,
-        /// Head of the event log after applying the patch.
-        after: CommitProof,
-    },
-    /// Both local and remote are even.
-    Even,
+    /// Contents of the patch.
+    pub patch: Patch<T>,
+    /// Head of the event log before applying the patch.
+    pub before: CommitProof,
+    /// Head of the event log after applying the patch.
+    pub after: CommitProof,
 }
 
 /// Diff between account events logs.
@@ -80,10 +74,10 @@ pub struct SyncStatus {
 #[derive(Default)]
 pub struct SyncDiff {
     /// Diff of the identity vault event logs.
-    pub identity: FolderDiff,
+    pub identity: Option<FolderDiff>,
     /// Diff of the account event log.
-    pub account: AccountDiff,
-    /// Diff for each folder in the account..
+    pub account: Option<AccountDiff>,
+    /// Diff for folders in the account.
     pub folders: HashMap<VaultId, FolderDiff>,
 }
 
@@ -102,9 +96,91 @@ pub struct SyncComparison {
 }
 
 impl SyncComparison {
-    /// Determine if all event logs are equal.
-    pub fn is_equal(&self) -> bool {
-        self.local_status == self.remote_status
+    /// Create a new sync comparison.
+    pub async fn new(
+        storage: &Storage,
+        remote_status: SyncStatus,
+    ) -> Result<SyncComparison> {
+        let local_status = {
+            storage.sync_status().await?
+        };
+
+        let identity = {
+            let identity = storage.identity_log();
+            let reader = identity.read().await;
+            reader.tree().compare(&remote_status.identity.1)?
+        };
+
+        let account = {
+            let account = storage.account_log();
+            let reader = account.read().await;
+            reader.tree().compare(&remote_status.account.1)?
+        };
+
+        let folders = {
+            let mut folders = HashMap::new();
+            for (id, folder) in &remote_status.folders {
+                let event_log = storage
+                    .cache()
+                    .get(id)
+                    .ok_or(Error::CacheNotAvailable(*id))?;
+                folders.insert(*id, event_log.tree().compare(&folder.1)?);
+            }
+            folders
+        };
+
+        Ok(SyncComparison {
+            local_status,
+            remote_status,
+            identity,
+            account,
+            folders,
+        })
+    }
+
+    /// Determine if synchronization is required.
+    pub fn needs_sync(&self) -> bool {
+        self.local_status != self.remote_status
+    }
+    
+    /// Build a diff from this comparison.
+    pub async fn diff(&self, storage: &Storage) -> Result<SyncDiff> {
+        let mut diff: SyncDiff = Default::default();
+
+        match self.identity {
+            Comparison::Equal => {},
+            Comparison::Contains(_, _) => {
+                // Need to push changes to remote
+                let identity: FolderDiff = {
+                    let identity_log = storage.identity_log();
+                    let reader = identity_log.read().await;
+                    let after = reader.tree().head()?;
+                    FolderDiff {
+                        patch: reader
+                            .diff(Some(&self.local_status.identity.0))
+                            .await?,
+                        after,
+                        before: self.local_status.identity.1.clone(),
+                    }
+                };
+                diff.identity = Some(identity);
+            }
+            Comparison::Unknown => {
+                unreachable!("identity event log is never rewritten");
+            }
+        } 
+
+        match self.account {
+            Comparison::Equal => {},
+            Comparison::Contains(_, _) => {
+                // Need to apply changes to remote
+            }
+            Comparison::Unknown => {
+                unreachable!("account event log is never rewritten");
+            }
+        } 
+
+        Ok(diff)
     }
 }
 
