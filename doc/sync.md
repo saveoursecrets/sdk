@@ -20,12 +20,33 @@ The [sos-net](/workspace/net) crate provides a client and server reference imple
 
 It is **strongly recommended** to use the `allow` and `deny` access controls to determine which accounts are allowed to store data otherwise your server may be abused to store data on behalf of unknown connections.
 
-For example, to deny a specific address add this to the server configuration:
+When an `allow` configuration is present then only those addresses are allowed to connect, all other addresses will be denied.
+
+```toml
+[access]
+allow = [
+  "0x3ebe1c7c8e56a1e9b813073e30caf1a0cd8e7634"
+]
+```
+
+If a `deny` configuration is present then any address other than the explicitly denied addresses can connect:
 
 ```toml
 [access]
 deny = [
-  "0x6f4e977644ca8f21d335ab13271616b615ea28cb"
+  "0x7ebe1c7c89e56a1e9b813073e30caf1a0cd8e5541"
+]
+```
+
+Denied addresses take precedence so take care when combining `allow` and `deny`as it's possible block all connections:
+
+```toml
+[access]
+allow = [
+  "0x3ebe1c7c8e56a1e9b813073e30caf1a0cd8e7634"
+]
+deny = [
+  "0x3ebe1c7c8e56a1e9b813073e30caf1a0cd8e7634"
 ]
 ```
 
