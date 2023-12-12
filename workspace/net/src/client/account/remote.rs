@@ -17,7 +17,7 @@ use sos_sdk::{
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
-    sync::{AccountStatus, ChangeSet, FolderPatch, Patch},
+    sync::{SyncStatus, ChangeSet, FolderPatch, Patch},
     url::Url,
     vault::{Summary, VaultId},
 };
@@ -133,10 +133,10 @@ impl RemoteBridge {
     }
 
     /// Get account status from remote.
-    pub async fn account_status(&self) -> Result<AccountStatus> {
+    pub async fn account_status(&self) -> Result<SyncStatus> {
         let (_, status) =
             retry!(|| self.remote.account_status(), self.remote);
-        status.ok_or(Error::NoAccountStatus)
+        status.ok_or(Error::NoSyncStatus)
     }
 
     /// Create an account on the remote.
@@ -428,7 +428,7 @@ impl RemoteBridge {
 
     async fn pull_account(
         &self,
-        account_status: AccountStatus,
+        account_status: SyncStatus,
     ) -> Result<()> {
         for (folder_id, (remote_commit, remote_proof)) in
             account_status.folders

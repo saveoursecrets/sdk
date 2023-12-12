@@ -4,7 +4,7 @@ use sos_sdk::{
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
     decode,
     device::DevicePublicKey,
-    sync::{AccountStatus, ChangeSet},
+    sync::{SyncStatus, ChangeSet},
     vault::Header,
 };
 
@@ -105,7 +105,7 @@ impl Service for AccountService {
                     reader.handler().account_exists(caller.address()).await?
                 };
 
-                let result: AccountStatus = if account_exists {
+                let result: SyncStatus = if account_exists {
                     let reader = backend.read().await;
                     let accounts = reader.accounts();
                     let reader = accounts.read().await;

@@ -174,7 +174,7 @@ pub enum Error {
     */
     /// Error generated when account status could not be retrieved.
     #[error("could not fetch account status")]
-    NoAccountStatus,
+    NoSyncStatus,
 
     /// Error generated when an event log buffer is expected.
     #[error("no event buffer returned when loading events")]

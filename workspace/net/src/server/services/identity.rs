@@ -5,7 +5,7 @@ use sos_sdk::{
     constants::IDENTITY_PATCH,
     decode,
     device::DevicePublicKey,
-    sync::{AccountStatus, ChangeSet, CheckedPatch, FolderPatch},
+    sync::{SyncStatus, ChangeSet, CheckedPatch, FolderPatch},
     vault::Header,
 };
 

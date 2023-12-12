@@ -19,7 +19,7 @@ use sos_sdk::{
     encode,
     events::WriteEvent,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{AccountStatus, ChangeSet, FolderPatch, Patch},
+    sync::{SyncStatus, ChangeSet, FolderPatch, Patch},
     vault::{Summary, VaultId},
 };
 
@@ -289,7 +289,7 @@ impl RpcClient {
     /// Get the account status.
     pub async fn account_status(
         &self,
-    ) -> Result<MaybeRetry<Option<AccountStatus>>> {
+    ) -> Result<MaybeRetry<Option<SyncStatus>>> {
         let url = self.origin.url.join("api/account")?;
 
         let id = self.next_id().await;
@@ -303,7 +303,7 @@ impl RpcClient {
         let response = self.send_request(url, signature, body).await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
-            .read_encrypted_response::<AccountStatus>(
+            .read_encrypted_response::<SyncStatus>(
                 response.status(),
                 &response.bytes().await?,
             )

@@ -31,7 +31,7 @@ use std::{
 use tokio::sync::RwLock;
 use tracing::{span, Level};
 
-use crate::sync::{AccountStatus, ChangeSet, FolderPatch};
+use crate::sync::{SyncStatus, ChangeSet, FolderPatch};
 
 impl Storage {
     /// Create a new vault file on disc and the associated
@@ -110,7 +110,7 @@ impl Storage {
     }
 
     /// Get the account status.
-    pub async fn account_status(&self) -> Result<AccountStatus> {
+    pub async fn account_status(&self) -> Result<SyncStatus> {
         let account = {
             let reader = self.account_log.read().await;
             if reader.tree().is_empty() {
@@ -137,7 +137,7 @@ impl Storage {
             let head = event_log.tree().head()?;
             folders.insert(*summary.id(), (last_commit, head));
         }
-        Ok(AccountStatus {
+        Ok(SyncStatus {
             exists: true,
             identity,
             account,
