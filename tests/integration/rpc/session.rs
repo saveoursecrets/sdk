@@ -7,18 +7,16 @@ use sos_net::{
     sdk::{
         device::DeviceSigner,
         encode,
-        events::{FolderEventLog, WriteEvent},
         identity::IdentityVault,
         passwd::diceware::generate_passphrase,
         signer::ecdsa::{BoxedEcdsaSigner, SingleParty},
-        storage::{AccountPack, Storage},
+        storage::Storage,
         sync::Client,
-        vault::{Vault, VaultBuilder},
+        vault::VaultBuilder,
         Paths,
     },
 };
-use std::{path::PathBuf, sync::Arc};
-use tokio::sync::RwLock;
+use std::path::PathBuf;
 
 const TEST_ID: &str = "rpc_session";
 
@@ -74,7 +72,7 @@ async fn integration_rpc_session() -> Result<()> {
         VaultBuilder::new().password(folder_password, None).await?;
     let default_folder_buffer = encode(&default_folder).await?;
 
-    let (client, signer, identity_vault, mut storage) =
+    let (client, _, _, mut storage) =
         create_rpc_client(data_dir, &server.origin).await?;
 
     storage.import_folder(&default_folder_buffer, None).await?;

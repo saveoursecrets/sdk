@@ -18,9 +18,8 @@ use sos_sdk::{
     decode,
     device::DevicePublicKey,
     encode,
-    events::WriteEvent,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, Client, FolderPatch, Patch, SyncStatus},
+    sync::{ChangeSet, Client, FolderPatch, SyncStatus},
     vault::{Summary, VaultId},
 };
 

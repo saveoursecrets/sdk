@@ -4,8 +4,7 @@ use sos_sdk::{
     constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
     decode,
     device::DevicePublicKey,
-    sync::{ChangeSet, SyncStatus},
-    vault::Header,
+    sync::ChangeSet,
 };
 
 use async_trait::async_trait;
@@ -16,11 +15,11 @@ use crate::{
     server::{BackendHandler, Error, Result},
 };
 
-#[cfg(feature = "listen")]
-use crate::events::{ChangeEvent, ChangeNotification};
+//#[cfg(feature = "listen")]
+//use crate::events::{ChangeEvent, ChangeNotification};
 
-#[cfg(feature = "listen")]
-use super::send_notification;
+//#[cfg(feature = "listen")]
+//use super::send_notification;
 
 /// Account management service.
 ///
@@ -38,7 +37,7 @@ impl Service for AccountService {
         state: Self::State,
         request: RequestMessage<'a>,
     ) -> Result<ResponseMessage<'a>> {
-        let (caller, (state, backend)) = state;
+        let (caller, (_state, backend)) = state;
 
         match request.method() {
             ACCOUNT_CREATE => {

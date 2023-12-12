@@ -1,7 +1,6 @@
-//! Write operations.
+//! Folder write operations.
 
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
 
 use crate::{
     crypto::AeadPack,

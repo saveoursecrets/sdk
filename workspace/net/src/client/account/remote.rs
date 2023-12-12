@@ -10,12 +10,12 @@ use serde::{Deserialize, Serialize};
 use sos_sdk::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     decode,
-    events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
+    events::{AccountEvent, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
-    sync::{ChangeSet, Client, FolderPatch, Patch, SyncStatus},
+    sync::{Client, FolderPatch, Patch, SyncStatus},
     url::Url,
-    vault::{Summary, VaultId},
+    vault::Summary,
 };
 
 use mpc_protocol::Keypair;

@@ -1,11 +1,5 @@
 //! Folder storage backed by the file system.
-use crate::{
-    commit::{CommitProof, CommitState},
-    signer::ecdsa::Address,
-    vault::{Summary, Vault, VaultId},
-};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use crate::vault::{Summary, Vault};
 use tokio::sync::mpsc;
 
 #[cfg(feature = "files")]
@@ -18,9 +12,6 @@ mod storage;
 mod sync;
 
 pub use storage::{Folder, Storage};
-
-#[cfg(feature = "sync")]
-use crate::sync::{AccountPatch, FolderPatch};
 
 /// Collection of vaults for an account.
 #[derive(Default)]

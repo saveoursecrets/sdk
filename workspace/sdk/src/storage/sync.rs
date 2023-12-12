@@ -1,35 +1,12 @@
 //! Synchronization helpers.
 use crate::{
-    commit::{CommitHash, CommitState, CommitTree},
-    constants::{EVENT_LOG_EXT, VAULT_EXT},
-    crypto::AccessKey,
-    decode, encode,
-    events::{
-        AccountEvent, AccountEventLog, AuditEvent, Event, EventKind,
-        EventReducer, FolderEventLog, ReadEvent, WriteEvent,
-    },
-    identity::FolderKeys,
-    passwd::{diceware::generate_passphrase, ChangePassword},
-    signer::ecdsa::Address,
-    storage::AccountPack,
+    encode,
+    events::{EventReducer, FolderEventLog, WriteEvent},
     storage::Storage,
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow},
-        FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
-        VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultMeta,
-        VaultWriter,
-    },
-    vfs, Error, Paths, Result, Timestamp,
+    vfs, Error, Paths, Result,
 };
 
-use secrecy::SecretString;
-use std::{
-    collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-use tokio::sync::RwLock;
-use tracing::{span, Level};
+use std::collections::HashMap;
 
 use crate::sync::{ChangeSet, FolderPatch, SyncStatus};
 
@@ -149,8 +126,6 @@ impl Storage {
     /// Used by network aware implementations to send
     /// account information to a server.
     pub async fn change_set(&self) -> Result<ChangeSet> {
-        let address = self.address.clone();
-
         let identity = {
             let reader = self.identity_log.read().await;
             reader.diff(None).await?

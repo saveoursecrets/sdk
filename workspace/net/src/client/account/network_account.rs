@@ -2,9 +2,7 @@
 use mpc_protocol::generate_keypair;
 use secrecy::SecretString;
 use sos_sdk::{
-    account::{
-        Account, AccountBuilder, AccountData, DetachedView, PrivateNewAccount,
-    },
+    account::{Account, AccountBuilder, AccountData, DetachedView},
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     events::{Event, ReadEvent},

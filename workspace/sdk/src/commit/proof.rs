@@ -11,12 +11,11 @@ use std::{
     ops::Range,
 };
 
-use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof};
+use rs_merkle::{algorithms::Sha256, MerkleProof};
 
 /// Hash representation that provides a hexadecimal display.
 #[derive(
-    Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize,
-    Hash,
+    Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, Hash,
 )]
 pub struct CommitHash(#[serde(with = "hex::serde")] pub [u8; 32]);
 
@@ -115,7 +114,7 @@ impl CommitProof {
     pub fn root(&self) -> &CommitHash {
         &self.root
     }
-    
+
     /// Number of leaves in the commit tree.
     pub fn len(&self) -> usize {
         self.length

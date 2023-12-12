@@ -3,8 +3,8 @@ use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 use std::ops::Range;
 
 use super::{
-    CommitHash, CommitPair, CommitProof, CommitRelationship, Comparison,
-    CommitState,
+    CommitHash, CommitPair, CommitProof, CommitRelationship, CommitState,
+    Comparison,
 };
 
 /// Encapsulates a Merkle tree and provides functions
@@ -100,7 +100,10 @@ impl CommitTree {
                 let indices = 0..leaves.len();
                 let leaf_indices = indices.clone().collect::<Vec<_>>();
                 let proof = partial.proof(&leaf_indices);
-                let root = partial.root().map(CommitHash).ok_or(Error::NoRootCommit)?;
+                let root = partial
+                    .root()
+                    .map(CommitHash)
+                    .ok_or(Error::NoRootCommit)?;
                 Ok(CommitProof {
                     root,
                     proof,
@@ -187,8 +190,7 @@ impl CommitTree {
     ///
     /// The tree must already have some commits.
     pub fn commit_state(&self) -> Result<CommitState> {
-        let last_commit = self.last_commit()
-            .ok_or(Error::NoRootCommit)?;
+        let last_commit = self.last_commit().ok_or(Error::NoRootCommit)?;
         Ok((last_commit, self.head()?))
     }
 
@@ -196,7 +198,7 @@ impl CommitTree {
     pub fn root(&self) -> Option<CommitHash> {
         self.tree.root().map(CommitHash)
     }
-    
+
     /// Commit relationship between the proof in another tree and
     /// a match proof which indicates whether the current head proof
     /// of this tree is contained in the other tree.

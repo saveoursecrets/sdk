@@ -16,8 +16,8 @@
 //!
 use crate::{
     commit::{
-        event_log_commit_tree_file, CommitHash, CommitProof, CommitState,
-        CommitTree, Comparison,
+        event_log_commit_tree_file, CommitHash, CommitProof, CommitTree,
+        Comparison,
     },
     encode,
     encoding::{encoding_options, VERSION1},
@@ -164,6 +164,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         len
     }
 
+    /*
     /// Header bytes.
     fn header(&self) -> Vec<u8> {
         let mut header = self.identity.to_vec();
@@ -172,6 +173,7 @@ impl<T: Default + Encodable + Decodable> EventLogFile<T> {
         }
         header
     }
+    */
 
     /// Read encoding version from the file on disc.
     pub async fn read_file_version(&self) -> Result<u16> {

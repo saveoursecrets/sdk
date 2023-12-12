@@ -4,9 +4,7 @@ use sos_sdk::{
     commit::CommitProof,
     constants::IDENTITY_PATCH,
     decode,
-    device::DevicePublicKey,
-    sync::{ChangeSet, CheckedPatch, FolderPatch, SyncStatus},
-    vault::Header,
+    sync::{CheckedPatch, FolderPatch},
 };
 
 use async_trait::async_trait;
@@ -14,15 +12,15 @@ use async_trait::async_trait;
 use super::{PrivateState, Service};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
-    server::{BackendHandler, Error, Result},
+    server::{Error, Result},
 };
 use std::sync::Arc;
 
-#[cfg(feature = "listen")]
-use crate::events::{ChangeEvent, ChangeNotification};
+//#[cfg(feature = "listen")]
+//use crate::events::{ChangeEvent, ChangeNotification};
 
-#[cfg(feature = "listen")]
-use super::send_notification;
+//#[cfg(feature = "listen")]
+//use super::send_notification;
 
 /// Identity events management service.
 ///
@@ -39,7 +37,7 @@ impl Service for IdentityService {
         state: Self::State,
         request: RequestMessage<'a>,
     ) -> Result<ResponseMessage<'a>> {
-        let (caller, (state, backend)) = state;
+        let (caller, (_state, backend)) = state;
 
         match request.method() {
             IDENTITY_PATCH => {
@@ -56,8 +54,8 @@ impl Service for IdentityService {
                 let commit_proof = request.parameters::<CommitProof>()?;
                 let patch: FolderPatch = decode(request.body()).await?;
 
-                let mut writer = account.write().await;
-                let identity_log = writer.folders.identity_log();
+                let reader = account.read().await;
+                let identity_log = reader.folders.identity_log();
                 let mut identity = identity_log.write().await;
                 let result =
                     identity.patch_checked(&commit_proof, &patch).await?;

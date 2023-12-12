@@ -2,7 +2,6 @@
 
 use crate::{
     commit::{CommitHash, CommitProof, CommitState},
-    signer::ecdsa::Address,
     vault::{Summary, VaultId},
 };
 use async_trait::async_trait;

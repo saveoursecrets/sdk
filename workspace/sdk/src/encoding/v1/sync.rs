@@ -1,7 +1,7 @@
 use crate::{
     decode, encode,
     encoding::{decode_uuid, encoding_error},
-    prelude::{EventRecord, FileIdentity, PATCH_IDENTITY},
+    prelude::{FileIdentity, PATCH_IDENTITY},
 };
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
@@ -123,7 +123,6 @@ mod test {
     use crate::{
         decode, encode,
         events::{AccountEvent, WriteEvent},
-        signer::ecdsa::Address,
         sync::ChangeSet,
         sync::{AccountPatch, FolderPatch},
         vault::Vault,
@@ -133,8 +132,6 @@ mod test {
 
     #[tokio::test]
     async fn encode_decode_change_set() -> Result<()> {
-        let address: Address = Default::default();
-
         let vault: Vault = Default::default();
         let buf = encode(&vault).await?;
         let identity: FolderPatch = vec![WriteEvent::CreateVault(buf)].into();

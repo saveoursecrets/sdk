@@ -1,6 +1,6 @@
 use crate::{
     events::{AccountEvent, EventRecord, WriteEvent},
-    Error, Result,
+    Result,
 };
 use binary_stream::futures::{Decodable, Encodable};
 

@@ -6,15 +6,14 @@ use crate::{
         DEFAULT_CONTACTS_VAULT_NAME,
     },
     crypto::AccessKey,
-    encode,
     identity::{FolderKeys, Identity, IdentityVault},
     signer::ecdsa::Address,
-    storage::{AccountPack, Folder},
+    storage::AccountPack,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
-        Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
+        Gatekeeper, Vault, VaultBuilder, VaultFlags,
     },
-    vfs, Paths, Result,
+    Paths, Result,
 };
 use secrecy::SecretString;
 use std::{collections::HashMap, path::PathBuf};
@@ -156,8 +155,6 @@ impl AccountBuilder {
 
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
-        let buffer = encode(identity_vault.vault()).await?;
-
         let paths = if let Some(data_dir) = &data_dir {
             Paths::new(data_dir, address.to_string())
         } else {

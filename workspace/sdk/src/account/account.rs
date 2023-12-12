@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    account::{AccountBuilder, PrivateNewAccount},
+    account::AccountBuilder,
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     decode, encode,
@@ -20,7 +20,7 @@ use crate::{
     storage::AccountPack,
     storage::{
         search::{DocumentCount, SearchIndex},
-        AccessOptions, Folder, Storage,
+        AccessOptions, Storage,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
@@ -1414,10 +1414,7 @@ impl<D> Account<D> {
         let log_file = cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
-        Ok(log_file
-            .tree()
-            .root()
-            .ok_or_else(|| Error::NoRootCommit)?)
+        Ok(log_file.tree().root().ok_or_else(|| Error::NoRootCommit)?)
     }
 
     /// Commit state of the identity vault.
