@@ -1,13 +1,16 @@
 //! Server configuration.
 use serde::{Deserialize, Serialize};
-use std::{path::{Path, PathBuf}, collections::HashSet};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
 use url::{Host, Url};
 
 use super::backend::{Backend, FileSystemBackend};
 use super::{Error, Result};
 
 use mpc_protocol::{decode_keypair, Keypair};
-use sos_sdk::{vfs, signer::ecdsa::Address};
+use sos_sdk::{signer::ecdsa::Address, vfs};
 
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -27,7 +30,7 @@ pub struct ServerConfig {
 
     /// Configuration for TLS encryption.
     pub tls: Option<TlsConfig>,
-    
+
     /// Access controls.
     pub access: AccessControlConfig,
 
@@ -54,7 +57,7 @@ impl ServerConfig {
 
 /// Access control configuration.
 ///
-/// Denied entries take precedence so if you allow and 
+/// Denied entries take precedence so if you allow and
 /// deny the same address it will be denied.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct AccessControlConfig {

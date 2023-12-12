@@ -151,7 +151,6 @@ mod test {
         folders.insert(folder_id, folder);
 
         let account_data = ChangeSet {
-            address,
             identity,
             account,
             folders,

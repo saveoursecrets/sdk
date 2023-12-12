@@ -31,7 +31,7 @@ use std::{
 use tokio::sync::RwLock;
 use tracing::{span, Level};
 
-use crate::sync::{SyncStatus, ChangeSet, FolderPatch};
+use crate::sync::{ChangeSet, FolderPatch, SyncStatus};
 
 impl Storage {
     /// Create a new vault file on disc and the associated
@@ -138,7 +138,6 @@ impl Storage {
             folders.insert(*summary.id(), (last_commit, head));
         }
         Ok(SyncStatus {
-            exists: true,
             identity,
             account,
             folders,

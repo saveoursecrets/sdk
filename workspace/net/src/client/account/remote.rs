@@ -17,7 +17,7 @@ use sos_sdk::{
     events::{AccountEvent, AccountReducer, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
-    sync::{SyncStatus, ChangeSet, FolderPatch, Patch},
+    sync::{ChangeSet, FolderPatch, Patch, SyncStatus},
     url::Url,
     vault::{Summary, VaultId},
 };
@@ -123,6 +123,11 @@ impl RemoteBridge {
     pub fn local(&self) -> Arc<RwLock<Storage>> {
         Arc::clone(&self.local)
     }
+
+    /// Client implementation.
+    pub fn client(&self) -> &RpcClient {
+        &self.remote
+    }
 }
 
 /// Sync helper functions.
@@ -130,30 +135,6 @@ impl RemoteBridge {
     /// Perform the noise protocol handshake.
     pub async fn handshake(&self) -> Result<()> {
         Ok(self.remote.handshake().await?)
-    }
-
-    /// Get account status from remote.
-    pub async fn sync_status(&self) -> Result<SyncStatus> {
-        let (_, status) =
-            retry!(|| self.remote.sync_status(), self.remote);
-        status.ok_or(Error::NoSyncStatus)
-    }
-
-    /// Create an account on the remote.
-    async fn create_account(&self, account: &ChangeSet) -> Result<()> {
-        let span = span!(Level::DEBUG, "create_account");
-        let _enter = span.enter();
-
-        let (status, _) =
-            retry!(|| self.remote.create_account(account), self.remote);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(())
     }
 
     /*
@@ -426,12 +407,8 @@ impl RemoteBridge {
         Ok(num_events > 0)
     }
 
-    async fn pull_account(
-        &self,
-        sync_status: SyncStatus,
-    ) -> Result<()> {
-        for (folder_id, (remote_commit, remote_proof)) in
-            sync_status.folders
+    async fn pull_account(&self, sync_status: SyncStatus) -> Result<()> {
+        for (folder_id, (remote_commit, remote_proof)) in sync_status.folders
         {
             let (folder, last_commit, commit_proof) = {
                 let local = self.local.read().await;
@@ -470,7 +447,7 @@ impl RemoteBridge {
         let local = self.local.read().await;
         let public_account = local.change_set().await?;
 
-        self.create_account(&public_account).await?;
+        self.remote.create_account(&public_account).await?;
 
         // FIXME: import files here!
 
@@ -553,13 +530,9 @@ impl RemoteSync for RemoteBridge {
 
         tracing::debug!(origin = %self.origin.url);
 
-        match self.sync_status().await {
+        match self.remote.sync_status().await {
             Ok(sync_status) => {
-                if !sync_status.exists {
-                    if let Err(e) = self.prepare_account().await {
-                        errors.push(e);
-                    }
-                } else {
+                if let Some(sync_status) = sync_status {
                     // Need to initialize the account log
                     // on the remote
                     if sync_status.account.is_none() {
@@ -569,6 +542,10 @@ impl RemoteSync for RemoteBridge {
                     }
 
                     if let Err(e) = self.pull_account(sync_status).await {
+                        errors.push(e);
+                    }
+                } else {
+                    if let Err(e) = self.prepare_account().await {
                         errors.push(e);
                     }
                 }

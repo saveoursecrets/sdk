@@ -36,8 +36,6 @@ pub enum CheckedPatch {
 #[derive(Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(default)]
 pub struct SyncStatus {
-    /// Indicates whether the account exists.
-    pub exists: bool,
     /// Identity vault commit proof.
     pub identity: CommitProof,
     /// Account log commit proof.

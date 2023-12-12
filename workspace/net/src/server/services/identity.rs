@@ -5,7 +5,7 @@ use sos_sdk::{
     constants::IDENTITY_PATCH,
     decode,
     device::DevicePublicKey,
-    sync::{SyncStatus, ChangeSet, CheckedPatch, FolderPatch},
+    sync::{ChangeSet, CheckedPatch, FolderPatch, SyncStatus},
     vault::Header,
 };
 
@@ -61,7 +61,7 @@ impl Service for IdentityService {
                 let mut identity = identity_log.write().await;
                 let result =
                     identity.patch_checked(&commit_proof, &patch).await?;
-                
+
                 match result {
                     CheckedPatch::Success(proof, _) => {
                         let value: (&CommitProof, Option<CommitProof>) =

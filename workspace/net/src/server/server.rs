@@ -162,7 +162,8 @@ impl Server {
         Ok(())
     }
 
-    async fn startup_message(&self,
+    async fn startup_message(
+        &self,
         state: ServerState,
         addr: &SocketAddr,
         public_key: &[u8],

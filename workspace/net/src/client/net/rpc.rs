@@ -19,15 +19,16 @@ use sos_sdk::{
     encode,
     events::WriteEvent,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{SyncStatus, ChangeSet, FolderPatch, Patch},
+    sync::{ChangeSet, FolderPatch, Patch, SyncStatus},
     vault::{Summary, VaultId},
 };
 
+use crate::retry;
 use mpc_protocol::{
     channel::{decrypt_server_channel, encrypt_server_channel},
     snow, Keypair, ProtocolState, PATTERN,
 };
-//use tracing::{span, Level};
+use tracing::{span, Level};
 
 #[cfg(feature = "listen")]
 use crate::events::ChangeNotification;
@@ -286,8 +287,14 @@ impl RpcClient {
         }
     }
 
-    /// Get the account status.
-    pub async fn sync_status(
+    /// Sync status on remote.
+    pub async fn sync_status(&self) -> Result<Option<SyncStatus>> {
+        let (_, value) = retry!(|| self.try_sync_status(), self);
+        Ok(value)
+    }
+
+    /// Try to sync status on remote.
+    async fn try_sync_status(
         &self,
     ) -> Result<MaybeRetry<Option<SyncStatus>>> {
         let url = self.origin.url.join("api/account")?;
@@ -301,19 +308,41 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, signature, body).await?;
+
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok(MaybeRetry::Complete(StatusCode::NOT_FOUND, None));
+        }
+
         let response = self.check_response(response).await?;
         let maybe_retry = self
-            .read_encrypted_response::<SyncStatus>(
+            .read_encrypted_response::<Option<SyncStatus>>(
                 response.status(),
                 &response.bytes().await?,
             )
             .await?;
 
-        maybe_retry.map(|result, _| Ok(result.ok()))
+        maybe_retry.map(|result, _| Ok(result?))
     }
 
     /// Create a new account.
-    pub async fn create_account(
+    pub async fn create_account(&self, account: &ChangeSet) -> Result<()> {
+        let span = span!(Level::DEBUG, "create_account");
+        let _enter = span.enter();
+
+        let (status, _) =
+            retry!(|| self.try_create_account(account), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+        Ok(())
+    }
+
+    /// Try to create a new account.
+    async fn try_create_account(
         &self,
         account: &ChangeSet,
     ) -> Result<MaybeRetry<Option<()>>> {

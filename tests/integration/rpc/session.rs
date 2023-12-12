@@ -2,7 +2,7 @@ use crate::test_utils::{setup, spawn, teardown};
 use anyhow::Result;
 use http::StatusCode;
 use sos_net::{
-    client::{HostedOrigin, RpcClient},
+    client::{HostedOrigin, RpcClient, Error},
     mpc::generate_keypair,
     sdk::{
         device::DeviceSigner,
@@ -81,12 +81,12 @@ async fn integration_rpc_session() -> Result<()> {
     let account = storage.change_set().await?;
 
     // Create an account on the remote
-    let (status, _) = client.create_account(&account).await?.unwrap();
-    assert_eq!(StatusCode::OK, status);
+    client.create_account(&account).await?;
 
     // Try to create the same account again
-    let (status, _) = client.create_account(&account).await?.unwrap();
-    assert_eq!(StatusCode::CONFLICT, status);
+    // should yield a conflict
+    let result = client.create_account(&account).await;
+    assert!(matches!(result, Err(Error::ResponseCode(StatusCode::CONFLICT))));
 
     // List folders for the account
     let (_, summaries) = client.list_folders().await?.unwrap();
@@ -94,7 +94,7 @@ async fn integration_rpc_session() -> Result<()> {
     // New account with a single folder
     assert_eq!(1, summaries.len());
 
-    let (_, sync_status) = client.sync_status().await?.unwrap();
+    let sync_status = client.sync_status().await?;
     assert!(sync_status.is_some());
 
     let (primary_password, _) = generate_passphrase()?;
