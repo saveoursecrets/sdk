@@ -1,4 +1,4 @@
-//! Types and traits for synchronization.
+//! Synchronization primitives.
 
 use crate::{
     commit::{CommitHash, CommitProof, CommitState},
