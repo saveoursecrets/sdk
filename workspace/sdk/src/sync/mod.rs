@@ -2,9 +2,11 @@
 
 use crate::{
     commit::{CommitHash, CommitProof, CommitState},
+    events::{AccountEvent, WriteEvent},
     vault::{Summary, VaultId},
 };
 use async_trait::async_trait;
+use binary_stream::futures::{Decodable, Encodable};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
@@ -31,6 +33,32 @@ pub enum CheckedPatch {
     },
 }
 
+/// Diff between local and remote.
+#[derive(Default)]
+pub enum Diff<T>
+where
+    T: Default + Encodable + Decodable,
+{
+    #[doc(hidden)]
+    #[default]
+    Noop,
+    /// Patch that should be able to be applied cleanly.
+    Patch {
+        /// Contents of the patch.
+        patch: Patch<T>,
+        /// Head of the event log.
+        head: CommitProof,
+    },
+    /// Both local and remote are even.
+    Even,
+}
+
+/// Diff between account events logs.
+pub type AccountDiff = Diff<AccountEvent>;
+
+/// Diff between folder events logs.
+pub type FolderDiff = Diff<WriteEvent>;
+
 /// Provides a status overview of an account.
 ///
 /// Intended to be used during a synchronization protocol.
@@ -44,6 +72,17 @@ pub struct SyncStatus {
     /// Commit proofs for the account folders.
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub folders: HashMap<VaultId, CommitState>,
+}
+
+/// Diff between all events logs on local and remote.
+#[derive(Default)]
+pub struct SyncDiff {
+    /// Diff of the identity vault event logs.
+    pub identity: FolderDiff,
+    /// Diff of the account event log.
+    pub account: AccountDiff,
+    /// Diff for each folder in the account..
+    pub folders: HashMap<VaultId, FolderDiff>,
 }
 
 /// Collection of patches for an account.
