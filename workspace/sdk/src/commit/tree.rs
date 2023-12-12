@@ -31,7 +31,7 @@ impl CommitTree {
         Sha256::hash(data)
     }
 
-    /// Get the number of leaves in the tree.
+    /// Number of leaves in the tree.
     pub fn len(&self) -> usize {
         self.tree.leaves_len()
     }
@@ -66,16 +66,25 @@ impl CommitTree {
 
     /// Revert changes to the tree.
     pub fn rollback(&mut self) {
-        self.tree.rollback()
+        self.tree.rollback();
+        self.maybe_last_commit = None;
+        if let Some(leaves) = self.leaves() {
+            self.last_commit = leaves.last().cloned();
+        } else {
+            self.last_commit = None;
+        }
     }
 
-    /// Get the leaves of the tree.
+    /// Leaves of the tree.
     pub fn leaves(&self) -> Option<Vec<<Sha256 as Hasher>::Hash>> {
         self.tree.leaves()
     }
 
-    /// Get the root hash and a proof of the last leaf node.
+    /// Root hash and a proof of the last leaf node.
     pub fn head(&self) -> Result<CommitProof> {
+        if self.is_empty() {
+            return Err(Error::NoRootCommit);
+        }
         let range = self.tree.leaves_len() - 1..self.tree.leaves_len();
         self.proof_range(range)
     }
@@ -106,13 +115,13 @@ impl CommitTree {
         }
     }
 
-    /// Get a proof for the given range.
+    /// Proof for the given range.
     pub fn proof_range(&self, indices: Range<usize>) -> Result<CommitProof> {
         let leaf_indices = indices.collect::<Vec<_>>();
         self.proof(&leaf_indices)
     }
 
-    /// Get a proof for the given indices.
+    /// Proof for the given indices.
     pub fn proof(&self, leaf_indices: &[usize]) -> Result<CommitProof> {
         let root = self.root().ok_or(Error::NoRootCommit)?;
         let proof = self.tree.proof(leaf_indices);
