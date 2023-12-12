@@ -645,8 +645,8 @@ mod listen {
 
                         tracing::debug!(
                             vault_id = ?summary.id(),
-                            change_root = ?change.proof().root_hex(),
-                            root = ?head.root_hex());
+                            change_root = ?change.proof().root(),
+                            root = ?head.root());
 
                         // Looks like the change was made elsewhere
                         // and we should attempt to sync with the server

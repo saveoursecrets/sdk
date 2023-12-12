@@ -100,7 +100,7 @@ impl CommitTree {
                 let indices = 0..leaves.len();
                 let leaf_indices = indices.clone().collect::<Vec<_>>();
                 let proof = partial.proof(&leaf_indices);
-                let root = partial.root().ok_or(Error::NoRootCommit)?;
+                let root = partial.root().map(CommitHash).ok_or(Error::NoRootCommit)?;
                 Ok(CommitProof {
                     root,
                     proof,
@@ -164,7 +164,7 @@ impl CommitTree {
                 .map(|i| *leaves.get(i).unwrap())
                 .collect::<Vec<_>>();
             if proof.verify(
-                *other_root,
+                other_root.into(),
                 indices_to_prove.as_slice(),
                 leaves_to_prove.as_slice(),
                 *length,
@@ -193,16 +193,11 @@ impl CommitTree {
     }
 
     /// Root hash of the underlying merkle tree.
-    pub fn root(&self) -> Option<<Sha256 as Hasher>::Hash> {
-        self.tree.root()
+    pub fn root(&self) -> Option<CommitHash> {
+        self.tree.root().map(CommitHash)
     }
     
-    /// Get the root hash of the underlying merkle tree as hexadecimal.
-    pub fn root_hex(&self) -> Option<String> {
-        self.tree.root_hex()
-    }
-
-    /// Get the commit relationship from the proof in another tree and
+    /// Commit relationship between the proof in another tree and
     /// a match proof which indicates whether the current head proof
     /// of this tree is contained in the other tree.
     pub fn relationship(

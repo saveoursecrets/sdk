@@ -86,7 +86,7 @@ async fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
     })
     .await?;
     if verbose {
-        if let Some(root) = tree.root_hex() {
+        if let Some(root) = tree.root() {
             println!("root: {}", root);
         }
     }

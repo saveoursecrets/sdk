@@ -260,7 +260,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     }
                     println!("size = {}", leaves.len());
                 }
-                if let Some(root) = tree.root_hex() {
+                if let Some(root) = tree.root() {
                     println!("root = {}", root);
                 }
             }

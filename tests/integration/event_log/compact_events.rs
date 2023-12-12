@@ -69,7 +69,7 @@ async fn integration_events_compact() -> Result<()> {
     };
 
     // Trees have diverged
-    assert_ne!(old_root.as_ref(), &new_root);
+    assert_ne!(&old_root, &new_root);
 
     // Load a new patch from disc
     let patch = event_log.diff(None).await?;

@@ -1406,7 +1406,7 @@ impl<D> Account<D> {
         })
     }
 
-    /// Get the root commit hash for a folder.
+    /// Root commit hash for a folder.
     pub async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
         let storage = self.storage()?;
         let reader = storage.read().await;
@@ -1417,7 +1417,6 @@ impl<D> Account<D> {
         Ok(log_file
             .tree()
             .root()
-            .map(CommitHash)
             .ok_or_else(|| Error::NoRootCommit)?)
     }
 

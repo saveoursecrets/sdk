@@ -16,6 +16,7 @@ use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof};
 /// Hash representation that provides a hexadecimal display.
 #[derive(
     Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize,
+    Hash,
 )]
 pub struct CommitHash(#[serde(with = "hex::serde")] pub [u8; 32]);
 
@@ -34,6 +35,12 @@ impl CommitHash {
 
 impl From<CommitHash> for [u8; 32] {
     fn from(value: CommitHash) -> Self {
+        value.0
+    }
+}
+
+impl From<&CommitHash> for [u8; 32] {
+    fn from(value: &CommitHash) -> Self {
         value.0
     }
 }
@@ -62,7 +69,7 @@ pub enum Comparison {
 /// Represents a root hash and a proof of certain nodes.
 pub struct CommitProof {
     /// Root hash.
-    pub root: <Sha256 as Hasher>::Hash,
+    pub root: CommitHash,
     /// The merkle proof.
     pub proof: MerkleProof<Sha256>,
     /// The length of the tree.
@@ -104,16 +111,11 @@ impl Clone for CommitProof {
 }
 
 impl CommitProof {
-    /// The root hash for the proof.
-    pub fn root(&self) -> &<Sha256 as Hasher>::Hash {
+    /// Root hash for the proof.
+    pub fn root(&self) -> &CommitHash {
         &self.root
     }
-
-    /// The root hash for the proof as hexadecimal.
-    pub fn root_hex(&self) -> String {
-        hex::encode(self.root)
-    }
-
+    
     /// Number of leaves in the commit tree.
     pub fn len(&self) -> usize {
         self.length
@@ -127,20 +129,20 @@ impl CommitProof {
 
 impl From<CommitProof> for (CommitHash, usize) {
     fn from(value: CommitProof) -> Self {
-        (CommitHash(value.root), value.length)
+        (value.root, value.length)
     }
 }
 
 impl From<CommitProof> for CommitHash {
     fn from(value: CommitProof) -> Self {
-        CommitHash(value.root)
+        value.root
     }
 }
 
 impl Default for CommitProof {
     fn default() -> Self {
         Self {
-            root: [0; 32],
+            root: Default::default(),
             proof: MerkleProof::<Sha256>::new(vec![]),
             length: 0,
             indices: 0..0,
@@ -151,7 +153,7 @@ impl Default for CommitProof {
 impl fmt::Debug for CommitProof {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CommitProof")
-            .field("root", &hex::encode(self.root))
+            .field("root", &self.root.to_string())
             //.field("proofs", self.1.proof_hashes())
             .field("size", &self.length)
             .field("leaves", &self.indices)
@@ -169,7 +171,7 @@ impl serde::Serialize for CommitProof {
     {
         // 4-element tuple
         let mut tup = serializer.serialize_tuple(4)?;
-        let root_hash = hex::encode(self.root);
+        let root_hash = self.root.to_string();
         tup.serialize_element(&root_hash)?;
         let hashes = self.proof.proof_hashes();
         tup.serialize_element(hashes)?;
@@ -201,6 +203,7 @@ impl<'de> Visitor<'de> for CommitProofVisitor {
         let root_hash = hex::decode(root_hash).map_err(de::Error::custom)?;
         let root_hash: [u8; 32] =
             root_hash.as_slice().try_into().map_err(de::Error::custom)?;
+        let root_hash = CommitHash(root_hash);
         let hashes: Vec<[u8; 32]> = seq.next_element()?.ok_or_else(|| {
             de::Error::custom("expecting sequence of proof hashes")
         })?;
