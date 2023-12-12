@@ -415,6 +415,16 @@ impl RemoteSync for RemoteBridge {
         }
     }
 
+    async fn pull(
+        &self,
+        local_status: &SyncStatus,
+        options: &SyncOptions,
+    ) -> std::result::Result<SyncStatus, SyncError> {
+        let diff = self.remote.pull(local_status).await.map_err(|e| SyncError::One(e))?;
+
+        todo!("apply diff to the local data");
+    }
+
     async fn sync_folder(
         &self,
         folder: &Summary,

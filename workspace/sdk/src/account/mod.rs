@@ -19,6 +19,7 @@ pub mod security_report;
 
 pub use account::{
     Account, AccountData, AccountHandler, DetachedView, LocalAccount,
+    BeforeChange,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};
 

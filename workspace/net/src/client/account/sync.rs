@@ -5,7 +5,8 @@ use crate::client::{
 };
 use async_trait::async_trait;
 use sos_sdk::{
-    account::AccountHandler, commit::CommitState, events::Event,
+    account::{AccountHandler, BeforeChange}, commit::CommitState, events::Event,
+    sync::SyncStatus,
     storage::Storage, vault::Summary,
 };
 use std::{any::Any, sync::Arc};
@@ -22,9 +23,20 @@ impl SyncHandler {
     async fn try_sync_folder(
         &self,
         storage: Arc<RwLock<Storage>>,
-        folder: &Summary,
-        commit_state: &CommitState,
+        data: &BeforeChange,
     ) -> Result<Option<CommitState>> {
+        let remotes = self.remotes.read().await;
+        for remote in remotes.values() {
+            let result = remote
+                .pull(&data.sync_status, &Default::default())
+                .await?;
+
+            todo!("see if the folder changed and return the new commit state");
+        }
+
+        todo!();
+
+        /*
         let mut changed = false;
         let (last_commit, commit_proof) = commit_state;
         let mut last_commit = last_commit.clone();
@@ -59,6 +71,7 @@ impl SyncHandler {
         } else {
             None
         })
+        */
     }
 }
 
@@ -69,10 +82,9 @@ impl AccountHandler for SyncHandler {
     async fn before_change(
         &self,
         storage: Arc<RwLock<Storage>>,
-        folder: &Summary,
-        commit_state: &CommitState,
+        data: &BeforeChange,
     ) -> Option<CommitState> {
-        match self.try_sync_folder(storage, folder, commit_state).await {
+        match self.try_sync_folder(storage, data).await {
             Ok(commit_state) => commit_state,
             Err(e) => {
                 tracing::error!(error = ?e, "failed to sync before change");
@@ -118,6 +130,15 @@ impl RemoteSync for NetworkAccount {
             }
             Some(SyncError::Multiple(errors))
         }
+    }
+
+    async fn pull(
+        &self,
+        local_status: &SyncStatus,
+        options: &SyncOptions,
+    ) -> std::result::Result<SyncStatus, SyncError> {
+        //let diff = self.remote.pull(local_status).await?;
+        todo!("pull in network account");
     }
 
     async fn sync_folder(

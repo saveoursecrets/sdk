@@ -765,6 +765,13 @@ impl Client for RpcClient {
         Ok(())
     }
 
+    async fn pull(
+        &self,
+        local_status: &SyncStatus,
+    ) -> std::result::Result<(), Self::Error> {
+        todo!();
+    }
+
     async fn patch_identity(
         &self,
         proof: &CommitProof,

@@ -117,6 +117,12 @@ pub trait Client {
         &self,
     ) -> std::result::Result<Option<SyncStatus>, Self::Error>;
 
+    /// Pull a diff of patches from the remote.
+    async fn pull(
+        &self,
+        local_status: &SyncStatus,
+    ) -> std::result::Result<(), Self::Error>;
+
     /// Patch identity events.
     async fn patch_identity(
         &self,

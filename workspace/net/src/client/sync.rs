@@ -1,6 +1,6 @@
 use super::{Error, Origin};
 use async_trait::async_trait;
-use sos_sdk::{commit::CommitState, events::Event, vault::Summary};
+use sos_sdk::{commit::CommitState, events::Event, vault::Summary, sync::SyncStatus};
 use std::any::Any;
 
 /// Enumeration of error types that can be returned
@@ -34,7 +34,15 @@ pub trait RemoteSync: Sync + Send + Any {
         options: &SyncOptions,
     ) -> Option<SyncError>;
 
+    /// Pull changes from remote.
+    async fn pull(
+        &self,
+        local_status: &SyncStatus,
+        options: &SyncOptions,
+    ) -> std::result::Result<SyncStatus, SyncError>;
+
     /// Sync a folder.
+    #[deprecated]
     async fn sync_folder(
         &self,
         folder: &Summary,

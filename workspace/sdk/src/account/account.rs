@@ -29,6 +29,9 @@ use crate::{
     vfs, Error, Paths, Result, Timestamp,
 };
 
+#[cfg(feature = "sync")]
+use crate::sync::SyncStatus;
+
 use tracing::{span, Level};
 
 use secrecy::SecretString;
@@ -40,6 +43,23 @@ use async_trait::async_trait;
 /// Type alias for a local account without a handler.
 pub type LocalAccount = Account<()>;
 
+/// Data for the before change event.
+pub struct BeforeChange {
+    /// Folder being changed.
+    pub folder: Summary,
+    /// Commit state before changes are made.
+    pub commit_state: CommitState,
+    /// Local sync status.
+    #[cfg(feature = "sync")]
+    pub sync_status: SyncStatus,
+}
+
+impl From<BeforeChange> for (Summary, CommitState) {
+    fn from(value: BeforeChange) -> Self {
+        (value.folder, value.commit_state)
+    }
+}
+
 /// Account handler is notified of account changes.
 #[async_trait]
 pub trait AccountHandler {
@@ -50,8 +70,9 @@ pub trait AccountHandler {
     async fn before_change(
         &self,
         storage: Arc<RwLock<Storage>>,
-        folder: &Summary,
-        commit_state: &CommitState,
+        data: &BeforeChange,
+        //folder: &Summary,
+        //commit_state: &CommitState,
     ) -> Option<CommitState>;
 }
 
@@ -554,7 +575,7 @@ impl<D> Account<D> {
         };
 
         let (summary, commit_state) =
-            self.compute_folder_state(&options, false).await?;
+            self.compute_folder_state(&options, false).await?.into();
 
         let event =
             Event::Folder(account_event, WriteEvent::CreateVault(buffer));
@@ -571,7 +592,7 @@ impl<D> Account<D> {
             ..Default::default()
         };
         let (summary, commit_state) =
-            self.compute_folder_state(&options, false).await?;
+            self.compute_folder_state(&options, false).await?.into();
 
         let events = {
             let storage = self.storage()?;
@@ -596,7 +617,7 @@ impl<D> Account<D> {
             ..Default::default()
         };
         let (summary, commit_state) =
-            self.compute_folder_state(&options, false).await?;
+            self.compute_folder_state(&options, false).await?.into();
 
         // Update the provider
         let event = {
@@ -869,7 +890,7 @@ impl<D> Account<D> {
             ..Default::default()
         };
         let (summary, commit_state) =
-            self.compute_folder_state(&options, false).await?;
+            self.compute_folder_state(&options, false).await?.into();
 
         Ok((summary, event, commit_state))
     }
@@ -926,8 +947,8 @@ impl<D> Account<D> {
         &self,
         options: &AccessOptions,
         apply_changes: bool,
-    ) -> Result<(Summary, CommitState)> {
-        let (folder, last_commit, mut commit_proof) = {
+    ) -> Result<BeforeChange> {
+        let mut before_change = {
             let storage = self.storage()?;
             let reader = storage.read().await;
             let folder = options
@@ -940,12 +961,15 @@ impl<D> Account<D> {
                 .cache()
                 .get(folder.id())
                 .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            let last_commit = event_log.tree().last_commit();
+            let last_commit = event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
             let commit_proof = event_log.tree().head()?;
-            (folder, last_commit, commit_proof)
+            BeforeChange {
+                folder,
+                commit_state: (last_commit, commit_proof),
+                #[cfg(feature = "sync")]
+                sync_status: reader.sync_status().await?,
+            }
         };
-
-        let mut last_commit = last_commit.ok_or(Error::NoRootCommit)?;
 
         if apply_changes {
             let storage = self.storage()?;
@@ -953,18 +977,18 @@ impl<D> Account<D> {
                 let before_result = handler
                     .before_change(
                         storage,
-                        &folder,
-                        &(last_commit, commit_proof.clone()),
+                        &before_change,
                     )
                     .await;
-                if let Some((commit, proof)) = before_result {
-                    last_commit = commit;
-                    commit_proof = proof;
+
+                
+                if let Some(new_state) = before_result {
+                    before_change.commit_state = new_state;
                 }
             }
         }
 
-        Ok((folder, (last_commit, commit_proof)))
+        Ok(before_change)
     }
 
     /// Bulk insert secrets into the currently open folder.
@@ -989,7 +1013,7 @@ impl<D> Account<D> {
         options: AccessOptions,
     ) -> Result<(SecretId, Event, CommitState, Summary)> {
         let (folder, commit_state) =
-            self.compute_folder_state(&options, true).await?;
+            self.compute_folder_state(&options, true).await?.into();
 
         let (id, event, _) =
             self.add_secret(meta, secret, options, true).await?;
@@ -1094,7 +1118,7 @@ impl<D> Account<D> {
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Event, CommitState, Summary)> {
         let (folder, commit_state) =
-            self.compute_folder_state(&options, true).await?;
+            self.compute_folder_state(&options, true).await?.into();
 
         self.open_folder(&folder).await?;
 
@@ -1217,7 +1241,7 @@ impl<D> Account<D> {
         options: AccessOptions,
     ) -> Result<(Event, CommitState, Summary)> {
         let (folder, commit_state) =
-            self.compute_folder_state(&options, true).await?;
+            self.compute_folder_state(&options, true).await?.into();
 
         self.open_folder(&folder).await?;
 
