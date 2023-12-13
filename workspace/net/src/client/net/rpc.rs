@@ -10,7 +10,7 @@ use serde_json::Value;
 use sos_sdk::{
     commit::{CommitHash, CommitProof, CommitState},
     constants::{
-        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
+        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, SYNC_STATUS, EVENT_LOG_DIFF,
         EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_STATUS,
         HANDSHAKE_INITIATE, IDENTITY_PATCH, MIME_TYPE_RPC, SYNC_RESOLVE,
         VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
@@ -351,10 +351,10 @@ impl RpcClient {
     async fn try_sync_status(
         &self,
     ) -> Result<MaybeRetry<Option<SyncStatus>>> {
-        let url = self.origin.url.join("api/account")?;
+        let url = self.origin.url.join("api/sync")?;
 
         let id = self.next_id().await;
-        let request = RequestMessage::new_call(Some(id), ACCOUNT_STATUS, ())?;
+        let request = RequestMessage::new_call(Some(id), SYNC_STATUS, ())?;
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
         let signature =

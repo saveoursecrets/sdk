@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 
 use sos_sdk::{
-    constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS},
+    constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS},
     decode,
     device::DevicePublicKey,
     sync::ChangeSet,
@@ -90,26 +90,6 @@ impl Service for AccountService {
                 }
                 */
 
-                Ok(reply)
-            }
-            ACCOUNT_STATUS => {
-                let account_exists = {
-                    let reader = backend.read().await;
-                    reader.handler().account_exists(caller.address()).await?
-                };
-
-                let result = if account_exists {
-                    let reader = backend.read().await;
-                    let accounts = reader.accounts();
-                    let reader = accounts.read().await;
-                    let account = reader.get(caller.address()).unwrap();
-                    let account = account.read().await;
-                    Some(account.folders.sync_status().await?)
-                } else {
-                    None
-                };
-                let reply: ResponseMessage<'_> =
-                    (request.id(), result).try_into()?;
                 Ok(reply)
             }
             ACCOUNT_LIST_VAULTS => {

@@ -109,9 +109,6 @@ mod rpc {
     /// Noise protocol handshake initiation.
     pub const HANDSHAKE_INITIATE: &str = "Handshake.initiate";
 
-    /// Account status method call.
-    pub const ACCOUNT_STATUS: &str = "Account.status";
-
     /// Account create method call.
     pub const ACCOUNT_CREATE: &str = "Account.create";
 
@@ -123,6 +120,9 @@ mod rpc {
 
     /// Device revoke method call.
     pub const DEVICE_REVOKE: &str = "Device.revoke";
+
+    /// Sync status method call.
+    pub const SYNC_STATUS: &str = "Sync.status";
 
     /// Sync resolve method call.
     pub const SYNC_RESOLVE: &str = "Sync.resolve";

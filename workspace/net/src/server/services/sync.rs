@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap};
 
 use sos_sdk::{
     commit::CommitProof,
-    constants::SYNC_RESOLVE,
+    constants::{SYNC_RESOLVE, SYNC_STATUS},
     decode, encode,
     events::AccountEvent,
     sync::{
@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use super::{PrivateState, Service};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
-    server::{Error, Result},
+    server::{Error, Result, backend::BackendHandler},
 };
 use std::sync::Arc;
 
@@ -40,6 +40,26 @@ impl Service for SyncService {
         let (caller, (_state, backend)) = state;
 
         match request.method() {
+            SYNC_STATUS => {
+                let account_exists = {
+                    let reader = backend.read().await;
+                    reader.handler().account_exists(caller.address()).await?
+                };
+
+                let result = if account_exists {
+                    let reader = backend.read().await;
+                    let accounts = reader.accounts();
+                    let reader = accounts.read().await;
+                    let account = reader.get(caller.address()).unwrap();
+                    let account = account.read().await;
+                    Some(account.folders.sync_status().await?)
+                } else {
+                    None
+                };
+                let reply: ResponseMessage<'_> =
+                    (request.id(), result).try_into()?;
+                Ok(reply)
+            }
             SYNC_RESOLVE => {
                 let account = {
                     let reader = backend.read().await;
@@ -50,6 +70,8 @@ impl Service for SyncService {
                         .ok_or_else(|| Error::NoAccount(*caller.address()))?;
                     Arc::clone(account)
                 };
+
+                println!("SYNC_RESOLVE");
 
                 let mut remote_status = request.parameters::<SyncStatus>()?;
                 let mut diff: SyncDiff = decode(request.body()).await?;
