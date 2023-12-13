@@ -155,7 +155,8 @@ impl RemoteBridge {
         Ok(())
     }
     */
-
+    
+    /*
     async fn pull_folder(
         &self,
         folder: &Summary,
@@ -185,7 +186,9 @@ impl RemoteBridge {
 
         Ok(num_events > 0)
     }
-
+    */
+    
+    /*
     async fn push_folder(
         &self,
         folder: &Summary,
@@ -224,7 +227,9 @@ impl RemoteBridge {
 
         Ok(num_events > 0)
     }
-
+    */
+    
+    /*
     #[deprecated(note = "use pull_account2() instead")]
     async fn pull_account(&self, sync_status: &SyncStatus) -> Result<()> {
         for (folder_id, (remote_commit, remote_proof)) in &sync_status.folders
@@ -260,6 +265,7 @@ impl RemoteBridge {
 
         Ok(())
     }
+    */
 
     /*
     async fn pull_account2(
@@ -302,7 +308,8 @@ impl RemoteBridge {
         Ok(sync_status)
     }
     */
-
+    
+    /*
     /// Send a local patch of events to the remote.
     async fn patch(
         &self,
@@ -332,6 +339,7 @@ impl RemoteBridge {
 
         Ok(())
     }
+    */
 
     async fn sync_account(&self, remote_status: SyncStatus) -> Result<()> {
         let comparison = {
@@ -441,7 +449,8 @@ impl RemoteSync for RemoteBridge {
             .map_err(|e| SyncError::One(e))
     }
     */
-
+    
+    /*
     async fn sync_folder(
         &self,
         folder: &Summary,
@@ -500,6 +509,7 @@ impl RemoteSync for RemoteBridge {
 
         Ok(local_changed)
     }
+    */
 
     /*
     async fn sync_send_events(
@@ -585,6 +595,7 @@ mod listen {
     use crate::{
         client::{
             Error, ListenOptions, RemoteBridge, Result, WebSocketHandle,
+            sync::RemoteSync,
         },
         events::{ChangeAction, ChangeEvent, ChangeNotification},
     };
@@ -675,35 +686,14 @@ mod listen {
                         if change.proof().root() != head.root() {
                             tracing::debug!(
                                 folder = %summary.id(),
-                                "proofs differ, trying pull");
+                                "proofs differ, trying sync");
 
-                            let (last_commit, commit_proof) = {
-                                let reader = local.read().await;
-                                let event_log = reader
-                                    .cache()
-                                    .get(summary.id())
-                                    .ok_or(Error::CacheNotAvailable(
-                                        *summary.id(),
-                                    ))?;
-                                let last_commit = event_log
-                                    .tree()
-                                    .last_commit()
-                                    .ok_or(Error::NoRootCommit)?;
-                                let commit_proof = event_log.tree().head()?;
-                                (last_commit, commit_proof)
-                            };
-
-                            tracing::debug!(
-                                last_commit = ?last_commit,
-                                commit_proof = ?commit_proof);
-
-                            bridge
-                                .pull_folder(
-                                    &summary,
-                                    &last_commit,
-                                    &commit_proof,
-                                )
-                                .await?;
+                            if let Some(e) = bridge.sync().await {
+                                tracing::error!(
+                                    error = ?e,
+                                    "bridge listen change sync failed",
+                                );
+                            }
                         } else {
                             tracing::debug!(
                                 folder = %summary.id(),

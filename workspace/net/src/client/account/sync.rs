@@ -116,7 +116,8 @@ impl RemoteSync for NetworkAccount {
         }
     }
     */
-
+    
+    /*
     async fn sync_folder(
         &self,
         folder: &Summary,
@@ -161,6 +162,7 @@ impl RemoteSync for NetworkAccount {
             Err(SyncError::Multiple(errors))
         }
     }
+    */
 
     /*
     async fn sync_send_events(

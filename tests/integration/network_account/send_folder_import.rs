@@ -59,7 +59,8 @@ async fn integration_sync_import_folder() -> Result<()> {
 
     // Encode for the import
     let buffer = encode(&vault).await?;
-
+    
+    println!("IMPORTING THE FOLDER BUFFER");
     device
         .owner
         .import_folder_buffer(buffer, vault_passphrase, true)

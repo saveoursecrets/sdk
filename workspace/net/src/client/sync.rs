@@ -44,7 +44,8 @@ pub trait RemoteSync: Sync + Send + Any {
         options: &SyncOptions,
     ) -> std::result::Result<SyncStatus, SyncError>;
     */
-
+    
+    /*
     /// Sync a folder.
     #[deprecated]
     async fn sync_folder(
@@ -54,6 +55,7 @@ pub trait RemoteSync: Sync + Send + Any {
         remote: Option<CommitState>,
         options: &SyncOptions,
     ) -> std::result::Result<bool, SyncError>;
+    */
 
     /*
     /// Send events after changes to the local storage
