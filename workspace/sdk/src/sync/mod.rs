@@ -351,13 +351,6 @@ pub trait Client {
         diff: &SyncDiff,
     ) -> std::result::Result<SyncDiff, Self::Error>;
 
-    /// Patch identity events.
-    async fn patch_identity(
-        &self,
-        proof: &CommitProof,
-        patch: &FolderPatch,
-    ) -> std::result::Result<(), Self::Error>;
-
     /// Diff of events for a folder on remote.
     ///
     /// Returns the number of events in the patch and

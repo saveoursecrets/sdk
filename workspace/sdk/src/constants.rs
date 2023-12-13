@@ -135,9 +135,6 @@ mod rpc {
 
     /// Event log patch method call.
     pub const EVENT_LOG_PATCH: &str = "Events.patch";
-
-    /// Identity log patch method call.
-    pub const IDENTITY_PATCH: &str = "Identity.patch";
 }
 
 /// Constants for directory names.

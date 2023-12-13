@@ -29,14 +29,12 @@ mod account;
 mod device;
 mod events;
 mod handshake;
-mod identity;
 mod sync;
 
 pub use account::AccountService;
 pub use device::DeviceService;
 pub use events::EventLogService;
 pub use handshake::HandshakeService;
-pub use identity::IdentityService;
 pub use sync::SyncService;
 
 /// Trait for implementations that process incoming requests.

@@ -10,7 +10,7 @@ use axum::{
 use crate::server::{
     services::{
         private_service, public_service, AccountService, DeviceService,
-        EventLogService, HandshakeService, IdentityService, SyncService,
+        EventLogService, HandshakeService, SyncService,
     },
     ServerBackend, ServerState,
 };
@@ -66,20 +66,6 @@ impl ServiceHandler {
         body: Bytes,
     ) -> impl IntoResponse {
         let service = SyncService {};
-        match private_service(service, state, backend, bearer, body).await {
-            Ok(result) => result.into_response(),
-            Err(error) => error.into_response(),
-        }
-    }
-
-    /// Handle requests for the identity service.
-    pub(crate) async fn identity(
-        Extension(state): Extension<ServerState>,
-        Extension(backend): Extension<ServerBackend>,
-        TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
-        body: Bytes,
-    ) -> impl IntoResponse {
-        let service = IdentityService {};
         match private_service(service, state, backend, bearer, body).await {
             Ok(result) => result.into_response(),
             Err(error) => error.into_response(),

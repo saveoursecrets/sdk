@@ -218,7 +218,6 @@ impl Server {
             .route("/api/handshake", post(ServiceHandler::handshake))
             .route("/api/account", post(ServiceHandler::account))
             .route("/api/sync", post(ServiceHandler::sync))
-            .route("/api/identity", post(ServiceHandler::identity))
             .route("/api/device", post(ServiceHandler::device))
             .route("/api/events", post(ServiceHandler::events));
 

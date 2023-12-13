@@ -12,7 +12,7 @@ use sos_sdk::{
     constants::{
         ACCOUNT_CREATE, EVENT_LOG_DIFF, EVENT_LOG_LOAD,
         EVENT_LOG_PATCH, EVENT_LOG_STATUS, HANDSHAKE_INITIATE,
-        IDENTITY_PATCH, MIME_TYPE_RPC, SYNC_RESOLVE, SYNC_STATUS,
+        MIME_TYPE_RPC, SYNC_RESOLVE, SYNC_STATUS,
     },
     decode,
     device::DevicePublicKey,
@@ -473,36 +473,6 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result.ok()))
     }
 
-    async fn try_patch_identity(
-        &self,
-        commit_proof: &CommitProof,
-        patch: &FolderPatch,
-    ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
-        let url = self.origin.url.join("api/identity")?;
-        let id = self.next_id().await;
-        let buffer = encode(patch).await?;
-        let request = RequestMessage::new(
-            Some(id),
-            IDENTITY_PATCH,
-            commit_proof,
-            Cow::Owned(buffer),
-        )?;
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
-        let signature =
-            encode_signature(self.signer.sign(&body).await?).await?;
-        let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, signature, body).await?;
-        let response = self.check_response(response).await?;
-        let maybe_retry = self
-            .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
-                response.status(),
-                &response.bytes().await?,
-            )
-            .await?;
-        maybe_retry.map(|result, _| Ok(result?))
-    }
-
     async fn try_diff_folder(
         &self,
         folder_id: &VaultId,
@@ -740,47 +710,6 @@ impl Client for RpcClient {
             .ok_or(Error::ResponseCode(status))?;
 
         Ok(decode(&body).await?)
-    }
-
-    /*
-    async fn pull(
-        &self,
-        local_status: &SyncStatus,
-    ) -> std::result::Result<SyncDiff, Self::Error> {
-        let span = span!(Level::DEBUG, "pull");
-        let _enter = span.enter();
-
-        let (status, body) = retry!(|| self.try_pull(local_status), self);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok(decode(&body).await?)
-    }
-    */
-
-    async fn patch_identity(
-        &self,
-        proof: &CommitProof,
-        patch: &FolderPatch,
-    ) -> Result<()> {
-        let span = span!(Level::DEBUG, "patch_identity");
-        let _enter = span.enter();
-
-        let (status, _) =
-            retry!(|| self.try_patch_identity(proof, patch), self);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(())
     }
 
     async fn diff_folder(
