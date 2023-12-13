@@ -350,38 +350,4 @@ pub trait Client {
         local_status: &SyncStatus,
         diff: &SyncDiff,
     ) -> std::result::Result<SyncDiff, Self::Error>;
-
-    /// Diff of events for a folder on remote.
-    ///
-    /// Returns the number of events in the patch and
-    /// a buffer that can be decoded to a `FolderPatch`.
-    async fn diff_folder(
-        &self,
-        folder_id: &VaultId,
-        last_commit: &CommitHash,
-        proof: &CommitProof,
-    ) -> std::result::Result<(usize, Vec<u8>), Self::Error>;
-
-    /// Load a buffer of the entire event log for a folder.
-    ///
-    /// The folder must already exist on the remote.
-    async fn folder_events(
-        &self,
-        folder_id: &VaultId,
-    ) -> std::result::Result<(CommitProof, Vec<u8>), Self::Error>;
-
-    /// Commit state of a folder on a remote.
-    async fn folder_status(
-        &self,
-        folder_id: &VaultId,
-        proof: Option<&CommitProof>,
-    ) -> std::result::Result<(CommitState, Option<CommitProof>), Self::Error>;
-
-    /// Patch a folder on the remote, the folder must already exist.
-    async fn patch_folder(
-        &self,
-        folder_id: &VaultId,
-        proof: &CommitProof,
-        patch: &FolderPatch,
-    ) -> std::result::Result<(CommitProof, Option<CommitProof>), Self::Error>;
 }

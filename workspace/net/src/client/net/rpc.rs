@@ -10,9 +10,7 @@ use serde_json::Value;
 use sos_sdk::{
     commit::{CommitHash, CommitProof, CommitState},
     constants::{
-        ACCOUNT_CREATE, EVENT_LOG_DIFF, EVENT_LOG_LOAD,
-        EVENT_LOG_PATCH, EVENT_LOG_STATUS, HANDSHAKE_INITIATE,
-        MIME_TYPE_RPC, SYNC_RESOLVE, SYNC_STATUS,
+        ACCOUNT_CREATE, HANDSHAKE_INITIATE, MIME_TYPE_RPC, SYNC_RESOLVE, SYNC_STATUS,
     },
     decode,
     device::DevicePublicKey,
@@ -407,36 +405,6 @@ impl RpcClient {
         maybe_retry.map(|result, body| Ok(body))
     }
 
-    /*
-    /// Try to pull from a remote.
-    async fn try_pull(
-        &self,
-        local_status: &SyncStatus,
-    ) -> Result<MaybeRetry<Vec<u8>>> {
-        let url = self.origin.url.join("api/sync")?;
-
-        let id = self.next_id().await;
-        let request =
-            RequestMessage::new_call(Some(id), SYNC_PULL, local_status)?;
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
-        let signature =
-            encode_signature(self.signer.sign(&body).await?).await?;
-
-        let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, signature, body).await?;
-        let response = self.check_response(response).await?;
-        let maybe_retry = self
-            .read_encrypted_response::<()>(
-                response.status(),
-                &response.bytes().await?,
-            )
-            .await?;
-
-        maybe_retry.map(|result, body| Ok(body))
-    }
-    */
-
     /// Try to create a new account.
     async fn try_create_account(
         &self,
@@ -471,112 +439,6 @@ impl RpcClient {
             .await?;
 
         maybe_retry.map(|result, _| Ok(result.ok()))
-    }
-
-    async fn try_diff_folder(
-        &self,
-        folder_id: &VaultId,
-        last_commit: &CommitHash,
-        proof: &CommitProof,
-    ) -> Result<MaybeRetry<(usize, Vec<u8>)>> {
-        let url = self.origin.url.join("api/events")?;
-        let id = self.next_id().await;
-        let body =
-            new_rpc_call(id, EVENT_LOG_DIFF, (folder_id, last_commit, proof))
-                .await?;
-        let signature =
-            encode_signature(self.signer.sign(&body).await?).await?;
-        let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, signature, body).await?;
-        let response = self.check_response(response).await?;
-        let maybe_retry = self
-            .read_encrypted_response::<usize>(
-                response.status(),
-                &response.bytes().await?,
-            )
-            .await?;
-
-        maybe_retry.map(|result, body| Ok((result?, body)))
-    }
-
-    async fn try_folder_events(
-        &self,
-        folder_id: &VaultId,
-    ) -> Result<MaybeRetry<(CommitProof, Vec<u8>)>> {
-        let url = self.origin.url.join("api/events")?;
-        let id = self.next_id().await;
-        let body = new_rpc_call(id, EVENT_LOG_LOAD, folder_id).await?;
-        let signature =
-            encode_signature(self.signer.sign(&body).await?).await?;
-        let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, signature, body).await?;
-        let response = self.check_response(response).await?;
-        let maybe_retry = self
-            .read_encrypted_response::<CommitProof>(
-                response.status(),
-                &response.bytes().await?,
-            )
-            .await?;
-
-        maybe_retry.map(|result, body| Ok((result?, body)))
-    }
-
-    async fn try_folder_status(
-        &self,
-        folder_id: &VaultId,
-        proof: Option<&CommitProof>,
-    ) -> Result<MaybeRetry<(CommitState, Option<CommitProof>)>> {
-        let url = self.origin.url.join("api/events")?;
-        let id = self.next_id().await;
-        let body =
-            new_rpc_call(id, EVENT_LOG_STATUS, (folder_id, proof)).await?;
-        let signature =
-            encode_signature(self.signer.sign(&body).await?).await?;
-        let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, signature, body).await?;
-        let response = self.check_response(response).await?;
-        let maybe_retry = self
-            .read_encrypted_response::<(CommitState, Option<CommitProof>)>(
-                response.status(),
-                &response.bytes().await?,
-            )
-            .await?;
-
-        maybe_retry.map(|result, _| Ok(result?))
-    }
-
-    async fn try_patch_folder(
-        &self,
-        folder_id: &VaultId,
-        proof: &CommitProof,
-        patch: &FolderPatch,
-    ) -> Result<MaybeRetry<(CommitProof, Option<CommitProof>)>> {
-        let url = self.origin.url.join("api/events")?;
-
-        let id = self.next_id().await;
-        let body = encode(patch).await?;
-        let request = RequestMessage::new(
-            Some(id),
-            EVENT_LOG_PATCH,
-            (folder_id, proof),
-            Cow::Owned(body),
-        )?;
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
-        let signature =
-            encode_signature(self.signer.sign(&body).await?).await?;
-
-        let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, signature, body).await?;
-        let response = self.check_response(response).await?;
-        let maybe_retry = self
-            .read_encrypted_response::<(CommitProof, Option<CommitProof>)>(
-                response.status(),
-                &response.bytes().await?,
-            )
-            .await?;
-
-        maybe_retry.map(|result, _| Ok(result?))
     }
 
     /// Build an encrypted request.
@@ -712,90 +574,4 @@ impl Client for RpcClient {
         Ok(decode(&body).await?)
     }
 
-    async fn diff_folder(
-        &self,
-        folder_id: &VaultId,
-        last_commit: &CommitHash,
-        proof: &CommitProof,
-    ) -> Result<(usize, Vec<u8>)> {
-        let span = span!(Level::DEBUG, "diff_folder");
-        let _enter = span.enter();
-
-        let (status, value) = retry!(
-            || self.try_diff_folder(folder_id, last_commit, proof),
-            self
-        );
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok(value)
-    }
-
-    async fn folder_events(
-        &self,
-        folder_id: &VaultId,
-    ) -> Result<(CommitProof, Vec<u8>)> {
-        let span = span!(Level::DEBUG, "folder_events");
-        let _enter = span.enter();
-
-        let (status, value) =
-            retry!(|| self.try_folder_events(folder_id), self);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok(value)
-    }
-
-    async fn folder_status(
-        &self,
-        folder_id: &VaultId,
-        proof: Option<&CommitProof>,
-    ) -> Result<(CommitState, Option<CommitProof>)> {
-        let span = span!(Level::DEBUG, "folder_status");
-        let _enter = span.enter();
-
-        let (status, value) =
-            retry!(|| self.try_folder_status(folder_id, proof), self);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok(value)
-    }
-
-    async fn patch_folder(
-        &self,
-        folder_id: &VaultId,
-        proof: &CommitProof,
-        patch: &FolderPatch,
-    ) -> Result<(CommitProof, Option<CommitProof>)> {
-        let span = span!(Level::DEBUG, "patch_folder");
-        let _enter = span.enter();
-
-        let (status, value) =
-            retry!(|| self.try_patch_folder(folder_id, &proof, &patch), self);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok(value)
-    }
 }

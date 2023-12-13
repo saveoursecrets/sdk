@@ -123,18 +123,6 @@ mod rpc {
 
     /// Sync resolve method call.
     pub const SYNC_RESOLVE: &str = "Sync.resolve";
-
-    /// Event log load method call.
-    pub const EVENT_LOG_LOAD: &str = "Events.load";
-
-    /// Event log status method call.
-    pub const EVENT_LOG_STATUS: &str = "Events.status";
-
-    /// Event log diff method call.
-    pub const EVENT_LOG_DIFF: &str = "Events.diff";
-
-    /// Event log patch method call.
-    pub const EVENT_LOG_PATCH: &str = "Events.patch";
 }
 
 /// Constants for directory names.
