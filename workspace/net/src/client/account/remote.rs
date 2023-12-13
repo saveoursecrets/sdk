@@ -161,7 +161,7 @@ impl RemoteBridge {
             let pull =
                 self.remote.sync(&comparison.local_status, &push).await?;
 
-            storage.apply_diff(&pull, Default::default()).await?;
+            storage.merge_diff(&pull, Default::default()).await?;
 
             // TODO: apply event data from remote!
         }

@@ -19,6 +19,12 @@ use crate::{
 };
 use std::sync::Arc;
 
+#[cfg(feature = "listen")]
+use crate::events::ChangeNotification;
+
+#[cfg(feature = "listen")]
+use super::send_notification;
+
 /// Sync service.
 ///
 /// * `Sync.status`: Status overview of an account.
@@ -35,7 +41,7 @@ impl Service for SyncService {
         state: Self::State,
         request: RequestMessage<'a>,
     ) -> Result<ResponseMessage<'a>> {
-        let (caller, (_state, backend)) = state;
+        let (caller, (state, backend)) = state;
 
         match request.method() {
             SYNC_STATUS => {
@@ -73,11 +79,11 @@ impl Service for SyncService {
                 let mut diff: SyncDiff = decode(request.body()).await?;
 
                 // Apply the diff to the storage
-                {
+                let num_changes = {
                     let mut writer = account.write().await;
                     writer
                         .folders
-                        .apply_diff(
+                        .merge_diff(
                             &diff,
                             ApplyDiffOptions {
                                 // Must replay the account events here
@@ -86,8 +92,8 @@ impl Service for SyncService {
                                 replay_account_events: true,
                             },
                         )
-                        .await?;
-                }
+                        .await?
+                };
 
                 // Generate a new diff so the client can apply changes
                 // that exist in remote but not in the local
@@ -100,6 +106,21 @@ impl Service for SyncService {
                     (comparison.local_status, diff)
                 };
 
+                #[cfg(feature = "listen")]
+                if num_changes > 0 {
+                    let notification = ChangeNotification::new(
+                        caller.address(),
+                        caller.public_key(),
+                    );
+
+                    let mut writer = state.write().await;
+                    send_notification(
+                        &mut writer,
+                        &caller,
+                        notification,
+                    );
+                }
+
                 let buffer = encode(&diff).await?;
                 let reply = ResponseMessage::new(
                     request.id(),
@@ -107,6 +128,7 @@ impl Service for SyncService {
                     Some(Ok(&local_status)),
                     Cow::Owned(buffer),
                 )?;
+
                 Ok(reply)
             }
             _ => Err(Error::RpcUnknownMethod(request.method().to_owned())),

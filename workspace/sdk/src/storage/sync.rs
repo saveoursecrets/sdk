@@ -152,15 +152,18 @@ impl Storage {
         })
     }
 
-    /// Apply a diff to this storage.
-    pub async fn apply_diff(
+    /// Merge a diff into this storage.
+    pub async fn merge_diff(
         &mut self,
         diff: &SyncDiff,
         options: ApplyDiffOptions,
-    ) -> Result<()> {
+    ) -> Result<usize> {
+        let mut num_changes = 0;
+        
         if let Some(diff) = &diff.identity {
             let mut writer = self.identity_log.write().await;
             writer.patch_checked(&diff.before, &diff.patch).await?;
+            num_changes += diff.patch.len();
         }
 
         if let Some(diff) = &diff.account {
@@ -170,6 +173,7 @@ impl Storage {
             } else {
                 self.replay_account_events(diff).await?;
             }
+            num_changes += diff.patch.len();
         }
 
         for (id, diff) in &diff.folders {
@@ -179,9 +183,10 @@ impl Storage {
                 .ok_or_else(|| Error::CacheNotAvailable(*id))?;
 
             log.patch_checked(&diff.before, &diff.patch).await?;
+            num_changes += diff.patch.len();
         }
 
-        Ok(())
+        Ok(num_changes)
     }
 
     async fn replay_account_events(
