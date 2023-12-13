@@ -124,12 +124,6 @@ mod rpc {
     /// Sync resolve method call.
     pub const SYNC_RESOLVE: &str = "Sync.resolve";
 
-    /// Vault create method call.
-    pub const VAULT_CREATE: &str = "Vault.create";
-
-    /// Vault delete method call.
-    pub const VAULT_DELETE: &str = "Vault.delete";
-
     /// Event log load method call.
     pub const EVENT_LOG_LOAD: &str = "Events.load";
 

@@ -358,18 +358,6 @@ pub trait Client {
         patch: &FolderPatch,
     ) -> std::result::Result<(), Self::Error>;
 
-    /// Create a folder on the remote.
-    async fn create_folder(
-        &self,
-        buffer: &[u8],
-    ) -> std::result::Result<CommitProof, Self::Error>;
-
-    /// Delete a folder on remote.
-    async fn delete_folder(
-        &self,
-        id: &VaultId,
-    ) -> std::result::Result<CommitProof, Self::Error>;
-
     /// Diff of events for a folder on remote.
     ///
     /// Returns the number of events in the patch and

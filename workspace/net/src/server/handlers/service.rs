@@ -11,7 +11,6 @@ use crate::server::{
     services::{
         private_service, public_service, AccountService, DeviceService,
         EventLogService, HandshakeService, IdentityService, SyncService,
-        VaultService,
     },
     ServerBackend, ServerState,
 };
@@ -81,20 +80,6 @@ impl ServiceHandler {
         body: Bytes,
     ) -> impl IntoResponse {
         let service = IdentityService {};
-        match private_service(service, state, backend, bearer, body).await {
-            Ok(result) => result.into_response(),
-            Err(error) => error.into_response(),
-        }
-    }
-
-    /// Handle requests for the vault service.
-    pub(crate) async fn vault(
-        Extension(state): Extension<ServerState>,
-        Extension(backend): Extension<ServerBackend>,
-        TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
-        body: Bytes,
-    ) -> impl IntoResponse {
-        let service = VaultService {};
         match private_service(service, state, backend, bearer, body).await {
             Ok(result) => result.into_response(),
             Err(error) => error.into_response(),

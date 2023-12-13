@@ -220,7 +220,6 @@ impl Server {
             .route("/api/sync", post(ServiceHandler::sync))
             .route("/api/identity", post(ServiceHandler::identity))
             .route("/api/device", post(ServiceHandler::device))
-            .route("/api/vault", post(ServiceHandler::vault))
             .route("/api/events", post(ServiceHandler::events));
 
         #[cfg(feature = "listen")]
