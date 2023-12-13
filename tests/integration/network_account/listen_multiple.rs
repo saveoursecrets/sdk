@@ -9,7 +9,6 @@ const TEST_ID: &str = "sync_listen_multiple";
 ///
 /// Verifies the server is broadasting change
 /// notifications as expected.
-#[ignore = "need to restore change notifications"]
 #[tokio::test]
 async fn integration_sync_listen_multiple() -> Result<()> {
     //crate::test_utils::init_tracing();

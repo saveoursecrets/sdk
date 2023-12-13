@@ -8,7 +8,6 @@ const TEST_ID: &str = "sync_listen_delete_secret";
 /// Tests syncing delete secret events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
-#[ignore = "need to restore change notifications"]
 #[tokio::test]
 async fn integration_sync_listen_delete_secret() -> Result<()> {
     //crate::test_utils::init_tracing();

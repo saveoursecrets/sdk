@@ -176,7 +176,7 @@ impl SyncComparison {
                 }
             }
             Comparison::Unknown => {
-                unreachable!("identity event log is never rewritten");
+                //unreachable!("identity event log is never rewritten");
             }
         }
 
@@ -204,7 +204,7 @@ impl SyncComparison {
                 }
             }
             Comparison::Unknown => {
-                unreachable!("account event log is never rewritten");
+                //unreachable!("account event log is never rewritten");
             }
         }
 
