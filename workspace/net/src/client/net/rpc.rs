@@ -8,7 +8,6 @@ use http::{
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use sos_sdk::{
-    commit::{CommitHash, CommitProof, CommitState},
     constants::{
         ACCOUNT_CREATE, HANDSHAKE_INITIATE, MIME_TYPE_RPC, SYNC_RESOLVE, SYNC_STATUS,
     },
@@ -17,9 +16,8 @@ use sos_sdk::{
     encode,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     sync::{
-        ChangeSet, Client, FolderPatch, SyncComparison, SyncDiff, SyncStatus,
+        ChangeSet, Client, SyncDiff, SyncStatus,
     },
-    vault::{Summary, VaultId},
 };
 
 use mpc_protocol::{

@@ -250,7 +250,7 @@ mod listen {
             sync::RemoteSync, Error, ListenOptions, RemoteBridge, Result,
             WebSocketHandle,
         },
-        events::{ChangeEvent, ChangeNotification},
+        events::ChangeNotification,
     };
     use sos_sdk::prelude::{
         AccountEvent, Event, FolderRef, VaultId, WriteEvent,

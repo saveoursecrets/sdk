@@ -1,16 +1,13 @@
 use axum::http::StatusCode;
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
 use sos_sdk::{
-    commit::CommitProof,
     constants::{SYNC_RESOLVE, SYNC_STATUS},
     decode, encode,
-    events::AccountEvent,
     sync::{
-        AccountDiff, ApplyDiffOptions, CheckedPatch, FolderDiff, FolderPatch,
+        ApplyDiffOptions, 
         SyncComparison, SyncDiff, SyncStatus,
     },
-    vault::VaultId,
 };
 
 use async_trait::async_trait;
@@ -24,6 +21,7 @@ use std::sync::Arc;
 
 /// Sync service.
 ///
+/// * `Sync.status`: Status overview of an account.
 /// * `Sync.resolve`: Apply a diff from a client and reply with a diff.
 ///
 pub struct SyncService;
@@ -70,8 +68,6 @@ impl Service for SyncService {
                         .ok_or_else(|| Error::NoAccount(*caller.address()))?;
                     Arc::clone(account)
                 };
-
-                println!("SYNC_RESOLVE");
 
                 let mut remote_status = request.parameters::<SyncStatus>()?;
                 let mut diff: SyncDiff = decode(request.body()).await?;

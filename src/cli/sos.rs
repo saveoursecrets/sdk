@@ -1,12 +1,12 @@
 use clap::{Parser, Subcommand};
 use sos_net::sdk::{
-    hex, identity::AccountRef, url::Url, vault::FolderRef, Paths,
+    identity::AccountRef, vault::FolderRef, Paths,
 };
 use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, changes, check, device, events, folder, secret,
+        account, audit, check, device, events, folder, secret,
         security_report::{self, SecurityReportFormat},
         shell, AccountCommand, AuditCommand, CheckCommand, DeviceCommand,
         EventsCommand, FolderCommand, SecretCommand,
@@ -102,20 +102,6 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: AuditCommand,
     },
-
-    /// Listen to changes event stream.
-    Changes {
-        /// Server URL.
-        #[clap(short, long)]
-        server: Url,
-
-        /// Public key of the remote server.
-        public_key: String,
-
-        /// Account name or address.
-        #[clap(short, long)]
-        account: AccountRef,
-    },
     /// Check file status and integrity.
     Check {
         #[clap(subcommand)]
@@ -172,14 +158,6 @@ pub async fn run() -> Result<()> {
         }
         Command::Secret { cmd } => secret::run(cmd).await?,
         Command::Audit { cmd } => audit::run(cmd).await?,
-        Command::Changes {
-            server,
-            public_key,
-            account,
-        } => {
-            let server_public_key = hex::decode(&public_key)?;
-            changes::run(server, server_public_key, account).await?
-        }
         Command::Check { cmd } => check::run(cmd).await?,
         Command::Events { cmd } => events::run(cmd).await?,
         Command::Shell { account, folder } => {

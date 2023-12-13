@@ -98,22 +98,18 @@ fn send_notification(
     _caller: &Caller,
     notification: ChangeNotification,
 ) {
-    // Changes can be empty for non-mutating sync events
-    // that correspond to audit logs; for example, reading secrets
-    if !notification.changes().is_empty() {
-        // Send notification on the websockets channel
-        match serde_json::to_vec(&notification) {
-            Ok(buffer) => {
-                if let Some(conn) = writer.sockets.get(notification.address())
-                {
-                    if conn.tx.send(buffer).is_err() {
-                        tracing::debug!("websocket events channel dropped");
-                    }
+    // Send notification on the websockets channel
+    match serde_json::to_vec(&notification) {
+        Ok(buffer) => {
+            if let Some(conn) = writer.sockets.get(notification.address())
+            {
+                if conn.tx.send(buffer).is_err() {
+                    tracing::debug!("websocket events channel dropped");
                 }
             }
-            Err(e) => {
-                tracing::error!("{}", e);
-            }
+        }
+        Err(e) => {
+            tracing::error!("{}", e);
         }
     }
 }

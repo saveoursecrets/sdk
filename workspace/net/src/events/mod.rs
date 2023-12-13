@@ -4,4 +4,4 @@
 mod change;
 
 #[cfg(feature = "listen")]
-pub use change::{ChangeEvent, ChangeNotification};
+pub use change::ChangeNotification;
