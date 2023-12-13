@@ -599,7 +599,7 @@ impl Storage {
     /// folder is the currently open folder then the
     /// in-memory `Gatekeeper` is updated to use the new
     /// access key.
-    pub async fn refresh_vault(
+    async fn refresh_vault(
         &mut self,
         summary: &Summary,
         new_key: Option<&AccessKey>,
@@ -694,13 +694,13 @@ impl Storage {
     }
 
     /// Read a vault from the file on disc.
-    pub async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
+    pub(crate) async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
         let buffer = self.read_vault_file(id).await?;
         Ok(decode(&buffer).await?)
     }
 
     /// Read the buffer for a vault from disc.
-    pub async fn read_vault_file(&self, id: &VaultId) -> Result<Vec<u8>> {
+    async fn read_vault_file(&self, id: &VaultId) -> Result<Vec<u8>> {
         let vault_path = self.paths.vault_path(id);
         Ok(vfs::read(vault_path).await?)
     }
@@ -849,7 +849,7 @@ impl Storage {
     }
 
     /// Remove a vault file and event log file.
-    pub async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
+    async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
         // Remove local vault mirror if it exists
         let vault_path = self.paths.vault_path(summary.id());
         if vfs::try_exists(&vault_path).await? {
@@ -943,7 +943,7 @@ impl Storage {
     }
 
     /// Update an existing vault by replacing it with a new vault.
-    pub async fn update_vault(
+    async fn update_vault(
         &mut self,
         summary: &Summary,
         vault: &Vault,
@@ -996,7 +996,7 @@ impl Storage {
     }
 
     /// Load a vault by reducing it from the event log stored on disc.
-    pub async fn reduce_event_log(
+    async fn reduce_event_log(
         &mut self,
         summary: &Summary,
     ) -> Result<Vault> {
@@ -1145,7 +1145,7 @@ impl Storage {
     /// If the storage is mirroring changes to vault files
     /// the events are written to the vault file before
     /// applying to the folder event log.
-    pub async fn patch(
+    async fn patch(
         &mut self,
         summary: &Summary,
         events: Vec<&WriteEvent>,
