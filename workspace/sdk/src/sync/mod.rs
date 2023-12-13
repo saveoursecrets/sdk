@@ -88,17 +88,6 @@ pub struct SyncDiff {
     pub folders: HashMap<VaultId, FolderDiff>,
 }
 
-/// Indices on the client for the server to prove.
-#[derive(Default, Debug)]
-pub struct SyncRangeProof {
-    /// Indices of the identity commit tree range.
-    pub identity: Option<Range<usize>>,
-    /// Indices of the account commit tree range.
-    pub account: Option<Range<usize>>,
-    /// Indices of the folders commit tree range.
-    pub folders: HashMap<VaultId, Range<usize>>,
-}
-
 /// Comparison between local and remote status.
 #[derive(Debug)]
 pub struct SyncComparison {
@@ -159,59 +148,6 @@ impl SyncComparison {
     pub fn needs_sync(&self) -> bool {
         self.local_status != self.remote_status
     }
-
-    /*
-    /// Generate a range of indices for every event
-    /// log which produced an unknown comparison.
-    ///
-    /// An unknown comparison will be generated if the
-    /// other tree is ahead of ours (pull is required).
-    pub fn range_proof(&self) -> Option<SyncRangeProof> {
-        let identity = if let Comparison::Unknown = &self.identity {
-            Some(self.local_status.identity.1.indices.clone())
-        } else {
-            None
-        };
-
-        let account = if let Comparison::Unknown = &self.account {
-            Some(self.local_status.account.1.indices.clone())
-        } else {
-            None
-        };
-
-        let mut folders = HashMap::new();
-        for (id, folder) in &self.folders {
-            if let Comparison::Unknown = &folder {
-                let indices = self
-                    .local_status
-                    .folders
-                    .get(id)
-                    .unwrap()
-                    .1
-                    .indices
-                    .clone();
-                folders.insert(*id, indices);
-            }
-        }
-
-        let has_unknown =
-            identity.is_some() || account.is_some() || !folders.is_empty();
-
-        //println!("range_proof {:#?}", identity);
-        //println!("range_proof {:#?}", account);
-        //println!("range_proof {:#?}", folders);
-
-        if has_unknown {
-            Some(SyncRangeProof {
-                identity,
-                account,
-                folders,
-            })
-        } else {
-            None
-        }
-    }
-    */
 
     /// Build a diff from this comparison.
     pub async fn diff(&self, storage: &Storage) -> Result<SyncDiff> {
