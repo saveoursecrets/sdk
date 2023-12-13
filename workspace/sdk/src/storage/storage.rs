@@ -809,6 +809,8 @@ impl Storage {
     ///
     /// If a folder with the same identifier already exists
     /// it is overwritten.
+    ///
+    /// Buffer is the encoded representation of the vault.
     pub async fn import_folder(
         &mut self,
         buffer: impl AsRef<[u8]>,
@@ -821,7 +823,10 @@ impl Storage {
         // and we are overwriting then log the update
         // folder event
         let account_event = if exists {
-            AccountEvent::UpdateFolder(*summary.id())
+            AccountEvent::UpdateFolder(
+                *summary.id(),
+                buffer.as_ref().to_owned(),
+            )
         // Otherwise a create event
         } else {
             AccountEvent::CreateFolder(

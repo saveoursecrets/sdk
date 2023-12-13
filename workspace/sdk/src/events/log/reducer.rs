@@ -30,11 +30,11 @@ impl<'a> AccountReducer<'a> {
         for record in events {
             let event = record.decode_event::<AccountEvent>().await?;
             match event {
-                AccountEvent::CreateFolder(id, _) => {
+                AccountEvent::UpdateFolder(id, _)
+                | AccountEvent::CreateFolder(id, _) => {
                     folders.insert(id);
                 }
-                AccountEvent::UpdateFolder(id)
-                | AccountEvent::ChangeFolderPassword(id) => {
+                AccountEvent::ChangeFolderPassword(id) => {
                     folders.insert(id);
                 }
                 AccountEvent::DeleteFolder(id) => {

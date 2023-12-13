@@ -191,10 +191,8 @@ impl Storage {
                 AccountEvent::CreateFolder(id, buf) => {
                     self.import_folder(buf, None).await?;
                 }
-                //AccountEvent::UpdateFolder(id, buf) => {
-                AccountEvent::UpdateFolder(id) => {
-                    println!("HANDLE UPDATE FOLDER EVENT");
-                    //self.import_folder(buf, None).await?;
+                AccountEvent::UpdateFolder(id, buf) => {
+                    self.import_folder(buf, None).await?;
                 }
                 AccountEvent::DeleteFolder(id) => {
                     let summary = self.find(|s| s.id() == id).cloned();

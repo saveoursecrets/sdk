@@ -11,6 +11,8 @@ pub enum AccountEvent {
     Noop,
 
     /// Create folder.
+    ///
+    /// Buffer is a head-only vault.
     CreateFolder(VaultId, Vec<u8>),
 
     /// Folder was updated.
@@ -20,7 +22,9 @@ pub enum AccountEvent {
     ///
     /// This event is destructive as it re-writes
     /// the folder event log.
-    UpdateFolder(VaultId),
+    ///
+    /// Buffer is a vault.
+    UpdateFolder(VaultId, Vec<u8>),
 
     /// Folder events were compacted.
     ///
@@ -44,7 +48,7 @@ impl LogEvent for AccountEvent {
             Self::Noop => EventKind::Noop,
             Self::CreateFolder(_, _) => EventKind::CreateVault,
             Self::CompactFolder(_) => EventKind::CompactVault,
-            Self::UpdateFolder(_) => EventKind::UpdateVault,
+            Self::UpdateFolder(_, _) => EventKind::UpdateVault,
             Self::ChangeFolderPassword(_) => EventKind::ChangePassword,
             Self::DeleteFolder(_) => EventKind::DeleteVault,
         }

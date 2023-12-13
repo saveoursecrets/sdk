@@ -15,7 +15,6 @@ use super::{
 const TEST_ID: &str = "sync_import_folder";
 
 /// Tests sending import folder events to a remote.
-#[ignore = "need to sync identity for this test to pass"]
 #[tokio::test]
 async fn integration_sync_import_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -60,7 +59,6 @@ async fn integration_sync_import_folder() -> Result<()> {
     // Encode for the import
     let buffer = encode(&vault).await?;
     
-    println!("IMPORTING THE FOLDER BUFFER");
     device
         .owner
         .import_folder_buffer(buffer, vault_passphrase, true)

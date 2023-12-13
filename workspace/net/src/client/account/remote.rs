@@ -716,7 +716,7 @@ mod listen {
                     }
                     (ChangeAction::UpdateFolder(event), Some(_)) => {
                         if let Event::Folder(
-                            AccountEvent::UpdateFolder(id),
+                            AccountEvent::UpdateFolder(id, _),
                             WriteEvent::CreateVault(buf),
                         ) = event
                         {
