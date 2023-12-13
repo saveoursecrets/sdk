@@ -120,30 +120,3 @@ impl ChangeEvent {
         }
     }
 }
-
-/// Action corresponding to a change event.
-#[derive(Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ChangeAction {
-    /// Pull updates from a remote node.
-    Pull(VaultId),
-
-    /// Vaults was created on a remote node and the
-    /// local node has fetched the vault summary
-    /// and added it to it's local state.
-    CreateFolder(Event),
-
-    /// Vault was updated on a remote node and the
-    /// local node has fetched the vault summary
-    /// and added it to it's local state.
-    UpdateFolder(Event),
-
-    /// Vault was removed on a remote node and
-    /// the local node has removed it from it's
-    /// local cache.
-    ///
-    /// UI implementations should close an open
-    /// vault if the removed vault is open and
-    /// update the list of vaults.
-    Remove(VaultId),
-}
