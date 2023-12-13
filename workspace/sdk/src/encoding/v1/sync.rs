@@ -27,6 +27,7 @@ where
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         writer.write_bytes(PATCH_IDENTITY).await?;
+        writer.write_u32(self.len() as u32).await?;
         for event in self.iter() {
             event.encode(writer).await?;
         }
@@ -46,13 +47,11 @@ where
         FileIdentity::read_identity(reader, &PATCH_IDENTITY)
             .await
             .map_err(encoding_error)?;
-        let mut pos = reader.stream_position().await?;
-        let len = reader.len().await?;
-        while pos < len {
+        let num_events = reader.read_u32().await?;
+        for _ in 0..num_events {
             let mut event: T = Default::default();
             event.decode(reader).await?;
             self.append(event);
-            pos = reader.stream_position().await?;
         }
         Ok(())
     }
@@ -127,8 +126,8 @@ impl Encodable for SyncDiff {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        
         writer.write_bool(self.identity.is_some()).await?;
+        println!("encoding identity {:#?}", self.identity.is_some());
         if let Some(identity) = &self.identity {
             identity.encode(&mut *writer).await?;
         }
@@ -153,9 +152,9 @@ impl Decodable for SyncDiff {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-
         let has_identity = reader.read_bool().await?;
         if has_identity {
+            println!("Decoding the identity...");
             let mut identity: FolderDiff = Default::default();
             identity.decode(&mut *reader).await?;
             self.identity = Some(identity);
@@ -163,6 +162,7 @@ impl Decodable for SyncDiff {
 
         let has_account = reader.read_bool().await?;
         if has_account {
+            println!("Decoding the account...");
             let mut account: AccountDiff = Default::default();
             account.decode(&mut *reader).await?;
             self.account = Some(account);
@@ -204,12 +204,14 @@ where
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-
-        //let mut before: CommitProof = Default::default();
         self.before.decode(&mut *reader).await?;
-        //let mut after: CommitProof = Default::default();
+            
+        println!("decoded before commit proof");
+
         self.after.decode(&mut *reader).await?;
-        //let mut patch: Patch<T> = Default::default();
+
+        println!("decoded after commit proof");
+
         self.patch.decode(&mut *reader).await?;
 
         Ok(())

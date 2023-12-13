@@ -3,11 +3,11 @@ use std::{borrow::Cow, collections::HashMap};
 
 use sos_sdk::{
     commit::CommitProof,
-    constants::SYNC_PULL,
+    constants::SYNC_RESOLVE,
     decode, encode,
     sync::{
-        AccountDiff, CheckedPatch, FolderDiff, FolderPatch, SyncDiff,
-        SyncStatus,
+        AccountDiff, CheckedPatch, FolderDiff, FolderPatch, SyncComparison,
+        SyncDiff, SyncStatus,
     },
     vault::VaultId,
 };
@@ -39,7 +39,7 @@ impl Service for SyncService {
         let (caller, (_state, backend)) = state;
 
         match request.method() {
-            SYNC_PULL => {
+            SYNC_RESOLVE => {
                 let account = {
                     let reader = backend.read().await;
                     let accounts = reader.accounts();
@@ -50,92 +50,45 @@ impl Service for SyncService {
                     Arc::clone(account)
                 };
 
+                println!("SYNC_RESOLVE");
+
                 let local_status = request.parameters::<SyncStatus>()?;
-                let reader = account.read().await;
-                
-                /*
-                // FIXME: do not trust the client-side proof as `before`
-                // FIXME: instead get the proof of the last commit
-                // FIXME: from each event log
 
-                let identity: FolderDiff = {
-                    let identity_log = reader.folders.identity_log();
-                    let reader = identity_log.read().await;
-                    let after = reader.tree().head()?;
-                    if &after == &local_status.identity.1 {
-                        FolderDiff::Even
-                    } else {
-                        FolderDiff::Patch {
-                            patch: reader
-                                .diff(Some(&local_status.identity.0))
-                                .await?,
-                            after,
-                            before: local_status.identity.1.clone(),
-                        }
-                    }
-                };
+                println!("got local status: {:#?}",
+                    decode::<SyncDiff>(request.body()).await);
 
-                let account: AccountDiff = {
-                    let account_log = reader.folders.account_log();
-                    let reader = account_log.read().await;
-                    let after = reader.tree().head()?;
-                    if &after == &local_status.account.1 {
-                        AccountDiff::Even
-                    } else {
-                        AccountDiff::Patch {
-                            patch: reader
-                                .diff(Some(&local_status.account.0))
-                                .await?,
-                            after,
-                            before: local_status.account.1.clone(),
-                        }
-                    }
-                };
+                let diff: SyncDiff = decode(request.body()).await?;
 
-                let folders: HashMap<VaultId, FolderDiff> = {
-                    let mut folders = HashMap::new();
-                    for (id, commit_state) in local_status.folders {
-                        let event_log =
-                            reader.folders.cache().get(&id).ok_or_else(
-                                || Error::NoFolder(*caller.address(), id),
-                            )?;
+                println!("decoded the diff");
 
-                        let after = event_log.tree().head()?;
+                // Apply the diff to the storage
+                {
+                    let mut writer = account.write().await;
+                    writer.folders.apply_diff(&diff).await?;
+                }
 
-                        let folder = if &after == &commit_state.1 {
-                            FolderDiff::Even
-                        } else {
-                            FolderDiff::Patch {
-                                patch: event_log
-                                    .diff(Some(&commit_state.0))
-                                    .await?,
-                                after,
-                                before: commit_state.1,
-                            }
-                        };
+                println!("applied the diff");
 
-                        folders.insert(id, folder);
-                    }
-                    folders
-                };
-
-                let diff = SyncDiff {
-                    account,
-                    identity,
-                    folders,
+                // Generate a new diff so the client can apply changes
+                // that exist in remote but not in the local
+                let (remote_status, diff) = {
+                    let reader = account.read().await;
+                    let remote_status = reader.folders.sync_status().await?;
+                    let comparison =
+                        SyncComparison::new(&reader.folders, local_status)
+                            .await?;
+                    let diff = comparison.diff(&reader.folders).await?;
+                    (remote_status, diff)
                 };
 
                 let buffer = encode(&diff).await?;
                 let reply = ResponseMessage::new(
                     request.id(),
                     StatusCode::OK,
-                    Some(Ok(())),
+                    Some(Ok(&remote_status)),
                     Cow::Owned(buffer),
                 )?;
                 Ok(reply)
-                */
-
-                todo!();
             }
             _ => Err(Error::RpcUnknownMethod(request.method().to_owned())),
         }

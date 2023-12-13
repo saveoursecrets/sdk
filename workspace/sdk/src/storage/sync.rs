@@ -8,7 +8,7 @@ use crate::{
 
 use std::collections::HashMap;
 
-use crate::sync::{ChangeSet, FolderPatch, SyncStatus};
+use crate::sync::{ChangeSet, FolderPatch, SyncDiff, SyncStatus};
 
 impl Storage {
     /// Create a new vault file on disc and the associated
@@ -146,5 +146,32 @@ impl Storage {
             account,
             folders,
         })
+    }
+
+    /// Apply a diff to this storage.
+    pub async fn apply_diff(&mut self, diff: &SyncDiff) -> Result<()> {
+        if let Some(diff) = &diff.identity {
+            let mut writer = self.identity_log.write().await;
+            writer.patch_checked(&diff.before, &diff.patch).await?;
+        }
+
+        if let Some(diff) = &diff.account {
+            let mut writer = self.account_log.write().await;
+            
+            println!("APPLY CHECKED ACCOUNT PATCH");
+
+            writer.patch_checked(&diff.before, &diff.patch).await?;
+        }
+
+        for (id, diff) in &diff.folders {
+            let log = self
+                .cache
+                .get_mut(id)
+                .ok_or_else(|| Error::CacheNotAvailable(*id))?;
+
+            log.patch_checked(&diff.before, &diff.patch).await?;
+        }
+
+        Ok(())
     }
 }

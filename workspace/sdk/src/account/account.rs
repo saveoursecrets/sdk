@@ -67,13 +67,7 @@ pub trait AccountHandler {
     type Data;
 
     /// Called before changes to the account.
-    async fn before_change(
-        &self,
-        storage: Arc<RwLock<Storage>>,
-        data: &BeforeChange,
-        //folder: &Summary,
-        //commit_state: &CommitState,
-    ) -> Option<CommitState>;
+    async fn before_change(&self, data: &BeforeChange);
 }
 
 type Handler<D> = Box<dyn AccountHandler<Data = D> + Send + Sync>;
@@ -975,12 +969,15 @@ impl<D> Account<D> {
         if apply_changes {
             let storage = self.storage()?;
             if let Some(handler) = &self.handler {
+                handler.before_change(&before_change).await;
+                /*
                 let before_result =
                     handler.before_change(storage, &before_change).await;
 
                 if let Some(new_state) = before_result {
                     before_change.commit_state = new_state;
                 }
+                */
             }
         }
 

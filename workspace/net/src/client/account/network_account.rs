@@ -386,10 +386,14 @@ impl NetworkAccount {
         let (summary, event, commit_state) =
             self.account.create_folder(name).await?;
 
+        /*
         let sync_error = self
             .sync_send_events(&summary, &commit_state, &[event])
             .await
             .err();
+        */
+
+        let sync_error = self.sync().await;
 
         Ok((summary, sync_error))
     }
@@ -404,10 +408,14 @@ impl NetworkAccount {
         let (events, commit_state) =
             self.account.delete_folder(summary).await?;
 
+        /*
         let sync_error = self
             .sync_send_events(&summary, &commit_state, &events)
             .await
             .err();
+        */
+
+        let sync_error = self.sync().await;
 
         Ok(sync_error)
     }
@@ -423,10 +431,14 @@ impl NetworkAccount {
         let (event, commit_state) =
             self.account.rename_folder(summary, name).await?;
 
+        /*
         let sync_error = self
             .sync_send_events(&summary, &commit_state, &[event])
             .await
             .err();
+        */
+
+        let sync_error = self.sync().await;
 
         Ok(sync_error)
     }
@@ -483,10 +495,14 @@ impl NetworkAccount {
             .import_folder_buffer(buffer, key, overwrite)
             .await?;
 
+        /*
         let sync_error = self
             .sync_send_events(&summary, &commit_state, &[event])
             .await
             .err();
+        */
+
+        let sync_error = self.sync().await;
 
         Ok((summary, sync_error))
     }
@@ -516,10 +532,14 @@ impl NetworkAccount {
         let (id, event, commit_state, folder) =
             self.account.create_secret(meta, secret, options).await?;
 
+        /*
         let sync_error = self
             .sync_send_events(&folder, &commit_state, &[event])
             .await
             .err();
+        */
+
+        let sync_error = self.sync().await;
 
         Ok((id, sync_error))
     }
@@ -554,10 +574,14 @@ impl NetworkAccount {
             .update_file(secret_id, meta, path, options, destination)
             .await?;
 
+        /*
         let sync_error = self
             .sync_send_events(&folder, &commit_state, &[event])
             .await
             .err();
+        */
+
+        let sync_error = self.sync().await;
 
         Ok((id, sync_error))
     }
@@ -578,10 +602,14 @@ impl NetworkAccount {
             .update_secret(secret_id, meta, secret, options, destination)
             .await?;
 
+        /*
         let sync_error = self
             .sync_send_events(&folder, &commit_state, &[event])
             .await
             .err();
+        */
+
+        let sync_error = self.sync().await;
 
         Ok((id, sync_error))
     }
@@ -612,10 +640,14 @@ impl NetworkAccount {
         let (event, commit_state, folder) =
             self.account.delete_secret(secret_id, options).await?;
 
+        /*
         let sync_error = self
             .sync_send_events(&folder, &commit_state, &[event])
             .await
             .err();
+        */
+
+        let sync_error = self.sync().await;
 
         Ok(sync_error)
     }

@@ -12,14 +12,16 @@ use sos_sdk::{
     constants::{
         ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, ACCOUNT_STATUS, EVENT_LOG_DIFF,
         EVENT_LOG_LOAD, EVENT_LOG_PATCH, EVENT_LOG_STATUS,
-        HANDSHAKE_INITIATE, IDENTITY_PATCH, MIME_TYPE_RPC, SYNC_PULL,
+        HANDSHAKE_INITIATE, IDENTITY_PATCH, MIME_TYPE_RPC, SYNC_RESOLVE,
         VAULT_CREATE, VAULT_DELETE, VAULT_SAVE,
     },
     decode,
     device::DevicePublicKey,
     encode,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, Client, FolderPatch, SyncDiff, SyncStatus},
+    sync::{
+        ChangeSet, Client, FolderPatch, SyncComparison, SyncDiff, SyncStatus,
+    },
     vault::{Summary, VaultId},
 };
 
@@ -371,6 +373,42 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
+    /// Try to sync with a remote.
+    async fn try_sync(
+        &self,
+        local_status: &SyncStatus,
+        diff: &SyncDiff,
+    ) -> Result<MaybeRetry<Vec<u8>>> {
+        let url = self.origin.url.join("api/sync")?;
+
+        let id = self.next_id().await;
+        let body = encode(diff).await?;
+        let request = RequestMessage::new(
+            Some(id),
+            SYNC_RESOLVE,
+            &local_status,
+            Cow::Owned(body),
+        )?;
+
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
+        let signature =
+            encode_signature(self.signer.sign(&body).await?).await?;
+
+        let body = self.encrypt_request(&body).await?;
+        let response = self.send_request(url, signature, body).await?;
+        let response = self.check_response(response).await?;
+        let maybe_retry = self
+            .read_encrypted_response::<SyncStatus>(
+                response.status(),
+                &response.bytes().await?,
+            )
+            .await?;
+
+        maybe_retry.map(|result, body| Ok(body))
+    }
+
+    /*
     /// Try to pull from a remote.
     async fn try_pull(
         &self,
@@ -398,6 +436,7 @@ impl RpcClient {
 
         maybe_retry.map(|result, body| Ok(body))
     }
+    */
 
     /// Try to create a new account.
     async fn try_create_account(
@@ -788,6 +827,28 @@ impl Client for RpcClient {
         Ok(())
     }
 
+    async fn sync(
+        &self,
+        local_status: &SyncStatus,
+        diff: &SyncDiff,
+    ) -> std::result::Result<SyncDiff, Self::Error> {
+        let span = span!(Level::DEBUG, "sync");
+        let _enter = span.enter();
+
+        let (status, body) =
+            retry!(|| self.try_sync(local_status, diff), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(decode(&body).await?)
+    }
+
+    /*
     async fn pull(
         &self,
         local_status: &SyncStatus,
@@ -806,6 +867,7 @@ impl Client for RpcClient {
 
         Ok(decode(&body).await?)
     }
+    */
 
     async fn patch_identity(
         &self,

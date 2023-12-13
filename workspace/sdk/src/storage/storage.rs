@@ -1163,6 +1163,7 @@ impl Storage {
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
         event_log.apply(events).await?;
 
         Ok(())

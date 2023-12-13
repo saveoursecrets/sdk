@@ -10,7 +10,7 @@ use crate::{
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Range};
 use url::Url;
 
 mod patch;
@@ -36,7 +36,7 @@ pub enum CheckedPatch {
 }
 
 /// Diff between local and remote.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Diff<T>
 where
     T: Default + Encodable + Decodable,
@@ -71,7 +71,7 @@ pub struct SyncStatus {
 }
 
 /// Diff between all events logs on local and remote.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SyncDiff {
     /// Diff of the identity vault event logs.
     pub identity: Option<FolderDiff>,
@@ -81,7 +81,19 @@ pub struct SyncDiff {
     pub folders: HashMap<VaultId, FolderDiff>,
 }
 
+/// Indices on the client for the server to prove.
+#[derive(Default, Debug)]
+pub struct SyncRangeProof {
+    /// Indices of the identity commit tree range.
+    pub identity: Option<Range<usize>>,
+    /// Indices of the account commit tree range.
+    pub account: Option<Range<usize>>,
+    /// Indices of the folders commit tree range.
+    pub folders: HashMap<VaultId, Range<usize>>,
+}
+
 /// Comparison between local and remote status.
+#[derive(Debug)]
 pub struct SyncComparison {
     /// Local sync status.
     pub local_status: SyncStatus,
@@ -101,9 +113,7 @@ impl SyncComparison {
         storage: &Storage,
         remote_status: SyncStatus,
     ) -> Result<SyncComparison> {
-        let local_status = {
-            storage.sync_status().await?
-        };
+        let local_status = { storage.sync_status().await? };
 
         let identity = {
             let identity = storage.identity_log();
@@ -142,13 +152,66 @@ impl SyncComparison {
     pub fn needs_sync(&self) -> bool {
         self.local_status != self.remote_status
     }
-    
+        
+    /*
+    /// Generate a range of indices for every event
+    /// log which produced an unknown comparison.
+    ///
+    /// An unknown comparison will be generated if the 
+    /// other tree is ahead of ours (pull is required).
+    pub fn range_proof(&self) -> Option<SyncRangeProof> {
+        let identity = if let Comparison::Unknown = &self.identity {
+            Some(self.local_status.identity.1.indices.clone())
+        } else {
+            None
+        };
+
+        let account = if let Comparison::Unknown = &self.account {
+            Some(self.local_status.account.1.indices.clone())
+        } else {
+            None
+        };
+
+        let mut folders = HashMap::new();
+        for (id, folder) in &self.folders {
+            if let Comparison::Unknown = &folder {
+                let indices = self
+                    .local_status
+                    .folders
+                    .get(id)
+                    .unwrap()
+                    .1
+                    .indices
+                    .clone();
+                folders.insert(*id, indices);
+            }
+        }
+
+        let has_unknown =
+            identity.is_some() || account.is_some() || !folders.is_empty();
+
+        //println!("range_proof {:#?}", identity);
+        //println!("range_proof {:#?}", account);
+        //println!("range_proof {:#?}", folders);
+
+        if has_unknown {
+            Some(SyncRangeProof {
+                identity,
+                account,
+                folders,
+            })
+        } else {
+            None
+        }
+    }
+    */
+
     /// Build a diff from this comparison.
     pub async fn diff(&self, storage: &Storage) -> Result<SyncDiff> {
         let mut diff: SyncDiff = Default::default();
 
         match self.identity {
-            Comparison::Equal => {},
+            Comparison::Equal => {}
             Comparison::Contains(_, _) => {
                 // Need to push changes to remote
                 let identity: FolderDiff = {
@@ -157,10 +220,10 @@ impl SyncComparison {
                     let after = reader.tree().head()?;
                     FolderDiff {
                         patch: reader
-                            .diff(Some(&self.local_status.identity.0))
+                            .diff(Some(&self.remote_status.identity.0))
                             .await?,
                         after,
-                        before: self.local_status.identity.1.clone(),
+                        before: self.remote_status.identity.1.clone(),
                     }
                 };
                 diff.identity = Some(identity);
@@ -168,10 +231,10 @@ impl SyncComparison {
             Comparison::Unknown => {
                 unreachable!("identity event log is never rewritten");
             }
-        } 
+        }
 
         match self.account {
-            Comparison::Equal => {},
+            Comparison::Equal => {}
             Comparison::Contains(_, _) => {
                 // Need to push changes to remote
                 let account: AccountDiff = {
@@ -180,10 +243,10 @@ impl SyncComparison {
                     let after = reader.tree().head()?;
                     AccountDiff {
                         patch: reader
-                            .diff(Some(&self.local_status.account.0))
+                            .diff(Some(&self.remote_status.account.0))
                             .await?,
                         after,
-                        before: self.local_status.account.1.clone(),
+                        before: self.remote_status.account.1.clone(),
                     }
                 };
                 diff.account = Some(account);
@@ -191,11 +254,17 @@ impl SyncComparison {
             Comparison::Unknown => {
                 unreachable!("account event log is never rewritten");
             }
-        } 
-        
+        }
+
         for (id, folder) in &self.folders {
+            let commit_state = self
+                .remote_status
+                .folders
+                .get(id)
+                .ok_or(Error::CacheNotAvailable(*id))?;
+
             match folder {
-                Comparison::Equal => {},
+                Comparison::Equal => {}
                 Comparison::Contains(_, _) => {
                     // Need to push changes to remote
                     let log = storage
@@ -205,19 +274,17 @@ impl SyncComparison {
 
                     let after = log.tree().head()?;
                     let folder = FolderDiff {
-                        patch: log
-                            .diff(Some(&self.local_status.identity.0))
-                            .await?,
+                        patch: log.diff(Some(&commit_state.0)).await?,
                         after,
-                        before: self.local_status.identity.1.clone(),
+                        before: commit_state.1.clone(),
                     };
-                    
+
                     diff.folders.insert(*id, folder);
                 }
                 Comparison::Unknown => {
-                    todo!("handle folder with diverged trees");
+                    println!("todo! : handle folder with diverged trees");
                 }
-            } 
+            }
         }
 
         Ok(diff)
@@ -256,10 +323,11 @@ pub trait Client {
         &self,
     ) -> std::result::Result<Option<SyncStatus>, Self::Error>;
 
-    /// Pull a diff of patches from the remote.
-    async fn pull(
+    /// Sync with a remote.
+    async fn sync(
         &self,
         local_status: &SyncStatus,
+        diff: &SyncDiff,
     ) -> std::result::Result<SyncDiff, Self::Error>;
 
     /// Patch identity events.

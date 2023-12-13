@@ -21,83 +21,15 @@ pub(super) struct SyncHandler {
     pub(super) remotes: Arc<RwLock<Remotes>>,
 }
 
-impl SyncHandler {
-    /// Try to pull from all remotes.
-    async fn try_pull_all(
-        &self,
-        storage: Arc<RwLock<Storage>>,
-        data: &BeforeChange,
-    ) -> Result<Option<CommitState>> {
-        let mut folder_commit: Option<CommitState> = None;
-        let remotes = self.remotes.read().await;
-        for remote in remotes.values() {
-            let result =
-                remote.pull(&data.sync_status, &Default::default()).await?;
-            // If the folder was changed we need to return the new
-            // commit state so subsequent logic to send data to a remote
-            // uses the updated commit state
-            if let Some(new_state) = result.folders.get(data.folder.id()) {
-                if new_state != &data.commit_state {
-                    folder_commit = Some(new_state.clone());
-                }
-            }
-        }
-
-        Ok(folder_commit)
-
-        /*
-        let mut changed = false;
-        let (last_commit, commit_proof) = commit_state;
-        let mut last_commit = last_commit.clone();
-        let mut commit_proof = commit_proof.clone();
-
-        let remotes = self.remotes.read().await;
-        for remote in remotes.values() {
-            let local_changed = remote
-                .sync_folder(folder, commit_state, None, &Default::default())
-                .await?;
-
-            // If a remote changes were applied to local
-            // we need to recompute the last commit and client proof
-            if local_changed {
-                let reader = storage.read().await;
-                let event_log = reader
-                    .cache()
-                    .get(folder.id())
-                    .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-                last_commit = event_log
-                    .tree()
-                    .last_commit()
-                    .ok_or(Error::NoRootCommit)?;
-                commit_proof = event_log.tree().head()?;
-            }
-
-            changed = changed || local_changed;
-        }
-
-        Ok(if changed {
-            Some((last_commit, commit_proof))
-        } else {
-            None
-        })
-        */
-    }
-}
-
 #[async_trait::async_trait]
 impl AccountHandler for SyncHandler {
     type Data = SyncHandlerData;
 
-    async fn before_change(
-        &self,
-        storage: Arc<RwLock<Storage>>,
-        data: &BeforeChange,
-    ) -> Option<CommitState> {
-        match self.try_pull_all(storage, data).await {
-            Ok(commit_state) => commit_state,
-            Err(e) => {
+    async fn before_change(&self, data: &BeforeChange) {
+        let remotes = self.remotes.read().await;
+        for remote in remotes.values() {
+            if let Some(e) = remote.sync().await {
                 tracing::error!(error = ?e, "failed to sync before change");
-                None
             }
         }
     }
@@ -141,6 +73,7 @@ impl RemoteSync for NetworkAccount {
         }
     }
 
+    /*
     async fn pull(
         &self,
         local_status: &SyncStatus,
@@ -182,6 +115,7 @@ impl RemoteSync for NetworkAccount {
             Err(SyncError::Multiple(errors))
         }
     }
+    */
 
     async fn sync_folder(
         &self,
@@ -228,6 +162,7 @@ impl RemoteSync for NetworkAccount {
         }
     }
 
+    /*
     async fn sync_send_events(
         &self,
         folder: &Summary,
@@ -253,6 +188,7 @@ impl RemoteSync for NetworkAccount {
             Err(SyncError::Multiple(errors))
         }
     }
+    */
 
     fn as_any(&self) -> &(dyn Any + Send + Sync) {
         self

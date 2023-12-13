@@ -36,12 +36,14 @@ pub trait RemoteSync: Sync + Send + Any {
         options: &SyncOptions,
     ) -> Option<SyncError>;
 
+    /*
     /// Pull changes from remote.
     async fn pull(
         &self,
         local_status: &SyncStatus,
         options: &SyncOptions,
     ) -> std::result::Result<SyncStatus, SyncError>;
+    */
 
     /// Sync a folder.
     #[deprecated]
@@ -53,6 +55,7 @@ pub trait RemoteSync: Sync + Send + Any {
         options: &SyncOptions,
     ) -> std::result::Result<bool, SyncError>;
 
+    /*
     /// Send events after changes to the local storage
     /// to a remote.
     ///
@@ -64,6 +67,7 @@ pub trait RemoteSync: Sync + Send + Any {
         commit_state: &CommitState,
         events: &[Event],
     ) -> std::result::Result<(), SyncError>;
+    */
 
     /// Cast to the Any trait.
     fn as_any(&self) -> &(dyn Any + Send + Sync);

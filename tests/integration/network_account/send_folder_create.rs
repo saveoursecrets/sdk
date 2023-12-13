@@ -34,6 +34,9 @@ async fn integration_sync_create_folder() -> Result<()> {
 
     let (new_folder, sync_error) =
         owner.create_folder("sync_folder".to_string()).await?;
+        
+    //println!("{:#?}", sync_error);
+
     assert!(sync_error.is_none());
 
     // Our new local folder should have the single create vault event

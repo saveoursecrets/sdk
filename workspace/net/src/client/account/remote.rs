@@ -261,6 +261,7 @@ impl RemoteBridge {
         Ok(())
     }
     
+    /*
     async fn pull_account2(
         &self,
         local_status: &SyncStatus,
@@ -300,6 +301,7 @@ impl RemoteBridge {
 
         Ok(sync_status)
     }
+    */
 
     /// Send a local patch of events to the remote.
     async fn patch(
@@ -332,20 +334,29 @@ impl RemoteBridge {
     }
 
     async fn sync_account(&self, remote_status: SyncStatus) -> Result<()> {
-
         let comparison = {
             let storage = self.local.read().await;
             // Compare local status to the remote
             SyncComparison::new(&*storage, remote_status).await?
         };
 
-        // Only make network requests when the 
-        // status differ
+        // Only make network requests when the status differ
         if comparison.needs_sync() {
             let mut storage = self.local.write().await;
-            let diff = comparison.diff(&*storage).await?;
+            let push = comparison.diff(&*storage).await?;
             
+            println!("sending diff to the server...");
+
+            let pull = 
+                self.remote.sync(&comparison.local_status, &push).await?;
+
+            println!("GOT SERVER REPLY!!!");
+
+            storage.apply_diff(&pull).await?;
+
+            // TODO: apply event data from remote!
         }
+
         Ok(())
     }
 
@@ -353,8 +364,8 @@ impl RemoteBridge {
         let mut errors = Vec::new();
         match self.remote.sync_status().await {
             Ok(sync_status) => {
-                if let Some(sync_status) = &sync_status {
-                    if let Err(e) = self.pull_account(sync_status).await {
+                if let Some(sync_status) = sync_status {
+                    if let Err(e) = self.sync_account(sync_status).await {
                         errors.push(e);
                     }
                 } else {
@@ -424,7 +435,8 @@ impl RemoteSync for RemoteBridge {
             Some(SyncError::Multiple(errors))
         }
     }
-
+    
+    /*
     async fn pull(
         &self,
         local_status: &SyncStatus,
@@ -434,6 +446,7 @@ impl RemoteSync for RemoteBridge {
             .await
             .map_err(|e| SyncError::One(e))
     }
+    */
 
     async fn sync_folder(
         &self,
@@ -493,7 +506,8 @@ impl RemoteSync for RemoteBridge {
 
         Ok(local_changed)
     }
-
+    
+    /*
     async fn sync_send_events(
         &self,
         folder: &Summary,
@@ -561,6 +575,7 @@ impl RemoteSync for RemoteBridge {
 
         Ok(())
     }
+    */
 
     fn as_any(&self) -> &(dyn Any + Send + Sync) {
         self
