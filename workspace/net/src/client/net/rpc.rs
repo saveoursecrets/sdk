@@ -10,7 +10,7 @@ use serde_json::Value;
 use sos_sdk::{
     commit::{CommitHash, CommitProof, CommitState},
     constants::{
-        ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS, EVENT_LOG_DIFF, EVENT_LOG_LOAD,
+        ACCOUNT_CREATE, EVENT_LOG_DIFF, EVENT_LOG_LOAD,
         EVENT_LOG_PATCH, EVENT_LOG_STATUS, HANDSHAKE_INITIATE,
         IDENTITY_PATCH, MIME_TYPE_RPC, SYNC_RESOLVE, SYNC_STATUS,
         VAULT_CREATE, VAULT_DELETE,
@@ -504,25 +504,6 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result?))
     }
 
-    /// List folders for an account.
-    async fn try_list_folders(&self) -> Result<MaybeRetry<Vec<Summary>>> {
-        let url = self.origin.url.join("api/account")?;
-        let id = self.next_id().await;
-        let body = new_rpc_call(id, ACCOUNT_LIST_VAULTS, ()).await?;
-        let signature =
-            encode_signature(self.signer.sign(&body).await?).await?;
-        let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, signature, body).await?;
-        let response = self.check_response(response).await?;
-        let maybe_retry = self
-            .read_encrypted_response::<Vec<Summary>>(
-                response.status(),
-                &response.bytes().await?,
-            )
-            .await?;
-        maybe_retry.map(|result, _| Ok(result?))
-    }
-
     /// Try to create a new folder on a remote node.
     async fn try_create_folder(
         &self,
@@ -855,21 +836,6 @@ impl Client for RpcClient {
             .then_some(())
             .ok_or(Error::ResponseCode(status))?;
         Ok(())
-    }
-
-    async fn list_folders(&self) -> Result<Vec<Summary>> {
-        let span = span!(Level::DEBUG, "list_folders");
-        let _enter = span.enter();
-
-        let (status, value) = retry!(|| self.try_list_folders(), self);
-
-        tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(value)
     }
 
     async fn create_folder(&self, buffer: &[u8]) -> Result<CommitProof> {

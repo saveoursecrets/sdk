@@ -112,9 +112,6 @@ mod rpc {
     /// Account create method call.
     pub const ACCOUNT_CREATE: &str = "Account.create";
 
-    /// Account list vaults method call.
-    pub const ACCOUNT_LIST_VAULTS: &str = "Account.list_vaults";
-
     /// Device trust method call.
     pub const DEVICE_TRUST: &str = "Device.trust";
 

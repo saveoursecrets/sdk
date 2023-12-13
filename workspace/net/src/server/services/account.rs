@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 
 use sos_sdk::{
-    constants::{ACCOUNT_CREATE, ACCOUNT_LIST_VAULTS},
+    constants::ACCOUNT_CREATE,
     decode,
     device::DevicePublicKey,
     sync::ChangeSet,
@@ -15,16 +15,9 @@ use crate::{
     server::{BackendHandler, Error, Result},
 };
 
-//#[cfg(feature = "listen")]
-//use crate::events::{ChangeEvent, ChangeNotification};
-
-//#[cfg(feature = "listen")]
-//use super::send_notification;
-
 /// Account management service.
 ///
 /// * `Account.create`: Create a new account.
-/// * `Account.list_vaults`: List vault summaries for an account.
 ///
 pub struct AccountService;
 
@@ -71,38 +64,6 @@ impl Service for AccountService {
 
                 let reply: ResponseMessage<'_> =
                     (request.id(), ()).try_into()?;
-
-                /*
-                let vault_id = *summary.id();
-
-                #[cfg(feature = "listen")]
-                {
-                    let notification = ChangeNotification::new(
-                        caller.address(),
-                        caller.public_key(),
-                        &vault_id,
-                        proof,
-                        vec![ChangeEvent::CreateFolder(event.clone())],
-                    );
-
-                    let mut writer = state.write().await;
-                    send_notification(&mut writer, &caller, notification);
-                }
-                */
-
-                Ok(reply)
-            }
-            ACCOUNT_LIST_VAULTS => {
-                let reader = backend.read().await;
-                if !reader.handler().account_exists(caller.address()).await? {
-                    return Ok((StatusCode::NOT_FOUND, request.id()).into());
-                }
-
-                let summaries =
-                    reader.handler().list_folders(caller.address()).await?;
-
-                let reply: ResponseMessage<'_> =
-                    (request.id(), summaries).try_into()?;
 
                 Ok(reply)
             }

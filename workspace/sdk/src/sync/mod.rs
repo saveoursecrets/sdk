@@ -358,11 +358,6 @@ pub trait Client {
         patch: &FolderPatch,
     ) -> std::result::Result<(), Self::Error>;
 
-    /// List folders on the remote.
-    async fn list_folders(
-        &self,
-    ) -> std::result::Result<Vec<Summary>, Self::Error>;
-
     /// Create a folder on the remote.
     async fn create_folder(
         &self,
