@@ -749,7 +749,6 @@ fn copy_file_secret(
             user_data: new_user_data.unwrap_or_else(|| user_data.clone()),
         })
     } else {
-        println!("Doing copy of file secret!!!!");
         Err(Error::NotFileContent)
     }
 }

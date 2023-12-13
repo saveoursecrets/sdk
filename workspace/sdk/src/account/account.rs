@@ -24,7 +24,7 @@ use crate::{
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
-        Gatekeeper, Summary, Vault, VaultId,
+        Gatekeeper, Header, Summary, Vault, VaultId,
     },
     vfs, Error, Paths, Result, Timestamp,
 };
@@ -381,7 +381,13 @@ impl<D> Account<D> {
             let mut events = Vec::new();
 
             for folder in folders {
-                events.push(AccountEvent::CreateFolder(folder.into()));
+                let buffer = vfs::read(paths.vault_path(folder.id())).await?;
+                let vault: Vault = decode(&buffer).await?;
+                let header: Header = vault.into();
+                let head_only: Vault = header.into();
+                let buffer = encode(&head_only).await?;
+                events
+                    .push(AccountEvent::CreateFolder(folder.into(), buffer));
             }
 
             tracing::debug!(init_events_len = %events.len());

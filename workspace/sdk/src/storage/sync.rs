@@ -1,14 +1,14 @@
 //! Synchronization helpers.
 use crate::{
     encode,
-    events::{EventReducer, FolderEventLog, WriteEvent},
+    events::{AccountEvent, EventReducer, FolderEventLog, WriteEvent},
     storage::Storage,
     vfs, Error, Paths, Result,
 };
 
 use std::collections::HashMap;
 
-use crate::sync::{ChangeSet, FolderPatch, SyncDiff, SyncStatus};
+use crate::sync::{ChangeSet, FolderPatch, SyncDiff, SyncStatus, ApplyDiffOptions, AccountDiff};
 
 impl Storage {
     /// Create a new vault file on disc and the associated
@@ -105,6 +105,7 @@ impl Storage {
                 .cache
                 .get(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
             let last_commit =
                 event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
             let head = event_log.tree().head()?;
@@ -149,18 +150,23 @@ impl Storage {
     }
 
     /// Apply a diff to this storage.
-    pub async fn apply_diff(&mut self, diff: &SyncDiff) -> Result<()> {
+    pub async fn apply_diff(
+        &mut self,
+        diff: &SyncDiff,
+        options: ApplyDiffOptions,
+    ) -> Result<()> {
         if let Some(diff) = &diff.identity {
             let mut writer = self.identity_log.write().await;
             writer.patch_checked(&diff.before, &diff.patch).await?;
         }
 
         if let Some(diff) = &diff.account {
-            let mut writer = self.account_log.write().await;
-            
-            println!("APPLY CHECKED ACCOUNT PATCH");
-
-            writer.patch_checked(&diff.before, &diff.patch).await?;
+            if !options.replay_account_events {
+                let mut writer = self.account_log.write().await;
+                writer.patch_checked(&diff.before, &diff.patch).await?;
+            } else {
+                self.replay_account_events(diff).await?;
+            }
         }
 
         for (id, diff) in &diff.folders {
@@ -170,6 +176,31 @@ impl Storage {
                 .ok_or_else(|| Error::CacheNotAvailable(*id))?;
 
             log.patch_checked(&diff.before, &diff.patch).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn replay_account_events(
+        &mut self,
+        diff: &AccountDiff,
+    ) -> Result<()> {
+        // Apply account-level events to this storage
+        for event in diff.patch.iter() {
+            match &event {
+                AccountEvent::CreateFolder(id, buf) => {
+                    self.import_folder(buf, None).await?;
+                }
+                AccountEvent::DeleteFolder(id) => {
+                    let summary = self.find(|s| s.id() == id).cloned();
+                    if let Some(summary) = &summary {
+                        self.delete_folder(summary).await?;
+                    }
+                }
+                _ => {
+                    println!("todo! : apply other account events")
+                }
+            }
         }
 
         Ok(())

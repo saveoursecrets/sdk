@@ -815,7 +815,7 @@ impl Storage {
         key: Option<&AccessKey>,
     ) -> Result<(Event, Summary)> {
         let (exists, write_event, summary) =
-            self.upsert_vault_buffer(buffer, key).await?;
+            self.upsert_vault_buffer(buffer.as_ref(), key).await?;
 
         // If there is an existing folder
         // and we are overwriting then log the update
@@ -824,7 +824,10 @@ impl Storage {
             AccountEvent::UpdateFolder(*summary.id())
         // Otherwise a create event
         } else {
-            AccountEvent::CreateFolder(*summary.id())
+            AccountEvent::CreateFolder(
+                *summary.id(),
+                buffer.as_ref().to_owned(),
+            )
         };
 
         let mut account_log = self.account_log.write().await;
@@ -862,7 +865,8 @@ impl Storage {
         let (buf, key, summary) =
             self.prepare_folder(Some(name), key, false).await?;
 
-        let account_event = AccountEvent::CreateFolder(*summary.id());
+        let account_event =
+            AccountEvent::CreateFolder(*summary.id(), buf.clone());
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
 

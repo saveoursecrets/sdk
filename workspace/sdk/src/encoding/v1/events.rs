@@ -447,8 +447,12 @@ impl Encodable for AccountEvent {
 
         match self {
             AccountEvent::Noop => panic!("attempt to encode a noop"),
+            AccountEvent::CreateFolder(id, buffer) => {
+                writer.write_bytes(id.as_bytes()).await?;
+                writer.write_u32(buffer.len() as u32).await?;
+                writer.write_bytes(buffer).await?;
+            }
             AccountEvent::CompactFolder(id)
-            | AccountEvent::CreateFolder(id)
             | AccountEvent::UpdateFolder(id)
             | AccountEvent::ChangeFolderPassword(id)
             | AccountEvent::DeleteFolder(id) => {
@@ -471,7 +475,9 @@ impl Decodable for AccountEvent {
             EventKind::Noop => panic!("attempt to decode a noop"),
             EventKind::CreateVault => {
                 let id = decode_uuid(&mut *reader).await?;
-                *self = AccountEvent::CreateFolder(id)
+                let len = reader.read_u32().await?;
+                let buffer = reader.read_bytes(len as usize).await?;
+                *self = AccountEvent::CreateFolder(id, buffer)
             }
             EventKind::ChangePassword => {
                 let id = decode_uuid(&mut *reader).await?;

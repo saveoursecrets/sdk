@@ -997,6 +997,12 @@ impl From<Header> for Vault {
     }
 }
 
+impl From<Vault> for Header {
+    fn from(value: Vault) -> Self {
+        value.header
+    }
+}
+
 impl IntoIterator for Vault {
     type Item = (SecretId, VaultCommit);
     type IntoIter = indexmap::map::IntoIter<SecretId, VaultCommit>;

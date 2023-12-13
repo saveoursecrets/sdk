@@ -40,7 +40,7 @@ async fn integration_events_account() -> Result<()> {
         account.create_folder(folder_name.to_string()).await?;
 
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
-    assert!(matches!(event, Some(AccountEvent::CreateFolder(_))));
+    assert!(matches!(event, Some(AccountEvent::CreateFolder(_, _))));
 
     // Now delete the folder
     let commit = event_log.tree().last_commit();

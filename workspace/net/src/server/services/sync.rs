@@ -5,9 +5,10 @@ use sos_sdk::{
     commit::CommitProof,
     constants::SYNC_RESOLVE,
     decode, encode,
+    events::AccountEvent,
     sync::{
         AccountDiff, CheckedPatch, FolderDiff, FolderPatch, SyncComparison,
-        SyncDiff, SyncStatus,
+        SyncDiff, SyncStatus, ApplyDiffOptions,
     },
     vault::VaultId,
 };
@@ -23,7 +24,7 @@ use std::sync::Arc;
 
 /// Sync service.
 ///
-/// * `Sync.pull`: Pull changes from a remote account.
+/// * `Sync.resolve`: Apply a diff from a client and reply with a diff.
 ///
 pub struct SyncService;
 
@@ -50,42 +51,42 @@ impl Service for SyncService {
                     Arc::clone(account)
                 };
 
-                println!("SYNC_RESOLVE");
-
-                let local_status = request.parameters::<SyncStatus>()?;
-
-                println!("got local status: {:#?}",
-                    decode::<SyncDiff>(request.body()).await);
-
-                let diff: SyncDiff = decode(request.body()).await?;
-
-                println!("decoded the diff");
+                let mut remote_status = request.parameters::<SyncStatus>()?;
+                let mut diff: SyncDiff = decode(request.body()).await?;
 
                 // Apply the diff to the storage
                 {
                     let mut writer = account.write().await;
-                    writer.folders.apply_diff(&diff).await?;
+                    writer
+                        .folders
+                        .apply_diff(
+                            &diff,
+                            ApplyDiffOptions {
+                                // Must replay the account events here 
+                                // so the folder event logs are available
+                                // before we perform a comparison below
+                                replay_account_events: true,
+                            },
+                        )
+                        .await?;
                 }
-
-                println!("applied the diff");
 
                 // Generate a new diff so the client can apply changes
                 // that exist in remote but not in the local
-                let (remote_status, diff) = {
+                let (local_status, diff) = {
                     let reader = account.read().await;
-                    let remote_status = reader.folders.sync_status().await?;
                     let comparison =
-                        SyncComparison::new(&reader.folders, local_status)
+                        SyncComparison::new(&reader.folders, remote_status)
                             .await?;
                     let diff = comparison.diff(&reader.folders).await?;
-                    (remote_status, diff)
+                    (comparison.local_status, diff)
                 };
 
                 let buffer = encode(&diff).await?;
                 let reply = ResponseMessage::new(
                     request.id(),
                     StatusCode::OK,
-                    Some(Ok(&remote_status)),
+                    Some(Ok(&local_status)),
                     Cow::Owned(buffer),
                 )?;
                 Ok(reply)

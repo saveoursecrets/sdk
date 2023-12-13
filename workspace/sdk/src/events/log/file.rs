@@ -724,7 +724,7 @@ mod test {
         let folder = VaultId::new_v4();
         event_log
             .apply(vec![
-                &AccountEvent::CreateFolder(folder),
+                &AccountEvent::CreateFolder(folder, vec![]),
                 &AccountEvent::DeleteFolder(folder),
             ])
             .await?;

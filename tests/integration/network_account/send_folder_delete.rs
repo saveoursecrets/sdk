@@ -13,7 +13,6 @@ use super::{num_events, simulate_device, SimulatedDevice};
 const TEST_ID: &str = "sync_delete_folder";
 
 /// Tests sending delete folder events to a remote.
-#[ignore = "need to sync identity for this test to pass"]
 #[tokio::test]
 async fn integration_sync_delete_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -40,8 +39,11 @@ async fn integration_sync_delete_folder() -> Result<()> {
 
     // Our new local folder should have the single create vault event
     assert_eq!(1, num_events(&mut owner, new_folder.id()).await);
-
+    
+    println!("BEGIN DELETE FOLDER");
     let sync_error = owner.delete_folder(&new_folder).await?;
+    println!("{:#?}", sync_error);
+
     assert!(sync_error.is_none());
 
     let updated_summaries: Vec<Summary> = {

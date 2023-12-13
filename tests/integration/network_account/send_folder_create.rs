@@ -12,7 +12,6 @@ use super::{
 const TEST_ID: &str = "sync_create_folder";
 
 /// Tests sending create folder events to a remote.
-#[ignore = "need to restore identity event log sync for this test to pass"]
 #[tokio::test]
 async fn integration_sync_create_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -34,8 +33,6 @@ async fn integration_sync_create_folder() -> Result<()> {
 
     let (new_folder, sync_error) =
         owner.create_folder("sync_folder".to_string()).await?;
-        
-    //println!("{:#?}", sync_error);
 
     assert!(sync_error.is_none());
 

@@ -11,7 +11,7 @@ pub enum AccountEvent {
     Noop,
 
     /// Create folder.
-    CreateFolder(VaultId),
+    CreateFolder(VaultId, Vec<u8>),
 
     /// Folder was updated.
     ///
@@ -42,7 +42,7 @@ impl LogEvent for AccountEvent {
     fn event_kind(&self) -> EventKind {
         match self {
             Self::Noop => EventKind::Noop,
-            Self::CreateFolder(_) => EventKind::CreateVault,
+            Self::CreateFolder(_, _) => EventKind::CreateVault,
             Self::CompactFolder(_) => EventKind::CompactVault,
             Self::UpdateFolder(_) => EventKind::UpdateVault,
             Self::ChangeFolderPassword(_) => EventKind::ChangePassword,

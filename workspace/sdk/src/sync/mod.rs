@@ -20,6 +20,13 @@ pub use patch::{AccountPatch, FolderPatch, Patch};
 #[cfg(feature = "files")]
 pub use patch::FilePatch;
 
+/// Options used when applying a diff to local storage.
+#[derive(Default, Debug)]
+pub struct ApplyDiffOptions {
+    /// Replay account events rather than apply the patch.
+    pub replay_account_events: bool,
+}
+
 /// Result of a checked patch on an event log.
 #[derive(Debug)]
 pub enum CheckedPatch {
@@ -113,7 +120,7 @@ impl SyncComparison {
         storage: &Storage,
         remote_status: SyncStatus,
     ) -> Result<SyncComparison> {
-        let local_status = { storage.sync_status().await? };
+        let local_status = storage.sync_status().await?;
 
         let identity = {
             let identity = storage.identity_log();
@@ -130,11 +137,13 @@ impl SyncComparison {
         let folders = {
             let mut folders = HashMap::new();
             for (id, folder) in &remote_status.folders {
-                let event_log = storage
+                // Folder may exist on remote but not locally 
+                // if we have just deleted a folder
+                if let Some(event_log) = storage
                     .cache()
-                    .get(id)
-                    .ok_or(Error::CacheNotAvailable(*id))?;
-                folders.insert(*id, event_log.tree().compare(&folder.1)?);
+                    .get(id) {
+                    folders.insert(*id, event_log.tree().compare(&folder.1)?);
+                }
             }
             folders
         };
@@ -152,12 +161,12 @@ impl SyncComparison {
     pub fn needs_sync(&self) -> bool {
         self.local_status != self.remote_status
     }
-        
+
     /*
     /// Generate a range of indices for every event
     /// log which produced an unknown comparison.
     ///
-    /// An unknown comparison will be generated if the 
+    /// An unknown comparison will be generated if the
     /// other tree is ahead of ours (pull is required).
     pub fn range_proof(&self) -> Option<SyncRangeProof> {
         let identity = if let Comparison::Unknown = &self.identity {
@@ -214,19 +223,23 @@ impl SyncComparison {
             Comparison::Equal => {}
             Comparison::Contains(_, _) => {
                 // Need to push changes to remote
-                let identity: FolderDiff = {
-                    let log = storage.identity_log();
-                    let reader = log.read().await;
+                let log = storage.identity_log();
+                let reader = log.read().await;
+                let is_last_commit = Some(&self.remote_status.identity.0)
+                    == reader.tree().last_commit().as_ref();
+
+                // Avoid empty patches when commit is already the last
+                if !is_last_commit {
                     let after = reader.tree().head()?;
-                    FolderDiff {
+                    let identity = FolderDiff {
                         patch: reader
                             .diff(Some(&self.remote_status.identity.0))
                             .await?,
                         after,
                         before: self.remote_status.identity.1.clone(),
-                    }
-                };
-                diff.identity = Some(identity);
+                    };
+                    diff.identity = Some(identity);
+                }
             }
             Comparison::Unknown => {
                 unreachable!("identity event log is never rewritten");
@@ -237,19 +250,24 @@ impl SyncComparison {
             Comparison::Equal => {}
             Comparison::Contains(_, _) => {
                 // Need to push changes to remote
-                let account: AccountDiff = {
-                    let log = storage.account_log();
-                    let reader = log.read().await;
+                let log = storage.account_log();
+                let reader = log.read().await;
+
+                let is_last_commit = Some(&self.remote_status.account.0)
+                    == reader.tree().last_commit().as_ref();
+
+                // Avoid empty patches when commit is already the last
+                if !is_last_commit {
                     let after = reader.tree().head()?;
-                    AccountDiff {
+                    let account = AccountDiff {
                         patch: reader
                             .diff(Some(&self.remote_status.account.0))
                             .await?,
                         after,
                         before: self.remote_status.account.1.clone(),
-                    }
-                };
-                diff.account = Some(account);
+                    };
+                    diff.account = Some(account);
+                }
             }
             Comparison::Unknown => {
                 unreachable!("account event log is never rewritten");
@@ -272,14 +290,19 @@ impl SyncComparison {
                         .get(id)
                         .ok_or(Error::CacheNotAvailable(*id))?;
 
-                    let after = log.tree().head()?;
-                    let folder = FolderDiff {
-                        patch: log.diff(Some(&commit_state.0)).await?,
-                        after,
-                        before: commit_state.1.clone(),
-                    };
+                    let is_last_commit = Some(&commit_state.0)
+                        == log.tree().last_commit().as_ref();
 
-                    diff.folders.insert(*id, folder);
+                    if !is_last_commit {
+                        let after = log.tree().head()?;
+                        let folder = FolderDiff {
+                            patch: log.diff(Some(&commit_state.0)).await?,
+                            after,
+                            before: commit_state.1.clone(),
+                        };
+
+                        diff.folders.insert(*id, folder);
+                    }
                 }
                 Comparison::Unknown => {
                     println!("todo! : handle folder with diverged trees");

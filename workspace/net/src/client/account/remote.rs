@@ -15,7 +15,7 @@ use sos_sdk::{
     storage::Storage,
     sync::{
         AccountDiff, Client, FolderDiff, FolderPatch, Patch, SyncComparison,
-        SyncStatus, SyncDiff,
+        SyncDiff, SyncStatus,
     },
     url::Url,
     vault::Summary,
@@ -135,7 +135,7 @@ impl RemoteBridge {
     pub async fn handshake(&self) -> Result<()> {
         Ok(self.remote.handshake().await?)
     }
-    
+
     /*
     async fn push_identity(
         &self,
@@ -260,7 +260,7 @@ impl RemoteBridge {
 
         Ok(())
     }
-    
+
     /*
     async fn pull_account2(
         &self,
@@ -344,15 +344,10 @@ impl RemoteBridge {
         if comparison.needs_sync() {
             let mut storage = self.local.write().await;
             let push = comparison.diff(&*storage).await?;
-            
-            println!("sending diff to the server...");
-
-            let pull = 
+            let pull =
                 self.remote.sync(&comparison.local_status, &push).await?;
-
-            println!("GOT SERVER REPLY!!!");
-
-            storage.apply_diff(&pull).await?;
+            
+            storage.apply_diff(&pull, Default::default()).await?;
 
             // TODO: apply event data from remote!
         }
@@ -391,7 +386,6 @@ impl RemoteBridge {
 
         Ok(())
     }
-
 }
 
 #[async_trait]
@@ -435,7 +429,7 @@ impl RemoteSync for RemoteBridge {
             Some(SyncError::Multiple(errors))
         }
     }
-    
+
     /*
     async fn pull(
         &self,
@@ -506,7 +500,7 @@ impl RemoteSync for RemoteBridge {
 
         Ok(local_changed)
     }
-    
+
     /*
     async fn sync_send_events(
         &self,
@@ -722,7 +716,7 @@ mod listen {
                     }
                     (ChangeAction::CreateFolder(event), None) => {
                         if let Event::Folder(
-                            AccountEvent::CreateFolder(id),
+                            AccountEvent::CreateFolder(id, _),
                             WriteEvent::CreateVault(buf),
                         ) = event
                         {

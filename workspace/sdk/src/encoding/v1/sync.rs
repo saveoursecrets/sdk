@@ -127,7 +127,6 @@ impl Encodable for SyncDiff {
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         writer.write_bool(self.identity.is_some()).await?;
-        println!("encoding identity {:#?}", self.identity.is_some());
         if let Some(identity) = &self.identity {
             identity.encode(&mut *writer).await?;
         }
@@ -154,7 +153,6 @@ impl Decodable for SyncDiff {
     ) -> Result<()> {
         let has_identity = reader.read_bool().await?;
         if has_identity {
-            println!("Decoding the identity...");
             let mut identity: FolderDiff = Default::default();
             identity.decode(&mut *reader).await?;
             self.identity = Some(identity);
@@ -162,7 +160,6 @@ impl Decodable for SyncDiff {
 
         let has_account = reader.read_bool().await?;
         if has_account {
-            println!("Decoding the account...");
             let mut account: AccountDiff = Default::default();
             account.decode(&mut *reader).await?;
             self.account = Some(account);
@@ -205,15 +202,8 @@ where
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
         self.before.decode(&mut *reader).await?;
-            
-        println!("decoded before commit proof");
-
         self.after.decode(&mut *reader).await?;
-
-        println!("decoded after commit proof");
-
         self.patch.decode(&mut *reader).await?;
-
         Ok(())
     }
 }
@@ -240,7 +230,7 @@ mod test {
         let folder_id = *folder_vault.id();
 
         let account: AccountPatch =
-            vec![AccountEvent::CreateFolder(*folder_vault.id())].into();
+            vec![AccountEvent::CreateFolder(*folder_vault.id(), vec![])].into();
 
         let mut folders = HashMap::new();
         let buf = encode(&folder_vault).await?;
