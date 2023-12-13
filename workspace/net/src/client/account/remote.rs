@@ -161,6 +161,8 @@ impl RemoteBridge {
             let pull =
                 self.remote.sync(&comparison.local_status, &push).await?;
 
+            println!("sync got diff {:#?}", pull);
+
             storage.merge_diff(&pull, Default::default()).await?;
 
             // TODO: apply event data from remote!
@@ -267,6 +269,7 @@ mod listen {
             change: ChangeNotification,
         ) -> Result<()> {
             tracing::debug!("on_change_notification");
+                
             if let Some(e) = bridge.sync().await {
                 tracing::error!(
                     error = ?e,
