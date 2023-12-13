@@ -12,7 +12,7 @@ const TEST_ID: &str = "sync_listen_delete_folder";
 /// Tests syncing delete folder events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
-#[ignore = "need to sync identity for this test to pass"]
+#[ignore = "need to restore change notifications"]
 #[tokio::test]
 async fn integration_sync_listen_delete_folder() -> Result<()> {
     //crate::test_utils::init_tracing();

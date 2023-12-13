@@ -80,7 +80,7 @@ async fn integration_events_compact() -> Result<()> {
     let account_events = account.paths().account_events();
     let mut event_log = AccountEventLog::new_account(&account_events).await?;
     let event = last_log_event(&mut event_log, None).await?;
-    assert!(matches!(event, Some(AccountEvent::CompactFolder(_))));
+    assert!(matches!(event, Some(AccountEvent::CompactFolder(_, _))));
 
     teardown(TEST_ID).await;
 

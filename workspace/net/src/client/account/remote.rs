@@ -155,7 +155,7 @@ impl RemoteBridge {
         Ok(())
     }
     */
-    
+
     /*
     async fn pull_folder(
         &self,
@@ -187,7 +187,7 @@ impl RemoteBridge {
         Ok(num_events > 0)
     }
     */
-    
+
     /*
     async fn push_folder(
         &self,
@@ -228,7 +228,7 @@ impl RemoteBridge {
         Ok(num_events > 0)
     }
     */
-    
+
     /*
     #[deprecated(note = "use pull_account2() instead")]
     async fn pull_account(&self, sync_status: &SyncStatus) -> Result<()> {
@@ -308,7 +308,7 @@ impl RemoteBridge {
         Ok(sync_status)
     }
     */
-    
+
     /*
     /// Send a local patch of events to the remote.
     async fn patch(
@@ -354,7 +354,7 @@ impl RemoteBridge {
             let push = comparison.diff(&*storage).await?;
             let pull =
                 self.remote.sync(&comparison.local_status, &push).await?;
-            
+
             storage.apply_diff(&pull, Default::default()).await?;
 
             // TODO: apply event data from remote!
@@ -449,7 +449,7 @@ impl RemoteSync for RemoteBridge {
             .map_err(|e| SyncError::One(e))
     }
     */
-    
+
     /*
     async fn sync_folder(
         &self,
@@ -594,8 +594,8 @@ impl RemoteSync for RemoteBridge {
 mod listen {
     use crate::{
         client::{
-            Error, ListenOptions, RemoteBridge, Result, WebSocketHandle,
-            sync::RemoteSync,
+            sync::RemoteSync, Error, ListenOptions, RemoteBridge, Result,
+            WebSocketHandle,
         },
         events::{ChangeAction, ChangeEvent, ChangeNotification},
     };

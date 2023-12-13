@@ -137,11 +137,9 @@ impl SyncComparison {
         let folders = {
             let mut folders = HashMap::new();
             for (id, folder) in &remote_status.folders {
-                // Folder may exist on remote but not locally 
+                // Folder may exist on remote but not locally
                 // if we have just deleted a folder
-                if let Some(event_log) = storage
-                    .cache()
-                    .get(id) {
+                if let Some(event_log) = storage.cache().get(id) {
                     folders.insert(*id, event_log.tree().compare(&folder.1)?);
                 }
             }

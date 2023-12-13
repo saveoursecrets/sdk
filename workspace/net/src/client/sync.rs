@@ -44,7 +44,7 @@ pub trait RemoteSync: Sync + Send + Any {
         options: &SyncOptions,
     ) -> std::result::Result<SyncStatus, SyncError>;
     */
-    
+
     /*
     /// Sync a folder.
     #[deprecated]

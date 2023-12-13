@@ -34,9 +34,6 @@ impl<'a> AccountReducer<'a> {
                 | AccountEvent::CreateFolder(id, _) => {
                     folders.insert(id);
                 }
-                AccountEvent::ChangeFolderPassword(id) => {
-                    folders.insert(id);
-                }
                 AccountEvent::DeleteFolder(id) => {
                     folders.remove(&id);
                 }

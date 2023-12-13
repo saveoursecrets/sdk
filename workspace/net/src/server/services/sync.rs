@@ -7,8 +7,8 @@ use sos_sdk::{
     decode, encode,
     events::AccountEvent,
     sync::{
-        AccountDiff, CheckedPatch, FolderDiff, FolderPatch, SyncComparison,
-        SyncDiff, SyncStatus, ApplyDiffOptions,
+        AccountDiff, ApplyDiffOptions, CheckedPatch, FolderDiff, FolderPatch,
+        SyncComparison, SyncDiff, SyncStatus,
     },
     vault::VaultId,
 };
@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use super::{PrivateState, Service};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
-    server::{Error, Result, backend::BackendHandler},
+    server::{backend::BackendHandler, Error, Result},
 };
 use std::sync::Arc;
 
@@ -84,7 +84,7 @@ impl Service for SyncService {
                         .apply_diff(
                             &diff,
                             ApplyDiffOptions {
-                                // Must replay the account events here 
+                                // Must replay the account events here
                                 // so the folder event logs are available
                                 // before we perform a comparison below
                                 replay_account_events: true,

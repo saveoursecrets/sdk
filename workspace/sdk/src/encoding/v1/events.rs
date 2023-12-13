@@ -448,14 +448,18 @@ impl Encodable for AccountEvent {
         match self {
             AccountEvent::Noop => panic!("attempt to encode a noop"),
             AccountEvent::UpdateFolder(id, buffer)
+            | AccountEvent::CompactFolder(id, buffer)
+            | AccountEvent::ChangeFolderPassword(id, buffer)
             | AccountEvent::CreateFolder(id, buffer) => {
                 writer.write_bytes(id.as_bytes()).await?;
                 writer.write_u32(buffer.len() as u32).await?;
                 writer.write_bytes(buffer).await?;
             }
-            AccountEvent::CompactFolder(id)
-            | AccountEvent::ChangeFolderPassword(id)
-            | AccountEvent::DeleteFolder(id) => {
+            AccountEvent::RenameFolder(id, name) => {
+                writer.write_bytes(id.as_bytes()).await?;
+                writer.write_string(name).await?;
+            }
+            AccountEvent::DeleteFolder(id) => {
                 writer.write_bytes(id.as_bytes()).await?;
             }
         }
@@ -481,7 +485,9 @@ impl Decodable for AccountEvent {
             }
             EventKind::ChangePassword => {
                 let id = decode_uuid(&mut *reader).await?;
-                *self = AccountEvent::ChangeFolderPassword(id)
+                let len = reader.read_u32().await?;
+                let buffer = reader.read_bytes(len as usize).await?;
+                *self = AccountEvent::ChangeFolderPassword(id, buffer)
             }
             EventKind::UpdateVault => {
                 let id = decode_uuid(&mut *reader).await?;
@@ -491,7 +497,14 @@ impl Decodable for AccountEvent {
             }
             EventKind::CompactVault => {
                 let id = decode_uuid(&mut *reader).await?;
-                *self = AccountEvent::CompactFolder(id)
+                let len = reader.read_u32().await?;
+                let buffer = reader.read_bytes(len as usize).await?;
+                *self = AccountEvent::CompactFolder(id, buffer)
+            }
+            EventKind::SetVaultName => {
+                let id = decode_uuid(&mut *reader).await?;
+                let name = reader.read_string().await?;
+                *self = AccountEvent::RenameFolder(id, name);
             }
             EventKind::DeleteVault => {
                 let id = decode_uuid(&mut *reader).await?;

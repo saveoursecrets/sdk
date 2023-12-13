@@ -8,7 +8,10 @@ use crate::{
 
 use std::collections::HashMap;
 
-use crate::sync::{ChangeSet, FolderPatch, SyncDiff, SyncStatus, ApplyDiffOptions, AccountDiff};
+use crate::sync::{
+    AccountDiff, ApplyDiffOptions, ChangeSet, FolderPatch, SyncDiff,
+    SyncStatus,
+};
 
 impl Storage {
     /// Create a new vault file on disc and the associated
@@ -188,11 +191,17 @@ impl Storage {
         // Apply account-level events to this storage
         for event in diff.patch.iter() {
             match &event {
-                AccountEvent::CreateFolder(id, buf) => {
+                AccountEvent::CreateFolder(_, buf)
+                | AccountEvent::UpdateFolder(_, buf)
+                | AccountEvent::CompactFolder(_, buf)
+                | AccountEvent::ChangeFolderPassword(_, buf) => {
                     self.import_folder(buf, None).await?;
                 }
-                AccountEvent::UpdateFolder(id, buf) => {
-                    self.import_folder(buf, None).await?;
+                AccountEvent::RenameFolder(id, name) => {
+                    let summary = self.find(|s| s.id() == id).cloned();
+                    if let Some(summary) = &summary {
+                        self.rename_folder(summary, name).await?;
+                    }
                 }
                 AccountEvent::DeleteFolder(id) => {
                     let summary = self.find(|s| s.id() == id).cloned();

@@ -230,7 +230,8 @@ mod test {
         let folder_id = *folder_vault.id();
 
         let account: AccountPatch =
-            vec![AccountEvent::CreateFolder(*folder_vault.id(), vec![])].into();
+            vec![AccountEvent::CreateFolder(*folder_vault.id(), vec![])]
+                .into();
 
         let mut folders = HashMap::new();
         let buf = encode(&folder_vault).await?;

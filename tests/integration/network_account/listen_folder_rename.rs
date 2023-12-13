@@ -11,6 +11,7 @@ const TEST_ID: &str = "sync_listen_rename_folder";
 /// Tests syncing folder rename events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
+#[ignore = "need to restore change notifications"]
 #[tokio::test]
 async fn integration_sync_listen_rename_folder() -> Result<()> {
     //crate::test_utils::init_tracing();

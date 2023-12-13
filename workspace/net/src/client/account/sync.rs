@@ -116,7 +116,7 @@ impl RemoteSync for NetworkAccount {
         }
     }
     */
-    
+
     /*
     async fn sync_folder(
         &self,

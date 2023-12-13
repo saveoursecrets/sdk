@@ -603,14 +603,17 @@ impl Storage {
         &mut self,
         summary: &Summary,
         new_key: Option<&AccessKey>,
-    ) -> Result<()> {
+    ) -> Result<Vec<u8>> {
         let vault = self.reduce_event_log(summary).await?;
 
         // Rewrite the on-disc version if we are mirroring
-        if self.state.mirror() {
+        let buffer = if self.state.mirror() {
             let buffer = encode(&vault).await?;
             self.write_vault_file(summary.id(), &buffer).await?;
-        }
+            buffer
+        } else {
+            encode(&vault).await?
+        };
 
         #[cfg(feature = "search")]
         if let Some(index) = &self.index {
@@ -622,7 +625,7 @@ impl Storage {
                 }
             }
         }
-        Ok(())
+        Ok(buffer)
     }
 
     /// Replace a vault in a gatekeeper and update the
@@ -945,12 +948,15 @@ impl Storage {
         summary: &Summary,
         vault: &Vault,
         events: Vec<WriteEvent>,
-    ) -> Result<()> {
-        if self.state.mirror() {
+    ) -> Result<Vec<u8>> {
+        let buffer = if self.state.mirror() {
             // Write the vault to disc
             let buffer = encode(vault).await?;
             self.write_vault_file(summary.id(), &buffer).await?;
-        }
+            buffer
+        } else {
+            encode(vault).await?
+        };
 
         // Apply events to the event log
         let event_log = self
@@ -960,13 +966,11 @@ impl Storage {
         event_log.clear().await?;
         event_log.apply(events.iter().collect()).await?;
 
-        Ok(())
+        Ok(buffer)
     }
 
     /// Compact an event log file.
     pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let account_event = AccountEvent::CompactFolder(*summary.id());
-
         let event_log_file = self
             .cache
             .get_mut(summary.id())
@@ -980,7 +984,10 @@ impl Storage {
         *event_log_file = compact_event_log;
 
         // Refresh in-memory vault and mirrored copy
-        self.refresh_vault(summary, None).await?;
+        let buffer = self.refresh_vault(summary, None).await?;
+
+        let account_event =
+            AccountEvent::CompactFolder(*summary.id(), buffer);
 
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
@@ -1098,11 +1105,18 @@ impl Storage {
         let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
         self.patch(summary, vec![&event]).await?;
 
-        let event = Event::Write(*summary.id(), event);
-        let audit_event: AuditEvent = (self.address(), &event).into();
+        let account_event = AccountEvent::RenameFolder(
+            *summary.id(),
+            name.as_ref().to_owned(),
+        );
+
+        let mut account_log = self.account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
+
+        let audit_event: AuditEvent = (self.address(), &account_event).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
 
-        Ok(event)
+        Ok(Event::Account(account_event))
     }
 
     /// Get the description of the currently open vault.
@@ -1189,15 +1203,17 @@ impl Storage {
         current_key: AccessKey,
         new_key: AccessKey,
     ) -> Result<AccessKey> {
-        let account_event = AccountEvent::ChangeFolderPassword(*vault.id());
-
         let (new_key, new_vault, event_log_events) =
             ChangePassword::new(vault, current_key, new_key, None)
                 .build()
                 .await?;
 
-        self.update_vault(vault.summary(), &new_vault, event_log_events)
+        let buffer = self
+            .update_vault(vault.summary(), &new_vault, event_log_events)
             .await?;
+
+        let account_event =
+            AccountEvent::ChangeFolderPassword(*vault.id(), buffer);
 
         // Refresh the in-memory and disc-based mirror
         self.refresh_vault(vault.summary(), Some(&new_key)).await?;
