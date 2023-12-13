@@ -533,11 +533,6 @@ impl Client for RpcClient {
         &self.origin.url
     }
 
-    async fn sync_status(&self) -> Result<Option<SyncStatus>> {
-        let (_, value) = retry!(|| self.try_sync_status(), self);
-        Ok(value)
-    }
-
     async fn create_account(&self, account: &ChangeSet) -> Result<()> {
         let span = span!(Level::DEBUG, "create_account");
         let _enter = span.enter();
@@ -551,6 +546,11 @@ impl Client for RpcClient {
             .then_some(())
             .ok_or(Error::ResponseCode(status))?;
         Ok(())
+    }
+
+    async fn sync_status(&self) -> Result<Option<SyncStatus>> {
+        let (_, value) = retry!(|| self.try_sync_status(), self);
+        Ok(value)
     }
 
     async fn sync(
