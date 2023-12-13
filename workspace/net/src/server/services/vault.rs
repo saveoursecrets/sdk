@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 
 use sos_sdk::{
-    constants::{VAULT_CREATE, VAULT_DELETE, VAULT_SAVE},
+    constants::{VAULT_CREATE, VAULT_DELETE},
     vault::Header,
 };
 
@@ -126,57 +126,6 @@ impl Service for VaultService {
                         &vault_id,
                         proof,
                         vec![ChangeEvent::DeleteVault],
-                    );
-
-                    let mut writer = state.write().await;
-                    send_notification(&mut writer, &caller, notification);
-                }
-
-                Ok(reply)
-            }
-            VAULT_SAVE => {
-                let vault_id = request.parameters::<Uuid>()?;
-
-                // Check it looks like a vault payload
-                let summary =
-                    Header::read_summary_slice(request.body()).await?;
-
-                if &vault_id != summary.id() {
-                    return Ok((StatusCode::BAD_REQUEST, request.id()).into());
-                }
-
-                {
-                    let reader = backend.read().await;
-                    let (exists, _) = reader
-                        .handler()
-                        .folder_exists(caller.address(), summary.id())
-                        .await?;
-                    if exists.is_none() {
-                        return Ok(
-                            (StatusCode::NOT_FOUND, request.id()).into()
-                        );
-                    }
-                }
-
-                let mut writer = backend.write().await;
-                let (event, proof) = writer
-                    .handler_mut()
-                    .import_folder(caller.address(), request.body())
-                    .await?;
-
-                let reply: ResponseMessage<'_> =
-                    (request.id(), &proof).try_into()?;
-
-                let vault_id = *summary.id();
-
-                #[cfg(feature = "listen")]
-                {
-                    let notification = ChangeNotification::new(
-                        caller.address(),
-                        caller.public_key(),
-                        &vault_id,
-                        proof,
-                        vec![ChangeEvent::UpdateFolder(event.clone())],
                     );
 
                     let mut writer = state.write().await;

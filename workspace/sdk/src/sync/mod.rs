@@ -369,17 +369,6 @@ pub trait Client {
         buffer: &[u8],
     ) -> std::result::Result<CommitProof, Self::Error>;
 
-    /// Update an existing folder.
-    ///
-    /// This should be used when the commit tree has been
-    /// rewritten, for example if the history was compacted
-    /// or the password for a folder was changed.
-    async fn update_folder(
-        &self,
-        id: &VaultId,
-        buffer: impl AsRef<[u8]> + Send,
-    ) -> std::result::Result<CommitProof, Self::Error>;
-
     /// Delete a folder on remote.
     async fn delete_folder(
         &self,

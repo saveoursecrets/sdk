@@ -110,7 +110,8 @@ async fn integration_rpc_session() -> Result<()> {
     // Verify new summaries length
     let summaries = client.list_folders().await?;
     assert_eq!(2, summaries.len());
-
+    
+    /*
     // Update and save a folder
     let name = "New vault name";
     vault.set_name(String::from(name));
@@ -141,6 +142,7 @@ async fn integration_rpc_session() -> Result<()> {
     // Get the status of a remote folder
     let (_, match_proof) = client.folder_status(login.id(), None).await?;
     assert!(match_proof.is_none());
+    */
 
     teardown(TEST_ID).await;
 
