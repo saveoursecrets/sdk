@@ -259,126 +259,19 @@ mod listen {
     use std::sync::Arc;
     use tracing::{span, Level};
 
-    // Listen and respond to change notifications
+    // Listen to change notifications and attempt to sync.
     #[cfg(not(target_arch = "wasm32"))]
     impl RemoteBridge {
-        fn notification_actions(
-            change: &ChangeNotification,
-        ) -> Vec<ChangeAction> {
-            // Gather actions corresponding to the events
-            let mut actions = Vec::new();
-            for event in change.changes() {
-                let action = match event {
-                    ChangeEvent::CreateFolder(event) => {
-                        ChangeAction::CreateFolder(event.clone())
-                    }
-                    ChangeEvent::UpdateFolder(event) => {
-                        ChangeAction::UpdateFolder(event.clone())
-                    }
-                    ChangeEvent::DeleteVault => {
-                        ChangeAction::Remove(*change.vault_id())
-                    }
-                    _ => ChangeAction::Pull(*change.vault_id()),
-                };
-                actions.push(action);
-            }
-            actions
-        }
-
-        async fn import_folder(
-            bridge: Arc<RemoteBridge>,
-            folder_id: VaultId,
-            buffer: impl AsRef<[u8]>,
-        ) -> Result<()> {
-            let local = bridge.local();
-            tracing::debug!(
-                folder = %folder_id,
-                "import_folder");
-
-            let mut writer = local.write().await;
-            writer.import_folder(buffer, None).await?;
-
-            Ok(())
-        }
-
         async fn on_change_notification(
             bridge: Arc<RemoteBridge>,
             change: ChangeNotification,
         ) -> Result<()> {
             tracing::debug!("on_change_notification");
-            let actions = Self::notification_actions(&change);
-            let local = bridge.local();
-            // Consume and react to the actions
-            for action in actions {
-                tracing::debug!(action = ?action, "action");
-
-                let summary = {
-                    let reader = local.read().await;
-                    reader
-                        .find_folder(&FolderRef::Id(*change.vault_id()))
-                        .cloned()
-                };
-
-                match (action, summary) {
-                    (ChangeAction::Pull(_), Some(summary)) => {
-                        let head = {
-                            let reader = local.read().await;
-                            let tree = reader
-                                .commit_tree(&summary)
-                                .ok_or(sos_sdk::Error::NoRootCommit)?;
-                            tree.head()?
-                        };
-
-                        tracing::debug!(
-                            vault_id = ?summary.id(),
-                            change_root = ?change.proof().root(),
-                            root = ?head.root());
-
-                        // Looks like the change was made elsewhere
-                        // and we should attempt to sync with the server
-                        if change.proof().root() != head.root() {
-                            tracing::debug!(
-                                folder = %summary.id(),
-                                "proofs differ, trying sync");
-
-                            if let Some(e) = bridge.sync().await {
-                                tracing::error!(
-                                    error = ?e,
-                                    "bridge listen change sync failed",
-                                );
-                            }
-                        } else {
-                            tracing::debug!(
-                                folder = %summary.id(),
-                                "proofs match, up to date");
-                        }
-                    }
-                    (ChangeAction::Remove(_), Some(summary)) => {
-                        let mut writer = local.write().await;
-                        writer.delete_folder(&summary).await?;
-                    }
-                    (ChangeAction::CreateFolder(event), None) => {
-                        if let Event::Folder(
-                            AccountEvent::CreateFolder(id, _),
-                            WriteEvent::CreateVault(buf),
-                        ) = event
-                        {
-                            Self::import_folder(Arc::clone(&bridge), id, buf)
-                                .await?;
-                        }
-                    }
-                    (ChangeAction::UpdateFolder(event), Some(_)) => {
-                        if let Event::Folder(
-                            AccountEvent::UpdateFolder(id, _),
-                            WriteEvent::CreateVault(buf),
-                        ) = event
-                        {
-                            Self::import_folder(Arc::clone(&bridge), id, buf)
-                                .await?;
-                        }
-                    }
-                    _ => {}
-                }
+            if let Some(e) = bridge.sync().await {
+                tracing::error!(
+                    error = ?e,
+                    "listen change sync failed",
+                );
             }
             Ok(())
         }
@@ -397,7 +290,6 @@ mod listen {
             options: ListenOptions,
         ) -> WebSocketHandle {
             let remote_bridge = Arc::clone(&bridge);
-
             let handle = bridge.remote.listen(options, move |notification| {
                 let bridge = Arc::clone(&remote_bridge);
                 async move {
