@@ -8,10 +8,9 @@ use binary_stream::futures::Decodable;
 mod file;
 mod reducer;
 
-pub use file::AccountEventLog;
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
-pub use file::{EventLog, EventLogExt, FileLog, FolderEventLog};
+pub use file::{AccountEventLog, EventLogExt, FolderEventLog, DiscEventLog, MemoryEventLog};
 pub use reducer::{AccountReducer, EventReducer};
 
 /// Record for a row in the event log.
@@ -108,7 +107,7 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut server = EventLog::new_folder(path).await?;
+        let mut server = FolderEventLog::new_folder(path).await?;
         server
             .apply(vec![
                 &WriteEvent::CreateVault(vault_buffer),
@@ -145,7 +144,7 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut server = EventLog::new_folder(&server_file).await?;
+        let mut server = FolderEventLog::new_folder(&server_file).await?;
         server
             .apply(vec![
                 &WriteEvent::CreateVault(vault_buffer),
@@ -154,7 +153,7 @@ mod test {
             .await?;
 
         // Duplicate the server events on the client
-        let mut client = EventLog::new_folder(&client_file).await?;
+        let mut client = FolderEventLog::new_folder(&client_file).await?;
         let mut it = server.iter(false).await?;
         while let Some(record) = it.next().await? {
             let event = server.decode_event(&record).await?;

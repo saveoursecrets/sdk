@@ -24,11 +24,9 @@ async fn export_restore() -> Result<()> {
         None,
     )
     .await?;
-    let address = account.address().clone();
 
     let key: AccessKey = password.clone().into();
     let folders = account.sign_in(&key).await?;
-    let default_folder = account.default_folder().await.unwrap();
 
     let docs = vec![
         mock::login("login", TEST_ID, generate_passphrase()?.0),

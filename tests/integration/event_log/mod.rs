@@ -3,9 +3,8 @@ use binary_stream::futures::{Decodable, Encodable};
 use sos_net::sdk::{
     commit::CommitHash,
     events::EventLogExt,
-    events::{EventLog, FileLog},
+    events::DiscEventLog,
 };
-use std::path::PathBuf;
 
 mod account_events;
 mod change_password;
@@ -21,7 +20,7 @@ mod move_folder;
 async fn last_log_event<
     T: Encodable + Decodable + Default + Send + Sync + 'static,
 >(
-    event_log: &mut EventLog<T, FileLog, FileLog, PathBuf>,
+    event_log: &mut DiscEventLog<T>,
     commit: Option<&CommitHash>,
 ) -> Result<Option<T>> {
     let patch = event_log.diff(commit).await?;
@@ -33,7 +32,7 @@ async fn last_log_event<
 async fn all_events<
     T: Encodable + Decodable + Default + Send + Sync + 'static,
 >(
-    event_log: &mut EventLog<T, FileLog, FileLog, PathBuf>,
+    event_log: &mut DiscEventLog<T>,
 ) -> Result<Vec<T>> {
     let patch = event_log.diff(None).await?;
     Ok(patch.into())

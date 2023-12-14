@@ -59,17 +59,23 @@ use tempfile::NamedTempFile;
 use super::{EventRecord, EventReducer};
 
 /// Type for logging events to a file.
-pub type FileLog = Compat<File>;
+type FileLog = Compat<File>;
+
+/// Event log that writes to disc.
+pub type DiscEventLog<E> = EventLog<E, FileLog, FileLog, PathBuf>;
+
+/// Event log that writes to memory.
+pub type MemoryEventLog<E> = EventLog<E, MemoryBuffer, MemoryBuffer, MemoryInner>;
 
 /// Event log for changes to an account.
-pub type AccountEventLog = EventLog<AccountEvent, FileLog, FileLog, PathBuf>;
+pub type AccountEventLog = DiscEventLog<AccountEvent>;
 
 /// Event log for changes to a folder.
-pub type FolderEventLog = EventLog<WriteEvent, FileLog, FileLog, PathBuf>;
+pub type FolderEventLog = DiscEventLog<WriteEvent>;
 
 /// Event log for changes to external files.
 #[cfg(feature = "files")]
-pub type FileEventLog = EventLog<FileEvent, FileLog, FileLog, PathBuf>;
+pub type FileEventLog = DiscEventLog<FileEvent>;
 
 /// Type of an event log file iterator.
 type Iter = Box<dyn FormatStreamIterator<EventLogRecord> + Send + Sync>;
@@ -403,7 +409,7 @@ where
 {
     async fn iter(&self, reverse: bool) -> Result<Iter> {
         let content_offset = self.header_len() as u64;
-        let mut read_stream = File::open(self.data()).await?.compat();
+        let read_stream = File::open(self.data()).await?.compat();
         let it: Iter = Box::new(
             FormatStream::<EventLogRecord, Compat<File>>::new_file(
                 read_stream,
