@@ -30,7 +30,7 @@ use crate::{
 
 use crate::events::AccountEvent;
 use async_stream::try_stream;
-use futures::{Future, Stream};
+use futures::stream::BoxStream;
 
 use futures::io::{
     AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
@@ -43,10 +43,10 @@ use crate::events::FileEvent;
 #[cfg(feature = "sync")]
 use crate::sync::{CheckedPatch, Patch};
 
+use async_trait::async_trait;
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
-    pin::Pin,
     sync::Arc,
 };
 use tokio::sync::{Mutex, MutexGuard};
@@ -71,19 +71,163 @@ pub type FolderEventLog = EventLog<WriteEvent, FileLog, FileLog, PathBuf>;
 #[cfg(feature = "files")]
 pub type FileEventLog = EventLog<FileEvent, FileLog, FileLog, PathBuf>;
 
+/// Type of an event log file iterator.
 type Iter = Box<dyn FormatStreamIterator<EventLogRecord> + Send + Sync>;
 
-/// Builder for the event log iterator.
-type IteratorBuilder<D> = Box<
-    dyn Fn(
-            bool,
-            usize,
-            D,
-        )
-            -> Pin<Box<dyn Future<Output = Result<Iter>> + Send + Sync>>
-        + Send
-        + Sync,
->;
+/// Read the bytes for the encoded event
+/// inside the log record.
+async fn read_event_buffer<R, W>(
+    handle: Arc<Mutex<(R, W)>>,
+    record: &EventLogRecord,
+) -> Result<Vec<u8>>
+where
+    R: AsyncRead + AsyncSeek + Unpin + Send,
+    W: AsyncWrite + Unpin + Send,
+{
+    let mut file = MutexGuard::map(handle.lock().await, |f| &mut f.0);
+
+    let offset = record.value();
+    let row_len = offset.end - offset.start;
+
+    file.seek(SeekFrom::Start(offset.start)).await?;
+
+    let mut buf = vec![0u8; row_len as usize];
+    file.read_exact(&mut buf).await?;
+
+    Ok(buf)
+}
+
+/// Event log iterator, stream and diff support.
+#[async_trait]
+pub trait EventLogExt<E, R, W, D>: Send + Sync
+where
+    E: Default + Encodable + Decodable + Send + 'static,
+    R: AsyncRead + AsyncSeek + Unpin + Send + 'static,
+    W: AsyncWrite + Unpin + Send + 'static,
+    D: Clone,
+{
+    /// Commit tree.
+    #[doc(hidden)]
+    fn tree_mut(&mut self) -> &mut CommitTree;
+
+    /// File reader and writer.
+    #[doc(hidden)]
+    fn file(&self) -> Arc<Mutex<(R, W)>>;
+
+    /// Identity bytes.
+    #[doc(hidden)]
+    fn identity(&self) -> &'static [u8];
+
+    /// Encoding version.
+    #[doc(hidden)]
+    fn version(&self) -> Option<u16>;
+
+    /// Associated data.
+    #[doc(hidden)]
+    fn data(&self) -> D;
+
+    /// Length of the file magic bytes and optional
+    /// encoding version.
+    #[doc(hidden)]
+    fn header_len(&self) -> usize {
+        let mut len = self.identity().len();
+        if self.version().is_some() {
+            len += (u16::BITS / 8) as usize;
+        }
+        len
+    }
+
+    /// Event log iterator.
+    async fn iter(&self, reverse: bool) -> Result<Iter>;
+
+    /// Load data from storage to build a commit tree in memory.
+    async fn load_tree(&mut self) -> Result<()> {
+        let mut commits = Vec::new();
+
+        let mut it = self.iter(false).await?;
+        while let Some(record) = it.next().await? {
+            commits.push(record.commit());
+        }
+
+        let tree = self.tree_mut();
+        *tree = CommitTree::new();
+        tree.append(&mut commits);
+        tree.commit();
+        Ok(())
+    }
+
+    /// Stream of event records and decoded events.
+    ///
+    /// # Panics
+    ///
+    /// If the file iterator cannot read the event log file.
+    async fn stream(
+        &self,
+        reverse: bool,
+    ) -> BoxStream<'static, Result<(EventRecord, E)>> {
+        let mut it = self
+            .iter(reverse)
+            .await
+            .expect("failed to initialize stream");
+
+        let handle = self.file();
+        Box::pin(try_stream! {
+            while let Some(record) = it.next().await? {
+                let event_buffer = read_event_buffer(
+                    Arc::clone(&handle), &record).await?;
+                let event_record: EventRecord = (record, event_buffer).into();
+                let event = event_record.decode_event::<E>().await?;
+                yield (event_record, event);
+            }
+        })
+    }
+
+    /// Diff of events until a specific commit.
+    #[cfg(feature = "sync")]
+    async fn diff(&self, commit: Option<&CommitHash>) -> Result<Patch<E>> {
+        let records = self.diff_records(commit).await?;
+        Ok(Patch::new(records).await?)
+    }
+
+    /// Diff of event records until a specific commit.
+    ///
+    /// Searches backwards until it finds the specified commit if given; if
+    /// no commit is given the diff will include all event records.
+    ///
+    /// Does not include the target commit.
+    #[doc(hidden)]
+    async fn diff_records(
+        &self,
+        commit: Option<&CommitHash>,
+    ) -> Result<Vec<EventRecord>> {
+        let mut events = Vec::new();
+        let file = self.file();
+        let mut it = self.iter(true).await?;
+        while let Some(record) = it.next().await? {
+            if let Some(commit) = commit {
+                if &record.commit() == commit.as_ref() {
+                    return Ok(events);
+                }
+            }
+            let buffer =
+                read_event_buffer(Arc::clone(&file), &record).await?;
+            // Iterating in reverse order as we would typically
+            // be looking for commits near the end of the event log
+            // but we want the patch events in the order they were
+            // appended so insert at the beginning to reverse the list
+            events.insert(0, (record, buffer).into());
+        }
+
+        // If the caller wanted to patch until a particular commit
+        // but it doesn't exist we error otherwise we would return
+        // all the events
+        if let Some(commit) = commit {
+            return Err(Error::CommitNotFound(*commit));
+        }
+
+        Ok(events)
+    }
+}
 
 /// Event log.
 ///
@@ -92,14 +236,13 @@ type IteratorBuilder<D> = Box<
 /// of event hashes.
 pub struct EventLog<E, R, W, D>
 where
-    E: Default + Encodable + Decodable,
+    E: Default + Encodable + Decodable + Send + Sync,
     R: AsyncRead + AsyncSeek + Unpin + Send,
-    W: AsyncWrite + Unpin,
+    W: AsyncWrite + Unpin + Send,
     D: Clone,
 {
     file: Arc<Mutex<(R, W)>>,
     tree: CommitTree,
-    builder: IteratorBuilder<D>,
     data: D,
     identity: &'static [u8],
     version: Option<u16>,
@@ -108,9 +251,9 @@ where
 
 impl<E, R, W, D> EventLog<E, R, W, D>
 where
-    E: Default + Encodable + Decodable,
+    E: Default + Encodable + Decodable + Send + Sync,
     R: AsyncRead + AsyncSeek + Unpin + Send,
-    W: AsyncWrite + Unpin,
+    W: AsyncWrite + Unpin + Send,
     D: Clone,
 {
     /// Commit tree for the log records.
@@ -157,17 +300,8 @@ where
         Ok(event)
     }
 
-    /// Length of the file magic bytes and optional
-    /// encoding version.
-    fn header_len(&self) -> usize {
-        let mut len = self.identity.len();
-        if self.version.is_some() {
-            len += (u16::BITS / 8) as usize;
-        }
-        len
-    }
-
-    /// Read encoding version from the file on disc.
+    /// Read encoding version from the backing storage.
+    #[doc(hidden)]
     pub async fn read_file_version(&self) -> Result<u16> {
         if let Some(_) = &self.version {
             let mut file =
@@ -184,21 +318,6 @@ where
         } else {
             Ok(VERSION1)
         }
-    }
-
-    /// Iterator of the log records.
-    pub async fn iter(&self, reverse: bool) -> Result<Iter> {
-        let header_len = self.header_len();
-        (self.builder)(reverse, header_len, self.data.clone()).await
-    }
-
-    /// Append a patch to this event log.
-    #[cfg(feature = "sync")]
-    pub async fn patch_unchecked(
-        &mut self,
-        patch: &Patch<E>,
-    ) -> Result<Vec<CommitHash>> {
-        self.apply(patch.into()).await
     }
 
     /// Append a patch to this event log only if the
@@ -234,6 +353,15 @@ where
         }
     }
 
+    /// Append a patch to this event log.
+    #[cfg(feature = "sync")]
+    pub async fn patch_unchecked(
+        &mut self,
+        patch: &Patch<E>,
+    ) -> Result<Vec<CommitHash>> {
+        self.apply(patch.into()).await
+    }
+
     /// Append a collection of events and commit the tree hashes
     /// only if all the events were successfully written.
     pub async fn apply(
@@ -265,119 +393,54 @@ where
             Err(e) => Err(e.into()),
         }
     }
+}
 
-    /// Load data from storage to build a commit tree in memory.
-    pub async fn load_tree(&mut self) -> Result<()> {
-        let mut commits = Vec::new();
-
-        let mut it = self.iter(false).await?;
-        while let Some(record) = it.next().await? {
-            commits.push(record.commit());
-        }
-
-        self.tree = CommitTree::new();
-        self.tree.append(&mut commits);
-        self.tree.commit();
-        Ok(())
+#[async_trait]
+impl<E> EventLogExt<E, FileLog, FileLog, PathBuf>
+    for EventLog<E, FileLog, FileLog, PathBuf>
+where
+    E: Default + Encodable + Decodable + Send + Sync + 'static,
+{
+    async fn iter(&self, reverse: bool) -> Result<Iter> {
+        let content_offset = self.header_len() as u64;
+        let mut read_stream = File::open(self.data()).await?.compat();
+        let it: Iter = Box::new(
+            FormatStream::<EventLogRecord, Compat<File>>::new_file(
+                read_stream,
+                self.identity,
+                true,
+                Some(content_offset),
+                reverse,
+            )
+            .await?,
+        );
+        Ok(it)
     }
 
-    /// Stream of event records and decoded events.
-    ///
-    /// # Panics
-    ///
-    /// If the file iterator cannot read the event log file.
-    pub async fn stream(
-        &self,
-        reverse: bool,
-    ) -> impl Stream<Item = Result<(EventRecord, E)>> {
-        let mut it = self
-            .iter(reverse)
-            .await
-            .expect("failed to initialize stream");
-
-        let handle = Arc::clone(&self.file);
-        try_stream! {
-            while let Some(record) = it.next().await? {
-                let event_buffer = Self::read_event_buffer(
-                    Arc::clone(&handle), &record).await?;
-                let event_record: EventRecord = (record, event_buffer).into();
-                let event = event_record.decode_event::<E>().await?;
-                yield (event_record, event);
-            }
-        }
+    fn tree_mut(&mut self) -> &mut CommitTree {
+        &mut self.tree
     }
 
-    /// Read the bytes for the encoded event
-    /// inside the log record.
-    async fn read_event_buffer(
-        handle: Arc<Mutex<(R, W)>>,
-        record: &EventLogRecord,
-    ) -> Result<Vec<u8>> {
-        let mut file = MutexGuard::map(handle.lock().await, |f| &mut f.0);
-
-        let offset = record.value();
-        let row_len = offset.end - offset.start;
-
-        file.seek(SeekFrom::Start(offset.start)).await?;
-
-        let mut buf = vec![0u8; row_len as usize];
-        file.read_exact(&mut buf).await?;
-
-        Ok(buf)
+    fn identity(&self) -> &'static [u8] {
+        self.identity
     }
 
-    /// Diff of events until a specific commit.
-    #[cfg(feature = "sync")]
-    pub async fn diff(
-        &self,
-        commit: Option<&CommitHash>,
-    ) -> Result<Patch<E>> {
-        let records = self.diff_records(commit).await?;
-        Ok(Patch::new(records).await?)
+    fn version(&self) -> Option<u16> {
+        self.version
     }
 
-    /// Diff of event records until a specific commit.
-    ///
-    /// Searches backwards until it finds the specified commit if given; if
-    /// no commit is given the diff will include all event records.
-    ///
-    /// Does not include the target commit.
-    pub(crate) async fn diff_records(
-        &self,
-        commit: Option<&CommitHash>,
-    ) -> Result<Vec<EventRecord>> {
-        let mut events = Vec::new();
-        let mut it = self.iter(true).await?;
-        while let Some(record) = it.next().await? {
-            if let Some(commit) = commit {
-                if &record.commit() == commit.as_ref() {
-                    return Ok(events);
-                }
-            }
-            let buffer =
-                Self::read_event_buffer(Arc::clone(&self.file), &record)
-                    .await?;
-            // Iterating in reverse order as we would typically
-            // be looking for commits near the end of the event log
-            // but we want the patch events in the order they were
-            // appended so insert at the beginning to reverse the list
-            events.insert(0, (record, buffer).into());
-        }
+    fn file(&self) -> Arc<Mutex<(FileLog, FileLog)>> {
+        Arc::clone(&self.file)
+    }
 
-        // If the caller wanted to patch until a particular commit
-        // but it doesn't exist we error otherwise we would return
-        // all the events
-        if let Some(commit) = commit {
-            return Err(Error::CommitNotFound(*commit));
-        }
-
-        Ok(events)
+    fn data(&self) -> PathBuf {
+        self.data.clone()
     }
 }
 
 impl<E> EventLog<E, FileLog, FileLog, PathBuf>
 where
-    E: Default + Encodable + Decodable,
+    E: Default + Encodable + Decodable + Send + Sync,
 {
     /// Create the writer for an event log file.
     async fn create_writer<P: AsRef<Path>>(
@@ -456,29 +519,53 @@ impl EventLog<WriteEvent, FileLog, FileLog, PathBuf> {
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
             data: path.as_ref().to_path_buf(),
-            builder: Box::new(|reverse, header_len, data| {
-                Box::pin(async move {
-                    let content_offset = header_len as u64;
-                    let read_stream = File::open(data).await?.compat();
-                    let it: Iter = Box::new(FormatStream::<
-                        EventLogRecord,
-                        Compat<File>,
-                    >::new_file(
-                        read_stream,
-                        &FOLDER_EVENT_LOG_IDENTITY,
-                        true,
-                        Some(content_offset),
-                        reverse,
-                    )
-                    .await?);
-                    Ok(it)
-                })
-            }),
             tree: Default::default(),
             identity: &FOLDER_EVENT_LOG_IDENTITY,
             version: None,
             phantom: std::marker::PhantomData,
         })
+    }
+}
+
+#[async_trait]
+impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
+    for EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
+{
+    async fn iter(&self, reverse: bool) -> Result<Iter> {
+        let content_offset = self.header_len() as u64;
+        let read_stream = MemoryBuffer { inner: self.data() };
+        let it: Iter = Box::new(
+            FormatStream::<EventLogRecord, MemoryBuffer>::new_buffer(
+                read_stream,
+                self.identity,
+                true,
+                Some(content_offset),
+                reverse,
+            )
+            .await?,
+        );
+
+        Ok(it)
+    }
+
+    fn tree_mut(&mut self) -> &mut CommitTree {
+        &mut self.tree
+    }
+
+    fn identity(&self) -> &'static [u8] {
+        self.identity
+    }
+
+    fn version(&self) -> Option<u16> {
+        self.version
+    }
+
+    fn file(&self) -> Arc<Mutex<(MemoryBuffer, MemoryBuffer)>> {
+        Arc::clone(&self.file)
+    }
+
+    fn data(&self) -> MemoryInner {
+        self.data.clone()
     }
 }
 
@@ -494,25 +581,6 @@ impl EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
             data: inner,
-            builder: Box::new(move |reverse, header_len, inner| {
-                Box::pin(async move {
-                    let content_offset = header_len as u64;
-                    let read_stream = MemoryBuffer { inner };
-                    let it: Iter = Box::new(FormatStream::<
-                        EventLogRecord,
-                        MemoryBuffer,
-                    >::new_buffer(
-                        read_stream,
-                        &FOLDER_EVENT_LOG_IDENTITY,
-                        true,
-                        Some(content_offset),
-                        reverse,
-                    )
-                    .await?);
-
-                    Ok(it)
-                })
-            }),
             tree: Default::default(),
             identity: &FOLDER_EVENT_LOG_IDENTITY,
             version: None,
@@ -576,24 +644,6 @@ impl EventLog<AccountEvent, FileLog, FileLog, PathBuf> {
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
             data: path.as_ref().to_path_buf(),
-            builder: Box::new(|reverse, header_len, data| {
-                Box::pin(async move {
-                    let content_offset = header_len as u64;
-                    let read_stream = File::open(data).await?.compat();
-                    let it: Iter = Box::new(FormatStream::<
-                        EventLogRecord,
-                        Compat<File>,
-                    >::new_file(
-                        read_stream,
-                        &ACCOUNT_EVENT_LOG_IDENTITY,
-                        true,
-                        Some(content_offset),
-                        reverse,
-                    )
-                    .await?);
-                    Ok(it)
-                })
-            }),
             tree: Default::default(),
             identity: &ACCOUNT_EVENT_LOG_IDENTITY,
             version: Some(VERSION),
@@ -619,24 +669,6 @@ impl EventLog<FileEvent, FileLog, FileLog, PathBuf> {
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
             data: path.as_ref().to_path_buf(),
-            builder: Box::new(|reverse, header_len, data| {
-                Box::pin(async move {
-                    let content_offset = header_len as u64;
-                    let read_stream = File::open(data).await?.compat();
-                    let it: Iter = Box::new(FormatStream::<
-                        EventLogRecord,
-                        Compat<File>,
-                    >::new_file(
-                        read_stream,
-                        &FILE_EVENT_LOG_IDENTITY,
-                        true,
-                        Some(content_offset),
-                        reverse,
-                    )
-                    .await?);
-                    Ok(it)
-                })
-            }),
             tree: Default::default(),
             identity: &FILE_EVENT_LOG_IDENTITY,
             version: Some(VERSION),
@@ -710,15 +742,15 @@ mod test {
     async fn folder_event_log_iter_forward() -> Result<()> {
         let (temp, event_log, commits) = mock_event_log_file().await?;
         let mut it = event_log.iter(false).await?;
-        let first_row = it.next_entry().await?.unwrap();
-        let second_row = it.next_entry().await?.unwrap();
-        let third_row = it.next_entry().await?.unwrap();
+        let first_row = it.next().await?.unwrap();
+        let second_row = it.next().await?.unwrap();
+        let third_row = it.next().await?.unwrap();
 
         assert_eq!(commits.get(0).unwrap().as_ref(), &first_row.commit());
         assert_eq!(commits.get(1).unwrap().as_ref(), &second_row.commit());
         assert_eq!(commits.get(2).unwrap().as_ref(), &third_row.commit());
 
-        assert!(it.next_entry().await?.is_none());
+        assert!(it.next().await?.is_none());
         temp.close()?;
         Ok(())
     }
@@ -727,10 +759,10 @@ mod test {
     async fn folder_event_log_iter_backward() -> Result<()> {
         let (temp, event_log, _) = mock_event_log_file().await?;
         let mut it = event_log.iter(true).await?;
-        let _third_row = it.next_entry().await?.unwrap();
-        let _second_row = it.next_entry().await?.unwrap();
-        let _first_row = it.next_entry().await?.unwrap();
-        assert!(it.next_entry().await?.is_none());
+        let _third_row = it.next().await?.unwrap();
+        let _second_row = it.next().await?.unwrap();
+        let _first_row = it.next().await?.unwrap();
+        assert!(it.next().await?.is_none());
         temp.close()?;
         Ok(())
     }

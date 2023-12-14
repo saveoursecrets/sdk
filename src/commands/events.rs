@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use binary_stream::futures::{Decodable, Encodable};
 use sos_net::sdk::{
     events::{
-        AccountEvent, AccountEventLog, EventLog, FileEvent, FileEventLog,
-        FileLog, FolderEventLog, LogEvent, WriteEvent,
+        AccountEvent, AccountEventLog, EventLog, EventLogExt, FileEvent,
+        FileEventLog, FileLog, FolderEventLog, LogEvent, WriteEvent,
     },
     vfs,
 };
@@ -74,7 +74,9 @@ pub async fn run(cmd: Command) -> Result<()> {
 }
 
 /// Print the events of a log file.
-async fn print_events<T: Default + Encodable + Decodable + LogEvent>(
+async fn print_events<
+    T: Default + Encodable + Decodable + LogEvent + Send + Sync + 'static,
+>(
     event_log: EventLog<T, FileLog, FileLog, PathBuf>,
     reverse: bool,
 ) -> Result<()> {

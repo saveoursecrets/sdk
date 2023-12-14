@@ -1,7 +1,9 @@
 //! Synchronization helpers.
 use crate::{
     encode,
-    events::{AccountEvent, EventReducer, FolderEventLog, WriteEvent},
+    events::{
+        AccountEvent, EventLogExt, EventReducer, FolderEventLog, WriteEvent,
+    },
     storage::Storage,
     vfs, Error, Paths, Result,
 };

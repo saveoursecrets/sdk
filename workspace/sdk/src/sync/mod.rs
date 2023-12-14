@@ -2,7 +2,7 @@
 
 use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
-    events::{AccountEvent, WriteEvent},
+    events::{AccountEvent, EventLogExt, WriteEvent},
     storage::Storage,
     vault::VaultId,
     Error, Result,

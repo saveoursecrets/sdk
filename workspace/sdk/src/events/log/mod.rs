@@ -11,7 +11,7 @@ mod reducer;
 pub use file::AccountEventLog;
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
-pub use file::{EventLog, FileLog, FolderEventLog};
+pub use file::{EventLog, EventLogExt, FileLog, FolderEventLog};
 pub use reducer::{AccountReducer, EventReducer};
 
 /// Record for a row in the event log.
@@ -156,7 +156,7 @@ mod test {
         // Duplicate the server events on the client
         let mut client = EventLog::new_folder(&client_file).await?;
         let mut it = server.iter(false).await?;
-        while let Some(record) = it.next_entry().await? {
+        while let Some(record) = it.next().await? {
             let event = server.decode_event(&record).await?;
             client.apply(vec![&event]).await?;
         }
@@ -205,59 +205,6 @@ mod test {
         Ok(())
     }
 
-    /*
-    #[tokio::test]
-    #[serial]
-    async fn event_log_diff() -> Result<()> {
-        let partial =
-            PathBuf::from("target/mock-event-log-partial.event_log");
-
-        if vfs::try_exists(&partial).await? {
-            let _ = vfs::remove_file(&partial).await;
-        }
-
-        let (mut server, client, id) = mock_event_log_server_client().await?;
-
-        // Add another event to the server from another client.
-        server.apply(vec![&WriteEvent::DeleteSecret(id)]).await?;
-
-        // Get the last record for our assertion
-        let record = server.iter().await?.rev().next_entry().await?.unwrap();
-
-        let proof = client.tree().head()?;
-
-        let comparison = server.tree().compare(&proof)?;
-
-        if let Comparison::Contains(indices, leaves) = comparison {
-            assert_eq!(vec![1], indices);
-            let leaf = leaves.first().unwrap();
-            if let Some(buffer) = server.diff_buffer(*leaf).await? {
-                let mut partial_log =
-                    FolderEventLog::new_folder(&partial).await?;
-                partial_log.write_buffer(&buffer).await?;
-                let mut records = Vec::new();
-                let mut it = partial_log.iter().await?;
-                while let Some(record) = it.next_entry().await? {
-                    records.push(record);
-                }
-
-                assert_eq!(1, records.len());
-                if let Some(diff_record) = records.get(0) {
-                    assert_eq!(&record, diff_record);
-                } else {
-                    panic!("expecting record");
-                }
-            } else {
-                panic!("expected records from diff result");
-            }
-        } else {
-            panic!("expected comparison contains variant");
-        }
-
-        Ok(())
-    }
-    */
-
     #[tokio::test]
     #[serial]
     async fn event_log_file_load() -> Result<()> {
@@ -265,7 +212,7 @@ mod test {
         let path = PathBuf::from(MOCK_LOG);
         let event_log = FolderEventLog::new_folder(path).await?;
         let mut it = event_log.iter(false).await?;
-        while let Some(record) = it.next_entry().await? {
+        while let Some(record) = it.next().await? {
             let _event = event_log.decode_event(&record).await?;
         }
 

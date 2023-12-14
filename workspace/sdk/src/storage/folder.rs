@@ -3,7 +3,9 @@ use crate::{
     constants::EVENT_LOG_EXT,
     crypto::AccessKey,
     decode,
-    events::{EventReducer, FolderEventLog, ReadEvent, WriteEvent},
+    events::{
+        EventLogExt, EventReducer, FolderEventLog, ReadEvent, WriteEvent,
+    },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Vault, VaultId, VaultMeta, VaultWriter,

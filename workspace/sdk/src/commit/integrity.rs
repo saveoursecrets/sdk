@@ -1,5 +1,5 @@
 //! Functions to build commit trees and run integrity checks.
-use crate::events::FolderEventLog;
+use crate::events::{EventLogExt, FolderEventLog};
 use crate::{
     commit::CommitTree,
     constants::VAULT_IDENTITY,

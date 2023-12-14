@@ -6,7 +6,7 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, AuditEvent, Event, EventKind,
-        EventReducer, FolderEventLog, ReadEvent, WriteEvent,
+        EventLogExt, EventReducer, FolderEventLog, ReadEvent, WriteEvent,
     },
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
