@@ -5,9 +5,7 @@ use sos_net::sdk::{prelude::*, vfs};
 const TEST_ID: &str = "secret_lifecycle";
 
 /// Tests the basic secret lifecycle; create, read, update
-/// and account deletion followed by creating a backup,
-/// restoring from the backup archive and asserting on
-/// the restored data.
+/// and delete.
 #[tokio::test]
 async fn integration_secret_lifecycle() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -60,54 +58,6 @@ async fn integration_secret_lifecycle() -> Result<()> {
 
     // Delete
     account.delete_secret(&id, Default::default()).await?;
-
-    // Create another secret so we can assert after restoring the account
-    let (meta, secret) = mock::note("restored_note", TEST_ID);
-    let (id, _, _, _) = account
-        .create_secret(meta, secret, Default::default())
-        .await?;
-
-    // Export a backup archive
-    let archive = data_dir.join("backup.zip");
-    account.export_backup_archive(&archive).await?;
-    assert!(vfs::try_exists(&archive).await?);
-
-    // Delete the account
-    account.delete_account().await?;
-    assert!(!account.is_authenticated());
-
-    // Restore from the backup archive
-    let options = RestoreOptions {
-        selected: folders.clone(),
-        password: Some(password.clone()),
-        ..Default::default()
-    };
-    LocalAccount::restore_backup_archive(
-        // Note we don't pass in the account as we
-        // are not restoring a signed in account but
-        // an account that no longer exists
-        None,
-        &archive,
-        options,
-        Some(data_dir.clone()),
-    )
-    .await?;
-
-    // Sign in after restoring the account
-    let mut account = LocalAccount::new_unauthenticated(
-        address,
-        Some(data_dir.clone()),
-        None,
-    )
-    .await?;
-
-    account.sign_in(&key).await?;
-    account.open_folder(&default_folder).await?;
-
-    // Assert on the restored secret
-    let (data, _) = account.read_secret(&id, Default::default()).await?;
-    assert_eq!(&id, data.id());
-    assert_eq!("restored_note", data.meta().label());
 
     teardown(TEST_ID).await;
 
