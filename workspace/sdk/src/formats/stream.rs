@@ -1,13 +1,16 @@
 //! File streams.
-use std::{io::SeekFrom, ops::Range};
+use std::{io::{self,SeekFrom, Cursor}, ops::Range, pin::Pin, sync::Arc};
 
 use crate::{
     encoding::encoding_options, formats::FileItem, vfs::File, Result,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{stream_length, BinaryReader};
-
-use futures::io::{AsyncRead, AsyncSeek, AsyncSeekExt, BufReader, Cursor};
+use futures::task::{Poll, Context};
+use futures::io::{
+    AsyncRead, AsyncSeek, AsyncSeekExt,
+    IoSlice, IoSliceMut, AsyncWrite,
+};
 use tokio_util::compat::Compat;
 
 /// Trait for file format iterators.
@@ -102,15 +105,15 @@ impl<T: FileItem + Send> FormatStreamIterator<T>
     }
 }
 
-impl<'a, T: FileItem + Send> FormatStream<T, BufReader<Cursor<&'a [u8]>>> {
+impl<'a, T: FileItem + Send> FormatStream<T, MemoryBuffer> {
     /// Create a new buffer iterator.
     pub async fn new_buffer(
-        mut read_stream: BufReader<Cursor<&'a [u8]>>,
+        mut read_stream: MemoryBuffer,
         identity: &'static [u8],
         data_length_prefix: bool,
         header_offset: Option<u64>,
         reverse: bool,
-    ) -> Result<FormatStream<T, BufReader<Cursor<&'a [u8]>>>> {
+    ) -> Result<FormatStream<T, MemoryBuffer>> {
         let header_offset = header_offset.unwrap_or(identity.len() as u64);
         read_stream.seek(SeekFrom::Start(header_offset)).await?;
 
@@ -128,7 +131,7 @@ impl<'a, T: FileItem + Send> FormatStream<T, BufReader<Cursor<&'a [u8]>>> {
 
 #[async_trait]
 impl<'a, T: FileItem + Send> FormatStreamIterator<T>
-    for FormatStream<T, BufReader<Cursor<&'a [u8]>>>
+    for FormatStream<T, MemoryBuffer>
 {
     async fn next_entry(&mut self) -> Result<Option<T>> {
         if self.reverse {
@@ -288,3 +291,88 @@ where
         }
     }
 }
+
+pub(crate) type MemoryInner = Arc<parking_lot::Mutex<Cursor<Vec<u8>>>>;
+
+/// Write and read buffer.
+#[derive(Clone)]
+pub struct MemoryBuffer {
+    pub(crate) inner: MemoryInner,
+}
+
+impl MemoryBuffer {
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(parking_lot::Mutex::new(Cursor::new(
+                Vec::new()
+            ))),
+        }
+    }
+}
+
+impl AsyncRead for MemoryBuffer {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        let mut inner = self.inner.lock();
+        Poll::Ready(io::Read::read(&mut *inner, buf))
+    }
+
+    fn poll_read_vectored(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+        bufs: &mut [IoSliceMut<'_>],
+    ) -> Poll<io::Result<usize>> {
+        let mut inner = self.inner.lock();
+        Poll::Ready(io::Read::read_vectored(&mut *inner, bufs))
+    }
+}
+
+impl AsyncSeek for MemoryBuffer {
+    fn poll_seek(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+        pos: SeekFrom,
+    ) -> Poll<io::Result<u64>> {
+        let mut inner = self.inner.lock();
+        Poll::Ready(io::Seek::seek(&mut *inner, pos))
+    }
+}
+
+impl AsyncWrite for MemoryBuffer {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        let mut inner = self.inner.lock();
+        Poll::Ready(io::Write::write(&mut *inner, buf))
+    }
+
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        let mut inner = self.inner.lock();
+        Poll::Ready(io::Write::write_vectored(&mut *inner, bufs))
+    }
+
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<io::Result<()>> {
+        let mut inner = self.inner.lock();
+        Poll::Ready(io::Write::flush(&mut *inner))
+    }
+
+    fn poll_close(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<()>> {
+        self.poll_flush(cx)
+    }
+}
+

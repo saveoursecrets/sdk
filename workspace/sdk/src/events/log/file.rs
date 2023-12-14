@@ -20,8 +20,8 @@ use crate::{
     encoding::{encoding_options, VERSION1},
     events::WriteEvent,
     formats::{
-        EventLogFileRecord, EventLogFileStream, FileItem, FormatStream,
-        FormatStreamIterator,
+        EventLogFileRecord, FileItem, FormatStream, FormatStreamIterator,
+        stream::{MemoryBuffer, MemoryInner},
     },
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
@@ -30,14 +30,11 @@ use crate::{
 
 use crate::events::AccountEvent;
 use async_stream::try_stream;
-use async_trait::async_trait;
 use futures::{Future, Stream};
 
-use futures::io::{BufReader, Cursor};
-
 use futures::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt as FutAsyncSeekExt,
-    AsyncWrite, AsyncWriteExt as FutAsyncWriteExt,
+    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
+    AsyncWriteExt, BufReader, Cursor,
 };
 
 #[cfg(feature = "files")]
@@ -52,11 +49,7 @@ use std::{
     pin::Pin,
     sync::Arc,
 };
-
-use tokio::{
-    io::{AsyncSeekExt, AsyncWriteExt},
-    sync::{Mutex, MutexGuard},
-};
+use tokio::sync::{Mutex, MutexGuard};
 use tokio_util::compat::Compat;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
@@ -89,7 +82,8 @@ type IteratorBuilder<D> = Box<
             D,
         )
             -> Pin<Box<dyn Future<Output = Result<Iter>> + Send + Sync>>
-        + Send + Sync
+        + Send
+        + Sync,
 >;
 
 /// Event log.
@@ -434,7 +428,8 @@ where
             .write(true)
             .truncate(true)
             .open(&self.data)
-            .await?;
+            .await?
+            .compat_write();
 
         file.seek(SeekFrom::Start(0)).await?;
         file.write_all(&self.identity).await?;
@@ -477,6 +472,45 @@ impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
                         reverse,
                     )
                     .await?);
+                    Ok(it)
+                })
+            }),
+            tree: Default::default(),
+            identity: &FOLDER_EVENT_LOG_IDENTITY,
+            version: None,
+            phantom: std::marker::PhantomData,
+        })
+    }
+}
+
+impl EventLogFile<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
+    /// Create a new folder event log writing to memory.
+    pub async fn new_folder_memory() -> Result<Self> {
+        use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
+
+        let reader = MemoryBuffer::new();
+        let writer = reader.clone();
+        let inner = Arc::clone(&reader.inner);
+
+        Ok(Self {
+            file: Arc::new(Mutex::new((reader, writer))),
+            data: inner,
+            builder: Box::new(move |reverse, header_len, inner| {
+                Box::pin(async move {
+                    let content_offset = header_len as u64;
+                    let read_stream = MemoryBuffer { inner };
+                    let it: Iter = Box::new(FormatStream::<
+                        EventLogFileRecord,
+                        MemoryBuffer,
+                    >::new_buffer(
+                        read_stream,
+                        &FOLDER_EVENT_LOG_IDENTITY,
+                        true,
+                        Some(content_offset),
+                        reverse,
+                    )
+                    .await?);
+
                     Ok(it)
                 })
             }),
@@ -619,7 +653,7 @@ mod test {
 
     use super::*;
     use crate::{
-        events::WriteEvent, formats::FormatStreamIterator, test_utils::*,
+        events::WriteEvent, test_utils::*,
         vault::VaultId,
     };
 

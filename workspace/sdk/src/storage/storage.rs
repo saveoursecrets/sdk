@@ -8,7 +8,6 @@ use crate::{
         AccountEvent, AccountEventLog, AuditEvent, Event, EventKind,
         EventReducer, FolderEventLog, ReadEvent, WriteEvent,
     },
-    formats::FormatStreamIterator,
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
     signer::ecdsa::Address,

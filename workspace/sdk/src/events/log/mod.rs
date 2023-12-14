@@ -1,4 +1,4 @@
-//! Write ahead log types and traits.
+//! Event log types and traits.
 use crate::{
     commit::CommitHash, decode, formats::EventLogFileRecord,
     timestamp::Timestamp, Result,
@@ -80,7 +80,6 @@ mod test {
         commit::{CommitHash, CommitTree, Comparison},
         encode,
         events::WriteEvent,
-        formats::FormatStreamIterator,
         vault::{secret::SecretId, Vault, VaultCommit, VaultEntry},
         vfs,
     };

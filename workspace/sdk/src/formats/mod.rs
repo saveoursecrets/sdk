@@ -1,7 +1,7 @@
 //! Iterate and inspect file formats.
 mod file_identity;
 mod records;
-mod stream;
+pub(crate) mod stream;
 
 pub use file_identity::FileIdentity;
 pub use records::{EventLogFileRecord, FileItem, FileRecord, VaultRecord};
@@ -10,9 +10,9 @@ pub use stream::{FormatStream, FormatStreamIterator};
 use crate::{constants::AUDIT_IDENTITY, vfs::File, Result};
 use std::path::Path;
 
-use futures::io::{BufReader, Cursor};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
+/*
 /// Type of a in-memory buffer for a stream.
 pub type Buffer<'a> = BufReader<Cursor<&'a [u8]>>;
 
@@ -22,6 +22,7 @@ pub type EventLogFileStream = FormatStream<EventLogFileRecord, Compat<File>>;
 /// Type for a stream of event log records from a buffer.
 pub type EventLogBufferStream<'a> =
     FormatStream<EventLogFileRecord, Buffer<'a>>;
+*/
 
 /*
 /// Get a stream for a vault file.
@@ -114,6 +115,7 @@ pub async fn audit_stream<P: AsRef<Path>>(
     .await
 }
 
+/*
 /// Get a stream for an audit file buffer.
 pub async fn audit_stream_buffer<'a>(
     buffer: &'a [u8],
@@ -130,3 +132,4 @@ pub async fn audit_stream_buffer<'a>(
     )
     .await
 }
+*/
