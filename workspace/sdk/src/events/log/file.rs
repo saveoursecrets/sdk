@@ -36,7 +36,7 @@ use async_stream::try_stream;
 use futures::Stream;
 
 use futures::io::{
-    AsyncRead, AsyncReadExt as FutAsyncReadExt, AsyncSeek,
+    AsyncRead, AsyncReadExt, AsyncSeek,
     AsyncSeekExt as FutAsyncSeekExt, AsyncWrite,
     AsyncWriteExt as FutAsyncWriteExt,
 };
@@ -55,7 +55,7 @@ use std::{
 
 use futures::io::{BufReader, Cursor};
 use tokio::{
-    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
+    io::{AsyncSeekExt, AsyncWriteExt},
     sync::{Mutex, MutexGuard},
 };
 use tokio_util::compat::Compat;
