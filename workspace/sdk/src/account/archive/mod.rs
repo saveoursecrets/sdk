@@ -9,7 +9,7 @@ pub use backup::{
 pub use zip::*;
 
 use crate::{
-    account::{Account, AccountHandler},
+    account::Account,
     events::{AuditEvent, EventKind},
     identity::{Identity, PublicIdentity},
     vfs::File,
@@ -97,7 +97,7 @@ impl<D> Account<D> {
 
         options.files_dir = Some(files_dir);
 
-        let (targets, account) = AccountBackup::import_archive_reader(
+        let (_, account) = AccountBackup::import_archive_reader(
             buffer,
             options,
             data_dir,
@@ -139,6 +139,13 @@ impl<D> Account<D> {
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
+        
+        let current_folder = {
+            let storage = owner.storage()?;
+            let reader = storage.read().await;
+            reader.current_folder().cloned()
+        };
+
         let files_dir = 
             ExtractFilesLocation::Path(owner.paths().files_dir().clone());
 
@@ -157,7 +164,14 @@ impl<D> Account<D> {
             let mut writer = storage.write().await;
             writer.restore_archive(&targets).await?;
         }
+
         owner.build_search_index().await?;
+
+        if let Some(folder) = &current_folder {
+            // Note that we don't want the additional 
+            // audit event here
+            owner.open_vault(folder, false).await?;
+        }
 
         Ok(account)
     }

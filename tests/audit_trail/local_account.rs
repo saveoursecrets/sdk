@@ -83,6 +83,7 @@ async fn audit_trail_local() -> Result<()> {
 
     // Exported an account archive
     assert!(matches!(kinds.remove(0), EventKind::ExportBackupArchive));
+
     // Imported an account archive
     assert!(matches!(kinds.remove(0), EventKind::ImportBackupArchive));
 

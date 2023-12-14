@@ -3,12 +3,12 @@ use anyhow::Result;
 use maplit2::hashmap;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "backup_archive";
+const TEST_ID: &str = "backup_export_restore";
 
 /// Tests creating a backup and restoring from the 
-/// backup archive and asserting on the restored data.
+/// backup archive then asserting on the restored data.
 #[tokio::test]
-async fn integration_backup_archive() -> Result<()> {
+async fn export_restore() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -66,32 +66,24 @@ async fn integration_backup_archive() -> Result<()> {
     account.export_backup_archive(&archive).await?;
     assert!(vfs::try_exists(&archive).await?);
 
-    // Delete the account
-    account.delete_account().await?;
-    assert!(!account.is_authenticated());
+    // Delete all the secrets
+    for id in &ids {
+        account.delete_secret(id, Default::default()).await?;
+    }
 
     // Restore from the backup archive
     let options = RestoreOptions {
         selected: folders.clone(),
         ..Default::default()
     };
-    LocalAccount::import_backup_archive(
+    LocalAccount::restore_backup_archive(
         &archive,
+        &mut account,
+        password.clone(),
         options,
         Some(data_dir.clone()),
     )
     .await?;
-
-    // Sign in after restoring the account
-    let mut account = LocalAccount::new_unauthenticated(
-        address,
-        Some(data_dir.clone()),
-        None,
-    )
-    .await?;
-
-    account.sign_in(&key).await?;
-    account.open_folder(&default_folder).await?;
 
     for id in ids {
         assert!(account.read_secret(&id, Default::default()).await.is_ok());
