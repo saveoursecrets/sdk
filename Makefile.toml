@@ -83,8 +83,7 @@ args = [
   "doc",
   "--workspace",
   "--open",
-  "--no-deps",
-  "--all-features"
+  "--no-deps"
 ]
 
 [tasks.unit]

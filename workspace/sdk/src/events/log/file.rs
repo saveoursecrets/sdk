@@ -89,8 +89,7 @@ type IteratorBuilder<D> = Box<
             D,
         )
             -> Pin<Box<dyn Future<Output = Result<Iter>> + Send + Sync>>
-        + Send
-        + Sync,
+        + Send + Sync
 >;
 
 /// Event log.
