@@ -50,6 +50,31 @@ where
     marker: std::marker::PhantomData<T>,
 }
 
+/*
+impl<T, R> FormatStream<T, R>
+where
+    T: FileItem,
+    R: AsyncRead + AsyncSeek + Unpin + Send,
+{
+    /// Create a new file format iterator.
+    pub fn new(
+        mut read_stream: R,
+        data_length_prefix: bool,
+        header_offset: u64,
+    ) -> Self {
+        Self {
+            read_stream,
+            header_offset,
+            data_length_prefix,
+            forward: None,
+            backward: None,
+            reverse: false,
+            marker: std::marker::PhantomData,
+        }
+    }
+}
+*/
+
 impl<T: FileItem> FormatStream<T, Compat<File>> {
     /// Create a new file iterator.
     pub async fn new_file(

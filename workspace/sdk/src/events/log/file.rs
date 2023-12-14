@@ -24,6 +24,7 @@ use crate::{
     events::WriteEvent,
     formats::{
         event_log_stream, EventLogFileRecord, EventLogFileStream, FileItem,
+        FormatStream,
     },
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
@@ -86,7 +87,7 @@ pub type FileEventLog = EventLogFile<FileEvent, FileLog, FileLog>;
 pub struct EventLogFile<E, R, W>
 where
     E: Default + Encodable + Decodable,
-    R: AsyncRead + AsyncSeek + Unpin,
+    R: AsyncRead + AsyncSeek + Unpin + Send,
     W: AsyncWrite + Unpin,
 {
     file_path: PathBuf,
@@ -100,7 +101,7 @@ where
 impl<E, R, W> EventLogFile<E, R, W>
 where
     E: Default + Encodable + Decodable,
-    R: AsyncRead + AsyncSeek + Unpin,
+    R: AsyncRead + AsyncSeek + Unpin + Send,
     W: AsyncWrite + Unpin,
 {
 
@@ -182,24 +183,6 @@ where
     pub async fn iter(&self) -> Result<EventLogFileStream> {
         let content_offset = self.header_len() as u64;
         event_log_stream(&self.file_path, self.identity, content_offset).await
-    }
-
-    /// Read the bytes for the encoded event
-    /// inside the log record.
-    async fn read_event_buffer(
-        path: &PathBuf,
-        record: &EventLogFileRecord,
-    ) -> Result<Vec<u8>> {
-        let mut file = File::open(path).await?;
-        let offset = record.value();
-        let row_len = offset.end - offset.start;
-
-        file.seek(SeekFrom::Start(offset.start)).await?;
-
-        let mut buf = vec![0u8; row_len as usize];
-        file.read_exact(&mut buf).await?;
-
-        Ok(buf)
     }
 
     /// Append a patch to this event log.
@@ -337,16 +320,37 @@ where
             self.iter().await.expect("failed to initialize stream")
         };
 
-        let path = self.file_path.clone();
+        let handle = Arc::clone(&self.file);
         try_stream! {
             while let Some(record) = it.next_entry().await? {
-                let event_buffer = Self::read_event_buffer(&path, &record).await?;
+                let event_buffer = Self::read_event_buffer(
+                    Arc::clone(&handle), &record).await?;
                 let event_record: EventRecord = (record, event_buffer).into();
                 let event = event_record.decode_event::<E>().await?;
                 yield (event_record, event);
             }
         }
     }
+
+    /// Read the bytes for the encoded event
+    /// inside the log record.
+    async fn read_event_buffer(
+        handle: Arc<Mutex<(R, W)>>,
+        record: &EventLogFileRecord,
+    ) -> Result<Vec<u8>> {
+        let mut file = MutexGuard::map(handle.lock().await, |f| &mut f.0);
+
+        let offset = record.value();
+        let row_len = offset.end - offset.start;
+
+        file.seek(SeekFrom::Start(offset.start)).await?;
+
+        let mut buf = vec![0u8; row_len as usize];
+        file.read_exact(&mut buf).await?;
+
+        Ok(buf)
+    }
+
 
     /// Diff of events until a specific commit.
     #[cfg(feature = "sync")]
@@ -377,7 +381,7 @@ where
                 }
             }
             let buffer =
-                Self::read_event_buffer(&self.file_path, &record).await?;
+                Self::read_event_buffer(Arc::clone(&self.file), &record).await?;
             // Iterating in reverse order as we would typically
             // be looking for commits near the end of the event log
             // but we want the patch events in the order they were
