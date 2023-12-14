@@ -23,11 +23,6 @@ pub trait FormatStreamIterator<T>
 where
     T: FileItem + Send,
 {
-    /*
-    /// Iterate in reverse order.
-    fn rev(self) -> Self;
-    */
-
     /// Next entry in the iterator.
     async fn next_entry(&mut self) -> Result<Option<T>>;
 }
@@ -109,7 +104,7 @@ impl<T: FileItem + Send> FormatStreamIterator<T>
     }
 }
 
-impl<'a, T: FileItem + Send> FormatStream<T, MemoryBuffer> {
+impl<T: FileItem + Send> FormatStream<T, MemoryBuffer> {
     /// Create a new buffer iterator.
     pub async fn new_buffer(
         mut read_stream: MemoryBuffer,
@@ -134,7 +129,7 @@ impl<'a, T: FileItem + Send> FormatStream<T, MemoryBuffer> {
 }
 
 #[async_trait]
-impl<'a, T: FileItem + Send> FormatStreamIterator<T>
+impl<T: FileItem + Send> FormatStreamIterator<T>
     for FormatStream<T, MemoryBuffer>
 {
     async fn next_entry(&mut self) -> Result<Option<T>> {

@@ -18,7 +18,7 @@ use time::{
 
 use crate::Result;
 
-/// Timestamp for events and log records.
+/// Date and time with binary encoding support.
 #[derive(
     Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq,
 )]

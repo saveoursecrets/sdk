@@ -24,22 +24,22 @@ pub struct EventRecord(
 );
 
 impl EventRecord {
-    /// Get the time for the record.
+    /// Date and time the record was created.
     pub fn time(&self) -> &Timestamp {
         &self.0
     }
 
-    /// Get the last commit hash for the record.
+    /// Last commit hash for the record.
     pub fn last_commit(&self) -> &CommitHash {
         &self.1
     }
 
-    /// Get the commit hash for the record.
+    /// Commit hash for the record.
     pub fn commit(&self) -> &CommitHash {
         &self.2
     }
 
-    /// Event bytes the record.
+    /// Record event bytes.
     pub fn event_bytes(&self) -> &[u8] {
         self.3.as_slice()
     }
@@ -51,8 +51,7 @@ impl EventRecord {
 
     /// Decode this event record.
     pub async fn decode_event<T: Default + Decodable>(&self) -> Result<T> {
-        let event: T = decode(&self.3).await?;
-        Ok(event)
+        Ok(decode(&self.3).await?)
     }
 }
 
