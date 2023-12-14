@@ -1,14 +1,27 @@
 //! File streams.
 use std::{io::SeekFrom, ops::Range};
 
-use binary_stream::futures::{stream_length, BinaryReader};
-
 use crate::{
     encoding::encoding_options, formats::FileItem, vfs::File, Result,
 };
+use async_trait::async_trait;
+use binary_stream::futures::{stream_length, BinaryReader};
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncSeekExt, BufReader, Cursor};
 use tokio_util::compat::Compat;
+
+/// Trait for file format iterators.
+#[async_trait]
+pub trait FormatStreamIterator<T>
+where
+    T: FileItem + Send,
+{
+    /// Iterate in reverse order.
+    fn rev(self) -> Self;
+
+    /// Next entry in the iterator.
+    async fn next_entry(&mut self) -> Result<Option<T>>;
+}
 
 /// Generic iterator for file formats.
 ///
@@ -16,7 +29,7 @@ use tokio_util::compat::Compat;
 /// in both directions.
 pub struct FormatStream<T, R>
 where
-    T: FileItem,
+    T: FileItem + Send,
     R: AsyncRead + AsyncSeek + Unpin + Send,
 {
     /// Offset from the beginning of the stream where
@@ -50,35 +63,10 @@ where
     marker: std::marker::PhantomData<T>,
 }
 
-/*
-impl<T, R> FormatStream<T, R>
-where
-    T: FileItem,
-    R: AsyncRead + AsyncSeek + Unpin + Send,
-{
-    /// Create a new file format iterator.
-    pub fn new(
-        mut read_stream: R,
-        data_length_prefix: bool,
-        header_offset: u64,
-    ) -> Self {
-        Self {
-            read_stream,
-            header_offset,
-            data_length_prefix,
-            forward: None,
-            backward: None,
-            reverse: false,
-            marker: std::marker::PhantomData,
-        }
-    }
-}
-*/
-
-impl<T: FileItem> FormatStream<T, Compat<File>> {
+impl<T: FileItem + Send> FormatStream<T, Compat<File>> {
     /// Create a new file iterator.
     pub async fn new_file(
-        mut read_stream:  Compat<File>,
+        mut read_stream: Compat<File>,
         identity: &'static [u8],
         data_length_prefix: bool,
         header_offset: Option<u64>,
@@ -98,7 +86,25 @@ impl<T: FileItem> FormatStream<T, Compat<File>> {
     }
 }
 
-impl<'a, T: FileItem> FormatStream<T, BufReader<Cursor<&'a [u8]>>> {
+#[async_trait]
+impl<T: FileItem + Send> FormatStreamIterator<T>
+    for FormatStream<T, Compat<File>>
+{
+    fn rev(mut self) -> Self {
+        self.reverse = true;
+        self
+    }
+
+    async fn next_entry(&mut self) -> Result<Option<T>> {
+        if self.reverse {
+            self.next_back().await
+        } else {
+            self.next().await
+        }
+    }
+}
+
+impl<'a, T: FileItem + Send> FormatStream<T, BufReader<Cursor<&'a [u8]>>> {
     /// Create a new buffer iterator.
     pub async fn new_buffer(
         mut read_stream: BufReader<Cursor<&'a [u8]>>,
@@ -121,26 +127,29 @@ impl<'a, T: FileItem> FormatStream<T, BufReader<Cursor<&'a [u8]>>> {
     }
 }
 
-impl<T, R> FormatStream<T, R>
-where
-    T: FileItem,
-    R: AsyncRead + AsyncSeek + Unpin + Send,
+#[async_trait]
+impl<'a, T: FileItem + Send> FormatStreamIterator<T>
+    for FormatStream<T, BufReader<Cursor<&'a [u8]>>>
 {
-    /// Iterate in reverse order.
-    pub fn rev(mut self) -> Self {
+    fn rev(mut self) -> Self {
         self.reverse = true;
         self
     }
 
-    /// Get the next entry in the iterator.
-    pub async fn next_entry(&mut self) -> Result<Option<T>> {
+    async fn next_entry(&mut self) -> Result<Option<T>> {
         if self.reverse {
             self.next_back().await
         } else {
             self.next().await
         }
     }
+}
 
+impl<T, R> FormatStream<T, R>
+where
+    T: FileItem + Send,
+    R: AsyncRead + AsyncSeek + Unpin + Send,
+{
     /// Set the byte offset that constrains iteration.
     ///
     /// Useful when creating streams of log events.

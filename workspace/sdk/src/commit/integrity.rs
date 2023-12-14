@@ -1,16 +1,16 @@
 //! Functions to build commit trees and run integrity checks.
+use crate::events::FolderEventLog;
 use crate::{
     commit::CommitTree,
     constants::VAULT_IDENTITY,
-    formats::{FileIdentity, FormatStream},
     encoding::encoding_options,
     formats::{EventLogFileRecord, FileItem, VaultRecord},
+    formats::{FileIdentity, FormatStream, FormatStreamIterator},
     vault::Header,
     vfs, Error, Result,
 };
 use binary_stream::futures::BinaryReader;
 use std::io::SeekFrom;
-use crate::events::FolderEventLog;
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
 use std::path::Path;
@@ -24,7 +24,6 @@ macro_rules! read_iterator_item {
         $reader.read_bytes(length as usize).await?
     }};
 }
-
 
 /// Build a commit tree from a vault file optionally
 /// verifying all the row checksums.

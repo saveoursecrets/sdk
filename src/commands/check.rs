@@ -3,9 +3,8 @@ use std::path::PathBuf;
 
 use sos_net::sdk::{
     commit::{event_log_commit_tree_file, vault_commit_tree_file},
-    decode,
-    hex,
-    vault::{Vault, Header},
+    decode, hex,
+    vault::{Header, Vault},
     vfs,
 };
 
@@ -109,7 +108,7 @@ pub async fn keys(vault: PathBuf) -> Result<()> {
     if !vfs::metadata(&vault).await?.is_file() {
         return Err(Error::NotFile(vault));
     }
-    
+
     let buffer = vfs::read(&vault).await?;
     let vault: Vault = decode(&buffer).await?;
     for id in vault.keys() {

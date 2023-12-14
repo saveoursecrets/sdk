@@ -5,6 +5,7 @@ use crate::{
     crypto::AeadPack,
     decode, encode,
     events::{AccountEvent, AccountEventLog, FolderEventLog, WriteEvent},
+    formats::FormatStreamIterator,
     vault::{secret::SecretId, Vault, VaultCommit, VaultId},
     Error, Result,
 };

@@ -20,8 +20,8 @@ use crate::{
     encoding::{encoding_options, VERSION1},
     events::WriteEvent,
     formats::{
-        EventLogFileRecord, EventLogFileStream, FileItem,
-        FormatStream,
+        EventLogFileRecord, EventLogFileStream, FileItem, FormatStream,
+        FormatStreamIterator,
     },
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
@@ -178,7 +178,9 @@ where
     }
 
     /// Iterator of the log records.
-    pub async fn iter(&self) -> Result<EventLogFileStream> {
+    pub async fn iter(
+        &self,
+    ) -> Result<impl FormatStreamIterator<EventLogFileRecord>> {
         let content_offset = self.header_len() as u64;
 
         let read_stream = File::open(&self.file_path).await?.compat();
@@ -268,10 +270,12 @@ where
     /// Load data from storage to build a commit tree in memory.
     pub async fn load_tree(&mut self) -> Result<()> {
         let mut commits = Vec::new();
+
         let mut it = self.iter().await?;
         while let Some(record) = it.next_entry().await? {
             commits.push(record.commit());
         }
+
         self.tree = CommitTree::new();
         self.tree.append(&mut commits);
         self.tree.commit();
@@ -390,7 +394,8 @@ where
             .create(true)
             .append(true)
             .open(path.as_ref())
-            .await?.compat_write();
+            .await?
+            .compat_write();
 
         let size = vfs::metadata(path.as_ref()).await?.len();
         if size == 0 {

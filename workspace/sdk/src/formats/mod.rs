@@ -5,13 +5,9 @@ mod stream;
 
 pub use file_identity::FileIdentity;
 pub use records::{EventLogFileRecord, FileItem, FileRecord, VaultRecord};
-pub use stream::FormatStream;
+pub use stream::{FormatStream, FormatStreamIterator};
 
-use crate::{
-    constants::AUDIT_IDENTITY,
-    vfs::File,
-    Result,
-};
+use crate::{constants::AUDIT_IDENTITY, vfs::File, Result};
 use std::path::Path;
 
 use futures::io::{BufReader, Cursor};
