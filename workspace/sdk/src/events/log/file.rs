@@ -62,33 +62,35 @@ use super::{EventRecord, EventReducer};
 pub type FileLog = Compat<File>;
 
 /// Event log for changes to an account.
-pub type AccountEventLog = EventLogFile<AccountEvent, FileLog>;
+pub type AccountEventLog = EventLogFile<AccountEvent, FileLog, FileLog>;
 
 /// Event log for changes to a folder.
-pub type FolderEventLog = EventLogFile<WriteEvent, FileLog>;
+pub type FolderEventLog = EventLogFile<WriteEvent, FileLog, FileLog>;
 
 /// Event log for changes to external files.
 #[cfg(feature = "files")]
-pub type FileEventLog = EventLogFile<FileEvent, FileLog>;
+pub type FileEventLog = EventLogFile<FileEvent, FileLog, FileLog>;
 
-/// An event log that appends to a file.
-pub struct EventLogFile<T, F>
+/// Event log that appends to a file.
+pub struct EventLogFile<T, R, W>
 where
     T: Default + Encodable + Decodable,
-    F: AsyncRead + AsyncWrite + AsyncSeek,
+    R: AsyncRead + AsyncSeek,
+    W: AsyncWrite,
 {
     file_path: PathBuf,
     file: File,
     tree: CommitTree,
     identity: &'static [u8],
     version: Option<u16>,
-    phantom: std::marker::PhantomData<(T, F)>,
+    phantom: std::marker::PhantomData<(T, R, W)>,
 }
 
-impl<T, F> EventLogFile<T, F>
+impl<T, R, W> EventLogFile<T, R, W>
 where
     T: Default + Encodable + Decodable,
-    F: AsyncRead + AsyncWrite + AsyncSeek,
+    R: AsyncRead + AsyncSeek,
+    W: AsyncWrite,
 {
     /// Create the event log file.
     async fn create<P: AsRef<Path>>(
@@ -151,7 +153,7 @@ where
         item: &EventLogFileRecord,
     ) -> Result<T> {
         let value = item.value();
-
+        
         // Use a different file handle as the owned `file` should
         // be used exclusively for appending
         let mut file = File::open(&self.file_path).await?;
@@ -433,9 +435,10 @@ where
     }
 }
 
-impl<F> EventLogFile<WriteEvent, F>
+impl<R, W> EventLogFile<WriteEvent, R, W>
 where
-    F: AsyncRead + AsyncWrite + AsyncSeek,
+    R: AsyncRead + AsyncSeek,
+    W: AsyncWrite,
 {
     /// Create a new folder event log file.
     pub async fn new_folder<P: AsRef<Path>>(file_path: P) -> Result<Self> {
@@ -500,7 +503,7 @@ where
     */
 }
 
-impl EventLogFile<WriteEvent, Compat<File>> {
+impl EventLogFile<WriteEvent, FileLog, FileLog> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.path().metadata()?.len();
@@ -540,9 +543,10 @@ impl EventLogFile<WriteEvent, Compat<File>> {
     }
 }
 
-impl<F> EventLogFile<AccountEvent, F>
+impl<R, W> EventLogFile<AccountEvent, R, W>
 where
-    F: AsyncRead + AsyncWrite + AsyncSeek,
+    R: AsyncRead + AsyncSeek,
+    W: AsyncWrite,
 {
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(file_path: P) -> Result<Self> {
@@ -567,9 +571,10 @@ where
 }
 
 #[cfg(feature = "files")]
-impl<F> EventLogFile<FileEvent, F>
+impl<R, W> EventLogFile<FileEvent, R, W>
 where
-    F: AsyncRead + AsyncWrite + AsyncSeek,
+    R: AsyncRead + AsyncSeek,
+    W: AsyncWrite,
 {
     /// Create a new file event log file.
     pub async fn new_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {

@@ -14,7 +14,7 @@ mod move_folder;
 
 /// Get the last event from an event log.
 async fn last_log_event<T: Encodable + Decodable + Default>(
-    event_log: &mut EventLogFile<T, FileLog>,
+    event_log: &mut EventLogFile<T, FileLog, FileLog>,
     commit: Option<&CommitHash>,
 ) -> Result<Option<T>> {
     let patch = event_log.diff(commit).await?;
@@ -24,7 +24,7 @@ async fn last_log_event<T: Encodable + Decodable + Default>(
 
 /// Get all events from an event log.
 async fn all_events<T: Encodable + Decodable + Default>(
-    event_log: &mut EventLogFile<T, FileLog>,
+    event_log: &mut EventLogFile<T, FileLog, FileLog>,
 ) -> Result<Vec<T>> {
     let patch = event_log.diff(None).await?;
     Ok(patch.into())
