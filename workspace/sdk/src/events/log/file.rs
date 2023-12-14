@@ -78,7 +78,11 @@ pub type FolderEventLog = EventLogFile<WriteEvent, FileLog, FileLog>;
 #[cfg(feature = "files")]
 pub type FileEventLog = EventLogFile<FileEvent, FileLog, FileLog>;
 
-/// Event log that appends to a file.
+/// Event log.
+///
+/// Appends events to an append-only writer and reads events 
+/// via a reader whilst managing an in-memory merkle tree 
+/// of event hashes.
 pub struct EventLogFile<E, R, W>
 where
     E: Default + Encodable + Decodable,
@@ -304,6 +308,8 @@ where
 
     /// Truncate the backing storage to an empty file.
     async fn truncate(&mut self) -> Result<()> {
+        let _ = self.file.lock().await;
+
         // Workaround for set_len(0) failing with "Access Denied" on Windows
         // SEE: https://github.com/rust-lang/rust/issues/105437
         let mut file = OpenOptions::new()
