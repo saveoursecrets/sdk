@@ -84,8 +84,7 @@ where
     W: AsyncWrite + Unpin,
 {
     file_path: PathBuf,
-    writer: W,
-    file: Arc<Mutex<(R, ())>>,
+    file: Arc<Mutex<(R, W)>>,
     tree: CommitTree,
     identity: &'static [u8],
     version: Option<u16>,
@@ -267,9 +266,10 @@ where
         let mut hashes =
             commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
 
-        match self.writer.write_all(&buffer).await {
+        let mut file = MutexGuard::map(self.file.lock().await, |f| &mut f.1);
+        match file.write_all(&buffer).await {
             Ok(_) => {
-                self.writer.flush().await?;
+                file.flush().await?;
                 self.tree.append(&mut hashes);
                 self.tree.commit();
                 Ok(commits)
@@ -450,8 +450,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog> {
         .await?;
 
         Ok(Self {
-            writer,
-            file: Arc::new(Mutex::new((reader, ()))),
+            file: Arc::new(Mutex::new((reader, writer))),
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FOLDER_EVENT_LOG_IDENTITY,
@@ -520,8 +519,7 @@ impl EventLogFile<AccountEvent, FileLog, FileLog> {
         .await?;
 
         Ok(Self {
-            writer,
-            file: Arc::new(Mutex::new((reader, ()))),
+            file: Arc::new(Mutex::new((reader, writer))),
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &ACCOUNT_EVENT_LOG_IDENTITY,
@@ -549,8 +547,7 @@ impl EventLogFile<FileEvent, FileLog, FileLog> {
         .await?;
 
         Ok(Self {
-            writer,
-            file: Arc::new(Mutex::new((reader, ()))),
+            file: Arc::new(Mutex::new((reader, writer))),
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FILE_EVENT_LOG_IDENTITY,
