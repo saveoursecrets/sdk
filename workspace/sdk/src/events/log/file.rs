@@ -270,32 +270,6 @@ where
         Ok(())
     }
 
-    /// Delete all events from the log file on disc
-    /// and in-memory.
-    pub async fn clear(&mut self) -> Result<()> {
-        self.truncate().await?;
-        self.tree = CommitTree::new();
-        Ok(())
-    }
-
-    /// Truncate the backing storage to an empty file.
-    async fn truncate(&mut self) -> Result<()> {
-        let _ = self.file.lock().await;
-
-        // Workaround for set_len(0) failing with "Access Denied" on Windows
-        // SEE: https://github.com/rust-lang/rust/issues/105437
-        let mut file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(&self.file_path)
-            .await?;
-
-        file.seek(SeekFrom::Start(0)).await?;
-        file.write_all(&self.identity).await?;
-        file.flush().await?;
-        Ok(())
-    }
-
     /// Stream of event records and decoded events.
     ///
     /// # Panics
@@ -425,6 +399,32 @@ where
     /// Create the reader for an event log file.
     async fn create_reader<P: AsRef<Path>>(path: P) -> Result<FileLog> {
         Ok(File::open(path).await?.compat())
+    }
+
+    /// Delete all events from the log file on disc
+    /// and in-memory.
+    pub async fn clear(&mut self) -> Result<()> {
+        self.truncate().await?;
+        self.tree = CommitTree::new();
+        Ok(())
+    }
+
+    /// Truncate the backing storage to an empty file.
+    async fn truncate(&mut self) -> Result<()> {
+        let _ = self.file.lock().await;
+
+        // Workaround for set_len(0) failing with "Access Denied" on Windows
+        // SEE: https://github.com/rust-lang/rust/issues/105437
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.data)
+            .await?;
+
+        file.seek(SeekFrom::Start(0)).await?;
+        file.write_all(&self.identity).await?;
+        file.flush().await?;
+        Ok(())
     }
 }
 
