@@ -16,7 +16,7 @@
 //!
 use crate::{
     commit::{
-        event_log_commit_tree_file, CommitHash, CommitProof, CommitTree,
+        CommitHash, CommitProof, CommitTree,
         Comparison,
     },
     encode,
@@ -103,10 +103,6 @@ where
     R: AsyncRead + AsyncSeek + Unpin,
     W: AsyncWrite + Unpin,
 {
-    /// Path to the event log file.
-    pub fn path(&self) -> &PathBuf {
-        &self.file_path
-    }
 
     /// Commit tree for the log records.
     pub fn tree(&self) -> &CommitTree {
@@ -121,7 +117,6 @@ where
     ) -> Result<(CommitHash, EventRecord)> {
         let time: Timestamp = Default::default();
         let bytes = encode(event).await?;
-
         let commit = CommitHash(CommitTree::hash(&bytes));
 
         let last_commit = if let Some(last_commit) = last_commit {
@@ -465,7 +460,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog> {
 impl EventLogFile<WriteEvent, FileLog, FileLog> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
-        let old_size = self.path().metadata()?.len();
+        let old_size = self.file_path.metadata()?.len();
 
         // Get the reduced set of events
         let events =
@@ -476,10 +471,11 @@ impl EventLogFile<WriteEvent, FileLog, FileLog> {
         let mut temp_event_log = Self::new_folder(temp.path()).await?;
         temp_event_log.apply(events.iter().collect()).await?;
 
-        let new_size = self.path().metadata()?.len();
+        let new_size = self.file_path.metadata()?.len();
 
         // Remove the existing event log file
-        vfs::remove_file(self.path()).await?;
+        vfs::remove_file(&self.file_path).await?;
+
         // Move the temp file into place
         //
         // NOTE: we would prefer to rename but on linux we
@@ -487,17 +483,13 @@ impl EventLogFile<WriteEvent, FileLog, FileLog> {
         //
         // But it's a nightly only variant so can't use it yet to
         // determine whether to rename or copy.
-        vfs::copy(temp.path(), self.path()).await?;
-
-        let mut new_event_log = Self::new_folder(self.path()).await?;
-        new_event_log.load_tree().await?;
-
-        // Verify the new event log tree
-        event_log_commit_tree_file(new_event_log.path(), true, |_| {})
-            .await?;
+        vfs::copy(temp.path(), &self.file_path).await?;
 
         // Need to recreate the event log file and load the updated
         // commit tree
+        let mut new_event_log = Self::new_folder(&self.file_path).await?;
+        new_event_log.load_tree().await?;
+
         Ok((new_event_log, old_size, new_size))
     }
 }
