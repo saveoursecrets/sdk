@@ -120,17 +120,6 @@ impl<T> RetryResponse<T> {
     }
 }
 
-/// Create an RPC call without a body.
-async fn new_rpc_call<T: Serialize>(
-    id: u64,
-    method: &str,
-    params: T,
-) -> Result<Vec<u8>> {
-    let request = RequestMessage::new_call(Some(id), method, params)?;
-    let packet = Packet::new_request(request);
-    Ok(encode(&packet).await?)
-}
-
 /// Client for the self-hosted server that
 /// communicates using RPC messages.
 #[derive(Clone)]
