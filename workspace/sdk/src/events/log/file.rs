@@ -30,7 +30,10 @@ use crate::{
 
 use crate::events::AccountEvent;
 use async_stream::try_stream;
-use futures::Stream;
+use async_trait::async_trait;
+use futures::{Future, Stream};
+
+use futures::io::{BufReader, Cursor};
 
 use futures::io::{
     AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt as FutAsyncSeekExt,
@@ -46,10 +49,10 @@ use crate::sync::{CheckedPatch, Patch};
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
+    pin::Pin,
     sync::Arc,
 };
 
-use futures::io::{BufReader, Cursor};
 use tokio::{
     io::{AsyncSeekExt, AsyncWriteExt},
     sync::{Mutex, MutexGuard},
@@ -76,6 +79,20 @@ pub type FolderEventLog = EventLogFile<WriteEvent, FileLog, FileLog, PathBuf>;
 #[cfg(feature = "files")]
 pub type FileEventLog = EventLogFile<FileEvent, FileLog, FileLog, PathBuf>;
 
+type Iter = Box<dyn FormatStreamIterator<EventLogFileRecord> + Send + Sync>;
+
+/// Builder for the event log iterator.
+type IteratorBuilder<D> = Box<
+    dyn Fn(
+            bool,
+            usize,
+            D,
+        )
+            -> Pin<Box<dyn Future<Output = Result<Iter>> + Send + Sync>>
+        + Send
+        + Sync,
+>;
+
 /// Event log.
 ///
 /// Appends events to an append-only writer and reads events
@@ -86,11 +103,11 @@ where
     E: Default + Encodable + Decodable,
     R: AsyncRead + AsyncSeek + Unpin + Send,
     W: AsyncWrite + Unpin,
+    D: Clone,
 {
-    #[deprecated]
-    file_path: PathBuf,
     file: Arc<Mutex<(R, W)>>,
     tree: CommitTree,
+    builder: IteratorBuilder<D>,
     data: D,
     identity: &'static [u8],
     version: Option<u16>,
@@ -102,6 +119,7 @@ where
     E: Default + Encodable + Decodable,
     R: AsyncRead + AsyncSeek + Unpin + Send,
     W: AsyncWrite + Unpin,
+    D: Clone,
 {
     /// Commit tree for the log records.
     pub fn tree(&self) -> &CommitTree {
@@ -124,8 +142,7 @@ where
             self.tree.last_commit().unwrap_or_default()
         };
 
-        let record = EventRecord(time, last_commit, commit, bytes);
-        Ok((commit, record))
+        Ok((commit, EventRecord(time, last_commit, commit, bytes)))
     }
 
     /// Read the event data from an item.
@@ -178,19 +195,9 @@ where
     }
 
     /// Iterator of the log records.
-    pub async fn iter(
-        &self,
-    ) -> Result<impl FormatStreamIterator<EventLogFileRecord>> {
-        let content_offset = self.header_len() as u64;
-
-        let read_stream = File::open(&self.file_path).await?.compat();
-        Ok(FormatStream::<EventLogFileRecord, Compat<File>>::new_file(
-            read_stream,
-            self.identity,
-            true,
-            Some(content_offset),
-        )
-        .await?)
+    pub async fn iter(&self, reverse: bool) -> Result<Iter> {
+        let header_len = self.header_len();
+        (self.builder)(reverse, header_len, self.data.clone()).await
     }
 
     /// Append a patch to this event log.
@@ -271,7 +278,7 @@ where
     pub async fn load_tree(&mut self) -> Result<()> {
         let mut commits = Vec::new();
 
-        let mut it = self.iter().await?;
+        let mut it = self.iter(false).await?;
         while let Some(record) = it.next_entry().await? {
             commits.push(record.commit());
         }
@@ -291,14 +298,10 @@ where
         &self,
         reverse: bool,
     ) -> impl Stream<Item = Result<(EventRecord, E)>> {
-        let mut it = if reverse {
-            self.iter()
-                .await
-                .expect("failed to initialize stream")
-                .rev()
-        } else {
-            self.iter().await.expect("failed to initialize stream")
-        };
+        let mut it = self
+            .iter(reverse)
+            .await
+            .expect("failed to initialize stream");
 
         let handle = Arc::clone(&self.file);
         try_stream! {
@@ -352,7 +355,7 @@ where
         commit: Option<&CommitHash>,
     ) -> Result<Vec<EventRecord>> {
         let mut events = Vec::new();
-        let mut it = self.iter().await?.rev();
+        let mut it = self.iter(true).await?;
         while let Some(record) = it.next_entry().await? {
             if let Some(commit) = commit {
                 if &record.commit() == commit.as_ref() {
@@ -459,8 +462,25 @@ impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
 
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
-            file_path: path.as_ref().to_path_buf(),
             data: path.as_ref().to_path_buf(),
+            builder: Box::new(|reverse, header_len, data| {
+                Box::pin(async move {
+                    let content_offset = header_len as u64;
+                    let read_stream = File::open(data).await?.compat();
+                    let it: Iter = Box::new(FormatStream::<
+                        EventLogFileRecord,
+                        Compat<File>,
+                    >::new_file(
+                        read_stream,
+                        &FOLDER_EVENT_LOG_IDENTITY,
+                        true,
+                        Some(content_offset),
+                        reverse,
+                    )
+                    .await?);
+                    Ok(it)
+                })
+            }),
             tree: Default::default(),
             identity: &FOLDER_EVENT_LOG_IDENTITY,
             version: None,
@@ -523,8 +543,25 @@ impl EventLogFile<AccountEvent, FileLog, FileLog, PathBuf> {
 
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
-            file_path: path.as_ref().to_path_buf(),
             data: path.as_ref().to_path_buf(),
+            builder: Box::new(|reverse, header_len, data| {
+                Box::pin(async move {
+                    let content_offset = header_len as u64;
+                    let read_stream = File::open(data).await?.compat();
+                    let it: Iter = Box::new(FormatStream::<
+                        EventLogFileRecord,
+                        Compat<File>,
+                    >::new_file(
+                        read_stream,
+                        &ACCOUNT_EVENT_LOG_IDENTITY,
+                        true,
+                        Some(content_offset),
+                        reverse,
+                    )
+                    .await?);
+                    Ok(it)
+                })
+            }),
             tree: Default::default(),
             identity: &ACCOUNT_EVENT_LOG_IDENTITY,
             version: Some(VERSION),
@@ -536,7 +573,7 @@ impl EventLogFile<AccountEvent, FileLog, FileLog, PathBuf> {
 #[cfg(feature = "files")]
 impl EventLogFile<FileEvent, FileLog, FileLog, PathBuf> {
     /// Create a new file event log file.
-    pub async fn new_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn new_file(path: impl AsRef<Path>) -> Result<Self> {
         use crate::{constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION};
         let writer = Self::create_writer(
             path.as_ref(),
@@ -549,8 +586,25 @@ impl EventLogFile<FileEvent, FileLog, FileLog, PathBuf> {
 
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
-            file_path: path.as_ref().to_path_buf(),
             data: path.as_ref().to_path_buf(),
+            builder: Box::new(|reverse, header_len, data| {
+                Box::pin(async move {
+                    let content_offset = header_len as u64;
+                    let read_stream = File::open(data).await?.compat();
+                    let it: Iter = Box::new(FormatStream::<
+                        EventLogFileRecord,
+                        Compat<File>,
+                    >::new_file(
+                        read_stream,
+                        &FILE_EVENT_LOG_IDENTITY,
+                        true,
+                        Some(content_offset),
+                        reverse,
+                    )
+                    .await?);
+                    Ok(it)
+                })
+            }),
             tree: Default::default(),
             identity: &FILE_EVENT_LOG_IDENTITY,
             version: Some(VERSION),
@@ -565,7 +619,10 @@ mod test {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{events::WriteEvent, test_utils::*, vault::VaultId};
+    use crate::{
+        events::WriteEvent, formats::FormatStreamIterator, test_utils::*,
+        vault::VaultId,
+    };
 
     async fn mock_account_event_log(
     ) -> Result<(NamedTempFile, AccountEventLog)> {
@@ -623,7 +680,7 @@ mod test {
     #[tokio::test]
     async fn folder_event_log_iter_forward() -> Result<()> {
         let (temp, event_log, commits) = mock_event_log_file().await?;
-        let mut it = event_log.iter().await?;
+        let mut it = event_log.iter(false).await?;
         let first_row = it.next_entry().await?.unwrap();
         let second_row = it.next_entry().await?.unwrap();
         let third_row = it.next_entry().await?.unwrap();
@@ -640,7 +697,7 @@ mod test {
     #[tokio::test]
     async fn folder_event_log_iter_backward() -> Result<()> {
         let (temp, event_log, _) = mock_event_log_file().await?;
-        let mut it = event_log.iter().await?.rev();
+        let mut it = event_log.iter(true).await?;
         let _third_row = it.next_entry().await?.unwrap();
         let _second_row = it.next_entry().await?.unwrap();
         let _first_row = it.next_entry().await?.unwrap();

@@ -231,7 +231,7 @@ async fn read_audit_events(
     let mut events = Vec::new();
     let log_file = AuditLogFile::new(audit_log.as_ref()).await?;
     let mut file = vfs::File::open(audit_log.as_ref()).await?;
-    let mut it = log_file.iter().await?;
+    let mut it = log_file.iter(false).await?;
     while let Some(record) = it.next_entry().await? {
         events.push(log_file.read_event(&mut file, &record).await?);
     }

@@ -100,6 +100,7 @@ pub async fn event_log_stream_buffer<'a>(
 /// Get a stream for an audit file.
 pub async fn audit_stream<P: AsRef<Path>>(
     path: P,
+    reverse: bool,
 ) -> Result<FormatStream<FileRecord, Compat<File>>> {
     FileIdentity::read_file(path.as_ref(), &AUDIT_IDENTITY).await?;
     let read_stream = File::open(path.as_ref()).await?.compat();
@@ -108,6 +109,7 @@ pub async fn audit_stream<P: AsRef<Path>>(
         &AUDIT_IDENTITY,
         false,
         None,
+        reverse,
     )
     .await
 }
@@ -115,6 +117,7 @@ pub async fn audit_stream<P: AsRef<Path>>(
 /// Get a stream for an audit file buffer.
 pub async fn audit_stream_buffer<'a>(
     buffer: &'a [u8],
+    reverse: bool,
 ) -> Result<FormatStream<FileRecord, Buffer<'a>>> {
     FileIdentity::read_slice(&buffer, &AUDIT_IDENTITY)?;
     let read_stream = BufReader::new(Cursor::new(buffer));
@@ -123,6 +126,7 @@ pub async fn audit_stream_buffer<'a>(
         &AUDIT_IDENTITY,
         false,
         None,
+        reverse,
     )
     .await
 }

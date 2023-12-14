@@ -44,8 +44,9 @@ impl AuditLogFile {
     /// Get an audit log file iterator.
     pub async fn iter(
         &self,
+        reverse: bool,
     ) -> Result<FormatStream<FileRecord, Compat<File>>> {
-        audit_stream(&self.file_path).await
+        audit_stream(&self.file_path, reverse).await
     }
 
     /// Create the file used to store audit logs.

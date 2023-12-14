@@ -53,6 +53,7 @@ where
         &VAULT_IDENTITY,
         true,
         Some(content_offset),
+        false,
     )
     .await?;
 
@@ -99,7 +100,7 @@ where
 
     let event_log =
         FolderEventLog::new_folder(event_log_file.as_ref()).await?;
-    let mut it = event_log.iter().await?;
+    let mut it = event_log.iter(false).await?;
     let mut last_checksum: Option<[u8; 32]> = None;
 
     while let Some(record) = it.next_entry().await? {

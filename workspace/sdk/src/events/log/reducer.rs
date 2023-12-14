@@ -98,7 +98,7 @@ impl EventReducer {
         mut self,
         event_log: &FolderEventLog,
     ) -> Result<EventReducer> {
-        let mut it = event_log.iter().await?;
+        let mut it = event_log.iter(false).await?;
         if let Some(log) = it.next_entry().await? {
             let event = event_log.decode_event(&log).await?;
 

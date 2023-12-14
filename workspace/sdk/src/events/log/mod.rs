@@ -80,6 +80,7 @@ mod test {
         commit::{CommitHash, CommitTree, Comparison},
         encode,
         events::WriteEvent,
+        formats::FormatStreamIterator,
         vault::{secret::SecretId, Vault, VaultCommit, VaultEntry},
         vfs,
     };
@@ -156,7 +157,7 @@ mod test {
 
         // Duplicate the server events on the client
         let mut client = EventLogFile::new_folder(&client_file).await?;
-        let mut it = server.iter().await?;
+        let mut it = server.iter(false).await?;
         while let Some(record) = it.next_entry().await? {
             let event = server.decode_event(&record).await?;
             client.apply(vec![&event]).await?;
@@ -265,7 +266,7 @@ mod test {
         mock_event_log_standalone().await?;
         let path = PathBuf::from(MOCK_LOG);
         let event_log = FolderEventLog::new_folder(path).await?;
-        let mut it = event_log.iter().await?;
+        let mut it = event_log.iter(false).await?;
         while let Some(record) = it.next_entry().await? {
             let _event = event_log.decode_event(&record).await?;
         }

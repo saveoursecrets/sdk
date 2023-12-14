@@ -16,8 +16,10 @@ pub trait FormatStreamIterator<T>
 where
     T: FileItem + Send,
 {
+    /*
     /// Iterate in reverse order.
     fn rev(self) -> Self;
+    */
 
     /// Next entry in the iterator.
     async fn next_entry(&mut self) -> Result<Option<T>>;
@@ -70,6 +72,7 @@ impl<T: FileItem + Send> FormatStream<T, Compat<File>> {
         identity: &'static [u8],
         data_length_prefix: bool,
         header_offset: Option<u64>,
+        reverse: bool,
     ) -> Result<Self> {
         let header_offset = header_offset.unwrap_or(identity.len() as u64);
         read_stream.seek(SeekFrom::Start(header_offset)).await?;
@@ -80,7 +83,7 @@ impl<T: FileItem + Send> FormatStream<T, Compat<File>> {
             read_stream,
             forward: None,
             backward: None,
-            reverse: false,
+            reverse,
             marker: std::marker::PhantomData,
         })
     }
@@ -90,11 +93,6 @@ impl<T: FileItem + Send> FormatStream<T, Compat<File>> {
 impl<T: FileItem + Send> FormatStreamIterator<T>
     for FormatStream<T, Compat<File>>
 {
-    fn rev(mut self) -> Self {
-        self.reverse = true;
-        self
-    }
-
     async fn next_entry(&mut self) -> Result<Option<T>> {
         if self.reverse {
             self.next_back().await
@@ -111,6 +109,7 @@ impl<'a, T: FileItem + Send> FormatStream<T, BufReader<Cursor<&'a [u8]>>> {
         identity: &'static [u8],
         data_length_prefix: bool,
         header_offset: Option<u64>,
+        reverse: bool,
     ) -> Result<FormatStream<T, BufReader<Cursor<&'a [u8]>>>> {
         let header_offset = header_offset.unwrap_or(identity.len() as u64);
         read_stream.seek(SeekFrom::Start(header_offset)).await?;
@@ -121,7 +120,7 @@ impl<'a, T: FileItem + Send> FormatStream<T, BufReader<Cursor<&'a [u8]>>> {
             read_stream,
             forward: None,
             backward: None,
-            reverse: false,
+            reverse,
             marker: std::marker::PhantomData,
         })
     }
@@ -131,11 +130,6 @@ impl<'a, T: FileItem + Send> FormatStream<T, BufReader<Cursor<&'a [u8]>>> {
 impl<'a, T: FileItem + Send> FormatStreamIterator<T>
     for FormatStream<T, BufReader<Cursor<&'a [u8]>>>
 {
-    fn rev(mut self) -> Self {
-        self.reverse = true;
-        self
-    }
-
     async fn next_entry(&mut self) -> Result<Option<T>> {
         if self.reverse {
             self.next_back().await

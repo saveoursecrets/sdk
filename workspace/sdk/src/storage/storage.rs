@@ -1093,7 +1093,7 @@ impl Storage {
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let mut records = Vec::new();
-        let mut it = event_log.iter().await?;
+        let mut it = event_log.iter(false).await?;
         while let Some(record) = it.next_entry().await? {
             let event = event_log.decode_event(&record).await?;
             let commit = CommitHash(record.commit());
