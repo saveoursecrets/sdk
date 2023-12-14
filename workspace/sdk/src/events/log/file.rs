@@ -20,7 +20,7 @@ use crate::{
     encoding::{encoding_options, VERSION1},
     events::WriteEvent,
     formats::{
-        event_log_stream, EventLogFileRecord, EventLogFileStream, FileItem,
+        EventLogFileRecord, EventLogFileStream, FileItem,
         FormatStream,
     },
     timestamp::Timestamp,
@@ -390,9 +390,9 @@ where
             .create(true)
             .append(true)
             .open(path.as_ref())
-            .await?;
+            .await?.compat_write();
 
-        let size = file.metadata().await?.len();
+        let size = vfs::metadata(path.as_ref()).await?.len();
         if size == 0 {
             let mut header = identity.to_vec();
             if let Some(version) = encoding_version {
@@ -401,7 +401,7 @@ where
             file.write_all(&header).await?;
             file.flush().await?;
         }
-        Ok(file.compat_write())
+        Ok(file)
     }
 
     /// Create the reader for an event log file.

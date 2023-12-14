@@ -8,8 +8,7 @@ pub use records::{EventLogFileRecord, FileItem, FileRecord, VaultRecord};
 pub use stream::FormatStream;
 
 use crate::{
-    constants::{AUDIT_IDENTITY, VAULT_IDENTITY},
-    vault::Header,
+    constants::AUDIT_IDENTITY,
     vfs::File,
     Result,
 };
@@ -64,6 +63,7 @@ pub async fn vault_stream_buffer<'a>(
 }
 */
 
+/*
 /// Stream for an event log file.
 pub async fn event_log_stream<P: AsRef<Path>>(
     path: P,
@@ -80,6 +80,7 @@ pub async fn event_log_stream<P: AsRef<Path>>(
     )
     .await
 }
+*/
 
 /*
 /// Stream for an event log file buffer.
