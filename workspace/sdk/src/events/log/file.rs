@@ -34,6 +34,10 @@ use crate::events::AccountEvent;
 use async_stream::try_stream;
 use futures::Stream;
 
+use futures::io::{
+    AsyncWrite, AsyncRead, AsyncSeek,
+};
+
 #[cfg(feature = "files")]
 use crate::events::FileEvent;
 
@@ -202,64 +206,6 @@ where
         let content_offset = self.header_len() as u64;
         event_log_stream(&self.file_path, self.identity, content_offset).await
     }
-
-    /*
-    /// Replace this event log with the contents of the buffer.
-    ///
-    /// The buffer should start with the event log identity bytes.
-    pub async fn write_buffer(&mut self, buffer: &[u8]) -> Result<()> {
-        vfs::write(self.path(), buffer).await?;
-        self.load_tree().await?;
-        Ok(())
-    }
-    */
-
-    /*
-    /// Append the buffer to the contents of this event log.
-    ///
-    /// The buffer should start with the event log identity bytes.
-    pub async fn append_buffer(&mut self, buffer: Vec<u8>) -> Result<()> {
-        // Get buffer of log records after the identity bytes
-        let buffer = &buffer[self.header_len()..];
-
-        let mut file = OpenOptions::new()
-            .write(true)
-            .append(true)
-            .open(self.path())
-            .await?;
-        file.write_all(buffer).await?;
-        file.flush().await?;
-
-        // FIXME: don't rebuild the entire commit tree from scratch
-        // FIXME: but iterate the new commits in the buffer and
-        // FIXME: append them to the existing tree
-
-        // Update with the new commit tree
-        self.load_tree().await?;
-
-        Ok(())
-    }
-    */
-
-    /*
-    /// Get the tail after the given item until the end of the log.
-    pub async fn tail(&self, item: EventLogFileRecord) -> Result<Vec<u8>> {
-        let mut partial = self.header();
-        let start = item.offset().end as usize;
-        let mut file = File::open(&self.file_path).await?;
-        let end = file.metadata().await?.len() as usize;
-
-        if start < end {
-            file.seek(SeekFrom::Start(start as u64)).await?;
-            let mut buffer = vec![0; end - start];
-            file.read_exact(buffer.as_mut_slice()).await?;
-            partial.append(&mut buffer);
-            Ok(partial)
-        } else {
-            Ok(partial)
-        }
-    }
-    */
 
     /// Read the bytes for the encoded event
     /// inside the log record.
@@ -432,22 +378,6 @@ where
             }
         }
     }
-
-    /*
-    /// Get a diff of the records after the record with the
-    /// given commit hash.
-    ///
-    /// Iterates backwards from the end of the event log.
-    pub(crate) async fn diff_buffer(&self, commit: [u8; 32]) -> Result<Option<Vec<u8>>> {
-        let mut it = self.iter().await?.rev();
-        while let Some(record) = it.next_entry().await? {
-            if record.commit() == commit {
-                return Ok(Some(self.tail(record).await?));
-            }
-        }
-        Ok(None)
-    }
-    */
 
     /// Diff of events until a specific commit.
     #[cfg(feature = "sync")]

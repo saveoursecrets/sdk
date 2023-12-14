@@ -8,7 +8,7 @@ use crate::{
 };
 
 use futures::io::{
-    AsyncRead, AsyncSeek, AsyncSeekExt as FuturesAsyncSeekExt, BufReader,
+    AsyncRead, AsyncSeek, AsyncSeekExt, BufReader,
     Cursor,
 };
 use tokio_util::compat::Compat;
