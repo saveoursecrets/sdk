@@ -87,9 +87,11 @@ where
     R: AsyncRead + AsyncSeek + Unpin + Send,
     W: AsyncWrite + Unpin,
 {
+    #[deprecated]
     file_path: PathBuf,
     file: Arc<Mutex<(R, W)>>,
     tree: CommitTree,
+    data: D,
     identity: &'static [u8],
     version: Option<u16>,
     phantom: std::marker::PhantomData<(E, D)>,
@@ -241,13 +243,12 @@ where
             buffer.append(&mut buf);
         }
 
-        let mut hashes =
-            commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
-
         let mut file = MutexGuard::map(self.file.lock().await, |f| &mut f.1);
         match file.write_all(&buffer).await {
             Ok(_) => {
                 file.flush().await?;
+                let mut hashes =
+                    commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
                 self.tree.append(&mut hashes);
                 self.tree.commit();
                 Ok(commits)
@@ -429,23 +430,24 @@ where
 
 impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
     /// Create a new folder event log file.
-    pub async fn new_folder<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+    pub async fn new_folder<P: AsRef<Path>>(path: P) -> Result<Self> {
         use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
         // Note that for backwards compatibility we don't
         // encode a version, later we will need to upgrade
         // the encoding to include a version
         let writer = Self::create_writer(
-            file_path.as_ref(),
+            path.as_ref(),
             &FOLDER_EVENT_LOG_IDENTITY,
             None,
         )
         .await?;
 
-        let reader = Self::create_reader(file_path.as_ref()).await?;
+        let reader = Self::create_reader(path.as_ref()).await?;
 
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
-            file_path: file_path.as_ref().to_path_buf(),
+            file_path: path.as_ref().to_path_buf(),
+            data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FOLDER_EVENT_LOG_IDENTITY,
             version: None,
@@ -457,7 +459,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
 impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
-        let old_size = self.file_path.metadata()?.len();
+        let old_size = self.data.metadata()?.len();
 
         // Get the reduced set of events
         let events =
@@ -468,10 +470,10 @@ impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
         let mut temp_event_log = Self::new_folder(temp.path()).await?;
         temp_event_log.apply(events.iter().collect()).await?;
 
-        let new_size = self.file_path.metadata()?.len();
+        let new_size = self.data.metadata()?.len();
 
         // Remove the existing event log file
-        vfs::remove_file(&self.file_path).await?;
+        vfs::remove_file(&self.data).await?;
 
         // Move the temp file into place
         //
@@ -480,11 +482,11 @@ impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
         //
         // But it's a nightly only variant so can't use it yet to
         // determine whether to rename or copy.
-        vfs::copy(temp.path(), &self.file_path).await?;
+        vfs::copy(temp.path(), &self.data).await?;
 
         // Need to recreate the event log file and load the updated
         // commit tree
-        let mut new_event_log = Self::new_folder(&self.file_path).await?;
+        let mut new_event_log = Self::new_folder(&self.data).await?;
         new_event_log.load_tree().await?;
 
         Ok((new_event_log, old_size, new_size))
@@ -493,22 +495,23 @@ impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
 
 impl EventLogFile<AccountEvent, FileLog, FileLog, PathBuf> {
     /// Create a new account event log file.
-    pub async fn new_account<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+    pub async fn new_account<P: AsRef<Path>>(path: P) -> Result<Self> {
         use crate::{
             constants::ACCOUNT_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
         let writer = Self::create_writer(
-            file_path.as_ref(),
+            path.as_ref(),
             &ACCOUNT_EVENT_LOG_IDENTITY,
             Some(VERSION),
         )
         .await?;
 
-        let reader = Self::create_reader(file_path.as_ref()).await?;
+        let reader = Self::create_reader(path.as_ref()).await?;
 
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
-            file_path: file_path.as_ref().to_path_buf(),
+            file_path: path.as_ref().to_path_buf(),
+            data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &ACCOUNT_EVENT_LOG_IDENTITY,
             version: Some(VERSION),
@@ -520,20 +523,21 @@ impl EventLogFile<AccountEvent, FileLog, FileLog, PathBuf> {
 #[cfg(feature = "files")]
 impl EventLogFile<FileEvent, FileLog, FileLog, PathBuf> {
     /// Create a new file event log file.
-    pub async fn new_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
+    pub async fn new_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         use crate::{constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION};
         let writer = Self::create_writer(
-            file_path.as_ref(),
+            path.as_ref(),
             &FILE_EVENT_LOG_IDENTITY,
             Some(VERSION),
         )
         .await?;
 
-        let reader = Self::create_reader(file_path.as_ref()).await?;
+        let reader = Self::create_reader(path.as_ref()).await?;
 
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
-            file_path: file_path.as_ref().to_path_buf(),
+            file_path: path.as_ref().to_path_buf(),
+            data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FILE_EVENT_LOG_IDENTITY,
             version: Some(VERSION),
