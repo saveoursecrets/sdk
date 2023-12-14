@@ -4,6 +4,7 @@ use tokio::sync::mpsc;
 
 #[cfg(feature = "files")]
 pub mod files;
+mod folder;
 pub(crate) mod paths;
 #[cfg(feature = "search")]
 pub mod search;
@@ -11,7 +12,8 @@ mod storage;
 #[cfg(feature = "sync")]
 mod sync;
 
-pub use storage::{Folder, Storage};
+pub use folder::Folder;
+pub use storage::Storage;
 
 /// Collection of vaults for an account.
 #[derive(Default)]

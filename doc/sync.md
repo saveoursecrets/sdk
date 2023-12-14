@@ -140,7 +140,7 @@ Client requests the **sync status** from a remote server as **remote status**.
 
 If a **sync status** cannot be retrieved from the remote server because the account does not exist then the client should send a **change set** to the server to initialize a new account.
 
-When a remote **sync status is returned the client can proceed to synchronize:
+When a remote **sync status** is returned the client can proceed to synchronize:
 
 1. Client compares their **local status** to the **remote status** and generates a **sync diff** including all the events that exist on local but not on remote.
 2. Client sends it's **sync status** and the **sync diff** to the remote server.
