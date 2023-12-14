@@ -11,7 +11,7 @@ mod reducer;
 pub use file::AccountEventLog;
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
-pub use file::{EventLogFile, FolderEventLog};
+pub use file::{EventLogFile, FolderEventLog, FileLog};
 pub use reducer::{AccountReducer, EventReducer};
 
 /// Record for a row in the event log.

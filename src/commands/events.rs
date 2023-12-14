@@ -5,7 +5,7 @@ use binary_stream::futures::{Decodable, Encodable};
 use sos_net::sdk::{
     events::{
         AccountEvent, AccountEventLog, EventLogFile, FileEvent, FileEventLog,
-        FolderEventLog, LogEvent, WriteEvent,
+        FolderEventLog, LogEvent, WriteEvent, FileLog,
     },
     vfs,
 };
@@ -75,7 +75,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 
 /// Print the events of a log file.
 async fn print_events<T: Default + Encodable + Decodable + LogEvent>(
-    event_log: EventLogFile<T>,
+    event_log: EventLogFile<T, FileLog>,
     reverse: bool,
 ) -> Result<()> {
     let version = event_log.read_file_version().await?;

@@ -20,7 +20,7 @@ mod write;
 
 pub use self::log::{
     AccountEventLog, AccountReducer, EventLogFile, EventRecord, EventReducer,
-    FolderEventLog,
+    FolderEventLog, FileLog,
 };
 
 #[cfg(feature = "files")]

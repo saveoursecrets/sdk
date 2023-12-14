@@ -51,38 +51,44 @@ use std::{
 
 use futures::io::{BufReader, Cursor};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio_util::compat::Compat;
 
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
 use tempfile::NamedTempFile;
 
 use super::{EventRecord, EventReducer};
 
+/// Type for logging events to a file.
+pub type FileLog = Compat<File>;
+
 /// Event log for changes to an account.
-pub type AccountEventLog = EventLogFile<AccountEvent>;
+pub type AccountEventLog = EventLogFile<AccountEvent, FileLog>;
 
 /// Event log for changes to a folder.
-pub type FolderEventLog = EventLogFile<WriteEvent>;
+pub type FolderEventLog = EventLogFile<WriteEvent, FileLog>;
 
 /// Event log for changes to external files.
 #[cfg(feature = "files")]
-pub type FileEventLog = EventLogFile<FileEvent>;
+pub type FileEventLog = EventLogFile<FileEvent, FileLog>;
 
 /// An event log that appends to a file.
-pub struct EventLogFile<T>
+pub struct EventLogFile<T, F>
 where
     T: Default + Encodable + Decodable,
+    F: AsyncRead + AsyncWrite + AsyncSeek,
 {
     file_path: PathBuf,
     file: File,
     tree: CommitTree,
     identity: &'static [u8],
     version: Option<u16>,
-    phantom: std::marker::PhantomData<T>,
+    phantom: std::marker::PhantomData<(T, F)>,
 }
 
-impl<T> EventLogFile<T>
+impl<T, F> EventLogFile<T, F>
 where
     T: Default + Encodable + Decodable,
+    F: AsyncRead + AsyncWrite + AsyncSeek,
 {
     /// Create the event log file.
     async fn create<P: AsRef<Path>>(
@@ -427,7 +433,10 @@ where
     }
 }
 
-impl EventLogFile<WriteEvent> {
+impl<F> EventLogFile<WriteEvent, F>
+where
+    F: AsyncRead + AsyncWrite + AsyncSeek,
+{
     /// Create a new folder event log file.
     pub async fn new_folder<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
@@ -449,7 +458,49 @@ impl EventLogFile<WriteEvent> {
             phantom: std::marker::PhantomData,
         })
     }
+    
+    /*
+    /// Get a copy of this event log compacted.
+    pub async fn compact(&self) -> Result<(Self, u64, u64)> {
+        let old_size = self.path().metadata()?.len();
 
+        // Get the reduced set of events
+        let events =
+            EventReducer::new().reduce(self).await?.compact().await?;
+        let temp = NamedTempFile::new()?;
+
+        // Apply them to a temporary event log file
+        let mut temp_event_log = Self::new_folder(temp.path()).await?;
+        temp_event_log.apply(events.iter().collect()).await?;
+
+        let new_size = temp_event_log.file.metadata().await?.len();
+
+        // Remove the existing event log file
+        vfs::remove_file(self.path()).await?;
+        // Move the temp file into place
+        //
+        // NOTE: we would prefer to rename but on linux we
+        // NOTE: can hit ErrorKind::CrossesDevices
+        //
+        // But it's a nightly only variant so can't use it yet to
+        // determine whether to rename or copy.
+        vfs::copy(temp.path(), self.path()).await?;
+
+        let mut new_event_log = Self::new_folder(self.path()).await?;
+        new_event_log.load_tree().await?;
+
+        // Verify the new event log tree
+        event_log_commit_tree_file(new_event_log.path(), true, |_| {})
+            .await?;
+
+        // Need to recreate the event log file and load the updated
+        // commit tree
+        Ok((new_event_log, old_size, new_size))
+    }
+    */
+}
+
+impl EventLogFile<WriteEvent, Compat<File>> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.path().metadata()?.len();
@@ -489,7 +540,10 @@ impl EventLogFile<WriteEvent> {
     }
 }
 
-impl EventLogFile<AccountEvent> {
+impl<F> EventLogFile<AccountEvent, F>
+where
+    F: AsyncRead + AsyncWrite + AsyncSeek,
+{
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         use crate::{
@@ -513,7 +567,10 @@ impl EventLogFile<AccountEvent> {
 }
 
 #[cfg(feature = "files")]
-impl EventLogFile<FileEvent> {
+impl<F> EventLogFile<FileEvent, F>
+where
+    F: AsyncRead + AsyncWrite + AsyncSeek,
+{
     /// Create a new file event log file.
     pub async fn new_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         use crate::{constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION};
