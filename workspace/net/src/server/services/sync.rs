@@ -5,7 +5,7 @@ use sos_sdk::{
     constants::{SYNC_RESOLVE, SYNC_STATUS},
     decode, encode,
     sync::{
-        ApplyDiffOptions, 
+        MergeOptions, 
         SyncComparison, SyncDiff, SyncStatus,
     },
 };
@@ -85,7 +85,7 @@ impl Service for SyncService {
                         .folders
                         .merge_diff(
                             &diff,
-                            ApplyDiffOptions {
+                            MergeOptions {
                                 // Must replay the account events here
                                 // so the folder event logs are available
                                 // before we perform a comparison below

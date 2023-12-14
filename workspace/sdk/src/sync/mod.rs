@@ -22,7 +22,7 @@ pub use patch::FilePatch;
 
 /// Options used when applying a diff to local storage.
 #[derive(Default, Debug)]
-pub struct ApplyDiffOptions {
+pub struct MergeOptions {
     /// Replay account events rather than apply the patch.
     pub replay_account_events: bool,
 }

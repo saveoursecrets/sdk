@@ -9,7 +9,7 @@ use crate::{
 use std::collections::HashMap;
 
 use crate::sync::{
-    AccountDiff, ApplyDiffOptions, ChangeSet, FolderPatch, SyncDiff,
+    AccountDiff, MergeOptions, ChangeSet, FolderPatch, SyncDiff,
     SyncStatus,
 };
 
@@ -156,7 +156,7 @@ impl Storage {
     pub async fn merge_diff(
         &mut self,
         diff: &SyncDiff,
-        options: ApplyDiffOptions,
+        options: MergeOptions,
     ) -> Result<usize> {
         let mut num_changes = 0;
         
