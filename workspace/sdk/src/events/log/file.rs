@@ -180,7 +180,15 @@ where
     /// Iterator of the log records.
     pub async fn iter(&self) -> Result<EventLogFileStream> {
         let content_offset = self.header_len() as u64;
-        event_log_stream(&self.file_path, self.identity, content_offset).await
+
+        let read_stream = File::open(&self.file_path).await?.compat();
+        Ok(FormatStream::<EventLogFileRecord, Compat<File>>::new_file(
+            read_stream,
+            self.identity,
+            true,
+            Some(content_offset),
+        )
+        .await?)
     }
 
     /// Append a patch to this event log.
@@ -257,7 +265,7 @@ where
         }
     }
 
-    /// Load data from disc to build a commit tree in memory.
+    /// Load data from storage to build a commit tree in memory.
     pub async fn load_tree(&mut self) -> Result<()> {
         let mut commits = Vec::new();
         let mut it = self.iter().await?;

@@ -1,15 +1,17 @@
 //! Functions to build commit trees and run integrity checks.
 use crate::{
     commit::CommitTree,
+    constants::VAULT_IDENTITY,
+    formats::{FileIdentity, FormatStream},
     encoding::encoding_options,
-    formats::{vault_stream, EventLogFileRecord, FileItem, VaultRecord},
+    formats::{EventLogFileRecord, FileItem, VaultRecord},
+    vault::Header,
     vfs, Error, Result,
 };
 use binary_stream::futures::BinaryReader;
 use std::io::SeekFrom;
-use tokio_util::compat::TokioAsyncReadCompatExt;
-
 use crate::events::FolderEventLog;
+use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
 use std::path::Path;
 
@@ -23,30 +25,42 @@ macro_rules! read_iterator_item {
     }};
 }
 
+
 /// Build a commit tree from a vault file optionally
 /// verifying all the row checksums.
 ///
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
-pub async fn vault_commit_tree_file<P: AsRef<Path>, F>(
-    vault: P,
+pub async fn vault_commit_tree_file<F>(
+    vault: impl AsRef<Path>,
     verify: bool,
     func: F,
 ) -> Result<CommitTree>
 where
     F: Fn(&VaultRecord),
 {
+    FileIdentity::read_file(vault.as_ref(), &VAULT_IDENTITY).await?;
+
     let mut tree = CommitTree::new();
     // Need an additional reader as we may also read in the
     // values for the rows
     let mut file = vfs::File::open(vault.as_ref()).await?.compat();
     let mut reader = BinaryReader::new(&mut file, encoding_options());
-    let mut it = vault_stream(vault.as_ref()).await?;
+
+    let stream = vfs::File::open(vault.as_ref()).await?.compat();
+    let content_offset = Header::read_content_offset(vault.as_ref()).await?;
+    let mut it = FormatStream::<VaultRecord, Compat<vfs::File>>::new_file(
+        stream,
+        &VAULT_IDENTITY,
+        true,
+        Some(content_offset),
+    )
+    .await?;
+
     while let Some(record) = it.next_entry().await? {
         if verify {
             let commit = record.commit();
             let buffer = read_iterator_item!(&record, &mut reader);
-
             let checksum = CommitTree::hash(&buffer);
             if checksum != commit {
                 return Err(Error::HashMismatch {
@@ -69,8 +83,8 @@ where
 ///
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
-pub async fn event_log_commit_tree_file<P: AsRef<Path>, F>(
-    event_log_file: P,
+pub async fn event_log_commit_tree_file<F>(
+    event_log_file: impl AsRef<Path>,
     verify: bool,
     func: F,
 ) -> Result<CommitTree>

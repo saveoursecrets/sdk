@@ -78,7 +78,7 @@ where
 impl<T: FileItem> FormatStream<T, Compat<File>> {
     /// Create a new file iterator.
     pub async fn new_file(
-        mut read_stream: Compat<File>,
+        mut read_stream:  Compat<File>,
         identity: &'static [u8],
         data_length_prefix: bool,
         header_offset: Option<u64>,

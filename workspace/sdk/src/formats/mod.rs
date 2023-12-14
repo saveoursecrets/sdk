@@ -28,6 +28,7 @@ pub type EventLogFileStream = FormatStream<EventLogFileRecord, Compat<File>>;
 pub type EventLogBufferStream<'a> =
     FormatStream<EventLogFileRecord, Buffer<'a>>;
 
+/*
 /// Get a stream for a vault file.
 pub async fn vault_stream<P: AsRef<Path>>(
     path: P,
@@ -43,7 +44,9 @@ pub async fn vault_stream<P: AsRef<Path>>(
     )
     .await
 }
+*/
 
+/*
 /// Get a stream for a vault file buffer.
 pub async fn vault_stream_buffer<'a>(
     buffer: &'a [u8],
@@ -59,6 +62,7 @@ pub async fn vault_stream_buffer<'a>(
     )
     .await
 }
+*/
 
 /// Stream for an event log file.
 pub async fn event_log_stream<P: AsRef<Path>>(
@@ -77,6 +81,7 @@ pub async fn event_log_stream<P: AsRef<Path>>(
     .await
 }
 
+/*
 /// Stream for an event log file buffer.
 pub async fn event_log_stream_buffer<'a>(
     buffer: &'a [u8],
@@ -90,37 +95,6 @@ pub async fn event_log_stream_buffer<'a>(
         identity,
         true,
         Some(content_offset),
-    )
-    .await
-}
-
-/*
-/// Get a stream for a patch file.
-pub async fn patch_stream<P: AsRef<Path>>(
-    path: P,
-) -> Result<EventLogFileStream> {
-    FileIdentity::read_file(path.as_ref(), &PATCH_IDENTITY).await?;
-    let read_stream = File::open(path.as_ref()).await?.compat();
-    FormatStream::<EventLogFileRecord, Compat<File>>::new_file(
-        read_stream,
-        &PATCH_IDENTITY,
-        false,
-        None,
-    )
-    .await
-}
-
-/// Get a stream for a patch file buffer.
-pub async fn patch_stream_buffer<'a>(
-    buffer: &'a [u8],
-) -> Result<EventLogBufferStream<'a>> {
-    FileIdentity::read_slice(&buffer, &PATCH_IDENTITY)?;
-    let read_stream = BufReader::new(Cursor::new(buffer));
-    FormatStream::<EventLogFileRecord, Buffer<'a>>::new_buffer(
-        read_stream,
-        &PATCH_IDENTITY,
-        false,
-        None,
     )
     .await
 }
