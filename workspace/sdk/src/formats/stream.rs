@@ -24,7 +24,7 @@ where
     T: FileItem + Send,
 {
     /// Next entry in the iterator.
-    async fn next_entry(&mut self) -> Result<Option<T>>;
+    async fn next(&mut self) -> Result<Option<T>>;
 }
 
 /// Generic iterator for file formats.
@@ -95,11 +95,11 @@ impl<T: FileItem + Send> FormatStream<T, Compat<File>> {
 impl<T: FileItem + Send> FormatStreamIterator<T>
     for FormatStream<T, Compat<File>>
 {
-    async fn next_entry(&mut self) -> Result<Option<T>> {
+    async fn next(&mut self) -> Result<Option<T>> {
         if self.reverse {
             self.next_back().await
         } else {
-            self.next().await
+            self.next_forward().await
         }
     }
 }
@@ -132,11 +132,11 @@ impl<T: FileItem + Send> FormatStream<T, MemoryBuffer> {
 impl<T: FileItem + Send> FormatStreamIterator<T>
     for FormatStream<T, MemoryBuffer>
 {
-    async fn next_entry(&mut self) -> Result<Option<T>> {
+    async fn next(&mut self) -> Result<Option<T>> {
         if self.reverse {
             self.next_back().await
         } else {
-            self.next().await
+            self.next_forward().await
         }
     }
 }
@@ -235,7 +235,7 @@ where
         Ok(row)
     }
 
-    async fn next(&mut self) -> Result<Option<T>> {
+    async fn next_forward(&mut self) -> Result<Option<T>> {
         let offset = self.header_offset;
 
         if let (Some(lpos), Some(rpos)) = (self.forward, self.backward) {

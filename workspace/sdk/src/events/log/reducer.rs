@@ -98,7 +98,7 @@ impl EventReducer {
         event_log: &FolderEventLog,
     ) -> Result<EventReducer> {
         let mut it = event_log.iter(false).await?;
-        if let Some(log) = it.next_entry().await? {
+        if let Some(log) = it.next().await? {
             let event = event_log.decode_event(&log).await?;
 
             if let WriteEvent::CreateVault(vault) = event {
@@ -112,7 +112,7 @@ impl EventReducer {
                     }
                 }
 
-                while let Some(log) = it.next_entry().await? {
+                while let Some(log) = it.next().await? {
                     let event = event_log.decode_event(&log).await?;
                     match event {
                         WriteEvent::CreateVault(_) => {

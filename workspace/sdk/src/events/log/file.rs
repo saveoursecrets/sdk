@@ -271,7 +271,7 @@ where
         let mut commits = Vec::new();
 
         let mut it = self.iter(false).await?;
-        while let Some(record) = it.next_entry().await? {
+        while let Some(record) = it.next().await? {
             commits.push(record.commit());
         }
 
@@ -297,7 +297,7 @@ where
 
         let handle = Arc::clone(&self.file);
         try_stream! {
-            while let Some(record) = it.next_entry().await? {
+            while let Some(record) = it.next().await? {
                 let event_buffer = Self::read_event_buffer(
                     Arc::clone(&handle), &record).await?;
                 let event_record: EventRecord = (record, event_buffer).into();
@@ -348,7 +348,7 @@ where
     ) -> Result<Vec<EventRecord>> {
         let mut events = Vec::new();
         let mut it = self.iter(true).await?;
-        while let Some(record) = it.next_entry().await? {
+        while let Some(record) = it.next().await? {
             if let Some(commit) = commit {
                 if &record.commit() == commit.as_ref() {
                     return Ok(events);

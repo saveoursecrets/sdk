@@ -96,7 +96,7 @@ pub async fn monitor(
 
         let len = audit_log.metadata()?.len();
         if len > offset {
-            while let Some(record) = it.next_entry().await? {
+            while let Some(record) = it.next().await? {
                 let event = log_file.read_event(&mut file, &record).await?;
                 if !address.is_empty() && !is_address_match(&event, &address)
                 {
@@ -135,7 +135,7 @@ async fn logs(
     let mut c = 0;
 
     let mut it = log_file.iter(reverse).await?;
-    while let Some(record) = it.next_entry().await? {
+    while let Some(record) = it.next().await? {
         let event = log_file.read_event(&mut file, &record).await?;
         if !address.is_empty() && !is_address_match(&event, &address) {
             continue;

@@ -57,7 +57,7 @@ where
     )
     .await?;
 
-    while let Some(record) = it.next_entry().await? {
+    while let Some(record) = it.next().await? {
         if verify {
             let commit = record.commit();
             let buffer = read_iterator_item!(&record, &mut reader);
@@ -103,7 +103,7 @@ where
     let mut it = event_log.iter(false).await?;
     let mut last_checksum: Option<[u8; 32]> = None;
 
-    while let Some(record) = it.next_entry().await? {
+    while let Some(record) = it.next().await? {
         if verify {
             // Verify the row last commit matches the checksum
             // for the previous row
