@@ -8,7 +8,7 @@ pub use records::{EventLogFileRecord, FileItem, FileRecord, VaultRecord};
 pub use stream::FormatStream;
 
 use crate::{
-    constants::{AUDIT_IDENTITY, PATCH_IDENTITY, VAULT_IDENTITY},
+    constants::{AUDIT_IDENTITY, VAULT_IDENTITY},
     vault::Header,
     vfs::File,
     Result,
@@ -60,7 +60,7 @@ pub async fn vault_stream_buffer<'a>(
     .await
 }
 
-/// Get a stream for a event log file.
+/// Stream for an event log file.
 pub async fn event_log_stream<P: AsRef<Path>>(
     path: P,
     identity: &'static [u8],
@@ -77,7 +77,7 @@ pub async fn event_log_stream<P: AsRef<Path>>(
     .await
 }
 
-/// Get a stream for a vault file buffer.
+/// Stream for an event log file buffer.
 pub async fn event_log_stream_buffer<'a>(
     buffer: &'a [u8],
     identity: &'static [u8],
@@ -94,6 +94,7 @@ pub async fn event_log_stream_buffer<'a>(
     .await
 }
 
+/*
 /// Get a stream for a patch file.
 pub async fn patch_stream<P: AsRef<Path>>(
     path: P,
@@ -123,6 +124,7 @@ pub async fn patch_stream_buffer<'a>(
     )
     .await
 }
+*/
 
 /// Get a stream for an audit file.
 pub async fn audit_stream<P: AsRef<Path>>(

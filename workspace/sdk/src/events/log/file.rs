@@ -76,7 +76,10 @@ where
     phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Default + Encodable + Decodable> EventLogFile<T> {
+impl<T> EventLogFile<T>
+where
+    T: Default + Encodable + Decodable,
+{
     /// Create the event log file.
     async fn create<P: AsRef<Path>>(
         path: P,
