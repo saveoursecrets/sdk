@@ -4,7 +4,7 @@ mod records;
 pub(crate) mod stream;
 
 pub use file_identity::FileIdentity;
-pub use records::{EventLogFileRecord, FileItem, FileRecord, VaultRecord};
+pub use records::{EventLogRecord, FileItem, FileRecord, VaultRecord};
 pub use stream::{FormatStream, FormatStreamIterator};
 
 use crate::{constants::AUDIT_IDENTITY, vfs::File, Result};
@@ -17,11 +17,11 @@ use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 pub type Buffer<'a> = BufReader<Cursor<&'a [u8]>>;
 
 /// Type for a stream of event log records from a file.
-pub type EventLogFileStream = FormatStream<EventLogFileRecord, Compat<File>>;
+pub type EventLogStream = FormatStream<EventLogRecord, Compat<File>>;
 
 /// Type for a stream of event log records from a buffer.
 pub type EventLogBufferStream<'a> =
-    FormatStream<EventLogFileRecord, Buffer<'a>>;
+    FormatStream<EventLogRecord, Buffer<'a>>;
 */
 
 /*
@@ -66,10 +66,10 @@ pub async fn event_log_stream<P: AsRef<Path>>(
     path: P,
     identity: &'static [u8],
     content_offset: u64,
-) -> Result<EventLogFileStream> {
+) -> Result<EventLogStream> {
     FileIdentity::read_file(path.as_ref(), &identity).await?;
     let read_stream = File::open(path.as_ref()).await?.compat();
-    FormatStream::<EventLogFileRecord, Compat<File>>::new_file(
+    FormatStream::<EventLogRecord, Compat<File>>::new_file(
         read_stream,
         &identity,
         true,
@@ -88,7 +88,7 @@ pub async fn event_log_stream_buffer<'a>(
 ) -> Result<EventLogBufferStream<'a>> {
     FileIdentity::read_slice(&buffer, identity)?;
     let read_stream = BufReader::new(Cursor::new(buffer));
-    FormatStream::<EventLogFileRecord, Buffer<'a>>::new_buffer(
+    FormatStream::<EventLogRecord, Buffer<'a>>::new_buffer(
         read_stream,
         identity,
         true,

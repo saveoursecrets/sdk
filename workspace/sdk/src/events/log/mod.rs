@@ -1,6 +1,6 @@
 //! Event log types and traits.
 use crate::{
-    commit::CommitHash, decode, formats::EventLogFileRecord,
+    commit::CommitHash, decode, formats::EventLogRecord,
     timestamp::Timestamp, Result,
 };
 use binary_stream::futures::Decodable;
@@ -11,7 +11,7 @@ mod reducer;
 pub use file::AccountEventLog;
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
-pub use file::{EventLogFile, FileLog, FolderEventLog};
+pub use file::{EventLog, FileLog, FolderEventLog};
 pub use reducer::{AccountReducer, EventReducer};
 
 /// Record for a row in the event log.
@@ -56,8 +56,8 @@ impl EventRecord {
     }
 }
 
-impl From<(EventLogFileRecord, Vec<u8>)> for EventRecord {
-    fn from(value: (EventLogFileRecord, Vec<u8>)) -> Self {
+impl From<(EventLogRecord, Vec<u8>)> for EventRecord {
+    fn from(value: (EventLogRecord, Vec<u8>)) -> Self {
         Self(
             value.0.time,
             CommitHash(value.0.last_commit),
@@ -109,7 +109,7 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut server = EventLogFile::new_folder(path).await?;
+        let mut server = EventLog::new_folder(path).await?;
         server
             .apply(vec![
                 &WriteEvent::CreateVault(vault_buffer),
@@ -146,7 +146,7 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut server = EventLogFile::new_folder(&server_file).await?;
+        let mut server = EventLog::new_folder(&server_file).await?;
         server
             .apply(vec![
                 &WriteEvent::CreateVault(vault_buffer),
@@ -155,7 +155,7 @@ mod test {
             .await?;
 
         // Duplicate the server events on the client
-        let mut client = EventLogFile::new_folder(&client_file).await?;
+        let mut client = EventLog::new_folder(&client_file).await?;
         let mut it = server.iter(false).await?;
         while let Some(record) = it.next_entry().await? {
             let event = server.decode_event(&record).await?;

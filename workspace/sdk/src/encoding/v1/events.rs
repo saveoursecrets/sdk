@@ -6,7 +6,7 @@ use crate::{
         AuditData, AuditEvent, AuditLogFile, EventKind, EventRecord,
         LogEvent, LogFlags, WriteEvent,
     },
-    formats::{EventLogFileRecord, FileRecord, VaultRecord},
+    formats::{EventLogRecord, FileRecord, VaultRecord},
     vault::VaultCommit,
     Timestamp,
 };
@@ -332,7 +332,7 @@ impl Decodable for WriteEvent {
 }
 
 #[async_trait]
-impl Decodable for EventLogFileRecord {
+impl Decodable for EventLogRecord {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,

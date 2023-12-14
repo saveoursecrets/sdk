@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use binary_stream::futures::{Decodable, Encodable};
 use sos_net::sdk::{
     events::{
-        AccountEvent, AccountEventLog, EventLogFile, FileEvent, FileEventLog,
+        AccountEvent, AccountEventLog, EventLog, FileEvent, FileEventLog,
         FileLog, FolderEventLog, LogEvent, WriteEvent,
     },
     vfs,
@@ -75,7 +75,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 
 /// Print the events of a log file.
 async fn print_events<T: Default + Encodable + Decodable + LogEvent>(
-    event_log: EventLogFile<T, FileLog, FileLog, PathBuf>,
+    event_log: EventLog<T, FileLog, FileLog, PathBuf>,
     reverse: bool,
 ) -> Result<()> {
     let version = event_log.read_file_version().await?;

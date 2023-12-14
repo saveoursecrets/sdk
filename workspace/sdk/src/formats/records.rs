@@ -91,7 +91,7 @@ impl VaultRecord {
 
 /// Reference to a row in the event log.
 #[derive(Default, Debug, Clone, Eq)]
-pub struct EventLogFileRecord {
+pub struct EventLogRecord {
     /// Byte offset for the record.
     offset: Range<u64>,
     /// The byte range for the value.
@@ -104,7 +104,7 @@ pub struct EventLogFileRecord {
     pub(crate) commit: [u8; 32],
 }
 
-impl EventLogFileRecord {
+impl EventLogRecord {
     /// Commit hash for this row.
     pub fn commit(&self) -> [u8; 32] {
         self.commit
@@ -121,7 +121,7 @@ impl EventLogFileRecord {
     }
 }
 
-impl PartialEq for EventLogFileRecord {
+impl PartialEq for EventLogRecord {
     fn eq(&self, other: &Self) -> bool {
         self.time == other.time
             && self.commit == other.commit
@@ -129,7 +129,7 @@ impl PartialEq for EventLogFileRecord {
     }
 }
 
-impl FileItem for EventLogFileRecord {
+impl FileItem for EventLogRecord {
     fn offset(&self) -> &Range<u64> {
         &self.offset
     }

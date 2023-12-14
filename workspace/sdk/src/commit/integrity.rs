@@ -4,7 +4,7 @@ use crate::{
     commit::CommitTree,
     constants::VAULT_IDENTITY,
     encoding::encoding_options,
-    formats::{EventLogFileRecord, FileItem, VaultRecord},
+    formats::{EventLogRecord, FileItem, VaultRecord},
     formats::{FileIdentity, FormatStream, FormatStreamIterator},
     vault::Header,
     vfs, Error, Result,
@@ -89,7 +89,7 @@ pub async fn event_log_commit_tree_file<F>(
     func: F,
 ) -> Result<CommitTree>
 where
-    F: Fn(&EventLogFileRecord),
+    F: Fn(&EventLogRecord),
 {
     let mut tree = CommitTree::new();
 

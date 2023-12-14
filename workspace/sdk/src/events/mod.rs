@@ -19,7 +19,7 @@ mod types;
 mod write;
 
 pub use self::log::{
-    AccountEventLog, AccountReducer, EventLogFile, EventRecord, EventReducer,
+    AccountEventLog, AccountReducer, EventLog, EventRecord, EventReducer,
     FileLog, FolderEventLog,
 };
 

@@ -20,8 +20,8 @@ use crate::{
     encoding::{encoding_options, VERSION1},
     events::WriteEvent,
     formats::{
-        EventLogFileRecord, FileItem, FormatStream, FormatStreamIterator,
         stream::{MemoryBuffer, MemoryInner},
+        EventLogRecord, FileItem, FormatStream, FormatStreamIterator,
     },
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
@@ -62,17 +62,16 @@ use super::{EventRecord, EventReducer};
 pub type FileLog = Compat<File>;
 
 /// Event log for changes to an account.
-pub type AccountEventLog =
-    EventLogFile<AccountEvent, FileLog, FileLog, PathBuf>;
+pub type AccountEventLog = EventLog<AccountEvent, FileLog, FileLog, PathBuf>;
 
 /// Event log for changes to a folder.
-pub type FolderEventLog = EventLogFile<WriteEvent, FileLog, FileLog, PathBuf>;
+pub type FolderEventLog = EventLog<WriteEvent, FileLog, FileLog, PathBuf>;
 
 /// Event log for changes to external files.
 #[cfg(feature = "files")]
-pub type FileEventLog = EventLogFile<FileEvent, FileLog, FileLog, PathBuf>;
+pub type FileEventLog = EventLog<FileEvent, FileLog, FileLog, PathBuf>;
 
-type Iter = Box<dyn FormatStreamIterator<EventLogFileRecord> + Send + Sync>;
+type Iter = Box<dyn FormatStreamIterator<EventLogRecord> + Send + Sync>;
 
 /// Builder for the event log iterator.
 type IteratorBuilder<D> = Box<
@@ -91,7 +90,7 @@ type IteratorBuilder<D> = Box<
 /// Appends events to an append-only writer and reads events
 /// via a reader whilst managing an in-memory merkle tree
 /// of event hashes.
-pub struct EventLogFile<E, R, W, D>
+pub struct EventLog<E, R, W, D>
 where
     E: Default + Encodable + Decodable,
     R: AsyncRead + AsyncSeek + Unpin + Send,
@@ -107,7 +106,7 @@ where
     phantom: std::marker::PhantomData<(E, D)>,
 }
 
-impl<E, R, W, D> EventLogFile<E, R, W, D>
+impl<E, R, W, D> EventLog<E, R, W, D>
 where
     E: Default + Encodable + Decodable,
     R: AsyncRead + AsyncSeek + Unpin + Send,
@@ -141,7 +140,7 @@ where
     /// Read the event data from an item.
     pub(crate) async fn decode_event(
         &self,
-        item: &EventLogFileRecord,
+        item: &EventLogRecord,
     ) -> Result<E> {
         let value = item.value();
 
@@ -312,7 +311,7 @@ where
     /// inside the log record.
     async fn read_event_buffer(
         handle: Arc<Mutex<(R, W)>>,
-        record: &EventLogFileRecord,
+        record: &EventLogRecord,
     ) -> Result<Vec<u8>> {
         let mut file = MutexGuard::map(handle.lock().await, |f| &mut f.0);
 
@@ -376,7 +375,7 @@ where
     }
 }
 
-impl<E> EventLogFile<E, FileLog, FileLog, PathBuf>
+impl<E> EventLog<E, FileLog, FileLog, PathBuf>
 where
     E: Default + Encodable + Decodable,
 {
@@ -438,7 +437,7 @@ where
     }
 }
 
-impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
+impl EventLog<WriteEvent, FileLog, FileLog, PathBuf> {
     /// Create a new folder event log file.
     pub async fn new_folder<P: AsRef<Path>>(path: P) -> Result<Self> {
         use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
@@ -462,7 +461,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
                     let content_offset = header_len as u64;
                     let read_stream = File::open(data).await?.compat();
                     let it: Iter = Box::new(FormatStream::<
-                        EventLogFileRecord,
+                        EventLogRecord,
                         Compat<File>,
                     >::new_file(
                         read_stream,
@@ -483,7 +482,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
     }
 }
 
-impl EventLogFile<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
+impl EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
     /// Create a new folder event log writing to memory.
     pub async fn new_folder_memory() -> Result<Self> {
         use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
@@ -500,7 +499,7 @@ impl EventLogFile<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
                     let content_offset = header_len as u64;
                     let read_stream = MemoryBuffer { inner };
                     let it: Iter = Box::new(FormatStream::<
-                        EventLogFileRecord,
+                        EventLogRecord,
                         MemoryBuffer,
                     >::new_buffer(
                         read_stream,
@@ -522,7 +521,7 @@ impl EventLogFile<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
     }
 }
 
-impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
+impl EventLog<WriteEvent, FileLog, FileLog, PathBuf> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.data.metadata()?.len();
@@ -559,7 +558,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
     }
 }
 
-impl EventLogFile<AccountEvent, FileLog, FileLog, PathBuf> {
+impl EventLog<AccountEvent, FileLog, FileLog, PathBuf> {
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(path: P) -> Result<Self> {
         use crate::{
@@ -582,7 +581,7 @@ impl EventLogFile<AccountEvent, FileLog, FileLog, PathBuf> {
                     let content_offset = header_len as u64;
                     let read_stream = File::open(data).await?.compat();
                     let it: Iter = Box::new(FormatStream::<
-                        EventLogFileRecord,
+                        EventLogRecord,
                         Compat<File>,
                     >::new_file(
                         read_stream,
@@ -604,7 +603,7 @@ impl EventLogFile<AccountEvent, FileLog, FileLog, PathBuf> {
 }
 
 #[cfg(feature = "files")]
-impl EventLogFile<FileEvent, FileLog, FileLog, PathBuf> {
+impl EventLog<FileEvent, FileLog, FileLog, PathBuf> {
     /// Create a new file event log file.
     pub async fn new_file(path: impl AsRef<Path>) -> Result<Self> {
         use crate::{constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION};
@@ -625,7 +624,7 @@ impl EventLogFile<FileEvent, FileLog, FileLog, PathBuf> {
                     let content_offset = header_len as u64;
                     let read_stream = File::open(data).await?.compat();
                     let it: Iter = Box::new(FormatStream::<
-                        EventLogFileRecord,
+                        EventLogRecord,
                         Compat<File>,
                     >::new_file(
                         read_stream,
@@ -652,10 +651,7 @@ mod test {
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{
-        events::WriteEvent, test_utils::*,
-        vault::VaultId,
-    };
+    use crate::{events::WriteEvent, test_utils::*, vault::VaultId};
 
     async fn mock_account_event_log(
     ) -> Result<(NamedTempFile, AccountEventLog)> {

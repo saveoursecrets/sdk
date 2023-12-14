@@ -1,16 +1,20 @@
 //! File streams.
-use std::{io::{self,SeekFrom, Cursor}, ops::Range, pin::Pin, sync::Arc};
+use std::{
+    io::{self, Cursor, SeekFrom},
+    ops::Range,
+    pin::Pin,
+    sync::Arc,
+};
 
 use crate::{
     encoding::encoding_options, formats::FileItem, vfs::File, Result,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{stream_length, BinaryReader};
-use futures::task::{Poll, Context};
 use futures::io::{
-    AsyncRead, AsyncSeek, AsyncSeekExt,
-    IoSlice, IoSliceMut, AsyncWrite,
+    AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, IoSlice, IoSliceMut,
 };
+use futures::task::{Context, Poll};
 use tokio_util::compat::Compat;
 
 /// Trait for file format iterators.
@@ -303,9 +307,7 @@ pub struct MemoryBuffer {
 impl MemoryBuffer {
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(parking_lot::Mutex::new(Cursor::new(
-                Vec::new()
-            ))),
+            inner: Arc::new(parking_lot::Mutex::new(Cursor::new(Vec::new()))),
         }
     }
 }
@@ -375,4 +377,3 @@ impl AsyncWrite for MemoryBuffer {
         self.poll_flush(cx)
     }
 }
-
