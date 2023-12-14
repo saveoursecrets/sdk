@@ -37,6 +37,7 @@ use futures::Stream;
 use futures::io::{
     AsyncWrite, AsyncRead, AsyncSeek,
     AsyncReadExt as FutAsyncReadExt,
+    AsyncWriteExt as FutAsyncWriteExt,
     AsyncSeekExt as FutAsyncSeekExt,
 };
 
@@ -49,10 +50,11 @@ use crate::sync::{CheckedPatch, Patch};
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use futures::io::{BufReader, Cursor};
-use tokio::{io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt}, sync::Mutex};
+use tokio::{io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt}, sync::{Mutex, MutexGuard}};
 use tokio_util::compat::Compat;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
@@ -79,22 +81,22 @@ pub struct EventLogFile<T, R, W>
 where
     T: Default + Encodable + Decodable,
     R: AsyncRead + AsyncSeek + Unpin,
-    W: AsyncWrite,
+    W: AsyncWrite + Unpin,
 {
     file_path: PathBuf,
-    writer: File,
-    reader: Mutex<R>,
+    writer: W,
+    file: Arc<Mutex<(R, ())>>,
     tree: CommitTree,
     identity: &'static [u8],
     version: Option<u16>,
-    phantom: std::marker::PhantomData<(T, R, W)>,
+    phantom: std::marker::PhantomData<T>,
 }
 
 impl<T, R, W> EventLogFile<T, R, W>
 where
     T: Default + Encodable + Decodable,
     R: AsyncRead + AsyncSeek + Unpin,
-    W: AsyncWrite,
+    W: AsyncWrite + Unpin,
 {
     /// Path to the event log file.
     pub fn path(&self) -> &PathBuf {
@@ -134,7 +136,7 @@ where
     ) -> Result<T> {
         let value = item.value();
         
-        let mut file = self.reader.lock().await;
+        let mut file = MutexGuard::map(self.file.lock().await, |f| &mut f.0);
 
         file.seek(SeekFrom::Start(value.start)).await?;
         let mut buffer = vec![0; (value.end - value.start) as usize];
@@ -157,21 +159,10 @@ where
         len
     }
 
-    /*
-    /// Header bytes.
-    fn header(&self) -> Vec<u8> {
-        let mut header = self.identity.to_vec();
-        if let Some(version) = self.version {
-            header.extend_from_slice(&version.to_le_bytes());
-        }
-        header
-    }
-    */
-
     /// Read encoding version from the file on disc.
     pub async fn read_file_version(&self) -> Result<u16> {
         if let Some(_) = &self.version {
-            let mut file = self.reader.lock().await;
+            let mut file = MutexGuard::map(self.file.lock().await, |f| &mut f.0);
             file.seek(SeekFrom::Start(self.identity.len() as u64))
                 .await?;
             let mut buf = [0; 2];
@@ -276,7 +267,6 @@ where
         let mut hashes =
             commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
 
-        let len = self.writer.metadata().await?.len();
         match self.writer.write_all(&buffer).await {
             Ok(_) => {
                 self.writer.flush().await?;
@@ -285,15 +275,7 @@ where
                 Ok(commits)
             }
             Err(e) => {
-                tracing::debug!(
-                    length = len,
-                    "event log rollback on buffer write error"
-                );
-                // In case of partial write attempt to truncate
-                // to the previous file length restoring to the
-                // previous state of the event log log
-                self.writer.set_len(len).await?;
-                Err(Error::from(e))
+                Err(e.into())
             }
         }
     }
@@ -323,15 +305,15 @@ where
     async fn truncate(&mut self) -> Result<()> {
         // Workaround for set_len(0) failing with "Access Denied" on Windows
         // SEE: https://github.com/rust-lang/rust/issues/105437
-        let _ = OpenOptions::new()
+        let mut file = OpenOptions::new()
             .write(true)
             .truncate(true)
             .open(&self.file_path)
-            .await;
-
-        self.writer.seek(SeekFrom::Start(0)).await?;
-        self.writer.write_all(&self.identity).await?;
-        self.writer.flush().await?;
+            .await?;
+        
+        file.seek(SeekFrom::Start(0)).await?;
+        file.write_all(&self.identity).await?;
+        file.flush().await?;
         Ok(())
     }
 
@@ -421,7 +403,7 @@ where
         path: P,
         identity: &'static [u8],
         encoding_version: Option<u16>,
-    ) -> Result<File> {
+    ) -> Result<FileLog> {
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -437,14 +419,14 @@ where
             file.write_all(&header).await?;
             file.flush().await?;
         }
-        Ok(file)
+        Ok(file.compat_write())
     }
 
     /// Create the reader for an event log file.
     async fn create_reader<P: AsRef<Path>>(
         path: P,
-    ) -> Result<Mutex<FileLog>> {
-        Ok(Mutex::new(File::open(path).await?.compat()))
+    ) -> Result<FileLog> {
+        Ok(File::open(path).await?.compat())
     }
 }
 
@@ -469,7 +451,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog> {
 
         Ok(Self {
             writer,
-            reader,
+            file: Arc::new(Mutex::new((reader, ()))),
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FOLDER_EVENT_LOG_IDENTITY,
@@ -493,7 +475,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog> {
         let mut temp_event_log = Self::new_folder(temp.path()).await?;
         temp_event_log.apply(events.iter().collect()).await?;
 
-        let new_size = temp_event_log.writer.metadata().await?.len();
+        let new_size = self.path().metadata()?.len();
 
         // Remove the existing event log file
         vfs::remove_file(self.path()).await?;
@@ -539,7 +521,7 @@ impl EventLogFile<AccountEvent, FileLog, FileLog> {
 
         Ok(Self {
             writer,
-            reader,
+            file: Arc::new(Mutex::new((reader, ()))),
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &ACCOUNT_EVENT_LOG_IDENTITY,
@@ -568,7 +550,7 @@ impl EventLogFile<FileEvent, FileLog, FileLog> {
 
         Ok(Self {
             writer,
-            reader,
+            file: Arc::new(Mutex::new((reader, ()))),
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FILE_EVENT_LOG_IDENTITY,
