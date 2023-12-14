@@ -5,7 +5,7 @@ use http::{
     header::{self, HeaderValue},
     StatusCode,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 use sos_sdk::{
     constants::{
@@ -389,7 +389,7 @@ impl RpcClient {
             )
             .await?;
 
-        maybe_retry.map(|result, body| Ok(body))
+        maybe_retry.map(|_, body| Ok(body))
     }
 
     /// Try to create a new account.

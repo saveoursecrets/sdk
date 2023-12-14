@@ -380,22 +380,9 @@ impl NetworkAccount {
         name: String,
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
-
-        let identity_state = self.account.identity_state().await?;
-
-        let (summary, event, commit_state) =
+        let (summary, _, _) =
             self.account.create_folder(name).await?;
-
-        /*
-        let sync_error = self
-            .sync_send_events(&summary, &commit_state, &[event])
-            .await
-            .err();
-        */
-
-        let sync_error = self.sync().await;
-
-        Ok((summary, sync_error))
+        Ok((summary, self.sync().await))
     }
 
     /// Delete a folder.
@@ -404,20 +391,8 @@ impl NetworkAccount {
         summary: &Summary,
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
-
-        let (events, commit_state) =
-            self.account.delete_folder(summary).await?;
-
-        /*
-        let sync_error = self
-            .sync_send_events(&summary, &commit_state, &events)
-            .await
-            .err();
-        */
-
-        let sync_error = self.sync().await;
-
-        Ok(sync_error)
+        self.account.delete_folder(summary).await?;
+        Ok(self.sync().await)
     }
 
     /// Rename a folder.
@@ -427,20 +402,8 @@ impl NetworkAccount {
         name: String,
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
-
-        let (event, commit_state) =
-            self.account.rename_folder(summary, name).await?;
-
-        /*
-        let sync_error = self
-            .sync_send_events(&summary, &commit_state, &[event])
-            .await
-            .err();
-        */
-
-        let sync_error = self.sync().await;
-
-        Ok(sync_error)
+        self.account.rename_folder(summary, name).await?;
+        Ok(self.sync().await)
     }
 
     /// Export a folder as a vault file.
@@ -490,21 +453,12 @@ impl NetworkAccount {
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (summary, event, commit_state) = self
+        let (summary, _, _) = self
             .account
             .import_folder_buffer(buffer, key, overwrite)
             .await?;
 
-        /*
-        let sync_error = self
-            .sync_send_events(&summary, &commit_state, &[event])
-            .await
-            .err();
-        */
-
-        let sync_error = self.sync().await;
-
-        Ok((summary, sync_error))
+        Ok((summary, self.sync().await))
     }
 
     /// Open a vault.
@@ -529,19 +483,10 @@ impl NetworkAccount {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (id, event, commit_state, folder) =
+        let (id, _, _, _) =
             self.account.create_secret(meta, secret, options).await?;
 
-        /*
-        let sync_error = self
-            .sync_send_events(&folder, &commit_state, &[event])
-            .await
-            .err();
-        */
-
-        let sync_error = self.sync().await;
-
-        Ok((id, sync_error))
+        Ok((id, self.sync().await))
     }
 
     /// Read a secret in the current open folder.
@@ -569,21 +514,12 @@ impl NetworkAccount {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (id, event, commit_state, folder) = self
+        let (id, _, _, _) = self
             .account
             .update_file(secret_id, meta, path, options, destination)
             .await?;
 
-        /*
-        let sync_error = self
-            .sync_send_events(&folder, &commit_state, &[event])
-            .await
-            .err();
-        */
-
-        let sync_error = self.sync().await;
-
-        Ok((id, sync_error))
+        Ok((id, self.sync().await))
     }
 
     /// Update a secret in the current open folder or a specific folder.
@@ -597,21 +533,12 @@ impl NetworkAccount {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (id, event, commit_state, folder) = self
+        let (id, _, _, _) = self
             .account
             .update_secret(secret_id, meta, secret, options, destination)
             .await?;
 
-        /*
-        let sync_error = self
-            .sync_send_events(&folder, &commit_state, &[event])
-            .await
-            .err();
-        */
-
-        let sync_error = self.sync().await;
-
-        Ok((id, sync_error))
+        Ok((id, self.sync().await))
     }
 
     /// Move a secret between folders.
@@ -636,20 +563,8 @@ impl NetworkAccount {
         options: AccessOptions,
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
-
-        let (event, commit_state, folder) =
-            self.account.delete_secret(secret_id, options).await?;
-
-        /*
-        let sync_error = self
-            .sync_send_events(&folder, &commit_state, &[event])
-            .await
-            .err();
-        */
-
-        let sync_error = self.sync().await;
-
-        Ok(sync_error)
+        self.account.delete_secret(secret_id, options).await?;
+        Ok(self.sync().await)
     }
 
     /// Move a secret to the archive.

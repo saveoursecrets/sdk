@@ -948,7 +948,7 @@ impl<D> Account<D> {
         options: &AccessOptions,
         apply_changes: bool,
     ) -> Result<BeforeChange> {
-        let mut before_change = {
+        let before_change = {
             let storage = self.storage()?;
             let reader = storage.read().await;
             let folder = options
@@ -973,17 +973,8 @@ impl<D> Account<D> {
         };
 
         if apply_changes {
-            let storage = self.storage()?;
             if let Some(handler) = &self.handler {
                 handler.before_change(&before_change).await;
-                /*
-                let before_result =
-                    handler.before_change(storage, &before_change).await;
-
-                if let Some(new_state) = before_result {
-                    before_change.commit_state = new_state;
-                }
-                */
             }
         }
 

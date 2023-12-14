@@ -1,6 +1,6 @@
 //! Adds sync capability to network account.
 use crate::client::{
-    Error, NetworkAccount, RemoteSync, Remotes, Result, SyncError,
+    NetworkAccount, RemoteSync, Remotes, SyncError,
     SyncOptions,
 };
 use async_trait::async_trait;
@@ -20,7 +20,7 @@ pub(super) struct SyncHandler {
 impl AccountHandler for SyncHandler {
     type Data = SyncHandlerData;
 
-    async fn before_change(&self, data: &BeforeChange) {
+    async fn before_change(&self, _data: &BeforeChange) {
         let remotes = self.remotes.read().await;
         for remote in remotes.values() {
             if let Some(e) = remote.sync().await {

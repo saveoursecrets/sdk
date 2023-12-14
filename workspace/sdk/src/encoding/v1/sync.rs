@@ -1,12 +1,11 @@
 use crate::{
-    commit::CommitProof,
     decode, encode,
     encoding::{decode_uuid, encoding_error},
     prelude::{FileIdentity, PATCH_IDENTITY},
 };
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use std::io::{Error, ErrorKind, Result};
+use std::io::Result;
 
 use async_trait::async_trait;
 use binary_stream::futures::{

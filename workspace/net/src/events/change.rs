@@ -3,13 +3,8 @@
 use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
-    commit::CommitProof,
-    events::{Event, WriteEvent},
     signer::ecdsa::Address,
-    vault::{secret::SecretId, VaultId},
 };
-
-use crate::{Error, Result};
 
 /// Notification sent by the server when changes were made.
 #[derive(Debug, Serialize, Deserialize, Clone)]

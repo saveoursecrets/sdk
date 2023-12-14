@@ -4,21 +4,16 @@ use crate::client::{
 };
 
 use async_trait::async_trait;
-use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
-    commit::{CommitHash, CommitProof, CommitState, Comparison},
-    decode,
-    events::{AccountEvent, Event, LogEvent, WriteEvent},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
     sync::{
-        AccountDiff, Client, FolderDiff, FolderPatch, Patch, SyncComparison,
-        SyncDiff, SyncStatus,
+        Client, SyncComparison,
+        SyncStatus,
     },
     url::Url,
-    vault::Summary,
 };
 
 use mpc_protocol::Keypair;
@@ -225,7 +220,7 @@ impl RemoteSync for RemoteBridge {
         if errors.is_empty() {
             None
         } else {
-            let mut errors = errors
+            let errors = errors
                 .into_iter()
                 .map(|e| {
                     let origin: Origin = self.origin.clone().into();
@@ -249,13 +244,10 @@ impl RemoteSync for RemoteBridge {
 mod listen {
     use crate::{
         client::{
-            sync::RemoteSync, Error, ListenOptions, RemoteBridge, Result,
+            sync::RemoteSync, ListenOptions, RemoteBridge, Result,
             WebSocketHandle,
         },
         events::ChangeNotification,
-    };
-    use sos_sdk::prelude::{
-        AccountEvent, Event, FolderRef, VaultId, WriteEvent,
     };
 
     use std::sync::Arc;
@@ -266,7 +258,7 @@ mod listen {
     impl RemoteBridge {
         async fn on_change_notification(
             bridge: Arc<RemoteBridge>,
-            change: ChangeNotification,
+            _change: ChangeNotification,
         ) -> Result<()> {
             tracing::debug!("on_change_notification");
                 

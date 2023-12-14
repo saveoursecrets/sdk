@@ -4,13 +4,13 @@ use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     events::{AccountEvent, WriteEvent},
     storage::Storage,
-    vault::{Summary, VaultId},
+    vault::VaultId,
     Error, Result,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, ops::Range};
+use std::collections::HashMap;
 use url::Url;
 
 mod patch;

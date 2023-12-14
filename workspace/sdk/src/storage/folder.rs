@@ -1,35 +1,25 @@
 //! Storage backed by the filesystem.
 use crate::{
-    commit::{CommitHash, CommitState, CommitTree},
-    constants::{EVENT_LOG_EXT, VAULT_EXT},
+    constants::EVENT_LOG_EXT,
     crypto::AccessKey,
-    decode, encode,
+    decode,
     events::{
-        AccountEvent, AccountEventLog, AuditEvent, Event, EventKind,
         EventReducer, FolderEventLog, ReadEvent, WriteEvent,
     },
-    identity::FolderKeys,
-    passwd::{diceware::generate_passphrase, ChangePassword},
-    signer::ecdsa::Address,
-    storage::AccessOptions,
-    storage::AccountPack,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
-        VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultMeta,
+        Gatekeeper, Vault,
+        VaultId, VaultMeta,
         VaultWriter,
     },
-    vfs, Error, Paths, Result, Timestamp,
+    vfs, Paths, Result,
 };
 
-use secrecy::SecretString;
 use std::{
-    collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::Path,
     sync::Arc,
 };
 use tokio::sync::RwLock;
-use tracing::{span, Level};
 
 /// Folder is a combined vault and event log.
 pub struct Folder {

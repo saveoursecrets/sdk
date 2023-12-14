@@ -1,7 +1,7 @@
 //! Storage backed by the filesystem.
 use crate::{
     commit::{CommitHash, CommitState, CommitTree},
-    constants::{EVENT_LOG_EXT, VAULT_EXT},
+    constants::VAULT_EXT,
     crypto::AccessKey,
     decode, encode,
     events::{
@@ -16,7 +16,7 @@ use crate::{
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
-        VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultMeta,
+        VaultBuilder, VaultCommit, VaultFlags, VaultId,
         VaultWriter,
     },
     vfs, Error, Paths, Result, Timestamp,
@@ -25,7 +25,7 @@ use crate::{
 use secrecy::SecretString;
 use std::{
     collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::Arc,
 };
 use tokio::sync::RwLock;

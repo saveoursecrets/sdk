@@ -75,8 +75,8 @@ impl Service for SyncService {
                     Arc::clone(account)
                 };
 
-                let mut remote_status = request.parameters::<SyncStatus>()?;
-                let mut diff: SyncDiff = decode(request.body()).await?;
+                let remote_status = request.parameters::<SyncStatus>()?;
+                let diff: SyncDiff = decode(request.body()).await?;
 
                 // Apply the diff to the storage
                 let num_changes = {
