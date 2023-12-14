@@ -16,8 +16,7 @@ use crate::{
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
-        VaultBuilder, VaultCommit, VaultFlags, VaultId,
-        VaultWriter,
+        VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultWriter,
     },
     vfs, Error, Paths, Result, Timestamp,
 };
@@ -844,10 +843,7 @@ impl Storage {
     }
 
     /// Load a vault by reducing it from the event log stored on disc.
-    async fn reduce_event_log(
-        &mut self,
-        summary: &Summary,
-    ) -> Result<Vault> {
+    async fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault> {
         let event_log_file = self
             .cache
             .get_mut(summary.id())

@@ -380,8 +380,7 @@ impl NetworkAccount {
         name: String,
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
-        let (summary, _, _) =
-            self.account.create_folder(name).await?;
+        let (summary, _, _) = self.account.create_folder(name).await?;
         Ok((summary, self.sync().await))
     }
 

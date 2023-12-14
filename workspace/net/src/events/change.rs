@@ -2,9 +2,7 @@
 //! notify connected clients that changes have been made.
 use serde::{Deserialize, Serialize};
 
-use sos_sdk::{
-    signer::ecdsa::Address,
-};
+use sos_sdk::signer::ecdsa::Address;
 
 /// Notification sent by the server when changes were made.
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -17,10 +15,7 @@ pub struct ChangeNotification {
 
 impl ChangeNotification {
     /// Create a new change notification.
-    pub fn new(
-        address: &Address,
-        public_key: &[u8],
-    ) -> Self {
+    pub fn new(address: &Address, public_key: &[u8]) -> Self {
         Self {
             address: *address,
             public_key: public_key.to_vec(),
@@ -32,7 +27,7 @@ impl ChangeNotification {
         &self.address
     }
 
-    /// Public key of the connection that 
+    /// Public key of the connection that
     /// made the change.
     pub fn public_key(&self) -> &[u8] {
         &self.public_key

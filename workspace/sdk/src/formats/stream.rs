@@ -7,10 +7,7 @@ use crate::{
     encoding::encoding_options, formats::FileItem, vfs::File, Result,
 };
 
-use futures::io::{
-    AsyncRead, AsyncSeek, AsyncSeekExt, BufReader,
-    Cursor,
-};
+use futures::io::{AsyncRead, AsyncSeek, AsyncSeekExt, BufReader, Cursor};
 use tokio_util::compat::Compat;
 
 /// Generic iterator for file formats.

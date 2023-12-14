@@ -1,12 +1,9 @@
 //! Adds sync capability to network account.
 use crate::client::{
-    NetworkAccount, RemoteSync, Remotes, SyncError,
-    SyncOptions,
+    NetworkAccount, RemoteSync, Remotes, SyncError, SyncOptions,
 };
 use async_trait::async_trait;
-use sos_sdk::{
-    account::{AccountHandler, BeforeChange},
-};
+use sos_sdk::account::{AccountHandler, BeforeChange};
 use std::{any::Any, sync::Arc};
 use tokio::sync::RwLock;
 

@@ -101,8 +101,7 @@ fn send_notification(
     // Send notification on the websockets channel
     match serde_json::to_vec(&notification) {
         Ok(buffer) => {
-            if let Some(conn) = writer.sockets.get(notification.address())
-            {
+            if let Some(conn) = writer.sockets.get(notification.address()) {
                 if conn.tx.send(buffer).is_err() {
                     tracing::debug!("websocket events channel dropped");
                 }

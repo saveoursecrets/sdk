@@ -65,7 +65,7 @@ impl<D> Account<D> {
         let account =
             Self::import_archive_reader(file, options, data_dir.clone())
                 .await?;
-        
+
         let audit_event = AuditEvent::new(
             EventKind::ImportBackupArchive,
             account.address().clone(),
@@ -97,12 +97,9 @@ impl<D> Account<D> {
 
         options.files_dir = Some(files_dir);
 
-        let (_, account) = AccountBackup::import_archive_reader(
-            buffer,
-            options,
-            data_dir,
-        )
-        .await?;
+        let (_, account) =
+            AccountBackup::import_archive_reader(buffer, options, data_dir)
+                .await?;
 
         Ok(account)
     }
@@ -116,10 +113,10 @@ impl<D> Account<D> {
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
         let file = File::open(path).await?;
-        let account =
-            Self::restore_backup_reader(
-                file, owner, password, options, data_dir)
-                .await?;
+        let account = Self::restore_backup_reader(
+            file, owner, password, options, data_dir,
+        )
+        .await?;
 
         let audit_event = AuditEvent::new(
             EventKind::ImportBackupArchive,
@@ -139,23 +136,19 @@ impl<D> Account<D> {
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
-        
         let current_folder = {
             let storage = owner.storage()?;
             let reader = storage.read().await;
             reader.current_folder().cloned()
         };
 
-        let files_dir = 
+        let files_dir =
             ExtractFilesLocation::Path(owner.paths().files_dir().clone());
 
         options.files_dir = Some(files_dir);
 
         let (targets, account) = AccountBackup::restore_archive_reader(
-            reader,
-            options,
-            password,
-            data_dir,
+            reader, options, password, data_dir,
         )
         .await?;
 
@@ -168,7 +161,7 @@ impl<D> Account<D> {
         owner.build_search_index().await?;
 
         if let Some(folder) = &current_folder {
-            // Note that we don't want the additional 
+            // Note that we don't want the additional
             // audit event here
             owner.open_vault(folder, false).await?;
         }

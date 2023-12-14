@@ -4,10 +4,7 @@ use std::borrow::Cow;
 use sos_sdk::{
     constants::{SYNC_RESOLVE, SYNC_STATUS},
     decode, encode,
-    sync::{
-        MergeOptions, 
-        SyncComparison, SyncDiff, SyncStatus,
-    },
+    sync::{MergeOptions, SyncComparison, SyncDiff, SyncStatus},
 };
 
 use async_trait::async_trait;
@@ -114,11 +111,7 @@ impl Service for SyncService {
                     );
 
                     let mut writer = state.write().await;
-                    send_notification(
-                        &mut writer,
-                        &caller,
-                        notification,
-                    );
+                    send_notification(&mut writer, &caller, notification);
                 }
 
                 let buffer = encode(&diff).await?;

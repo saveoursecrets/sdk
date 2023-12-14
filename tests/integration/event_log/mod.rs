@@ -1,6 +1,9 @@
 use anyhow::Result;
 use binary_stream::futures::{Decodable, Encodable};
-use sos_net::sdk::{commit::CommitHash, events::{EventLogFile, FileLog}};
+use sos_net::sdk::{
+    commit::CommitHash,
+    events::{EventLogFile, FileLog},
+};
 
 mod account_events;
 mod change_password;

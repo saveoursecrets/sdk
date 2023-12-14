@@ -410,8 +410,7 @@ impl AccountBackup {
 
         // Write out the identity vault
         let identity_vault_file = paths.identity_vault();
-        vfs::write(identity_vault_file, &restore_targets.identity.1)
-            .await?;
+        vfs::write(identity_vault_file, &restore_targets.identity.1).await?;
 
         // Check if the identity name already exists
         // and rename the identity being imported if necessary
@@ -428,8 +427,7 @@ impl AccountBackup {
 
             let identity_vault_file = paths.identity_vault();
 
-            let vault_file =
-                VaultWriter::open(&identity_vault_file).await?;
+            let vault_file = VaultWriter::open(&identity_vault_file).await?;
             let mut access =
                 VaultWriter::new(identity_vault_file, vault_file)?;
             access.set_vault_name(name.clone()).await?;
@@ -469,7 +467,7 @@ impl AccountBackup {
 
     /// Restore from an archive.
     ///
-    /// The account owner must be signed in and supply the password 
+    /// The account owner must be signed in and supply the password
     /// for the archive identity vault.
     pub async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
         reader: R,
@@ -486,9 +484,12 @@ impl AccountBackup {
             Paths::data_dir()?
         };
 
-        let targets =
-            Self::extract_verify_archive(
-                reader, &options, Some(passphrase.clone())).await?;
+        let targets = Self::extract_verify_archive(
+            reader,
+            &options,
+            Some(passphrase.clone()),
+        )
+        .await?;
 
         let RestoreTargets {
             address,
@@ -500,8 +501,7 @@ impl AccountBackup {
         // but we will double check here to be safe
         let paths = Paths::new_global(data_dir.clone());
         let keys = Identity::list_accounts(Some(&paths)).await?;
-        let existing_account =
-            keys.iter().find(|k| k.address() == address);
+        let existing_account = keys.iter().find(|k| k.address() == address);
 
         let account = existing_account
             .ok_or_else(|| Error::NoArchiveAccount(address.to_string()))?
@@ -518,13 +518,12 @@ impl AccountBackup {
 
         let mut restored_user = Identity::new(paths);
         restored_user.login_buffer(&identity.1, &key).await?;
-        
-        // Use the delegated passwords for the folders 
+
+        // Use the delegated passwords for the folders
         // that were restored
         for (_, vault) in vaults {
-            let vault_passphrase = restored_user
-                .find_folder_password(vault.id())
-                .await?;
+            let vault_passphrase =
+                restored_user.find_folder_password(vault.id()).await?;
             user.save_folder_password(vault.id(), vault_passphrase)
                 .await?;
         }

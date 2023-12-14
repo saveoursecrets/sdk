@@ -9,8 +9,7 @@ use crate::{
 use std::collections::HashMap;
 
 use crate::sync::{
-    AccountDiff, MergeOptions, ChangeSet, FolderPatch, SyncDiff,
-    SyncStatus,
+    AccountDiff, ChangeSet, FolderPatch, MergeOptions, SyncDiff, SyncStatus,
 };
 
 impl Storage {
@@ -159,7 +158,7 @@ impl Storage {
         options: MergeOptions,
     ) -> Result<usize> {
         let mut num_changes = 0;
-        
+
         if let Some(diff) = &diff.identity {
             let mut writer = self.identity_log.write().await;
             writer.patch_checked(&diff.before, &diff.patch).await?;

@@ -422,12 +422,8 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
         selected: inventory.vaults,
         files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
     };
-    let (targets, account) = AccountBackup::import_archive_file(
-        &input,
-        options,
-        None,
-    )
-    .await?;
+    let (targets, account) =
+        AccountBackup::import_archive_file(&input, options, None).await?;
 
     if let Some(provider) = provider {
         let mut writer = provider.write().await;

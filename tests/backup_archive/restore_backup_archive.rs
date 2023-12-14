@@ -5,7 +5,7 @@ use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "backup_export_restore";
 
-/// Tests creating a backup and restoring from the 
+/// Tests creating a backup and restoring from the
 /// backup archive then asserting on the restored data.
 #[tokio::test]
 async fn export_restore() -> Result<()> {

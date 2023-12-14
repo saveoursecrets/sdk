@@ -5,7 +5,7 @@ use binary_stream::futures::{Decodable, Encodable};
 use sos_net::sdk::{
     events::{
         AccountEvent, AccountEventLog, EventLogFile, FileEvent, FileEventLog,
-        FolderEventLog, LogEvent, WriteEvent, FileLog,
+        FileLog, FolderEventLog, LogEvent, WriteEvent,
     },
     vfs,
 };

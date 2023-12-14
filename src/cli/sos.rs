@@ -1,7 +1,5 @@
 use clap::{Parser, Subcommand};
-use sos_net::sdk::{
-    identity::AccountRef, vault::FolderRef, Paths,
-};
+use sos_net::sdk::{identity::AccountRef, vault::FolderRef, Paths};
 use std::path::PathBuf;
 
 use crate::{

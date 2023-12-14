@@ -9,10 +9,7 @@ use serde::{Deserialize, Serialize};
 use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
-    sync::{
-        Client, SyncComparison,
-        SyncStatus,
-    },
+    sync::{Client, SyncComparison, SyncStatus},
     url::Url,
 };
 
@@ -186,7 +183,6 @@ impl RemoteBridge {
         }
         errors
     }
-
 }
 
 #[async_trait]
@@ -261,7 +257,7 @@ mod listen {
             _change: ChangeNotification,
         ) -> Result<()> {
             tracing::debug!("on_change_notification");
-                
+
             if let Some(e) = bridge.sync().await {
                 tracing::error!(
                     error = ?e,

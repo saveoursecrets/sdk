@@ -35,10 +35,9 @@ use async_stream::try_stream;
 use futures::Stream;
 
 use futures::io::{
-    AsyncWrite, AsyncRead, AsyncSeek,
-    AsyncReadExt as FutAsyncReadExt,
+    AsyncRead, AsyncReadExt as FutAsyncReadExt, AsyncSeek,
+    AsyncSeekExt as FutAsyncSeekExt, AsyncWrite,
     AsyncWriteExt as FutAsyncWriteExt,
-    AsyncSeekExt as FutAsyncSeekExt,
 };
 
 #[cfg(feature = "files")]
@@ -54,7 +53,10 @@ use std::{
 };
 
 use futures::io::{BufReader, Cursor};
-use tokio::{io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt}, sync::{Mutex, MutexGuard}};
+use tokio::{
+    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
+    sync::{Mutex, MutexGuard},
+};
 use tokio_util::compat::Compat;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
@@ -77,9 +79,9 @@ pub type FolderEventLog = EventLogFile<WriteEvent, FileLog, FileLog>;
 pub type FileEventLog = EventLogFile<FileEvent, FileLog, FileLog>;
 
 /// Event log that appends to a file.
-pub struct EventLogFile<T, R, W>
+pub struct EventLogFile<E, R, W>
 where
-    T: Default + Encodable + Decodable,
+    E: Default + Encodable + Decodable,
     R: AsyncRead + AsyncSeek + Unpin,
     W: AsyncWrite + Unpin,
 {
@@ -88,12 +90,12 @@ where
     tree: CommitTree,
     identity: &'static [u8],
     version: Option<u16>,
-    phantom: std::marker::PhantomData<T>,
+    phantom: std::marker::PhantomData<E>,
 }
 
-impl<T, R, W> EventLogFile<T, R, W>
+impl<E, R, W> EventLogFile<E, R, W>
 where
-    T: Default + Encodable + Decodable,
+    E: Default + Encodable + Decodable,
     R: AsyncRead + AsyncSeek + Unpin,
     W: AsyncWrite + Unpin,
 {
@@ -110,7 +112,7 @@ where
     /// Encode an event into a record.
     async fn encode_event(
         &self,
-        event: &T,
+        event: &E,
         last_commit: Option<CommitHash>,
     ) -> Result<(CommitHash, EventRecord)> {
         let time: Timestamp = Default::default();
@@ -132,9 +134,9 @@ where
     pub(crate) async fn decode_event(
         &self,
         item: &EventLogFileRecord,
-    ) -> Result<T> {
+    ) -> Result<E> {
         let value = item.value();
-        
+
         let mut file = MutexGuard::map(self.file.lock().await, |f| &mut f.0);
 
         file.seek(SeekFrom::Start(value.start)).await?;
@@ -143,7 +145,7 @@ where
 
         let mut stream = BufReader::new(Cursor::new(&mut buffer));
         let mut reader = BinaryReader::new(&mut stream, encoding_options());
-        let mut event: T = Default::default();
+        let mut event: E = Default::default();
         event.decode(&mut reader).await?;
         Ok(event)
     }
@@ -161,7 +163,8 @@ where
     /// Read encoding version from the file on disc.
     pub async fn read_file_version(&self) -> Result<u16> {
         if let Some(_) = &self.version {
-            let mut file = MutexGuard::map(self.file.lock().await, |f| &mut f.0);
+            let mut file =
+                MutexGuard::map(self.file.lock().await, |f| &mut f.0);
             file.seek(SeekFrom::Start(self.identity.len() as u64))
                 .await?;
             let mut buf = [0; 2];
@@ -204,7 +207,7 @@ where
     #[cfg(feature = "sync")]
     pub async fn patch_unchecked(
         &mut self,
-        patch: &Patch<T>,
+        patch: &Patch<E>,
     ) -> Result<Vec<CommitHash>> {
         self.apply(patch.into()).await
     }
@@ -215,7 +218,7 @@ where
     pub async fn patch_checked(
         &mut self,
         commit_proof: &CommitProof,
-        patch: &Patch<T>,
+        patch: &Patch<E>,
     ) -> Result<CheckedPatch> {
         let comparison = self.tree.compare(&commit_proof)?;
         match comparison {
@@ -249,7 +252,7 @@ where
     /// event log to it's previous state.
     pub async fn apply(
         &mut self,
-        events: Vec<&T>,
+        events: Vec<&E>,
     ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
@@ -274,9 +277,7 @@ where
                 self.tree.commit();
                 Ok(commits)
             }
-            Err(e) => {
-                Err(e.into())
-            }
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -310,7 +311,7 @@ where
             .truncate(true)
             .open(&self.file_path)
             .await?;
-        
+
         file.seek(SeekFrom::Start(0)).await?;
         file.write_all(&self.identity).await?;
         file.flush().await?;
@@ -325,7 +326,7 @@ where
     pub async fn stream(
         &self,
         reverse: bool,
-    ) -> impl Stream<Item = Result<(EventRecord, T)>> {
+    ) -> impl Stream<Item = Result<(EventRecord, E)>> {
         let mut it = if reverse {
             self.iter()
                 .await
@@ -340,7 +341,7 @@ where
             while let Some(record) = it.next_entry().await? {
                 let event_buffer = Self::read_event_buffer(&path, &record).await?;
                 let event_record: EventRecord = (record, event_buffer).into();
-                let event = event_record.decode_event::<T>().await?;
+                let event = event_record.decode_event::<E>().await?;
                 yield (event_record, event);
             }
         }
@@ -351,7 +352,7 @@ where
     pub async fn diff(
         &self,
         commit: Option<&CommitHash>,
-    ) -> Result<Patch<T>> {
+    ) -> Result<Patch<E>> {
         let records = self.diff_records(commit).await?;
         Ok(Patch::new(records).await?)
     }
@@ -394,9 +395,9 @@ where
     }
 }
 
-impl<T> EventLogFile<T, FileLog, FileLog>
+impl<E> EventLogFile<E, FileLog, FileLog>
 where
-    T: Default + Encodable + Decodable,
+    E: Default + Encodable + Decodable,
 {
     /// Create the writer for an event log file.
     async fn create_writer<P: AsRef<Path>>(
@@ -423,9 +424,7 @@ where
     }
 
     /// Create the reader for an event log file.
-    async fn create_reader<P: AsRef<Path>>(
-        path: P,
-    ) -> Result<FileLog> {
+    async fn create_reader<P: AsRef<Path>>(path: P) -> Result<FileLog> {
         Ok(File::open(path).await?.compat())
     }
 }
@@ -444,10 +443,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog> {
         )
         .await?;
 
-        let reader = Self::create_reader(
-            file_path.as_ref(),
-        )
-        .await?;
+        let reader = Self::create_reader(file_path.as_ref()).await?;
 
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
@@ -513,10 +509,7 @@ impl EventLogFile<AccountEvent, FileLog, FileLog> {
         )
         .await?;
 
-        let reader = Self::create_reader(
-            file_path.as_ref(),
-        )
-        .await?;
+        let reader = Self::create_reader(file_path.as_ref()).await?;
 
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),
@@ -541,10 +534,7 @@ impl EventLogFile<FileEvent, FileLog, FileLog> {
         )
         .await?;
 
-        let reader = Self::create_reader(
-            file_path.as_ref(),
-        )
-        .await?;
+        let reader = Self::create_reader(file_path.as_ref()).await?;
 
         Ok(Self {
             file: Arc::new(Mutex::new((reader, writer))),

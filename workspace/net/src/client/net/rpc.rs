@@ -9,15 +9,14 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 use sos_sdk::{
     constants::{
-        ACCOUNT_CREATE, HANDSHAKE_INITIATE, MIME_TYPE_RPC, SYNC_RESOLVE, SYNC_STATUS,
+        ACCOUNT_CREATE, HANDSHAKE_INITIATE, MIME_TYPE_RPC, SYNC_RESOLVE,
+        SYNC_STATUS,
     },
     decode,
     device::DevicePublicKey,
     encode,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{
-        ChangeSet, Client, SyncDiff, SyncStatus,
-    },
+    sync::{ChangeSet, Client, SyncDiff, SyncStatus},
 };
 
 use mpc_protocol::{
@@ -560,5 +559,4 @@ impl Client for RpcClient {
 
         Ok(decode(&body).await?)
     }
-
 }

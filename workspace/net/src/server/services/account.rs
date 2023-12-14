@@ -1,9 +1,7 @@
 use axum::http::StatusCode;
 
 use sos_sdk::{
-    constants::ACCOUNT_CREATE,
-    decode,
-    device::DevicePublicKey,
+    constants::ACCOUNT_CREATE, decode, device::DevicePublicKey,
     sync::ChangeSet,
 };
 
