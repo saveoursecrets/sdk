@@ -1,6 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::{prelude::*, vfs};
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "secret_lifecycle";
 
@@ -23,10 +23,9 @@ async fn integration_secret_lifecycle() -> Result<()> {
         None,
     )
     .await?;
-    let address = account.address().clone();
 
     let key: AccessKey = password.clone().into();
-    let folders = account.sign_in(&key).await?;
+    account.sign_in(&key).await?;
     let default_folder = account.default_folder().await.unwrap();
 
     // Create secret

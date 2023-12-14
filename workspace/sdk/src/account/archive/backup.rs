@@ -54,9 +54,6 @@ pub enum ExtractFilesLocation {
 pub struct RestoreOptions {
     /// Vaults that the user selected to be imported.
     pub selected: Vec<Summary>,
-    /// Password for the identity vault in the archive to access
-    /// the passwords for imported folders.
-    pub password: Option<SecretString>,
     /// Target directory for files.
     pub files_dir: Option<ExtractFilesLocation>,
 }
@@ -363,10 +360,23 @@ impl AccountBackup {
     }
 
     /// Import from an archive.
-    pub async fn restore_archive_buffer<R: AsyncRead + AsyncSeek + Unpin>(
+    ///
+    /// The owner must not be signed in and the account must not exist.
+    pub async fn import_archive_file(
+        path: impl AsRef<Path>,
+        options: RestoreOptions,
+        data_dir: Option<PathBuf>,
+    ) -> Result<(RestoreTargets, PublicIdentity)> {
+        let file = vfs::File::open(path).await?;
+        Self::import_archive_reader(file, options, data_dir).await
+    }
+
+    /// Import from an archive.
+    ///
+    /// The owner must not be signed in and the account must not exist.
+    pub async fn import_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
         buffer: R,
         options: RestoreOptions,
-        existing_account: bool,
         mut data_dir: Option<PathBuf>,
     ) -> Result<(RestoreTargets, PublicIdentity)> {
         // FIXME: ensure we still have ONE vault marked as default vault!!!
@@ -378,145 +388,161 @@ impl AccountBackup {
             Paths::data_dir()?
         };
 
-        // Signed in so use the existing provider
-        let (targets, account) = if existing_account {
-            let targets =
-                Self::extract_verify_archive(buffer, &options).await?;
+        let restore_targets =
+            Self::extract_verify_archive(buffer, &options, None).await?;
 
-            let RestoreTargets {
-                address,
-                identity,
-                vaults,
-            } = &targets;
+        // The app should check the identity does not already exist
+        // but we will double check here to be safe
+        let paths = Paths::new_global(data_dir.clone());
+        let keys = Identity::list_accounts(Some(&paths)).await?;
+        let existing_account = keys
+            .iter()
+            .find(|k| k.address() == &restore_targets.address);
 
-            // The GUI should check the identity already exists
-            // but we will double check here to be safe
-            let paths = Paths::new_global(data_dir.clone());
-            let keys = Identity::list_accounts(Some(&paths)).await?;
-            let existing_account =
-                keys.iter().find(|k| k.address() == address);
-            let account = existing_account
-                .ok_or_else(|| Error::NoArchiveAccount(address.to_string()))?
-                .clone();
+        if existing_account.is_some() {
+            return Err(Error::ArchiveAccountAlreadyExists(
+                restore_targets.address.to_string(),
+            ));
+        }
 
-            let address = address.to_string();
+        let address_path = restore_targets.address.to_string();
+        let paths = Paths::new(data_dir, &address_path);
 
-            let paths = Paths::new(data_dir, &address);
+        // Write out the identity vault
+        let identity_vault_file = paths.identity_vault();
+        vfs::write(identity_vault_file, &restore_targets.identity.1)
+            .await?;
 
-            if let Some(passphrase) = &options.password {
-                let identity_vault_file = paths.identity_vault().clone();
-                let mut user = Identity::new(paths.clone());
-                let key: AccessKey = passphrase.clone().into();
-                user.login(&identity_vault_file, &key).await?;
+        // Check if the identity name already exists
+        // and rename the identity being imported if necessary
+        let existing_name = keys
+            .iter()
+            .find(|k| k.label() == restore_targets.identity.0.name());
 
-                let mut restored_user = Identity::new(paths);
-                restored_user.login_buffer(&identity.1, &key).await?;
+        let label = if existing_name.is_some() {
+            let name = format!(
+                "{} ({})",
+                restore_targets.identity.0.name(),
+                &restore_targets.address
+            );
 
-                for (_, vault) in vaults {
-                    let vault_passphrase = restored_user
-                        .find_folder_password(vault.id())
-                        .await?;
-
-                    user.save_folder_password(vault.id(), vault_passphrase)
-                        .await?;
-                }
-
-                let vault = user.identity()?.vault().clone();
-
-                // Must re-write the identity vault
-                let buffer = encode(&vault).await?;
-                vfs::write(identity_vault_file, buffer).await?;
-            }
-
-            (targets, account)
-        // No provider available so the user is not signed in
-        } else {
-            let restore_targets =
-                Self::extract_verify_archive(buffer, &options).await?;
-
-            // The GUI should check the identity does not already exist
-            // but we will double check here to be safe
-            let paths = Paths::new_global(data_dir.clone());
-            let keys = Identity::list_accounts(Some(&paths)).await?;
-            let existing_account = keys
-                .iter()
-                .find(|k| k.address() == &restore_targets.address);
-            if existing_account.is_some() {
-                return Err(Error::ArchiveAccountAlreadyExists(
-                    restore_targets.address.to_string(),
-                ));
-            }
-
-            let address_path = restore_targets.address.to_string();
-            let paths = Paths::new(data_dir, &address_path);
-
-            // Write out the identity vault
             let identity_vault_file = paths.identity_vault();
-            vfs::write(identity_vault_file, &restore_targets.identity.1)
-                .await?;
 
-            // Check if the identity name already exists
-            // and rename the identity being imported if necessary
-            let existing_name = keys
-                .iter()
-                .find(|k| k.label() == restore_targets.identity.0.name());
+            let vault_file =
+                VaultWriter::open(&identity_vault_file).await?;
+            let mut access =
+                VaultWriter::new(identity_vault_file, vault_file)?;
+            access.set_vault_name(name.clone()).await?;
 
-            let label = if existing_name.is_some() {
-                let name = format!(
-                    "{} ({})",
-                    restore_targets.identity.0.name(),
-                    &restore_targets.address
-                );
-
-                let identity_vault_file = paths.identity_vault();
-
-                let vault_file =
-                    VaultWriter::open(&identity_vault_file).await?;
-                let mut access =
-                    VaultWriter::new(identity_vault_file, vault_file)?;
-                access.set_vault_name(name.clone()).await?;
-
-                name
-            } else {
-                restore_targets.identity.0.name().to_owned()
-            };
-
-            // Prepare the vaults directory
-            let vaults_dir = paths.vaults_dir();
-            vfs::create_dir_all(&vaults_dir).await?;
-
-            // Write out each vault and the event log log
-            for (buffer, vault) in &restore_targets.vaults {
-                let mut vault_path = vaults_dir.join(vault.id().to_string());
-                let mut event_log_path = vault_path.clone();
-                vault_path.set_extension(VAULT_EXT);
-                event_log_path.set_extension(EVENT_LOG_EXT);
-
-                // Write out the vault buffer
-                vfs::write(&vault_path, buffer).await?;
-
-                // Write out the event log file
-                let mut event_log_events = Vec::new();
-                let create_vault = WriteEvent::CreateVault(buffer.clone());
-                event_log_events.push(create_vault);
-                let mut event_log =
-                    FolderEventLog::new_folder(event_log_path).await?;
-                event_log.apply(event_log_events.iter().collect()).await?;
-            }
-
-            let account = PublicIdentity::new(label, restore_targets.address);
-
-            (restore_targets, account)
+            name
+        } else {
+            restore_targets.identity.0.name().to_owned()
         };
+
+        // Prepare the vaults directory
+        let vaults_dir = paths.vaults_dir();
+        vfs::create_dir_all(&vaults_dir).await?;
+
+        // Write out each vault and the event log log
+        for (buffer, vault) in &restore_targets.vaults {
+            let mut vault_path = vaults_dir.join(vault.id().to_string());
+            let mut event_log_path = vault_path.clone();
+            vault_path.set_extension(VAULT_EXT);
+            event_log_path.set_extension(EVENT_LOG_EXT);
+
+            // Write out the vault buffer
+            vfs::write(&vault_path, buffer).await?;
+
+            // Write out the event log file
+            let mut event_log_events = Vec::new();
+            let create_vault = WriteEvent::CreateVault(buffer.clone());
+            event_log_events.push(create_vault);
+            let mut event_log =
+                FolderEventLog::new_folder(event_log_path).await?;
+            event_log.apply(event_log_events.iter().collect()).await?;
+        }
+
+        let account = PublicIdentity::new(label, restore_targets.address);
+
+        Ok((restore_targets, account))
+    }
+
+    /// Restore from an archive.
+    ///
+    /// The account owner must be signed in and supply the password 
+    /// for the archive identity vault.
+    pub async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
+        reader: R,
+        options: RestoreOptions,
+        passphrase: SecretString,
+        mut data_dir: Option<PathBuf>,
+    ) -> Result<(RestoreTargets, PublicIdentity)> {
+        // FIXME: ensure we still have ONE vault marked as default vault!!!
+        //
+
+        let data_dir = if let Some(data_dir) = data_dir.take() {
+            data_dir
+        } else {
+            Paths::data_dir()?
+        };
+
+        let targets =
+            Self::extract_verify_archive(
+                reader, &options, Some(passphrase.clone())).await?;
+
+        let RestoreTargets {
+            address,
+            identity,
+            vaults,
+        } = &targets;
+
+        // The app should check the identity already exists
+        // but we will double check here to be safe
+        let paths = Paths::new_global(data_dir.clone());
+        let keys = Identity::list_accounts(Some(&paths)).await?;
+        let existing_account =
+            keys.iter().find(|k| k.address() == address);
+
+        let account = existing_account
+            .ok_or_else(|| Error::NoArchiveAccount(address.to_string()))?
+            .clone();
+
+        let address = address.to_string();
+
+        let paths = Paths::new(data_dir, &address);
+
+        let identity_vault_file = paths.identity_vault().clone();
+        let mut user = Identity::new(paths.clone());
+        let key: AccessKey = passphrase.clone().into();
+        user.login(&identity_vault_file, &key).await?;
+
+        let mut restored_user = Identity::new(paths);
+        restored_user.login_buffer(&identity.1, &key).await?;
+        
+        // Use the delegated passwords for the folders 
+        // that were restored
+        for (_, vault) in vaults {
+            let vault_passphrase = restored_user
+                .find_folder_password(vault.id())
+                .await?;
+            user.save_folder_password(vault.id(), vault_passphrase)
+                .await?;
+        }
+
+        let vault = user.identity()?.vault().clone();
+        // Must re-write the identity vault
+        let buffer = encode(&vault).await?;
+        vfs::write(identity_vault_file, buffer).await?;
 
         Ok((targets, account))
     }
 
     /// Helper to extract from an archive and verify the archive
     /// contents against the restore options.
-    pub async fn extract_verify_archive<R: AsyncRead + AsyncSeek + Unpin>(
+    async fn extract_verify_archive<R: AsyncRead + AsyncSeek + Unpin>(
         archive: R,
         options: &RestoreOptions,
+        password: Option<SecretString>,
     ) -> Result<RestoreTargets> {
         let mut reader = Reader::new(archive).await?.prepare().await?;
 
@@ -561,7 +587,7 @@ impl AccountBackup {
         }
 
         // Check all the decoded vaults can be decrypted
-        if let Some(passphrase) = &options.password {
+        if let Some(passphrase) = &password {
             // Check the identity vault can be unlocked
             let vault: Vault = decode(&identity.1).await?;
             let mut keeper = Gatekeeper::new(vault);

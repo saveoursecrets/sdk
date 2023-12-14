@@ -28,14 +28,12 @@ impl NetworkAccount {
     }
 
     /// Import from an archive file.
-    pub async fn restore_backup_archive<P: AsRef<Path>>(
-        owner: Option<&mut NetworkAccount>,
+    pub async fn import_backup_archive<P: AsRef<Path>>(
         path: P,
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
-        Ok(LocalAccount::restore_backup_archive(
-            owner.map(|o| &mut o.account),
+        Ok(LocalAccount::import_backup_archive(
             path,
             options,
             data_dir,

@@ -15,6 +15,7 @@ use crate::{
     vfs::File,
     Paths, Result,
 };
+use secrecy::SecretString;
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncRead, AsyncSeek};
 
@@ -55,65 +56,109 @@ impl<D> Account<D> {
     }
 
     /// Restore from a backup archive file.
-    pub async fn restore_backup_archive<P: AsRef<Path>>(
-        owner: Option<&mut Account<D>>,
+    pub async fn import_backup_archive<P: AsRef<Path>>(
         path: P,
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
         let file = File::open(path).await?;
-        let (account, owner) =
-            Self::restore_archive_reader(owner, file, options, data_dir)
+        let account =
+            Self::import_archive_reader(file, options, data_dir.clone())
                 .await?;
+        
+        let audit_event = AuditEvent::new(
+            EventKind::ImportBackupArchive,
+            account.address().clone(),
+            None,
+        );
 
-        if let Some(owner) = owner {
-            let audit_event = AuditEvent::new(
-                EventKind::ImportBackupArchive,
-                owner.address().clone(),
-                None,
-            );
-            owner.paths.append_audit_events(vec![audit_event]).await?;
-        }
+        let data_dir = if let Some(data_dir) = &data_dir {
+            data_dir.clone()
+        } else {
+            Paths::data_dir()?
+        };
+        let paths = Paths::new(data_dir, account.address().to_string());
+        paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(account)
     }
 
     /// Import from an archive reader.
-    async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
-        mut owner: Option<&mut Account<D>>,
+    async fn import_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
         buffer: R,
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
-    ) -> Result<(PublicIdentity, Option<&mut Account<D>>)> {
-        let files_dir = if let Some(owner) = owner.as_ref() {
-            ExtractFilesLocation::Path(owner.paths().files_dir().clone())
-        } else {
-            ExtractFilesLocation::Builder(Box::new(|address| {
-                let data_dir = Paths::data_dir().unwrap();
-                let paths = Paths::new(data_dir, address);
-                Some(paths.files_dir().to_owned())
-            }))
-        };
+    ) -> Result<PublicIdentity> {
+        let files_dir = ExtractFilesLocation::Builder(Box::new(|address| {
+            let data_dir = Paths::data_dir().unwrap();
+            let paths = Paths::new(data_dir, address);
+            Some(paths.files_dir().to_owned())
+        }));
 
         options.files_dir = Some(files_dir);
 
-        let (targets, account) = AccountBackup::restore_archive_buffer(
+        let (targets, account) = AccountBackup::import_archive_reader(
             buffer,
             options,
-            owner.is_some(),
             data_dir,
         )
         .await?;
 
-        if let Some(owner) = owner.as_mut() {
-            {
-                let storage = owner.storage()?;
-                let mut writer = storage.write().await;
-                writer.restore_archive(&targets).await?;
-            }
-            owner.build_search_index().await?;
-        }
+        Ok(account)
+    }
 
-        Ok((account, owner))
+    /// Restore from a backup archive file.
+    pub async fn restore_backup_file<P: AsRef<Path>>(
+        path: P,
+        owner: &mut Account<D>,
+        password: SecretString,
+        options: RestoreOptions,
+        data_dir: Option<PathBuf>,
+    ) -> Result<PublicIdentity> {
+        let file = File::open(path).await?;
+        let account =
+            Self::restore_backup_reader(
+                file, owner, password, options, data_dir)
+                .await?;
+
+        let audit_event = AuditEvent::new(
+            EventKind::ImportBackupArchive,
+            owner.address().clone(),
+            None,
+        );
+        owner.paths.append_audit_events(vec![audit_event]).await?;
+
+        Ok(account)
+    }
+
+    /// Restore from an archive reader.
+    async fn restore_backup_reader<R: AsyncRead + AsyncSeek + Unpin>(
+        reader: R,
+        owner: &mut Account<D>,
+        password: SecretString,
+        mut options: RestoreOptions,
+        data_dir: Option<PathBuf>,
+    ) -> Result<PublicIdentity> {
+        let files_dir = 
+            ExtractFilesLocation::Path(owner.paths().files_dir().clone());
+
+        options.files_dir = Some(files_dir);
+
+        let (targets, account) = AccountBackup::restore_archive_reader(
+            reader,
+            options,
+            password,
+            data_dir,
+        )
+        .await?;
+
+        {
+            let storage = owner.storage()?;
+            let mut writer = storage.write().await;
+            writer.restore_archive(&targets).await?;
+        }
+        owner.build_search_index().await?;
+
+        Ok(account)
     }
 }

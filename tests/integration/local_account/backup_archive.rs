@@ -73,14 +73,9 @@ async fn integration_backup_archive() -> Result<()> {
     // Restore from the backup archive
     let options = RestoreOptions {
         selected: folders.clone(),
-        password: Some(password.clone()),
         ..Default::default()
     };
-    LocalAccount::restore_backup_archive(
-        // Note we don't pass in the account as we
-        // are not restoring a signed in account but
-        // an account that no longer exists
-        None,
+    LocalAccount::import_backup_archive(
         &archive,
         options,
         Some(data_dir.clone()),

@@ -420,14 +420,11 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
     let files_dir = paths.files_dir();
     let options = RestoreOptions {
         selected: inventory.vaults,
-        password: None,
         files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
     };
-    let reader = vfs::File::open(&input).await?;
-    let (targets, account) = AccountBackup::restore_archive_buffer(
-        reader,
+    let (targets, account) = AccountBackup::import_archive_file(
+        &input,
         options,
-        provider.is_some(),
         None,
     )
     .await?;

@@ -188,13 +188,13 @@ async fn simulate_session(
 
     let restore_options = RestoreOptions {
         selected: vec![default_folder.clone()],
-        password: Some(passphrase),
         files_dir: None,
     };
 
-    LocalAccount::restore_backup_archive(
-        Some(account),
+    LocalAccount::restore_backup_file(
         archive,
+        account,
+        passphrase.clone(),
         restore_options,
         Some(data_dir.clone()),
     )
