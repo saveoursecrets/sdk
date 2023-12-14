@@ -49,7 +49,7 @@ impl EventRecord {
         self.3.len()
     }
 
-    /// Decode this event record into a write event.
+    /// Decode this event record.
     pub async fn decode_event<T: Default + Decodable>(&self) -> Result<T> {
         let event: T = decode(&self.3).await?;
         Ok(event)
