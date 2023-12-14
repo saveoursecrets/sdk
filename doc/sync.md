@@ -114,5 +114,33 @@ If a device has been lost or stolen an account owner can revoke the public key f
 
 The server API endpoint for revoking devices **must require signatures from both the account signing key and a trusted device** for authentication.
 
+## Protocol
+
+Let's review some terminology first.
+
+* Let **hash** be an SHA2-256 hash
+* Let a **commit tree** be a merkle tree that tracks the last leaf hash
+* Let **head** be the last leaf hash
+* Let **tip** be the merkle proof of **head**
+* Let **commit state** be a combined **head** and **tip**
+* Let **event log** own a **commit tree**
+* Let **patch** be a collections of events
+* Let **diff** contain a **patch** and the **commit state** before and after the patch was applied
+* Let **sync status** include the **commit state** of every event log in an account
+* Let **sync diff**  include a **diff** of every event log in an account
+
+The terms **local** and **remote** vary by context, for a client **local** is itself and **remote** refers to a server. For a server, **local** is itself and **remote** is the client.
+
+The behavior of clients and servers will differ slightly as they store data differently. For example, servers store vault files as head-only as they only need to prioritize storing the event logs. Whereas clients need full on-disc vaults for quick access to the secret data.
+
+---
+
+1. Client requests the **sync status** from a remote server as **remote status**.
+2. Client compares their **local status** to the **remote status** and generates a **sync diff** including all the events that exist on local but not on remote.
+3. Client sends it's **sync status** and the **sync diff** to the remote server.
+4. Server receives the **sync diff** and merges the changes in each **diff** into the corresponding event logs. Merges **must be checked** such that the patch is only applied if the tip of the event log matches the before proof in the diff. For some types of events the server may need to **replay** the events such that the on disc (and in-memory) representation is correct before replying to the client. In particular, for account level events the server will need to create, update or delete folders. Replaying events **must update** the corresponding event log(s) so that the merkle tree on the server exactly matches the client.
+5. Server can now compare it's updated **local status** to the **remote status** (sent by the client earlier) and generate a **sync diff** of events that exist on the server that the client has not yet received. Server replies to the client with it's updated **sync status** and the **sync diff**.
+6. Client receives the updated **remote status** and the **sync diff** and merges  it into it's local storage.
+
 [^1]: The application event log when implemented will allow account deletion to be synchronized with a server.
 [^2]: Document the strategy for resolving conflicts.
