@@ -15,10 +15,7 @@
 //! The first row will contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit::{
-        CommitHash, CommitProof, CommitTree,
-        Comparison,
-    },
+    commit::{CommitHash, CommitProof, CommitTree, Comparison},
     encode,
     encoding::{encoding_options, VERSION1},
     events::WriteEvent,
@@ -36,9 +33,8 @@ use async_stream::try_stream;
 use futures::Stream;
 
 use futures::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek,
-    AsyncSeekExt as FutAsyncSeekExt, AsyncWrite,
-    AsyncWriteExt as FutAsyncWriteExt,
+    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt as FutAsyncSeekExt,
+    AsyncWrite, AsyncWriteExt as FutAsyncWriteExt,
 };
 
 #[cfg(feature = "files")]
@@ -70,21 +66,22 @@ use super::{EventRecord, EventReducer};
 pub type FileLog = Compat<File>;
 
 /// Event log for changes to an account.
-pub type AccountEventLog = EventLogFile<AccountEvent, FileLog, FileLog>;
+pub type AccountEventLog =
+    EventLogFile<AccountEvent, FileLog, FileLog, PathBuf>;
 
 /// Event log for changes to a folder.
-pub type FolderEventLog = EventLogFile<WriteEvent, FileLog, FileLog>;
+pub type FolderEventLog = EventLogFile<WriteEvent, FileLog, FileLog, PathBuf>;
 
 /// Event log for changes to external files.
 #[cfg(feature = "files")]
-pub type FileEventLog = EventLogFile<FileEvent, FileLog, FileLog>;
+pub type FileEventLog = EventLogFile<FileEvent, FileLog, FileLog, PathBuf>;
 
 /// Event log.
 ///
-/// Appends events to an append-only writer and reads events 
-/// via a reader whilst managing an in-memory merkle tree 
+/// Appends events to an append-only writer and reads events
+/// via a reader whilst managing an in-memory merkle tree
 /// of event hashes.
-pub struct EventLogFile<E, R, W>
+pub struct EventLogFile<E, R, W, D>
 where
     E: Default + Encodable + Decodable,
     R: AsyncRead + AsyncSeek + Unpin + Send,
@@ -95,16 +92,15 @@ where
     tree: CommitTree,
     identity: &'static [u8],
     version: Option<u16>,
-    phantom: std::marker::PhantomData<E>,
+    phantom: std::marker::PhantomData<(E, D)>,
 }
 
-impl<E, R, W> EventLogFile<E, R, W>
+impl<E, R, W, D> EventLogFile<E, R, W, D>
 where
     E: Default + Encodable + Decodable,
     R: AsyncRead + AsyncSeek + Unpin + Send,
     W: AsyncWrite + Unpin,
 {
-
     /// Commit tree for the log records.
     pub fn tree(&self) -> &CommitTree {
         &self.tree
@@ -228,10 +224,7 @@ where
     }
 
     /// Append a collection of events and commit the tree hashes
-    /// only if all the events were successfully persisted.
-    ///
-    /// If any events fail this function will rollback the
-    /// event log to it's previous state.
+    /// only if all the events were successfully written.
     pub async fn apply(
         &mut self,
         events: Vec<&E>,
@@ -351,7 +344,6 @@ where
         Ok(buf)
     }
 
-
     /// Diff of events until a specific commit.
     #[cfg(feature = "sync")]
     pub async fn diff(
@@ -381,7 +373,8 @@ where
                 }
             }
             let buffer =
-                Self::read_event_buffer(Arc::clone(&self.file), &record).await?;
+                Self::read_event_buffer(Arc::clone(&self.file), &record)
+                    .await?;
             // Iterating in reverse order as we would typically
             // be looking for commits near the end of the event log
             // but we want the patch events in the order they were
@@ -400,7 +393,7 @@ where
     }
 }
 
-impl<E> EventLogFile<E, FileLog, FileLog>
+impl<E> EventLogFile<E, FileLog, FileLog, PathBuf>
 where
     E: Default + Encodable + Decodable,
 {
@@ -434,7 +427,7 @@ where
     }
 }
 
-impl EventLogFile<WriteEvent, FileLog, FileLog> {
+impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
     /// Create a new folder event log file.
     pub async fn new_folder<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
@@ -461,7 +454,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog> {
     }
 }
 
-impl EventLogFile<WriteEvent, FileLog, FileLog> {
+impl EventLogFile<WriteEvent, FileLog, FileLog, PathBuf> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.file_path.metadata()?.len();
@@ -498,7 +491,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog> {
     }
 }
 
-impl EventLogFile<AccountEvent, FileLog, FileLog> {
+impl EventLogFile<AccountEvent, FileLog, FileLog, PathBuf> {
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         use crate::{
@@ -525,7 +518,7 @@ impl EventLogFile<AccountEvent, FileLog, FileLog> {
 }
 
 #[cfg(feature = "files")]
-impl EventLogFile<FileEvent, FileLog, FileLog> {
+impl EventLogFile<FileEvent, FileLog, FileLog, PathBuf> {
     /// Create a new file event log file.
     pub async fn new_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         use crate::{constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION};
