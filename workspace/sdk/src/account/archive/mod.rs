@@ -9,7 +9,7 @@ pub use backup::{
 pub use zip::*;
 
 use crate::{
-    account::Account,
+    account::{Account, AccountHandler},
     events::{AuditEvent, EventKind},
     identity::{Identity, PublicIdentity},
     vfs::File,
@@ -108,7 +108,7 @@ impl<D> Account<D> {
     }
 
     /// Restore from a backup archive file.
-    pub async fn restore_backup_file<P: AsRef<Path>>(
+    pub async fn restore_backup_archive<P: AsRef<Path>>(
         path: P,
         owner: &mut Account<D>,
         password: SecretString,
