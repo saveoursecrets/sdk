@@ -36,6 +36,8 @@ use futures::Stream;
 
 use futures::io::{
     AsyncWrite, AsyncRead, AsyncSeek,
+    AsyncReadExt as FutAsyncReadExt,
+    AsyncSeekExt as FutAsyncSeekExt,
 };
 
 #[cfg(feature = "files")]
@@ -50,8 +52,9 @@ use std::{
 };
 
 use futures::io::{BufReader, Cursor};
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio::{io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt}, sync::Mutex};
 use tokio_util::compat::Compat;
+use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
 use tempfile::NamedTempFile;
@@ -75,11 +78,12 @@ pub type FileEventLog = EventLogFile<FileEvent, FileLog, FileLog>;
 pub struct EventLogFile<T, R, W>
 where
     T: Default + Encodable + Decodable,
-    R: AsyncRead + AsyncSeek,
+    R: AsyncRead + AsyncSeek + Unpin,
     W: AsyncWrite,
 {
     file_path: PathBuf,
-    file: File,
+    writer: File,
+    reader: Mutex<R>,
     tree: CommitTree,
     identity: &'static [u8],
     version: Option<u16>,
@@ -89,33 +93,9 @@ where
 impl<T, R, W> EventLogFile<T, R, W>
 where
     T: Default + Encodable + Decodable,
-    R: AsyncRead + AsyncSeek,
+    R: AsyncRead + AsyncSeek + Unpin,
     W: AsyncWrite,
 {
-    /// Create the event log file.
-    async fn create<P: AsRef<Path>>(
-        path: P,
-        identity: &'static [u8],
-        encoding_version: Option<u16>,
-    ) -> Result<File> {
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path.as_ref())
-            .await?;
-
-        let size = file.metadata().await?.len();
-        if size == 0 {
-            let mut header = identity.to_vec();
-            if let Some(version) = encoding_version {
-                header.extend_from_slice(&version.to_le_bytes());
-            }
-            file.write_all(&header).await?;
-            file.flush().await?;
-        }
-        Ok(file)
-    }
-
     /// Path to the event log file.
     pub fn path(&self) -> &PathBuf {
         &self.file_path
@@ -154,9 +134,7 @@ where
     ) -> Result<T> {
         let value = item.value();
         
-        // Use a different file handle as the owned `file` should
-        // be used exclusively for appending
-        let mut file = File::open(&self.file_path).await?;
+        let mut file = self.reader.lock().await;
 
         file.seek(SeekFrom::Start(value.start)).await?;
         let mut buffer = vec![0; (value.end - value.start) as usize];
@@ -193,8 +171,7 @@ where
     /// Read encoding version from the file on disc.
     pub async fn read_file_version(&self) -> Result<u16> {
         if let Some(_) = &self.version {
-            let mut file =
-                OpenOptions::new().read(true).open(&self.file_path).await?;
+            let mut file = self.reader.lock().await;
             file.seek(SeekFrom::Start(self.identity.len() as u64))
                 .await?;
             let mut buf = [0; 2];
@@ -299,10 +276,10 @@ where
         let mut hashes =
             commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
 
-        let len = self.file.metadata().await?.len();
-        match self.file.write_all(&buffer).await {
+        let len = self.writer.metadata().await?.len();
+        match self.writer.write_all(&buffer).await {
             Ok(_) => {
-                self.file.flush().await?;
+                self.writer.flush().await?;
                 self.tree.append(&mut hashes);
                 self.tree.commit();
                 Ok(commits)
@@ -315,7 +292,7 @@ where
                 // In case of partial write attempt to truncate
                 // to the previous file length restoring to the
                 // previous state of the event log log
-                self.file.set_len(len).await?;
+                self.writer.set_len(len).await?;
                 Err(Error::from(e))
             }
         }
@@ -352,9 +329,9 @@ where
             .open(&self.file_path)
             .await;
 
-        self.file.seek(SeekFrom::Start(0)).await?;
-        self.file.write_all(&self.identity).await?;
-        self.file.flush().await?;
+        self.writer.seek(SeekFrom::Start(0)).await?;
+        self.writer.write_all(&self.identity).await?;
+        self.writer.flush().await?;
         Ok(())
     }
 
@@ -435,25 +412,64 @@ where
     }
 }
 
-impl<R, W> EventLogFile<WriteEvent, R, W>
+impl<T> EventLogFile<T, FileLog, FileLog>
 where
-    R: AsyncRead + AsyncSeek,
-    W: AsyncWrite,
+    T: Default + Encodable + Decodable,
 {
+    /// Create the writer for an event log file.
+    async fn create_writer<P: AsRef<Path>>(
+        path: P,
+        identity: &'static [u8],
+        encoding_version: Option<u16>,
+    ) -> Result<File> {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path.as_ref())
+            .await?;
+
+        let size = file.metadata().await?.len();
+        if size == 0 {
+            let mut header = identity.to_vec();
+            if let Some(version) = encoding_version {
+                header.extend_from_slice(&version.to_le_bytes());
+            }
+            file.write_all(&header).await?;
+            file.flush().await?;
+        }
+        Ok(file)
+    }
+
+    /// Create the reader for an event log file.
+    async fn create_reader<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<Mutex<FileLog>> {
+        Ok(Mutex::new(File::open(path).await?.compat()))
+    }
+}
+
+impl EventLogFile<WriteEvent, FileLog, FileLog> {
     /// Create a new folder event log file.
     pub async fn new_folder<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
         // Note that for backwards compatibility we don't
         // encode a version, later we will need to upgrade
         // the encoding to include a version
-        let file = Self::create(
+        let writer = Self::create_writer(
             file_path.as_ref(),
             &FOLDER_EVENT_LOG_IDENTITY,
             None,
         )
         .await?;
+
+        let reader = Self::create_reader(
+            file_path.as_ref(),
+        )
+        .await?;
+
         Ok(Self {
-            file,
+            writer,
+            reader,
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FOLDER_EVENT_LOG_IDENTITY,
@@ -461,46 +477,6 @@ where
             phantom: std::marker::PhantomData,
         })
     }
-    
-    /*
-    /// Get a copy of this event log compacted.
-    pub async fn compact(&self) -> Result<(Self, u64, u64)> {
-        let old_size = self.path().metadata()?.len();
-
-        // Get the reduced set of events
-        let events =
-            EventReducer::new().reduce(self).await?.compact().await?;
-        let temp = NamedTempFile::new()?;
-
-        // Apply them to a temporary event log file
-        let mut temp_event_log = Self::new_folder(temp.path()).await?;
-        temp_event_log.apply(events.iter().collect()).await?;
-
-        let new_size = temp_event_log.file.metadata().await?.len();
-
-        // Remove the existing event log file
-        vfs::remove_file(self.path()).await?;
-        // Move the temp file into place
-        //
-        // NOTE: we would prefer to rename but on linux we
-        // NOTE: can hit ErrorKind::CrossesDevices
-        //
-        // But it's a nightly only variant so can't use it yet to
-        // determine whether to rename or copy.
-        vfs::copy(temp.path(), self.path()).await?;
-
-        let mut new_event_log = Self::new_folder(self.path()).await?;
-        new_event_log.load_tree().await?;
-
-        // Verify the new event log tree
-        event_log_commit_tree_file(new_event_log.path(), true, |_| {})
-            .await?;
-
-        // Need to recreate the event log file and load the updated
-        // commit tree
-        Ok((new_event_log, old_size, new_size))
-    }
-    */
 }
 
 impl EventLogFile<WriteEvent, FileLog, FileLog> {
@@ -517,7 +493,7 @@ impl EventLogFile<WriteEvent, FileLog, FileLog> {
         let mut temp_event_log = Self::new_folder(temp.path()).await?;
         temp_event_log.apply(events.iter().collect()).await?;
 
-        let new_size = temp_event_log.file.metadata().await?.len();
+        let new_size = temp_event_log.writer.metadata().await?.len();
 
         // Remove the existing event log file
         vfs::remove_file(self.path()).await?;
@@ -543,24 +519,27 @@ impl EventLogFile<WriteEvent, FileLog, FileLog> {
     }
 }
 
-impl<R, W> EventLogFile<AccountEvent, R, W>
-where
-    R: AsyncRead + AsyncSeek,
-    W: AsyncWrite,
-{
+impl EventLogFile<AccountEvent, FileLog, FileLog> {
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         use crate::{
             constants::ACCOUNT_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
-        let file = Self::create(
+        let writer = Self::create_writer(
             file_path.as_ref(),
             &ACCOUNT_EVENT_LOG_IDENTITY,
             Some(VERSION),
         )
         .await?;
+
+        let reader = Self::create_reader(
+            file_path.as_ref(),
+        )
+        .await?;
+
         Ok(Self {
-            file,
+            writer,
+            reader,
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &ACCOUNT_EVENT_LOG_IDENTITY,
@@ -571,22 +550,25 @@ where
 }
 
 #[cfg(feature = "files")]
-impl<R, W> EventLogFile<FileEvent, R, W>
-where
-    R: AsyncRead + AsyncSeek,
-    W: AsyncWrite,
-{
+impl EventLogFile<FileEvent, FileLog, FileLog> {
     /// Create a new file event log file.
     pub async fn new_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         use crate::{constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION};
-        let file = Self::create(
+        let writer = Self::create_writer(
             file_path.as_ref(),
             &FILE_EVENT_LOG_IDENTITY,
             Some(VERSION),
         )
         .await?;
+
+        let reader = Self::create_reader(
+            file_path.as_ref(),
+        )
+        .await?;
+
         Ok(Self {
-            file,
+            writer,
+            reader,
             file_path: file_path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FILE_EVENT_LOG_IDENTITY,
