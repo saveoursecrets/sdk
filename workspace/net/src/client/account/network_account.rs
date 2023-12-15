@@ -296,11 +296,14 @@ impl NetworkAccount {
 
     /// Sign in to an account.
     pub async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        let mut account = self.account.lock().await;
-        let folders = account.sign_in(key).await?;
 
-        self.address = account.address().clone();
-        self.paths = Arc::clone(&account.paths);
+        let folders = {
+            let mut account = self.account.lock().await;
+            let folders = account.sign_in(key).await?;
+            self.paths = Arc::clone(&account.paths);
+            self.address = account.address().clone();
+            folders
+        };
 
         // Load origins from disc and create remote definitions
         let remotes_file = self.paths().remote_origins();
