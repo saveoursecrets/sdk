@@ -9,7 +9,7 @@
 use crate::{
     crypto::AccessKey,
     events::{AuditEvent, Event, EventKind},
-    identity::{DiscIdentityFolder, MemoryIdentityFolder, PublicIdentity},
+    identity::{DiscIdentityFolder, PublicIdentity},
     signer::ecdsa::Address,
     vault::{secret::SecretId, Summary, Vault, VaultId},
     vfs, Error, Paths, Result,
@@ -279,13 +279,13 @@ mod tests {
         constants::LOGIN_SIGNING_KEY_URN,
         crypto::AccessKey,
         encode,
-        identity::{Identity, MemoryIdentityFolder},
+        identity::MemoryIdentityFolder,
         passwd::diceware::generate_passphrase,
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},
             Gatekeeper, Vault, VaultBuilder, VaultFlags,
         },
-        Error, Paths,
+        Error,
     };
 
     #[tokio::test]
