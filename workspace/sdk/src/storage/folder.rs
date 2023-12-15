@@ -39,7 +39,7 @@ where
 {
     pub(crate) keeper: Gatekeeper,
     events: Arc<RwLock<T>>,
-    marker: std::marker::PhantomData<(T, R, W, D)>,
+    marker: std::marker::PhantomData<(R, W, D)>,
 }
 
 impl<T, R, W, D> Folder<T, R, W, D>
