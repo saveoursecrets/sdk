@@ -10,7 +10,7 @@ pub(crate) mod paths;
 pub mod search;
 mod storage;
 #[cfg(feature = "sync")]
-mod sync;
+pub(crate) mod sync;
 
 pub use folder::{DiscFolder, Folder, MemoryFolder};
 pub use storage::Storage;

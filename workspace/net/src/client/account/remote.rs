@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
-    sync::{Client, SyncComparison, SyncStatus, MergeOptions},
+    sync::{Client, SyncComparison, SyncStatus, MergeOptions, ClientReplay},
     url::Url,
 };
 
@@ -154,8 +154,13 @@ impl RemoteBridge {
                 self.remote.sync(&comparison.local_status, &push).await?;
 
             println!("sync got diff {:#?}", pull);
+            
+            /*
+            let handler = ClientReplay::new(&mut self.account);
+            storage.merge_diff(&pull, handler).await?;
+            */
 
-            storage.merge_diff(&pull, MergeOptions::new_client()).await?;
+            todo!("restore client merge of diff");
         }
 
         Ok(())

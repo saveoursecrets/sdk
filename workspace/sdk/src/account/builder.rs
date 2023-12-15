@@ -25,7 +25,7 @@ pub struct PrivateNewAccount {
     /// Address of the account signing key.
     pub address: Address,
     /// Identity folder.
-    pub identity_vault: DiscIdentityFolder,
+    pub identity_folder: DiscIdentityFolder,
     /// Default folder.
     pub default_folder: Vault,
     /// Archive folder.
@@ -51,7 +51,7 @@ impl From<PrivateNewAccount> for AccountPack {
             folders.push(contacts);
         }
         Self {
-            identity_vault: value.identity_vault.into(),
+            identity_vault: value.identity_folder.into(),
             folders,
         }
     }
@@ -142,14 +142,14 @@ impl AccountBuilder {
 
         Paths::scaffold(data_dir.clone()).await?;
 
-        // Prepare the identity vault
-        let identity_vault = IdentityFolder::new(
+        // Prepare the identity folder
+        let identity_folder = IdentityFolder::new(
             account_name.clone(),
             passphrase.clone(),
             data_dir.clone(),
         )
         .await?;
-        let address = identity_vault.address().clone();
+        let address = identity_folder.address().clone();
 
         let mut folder_keys = HashMap::new();
 
@@ -270,11 +270,10 @@ impl AccountBuilder {
             None
         };
 
-        //let vault = user.identity()?.vault().clone();
         Ok(PrivateNewAccount {
             data_dir,
             address,
-            identity_vault,
+            identity_folder,
             default_folder,
             archive,
             authenticator,

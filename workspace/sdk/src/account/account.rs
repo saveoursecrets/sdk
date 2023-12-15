@@ -239,11 +239,8 @@ impl<D> Account<D> {
 
         tracing::debug!(address = %new_account.address, "created account");
 
-        // Must import the new account before signing in
         let address = new_account.address.clone();
-
-        let identity_log = new_account.identity_vault.event_log();
-        //.ok_or(Error::NoIdentityEventLog)?;
+        let identity_log = new_account.identity_folder.event_log();
 
         let mut storage = Storage::new_client(
             address.clone(),
@@ -254,6 +251,7 @@ impl<D> Account<D> {
 
         tracing::debug!("prepared storage provider");
 
+        // Must import the new account before signing in
         let public_account: AccountPack = new_account.into();
         storage.create_account(&public_account).await?;
 

@@ -1,5 +1,6 @@
 //! Synchronization helpers.
 use crate::{
+    account::Account,
     encode,
     events::{
         AccountEvent, EventLogExt, EventReducer, FolderEventLog, WriteEvent,
@@ -12,16 +13,143 @@ use crate::{
     vault::VaultId,
     vfs, Error, Paths, Result,
 };
-
+use async_trait::async_trait;
 use std::collections::HashMap;
+
+/// Handler to replay events on an account.
+#[async_trait]
+pub trait ReplayHandler {
+
+    /// Apply identity-level events to this account.
+    async fn replay_identity_events(
+        &mut self,
+        storage: &mut Storage,
+        diff: &FolderDiff,
+    ) -> Result<usize>;
+
+    /// Apply account-level events to this account.
+    async fn replay_account_events(
+        &mut self,
+        storage: &mut Storage,
+        diff: &AccountDiff,
+    ) -> Result<usize>;
+
+
+    /// Apply folder-level events to this account.
+    async fn replay_folder_events(
+        &mut self,
+        storage: &mut Storage,
+        folders: &HashMap<VaultId, FolderDiff>,
+    ) -> Result<usize>;
+
+}
+
+/// Replay events on the client.
+pub struct ClientReplay;
+
+#[async_trait]
+impl ReplayHandler for ClientReplay {
+
+    async fn replay_identity_events(
+        &mut self,
+        storage: &mut Storage,
+        diff: &FolderDiff,
+    ) -> Result<usize> {
+        todo!();
+    }
+
+    async fn replay_account_events(
+        &mut self,
+        storage: &mut Storage,
+        diff: &AccountDiff,
+    ) -> Result<usize> {
+        todo!();
+    }
+
+    async fn replay_folder_events(
+        &mut self,
+        storage: &mut Storage,
+        folders: &HashMap<VaultId, FolderDiff>,
+    ) -> Result<usize> {
+        todo!();
+    }
+}
+
+/// Replay events on the server.
+pub struct ServerReplay;
+
+#[async_trait]
+impl ReplayHandler for ServerReplay {
+
+    async fn replay_identity_events(
+        &mut self,
+        storage: &mut Storage,
+        diff: &FolderDiff,
+    ) -> Result<usize> {
+        let mut writer = storage.identity_log.write().await;
+        writer.patch_checked(&diff.before, &diff.patch).await?;
+        Ok(diff.patch.len())
+    }
+
+    async fn replay_account_events(
+        &mut self,
+        storage: &mut Storage,
+        diff: &AccountDiff,
+    ) -> Result<usize> {
+        for event in diff.patch.iter() {
+            match &event {
+                AccountEvent::CreateFolder(_, buf)
+                | AccountEvent::UpdateFolder(_, buf)
+                | AccountEvent::CompactFolder(_, buf)
+                | AccountEvent::ChangeFolderPassword(_, buf) => {
+                    storage.import_folder(buf, None).await?;
+                }
+                AccountEvent::RenameFolder(id, name) => {
+                    let summary = storage.find(|s| s.id() == id).cloned();
+                    if let Some(summary) = &summary {
+                        storage.rename_folder(summary, name).await?;
+                    }
+                }
+                AccountEvent::DeleteFolder(id) => {
+                    let summary = storage.find(|s| s.id() == id).cloned();
+                    if let Some(summary) = &summary {
+                        storage.delete_folder(summary).await?;
+                    }
+                }
+                _ => {
+                    println!("todo! : apply other account events")
+                }
+            }
+        }
+
+        Ok(diff.patch.len())
+    }
+
+    async fn replay_folder_events(
+        &mut self,
+        storage: &mut Storage,
+        folders: &HashMap<VaultId, FolderDiff>,
+    ) -> Result<usize> {
+        let mut num_changes = 0;
+        for (id, diff) in folders {
+            let log = storage
+                .cache
+                .get_mut(id)
+                .ok_or_else(|| Error::CacheNotAvailable(*id))?;
+
+            log.patch_checked(&diff.before, &diff.patch).await?;
+            num_changes += diff.patch.len();
+        }
+        Ok(num_changes)
+    }
+}
 
 impl Storage {
     /// Create a new vault file on disc and the associated
     /// event log.
     ///
     /// If a vault file already exists it is overwritten if an
-    /// event log exists it is truncated and the single create
-    /// vault event is written.
+    /// event log exists it is truncated.
     ///
     /// Intended to be used by a server to create the identity
     /// vault and event log when a new account is created.
@@ -157,11 +285,16 @@ impl Storage {
     pub async fn merge_diff(
         &mut self,
         diff: &SyncDiff,
-        options: MergeOptions,
+        mut handler: impl ReplayHandler,
+        //options: MergeOptions,
     ) -> Result<usize> {
         let mut num_changes = 0;
 
+    
         if let Some(diff) = &diff.identity {
+            num_changes += handler.replay_identity_events(self, diff).await?;
+
+                /*
             if !options.replay_identity_events {
                 let mut writer = self.identity_log.write().await;
                 writer.patch_checked(&diff.before, &diff.patch).await?;
@@ -169,9 +302,13 @@ impl Storage {
                 self.replay_identity_events(diff).await?;
             }
             num_changes += diff.patch.len();
+                */
         }
 
         if let Some(diff) = &diff.account {
+            num_changes += handler.replay_account_events(self, diff).await?;
+            
+            /*
             if !options.replay_account_events {
                 let mut writer = self.account_log.write().await;
                 writer.patch_checked(&diff.before, &diff.patch).await?;
@@ -179,8 +316,12 @@ impl Storage {
                 self.replay_account_events(diff).await?;
             }
             num_changes += diff.patch.len();
+            */
         }
 
+        num_changes += handler.replay_folder_events(self, &diff.folders).await?;
+        
+        /*
         for (id, diff) in &diff.folders {
             let log = self
                 .cache
@@ -194,10 +335,12 @@ impl Storage {
                 self.replay_folder_events(id, diff).await?;
             }
         }
+        */
 
         Ok(num_changes)
     }
-
+    
+    /*
     /// Apply identity-level events to this storage
     async fn replay_identity_events(
         &mut self,
@@ -206,33 +349,14 @@ impl Storage {
         for event in diff.patch.iter() {
             match event {
                 WriteEvent::CreateSecret(secret_id, vault_commit) => {
-                    /*
-                    let hash = vault_commit.0.clone();
-                    let entry = vault_commit.1.clone();
-                    mirror.insert(*secret_id, hash, entry).await?;
-                    */
                 }
                 WriteEvent::UpdateSecret(secret_id, vault_commit) => {
-                    /*
-                    let hash = vault_commit.0.clone();
-                    let entry = vault_commit.1.clone();
-                    mirror.update(secret_id, hash, entry).await?;
-                    */
                 }
                 WriteEvent::SetVaultName(name) => {
-                    /*
-                    mirror.set_vault_name(name.to_owned()).await?;
-                    */
                 }
                 WriteEvent::SetVaultMeta(meta) => {
-                    /*
-                    mirror.set_vault_meta(meta.clone()).await?;
-                    */
                 }
                 WriteEvent::DeleteSecret(secret_id) => {
-                    /*
-                    mirror.delete(secret_id).await?;
-                    */
                 }
                 _ => {} // Ignore CreateVault and Noop
             }
@@ -283,10 +407,8 @@ impl Storage {
         for event in diff.patch.iter() {
             match event {
                 WriteEvent::CreateSecret(secret_id, vault_commit) => {
-                    //todo!("decrypt and create secret");
                 }
                 WriteEvent::UpdateSecret(secret_id, vault_commit) => {
-                    //todo!("decrypt and update secret");
                 }
                 WriteEvent::SetVaultName(name) => {
                     let summary = self.find(|s| s.id() == id).cloned();
@@ -295,7 +417,6 @@ impl Storage {
                     }
                 }
                 WriteEvent::SetVaultMeta(meta) => {
-                    //todo!("decrypt and set vault meta");
                 }
                 WriteEvent::DeleteSecret(secret_id) => {
                     let summary = self.find(|s| s.id() == id).cloned();
@@ -309,4 +430,5 @@ impl Storage {
 
         Ok(())
     }
+    */
 }
