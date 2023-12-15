@@ -55,7 +55,7 @@ pub type DiscIdentityFolder =
 
 /// Identity folder that reads and writes to memory.
 pub type MemoryIdentityFolder =
-    IdentityFolder<FolderEventLog, MemoryLog, MemoryLog, MemoryData>;
+    IdentityFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData>;
 
 /// Identity vault stores the account signing key,
 /// asymmetric encryption key and delegated passwords.
@@ -265,14 +265,14 @@ where
     }
 
     /// Generate a folder password.
-    pub(super) fn generate_folder_password(&self) -> Result<SecretString> {
+    pub(crate) fn generate_folder_password(&self) -> Result<SecretString> {
         let (vault_passphrase, _) =
             generate_passphrase_words(VAULT_PASSPHRASE_WORDS)?;
         Ok(vault_passphrase)
     }
 
     /// Save a folder password into this identity.
-    pub(super) async fn save_folder_password(
+    pub(crate) async fn save_folder_password(
         &mut self,
         vault_id: &VaultId,
         key: AccessKey,
@@ -314,7 +314,7 @@ where
     ///
     /// The identity vault must already be unlocked to extract
     /// the secret password.
-    pub(super) async fn find_folder_password(
+    pub(crate) async fn find_folder_password(
         &self,
         vault_id: &VaultId,
     ) -> Result<AccessKey> {
@@ -351,7 +351,7 @@ where
     }
 
     /// Remove a folder password from this identity.
-    pub(super) async fn remove_folder_password(
+    pub(crate) async fn remove_folder_password(
         &mut self,
         vault_id: &VaultId,
     ) -> Result<()> {
@@ -436,8 +436,8 @@ where
     }
 
     async fn login_private_identity(
-        keeper: &Gatekeeper) -> Result<(UrnLookup, PrivateIdentity)> {
-
+        keeper: &Gatekeeper,
+    ) -> Result<(UrnLookup, PrivateIdentity)> {
         let mut index: UrnLookup = Default::default();
 
         let signer_urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
@@ -627,8 +627,8 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
 
         folder.unlock(&key).await?;
 
-        let (index, private_identity) = Self::login_private_identity(
-            folder.keeper()).await?;
+        let (index, private_identity) =
+            Self::login_private_identity(folder.keeper()).await?;
 
         Ok(Self {
             folder,
@@ -641,8 +641,10 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
 }
 
 impl IdentityFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
-
     /// Attempt to login using a buffer.
+    ///
+    /// The purpose of buffer login is to verify that a user
+    /// can access the identity folder stored in a backup archive.
     pub async fn login(
         buffer: impl AsRef<[u8]>,
         key: &AccessKey,
@@ -660,8 +662,8 @@ impl IdentityFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
 
         folder.unlock(&key).await?;
 
-        let (index, private_identity) = Self::login_private_identity(
-            folder.keeper()).await?;
+        let (index, private_identity) =
+            Self::login_private_identity(folder.keeper()).await?;
 
         Ok(Self {
             folder,

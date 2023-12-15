@@ -18,7 +18,7 @@ use crate::{
     crypto::AccessKey,
     decode, encode,
     events::{EventLogExt, FolderEventLog, WriteEvent},
-    identity::{Identity, PublicIdentity},
+    identity::{Identity, MemoryIdentityFolder, PublicIdentity},
     sha2::{Digest, Sha256},
     vault::{
         secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess, VaultId,
@@ -515,8 +515,8 @@ impl AccountBackup {
         let key: AccessKey = passphrase.clone().into();
         user.login(&identity_vault_file, &key).await?;
 
-        let mut restored_user = Identity::new(paths);
-        restored_user.login_buffer(&identity.1, &key).await?;
+        let restored_user =
+            MemoryIdentityFolder::login(&identity.1, &key).await?;
 
         // Use the delegated passwords for the folders
         // that were restored
@@ -592,14 +592,14 @@ impl AccountBackup {
             let key: AccessKey = passphrase.clone().into();
             keeper.unlock(&key).await?;
 
-            let paths = Paths::new_global(Paths::data_dir()?);
-
             // Get the signing address from the identity vault and
             // verify it matches the manifest address
-            let mut user = Identity::new(paths);
             let key: AccessKey = passphrase.clone().into();
-            user.login_buffer(&identity.1, &key).await?;
-            if user.identity()?.address() != &address {
+
+            let restored_user =
+                MemoryIdentityFolder::login(&identity.1, &key).await?;
+
+            if restored_user.address() != &address {
                 return Err(Error::ArchiveAddressMismatch);
             }
         }

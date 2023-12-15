@@ -9,9 +9,7 @@
 use crate::{
     crypto::AccessKey,
     events::{AuditEvent, Event, EventKind},
-    identity::{
-        DiscIdentityFolder, MemoryIdentityFolder, PublicIdentity,
-    },
+    identity::{DiscIdentityFolder, MemoryIdentityFolder, PublicIdentity},
     signer::ecdsa::Address,
     vault::{secret::SecretId, Summary, Vault, VaultId},
     vfs, Error, Paths, Result,
@@ -224,22 +222,6 @@ impl Identity {
         Ok(())
     }
 
-    /// Login using a buffer.
-    pub(crate) async fn login_buffer(
-        &mut self,
-        buffer: impl AsRef<[u8]>,
-        key: &AccessKey,
-    ) -> Result<()> {
-        todo!("restore buffer login");
-
-        /*
-        self.identity = Some(
-            MemoryIdentityFolder::login(buffer, key).await?,
-        );
-        Ok(())
-        */
-    }
-
     /// Sign in to a user account.
     pub async fn sign_in(
         &mut self,
@@ -297,7 +279,7 @@ mod tests {
         constants::LOGIN_SIGNING_KEY_URN,
         crypto::AccessKey,
         encode,
-        identity::Identity,
+        identity::{Identity, MemoryIdentityFolder},
         passwd::diceware::generate_passphrase,
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},
@@ -313,10 +295,9 @@ mod tests {
             VaultBuilder::new().password(password.clone(), None).await?;
         let buffer = encode(&vault).await?;
 
-        let mut identity =
-            Identity::new(Paths::new_global(Paths::data_dir()?));
         let key: AccessKey = password.into();
-        let result = identity.login_buffer(buffer, &key).await;
+        let result = MemoryIdentityFolder::login(buffer, &key).await;
+
         if let Err(Error::NotIdentityFolder) = result {
             Ok(())
         } else {
@@ -335,10 +316,9 @@ mod tests {
 
         let buffer = encode(&vault).await?;
 
-        let mut identity =
-            Identity::new(Paths::new_global(Paths::data_dir()?));
         let key: AccessKey = password.into();
-        let result = identity.login_buffer(buffer, &key).await;
+        let result = MemoryIdentityFolder::login(buffer, &key).await;
+
         if let Err(Error::NoSigningKey) = result {
             Ok(())
         } else {
@@ -376,10 +356,9 @@ mod tests {
         let vault: Vault = keeper.into();
         let buffer = encode(&vault).await?;
 
-        let mut identity =
-            Identity::new(Paths::new_global(Paths::data_dir()?));
         let key: AccessKey = password.into();
-        let result = identity.login_buffer(buffer, &key).await;
+        let result = MemoryIdentityFolder::login(buffer, &key).await;
+
         if let Err(Error::NoIdentityKey) = result {
             Ok(())
         } else {
