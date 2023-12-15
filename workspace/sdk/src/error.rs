@@ -199,10 +199,6 @@ pub enum Error {
     #[error("vault is not an identity vault")]
     NotIdentityVault,
 
-    /// Error generated when an identity event log is required.
-    #[error("identity event log does not exist")]
-    NoIdentityEventLog,
-
     /// Error generated when a vault does not contain a secret by URN.
     #[error("vault {0} does not contain {1}")]
     NoSecretUrn(VaultId, Urn),

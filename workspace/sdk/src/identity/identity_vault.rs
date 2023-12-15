@@ -86,8 +86,8 @@ impl IdentityVault {
     }
 
     /// Get the event log.
-    pub fn event_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        Ok(self.folder.event_log().ok_or(Error::NoIdentityEventLog)?)
+    pub fn event_log(&self) -> Arc<RwLock<FolderEventLog>> {
+        self.folder.event_log()
     }
 
     /// Verify the access key for this account.

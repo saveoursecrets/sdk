@@ -38,7 +38,7 @@ where
     D: Clone,
 {
     pub(crate) keeper: Gatekeeper,
-    events: Option<Arc<RwLock<T>>>,
+    events: Arc<RwLock<T>>,
     marker: std::marker::PhantomData<(T, R, W, D)>,
 }
 
@@ -50,17 +50,17 @@ where
     D: Clone,
 {
     /// Create a new folder.
-    fn init(keeper: Gatekeeper, events: Option<T>) -> Self {
+    fn init(keeper: Gatekeeper, events: T) -> Self {
         Self {
             keeper,
-            events: events.map(|e| Arc::new(RwLock::new(e))),
+            events: Arc::new(RwLock::new(events)),
             marker: std::marker::PhantomData,
         }
     }
         
     /// Clone of the event log.
-    pub fn event_log(&self) -> Option<Arc<RwLock<T>>> {
-        self.events.clone()
+    pub fn event_log(&self) -> Arc<RwLock<T>> {
+        Arc::clone(&self.events)
     }
 
     /// Folder identifier.
@@ -89,10 +89,8 @@ where
         secret_data: &SecretRow,
     ) -> Result<WriteEvent> {
         let event = self.keeper.create(secret_data).await?;
-        if let Some(events) = self.events.as_mut() {
-            let mut events = events.write().await;
-            events.apply(vec![&event]).await?;
-        }
+        let mut events = self.events.write().await;
+        events.apply(vec![&event]).await?;
         Ok(event)
     }
 
@@ -114,10 +112,8 @@ where
         if let Some(event) =
             self.keeper.update(id, secret_meta, secret).await?
         {
-            if let Some(events) = self.events.as_mut() {
-                let mut events = events.write().await;
-                events.apply(vec![&event]).await?;
-            }
+            let mut events = self.events.write().await;
+            events.apply(vec![&event]).await?;
             Ok(Some(event))
         } else {
             Ok(None)
@@ -130,10 +126,8 @@ where
         id: &SecretId,
     ) -> Result<Option<WriteEvent>> {
         if let Some(event) = self.keeper.delete(id).await? {
-            if let Some(events) = self.events.as_mut() {
-                let mut events = events.write().await;
-                events.apply(vec![&event]).await?;
-            }
+            let mut events = self.events.write().await;
+            events.apply(vec![&event]).await?;
             Ok(Some(event))
         } else {
             Ok(None)
@@ -175,7 +169,7 @@ impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
         let mirror = VaultWriter::new(path.as_ref(), vault_file)?;
         let keeper = Gatekeeper::new_mirror(vault, mirror);
 
-        Ok(Self::init(keeper, Some(event_log)))
+        Ok(Self::init(keeper, event_log))
     }
 
     /// Load an identity vault event log from the given paths.
@@ -195,6 +189,6 @@ impl Folder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
     pub async fn new(buffer: impl AsRef<[u8]>) -> Result<Self> {
         let vault: Vault = decode(buffer.as_ref()).await?;
         let keeper = Gatekeeper::new(vault);
-        Ok(Self::init(keeper, Some(MemoryFolderLog::new())))
+        Ok(Self::init(keeper, MemoryFolderLog::new()))
     }
 }
