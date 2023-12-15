@@ -4,7 +4,8 @@ use crate::{
     crypto::AccessKey,
     decode,
     events::{
-        EventLogExt, EventReducer, FolderEventLog, ReadEvent, WriteEvent,
+        DiscData, DiscLog, EventLogExt, EventReducer, FolderEventLog,
+        MemoryData, MemoryFolderLog, MemoryLog, ReadEvent, WriteEvent,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
@@ -13,21 +14,47 @@ use crate::{
     vfs, Paths, Result,
 };
 
-use std::{path::Path, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tokio::sync::RwLock;
 
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+
+/// Folder that writes events to disc.
+pub type DiscFolder = Folder<FolderEventLog, DiscLog, DiscLog, DiscData>;
+
+/// Folder that writes events to memory.
+pub type MemoryFolder =
+    Folder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData>;
+
 /// Folder is a combined vault and event log.
-pub struct Folder {
+pub struct Folder<T, R, W, D>
+where
+    T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+    R: AsyncRead + AsyncSeek + Unpin + Send + 'static,
+    W: AsyncWrite + Unpin + Send + 'static,
+    D: Clone,
+{
     pub(crate) keeper: Gatekeeper,
     events: Option<Arc<RwLock<FolderEventLog>>>,
+    marker: std::marker::PhantomData<(T, R, W, D)>,
 }
 
-impl Folder {
+impl<T, R, W, D> Folder<T, R, W, D>
+where
+    T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+    R: AsyncRead + AsyncSeek + Unpin + Send + 'static,
+    W: AsyncWrite + Unpin + Send + 'static,
+    D: Clone,
+{
     /// Create a new folder.
     fn new(keeper: Gatekeeper, events: Option<FolderEventLog>) -> Self {
         Self {
             keeper,
             events: events.map(|e| Arc::new(RwLock::new(e))),
+            marker: std::marker::PhantomData,
         }
     }
 

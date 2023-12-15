@@ -13,7 +13,7 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, AuditData, AuditEvent, Event,
-        EventKind, EventReducer, ReadEvent, WriteEvent,
+        EventKind, EventReducer, ReadEvent, WriteEvent, EventLogExt,
     },
     identity::{FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::Address,

@@ -7,7 +7,7 @@ use crate::{
         device::DevicePublicKey,
         events::{AuditEvent, Event, EventKind},
         signer::ecdsa::Address,
-        storage::{Folder, Storage},
+        storage::{DiscFolder, Storage},
         sync::ChangeSet,
         vault::{Header, Summary, VaultId},
         vfs, Paths,
@@ -235,7 +235,7 @@ impl FileSystemBackend {
                             owner.to_string(),
                         );
                         let identity_log =
-                            Folder::new_event_log(&user_paths).await?;
+                            DiscFolder::new_event_log(&user_paths).await?;
 
                         let mut account = AccountStorage {
                             folders: Storage::new_server(

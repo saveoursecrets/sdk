@@ -10,6 +10,7 @@ use sos_net::{
     sdk::{
         constants::VAULT_EXT,
         crypto::AccessKey,
+        events::EventLogExt,
         passwd::diceware::generate_passphrase,
         sync::Client,
         vault::{Summary, VaultId},

@@ -19,8 +19,9 @@ mod types;
 mod write;
 
 pub use self::log::{
-    AccountEventLog, AccountReducer, DiscEventLog, EventLogExt, EventRecord,
-    EventReducer, FolderEventLog, MemoryEventLog,
+    AccountEventLog, AccountReducer, DiscData, DiscEventLog, DiscLog,
+    EventLogExt, EventRecord, EventReducer, FolderEventLog, MemoryData,
+    MemoryEventLog, MemoryFolderLog, MemoryLog,
 };
 
 #[cfg(feature = "files")]

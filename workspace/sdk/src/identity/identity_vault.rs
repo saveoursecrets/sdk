@@ -20,7 +20,7 @@ use crate::{
         ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
         ed25519, Signer,
     },
-    storage::Folder,
+    storage::DiscFolder,
     vault::{
         secret::{
             Secret, SecretId, SecretMeta, SecretRow, SecretSigner, UserData,
@@ -57,7 +57,7 @@ pub enum Login<'a> {
 /// Identity vault stores the account signing key,
 /// asymmetric encryption key and delegated passwords.
 pub struct IdentityVault {
-    folder: Folder,
+    folder: DiscFolder,
     index: UrnLookup,
     private_identity: PrivateIdentity,
     #[cfg(feature = "device")]
@@ -146,7 +146,7 @@ impl IdentityVault {
         let buffer = encode(&vault).await?;
         vfs::write(paths.identity_vault(), buffer).await?;
 
-        let mut folder = Folder::new_file(paths.identity_vault()).await?;
+        let mut folder = DiscFolder::new_file(paths.identity_vault()).await?;
         let key: AccessKey = password.into();
         folder.unlock(&key).await?;
 
@@ -230,8 +230,8 @@ impl IdentityVault {
         key: &AccessKey,
     ) -> Result<Self> {
         let mut folder = match login {
-            Login::File(path) => Folder::new_file(path).await?,
-            Login::Buffer(buffer) => Folder::new_buffer(buffer).await?,
+            Login::File(path) => DiscFolder::new_file(path).await?,
+            Login::Buffer(buffer) => DiscFolder::new_buffer(buffer).await?,
         };
 
         if !folder

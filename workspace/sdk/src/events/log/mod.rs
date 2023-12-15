@@ -11,8 +11,8 @@ mod reducer;
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
 pub use file::{
-    AccountEventLog, DiscEventLog, EventLogExt, FolderEventLog,
-    MemoryEventLog,
+    AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
+    FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog, MemoryLog,
 };
 pub use reducer::{AccountReducer, EventReducer};
 

@@ -59,10 +59,19 @@ use tempfile::NamedTempFile;
 use super::{EventRecord, EventReducer};
 
 /// Type for logging events to a file.
-type FileLog = Compat<File>;
+pub type DiscLog = Compat<File>;
+
+/// Associated data when writing event logs to disc.
+pub type DiscData = PathBuf;
+
+/// Type for logging events to memory.
+pub type MemoryLog = MemoryBuffer;
+
+/// Associated data when writing event logs to memory.
+pub type MemoryData = MemoryInner;
 
 /// Event log that writes to disc.
-pub type DiscEventLog<E> = EventLog<E, FileLog, FileLog, PathBuf>;
+pub type DiscEventLog<E> = EventLog<E, DiscLog, DiscLog, PathBuf>;
 
 /// Event log that writes to memory.
 pub type MemoryEventLog<E> =
@@ -117,7 +126,10 @@ where
     W: AsyncWrite + Unpin + Send + 'static,
     D: Clone,
 {
-    /// Commit tree.
+    /// Commit tree contains the merkle tree.
+    fn tree(&self) -> &CommitTree;
+
+    /// Mutable commit tree.
     #[doc(hidden)]
     fn tree_mut(&mut self) -> &mut CommitTree;
 
@@ -267,11 +279,6 @@ where
     W: AsyncWrite + Unpin + Send,
     D: Clone,
 {
-    /// Commit tree for the log records.
-    pub fn tree(&self) -> &CommitTree {
-        &self.tree
-    }
-
     /// Encode an event into a record.
     async fn encode_event(
         &self,
@@ -407,8 +414,8 @@ where
 }
 
 #[async_trait]
-impl<E> EventLogExt<E, FileLog, FileLog, PathBuf>
-    for EventLog<E, FileLog, FileLog, PathBuf>
+impl<E> EventLogExt<E, DiscLog, DiscLog, PathBuf>
+    for EventLog<E, DiscLog, DiscLog, PathBuf>
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
@@ -428,6 +435,10 @@ where
         Ok(it)
     }
 
+    fn tree(&self) -> &CommitTree {
+        &self.tree
+    }
+
     fn tree_mut(&mut self) -> &mut CommitTree {
         &mut self.tree
     }
@@ -440,7 +451,7 @@ where
         self.version
     }
 
-    fn file(&self) -> Arc<Mutex<(FileLog, FileLog)>> {
+    fn file(&self) -> Arc<Mutex<(DiscLog, DiscLog)>> {
         Arc::clone(&self.file)
     }
 
@@ -449,7 +460,7 @@ where
     }
 }
 
-impl<E> EventLog<E, FileLog, FileLog, PathBuf>
+impl<E> EventLog<E, DiscLog, DiscLog, PathBuf>
 where
     E: Default + Encodable + Decodable + Send + Sync,
 {
@@ -458,7 +469,7 @@ where
         path: P,
         identity: &'static [u8],
         encoding_version: Option<u16>,
-    ) -> Result<FileLog> {
+    ) -> Result<DiscLog> {
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -479,7 +490,7 @@ where
     }
 
     /// Create the reader for an event log file.
-    async fn create_reader<P: AsRef<Path>>(path: P) -> Result<FileLog> {
+    async fn create_reader<P: AsRef<Path>>(path: P) -> Result<DiscLog> {
         Ok(File::open(path).await?.compat())
     }
 
@@ -511,7 +522,7 @@ where
     }
 }
 
-impl EventLog<WriteEvent, FileLog, FileLog, PathBuf> {
+impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
     /// Create a new folder event log file.
     pub async fn new_folder<P: AsRef<Path>>(path: P) -> Result<Self> {
         use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
@@ -559,6 +570,10 @@ impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
         Ok(it)
     }
 
+    fn tree(&self) -> &CommitTree {
+        &self.tree
+    }
+
     fn tree_mut(&mut self) -> &mut CommitTree {
         &mut self.tree
     }
@@ -600,7 +615,7 @@ impl EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
     }
 }
 
-impl EventLog<WriteEvent, FileLog, FileLog, PathBuf> {
+impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.data.metadata()?.len();
@@ -637,7 +652,7 @@ impl EventLog<WriteEvent, FileLog, FileLog, PathBuf> {
     }
 }
 
-impl EventLog<AccountEvent, FileLog, FileLog, PathBuf> {
+impl EventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(path: P) -> Result<Self> {
         use crate::{
@@ -664,7 +679,7 @@ impl EventLog<AccountEvent, FileLog, FileLog, PathBuf> {
 }
 
 #[cfg(feature = "files")]
-impl EventLog<FileEvent, FileLog, FileLog, PathBuf> {
+impl EventLog<FileEvent, DiscLog, DiscLog, PathBuf> {
     /// Create a new file event log file.
     pub async fn new_file(path: impl AsRef<Path>) -> Result<Self> {
         use crate::{constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION};
@@ -832,11 +847,9 @@ mod test {
     #[tokio::test]
     async fn memory_folder_log() -> Result<()> {
         let mut event_log = MemoryFolderLog::new_folder_memory().await?;
-        
+
         event_log
-            .apply(vec![
-                &WriteEvent::CreateVault(vec![]),
-            ])
+            .apply(vec![&WriteEvent::CreateVault(vec![])])
             .await?;
 
         assert!(event_log.tree().len() > 0);
@@ -847,9 +860,7 @@ mod test {
         let previous_commit = event_log.tree().last_commit();
 
         event_log
-            .apply(vec![
-                &WriteEvent::SetVaultName("name".to_owned()),
-            ])
+            .apply(vec![&WriteEvent::SetVaultName("name".to_owned())])
             .await?;
 
         #[cfg(feature = "sync")]
