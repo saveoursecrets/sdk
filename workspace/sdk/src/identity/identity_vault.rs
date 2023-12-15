@@ -146,7 +146,7 @@ impl IdentityVault {
         let buffer = encode(&vault).await?;
         vfs::write(paths.identity_vault(), buffer).await?;
 
-        let mut folder = DiscFolder::new_file(paths.identity_vault()).await?;
+        let mut folder = DiscFolder::new(paths.identity_vault()).await?;
         let key: AccessKey = password.into();
         folder.unlock(&key).await?;
 
@@ -230,8 +230,9 @@ impl IdentityVault {
         key: &AccessKey,
     ) -> Result<Self> {
         let mut folder = match login {
-            Login::File(path) => DiscFolder::new_file(path).await?,
-            Login::Buffer(buffer) => DiscFolder::new_buffer(buffer).await?,
+            Login::File(path) => DiscFolder::new(path).await?,
+            //Login::Buffer(buffer) => MemoryFolder::new_buffer(buffer).await?,
+            _ => todo!("restore buffer login"),
         };
 
         if !folder
