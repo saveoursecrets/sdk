@@ -165,7 +165,7 @@ pub async fn cd_folder(
     Ok(())
 }
 
-/// Verify the master password for an account.
+/// Verify the primary password for an account.
 pub async fn verify(user: Owner) -> Result<bool> {
     let passphrase = read_password(Some("Password: "))?;
     let owner = user.read().await;
@@ -256,7 +256,7 @@ pub async fn new_account(
             "WELCOME",
         ))
         .text(Cow::Borrowed(
-            "Your new account requires a master password; you must memorize this password or you will lose access to your secrets.",
+            "Your new account requires a primary password; you must memorize this password or you will lose access to your secrets.",
         ))
         .text(Cow::Borrowed(
             "You may generate a strong diceware password or choose your own password; if you choose a password it must be excellent strength.",
@@ -286,7 +286,7 @@ pub async fn new_account(
     let is_generated =
         matches!(password_option, AccountPasswordOption::Generated);
 
-    // Generate a master password
+    // Generate a primary password
     let passphrase = match password_option {
         AccountPasswordOption::Generated => {
             // Support for CI environments choosing the account password

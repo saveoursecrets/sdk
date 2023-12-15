@@ -68,8 +68,7 @@ impl Storage {
             let vault_path = self.paths.vault_path(id);
             let events_path = self.paths.event_log_path(id);
 
-            let mut event_log =
-                FolderEventLog::new(events_path).await?;
+            let mut event_log = FolderEventLog::new(events_path).await?;
             event_log.patch_unchecked(folder).await?;
 
             let vault = EventReducer::new()

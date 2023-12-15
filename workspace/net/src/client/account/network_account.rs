@@ -274,7 +274,7 @@ impl NetworkAccount {
     /// Used when a client needs to authenticate other devices;
     /// it sends the encrypted identity vault and if the vault
     /// can be unlocked then we have verified that the other
-    /// device knows the master password for this account.
+    /// device knows the primary password for this account.
     pub async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
         Ok(self.account.identity_vault_buffer().await?)
     }

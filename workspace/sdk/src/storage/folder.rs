@@ -14,10 +14,7 @@ use crate::{
     vfs, Paths, Result,
 };
 
-use std::{
-    path::Path,
-    sync::Arc,
-};
+use std::{path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
@@ -57,7 +54,7 @@ where
             marker: std::marker::PhantomData,
         }
     }
-        
+
     /// Clone of the event log.
     pub fn event_log(&self) -> Arc<RwLock<T>> {
         Arc::clone(&self.events)
@@ -136,7 +133,6 @@ where
 }
 
 impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
-
     /// Create a new folder from a vault file on disc.
     ///
     /// Changes to the in-memory vault are mirrored to disc and
@@ -184,7 +180,7 @@ impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
 }
 
 impl Folder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
-    /// Create a new folder from a vault buffer 
+    /// Create a new folder from a vault buffer
     /// that writes to memory.
     pub async fn new(buffer: impl AsRef<[u8]>) -> Result<Self> {
         let vault: Vault = decode(buffer.as_ref()).await?;

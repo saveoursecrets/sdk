@@ -256,8 +256,7 @@ where
     async fn read_file_version(&self) -> Result<u16> {
         if let Some(_) = self.version() {
             let rw = self.file();
-            let mut file =
-                MutexGuard::map(rw.lock().await, |f| &mut f.0);
+            let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.0);
             file.seek(SeekFrom::Start(self.identity().len() as u64))
                 .await?;
             let mut buf = [0; 2];
@@ -316,10 +315,7 @@ where
 
     /// Append a collection of events and commit the tree hashes
     /// only if all the events were successfully written.
-    async fn apply(
-        &mut self,
-        events: Vec<&E>,
-    ) -> Result<Vec<CommitHash>> {
+    async fn apply(&mut self, events: Vec<&E>) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
         let mut last_commit_hash = self.tree().last_commit();
@@ -331,7 +327,7 @@ where
             last_commit_hash = Some(*record.commit());
             buffer.append(&mut buf);
         }
-        
+
         let rw = self.file();
         let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.1);
         match file.write_all(&buffer).await {
@@ -370,12 +366,9 @@ where
 
     /// Read the event data from an item.
     #[doc(hidden)]
-    async fn decode_event(
-        &self,
-        item: &EventLogRecord,
-    ) -> Result<E> {
+    async fn decode_event(&self, item: &EventLogRecord) -> Result<E> {
         let value = item.value();
-        
+
         let rw = self.file();
         let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.0);
 
@@ -389,7 +382,6 @@ where
         event.decode(&mut reader).await?;
         Ok(event)
     }
-
 }
 
 /// Event log.

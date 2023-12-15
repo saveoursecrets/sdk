@@ -17,7 +17,7 @@ use crate::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
     decode, encode,
-    events::{FolderEventLog, WriteEvent, EventLogExt},
+    events::{EventLogExt, FolderEventLog, WriteEvent},
     identity::{Identity, PublicIdentity},
     sha2::{Digest, Sha256},
     vault::{
@@ -455,8 +455,7 @@ impl AccountBackup {
             let mut event_log_events = Vec::new();
             let create_vault = WriteEvent::CreateVault(buffer.clone());
             event_log_events.push(create_vault);
-            let mut event_log =
-                FolderEventLog::new(event_log_path).await?;
+            let mut event_log = FolderEventLog::new(event_log_path).await?;
             event_log.apply(event_log_events.iter().collect()).await?;
         }
 

@@ -3,7 +3,7 @@
 
 use super::list_folder_files;
 use crate::{
-    events::{FileEvent, EventLogExt},
+    events::{EventLogExt, FileEvent},
     storage::{
         files::{basename, EncryptedFile, FileStorage, FileStorageSync},
         Storage,

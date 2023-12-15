@@ -5,11 +5,13 @@
 //! for folders managed by an account.
 //!
 //! This enables user interfaces to protect both the signing
-//! key and folder passwords using a single master password.
+//! key and folder passwords using a single primary password.
 use crate::{
     crypto::AccessKey,
     events::{AuditEvent, Event, EventKind},
-    identity::{IdentityFolder, Login, PublicIdentity},
+    identity::{
+        DiscIdentityFolder, MemoryIdentityFolder, PublicIdentity,
+    },
     signer::ecdsa::Address,
     vault::{secret::SecretId, Summary, Vault, VaultId},
     vfs, Error, Paths, Result,
@@ -48,7 +50,7 @@ pub type UrnLookup = HashMap<(VaultId, Urn), SecretId>;
 pub struct Identity {
     paths: Arc<Paths>,
     account: Option<PublicIdentity>,
-    identity: Option<IdentityFolder>,
+    identity: Option<DiscIdentityFolder>,
 }
 
 impl Identity {
@@ -112,11 +114,11 @@ impl Identity {
     }
 
     /// Private identity.
-    pub fn identity(&self) -> Result<&IdentityFolder> {
+    pub fn identity(&self) -> Result<&DiscIdentityFolder> {
         self.identity.as_ref().ok_or(Error::NotAuthenticated)
     }
 
-    fn identity_mut(&mut self) -> Result<&mut IdentityFolder> {
+    fn identity_mut(&mut self) -> Result<&mut DiscIdentityFolder> {
         self.identity.as_mut().ok_or(Error::NotAuthenticated)
     }
 
@@ -218,21 +220,24 @@ impl Identity {
         file: P,
         key: &AccessKey,
     ) -> Result<()> {
-        self.identity = Some(IdentityFolder::login(file, key).await?);
+        self.identity = Some(DiscIdentityFolder::login(file, key).await?);
         Ok(())
     }
 
     /// Login using a buffer.
-    pub(crate) async fn login_buffer<B: AsRef<[u8]>>(
+    pub(crate) async fn login_buffer(
         &mut self,
-        buffer: B,
+        buffer: impl AsRef<[u8]>,
         key: &AccessKey,
     ) -> Result<()> {
+        todo!("restore buffer login");
+
+        /*
         self.identity = Some(
-            IdentityFolder::do_login(Login::Buffer(buffer.as_ref()), key)
-                .await?,
+            MemoryIdentityFolder::login(buffer, key).await?,
         );
         Ok(())
+        */
     }
 
     /// Sign in to a user account.

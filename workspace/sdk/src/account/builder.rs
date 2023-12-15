@@ -6,7 +6,7 @@ use crate::{
         DEFAULT_CONTACTS_VAULT_NAME,
     },
     crypto::AccessKey,
-    identity::{FolderKeys, Identity, IdentityFolder},
+    identity::{DiscIdentityFolder, FolderKeys, Identity, IdentityFolder},
     signer::ecdsa::Address,
     storage::AccountPack,
     vault::{
@@ -24,8 +24,8 @@ pub struct PrivateNewAccount {
     pub data_dir: Option<PathBuf>,
     /// Address of the account signing key.
     pub address: Address,
-    /// Identity vault.
-    pub identity_vault: IdentityFolder,
+    /// Identity folder.
+    pub identity_vault: DiscIdentityFolder,
     /// Default folder.
     pub default_folder: Vault,
     /// Archive folder.

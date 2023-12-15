@@ -5,7 +5,7 @@
 //! for folders managed by an account.
 //!
 //! This enables user interfaces to protect both the signing
-//! key and folder passwords using a single master password.
+//! key and folder passwords using a single primary password.
 use crate::{
     constants::{
         FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
@@ -13,14 +13,17 @@ use crate::{
     },
     crypto::{AccessKey, KeyDerivation},
     decode, encode,
-    events::FolderEventLog,
+    events::{
+        DiscData, DiscLog, EventLogExt, FolderEventLog, MemoryData,
+        MemoryFolderLog, MemoryLog, WriteEvent,
+    },
     identity::{PrivateIdentity, UrnLookup},
     passwd::diceware::generate_passphrase_words,
     signer::{
         ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
         ed25519, Signer,
     },
-    storage::DiscFolder,
+    storage::{DiscFolder, Folder, MemoryFolder},
     vault::{
         secret::{
             Secret, SecretId, SecretMeta, SecretRow, SecretSigner, UserData,
@@ -29,6 +32,7 @@ use crate::{
     },
     vfs, Error, Paths, Result,
 };
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use secrecy::{ExposeSecret, SecretString, SecretVec};
 use std::{
     collections::HashMap,
@@ -45,26 +49,37 @@ use crate::device::{DeviceManager, DeviceSigner};
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
-/// Login variants.
-pub enum Login<'a> {
-    /// Login using an identity vault on disc.
-    File(PathBuf),
-    /// Login using an in-memory buffer of an
-    /// identity vault.
-    Buffer(&'a [u8]),
-}
+/// Identity folder that reads and writes to disc.
+pub type DiscIdentityFolder =
+    IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData>;
+
+/// Identity folder that reads and writes to memory.
+pub type MemoryIdentityFolder =
+    IdentityFolder<FolderEventLog, MemoryLog, MemoryLog, MemoryData>;
 
 /// Identity vault stores the account signing key,
 /// asymmetric encryption key and delegated passwords.
-pub struct IdentityFolder {
-    folder: DiscFolder,
+pub struct IdentityFolder<T, R, W, D>
+where
+    T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    D: Clone,
+{
+    folder: Folder<T, R, W, D>,
     index: UrnLookup,
     private_identity: PrivateIdentity,
     #[cfg(feature = "device")]
     pub(super) devices: Option<crate::device::DeviceManager>,
 }
 
-impl IdentityFolder {
+impl<T, R, W, D> IdentityFolder<T, R, W, D>
+where
+    T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    D: Clone,
+{
     /// Private identity.
     pub fn private_identity(&self) -> &PrivateIdentity {
         &self.private_identity
@@ -86,7 +101,7 @@ impl IdentityFolder {
     }
 
     /// Get the event log.
-    pub fn event_log(&self) -> Arc<RwLock<FolderEventLog>> {
+    pub fn event_log(&self) -> Arc<RwLock<T>> {
         self.folder.event_log()
     }
 
@@ -117,96 +132,6 @@ impl IdentityFolder {
         self.devices.as_mut().ok_or(Error::NotAuthenticated)
     }
 
-    /// Create a new identity vault with a primary password.
-    ///
-    /// Generates a new random single party signing key and
-    /// a public identity key for asymmetric encryption and
-    /// stores them in the identity vault.
-    pub async fn new(
-        name: String,
-        password: SecretString,
-        data_dir: Option<PathBuf>,
-    ) -> Result<Self> {
-        let signer = SingleParty::new_random();
-        let address = signer.address()?;
-
-        let data_dir = if let Some(data_dir) = &data_dir {
-            data_dir.clone()
-        } else {
-            Paths::data_dir()?
-        };
-        let paths = Paths::new(data_dir, address.to_string());
-
-        let vault = VaultBuilder::new()
-            .public_name(name)
-            .flags(VaultFlags::IDENTITY)
-            .password(password.clone(), Some(KeyDerivation::generate_seed()))
-            .await?;
-
-        let buffer = encode(&vault).await?;
-        vfs::write(paths.identity_vault(), buffer).await?;
-
-        let mut folder = DiscFolder::new(paths.identity_vault()).await?;
-        let key: AccessKey = password.into();
-        folder.unlock(&key).await?;
-
-        // Store the signing key
-        let private_key =
-            SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
-        let signer_secret = Secret::Signer {
-            private_key,
-            user_data: Default::default(),
-        };
-        let signer_urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
-        let mut signer_meta = SecretMeta::new(
-            signer_urn.as_str().to_owned(),
-            signer_secret.kind(),
-        );
-        signer_meta.set_urn(Some(signer_urn.clone()));
-
-        let signer_id = SecretId::new_v4();
-        let secret_data =
-            SecretRow::new(signer_id, signer_meta, signer_secret);
-        folder.create(&secret_data).await?;
-
-        // Store the AGE identity
-        let identity_id = SecretId::new_v4();
-        let shared = age::x25519::Identity::generate();
-        let age_secret = Secret::Age {
-            version: Default::default(),
-            key: shared.to_string(),
-            user_data: Default::default(),
-        };
-        let identity_urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
-        let mut age_meta = SecretMeta::new(
-            identity_urn.as_str().to_owned(),
-            age_secret.kind(),
-        );
-        age_meta.set_urn(Some(identity_urn.clone()));
-
-        let secret_data = SecretRow::new(identity_id, age_meta, age_secret);
-        folder.create(&secret_data).await?;
-
-        let private_identity = PrivateIdentity {
-            address,
-            signer: Box::new(signer),
-            shared_public: shared.to_public(),
-            shared_private: shared,
-        };
-
-        let mut index: UrnLookup = Default::default();
-        index.insert((*folder.id(), signer_urn), signer_id);
-        index.insert((*folder.id(), identity_urn), identity_id);
-
-        Ok(Self {
-            folder,
-            index,
-            private_identity,
-            #[cfg(feature = "device")]
-            devices: None,
-        })
-    }
-
     /// Rename this identity vault.
     pub async fn rename(&mut self, account_name: String) -> Result<()> {
         self.folder
@@ -214,111 +139,6 @@ impl IdentityFolder {
             .set_vault_name(account_name.clone())
             .await?;
         Ok(())
-    }
-
-    /// Login to an identity vault.
-    pub async fn login<P: AsRef<Path>>(
-        file: P,
-        key: &AccessKey,
-    ) -> Result<Self> {
-        Self::do_login(Login::File(file.as_ref().to_path_buf()), key).await
-    }
-
-    /// Attempt to login using a buffer.
-    pub(crate) async fn do_login(
-        login: Login<'_>,
-        key: &AccessKey,
-    ) -> Result<Self> {
-        let mut folder = match login {
-            Login::File(path) => DiscFolder::new(path).await?,
-            //Login::Buffer(buffer) => MemoryFolder::new_buffer(buffer).await?,
-            _ => todo!("restore buffer login"),
-        };
-
-        if !folder
-            .keeper()
-            .vault()
-            .flags()
-            .contains(VaultFlags::IDENTITY)
-        {
-            return Err(Error::NotIdentityFolder);
-        }
-
-        folder.unlock(&key).await?;
-
-        let mut index: UrnLookup = Default::default();
-
-        let signer_urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
-        let identity_urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
-
-        let mut signer_secret: Option<Secret> = None;
-        let mut identity_secret: Option<Secret> = None;
-        let mut folder_secrets = HashMap::new();
-
-        for id in folder.keeper().vault().keys() {
-            if let Some((meta, secret, _)) = folder.read(id).await? {
-                if let Some(urn) = meta.urn() {
-                    if urn.nss().starts_with(VAULT_NSS) {
-                        let id: VaultId = urn
-                            .nss()
-                            .trim_start_matches(VAULT_NSS)
-                            .parse()?;
-                        if let Secret::Password { password, .. } = &secret {
-                            let key: AccessKey = password.clone().into();
-                            folder_secrets.insert(id, key);
-                        }
-                    }
-
-                    if urn == &signer_urn {
-                        signer_secret = Some(secret);
-                    } else if urn == &identity_urn {
-                        identity_secret = Some(secret);
-                    }
-
-                    // Add to the URN lookup index
-                    index.insert((*folder.keeper().id(), urn.clone()), *id);
-                }
-            }
-        }
-
-        let signer = signer_secret.ok_or(Error::NoSigningKey)?;
-        let identity = identity_secret.ok_or(Error::NoIdentityKey)?;
-
-        // Account signing key extraction
-        let signer = if let Secret::Signer { private_key, .. } = signer {
-            Some(private_key.try_into_ecdsa_signer()?)
-        } else {
-            None
-        };
-        let signer = signer.ok_or(Error::NoSigningKey)?;
-        let address = signer.address()?;
-
-        // Identity key extraction
-        let identity = if let Secret::Age { key, .. } = identity {
-            let identity: age::x25519::Identity =
-                key.expose_secret().parse().map_err(|s: &'static str| {
-                    Error::AgeIdentityParse(s.to_string())
-                })?;
-            Some(identity)
-        } else {
-            None
-        };
-        let shared = identity.ok_or(Error::NoIdentityKey)?;
-
-        let private_identity = PrivateIdentity {
-            address,
-            signer,
-            shared_public: shared.to_public(),
-            shared_private: shared,
-        };
-
-        Ok(Self {
-            folder,
-            index,
-            private_identity,
-            #[cfg(feature = "device")]
-            devices: None,
-        })
     }
 
     /// Ensure that the account has a vault for storing device specific
@@ -614,10 +434,241 @@ impl IdentityFolder {
 
         Ok(())
     }
+
+    async fn login_private_identity(
+        keeper: &Gatekeeper) -> Result<(UrnLookup, PrivateIdentity)> {
+
+        let mut index: UrnLookup = Default::default();
+
+        let signer_urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
+        let identity_urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
+
+        let mut signer_secret: Option<Secret> = None;
+        let mut identity_secret: Option<Secret> = None;
+        let mut folder_secrets = HashMap::new();
+
+        for id in keeper.vault().keys() {
+            if let Some((meta, secret, _)) = keeper.read(id).await? {
+                if let Some(urn) = meta.urn() {
+                    if urn.nss().starts_with(VAULT_NSS) {
+                        let id: VaultId = urn
+                            .nss()
+                            .trim_start_matches(VAULT_NSS)
+                            .parse()?;
+                        if let Secret::Password { password, .. } = &secret {
+                            let key: AccessKey = password.clone().into();
+                            folder_secrets.insert(id, key);
+                        }
+                    }
+
+                    if urn == &signer_urn {
+                        signer_secret = Some(secret);
+                    } else if urn == &identity_urn {
+                        identity_secret = Some(secret);
+                    }
+
+                    // Add to the URN lookup index
+                    index.insert((*keeper.id(), urn.clone()), *id);
+                }
+            }
+        }
+
+        let signer = signer_secret.ok_or(Error::NoSigningKey)?;
+        let identity = identity_secret.ok_or(Error::NoIdentityKey)?;
+
+        // Account signing key extraction
+        let signer = if let Secret::Signer { private_key, .. } = signer {
+            Some(private_key.try_into_ecdsa_signer()?)
+        } else {
+            None
+        };
+        let signer = signer.ok_or(Error::NoSigningKey)?;
+        let address = signer.address()?;
+
+        // Identity key extraction
+        let identity = if let Secret::Age { key, .. } = identity {
+            let identity: age::x25519::Identity =
+                key.expose_secret().parse().map_err(|s: &'static str| {
+                    Error::AgeIdentityParse(s.to_string())
+                })?;
+            Some(identity)
+        } else {
+            None
+        };
+        let shared = identity.ok_or(Error::NoIdentityKey)?;
+
+        let private_identity = PrivateIdentity {
+            address,
+            signer,
+            shared_public: shared.to_public(),
+            shared_private: shared,
+        };
+
+        Ok((index, private_identity))
+    }
 }
 
-impl From<IdentityFolder> for Vault {
-    fn from(value: IdentityFolder) -> Self {
+impl From<IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData>>
+    for Vault
+{
+    fn from(
+        value: IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData>,
+    ) -> Self {
         value.folder.keeper.into()
+    }
+}
+
+impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
+    /// Create a new identity folder with a primary password.
+    ///
+    /// Generates a new random single party signing key and
+    /// a public identity key for asymmetric encryption and
+    /// stores them in the identity vault.
+    pub async fn new(
+        name: String,
+        password: SecretString,
+        data_dir: Option<PathBuf>,
+    ) -> Result<Self> {
+        let signer = SingleParty::new_random();
+        let address = signer.address()?;
+
+        let data_dir = if let Some(data_dir) = &data_dir {
+            data_dir.clone()
+        } else {
+            Paths::data_dir()?
+        };
+        let paths = Paths::new(data_dir, address.to_string());
+
+        let vault = VaultBuilder::new()
+            .public_name(name)
+            .flags(VaultFlags::IDENTITY)
+            .password(password.clone(), Some(KeyDerivation::generate_seed()))
+            .await?;
+
+        let buffer = encode(&vault).await?;
+        vfs::write(paths.identity_vault(), buffer).await?;
+
+        let mut folder = DiscFolder::new(paths.identity_vault()).await?;
+        let key: AccessKey = password.into();
+        folder.unlock(&key).await?;
+
+        // Store the signing key
+        let private_key =
+            SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
+        let signer_secret = Secret::Signer {
+            private_key,
+            user_data: Default::default(),
+        };
+        let signer_urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
+        let mut signer_meta = SecretMeta::new(
+            signer_urn.as_str().to_owned(),
+            signer_secret.kind(),
+        );
+        signer_meta.set_urn(Some(signer_urn.clone()));
+
+        let signer_id = SecretId::new_v4();
+        let secret_data =
+            SecretRow::new(signer_id, signer_meta, signer_secret);
+        folder.create(&secret_data).await?;
+
+        // Store the AGE identity
+        let identity_id = SecretId::new_v4();
+        let shared = age::x25519::Identity::generate();
+        let age_secret = Secret::Age {
+            version: Default::default(),
+            key: shared.to_string(),
+            user_data: Default::default(),
+        };
+        let identity_urn: Urn = LOGIN_AGE_KEY_URN.parse()?;
+        let mut age_meta = SecretMeta::new(
+            identity_urn.as_str().to_owned(),
+            age_secret.kind(),
+        );
+        age_meta.set_urn(Some(identity_urn.clone()));
+
+        let secret_data = SecretRow::new(identity_id, age_meta, age_secret);
+        folder.create(&secret_data).await?;
+
+        let private_identity = PrivateIdentity {
+            address,
+            signer: Box::new(signer),
+            shared_public: shared.to_public(),
+            shared_private: shared,
+        };
+
+        let mut index: UrnLookup = Default::default();
+        index.insert((*folder.id(), signer_urn), signer_id);
+        index.insert((*folder.id(), identity_urn), identity_id);
+
+        Ok(Self {
+            folder,
+            index,
+            private_identity,
+            #[cfg(feature = "device")]
+            devices: None,
+        })
+    }
+
+    /// Login to an identity vault.
+    pub async fn login(
+        path: impl AsRef<Path>,
+        key: &AccessKey,
+    ) -> Result<Self> {
+        let mut folder = DiscFolder::new(path).await?;
+
+        if !folder
+            .keeper()
+            .vault()
+            .flags()
+            .contains(VaultFlags::IDENTITY)
+        {
+            return Err(Error::NotIdentityFolder);
+        }
+
+        folder.unlock(&key).await?;
+
+        let (index, private_identity) = Self::login_private_identity(
+            folder.keeper()).await?;
+
+        Ok(Self {
+            folder,
+            index,
+            private_identity,
+            #[cfg(feature = "device")]
+            devices: None,
+        })
+    }
+}
+
+impl IdentityFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
+
+    /// Attempt to login using a buffer.
+    pub async fn login(
+        buffer: impl AsRef<[u8]>,
+        key: &AccessKey,
+    ) -> Result<Self> {
+        let mut folder = MemoryFolder::new(buffer).await?;
+
+        if !folder
+            .keeper()
+            .vault()
+            .flags()
+            .contains(VaultFlags::IDENTITY)
+        {
+            return Err(Error::NotIdentityFolder);
+        }
+
+        folder.unlock(&key).await?;
+
+        let (index, private_identity) = Self::login_private_identity(
+            folder.keeper()).await?;
+
+        Ok(Self {
+            folder,
+            index,
+            private_identity,
+            #[cfg(feature = "device")]
+            devices: None,
+        })
     }
 }

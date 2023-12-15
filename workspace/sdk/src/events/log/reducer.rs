@@ -350,8 +350,7 @@ mod test {
         assert_eq!(2, events.len());
 
         let compact_temp = NamedTempFile::new()?;
-        let mut compact =
-            FolderEventLog::new(compact_temp.path()).await?;
+        let mut compact = FolderEventLog::new(compact_temp.path()).await?;
         for event in events {
             compact.apply(vec![&event]).await?;
         }
