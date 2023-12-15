@@ -197,7 +197,7 @@ pub enum Error {
     /// Error generated when a login vault does not contain
     /// the identity bit flag.
     #[error("vault is not an identity vault")]
-    NotIdentityVault,
+    NotIdentityFolder,
 
     /// Error generated when a vault does not contain a secret by URN.
     #[error("vault {0} does not contain {1}")]

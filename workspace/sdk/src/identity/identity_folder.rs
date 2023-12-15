@@ -56,7 +56,7 @@ pub enum Login<'a> {
 
 /// Identity vault stores the account signing key,
 /// asymmetric encryption key and delegated passwords.
-pub struct IdentityVault {
+pub struct IdentityFolder {
     folder: DiscFolder,
     index: UrnLookup,
     private_identity: PrivateIdentity,
@@ -64,7 +64,7 @@ pub struct IdentityVault {
     pub(super) devices: Option<crate::device::DeviceManager>,
 }
 
-impl IdentityVault {
+impl IdentityFolder {
     /// Private identity.
     pub fn private_identity(&self) -> &PrivateIdentity {
         &self.private_identity
@@ -241,7 +241,7 @@ impl IdentityVault {
             .flags()
             .contains(VaultFlags::IDENTITY)
         {
-            return Err(Error::NotIdentityVault);
+            return Err(Error::NotIdentityFolder);
         }
 
         folder.unlock(&key).await?;
@@ -616,8 +616,8 @@ impl IdentityVault {
     }
 }
 
-impl From<IdentityVault> for Vault {
-    fn from(value: IdentityVault) -> Self {
+impl From<IdentityFolder> for Vault {
+    fn from(value: IdentityFolder) -> Self {
         value.folder.keeper.into()
     }
 }

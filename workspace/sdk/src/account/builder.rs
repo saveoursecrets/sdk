@@ -6,7 +6,7 @@ use crate::{
         DEFAULT_CONTACTS_VAULT_NAME,
     },
     crypto::AccessKey,
-    identity::{FolderKeys, Identity, IdentityVault},
+    identity::{FolderKeys, Identity, IdentityFolder},
     signer::ecdsa::Address,
     storage::AccountPack,
     vault::{
@@ -25,7 +25,7 @@ pub struct PrivateNewAccount {
     /// Address of the account signing key.
     pub address: Address,
     /// Identity vault.
-    pub identity_vault: IdentityVault,
+    pub identity_vault: IdentityFolder,
     /// Default folder.
     pub default_folder: Vault,
     /// Archive folder.
@@ -143,7 +143,7 @@ impl AccountBuilder {
         Paths::scaffold(data_dir.clone()).await?;
 
         // Prepare the identity vault
-        let identity_vault = IdentityVault::new(
+        let identity_vault = IdentityFolder::new(
             account_name.clone(),
             passphrase.clone(),
             data_dir.clone(),

@@ -9,7 +9,7 @@
 use crate::{
     crypto::AccessKey,
     events::{AuditEvent, Event, EventKind},
-    identity::{IdentityVault, Login, PublicIdentity},
+    identity::{IdentityFolder, Login, PublicIdentity},
     signer::ecdsa::Address,
     vault::{secret::SecretId, Summary, Vault, VaultId},
     vfs, Error, Paths, Result,
@@ -48,7 +48,7 @@ pub type UrnLookup = HashMap<(VaultId, Urn), SecretId>;
 pub struct Identity {
     paths: Arc<Paths>,
     account: Option<PublicIdentity>,
-    identity: Option<IdentityVault>,
+    identity: Option<IdentityFolder>,
 }
 
 impl Identity {
@@ -112,11 +112,11 @@ impl Identity {
     }
 
     /// Private identity.
-    pub fn identity(&self) -> Result<&IdentityVault> {
+    pub fn identity(&self) -> Result<&IdentityFolder> {
         self.identity.as_ref().ok_or(Error::NotAuthenticated)
     }
 
-    fn identity_mut(&mut self) -> Result<&mut IdentityVault> {
+    fn identity_mut(&mut self) -> Result<&mut IdentityFolder> {
         self.identity.as_mut().ok_or(Error::NotAuthenticated)
     }
 
@@ -218,7 +218,7 @@ impl Identity {
         file: P,
         key: &AccessKey,
     ) -> Result<()> {
-        self.identity = Some(IdentityVault::login(file, key).await?);
+        self.identity = Some(IdentityFolder::login(file, key).await?);
         Ok(())
     }
 
@@ -229,7 +229,7 @@ impl Identity {
         key: &AccessKey,
     ) -> Result<()> {
         self.identity = Some(
-            IdentityVault::do_login(Login::Buffer(buffer.as_ref()), key)
+            IdentityFolder::do_login(Login::Buffer(buffer.as_ref()), key)
                 .await?,
         );
         Ok(())
@@ -312,7 +312,7 @@ mod tests {
             Identity::new(Paths::new_global(Paths::data_dir()?));
         let key: AccessKey = password.into();
         let result = identity.login_buffer(buffer, &key).await;
-        if let Err(Error::NotIdentityVault) = result {
+        if let Err(Error::NotIdentityFolder) = result {
             Ok(())
         } else {
             panic!("expecting identity vault error");
