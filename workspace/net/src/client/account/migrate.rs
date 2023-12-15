@@ -1,5 +1,5 @@
 //! Adds migration functions to network account.
-use crate::client::{NetworkAccount, Result};
+use crate::client::{sync::RemoteSync, NetworkAccount, Result, SyncError};
 use sos_sdk::{events::Event, vault::Summary};
 use std::path::Path;
 
@@ -14,15 +14,22 @@ impl NetworkAccount {
         &self,
         path: P,
     ) -> Result<()> {
-        Ok(self.account.export_unsafe_archive(path).await?)
+        let account = self.account.lock().await;
+        Ok(account.export_unsafe_archive(path).await?)
     }
 
     /// Import secrets from another app.
     pub async fn import_file(
         &mut self,
         target: ImportTarget,
-    ) -> Result<(Event, Summary)> {
+    ) -> Result<((Event, Summary), Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
-        Ok(self.account.import_file(target).await?)
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.import_file(target).await?
+        };
+
+        Ok((result, self.sync().await))
     }
 }

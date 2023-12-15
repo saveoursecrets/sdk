@@ -136,7 +136,7 @@ pub struct Account<D> {
     pub(super) authenticated: Option<Authenticated>,
 
     /// Storage paths.
-    pub(super) paths: Arc<Paths>,
+    pub paths: Arc<Paths>,
 
     /// Hook called before making local changes.
     ///

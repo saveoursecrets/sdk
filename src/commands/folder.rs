@@ -172,7 +172,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 
             let is_current = {
                 let owner = user.read().await;
-                let storage = owner.storage()?;
+                let storage = owner.storage().await?;
                 let reader = storage.read().await;
                 if let Some(current) = reader.current() {
                     current.id() == summary.id()
@@ -199,7 +199,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::List { account, verbose } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
-            let storage = owner.storage()?;
+            let storage = owner.storage().await?;
             let reader = storage.read().await;
             let folders = reader.list_folders();
             for summary in folders {
@@ -237,7 +237,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner.open_folder(&summary).await?;
             }
 
-            let storage = owner.storage()?;
+            let storage = owner.storage().await?;
             let reader = storage.read().await;
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
             for uuid in keeper.vault().keys() {
@@ -251,7 +251,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .ok_or_else(|| Error::NoFolderFound)?;
 
             let owner = user.read().await;
-            let storage = owner.storage()?;
+            let storage = owner.storage().await?;
             let reader = storage.read().await;
             if let Some(tree) = reader.commit_tree(&summary) {
                 if let Some(leaves) = tree.leaves() {
@@ -310,7 +310,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 History::Compact { .. } => {
                     let summary = {
                         let owner = user.read().await;
-                        let storage = owner.storage()?;
+                        let storage = owner.storage().await?;
                         let reader = storage.read().await;
                         let keeper =
                             reader.current().ok_or(Error::NoVaultSelected)?;
@@ -322,7 +322,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     );
                     if read_flag(prompt)? {
                         let owner = user.read().await;
-                        let storage = owner.storage()?;
+                        let storage = owner.storage().await?;
                         let mut writer = storage.write().await;
                         let (old_size, new_size) =
                             writer.compact(&summary).await?;
@@ -332,7 +332,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
                 History::Check { .. } => {
                     let owner = user.read().await;
-                    let storage = owner.storage()?;
+                    let storage = owner.storage().await?;
                     let reader = storage.read().await;
                     let keeper =
                         reader.current().ok_or(Error::NoVaultSelected)?;
@@ -341,7 +341,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
                 History::List { verbose, .. } => {
                     let owner = user.read().await;
-                    let storage = owner.storage()?;
+                    let storage = owner.storage().await?;
                     let reader = storage.read().await;
                     let keeper =
                         reader.current().ok_or(Error::NoVaultSelected)?;

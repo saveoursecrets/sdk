@@ -5,6 +5,7 @@ use crate::{
 };
 
 impl NetworkAccount {
+    /*
     /// Account devices reference.
     pub fn devices(&self) -> Result<&DeviceManager> {
         Ok(self.account.devices()?)
@@ -14,4 +15,5 @@ impl NetworkAccount {
     pub fn devices_mut(&mut self) -> Result<&mut DeviceManager> {
         Ok(self.account.devices_mut()?)
     }
+    */
 }

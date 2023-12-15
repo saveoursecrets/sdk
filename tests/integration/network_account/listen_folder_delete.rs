@@ -46,7 +46,7 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
     sync_pause().await;
 
     let updated_summaries: Vec<Summary> = {
-        let storage = device1.owner.storage()?;
+        let storage = device1.owner.storage().await?;
         let reader = storage.read().await;
         reader.list_folders().to_vec()
     };

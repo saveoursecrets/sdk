@@ -245,7 +245,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let mut owner = user.write().await;
 
                 let current = {
-                    let storage = owner.storage()?;
+                    let storage = owner.storage().await?;
                     let reader = storage.read().await;
                     reader.current().map(|g| g.summary().clone())
                 };
@@ -410,7 +410,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
 
             let account = AccountRef::Name(account.label().to_owned());
             let (owner, _) = sign_in(&account).await?;
-            Some(owner.storage()?)
+            Some(owner.storage().await?)
         } else {
             None
         };
@@ -469,7 +469,7 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
         verify(Arc::clone(&user)).await?;
 
         let owner = user.read().await;
-        owner.user()?.account()?.into()
+        owner.account_ref().await?
     };
 
     let user = resolve_user(Some(&account), false).await?;
@@ -477,7 +477,7 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
 
     let prompt = format!(
         r#"Delete account "{}" (y/n)? "#,
-        owner.user()?.account()?.label(),
+        owner.account_label().await?,
     );
     let result = if read_flag(Some(&prompt))? {
         owner.delete_account().await?;
@@ -502,7 +502,7 @@ async fn migrate_export(
     let owner = user.read().await;
     let prompt = format!(
         r#"Export UNENCRYPTED account "{}" (y/n)? "#,
-        owner.user()?.account()?.label(),
+        owner.account_label().await?,
     );
 
     let result = if read_flag(Some(&prompt))? {

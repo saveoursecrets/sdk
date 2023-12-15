@@ -340,16 +340,12 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
         ShellCommand::Check { cmd } => crate::commands::check::run(cmd).await,
         ShellCommand::Whoami => {
             let owner = user.read().await;
-            println!(
-                "{} {}",
-                owner.user()?.account()?.label(),
-                owner.user()?.identity()?.address()
-            );
+            println!("{} {}", owner.account_label().await?, owner.address());
             Ok(())
         }
         ShellCommand::Pwd => {
             let owner = user.read().await;
-            let storage = owner.storage()?;
+            let storage = owner.storage().await?;
             let reader = storage.read().await;
             if let Some(current) = reader.current() {
                 println!(

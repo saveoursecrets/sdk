@@ -7,8 +7,7 @@ use crate::{
     },
     storage::Storage,
     sync::{
-        AccountDiff, ChangeSet, FolderPatch, SyncDiff, SyncStatus,
-        FolderDiff,
+        AccountDiff, ChangeSet, FolderDiff, FolderPatch, SyncDiff, SyncStatus,
     },
     vault::VaultId,
     vfs, Error, Paths, Result,
@@ -19,7 +18,6 @@ use std::collections::HashMap;
 /// Handler to replay events on an account.
 #[async_trait]
 pub trait ReplayHandler {
-
     /// Apply identity-level events to this account.
     async fn replay_identity_events(
         &mut self,
@@ -34,14 +32,12 @@ pub trait ReplayHandler {
         diff: &AccountDiff,
     ) -> Result<usize>;
 
-
     /// Apply folder-level events to this account.
     async fn replay_folder_events(
         &mut self,
         storage: &mut Storage,
         folders: &HashMap<VaultId, FolderDiff>,
     ) -> Result<usize>;
-
 }
 
 /// Replay events on the client.
@@ -49,7 +45,6 @@ pub struct ClientReplay;
 
 #[async_trait]
 impl ReplayHandler for ClientReplay {
-
     async fn replay_identity_events(
         &mut self,
         storage: &mut Storage,
@@ -80,7 +75,6 @@ pub struct ServerReplay;
 
 #[async_trait]
 impl ReplayHandler for ServerReplay {
-
     async fn replay_identity_events(
         &mut self,
         storage: &mut Storage,
@@ -298,11 +292,12 @@ impl Storage {
             num_changes += handler.replay_account_events(self, diff).await?;
         }
 
-        num_changes += handler.replay_folder_events(self, &diff.folders).await?;
-        
+        num_changes +=
+            handler.replay_folder_events(self, &diff.folders).await?;
+
         Ok(num_changes)
     }
-    
+
     /*
     /// Apply identity-level events to this storage
     async fn replay_identity_events(

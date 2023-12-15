@@ -42,7 +42,9 @@ async fn resolve_device(
     id: &str,
 ) -> Result<Option<TrustedDevice>> {
     let owner = user.read().await;
-    let devices = owner.devices()?.list_trusted_devices();
+    let local_account = owner.local_account();
+    let local = local_account.lock().await;
+    let devices = local.devices()?.list_trusted_devices();
     for device in devices {
         if device.public_id()? == id {
             return Ok(Some(device.clone()));
@@ -56,7 +58,9 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::List { account, verbose } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
-            let devices = owner.devices()?.list_trusted_devices();
+            let local_account = owner.local_account();
+            let local = local_account.lock().await;
+            let devices = local.devices()?.list_trusted_devices();
             for device in devices {
                 println!("{}", device.public_id()?);
                 if verbose {
@@ -71,8 +75,10 @@ pub async fn run(cmd: Command) -> Result<()> {
             {
                 let prompt = format!(r#"Remove device "{}" (y/n)? "#, &id);
                 if read_flag(Some(&prompt))? {
-                    let mut owner = user.write().await;
-                    owner.devices_mut()?.remove_device(&device).await?;
+                    let owner = user.read().await;
+                    let local_account = owner.local_account();
+                    let mut local = local_account.lock().await;
+                    local.devices_mut()?.remove_device(&device).await?;
                     println!("Device removed ✓");
                 }
             } else {

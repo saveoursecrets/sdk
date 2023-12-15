@@ -2,12 +2,16 @@
 use mpc_protocol::generate_keypair;
 use secrecy::SecretString;
 use sos_sdk::{
-    account::{Account, AccountBuilder, AccountData, DetachedView},
+    account::{self, Account, AccountBuilder, AccountData, DetachedView},
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
+    device::DeviceSigner,
     events::{Event, ReadEvent},
-    identity::Identity,
-    signer::ecdsa::Address,
+    identity::{AccountRef, Identity, PublicIdentity},
+    signer::{
+        ecdsa::{Address, BoxedEcdsaSigner},
+        ed25519::BoxedEd25519Signer,
+    },
     storage::{
         search::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
@@ -41,8 +45,14 @@ pub(super) type LocalAccount = Account<SyncHandlerData>;
 
 /// Account with networking capability.
 pub struct NetworkAccount {
+    /// Address of this account.
+    address: Address,
+
+    /// Paths for the account.
+    paths: Arc<Paths>,
+
     /// Local account.
-    pub(super) account: LocalAccount,
+    pub(super) account: Arc<Mutex<LocalAccount>>,
 
     /// Remote targets for synchronization.
     pub(super) remotes: Arc<RwLock<Remotes>>,
@@ -79,7 +89,9 @@ impl NetworkAccount {
         .await?;
 
         Ok(Self {
-            account,
+            address: Default::default(),
+            paths: Arc::clone(&account.paths),
+            account: Arc::new(Mutex::new(account)),
             remotes,
             sync_lock: Mutex::new(()),
             #[cfg(feature = "listen")]
@@ -141,7 +153,9 @@ impl NetworkAccount {
         .await?;
 
         let owner = Self {
-            account,
+            address: account.address().clone(),
+            paths: Arc::clone(&account.paths),
+            account: Arc::new(Mutex::new(account)),
             remotes,
             sync_lock: Mutex::new(()),
             #[cfg(feature = "listen")]
@@ -151,24 +165,64 @@ impl NetworkAccount {
         Ok(owner)
     }
 
+    /// Clone of the local account.
+    pub fn local_account(&self) -> Arc<Mutex<LocalAccount>> {
+        Arc::clone(&self.account)
+    }
+
     /// Determine if the account is authenticated.
-    pub fn is_authenticated(&self) -> bool {
-        self.account.is_authenticated()
+    pub async fn is_authenticated(&self) -> bool {
+        let account = self.account.lock().await;
+        account.is_authenticated()
     }
 
-    /// Authenticated user information.
-    pub fn user(&self) -> Result<&Identity> {
-        Ok(self.account.user()?)
+    /// Public identity information.
+    pub async fn public_identity(&self) -> Result<PublicIdentity> {
+        let account = self.account.lock().await;
+        Ok(account.user()?.account()?.clone())
     }
 
-    /// Mutable authenticated user information.
-    pub fn user_mut(&mut self) -> Result<&mut Identity> {
-        Ok(self.account.user_mut()?)
+    /// Reference to the identity for this account.
+    pub async fn account_ref(&self) -> Result<AccountRef> {
+        let account = self.account.lock().await;
+        Ok(account.user()?.account().unwrap().into())
     }
 
-    /// Storage provider.
-    pub fn storage(&self) -> Result<Arc<RwLock<Storage>>> {
-        Ok(self.account.storage()?)
+    /// Label of this account.
+    pub async fn account_label(&self) -> Result<String> {
+        let account = self.account.lock().await;
+        Ok(account.user()?.account()?.label().to_owned())
+    }
+
+    /// Find the password for a folder.
+    pub async fn find_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<AccessKey> {
+        let account = self.account.lock().await;
+        Ok(account.user()?.find_folder_password(folder_id).await?)
+    }
+
+    /// Generate the password for a folder.
+    pub async fn generate_folder_password(&self) -> Result<SecretString> {
+        let account = self.account.lock().await;
+        Ok(account.user()?.generate_folder_password()?)
+    }
+
+    async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
+        let account = self.account.lock().await;
+        Ok(account.user()?.identity()?.signer().clone())
+    }
+
+    async fn device_signer(&self) -> Result<DeviceSigner> {
+        let account = self.account.lock().await;
+        Ok(account.user()?.identity()?.device().clone())
+    }
+
+    /// Clone of the storage provider.
+    pub async fn storage(&self) -> Result<Arc<RwLock<Storage>>> {
+        let account = self.account.lock().await;
+        Ok(account.storage()?)
     }
 
     /// Create a remote bridge associated with this local storage and
@@ -178,9 +232,9 @@ impl NetworkAccount {
         origin: &HostedOrigin,
     ) -> Result<RemoteBridge> {
         let keypair = generate_keypair()?;
-        let signer = self.user()?.identity()?.signer().clone();
-        let device = self.user()?.identity()?.device().clone();
-        let local = self.storage()?;
+        let signer = self.account_signer().await?;
+        let device = self.device_signer().await?;
+        let local = self.storage().await?;
         let provider = RemoteBridge::new(
             local,
             origin.clone(),
@@ -237,12 +291,16 @@ impl NetworkAccount {
 
     /// Account address.
     pub fn address(&self) -> &Address {
-        self.account.address()
+        &self.address
     }
 
     /// Sign in to an account.
     pub async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        let folders = self.account.sign_in(key).await?;
+        let mut account = self.account.lock().await;
+        let folders = account.sign_in(key).await?;
+
+        self.address = account.address().clone();
+        self.paths = Arc::clone(&account.paths);
 
         // Load origins from disc and create remote definitions
         let remotes_file = self.paths().remote_origins();
@@ -266,7 +324,7 @@ impl NetworkAccount {
 
     /// User storage paths.
     pub fn paths(&self) -> &Paths {
-        self.account.paths()
+        &self.paths
     }
 
     /// Load the buffer of the encrypted vault for this account.
@@ -276,28 +334,33 @@ impl NetworkAccount {
     /// can be unlocked then we have verified that the other
     /// device knows the primary password for this account.
     pub async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        Ok(self.account.identity_vault_buffer().await?)
+        let account = self.account.lock().await;
+        Ok(account.identity_vault_buffer().await?)
     }
 
     /// Compute the user statistics.
     pub async fn statistics(&self) -> AccountStatistics {
-        self.account.statistics().await
+        let account = self.account.lock().await;
+        account.statistics().await
     }
 
     /// Account data.
     pub async fn account_data(&self) -> Result<AccountData> {
-        Ok(self.account.account_data().await?)
+        let account = self.account.lock().await;
+        Ok(account.account_data().await?)
     }
 
     /// Verify an access key for this account.
     pub async fn verify(&self, key: &AccessKey) -> bool {
-        self.account.verify(key).await
+        let account = self.account.lock().await;
+        account.verify(key).await
     }
 
     /// Delete the account for this user and sign out.
     pub async fn delete_account(&mut self) -> Result<()> {
+        let mut account = self.account.lock().await;
         // Delete the account and sign out
-        self.account.delete_account().await?;
+        account.delete_account().await?;
         // Shutdown any change listeners
         #[cfg(feature = "listen")]
         self.shutdown_listeners().await;
@@ -309,7 +372,8 @@ impl NetworkAccount {
         &mut self,
         account_name: String,
     ) -> Result<()> {
-        Ok(self.account.rename_account(account_name).await?)
+        let mut account = self.account.lock().await;
+        Ok(account.rename_account(account_name).await?)
     }
 
     /// Try to find a folder using a predicate.
@@ -317,37 +381,44 @@ impl NetworkAccount {
     where
         P: FnMut(&&Summary) -> bool,
     {
-        self.account.find(predicate).await
+        let account = self.account.lock().await;
+        account.find(predicate).await
     }
 
     /// Find the default folder.
     pub async fn default_folder(&self) -> Option<Summary> {
-        self.account.default_folder().await
+        let account = self.account.lock().await;
+        account.default_folder().await
     }
 
     /// Find the authenticator folder.
     pub async fn authenticator_folder(&self) -> Option<Summary> {
-        self.account.authenticator_folder().await
+        let account = self.account.lock().await;
+        account.authenticator_folder().await
     }
 
     /// Find the contacts folder.
     pub async fn contacts_folder(&self) -> Option<Summary> {
-        self.account.contacts_folder().await
+        let account = self.account.lock().await;
+        account.contacts_folder().await
     }
 
     /// Find the archive folder.
     pub async fn archive_folder(&self) -> Option<Summary> {
-        self.account.archive_folder().await
+        let account = self.account.lock().await;
+        account.archive_folder().await
     }
 
     /// Load folders from disc into memory.
     pub async fn load_folders(&mut self) -> Result<Vec<Summary>> {
-        Ok(self.account.load_folders().await?)
+        let mut account = self.account.lock().await;
+        Ok(account.load_folders().await?)
     }
 
     /// List folders managed by this account.
-    pub async fn list_folders(&mut self) -> Result<Vec<Summary>> {
-        Ok(self.account.list_folders().await?)
+    pub async fn list_folders(&self) -> Result<Vec<Summary>> {
+        let account = self.account.lock().await;
+        Ok(account.list_folders().await?)
     }
 
     /// Sign out of the account.
@@ -361,7 +432,8 @@ impl NetworkAccount {
 
         self.remotes = Default::default();
 
-        Ok(self.account.sign_out().await?)
+        let mut account = self.account.lock().await;
+        Ok(account.sign_out().await?)
     }
 
     /// Close all the websocket connections
@@ -380,7 +452,8 @@ impl NetworkAccount {
         name: String,
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
-        let (summary, _, _) = self.account.create_folder(name).await?;
+        let mut account = self.account.lock().await;
+        let (summary, _, _) = account.create_folder(name).await?;
         Ok((summary, self.sync().await))
     }
 
@@ -390,7 +463,8 @@ impl NetworkAccount {
         summary: &Summary,
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
-        self.account.delete_folder(summary).await?;
+        let mut account = self.account.lock().await;
+        account.delete_folder(summary).await?;
         Ok(self.sync().await)
     }
 
@@ -401,7 +475,8 @@ impl NetworkAccount {
         name: String,
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
-        self.account.rename_folder(summary, name).await?;
+        let mut account = self.account.lock().await;
+        account.rename_folder(summary, name).await?;
         Ok(self.sync().await)
     }
 
@@ -413,8 +488,8 @@ impl NetworkAccount {
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<()> {
-        Ok(self
-            .account
+        let mut account = self.account.lock().await;
+        Ok(account
             .export_folder(path, summary, new_key, save_key)
             .await?)
     }
@@ -426,8 +501,8 @@ impl NetworkAccount {
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<Vec<u8>> {
-        Ok(self
-            .account
+        let mut account = self.account.lock().await;
+        Ok(account
             .export_folder_buffer(summary, new_key, save_key)
             .await?)
     }
@@ -452,25 +527,33 @@ impl NetworkAccount {
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (summary, _, _) = self
-            .account
-            .import_folder_buffer(buffer, key, overwrite)
-            .await?;
+        let mut account = self.account.lock().await;
+        let (summary, _, _) =
+            account.import_folder_buffer(buffer, key, overwrite).await?;
 
         Ok((summary, self.sync().await))
     }
 
     /// Open a vault.
     pub async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
-        Ok(self.account.open_folder(summary).await?)
+        let mut account = self.account.lock().await;
+        Ok(account.open_folder(summary).await?)
     }
 
     /// Bulk insert secrets into the currently open folder.
     pub async fn insert_secrets(
         &mut self,
         secrets: Vec<(SecretMeta, Secret)>,
-    ) -> Result<Vec<(SecretId, Event, CommitState, Summary)>> {
-        Ok(self.account.insert_secrets(secrets).await?)
+    ) -> Result<(
+        Vec<(SecretId, Event, CommitState, Summary)>,
+        Option<SyncError>,
+    )> {
+        let result = {
+            let mut account = self.account.lock().await;
+            account.insert_secrets(secrets).await?
+        };
+
+        Ok((result, self.sync().await))
     }
 
     /// Create a secret in the current open folder or a specific folder.
@@ -482,8 +565,12 @@ impl NetworkAccount {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (id, _, _, _) =
-            self.account.create_secret(meta, secret, options).await?;
+        let id = {
+            let mut account = self.account.lock().await;
+            let (id, _, _, _) =
+                account.create_secret(meta, secret, options).await?;
+            id
+        };
 
         Ok((id, self.sync().await))
     }
@@ -494,7 +581,8 @@ impl NetworkAccount {
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<(SecretRow, ReadEvent)> {
-        Ok(self.account.read_secret(secret_id, folder).await?)
+        let mut account = self.account.lock().await;
+        Ok(account.read_secret(secret_id, folder).await?)
     }
 
     /// Update a file secret.
@@ -513,10 +601,13 @@ impl NetworkAccount {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (id, _, _, _) = self
-            .account
-            .update_file(secret_id, meta, path, options, destination)
-            .await?;
+        let id = {
+            let mut account = self.account.lock().await;
+            let (id, _, _, _) = account
+                .update_file(secret_id, meta, path, options, destination)
+                .await?;
+            id
+        };
 
         Ok((id, self.sync().await))
     }
@@ -532,10 +623,13 @@ impl NetworkAccount {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let (id, _, _, _) = self
-            .account
-            .update_secret(secret_id, meta, secret, options, destination)
-            .await?;
+        let id = {
+            let mut account = self.account.lock().await;
+            let (id, _, _, _) = account
+                .update_secret(secret_id, meta, secret, options, destination)
+                .await?;
+            id
+        };
 
         Ok((id, self.sync().await))
     }
@@ -547,12 +641,15 @@ impl NetworkAccount {
         from: &Summary,
         to: &Summary,
         options: AccessOptions,
-    ) -> Result<(SecretId, Event)> {
+    ) -> Result<((SecretId, Event), Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
-        Ok(self
-            .account
-            .move_secret(secret_id, from, to, options)
-            .await?)
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.move_secret(secret_id, from, to, options).await?
+        };
+
+        Ok((result, self.sync().await))
     }
 
     /// Delete a secret and remove any external files.
@@ -562,7 +659,10 @@ impl NetworkAccount {
         options: AccessOptions,
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
-        self.account.delete_secret(secret_id, options).await?;
+        {
+            let mut account = self.account.lock().await;
+            account.delete_secret(secret_id, options).await?;
+        }
         Ok(self.sync().await)
     }
 
@@ -574,10 +674,13 @@ impl NetworkAccount {
         from: &Summary,
         secret_id: &SecretId,
         options: AccessOptions,
-    ) -> Result<(SecretId, Event)> {
+    ) -> Result<((SecretId, Event), Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
-
-        Ok(self.account.archive(from, secret_id, options).await?)
+        let result = {
+            let mut account = self.account.lock().await;
+            account.archive(from, secret_id, options).await?
+        };
+        Ok((result, self.sync().await))
     }
 
     /// Move a secret out of the archive.
@@ -589,12 +692,17 @@ impl NetworkAccount {
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
         options: AccessOptions,
-    ) -> Result<(Summary, SecretId, Event)> {
+    ) -> Result<((Summary, SecretId, Event), Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
-        Ok(self
-            .account
-            .unarchive(from, secret_id, secret_meta, options)
-            .await?)
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account
+                .unarchive(from, secret_id, secret_meta, options)
+                .await?
+        };
+
+        Ok((result, self.sync().await))
     }
 
     /*
@@ -616,7 +724,8 @@ impl NetworkAccount {
     pub async fn initialize_search_index(
         &mut self,
     ) -> Result<(DocumentCount, Vec<Summary>)> {
-        Ok(self.account.initialize_search_index().await?)
+        let mut account = self.account.lock().await;
+        Ok(account.initialize_search_index().await?)
     }
 
     /// Create a detached view of an event log until a
@@ -629,12 +738,14 @@ impl NetworkAccount {
         summary: &Summary,
         commit: CommitHash,
     ) -> Result<DetachedView> {
-        Ok(self.account.detached_view(summary, commit).await?)
+        let account = self.account.lock().await;
+        Ok(account.detached_view(summary, commit).await?)
     }
 
     /// Get the root commit hash for a folder.
     pub async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
-        Ok(self.account.root_commit(summary).await?)
+        let account = self.account.lock().await;
+        Ok(account.root_commit(summary).await?)
     }
 
     /// Get the commit state for a folder.
@@ -644,12 +755,14 @@ impl NetworkAccount {
         &self,
         summary: &Summary,
     ) -> Result<CommitState> {
-        Ok(self.account.commit_state(summary).await?)
+        let account = self.account.lock().await;
+        Ok(account.commit_state(summary).await?)
     }
 
     /// Compact an event log file.
     pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        Ok(self.account.compact(summary).await?)
+        let mut account = self.account.lock().await;
+        Ok(account.compact(summary).await?)
     }
 
     /// Expected location for a file by convention.
@@ -670,8 +783,8 @@ impl NetworkAccount {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<Vec<u8>> {
-        Ok(self
-            .account
+        let account = self.account.lock().await;
+        Ok(account
             .download_file(vault_id, secret_id, file_name)
             .await?)
     }
@@ -681,7 +794,8 @@ impl NetworkAccount {
 impl NetworkAccount {
     /// Search index for the account.
     pub async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
-        Ok(self.account.index().await?)
+        let account = self.account.lock().await;
+        Ok(account.index().await?)
     }
 
     /// Query with document views.
@@ -690,7 +804,8 @@ impl NetworkAccount {
         views: Vec<DocumentView>,
         archive: Option<ArchiveFilter>,
     ) -> Result<Vec<Document>> {
-        Ok(self.account.query_view(views, archive).await?)
+        let account = self.account.lock().await;
+        Ok(account.query_view(views, archive).await?)
     }
 
     /// Query the search index.
@@ -699,12 +814,14 @@ impl NetworkAccount {
         query: &str,
         filter: QueryFilter,
     ) -> Result<Vec<Document>> {
-        Ok(self.account.query_map(query, filter).await?)
+        let account = self.account.lock().await;
+        Ok(account.query_map(query, filter).await?)
     }
 
     /// Get the search index document count statistics.
     pub async fn document_count(&self) -> Result<DocumentCount> {
-        Ok(self.account.document_count().await?)
+        let account = self.account.lock().await;
+        Ok(account.document_count().await?)
     }
 
     /// Determine if a document exists in a folder.
@@ -714,6 +831,7 @@ impl NetworkAccount {
         label: &str,
         id: Option<&SecretId>,
     ) -> Result<bool> {
-        Ok(self.account.document_exists(vault_id, label, id).await?)
+        let account = self.account.lock().await;
+        Ok(account.document_exists(vault_id, label, id).await?)
     }
 }

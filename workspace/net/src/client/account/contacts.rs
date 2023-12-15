@@ -14,7 +14,8 @@ impl NetworkAccount {
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<Option<Vec<u8>>> {
-        Ok(self.account.load_avatar(secret_id, folder).await?)
+        let mut account = self.account.lock().await;
+        Ok(account.load_avatar(secret_id, folder).await?)
     }
 
     /// Export a contact secret to a vCard file.
@@ -24,7 +25,8 @@ impl NetworkAccount {
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<()> {
-        Ok(self.account.export_contact(path, secret_id, folder).await?)
+        let mut account = self.account.lock().await;
+        Ok(account.export_contact(path, secret_id, folder).await?)
     }
 
     /// Export all contacts to a single vCard.
@@ -32,7 +34,8 @@ impl NetworkAccount {
         &mut self,
         path: P,
     ) -> Result<()> {
-        Ok(self.account.export_all_contacts(path).await?)
+        let mut account = self.account.lock().await;
+        Ok(account.export_all_contacts(path).await?)
     }
 
     /// Import contacts from a vCard string buffer.
@@ -41,6 +44,7 @@ impl NetworkAccount {
         content: &str,
         progress: impl Fn(ContactImportProgress),
     ) -> Result<Vec<SecretId>> {
-        Ok(self.account.import_contacts(content, progress).await?)
+        let mut account = self.account.lock().await;
+        Ok(account.import_contacts(content, progress).await?)
     }
 }

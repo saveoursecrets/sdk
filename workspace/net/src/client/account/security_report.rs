@@ -14,6 +14,7 @@ impl NetworkAccount {
         D: Fn(Vec<String>) -> R,
         R: std::future::Future<Output = Vec<T>>,
     {
-        Ok(self.account.generate_security_report(options).await?)
+        let mut account = self.account.lock().await;
+        Ok(account.generate_security_report(options).await?)
     }
 }

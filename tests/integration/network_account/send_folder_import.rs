@@ -41,17 +41,14 @@ async fn integration_sync_import_folder() -> Result<()> {
     // path when sync happens
     device.owner.open_folder(&new_folder).await?;
     let mut vault = {
-        let storage = device.owner.storage()?;
+        let storage = device.owner.storage().await?;
         let reader = storage.read().await;
         reader.current().unwrap().vault().clone()
     };
 
     // Need the vault passphrase to import a buffer
-    let vault_passphrase = device
-        .owner
-        .user()?
-        .find_folder_password(new_folder.id())
-        .await?;
+    let vault_passphrase =
+        device.owner.find_folder_password(new_folder.id()).await?;
 
     // Make a change so we can assert on the new value
     vault.set_name("sync_folder_imported".to_string());
@@ -67,7 +64,7 @@ async fn integration_sync_import_folder() -> Result<()> {
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
     let folders: Vec<Summary> = {
-        let storage = device.owner.storage()?;
+        let storage = device.owner.storage().await?;
         let reader = storage.read().await;
         reader.list_folders().to_vec()
     };

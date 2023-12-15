@@ -96,10 +96,8 @@ pub async fn resolve_account(
     if account.is_none() {
         if let Some(owner) = USER.get() {
             let reader = owner.read().await;
-            if reader.is_authenticated() {
-                let account: AccountRef =
-                    reader.user().unwrap().account().unwrap().into();
-                return Some(account);
+            if reader.is_authenticated().await {
+                return Some(reader.account_ref().await.unwrap());
             }
         }
 
@@ -118,7 +116,7 @@ pub async fn resolve_folder(
 ) -> Result<Option<Summary>> {
     let owner = user.read().await;
     if let Some(vault) = folder {
-        let storage = owner.storage()?;
+        let storage = owner.storage().await?;
         let reader = storage.read().await;
         Ok(Some(
             reader
@@ -128,12 +126,12 @@ pub async fn resolve_folder(
         ))
     } else if let Some(owner) = USER.get() {
         let owner = owner.read().await;
-        let storage = owner.storage()?;
+        let storage = owner.storage().await?;
         let reader = storage.read().await;
         let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
         Ok(Some(keeper.summary().clone()))
     } else {
-        let storage = owner.storage()?;
+        let storage = owner.storage().await?;
         let reader = storage.read().await;
         Ok(reader.find(|s| s.flags().is_default()).cloned())
     }
@@ -145,7 +143,7 @@ pub async fn cd_folder(
 ) -> Result<()> {
     let summary = {
         let owner = user.read().await;
-        let storage = owner.storage()?;
+        let storage = owner.storage().await?;
         let reader = storage.read().await;
         let summary = if let Some(vault) = folder {
             Some(

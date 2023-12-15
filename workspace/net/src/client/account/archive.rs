@@ -16,7 +16,8 @@ impl NetworkAccount {
         &self,
         path: P,
     ) -> Result<()> {
-        Ok(self.account.export_backup_archive(path).await?)
+        let account = self.account.lock().await;
+        Ok(account.export_backup_archive(path).await?)
     }
 
     /// Read the inventory from an archive.
@@ -46,9 +47,11 @@ impl NetworkAccount {
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
+        let mut account = owner.account.lock().await;
+
         Ok(LocalAccount::restore_backup_archive(
             path,
-            &mut owner.account,
+            &mut *account,
             password,
             options,
             data_dir,

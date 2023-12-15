@@ -675,7 +675,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     ignored_types: None,
                 }];
             } else if let Some(folder) = &folder {
-                let storage = owner.storage()?;
+                let storage = owner.storage().await?;
                 let reader = storage.read().await;
                 let summary = reader
                     .find_folder(folder)
@@ -1183,7 +1183,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let original_folder = if is_shell {
                 let user = resolve_user(account.as_ref(), false).await?;
                 let owner = user.read().await;
-                let storage = owner.storage()?;
+                let storage = owner.storage().await?;
                 let reader = storage.read().await;
                 reader.current().map(|g| g.summary().clone())
             } else {
