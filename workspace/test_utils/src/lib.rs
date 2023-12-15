@@ -5,16 +5,16 @@ use std::{
     net::SocketAddr, path::PathBuf, sync::Arc, thread, time::Duration,
 };
 use tokio::sync::{oneshot, RwLock};
-use url::Url;
 
 use sos_net::{
     client::HostedOrigin,
-    sdk::{hex, signer::ecdsa::Address, vfs, Paths},
+    sdk::{hex, signer::ecdsa::Address, url::Url, vfs, Paths},
     server::{Server, ServerConfig, ServerInfo, State, TransportManager},
 };
 
 const ADDR: &str = "127.0.0.1:0";
-const SERVER_PUBLIC_KEY: &str = include_str!("../server_public_key.txt");
+const SERVER_PUBLIC_KEY: &str =
+    include_str!("../../../tests/server_public_key.txt");
 
 #[allow(dead_code)]
 pub fn init_tracing() {
@@ -272,17 +272,18 @@ pub async fn teardown(test_id: &str) {
 pub mod mock {
     use anyhow::Result;
     use secrecy::SecretString;
-    use sha2::{Digest, Sha256};
     use sos_net::sdk::{
         age,
         device::TrustedDevice,
         pem,
+        sha2::{Digest, Sha256},
         vault::secret::{FileContent, IdentityKind, Secret, SecretMeta},
     };
     use std::collections::HashMap;
     use std::path::PathBuf;
 
-    const IPHONE: &str = include_str!("../fixtures/devices/iphone.json");
+    const IPHONE: &str =
+        include_str!("../../../tests/fixtures/devices/iphone.json");
 
     pub fn login(
         label: &str,
@@ -366,7 +367,7 @@ pub mod mock {
 
     pub fn pem(label: &str) -> (SecretMeta, Secret) {
         const CERTIFICATE: &str =
-            include_str!("../../tests/fixtures/mock-cert.pem");
+            include_str!("../../../tests/fixtures/mock-cert.pem");
         let certificates = pem::parse_many(CERTIFICATE).unwrap();
         let secret_value = Secret::Pem {
             certificates,

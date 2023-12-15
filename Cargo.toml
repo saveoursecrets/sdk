@@ -19,6 +19,7 @@ members = [
   "workspace/artifact",
   "workspace/net",
   "workspace/sdk",
+  "workspace/test_utils",
   "workspace/vfs",
 ]
 
@@ -30,6 +31,10 @@ test-utils = ["sos-net/test-utils"]
 [workspace.dependencies]
 csv-async = { version = "1", features = ["tokio", "with_serde"] }
 mpc-protocol = "0.4.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+secrecy = { version = "0.8", features = ["serde"] }
+serde_json = "1"
 
 [workspace.dependencies.binary-stream]
 version = "8.0.0"
@@ -39,10 +44,10 @@ features = ["async"]
 [dependencies]
 csv-async.workspace = true
 binary-stream.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde_json.workspace = true
 thiserror = "1"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-serde_json = "1"
 web3-address = { version = "0.6", features = ["ethereum"] }
 futures = "0.3"
 human_bytes = "0.3"
@@ -89,6 +94,7 @@ tempfile = "3.5"
 copy_dir = "0.1"
 maplit2 = "1"
 sha2 = "0.10"
+sos_test_utils = { path = "workspace/test_utils" }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 rexpect = "0.5"

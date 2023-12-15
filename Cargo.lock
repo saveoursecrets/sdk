@@ -3943,6 +3943,7 @@ dependencies = [
  "sha2",
  "shell-words",
  "sos-net",
+ "sos_test_utils",
  "tempfile",
  "terminal-banner",
  "thiserror",
@@ -4106,6 +4107,20 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "tokio",
+]
+
+[[package]]
+name = "sos_test_utils"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum-server",
+ "secrecy",
+ "serde_json",
+ "sos-net",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
