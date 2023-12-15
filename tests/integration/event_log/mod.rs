@@ -1,9 +1,7 @@
 use anyhow::Result;
 use binary_stream::futures::{Decodable, Encodable};
 use sos_net::sdk::{
-    commit::CommitHash,
-    events::EventLogExt,
-    events::DiscEventLog,
+    commit::CommitHash, events::DiscEventLog, events::EventLogExt,
 };
 
 mod account_events;

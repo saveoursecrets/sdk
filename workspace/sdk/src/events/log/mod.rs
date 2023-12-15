@@ -10,7 +10,10 @@ mod reducer;
 
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
-pub use file::{AccountEventLog, EventLogExt, FolderEventLog, DiscEventLog, MemoryEventLog};
+pub use file::{
+    AccountEventLog, DiscEventLog, EventLogExt, FolderEventLog,
+    MemoryEventLog,
+};
 pub use reducer::{AccountReducer, EventReducer};
 
 /// Record for a row in the event log.

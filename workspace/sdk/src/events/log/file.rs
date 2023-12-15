@@ -65,7 +65,12 @@ type FileLog = Compat<File>;
 pub type DiscEventLog<E> = EventLog<E, FileLog, FileLog, PathBuf>;
 
 /// Event log that writes to memory.
-pub type MemoryEventLog<E> = EventLog<E, MemoryBuffer, MemoryBuffer, MemoryInner>;
+pub type MemoryEventLog<E> =
+    EventLog<E, MemoryBuffer, MemoryBuffer, MemoryInner>;
+
+/// Event log for changes to a folder that writes to memory.
+pub type MemoryFolderLog =
+    EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>;
 
 /// Event log for changes to an account.
 pub type AccountEventLog = DiscEventLog<AccountEvent>;
@@ -798,7 +803,6 @@ mod test {
         Ok(())
     }
 
-    #[cfg(feature = "account")]
     #[tokio::test]
     async fn account_event_log() -> Result<()> {
         let (temp, mut event_log) = mock_account_event_log().await?;
@@ -822,6 +826,38 @@ mod test {
         }
 
         temp.close()?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn memory_folder_log() -> Result<()> {
+        let mut event_log = MemoryFolderLog::new_folder_memory().await?;
+        
+        event_log
+            .apply(vec![
+                &WriteEvent::CreateVault(vec![]),
+            ])
+            .await?;
+
+        assert!(event_log.tree().len() > 0);
+        assert!(event_log.tree().root().is_some());
+        assert!(event_log.tree().last_commit().is_some());
+
+        #[cfg(feature = "sync")]
+        let previous_commit = event_log.tree().last_commit();
+
+        event_log
+            .apply(vec![
+                &WriteEvent::SetVaultName("name".to_owned()),
+            ])
+            .await?;
+
+        #[cfg(feature = "sync")]
+        {
+            let patch = event_log.diff(previous_commit.as_ref()).await?;
+            assert_eq!(1, patch.len());
+        }
+
         Ok(())
     }
 }
