@@ -7,7 +7,7 @@ use crate::{
     },
     storage::Storage,
     sync::{
-        AccountDiff, ChangeSet, FolderPatch, MergeOptions, SyncDiff, SyncStatus,
+        AccountDiff, ChangeSet, FolderPatch, SyncDiff, SyncStatus,
         FolderDiff,
     },
     vault::VaultId,
@@ -290,53 +290,16 @@ impl Storage {
     ) -> Result<usize> {
         let mut num_changes = 0;
 
-    
         if let Some(diff) = &diff.identity {
             num_changes += handler.replay_identity_events(self, diff).await?;
-
-                /*
-            if !options.replay_identity_events {
-                let mut writer = self.identity_log.write().await;
-                writer.patch_checked(&diff.before, &diff.patch).await?;
-            } else {
-                self.replay_identity_events(diff).await?;
-            }
-            num_changes += diff.patch.len();
-                */
         }
 
         if let Some(diff) = &diff.account {
             num_changes += handler.replay_account_events(self, diff).await?;
-            
-            /*
-            if !options.replay_account_events {
-                let mut writer = self.account_log.write().await;
-                writer.patch_checked(&diff.before, &diff.patch).await?;
-            } else {
-                self.replay_account_events(diff).await?;
-            }
-            num_changes += diff.patch.len();
-            */
         }
 
         num_changes += handler.replay_folder_events(self, &diff.folders).await?;
         
-        /*
-        for (id, diff) in &diff.folders {
-            let log = self
-                .cache
-                .get_mut(id)
-                .ok_or_else(|| Error::CacheNotAvailable(*id))?;
-
-            if !options.replay_folder_events {
-                log.patch_checked(&diff.before, &diff.patch).await?;
-                num_changes += diff.patch.len();
-            } else {
-                self.replay_folder_events(id, diff).await?;
-            }
-        }
-        */
-
         Ok(num_changes)
     }
     
