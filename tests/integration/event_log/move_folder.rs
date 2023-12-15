@@ -94,7 +94,7 @@ async fn integration_events_move_folder() -> Result<()> {
 
     // Check the folder event log
     let folder_events = account2.paths().event_log_path(&folder_id);
-    let mut event_log = FolderEventLog::new_folder(&folder_events).await?;
+    let mut event_log = FolderEventLog::new(&folder_events).await?;
     let events = all_events(&mut event_log).await?;
     // Should have the create vault and 3 create secret events
     assert_eq!(4, events.len());

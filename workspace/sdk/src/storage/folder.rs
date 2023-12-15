@@ -151,7 +151,7 @@ impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
         let mut events_path = path.as_ref().to_owned();
         events_path.set_extension(EVENT_LOG_EXT);
 
-        let mut event_log = FolderEventLog::new_folder(events_path).await?;
+        let mut event_log = FolderEventLog::new(events_path).await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
@@ -183,7 +183,7 @@ impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
         paths: &Paths,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
         let mut event_log =
-            FolderEventLog::new_folder(paths.identity_events()).await?;
+            FolderEventLog::new(paths.identity_events()).await?;
         event_log.load_tree().await?;
         Ok(Arc::new(RwLock::new(event_log)))
     }

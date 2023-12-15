@@ -456,7 +456,7 @@ impl AccountBackup {
             let create_vault = WriteEvent::CreateVault(buffer.clone());
             event_log_events.push(create_vault);
             let mut event_log =
-                FolderEventLog::new_folder(event_log_path).await?;
+                FolderEventLog::new(event_log_path).await?;
             event_log.apply(event_log_events.iter().collect()).await?;
         }
 

@@ -110,7 +110,7 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut server = FolderEventLog::new_folder(path).await?;
+        let mut server = FolderEventLog::new(path).await?;
         server
             .apply(vec![
                 &WriteEvent::CreateVault(vault_buffer),
@@ -147,7 +147,7 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut server = FolderEventLog::new_folder(&server_file).await?;
+        let mut server = FolderEventLog::new(&server_file).await?;
         server
             .apply(vec![
                 &WriteEvent::CreateVault(vault_buffer),
@@ -156,7 +156,7 @@ mod test {
             .await?;
 
         // Duplicate the server events on the client
-        let mut client = FolderEventLog::new_folder(&client_file).await?;
+        let mut client = FolderEventLog::new(&client_file).await?;
         let mut it = server.iter(false).await?;
         while let Some(record) = it.next().await? {
             let event = server.decode_event(&record).await?;
@@ -212,7 +212,7 @@ mod test {
     async fn event_log_file_load() -> Result<()> {
         mock_event_log_standalone().await?;
         let path = PathBuf::from(MOCK_LOG);
-        let event_log = FolderEventLog::new_folder(path).await?;
+        let event_log = FolderEventLog::new(path).await?;
         let mut it = event_log.iter(false).await?;
         while let Some(record) = it.next().await? {
             let _event = event_log.decode_event(&record).await?;

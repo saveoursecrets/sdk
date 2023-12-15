@@ -418,7 +418,7 @@ impl Storage {
     ) -> Result<()> {
         let event_log_path = self.paths.event_log_path(summary.id());
         let mut event_log =
-            FolderEventLog::new_folder(&event_log_path).await?;
+            FolderEventLog::new(&event_log_path).await?;
 
         if let Some(vault) = vault {
             // Must truncate the event log so that importing vaults

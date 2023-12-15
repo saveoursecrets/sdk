@@ -534,7 +534,7 @@ where
 
 impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
     /// Create a new folder event log file.
-    pub async fn new_folder<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
         // Note that for backwards compatibility we don't
         // encode a version, later we will need to upgrade
@@ -607,7 +607,7 @@ impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
 
 impl EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
     /// Create a new folder event log writing to memory.
-    pub async fn new_folder_memory() -> Result<Self> {
+    pub async fn new() -> Result<Self> {
         use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
 
         let reader = MemoryBuffer::new();
@@ -636,7 +636,7 @@ impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
         let temp = NamedTempFile::new()?;
 
         // Apply them to a temporary event log file
-        let mut temp_event_log = Self::new_folder(temp.path()).await?;
+        let mut temp_event_log = Self::new(temp.path()).await?;
         temp_event_log.apply(events.iter().collect()).await?;
 
         let new_size = self.data.metadata()?.len();
@@ -655,7 +655,7 @@ impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
 
         // Need to recreate the event log file and load the updated
         // commit tree
-        let mut new_event_log = Self::new_folder(&self.data).await?;
+        let mut new_event_log = Self::new(&self.data).await?;
         new_event_log.load_tree().await?;
 
         Ok((new_event_log, old_size, new_size))
@@ -731,7 +731,7 @@ mod test {
     async fn mock_folder_event_log() -> Result<(NamedTempFile, FolderEventLog)>
     {
         let temp = NamedTempFile::new()?;
-        let event_log = FolderEventLog::new_folder(temp.path()).await?;
+        let event_log = FolderEventLog::new(temp.path()).await?;
         Ok((temp, event_log))
     }
 
@@ -856,7 +856,7 @@ mod test {
 
     #[tokio::test]
     async fn memory_folder_log() -> Result<()> {
-        let mut event_log = MemoryFolderLog::new_folder_memory().await?;
+        let mut event_log = MemoryFolderLog::new().await?;
 
         event_log
             .apply(vec![&WriteEvent::CreateVault(vec![])])

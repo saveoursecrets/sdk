@@ -58,7 +58,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
-            let event_log = FolderEventLog::new_folder(&file).await?;
+            let event_log = FolderEventLog::new(&file).await?;
             print_events::<WriteEvent>(event_log, reverse).await?;
         }
         Command::File { file, reverse } => {

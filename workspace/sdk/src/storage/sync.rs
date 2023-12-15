@@ -31,7 +31,7 @@ impl Storage {
         let events: Vec<&WriteEvent> = identity_patch.into();
 
         let mut event_log =
-            FolderEventLog::new_folder(paths.identity_events()).await?;
+            FolderEventLog::new(paths.identity_events()).await?;
         event_log.clear().await?;
         event_log.apply(events).await?;
 
@@ -69,7 +69,7 @@ impl Storage {
             let events_path = self.paths.event_log_path(id);
 
             let mut event_log =
-                FolderEventLog::new_folder(events_path).await?;
+                FolderEventLog::new(events_path).await?;
             event_log.patch_unchecked(folder).await?;
 
             let vault = EventReducer::new()

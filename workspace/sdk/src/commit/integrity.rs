@@ -99,7 +99,7 @@ where
     let mut reader = BinaryReader::new(&mut file, encoding_options());
 
     let event_log =
-        FolderEventLog::new_folder(event_log_file.as_ref()).await?;
+        FolderEventLog::new(event_log_file.as_ref()).await?;
     let mut it = event_log.iter(false).await?;
     let mut last_checksum: Option<[u8; 32]> = None;
 
