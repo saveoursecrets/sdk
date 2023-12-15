@@ -31,6 +31,7 @@ sync = []
 
 [dependencies]
 binary-stream.workspace = true
+secrecy.workspace = true
 async_zip = { version = "0.0.15", default-features = false, features = ["deflate", "tokio"], optional = true }
 csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
 sos-vfs = { version = "0.2", path = "../vfs" }
@@ -62,7 +63,6 @@ uuid = { version = "1", features = ["serde", "v4"] }
 url = { version = "2", features = ["serde"] }
 bitflags = "1"
 pem = { version = "3", features = ["serde"] }
-secrecy = { version = "0.8", features = ["serde"] }
 tempfile = "3.5"
 log = "0.4"
 http = "0.2"

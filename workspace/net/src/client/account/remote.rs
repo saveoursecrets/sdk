@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
-    sync::{Client, SyncComparison, SyncStatus},
+    sync::{Client, SyncComparison, SyncStatus, MergeOptions},
     url::Url,
 };
 
@@ -155,9 +155,7 @@ impl RemoteBridge {
 
             println!("sync got diff {:#?}", pull);
 
-            storage.merge_diff(&pull, Default::default()).await?;
-
-            // TODO: apply event data from remote!
+            storage.merge_diff(&pull, MergeOptions::new_client()).await?;
         }
 
         Ok(())

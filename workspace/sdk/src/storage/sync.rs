@@ -5,14 +5,15 @@ use crate::{
         AccountEvent, EventLogExt, EventReducer, FolderEventLog, WriteEvent,
     },
     storage::Storage,
+    sync::{
+        AccountDiff, ChangeSet, FolderPatch, MergeOptions, SyncDiff, SyncStatus,
+        FolderDiff,
+    },
+    vault::VaultId,
     vfs, Error, Paths, Result,
 };
 
 use std::collections::HashMap;
-
-use crate::sync::{
-    AccountDiff, ChangeSet, FolderPatch, MergeOptions, SyncDiff, SyncStatus,
-};
 
 impl Storage {
     /// Create a new vault file on disc and the associated
@@ -161,8 +162,12 @@ impl Storage {
         let mut num_changes = 0;
 
         if let Some(diff) = &diff.identity {
-            let mut writer = self.identity_log.write().await;
-            writer.patch_checked(&diff.before, &diff.patch).await?;
+            if !options.replay_identity_events {
+                let mut writer = self.identity_log.write().await;
+                writer.patch_checked(&diff.before, &diff.patch).await?;
+            } else {
+                self.replay_identity_events(diff).await?;
+            }
             num_changes += diff.patch.len();
         }
 
@@ -182,18 +187,64 @@ impl Storage {
                 .get_mut(id)
                 .ok_or_else(|| Error::CacheNotAvailable(*id))?;
 
-            log.patch_checked(&diff.before, &diff.patch).await?;
-            num_changes += diff.patch.len();
+            if !options.replay_folder_events {
+                log.patch_checked(&diff.before, &diff.patch).await?;
+                num_changes += diff.patch.len();
+            } else {
+                self.replay_folder_events(id, diff).await?;
+            }
         }
 
         Ok(num_changes)
     }
 
+    /// Apply identity-level events to this storage
+    async fn replay_identity_events(
+        &mut self,
+        diff: &FolderDiff,
+    ) -> Result<()> {
+        for event in diff.patch.iter() {
+            match event {
+                WriteEvent::CreateSecret(secret_id, vault_commit) => {
+                    /*
+                    let hash = vault_commit.0.clone();
+                    let entry = vault_commit.1.clone();
+                    mirror.insert(*secret_id, hash, entry).await?;
+                    */
+                }
+                WriteEvent::UpdateSecret(secret_id, vault_commit) => {
+                    /*
+                    let hash = vault_commit.0.clone();
+                    let entry = vault_commit.1.clone();
+                    mirror.update(secret_id, hash, entry).await?;
+                    */
+                }
+                WriteEvent::SetVaultName(name) => {
+                    /*
+                    mirror.set_vault_name(name.to_owned()).await?;
+                    */
+                }
+                WriteEvent::SetVaultMeta(meta) => {
+                    /*
+                    mirror.set_vault_meta(meta.clone()).await?;
+                    */
+                }
+                WriteEvent::DeleteSecret(secret_id) => {
+                    /*
+                    mirror.delete(secret_id).await?;
+                    */
+                }
+                _ => {} // Ignore CreateVault and Noop
+            }
+        }
+        Ok(())
+    }
+
+    /// Apply account-level events to this storage
     async fn replay_account_events(
         &mut self,
         diff: &AccountDiff,
     ) -> Result<()> {
-        // Apply account-level events to this storage
         for event in diff.patch.iter() {
             match &event {
                 AccountEvent::CreateFolder(_, buf)
@@ -217,6 +268,42 @@ impl Storage {
                 _ => {
                     println!("todo! : apply other account events")
                 }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Apply folder-level events to this storage
+    async fn replay_folder_events(
+        &mut self,
+        id: &VaultId,
+        diff: &FolderDiff,
+    ) -> Result<()> {
+        for event in diff.patch.iter() {
+            match event {
+                WriteEvent::CreateSecret(secret_id, vault_commit) => {
+                    //todo!("decrypt and create secret");
+                }
+                WriteEvent::UpdateSecret(secret_id, vault_commit) => {
+                    //todo!("decrypt and update secret");
+                }
+                WriteEvent::SetVaultName(name) => {
+                    let summary = self.find(|s| s.id() == id).cloned();
+                    if let Some(summary) = &summary {
+                        self.rename_folder(summary, name).await?;
+                    }
+                }
+                WriteEvent::SetVaultMeta(meta) => {
+                    //todo!("decrypt and set vault meta");
+                }
+                WriteEvent::DeleteSecret(secret_id) => {
+                    let summary = self.find(|s| s.id() == id).cloned();
+                    if let Some(summary) = summary {
+                        self.delete_secret(secret_id, summary.into()).await?;
+                    }
+                }
+                _ => {} // Ignore CreateVault and Noop
             }
         }
 

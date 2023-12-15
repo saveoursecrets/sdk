@@ -146,7 +146,7 @@ When a remote **sync status** is returned the client can proceed to synchronize:
 2. Client sends it's **sync status** and the **sync diff** to the remote server.
 3. Server receives the **sync diff** and merges the changes in each **diff** into the corresponding event logs. Merges **must be checked** such that the patch is only applied if the tip of the event log matches the before proof in the diff. For some types of events the server may need to **replay** the events such that the on disc (and in-memory) representation is correct before replying to the client. In particular, for account level events the server will need to create, update or delete folders. Replaying events **must update** the corresponding event log(s) so that the merkle tree on the server exactly matches the client.
 4. Server can now compare it's updated **local status** to the **remote status** (sent by the client earlier) and generate a **sync diff** of events that exist on the server that the client has not yet received. Server replies to the client with it's updated **sync status** and the **sync diff**.
-5. Client receives the updated **remote status** and the **sync diff** and merges  it into it's local storage.
+5. Client receives the updated **remote status** and the **sync diff** and merges the diff into it's local storage.
 
 [^1]: The application event log when implemented will allow account deletion to be synchronized with a server.
 [^2]: Document the strategy for resolving conflicts.

@@ -82,12 +82,7 @@ impl Service for SyncService {
                         .folders
                         .merge_diff(
                             &diff,
-                            MergeOptions {
-                                // Must replay the account events here
-                                // so the folder event logs are available
-                                // before we perform a comparison below
-                                replay_account_events: true,
-                            },
+                            MergeOptions::new_server(),
                         )
                         .await?
                 };

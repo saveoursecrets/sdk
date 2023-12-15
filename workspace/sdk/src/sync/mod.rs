@@ -23,8 +23,31 @@ pub use patch::FilePatch;
 /// Options used when applying a diff to local storage.
 #[derive(Default, Debug)]
 pub struct MergeOptions {
+    /// Replay identity events rather than apply the patch.
+    pub replay_identity_events: bool,
     /// Replay account events rather than apply the patch.
     pub replay_account_events: bool,
+    /// Replay folder events rather than apply the patch.
+    pub replay_folder_events: bool,
+}
+
+impl MergeOptions {
+    /// Merge options for a server.
+    pub fn new_server() -> Self {
+        Self {
+            replay_account_events: true,
+            ..Default::default()
+        }
+    }
+
+    /// Merge options for a client.
+    pub fn new_client() -> Self {
+        Self {
+            replay_identity_events: true,
+            replay_account_events: true,
+            replay_folder_events: true,
+        }
+    }
 }
 
 /// Result of a checked patch on an event log.
