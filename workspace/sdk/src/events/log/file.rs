@@ -412,17 +412,6 @@ where
     phantom: std::marker::PhantomData<(E, D)>,
 }
 
-/*
-impl<E, R, W, D> EventLog<E, R, W, D>
-where
-    E: Default + Encodable + Decodable + Send + Sync,
-    R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    W: AsyncWrite + Unpin + Send + Sync,
-    D: Clone,
-{
-}
-*/
-
 #[async_trait]
 impl<E> EventLogExt<E, DiscLog, DiscLog, PathBuf>
     for EventLog<E, DiscLog, DiscLog, PathBuf>
@@ -607,21 +596,21 @@ impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
 
 impl EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
     /// Create a new folder event log writing to memory.
-    pub async fn new() -> Result<Self> {
+    pub fn new() -> Self {
         use crate::constants::FOLDER_EVENT_LOG_IDENTITY;
 
         let reader = MemoryBuffer::new();
         let writer = reader.clone();
         let inner = Arc::clone(&reader.inner);
 
-        Ok(Self {
+        Self {
             file: Arc::new(Mutex::new((reader, writer))),
             data: inner,
             tree: Default::default(),
             identity: &FOLDER_EVENT_LOG_IDENTITY,
             version: None,
             phantom: std::marker::PhantomData,
-        })
+        }
     }
 }
 
@@ -856,7 +845,7 @@ mod test {
 
     #[tokio::test]
     async fn memory_folder_log() -> Result<()> {
-        let mut event_log = MemoryFolderLog::new().await?;
+        let mut event_log = MemoryFolderLog::new();
 
         event_log
             .apply(vec![&WriteEvent::CreateVault(vec![])])

@@ -190,12 +190,11 @@ impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
 }
 
 impl Folder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
-    /// Create a new folder from a vault buffer.
-    ///
-    /// Changes are not mirrored to disc and events are not logged.
+    /// Create a new folder from a vault buffer 
+    /// that writes to memory.
     pub async fn new(buffer: impl AsRef<[u8]>) -> Result<Self> {
         let vault: Vault = decode(buffer.as_ref()).await?;
         let keeper = Gatekeeper::new(vault);
-        Ok(Self::init(keeper, None))
+        Ok(Self::init(keeper, Some(MemoryFolderLog::new())))
     }
 }
