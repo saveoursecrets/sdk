@@ -17,7 +17,7 @@ use crate::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
     decode, encode,
-    events::{FolderEventLog, WriteEvent},
+    events::{FolderEventLog, WriteEvent, EventLogExt},
     identity::{Identity, PublicIdentity},
     sha2::{Digest, Sha256},
     vault::{

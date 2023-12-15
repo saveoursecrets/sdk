@@ -3,7 +3,7 @@ use crate::{
     commit::CommitHash,
     crypto::{KeyDerivation, PrivateKey},
     encode,
-    events::WriteEvent,
+    events::{WriteEvent, EventLogExt},
     passwd::diceware::generate_passphrase,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta},

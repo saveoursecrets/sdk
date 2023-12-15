@@ -121,9 +121,9 @@ where
 #[async_trait]
 pub trait EventLogExt<E, R, W, D>: Send + Sync
 where
-    E: Default + Encodable + Decodable + Send + 'static,
-    R: AsyncRead + AsyncSeek + Unpin + Send + 'static,
-    W: AsyncWrite + Unpin + Send + 'static,
+    E: Default + Encodable + Decodable + Send + Sync + 'static,
+    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + Unpin + Send + Sync + 'static,
     D: Clone,
 {
     /// Commit tree contains the merkle tree.
@@ -250,81 +250,15 @@ where
 
         Ok(events)
     }
-}
-
-/// Event log.
-///
-/// Appends events to an append-only writer and reads events
-/// via a reader whilst managing an in-memory merkle tree
-/// of event hashes.
-pub struct EventLog<E, R, W, D>
-where
-    E: Default + Encodable + Decodable + Send + Sync,
-    R: AsyncRead + AsyncSeek + Unpin + Send,
-    W: AsyncWrite + Unpin + Send,
-    D: Clone,
-{
-    file: Arc<Mutex<(R, W)>>,
-    tree: CommitTree,
-    data: D,
-    identity: &'static [u8],
-    version: Option<u16>,
-    phantom: std::marker::PhantomData<(E, D)>,
-}
-
-impl<E, R, W, D> EventLog<E, R, W, D>
-where
-    E: Default + Encodable + Decodable + Send + Sync,
-    R: AsyncRead + AsyncSeek + Unpin + Send,
-    W: AsyncWrite + Unpin + Send,
-    D: Clone,
-{
-    /// Encode an event into a record.
-    async fn encode_event(
-        &self,
-        event: &E,
-        last_commit: Option<CommitHash>,
-    ) -> Result<(CommitHash, EventRecord)> {
-        let time: Timestamp = Default::default();
-        let bytes = encode(event).await?;
-        let commit = CommitHash(CommitTree::hash(&bytes));
-
-        let last_commit = if let Some(last_commit) = last_commit {
-            last_commit
-        } else {
-            self.tree.last_commit().unwrap_or_default()
-        };
-
-        Ok((commit, EventRecord(time, last_commit, commit, bytes)))
-    }
-
-    /// Read the event data from an item.
-    pub(crate) async fn decode_event(
-        &self,
-        item: &EventLogRecord,
-    ) -> Result<E> {
-        let value = item.value();
-
-        let mut file = MutexGuard::map(self.file.lock().await, |f| &mut f.0);
-
-        file.seek(SeekFrom::Start(value.start)).await?;
-        let mut buffer = vec![0; (value.end - value.start) as usize];
-        file.read_exact(buffer.as_mut_slice()).await?;
-
-        let mut stream = BufReader::new(Cursor::new(&mut buffer));
-        let mut reader = BinaryReader::new(&mut stream, encoding_options());
-        let mut event: E = Default::default();
-        event.decode(&mut reader).await?;
-        Ok(event)
-    }
 
     /// Read encoding version from the backing storage.
     #[doc(hidden)]
-    pub async fn read_file_version(&self) -> Result<u16> {
-        if let Some(_) = &self.version {
+    async fn read_file_version(&self) -> Result<u16> {
+        if let Some(_) = self.version() {
+            let rw = self.file();
             let mut file =
-                MutexGuard::map(self.file.lock().await, |f| &mut f.0);
-            file.seek(SeekFrom::Start(self.identity.len() as u64))
+                MutexGuard::map(rw.lock().await, |f| &mut f.0);
+            file.seek(SeekFrom::Start(self.identity().len() as u64))
                 .await?;
             let mut buf = [0; 2];
             file.read_exact(&mut buf).await?;
@@ -341,28 +275,28 @@ where
     /// Append a patch to this event log only if the
     /// head of the tree matches the given proof.
     #[cfg(feature = "sync")]
-    pub async fn patch_checked(
+    async fn patch_checked(
         &mut self,
         commit_proof: &CommitProof,
         patch: &Patch<E>,
     ) -> Result<CheckedPatch> {
-        let comparison = self.tree.compare(&commit_proof)?;
+        let comparison = self.tree().compare(&commit_proof)?;
         match comparison {
             Comparison::Equal => {
                 let commits = self.patch_unchecked(patch).await?;
-                let proof = self.tree.head()?;
+                let proof = self.tree().head()?;
                 Ok(CheckedPatch::Success(proof, commits))
             }
             Comparison::Contains(indices, _leaves) => {
-                let head = self.tree.head()?;
-                let contains = self.tree.proof(&indices)?;
+                let head = self.tree().head()?;
+                let contains = self.tree().proof(&indices)?;
                 Ok(CheckedPatch::Conflict {
                     head,
                     contains: Some(contains),
                 })
             }
             Comparison::Unknown => {
-                let head = self.tree.head()?;
+                let head = self.tree().head()?;
                 Ok(CheckedPatch::Conflict {
                     head,
                     contains: None,
@@ -373,7 +307,7 @@ where
 
     /// Append a patch to this event log.
     #[cfg(feature = "sync")]
-    pub async fn patch_unchecked(
+    async fn patch_unchecked(
         &mut self,
         patch: &Patch<E>,
     ) -> Result<Vec<CommitHash>> {
@@ -382,13 +316,13 @@ where
 
     /// Append a collection of events and commit the tree hashes
     /// only if all the events were successfully written.
-    pub async fn apply(
+    async fn apply(
         &mut self,
         events: Vec<&E>,
     ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
-        let mut last_commit_hash = self.tree.last_commit();
+        let mut last_commit_hash = self.tree().last_commit();
         for event in events {
             let (commit, record) =
                 self.encode_event(event, last_commit_hash).await?;
@@ -397,21 +331,97 @@ where
             last_commit_hash = Some(*record.commit());
             buffer.append(&mut buf);
         }
-
-        let mut file = MutexGuard::map(self.file.lock().await, |f| &mut f.1);
+        
+        let rw = self.file();
+        let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.1);
         match file.write_all(&buffer).await {
             Ok(_) => {
                 file.flush().await?;
                 let mut hashes =
                     commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
-                self.tree.append(&mut hashes);
-                self.tree.commit();
+                let tree = self.tree_mut();
+                tree.append(&mut hashes);
+                tree.commit();
                 Ok(commits)
             }
             Err(e) => Err(e.into()),
         }
     }
+
+    /// Encode an event into a record.
+    #[doc(hidden)]
+    async fn encode_event(
+        &self,
+        event: &E,
+        last_commit: Option<CommitHash>,
+    ) -> Result<(CommitHash, EventRecord)> {
+        let time: Timestamp = Default::default();
+        let bytes = encode(event).await?;
+        let commit = CommitHash(CommitTree::hash(&bytes));
+
+        let last_commit = if let Some(last_commit) = last_commit {
+            last_commit
+        } else {
+            self.tree().last_commit().unwrap_or_default()
+        };
+
+        Ok((commit, EventRecord(time, last_commit, commit, bytes)))
+    }
+
+    /// Read the event data from an item.
+    #[doc(hidden)]
+    async fn decode_event(
+        &self,
+        item: &EventLogRecord,
+    ) -> Result<E> {
+        let value = item.value();
+        
+        let rw = self.file();
+        let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.0);
+
+        file.seek(SeekFrom::Start(value.start)).await?;
+        let mut buffer = vec![0; (value.end - value.start) as usize];
+        file.read_exact(buffer.as_mut_slice()).await?;
+
+        let mut stream = BufReader::new(Cursor::new(&mut buffer));
+        let mut reader = BinaryReader::new(&mut stream, encoding_options());
+        let mut event: E = Default::default();
+        event.decode(&mut reader).await?;
+        Ok(event)
+    }
+
 }
+
+/// Event log.
+///
+/// Appends events to an append-only writer and reads events
+/// via a reader whilst managing an in-memory merkle tree
+/// of event hashes.
+pub struct EventLog<E, R, W, D>
+where
+    E: Default + Encodable + Decodable + Send + Sync,
+    R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
+    W: AsyncWrite + Unpin + Send + Sync,
+    D: Clone,
+{
+    file: Arc<Mutex<(R, W)>>,
+    tree: CommitTree,
+    data: D,
+    identity: &'static [u8],
+    version: Option<u16>,
+    phantom: std::marker::PhantomData<(E, D)>,
+}
+
+/*
+impl<E, R, W, D> EventLog<E, R, W, D>
+where
+    E: Default + Encodable + Decodable + Send + Sync,
+    R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
+    W: AsyncWrite + Unpin + Send + Sync,
+    D: Clone,
+{
+}
+*/
 
 #[async_trait]
 impl<E> EventLogExt<E, DiscLog, DiscLog, PathBuf>

@@ -15,7 +15,7 @@ use crate::{
 };
 
 use std::{
-    path::{Path, PathBuf},
+    path::Path,
     sync::Arc,
 };
 use tokio::sync::RwLock;
@@ -33,8 +33,8 @@ pub type MemoryFolder =
 pub struct Folder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
-    R: AsyncRead + AsyncSeek + Unpin + Send + 'static,
-    W: AsyncWrite + Unpin + Send + 'static,
+    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + Unpin + Send + Sync + 'static,
     D: Clone,
 {
     pub(crate) keeper: Gatekeeper,
@@ -45,8 +45,8 @@ where
 impl<T, R, W, D> Folder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
-    R: AsyncRead + AsyncSeek + Unpin + Send + 'static,
-    W: AsyncWrite + Unpin + Send + 'static,
+    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + Unpin + Send + Sync + 'static,
     D: Clone,
 {
     /// Create a new folder.
