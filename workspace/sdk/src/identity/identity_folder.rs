@@ -23,7 +23,7 @@ use crate::{
         ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
         ed25519, Signer,
     },
-    storage::{DiscFolder, Folder, MemoryFolder},
+    storage::{DiscFolder, ClientFolder, MemoryFolder},
     vault::{
         secret::{
             Secret, SecretId, SecretMeta, SecretRow, SecretSigner, UserData,
@@ -66,7 +66,7 @@ where
     W: AsyncWrite + Unpin + Send + Sync + 'static,
     D: Clone,
 {
-    folder: Folder<T, R, W, D>,
+    folder: ClientFolder<T, R, W, D>,
     index: UrnLookup,
     private_identity: PrivateIdentity,
     #[cfg(feature = "device")]
