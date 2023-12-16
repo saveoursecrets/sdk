@@ -14,6 +14,7 @@ use crate::{
     vfs, Paths, Result,
 };
 
+use async_trait::async_trait;
 use std::{path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -25,6 +26,52 @@ pub type DiscFolder = ClientFolder<FolderEventLog, DiscLog, DiscLog, DiscData>;
 /// Folder that writes events to memory.
 pub type MemoryFolder =
     ClientFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData>;
+
+#[async_trait]
+pub trait Folder {
+    /// Create a secret.
+    ///
+    /// # Panics
+    ///
+    /// If this folder is a server folder.
+    async fn create_secret(
+        &mut self,
+        secret_data: &SecretRow,
+    ) -> Result<WriteEvent>;
+
+
+    /// Get a secret and it's meta data.
+    ///
+    /// # Panics
+    ///
+    /// If this folder is a server folder.
+    async fn read_secret(
+        &self,
+        id: &SecretId,
+    ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>>;
+
+    /// Update a secret.
+    ///
+    /// # Panics
+    ///
+    /// If this folder is a server folder.
+    async fn update_secret(
+        &mut self,
+        id: &SecretId,
+        secret_meta: SecretMeta,
+        secret: Secret,
+    ) -> Result<Option<WriteEvent>>;
+
+    /// Delete a secret and it's meta data.
+    ///
+    /// # Panics
+    ///
+    /// If this folder is a server folder.
+    async fn delete_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent>>;
+}
 
 /// Folder is a combined vault and event log.
 pub struct ClientFolder<T, R, W, D>
