@@ -128,7 +128,8 @@ pub async fn resolve_folder(
         let owner = owner.read().await;
         let storage = owner.storage().await?;
         let reader = storage.read().await;
-        let summary = reader.current_folder().ok_or(Error::NoVaultSelected)?;
+        let summary =
+            reader.current_folder().ok_or(Error::NoVaultSelected)?;
         Ok(Some(summary.clone()))
     } else {
         let storage = owner.storage().await?;

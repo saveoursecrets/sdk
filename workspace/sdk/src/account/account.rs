@@ -434,9 +434,12 @@ impl<D> Account<D> {
             folders: reader.list_folders().to_vec(),
         })
     }
-    
+
     /// Read the secret identifiers in a vault.
-    pub async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
+    pub async fn secret_ids(
+        &self,
+        summary: &Summary,
+    ) -> Result<Vec<SecretId>> {
         let storage = self.storage()?;
         let reader = storage.read().await;
         let vault: Vault = reader.read_vault(summary.id()).await?;
@@ -963,16 +966,15 @@ impl<D> Account<D> {
                 .or_else(|| reader.current().map(|g| g.summary().clone()))
                 .ok_or(Error::NoOpenFolder)?;
 
-            let event_log = reader
+            let commit_state = reader
                 .cache()
                 .get(folder.id())
-                .ok_or(Error::CacheNotAvailable(*folder.id()))?;
-            let last_commit =
-                event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
-            let commit_proof = event_log.tree().head()?;
+                .ok_or(Error::CacheNotAvailable(*folder.id()))?
+                .commit_state()
+                .await?;
             BeforeChange {
                 folder,
-                commit_state: (last_commit, commit_proof),
+                commit_state,
                 #[cfg(feature = "sync")]
                 sync_status: reader.sync_status().await?,
             }
@@ -1398,15 +1400,17 @@ impl<D> Account<D> {
         let storage = self.storage()?;
         let reader = storage.read().await;
         let cache = reader.cache();
-        let log_file = cache
+        let folder = cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
 
         let passphrase =
             self.user()?.find_folder_password(summary.id()).await?;
 
+        let event_log = folder.event_log();
+        let log_file = event_log.read().await;
         let vault = EventReducer::new_until_commit(commit)
-            .reduce(log_file)
+            .reduce(&*log_file)
             .await?
             .build(true)
             .await?;
@@ -1431,9 +1435,11 @@ impl<D> Account<D> {
         let storage = self.storage()?;
         let reader = storage.read().await;
         let cache = reader.cache();
-        let log_file = cache
+        let folder = cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
+        let event_log = folder.event_log();
+        let log_file = event_log.read().await;
         Ok(log_file.tree().root().ok_or_else(|| Error::NoRootCommit)?)
     }
 

@@ -251,6 +251,18 @@ where
         Ok(events)
     }
 
+    /// Delete all events from the log file on disc
+    /// and in-memory.
+    async fn clear(&mut self) -> Result<()> {
+        self.truncate().await?;
+        let mut tree = self.tree_mut();
+        *tree = CommitTree::new();
+        Ok(())
+    }
+
+    /// Truncate the backing storage to an empty file.
+    async fn truncate(&mut self) -> Result<()>;
+
     /// Read encoding version from the backing storage.
     #[doc(hidden)]
     async fn read_file_version(&self) -> Result<u16> {
@@ -449,6 +461,24 @@ where
     fn data(&self) -> PathBuf {
         self.data.clone()
     }
+
+    async fn truncate(&mut self) -> Result<()> {
+        let _ = self.file.lock().await;
+
+        // Workaround for set_len(0) failing with "Access Denied" on Windows
+        // SEE: https://github.com/rust-lang/rust/issues/105437
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.data)
+            .await?
+            .compat_write();
+
+        file.seek(SeekFrom::Start(0)).await?;
+        file.write_all(&self.identity).await?;
+        file.flush().await?;
+        Ok(())
+    }
 }
 
 impl<E> EventLog<E, DiscLog, DiscLog, PathBuf>
@@ -483,33 +513,6 @@ where
     /// Create the reader for an event log file.
     async fn create_reader<P: AsRef<Path>>(path: P) -> Result<DiscLog> {
         Ok(File::open(path).await?.compat())
-    }
-
-    /// Delete all events from the log file on disc
-    /// and in-memory.
-    pub async fn clear(&mut self) -> Result<()> {
-        self.truncate().await?;
-        self.tree = CommitTree::new();
-        Ok(())
-    }
-
-    /// Truncate the backing storage to an empty file.
-    async fn truncate(&mut self) -> Result<()> {
-        let _ = self.file.lock().await;
-
-        // Workaround for set_len(0) failing with "Access Denied" on Windows
-        // SEE: https://github.com/rust-lang/rust/issues/105437
-        let mut file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(&self.data)
-            .await?
-            .compat_write();
-
-        file.seek(SeekFrom::Start(0)).await?;
-        file.write_all(&self.identity).await?;
-        file.flush().await?;
-        Ok(())
     }
 }
 
@@ -583,6 +586,10 @@ impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
 
     fn data(&self) -> MemoryInner {
         self.data.clone()
+    }
+
+    async fn truncate(&mut self) -> Result<()> {
+        unimplemented!("truncate on memory event log");
     }
 }
 

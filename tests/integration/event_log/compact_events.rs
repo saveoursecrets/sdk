@@ -63,7 +63,10 @@ async fn integration_events_compact() -> Result<()> {
     let new_root = {
         let storage = account.storage()?;
         let reader = storage.read().await;
-        let tree = reader.commit_tree(&default_folder).unwrap();
+        let folder = reader.cache().get(default_folder.id()).unwrap();
+        let event_log = folder.event_log();
+        let event_log = event_log.read().await;
+        let tree = event_log.tree();
         assert_eq!(2, tree.len());
         tree.root().unwrap()
     };

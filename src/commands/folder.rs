@@ -2,7 +2,10 @@ use clap::Subcommand;
 
 use human_bytes::human_bytes;
 use sos_net::sdk::{
-    events::LogEvent, hex, identity::AccountRef, vault::FolderRef,
+    events::{EventLogExt, LogEvent},
+    hex,
+    identity::AccountRef,
+    vault::FolderRef,
 };
 
 use crate::{
@@ -254,7 +257,10 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let storage = owner.storage().await?;
             let reader = storage.read().await;
-            if let Some(tree) = reader.commit_tree(&summary) {
+            if let Some(folder) = reader.cache().get(summary.id()) {
+                let event_log = folder.event_log();
+                let event_log = event_log.read().await;
+                let tree = event_log.tree();
                 if let Some(leaves) = tree.leaves() {
                     for leaf in &leaves {
                         println!("{}", hex::encode(leaf));
@@ -313,8 +319,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                         let owner = user.read().await;
                         let storage = owner.storage().await?;
                         let reader = storage.read().await;
-                        let summary =
-                            reader.current_folder().ok_or(Error::NoVaultSelected)?;
+                        let summary = reader
+                            .current_folder()
+                            .ok_or(Error::NoVaultSelected)?;
                         summary.clone()
                     };
 
@@ -335,8 +342,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let owner = user.read().await;
                     let storage = owner.storage().await?;
                     let reader = storage.read().await;
-                    let summary =
-                        reader.current_folder().ok_or(Error::NoVaultSelected)?;
+                    let summary = reader
+                        .current_folder()
+                        .ok_or(Error::NoVaultSelected)?;
                     reader.verify(summary).await?;
                     println!("Verified ✓");
                 }
@@ -344,8 +352,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let owner = user.read().await;
                     let storage = owner.storage().await?;
                     let reader = storage.read().await;
-                    let summary =
-                        reader.current_folder().ok_or(Error::NoVaultSelected)?;
+                    let summary = reader
+                        .current_folder()
+                        .ok_or(Error::NoVaultSelected)?;
                     let records = reader.history(summary).await?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);

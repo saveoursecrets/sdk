@@ -1,5 +1,6 @@
 //! Storage backed by the filesystem.
 use crate::{
+    commit::CommitState,
     constants::EVENT_LOG_EXT,
     crypto::AccessKey,
     decode,
@@ -129,6 +130,29 @@ where
         } else {
             Ok(None)
         }
+    }
+
+    /// Folder commit state.
+    pub async fn commit_state(&self) -> Result<CommitState> {
+        let event_log = self.events.read().await;
+        Ok(event_log.tree().commit_state()?)
+    }
+
+    /// Apply events to the event log.
+    pub(super) async fn apply(
+        &mut self,
+        events: Vec<&WriteEvent>,
+    ) -> Result<()> {
+        let mut event_log = self.events.write().await;
+        event_log.apply(events).await?;
+        Ok(())
+    }
+
+    /// Clear events from the event log.
+    pub(super) async fn clear(&mut self) -> Result<()> {
+        let mut event_log = self.events.write().await;
+        event_log.clear().await?;
+        Ok(())
     }
 }
 

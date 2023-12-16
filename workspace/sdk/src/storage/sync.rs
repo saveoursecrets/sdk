@@ -3,20 +3,20 @@ use crate::{
     account::Account,
     encode,
     events::{
-        AccountEvent, EventLogExt, EventReducer, FolderEventLog, WriteEvent,
-        AccountEventLog,
+        AccountEvent, AccountEventLog, EventLogExt, EventReducer,
+        FolderEventLog, WriteEvent,
     },
-    storage::{ServerStorage, ClientStorage},
+    storage::{ClientStorage, ServerStorage},
     sync::{
-        AccountDiff, ChangeSet, FolderDiff, FolderPatch, SyncDiff, SyncStatus,
-        SyncStorage,
+        AccountDiff, ChangeSet, FolderDiff, FolderPatch, SyncDiff,
+        SyncStatus, SyncStorage,
     },
     vault::VaultId,
     vfs, Error, Paths, Result,
 };
 use async_trait::async_trait;
-use tokio::sync::{RwLock, Mutex};
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::{Mutex, RwLock};
 
 impl ServerStorage {
     /// Create a new vault file on disc and the associated
@@ -85,17 +85,15 @@ impl ServerStorage {
             let buffer = encode(&vault).await?;
             vfs::write(vault_path, buffer).await?;
 
-            self.cache_mut().insert(*id, event_log);
+            self.cache_mut()
+                .insert(*id, Arc::new(RwLock::new(event_log)));
         }
 
         Ok(())
     }
 
     /// Merge a diff into this storage.
-    pub async fn merge_diff(
-        &mut self,
-        diff: &SyncDiff,
-    ) -> Result<usize> {
+    pub async fn merge_diff(&mut self, diff: &SyncDiff) -> Result<usize> {
         let mut num_changes = 0;
 
         if let Some(diff) = &diff.identity {
@@ -106,8 +104,7 @@ impl ServerStorage {
             num_changes += self.replay_account_events(diff).await?;
         }
 
-        num_changes +=
-            self.replay_folder_events(&diff.folders).await?;
+        num_changes += self.replay_folder_events(&diff.folders).await?;
 
         Ok(num_changes)
     }
@@ -134,14 +131,16 @@ impl ServerStorage {
                     self.import_folder(id, buf).await?;
                 }
                 AccountEvent::RenameFolder(id, name) => {
-                    let id = self.cache.keys().find(|&fid| fid == id).cloned();
-                    if let Some(id) = &id{
+                    let id =
+                        self.cache.keys().find(|&fid| fid == id).cloned();
+                    if let Some(id) = &id {
                         self.rename_folder(id, name).await?;
                     }
                 }
                 AccountEvent::DeleteFolder(id) => {
-                    let id = self.cache.keys().find(|&fid| fid == id).cloned();
-                    if let Some(id) = &id{
+                    let id =
+                        self.cache.keys().find(|&fid| fid == id).cloned();
+                    if let Some(id) = &id {
                         self.delete_folder(id).await?;
                     }
                 }
@@ -164,13 +163,13 @@ impl ServerStorage {
                 .cache
                 .get_mut(id)
                 .ok_or_else(|| Error::CacheNotAvailable(*id))?;
+            let mut log = log.write().await;
 
             log.patch_checked(&diff.before, &diff.patch).await?;
             num_changes += diff.patch.len();
         }
         Ok(num_changes)
     }
-
 }
 
 #[async_trait]
@@ -188,10 +187,9 @@ impl SyncStorage for ServerStorage {
 
         let mut folders = HashMap::new();
         for (id, event_log) in &self.cache {
-            let last_commit =
-                event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
-            let head = event_log.tree().head()?;
-            folders.insert(*id, (last_commit, head));
+            let event_log = event_log.read().await;
+            let commit_state = event_log.tree().commit_state()?;
+            folders.insert(*id, commit_state);
         }
         Ok(SyncStatus {
             identity,
@@ -208,16 +206,17 @@ impl SyncStorage for ServerStorage {
         Arc::clone(&self.account_log)
     }
 
-    fn folder_log(&self, id: &VaultId) -> Result<&FolderEventLog> {
-        self
-            .cache
-            .get(id)
-            .ok_or(Error::CacheNotAvailable(*id))
+    fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(Arc::clone(
+            self.cache.get(id).ok_or(Error::CacheNotAvailable(*id))?,
+        ))
     }
 }
 
 impl ClientStorage {
-
     /// Change set of all event logs.
     ///
     /// Used by network aware implementations to send
@@ -235,11 +234,13 @@ impl ClientStorage {
 
         let mut folders = HashMap::new();
         for summary in &self.summaries {
-            let folder_log = self
+            let folder = self
                 .cache
                 .get(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            folders.insert(*summary.id(), folder_log.diff(None).await?);
+            let event_log = folder.event_log();
+            let log_file = event_log.read().await;
+            folders.insert(*summary.id(), log_file.diff(None).await?);
         }
 
         Ok(ChangeSet {
@@ -265,8 +266,7 @@ impl ClientStorage {
             num_changes += self.replay_account_events(diff).await?;
         }
 
-        num_changes +=
-            self.replay_folder_events(&diff.folders).await?;
+        num_changes += self.replay_folder_events(&diff.folders).await?;
 
         Ok(num_changes)
     }
@@ -291,7 +291,6 @@ impl ClientStorage {
     ) -> Result<usize> {
         todo!("client replay folder events");
     }
-
 
     /*
     /// Apply identity-level events to this storage
@@ -388,7 +387,6 @@ impl ClientStorage {
 
 #[async_trait]
 impl SyncStorage for ClientStorage {
-
     async fn sync_status(&self) -> Result<SyncStatus> {
         let identity = {
             let reader = self.identity_log.read().await;
@@ -402,15 +400,13 @@ impl SyncStorage for ClientStorage {
 
         let mut folders = HashMap::new();
         for summary in &self.summaries {
-            let event_log = self
+            let folder = self
                 .cache
                 .get(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-            let last_commit =
-                event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
-            let head = event_log.tree().head()?;
-            folders.insert(*summary.id(), (last_commit, head));
+            let commit_state = folder.commit_state().await?;
+            folders.insert(*summary.id(), commit_state);
         }
         Ok(SyncStatus {
             identity,
@@ -427,10 +423,12 @@ impl SyncStorage for ClientStorage {
         Arc::clone(&self.account_log)
     }
 
-    fn folder_log(&self, id: &VaultId) -> Result<&FolderEventLog> {
-        self
-            .cache
-            .get(id)
-            .ok_or(Error::CacheNotAvailable(*id))
+    fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let folder =
+            self.cache.get(id).ok_or(Error::CacheNotAvailable(*id))?;
+        Ok(folder.event_log())
     }
 }

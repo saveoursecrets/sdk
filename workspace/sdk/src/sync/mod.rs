@@ -2,15 +2,18 @@
 
 use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
-    events::{AccountEvent, EventLogExt, WriteEvent, FolderEventLog, AccountEventLog},
+    events::{
+        AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
+        WriteEvent,
+    },
     vault::VaultId,
     Error, Result,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::RwLock;
 use url::Url;
 
 mod patch;
@@ -122,6 +125,7 @@ impl SyncComparison {
                 // Folder may exist on remote but not locally
                 // if we have just deleted a folder
                 if let Ok(event_log) = storage.folder_log(id) {
+                    let event_log = event_log.read().await;
                     folders.insert(*id, event_log.tree().compare(&folder.1)?);
                 }
             }
@@ -213,6 +217,7 @@ impl SyncComparison {
                 Comparison::Contains(_, _) => {
                     // Need to push changes to remote
                     let log = storage.folder_log(id)?;
+                    let log = log.read().await;
 
                     let is_last_commit = Some(&commit_state.0)
                         == log.tree().last_commit().as_ref();
@@ -289,8 +294,8 @@ pub trait SyncStorage {
 
     /// Clone of the account log.
     fn account_log(&self) -> Arc<RwLock<AccountEventLog>>;
-    
-    /// Folder event log.
-    fn folder_log(&self, id: &VaultId) -> Result<&FolderEventLog>;
-}
 
+    /// Folder event log.
+    fn folder_log(&self, id: &VaultId)
+        -> Result<Arc<RwLock<FolderEventLog>>>;
+}

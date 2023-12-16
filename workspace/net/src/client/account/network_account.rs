@@ -8,9 +8,7 @@ use sos_sdk::{
     device::DeviceSigner,
     events::{Event, ReadEvent},
     identity::{AccountRef, PublicIdentity},
-    signer::{
-        ecdsa::{Address, BoxedEcdsaSigner},
-    },
+    signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
         search::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
@@ -297,7 +295,6 @@ impl NetworkAccount {
 
     /// Sign in to an account.
     pub async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-
         let folders = {
             let mut account = self.account.lock().await;
             let folders = account.sign_in(key).await?;

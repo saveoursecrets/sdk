@@ -1,7 +1,8 @@
 //! Bridge between local storage and a remote server.
 use crate::client::{
-    net::RpcClient, Error, RemoteSync, Result, SyncError, SyncOptions,
-    account::{LocalAccount, sync::SyncHandlerData},
+    account::{sync::SyncHandlerData, LocalAccount},
+    net::RpcClient,
+    Error, RemoteSync, Result, SyncError, SyncOptions,
 };
 
 use async_trait::async_trait;
@@ -87,7 +88,7 @@ pub type Remotes = HashMap<Origin, Remote>;
 pub struct RemoteBridge {
     /// Origin for this remote.
     origin: HostedOrigin,
-    /// Account so we can replay events 
+    /// Account so we can replay events
     /// when a remote diff is merged.
     account: Arc<Mutex<LocalAccount>>,
     /// Local provider.
@@ -161,8 +162,12 @@ impl RemoteBridge {
 
             println!("sync got diff {:#?}", pull);
 
-            storage.merge_diff::<SyncHandlerData>(
-                &pull, Arc::clone(&self.account)).await?;
+            storage
+                .merge_diff::<SyncHandlerData>(
+                    &pull,
+                    Arc::clone(&self.account),
+                )
+                .await?;
         }
 
         Ok(())

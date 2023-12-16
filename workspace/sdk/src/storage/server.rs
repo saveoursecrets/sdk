@@ -4,22 +4,15 @@ use crate::{
     constants::VAULT_EXT,
     decode,
     events::{
-        AccountEvent, AccountEventLog, AuditEvent, Event,
-        EventLogExt, EventReducer, FolderEventLog,
+        AccountEvent, AccountEventLog, AuditEvent, Event, EventLogExt,
+        EventReducer, FolderEventLog,
     },
     signer::ecdsa::Address,
-    vault::{
-        Header, Summary, Vault, VaultAccess,
-        VaultId, VaultWriter,
-    },
+    vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
     vfs, Error, Paths, Result,
 };
 
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use tracing::{span, Level};
 
@@ -41,7 +34,7 @@ pub struct ServerStorage {
     pub(super) account_log: Arc<RwLock<AccountEventLog>>,
 
     /// Folder event logs.
-    pub(super) cache: HashMap<VaultId, FolderEventLog>,
+    pub(super) cache: HashMap<VaultId, Arc<RwLock<FolderEventLog>>>,
 
     /// File event log.
     #[cfg(feature = "files")]
@@ -49,7 +42,6 @@ pub struct ServerStorage {
 }
 
 impl ServerStorage {
-
     /// Create folder storage for server-side access.
     pub async fn new(
         address: Address,
@@ -63,8 +55,7 @@ impl ServerStorage {
         };
 
         let dirs = Paths::new_server(data_dir, address.to_string());
-        Self::new_paths(Arc::new(dirs), address, identity_log)
-            .await
+        Self::new_paths(Arc::new(dirs), address, identity_log).await
     }
 
     /// Create new storage backed by files on disc.
@@ -140,12 +131,14 @@ impl ServerStorage {
     }
 
     /// Get the event log cache.
-    pub fn cache(&self) -> &HashMap<VaultId, FolderEventLog> {
+    pub fn cache(&self) -> &HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
         &self.cache
     }
 
     /// Get the mutable event log cache.
-    pub fn cache_mut(&mut self) -> &mut HashMap<VaultId, FolderEventLog> {
+    pub fn cache_mut(
+        &mut self,
+    ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
         &mut self.cache
     }
 
@@ -155,14 +148,11 @@ impl ServerStorage {
     }
 
     /// Create new event log cache entries.
-    async fn create_cache_entry(
-        &mut self,
-        id: &VaultId,
-    ) -> Result<()> {
+    async fn create_cache_entry(&mut self, id: &VaultId) -> Result<()> {
         let event_log_path = self.paths.event_log_path(id);
         let mut event_log = FolderEventLog::new(&event_log_path).await?;
         event_log.load_tree().await?;
-        self.cache.insert(*id, event_log);
+        self.cache.insert(*id, Arc::new(RwLock::new(event_log)));
         Ok(())
     }
 
@@ -178,12 +168,14 @@ impl ServerStorage {
         Ok(())
     }
 
+    /*
     /// Commit tree for an event log file.
     pub fn commit_tree(&self, id: &VaultId) -> Option<&CommitTree> {
         self.cache
             .get(id)
             .map(|event_log| event_log.tree())
     }
+    */
 
     /// Remove the local cache for a vault.
     fn remove_local_cache(&mut self, id: &VaultId) -> Result<()> {
@@ -256,16 +248,10 @@ impl ServerStorage {
         // and we are overwriting then log the update
         // folder event
         let account_event = if exists {
-            AccountEvent::UpdateFolder(
-                *id,
-                buffer.as_ref().to_owned(),
-            )
+            AccountEvent::UpdateFolder(*id, buffer.as_ref().to_owned())
         // Otherwise a create event
         } else {
-            AccountEvent::CreateFolder(
-                *id,
-                buffer.as_ref().to_owned(),
-            )
+            AccountEvent::CreateFolder(*id, buffer.as_ref().to_owned())
         };
 
         let mut account_log = self.account_log.write().await;
@@ -278,10 +264,7 @@ impl ServerStorage {
     }
 
     /// Delete a folder.
-    pub async fn delete_folder(
-        &mut self,
-        id: &VaultId,
-    ) -> Result<()> {
+    pub async fn delete_folder(&mut self, id: &VaultId) -> Result<()> {
         // Remove the files
         self.remove_vault_file(id).await?;
 
@@ -289,7 +272,7 @@ impl ServerStorage {
         self.remove_local_cache(id)?;
 
         let mut events = Vec::new();
-        
+
         /*
         #[cfg(feature = "files")]
         {
@@ -311,24 +294,21 @@ impl ServerStorage {
 
         Ok(())
     }
-    
+
     /// Set the name of a vault.
     pub async fn rename_folder(
         &mut self,
         id: &VaultId,
         name: impl AsRef<str>,
     ) -> Result<()> {
-
         // Update the vault on disc
         let vault_path = self.paths.vault_path(id);
         let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
         access.set_vault_name(name.as_ref().to_owned()).await?;
 
-        let account_event = AccountEvent::RenameFolder(
-            *id,
-            name.as_ref().to_owned(),
-        );
+        let account_event =
+            AccountEvent::RenameFolder(*id, name.as_ref().to_owned());
 
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
@@ -352,10 +332,11 @@ impl ServerStorage {
         &self,
         summary: &Summary,
     ) -> Result<CommitState> {
-        let log_file = self
+        let event_log = self
             .cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
-        log_file.tree().commit_state()
+        let event_log = event_log.read().await;
+        Ok(event_log.tree().commit_state()?)
     }
 }

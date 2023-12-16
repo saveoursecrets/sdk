@@ -348,11 +348,7 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
             let storage = owner.storage().await?;
             let reader = storage.read().await;
             if let Some(current) = reader.current_folder() {
-                println!(
-                    "{} {}",
-                    current.name(),
-                    current.id(),
-                );
+                println!("{} {}", current.name(), current.id(),);
             }
             Ok(())
         }

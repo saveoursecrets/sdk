@@ -11,8 +11,7 @@ use crate::{
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
     signer::ecdsa::Address,
-    storage::AccessOptions,
-    storage::AccountPack,
+    storage::{AccessOptions, AccountPack, DiscFolder},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
@@ -68,7 +67,7 @@ pub struct ClientStorage {
     pub(super) account_log: Arc<RwLock<AccountEventLog>>,
 
     /// Folder event logs.
-    pub(super) cache: HashMap<VaultId, FolderEventLog>,
+    pub(super) cache: HashMap<VaultId, DiscFolder>,
 
     /// File event log.
     #[cfg(feature = "files")]
@@ -93,8 +92,7 @@ impl ClientStorage {
         };
 
         let dirs = Paths::new(data_dir, address.to_string());
-        Self::new_paths(Arc::new(dirs), address, identity_log)
-            .await
+        Self::new_paths(Arc::new(dirs), address, identity_log).await
     }
 
     /// Create new storage backed by files on disc.
@@ -184,12 +182,12 @@ impl ClientStorage {
     }
 
     /// Get the event log cache.
-    pub fn cache(&self) -> &HashMap<VaultId, FolderEventLog> {
+    pub fn cache(&self) -> &HashMap<VaultId, DiscFolder> {
         &self.cache
     }
 
     /// Get the mutable event log cache.
-    pub fn cache_mut(&mut self) -> &mut HashMap<VaultId, FolderEventLog> {
+    pub fn cache_mut(&mut self) -> &mut HashMap<VaultId, DiscFolder> {
         &mut self.cache
     }
 
@@ -402,18 +400,17 @@ impl ClientStorage {
         summary: &Summary,
         vault: Option<Vault>,
     ) -> Result<()> {
-        let event_log_path = self.paths.event_log_path(summary.id());
-        let mut event_log = FolderEventLog::new(&event_log_path).await?;
+        let vault_path = self.paths.vault_path(summary.id());
+        let mut event_log = DiscFolder::new(&vault_path).await?;
 
         if let Some(vault) = vault {
             // Must truncate the event log so that importing vaults
             // does not end up with multiple create vault events
             event_log.clear().await?;
 
-            let (vault, events) = EventReducer::split(vault).await?;
+            let (_, events) = EventReducer::split(vault).await?;
             event_log.apply(events.iter().collect()).await?;
         }
-        event_log.load_tree().await?;
 
         self.cache.insert(*summary.id(), event_log);
 
@@ -557,13 +554,6 @@ impl ClientStorage {
             current.lock();
         }
         self.current = None;
-    }
-
-    /// Get a reference to the commit tree for an event log file.
-    pub fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree> {
-        self.cache
-            .get(summary.id())
-            .map(|event_log| event_log.tree())
     }
 
     /// Remove the local cache for a vault.
@@ -750,13 +740,10 @@ impl ClientStorage {
             self.add_summary(summary.clone());
         } else {
             // Otherwise update with the new summary
-            if let Some(position) = self
-                .summaries
-                .iter()
-                .position(|s| s.id() == summary.id())
+            if let Some(position) =
+                self.summaries.iter().position(|s| s.id() == summary.id())
             {
-                let existing =
-                    self.summaries.get_mut(position).unwrap();
+                let existing = self.summaries.get_mut(position).unwrap();
                 *existing = summary.clone();
             }
         }
@@ -791,29 +778,35 @@ impl ClientStorage {
         self.write_vault_file(summary.id(), &buffer).await?;
 
         // Apply events to the event log
-        let event_log = self
+        let folder = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        event_log.clear().await?;
-        event_log.apply(events.iter().collect()).await?;
+        folder.clear().await?;
+        folder.apply(events.iter().collect()).await?;
 
         Ok(buffer)
     }
 
     /// Compact an event log file.
     pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let event_log_file = self
-            .cache
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let (old_size, new_size) = {
+            let folder = self
+                .cache
+                .get_mut(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            let event_log = folder.event_log();
+            let mut log_file = event_log.write().await;
 
-        let (compact_event_log, old_size, new_size) =
-            event_log_file.compact().await?;
+            let (compact_event_log, old_size, new_size) =
+                log_file.compact().await?;
 
-        // Need to recreate the event log file and load the updated
-        // commit tree
-        *event_log_file = compact_event_log;
+            // Need to recreate the event log file and load the updated
+            // commit tree
+            *log_file = compact_event_log;
+
+            (old_size, new_size)
+        };
 
         // Refresh in-memory vault and mirrored copy
         let buffer = self.refresh_vault(summary, None).await?;
@@ -829,12 +822,14 @@ impl ClientStorage {
 
     /// Load a vault by reducing it from the event log stored on disc.
     async fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault> {
-        let event_log_file = self
+        let folder = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let event_log = folder.event_log();
+        let log_file = event_log.read().await;
         Ok(EventReducer::new()
-            .reduce(event_log_file)
+            .reduce(&*log_file)
             .await?
             .build(true)
             .await?)
@@ -975,12 +970,11 @@ impl ClientStorage {
         summary: &Summary,
         events: Vec<&WriteEvent>,
     ) -> Result<()> {
-        // Apply events to the event log file
-        let event_log = self
+        let folder = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        event_log.apply(events).await?;
+        folder.apply(events).await?;
         Ok(())
     }
 
@@ -1035,18 +1029,23 @@ impl ClientStorage {
         &self,
         summary: &Summary,
     ) -> Result<Vec<(CommitHash, Timestamp, WriteEvent)>> {
-        let event_log = self
+        let folder = self
             .cache()
             .get(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let event_log = folder.event_log();
+        let log_file = event_log.read().await;
         let mut records = Vec::new();
-        let mut it = event_log.iter(false).await?;
+
+        // TODO: prefer stream() here
+        let mut it = log_file.iter(false).await?;
         while let Some(record) = it.next().await? {
-            let event = event_log.decode_event(&record).await?;
+            let event = log_file.decode_event(&record).await?;
             let commit = CommitHash(record.commit());
             let time = record.time().clone();
             records.push((commit, time, event));
         }
+
         Ok(records)
     }
 
@@ -1063,10 +1062,12 @@ impl ClientStorage {
         &self,
         summary: &Summary,
     ) -> Result<CommitState> {
-        let log_file = self
+        let folder = self
             .cache
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
+        let event_log = folder.event_log();
+        let log_file = event_log.read().await;
         log_file.tree().commit_state()
     }
 }
