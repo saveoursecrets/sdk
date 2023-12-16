@@ -15,7 +15,6 @@ use url::Url;
 
 mod patch;
 
-pub use crate::storage::sync::{ClientReplay, ServerReplay};
 pub use patch::{AccountPatch, FolderPatch, Patch};
 
 #[cfg(feature = "files")]

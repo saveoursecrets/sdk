@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use sos_sdk::{
     constants::{SYNC_RESOLVE, SYNC_STATUS},
     decode, encode,
-    sync::{ServerReplay, SyncComparison, SyncDiff, SyncStatus},
+    sync::{SyncComparison, SyncDiff, SyncStatus},
 };
 
 use async_trait::async_trait;
@@ -78,7 +78,7 @@ impl Service for SyncService {
                 // Apply the diff to the storage
                 let num_changes = {
                     let mut writer = account.write().await;
-                    writer.folders.merge_diff(&diff, ServerReplay).await?
+                    writer.folders.merge_diff(&diff).await?
                 };
 
                 // Generate a new diff so the client can apply changes

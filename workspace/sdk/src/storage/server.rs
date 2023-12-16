@@ -1,4 +1,4 @@
-//! Storage backed by the filesystem.
+//! Server storage backed by the filesystem.
 use crate::{
     commit::{CommitHash, CommitState, CommitTree},
     constants::VAULT_EXT,
@@ -41,11 +41,7 @@ pub struct ServerStorage {
     /// Directories for file storage.
     pub(super) paths: Arc<Paths>,
 
-    /// Identity vault event log.
-    ///
-    /// This is a clone of the main identity vault
-    /// event log and is defined here so we can
-    /// get the commit state for synchronization.
+    /// Identity folder event log.
     pub(super) identity_log: Arc<RwLock<FolderEventLog>>,
 
     /// Account event log.
@@ -170,107 +166,54 @@ impl ServerStorage {
     /// Create new event log cache entries.
     async fn create_cache_entry(
         &mut self,
-        summary: &Summary,
-        vault: Option<Vault>,
+        id: &VaultId,
     ) -> Result<()> {
-        let event_log_path = self.paths.event_log_path(summary.id());
+        let event_log_path = self.paths.event_log_path(id);
         let mut event_log = FolderEventLog::new(&event_log_path).await?;
-
-        if let Some(vault) = vault {
-            // Must truncate the event log so that importing vaults
-            // does not end up with multiple create vault events
-            event_log.clear().await?;
-
-            let (vault, events) = EventReducer::split(vault).await?;
-            event_log.apply(events.iter().collect()).await?;
-
-            let buffer = encode(&vault).await?;
-            self.write_vault_file(summary.id(), buffer).await?;
-        }
         event_log.load_tree().await?;
-
-        self.cache.insert(*summary.id(), event_log);
-
-        Ok(())
-    }
-
-    /// Read a vault from the file on disc.
-    pub(crate) async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
-        let buffer = self.read_vault_file(id).await?;
-        Ok(decode(&buffer).await?)
-    }
-
-    /// Read the buffer for a vault from disc.
-    async fn read_vault_file(&self, id: &VaultId) -> Result<Vec<u8>> {
-        let vault_path = self.paths.vault_path(id);
-        Ok(vfs::read(vault_path).await?)
-    }
-
-    /// Write the buffer for a vault to disc.
-    async fn write_vault_file(
-        &self,
-        vault_id: &VaultId,
-        buffer: impl AsRef<[u8]>,
-    ) -> Result<()> {
-        let vault_path = self.paths.vault_path(vault_id);
-        vfs::write(vault_path, buffer.as_ref()).await?;
+        self.cache.insert(*id, event_log);
         Ok(())
     }
 
     /// Create a cache entry for each summary if it does not
     /// already exist.
-    async fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
-        for summary in summaries {
+    async fn load_caches(&mut self, ids: &[VaultId]) -> Result<()> {
+        for id in ids {
             // Ensure we don't overwrite existing data
-            if self.cache().get(summary.id()).is_none() {
-                self.create_cache_entry(summary, None).await?;
+            if self.cache().get(id).is_none() {
+                self.create_cache_entry(id).await?;
             }
         }
         Ok(())
     }
 
-    /// Get a reference to the commit tree for an event log file.
-    pub fn commit_tree(&self, summary: &Summary) -> Option<&CommitTree> {
+    /// Commit tree for an event log file.
+    pub fn commit_tree(&self, id: &VaultId) -> Option<&CommitTree> {
         self.cache
-            .get(summary.id())
+            .get(id)
             .map(|event_log| event_log.tree())
     }
 
     /// Remove the local cache for a vault.
-    fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
-        // Remove from our cache of managed vaults
-        self.cache.remove(summary.id());
-
+    fn remove_local_cache(&mut self, id: &VaultId) -> Result<()> {
+        self.cache.remove(id);
         Ok(())
     }
 
     /// Remove a vault file and event log file.
-    async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
+    async fn remove_vault_file(&self, id: &VaultId) -> Result<()> {
         // Remove local vault mirror if it exists
-        let vault_path = self.paths.vault_path(summary.id());
+        let vault_path = self.paths.vault_path(id);
         if vfs::try_exists(&vault_path).await? {
             vfs::remove_file(&vault_path).await?;
         }
 
         // Remove the local event log file
-        let event_log_path = self.paths.event_log_path(summary.id());
+        let event_log_path = self.paths.event_log_path(id);
         if vfs::try_exists(&event_log_path).await? {
             vfs::remove_file(&event_log_path).await?;
         }
         Ok(())
-    }
-
-    /// Load a vault by reducing it from the event log stored on disc.
-    async fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault> {
-        let event_log_file = self
-            .cache
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        Ok(EventReducer::new()
-            .reduce(event_log_file)
-            .await?
-            .build(true)
-            .await?)
     }
 
     /// Load folders from the local disc.
@@ -278,7 +221,7 @@ impl ServerStorage {
     /// Creates the in-memory event logs for each folder on disc.
     pub async fn load_folders(&mut self) -> Result<()> {
         let storage = self.paths.vaults_dir();
-        let mut summaries = Vec::new();
+        let mut ids = Vec::new();
         let mut contents = vfs::read_dir(&storage).await?;
         while let Some(entry) = contents.next_entry().await? {
             let path = entry.path();
@@ -288,25 +231,71 @@ impl ServerStorage {
                     if summary.flags().is_system() {
                         continue;
                     }
-                    summaries.push(summary);
+                    ids.push(*summary.id());
                 }
             }
         }
 
-        self.load_caches(&summaries).await?;
+        self.load_caches(&ids).await?;
+        Ok(())
+    }
+
+    /// Import a folder into an existing account.
+    ///
+    /// If a folder with the same identifier already exists
+    /// it is overwritten.
+    ///
+    /// Buffer is the encoded representation of the vault.
+    pub async fn import_folder(
+        &mut self,
+        id: &VaultId,
+        buffer: impl AsRef<[u8]>,
+    ) -> Result<()> {
+        let exists = self.cache.get(id).is_some();
+
+        let vault: Vault = decode(buffer.as_ref()).await?;
+        let (vault, events) = EventReducer::split(vault).await?;
+
+        let event_log_path = self.paths.event_log_path(id);
+        let mut event_log = FolderEventLog::new(&event_log_path).await?;
+        event_log.clear().await?;
+        event_log.apply(events.iter().collect()).await?;
+
+        // If there is an existing folder
+        // and we are overwriting then log the update
+        // folder event
+        let account_event = if exists {
+            AccountEvent::UpdateFolder(
+                *id,
+                buffer.as_ref().to_owned(),
+            )
+        // Otherwise a create event
+        } else {
+            AccountEvent::CreateFolder(
+                *id,
+                buffer.as_ref().to_owned(),
+            )
+        };
+
+        let mut account_log = self.account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
+
+        let audit_event: AuditEvent = (self.address(), &account_event).into();
+        self.paths.append_audit_events(vec![audit_event]).await?;
+
         Ok(())
     }
 
     /// Delete a folder.
     pub async fn delete_folder(
         &mut self,
-        summary: &Summary,
-    ) -> Result<Vec<Event>> {
+        id: &VaultId,
+    ) -> Result<()> {
         // Remove the files
-        self.remove_vault_file(summary).await?;
+        self.remove_vault_file(id).await?;
 
         // Remove local state
-        self.remove_local_cache(summary)?;
+        self.remove_local_cache(id)?;
 
         let mut events = Vec::new();
         
@@ -321,50 +310,32 @@ impl ServerStorage {
         }
         */
 
-        let account_event = AccountEvent::DeleteFolder(*summary.id());
+        let account_event = AccountEvent::DeleteFolder(*id);
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
 
         let audit_event: AuditEvent = (self.address(), &account_event).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
-
         events.insert(0, Event::Account(account_event));
 
-        Ok(events)
+        Ok(())
     }
     
-    /*
     /// Set the name of a vault.
     pub async fn rename_folder(
         &mut self,
-        summary: &Summary,
+        id: &VaultId,
         name: impl AsRef<str>,
-    ) -> Result<Event> {
-        // Update the in-memory name.
-        for item in self.state.summaries_mut().iter_mut() {
-            if item.id() == summary.id() {
-                item.set_name(name.as_ref().to_owned());
-            }
-        }
-
-        // Now update the in-memory name for the current selected vault
-        if let Some(keeper) = self.current_mut() {
-            if keeper.vault().id() == summary.id() {
-                keeper.set_vault_name(name.as_ref().to_owned()).await?;
-            }
-        }
+    ) -> Result<()> {
 
         // Update the vault on disc
-        let vault_path = self.paths.vault_path(summary.id());
+        let vault_path = self.paths.vault_path(id);
         let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
         access.set_vault_name(name.as_ref().to_owned()).await?;
 
-        let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
-        self.patch(summary, vec![&event]).await?;
-
         let account_event = AccountEvent::RenameFolder(
-            *summary.id(),
+            *id,
             name.as_ref().to_owned(),
         );
 
@@ -374,15 +345,6 @@ impl ServerStorage {
         let audit_event: AuditEvent = (self.address(), &account_event).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
 
-        Ok(Event::Account(account_event))
-    }
-    */
-
-    /// Verify an event log.
-    pub async fn verify(&self, summary: &Summary) -> Result<()> {
-        use crate::commit::event_log_commit_tree_file;
-        let event_log_path = self.paths.event_log_path(summary.id());
-        event_log_commit_tree_file(&event_log_path, true, |_| {}).await?;
         Ok(())
     }
 

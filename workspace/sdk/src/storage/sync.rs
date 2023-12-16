@@ -15,129 +15,6 @@ use crate::{
 use async_trait::async_trait;
 use std::collections::HashMap;
 
-/// Handler to replay events on an account.
-#[async_trait]
-pub trait ReplayHandler {
-    /// Apply identity-level events to this account.
-    async fn replay_identity_events(
-        &mut self,
-        storage: &mut Storage,
-        diff: &FolderDiff,
-    ) -> Result<usize>;
-
-    /// Apply account-level events to this account.
-    async fn replay_account_events(
-        &mut self,
-        storage: &mut Storage,
-        diff: &AccountDiff,
-    ) -> Result<usize>;
-
-    /// Apply folder-level events to this account.
-    async fn replay_folder_events(
-        &mut self,
-        storage: &mut Storage,
-        folders: &HashMap<VaultId, FolderDiff>,
-    ) -> Result<usize>;
-}
-
-/// Replay events on the client.
-pub struct ClientReplay;
-
-#[async_trait]
-impl ReplayHandler for ClientReplay {
-    async fn replay_identity_events(
-        &mut self,
-        storage: &mut Storage,
-        diff: &FolderDiff,
-    ) -> Result<usize> {
-        todo!();
-    }
-
-    async fn replay_account_events(
-        &mut self,
-        storage: &mut Storage,
-        diff: &AccountDiff,
-    ) -> Result<usize> {
-        todo!();
-    }
-
-    async fn replay_folder_events(
-        &mut self,
-        storage: &mut Storage,
-        folders: &HashMap<VaultId, FolderDiff>,
-    ) -> Result<usize> {
-        todo!();
-    }
-}
-
-/// Replay events on the server.
-pub struct ServerReplay;
-
-#[async_trait]
-impl ReplayHandler for ServerReplay {
-    async fn replay_identity_events(
-        &mut self,
-        storage: &mut Storage,
-        diff: &FolderDiff,
-    ) -> Result<usize> {
-        let mut writer = storage.identity_log.write().await;
-        writer.patch_checked(&diff.before, &diff.patch).await?;
-        Ok(diff.patch.len())
-    }
-
-    async fn replay_account_events(
-        &mut self,
-        storage: &mut Storage,
-        diff: &AccountDiff,
-    ) -> Result<usize> {
-        for event in diff.patch.iter() {
-            match &event {
-                AccountEvent::CreateFolder(_, buf)
-                | AccountEvent::UpdateFolder(_, buf)
-                | AccountEvent::CompactFolder(_, buf)
-                | AccountEvent::ChangeFolderPassword(_, buf) => {
-                    storage.import_folder(buf, None).await?;
-                }
-                AccountEvent::RenameFolder(id, name) => {
-                    let summary = storage.find(|s| s.id() == id).cloned();
-                    if let Some(summary) = &summary {
-                        storage.rename_folder(summary, name).await?;
-                    }
-                }
-                AccountEvent::DeleteFolder(id) => {
-                    let summary = storage.find(|s| s.id() == id).cloned();
-                    if let Some(summary) = &summary {
-                        storage.delete_folder(summary).await?;
-                    }
-                }
-                _ => {
-                    println!("todo! : apply other account events")
-                }
-            }
-        }
-
-        Ok(diff.patch.len())
-    }
-
-    async fn replay_folder_events(
-        &mut self,
-        storage: &mut Storage,
-        folders: &HashMap<VaultId, FolderDiff>,
-    ) -> Result<usize> {
-        let mut num_changes = 0;
-        for (id, diff) in folders {
-            let log = storage
-                .cache
-                .get_mut(id)
-                .ok_or_else(|| Error::CacheNotAvailable(*id))?;
-
-            log.patch_checked(&diff.before, &diff.patch).await?;
-            num_changes += diff.patch.len();
-        }
-        Ok(num_changes)
-    }
-}
-
 impl ServerStorage {
     /// Create a new vault file on disc and the associated
     /// event log.
@@ -237,6 +114,85 @@ impl ServerStorage {
         })
     }
 
+    async fn replay_identity_events(
+        &mut self,
+        diff: &FolderDiff,
+    ) -> Result<usize> {
+        let mut writer = self.identity_log.write().await;
+        writer.patch_checked(&diff.before, &diff.patch).await?;
+        Ok(diff.patch.len())
+    }
+
+    async fn replay_account_events(
+        &mut self,
+        diff: &AccountDiff,
+    ) -> Result<usize> {
+        for event in diff.patch.iter() {
+            match &event {
+                AccountEvent::CreateFolder(id, buf)
+                | AccountEvent::UpdateFolder(id, buf)
+                | AccountEvent::CompactFolder(id, buf)
+                | AccountEvent::ChangeFolderPassword(id, buf) => {
+                    self.import_folder(id, buf).await?;
+                }
+                AccountEvent::RenameFolder(id, name) => {
+                    let id = self.cache.keys().find(|&fid| fid == id).cloned();
+                    if let Some(id) = &id{
+                        self.rename_folder(id, name).await?;
+                    }
+                }
+                AccountEvent::DeleteFolder(id) => {
+                    let id = self.cache.keys().find(|&fid| fid == id).cloned();
+                    if let Some(id) = &id{
+                        self.delete_folder(id).await?;
+                    }
+                }
+                _ => {
+                    println!("todo! : apply other account events")
+                }
+            }
+        }
+
+        Ok(diff.patch.len())
+    }
+
+    async fn replay_folder_events(
+        &mut self,
+        folders: &HashMap<VaultId, FolderDiff>,
+    ) -> Result<usize> {
+        let mut num_changes = 0;
+        for (id, diff) in folders {
+            let log = self
+                .cache
+                .get_mut(id)
+                .ok_or_else(|| Error::CacheNotAvailable(*id))?;
+
+            log.patch_checked(&diff.before, &diff.patch).await?;
+            num_changes += diff.patch.len();
+        }
+        Ok(num_changes)
+    }
+
+    /// Merge a diff into this storage.
+    pub async fn merge_diff(
+        &mut self,
+        diff: &SyncDiff,
+    ) -> Result<usize> {
+        let mut num_changes = 0;
+
+        if let Some(diff) = &diff.identity {
+            num_changes += self.replay_identity_events(diff).await?;
+        }
+
+        if let Some(diff) = &diff.account {
+            num_changes += self.replay_account_events(diff).await?;
+        }
+
+        num_changes +=
+            self.replay_folder_events(&diff.folders).await?;
+
+        Ok(num_changes)
+    }
 }
 
 impl Storage {
@@ -304,25 +260,44 @@ impl Storage {
         })
     }
 
+    async fn replay_identity_events(
+        &mut self,
+        diff: &FolderDiff,
+    ) -> Result<usize> {
+        todo!();
+    }
+
+    async fn replay_account_events(
+        &mut self,
+        diff: &AccountDiff,
+    ) -> Result<usize> {
+        todo!();
+    }
+
+    async fn replay_folder_events(
+        &mut self,
+        folders: &HashMap<VaultId, FolderDiff>,
+    ) -> Result<usize> {
+        todo!();
+    }
+
     /// Merge a diff into this storage.
     pub async fn merge_diff(
         &mut self,
         diff: &SyncDiff,
-        mut handler: impl ReplayHandler,
-        //options: MergeOptions,
     ) -> Result<usize> {
         let mut num_changes = 0;
 
         if let Some(diff) = &diff.identity {
-            num_changes += handler.replay_identity_events(self, diff).await?;
+            num_changes += self.replay_identity_events(diff).await?;
         }
 
         if let Some(diff) = &diff.account {
-            num_changes += handler.replay_account_events(self, diff).await?;
+            num_changes += self.replay_account_events(diff).await?;
         }
 
         num_changes +=
-            handler.replay_folder_events(self, &diff.folders).await?;
+            self.replay_folder_events(&diff.folders).await?;
 
         Ok(num_changes)
     }

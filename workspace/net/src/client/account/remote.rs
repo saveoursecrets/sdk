@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::Storage,
-    sync::{Client, ClientReplay, SyncComparison, SyncStatus},
+    sync::{Client, SyncComparison, SyncStatus},
     url::Url,
 };
 
