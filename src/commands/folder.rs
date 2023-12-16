@@ -174,7 +174,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let owner = user.read().await;
                 let storage = owner.storage().await?;
                 let reader = storage.read().await;
-                if let Some(current) = reader.current() {
+                if let Some(current) = reader.current_folder() {
                     current.id() == summary.id()
                 } else {
                     false
@@ -239,10 +239,15 @@ pub async fn run(cmd: Command) -> Result<()> {
 
             let storage = owner.storage().await?;
             let reader = storage.read().await;
+
+            /*
             let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
             for uuid in keeper.vault().keys() {
                 println!("{}", uuid);
             }
+            */
+
+            todo!("restore keys iterator");
         }
         Command::Commits { account, folder } => {
             let user = resolve_user(account.as_ref(), false).await?;
@@ -312,9 +317,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                         let owner = user.read().await;
                         let storage = owner.storage().await?;
                         let reader = storage.read().await;
-                        let keeper =
-                            reader.current().ok_or(Error::NoVaultSelected)?;
-                        keeper.summary().clone()
+                        let summary =
+                            reader.current_folder().ok_or(Error::NoVaultSelected)?;
+                        summary.clone()
                     };
 
                     let prompt = Some(
@@ -334,18 +339,18 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let owner = user.read().await;
                     let storage = owner.storage().await?;
                     let reader = storage.read().await;
-                    let keeper =
-                        reader.current().ok_or(Error::NoVaultSelected)?;
-                    reader.verify(keeper.summary()).await?;
+                    let summary =
+                        reader.current_folder().ok_or(Error::NoVaultSelected)?;
+                    reader.verify(summary).await?;
                     println!("Verified ✓");
                 }
                 History::List { verbose, .. } => {
                     let owner = user.read().await;
                     let storage = owner.storage().await?;
                     let reader = storage.read().await;
-                    let keeper =
-                        reader.current().ok_or(Error::NoVaultSelected)?;
-                    let records = reader.history(keeper.summary()).await?;
+                    let summary =
+                        reader.current_folder().ok_or(Error::NoVaultSelected)?;
+                    let records = reader.history(summary).await?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);
                         if verbose {

@@ -92,7 +92,7 @@ pub async fn run(
             let account_name = owner.account_label().await?;
             let storage = owner.storage().await?;
             let reader = storage.read().await;
-            if let Some(current) = reader.current() {
+            if let Some(current) = reader.current_folder() {
                 format!("{}@{}> ", account_name, current.name())
             } else {
                 format!("{}> ", account_name)

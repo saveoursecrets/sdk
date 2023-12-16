@@ -347,11 +347,11 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
             let owner = user.read().await;
             let storage = owner.storage().await?;
             let reader = storage.read().await;
-            if let Some(current) = reader.current() {
+            if let Some(current) = reader.current_folder() {
                 println!(
                     "{} {}",
-                    current.summary().name(),
-                    current.summary().id(),
+                    current.name(),
+                    current.id(),
                 );
             }
             Ok(())

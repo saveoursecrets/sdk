@@ -401,12 +401,12 @@ impl Storage {
     }
 
     /// Get the current in-memory vault access.
-    pub fn current(&self) -> Option<&Gatekeeper> {
+    pub(crate) fn current(&self) -> Option<&Gatekeeper> {
         self.state.current()
     }
 
     /// Get a mutable reference to the current in-memory vault access.
-    pub fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
+    pub(crate) fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
         self.state.current_mut()
     }
 

@@ -247,7 +247,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let current = {
                     let storage = owner.storage().await?;
                     let reader = storage.read().await;
-                    reader.current().map(|g| g.summary().clone())
+                    reader.current_folder().cloned()
                 };
 
                 let contacts = owner
