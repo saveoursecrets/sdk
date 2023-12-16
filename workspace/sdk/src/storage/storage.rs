@@ -434,7 +434,8 @@ impl Storage {
         }
         event_log.load_tree().await?;
 
-        self.cache_mut().insert(*summary.id(), event_log);
+        self.cache.insert(*summary.id(), event_log);
+
         Ok(())
     }
 

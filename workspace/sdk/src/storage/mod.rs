@@ -9,6 +9,7 @@ pub(crate) mod paths;
 #[cfg(feature = "search")]
 pub mod search;
 mod storage;
+mod server;
 #[cfg(feature = "sync")]
 pub(crate) mod sync;
 
