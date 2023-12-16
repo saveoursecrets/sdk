@@ -53,7 +53,7 @@ impl Service for SyncService {
                     let reader = accounts.read().await;
                     let account = reader.get(caller.address()).unwrap();
                     let account = account.read().await;
-                    Some(account.folders.sync_status().await?)
+                    Some(account.storage.sync_status().await?)
                 } else {
                     None
                 };
@@ -78,7 +78,7 @@ impl Service for SyncService {
                 // Apply the diff to the storage
                 let num_changes = {
                     let mut writer = account.write().await;
-                    writer.folders.merge_diff(&diff).await?
+                    writer.storage.merge_diff(&diff).await?
                 };
 
                 // Generate a new diff so the client can apply changes
@@ -86,9 +86,9 @@ impl Service for SyncService {
                 let (local_status, diff) = {
                     let reader = account.read().await;
                     let comparison =
-                        SyncComparison::new(&reader.folders, remote_status)
+                        SyncComparison::new(&reader.storage, remote_status)
                             .await?;
-                    let diff = comparison.diff(&reader.folders).await?;
+                    let diff = comparison.diff(&reader.storage).await?;
                     (comparison.local_status, diff)
                 };
 

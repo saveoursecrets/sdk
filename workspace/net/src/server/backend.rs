@@ -21,7 +21,7 @@ use tracing::{span, Level};
 
 /// Account storage.
 pub struct AccountStorage {
-    pub(crate) folders: ServerStorage,
+    pub(crate) storage: ServerStorage,
     /// Set of trusted devices.
     devices: DeviceSet,
 }
@@ -49,7 +49,7 @@ impl AccountStorage {
 
     /// Devices file for server-side storage.
     fn devices_file(&self) -> PathBuf {
-        let mut path = self.folders.paths().user_dir().join(DEVICES_FILE);
+        let mut path = self.storage.paths().user_dir().join(DEVICES_FILE);
         path.set_extension(JSON_EXT);
         path
     }
@@ -196,7 +196,7 @@ impl FileSystemBackend {
                             DiscFolder::new_event_log(&user_paths).await?;
 
                         let mut account = AccountStorage {
-                            folders: ServerStorage::new(
+                            storage: ServerStorage::new(
                                 owner.clone(),
                                 Some(self.directory.clone()),
                                 identity_log,
@@ -211,7 +211,7 @@ impl FileSystemBackend {
                             .entry(owner.clone())
                             .or_insert(Arc::new(RwLock::new(account)));
                         let mut writer = account.write().await;
-                        writer.folders.load_folders().await?;
+                        writer.storage.load_folders().await?;
                     }
                 }
             }
@@ -258,7 +258,7 @@ impl BackendHandler for FileSystemBackend {
         storage.import_account(&account_data).await?;
 
         let mut account = AccountStorage {
-            folders: storage,
+            storage,
             devices: Default::default(),
         };
 
