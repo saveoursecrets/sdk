@@ -20,14 +20,14 @@ use tokio::sync::RwLock;
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 /// Folder that writes events to disc.
-pub type DiscClientFolder = ClientFolder<FolderEventLog, DiscLog, DiscLog, DiscData>;
+pub type DiscFolder = Folder<FolderEventLog, DiscLog, DiscLog, DiscData>;
 
 /// Folder that writes events to memory.
-pub type MemoryClientFolder =
-    ClientFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData>;
+pub type MemoryFolder =
+    Folder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData>;
 
-/// Client folder is a combined vault and event log.
-pub struct ClientFolder<T, R, W, D>
+/// Folder is a combined vault and event log.
+pub struct Folder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
@@ -39,7 +39,7 @@ where
     marker: std::marker::PhantomData<(R, W, D)>,
 }
 
-impl<T, R, W, D> ClientFolder<T, R, W, D>
+impl<T, R, W, D> Folder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
@@ -132,7 +132,7 @@ where
     }
 }
 
-impl ClientFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
+impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
     /// Create a new folder from a vault file on disc.
     ///
     /// Changes to the in-memory vault are mirrored to disc and
@@ -179,7 +179,7 @@ impl ClientFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
     }
 }
 
-impl ClientFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
+impl Folder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
     /// Create a new folder from a vault buffer
     /// that writes to memory.
     pub async fn new(buffer: impl AsRef<[u8]>) -> Result<Self> {
