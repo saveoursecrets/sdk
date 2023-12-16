@@ -234,7 +234,7 @@ impl ClientStorage {
         };
 
         let mut folders = HashMap::new();
-        for summary in self.state.summaries() {
+        for summary in &self.summaries {
             let folder_log = self
                 .cache
                 .get(summary.id())
@@ -400,9 +400,8 @@ impl SyncStorage for ClientStorage {
             reader.tree().commit_state()?
         };
 
-        let summaries = self.state.summaries();
         let mut folders = HashMap::new();
-        for summary in summaries {
+        for summary in &self.summaries {
             let event_log = self
                 .cache
                 .get(summary.id())

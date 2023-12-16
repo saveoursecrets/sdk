@@ -44,8 +44,11 @@ pub struct ClientStorage {
     /// Address of the account owner.
     pub(super) address: Address,
 
-    /// State of this storage.
-    pub(super) state: LocalState,
+    /// Vaults managed by this state.
+    pub(super) summaries: Vec<Summary>,
+
+    /// Currently selected in-memory vault.
+    pub(super) current: Option<Gatekeeper>,
 
     /// Directories for file storage.
     pub(super) paths: Arc<Paths>,
@@ -118,7 +121,8 @@ impl ClientStorage {
 
         Ok(Self {
             address,
-            state: LocalState::new(),
+            summaries: Vec::new(),
+            current: None,
             cache: Default::default(),
             paths,
             identity_log,
@@ -191,7 +195,12 @@ impl ClientStorage {
 
     /// Find a summary in this storage.
     pub fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
-        self.state.find_vault(vault)
+        match vault {
+            FolderRef::Name(name) => {
+                self.summaries.iter().find(|s| s.name() == name)
+            }
+            FolderRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
+        }
     }
 
     /// Find a summary in this storage.
@@ -199,7 +208,7 @@ impl ClientStorage {
     where
         F: FnMut(&&Summary) -> bool,
     {
-        self.state.find(predicate)
+        self.summaries.iter().find(predicate)
     }
 
     /// Get the computed storage directories for the provider.
@@ -290,7 +299,17 @@ impl ClientStorage {
             vault
         };
 
-        self.state.open_vault(key, vault, vault_path).await?;
+        let vault_file = VaultWriter::open(&vault_path).await?;
+        let mirror = VaultWriter::new(vault_path, vault_file)?;
+        let mut keeper = Gatekeeper::new_mirror(vault, mirror);
+
+        keeper
+            .unlock(key)
+            .await
+            .map_err(|_| Error::VaultUnlockFail)?;
+
+        self.current = Some(keeper);
+
         Ok(ReadEvent::ReadVault)
     }
 
@@ -359,7 +378,7 @@ impl ClientStorage {
 
     /// List the folder summaries for this storage.
     pub fn list_folders(&self) -> &[Summary] {
-        self.state.summaries()
+        self.summaries.as_slice()
     }
 
     /// Reference to the currently open folder.
@@ -369,12 +388,12 @@ impl ClientStorage {
 
     /// Get the current in-memory vault access.
     pub(crate) fn current(&self) -> Option<&Gatekeeper> {
-        self.state.current()
+        self.current.as_ref()
     }
 
     /// Get a mutable reference to the current in-memory vault access.
     pub(crate) fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
-        self.state.current_mut()
+        self.current.as_mut()
     }
 
     /// Create new event log cache entries.
@@ -534,7 +553,10 @@ impl ClientStorage {
 
     /// Close the current open vault.
     pub(crate) fn close_vault(&mut self) {
-        self.state.close_vault();
+        if let Some(current) = self.current_mut() {
+            current.lock();
+        }
+        self.current = None;
     }
 
     /// Get a reference to the commit tree for an event log file.
@@ -560,9 +582,19 @@ impl ClientStorage {
         self.cache.remove(summary.id());
 
         // Remove from the state of managed vaults
-        self.state.remove_summary(summary);
+        self.remove_summary(summary);
 
         Ok(())
+    }
+
+    /// Remove a summary from this state.
+    fn remove_summary(&mut self, summary: &Summary) {
+        if let Some(position) =
+            self.summaries.iter().position(|s| s.id() == summary.id())
+        {
+            self.summaries.remove(position);
+            self.summaries.sort();
+        }
     }
 
     /// Create a new account or vault.
@@ -602,12 +634,18 @@ impl ClientStorage {
         self.write_vault_file(summary.id(), &buffer).await?;
 
         // Add the summary to the vaults we are managing
-        self.state.add_summary(summary.clone());
+        self.add_summary(summary.clone());
 
         // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault)).await?;
 
         Ok((buffer, key, summary))
+    }
+
+    /// Add a summary to this state.
+    fn add_summary(&mut self, summary: Summary) {
+        self.summaries.push(summary);
+        self.summaries.sort();
     }
 
     /// Import a folder into an existing account.
@@ -709,17 +747,16 @@ impl ClientStorage {
 
         if !exists {
             // Add the summary to the vaults we are managing
-            self.state.add_summary(summary.clone());
+            self.add_summary(summary.clone());
         } else {
             // Otherwise update with the new summary
             if let Some(position) = self
-                .state
-                .summaries()
+                .summaries
                 .iter()
                 .position(|s| s.id() == summary.id())
             {
                 let existing =
-                    self.state.summaries_mut().get_mut(position).unwrap();
+                    self.summaries.get_mut(position).unwrap();
                 *existing = summary.clone();
             }
         }
@@ -824,7 +861,7 @@ impl ClientStorage {
         }
 
         self.load_caches(&summaries).await?;
-        self.state.set_summaries(summaries);
+        self.summaries = summaries;
         Ok(self.list_folders())
     }
 
@@ -875,7 +912,7 @@ impl ClientStorage {
         name: impl AsRef<str>,
     ) -> Result<Event> {
         // Update the in-memory name.
-        for item in self.state.summaries_mut().iter_mut() {
+        for item in self.summaries.iter_mut() {
             if item.id() == summary.id() {
                 item.set_name(name.as_ref().to_owned());
             }
@@ -1256,114 +1293,5 @@ impl ClientStorage {
         }
 
         Ok(event)
-    }
-}
-
-/// Collection of in-memory vaults.
-pub(super) struct LocalState {
-    /// Vaults managed by this state.
-    summaries: Vec<Summary>,
-    /// Currently selected in-memory vault.
-    current: Option<Gatekeeper>,
-}
-
-impl LocalState {
-    /// Create a new node state.
-    pub fn new() -> Self {
-        Self {
-            summaries: Default::default(),
-            current: None,
-        }
-    }
-
-    /// Current in-memory vault.
-    fn current(&self) -> Option<&Gatekeeper> {
-        self.current.as_ref()
-    }
-
-    /// Mutable reference to the current in-memory vault.
-    fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
-        self.current.as_mut()
-    }
-
-    /// Vault summaries.
-    pub fn summaries(&self) -> &[Summary] {
-        self.summaries.as_slice()
-    }
-
-    /// Mutable reference to the vault summaries.
-    fn summaries_mut(&mut self) -> &mut [Summary] {
-        self.summaries.as_mut_slice()
-    }
-
-    /// Set the summaries for this state.
-    fn set_summaries(&mut self, summaries: Vec<Summary>) {
-        self.summaries = summaries;
-        self.summaries.sort();
-    }
-
-    /// Add a summary to this state.
-    pub fn add_summary(&mut self, summary: Summary) {
-        self.summaries.push(summary);
-        self.summaries.sort();
-    }
-
-    /// Remove a summary from this state.
-    fn remove_summary(&mut self, summary: &Summary) {
-        if let Some(position) =
-            self.summaries.iter().position(|s| s.id() == summary.id())
-        {
-            self.summaries.remove(position);
-            self.summaries.sort();
-        }
-    }
-
-    /// Find a summary in this state by reference.
-    fn find_vault(&self, vault: &FolderRef) -> Option<&Summary> {
-        match vault {
-            FolderRef::Name(name) => {
-                self.summaries.iter().find(|s| s.name() == name)
-            }
-            FolderRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
-        }
-    }
-
-    /// Find a summary in this state.
-    fn find<F>(&self, predicate: F) -> Option<&Summary>
-    where
-        F: FnMut(&&Summary) -> bool,
-    {
-        self.summaries.iter().find(predicate)
-    }
-
-    /// Set the current folder and unlock it.
-    async fn open_vault(
-        &mut self,
-        key: &AccessKey,
-        vault: Vault,
-        vault_path: PathBuf,
-    ) -> Result<()> {
-        let vault_file = VaultWriter::open(&vault_path).await?;
-        let mirror = VaultWriter::new(vault_path, vault_file)?;
-        let mut keeper = Gatekeeper::new_mirror(vault, mirror);
-
-        keeper
-            .unlock(key)
-            .await
-            .map_err(|_| Error::VaultUnlockFail)?;
-        self.current = Some(keeper);
-        Ok(())
-    }
-
-    /// Close the currently open vault.
-    ///
-    /// When a vault is open it is locked before being closed.
-    ///
-    /// If no vault is open this is a noop.
-    fn close_vault(&mut self) {
-        if let Some(current) = self.current_mut() {
-            current.lock();
-        }
-        self.current = None;
     }
 }
