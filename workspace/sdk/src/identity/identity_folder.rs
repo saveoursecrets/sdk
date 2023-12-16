@@ -23,7 +23,7 @@ use crate::{
         ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
         ed25519, Signer,
     },
-    storage::{DiscClientFolder, ClientFolder, MemoryClientFolder, Folder},
+    storage::{DiscClientFolder, ClientFolder, MemoryClientFolder},
     vault::{
         secret::{
             Secret, SecretId, SecretMeta, SecretRow, SecretSigner, UserData,

@@ -14,7 +14,6 @@ use crate::{
     vfs, Paths, Result,
 };
 
-use async_trait::async_trait;
 use std::{path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -26,67 +25,6 @@ pub type DiscClientFolder = ClientFolder<FolderEventLog, DiscLog, DiscLog, DiscD
 /// Folder that writes events to memory.
 pub type MemoryClientFolder =
     ClientFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData>;
-
-/// Defines the operations on a folder.
-#[async_trait]
-pub trait Folder {
-
-    /// Unlock using the folder access key.
-    ///
-    /// # Panics
-    ///
-    /// If this folder is a server folder.
-    async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta>;
-
-    /// Lock the folder.
-    ///
-    /// # Panics
-    ///
-    /// If this folder is a server folder.
-    fn lock(&mut self);
-
-    /// Create a secret.
-    ///
-    /// # Panics
-    ///
-    /// If this folder is a server folder.
-    async fn create_secret(
-        &mut self,
-        secret_data: &SecretRow,
-    ) -> Result<WriteEvent>;
-
-    /// Get a secret and it's meta data.
-    ///
-    /// # Panics
-    ///
-    /// If this folder is a server folder.
-    async fn read_secret(
-        &self,
-        id: &SecretId,
-    ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>>;
-
-    /// Update a secret.
-    ///
-    /// # Panics
-    ///
-    /// If this folder is a server folder.
-    async fn update_secret(
-        &mut self,
-        id: &SecretId,
-        secret_meta: SecretMeta,
-        secret: Secret,
-    ) -> Result<Option<WriteEvent>>;
-
-    /// Delete a secret and it's meta data.
-    ///
-    /// # Panics
-    ///
-    /// If this folder is a server folder.
-    async fn delete_secret(
-        &mut self,
-        id: &SecretId,
-    ) -> Result<Option<WriteEvent>>;
-}
 
 /// Client folder is a combined vault and event log.
 pub struct ClientFolder<T, R, W, D>
@@ -131,26 +69,19 @@ where
     pub fn keeper(&self) -> &Gatekeeper {
         &self.keeper
     }
-}
 
-#[async_trait]
-impl<T, R, W, D> Folder for ClientFolder<T, R, W, D>
-where
-    T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
-    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + Unpin + Send + Sync + 'static,
-    D: Clone + Send + Sync,
-{
-
-    async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
+    /// Unlock using the folder access key.
+    pub async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
         self.keeper.unlock(key).await
     }
 
-    fn lock(&mut self) {
+    /// Lock the folder.
+    pub fn lock(&mut self) {
         self.keeper.lock();
     }
 
-    async fn create_secret(
+    /// Create a secret.
+    pub async fn create_secret(
         &mut self,
         secret_data: &SecretRow,
     ) -> Result<WriteEvent> {
@@ -160,14 +91,16 @@ where
         Ok(event)
     }
 
-    async fn read_secret(
+    /// Get a secret and it's meta data.
+    pub async fn read_secret(
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
         self.keeper.read(id).await
     }
 
-    async fn update_secret(
+    /// Update a secret.
+    pub async fn update_secret(
         &mut self,
         id: &SecretId,
         secret_meta: SecretMeta,
@@ -184,7 +117,8 @@ where
         }
     }
 
-    async fn delete_secret(
+    /// Delete a secret and it's meta data.
+    pub async fn delete_secret(
         &mut self,
         id: &SecretId,
     ) -> Result<Option<WriteEvent>> {

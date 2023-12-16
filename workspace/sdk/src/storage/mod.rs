@@ -14,7 +14,7 @@ mod server;
 pub(crate) mod sync;
 
 pub use client::ClientStorage;
-pub use folder::{DiscClientFolder, Folder, ClientFolder, MemoryClientFolder};
+pub use folder::{DiscClientFolder, ClientFolder, MemoryClientFolder};
 pub use server::ServerStorage;
 
 #[cfg(feature = "sync")]
