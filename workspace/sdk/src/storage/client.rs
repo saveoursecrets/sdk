@@ -90,7 +90,7 @@ impl ClientStorage {
         };
 
         let dirs = Paths::new(data_dir, address.to_string());
-        Self::new_paths(Arc::new(dirs), address, identity_log, true, false)
+        Self::new_paths(Arc::new(dirs), address, identity_log)
             .await
     }
 
@@ -99,8 +99,6 @@ impl ClientStorage {
         paths: Arc<Paths>,
         address: Address,
         identity_log: Arc<RwLock<FolderEventLog>>,
-        mirror: bool,
-        head_only: bool,
     ) -> Result<Self> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
@@ -120,7 +118,7 @@ impl ClientStorage {
 
         Ok(Self {
             address,
-            state: LocalState::new(mirror, head_only),
+            state: LocalState::new(),
             cache: Default::default(),
             paths,
             identity_log,
@@ -281,19 +279,15 @@ impl ClientStorage {
         key: &AccessKey,
     ) -> Result<ReadEvent> {
         let vault_path = self.paths.vault_path(summary.id());
-        let vault = if self.state.mirror() {
-            if !vfs::try_exists(&vault_path).await? {
-                let vault = self.reduce_event_log(summary).await?;
-                let buffer = encode(&vault).await?;
-                self.write_vault_file(summary.id(), &buffer).await?;
-                vault
-            } else {
-                let buffer = vfs::read(&vault_path).await?;
-                let vault: Vault = decode(&buffer).await?;
-                vault
-            }
+        let vault = if !vfs::try_exists(&vault_path).await? {
+            let vault = self.reduce_event_log(summary).await?;
+            let buffer = encode(&vault).await?;
+            self.write_vault_file(summary.id(), &buffer).await?;
+            vault
         } else {
-            self.reduce_event_log(summary).await?
+            let buffer = vfs::read(&vault_path).await?;
+            let vault: Vault = decode(&buffer).await?;
+            vault
         };
 
         self.state.open_vault(key, vault, vault_path).await?;
@@ -399,11 +393,6 @@ impl ClientStorage {
 
             let (vault, events) = EventReducer::split(vault).await?;
             event_log.apply(events.iter().collect()).await?;
-
-            if self.state.head_only && self.state.mirror {
-                let buffer = encode(&vault).await?;
-                self.write_vault_file(summary.id(), buffer).await?;
-            }
         }
         event_log.load_tree().await?;
 
@@ -426,14 +415,9 @@ impl ClientStorage {
     ) -> Result<Vec<u8>> {
         let vault = self.reduce_event_log(summary).await?;
 
-        // Rewrite the on-disc version if we are mirroring
-        let buffer = if self.state.mirror() {
-            let buffer = encode(&vault).await?;
-            self.write_vault_file(summary.id(), &buffer).await?;
-            buffer
-        } else {
-            encode(&vault).await?
-        };
+        // Rewrite the on-disc version
+        let buffer = encode(&vault).await?;
+        self.write_vault_file(summary.id(), &buffer).await?;
 
         #[cfg(feature = "search")]
         if let Some(index) = &self.index {
@@ -615,9 +599,7 @@ impl ClientStorage {
 
         let summary = vault.summary().clone();
 
-        if self.state.mirror() {
-            self.write_vault_file(summary.id(), &buffer).await?;
-        }
+        self.write_vault_file(summary.id(), &buffer).await?;
 
         // Add the summary to the vaults we are managing
         self.state.add_summary(summary.clone());
@@ -723,9 +705,7 @@ impl ClientStorage {
         }
 
         // Always write out the updated buffer
-        if self.state.mirror() {
-            self.write_vault_file(summary.id(), &buffer).await?;
-        }
+        self.write_vault_file(summary.id(), &buffer).await?;
 
         if !exists {
             // Add the summary to the vaults we are managing
@@ -769,14 +749,9 @@ impl ClientStorage {
         vault: &Vault,
         events: Vec<WriteEvent>,
     ) -> Result<Vec<u8>> {
-        let buffer = if self.state.mirror() {
-            // Write the vault to disc
-            let buffer = encode(vault).await?;
-            self.write_vault_file(summary.id(), &buffer).await?;
-            buffer
-        } else {
-            encode(vault).await?
-        };
+        // Write the vault to disc
+        let buffer = encode(vault).await?;
+        self.write_vault_file(summary.id(), &buffer).await?;
 
         // Apply events to the event log
         let event_log = self
@@ -1286,12 +1261,6 @@ impl ClientStorage {
 
 /// Collection of in-memory vaults.
 pub(super) struct LocalState {
-    /// Whether this state should mirror changes to disc.
-    mirror: bool,
-    /// Vault files should only contain header information.
-    ///
-    /// Useful for server implementations.
-    head_only: bool,
     /// Vaults managed by this state.
     summaries: Vec<Summary>,
     /// Currently selected in-memory vault.
@@ -1300,18 +1269,11 @@ pub(super) struct LocalState {
 
 impl LocalState {
     /// Create a new node state.
-    pub fn new(mirror: bool, head_only: bool) -> Self {
+    pub fn new() -> Self {
         Self {
-            mirror,
-            head_only,
             summaries: Default::default(),
             current: None,
         }
-    }
-
-    /// Determine if mirroring is enabled.
-    fn mirror(&self) -> bool {
-        self.mirror
     }
 
     /// Current in-memory vault.
@@ -1381,13 +1343,9 @@ impl LocalState {
         vault: Vault,
         vault_path: PathBuf,
     ) -> Result<()> {
-        let mut keeper = if self.mirror {
-            let vault_file = VaultWriter::open(&vault_path).await?;
-            let mirror = VaultWriter::new(vault_path, vault_file)?;
-            Gatekeeper::new_mirror(vault, mirror)
-        } else {
-            Gatekeeper::new(vault)
-        };
+        let vault_file = VaultWriter::open(&vault_path).await?;
+        let mirror = VaultWriter::new(vault_path, vault_file)?;
+        let mut keeper = Gatekeeper::new_mirror(vault, mirror);
 
         keeper
             .unlock(key)
