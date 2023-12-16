@@ -24,7 +24,7 @@ pub trait Convert {
     /// Input type for the conversion.
     type Input;
 
-    /// Write the input secrets type to the specified vault.
+    /// Write the input secrets to the given vault.
     async fn convert(
         &self,
         source: Self::Input,

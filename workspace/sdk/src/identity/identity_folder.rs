@@ -303,7 +303,7 @@ where
         let id = SecretId::new_v4();
 
         let secret_data = SecretRow::new(id, meta, secret);
-        self.folder.create(&secret_data).await?;
+        self.folder.create_secret(&secret_data).await?;
 
         self.index.insert((*self.folder.id(), urn), id);
 
@@ -332,7 +332,7 @@ where
 
         let (_, secret, _) = self
             .folder
-            .read(id)
+            .read_secret(id)
             .await?
             .ok_or_else(|| Error::NoSecretId(*self.folder.id(), *id))?;
 
@@ -366,7 +366,7 @@ where
             (*self.folder.keeper().id(), *id, urn)
         };
 
-        self.folder.delete(&id).await?;
+        self.folder.delete_secret(&id).await?;
         self.index.remove(&(keeper_id, urn));
 
         Ok(())
@@ -388,7 +388,7 @@ where
 
         let secret_id = SecretId::new_v4();
         let secret_data = SecretRow::new(secret_id, meta, secret);
-        self.folder.create(&secret_data).await?;
+        self.folder.create_secret(&secret_data).await?;
         self.index.insert((*self.folder.id(), urn), secret_id);
 
         Ok(())
@@ -407,7 +407,7 @@ where
 
         let password =
             if let Some((_, Secret::Password { password, .. }, _)) =
-                self.folder.read(id).await?
+                self.folder.read_secret(id).await?
             {
                 password
             } else {
@@ -569,7 +569,7 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
         let signer_id = SecretId::new_v4();
         let secret_data =
             SecretRow::new(signer_id, signer_meta, signer_secret);
-        folder.create(&secret_data).await?;
+        folder.create_secret(&secret_data).await?;
 
         // Store the AGE identity
         let identity_id = SecretId::new_v4();
@@ -587,7 +587,7 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
         age_meta.set_urn(Some(identity_urn.clone()));
 
         let secret_data = SecretRow::new(identity_id, age_meta, age_secret);
-        folder.create(&secret_data).await?;
+        folder.create_secret(&secret_data).await?;
 
         let private_identity = PrivateIdentity {
             address,

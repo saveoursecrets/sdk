@@ -81,7 +81,7 @@ where
     }
 
     /// Create a secret.
-    pub async fn create(
+    pub async fn create_secret(
         &mut self,
         secret_data: &SecretRow,
     ) -> Result<WriteEvent> {
@@ -92,7 +92,7 @@ where
     }
 
     /// Get a secret and it's meta data.
-    pub async fn read(
+    pub async fn read_secret(
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
@@ -100,7 +100,7 @@ where
     }
 
     /// Update a secret.
-    pub async fn update(
+    pub async fn update_secret(
         &mut self,
         id: &SecretId,
         secret_meta: SecretMeta,
@@ -118,7 +118,7 @@ where
     }
 
     /// Delete a secret and it's meta data.
-    pub async fn delete(
+    pub async fn delete_secret(
         &mut self,
         id: &SecretId,
     ) -> Result<Option<WriteEvent>> {
