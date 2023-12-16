@@ -30,6 +30,21 @@ pub type MemoryFolder =
 /// Defines the operations on a folder.
 #[async_trait]
 pub trait Folder {
+
+    /// Unlock using the folder access key.
+    ///
+    /// # Panics
+    ///
+    /// If this folder is a server folder.
+    async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta>;
+
+    /// Lock the folder.
+    ///
+    /// # Panics
+    ///
+    /// If this folder is a server folder.
+    fn lock(&mut self);
+
     /// Create a secret.
     ///
     /// # Panics
@@ -116,17 +131,6 @@ where
     pub fn keeper(&self) -> &Gatekeeper {
         &self.keeper
     }
-
-    /// Unlock using the folder access key.
-    pub async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
-        self.keeper.unlock(key).await
-    }
-
-    /// Lock the folder.
-    pub fn lock(&mut self) {
-        self.keeper.lock();
-    }
-
 }
 
 #[async_trait]
@@ -137,6 +141,15 @@ where
     W: AsyncWrite + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
+
+    async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
+        self.keeper.unlock(key).await
+    }
+
+    fn lock(&mut self) {
+        self.keeper.lock();
+    }
+
     async fn create_secret(
         &mut self,
         secret_data: &SecretRow,
