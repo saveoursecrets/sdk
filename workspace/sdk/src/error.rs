@@ -221,6 +221,10 @@ pub enum Error {
     #[error("vault is not initialized")]
     VaultNotInit,
 
+    /// Error generated when a folder access key was not found.
+    #[error("folder access key for '{0}' not found")]
+    NoFolderKey(VaultId),
+
     /// Error generated attempting to a initialize a vault when it has already been initialized.
     #[error("vault is already initialized")]
     VaultAlreadyInit,

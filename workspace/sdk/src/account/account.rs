@@ -336,15 +336,23 @@ impl<D> Account<D> {
 
         Self::initialize_account_log(&*self.paths, storage.account_log())
             .await?;
-
+    
         self.authenticated = Some(Authenticated {
             user,
             storage: Arc::new(RwLock::new(storage)),
         });
-
+        
         // Load vaults into memory and initialize folder
         // event log commit trees
         let folders = self.load_folders().await?;
+
+        // Unlock all the storage vaults
+        {
+            let folder_keys = self.folder_keys().await?;
+            let storage = self.storage()?;
+            let mut storage = storage.write().await;
+            storage.unlock(&folder_keys).await?;
+        }
 
         if let Some(default_folder) = self.default_folder().await {
             self.open_folder(&default_folder).await?;
@@ -537,11 +545,11 @@ impl<D> Account<D> {
 
         tracing::debug!(address = %self.address());
 
-        tracing::debug!("close current open vault");
-        // Close the currently open vaul in the local storage
+        tracing::debug!("lock storage vaults");
+        // Lock all the storage vaults
         let storage = self.storage()?;
         let mut writer = storage.write().await;
-        writer.close_vault();
+        writer.lock().await;
 
         tracing::debug!("clear search index");
         // Remove the search index

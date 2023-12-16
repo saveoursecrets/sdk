@@ -548,6 +548,22 @@ impl ClientStorage {
         Ok(())
     }
 
+    /// Unlock all vaults.
+    pub async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {
+        for(id, folder) in self.cache.iter_mut() {
+            let key = keys.find(id).ok_or(Error::NoFolderKey(*id))?;
+            folder.unlock(key).await?;
+        }
+        Ok(())
+    }
+    
+    /// Lock all vaults.
+    pub async fn lock(&mut self) {
+        for(_, folder) in self.cache.iter_mut() {
+            folder.lock();
+        }
+    }
+
     /// Close the current open vault.
     pub(crate) fn close_vault(&mut self) {
         if let Some(current) = self.current_mut() {
