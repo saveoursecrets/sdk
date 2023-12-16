@@ -988,11 +988,14 @@ impl Storage {
     /// If the storage is mirroring changes to vault files
     /// the events are written to the vault file before
     /// applying to the folder event log.
+    #[deprecated(note = "prefer new Folder implementations")]
     async fn patch(
         &mut self,
         summary: &Summary,
         events: Vec<&WriteEvent>,
     ) -> Result<()> {
+
+        /*
         // Apply events to the vault file on disc
         if self.state.mirror && !self.state.head_only {
             let vault_path = self.paths.vault_path(summary.id());
@@ -1023,6 +1026,7 @@ impl Storage {
                 }
             }
         }
+        */
 
         // Apply events to the event log file
         let event_log = self
