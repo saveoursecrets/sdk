@@ -14,6 +14,7 @@ mod server;
 pub(crate) mod sync;
 
 pub use folder::{DiscClientFolder, Folder, ClientFolder, MemoryClientFolder, ServerFolder};
+pub use server::ServerStorage;
 pub use storage::Storage;
 
 /// Collection of vaults for an account.

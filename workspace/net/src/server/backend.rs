@@ -7,7 +7,7 @@ use crate::{
         device::DevicePublicKey,
         events::{AuditEvent, Event, EventKind},
         signer::ecdsa::Address,
-        storage::{DiscClientFolder, Storage},
+        storage::{DiscClientFolder, ServerStorage},
         sync::ChangeSet,
         vault::{Header, Summary, VaultId},
         vfs, Paths,
@@ -24,7 +24,7 @@ use tracing::{span, Level};
 
 /// Account storage.
 pub struct AccountStorage {
-    pub(crate) folders: Storage,
+    pub(crate) folders: ServerStorage,
     /// Set of trusted devices.
     devices: DeviceSet,
 }
@@ -141,45 +141,6 @@ pub trait BackendHandler {
         owner: &Address,
         device_public_key: DevicePublicKey,
     ) -> Result<()>;
-
-    /// List folders for an account.
-    async fn list_folders(&self, owner: &Address) -> Result<Vec<Summary>>;
-
-    /// Import a folder overwriting any existing data.
-    async fn import_folder<'a>(
-        &mut self,
-        owner: &Address,
-        vault: &'a [u8],
-    ) -> Result<(Event, CommitProof)>;
-
-    /// Create a folder.
-    async fn create_folder(
-        &mut self,
-        owner: &Address,
-        vault_id: &VaultId,
-        vault: &[u8],
-    ) -> Result<(Event, CommitProof)>;
-
-    /// Delete a folder.
-    async fn delete_folder(
-        &mut self,
-        owner: &Address,
-        vault_id: &VaultId,
-    ) -> Result<()>;
-
-    /// Determine if a folder exists.
-    async fn folder_exists(
-        &self,
-        owner: &Address,
-        vault_id: &VaultId,
-    ) -> Result<(Option<Summary>, Option<CommitProof>)>;
-
-    /// Load a event log buffer for an account.
-    async fn read_events_buffer(
-        &self,
-        owner: &Address,
-        vault_id: &VaultId,
-    ) -> Result<Vec<u8>>;
 }
 
 /// Backend storage for accounts on the file system.
@@ -238,7 +199,7 @@ impl FileSystemBackend {
                             DiscClientFolder::new_event_log(&user_paths).await?;
 
                         let mut account = AccountStorage {
-                            folders: Storage::new_server(
+                            folders: ServerStorage::new(
                                 owner.clone(),
                                 Some(self.directory.clone()),
                                 identity_log,
@@ -288,10 +249,10 @@ impl BackendHandler for FileSystemBackend {
         paths.ensure().await?;
 
         let identity_log =
-            Storage::initialize_account(&paths, &account_data.identity)
+            ServerStorage::initialize_account(&paths, &account_data.identity)
                 .await?;
 
-        let mut storage = Storage::new_server(
+        let mut storage = ServerStorage::new(
             owner.clone(),
             Some(self.directory.clone()),
             Arc::new(RwLock::new(identity_log)),
@@ -344,141 +305,8 @@ impl BackendHandler for FileSystemBackend {
         Ok(())
     }
 
-    async fn create_folder(
-        &mut self,
-        owner: &Address,
-        vault_id: &VaultId,
-        vault: &[u8],
-    ) -> Result<(Event, CommitProof)> {
-        let accounts = self.accounts.read().await;
-        let account = accounts
-            .get(owner)
-            .ok_or(Error::NoAccount(owner.to_owned()))?;
-
-        let mut writer = account.write().await;
-        let folder = writer.folders.find(|s| s.id() == vault_id);
-
-        if folder.is_some() {
-            return Err(Error::FolderExists(owner.to_owned(), *vault_id));
-        }
-
-        // Check the supplied identifier matches the data in the vault
-        let summary = Header::read_summary_slice(vault).await?;
-        if summary.id() != vault_id {
-            return Err(Error::BadRequest);
-        }
-
-        let (event, summary) =
-            writer.folders.import_folder(vault, None).await?;
-        let (_, proof) = writer.folders.commit_state(&summary).await?;
-
-        Ok((event, proof))
-    }
-
-    async fn delete_folder(
-        &mut self,
-        owner: &Address,
-        vault_id: &VaultId,
-    ) -> Result<()> {
-        let accounts = self.accounts.read().await;
-        let account = accounts
-            .get(owner)
-            .ok_or(Error::NoAccount(owner.to_owned()))?;
-        let mut writer = account.write().await;
-        let folder = writer
-            .folders
-            .find(|s| s.id() == vault_id)
-            .cloned()
-            .ok_or(Error::NoFolder(owner.to_owned(), *vault_id))?;
-        writer.folders.delete_folder(&folder).await?;
-        Ok(())
-    }
-
     async fn account_exists(&self, owner: &Address) -> Result<bool> {
         let accounts = self.accounts.read().await;
         Ok(accounts.get(owner).is_some())
-    }
-
-    async fn list_folders(&self, owner: &Address) -> Result<Vec<Summary>> {
-        let mut summaries = Vec::new();
-        let accounts = self.accounts.read().await;
-        if let Some(account) = accounts.get(owner) {
-            let reader = account.read().await;
-            summaries = reader
-                .folders
-                .list_folders()
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>();
-
-            let log =
-                AuditEvent::new(EventKind::ListVaults, owner.clone(), None);
-            reader
-                .folders
-                .paths()
-                .append_audit_events(vec![log])
-                .await?;
-        }
-        Ok(summaries)
-    }
-
-    async fn import_folder<'a>(
-        &mut self,
-        owner: &Address,
-        vault: &'a [u8],
-    ) -> Result<(Event, CommitProof)> {
-        let accounts = self.accounts.read().await;
-        let account = accounts
-            .get(owner)
-            .ok_or(Error::NoAccount(owner.to_owned()))?;
-
-        let mut writer = account.write().await;
-        let (event, summary) =
-            writer.folders.import_folder(vault, None).await?;
-
-        let (_, proof) = writer.folders.commit_state(&summary).await?;
-        Ok((event, proof))
-    }
-
-    async fn folder_exists(
-        &self,
-        owner: &Address,
-        vault_id: &VaultId,
-    ) -> Result<(Option<Summary>, Option<CommitProof>)> {
-        let accounts = self.accounts.read().await;
-        if let Some(account) = accounts.get(owner) {
-            let account = account.read().await;
-            let folder = account.folders.find(|s| s.id() == vault_id);
-            if let Some(folder) = folder {
-                let (_, proof) = account.folders.commit_state(folder).await?;
-                Ok((Some(folder.clone()), Some(proof)))
-            } else {
-                Ok((None, None))
-            }
-        } else {
-            Ok((None, None))
-        }
-    }
-
-    async fn read_events_buffer(
-        &self,
-        owner: &Address,
-        vault_id: &VaultId,
-    ) -> Result<Vec<u8>> {
-        let accounts = self.accounts.read().await;
-        let account = accounts
-            .get(owner)
-            .ok_or(Error::NoAccount(owner.to_owned()))?;
-        let reader = account.read().await;
-
-        reader
-            .folders
-            .find(|s| s.id() == vault_id)
-            .cloned()
-            .ok_or(Error::NoFolder(owner.to_owned(), *vault_id))?;
-
-        let paths = reader.folders.paths();
-        let event_log = paths.event_log_path(vault_id);
-        Ok(vfs::read(event_log).await?)
     }
 }

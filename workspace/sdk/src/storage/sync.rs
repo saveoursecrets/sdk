@@ -5,7 +5,7 @@ use crate::{
     events::{
         AccountEvent, EventLogExt, EventReducer, FolderEventLog, WriteEvent,
     },
-    storage::Storage,
+    storage::{ServerStorage, Storage},
     sync::{
         AccountDiff, ChangeSet, FolderDiff, FolderPatch, SyncDiff, SyncStatus,
     },
@@ -138,7 +138,7 @@ impl ReplayHandler for ServerReplay {
     }
 }
 
-impl Storage {
+impl ServerStorage {
     /// Create a new vault file on disc and the associated
     /// event log.
     ///
@@ -206,11 +206,40 @@ impl Storage {
             vfs::write(vault_path, buffer).await?;
 
             self.cache_mut().insert(*id, event_log);
-            self.state.add_summary(summary);
         }
 
         Ok(())
     }
+
+    /// Get the sync status.
+    pub async fn sync_status(&self) -> Result<SyncStatus> {
+        let identity = {
+            let reader = self.identity_log.read().await;
+            reader.tree().commit_state()?
+        };
+
+        let account = {
+            let reader = self.account_log.read().await;
+            reader.tree().commit_state()?
+        };
+
+        let mut folders = HashMap::new();
+        for (id, event_log) in &self.cache {
+            let last_commit =
+                event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
+            let head = event_log.tree().head()?;
+            folders.insert(*id, (last_commit, head));
+        }
+        Ok(SyncStatus {
+            identity,
+            account,
+            folders,
+        })
+    }
+
+}
+
+impl Storage {
 
     /// Get the sync status.
     pub async fn sync_status(&self) -> Result<SyncStatus> {
