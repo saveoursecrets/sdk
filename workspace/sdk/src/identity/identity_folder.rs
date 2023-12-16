@@ -23,7 +23,7 @@ use crate::{
         ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
         ed25519, Signer,
     },
-    storage::{DiscFolder, ClientFolder, MemoryFolder},
+    storage::{DiscFolder, ClientFolder, MemoryFolder, Folder},
     vault::{
         secret::{
             Secret, SecretId, SecretMeta, SecretRow, SecretSigner, UserData,
@@ -64,7 +64,7 @@ where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
     W: AsyncWrite + Unpin + Send + Sync + 'static,
-    D: Clone,
+    D: Clone + Send + Sync,
 {
     folder: ClientFolder<T, R, W, D>,
     index: UrnLookup,
@@ -78,7 +78,7 @@ where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
     W: AsyncWrite + Unpin + Send + Sync + 'static,
-    D: Clone,
+    D: Clone + Send + Sync,
 {
     /// Private identity.
     pub fn private_identity(&self) -> &PrivateIdentity {

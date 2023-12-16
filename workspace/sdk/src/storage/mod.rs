@@ -12,7 +12,7 @@ mod storage;
 #[cfg(feature = "sync")]
 pub(crate) mod sync;
 
-pub use folder::{DiscFolder, ClientFolder, MemoryFolder};
+pub use folder::{DiscFolder, Folder, ClientFolder, MemoryFolder};
 pub use storage::Storage;
 
 /// Collection of vaults for an account.

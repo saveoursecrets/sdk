@@ -27,6 +27,7 @@ pub type DiscFolder = ClientFolder<FolderEventLog, DiscLog, DiscLog, DiscData>;
 pub type MemoryFolder =
     ClientFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData>;
 
+/// Defines the operations on a folder.
 #[async_trait]
 pub trait Folder {
     /// Create a secret.
@@ -38,7 +39,6 @@ pub trait Folder {
         &mut self,
         secret_data: &SecretRow,
     ) -> Result<WriteEvent>;
-
 
     /// Get a secret and it's meta data.
     ///
@@ -79,7 +79,7 @@ where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
     W: AsyncWrite + Unpin + Send + Sync + 'static,
-    D: Clone,
+    D: Clone + Send + Sync,
 {
     pub(crate) keeper: Gatekeeper,
     events: Arc<RwLock<T>>,
@@ -91,7 +91,7 @@ where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
     W: AsyncWrite + Unpin + Send + Sync + 'static,
-    D: Clone,
+    D: Clone + Send + Sync,
 {
     /// Create a new folder.
     fn init(keeper: Gatekeeper, events: T) -> Self {
@@ -127,8 +127,17 @@ where
         self.keeper.lock();
     }
 
-    /// Create a secret.
-    pub async fn create_secret(
+}
+
+#[async_trait]
+impl<T, R, W, D> Folder for ClientFolder<T, R, W, D>
+where
+    T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    D: Clone + Send + Sync,
+{
+    async fn create_secret(
         &mut self,
         secret_data: &SecretRow,
     ) -> Result<WriteEvent> {
@@ -138,16 +147,14 @@ where
         Ok(event)
     }
 
-    /// Get a secret and it's meta data.
-    pub async fn read_secret(
+    async fn read_secret(
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
         self.keeper.read(id).await
     }
 
-    /// Update a secret.
-    pub async fn update_secret(
+    async fn update_secret(
         &mut self,
         id: &SecretId,
         secret_meta: SecretMeta,
@@ -164,8 +171,7 @@ where
         }
     }
 
-    /// Delete a secret and it's meta data.
-    pub async fn delete_secret(
+    async fn delete_secret(
         &mut self,
         id: &SecretId,
     ) -> Result<Option<WriteEvent>> {
@@ -215,7 +221,7 @@ impl ClientFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
         Ok(Self::init(keeper, event_log))
     }
 
-    /// Load an identity vault event log from the given paths.
+    /// Load an identity folder event log from the given paths.
     pub async fn new_event_log(
         paths: &Paths,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
