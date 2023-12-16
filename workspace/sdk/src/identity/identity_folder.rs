@@ -23,7 +23,7 @@ use crate::{
         ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
         ed25519, Signer,
     },
-    storage::{DiscFolder, ClientFolder, MemoryFolder, Folder},
+    storage::{DiscClientFolder, ClientFolder, MemoryClientFolder, Folder},
     vault::{
         secret::{
             Secret, SecretId, SecretMeta, SecretRow, SecretSigner, UserData,
@@ -548,7 +548,7 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
         let buffer = encode(&vault).await?;
         vfs::write(paths.identity_vault(), buffer).await?;
 
-        let mut folder = DiscFolder::new(paths.identity_vault()).await?;
+        let mut folder = DiscClientFolder::new(paths.identity_vault()).await?;
         let key: AccessKey = password.into();
         folder.unlock(&key).await?;
 
@@ -614,7 +614,7 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
         path: impl AsRef<Path>,
         key: &AccessKey,
     ) -> Result<Self> {
-        let mut folder = DiscFolder::new(path).await?;
+        let mut folder = DiscClientFolder::new(path).await?;
 
         if !folder
             .keeper()
@@ -649,7 +649,7 @@ impl IdentityFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
         buffer: impl AsRef<[u8]>,
         key: &AccessKey,
     ) -> Result<Self> {
-        let mut folder = MemoryFolder::new(buffer).await?;
+        let mut folder = MemoryClientFolder::new(buffer).await?;
 
         if !folder
             .keeper()

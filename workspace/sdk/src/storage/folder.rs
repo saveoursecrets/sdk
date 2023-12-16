@@ -21,10 +21,10 @@ use tokio::sync::RwLock;
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 /// Folder that writes events to disc.
-pub type DiscFolder = ClientFolder<FolderEventLog, DiscLog, DiscLog, DiscData>;
+pub type DiscClientFolder = ClientFolder<FolderEventLog, DiscLog, DiscLog, DiscData>;
 
 /// Folder that writes events to memory.
-pub type MemoryFolder =
+pub type MemoryClientFolder =
     ClientFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData>;
 
 /// Defines the operations on a folder.
@@ -275,7 +275,6 @@ where
     W: AsyncWrite + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
-
     async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
         unimplemented!();
     }
