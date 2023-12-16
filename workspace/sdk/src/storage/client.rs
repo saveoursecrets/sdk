@@ -39,8 +39,8 @@ use crate::events::{FileEvent, FileEventLog};
 #[cfg(feature = "search")]
 use crate::storage::search::{AccountSearch, DocumentCount, SearchIndex};
 
-/// Manages multiple folders loaded into memory and mirrored to disc.
-pub struct Storage {
+/// Client storage for folders loaded into memory and mirrored to disc.
+pub struct ClientStorage {
     /// Address of the account owner.
     pub(super) address: Address,
 
@@ -76,9 +76,9 @@ pub struct Storage {
     pub(super) file_password: Option<SecretString>,
 }
 
-impl Storage {
+impl ClientStorage {
     /// Create folder storage for client-side access.
-    pub async fn new_client(
+    pub async fn new(
         address: Address,
         data_dir: Option<PathBuf>,
         identity_log: Arc<RwLock<FolderEventLog>>,
@@ -94,23 +94,6 @@ impl Storage {
             .await
     }
 
-    /// Create folder storage for server-side access.
-    pub async fn new_server(
-        address: Address,
-        data_dir: Option<PathBuf>,
-        identity_log: Arc<RwLock<FolderEventLog>>,
-    ) -> Result<Self> {
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
-        } else {
-            Paths::data_dir().map_err(|_| Error::NoCache)?
-        };
-
-        let dirs = Paths::new_server(data_dir, address.to_string());
-        Self::new_paths(Arc::new(dirs), address, identity_log, true, true)
-            .await
-    }
-
     /// Create new storage backed by files on disc.
     async fn new_paths(
         paths: Arc<Paths>,
@@ -118,7 +101,7 @@ impl Storage {
         identity_log: Arc<RwLock<FolderEventLog>>,
         mirror: bool,
         head_only: bool,
-    ) -> Result<Storage> {
+    ) -> Result<Self> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 paths.documents_dir().to_path_buf(),
@@ -154,16 +137,6 @@ impl Storage {
     /// Address of the account owner.
     pub fn address(&self) -> &Address {
         &self.address
-    }
-
-    /// Access to the identity log.
-    pub fn identity_log(&self) -> Arc<RwLock<FolderEventLog>> {
-        Arc::clone(&self.identity_log)
-    }
-
-    /// Access to the account log.
-    pub fn account_log(&self) -> Arc<RwLock<AccountEventLog>> {
-        Arc::clone(&self.account_log)
     }
 
     /// Set the password for file encryption.
@@ -1128,7 +1101,7 @@ impl Storage {
 }
 
 #[cfg(feature = "account")]
-impl Storage {
+impl ClientStorage {
     /// Create a secret in the currently open vault.
     pub(crate) async fn create_secret(
         &mut self,

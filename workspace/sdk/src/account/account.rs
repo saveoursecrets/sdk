@@ -20,7 +20,7 @@ use crate::{
     storage::AccountPack,
     storage::{
         search::{DocumentCount, SearchIndex},
-        AccessOptions, Storage,
+        AccessOptions, ClientStorage,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
@@ -30,7 +30,7 @@ use crate::{
 };
 
 #[cfg(feature = "sync")]
-use crate::sync::SyncStatus;
+use crate::{sync::SyncStatus, storage::sync::SyncStorage};
 
 use tracing::{span, Level};
 
@@ -113,7 +113,7 @@ pub(super) struct Authenticated {
     pub(super) user: Identity,
 
     /// Storage provider.
-    storage: Arc<RwLock<Storage>>,
+    storage: Arc<RwLock<ClientStorage>>,
 }
 
 /// User account backed by the filesystem.
@@ -242,7 +242,7 @@ impl<D> Account<D> {
         let address = new_account.address.clone();
         let identity_log = new_account.identity_folder.event_log();
 
-        let mut storage = Storage::new_client(
+        let mut storage = ClientStorage::new(
             address.clone(),
             data_dir.clone(),
             identity_log,
@@ -284,7 +284,7 @@ impl<D> Account<D> {
     }
 
     /// Storage provider.
-    pub fn storage(&self) -> Result<Arc<RwLock<Storage>>> {
+    pub fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
         let auth =
             self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         Ok(Arc::clone(&auth.storage))
@@ -323,7 +323,7 @@ impl<D> Account<D> {
 
         let identity_log = user.identity().as_ref().unwrap().event_log();
 
-        let mut storage = Storage::new_client(
+        let mut storage = ClientStorage::new(
             signer.address()?,
             Some(data_dir),
             identity_log,
@@ -433,6 +433,14 @@ impl<D> Account<D> {
                 .to_string(),
             folders: reader.list_folders().to_vec(),
         })
+    }
+    
+    /// Read the secret identifiers in a vault.
+    pub async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
+        let storage = self.storage()?;
+        let reader = storage.read().await;
+        let vault: Vault = reader.read_vault(summary.id()).await?;
+        Ok(vault.keys().cloned().collect())
     }
 
     /// Verify an access key for this account.

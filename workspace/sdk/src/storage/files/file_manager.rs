@@ -6,7 +6,7 @@ use crate::{
     events::{EventLogExt, FileEvent},
     storage::{
         files::{basename, EncryptedFile, FileStorage, FileStorageSync},
-        Storage,
+        ClientStorage,
     },
     vault::{
         secret::{FileContent, Secret, SecretId, SecretRow, UserData},
@@ -88,7 +88,7 @@ pub enum FileMutationEvent {
     Delete(FileEvent),
 }
 
-impl Storage {
+impl ClientStorage {
     /// Append file mutation events to the file event log.
     pub(crate) async fn append_file_mutation_events(
         &mut self,

@@ -17,7 +17,7 @@ use sos_sdk::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
         },
-        AccessOptions, Storage,
+        AccessOptions, ClientStorage,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
@@ -220,7 +220,7 @@ impl NetworkAccount {
     }
 
     /// Clone of the storage provider.
-    pub async fn storage(&self) -> Result<Arc<RwLock<Storage>>> {
+    pub async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
         let account = self.account.lock().await;
         Ok(account.storage()?)
     }

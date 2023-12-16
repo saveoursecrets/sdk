@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use sos_sdk::{
     constants::{SYNC_RESOLVE, SYNC_STATUS},
     decode, encode,
-    sync::{SyncComparison, SyncDiff, SyncStatus},
+    sync::{SyncComparison, SyncDiff, SyncStatus, SyncStorage},
 };
 
 use async_trait::async_trait;

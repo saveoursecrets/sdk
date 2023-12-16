@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::Storage,
+    storage::ClientStorage,
     sync::{Client, SyncComparison, SyncStatus},
     url::Url,
 };
@@ -87,7 +87,7 @@ pub struct RemoteBridge {
     /// Origin for this remote.
     origin: HostedOrigin,
     /// Local provider.
-    local: Arc<RwLock<Storage>>,
+    local: Arc<RwLock<ClientStorage>>,
     /// Client to use for remote communication.
     remote: RpcClient,
 }
@@ -96,7 +96,7 @@ impl RemoteBridge {
     /// Create a new remote bridge that wraps the given
     /// local provider.
     pub fn new(
-        local: Arc<RwLock<Storage>>,
+        local: Arc<RwLock<ClientStorage>>,
         origin: HostedOrigin,
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
@@ -111,7 +111,7 @@ impl RemoteBridge {
     }
 
     /// Clone of the local provider.
-    pub fn local(&self) -> Arc<RwLock<Storage>> {
+    pub fn local(&self) -> Arc<RwLock<ClientStorage>> {
         Arc::clone(&self.local)
     }
 
@@ -155,12 +155,7 @@ impl RemoteBridge {
 
             println!("sync got diff {:#?}", pull);
 
-            /*
-            let handler = ClientReplay;
-            storage.merge_diff(&pull, handler).await?;
-            */
-
-            todo!("restore client merge of diff");
+            storage.merge_diff(&pull).await?;
         }
 
         Ok(())

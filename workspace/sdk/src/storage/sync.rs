@@ -4,8 +4,9 @@ use crate::{
     encode,
     events::{
         AccountEvent, EventLogExt, EventReducer, FolderEventLog, WriteEvent,
+        AccountEventLog,
     },
-    storage::{ServerStorage, Storage},
+    storage::{ServerStorage, ClientStorage},
     sync::{
         AccountDiff, ChangeSet, FolderDiff, FolderPatch, SyncDiff, SyncStatus,
     },
@@ -13,7 +14,24 @@ use crate::{
     vfs, Error, Paths, Result,
 };
 use async_trait::async_trait;
-use std::collections::HashMap;
+use tokio::sync::RwLock;
+use std::{collections::HashMap, sync::Arc};
+
+/// Storage implementations that can synchronize.
+#[async_trait]
+pub trait SyncStorage {
+    /// Get the sync status.
+    async fn sync_status(&self) -> Result<SyncStatus>;
+
+    /// Clone of the identity log.
+    fn identity_log(&self) -> Arc<RwLock<FolderEventLog>>;
+
+    /// Clone of the account log.
+    fn account_log(&self) -> Arc<RwLock<AccountEventLog>>;
+    
+    /// Folder event log.
+    fn folder_log(&self, id: &VaultId) -> Result<&FolderEventLog>;
+}
 
 impl ServerStorage {
     /// Create a new vault file on disc and the associated
@@ -88,31 +106,6 @@ impl ServerStorage {
         Ok(())
     }
 
-    /// Get the sync status.
-    pub async fn sync_status(&self) -> Result<SyncStatus> {
-        let identity = {
-            let reader = self.identity_log.read().await;
-            reader.tree().commit_state()?
-        };
-
-        let account = {
-            let reader = self.account_log.read().await;
-            reader.tree().commit_state()?
-        };
-
-        let mut folders = HashMap::new();
-        for (id, event_log) in &self.cache {
-            let last_commit =
-                event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
-            let head = event_log.tree().head()?;
-            folders.insert(*id, (last_commit, head));
-        }
-        Ok(SyncStatus {
-            identity,
-            account,
-            folders,
-        })
-    }
 
     async fn replay_identity_events(
         &mut self,
@@ -195,10 +188,9 @@ impl ServerStorage {
     }
 }
 
-impl Storage {
-
-    /// Get the sync status.
-    pub async fn sync_status(&self) -> Result<SyncStatus> {
+#[async_trait]
+impl SyncStorage for ServerStorage {
+    async fn sync_status(&self) -> Result<SyncStatus> {
         let identity = {
             let reader = self.identity_log.read().await;
             reader.tree().commit_state()?
@@ -209,18 +201,12 @@ impl Storage {
             reader.tree().commit_state()?
         };
 
-        let summaries = self.state.summaries();
         let mut folders = HashMap::new();
-        for summary in summaries {
-            let event_log = self
-                .cache
-                .get(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
+        for (id, event_log) in &self.cache {
             let last_commit =
                 event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
             let head = event_log.tree().head()?;
-            folders.insert(*summary.id(), (last_commit, head));
+            folders.insert(*id, (last_commit, head));
         }
         Ok(SyncStatus {
             identity,
@@ -228,6 +214,24 @@ impl Storage {
             folders,
         })
     }
+
+    fn identity_log(&self) -> Arc<RwLock<FolderEventLog>> {
+        Arc::clone(&self.identity_log)
+    }
+
+    fn account_log(&self) -> Arc<RwLock<AccountEventLog>> {
+        Arc::clone(&self.account_log)
+    }
+
+    fn folder_log(&self, id: &VaultId) -> Result<&FolderEventLog> {
+        self
+            .cache
+            .get(id)
+            .ok_or(Error::CacheNotAvailable(*id))
+    }
+}
+
+impl ClientStorage {
 
     /// Change set of all event logs.
     ///
@@ -264,21 +268,21 @@ impl Storage {
         &mut self,
         diff: &FolderDiff,
     ) -> Result<usize> {
-        todo!();
+        todo!("client replay identity events");
     }
 
     async fn replay_account_events(
         &mut self,
         diff: &AccountDiff,
     ) -> Result<usize> {
-        todo!();
+        todo!("client replay account events");
     }
 
     async fn replay_folder_events(
         &mut self,
         folders: &HashMap<VaultId, FolderDiff>,
     ) -> Result<usize> {
-        todo!();
+        todo!("client replay folder events");
     }
 
     /// Merge a diff into this storage.
@@ -393,4 +397,54 @@ impl Storage {
         Ok(())
     }
     */
+}
+
+#[async_trait]
+impl SyncStorage for ClientStorage {
+
+    async fn sync_status(&self) -> Result<SyncStatus> {
+        let identity = {
+            let reader = self.identity_log.read().await;
+            reader.tree().commit_state()?
+        };
+
+        let account = {
+            let reader = self.account_log.read().await;
+            reader.tree().commit_state()?
+        };
+
+        let summaries = self.state.summaries();
+        let mut folders = HashMap::new();
+        for summary in summaries {
+            let event_log = self
+                .cache
+                .get(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+            let last_commit =
+                event_log.tree().last_commit().ok_or(Error::NoRootCommit)?;
+            let head = event_log.tree().head()?;
+            folders.insert(*summary.id(), (last_commit, head));
+        }
+        Ok(SyncStatus {
+            identity,
+            account,
+            folders,
+        })
+    }
+
+    fn identity_log(&self) -> Arc<RwLock<FolderEventLog>> {
+        Arc::clone(&self.identity_log)
+    }
+
+    fn account_log(&self) -> Arc<RwLock<AccountEventLog>> {
+        Arc::clone(&self.account_log)
+    }
+
+    fn folder_log(&self, id: &VaultId) -> Result<&FolderEventLog> {
+        self
+            .cache
+            .get(id)
+            .ok_or(Error::CacheNotAvailable(*id))
+    }
 }

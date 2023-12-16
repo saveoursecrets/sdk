@@ -237,17 +237,13 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner.open_folder(&summary).await?;
             }
 
-            let storage = owner.storage().await?;
-            let reader = storage.read().await;
+            let local_account = owner.local_account();
+            let local = local_account.lock().await;
 
-            /*
-            let keeper = reader.current().ok_or(Error::NoVaultSelected)?;
-            for uuid in keeper.vault().keys() {
-                println!("{}", uuid);
+            let ids = local.secret_ids(&summary).await?;
+            for id in ids {
+                println!("{}", id);
             }
-            */
-
-            todo!("restore keys iterator");
         }
         Command::Commits { account, folder } => {
             let user = resolve_user(account.as_ref(), false).await?;

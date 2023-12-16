@@ -2,20 +2,23 @@
 use crate::vault::{Summary, Vault};
 use tokio::sync::mpsc;
 
+mod client;
 #[cfg(feature = "files")]
 pub mod files;
 mod folder;
 pub(crate) mod paths;
 #[cfg(feature = "search")]
 pub mod search;
-mod storage;
 mod server;
 #[cfg(feature = "sync")]
 pub(crate) mod sync;
 
+pub use client::ClientStorage;
 pub use folder::{DiscClientFolder, Folder, ClientFolder, MemoryClientFolder};
 pub use server::ServerStorage;
-pub use storage::Storage;
+
+#[cfg(feature = "sync")]
+pub use sync::SyncStorage;
 
 /// Collection of vaults for an account.
 #[derive(Default)]

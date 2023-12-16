@@ -3,7 +3,6 @@
 use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     events::{AccountEvent, EventLogExt, WriteEvent},
-    storage::Storage,
     vault::VaultId,
     Error, Result,
 };
@@ -16,6 +15,7 @@ use url::Url;
 mod patch;
 
 pub use patch::{AccountPatch, FolderPatch, Patch};
+pub use crate::storage::sync::SyncStorage;
 
 #[cfg(feature = "files")]
 pub use patch::FilePatch;
@@ -99,7 +99,7 @@ pub struct SyncComparison {
 impl SyncComparison {
     /// Create a new sync comparison.
     pub async fn new(
-        storage: &Storage,
+        storage: &impl SyncStorage,
         remote_status: SyncStatus,
     ) -> Result<SyncComparison> {
         let local_status = storage.sync_status().await?;
@@ -121,7 +121,7 @@ impl SyncComparison {
             for (id, folder) in &remote_status.folders {
                 // Folder may exist on remote but not locally
                 // if we have just deleted a folder
-                if let Some(event_log) = storage.cache().get(id) {
+                if let Ok(event_log) = storage.folder_log(id) {
                     folders.insert(*id, event_log.tree().compare(&folder.1)?);
                 }
             }
@@ -143,7 +143,7 @@ impl SyncComparison {
     }
 
     /// Build a diff from this comparison.
-    pub async fn diff(&self, storage: &Storage) -> Result<SyncDiff> {
+    pub async fn diff(&self, storage: &impl SyncStorage) -> Result<SyncDiff> {
         let mut diff: SyncDiff = Default::default();
 
         match self.identity {
@@ -212,10 +212,7 @@ impl SyncComparison {
                 Comparison::Equal => {}
                 Comparison::Contains(_, _) => {
                     // Need to push changes to remote
-                    let log = storage
-                        .cache()
-                        .get(id)
-                        .ok_or(Error::CacheNotAvailable(*id))?;
+                    let log = storage.folder_log(id)?;
 
                     let is_last_commit = Some(&commit_state.0)
                         == log.tree().last_commit().as_ref();
