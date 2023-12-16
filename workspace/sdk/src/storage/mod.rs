@@ -17,9 +17,6 @@ pub use client::ClientStorage;
 pub use folder::{DiscFolder, Folder, MemoryFolder};
 pub use server::ServerStorage;
 
-#[cfg(feature = "sync")]
-pub use sync::SyncStorage;
-
 /// Collection of vaults for an account.
 #[derive(Default)]
 pub struct AccountPack {

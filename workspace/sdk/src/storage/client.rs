@@ -920,7 +920,7 @@ impl ClientStorage {
         access.set_vault_name(name.as_ref().to_owned()).await?;
 
         let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
-        self.patch(summary, vec![&event]).await?;
+        self.apply_local_events(summary, vec![&event]).await?;
 
         let account_event = AccountEvent::RenameFolder(
             *summary.id(),
@@ -953,63 +953,22 @@ impl ClientStorage {
         let mut meta = keeper.vault_meta().await?;
         meta.set_description(description.as_ref().to_owned());
         let event = keeper.set_vault_meta(&meta).await?;
-        self.patch(&summary, vec![&event]).await?;
+        self.apply_local_events(&summary, vec![&event]).await?;
         Ok(event)
     }
 
-    /// Apply events to an existing folder.
-    ///
-    /// If the storage is mirroring changes to vault files
-    /// the events are written to the vault file before
-    /// applying to the folder event log.
-    #[deprecated(note = "prefer new Folder implementations")]
-    async fn patch(
+    /// Apply events to an event log.
+    async fn apply_local_events(
         &mut self,
         summary: &Summary,
         events: Vec<&WriteEvent>,
     ) -> Result<()> {
-
-        /*
-        // Apply events to the vault file on disc
-        if self.state.mirror && !self.state.head_only {
-            let vault_path = self.paths.vault_path(summary.id());
-            let vault_file = VaultWriter::open(&vault_path).await?;
-            let mut mirror = VaultWriter::new(vault_path, vault_file)?;
-            for event in events.clone() {
-                match event {
-                    WriteEvent::CreateSecret(secret_id, vault_commit) => {
-                        let hash = vault_commit.0.clone();
-                        let entry = vault_commit.1.clone();
-                        mirror.insert(*secret_id, hash, entry).await?;
-                    }
-                    WriteEvent::UpdateSecret(secret_id, vault_commit) => {
-                        let hash = vault_commit.0.clone();
-                        let entry = vault_commit.1.clone();
-                        mirror.update(secret_id, hash, entry).await?;
-                    }
-                    WriteEvent::SetVaultName(name) => {
-                        mirror.set_vault_name(name.to_owned()).await?;
-                    }
-                    WriteEvent::SetVaultMeta(meta) => {
-                        mirror.set_vault_meta(meta.clone()).await?;
-                    }
-                    WriteEvent::DeleteSecret(secret_id) => {
-                        mirror.delete(secret_id).await?;
-                    }
-                    _ => {} // Ignore CreateVault and Noop
-                }
-            }
-        }
-        */
-
         // Apply events to the event log file
         let event_log = self
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
         event_log.apply(events).await?;
-
         Ok(())
     }
 
@@ -1143,7 +1102,7 @@ impl ClientStorage {
             self.append_file_mutation_events(&events).await?;
         }
 
-        self.patch(&summary, vec![&event]).await?;
+        self.apply_local_events(&summary, vec![&event]).await?;
 
         if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
             let search = index.search();
@@ -1254,7 +1213,7 @@ impl ClientStorage {
                 .await?
                 .ok_or(Error::SecretNotFound(*id))?
         };
-        self.patch(&summary, vec![&event]).await?;
+        self.apply_local_events(&summary, vec![&event]).await?;
 
         if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
             let search = index.search();
@@ -1313,7 +1272,7 @@ impl ClientStorage {
             let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
             keeper.delete(id).await?.ok_or(Error::SecretNotFound(*id))?
         };
-        self.patch(&summary, vec![&event]).await?;
+        self.apply_local_events(&summary, vec![&event]).await?;
 
         if let Some(index) = &self.index {
             let search = index.search();

@@ -2,20 +2,20 @@
 
 use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
-    events::{AccountEvent, EventLogExt, WriteEvent},
+    events::{AccountEvent, EventLogExt, WriteEvent, FolderEventLog, AccountEventLog},
     vault::VaultId,
     Error, Result,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use tokio::sync::RwLock;
+use std::{collections::HashMap, sync::Arc};
 use url::Url;
 
 mod patch;
 
 pub use patch::{AccountPatch, FolderPatch, Patch};
-pub use crate::storage::sync::SyncStorage;
 
 #[cfg(feature = "files")]
 pub use patch::FilePatch;
@@ -277,3 +277,20 @@ pub trait Client {
         diff: &SyncDiff,
     ) -> std::result::Result<SyncDiff, Self::Error>;
 }
+
+/// Storage implementations that can synchronize.
+#[async_trait]
+pub trait SyncStorage {
+    /// Get the sync status.
+    async fn sync_status(&self) -> Result<SyncStatus>;
+
+    /// Clone of the identity log.
+    fn identity_log(&self) -> Arc<RwLock<FolderEventLog>>;
+
+    /// Clone of the account log.
+    fn account_log(&self) -> Arc<RwLock<AccountEventLog>>;
+    
+    /// Folder event log.
+    fn folder_log(&self, id: &VaultId) -> Result<&FolderEventLog>;
+}
+

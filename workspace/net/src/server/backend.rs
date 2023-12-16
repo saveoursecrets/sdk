@@ -2,14 +2,11 @@ use super::{Error, Result};
 use crate::{
     device::DeviceSet,
     sdk::{
-        commit::CommitProof,
         constants::{DEVICES_FILE, JSON_EXT},
         device::DevicePublicKey,
-        events::{AuditEvent, Event, EventKind},
         signer::ecdsa::Address,
         storage::{DiscFolder, ServerStorage},
         sync::ChangeSet,
-        vault::{Header, Summary, VaultId},
         vfs, Paths,
     },
 };

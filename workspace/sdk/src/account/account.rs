@@ -30,7 +30,7 @@ use crate::{
 };
 
 #[cfg(feature = "sync")]
-use crate::{sync::SyncStatus, storage::sync::SyncStorage};
+use crate::sync::{SyncStatus, SyncStorage};
 
 use tracing::{span, Level};
 

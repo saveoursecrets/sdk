@@ -2,15 +2,14 @@
 use mpc_protocol::generate_keypair;
 use secrecy::SecretString;
 use sos_sdk::{
-    account::{self, Account, AccountBuilder, AccountData, DetachedView},
+    account::{Account, AccountBuilder, AccountData, DetachedView},
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     device::DeviceSigner,
     events::{Event, ReadEvent},
-    identity::{AccountRef, Identity, PublicIdentity},
+    identity::{AccountRef, PublicIdentity},
     signer::{
         ecdsa::{Address, BoxedEcdsaSigner},
-        ed25519::BoxedEd25519Signer,
     },
     storage::{
         search::{

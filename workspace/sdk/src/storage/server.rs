@@ -1,29 +1,22 @@
 //! Server storage backed by the filesystem.
 use crate::{
-    commit::{CommitHash, CommitState, CommitTree},
+    commit::{CommitState, CommitTree},
     constants::VAULT_EXT,
-    crypto::AccessKey,
-    decode, encode,
+    decode,
     events::{
-        AccountEvent, AccountEventLog, AuditEvent, Event, EventKind,
-        EventLogExt, EventReducer, FolderEventLog, ReadEvent, WriteEvent,
+        AccountEvent, AccountEventLog, AuditEvent, Event,
+        EventLogExt, EventReducer, FolderEventLog,
     },
-    identity::FolderKeys,
-    passwd::{diceware::generate_passphrase, ChangePassword},
     signer::ecdsa::Address,
-    storage::AccessOptions,
-    storage::AccountPack,
     vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow},
-        FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
-        VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultWriter,
+        Header, Summary, Vault, VaultAccess,
+        VaultId, VaultWriter,
     },
-    vfs, Error, Paths, Result, Timestamp,
+    vfs, Error, Paths, Result,
 };
 
-use secrecy::SecretString;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     path::PathBuf,
     sync::Arc,
 };
@@ -70,7 +63,7 @@ impl ServerStorage {
         };
 
         let dirs = Paths::new_server(data_dir, address.to_string());
-        Self::new_paths(Arc::new(dirs), address, identity_log, true, true)
+        Self::new_paths(Arc::new(dirs), address, identity_log)
             .await
     }
 
@@ -79,8 +72,6 @@ impl ServerStorage {
         paths: Arc<Paths>,
         address: Address,
         identity_log: Arc<RwLock<FolderEventLog>>,
-        mirror: bool,
-        head_only: bool,
     ) -> Result<Self> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(

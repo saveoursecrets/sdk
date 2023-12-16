@@ -1,6 +1,5 @@
 //! Synchronization helpers.
 use crate::{
-    account::Account,
     encode,
     events::{
         AccountEvent, EventLogExt, EventReducer, FolderEventLog, WriteEvent,
@@ -9,6 +8,7 @@ use crate::{
     storage::{ServerStorage, ClientStorage},
     sync::{
         AccountDiff, ChangeSet, FolderDiff, FolderPatch, SyncDiff, SyncStatus,
+        SyncStorage,
     },
     vault::VaultId,
     vfs, Error, Paths, Result,
@@ -16,22 +16,6 @@ use crate::{
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use std::{collections::HashMap, sync::Arc};
-
-/// Storage implementations that can synchronize.
-#[async_trait]
-pub trait SyncStorage {
-    /// Get the sync status.
-    async fn sync_status(&self) -> Result<SyncStatus>;
-
-    /// Clone of the identity log.
-    fn identity_log(&self) -> Arc<RwLock<FolderEventLog>>;
-
-    /// Clone of the account log.
-    fn account_log(&self) -> Arc<RwLock<AccountEventLog>>;
-    
-    /// Folder event log.
-    fn folder_log(&self, id: &VaultId) -> Result<&FolderEventLog>;
-}
 
 impl ServerStorage {
     /// Create a new vault file on disc and the associated
