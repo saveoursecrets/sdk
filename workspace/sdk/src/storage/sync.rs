@@ -1,5 +1,6 @@
 //! Synchronization helpers.
 use crate::{
+    account::Account,
     encode,
     events::{
         AccountEvent, EventLogExt, EventReducer, FolderEventLog, WriteEvent,
@@ -14,7 +15,7 @@ use crate::{
     vfs, Error, Paths, Result,
 };
 use async_trait::async_trait;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Mutex};
 use std::{collections::HashMap, sync::Arc};
 
 impl ServerStorage {
@@ -249,9 +250,10 @@ impl ClientStorage {
     }
 
     /// Merge a diff into this storage.
-    pub async fn merge_diff(
+    pub async fn merge_diff<H>(
         &mut self,
         diff: &SyncDiff,
+        account: Arc<Mutex<Account<H>>>,
     ) -> Result<usize> {
         let mut num_changes = 0;
 
