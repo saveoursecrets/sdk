@@ -2,7 +2,7 @@
 use crate::{
     commit::{CommitState, CommitTree},
     constants::VAULT_EXT,
-    decode,
+    decode, encode,
     events::{
         AccountEvent, AccountEventLog, AuditEvent, Event, EventLogExt,
         EventReducer, FolderEventLog,
@@ -156,33 +156,6 @@ impl ServerStorage {
         Ok(())
     }
 
-    /// Create a cache entry for each summary if it does not
-    /// already exist.
-    async fn load_caches(&mut self, ids: &[VaultId]) -> Result<()> {
-        for id in ids {
-            // Ensure we don't overwrite existing data
-            if self.cache().get(id).is_none() {
-                self.create_cache_entry(id).await?;
-            }
-        }
-        Ok(())
-    }
-
-    /*
-    /// Commit tree for an event log file.
-    pub fn commit_tree(&self, id: &VaultId) -> Option<&CommitTree> {
-        self.cache
-            .get(id)
-            .map(|event_log| event_log.tree())
-    }
-    */
-
-    /// Remove the local cache for a vault.
-    fn remove_local_cache(&mut self, id: &VaultId) -> Result<()> {
-        self.cache.remove(id);
-        Ok(())
-    }
-
     /// Remove a vault file and event log file.
     async fn remove_vault_file(&self, id: &VaultId) -> Result<()> {
         // Remove local vault mirror if it exists
@@ -202,9 +175,9 @@ impl ServerStorage {
     /// Load folders from the local disc.
     ///
     /// Creates the in-memory event logs for each folder on disc.
-    pub async fn load_folders(&mut self) -> Result<()> {
+    pub async fn load_folders(&mut self) -> Result<Vec<Summary>> {
         let storage = self.paths.vaults_dir();
-        let mut ids = Vec::new();
+        let mut summaries = Vec::new();
         let mut contents = vfs::read_dir(&storage).await?;
         while let Some(entry) = contents.next_entry().await? {
             let path = entry.path();
@@ -214,13 +187,20 @@ impl ServerStorage {
                     if summary.flags().is_system() {
                         continue;
                     }
-                    ids.push(*summary.id());
+                    summaries.push(summary);
                 }
             }
         }
 
-        self.load_caches(&ids).await?;
-        Ok(())
+        // Create a cache entry for each summary if it does not
+        // already exist.
+        for summary in &summaries {
+            // Ensure we don't overwrite existing data
+            if self.cache.get(summary.id()).is_none() {
+                self.create_cache_entry(summary.id()).await?;
+            }
+        }
+        Ok(summaries)
     }
 
     /// Import a folder into an existing account.
@@ -239,6 +219,10 @@ impl ServerStorage {
         let vault: Vault = decode(buffer.as_ref()).await?;
         let (vault, events) = EventReducer::split(vault).await?;
 
+        let vault_path = self.paths.vault_path(id);
+        let buffer = encode(&vault).await?;
+        vfs::write(vault_path, &buffer).await?;
+
         let event_log_path = self.paths.event_log_path(id);
         let mut event_log = FolderEventLog::new(&event_log_path).await?;
         event_log.clear().await?;
@@ -248,10 +232,10 @@ impl ServerStorage {
         // and we are overwriting then log the update
         // folder event
         let account_event = if exists {
-            AccountEvent::UpdateFolder(*id, buffer.as_ref().to_owned())
+            AccountEvent::UpdateFolder(*id, buffer)
         // Otherwise a create event
         } else {
-            AccountEvent::CreateFolder(*id, buffer.as_ref().to_owned())
+            AccountEvent::CreateFolder(*id, buffer)
         };
 
         let mut account_log = self.account_log.write().await;
@@ -269,7 +253,7 @@ impl ServerStorage {
         self.remove_vault_file(id).await?;
 
         // Remove local state
-        self.remove_local_cache(id)?;
+        self.cache.remove(id);
 
         let mut events = Vec::new();
 

@@ -425,7 +425,7 @@ impl ClientStorage {
             let index = index.search();
             if let Some(current) = self.current_folder() {
                 if let Some(folder) = self.cache.get_mut(current.id()) {
-                    let mut keeper = folder.keeper_mut();
+                    let keeper = folder.keeper_mut();
                     if keeper.id() == summary.id() {
                         Self::replace_vault(index, keeper, vault, new_key)
                             .await?;
@@ -911,7 +911,7 @@ impl ClientStorage {
 
         // Now update the in-memory name for the folder
         if let Some(folder) = self.cache.get_mut(summary.id()) {
-            let mut keeper = folder.keeper_mut();
+            let keeper = folder.keeper_mut();
             if keeper.vault().id() == summary.id() {
                 keeper.set_vault_name(name.as_ref().to_owned()).await?;
             }
@@ -1011,7 +1011,7 @@ impl ClientStorage {
         self.refresh_vault(vault.summary(), Some(&new_key)).await?;
 
         if let Some(folder) = self.cache.get_mut(vault.id()) {
-            let mut keeper = folder.keeper_mut();
+            let keeper = folder.keeper_mut();
             keeper.unlock(&new_key).await?;
         }
 
