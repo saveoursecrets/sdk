@@ -909,22 +909,11 @@ impl ClientStorage {
             }
         }
 
-        // Now update the in-memory name for the folder
-        if let Some(folder) = self.cache.get_mut(summary.id()) {
-            let keeper = folder.keeper_mut();
-            if keeper.vault().id() == summary.id() {
-                keeper.set_vault_name(name.as_ref().to_owned()).await?;
-            }
-        }
-
-        // Update the vault on disc
-        let vault_path = self.paths.vault_path(summary.id());
-        let vault_file = VaultWriter::open(&vault_path).await?;
-        let mut access = VaultWriter::new(vault_path, vault_file)?;
-        access.set_vault_name(name.as_ref().to_owned()).await?;
-
-        let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
-        self.apply_local_events(summary, vec![&event]).await?;
+        let folder = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let event = folder.rename_folder(name.as_ref()).await?;
 
         let account_event = AccountEvent::RenameFolder(
             *summary.id(),
@@ -944,9 +933,7 @@ impl ClientStorage {
     pub async fn description(&self) -> Result<String> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
         if let Some(folder) = self.cache.get(summary.id()) {
-            let keeper = folder.keeper();
-            let meta = keeper.vault_meta().await?;
-            Ok(meta.description().to_owned())
+            Ok(folder.description().await?)
         } else {
             Err(Error::CacheNotAvailable(*summary.id()))
         }
@@ -959,29 +946,10 @@ impl ClientStorage {
     ) -> Result<WriteEvent> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
         if let Some(folder) = self.cache.get_mut(summary.id()) {
-            let keeper = folder.keeper_mut();
-            let mut meta = keeper.vault_meta().await?;
-            meta.set_description(description.as_ref().to_owned());
-            let event = keeper.set_vault_meta(&meta).await?;
-            self.apply_local_events(&summary, vec![&event]).await?;
-            Ok(event)
+            Ok(folder.set_description(description).await?)
         } else {
             Err(Error::CacheNotAvailable(*summary.id()))
         }
-    }
-
-    /// Apply events to an event log.
-    async fn apply_local_events(
-        &mut self,
-        summary: &Summary,
-        events: Vec<&WriteEvent>,
-    ) -> Result<()> {
-        let folder = self
-            .cache
-            .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        folder.apply(events).await?;
-        Ok(())
     }
 
     /// Change the password for a vault.

@@ -1,6 +1,6 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
-    crypto::{AccessKey, KeyDerivation, PrivateKey},
+    crypto::{AccessKey, AeadPack, KeyDerivation, PrivateKey},
     decode, encode,
     events::{ReadEvent, WriteEvent},
     vault::{
@@ -116,20 +116,25 @@ impl Gatekeeper {
     /// Attempt to decrypt the meta data for the vault
     /// using the key assigned to this gatekeeper.
     pub async fn vault_meta(&self) -> Result<VaultMeta> {
-        let private_key =
-            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
-
         if let Some(meta_aead) = self.vault.header().meta() {
-            let meta_blob = self
-                .vault
-                .decrypt(private_key, meta_aead)
-                .await
-                .map_err(|_| Error::PassphraseVerification)?;
-            let meta_data: VaultMeta = decode(&meta_blob).await?;
-            Ok(meta_data)
+            Ok(self.decrypt_meta(meta_aead).await?)
         } else {
             Err(Error::VaultNotInit)
         }
+    }
+
+    pub(crate) async fn decrypt_meta(
+        &self,
+        meta_aead: &AeadPack,
+    ) -> Result<VaultMeta> {
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+        let meta_blob = self
+            .vault
+            .decrypt(private_key, meta_aead)
+            .await
+            .map_err(|_| Error::PassphraseVerification)?;
+        Ok(decode(&meta_blob).await?)
     }
 
     /// Set the meta data for the vault.
@@ -151,27 +156,36 @@ impl Gatekeeper {
     async fn read_secret(
         &self,
         id: &SecretId,
-        from: Option<&Vault>,
+        //from: Option<&Vault>,
         private_key: Option<&PrivateKey>,
     ) -> Result<Option<(SecretMeta, Secret)>> {
+        if let (Some(value), _payload) = self.vault.read(id).await? {
+            Ok(Some(
+                self.decrypt_secret(value.as_ref(), private_key).await?,
+            ))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub(crate) async fn decrypt_secret(
+        &self,
+        vault_commit: &VaultCommit,
+        private_key: Option<&PrivateKey>,
+    ) -> Result<(SecretMeta, Secret)> {
         let private_key = private_key
             .or(self.private_key.as_ref())
             .ok_or(Error::VaultLocked)?;
 
-        let from = from.unwrap_or(&self.vault);
+        let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
+            vault_commit;
+        let meta_blob = self.vault.decrypt(private_key, meta_aead).await?;
+        let secret_meta: SecretMeta = decode(&meta_blob).await?;
 
-        if let (Some(value), _payload) = from.read(id).await? {
-            let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
-                value.as_ref();
-            let meta_blob = from.decrypt(private_key, meta_aead).await?;
-            let secret_meta: SecretMeta = decode(&meta_blob).await?;
-
-            let secret_blob = from.decrypt(private_key, secret_aead).await?;
-            let secret: Secret = decode(&secret_blob).await?;
-            Ok(Some((secret_meta, secret)))
-        } else {
-            Ok(None)
-        }
+        let secret_blob =
+            self.vault.decrypt(private_key, secret_aead).await?;
+        let secret: Secret = decode(&secret_blob).await?;
+        Ok((secret_meta, secret))
     }
 
     /// Ensure that if shared access is set to readonly that
@@ -232,7 +246,7 @@ impl Gatekeeper {
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
         let payload = ReadEvent::ReadSecret(*id);
         Ok(self
-            .read_secret(id, None, None)
+            .read_secret(id, None)
             .await?
             .map(|(meta, secret)| (meta, secret, payload)))
     }
@@ -398,7 +412,7 @@ mod tests {
         let event = keeper.create(&secret_data).await?;
         if let WriteEvent::CreateSecret(secret_uuid, _) = event {
             let (saved_secret_meta, saved_secret) =
-                keeper.read_secret(&secret_uuid, None, None).await?.unwrap();
+                keeper.read_secret(&secret_uuid, None).await?.unwrap();
             assert_eq!(secret, saved_secret);
             assert_eq!(secret_meta, saved_secret_meta);
         } else {
@@ -448,7 +462,7 @@ mod tests {
 
         if let WriteEvent::CreateSecret(secret_uuid, _) = event {
             let (saved_secret_meta, saved_secret) =
-                keeper.read_secret(&secret_uuid, None, None).await?.unwrap();
+                keeper.read_secret(&secret_uuid, None).await?.unwrap();
             assert_eq!(secret, saved_secret);
             assert_eq!(secret_meta, saved_secret_meta);
             secret_uuid

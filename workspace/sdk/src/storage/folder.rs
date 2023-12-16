@@ -1,6 +1,6 @@
 //! Storage backed by the filesystem.
 use crate::{
-    commit::CommitState,
+    commit::{CommitState, Comparison},
     constants::EVENT_LOG_EXT,
     crypto::AccessKey,
     decode,
@@ -19,6 +19,9 @@ use std::{path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+
+#[cfg(feature = "sync")]
+use crate::sync::{CheckedPatch, FolderDiff};
 
 /// Folder that writes events to disc.
 pub type DiscFolder = Folder<FolderEventLog, DiscLog, DiscLog, DiscData>;
@@ -137,6 +140,42 @@ where
         }
     }
 
+    /// Set the name of the folder.
+    pub async fn rename_folder(
+        &mut self,
+        name: impl AsRef<str>,
+    ) -> Result<WriteEvent> {
+        self.keeper.set_vault_name(name.as_ref().to_owned()).await?;
+        let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
+        let mut events = self.events.write().await;
+        events.apply(vec![&event]).await?;
+        Ok(event)
+    }
+
+    /// Description of this folder.
+    pub async fn description(&self) -> Result<String> {
+        let meta = self.keeper.vault_meta().await?;
+        Ok(meta.description().to_owned())
+    }
+
+    /// Set the description of this folder.
+    pub async fn set_description(
+        &mut self,
+        description: impl AsRef<str>,
+    ) -> Result<WriteEvent> {
+        let mut meta = self.keeper.vault_meta().await?;
+        meta.set_description(description.as_ref().to_owned());
+        Ok(self.set_meta(&meta).await?)
+    }
+
+    /// Set the folder meta data.
+    pub async fn set_meta(&mut self, meta: &VaultMeta) -> Result<WriteEvent> {
+        let event = self.keeper.set_vault_meta(&meta).await?;
+        let mut events = self.events.write().await;
+        events.apply(vec![&event]).await?;
+        Ok(event)
+    }
+
     /// Folder commit state.
     pub async fn commit_state(&self) -> Result<CommitState> {
         let event_log = self.events.read().await;
@@ -158,6 +197,57 @@ where
         let mut event_log = self.events.write().await;
         event_log.clear().await?;
         Ok(())
+    }
+
+    #[cfg(feature = "sync")]
+    pub(crate) async fn replay_checked(
+        &mut self,
+        diff: &FolderDiff,
+    ) -> Result<CheckedPatch> {
+        let checked_patch = {
+            let mut event_log = self.events.write().await;
+            event_log.patch_checked(&diff.before, &diff.patch).await?
+        };
+
+        if let CheckedPatch::Success(_, _) = &checked_patch {
+            for event in diff.patch.iter() {
+                match event {
+                    WriteEvent::CreateVault(_) => {
+                        tracing::warn!("replay got create vault event");
+                    }
+                    WriteEvent::SetVaultName(name) => {
+                        self.keeper.set_vault_name(name.to_owned()).await?;
+                    }
+                    WriteEvent::SetVaultMeta(aead) => {
+                        let meta = self.keeper.decrypt_meta(aead).await?;
+                        self.keeper.set_vault_meta(&meta).await?;
+                    }
+                    WriteEvent::CreateSecret(id, vault_commit) => {
+                        let (meta, secret) = self
+                            .keeper
+                            .decrypt_secret(vault_commit, None)
+                            .await?;
+                        let row = SecretRow::new(*id, meta, secret);
+                        self.keeper.create(&row).await?;
+                    }
+                    WriteEvent::UpdateSecret(id, vault_commit) => {
+                        let (meta, secret) = self
+                            .keeper
+                            .decrypt_secret(vault_commit, None)
+                            .await?;
+                        self.keeper.update(id, meta, secret).await?;
+                    }
+                    WriteEvent::DeleteSecret(id) => {
+                        self.keeper.delete(id).await?;
+                    }
+                    WriteEvent::Noop => {
+                        tracing::error!("replay got noop event");
+                    }
+                }
+            }
+        }
+
+        Ok(checked_patch)
     }
 }
 
