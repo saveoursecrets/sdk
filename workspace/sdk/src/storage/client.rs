@@ -458,9 +458,8 @@ impl ClientStorage {
             let mut writer = index.write().await;
 
             for added_key in updated_keys.difference(&existing_keys) {
-                if let Some((meta, secret, _)) = keeper
-                    .read(added_key /*, Some(&vault), derived_key*/)
-                    .await?
+                if let Some((meta, secret, _)) =
+                    keeper.read_secret(added_key).await?
                 {
                     writer.add(keeper.id(), added_key, &meta, &secret);
                 }
@@ -480,7 +479,7 @@ impl ClientStorage {
                 ) {
                     if existing_hash != updated_hash {
                         if let Some((meta, secret, _)) = keeper
-                            .read(
+                            .read_secret(
                                 maybe_updated,
                                 //Some(&vault),
                                 //derived_key,

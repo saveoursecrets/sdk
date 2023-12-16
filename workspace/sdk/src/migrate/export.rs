@@ -68,7 +68,9 @@ impl<W: AsyncWrite + Unpin> PublicExport<W> {
             .await?;
 
         for id in access.vault().keys() {
-            if let Some((meta, mut secret, _)) = access.read(id).await? {
+            if let Some((meta, mut secret, _)) =
+                access.read_secret(id).await?
+            {
                 // Move contents for file secrets
                 self.move_file_buffer(&file_path, &mut secret).await?;
 
@@ -205,7 +207,7 @@ mod test {
         let (meta, secret, _, _) =
             mock_secret_note("Mock note", "Value for the mock note").await?;
         let secret_data = SecretRow::new(SecretId::new_v4(), meta, secret);
-        keeper.create(&secret_data).await?;
+        keeper.create_secret(&secret_data).await?;
 
         let (meta, secret, _, _) = mock_secret_file(
             "Mock file",
@@ -215,7 +217,7 @@ mod test {
         )
         .await?;
         let secret_data = SecretRow::new(SecretId::new_v4(), meta, secret);
-        keeper.create(&secret_data).await?;
+        keeper.create_secret(&secret_data).await?;
 
         migration.add(&keeper).await?;
         Ok(migration)

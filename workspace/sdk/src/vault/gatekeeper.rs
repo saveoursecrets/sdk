@@ -152,22 +152,6 @@ impl Gatekeeper {
         self.vault.set_vault_meta(meta_aead).await
     }
 
-    /// Get a secret from the vault.
-    async fn read_secret(
-        &self,
-        id: &SecretId,
-        //from: Option<&Vault>,
-        private_key: Option<&PrivateKey>,
-    ) -> Result<Option<(SecretMeta, Secret)>> {
-        if let (Some(value), _payload) = self.vault.read(id).await? {
-            Ok(Some(
-                self.decrypt_secret(value.as_ref(), private_key).await?,
-            ))
-        } else {
-            Ok(None)
-        }
-    }
-
     pub(crate) async fn decrypt_secret(
         &self,
         vault_commit: &VaultCommit,
@@ -201,7 +185,7 @@ impl Gatekeeper {
     }
 
     /// Add a secret to the vault.
-    pub async fn create(
+    pub async fn create_secret(
         &mut self,
         secret_data: &SecretRow,
     ) -> Result<WriteEvent> {
@@ -240,19 +224,23 @@ impl Gatekeeper {
     }
 
     /// Get a secret and it's meta data.
-    pub async fn read(
+    pub async fn read_secret(
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
-        let payload = ReadEvent::ReadSecret(*id);
-        Ok(self
-            .read_secret(id, None)
-            .await?
-            .map(|(meta, secret)| (meta, secret, payload)))
+        let event = ReadEvent::ReadSecret(*id);
+        if let (Some(value), _payload) = self.vault.read(id).await? {
+            let (meta, secret) = self
+                .decrypt_secret(value.as_ref(), self.private_key.as_ref())
+                .await?;
+            Ok(Some((meta, secret, event)))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Update a secret.
-    pub async fn update(
+    pub async fn update_secret(
         &mut self,
         id: &SecretId,
         secret_meta: SecretMeta,
@@ -290,7 +278,7 @@ impl Gatekeeper {
     }
 
     /// Delete a secret and it's meta data.
-    pub async fn delete(
+    pub async fn delete_secret(
         &mut self,
         id: &SecretId,
     ) -> Result<Option<WriteEvent>> {
@@ -409,10 +397,10 @@ mod tests {
             secret_meta.clone(),
             secret.clone(),
         );
-        let event = keeper.create(&secret_data).await?;
+        let event = keeper.create_secret(&secret_data).await?;
         if let WriteEvent::CreateSecret(secret_uuid, _) = event {
-            let (saved_secret_meta, saved_secret) =
-                keeper.read_secret(&secret_uuid, None).await?.unwrap();
+            let (saved_secret_meta, saved_secret, _) =
+                keeper.read_secret(&secret_uuid).await?.unwrap();
             assert_eq!(secret, saved_secret);
             assert_eq!(secret_meta, saved_secret_meta);
         } else {
@@ -458,11 +446,11 @@ mod tests {
         let id = SecretId::new_v4();
         let secret_data =
             SecretRow::new(id, secret_meta.clone(), secret.clone());
-        let event = keeper.create(&secret_data).await?;
+        let event = keeper.create_secret(&secret_data).await?;
 
         if let WriteEvent::CreateSecret(secret_uuid, _) = event {
-            let (saved_secret_meta, saved_secret) =
-                keeper.read_secret(&secret_uuid, None).await?.unwrap();
+            let (saved_secret_meta, saved_secret, _) =
+                keeper.read_secret(&secret_uuid).await?.unwrap();
             assert_eq!(secret, saved_secret);
             assert_eq!(secret_meta, saved_secret_meta);
             secret_uuid
@@ -481,7 +469,9 @@ mod tests {
         let new_secret_meta =
             SecretMeta::new(new_secret_label.clone(), new_secret.kind());
 
-        keeper.update(&id, new_secret_meta, new_secret).await?;
+        keeper
+            .update_secret(&id, new_secret_meta, new_secret)
+            .await?;
 
         keeper.lock();
 

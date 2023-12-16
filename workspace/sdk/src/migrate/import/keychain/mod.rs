@@ -184,7 +184,7 @@ impl Convert for KeychainImport {
                         let meta = SecretMeta::new(label, secret.kind());
                         let secret_data =
                             SecretRow::new(SecretId::new_v4(), meta, secret);
-                        keeper.create(&secret_data).await?;
+                        keeper.create_secret(&secret_data).await?;
                     } else if let Some((_, attr_account)) = entry
                         .find_attribute_by_name(
                             AttributeName::SecAccountItemAttr,
@@ -203,7 +203,7 @@ impl Convert for KeychainImport {
                         let index_doc =
                             index.prepare(keeper.id(), &id, &meta, &secret);
                         let secret_data = SecretRow::new(id, meta, secret);
-                        keeper.create(&secret_data).await?;
+                        keeper.create_secret(&secret_data).await?;
                         index.commit(index_doc);
                     }
                 }
@@ -405,7 +405,7 @@ mod test {
         keeper.unlock(AccessKey::Password(vault_password)).await?;
 
         for key in &keys {
-            if let Some((_meta, secret, _)) = keeper.read(key).await? {
+            if let Some((_meta, secret, _)) = keeper.read_secret(key).await? {
                 match secret {
                     Secret::Note { text, .. } => {
                         assert_eq!(

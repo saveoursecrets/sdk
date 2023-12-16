@@ -201,7 +201,7 @@ impl AccountBuilder {
 
             let secret_data =
                 SecretRow::new(SecretId::new_v4(), meta, secret);
-            keeper.create(&secret_data).await?;
+            keeper.create_secret(&secret_data).await?;
 
             default_folder = keeper.into();
         }

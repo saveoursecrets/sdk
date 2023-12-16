@@ -201,7 +201,7 @@ mod test {
                 mock_secret_note(item.0, item.1).await?;
             let secret_data =
                 SecretRow::new(SecretId::new_v4(), secret_meta, secret_value);
-            keeper.create(&secret_data).await?;
+            keeper.create_secret(&secret_data).await?;
         }
 
         let expected_len = keeper.vault().len();

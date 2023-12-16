@@ -569,7 +569,7 @@ impl SearchIndex {
         let vault = folder.vault();
         for id in vault.keys() {
             let (meta, secret, _) = folder
-                .read(id)
+                .read_secret(id)
                 .await?
                 .ok_or_else(|| Error::NoSecretId(*folder.id(), *id))?;
             self.add(folder.id(), id, &meta, &secret);

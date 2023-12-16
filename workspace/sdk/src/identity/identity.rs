@@ -351,7 +351,7 @@ mod tests {
         signer_meta.set_urn(Some(urn));
         let secret_data =
             SecretRow::new(SecretId::new_v4(), signer_meta, signer_secret);
-        keeper.create(&secret_data).await?;
+        keeper.create_secret(&secret_data).await?;
 
         let vault: Vault = keeper.into();
         let buffer = encode(&vault).await?;

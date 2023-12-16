@@ -109,7 +109,7 @@ impl<D> Account<D> {
         let keys: Vec<&SecretId> = keeper.vault().keys().collect();
         for key in keys {
             if let Some((_, Secret::Contact { vcard, .. }, _)) =
-                keeper.read(key).await?
+                keeper.read_secret(key).await?
             {
                 vcf.push_str(&vcard.to_string());
             }

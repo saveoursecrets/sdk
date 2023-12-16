@@ -150,7 +150,7 @@ async fn secret_security_report(
     )>,
     target_field: Option<&SecretId>,
 ) -> Result<()> {
-    if let Some((_meta, secret, _)) = keeper.read(secret_id).await? {
+    if let Some((_meta, secret, _)) = keeper.read_secret(secret_id).await? {
         for field in secret.user_data().fields().iter().filter(|field| {
             if let Some(field_id) = target_field {
                 return field_id == field.id();

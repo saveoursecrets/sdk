@@ -736,7 +736,7 @@ mod test {
         assert!(card.is_some());
 
         if let Some((_, secret, _)) =
-            keeper.read(card.as_ref().unwrap().id()).await?
+            keeper.read_secret(card.as_ref().unwrap().id()).await?
         {
             if let Secret::Card { expiry, .. } = &secret {
                 //println!("{:#?}", expiry);

@@ -45,8 +45,8 @@ async fn integration_time_travel() -> Result<()> {
 
     // Create the detached view and assert
     let view = account.detached_view(&default_folder, commit).await?;
-    let secret1 = view.keeper().read(&id1).await?;
-    let secret2 = view.keeper().read(&id2).await?;
+    let secret1 = view.keeper().read_secret(&id1).await?;
+    let secret2 = view.keeper().read_secret(&id2).await?;
     assert!(secret1.is_some());
     assert!(secret2.is_none());
 

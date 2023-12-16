@@ -94,7 +94,7 @@ where
         &mut self,
         secret_data: &SecretRow,
     ) -> Result<WriteEvent> {
-        let event = self.keeper.create(secret_data).await?;
+        let event = self.keeper.create_secret(secret_data).await?;
         let mut events = self.events.write().await;
         events.apply(vec![&event]).await?;
         Ok(event)
@@ -105,7 +105,7 @@ where
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
-        self.keeper.read(id).await
+        self.keeper.read_secret(id).await
     }
 
     /// Update a secret.
@@ -116,7 +116,7 @@ where
         secret: Secret,
     ) -> Result<Option<WriteEvent>> {
         if let Some(event) =
-            self.keeper.update(id, secret_meta, secret).await?
+            self.keeper.update_secret(id, secret_meta, secret).await?
         {
             let mut events = self.events.write().await;
             events.apply(vec![&event]).await?;
@@ -131,7 +131,7 @@ where
         &mut self,
         id: &SecretId,
     ) -> Result<Option<WriteEvent>> {
-        if let Some(event) = self.keeper.delete(id).await? {
+        if let Some(event) = self.keeper.delete_secret(id).await? {
             let mut events = self.events.write().await;
             events.apply(vec![&event]).await?;
             Ok(Some(event))
@@ -237,7 +237,7 @@ where
                             };
 
                         let row = SecretRow::new(*id, meta, secret);
-                        self.keeper.create(&row).await?;
+                        self.keeper.create_secret(&row).await?;
 
                         // Add to the URN lookup index
                         if let (
@@ -253,10 +253,10 @@ where
                             .keeper
                             .decrypt_secret(vault_commit, None)
                             .await?;
-                        self.keeper.update(id, meta, secret).await?;
+                        self.keeper.update_secret(id, meta, secret).await?;
                     }
                     WriteEvent::DeleteSecret(id) => {
-                        self.keeper.delete(id).await?;
+                        self.keeper.delete_secret(id).await?;
                     }
                     WriteEvent::Noop => {
                         tracing::error!("replay got noop event");

@@ -180,7 +180,7 @@ where
             {
                 for id in device_keeper.vault().keys() {
                     if let Some((meta, secret, _)) =
-                        device_keeper.read(id).await?
+                        device_keeper.read_secret(id).await?
                     {
                         if let Some(urn) = meta.urn() {
                             if urn == &device_key_urn {
@@ -251,7 +251,7 @@ where
 
             let id = SecretId::new_v4();
             let secret_data = SecretRow::new(id, meta, secret);
-            device_keeper.create(&secret_data).await?;
+            device_keeper.create_secret(&secret_data).await?;
 
             {
                 self.index.insert((*device_keeper.id(), device_key_urn), id);
@@ -451,7 +451,7 @@ where
         let mut folder_secrets = HashMap::new();
 
         for id in keeper.vault().keys() {
-            if let Some((meta, secret, _)) = keeper.read(id).await? {
+            if let Some((meta, secret, _)) = keeper.read_secret(id).await? {
                 if let Some(urn) = meta.urn() {
                     if urn.nss().starts_with(VAULT_NSS) {
                         let id: VaultId = urn

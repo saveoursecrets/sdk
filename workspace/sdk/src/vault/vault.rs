@@ -1184,7 +1184,7 @@ mod tests {
             mock_secret_note("Shared label", "Shared note").await?;
         let id = SecretId::new_v4();
         let secret_data = SecretRow::new(id, meta.clone(), secret.clone());
-        keeper.create(&secret_data).await?;
+        keeper.create_secret(&secret_data).await?;
 
         // In the real world this exchange of the vault
         // would happen via a sync operation
@@ -1197,7 +1197,9 @@ mod tests {
         let mut keeper_1 = Gatekeeper::new(vault);
         let key = AccessKey::Identity(other_1.clone());
         keeper_1.unlock(&key).await?;
-        if let Some((read_meta, read_secret, _)) = keeper_1.read(&id).await? {
+        if let Some((read_meta, read_secret, _)) =
+            keeper_1.read_secret(&id).await?
+        {
             assert_eq!(meta, read_meta);
             assert_eq!(secret, read_secret);
         } else {
@@ -1208,7 +1210,7 @@ mod tests {
             mock_secret_note("Shared label updated", "Shared note updated")
                 .await?;
         keeper_1
-            .update(&id, new_meta.clone(), new_secret.clone())
+            .update_secret(&id, new_meta.clone(), new_secret.clone())
             .await?;
 
         // In the real world this exchange of the vault
@@ -1219,7 +1221,9 @@ mod tests {
         let mut keeper = Gatekeeper::new(vault);
         let key = AccessKey::Identity(owner.clone());
         keeper.unlock(&key).await?;
-        if let Some((read_meta, read_secret, _)) = keeper.read(&id).await? {
+        if let Some((read_meta, read_secret, _)) =
+            keeper.read_secret(&id).await?
+        {
             assert_eq!(new_meta, read_meta);
             assert_eq!(new_secret, read_secret);
         } else {
@@ -1248,14 +1252,14 @@ mod tests {
             mock_secret_note("Shared label", "Shared note").await?;
         let id = SecretId::new_v4();
         let secret_data = SecretRow::new(id, meta.clone(), secret.clone());
-        keeper.create(&secret_data).await?;
+        keeper.create_secret(&secret_data).await?;
 
         // Check the owner can update
         let (new_meta, new_secret, _, _) =
             mock_secret_note("Shared label updated", "Shared note updated")
                 .await?;
         keeper
-            .update(&id, new_meta.clone(), new_secret.clone())
+            .update_secret(&id, new_meta.clone(), new_secret.clone())
             .await?;
 
         // In the real world this exchange of the vault
@@ -1271,7 +1275,9 @@ mod tests {
         keeper_1.unlock(&key).await?;
 
         // Other recipient can read the secret
-        if let Some((read_meta, read_secret, _)) = keeper_1.read(&id).await? {
+        if let Some((read_meta, read_secret, _)) =
+            keeper_1.read_secret(&id).await?
+        {
             assert_eq!(new_meta, read_meta);
             assert_eq!(new_secret, read_secret);
         } else {
@@ -1286,7 +1292,7 @@ mod tests {
         )
         .await?;
         let result = keeper_1
-            .update(&id, updated_meta.clone(), updated_secret.clone())
+            .update_secret(&id, updated_meta.clone(), updated_secret.clone())
             .await;
         assert!(matches!(result, Err(Error::PermissionDenied)));
 
@@ -1294,11 +1300,11 @@ mod tests {
         let id = SecretId::new_v4();
         let secret_data =
             SecretRow::new(id, updated_meta.clone(), updated_secret.clone());
-        let result = keeper_1.create(&secret_data).await;
+        let result = keeper_1.create_secret(&secret_data).await;
         assert!(matches!(result, Err(Error::PermissionDenied)));
 
         // Trying to delete a secret is also denied
-        let result = keeper_1.delete(&id).await;
+        let result = keeper_1.delete_secret(&id).await;
         assert!(matches!(result, Err(Error::PermissionDenied)));
 
         Ok(())

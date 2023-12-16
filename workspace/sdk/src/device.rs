@@ -174,7 +174,9 @@ impl DeviceManager {
     /// Load trusted devices.
     pub(crate) async fn load(&mut self) -> Result<()> {
         for id in self.keeper.vault().keys() {
-            if let Some((meta, secret, _)) = self.keeper.read(id).await? {
+            if let Some((meta, secret, _)) =
+                self.keeper.read_secret(id).await?
+            {
                 if let Some(urn) = meta.urn() {
                     if urn.nss().starts_with(DEVICES_NSS) {
                         let device_id: String = urn
@@ -215,7 +217,7 @@ impl DeviceManager {
         let mut meta = SecretMeta::new(urn.to_string(), secret.kind());
         meta.set_urn(Some(urn.clone()));
         let secret_data = SecretRow::new(secret_id, meta, secret);
-        self.keeper.create(&secret_data).await?;
+        self.keeper.create_secret(&secret_data).await?;
         self.devices.insert(device_id, device);
         self.lookup.insert((*self.keeper.id(), urn), secret_id);
         Ok(())
@@ -230,7 +232,7 @@ impl DeviceManager {
         let device_id = device.public_id()?;
         let key = (*self.keeper.id(), urn);
         if let Some(secret_id) = self.lookup.get(&key) {
-            self.keeper.delete(secret_id).await?;
+            self.keeper.delete_secret(secret_id).await?;
             self.devices.remove(&device_id);
             self.lookup.remove(&key);
         }

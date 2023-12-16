@@ -321,7 +321,7 @@ impl Convert for GenericCsvConvert {
             let id = SecretId::new_v4();
             let index_doc = index.prepare(keeper.id(), &id, &meta, &secret);
             let secret_data = SecretRow::new(id, meta, secret);
-            keeper.create(&secret_data).await?;
+            keeper.create_secret(&secret_data).await?;
             index.commit(index_doc);
         }
 

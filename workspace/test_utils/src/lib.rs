@@ -239,20 +239,6 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
     Ok(TestDirs { target, clients })
 }
 
-/*
-pub async fn delete_secret(
-    provider: &mut Storage,
-    summary: &Summary,
-    id: &SecretId,
-) -> Result<()> {
-    let keeper = provider.current_mut().unwrap();
-    let event = keeper.delete(id).await?.unwrap();
-    // Send the patch to the remote server
-    provider.patch(summary, vec![&event]).await?;
-    Ok(())
-}
-*/
-
 /// Clean up test resources on disc.
 pub async fn teardown(test_id: &str) {
     let current_dir = std::env::current_dir()
