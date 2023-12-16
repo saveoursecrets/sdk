@@ -21,7 +21,7 @@ use tokio::sync::RwLock;
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[cfg(feature = "sync")]
-use crate::sync::{CheckedPatch, FolderDiff};
+use crate::sync::{CheckedPatch, FolderDiff, FolderMergeOptions};
 
 /// Folder that writes events to disc.
 pub type DiscFolder = Folder<FolderEventLog, DiscLog, DiscLog, DiscData>;
@@ -200,9 +200,10 @@ where
     }
 
     #[cfg(feature = "sync")]
-    pub(crate) async fn replay_checked(
+    pub(crate) async fn merge_diff(
         &mut self,
         diff: &FolderDiff,
+        mut options: FolderMergeOptions<'_>,
     ) -> Result<CheckedPatch> {
         let checked_patch = {
             let mut event_log = self.events.write().await;
@@ -227,8 +228,25 @@ where
                             .keeper
                             .decrypt_secret(vault_commit, None)
                             .await?;
+
+                        let mut urn =
+                            if let FolderMergeOptions::Urn(_, _) = &options {
+                                meta.urn.clone()
+                            } else {
+                                None
+                            };
+
                         let row = SecretRow::new(*id, meta, secret);
                         self.keeper.create(&row).await?;
+
+                        // Add to the URN lookup index
+                        if let (
+                            Some(urn),
+                            FolderMergeOptions::Urn(folder_id, index),
+                        ) = (urn.take(), &mut options)
+                        {
+                            index.insert((*folder_id, urn), *id);
+                        }
                     }
                     WriteEvent::UpdateSecret(id, vault_commit) => {
                         let (meta, secret) = self

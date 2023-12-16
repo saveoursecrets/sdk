@@ -97,31 +97,25 @@ impl ServerStorage {
         let mut num_changes = 0;
 
         if let Some(diff) = &diff.identity {
-            num_changes += self.replay_identity_events(diff).await?;
+            num_changes += self.merge_identity(diff).await?;
         }
 
         if let Some(diff) = &diff.account {
-            num_changes += self.replay_account_events(diff).await?;
+            num_changes += self.merge_account(diff).await?;
         }
 
-        num_changes += self.replay_folder_events(&diff.folders).await?;
+        num_changes += self.merge_folders(&diff.folders).await?;
 
         Ok(num_changes)
     }
 
-    async fn replay_identity_events(
-        &mut self,
-        diff: &FolderDiff,
-    ) -> Result<usize> {
+    async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize> {
         let mut writer = self.identity_log.write().await;
         writer.patch_checked(&diff.before, &diff.patch).await?;
         Ok(diff.patch.len())
     }
 
-    async fn replay_account_events(
-        &mut self,
-        diff: &AccountDiff,
-    ) -> Result<usize> {
+    async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
         for event in diff.patch.iter() {
             match &event {
                 AccountEvent::CreateFolder(id, buf)
@@ -153,7 +147,7 @@ impl ServerStorage {
         Ok(diff.patch.len())
     }
 
-    async fn replay_folder_events(
+    async fn merge_folders(
         &mut self,
         folders: &HashMap<VaultId, FolderDiff>,
     ) -> Result<usize> {

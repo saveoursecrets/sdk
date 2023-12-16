@@ -46,6 +46,9 @@ use urn::Urn;
 #[cfg(feature = "device")]
 use crate::device::{DeviceManager, DeviceSigner};
 
+#[cfg(feature = "sync")]
+use crate::sync::{CheckedPatch, FolderDiff, FolderMergeOptions};
+
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
@@ -505,6 +508,18 @@ where
         };
 
         Ok((index, private_identity))
+    }
+
+    #[cfg(feature = "sync")]
+    pub(crate) async fn merge_diff(
+        &mut self,
+        diff: &FolderDiff,
+    ) -> Result<CheckedPatch> {
+        let id = *self.folder.id();
+        let index = &mut self.index;
+        self.folder
+            .merge_diff(diff, FolderMergeOptions::Urn(id, index))
+            .await
     }
 }
 

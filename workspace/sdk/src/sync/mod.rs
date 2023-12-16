@@ -23,6 +23,15 @@ pub use patch::{AccountPatch, FolderPatch, Patch};
 #[cfg(feature = "files")]
 pub use patch::FilePatch;
 
+/// Options for folder merge.
+pub enum FolderMergeOptions<'a> {
+    /// Update a URN lookup when merging.
+    Urn(VaultId, &'a mut crate::identity::UrnLookup),
+    /// Update a search index when merging.
+    #[cfg(feature = "search")]
+    Search(&'a mut crate::storage::search::SearchIndex),
+}
+
 /// Result of a checked patch on an event log.
 #[derive(Debug)]
 pub enum CheckedPatch {
