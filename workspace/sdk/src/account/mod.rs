@@ -13,6 +13,8 @@ mod files;
 mod migrate;
 #[cfg(feature = "search")]
 mod search;
+#[cfg(feature = "sync")]
+mod sync;
 
 #[cfg(feature = "security-report")]
 pub mod security_report;

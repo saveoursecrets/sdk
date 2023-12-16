@@ -162,12 +162,8 @@ impl RemoteBridge {
 
             println!("sync got diff {:#?}", pull);
 
-            storage
-                .merge_diff::<SyncHandlerData>(
-                    &pull,
-                    Arc::clone(&self.account),
-                )
-                .await?;
+            let mut account = self.account.lock().await;
+            account.merge_diff(&pull).await?;
         }
 
         Ok(())
