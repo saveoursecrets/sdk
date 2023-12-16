@@ -1,6 +1,7 @@
 //! Bridge between local storage and a remote server.
 use crate::client::{
     net::RpcClient, Error, RemoteSync, Result, SyncError, SyncOptions,
+    account::LocalAccount,
 };
 
 use async_trait::async_trait;
@@ -15,7 +16,7 @@ use sos_sdk::{
 
 use mpc_protocol::Keypair;
 use std::{any::Any, collections::HashMap, fmt, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use tracing::{span, Level};
 
@@ -86,6 +87,9 @@ pub type Remotes = HashMap<Origin, Remote>;
 pub struct RemoteBridge {
     /// Origin for this remote.
     origin: HostedOrigin,
+    /// Account so we can replay events 
+    /// when a diff is merged.
+    account: Arc<Mutex<LocalAccount>>,
     /// Local provider.
     local: Arc<RwLock<ClientStorage>>,
     /// Client to use for remote communication.
@@ -96,6 +100,7 @@ impl RemoteBridge {
     /// Create a new remote bridge that wraps the given
     /// local provider.
     pub fn new(
+        account: Arc<Mutex<LocalAccount>>,
         local: Arc<RwLock<ClientStorage>>,
         origin: HostedOrigin,
         signer: BoxedEcdsaSigner,
@@ -104,6 +109,7 @@ impl RemoteBridge {
     ) -> Result<Self> {
         let remote = RpcClient::new(origin.clone(), signer, device, keypair)?;
         Ok(Self {
+            account,
             origin,
             local,
             remote,

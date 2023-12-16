@@ -40,7 +40,8 @@ use crate::client::{
     SyncError,
 };
 
-pub(super) type LocalAccount = Account<SyncHandlerData>;
+/// Type of the inner local account.
+pub type LocalAccount = Account<SyncHandlerData>;
 
 /// Account with networking capability.
 pub struct NetworkAccount {
@@ -235,6 +236,7 @@ impl NetworkAccount {
         let device = self.device_signer().await?;
         let local = self.storage().await?;
         let provider = RemoteBridge::new(
+            Arc::clone(&self.account),
             local,
             origin.clone(),
             signer,

@@ -90,6 +90,26 @@ impl ServerStorage {
         Ok(())
     }
 
+    /// Merge a diff into this storage.
+    pub async fn merge_diff(
+        &mut self,
+        diff: &SyncDiff,
+    ) -> Result<usize> {
+        let mut num_changes = 0;
+
+        if let Some(diff) = &diff.identity {
+            num_changes += self.replay_identity_events(diff).await?;
+        }
+
+        if let Some(diff) = &diff.account {
+            num_changes += self.replay_account_events(diff).await?;
+        }
+
+        num_changes +=
+            self.replay_folder_events(&diff.folders).await?;
+
+        Ok(num_changes)
+    }
 
     async fn replay_identity_events(
         &mut self,
@@ -150,26 +170,6 @@ impl ServerStorage {
         Ok(num_changes)
     }
 
-    /// Merge a diff into this storage.
-    pub async fn merge_diff(
-        &mut self,
-        diff: &SyncDiff,
-    ) -> Result<usize> {
-        let mut num_changes = 0;
-
-        if let Some(diff) = &diff.identity {
-            num_changes += self.replay_identity_events(diff).await?;
-        }
-
-        if let Some(diff) = &diff.account {
-            num_changes += self.replay_account_events(diff).await?;
-        }
-
-        num_changes +=
-            self.replay_folder_events(&diff.folders).await?;
-
-        Ok(num_changes)
-    }
 }
 
 #[async_trait]
@@ -248,6 +248,27 @@ impl ClientStorage {
         })
     }
 
+    /// Merge a diff into this storage.
+    pub async fn merge_diff(
+        &mut self,
+        diff: &SyncDiff,
+    ) -> Result<usize> {
+        let mut num_changes = 0;
+
+        if let Some(diff) = &diff.identity {
+            num_changes += self.replay_identity_events(diff).await?;
+        }
+
+        if let Some(diff) = &diff.account {
+            num_changes += self.replay_account_events(diff).await?;
+        }
+
+        num_changes +=
+            self.replay_folder_events(&diff.folders).await?;
+
+        Ok(num_changes)
+    }
+
     async fn replay_identity_events(
         &mut self,
         diff: &FolderDiff,
@@ -269,26 +290,6 @@ impl ClientStorage {
         todo!("client replay folder events");
     }
 
-    /// Merge a diff into this storage.
-    pub async fn merge_diff(
-        &mut self,
-        diff: &SyncDiff,
-    ) -> Result<usize> {
-        let mut num_changes = 0;
-
-        if let Some(diff) = &diff.identity {
-            num_changes += self.replay_identity_events(diff).await?;
-        }
-
-        if let Some(diff) = &diff.account {
-            num_changes += self.replay_account_events(diff).await?;
-        }
-
-        num_changes +=
-            self.replay_folder_events(&diff.folders).await?;
-
-        Ok(num_changes)
-    }
 
     /*
     /// Apply identity-level events to this storage

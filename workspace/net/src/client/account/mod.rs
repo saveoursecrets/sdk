@@ -16,5 +16,5 @@ mod remote;
 mod security_report;
 mod sync;
 
-pub use network_account::NetworkAccount;
+pub use network_account::{NetworkAccount, LocalAccount};
 pub use remote::{HostedOrigin, Origin, Remote, RemoteBridge, Remotes};
