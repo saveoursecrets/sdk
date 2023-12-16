@@ -201,21 +201,13 @@ impl<H> Account<H> {
             })
             .collect();
 
-        // Store current open vault so we can restore afterwards
-        let current = {
-            let storage = self.storage()?;
-            let reader = storage.read().await;
-            reader
-                .current()
-                .map(|keeper| keeper.vault().summary().clone())
-        };
-
         for target in targets {
-            self.open_vault(&target, false).await?;
-
             let storage = self.storage()?;
             let reader = storage.read().await;
-            let keeper = reader.current().unwrap();
+
+            let folder = reader.cache().get(target.id()).unwrap();
+            let keeper = folder.keeper();
+
             let vault = keeper.vault();
             let mut password_hashes: Vec<(
                 SecretId,
@@ -256,11 +248,6 @@ impl<H> Account<H> {
                 hashes.push(hex::encode(sha1));
                 records.push(record);
             }
-        }
-
-        // Restore the original open vault
-        if let Some(current) = current {
-            self.open_vault(&current, false).await?;
         }
 
         let database_checks =

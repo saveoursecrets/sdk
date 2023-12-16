@@ -345,7 +345,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let summary = reader
                         .current_folder()
                         .ok_or(Error::NoVaultSelected)?;
-                    reader.verify(summary).await?;
+                    reader.verify(&summary).await?;
                     println!("Verified ✓");
                 }
                 History::List { verbose, .. } => {
@@ -355,7 +355,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let summary = reader
                         .current_folder()
                         .ok_or(Error::NoVaultSelected)?;
-                    let records = reader.history(summary).await?;
+                    let records = reader.history(&summary).await?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);
                         if verbose {

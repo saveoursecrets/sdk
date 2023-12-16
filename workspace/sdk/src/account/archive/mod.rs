@@ -139,7 +139,7 @@ impl<D> Account<D> {
         let current_folder = {
             let storage = owner.storage()?;
             let reader = storage.read().await;
-            reader.current_folder().cloned()
+            reader.current_folder()
         };
 
         let files_dir =

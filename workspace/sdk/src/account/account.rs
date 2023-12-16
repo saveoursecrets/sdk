@@ -336,12 +336,12 @@ impl<D> Account<D> {
 
         Self::initialize_account_log(&*self.paths, storage.account_log())
             .await?;
-    
+
         self.authenticated = Some(Authenticated {
             user,
             storage: Arc::new(RwLock::new(storage)),
         });
-        
+
         // Load vaults into memory and initialize folder
         // event log commit trees
         let folders = self.load_folders().await?;
@@ -890,11 +890,12 @@ impl<D> Account<D> {
             {
                 let storage = self.storage()?;
                 let mut writer = storage.write().await;
-                let is_current = if let Some(current) = writer.current() {
-                    current.id() == summary.id()
-                } else {
-                    false
-                };
+                let is_current =
+                    if let Some(current) = writer.current_folder() {
+                        current.id() == summary.id()
+                    } else {
+                        false
+                    };
 
                 if is_current {
                     writer.close_vault();
@@ -923,11 +924,10 @@ impl<D> Account<D> {
         audit: bool,
     ) -> Result<()> {
         // Bail early if the folder is already open
-        // as opening a vault is an expensive operation
         {
             let storage = self.storage()?;
             let reader = storage.read().await;
-            if let Some(current) = reader.current() {
+            if let Some(current) = reader.current_folder() {
                 if current.id() == summary.id() {
                     return Ok(());
                 }
@@ -936,8 +936,6 @@ impl<D> Account<D> {
 
         let passphrase =
             self.user()?.find_folder_password(summary.id()).await?;
-
-        //let index = Arc::clone(&self.index()?.search_index);
 
         let event = {
             let storage = self.storage()?;
@@ -971,7 +969,7 @@ impl<D> Account<D> {
             let folder = options
                 .folder
                 .clone()
-                .or_else(|| reader.current().map(|g| g.summary().clone()))
+                .or_else(|| reader.current_folder())
                 .ok_or(Error::NoOpenFolder)?;
 
             let commit_state = reader
@@ -1040,7 +1038,7 @@ impl<D> Account<D> {
             options
                 .folder
                 .take()
-                .or_else(|| reader.current().map(|g| g.summary().clone()))
+                .or_else(|| reader.current_folder())
                 .ok_or(Error::NoOpenFolder)?
         };
 
@@ -1093,7 +1091,7 @@ impl<D> Account<D> {
             let storage = self.storage()?;
             let reader = storage.read().await;
             folder
-                .or_else(|| reader.current().map(|g| g.summary().clone()))
+                .or_else(|| reader.current_folder())
                 .ok_or(Error::NoOpenFolder)?
         };
 

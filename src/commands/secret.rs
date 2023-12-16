@@ -1185,7 +1185,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let owner = user.read().await;
                 let storage = owner.storage().await?;
                 let reader = storage.read().await;
-                reader.current_folder().cloned()
+                reader.current_folder()
             } else {
                 None
             };

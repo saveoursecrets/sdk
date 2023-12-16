@@ -64,10 +64,9 @@ impl<D> Account<D> {
             let storage = self.storage()?;
             let reader = storage.read().await;
             folder
-                .as_ref()
-                .or_else(|| reader.current().map(|g| g.summary()))
-                .ok_or(Error::NoOpenFolder)?
                 .clone()
+                .or_else(|| reader.current_folder())
+                .ok_or(Error::NoOpenFolder)?
         };
 
         let (data, _) = self.get_secret(secret_id, folder, false).await?;
@@ -139,7 +138,7 @@ impl<D> Account<D> {
         let current = {
             let storage = self.storage()?;
             let reader = storage.read().await;
-            reader.current().map(|g| g.summary().clone())
+            reader.current_folder()
         };
 
         let contacts = self

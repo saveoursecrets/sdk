@@ -43,11 +43,11 @@ pub struct ClientStorage {
     /// Address of the account owner.
     pub(super) address: Address,
 
-    /// Vaults managed by this state.
+    /// Folders managed by this storage.
     pub(super) summaries: Vec<Summary>,
 
-    /// Currently selected in-memory vault.
-    pub(super) current: Option<Gatekeeper>,
+    /// Currently selected folder.
+    pub(super) current: Option<Summary>,
 
     /// Directories for file storage.
     pub(super) paths: Arc<Paths>,
@@ -56,9 +56,9 @@ pub struct ClientStorage {
     #[cfg(feature = "search")]
     pub(super) index: Option<AccountSearch>,
 
-    /// Identity vault event log.
+    /// Identity folder event log.
     ///
-    /// This is a clone of the main identity vault
+    /// This is a clone of the main identity folder
     /// event log and is defined here so we can
     /// get the commit state for synchronization.
     pub(super) identity_log: Arc<RwLock<FolderEventLog>>,
@@ -181,12 +181,12 @@ impl ClientStorage {
         self.index.as_mut().ok_or(Error::NoSearchIndex)
     }
 
-    /// Get the event log cache.
+    /// Cache of in-memory event logs.
     pub fn cache(&self) -> &HashMap<VaultId, DiscFolder> {
         &self.cache
     }
 
-    /// Get the mutable event log cache.
+    /// Mutable in-memory event logs.
     pub fn cache_mut(&mut self) -> &mut HashMap<VaultId, DiscFolder> {
         &mut self.cache
     }
@@ -209,7 +209,7 @@ impl ClientStorage {
         self.summaries.iter().find(predicate)
     }
 
-    /// Get the computed storage directories for the provider.
+    /// Computed storage paths.
     pub fn paths(&self) -> Arc<Paths> {
         Arc::clone(&self.paths)
     }
@@ -258,15 +258,11 @@ impl ClientStorage {
             writer.remove_all();
 
             for (summary, key) in &keys.0 {
-                // Must open the vault so the provider state unlocks
-                // the vault
-                self.open_vault(summary, key).await?;
-
-                let folder = self.current().unwrap();
-                writer.add_folder(folder).await?;
-
-                // Close the vault as we are done for now
-                self.close_vault();
+                if let Some(folder) = self.cache.get_mut(summary.id()) {
+                    let mut keeper = folder.keeper_mut();
+                    keeper.unlock(key).await?;
+                    writer.add_folder(keeper).await?;
+                }
             }
         }
 
@@ -279,36 +275,27 @@ impl ClientStorage {
         Ok(count)
     }
 
-    /// Load a vault, unlock it and set it as the current vault.
+    /// Mark a folder as the currently open folder.
     pub(crate) async fn open_vault(
         &mut self,
         summary: &Summary,
         key: &AccessKey,
     ) -> Result<ReadEvent> {
-        let vault_path = self.paths.vault_path(summary.id());
-        let vault = if !vfs::try_exists(&vault_path).await? {
-            let vault = self.reduce_event_log(summary).await?;
-            let buffer = encode(&vault).await?;
-            self.write_vault_file(summary.id(), &buffer).await?;
-            vault
-        } else {
-            let buffer = vfs::read(&vault_path).await?;
-            let vault: Vault = decode(&buffer).await?;
-            vault
-        };
+        self.find(|s| s.id() == summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
-        let vault_file = VaultWriter::open(&vault_path).await?;
-        let mirror = VaultWriter::new(vault_path, vault_file)?;
-        let mut keeper = Gatekeeper::new_mirror(vault, mirror);
+        if let Some(folder) = self.cache.get_mut(summary.id()) {
+            let mut keeper = folder.keeper_mut();
+            keeper.unlock(key).await?;
+        }
 
-        keeper
-            .unlock(key)
-            .await
-            .map_err(|_| Error::VaultUnlockFail)?;
-
-        self.current = Some(keeper);
-
+        self.current = Some(summary.clone());
         Ok(ReadEvent::ReadVault)
+    }
+
+    /// Close the current open folder.
+    pub(crate) fn close_vault(&mut self) {
+        self.current = None;
     }
 
     /// Create the data for a new account.
@@ -380,19 +367,17 @@ impl ClientStorage {
     }
 
     /// Reference to the currently open folder.
-    pub fn current_folder(&self) -> Option<&Summary> {
-        self.current().map(|g| g.summary())
+    pub fn current_folder(&self) -> Option<Summary> {
+        self.current.clone()
     }
 
-    /// Get the current in-memory vault access.
-    pub(crate) fn current(&self) -> Option<&Gatekeeper> {
-        self.current.as_ref()
-    }
-
+    /*
     /// Get a mutable reference to the current in-memory vault access.
     pub(crate) fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
-        self.current.as_mut()
+        //self.current.as_mut()
+        todo!("restore currrent_mut");
     }
+    */
 
     /// Create new event log cache entries.
     async fn create_cache_entry(
@@ -438,10 +423,13 @@ impl ClientStorage {
         #[cfg(feature = "search")]
         if let Some(index) = &self.index {
             let index = index.search();
-            if let Some(keeper) = self.current_mut() {
-                if keeper.id() == summary.id() {
-                    Self::replace_vault(index, keeper, vault, new_key)
-                        .await?;
+            if let Some(current) = self.current_folder() {
+                if let Some(folder) = self.cache.get_mut(current.id()) {
+                    let mut keeper = folder.keeper_mut();
+                    if keeper.id() == summary.id() {
+                        Self::replace_vault(index, keeper, vault, new_key)
+                            .await?;
+                    }
                 }
             }
         }
@@ -550,31 +538,23 @@ impl ClientStorage {
 
     /// Unlock all vaults.
     pub async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {
-        for(id, folder) in self.cache.iter_mut() {
+        for (id, folder) in self.cache.iter_mut() {
             let key = keys.find(id).ok_or(Error::NoFolderKey(*id))?;
             folder.unlock(key).await?;
         }
         Ok(())
     }
-    
+
     /// Lock all vaults.
     pub async fn lock(&mut self) {
-        for(_, folder) in self.cache.iter_mut() {
+        for (_, folder) in self.cache.iter_mut() {
             folder.lock();
         }
     }
 
-    /// Close the current open vault.
-    pub(crate) fn close_vault(&mut self) {
-        if let Some(current) = self.current_mut() {
-            current.lock();
-        }
-        self.current = None;
-    }
-
     /// Remove the local cache for a vault.
     fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
-        let current_id = self.current().map(|c| c.id().clone());
+        let current_id = self.current_folder().map(|c| c.id().clone());
 
         // If the deleted vault is the currently selected
         // vault we must close it
@@ -929,8 +909,9 @@ impl ClientStorage {
             }
         }
 
-        // Now update the in-memory name for the current selected vault
-        if let Some(keeper) = self.current_mut() {
+        // Now update the in-memory name for the folder
+        if let Some(folder) = self.cache.get_mut(summary.id()) {
+            let mut keeper = folder.keeper_mut();
             if keeper.vault().id() == summary.id() {
                 keeper.set_vault_name(name.as_ref().to_owned()).await?;
             }
@@ -959,25 +940,34 @@ impl ClientStorage {
         Ok(Event::Account(account_event))
     }
 
-    /// Get the description of the currently open vault.
+    /// Get the description of the currently open folder.
     pub async fn description(&self) -> Result<String> {
-        let keeper = self.current().ok_or(Error::NoOpenVault)?;
-        let meta = keeper.vault_meta().await?;
-        Ok(meta.description().to_owned())
+        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
+        if let Some(folder) = self.cache.get(summary.id()) {
+            let keeper = folder.keeper();
+            let meta = keeper.vault_meta().await?;
+            Ok(meta.description().to_owned())
+        } else {
+            Err(Error::CacheNotAvailable(*summary.id()))
+        }
     }
 
-    /// Set the description of the currently open vault.
+    /// Set the description of the currently open folder.
     pub async fn set_description(
         &mut self,
         description: impl AsRef<str>,
     ) -> Result<WriteEvent> {
-        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-        let summary = keeper.summary().clone();
-        let mut meta = keeper.vault_meta().await?;
-        meta.set_description(description.as_ref().to_owned());
-        let event = keeper.set_vault_meta(&meta).await?;
-        self.apply_local_events(&summary, vec![&event]).await?;
-        Ok(event)
+        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
+        if let Some(folder) = self.cache.get_mut(summary.id()) {
+            let keeper = folder.keeper_mut();
+            let mut meta = keeper.vault_meta().await?;
+            meta.set_description(description.as_ref().to_owned());
+            let event = keeper.set_vault_meta(&meta).await?;
+            self.apply_local_events(&summary, vec![&event]).await?;
+            Ok(event)
+        } else {
+            Err(Error::CacheNotAvailable(*summary.id()))
+        }
     }
 
     /// Apply events to an event log.
@@ -1020,10 +1010,9 @@ impl ClientStorage {
         // Refresh the in-memory and disc-based mirror
         self.refresh_vault(vault.summary(), Some(&new_key)).await?;
 
-        if let Some(keeper) = self.current_mut() {
-            if keeper.summary().id() == vault.summary().id() {
-                keeper.unlock(&new_key).await?;
-            }
+        if let Some(folder) = self.cache.get_mut(vault.id()) {
+            let mut keeper = folder.keeper_mut();
+            keeper.unlock(&new_key).await?;
         }
 
         let mut account_log = self.account_log.write().await;
@@ -1096,10 +1085,7 @@ impl ClientStorage {
         secret_data: SecretRow,
         mut options: AccessOptions,
     ) -> Result<WriteEvent> {
-        let summary = {
-            let keeper = self.current().ok_or(Error::NoOpenVault)?;
-            keeper.summary().clone()
-        };
+        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
         let index_doc = if let Some(index) = &self.index {
             let search = index.search();
@@ -1115,8 +1101,11 @@ impl ClientStorage {
         };
 
         let event = {
-            let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-            keeper.create(&secret_data).await?
+            let folder = self
+                .cache
+                .get_mut(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            folder.create_secret(&secret_data).await?
         };
 
         #[cfg(feature = "files")]
@@ -1130,8 +1119,6 @@ impl ClientStorage {
                 .await?;
             self.append_file_mutation_events(&events).await?;
         }
-
-        self.apply_local_events(&summary, vec![&event]).await?;
 
         if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
             let search = index.search();
@@ -1147,10 +1134,15 @@ impl ClientStorage {
         &mut self,
         id: &SecretId,
     ) -> Result<(SecretMeta, Secret, ReadEvent)> {
-        let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-        let _summary = keeper.summary().clone();
-        let result =
-            keeper.read(id).await?.ok_or(Error::SecretNotFound(*id))?;
+        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
+        let folder = self
+            .cache
+            .get(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+        let result = folder
+            .read_secret(id)
+            .await?
+            .ok_or(Error::SecretNotFound(*id))?;
         Ok(result)
     }
 
@@ -1179,10 +1171,7 @@ impl ClientStorage {
         // Must update the files before moving so checksums are correct
         #[cfg(feature = "files")]
         {
-            let folder = {
-                let keeper = self.current().ok_or(Error::NoOpenVault)?;
-                keeper.summary().clone()
-            };
+            let folder = self.current_folder().ok_or(Error::NoOpenVault)?;
             let events = self
                 .update_files(
                     &folder,
@@ -1209,10 +1198,7 @@ impl ClientStorage {
         id: &SecretId,
         mut secret_data: SecretRow,
     ) -> Result<WriteEvent> {
-        let summary = {
-            let keeper = self.current().ok_or(Error::NoOpenVault)?;
-            keeper.summary().clone()
-        };
+        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
         secret_data.meta.touch();
 
@@ -1236,13 +1222,16 @@ impl ClientStorage {
         };
 
         let event = {
-            let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-            keeper
-                .update(id, secret_data.meta, secret_data.secret)
+            let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
+            let mut folder = self
+                .cache
+                .get_mut(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            folder
+                .update_secret(id, secret_data.meta, secret_data.secret)
                 .await?
                 .ok_or(Error::SecretNotFound(*id))?
         };
-        self.apply_local_events(&summary, vec![&event]).await?;
 
         if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
             let search = index.search();
@@ -1266,11 +1255,7 @@ impl ClientStorage {
 
         #[cfg(feature = "files")]
         {
-            let folder = {
-                let keeper = self.current().ok_or(Error::NoOpenVault)?;
-                keeper.summary().clone()
-            };
-
+            let folder = self.current_folder().ok_or(Error::NoOpenVault)?;
             let events = self
                 .delete_files(
                     &folder,
@@ -1292,16 +1277,19 @@ impl ClientStorage {
         &mut self,
         id: &SecretId,
     ) -> Result<WriteEvent> {
-        let summary = {
-            let keeper = self.current().ok_or(Error::NoOpenVault)?;
-            keeper.summary().clone()
-        };
+        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
         let event = {
-            let keeper = self.current_mut().ok_or(Error::NoOpenVault)?;
-            keeper.delete(id).await?.ok_or(Error::SecretNotFound(*id))?
+            let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
+            let folder = self
+                .cache
+                .get_mut(summary.id())
+                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            folder
+                .delete_secret(id)
+                .await?
+                .ok_or(Error::SecretNotFound(*id))?
         };
-        self.apply_local_events(&summary, vec![&event]).await?;
 
         if let Some(index) = &self.index {
             let search = index.search();

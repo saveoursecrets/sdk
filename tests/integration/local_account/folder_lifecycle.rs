@@ -56,7 +56,7 @@ async fn integration_folder_lifecycle() -> Result<()> {
     let current_folder = {
         let storage = account.storage()?;
         let reader = storage.read().await;
-        reader.current_folder().cloned()
+        reader.current_folder()
     };
     assert_eq!(Some(&folder), current_folder.as_ref());
 

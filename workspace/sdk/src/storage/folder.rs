@@ -56,11 +56,6 @@ where
         }
     }
 
-    /// Clone of the event log.
-    pub fn event_log(&self) -> Arc<RwLock<T>> {
-        Arc::clone(&self.events)
-    }
-
     /// Folder identifier.
     pub fn id(&self) -> &VaultId {
         self.keeper.id()
@@ -69,6 +64,16 @@ where
     /// Gatekeeper for this folder.
     pub fn keeper(&self) -> &Gatekeeper {
         &self.keeper
+    }
+
+    /// Mutable gatekeeper for this folder.
+    pub fn keeper_mut(&mut self) -> &mut Gatekeeper {
+        &mut self.keeper
+    }
+
+    /// Clone of the event log.
+    pub fn event_log(&self) -> Arc<RwLock<T>> {
+        Arc::clone(&self.events)
     }
 
     /// Unlock using the folder access key.
