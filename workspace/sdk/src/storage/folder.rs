@@ -88,7 +88,7 @@ pub trait Folder {
     ) -> Result<Option<WriteEvent>>;
 }
 
-/// Folder is a combined vault and event log.
+/// Client folder is a combined vault and event log.
 pub struct ClientFolder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
@@ -252,5 +252,65 @@ impl ClientFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
         let vault: Vault = decode(buffer.as_ref()).await?;
         let keeper = Gatekeeper::new(vault);
         Ok(Self::init(keeper, MemoryFolderLog::new()))
+    }
+}
+
+/// Server folder is an event log.
+pub struct ServerFolder<T, R, W, D>
+where
+    T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    D: Clone + Send + Sync,
+{
+    events: Arc<RwLock<T>>,
+    marker: std::marker::PhantomData<(R, W, D)>,
+}
+
+#[async_trait]
+impl<T, R, W, D> Folder for ServerFolder<T, R, W, D>
+where
+    T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    D: Clone + Send + Sync,
+{
+
+    async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
+        unimplemented!();
+    }
+
+    fn lock(&mut self) {
+        unimplemented!();
+    }
+
+    async fn create_secret(
+        &mut self,
+        secret_data: &SecretRow,
+    ) -> Result<WriteEvent> {
+        unimplemented!();
+    }
+
+    async fn read_secret(
+        &self,
+        id: &SecretId,
+    ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
+        unimplemented!();
+    }
+
+    async fn update_secret(
+        &mut self,
+        id: &SecretId,
+        secret_meta: SecretMeta,
+        secret: Secret,
+    ) -> Result<Option<WriteEvent>> {
+        unimplemented!();
+    }
+
+    async fn delete_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent>> {
+        unimplemented!();
     }
 }
