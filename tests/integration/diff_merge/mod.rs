@@ -5,6 +5,7 @@ use std::path::Path;
 mod folder_create;
 mod folder_delete;
 mod folder_import;
+mod folder_rename;
 
 mod secret_create;
 

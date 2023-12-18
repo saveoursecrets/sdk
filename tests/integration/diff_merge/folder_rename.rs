@@ -2,14 +2,14 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "diff_merge_folder_create";
+const TEST_ID: &str = "diff_merge_folder_rename";
 
 use super::copy_account;
 
-/// Tests creating a diff and merging a create folder
+/// Tests creating a diff and merging a rename folder
 /// event without any networking.
 #[tokio::test]
-async fn integration_diff_merge_folder_create() -> Result<()> {
+async fn integration_diff_merge_folder_rename() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
@@ -30,6 +30,7 @@ async fn integration_diff_merge_folder_create() -> Result<()> {
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
     let address = local.address().clone();
+    let default_folder = local.default_folder().await.unwrap();
 
     // Copy the initial account disc state
     copy_account(&data_dir, &data_dir_merge)?;
@@ -42,10 +43,10 @@ async fn integration_diff_merge_folder_create() -> Result<()> {
     )
     .await?;
     remote.sign_in(&key).await?;
-
-    // Create a new folder
-    let (summary, _, _) =
-        local.create_folder("new_folder".to_owned()).await?;
+    
+    // Rename a folder.
+    let new_name = "new_folder_name";
+    local.rename_folder(&default_folder, new_name.to_owned()).await?;
 
     assert_ne!(local.sync_status().await?, remote.sync_status().await?);
 
@@ -57,19 +58,9 @@ async fn integration_diff_merge_folder_create() -> Result<()> {
     remote.merge(&diff).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
 
-    // Should have the additional folder now
-    let folders = remote.list_folders().await?;
-    assert_eq!(2, folders.len());
-
-    // Open the folder for writing
-    remote.open_folder(&summary).await?;
-
-    // Check we can write to the new folder
-    let (meta, secret) = mock::note("note", TEST_ID);
-    remote
-        .create_secret(meta, secret, Default::default())
-        .await?;
-
+    let default_folder = remote.default_folder().await.unwrap();
+    assert_eq!(new_name, default_folder.name());
+        
     teardown(TEST_ID).await;
 
     Ok(())
