@@ -3,6 +3,7 @@ use copy_dir::copy_dir;
 use std::path::Path;
 
 mod create_folder;
+mod import_folder;
 
 pub fn copy_account(
     source: impl AsRef<Path>,
