@@ -8,6 +8,7 @@ mod folder_import;
 mod folder_rename;
 
 mod secret_create;
+mod secret_update;
 
 pub fn copy_account(
     source: impl AsRef<Path>,
