@@ -1,15 +1,15 @@
-use crate::test_utils::{setup, teardown};
+use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "diff_merge_folder_rename";
+const TEST_ID: &str = "diff_merge_secret_delete";
 
 use super::copy_account;
 
-/// Tests creating a diff and merging a rename folder
+/// Tests creating a diff and merging a delete secret
 /// event without any networking.
 #[tokio::test]
-async fn integration_diff_merge_folder_rename() -> Result<()> {
+async fn integration_diff_merge_secret_delete() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
@@ -30,7 +30,6 @@ async fn integration_diff_merge_folder_rename() -> Result<()> {
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
     let address = local.address().clone();
-    let default_folder = local.default_folder().await.unwrap();
 
     // Copy the initial account disc state
     copy_account(&data_dir, &data_dir_merge)?;
@@ -43,10 +42,14 @@ async fn integration_diff_merge_folder_rename() -> Result<()> {
     )
     .await?;
     remote.sign_in(&key).await?;
-    
-    // Rename a folder.
-    let new_name = "new_folder_name";
-    local.rename_folder(&default_folder, new_name.to_owned()).await?;
+
+    // Create a new secret
+    let (meta, secret) = mock::note("note", TEST_ID);
+    let (id, _, _, _) = local
+        .create_secret(meta.clone(), secret.clone(), Default::default())
+        .await?;
+
+    local.delete_secret(&id, Default::default()).await?;
 
     assert_ne!(local.sync_status().await?, remote.sync_status().await?);
 
@@ -58,9 +61,14 @@ async fn integration_diff_merge_folder_rename() -> Result<()> {
     remote.merge(&diff).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
 
-    let default_folder = remote.default_folder().await.unwrap();
-    assert_eq!(new_name, default_folder.name());
-        
+    // Check we can't read the secret
+    let result = remote.read_secret(&id, None).await;
+    assert!(matches!(result, Err(Error::SecretNotFound(_))));
+
+    // Check we can't find it in the search index
+    let documents = remote.query_map("note", Default::default()).await?;
+    assert_eq!(0, documents.len());
+
     teardown(TEST_ID).await;
 
     Ok(())

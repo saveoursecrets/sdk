@@ -9,6 +9,7 @@ mod folder_rename;
 
 mod secret_create;
 mod secret_update;
+mod secret_delete;
 
 pub fn copy_account(
     source: impl AsRef<Path>,

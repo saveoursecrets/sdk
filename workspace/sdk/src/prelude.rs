@@ -36,3 +36,6 @@ pub use crate::{
 
 #[cfg(feature = "recovery")]
 pub use crate::recovery::*;
+
+// Ensure top-level versions take precedence
+pub use crate::{Error, Result};
