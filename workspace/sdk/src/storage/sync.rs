@@ -192,15 +192,15 @@ impl SyncStorage for ServerStorage {
         })
     }
 
-    fn identity_log(&self) -> Arc<RwLock<FolderEventLog>> {
-        Arc::clone(&self.identity_log)
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(Arc::clone(&self.identity_log))
     }
 
-    fn account_log(&self) -> Arc<RwLock<AccountEventLog>> {
-        Arc::clone(&self.account_log)
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+        Ok(Arc::clone(&self.account_log))
     }
 
-    fn folder_log(
+    async fn folder_log(
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
@@ -242,53 +242,5 @@ impl ClientStorage {
             account,
             folders,
         })
-    }
-}
-
-#[async_trait]
-impl SyncStorage for ClientStorage {
-    async fn sync_status(&self) -> Result<SyncStatus> {
-        let identity = {
-            let reader = self.identity_log.read().await;
-            reader.tree().commit_state()?
-        };
-
-        let account = {
-            let reader = self.account_log.read().await;
-            reader.tree().commit_state()?
-        };
-
-        let mut folders = HashMap::new();
-        for summary in &self.summaries {
-            let folder = self
-                .cache
-                .get(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-            let commit_state = folder.commit_state().await?;
-            folders.insert(*summary.id(), commit_state);
-        }
-        Ok(SyncStatus {
-            identity,
-            account,
-            folders,
-        })
-    }
-
-    fn identity_log(&self) -> Arc<RwLock<FolderEventLog>> {
-        Arc::clone(&self.identity_log)
-    }
-
-    fn account_log(&self) -> Arc<RwLock<AccountEventLog>> {
-        Arc::clone(&self.account_log)
-    }
-
-    fn folder_log(
-        &self,
-        id: &VaultId,
-    ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let folder =
-            self.cache.get(id).ok_or(Error::CacheNotAvailable(*id))?;
-        Ok(folder.event_log())
     }
 }

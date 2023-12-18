@@ -117,13 +117,13 @@ impl SyncComparison {
         let local_status = storage.sync_status().await?;
 
         let identity = {
-            let identity = storage.identity_log();
+            let identity = storage.identity_log().await?;
             let reader = identity.read().await;
             reader.tree().compare(&remote_status.identity.1)?
         };
 
         let account = {
-            let account = storage.account_log();
+            let account = storage.account_log().await?;
             let reader = account.read().await;
             reader.tree().compare(&remote_status.account.1)?
         };
@@ -133,7 +133,7 @@ impl SyncComparison {
             for (id, folder) in &remote_status.folders {
                 // Folder may exist on remote but not locally
                 // if we have just deleted a folder
-                if let Ok(event_log) = storage.folder_log(id) {
+                if let Ok(event_log) = storage.folder_log(id).await {
                     let event_log = event_log.read().await;
                     folders.insert(*id, event_log.tree().compare(&folder.1)?);
                 }
@@ -163,7 +163,7 @@ impl SyncComparison {
             Comparison::Equal => {}
             Comparison::Contains(_, _) => {
                 // Need to push changes to remote
-                let log = storage.identity_log();
+                let log = storage.identity_log().await?;
                 let reader = log.read().await;
                 let is_last_commit = Some(&self.remote_status.identity.0)
                     == reader.tree().last_commit().as_ref();
@@ -190,7 +190,7 @@ impl SyncComparison {
             Comparison::Equal => {}
             Comparison::Contains(_, _) => {
                 // Need to push changes to remote
-                let log = storage.account_log();
+                let log = storage.account_log().await?;
                 let reader = log.read().await;
 
                 let is_last_commit = Some(&self.remote_status.account.0)
@@ -225,7 +225,7 @@ impl SyncComparison {
                 Comparison::Equal => {}
                 Comparison::Contains(_, _) => {
                     // Need to push changes to remote
-                    let log = storage.folder_log(id)?;
+                    let log = storage.folder_log(id).await?;
                     let log = log.read().await;
 
                     let is_last_commit = Some(&commit_state.0)
@@ -299,12 +299,14 @@ pub trait SyncStorage {
     async fn sync_status(&self) -> Result<SyncStatus>;
 
     /// Clone of the identity log.
-    fn identity_log(&self) -> Arc<RwLock<FolderEventLog>>;
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>>;
 
     /// Clone of the account log.
-    fn account_log(&self) -> Arc<RwLock<AccountEventLog>>;
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>>;
 
     /// Folder event log.
-    fn folder_log(&self, id: &VaultId)
-        -> Result<Arc<RwLock<FolderEventLog>>>;
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>>;
 }

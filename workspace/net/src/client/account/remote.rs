@@ -83,7 +83,7 @@ pub type Remote = Box<dyn RemoteSync>;
 /// Collection of remote targets for synchronization.
 pub type Remotes = HashMap<Origin, Remote>;
 
-/// Bridge between a local provider and a remote.
+/// Bridge between a local account and a remote.
 #[derive(Clone)]
 pub struct RemoteBridge {
     /// Origin for this remote.
@@ -91,8 +91,6 @@ pub struct RemoteBridge {
     /// Account so we can replay events
     /// when a remote diff is merged.
     account: Arc<Mutex<LocalAccount>>,
-    /// Local provider.
-    local: Arc<RwLock<ClientStorage>>,
     /// Client to use for remote communication.
     remote: RpcClient,
 }
@@ -102,7 +100,6 @@ impl RemoteBridge {
     /// local provider.
     pub fn new(
         account: Arc<Mutex<LocalAccount>>,
-        local: Arc<RwLock<ClientStorage>>,
         origin: HostedOrigin,
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
@@ -112,15 +109,16 @@ impl RemoteBridge {
         Ok(Self {
             account,
             origin,
-            local,
             remote,
         })
     }
 
+    /*
     /// Clone of the local provider.
     pub fn local(&self) -> Arc<RwLock<ClientStorage>> {
         Arc::clone(&self.local)
     }
+    */
 
     /// Client implementation.
     pub fn client(&self) -> &RpcClient {
@@ -137,8 +135,10 @@ impl RemoteBridge {
 
     /// Create an account on the remote.
     async fn create_remote_account(&self) -> Result<()> {
-        let local = self.local.read().await;
-        let public_account = local.change_set().await?;
+        let account = self.account.lock().await;
+        let storage = account.storage()?;
+        let storage = storage.read().await;
+        let public_account = storage.change_set().await?;
         self.remote.create_account(&public_account).await?;
 
         // FIXME: import files here!
@@ -148,21 +148,21 @@ impl RemoteBridge {
 
     async fn sync_account(&self, remote_status: SyncStatus) -> Result<()> {
         let comparison = {
-            let storage = self.local.read().await;
+            let account = self.account.lock().await;
             // Compare local status to the remote
-            SyncComparison::new(&*storage, remote_status).await?
+            SyncComparison::new(&*account, remote_status).await?
         };
 
         // Only make network requests when the status differ
         if comparison.needs_sync() {
-            let mut storage = self.local.write().await;
-            let push = comparison.diff(&*storage).await?;
+            let mut account = self.account.lock().await;
+
+            let push = comparison.diff(&*account).await?;
             let pull =
                 self.remote.sync(&comparison.local_status, &push).await?;
 
             println!("sync got diff {:#?}", pull);
 
-            let mut account = self.account.lock().await;
             account.merge_diff(&pull).await?;
         }
 
@@ -275,7 +275,7 @@ mod listen {
 
         /// Spawn a task that listens for changes
         /// from the remote server and applies any changes
-        /// from the remote to the local provider.
+        /// from the remote to the local account.
         ///
         /// The keypair for the websocket connection must not be
         /// the same as the main client so you should always generate

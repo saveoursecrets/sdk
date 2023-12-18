@@ -334,8 +334,11 @@ impl<D> Account<D> {
         let file_password = user.find_file_encryption_password().await?;
         storage.set_file_password(Some(file_password));
 
-        Self::initialize_account_log(&*self.paths, storage.account_log())
-            .await?;
+        Self::initialize_account_log(
+            &*self.paths,
+            Arc::clone(&storage.account_log),
+        )
+        .await?;
 
         self.authenticated = Some(Authenticated {
             user,
@@ -964,25 +967,30 @@ impl<D> Account<D> {
         apply_changes: bool,
     ) -> Result<BeforeChange> {
         let before_change = {
-            let storage = self.storage()?;
-            let reader = storage.read().await;
-            let folder = options
-                .folder
-                .clone()
-                .or_else(|| reader.current_folder())
-                .ok_or(Error::NoOpenFolder)?;
+            let (folder, commit_state) = {
+                let storage = self.storage()?;
+                let reader = storage.read().await;
+                let folder = options
+                    .folder
+                    .clone()
+                    .or_else(|| reader.current_folder())
+                    .ok_or(Error::NoOpenFolder)?;
 
-            let commit_state = reader
-                .cache()
-                .get(folder.id())
-                .ok_or(Error::CacheNotAvailable(*folder.id()))?
-                .commit_state()
-                .await?;
+                let commit_state = reader
+                    .cache()
+                    .get(folder.id())
+                    .ok_or(Error::CacheNotAvailable(*folder.id()))?
+                    .commit_state()
+                    .await?;
+
+                (folder, commit_state)
+            };
+
             BeforeChange {
                 folder,
                 commit_state,
                 #[cfg(feature = "sync")]
-                sync_status: reader.sync_status().await?,
+                sync_status: self.sync_status().await?,
             }
         };
 

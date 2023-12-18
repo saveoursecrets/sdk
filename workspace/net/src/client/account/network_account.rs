@@ -232,10 +232,8 @@ impl NetworkAccount {
         let keypair = generate_keypair()?;
         let signer = self.account_signer().await?;
         let device = self.device_signer().await?;
-        let local = self.storage().await?;
         let provider = RemoteBridge::new(
             Arc::clone(&self.account),
-            local,
             origin.clone(),
             signer,
             device.into(),

@@ -61,10 +61,10 @@ pub struct ClientStorage {
     /// This is a clone of the main identity folder
     /// event log and is defined here so we can
     /// get the commit state for synchronization.
-    pub(super) identity_log: Arc<RwLock<FolderEventLog>>,
+    pub(crate) identity_log: Arc<RwLock<FolderEventLog>>,
 
     /// Account event log.
-    pub(super) account_log: Arc<RwLock<AccountEventLog>>,
+    pub(crate) account_log: Arc<RwLock<AccountEventLog>>,
 
     /// Folder event logs.
     pub(super) cache: HashMap<VaultId, DiscFolder>,
