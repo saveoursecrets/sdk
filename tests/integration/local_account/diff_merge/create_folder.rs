@@ -33,7 +33,7 @@ async fn integration_diff_merge_create_folder() -> Result<()> {
 
     // Copy the initial account disc state
     copy_account(&data_dir, &data_dir_merge)?;
-    
+
     // Sign in on the other account
     let mut remote = LocalAccount::new_unauthenticated(
         address,
@@ -44,15 +44,28 @@ async fn integration_diff_merge_create_folder() -> Result<()> {
     remote.sign_in(&key).await?;
 
     // Create a new folder
-    local.create_folder("new_folder".to_owned()).await?;
-    
-    let remote_status = remote.sync_status().await?;
-    let (needs_sync, _status, diff) =
-        diff(&local, remote_status).await?;
+    let (summary, _, _) =
+        local.create_folder("new_folder".to_owned()).await?;
 
+    let remote_status = remote.sync_status().await?;
+    let (needs_sync, _status, diff) = diff(&local, remote_status).await?;
+    assert!(needs_sync);
+
+    // Merge the changes
     remote.merge(&diff).await?;
 
-    assert!(needs_sync);
+    // Should have the additional folder now
+    let folders = remote.list_folders().await?;
+    assert_eq!(2, folders.len());
+
+    // Open the folder for writing
+    remote.open_folder(&summary).await?;
+
+    // Check we can write to the new folder
+    let (meta, secret) = mock::note("note", TEST_ID);
+    remote
+        .create_secret(meta, secret, Default::default())
+        .await?;
 
     teardown(TEST_ID).await;
 

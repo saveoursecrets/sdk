@@ -1,6 +1,6 @@
 use super::account::Account;
 use crate::{
-    events::{AccountEventLog, EventLogExt, FolderEventLog},
+    events::{AccountEvent, AccountEventLog, EventLogExt, FolderEventLog},
     sync::{
         AccountDiff, CheckedPatch, FolderDiff, SyncDiff, SyncStatus,
         SyncStorage,
@@ -17,6 +17,9 @@ impl<D> Account<D> {
     pub async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
         let mut num_changes = 0;
 
+        // Identity must be merged first so delegated
+        // folder passwords are available before we merge
+        // account level events
         if let Some(diff) = &diff.identity {
             num_changes += self.merge_identity(diff).await?;
         }
@@ -36,14 +39,52 @@ impl<D> Account<D> {
     }
 
     async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
-        todo!("client replay account events");
+        for event in diff.patch.iter() {
+            match &event {
+                AccountEvent::Noop => {
+                    tracing::warn!("merge got noop event (client)");
+                }
+                AccountEvent::CreateFolder(id, buf) => {
+                    let key = self
+                        .user()?
+                        .identity()?
+                        .find_folder_password(id)
+                        .await?;
+                    self.import_folder_buffer(buf, key, false).await?;
+                }
+                AccountEvent::UpdateFolder(id, buf)
+                | AccountEvent::CompactFolder(id, buf)
+                | AccountEvent::ChangeFolderPassword(id, buf) => {
+                    let key = self
+                        .user()?
+                        .identity()?
+                        .find_folder_password(id)
+                        .await?;
+                    self.import_folder_buffer(buf, key, true).await?;
+                }
+                AccountEvent::RenameFolder(id, name) => {
+                    let summary = self.find(|s| s.id() == id).await;
+                    if let Some(summary) = &summary {
+                        self.rename_folder(summary, name.to_owned()).await?;
+                    }
+                }
+                AccountEvent::DeleteFolder(id) => {
+                    let summary = self.find(|s| s.id() == id).await;
+                    if let Some(summary) = &summary {
+                        self.delete_folder(summary).await?;
+                    }
+                }
+            }
+        }
+        Ok(diff.patch.len())
     }
 
     async fn merge_folders(
         &mut self,
         folders: &HashMap<VaultId, FolderDiff>,
     ) -> Result<usize> {
-        todo!("client replay folder events");
+        println!("todo! client replay folder events");
+        Ok(0)
     }
 }
 

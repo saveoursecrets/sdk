@@ -309,14 +309,14 @@ pub trait SyncStorage {
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>>;
-    
+
     /*
     /// Merge identity events.
     async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize>;
-    
+
     /// Merge account events.
     async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize>;
-    
+
     /// Merge folder events.
     async fn merge_folders(
         &mut self,

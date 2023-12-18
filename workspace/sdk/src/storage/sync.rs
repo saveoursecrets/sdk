@@ -118,6 +118,9 @@ impl ServerStorage {
     async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
         for event in diff.patch.iter() {
             match &event {
+                AccountEvent::Noop => {
+                    tracing::warn!("merge got noop event (server)");
+                }
                 AccountEvent::CreateFolder(id, buf)
                 | AccountEvent::UpdateFolder(id, buf)
                 | AccountEvent::CompactFolder(id, buf)
@@ -138,12 +141,8 @@ impl ServerStorage {
                         self.delete_folder(id).await?;
                     }
                 }
-                _ => {
-                    println!("todo! : apply other account events")
-                }
             }
         }
-
         Ok(diff.patch.len())
     }
 
