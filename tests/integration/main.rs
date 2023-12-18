@@ -5,6 +5,9 @@ mod event_log;
 mod command_line;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod diff_merge;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod local_account;
 
 //#[cfg(not(target_arch = "wasm32"))]

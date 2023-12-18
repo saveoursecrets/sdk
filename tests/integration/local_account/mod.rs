@@ -4,7 +4,6 @@ mod archive_unarchive;
 //mod backup_archive;
 mod contacts;
 mod custom_fields;
-mod diff_merge;
 mod external_files;
 mod folder_lifecycle;
 mod identity_login;
