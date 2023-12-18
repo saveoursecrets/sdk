@@ -3,7 +3,7 @@ use crate::client::{
     NetworkAccount, RemoteSync, Remotes, SyncError, SyncOptions,
 };
 use async_trait::async_trait;
-use sos_sdk::account::{AccountHandler, BeforeChange};
+use sos_sdk::account::AccountHandler;
 use std::{any::Any, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -17,7 +17,7 @@ pub(super) struct SyncHandler {
 impl AccountHandler for SyncHandler {
     type Data = SyncHandlerData;
 
-    async fn before_change(&self, _data: &BeforeChange) {
+    async fn before_change(&self) {
         let remotes = self.remotes.read().await;
         for remote in remotes.values() {
             if let Some(e) = remote.sync().await {
