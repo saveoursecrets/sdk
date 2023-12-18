@@ -210,11 +210,16 @@ where
             event_log.patch_checked(&diff.before, &diff.patch).await?
         };
 
+        // FIXME: update search index on create/update/delete
+
         if let CheckedPatch::Success(_, _) = &checked_patch {
             for event in diff.patch.iter() {
                 match event {
+                    WriteEvent::Noop => {
+                        tracing::error!("merge got noop event");
+                    }
                     WriteEvent::CreateVault(_) => {
-                        tracing::warn!("replay got create vault event");
+                        tracing::warn!("merge got create vault event");
                     }
                     WriteEvent::SetVaultName(name) => {
                         self.keeper.set_vault_name(name.to_owned()).await?;
@@ -279,9 +284,6 @@ where
                         {
                             index.remove(&(*folder_id, urn));
                         }
-                    }
-                    WriteEvent::Noop => {
-                        tracing::error!("replay got noop event");
                     }
                 }
             }
