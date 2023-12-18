@@ -33,7 +33,7 @@ pub enum FolderMergeOptions<'a> {
     Urn(VaultId, &'a mut crate::identity::UrnLookup),
     /// Update a search index when merging.
     #[cfg(feature = "search")]
-    Search(&'a mut crate::storage::search::SearchIndex),
+    Search(VaultId, &'a mut crate::storage::search::SearchIndex),
 }
 
 /// Result of a checked patch on an event log.

@@ -1054,6 +1054,7 @@ impl ClientStorage {
     ) -> Result<WriteEvent> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
+        #[cfg(feature = "search")]
         let index_doc = if let Some(index) = &self.index {
             let search = index.search();
             let index = search.read().await;
@@ -1087,6 +1088,7 @@ impl ClientStorage {
             self.append_file_mutation_events(&events).await?;
         }
 
+        #[cfg(feature = "search")]
         if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
             let search = index.search();
             let mut index = search.write().await;
@@ -1169,6 +1171,7 @@ impl ClientStorage {
 
         secret_data.meta.touch();
 
+        #[cfg(feature = "search")]
         let index_doc = if let Some(index) = &self.index {
             let search = index.search();
             let mut index = search.write().await;
@@ -1199,7 +1202,8 @@ impl ClientStorage {
                 .await?
                 .ok_or(Error::SecretNotFound(*id))?
         };
-
+        
+        #[cfg(feature = "search")]
         if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
             let search = index.search();
             let mut index = search.write().await;
@@ -1258,6 +1262,7 @@ impl ClientStorage {
                 .ok_or(Error::SecretNotFound(*id))?
         };
 
+        #[cfg(feature = "search")]
         if let Some(index) = &self.index {
             let search = index.search();
             let mut writer = search.write().await;

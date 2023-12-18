@@ -241,6 +241,22 @@ where
                                 None
                             };
 
+                        #[cfg(feature = "search")]
+                        let mut index_doc =
+                            if let FolderMergeOptions::Search(
+                                folder_id,
+                                index,
+                            ) = &options
+                            {
+                                Some(
+                                    index.prepare(
+                                        folder_id, id, &meta, &secret,
+                                    ),
+                                )
+                            } else {
+                                None
+                            };
+
                         let row = SecretRow::new(*id, meta, secret);
                         self.keeper.create_secret(&row).await?;
 
@@ -252,13 +268,55 @@ where
                         {
                             index.insert((*folder_id, urn), *id);
                         }
+
+                        #[cfg(feature = "search")]
+                        if let (
+                            Some(index_doc),
+                            FolderMergeOptions::Search(folder_id, index),
+                        ) = (index_doc.take(), &mut options)
+                        {
+                            index.commit(index_doc);
+                        }
                     }
                     WriteEvent::UpdateSecret(id, vault_commit) => {
                         let (meta, secret) = self
                             .keeper
                             .decrypt_secret(vault_commit, None)
                             .await?;
+
+                        #[cfg(feature = "search")]
+                        let mut index_doc =
+                            if let FolderMergeOptions::Search(
+                                folder_id,
+                                index,
+                            ) = &mut options
+                            {
+                                // Must remove from the index before we
+                                // prepare a new document otherwise the
+                                // document would be stale as `prepare()`
+                                // and `commit()` are for new documents
+                                index.remove(folder_id, id);
+
+                                Some(index.prepare(
+                                    folder_id,
+                                    id,
+                                    &meta,
+                                    &secret,
+                                ))
+                            } else {
+                                None
+                            };
+
                         self.keeper.update_secret(id, meta, secret).await?;
+
+                        #[cfg(feature = "search")]
+                        if let (
+                            Some(index_doc),
+                            FolderMergeOptions::Search(folder_id, index),
+                        ) = (index_doc.take(), &mut options)
+                        {
+                            index.commit(index_doc);
+                        }
                     }
                     WriteEvent::DeleteSecret(id) => {
                         let mut urn =
@@ -283,6 +341,13 @@ where
                         ) = (urn.take(), &mut options)
                         {
                             index.remove(&(*folder_id, urn));
+                        }
+
+                        #[cfg(feature = "search")]
+                        if let FolderMergeOptions::Search(folder_id, index) =
+                            &mut options
+                        {
+                            index.remove(folder_id, id);
                         }
                     }
                 }

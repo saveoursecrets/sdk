@@ -2,8 +2,8 @@ use super::account::Account;
 use crate::{
     events::{AccountEvent, AccountEventLog, EventLogExt, FolderEventLog},
     sync::{
-        AccountDiff, CheckedPatch, FolderDiff, SyncDiff, SyncStatus,
-        SyncStorage, FolderMergeOptions,
+        AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, SyncDiff,
+        SyncStatus, SyncStorage,
     },
     vault::VaultId,
     Error, Result,
@@ -116,15 +116,18 @@ impl<D> Account<D> {
             let index = storage.index.as_ref().ok_or(Error::NoSearchIndex)?;
             index.search()
         };
-        
+
         for (id, diff) in folders {
             if let Some(folder) = storage.cache_mut().get_mut(id) {
                 #[cfg(feature = "search")]
                 {
                     let mut search = search.write().await;
-                    folder.merge(
-                        diff,
-                        FolderMergeOptions::Search(&mut search)).await?;
+                    folder
+                        .merge(
+                            diff,
+                            FolderMergeOptions::Search(*id, &mut search),
+                        )
+                        .await?;
                 }
 
                 #[cfg(not(feature = "search"))]
