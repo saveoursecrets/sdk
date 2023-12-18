@@ -121,7 +121,6 @@ impl RemoteBridge {
 
 /// Sync helper functions.
 impl RemoteBridge {
-
     /// Perform the noise protocol handshake.
     pub async fn handshake(&self) -> Result<()> {
         Ok(self.remote.handshake().await?)

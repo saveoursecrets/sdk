@@ -256,7 +256,29 @@ where
                         self.keeper.update_secret(id, meta, secret).await?;
                     }
                     WriteEvent::DeleteSecret(id) => {
+                        let mut urn =
+                            if let FolderMergeOptions::Urn(_, _) = &options {
+                                if let Some((meta, _, _)) =
+                                    self.keeper.read_secret(id).await?
+                                {
+                                    meta.urn().cloned()
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            };
+
                         self.keeper.delete_secret(id).await?;
+
+                        // Remove from the URN lookup index
+                        if let (
+                            Some(urn),
+                            FolderMergeOptions::Urn(folder_id, index),
+                        ) = (urn.take(), &mut options)
+                        {
+                            index.remove(&(*folder_id, urn));
+                        }
                     }
                     WriteEvent::Noop => {
                         tracing::error!("replay got noop event");
