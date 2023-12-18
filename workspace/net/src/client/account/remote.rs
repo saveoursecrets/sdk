@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::ClientStorage,
-    sync::{Client, SyncComparison, SyncStatus},
+    sync::{self, Client, SyncComparison, SyncStatus},
     url::Url,
 };
 
@@ -113,13 +113,6 @@ impl RemoteBridge {
         })
     }
 
-    /*
-    /// Clone of the local provider.
-    pub fn local(&self) -> Arc<RwLock<ClientStorage>> {
-        Arc::clone(&self.local)
-    }
-    */
-
     /// Client implementation.
     pub fn client(&self) -> &RpcClient {
         &self.remote
@@ -128,6 +121,7 @@ impl RemoteBridge {
 
 /// Sync helper functions.
 impl RemoteBridge {
+
     /// Perform the noise protocol handshake.
     pub async fn handshake(&self) -> Result<()> {
         Ok(self.remote.handshake().await?)
@@ -147,23 +141,17 @@ impl RemoteBridge {
     }
 
     async fn sync_account(&self, remote_status: SyncStatus) -> Result<()> {
-        let comparison = {
-            let account = self.account.lock().await;
-            // Compare local status to the remote
-            SyncComparison::new(&*account, remote_status).await?
-        };
+        let mut account = self.account.lock().await;
 
-        // Only make network requests when the status differ
-        if comparison.needs_sync() {
-            let mut account = self.account.lock().await;
+        let (needs_sync, local_status, local_changes) =
+            sync::diff(&*account, remote_status).await?;
 
-            let push = comparison.diff(&*account).await?;
-            let pull =
-                self.remote.sync(&comparison.local_status, &push).await?;
+        if needs_sync {
+            let remote_changes =
+                self.remote.sync(&local_status, &local_changes).await?;
 
-            println!("sync got diff {:#?}", pull);
-
-            account.merge_diff(&pull).await?;
+            println!("sync got diff {:#?}", remote_changes);
+            account.merge_diff(&remote_changes).await?;
         }
 
         Ok(())

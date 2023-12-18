@@ -310,3 +310,29 @@ pub trait SyncStorage {
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>>;
 }
+
+/// Difference between a local sync status and a remote
+/// sync status.
+pub async fn diff(
+    storage: &(impl SyncStorage + Send + Sync),
+    remote_status: SyncStatus,
+) -> Result<(bool, SyncStatus, SyncDiff)> {
+    let comparison = {
+        // Compare local status to the remote
+        SyncComparison::new(storage, remote_status).await?
+    };
+
+    let needs_sync = comparison.needs_sync();
+    let diff = comparison.diff(storage).await?;
+    Ok((needs_sync, comparison.local_status, diff))
+
+    /*
+    // Only return a diff when a sync is needed
+    if comparison.needs_sync() {
+        let diff = comparison.diff(storage).await?;
+        Ok(Some((comparison.local_status, diff)))
+    } else {
+        Ok(None)
+    }
+    */
+}

@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use sos_sdk::{
     constants::{SYNC_RESOLVE, SYNC_STATUS},
     decode, encode,
-    sync::{SyncComparison, SyncDiff, SyncStatus, SyncStorage},
+    sync::{self, SyncComparison, SyncDiff, SyncStatus, SyncStorage},
 };
 
 use async_trait::async_trait;
@@ -85,11 +85,9 @@ impl Service for SyncService {
                 // that exist in remote but not in the local
                 let (local_status, diff) = {
                     let reader = account.read().await;
-                    let comparison =
-                        SyncComparison::new(&reader.storage, remote_status)
-                            .await?;
-                    let diff = comparison.diff(&reader.storage).await?;
-                    (comparison.local_status, diff)
+                    let (_, local_status, diff) =
+                        sync::diff(&reader.storage, remote_status).await?;
+                    (local_status, diff)
                 };
 
                 #[cfg(feature = "listen")]
