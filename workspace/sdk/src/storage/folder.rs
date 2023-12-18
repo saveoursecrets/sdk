@@ -297,12 +297,11 @@ where
                                 // and `commit()` are for new documents
                                 index.remove(folder_id, id);
 
-                                Some(index.prepare(
-                                    folder_id,
-                                    id,
-                                    &meta,
-                                    &secret,
-                                ))
+                                Some(
+                                    index.prepare(
+                                        folder_id, id, &meta, &secret,
+                                    ),
+                                )
                             } else {
                                 None
                             };

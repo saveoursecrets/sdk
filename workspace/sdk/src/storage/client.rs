@@ -1202,7 +1202,7 @@ impl ClientStorage {
                 .await?
                 .ok_or(Error::SecretNotFound(*id))?
         };
-        
+
         #[cfg(feature = "search")]
         if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
             let search = index.search();

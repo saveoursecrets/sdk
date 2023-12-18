@@ -2,14 +2,14 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "diff_merge_create_folder";
+const TEST_ID: &str = "diff_merge_secret_create";
 
 use super::copy_account;
 
-/// Tests creating a diff and merging a create folder
+/// Tests creating a diff and merging a create secret
 /// event without any networking.
 #[tokio::test]
-async fn integration_diff_merge_create_folder() -> Result<()> {
+async fn integration_diff_merge_secret_create() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
@@ -43,9 +43,11 @@ async fn integration_diff_merge_create_folder() -> Result<()> {
     .await?;
     remote.sign_in(&key).await?;
 
-    // Create a new folder
-    let (summary, _, _) =
-        local.create_folder("new_folder".to_owned()).await?;
+    // Create a new secret
+    let (meta, secret) = mock::note("note", TEST_ID);
+    let (id, _, _, _) = local
+        .create_secret(meta.clone(), secret.clone(), Default::default())
+        .await?;
 
     let remote_status = remote.sync_status().await?;
     let (needs_sync, _status, diff) = diff(&local, remote_status).await?;
@@ -55,18 +57,14 @@ async fn integration_diff_merge_create_folder() -> Result<()> {
     remote.merge(&diff).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
 
-    // Should have the additional folder now
-    let folders = remote.list_folders().await?;
-    assert_eq!(2, folders.len());
+    // Check we can read the secret
+    let (data, _) = remote.read_secret(&id, None).await?;
+    assert_eq!(&meta, data.meta());
+    assert_eq!(&secret, data.secret());
 
-    // Open the folder for writing
-    remote.open_folder(&summary).await?;
-
-    // Check we can write to the new folder
-    let (meta, secret) = mock::note("note", TEST_ID);
-    remote
-        .create_secret(meta, secret, Default::default())
-        .await?;
+    // Check we can find it in the search index
+    let documents = remote.query_map("note", Default::default()).await?;
+    assert_eq!(1, documents.len());
 
     teardown(TEST_ID).await;
 
