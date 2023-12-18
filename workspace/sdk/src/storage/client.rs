@@ -535,7 +535,7 @@ impl ClientStorage {
         Ok(())
     }
 
-    /// Unlock all vaults.
+    /// Unlock all folders.
     pub async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {
         for (id, folder) in self.cache.iter_mut() {
             let key = keys.find(id).ok_or(Error::NoFolderKey(*id))?;
@@ -544,11 +544,35 @@ impl ClientStorage {
         Ok(())
     }
 
-    /// Lock all vaults.
+    /// Lock all folders.
     pub async fn lock(&mut self) {
         for (_, folder) in self.cache.iter_mut() {
             folder.lock();
         }
+    }
+
+    /// Unlock a folder.
+    pub async fn unlock_folder(
+        &mut self,
+        id: &VaultId,
+        key: &AccessKey,
+    ) -> Result<()> {
+        let folder = self
+            .cache
+            .get_mut(id)
+            .ok_or(Error::CacheNotAvailable(*id))?;
+        folder.unlock(key).await?;
+        Ok(())
+    }
+
+    /// Lock a folder.
+    pub async fn lock_folder(&mut self, id: &VaultId) -> Result<()> {
+        let folder = self
+            .cache
+            .get_mut(id)
+            .ok_or(Error::CacheNotAvailable(*id))?;
+        folder.lock();
+        Ok(())
     }
 
     /// Remove the local cache for a vault.
@@ -753,6 +777,11 @@ impl ClientStorage {
 
         // Initialize the local cache for event log
         self.create_cache_entry(&summary, Some(vault)).await?;
+
+        // Must ensure the folder is unlocked
+        if let Some(key) = key {
+            self.unlock_folder(summary.id(), key).await?;
+        }
 
         Ok((
             exists,

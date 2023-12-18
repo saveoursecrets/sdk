@@ -6,7 +6,7 @@ const TEST_ID: &str = "diff_merge_secret_move";
 
 use super::copy_account;
 
-/// Tests creating a diff and merging a move secret 
+/// Tests creating a diff and merging a move secret
 /// event without any networking.
 #[tokio::test]
 async fn integration_diff_merge_secret_move() -> Result<()> {
@@ -43,7 +43,7 @@ async fn integration_diff_merge_secret_move() -> Result<()> {
     )
     .await?;
     remote.sign_in(&key).await?;
-    
+
     // Create a secret in the default folder.
     let (meta, secret) = mock::note("note", TEST_ID);
     let (id, _, _, _) = local
@@ -55,7 +55,9 @@ async fn integration_diff_merge_secret_move() -> Result<()> {
         local.create_folder("new_folder".to_owned()).await?;
 
     // Move the secret
-    local.move_secret(&id, &default_folder, &summary, Default::default()).await?;
+    let (new_id, _) = local
+        .move_secret(&id, &default_folder, &summary, Default::default())
+        .await?;
 
     assert_ne!(local.sync_status().await?, remote.sync_status().await?);
 
@@ -65,26 +67,25 @@ async fn integration_diff_merge_secret_move() -> Result<()> {
 
     // Merge the changes
     remote.merge(&diff).await?;
-    
-    println!("LOCAL: {:#?}", local.sync_status().await?);
-    println!("REMOTE: {:#?}", remote.sync_status().await?);
 
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
 
     // Should have the additional folder now
     let folders = remote.list_folders().await?;
     assert_eq!(2, folders.len());
-    
-    /*
-    // Open the folder for writing
-    remote.open_folder(&summary).await?;
 
-    // Check we can write to the new folder
-    let (meta, secret) = mock::note("note", TEST_ID);
-    remote
-        .create_secret(meta, secret, Default::default())
-        .await?;
-    */
+    // Check we can't read the secret in the source folder (from)
+    let result = remote
+        .read_secret(&new_id, Some(default_folder.clone()))
+        .await;
+    assert!(matches!(result, Err(Error::SecretNotFound(_))));
+
+    // Check we can read it in the destination folder (to)
+    remote.open_folder(&summary).await?;
+    let (data, _) =
+        remote.read_secret(&new_id, Some(summary.clone())).await?;
+    assert_eq!(&meta, data.meta());
+    assert_eq!(&secret, data.secret());
 
     teardown(TEST_ID).await;
 

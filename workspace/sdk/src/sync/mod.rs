@@ -142,6 +142,7 @@ impl SyncComparison {
                     folders.insert(*id, event_log.tree().compare(&folder.1)?);
                 }
             }
+
             folders
         };
 
@@ -232,22 +233,40 @@ impl SyncComparison {
                     let log = storage.folder_log(id).await?;
                     let log = log.read().await;
 
-                    let is_last_commit = Some(&commit_state.0)
-                        == log.tree().last_commit().as_ref();
+                    let after = log.tree().head()?;
+                    let folder = FolderDiff {
+                        patch: log.diff(Some(&commit_state.0)).await?,
+                        after,
+                        before: commit_state.1.clone(),
+                    };
 
-                    if !is_last_commit {
-                        let after = log.tree().head()?;
-                        let folder = FolderDiff {
-                            patch: log.diff(Some(&commit_state.0)).await?,
-                            after,
-                            before: commit_state.1.clone(),
-                        };
-
+                    if !folder.patch.is_empty() {
                         diff.folders.insert(*id, folder);
                     }
                 }
                 Comparison::Unknown => {
                     println!("todo! : handle folder with diverged trees");
+                }
+            }
+        }
+
+        // Handle events for new folders on local that
+        // don't exist on remote yet
+        for (id, folder) in &self.local_status.folders {
+            if self.remote_status.folders.get(id).is_none() {
+                let log = storage.folder_log(id).await?;
+                let log = log.read().await;
+                let first_commit = log.tree().first_commit()?;
+                let after = log.tree().commit_state()?.1;
+
+                let folder = FolderDiff {
+                    patch: log.diff(Some(&first_commit.0)).await?,
+                    after,
+                    before: first_commit.1,
+                };
+
+                if !folder.patch.is_empty() {
+                    diff.folders.insert(*id, folder);
                 }
             }
         }

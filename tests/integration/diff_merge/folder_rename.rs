@@ -43,10 +43,12 @@ async fn integration_diff_merge_folder_rename() -> Result<()> {
     )
     .await?;
     remote.sign_in(&key).await?;
-    
+
     // Rename a folder.
     let new_name = "new_folder_name";
-    local.rename_folder(&default_folder, new_name.to_owned()).await?;
+    local
+        .rename_folder(&default_folder, new_name.to_owned())
+        .await?;
 
     assert_ne!(local.sync_status().await?, remote.sync_status().await?);
 
@@ -60,7 +62,7 @@ async fn integration_diff_merge_folder_rename() -> Result<()> {
 
     let default_folder = remote.default_folder().await.unwrap();
     assert_eq!(new_name, default_folder.name());
-        
+
     teardown(TEST_ID).await;
 
     Ok(())

@@ -181,6 +181,17 @@ impl CommitTree {
         }
     }
 
+    /// Compute the first commit state.
+    ///
+    /// Must have at least one commit.
+    pub fn first_commit(&self) -> Result<CommitState> {
+        let leaves = self.tree.leaves().ok_or(Error::NoRootCommit)?;
+        let first_commit =
+            CommitHash(*leaves.first().ok_or(Error::NoRootCommit)?);
+        let first_proof = self.proof_at(&first_commit)?;
+        Ok((first_commit, first_proof))
+    }
+
     /// Last commit hash in the underlying merkle tree.
     pub fn last_commit(&self) -> Option<CommitHash> {
         self.last_commit.map(CommitHash)

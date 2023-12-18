@@ -351,6 +351,9 @@ where
                     }
                 }
             }
+        } else {
+            // FIXME: handle conflict situation
+            println!("todo! folder patch could not be merged");
         }
 
         Ok(checked_patch)
