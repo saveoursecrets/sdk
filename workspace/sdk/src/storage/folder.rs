@@ -200,7 +200,7 @@ where
     }
 
     #[cfg(feature = "sync")]
-    pub(crate) async fn merge_diff(
+    pub(crate) async fn merge(
         &mut self,
         diff: &FolderDiff,
         mut options: FolderMergeOptions<'_>,

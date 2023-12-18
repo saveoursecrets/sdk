@@ -19,7 +19,7 @@ async fn integration_diff_merge_create_folder() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let mut account = LocalAccount::new_account(
+    let mut local = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
@@ -28,28 +28,29 @@ async fn integration_diff_merge_create_folder() -> Result<()> {
     .await?;
 
     let key: AccessKey = password.clone().into();
-    account.sign_in(&key).await?;
-    let address = account.address().clone();
-    let default_folder = account.default_folder().await.unwrap();
+    local.sign_in(&key).await?;
+    let address = local.address().clone();
 
     // Copy the initial account disc state
     copy_account(&data_dir, &data_dir_merge)?;
     
     // Sign in on the other account
-    let mut account_merge = LocalAccount::new_unauthenticated(
+    let mut remote = LocalAccount::new_unauthenticated(
         address,
         Some(data_dir_merge),
         None,
     )
     .await?;
-    account_merge.sign_in(&key).await?;
+    remote.sign_in(&key).await?;
 
     // Create a new folder
-    account.create_folder("new_folder".to_owned()).await?;
+    local.create_folder("new_folder".to_owned()).await?;
     
-    let remote_status = account_merge.sync_status().await?;
-    let (needs_sync, local_status, local_diff) =
-        diff(&account, remote_status).await?;
+    let remote_status = remote.sync_status().await?;
+    let (needs_sync, _status, diff) =
+        diff(&local, remote_status).await?;
+
+    remote.merge(&diff).await?;
 
     assert!(needs_sync);
 

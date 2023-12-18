@@ -93,7 +93,7 @@ impl ServerStorage {
     }
 
     /// Merge a diff into this storage.
-    pub async fn merge_diff(&mut self, diff: &SyncDiff) -> Result<usize> {
+    pub async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
         let mut num_changes = 0;
 
         if let Some(diff) = &diff.identity {

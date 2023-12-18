@@ -78,7 +78,7 @@ impl Service for SyncService {
                 // Apply the diff to the storage
                 let num_changes = {
                     let mut writer = account.write().await;
-                    writer.storage.merge_diff(&diff).await?
+                    writer.storage.merge(&diff).await?
                 };
 
                 // Generate a new diff so the client can apply changes

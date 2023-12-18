@@ -14,7 +14,7 @@ use tokio::sync::RwLock;
 
 impl<D> Account<D> {
     /// Merge a diff into this account.
-    pub async fn merge_diff(&mut self, diff: &SyncDiff) -> Result<usize> {
+    pub async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
         let mut num_changes = 0;
 
         if let Some(diff) = &diff.identity {
@@ -31,7 +31,7 @@ impl<D> Account<D> {
     }
 
     async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize> {
-        self.user_mut()?.identity_mut()?.merge_diff(diff).await?;
+        self.user_mut()?.identity_mut()?.merge(diff).await?;
         Ok(diff.patch.len())
     }
 

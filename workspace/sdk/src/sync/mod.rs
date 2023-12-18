@@ -309,6 +309,20 @@ pub trait SyncStorage {
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>>;
+    
+    /*
+    /// Merge identity events.
+    async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize>;
+    
+    /// Merge account events.
+    async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize>;
+    
+    /// Merge folder events.
+    async fn merge_folders(
+        &mut self,
+        folders: &HashMap<VaultId, FolderDiff>,
+    );
+    */
 }
 
 /// Difference between a local sync status and a remote
@@ -325,14 +339,4 @@ pub async fn diff(
     let needs_sync = comparison.needs_sync();
     let diff = comparison.diff(storage).await?;
     Ok((needs_sync, comparison.local_status, diff))
-
-    /*
-    // Only return a diff when a sync is needed
-    if comparison.needs_sync() {
-        let diff = comparison.diff(storage).await?;
-        Ok(Some((comparison.local_status, diff)))
-    } else {
-        Ok(None)
-    }
-    */
 }
