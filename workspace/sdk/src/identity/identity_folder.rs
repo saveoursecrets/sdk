@@ -70,7 +70,7 @@ where
     D: Clone + Send + Sync,
 {
     folder: Folder<T, R, W, D>,
-    index: UrnLookup,
+    pub(crate) index: UrnLookup,
     private_identity: PrivateIdentity,
     #[cfg(feature = "device")]
     pub(super) devices: Option<crate::device::DeviceManager>,

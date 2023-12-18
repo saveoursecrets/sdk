@@ -1,15 +1,15 @@
-use crate::test_utils::{mock, setup, teardown};
+use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "diff_merge_create_folder";
+const TEST_ID: &str = "diff_merge_delete_folder";
 
 use super::copy_account;
 
-/// Tests creating a diff and merging a create folder
+/// Tests creating a diff and merging a delete folder
 /// event without any networking.
 #[tokio::test]
-async fn integration_diff_merge_create_folder() -> Result<()> {
+async fn integration_diff_merge_delete_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
@@ -47,6 +47,9 @@ async fn integration_diff_merge_create_folder() -> Result<()> {
     let (summary, _, _) =
         local.create_folder("new_folder".to_owned()).await?;
 
+    // Delete the folder
+    local.delete_folder(&summary).await?;
+
     let remote_status = remote.sync_status().await?;
     let (needs_sync, _status, diff) = diff(&local, remote_status).await?;
     assert!(needs_sync);
@@ -55,18 +58,9 @@ async fn integration_diff_merge_create_folder() -> Result<()> {
     remote.merge(&diff).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
 
-    // Should have the additional folder now
+    // Should have the same number of folders
     let folders = remote.list_folders().await?;
-    assert_eq!(2, folders.len());
-
-    // Open the folder for writing
-    remote.open_folder(&summary).await?;
-
-    // Check we can write to the new folder
-    let (meta, secret) = mock::note("note", TEST_ID);
-    remote
-        .create_secret(meta, secret, Default::default())
-        .await?;
+    assert_eq!(1, folders.len());
 
     teardown(TEST_ID).await;
 

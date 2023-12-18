@@ -44,34 +44,57 @@ impl<D> Account<D> {
                 AccountEvent::Noop => {
                     tracing::warn!("merge got noop event (client)");
                 }
-                AccountEvent::CreateFolder(id, buf) => {
-                    let key = self
-                        .user()?
-                        .identity()?
-                        .find_folder_password(id)
-                        .await?;
-                    self.import_folder_buffer(buf, key, false).await?;
-                }
-                AccountEvent::UpdateFolder(id, buf)
+                AccountEvent::CreateFolder(id, buf)
+                | AccountEvent::UpdateFolder(id, buf)
                 | AccountEvent::CompactFolder(id, buf)
                 | AccountEvent::ChangeFolderPassword(id, buf) => {
-                    let key = self
+                    // If the folder was created and later deleted
+                    // in the same sequence of events then the folder
+                    // password won't exist after merging the identity
+                    // events so we need to skip the operation.
+                    if let Ok(key) = self
                         .user()?
                         .identity()?
                         .find_folder_password(id)
-                        .await?;
-                    self.import_folder_buffer(buf, key, true).await?;
+                        .await
+                    {
+                        // Must operate on the storage level otherwise
+                        // we would duplicate identity events for folder
+                        // password
+                        let storage = self.storage()?;
+                        let mut storage = storage.write().await;
+                        storage.import_folder(buf, Some(&key)).await?;
+                    // Otherwise we must still apply the event
+                    } else {
+                        let storage = self.storage()?;
+                        let storage = storage.read().await;
+                        let mut account_log =
+                            storage.account_log.write().await;
+                        account_log.apply(vec![event]).await?;
+                    }
                 }
                 AccountEvent::RenameFolder(id, name) => {
                     let summary = self.find(|s| s.id() == id).await;
                     if let Some(summary) = &summary {
-                        self.rename_folder(summary, name.to_owned()).await?;
+                        let storage = self.storage()?;
+                        let mut storage = storage.write().await;
+                        storage
+                            .rename_folder(summary, name.to_owned())
+                            .await?;
                     }
                 }
                 AccountEvent::DeleteFolder(id) => {
                     let summary = self.find(|s| s.id() == id).await;
                     if let Some(summary) = &summary {
-                        self.delete_folder(summary).await?;
+                        let storage = self.storage()?;
+                        let mut storage = storage.write().await;
+                        storage.delete_folder(summary).await?;
+                    } else {
+                        let storage = self.storage()?;
+                        let storage = storage.read().await;
+                        let mut account_log =
+                            storage.account_log.write().await;
+                        account_log.apply(vec![event]).await?;
                     }
                 }
             }

@@ -36,10 +36,10 @@ async fn integration_diff_merge_import_folder() -> Result<()> {
     copy_account(&data_dir, &data_dir_merge)?;
 
     // Copy the initial account disc state to an account
-    // we will use to export the folder and export the folder 
+    // we will use to export the folder and export the folder
     // to a vault file.
     //
-    // We use a temp account so we don't create events other 
+    // We use a temp account so we don't create events other
     // then the import event in the accounts we want to test.
     copy_account(&data_dir, &data_dir_export)?;
     let mut temp = LocalAccount::new_unauthenticated(
@@ -49,24 +49,19 @@ async fn integration_diff_merge_import_folder() -> Result<()> {
     )
     .await?;
     temp.sign_in(&key).await?;
-    let (summary, _, _) =
-        temp.create_folder("new_folder".to_owned()).await?;
+    let (summary, _, _) = temp.create_folder("new_folder".to_owned()).await?;
     let (folder_password, _) = generate_passphrase()?;
     let folder_key: AccessKey = folder_password.into();
     let exported = data_dir_export.join("exported.vault");
-    temp 
-        .export_folder(
-            &exported,
-            &summary,
-            folder_key.clone(),
-            false,
-        )
+    temp.export_folder(&exported, &summary, folder_key.clone(), false)
         .await?;
     assert!(vfs::try_exists(&exported).await?);
-    
+
     // Import the buffer into local
     let buffer = vfs::read(&exported).await?;
-    local.import_folder_buffer(&buffer, folder_key, false).await?;
+    local
+        .import_folder_buffer(&buffer, folder_key, false)
+        .await?;
 
     // Sign in on the remote account
     let mut remote = LocalAccount::new_unauthenticated(
@@ -76,25 +71,27 @@ async fn integration_diff_merge_import_folder() -> Result<()> {
     )
     .await?;
     remote.sign_in(&key).await?;
-    
+
     let remote_status = remote.sync_status().await?;
-    let (needs_sync, _status, diff) =
-        diff(&local, remote_status).await?;
+    let (needs_sync, _status, diff) = diff(&local, remote_status).await?;
     assert!(needs_sync);
-    
+
     // Merge the changes
     remote.merge(&diff).await?;
-    
+    assert_eq!(local.sync_status().await?, remote.sync_status().await?);
+
     // Should have the additional folder now
     let folders = remote.list_folders().await?;
     assert_eq!(2, folders.len());
 
     // Open the folder for writing
     remote.open_folder(&summary).await?;
-    
+
     // Check we can write to the new folder
     let (meta, secret) = mock::note("note", TEST_ID);
-    remote.create_secret(meta, secret, Default::default()).await?;
+    remote
+        .create_secret(meta, secret, Default::default())
+        .await?;
 
     teardown(TEST_ID).await;
 
