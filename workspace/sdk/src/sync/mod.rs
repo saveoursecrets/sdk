@@ -24,7 +24,11 @@ pub use patch::{AccountPatch, FolderPatch, Patch};
 pub use patch::FilePatch;
 
 /// Options for folder merge.
+#[derive(Default)]
 pub enum FolderMergeOptions<'a> {
+    #[doc(hidden)]
+    #[default]
+    Noop,
     /// Update a URN lookup when merging.
     Urn(VaultId, &'a mut crate::identity::UrnLookup),
     /// Update a search index when merging.

@@ -677,6 +677,12 @@ pub struct AccountSearch {
     pub(crate) search_index: Arc<RwLock<SearchIndex>>,
 }
 
+impl Default for AccountSearch {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AccountSearch {
     /// Create a new user search index.
     pub fn new() -> Self {
@@ -805,12 +811,6 @@ impl AccountSearch {
 
             tag_match && folder_match && type_match
         }
-    }
-}
-
-impl Default for AccountSearch {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

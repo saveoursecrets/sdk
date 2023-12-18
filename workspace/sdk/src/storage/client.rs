@@ -54,7 +54,7 @@ pub struct ClientStorage {
 
     /// Search index.
     #[cfg(feature = "search")]
-    pub(super) index: Option<AccountSearch>,
+    pub(crate) index: Option<AccountSearch>,
 
     /// Identity folder event log.
     ///
