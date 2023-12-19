@@ -148,6 +148,7 @@ impl RemoteBridge {
         if needs_sync {
             let remote_changes =
                 self.remote.sync(&local_status, &local_changes).await?;
+            //println!("{:#?}", remote_changes);
             account.merge(&remote_changes).await?;
         }
 
@@ -255,6 +256,7 @@ mod listen {
                     "listen change sync failed",
                 );
             }
+
             Ok(())
         }
 

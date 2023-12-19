@@ -34,7 +34,7 @@ async fn integration_sync_multiple_remotes_fallback() -> Result<()> {
 
     // Shutdown the first server
     drop(server1);
-    sync_pause().await;
+    sync_pause(None).await;
 
     // Create a secret that should be synced to multiple remotes
     let (meta, secret) = mock_note("note", TEST_ID);
@@ -50,7 +50,7 @@ async fn integration_sync_multiple_remotes_fallback() -> Result<()> {
 
     // Bring the server back online
     let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
-    sync_pause().await;
+    sync_pause(None).await;
 
     // Now we should be able to sync to both remotes
     assert!(device1.owner.sync().await.is_none());

@@ -62,8 +62,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
 
     // Pause a while to give the listener some time to process
     // the change notification
-    sync_pause().await;
-    sync_pause().await;
+    sync_pause(None).await;
 
     // Ensure we can open and write to the synced folder
     device2.owner.open_folder(&new_folder).await?;
@@ -77,8 +76,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
 
     // Pause a while to allow the first owner to sync
     // with the new change
-    sync_pause().await;
-    sync_pause().await;
+    sync_pause(None).await;
 
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions

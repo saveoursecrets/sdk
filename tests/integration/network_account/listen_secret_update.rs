@@ -48,7 +48,7 @@ async fn integration_sync_listen_update_secret() -> Result<()> {
 
     // Pause a while to give the listener some time to process
     // the change notification
-    sync_pause().await;
+    sync_pause(None).await;
 
     // Both clients should be in sync now
     assert_eq!(3, num_events(&mut device1.owner, &default_folder_id).await);

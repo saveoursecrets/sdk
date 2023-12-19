@@ -28,7 +28,7 @@ async fn integration_sync_offline_manual() -> Result<()> {
     // Oh no, the server has gone offline!
     drop(server);
     // Wait a while to make sure the server has gone
-    sync_pause().await;
+    sync_pause(None).await;
 
     // Perform all the basic CRUD operations to make sure
     // we are not affected by the remote being offline

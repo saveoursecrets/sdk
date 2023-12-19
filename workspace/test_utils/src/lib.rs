@@ -32,8 +32,8 @@ pub fn init_tracing() {
 /// Pause a while to allow synchronization.
 ///
 /// Declared here as we may need to adjust for CI.
-pub async fn sync_pause() {
-    tokio::time::sleep(Duration::from_millis(200)).await;
+pub async fn sync_pause(millis: Option<u64>) {
+    tokio::time::sleep(Duration::from_millis(millis.unwrap_or(250))).await;
 }
 
 /// Convert a socket address to a URL.

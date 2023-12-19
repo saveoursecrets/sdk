@@ -12,7 +12,7 @@ const TEST_ID: &str = "sync_listen_delete_folder";
 /// Tests syncing delete folder events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
-#[ignore = "need to restore change notifications"]
+#[ignore = "need to fix flaky sync error (noise decrypt error)"]
 #[tokio::test]
 async fn integration_sync_listen_delete_folder() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -39,11 +39,14 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
     assert!(sync_error.is_none());
 
     let sync_error = device1.owner.delete_folder(&new_folder).await?;
+    if sync_error.is_some() {
+        println!("{:#?}", sync_error);
+    }
     assert!(sync_error.is_none());
 
     // Pause a while to give the listener some time to process
     // the change notification
-    sync_pause().await;
+    sync_pause(Some(500)).await;
 
     let updated_summaries: Vec<Summary> = {
         let storage = device1.owner.storage().await?;
