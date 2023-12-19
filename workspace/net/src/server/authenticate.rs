@@ -5,7 +5,10 @@ use serde::Deserialize;
 
 use sos_sdk::{
     decode,
-    signer::ecdsa::{recover_address, BinaryEcdsaSignature, Address, Signature},
+    signer::{
+        ecdsa::{self, recover_address, Address, BinaryEcdsaSignature},
+        ed25519::{self, BinaryEd25519Signature},
+    },
 };
 //use web3_signature::Signature;
 
@@ -21,17 +24,16 @@ pub struct QueryMessage {
 #[derive(Debug)]
 pub struct BearerToken {
     pub address: Address,
+    pub device_signature: Option<ed25519::Signature>,
 }
 
 impl BearerToken {
     /// Create a new bearer token.
     pub async fn new(token: &str, message: &[u8]) -> Result<Self> {
-        
-        // When a token contains a period we are expecting 
+        // When a token contains a period we are expecting
         // an account signature and a device signature
         let token = if token.contains('.') {
-            token.split_once('.')
-                .map(|s| (s.0, Some(s.1)))
+            token.split_once('.').map(|s| (s.0, Some(s.1)))
         } else {
             Some((token, None))
         };
@@ -40,12 +42,22 @@ impl BearerToken {
         let (account_token, device_token) = token;
 
         let value = bs58::decode(account_token).into_vec()?;
-        let binary_sig: BinaryEcdsaSignature = decode(&value).await?;
-        let signature: Signature = binary_sig.into();
+        let buffer: BinaryEcdsaSignature = decode(&value).await?;
+        let signature: ecdsa::Signature = buffer.into();
         let address = recover_address(signature, message)?;
+
+        let device_signature = if let Some(device_token) = device_token {
+            let value = bs58::decode(device_token).into_vec()?;
+            let buffer: BinaryEd25519Signature = decode(&value).await?;
+            let signature: ed25519::Signature = buffer.into();
+            Some(signature)
+        } else {
+            None
+        };
 
         Ok(Self {
             address,
+            device_signature,
         })
     }
 }

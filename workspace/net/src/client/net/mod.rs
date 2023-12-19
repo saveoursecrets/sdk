@@ -38,7 +38,8 @@ pub(crate) async fn encode_device_signature(
 
 pub(crate) fn bearer_prefix(
     account_signature: &str,
-    device_signature: Option<&str>) -> String {
+    device_signature: Option<&str>,
+) -> String {
     if let Some(device_signature) = device_signature {
         format!("Bearer {}.{}", account_signature, device_signature)
     } else {

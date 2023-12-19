@@ -18,7 +18,8 @@ use tokio::sync::RwLockWriteGuard;
 use crate::{
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
     server::{
-        authenticate, Error, Result, ServerBackend, ServerState, State,
+        authenticate::{self, BearerToken},
+        Error, Result, ServerBackend, ServerState, State,
     },
 };
 
@@ -72,14 +73,14 @@ pub trait Service {
 
 /// Type to represent the caller of a service request.
 pub struct Caller {
-    address: Address,
+    token: BearerToken,
     public_key: Vec<u8>,
 }
 
 impl Caller {
     /// Get the address of the caller.
     pub fn address(&self) -> &Address {
-        &self.address
+        &self.token.address
     }
 
     /// Get the public key of the caller.
@@ -196,15 +197,16 @@ pub(crate) async fn private_service(
         (server_public_key, client_public_key, request, token)
     };
 
-    // Get a reply from the target service
+    // Call the target service for a reply
     let owner = Caller {
-        address: token.address,
+        token,
         public_key: client_public_key.clone(),
     };
-
+    
+    // Deny unauthorized account addresses
     {
         let reader = state.read().await;
-        if !reader.config.access.is_allowed_access(&owner.address) {
+        if !reader.config.access.is_allowed_access(owner.address()) {
             return Err(Error::Forbidden);
         }
     }

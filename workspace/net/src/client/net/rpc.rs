@@ -50,7 +50,9 @@ use crate::{
 #[cfg(feature = "listen")]
 use crate::client::{ListenOptions, WebSocketHandle};
 
-use super::{bearer_prefix, encode_account_signature, encode_device_signature};
+use super::{
+    bearer_prefix, encode_account_signature, encode_device_signature,
+};
 
 /// Retry a request after renewing a session if an
 /// UNAUTHORIZED response is returned.
@@ -399,7 +401,12 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self
-            .send_request(url, body, account_signature, Some(device_signature))
+            .send_request(
+                url,
+                body,
+                account_signature,
+                Some(device_signature),
+            )
             .await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
@@ -440,7 +447,12 @@ impl RpcClient {
 
         let body = self.encrypt_request(&body).await?;
         let response = self
-            .send_request(url, body, account_signature, Some(device_signature))
+            .send_request(
+                url,
+                body,
+                account_signature,
+                Some(device_signature),
+            )
             .await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
