@@ -34,9 +34,6 @@
 //! * `migrate` Import and export unencrypted secrets.
 //! * `security-report` Generate a security report.
 //!
-//! Note the `files` feature affects the encoding of vaults so you should
-//! not change this after writing encoded vaults to disc without having a
-//! migration plan.
 
 #[cfg(all(not(feature = "account"), feature = "archive"))]
 compile_error!("account feature must be enabled to use archive");

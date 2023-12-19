@@ -26,7 +26,6 @@ use binary_stream::futures::{
 };
 
 const EMBEDDED_FILE: u8 = 1;
-#[cfg(feature = "files")]
 const EXTERNAL_FILE: u8 = 2;
 
 /// Constants for signer kinds.
@@ -286,7 +285,6 @@ impl Encodable for FileContent {
                 writer.write_bytes(buffer.expose_secret()).await?;
                 writer.write_bytes(checksum).await?;
             }
-            #[cfg(feature = "files")]
             Self::External {
                 name,
                 mime,
@@ -333,7 +331,6 @@ impl Decodable for FileContent {
                     checksum,
                 };
             }
-            #[cfg(feature = "files")]
             EXTERNAL_FILE => {
                 let name = reader.read_string().await?;
                 let mime = reader.read_string().await?;

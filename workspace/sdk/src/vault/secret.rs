@@ -31,7 +31,6 @@ use crate::{
     Error, Result, Timestamp,
 };
 
-#[cfg(feature = "files")]
 use std::path::PathBuf;
 
 bitflags! {
@@ -866,7 +865,6 @@ pub enum FileContent {
         checksum: [u8; 32],
     },
     /// Encrypted data is stored in an external file.
-    #[cfg(feature = "files")]
     External {
         /// File name.
         name: String,
@@ -902,7 +900,6 @@ impl FileContent {
     pub fn name(&self) -> &str {
         match self {
             Self::Embedded { name, .. } => name,
-            #[cfg(feature = "files")]
             Self::External { name, .. } => name,
         }
     }
@@ -911,7 +908,6 @@ impl FileContent {
     pub fn mime(&self) -> &str {
         match self {
             Self::Embedded { mime, .. } => mime,
-            #[cfg(feature = "files")]
             Self::External { mime, .. } => mime,
         }
     }
@@ -920,7 +916,6 @@ impl FileContent {
     pub fn checksum(&self) -> &[u8; 32] {
         match self {
             Self::Embedded { checksum, .. } => checksum,
-            #[cfg(feature = "files")]
             Self::External { checksum, .. } => checksum,
         }
     }
@@ -931,7 +926,6 @@ impl FileContent {
             Self::Embedded { buffer, .. } => {
                 buffer.expose_secret().len() as u64
             }
-            #[cfg(feature = "files")]
             Self::External { size, .. } => *size,
         }
     }
@@ -970,7 +964,6 @@ impl PartialEq for FileContent {
                     && buffer_a.expose_secret() == buffer_b.expose_secret()
                     && checksum_a == checksum_b
             }
-            #[cfg(feature = "files")]
             (
                 Self::External {
                     name: name_a,
@@ -1012,7 +1005,6 @@ impl Clone for FileContent {
                 buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
                 checksum: *checksum,
             },
-            #[cfg(feature = "files")]
             FileContent::External {
                 name,
                 mime,
@@ -2038,16 +2030,15 @@ mod kind {
     pub const AGE: u8 = 15;
 }
 
-#[cfg(feature = "files")]
 impl TryFrom<PathBuf> for Secret {
     type Error = Error;
     fn try_from(path: PathBuf) -> Result<Self> {
         Ok(Secret::File {
             content: FileContent::External {
-                name: crate::storage::files::basename(&path),
+                name: crate::storage::basename(&path),
                 size: 0,
                 checksum: [0; 32],
-                mime: crate::storage::files::guess_mime(&path)?,
+                mime: crate::storage::guess_mime(&path)?,
                 path: Some(path),
             },
             user_data: Default::default(),

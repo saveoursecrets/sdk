@@ -5,7 +5,8 @@ use super::list_folder_files;
 use crate::{
     events::{EventLogExt, FileEvent},
     storage::{
-        files::{basename, EncryptedFile, FileStorage, FileStorageSync},
+        basename,
+        files::{EncryptedFile, FileStorage, FileStorageSync},
         ClientStorage,
     },
     vault::{
