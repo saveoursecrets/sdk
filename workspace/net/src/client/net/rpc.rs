@@ -124,8 +124,8 @@ impl<T> RetryResponse<T> {
 #[derive(Clone)]
 pub struct RpcClient {
     origin: HostedOrigin,
-    pub(super) signer: BoxedEcdsaSigner,
-    device: BoxedEd25519Signer,
+    account_signer: BoxedEcdsaSigner,
+    device_signer: BoxedEd25519Signer,
     keypair: Keypair,
     protocol: Arc<RwLock<Option<ProtocolState>>>,
     client: reqwest::Client,
@@ -136,21 +136,31 @@ impl RpcClient {
     /// Create a new client.
     pub fn new(
         origin: HostedOrigin,
-        signer: BoxedEcdsaSigner,
-        device: BoxedEd25519Signer,
+        account_signer: BoxedEcdsaSigner,
+        device_signer: BoxedEd25519Signer,
         keypair: Keypair,
     ) -> Result<Self> {
         let client = reqwest::Client::new();
         let protocol = Self::new_handshake(&keypair, &origin.public_key)?;
         Ok(Self {
             origin,
-            signer,
-            device,
+            account_signer,
+            device_signer,
             keypair,
             protocol: Arc::new(RwLock::new(protocol)),
             client,
             id: Arc::new(Mutex::new(AtomicU64::from(1))),
         })
+    }
+
+    /// Account signing key.
+    pub fn account_signer(&self) -> &BoxedEcdsaSigner {
+        &self.account_signer
+    }
+
+    /// Device signing key.
+    pub fn device_signer(&self) -> &BoxedEd25519Signer {
+        &self.device_signer
     }
 
     /// Spawn a thread that listens for changes
@@ -167,8 +177,8 @@ impl RpcClient {
     {
         let listener = WebSocketChangeListener::new(
             self.origin.clone(),
-            self.signer.clone(),
-            self.device.clone(),
+            self.account_signer.clone(),
+            self.device_signer.clone(),
             options,
         );
         listener.spawn(handler)
@@ -341,7 +351,8 @@ impl RpcClient {
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
         let signature =
-            encode_account_signature(self.signer.sign(&body).await?).await?;
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, body, signature, None).await?;
@@ -376,7 +387,8 @@ impl RpcClient {
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
         let signature =
-            encode_account_signature(self.signer.sign(&body).await?).await?;
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, body, signature, None).await?;
@@ -399,7 +411,7 @@ impl RpcClient {
         let url = self.origin.url.join("api/account")?;
 
         let device_public_key: DevicePublicKey =
-            self.device.verifying_key().to_bytes().into();
+            self.device_signer.verifying_key().to_bytes().into();
 
         let id = self.next_id().await;
         let body = encode(account).await?;
@@ -412,7 +424,8 @@ impl RpcClient {
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
         let signature =
-            encode_account_signature(self.signer.sign(&body).await?).await?;
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, body, signature, None).await?;

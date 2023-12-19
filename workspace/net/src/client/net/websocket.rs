@@ -182,7 +182,8 @@ pub async fn connect(
     client.handshake().await?;
 
     let host = endpoint.host_str().unwrap().to_string();
-    let uri = changes_uri(&endpoint, &client.signer, &public_key).await?;
+    let uri =
+        changes_uri(&endpoint, client.account_signer(), &public_key).await?;
 
     tracing::debug!(uri = %uri);
 
