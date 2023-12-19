@@ -19,6 +19,7 @@ use sos_sdk::{
     sync::{ChangeSet, Client, SyncDiff, SyncStatus},
 };
 
+use http::header::AUTHORIZATION;
 use mpc_protocol::{
     channel::{decrypt_server_channel, encrypt_server_channel},
     snow, Keypair, ProtocolState, PATTERN,
@@ -49,7 +50,7 @@ use crate::{
 #[cfg(feature = "listen")]
 use crate::client::{ListenOptions, WebSocketHandle};
 
-use super::{bearer_prefix, encode_account_signature, AUTHORIZATION};
+use super::{bearer_prefix, encode_account_signature, encode_device_signature};
 
 /// Retry a request after renewing a session if an
 /// UNAUTHORIZED response is returned.
@@ -340,6 +341,45 @@ impl RpcClient {
         }
     }
 
+    /// Try to create a new account.
+    async fn try_create_account(
+        &self,
+        account: &ChangeSet,
+    ) -> Result<MaybeRetry<Option<()>>> {
+        let url = self.origin.url.join("api/account")?;
+
+        let device_public_key: DevicePublicKey =
+            self.device_signer.verifying_key().to_bytes().into();
+
+        let id = self.next_id().await;
+        let body = encode(account).await?;
+        let request = RequestMessage::new(
+            Some(id),
+            ACCOUNT_CREATE,
+            device_public_key,
+            Cow::Owned(body),
+        )?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+
+        let body = self.encrypt_request(&body).await?;
+        let response = self
+            .send_request(url, body, account_signature, None)
+            .await?;
+        let response = self.check_response(response).await?;
+        let maybe_retry = self
+            .read_encrypted_response::<()>(
+                response.status(),
+                &response.bytes().await?,
+            )
+            .await?;
+
+        maybe_retry.map(|result, _| Ok(result.ok()))
+    }
+
     /// Try to sync status on remote.
     async fn try_sync_status(
         &self,
@@ -350,12 +390,17 @@ impl RpcClient {
         let request = RequestMessage::new_call(Some(id), SYNC_STATUS, ())?;
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
-        let signature =
+        let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+        let device_signature =
+            encode_device_signature(self.device_signer.sign(&body).await?)
                 .await?;
 
         let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, body, signature, None).await?;
+        let response = self
+            .send_request(url, body, account_signature, Some(device_signature))
+            .await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<Option<SyncStatus>>(
@@ -386,12 +431,17 @@ impl RpcClient {
 
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
-        let signature =
+        let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+        let device_signature =
+            encode_device_signature(self.device_signer.sign(&body).await?)
                 .await?;
 
         let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, body, signature, None).await?;
+        let response = self
+            .send_request(url, body, account_signature, Some(device_signature))
+            .await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<SyncStatus>(
@@ -401,43 +451,6 @@ impl RpcClient {
             .await?;
 
         maybe_retry.map(|_, body| Ok(body))
-    }
-
-    /// Try to create a new account.
-    async fn try_create_account(
-        &self,
-        account: &ChangeSet,
-    ) -> Result<MaybeRetry<Option<()>>> {
-        let url = self.origin.url.join("api/account")?;
-
-        let device_public_key: DevicePublicKey =
-            self.device_signer.verifying_key().to_bytes().into();
-
-        let id = self.next_id().await;
-        let body = encode(account).await?;
-        let request = RequestMessage::new(
-            Some(id),
-            ACCOUNT_CREATE,
-            device_public_key,
-            Cow::Owned(body),
-        )?;
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
-        let signature =
-            encode_account_signature(self.account_signer.sign(&body).await?)
-                .await?;
-
-        let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, body, signature, None).await?;
-        let response = self.check_response(response).await?;
-        let maybe_retry = self
-            .read_encrypted_response::<()>(
-                response.status(),
-                &response.bytes().await?,
-            )
-            .await?;
-
-        maybe_retry.map(|result, _| Ok(result.ok()))
     }
 
     /// Build an encrypted request.
@@ -462,15 +475,10 @@ impl RpcClient {
         device_signature: Option<String>,
     ) -> Result<reqwest::Response> {
         let auth = if let Some(device_signature) = &device_signature {
-            format!(
-                "{},{}",
-                bearer_prefix(&account_signature),
-                bearer_prefix(device_signature)
-            )
+            bearer_prefix(&account_signature, Some(device_signature))
         } else {
-            bearer_prefix(&account_signature)
+            bearer_prefix(&account_signature, None)
         };
-
         let response = self
             .client
             .post(url)

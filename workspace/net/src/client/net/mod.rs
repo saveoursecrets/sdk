@@ -22,8 +22,6 @@ pub use rpc::RpcClient;
 #[cfg(feature = "listen")]
 pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};
 
-const AUTHORIZATION: &str = "authorization";
-
 pub(crate) async fn encode_account_signature(
     signature: Signature,
 ) -> Result<String> {
@@ -38,6 +36,12 @@ pub(crate) async fn encode_device_signature(
     Ok(bs58::encode(encode(&signature).await?).into_string())
 }
 
-pub(crate) fn bearer_prefix(signature: &str) -> String {
-    format!("Bearer {}", signature)
+pub(crate) fn bearer_prefix(
+    account_signature: &str,
+    device_signature: Option<&str>) -> String {
+    if let Some(device_signature) = device_signature {
+        format!("Bearer {}.{}", account_signature, device_signature)
+    } else {
+        format!("Bearer {}", account_signature)
+    }
 }

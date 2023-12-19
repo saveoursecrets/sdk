@@ -5,36 +5,46 @@ use serde::Deserialize;
 
 use sos_sdk::{
     decode,
-    signer::ecdsa::{recover_address, BinaryEcdsaSignature},
+    signer::ecdsa::{recover_address, BinaryEcdsaSignature, Address, Signature},
 };
-use web3_address::ethereum::Address;
-use web3_signature::Signature;
+//use web3_signature::Signature;
 
-use super::Result;
+use super::{Error, Result};
 
 /// An RPC message and authorization encoded in a query string.
 #[derive(Debug, Deserialize)]
 pub struct QueryMessage {
-    //pub request: String,
     pub bearer: String,
     pub public_key: String,
 }
 
 #[derive(Debug)]
 pub struct BearerToken {
-    //public_key: [u8; 33],
     pub address: Address,
 }
 
 impl BearerToken {
     /// Create a new bearer token.
     pub async fn new(token: &str, message: &[u8]) -> Result<Self> {
-        let value = bs58::decode(token).into_vec()?;
+        
+        // When a token contains a period we are expecting 
+        // an account signature and a device signature
+        let token = if token.contains('.') {
+            token.split_once('.')
+                .map(|s| (s.0, Some(s.1)))
+        } else {
+            Some((token, None))
+        };
+
+        let token = token.ok_or_else(|| Error::BadRequest)?;
+        let (account_token, device_token) = token;
+
+        let value = bs58::decode(account_token).into_vec()?;
         let binary_sig: BinaryEcdsaSignature = decode(&value).await?;
         let signature: Signature = binary_sig.into();
         let address = recover_address(signature, message)?;
+
         Ok(Self {
-            //public_key,
             address,
         })
     }
