@@ -180,8 +180,6 @@ impl SyncStorage for ServerStorage {
 
         let mut folders = HashMap::new();
         for (id, event_log) in &self.cache {
-            println!("REading folder for sync status {}", id);
-
             let event_log = event_log.read().await;
             let commit_state = event_log.tree().commit_state()?;
             folders.insert(*id, commit_state);

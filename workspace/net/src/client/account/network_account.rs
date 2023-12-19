@@ -291,6 +291,15 @@ impl NetworkAccount {
         &self.address
     }
 
+    async fn before_change(&self) {
+        let remotes = self.remotes.read().await;
+        for remote in remotes.values() {
+            if let Some(e) = remote.sync().await {
+                tracing::error!(error = ?e, "failed to sync before change");
+            }
+        }
+    }
+
     /// Sign in to an account.
     pub async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let folders = {
@@ -574,6 +583,9 @@ impl NetworkAccount {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
+        // Try to sync before we make the change
+        self.before_change().await;
+
         let id = {
             let mut account = self.account.lock().await;
             let (id, _, _, _) =
@@ -632,6 +644,9 @@ impl NetworkAccount {
     ) -> Result<(SecretId, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
+        // Try to sync before we make the change
+        self.before_change().await;
+
         let id = {
             let mut account = self.account.lock().await;
             let (id, _, _, _) = account
@@ -668,10 +683,15 @@ impl NetworkAccount {
         options: AccessOptions,
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
+
+        // Try to sync before we make the change
+        self.before_change().await;
+
         {
             let mut account = self.account.lock().await;
             account.delete_secret(secret_id, options).await?;
         }
+
         Ok(self.sync().await)
     }
 

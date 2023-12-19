@@ -578,7 +578,7 @@ impl<D> Account<D> {
         };
 
         let (summary, commit_state) =
-            self.compute_folder_state(&options, false).await?;
+            self.compute_folder_state(&options).await?;
 
         let event =
             Event::Folder(account_event, WriteEvent::CreateVault(buffer));
@@ -595,7 +595,7 @@ impl<D> Account<D> {
             ..Default::default()
         };
         let (summary, commit_state) =
-            self.compute_folder_state(&options, false).await?;
+            self.compute_folder_state(&options).await?;
 
         let events = {
             let storage = self.storage()?;
@@ -620,7 +620,7 @@ impl<D> Account<D> {
             ..Default::default()
         };
         let (summary, commit_state) =
-            self.compute_folder_state(&options, false).await?;
+            self.compute_folder_state(&options).await?;
 
         // Update the provider
         let event = {
@@ -894,7 +894,7 @@ impl<D> Account<D> {
             ..Default::default()
         };
         let (summary, commit_state) =
-            self.compute_folder_state(&options, false).await?;
+            self.compute_folder_state(&options).await?;
 
         Ok((summary, event, commit_state))
     }
@@ -947,7 +947,6 @@ impl<D> Account<D> {
     async fn compute_folder_state(
         &self,
         options: &AccessOptions,
-        apply_changes: bool,
     ) -> Result<(Summary, CommitState)> {
         let (folder, commit_state) = {
             let storage = self.storage()?;
@@ -967,13 +966,6 @@ impl<D> Account<D> {
 
             (folder, commit_state)
         };
-
-        if apply_changes {
-            if let Some(handler) = &self.handler {
-                handler.before_change().await;
-            }
-        }
-
         Ok((folder, commit_state))
     }
 
@@ -998,8 +990,9 @@ impl<D> Account<D> {
         secret: Secret,
         options: AccessOptions,
     ) -> Result<(SecretId, Event, CommitState, Summary)> {
+        
         let (folder, commit_state) =
-            self.compute_folder_state(&options, true).await?;
+            self.compute_folder_state(&options).await?;
 
         let (id, event, _) =
             self.add_secret(meta, secret, options, true).await?;
@@ -1104,7 +1097,7 @@ impl<D> Account<D> {
         destination: Option<&Summary>,
     ) -> Result<(SecretId, Event, CommitState, Summary)> {
         let (folder, commit_state) =
-            self.compute_folder_state(&options, true).await?;
+            self.compute_folder_state(&options).await?;
 
         self.open_folder(&folder).await?;
 
@@ -1227,7 +1220,7 @@ impl<D> Account<D> {
         options: AccessOptions,
     ) -> Result<(Event, CommitState, Summary)> {
         let (folder, commit_state) =
-            self.compute_folder_state(&options, true).await?;
+            self.compute_folder_state(&options).await?;
 
         self.open_folder(&folder).await?;
 
