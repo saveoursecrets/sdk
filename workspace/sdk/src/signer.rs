@@ -85,26 +85,9 @@ pub mod ecdsa {
             &signature,
             recid,
         )?;
-        let address: Address = (&public_key).try_into()?;
-        Ok(address)
+        Ok((&public_key).try_into()?)
     }
-
-    /// Verify the signature matches an expected address.
-    pub fn verify_signature_address(
-        address: &Address,
-        signature: Signature,
-        message: &[u8],
-    ) -> Result<(bool, VerifyingKey)> {
-        let (ecdsa_signature, recid) = signature.try_into()?;
-        let recovered_key = VerifyingKey::recover_from_digest(
-            Keccak256::new_with_prefix(message),
-            &ecdsa_signature,
-            recid,
-        )?;
-        let signed_address: Address = (&recovered_key).try_into()?;
-        Ok((address == &signed_address, recovered_key))
-    }
-
+    
     impl From<Signature> for BinaryEcdsaSignature {
         fn from(value: Signature) -> Self {
             BinaryEcdsaSignature(value)
