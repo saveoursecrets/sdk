@@ -205,6 +205,15 @@ pub mod ed25519 {
         }
     }
 
+    /// Signature that can be encoded and decoded to binary.
+    pub struct BinaryEd25519Signature(pub(crate) Signature);
+
+    impl Default for BinaryEd25519Signature {
+        fn default() -> Self {
+            Self(Signature::from_bytes(&[0; 64]))
+        }
+    }
+
     /// Signer for a single party key.
     pub struct SingleParty(pub SigningKey);
 
