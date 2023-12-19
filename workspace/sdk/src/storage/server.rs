@@ -245,10 +245,7 @@ impl ServerStorage {
         } else {
             AccountEvent::CreateFolder(*id, buffer)
         };
-
-        let mut account_log = self.account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
-
+            
         let audit_event: AuditEvent = (self.address(), &account_event).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
 
@@ -277,9 +274,6 @@ impl ServerStorage {
         */
 
         let account_event = AccountEvent::DeleteFolder(*id);
-        let mut account_log = self.account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
-
         let audit_event: AuditEvent = (self.address(), &account_event).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
         events.insert(0, Event::Account(account_event));
@@ -301,10 +295,6 @@ impl ServerStorage {
 
         let account_event =
             AccountEvent::RenameFolder(*id, name.as_ref().to_owned());
-
-        let mut account_log = self.account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
-
         let audit_event: AuditEvent = (self.address(), &account_event).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
 

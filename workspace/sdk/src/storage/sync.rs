@@ -9,7 +9,7 @@ use crate::{
     storage::{ClientStorage, ServerStorage},
     sync::{
         AccountDiff, ChangeSet, FolderDiff, FolderPatch, SyncDiff,
-        SyncStatus, SyncStorage,
+        SyncStatus, SyncStorage, CheckedPatch,
     },
     vault::VaultId,
     vfs, Error, Paths, Result,
@@ -133,35 +133,47 @@ impl ServerStorage {
             num_events = diff.patch.len(),
             "account",
         );
-        for event in diff.patch.iter() {
-            tracing::debug!(event_kind = %event.event_kind());
 
-            match &event {
-                AccountEvent::Noop => {
-                    tracing::warn!("merge got noop event (server)");
-                }
-                AccountEvent::CreateFolder(id, buf)
-                | AccountEvent::UpdateFolder(id, buf)
-                | AccountEvent::CompactFolder(id, buf)
-                | AccountEvent::ChangeFolderPassword(id, buf) => {
-                    self.import_folder(id, buf).await?;
-                }
-                AccountEvent::RenameFolder(id, name) => {
-                    let id =
-                        self.cache.keys().find(|&fid| fid == id).cloned();
-                    if let Some(id) = &id {
-                        self.rename_folder(id, name).await?;
+        let checked_patch = {
+            let mut event_log = self.account_log.write().await;
+            event_log.patch_checked(&diff.before, &diff.patch).await?
+        };
+
+        if let CheckedPatch::Success(_, _) = &checked_patch {
+            for event in diff.patch.iter() {
+                tracing::debug!(event_kind = %event.event_kind());
+
+                match &event {
+                    AccountEvent::Noop => {
+                        tracing::warn!("merge got noop event (server)");
                     }
-                }
-                AccountEvent::DeleteFolder(id) => {
-                    let id =
-                        self.cache.keys().find(|&fid| fid == id).cloned();
-                    if let Some(id) = &id {
-                        self.delete_folder(id).await?;
+                    AccountEvent::CreateFolder(id, buf)
+                    | AccountEvent::UpdateFolder(id, buf)
+                    | AccountEvent::CompactFolder(id, buf)
+                    | AccountEvent::ChangeFolderPassword(id, buf) => {
+                        self.import_folder(id, buf).await?;
+                    }
+                    AccountEvent::RenameFolder(id, name) => {
+                        let id =
+                            self.cache.keys().find(|&fid| fid == id).cloned();
+                        if let Some(id) = &id {
+                            self.rename_folder(id, name).await?;
+                        }
+                    }
+                    AccountEvent::DeleteFolder(id) => {
+                        let id =
+                            self.cache.keys().find(|&fid| fid == id).cloned();
+                        if let Some(id) = &id {
+                            self.delete_folder(id).await?;
+                        }
                     }
                 }
             }
+        } else {
+            // FIXME: handle conflict situation
+            println!("todo! account patch could not be merged");
         }
+        
         Ok(diff.patch.len())
     }
 
