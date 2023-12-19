@@ -7,6 +7,7 @@ use crate::{
     events::{
         DiscData, DiscLog, EventLogExt, EventReducer, FolderEventLog,
         MemoryData, MemoryFolderLog, MemoryLog, ReadEvent, WriteEvent,
+        LogEvent,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
@@ -214,6 +215,7 @@ where
 
         if let CheckedPatch::Success(_, _) = &checked_patch {
             for event in diff.patch.iter() {
+                tracing::debug!(event_kind = %event.event_kind());
                 match event {
                     WriteEvent::Noop => {
                         tracing::error!("merge got noop event");

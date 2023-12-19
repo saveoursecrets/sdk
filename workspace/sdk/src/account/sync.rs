@@ -1,6 +1,6 @@
 use super::account::Account;
 use crate::{
-    events::{AccountEvent, AccountEventLog, EventLogExt, FolderEventLog},
+    events::{AccountEvent, AccountEventLog, EventLogExt, FolderEventLog, LogEvent},
     sync::{
         AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, SyncDiff,
         SyncStatus, SyncStorage,
@@ -11,10 +11,14 @@ use crate::{
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
+use tracing::{span, Level};
 
 impl Account {
     /// Merge a diff into this account.
     pub async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
+        let span = span!(Level::DEBUG, "merge_client");
+        let _enter = span.enter();
+
         let mut num_changes = 0;
 
         // Identity must be merged first so delegated
@@ -30,16 +34,29 @@ impl Account {
 
         num_changes += self.merge_folders(&diff.folders).await?;
 
+        tracing::debug!(num_changes = %num_changes, "merge complete");
+
         Ok(num_changes)
     }
 
     async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize> {
+        tracing::debug!(
+            before = ?diff.before,
+            num_events = diff.patch.len(),
+            "identity",
+        );
         self.user_mut()?.identity_mut()?.merge(diff).await?;
         Ok(diff.patch.len())
     }
 
     async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
+        tracing::debug!(
+            before = ?diff.before,
+            num_events = diff.patch.len(),
+            "account",
+        );
         for event in diff.patch.iter() {
+            tracing::debug!(event_kind = %event.event_kind());
             match &event {
                 AccountEvent::Noop => {
                     tracing::warn!("merge got noop event (client)");
@@ -118,6 +135,13 @@ impl Account {
         };
 
         for (id, diff) in folders {
+            tracing::debug!(
+                folder_id = %id,
+                before = ?diff.before,
+                num_events = diff.patch.len(),
+                "folder",
+            );
+
             if let Some(folder) = storage.cache_mut().get_mut(id) {
                 #[cfg(feature = "search")]
                 {

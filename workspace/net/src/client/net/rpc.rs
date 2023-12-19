@@ -544,8 +544,6 @@ impl Client for RpcClient {
         local_status: &SyncStatus,
         diff: &SyncDiff,
     ) -> std::result::Result<SyncDiff, Self::Error> {
-        let span = span!(Level::DEBUG, "sync");
-        let _enter = span.enter();
 
         let (status, body) =
             retry!(|| self.try_sync(local_status, diff), self);

@@ -14,7 +14,7 @@ const TEST_ID: &str = "sync_listen_import_folder";
 #[ignore = "need to restore change notifications"]
 #[tokio::test]
 async fn integration_sync_listen_import_folder() -> Result<()> {
-    //crate::test_utils::init_tracing();
+    crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -76,7 +76,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
 
     // Pause a while to allow the first owner to sync
     // with the new change
-    sync_pause(Some(500)).await;
+    sync_pause(None).await;
 
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions

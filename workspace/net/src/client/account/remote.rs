@@ -187,9 +187,6 @@ impl RemoteSync for RemoteBridge {
         &self,
         options: &SyncOptions,
     ) -> Option<SyncError> {
-        let span = span!(Level::DEBUG, "sync");
-        let _enter = span.enter();
-
         let should_sync = options.origins.is_empty()
             || options
                 .origins
@@ -248,15 +245,12 @@ mod listen {
             bridge: Arc<RemoteBridge>,
             _change: ChangeNotification,
         ) -> Result<()> {
-            tracing::debug!("on_change_notification");
-
             if let Some(e) = bridge.sync().await {
                 tracing::error!(
                     error = ?e,
                     "listen change sync failed",
                 );
             }
-
             Ok(())
         }
 
@@ -277,8 +271,6 @@ mod listen {
             let handle = bridge.remote.listen(options, move |notification| {
                 let bridge = Arc::clone(&remote_bridge);
                 async move {
-                    let span = span!(Level::DEBUG, "on_change_event");
-                    let _enter = span.enter();
                     tracing::debug!(notification = ?notification);
                     if let Err(e) =
                         Self::on_change_notification(bridge, notification)

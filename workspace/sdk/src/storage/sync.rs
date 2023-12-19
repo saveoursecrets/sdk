@@ -4,7 +4,7 @@ use crate::{
     encode,
     events::{
         AccountEvent, AccountEventLog, EventLogExt, EventReducer,
-        FolderEventLog, WriteEvent,
+        FolderEventLog, WriteEvent, LogEvent,
     },
     storage::{ClientStorage, ServerStorage},
     sync::{
@@ -17,6 +17,7 @@ use crate::{
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
+use tracing::{span, Level};
 
 impl ServerStorage {
     /// Create a new vault file on disc and the associated
@@ -94,6 +95,9 @@ impl ServerStorage {
 
     /// Merge a diff into this storage.
     pub async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
+        let span = span!(Level::DEBUG, "merge_server");
+        let _enter = span.enter();
+
         let mut num_changes = 0;
 
         if let Some(diff) = &diff.identity {
@@ -106,17 +110,31 @@ impl ServerStorage {
 
         num_changes += self.merge_folders(&diff.folders).await?;
 
+        tracing::debug!(num_changes = %num_changes, "merge complete");
+
         Ok(num_changes)
     }
 
     async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize> {
         let mut writer = self.identity_log.write().await;
+        tracing::debug!(
+            before = ?diff.before,
+            num_events = diff.patch.len(),
+            "identity",
+        );
         writer.patch_checked(&diff.before, &diff.patch).await?;
         Ok(diff.patch.len())
     }
 
     async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
+        tracing::debug!(
+            before = ?diff.before,
+            num_events = diff.patch.len(),
+            "account",
+        );
         for event in diff.patch.iter() {
+            tracing::debug!(event_kind = %event.event_kind());
+
             match &event {
                 AccountEvent::Noop => {
                     tracing::warn!("merge got noop event (server)");
@@ -152,6 +170,13 @@ impl ServerStorage {
     ) -> Result<usize> {
         let mut num_changes = 0;
         for (id, diff) in folders {
+            tracing::debug!(
+                folder_id = %id,
+                before = ?diff.before,
+                num_events = diff.patch.len(),
+                "folder",
+            );
+
             let log = self
                 .cache
                 .get_mut(id)
