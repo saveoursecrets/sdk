@@ -26,7 +26,6 @@ async fn integration_account_lifecycle() -> Result<()> {
         account_name.clone(),
         passphrase.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

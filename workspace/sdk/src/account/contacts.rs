@@ -28,7 +28,7 @@ pub enum ContactImportProgress {
     },
 }
 
-impl<D> Account<D> {
+impl Account {
     /// Try to load an avatar JPEG image for a contact.
     ///
     /// Looks in the current open folder if no specified folder is given.

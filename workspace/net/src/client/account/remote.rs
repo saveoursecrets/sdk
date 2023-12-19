@@ -1,8 +1,7 @@
 //! Bridge between local storage and a remote server.
 use crate::client::{
-    account::{sync::SyncHandlerData, LocalAccount},
-    net::RpcClient,
-    Error, RemoteSync, Result, SyncError, SyncOptions,
+    account::LocalAccount, net::RpcClient, Error, RemoteSync, Result,
+    SyncError, SyncOptions,
 };
 
 use async_trait::async_trait;

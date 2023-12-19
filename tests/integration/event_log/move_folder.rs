@@ -22,7 +22,6 @@ async fn integration_events_move_folder() -> Result<()> {
         account_name.clone(),
         password1.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 
@@ -30,7 +29,6 @@ async fn integration_events_move_folder() -> Result<()> {
         account_name.clone(),
         password2.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

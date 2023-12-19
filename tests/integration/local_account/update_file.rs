@@ -19,7 +19,6 @@ async fn integration_update_file() -> Result<()> {
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

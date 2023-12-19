@@ -19,7 +19,7 @@ use secrecy::SecretString;
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncRead, AsyncSeek};
 
-impl<D> Account<D> {
+impl Account {
     /// Create a backup archive containing the
     /// encrypted data for the account.
     pub async fn export_backup_archive<P: AsRef<Path>>(
@@ -107,7 +107,7 @@ impl<D> Account<D> {
     /// Restore from a backup archive file.
     pub async fn restore_backup_archive<P: AsRef<Path>>(
         path: P,
-        owner: &mut Account<D>,
+        owner: &mut Account,
         password: SecretString,
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
@@ -131,7 +131,7 @@ impl<D> Account<D> {
     /// Restore from an archive reader.
     async fn restore_backup_reader<R: AsyncRead + AsyncSeek + Unpin>(
         reader: R,
-        owner: &mut Account<D>,
+        owner: &mut Account,
         password: SecretString,
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,

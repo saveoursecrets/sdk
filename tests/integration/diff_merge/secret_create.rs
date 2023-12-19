@@ -23,7 +23,6 @@ async fn integration_diff_merge_secret_create() -> Result<()> {
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 
@@ -35,12 +34,9 @@ async fn integration_diff_merge_secret_create() -> Result<()> {
     copy_account(&data_dir, &data_dir_merge)?;
 
     // Sign in on the other account
-    let mut remote = LocalAccount::new_unauthenticated(
-        address,
-        Some(data_dir_merge),
-        None,
-    )
-    .await?;
+    let mut remote =
+        LocalAccount::new_unauthenticated(address, Some(data_dir_merge))
+            .await?;
     remote.sign_in(&key).await?;
 
     // Create a new secret

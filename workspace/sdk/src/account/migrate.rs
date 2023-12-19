@@ -26,7 +26,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-impl<D> Account<D> {
+impl Account {
     /// Write a zip archive containing all the secrets
     /// for the account unencrypted.
     ///

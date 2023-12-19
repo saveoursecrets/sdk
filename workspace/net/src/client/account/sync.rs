@@ -4,7 +4,6 @@ use crate::client::{
 };
 use async_trait::async_trait;
 use sos_sdk::{
-    account::AccountHandler,
     events::{AccountEventLog, FolderEventLog},
     sync::{SyncStatus, SyncStorage},
     vault::VaultId,
@@ -12,26 +11,6 @@ use sos_sdk::{
 };
 use std::{any::Any, sync::Arc};
 use tokio::sync::RwLock;
-
-pub(super) type SyncHandlerData = Arc<RwLock<Remotes>>;
-
-pub(super) struct SyncHandler {
-    pub(super) remotes: Arc<RwLock<Remotes>>,
-}
-
-#[async_trait::async_trait]
-impl AccountHandler for SyncHandler {
-    type Data = SyncHandlerData;
-
-    async fn before_change(&self) {
-        let remotes = self.remotes.read().await;
-        for remote in remotes.values() {
-            if let Some(e) = remote.sync().await {
-                tracing::error!(error = ?e, "failed to sync before change");
-            }
-        }
-    }
-}
 
 #[async_trait]
 impl RemoteSync for NetworkAccount {

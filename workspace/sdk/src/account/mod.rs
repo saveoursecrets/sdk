@@ -19,9 +19,7 @@ mod sync;
 #[cfg(feature = "security-report")]
 pub mod security_report;
 
-pub use account::{
-    Account, AccountData, AccountHandler, DetachedView, LocalAccount,
-};
+pub use account::{Account, AccountData, DetachedView, LocalAccount};
 pub use builder::{AccountBuilder, PrivateNewAccount};
 
 /*

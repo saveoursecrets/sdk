@@ -12,7 +12,7 @@ use tokio::sync::RwLock;
 
 use super::account::Account;
 
-impl<D> Account<D> {
+impl Account {
     /// Compute the account statistics.
     ///
     /// If the account is not authenticated returns

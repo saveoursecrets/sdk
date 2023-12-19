@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
-impl<D> Account<D> {
+impl Account {
     /// Merge a diff into this account.
     pub async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
         let mut num_changes = 0;
@@ -142,7 +142,7 @@ impl<D> Account<D> {
 }
 
 #[async_trait]
-impl<D> SyncStorage for Account<D> {
+impl SyncStorage for Account {
     async fn sync_status(&self) -> Result<SyncStatus> {
         let storage = self.storage()?;
         let storage = storage.read().await;

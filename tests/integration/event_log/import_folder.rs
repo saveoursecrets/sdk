@@ -22,7 +22,6 @@ async fn integration_events_import_folder() -> Result<()> {
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

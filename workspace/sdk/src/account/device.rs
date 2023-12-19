@@ -1,7 +1,7 @@
 //! Expose the device manager on an account.
 use crate::{account::Account, device::DeviceManager, Error, Result};
 
-impl<D> Account<D> {
+impl Account {
     /// Devices reference.
     pub fn devices(&self) -> Result<&DeviceManager> {
         self.authenticated

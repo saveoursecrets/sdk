@@ -24,7 +24,6 @@ async fn integration_diff_merge_folder_import() -> Result<()> {
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 
@@ -45,7 +44,6 @@ async fn integration_diff_merge_folder_import() -> Result<()> {
     let mut temp = LocalAccount::new_unauthenticated(
         address,
         Some(data_dir_export.clone()),
-        None,
     )
     .await?;
     temp.sign_in(&key).await?;
@@ -64,12 +62,9 @@ async fn integration_diff_merge_folder_import() -> Result<()> {
         .await?;
 
     // Sign in on the remote account
-    let mut remote = LocalAccount::new_unauthenticated(
-        address,
-        Some(data_dir_merge),
-        None,
-    )
-    .await?;
+    let mut remote =
+        LocalAccount::new_unauthenticated(address, Some(data_dir_merge))
+            .await?;
     remote.sign_in(&key).await?;
 
     assert_ne!(local.sync_status().await?, remote.sync_status().await?);

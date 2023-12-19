@@ -21,7 +21,6 @@ async fn export_import() -> Result<()> {
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
     let address = account.address().clone();
@@ -83,12 +82,9 @@ async fn export_import() -> Result<()> {
     .await?;
 
     // Sign in after restoring the account
-    let mut account = LocalAccount::new_unauthenticated(
-        address,
-        Some(data_dir.clone()),
-        None,
-    )
-    .await?;
+    let mut account =
+        LocalAccount::new_unauthenticated(address, Some(data_dir.clone()))
+            .await?;
 
     account.sign_in(&key).await?;
     account.open_folder(&default_folder).await?;

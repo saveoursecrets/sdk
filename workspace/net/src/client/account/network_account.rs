@@ -32,14 +32,13 @@ use tracing::{span, Level};
 #[cfg(feature = "listen")]
 use crate::client::WebSocketHandle;
 
-use super::sync::{SyncHandler, SyncHandlerData};
 use crate::client::{
     HostedOrigin, Origin, Remote, RemoteBridge, RemoteSync, Remotes, Result,
     SyncError,
 };
 
 /// Type of the inner local account.
-pub type LocalAccount = Account<SyncHandlerData>;
+pub type LocalAccount = Account;
 
 /// Account with networking capability.
 pub struct NetworkAccount {
@@ -75,16 +74,8 @@ impl NetworkAccount {
         remotes: Option<Remotes>,
     ) -> Result<Self> {
         let remotes = Arc::new(RwLock::new(remotes.unwrap_or_default()));
-        let handler = SyncHandler {
-            remotes: Arc::clone(&remotes),
-        };
-
-        let account = LocalAccount::new_unauthenticated(
-            address,
-            data_dir,
-            Some(Box::new(handler)),
-        )
-        .await?;
+        let account =
+            LocalAccount::new_unauthenticated(address, data_dir).await?;
 
         Ok(Self {
             address: Default::default(),
@@ -136,17 +127,11 @@ impl NetworkAccount {
         data_dir: Option<PathBuf>,
         remotes: Option<Remotes>,
     ) -> Result<Self> {
-        let remotes = Arc::new(RwLock::new(remotes.unwrap_or_default()));
-        let handler = SyncHandler {
-            remotes: Arc::clone(&remotes),
-        };
-
         let (account, _) = LocalAccount::new_account_with_data(
             account_name,
             passphrase.clone(),
             builder,
             data_dir.clone(),
-            Some(Box::new(handler)),
         )
         .await?;
 
@@ -154,7 +139,7 @@ impl NetworkAccount {
             address: account.address().clone(),
             paths: Arc::clone(&account.paths),
             account: Arc::new(Mutex::new(account)),
-            remotes,
+            remotes: Arc::new(RwLock::new(remotes.unwrap_or_default())),
             sync_lock: Mutex::new(()),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),

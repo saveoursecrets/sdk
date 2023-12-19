@@ -21,7 +21,6 @@ async fn integration_search_view_query() -> Result<()> {
         password.clone(),
         |builder| builder.create_archive(true).create_file_password(true),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

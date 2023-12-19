@@ -40,20 +40,8 @@ use tokio::sync::RwLock;
 
 use async_trait::async_trait;
 
-/// Type alias for a local account without a handler.
-pub type LocalAccount = Account<()>;
-
-/// Account handler is notified of account changes.
-#[async_trait]
-pub trait AccountHandler {
-    /// Data associated with this handler.
-    type Data;
-
-    /// Called before changes to the account.
-    async fn before_change(&self);
-}
-
-type Handler<D> = Box<dyn AccountHandler<Data = D> + Send + Sync>;
+/// Type alias for a local account.
+pub type LocalAccount = Account;
 
 /// Read-only view created from a specific event log commit.
 pub struct DetachedView {
@@ -110,7 +98,7 @@ pub(super) struct Authenticated {
 /// has been assigned the `handler` may alter the [CommitState]
 /// by returning a new state after changes from a remote server have
 /// been applied.
-pub struct Account<D> {
+pub struct Account {
     /// Account address.
     address: Address,
 
@@ -120,16 +108,9 @@ pub struct Account<D> {
 
     /// Storage paths.
     pub paths: Arc<Paths>,
-
-    /// Hook called before making local changes.
-    ///
-    /// Allows network aware accounts to sync
-    /// before changes are applied to the local
-    /// storage.
-    handler: Option<Handler<D>>,
 }
 
-impl<D> Account<D> {
+impl Account {
     /// Prepare an account for sign in.
     ///
     /// After preparing an account call `sign_in`
@@ -137,7 +118,6 @@ impl<D> Account<D> {
     pub async fn new_unauthenticated(
         address: Address,
         data_dir: Option<PathBuf>,
-        handler: Option<Handler<D>>,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
@@ -151,7 +131,6 @@ impl<D> Account<D> {
             address,
             paths: Arc::new(paths),
             authenticated: None,
-            handler,
         })
     }
 
@@ -165,14 +144,12 @@ impl<D> Account<D> {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        handler: Option<Handler<D>>,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
             |builder| builder.create_file_password(true),
             data_dir,
-            handler,
         )
         .await
     }
@@ -185,14 +162,12 @@ impl<D> Account<D> {
         passphrase: SecretString,
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
-        handler: Option<Handler<D>>,
     ) -> Result<Self> {
         let (account, _) = Self::new_account_with_data(
             account_name,
             passphrase,
             builder,
             data_dir,
-            handler,
         )
         .await?;
         Ok(account)
@@ -208,7 +183,6 @@ impl<D> Account<D> {
         passphrase: SecretString,
         builder: impl Fn(AccountBuilder) -> AccountBuilder,
         data_dir: Option<PathBuf>,
-        handler: Option<Handler<D>>,
     ) -> Result<(Self, AccountPack)> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
@@ -244,7 +218,6 @@ impl<D> Account<D> {
             address,
             paths: storage.paths(),
             authenticated: None,
-            handler,
         };
 
         Ok((owner, public_account))
@@ -990,7 +963,6 @@ impl<D> Account<D> {
         secret: Secret,
         options: AccessOptions,
     ) -> Result<(SecretId, Event, CommitState, Summary)> {
-        
         let (folder, commit_state) =
             self.compute_folder_state(&options).await?;
 

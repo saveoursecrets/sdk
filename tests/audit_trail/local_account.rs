@@ -26,7 +26,6 @@ async fn audit_trail_local() -> Result<()> {
                 .create_file_password(true)
         },
         Some(data_dir.clone()),
-        None,
     )
     .await?;
     let key: AccessKey = passphrase.clone().into();

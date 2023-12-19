@@ -21,7 +21,6 @@ async fn export_restore() -> Result<()> {
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

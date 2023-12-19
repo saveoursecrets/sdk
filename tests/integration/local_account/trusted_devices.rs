@@ -19,7 +19,6 @@ async fn integration_trusted_devices() -> Result<()> {
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

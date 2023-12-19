@@ -44,6 +44,11 @@ async fn integration_sync_listen_update_secret() -> Result<()> {
         .owner
         .update_secret(&id, meta, Some(secret), Default::default(), None)
         .await?;
+
+    if sync_error.is_some() {
+        println!("{:#?}", sync_error);
+    }
+
     assert!(sync_error.is_none());
 
     // Pause a while to give the listener some time to process

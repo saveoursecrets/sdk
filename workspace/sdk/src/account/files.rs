@@ -14,7 +14,7 @@ use crate::{
 };
 use std::path::Path;
 
-impl<D> Account<D> {
+impl Account {
     /// Decrypt a file and return the buffer.
     pub async fn download_file(
         &self,

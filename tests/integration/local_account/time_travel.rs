@@ -20,7 +20,6 @@ async fn integration_time_travel() -> Result<()> {
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

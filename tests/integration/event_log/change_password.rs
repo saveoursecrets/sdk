@@ -24,7 +24,6 @@ async fn integration_events_change_password() -> Result<()> {
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

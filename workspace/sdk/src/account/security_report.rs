@@ -178,7 +178,7 @@ async fn secret_security_report(
     Ok(())
 }
 
-impl<H> Account<H> {
+impl Account {
     /// Generate a security report.
     pub async fn generate_security_report<T, D, R>(
         &mut self,

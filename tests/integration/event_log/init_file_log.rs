@@ -20,7 +20,6 @@ async fn integration_events_init_file_log() -> Result<()> {
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

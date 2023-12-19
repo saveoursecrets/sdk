@@ -20,7 +20,6 @@ async fn integration_events_compact() -> Result<()> {
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

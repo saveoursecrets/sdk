@@ -23,7 +23,6 @@ async fn integration_contacts() -> Result<()> {
         password.clone(),
         |builder| builder.create_contacts(true).create_file_password(true),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 
