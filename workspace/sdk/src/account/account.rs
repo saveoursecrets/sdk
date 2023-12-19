@@ -857,7 +857,7 @@ impl Account {
                     };
 
                 if is_current {
-                    writer.close_vault();
+                    writer.close_folder();
                 }
             }
         }
@@ -893,18 +893,14 @@ impl Account {
             }
         }
 
-        let passphrase =
-            self.user()?.find_folder_password(summary.id()).await?;
-
         let event = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            let key: AccessKey = passphrase.into();
-            writer.open_vault(summary, &key).await?
+            writer.open_folder(summary).await?
         };
 
-        let event = Event::Read(*summary.id(), event);
         if audit {
+            let event = Event::Read(*summary.id(), event);
             let audit_event: AuditEvent = (self.address(), &event).into();
             self.paths.append_audit_events(vec![audit_event]).await?;
         }

@@ -276,25 +276,19 @@ impl ClientStorage {
     }
 
     /// Mark a folder as the currently open folder.
-    pub(crate) async fn open_vault(
+    pub(crate) async fn open_folder(
         &mut self,
         summary: &Summary,
-        key: &AccessKey,
     ) -> Result<ReadEvent> {
         self.find(|s| s.id() == summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-
-        if let Some(folder) = self.cache.get_mut(summary.id()) {
-            let mut keeper = folder.keeper_mut();
-            keeper.unlock(key).await?;
-        }
-
+        
         self.current = Some(summary.clone());
         Ok(ReadEvent::ReadVault)
     }
 
     /// Close the current open folder.
-    pub(crate) fn close_vault(&mut self) {
+    pub(crate) fn close_folder(&mut self) {
         self.current = None;
     }
 
@@ -583,7 +577,7 @@ impl ClientStorage {
         // vault we must close it
         if let Some(id) = &current_id {
             if id == summary.id() {
-                self.close_vault();
+                self.close_folder();
             }
         }
 
@@ -606,12 +600,11 @@ impl ClientStorage {
         }
     }
 
-    /// Create a new account or vault.
-    pub(crate) async fn prepare_folder(
+    /// Prepare a new folder.
+    async fn prepare_folder(
         &mut self,
         name: Option<String>,
         key: Option<AccessKey>,
-        is_account: bool,
     ) -> Result<(Vec<u8>, AccessKey, Summary)> {
         let key = if let Some(key) = key {
             key
@@ -624,9 +617,7 @@ impl ClientStorage {
         if let Some(name) = name {
             builder = builder.public_name(name);
         }
-        if is_account {
-            builder = builder.flags(VaultFlags::DEFAULT);
-        }
+
         let vault = match &key {
             AccessKey::Password(password) => {
                 builder.password(password.clone(), None).await?
@@ -647,6 +638,8 @@ impl ClientStorage {
 
         // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault)).await?;
+
+        self.unlock_folder(summary.id(), &key).await?;
 
         Ok((buffer, key, summary))
     }
@@ -720,7 +713,7 @@ impl ClientStorage {
         key: Option<AccessKey>,
     ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
         let (buf, key, summary) =
-            self.prepare_folder(Some(name), key, false).await?;
+            self.prepare_folder(Some(name), key).await?;
 
         let account_event =
             AccountEvent::CreateFolder(*summary.id(), buf.clone());
