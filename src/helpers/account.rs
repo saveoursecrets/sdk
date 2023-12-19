@@ -333,9 +333,16 @@ pub async fn new_account(
             display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
 
-        let mut owner = NetworkAccount::new_account(
+        let mut owner = NetworkAccount::new_account_with_builder(
             account_name.clone(),
             passphrase.clone(),
+            |builder| {
+                builder
+                    .create_contacts(true)
+                    .create_archive(true)
+                    .create_authenticator(true)
+                    .create_file_password(true)
+            },
             None,
             None,
         )
