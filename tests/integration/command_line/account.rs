@@ -225,7 +225,7 @@ pub fn migrate(
 ) -> Result<()> {
     let data_dir = Paths::data_dir().unwrap();
     let export_file = data_dir.join(format!("{}-export.zip", address));
-    let fixtures = PathBuf::from("workspace/migrate/fixtures");
+    let fixtures = PathBuf::from("tests/fixtures/migrate");
 
     let cmd = format!(
         "{} account migrate -a {} export {}",
