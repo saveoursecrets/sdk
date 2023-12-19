@@ -73,13 +73,14 @@ async fn export_restore() -> Result<()> {
         selected: folders.clone(),
         ..Default::default()
     };
-    account.restore_backup_archive(
-        &archive,
-        password.clone(),
-        options,
-        Some(data_dir.clone()),
-    )
-    .await?;
+    account
+        .restore_backup_archive(
+            &archive,
+            password.clone(),
+            options,
+            Some(data_dir.clone()),
+        )
+        .await?;
 
     for id in ids {
         assert!(account.read_secret(&id, Default::default()).await.is_ok());

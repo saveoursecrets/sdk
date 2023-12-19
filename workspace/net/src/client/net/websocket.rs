@@ -37,7 +37,7 @@ use crate::{
     events::ChangeNotification,
 };
 
-use super::encode_signature;
+use super::encode_account_signature;
 
 /// Options used when listening for change notifications.
 #[derive(Clone)]
@@ -134,7 +134,8 @@ async fn changes_uri(
     public_key: &[u8],
 ) -> Result<String> {
     let endpoint = changes_endpoint_url(remote)?;
-    let bearer = encode_signature(signer.sign(&public_key).await?).await?;
+    let bearer =
+        encode_account_signature(signer.sign(&public_key).await?).await?;
     let uri = websocket_uri(endpoint, bearer, public_key);
     Ok(uri)
 }

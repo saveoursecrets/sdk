@@ -1,4 +1,7 @@
-use crate::{encoding::encoding_error, signer::ecdsa::BinaryEcdsaSignature, signer::ed25519::BinaryEd25519Signature};
+use crate::{
+    encoding::encoding_error, signer::ecdsa::BinaryEcdsaSignature,
+    signer::ed25519::BinaryEd25519Signature,
+};
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,

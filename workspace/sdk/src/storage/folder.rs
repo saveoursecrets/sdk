@@ -6,8 +6,8 @@ use crate::{
     decode,
     events::{
         DiscData, DiscLog, EventLogExt, EventReducer, FolderEventLog,
-        MemoryData, MemoryFolderLog, MemoryLog, ReadEvent, WriteEvent,
-        LogEvent,
+        LogEvent, MemoryData, MemoryFolderLog, MemoryLog, ReadEvent,
+        WriteEvent,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},

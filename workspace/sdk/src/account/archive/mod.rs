@@ -31,7 +31,7 @@ impl Account {
     ) -> Result<()> {
         AccountBackup::export_archive_file(path, self.address(), &self.paths)
             .await?;
-        
+
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(

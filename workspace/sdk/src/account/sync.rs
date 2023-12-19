@@ -1,6 +1,8 @@
 use super::account::Account;
 use crate::{
-    events::{AccountEvent, AccountEventLog, EventLogExt, FolderEventLog, LogEvent},
+    events::{
+        AccountEvent, AccountEventLog, EventLogExt, FolderEventLog, LogEvent,
+    },
     sync::{
         AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, SyncDiff,
         SyncStatus, SyncStorage,
@@ -8,8 +10,8 @@ use crate::{
     vault::VaultId,
     Error, Result,
 };
-use indexmap::IndexMap;
 use async_trait::async_trait;
+use indexmap::IndexMap;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use tracing::{span, Level};

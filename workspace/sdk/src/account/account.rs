@@ -12,8 +12,8 @@ use crate::{
     crypto::AccessKey,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, Event,
-        EventKind, EventLogExt, EventReducer, ReadEvent, WriteEvent,
+        AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
+        EventReducer, ReadEvent, WriteEvent,
     },
     identity::{FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::Address,

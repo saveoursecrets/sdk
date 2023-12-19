@@ -1,14 +1,13 @@
 //! Bridge between local storage and a remote server.
 use crate::client::{
-    net::RpcClient, Error, RemoteSync, Result,
-    SyncError, SyncOptions,
+    net::RpcClient, Error, RemoteSync, Result, SyncError, SyncOptions,
 };
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use sos_sdk::{
-    account::LocalAccount, 
+    account::LocalAccount,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::ClientStorage,
     sync::{self, Client, SyncComparison, SyncStatus},

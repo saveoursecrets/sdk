@@ -2,10 +2,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     encoding::{decode_uuid, encoding_error},
-    events::{
-        EventKind, EventRecord,
-        LogEvent, WriteEvent,
-    },
+    events::{EventKind, EventRecord, LogEvent, WriteEvent},
     formats::{EventLogRecord, FileRecord, VaultRecord},
     vault::VaultCommit,
     Timestamp,

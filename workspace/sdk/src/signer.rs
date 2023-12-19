@@ -74,6 +74,18 @@ pub mod ecdsa {
     #[derive(Default)]
     pub struct BinaryEcdsaSignature(pub(crate) Signature);
 
+    impl From<Signature> for BinaryEcdsaSignature {
+        fn from(value: Signature) -> Self {
+            BinaryEcdsaSignature(value)
+        }
+    }
+
+    impl From<BinaryEcdsaSignature> for Signature {
+        fn from(value: BinaryEcdsaSignature) -> Self {
+            value.0
+        }
+    }
+
     /// Recover the address from a signature.
     pub fn recover_address(
         signature: Signature,
@@ -86,18 +98,6 @@ pub mod ecdsa {
             recid,
         )?;
         Ok((&public_key).try_into()?)
-    }
-    
-    impl From<Signature> for BinaryEcdsaSignature {
-        fn from(value: Signature) -> Self {
-            BinaryEcdsaSignature(value)
-        }
-    }
-
-    impl From<BinaryEcdsaSignature> for Signature {
-        fn from(value: BinaryEcdsaSignature) -> Self {
-            value.0
-        }
     }
 
     impl Clone for BoxedEcdsaSigner {
@@ -211,6 +211,18 @@ pub mod ed25519 {
     impl Default for BinaryEd25519Signature {
         fn default() -> Self {
             Self(Signature::from_bytes(&[0; 64]))
+        }
+    }
+
+    impl From<Signature> for BinaryEd25519Signature {
+        fn from(value: Signature) -> Self {
+            BinaryEd25519Signature(value)
+        }
+    }
+
+    impl From<BinaryEd25519Signature> for Signature {
+        fn from(value: BinaryEd25519Signature) -> Self {
+            value.0
         }
     }
 

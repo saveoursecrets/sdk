@@ -68,7 +68,7 @@ impl Account {
         migration.finish().await?;
 
         vfs::write(path.as_ref(), &archive).await?;
-        
+
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(

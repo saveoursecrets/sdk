@@ -5,8 +5,8 @@ use crate::{
     crypto::AccessKey,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, Event, EventKind,
-        EventLogExt, EventReducer, FolderEventLog, ReadEvent, WriteEvent,
+        AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
+        EventReducer, FolderEventLog, ReadEvent, WriteEvent,
     },
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
@@ -285,7 +285,7 @@ impl ClientStorage {
     ) -> Result<ReadEvent> {
         self.find(|s| s.id() == summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        
+
         self.current = Some(summary.clone());
         Ok(ReadEvent::ReadVault)
     }
@@ -303,7 +303,7 @@ impl ClientStorage {
         let mut events = Vec::new();
 
         let create_account = Event::CreateAccount(account.address.clone());
-        
+
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent =
@@ -687,7 +687,8 @@ impl ClientStorage {
 
         #[cfg(feature = "audit")]
         {
-            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            let audit_event: AuditEvent =
+                (self.address(), &account_event).into();
             self.paths.append_audit_events(vec![audit_event]).await?;
         }
 
@@ -727,7 +728,8 @@ impl ClientStorage {
 
         #[cfg(feature = "audit")]
         {
-            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            let audit_event: AuditEvent =
+                (self.address(), &account_event).into();
             self.paths.append_audit_events(vec![audit_event]).await?;
         }
 
@@ -919,7 +921,8 @@ impl ClientStorage {
 
         #[cfg(feature = "audit")]
         {
-            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            let audit_event: AuditEvent =
+                (self.address(), &account_event).into();
             self.paths.append_audit_events(vec![audit_event]).await?;
         }
 
@@ -954,10 +957,11 @@ impl ClientStorage {
 
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
-        
+
         #[cfg(feature = "audit")]
         {
-            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            let audit_event: AuditEvent =
+                (self.address(), &account_event).into();
             self.paths.append_audit_events(vec![audit_event]).await?;
         }
 

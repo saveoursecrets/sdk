@@ -400,21 +400,20 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
     let account_ref = AccountRef::Address(inventory.manifest.address);
     let account = find_account(&account_ref).await?;
 
-    let mut owner =
-        if let Some(account) = account {
-            let confirmed = read_flag(Some(
-                "Overwrite all account data from backup? (y/n) ",
-            ))?;
-            if !confirmed {
-                return Ok(None);
-            }
+    let mut owner = if let Some(account) = account {
+        let confirmed = read_flag(Some(
+            "Overwrite all account data from backup? (y/n) ",
+        ))?;
+        if !confirmed {
+            return Ok(None);
+        }
 
-            let account = AccountRef::Name(account.label().to_owned());
-            let (owner, password) = sign_in(&account).await?;
-            Some((owner, password))
-        } else {
-            None
-        };
+        let account = AccountRef::Name(account.label().to_owned());
+        let (owner, password) = sign_in(&account).await?;
+        Some((owner, password))
+    } else {
+        None
+    };
 
     let account = if let Some((mut owner, password)) = owner.take() {
         let files_dir = owner.paths().files_dir();
@@ -423,8 +422,9 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
             files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
         };
 
-        owner.restore_backup_archive(
-            &input, password, options, None).await?
+        owner
+            .restore_backup_archive(&input, password, options, None)
+            .await?
     } else {
         let address = inventory.manifest.address.to_string();
         let paths = Paths::new(Paths::data_dir()?, &address);

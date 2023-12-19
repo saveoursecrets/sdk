@@ -4,8 +4,8 @@ use crate::{
     constants::VAULT_EXT,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, Event, EventLogExt,
-        EventReducer, FolderEventLog,
+        AccountEvent, AccountEventLog, Event, EventLogExt, EventReducer,
+        FolderEventLog,
     },
     signer::ecdsa::Address,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
@@ -238,7 +238,7 @@ impl ServerStorage {
             event_log.clear().await?;
             event_log.apply(events.iter().collect()).await?;
         }
-        
+
         #[cfg(feature = "audit")]
         {
             // If there is an existing folder
@@ -250,8 +250,9 @@ impl ServerStorage {
             } else {
                 AccountEvent::CreateFolder(*id, buffer)
             };
-             
-            let audit_event: AuditEvent = (self.address(), &account_event).into();
+
+            let audit_event: AuditEvent =
+                (self.address(), &account_event).into();
             self.paths.append_audit_events(vec![audit_event]).await?;
         }
 
@@ -280,10 +281,10 @@ impl ServerStorage {
         #[cfg(feature = "audit")]
         {
             let account_event = AccountEvent::DeleteFolder(*id);
-            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            let audit_event: AuditEvent =
+                (self.address(), &account_event).into();
             self.paths.append_audit_events(vec![audit_event]).await?;
         }
-
 
         Ok(())
     }
@@ -299,12 +300,13 @@ impl ServerStorage {
         let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
         access.set_vault_name(name.as_ref().to_owned()).await?;
-        
+
         #[cfg(feature = "audit")]
         {
             let account_event =
                 AccountEvent::RenameFolder(*id, name.as_ref().to_owned());
-            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            let audit_event: AuditEvent =
+                (self.address(), &account_event).into();
             self.paths.append_audit_events(vec![audit_event]).await?;
         }
 

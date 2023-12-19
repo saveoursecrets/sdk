@@ -4,18 +4,18 @@ use crate::{
     encode,
     events::{
         AccountEvent, AccountEventLog, EventLogExt, EventReducer,
-        FolderEventLog, WriteEvent, LogEvent,
+        FolderEventLog, LogEvent, WriteEvent,
     },
     storage::{ClientStorage, ServerStorage},
     sync::{
-        AccountDiff, ChangeSet, FolderDiff, FolderPatch, SyncDiff,
-        SyncStatus, SyncStorage, CheckedPatch,
+        AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch,
+        SyncDiff, SyncStatus, SyncStorage,
     },
     vault::VaultId,
     vfs, Error, Paths, Result,
 };
-use indexmap::IndexMap;
 use async_trait::async_trait;
+use indexmap::IndexMap;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
 use tracing::{span, Level};
@@ -173,7 +173,7 @@ impl ServerStorage {
             // FIXME: handle conflict situation
             println!("todo! account patch could not be merged");
         }
-        
+
         Ok(diff.patch.len())
     }
 

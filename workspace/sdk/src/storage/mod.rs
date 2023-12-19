@@ -1,6 +1,10 @@
 //! Folder storage backed by the file system.
+use crate::{
+    signer::ecdsa::Address,
+    vault::{Summary, Vault},
+    Result,
+};
 use std::path::Path;
-use crate::{vault::{Summary, Vault}, signer::ecdsa::Address, Result};
 use tokio::sync::mpsc;
 
 mod client;

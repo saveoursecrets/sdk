@@ -9,9 +9,9 @@ use crate::{
     vault::VaultId,
     Error, Result,
 };
-use indexmap::IndexMap;
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;

@@ -13,7 +13,7 @@ use crate::{
 use std::path::Path;
 
 #[cfg(feature = "audit")]
-use crate::audit::{AuditData, AuditEvent}; 
+use crate::audit::{AuditData, AuditEvent};
 
 /// Progress event when importing contacts.
 pub enum ContactImportProgress {
@@ -79,7 +79,7 @@ impl Account {
         } else {
             return Err(Error::NotContact);
         }
-        
+
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
@@ -121,7 +121,7 @@ impl Account {
             }
         }
         vfs::write(path, vcf.as_bytes()).await?;
-        
+
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
@@ -186,7 +186,6 @@ impl Account {
         if let Some(folder) = current {
             self.open_vault(&folder, false).await?;
         }
-
 
         #[cfg(feature = "audit")]
         {

@@ -49,7 +49,7 @@ use crate::{
 #[cfg(feature = "listen")]
 use crate::client::{ListenOptions, WebSocketHandle};
 
-use super::{bearer_prefix, encode_signature, AUTHORIZATION};
+use super::{bearer_prefix, encode_account_signature, AUTHORIZATION};
 
 /// Retry a request after renewing a session if an
 /// UNAUTHORIZED response is returned.
@@ -341,7 +341,7 @@ impl RpcClient {
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
         let signature =
-            encode_signature(self.signer.sign(&body).await?).await?;
+            encode_account_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, body, signature, None).await?;
@@ -376,7 +376,7 @@ impl RpcClient {
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
         let signature =
-            encode_signature(self.signer.sign(&body).await?).await?;
+            encode_account_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, body, signature, None).await?;
@@ -412,7 +412,7 @@ impl RpcClient {
         let packet = Packet::new_request(request);
         let body = encode(&packet).await?;
         let signature =
-            encode_signature(self.signer.sign(&body).await?).await?;
+            encode_account_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.encrypt_request(&body).await?;
         let response = self.send_request(url, body, signature, None).await?;
@@ -452,7 +452,8 @@ impl RpcClient {
             format!(
                 "{},{}",
                 bearer_prefix(&account_signature),
-                bearer_prefix(device_signature))
+                bearer_prefix(device_signature)
+            )
         } else {
             bearer_prefix(&account_signature)
         };
@@ -554,7 +555,6 @@ impl Client for RpcClient {
         local_status: &SyncStatus,
         diff: &SyncDiff,
     ) -> std::result::Result<SyncDiff, Self::Error> {
-
         let (status, body) =
             retry!(|| self.try_sync(local_status, diff), self);
 

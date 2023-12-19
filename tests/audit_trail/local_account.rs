@@ -193,13 +193,14 @@ async fn simulate_session(
         files_dir: None,
     };
 
-    account.restore_backup_archive(
-        archive,
-        passphrase.clone(),
-        restore_options,
-        Some(data_dir.clone()),
-    )
-    .await?;
+    account
+        .restore_backup_archive(
+            archive,
+            passphrase.clone(),
+            restore_options,
+            Some(data_dir.clone()),
+        )
+        .await?;
 
     let unsafe_archive = "target/audit-trail-unsafe-archive.zip";
     account.export_unsafe_archive(unsafe_archive).await?;

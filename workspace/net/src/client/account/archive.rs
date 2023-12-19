@@ -2,7 +2,10 @@
 use crate::client::{NetworkAccount, Result};
 use secrecy::SecretString;
 use sos_sdk::{
-    account::{archive::{Inventory, RestoreOptions}, LocalAccount},
+    account::{
+        archive::{Inventory, RestoreOptions},
+        LocalAccount,
+    },
     identity::PublicIdentity,
 };
 use std::path::{Path, PathBuf};
@@ -47,12 +50,8 @@ impl NetworkAccount {
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
         let mut account = self.account.lock().await;
-        Ok(account.restore_backup_archive(
-            path,
-            password,
-            options,
-            data_dir,
-        )
-        .await?)
+        Ok(account
+            .restore_backup_archive(path, password, options, data_dir)
+            .await?)
     }
 }

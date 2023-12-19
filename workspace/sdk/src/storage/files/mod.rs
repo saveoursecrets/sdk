@@ -170,4 +170,3 @@ async fn list_secret_files(
     }
     Ok(files)
 }
-

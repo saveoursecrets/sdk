@@ -3,12 +3,12 @@ use crate::{
     encoding::{decode_uuid, encoding_error},
     prelude::{FileIdentity, PATCH_IDENTITY},
 };
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use std::io::Result;
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use std::io::Result;
 
 use crate::sync::{
     AccountDiff, ChangeSet, Diff, FolderDiff, FolderPatch, Patch, SyncDiff,
