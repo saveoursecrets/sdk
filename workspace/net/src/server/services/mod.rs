@@ -19,6 +19,7 @@ use crate::{
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
     server::{
         authenticate::{self, BearerToken},
+        backend::BackendHandler,
         Error, Result, ServerBackend, ServerState, State,
     },
 };
@@ -199,8 +200,22 @@ pub(crate) async fn private_service(
     };
 
     // Restricted services require a device signature
-    if restricted && token.device_signature.is_none() {
-        return Err(Error::Forbidden);
+    match (restricted, &token.device_signature) {
+        (true, None) => {
+            return Err(Error::Forbidden);
+        }
+        (true, Some(device_signature)) => {
+            let reader = backend.read().await;
+            reader
+                .handler()
+                .verify_device(
+                    &token.address,
+                    device_signature,
+                    &message_body,
+                )
+                .await?;
+        }
+        _ => {}
     }
 
     // Call the target service for a reply

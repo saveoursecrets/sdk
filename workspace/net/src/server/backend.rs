@@ -4,7 +4,10 @@ use crate::{
     sdk::{
         constants::{DEVICES_FILE, JSON_EXT},
         device::DevicePublicKey,
-        signer::ecdsa::Address,
+        signer::{
+            ecdsa::Address,
+            ed25519::{self, Verifier, VerifyingKey},
+        },
         storage::{DiscFolder, ServerStorage},
         sync::ChangeSet,
         vfs, Paths,
@@ -12,7 +15,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -45,6 +48,11 @@ impl AccountStorage {
         self.devices.0.remove(public_key);
         self.save_devices().await?;
         Ok(())
+    }
+
+    /// List device public keys.
+    pub fn list_device_keys(&self) -> &HashSet<DevicePublicKey> {
+        &self.devices.0
     }
 
     /// Devices file for server-side storage.
@@ -137,6 +145,14 @@ pub trait BackendHandler {
         &mut self,
         owner: &Address,
         device_public_key: DevicePublicKey,
+    ) -> Result<()>;
+
+    /// Verify a device is allowed to access an account.
+    async fn verify_device(
+        &self,
+        owner: &Address,
+        device_signature: &ed25519::Signature,
+        message_body: &[u8],
     ) -> Result<()>;
 }
 
@@ -300,6 +316,32 @@ impl BackendHandler for FileSystemBackend {
         let mut writer = account.write().await;
         writer.revoke_device(&device_public_key).await?;
         Ok(())
+    }
+
+    /// Verify a device is allowed to access an account.
+    async fn verify_device(
+        &self,
+        owner: &Address,
+        device_signature: &ed25519::Signature,
+        message_body: &[u8],
+    ) -> Result<()> {
+        let accounts = self.accounts.read().await;
+        if let Some(account) = accounts.get(owner) {
+            let reader = account.read().await;
+            let account_devices = reader.list_device_keys();
+            for device_key in account_devices {
+                let verifying_key: VerifyingKey = device_key.try_into()?;
+                if verifying_key
+                    .verify(message_body, device_signature)
+                    .is_ok()
+                {
+                    return Ok(());
+                }
+            }
+            Err(Error::Forbidden)
+        } else {
+            Ok(())
+        }
     }
 
     async fn account_exists(&self, owner: &Address) -> Result<bool> {

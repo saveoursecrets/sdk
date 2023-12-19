@@ -2,7 +2,7 @@
 use crate::{
     constants::DEVICES_NSS,
     identity::UrnLookup,
-    signer::ed25519::{BoxedEd25519Signer, SingleParty},
+    signer::ed25519::{BoxedEd25519Signer, SingleParty, VerifyingKey},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper,
@@ -47,6 +47,14 @@ impl TryFrom<&[u8]> for DevicePublicKey {
     fn try_from(value: &[u8]) -> Result<Self> {
         let value: [u8; 32] = value.try_into()?;
         Ok(Self(value))
+    }
+}
+
+impl TryFrom<&DevicePublicKey> for VerifyingKey {
+    type Error = Error;
+
+    fn try_from(value: &DevicePublicKey) -> Result<Self> {
+        Ok(VerifyingKey::from_bytes(&value.0)?)
     }
 }
 

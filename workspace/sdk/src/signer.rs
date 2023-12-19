@@ -187,8 +187,8 @@ pub mod ecdsa {
 pub mod ed25519 {
     use async_trait::async_trait;
     pub use ed25519_dalek::{
-        Signature, Signer as Ed25519Signer, SigningKey, VerifyingKey,
-        SECRET_KEY_LENGTH,
+        Signature, Signer as Ed25519Signer, SigningKey, Verifier,
+        VerifyingKey, SECRET_KEY_LENGTH,
     };
     use rand::rngs::OsRng;
 

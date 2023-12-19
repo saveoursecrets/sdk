@@ -163,7 +163,8 @@ pub async fn simulate_device(
         .await?;
 
     // Sync the local account to create the account on remote
-    assert!(owner.sync().await.is_none());
+    let sync_error = owner.sync().await;
+    assert!(sync_error.is_none());
 
     let server_path = server.account_path(owner.address());
     let default_folder_id = *default_folder.id();
