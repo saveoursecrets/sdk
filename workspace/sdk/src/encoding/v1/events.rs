@@ -4,7 +4,7 @@ use crate::{
     encoding::{decode_uuid, encoding_error},
     events::{
         AuditData, AuditEvent, AuditLogFile, EventKind, EventRecord,
-        LogEvent, LogFlags, WriteEvent,
+        LogEvent, AuditLogFlags, WriteEvent,
     },
     formats::{EventLogRecord, FileRecord, VaultRecord},
     vault::VaultCommit,
@@ -149,7 +149,7 @@ impl Encodable for AuditEvent {
         // Address - by whom
         writer.write_bytes(self.address.as_ref()).await?;
         // Data - context
-        if flags.contains(LogFlags::DATA) {
+        if flags.contains(AuditLogFlags::DATA) {
             let data = self.data.as_ref().unwrap();
             data.encode(&mut *writer).await?;
         }
@@ -177,18 +177,18 @@ impl Decodable for AuditEvent {
             address.as_slice().try_into().map_err(encoding_error)?;
         self.address = address.into();
         // Data - context
-        if let Some(flags) = LogFlags::from_bits(bits) {
-            if flags.contains(LogFlags::DATA) {
-                if flags.contains(LogFlags::DATA_VAULT) {
+        if let Some(flags) = AuditLogFlags::from_bits(bits) {
+            if flags.contains(AuditLogFlags::DATA) {
+                if flags.contains(AuditLogFlags::DATA_VAULT) {
                     let vault_id = decode_uuid(&mut *reader).await?;
-                    if !flags.contains(LogFlags::DATA_SECRET) {
+                    if !flags.contains(AuditLogFlags::DATA_SECRET) {
                         self.data = Some(AuditData::Vault(vault_id));
                     } else {
                         let secret_id = decode_uuid(&mut *reader).await?;
                         self.data =
                             Some(AuditData::Secret(vault_id, secret_id));
                     }
-                } else if flags.contains(LogFlags::MOVE_SECRET) {
+                } else if flags.contains(AuditLogFlags::MOVE_SECRET) {
                     let from_vault_id = decode_uuid(&mut *reader).await?;
                     let from_secret_id = decode_uuid(&mut *reader).await?;
                     let to_vault_id = decode_uuid(&mut *reader).await?;

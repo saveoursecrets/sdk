@@ -29,7 +29,7 @@ pub use self::log::FileEventLog;
 
 pub use account::AccountEvent;
 pub use audit::{
-    AuditData, AuditEvent, AuditLogFile, AuditProvider, LogFlags,
+    AuditData, AuditEvent, AuditLogFile, AuditProvider, AuditLogFlags,
 };
 pub use event::Event;
 #[cfg(feature = "files")]

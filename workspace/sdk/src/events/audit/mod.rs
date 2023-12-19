@@ -4,11 +4,9 @@ use async_trait::async_trait;
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-use uuid::Uuid;
-use web3_address::ethereum::Address;
-
 use crate::{
     events::{Event, EventKind, LogEvent, ReadEvent, WriteEvent},
+    signer::ecdsa::Address,
     timestamp::Timestamp,
     vault::{secret::SecretId, VaultId},
 };
@@ -20,7 +18,7 @@ pub use log_file::AuditLogFile;
 
 bitflags! {
     /// Bit flags for associated data.
-    pub struct LogFlags: u16 {
+    pub struct AuditLogFlags: u16 {
         /// Indicates whether associated data is present.
         const DATA =        0b00000001;
         /// Indicates the data has a vault identifier.
@@ -110,25 +108,25 @@ impl AuditEvent {
         self.data.as_ref()
     }
 
-    pub(crate) fn log_flags(&self) -> LogFlags {
+    pub(crate) fn log_flags(&self) -> AuditLogFlags {
         if let Some(data) = &self.data {
-            let mut flags = LogFlags::empty();
-            flags.set(LogFlags::DATA, true);
+            let mut flags = AuditLogFlags::empty();
+            flags.set(AuditLogFlags::DATA, true);
             match data {
                 AuditData::Vault(_) => {
-                    flags.set(LogFlags::DATA_VAULT, true);
+                    flags.set(AuditLogFlags::DATA_VAULT, true);
                 }
                 AuditData::Secret(_, _) => {
-                    flags.set(LogFlags::DATA_VAULT, true);
-                    flags.set(LogFlags::DATA_SECRET, true);
+                    flags.set(AuditLogFlags::DATA_VAULT, true);
+                    flags.set(AuditLogFlags::DATA_SECRET, true);
                 }
                 AuditData::MoveSecret { .. } => {
-                    flags.set(LogFlags::MOVE_SECRET, true);
+                    flags.set(AuditLogFlags::MOVE_SECRET, true);
                 }
             }
             flags
         } else {
-            LogFlags::empty()
+            AuditLogFlags::empty()
         }
     }
 }
@@ -229,6 +227,6 @@ pub enum AuditData {
 impl Default for AuditData {
     fn default() -> Self {
         let zero = [0u8; 16];
-        Self::Vault(Uuid::from_bytes(zero))
+        Self::Vault(VaultId::from_bytes(zero))
     }
 }
