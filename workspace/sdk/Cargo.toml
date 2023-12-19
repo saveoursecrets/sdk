@@ -12,9 +12,10 @@ repository = "https://github.com/saveoursecrets/sdk"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["account", "archive", "files", "search"]
+default = ["account", "archive", "audit", "files", "search"]
 account = []
 archive = ["dep:async_zip"]
+audit = []
 contacts = []
 device = [
   "dep:whoami",

@@ -16,11 +16,13 @@ use crate::{
         LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, REMOTE_DIR,
         VAULTS_DIR, VAULT_EXT,
     },
-    events::{AuditEvent, AuditLogFile, AuditProvider},
     vault::{secret::SecretId, VaultId},
     vfs,
 };
 use tokio::sync::Mutex;
+
+#[cfg(feature = "audit")]
+use crate::audit::{AuditEvent, AuditLogFile, AuditProvider};
 
 const APP_INFO: AppInfo = AppInfo {
     name: APP_NAME,
@@ -30,6 +32,7 @@ const APP_INFO: AppInfo = AppInfo {
 static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
 
+#[cfg(feature = "audit")]
 static AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 
 /// File system paths.
@@ -438,6 +441,7 @@ impl Paths {
     }
 
     /// Append to the audit log.
+    #[cfg(feature = "audit")]
     pub async fn append_audit_events(
         &self,
         events: Vec<AuditEvent>,

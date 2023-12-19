@@ -1,3 +1,5 @@
+#[cfg(feature = "audit")]
+mod audit;
 mod commit;
 mod crypto;
 mod events;

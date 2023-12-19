@@ -8,7 +8,7 @@
 //! key and folder passwords using a single primary password.
 use crate::{
     crypto::AccessKey,
-    events::{AuditEvent, Event, EventKind},
+    events::{Event, EventKind},
     identity::{DiscIdentityFolder, PublicIdentity},
     signer::ecdsa::Address,
     vault::{secret::SecretId, Summary, Vault, VaultId},
@@ -22,6 +22,9 @@ use std::{
 };
 use tracing::{span, Level};
 use urn::Urn;
+
+#[cfg(feature = "audit")]
+use crate::audit::AuditEvent;
 
 #[cfg(feature = "device")]
 use crate::device::DeviceManager;
@@ -133,14 +136,7 @@ impl Identity {
     pub async fn delete_account(&self, paths: &Paths) -> Result<Event> {
         vfs::remove_file(paths.identity_vault()).await?;
         vfs::remove_dir_all(paths.user_dir()).await?;
-
-        let event = Event::CreateAccount(AuditEvent::new(
-            EventKind::DeleteAccount,
-            self.identity()?.address().clone(),
-            None,
-        ));
-
-        Ok(event)
+        Ok(Event::DeleteAccount(self.identity()?.address().clone()))
     }
 
     /// Rename this account by changing the name of the identity vault.

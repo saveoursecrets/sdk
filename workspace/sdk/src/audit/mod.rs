@@ -135,11 +135,23 @@ impl From<(&Address, &Event)> for AuditEvent {
     fn from(value: (&Address, &Event)) -> Self {
         let (address, event) = value;
         match event {
-            Event::CreateAccount(event) => event.clone(),
+            Event::CreateAccount(address) => {
+                AuditEvent::new(
+                    EventKind::CreateAccount,
+                    *address,
+                    None,
+                )
+            },
             Event::MoveSecret(_, _, _) => {
                 panic!("move secret audit event must be constructed")
             }
-            Event::DeleteAccount(event) => event.clone(),
+            Event::DeleteAccount(address) => {
+                AuditEvent::new(
+                    EventKind::DeleteAccount,
+                    *address,
+                    None,
+                )
+            },
             _ => {
                 let audit_data = match event {
                     Event::Account(event) => {

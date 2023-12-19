@@ -5,6 +5,8 @@ pub use crate::account::archive::*;
 pub use crate::account::security_report::*;
 #[cfg(feature = "account")]
 pub use crate::account::*;
+#[cfg(feature = "audit")]
+pub use crate::audit::*;
 pub use crate::commit::*;
 pub use crate::constants::*;
 pub use crate::crypto::*;

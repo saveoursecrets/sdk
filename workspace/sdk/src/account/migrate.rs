@@ -3,7 +3,7 @@ use crate::{
     account::Account,
     crypto::AccessKey,
     encode,
-    events::{AuditEvent, Event, EventKind},
+    events::{Event, EventKind},
     identity::Identity,
     migrate::{
         export::PublicExport,
@@ -25,6 +25,9 @@ use std::{
     io::Cursor,
     path::{Path, PathBuf},
 };
+
+#[cfg(feature = "audit")]
+use crate::audit::AuditEvent;
 
 impl Account {
     /// Write a zip archive containing all the secrets
@@ -65,13 +68,16 @@ impl Account {
         migration.finish().await?;
 
         vfs::write(path.as_ref(), &archive).await?;
-
-        let audit_event = AuditEvent::new(
-            EventKind::ExportUnsafe,
-            self.address().clone(),
-            None,
-        );
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ExportUnsafe,
+                self.address().clone(),
+                None,
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(())
     }
@@ -140,12 +146,15 @@ impl Account {
     ) -> Result<(Event, Summary)> {
         let paths = self.paths();
 
-        let audit_event = AuditEvent::new(
-            EventKind::ImportUnsafe,
-            self.address().clone(),
-            None,
-        );
-        paths.append_audit_events(vec![audit_event]).await?;
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ImportUnsafe,
+                self.address().clone(),
+                None,
+            );
+            paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         let vaults = Identity::list_local_folders(&paths).await?;
         let existing_name =

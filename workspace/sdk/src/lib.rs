@@ -15,11 +15,12 @@
 //!
 //! # Features
 //!
-//! Default features enable account management, external files, search and
-//! backup archives. If you want to just use encrypted vaults without
-//! the account management support disable `default-features`.
+//! Default features enable account management, audit trail, external files, 
+//! search and backup archives. If you want to just use encrypted 
+//! vaults without the account management support disable `default-features`.
 //!
 //! * `account` Local account management.
+//! * `audit` Audit trail logs.
 //! * `device` Device signing keys and device management.
 //! * `files` Store external encrypted files.
 //! * `recovery` Primitives for social recovery.
@@ -51,6 +52,8 @@ compile_error!("account feature must be enabled to use security-report");
 
 #[cfg(feature = "account")]
 pub mod account;
+#[cfg(feature = "audit")]
+pub mod audit;
 pub mod commit;
 pub mod constants;
 pub mod crypto;

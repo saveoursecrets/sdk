@@ -10,7 +10,7 @@ pub use zip::*;
 
 use crate::{
     account::Account,
-    events::{AuditEvent, EventKind},
+    events::EventKind,
     identity::{Identity, PublicIdentity},
     vfs::File,
     Paths, Result,
@@ -18,6 +18,9 @@ use crate::{
 use secrecy::SecretString;
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncRead, AsyncSeek};
+
+#[cfg(feature = "audit")]
+use crate::audit::AuditEvent;
 
 impl Account {
     /// Create a backup archive containing the
@@ -28,13 +31,16 @@ impl Account {
     ) -> Result<()> {
         AccountBackup::export_archive_file(path, self.address(), &self.paths)
             .await?;
-
-        let audit_event = AuditEvent::new(
-            EventKind::ExportBackupArchive,
-            self.address().clone(),
-            None,
-        );
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ExportBackupArchive,
+                self.address().clone(),
+                None,
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(())
     }
@@ -66,19 +72,22 @@ impl Account {
             Self::import_archive_reader(file, options, data_dir.clone())
                 .await?;
 
-        let audit_event = AuditEvent::new(
-            EventKind::ImportBackupArchive,
-            account.address().clone(),
-            None,
-        );
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ImportBackupArchive,
+                account.address().clone(),
+                None,
+            );
 
-        let data_dir = if let Some(data_dir) = &data_dir {
-            data_dir.clone()
-        } else {
-            Paths::data_dir()?
-        };
-        let paths = Paths::new(data_dir, account.address().to_string());
-        paths.append_audit_events(vec![audit_event]).await?;
+            let data_dir = if let Some(data_dir) = &data_dir {
+                data_dir.clone()
+            } else {
+                Paths::data_dir()?
+            };
+            let paths = Paths::new(data_dir, account.address().to_string());
+            paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(account)
     }

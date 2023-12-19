@@ -1,5 +1,5 @@
 //! Folder storage backed by the file system.
-use crate::vault::{Summary, Vault};
+use crate::{vault::{Summary, Vault}, signer::ecdsa::Address};
 use tokio::sync::mpsc;
 
 mod client;
@@ -20,6 +20,8 @@ pub use server::ServerStorage;
 /// Collection of vaults for an account.
 #[derive(Default)]
 pub struct AccountPack {
+    /// Address of the account.
+    pub address: Address,
     /// Identity vault.
     pub identity_vault: Vault,
     /// Addtional folders to be imported

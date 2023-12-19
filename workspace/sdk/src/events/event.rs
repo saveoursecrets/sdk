@@ -1,8 +1,8 @@
 //! Encoding of all operations.
 
-use super::{AccountEvent, AuditEvent};
+use super::AccountEvent;
 use super::{EventKind, LogEvent, ReadEvent, WriteEvent};
-use crate::{vault::VaultId, Error, Result};
+use crate::{vault::VaultId, Error, Result, signer::ecdsa::Address};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "files")]
@@ -12,7 +12,7 @@ use super::FileEvent;
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Event {
     /// Create account event.
-    CreateAccount(AuditEvent),
+    CreateAccount(Address),
 
     /// Account changes.
     Account(AccountEvent),
@@ -39,14 +39,14 @@ pub enum Event {
     MoveSecret(ReadEvent, WriteEvent, WriteEvent),
 
     /// Delete account event.
-    DeleteAccount(AuditEvent),
+    DeleteAccount(Address),
 }
 
 impl Event {
     /// Get the event kind for this event.
     pub fn event_kind(&self) -> EventKind {
         match self {
-            Self::CreateAccount(event) => event.event_kind(),
+            Self::CreateAccount(_) => EventKind::CreateAccount,
             Self::Account(event) => event.event_kind(),
             Self::Folder(event, _) => event.event_kind(),
             #[cfg(feature = "files")]
@@ -54,7 +54,7 @@ impl Event {
             Self::Read(_, event) => event.event_kind(),
             Self::Write(_, event) => event.event_kind(),
             Self::MoveSecret(_, _, _) => EventKind::MoveSecret,
-            Self::DeleteAccount(event) => event.event_kind(),
+            Self::DeleteAccount(_) => EventKind::DeleteAccount,
         }
     }
 }

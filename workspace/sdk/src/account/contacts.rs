@@ -2,7 +2,7 @@
 use crate::{
     account::Account,
     crypto::AccessKey,
-    events::{AuditData, AuditEvent, EventKind},
+    events::EventKind,
     identity::Identity,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
@@ -11,6 +11,9 @@ use crate::{
     vfs, Error, Result,
 };
 use std::path::Path;
+
+#[cfg(feature = "audit")]
+use crate::audit::{AuditData, AuditEvent}; 
 
 /// Progress event when importing contacts.
 pub enum ContactImportProgress {
@@ -76,13 +79,16 @@ impl Account {
         } else {
             return Err(Error::NotContact);
         }
-
-        let audit_event = AuditEvent::new(
-            EventKind::ExportContacts,
-            self.address().clone(),
-            Some(AuditData::Secret(*current_folder.id(), *secret_id)),
-        );
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ExportContacts,
+                self.address().clone(),
+                Some(AuditData::Secret(*current_folder.id(), *secret_id)),
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(())
     }
@@ -115,13 +121,16 @@ impl Account {
             }
         }
         vfs::write(path, vcf.as_bytes()).await?;
-
-        let audit_event = AuditEvent::new(
-            EventKind::ExportContacts,
-            self.address().clone(),
-            None,
-        );
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ExportContacts,
+                self.address().clone(),
+                None,
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(())
     }
@@ -178,12 +187,17 @@ impl Account {
             self.open_vault(&folder, false).await?;
         }
 
-        let audit_event = AuditEvent::new(
-            EventKind::ImportContacts,
-            self.address().clone(),
-            None,
-        );
-        self.paths.append_audit_events(vec![audit_event]).await?;
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ImportContacts,
+                self.address().clone(),
+                None,
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
+
         Ok(ids)
     }
 }

@@ -12,7 +12,7 @@ use crate::{
     crypto::AccessKey,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, AuditData, AuditEvent, Event,
+        AccountEvent, AccountEventLog, Event,
         EventKind, EventLogExt, EventReducer, ReadEvent, WriteEvent,
     },
     identity::{FolderKeys, Identity, PublicIdentity},
@@ -28,6 +28,9 @@ use crate::{
     },
     vfs, Error, Paths, Result, Timestamp,
 };
+
+#[cfg(feature = "audit")]
+use crate::audit::{AuditData, AuditEvent};
 
 #[cfg(feature = "sync")]
 use crate::sync::{SyncStatus, SyncStorage};

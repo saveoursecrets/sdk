@@ -1,6 +1,5 @@
 use clap::Subcommand;
 use std::{path::PathBuf, sync::Arc};
-use tokio::sync::RwLock;
 
 use sos_net::{
     client::NetworkAccount,
@@ -10,7 +9,6 @@ use sos_net::{
         },
         identity::{AccountRef, PublicIdentity},
         migrate::import::{ImportFormat, ImportTarget},
-        storage::ClientStorage,
         vfs, Paths,
     },
 };

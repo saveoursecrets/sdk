@@ -2,7 +2,7 @@ use clap::Subcommand;
 
 use crate::{Error, Result, TARGET};
 use sos_net::sdk::{
-    events::{AuditData, AuditEvent, AuditLogFile},
+    audit::{AuditData, AuditEvent, AuditLogFile},
     formats::FormatStreamIterator,
     signer::ecdsa::Address,
     vfs::{self, File},

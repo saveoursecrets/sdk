@@ -4,7 +4,7 @@ use crate::{
     constants::VAULT_EXT,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, AuditEvent, Event, EventLogExt,
+        AccountEvent, AccountEventLog, Event, EventLogExt,
         EventReducer, FolderEventLog,
     },
     signer::ecdsa::Address,
@@ -15,6 +15,9 @@ use crate::{
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use tracing::{span, Level};
+
+#[cfg(feature = "audit")]
+use crate::audit::AuditEvent;
 
 #[cfg(feature = "files")]
 use crate::events::{FileEvent, FileEventLog};
@@ -235,19 +238,22 @@ impl ServerStorage {
             event_log.clear().await?;
             event_log.apply(events.iter().collect()).await?;
         }
-
-        // If there is an existing folder
-        // and we are overwriting then log the update
-        // folder event
-        let account_event = if exists {
-            AccountEvent::UpdateFolder(*id, buffer)
-        // Otherwise a create event
-        } else {
-            AccountEvent::CreateFolder(*id, buffer)
-        };
-            
-        let audit_event: AuditEvent = (self.address(), &account_event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        
+        #[cfg(feature = "audit")]
+        {
+            // If there is an existing folder
+            // and we are overwriting then log the update
+            // folder event
+            let account_event = if exists {
+                AccountEvent::UpdateFolder(*id, buffer)
+            // Otherwise a create event
+            } else {
+                AccountEvent::CreateFolder(*id, buffer)
+            };
+             
+            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(())
     }
@@ -260,8 +266,6 @@ impl ServerStorage {
         // Remove local state
         self.cache.remove(id);
 
-        let mut events = Vec::new();
-
         /*
         #[cfg(feature = "files")]
         {
@@ -273,10 +277,13 @@ impl ServerStorage {
         }
         */
 
-        let account_event = AccountEvent::DeleteFolder(*id);
-        let audit_event: AuditEvent = (self.address(), &account_event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
-        events.insert(0, Event::Account(account_event));
+        #[cfg(feature = "audit")]
+        {
+            let account_event = AccountEvent::DeleteFolder(*id);
+            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
+
 
         Ok(())
     }
@@ -292,11 +299,14 @@ impl ServerStorage {
         let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
         access.set_vault_name(name.as_ref().to_owned()).await?;
-
-        let account_event =
-            AccountEvent::RenameFolder(*id, name.as_ref().to_owned());
-        let audit_event: AuditEvent = (self.address(), &account_event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        
+        #[cfg(feature = "audit")]
+        {
+            let account_event =
+                AccountEvent::RenameFolder(*id, name.as_ref().to_owned());
+            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(())
     }

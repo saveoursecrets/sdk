@@ -5,7 +5,7 @@ use crate::{
     crypto::AccessKey,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, AuditEvent, Event, EventKind,
+        AccountEvent, AccountEventLog, Event, EventKind,
         EventLogExt, EventReducer, FolderEventLog, ReadEvent, WriteEvent,
     },
     identity::FolderKeys,
@@ -31,6 +31,9 @@ use tracing::{span, Level};
 
 #[cfg(feature = "archive")]
 use crate::account::archive::RestoreTargets;
+
+#[cfg(feature = "audit")]
+use crate::audit::AuditEvent;
 
 #[cfg(feature = "files")]
 use crate::events::{FileEvent, FileEventLog};
@@ -299,15 +302,14 @@ impl ClientStorage {
     ) -> Result<Vec<Event>> {
         let mut events = Vec::new();
 
-        let create_account = Event::CreateAccount(AuditEvent::new(
-            EventKind::CreateAccount,
-            self.address.clone(),
-            None,
-        ));
-
-        let audit_event: AuditEvent =
-            (self.address(), &create_account).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        let create_account = Event::CreateAccount(account.address.clone());
+        
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent =
+                (self.address(), &create_account).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         // Import folders
         for folder in &account.folders {
@@ -683,8 +685,11 @@ impl ClientStorage {
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
 
-        let audit_event: AuditEvent = (self.address(), &account_event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         let event = Event::Folder(account_event, write_event);
         Ok((event, summary))
@@ -720,8 +725,11 @@ impl ClientStorage {
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
 
-        let audit_event: AuditEvent = (self.address(), &account_event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok((buf, key, summary, account_event))
     }
@@ -909,8 +917,11 @@ impl ClientStorage {
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
 
-        let audit_event: AuditEvent = (self.address(), &account_event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         events.insert(0, Event::Account(account_event));
 
@@ -943,9 +954,12 @@ impl ClientStorage {
 
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
-
-        let audit_event: AuditEvent = (self.address(), &account_event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent = (self.address(), &account_event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(Event::Account(account_event))
     }

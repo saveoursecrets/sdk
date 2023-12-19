@@ -9,7 +9,6 @@
 //! an audit trail of actions.
 
 mod account;
-mod audit;
 mod event;
 #[cfg(feature = "files")]
 mod file;
@@ -28,9 +27,6 @@ pub use self::log::{
 pub use self::log::FileEventLog;
 
 pub use account::AccountEvent;
-pub use audit::{
-    AuditData, AuditEvent, AuditLogFile, AuditProvider, AuditLogFlags,
-};
 pub use event::Event;
 #[cfg(feature = "files")]
 pub use file::FileEvent;
