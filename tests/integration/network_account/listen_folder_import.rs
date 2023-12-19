@@ -76,7 +76,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
 
     // Pause a while to allow the first owner to sync
     // with the new change
-    sync_pause(None).await;
+    sync_pause(Some(500)).await;
 
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
