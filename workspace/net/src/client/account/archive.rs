@@ -1,9 +1,8 @@
 //! Adds backup archive functions to network account.
-use super::network_account::LocalAccount;
 use crate::client::{NetworkAccount, Result};
 use secrecy::SecretString;
 use sos_sdk::{
-    account::archive::{Inventory, RestoreOptions},
+    account::{archive::{Inventory, RestoreOptions}, LocalAccount},
     identity::PublicIdentity,
 };
 use std::path::{Path, PathBuf};

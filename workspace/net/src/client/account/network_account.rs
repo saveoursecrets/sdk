@@ -2,7 +2,7 @@
 use mpc_protocol::generate_keypair;
 use secrecy::SecretString;
 use sos_sdk::{
-    account::{Account, AccountBuilder, AccountData, DetachedView},
+    account::{Account, AccountBuilder, AccountData, DetachedView, LocalAccount},
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     device::DeviceSigner,
@@ -36,9 +36,6 @@ use crate::client::{
     HostedOrigin, Origin, Remote, RemoteBridge, RemoteSync, Remotes, Result,
     SyncError,
 };
-
-/// Type of the inner local account.
-pub type LocalAccount = Account;
 
 /// Account with networking capability.
 pub struct NetworkAccount {
