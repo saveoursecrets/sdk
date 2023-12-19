@@ -130,6 +130,10 @@ pub enum Error {
     #[error("buffer passed for identity check is too short")]
     IdentityLength,
 
+    /// Error generated when vault identifiers must match.
+    #[error("identifier '{0}' does not match '{1}'")]
+    VaultIdentifierMismatch(VaultId, VaultId),
+
     /// Error generated when a vault cipher identifier byte is wrong.
     #[error("unknown cipher {0}")]
     UnknownCipher(u8),

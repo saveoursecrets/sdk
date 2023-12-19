@@ -12,7 +12,7 @@ use sos_net::{
         crypto::AccessKey,
         events::EventLogExt,
         passwd::diceware::generate_passphrase,
-        sync::Client,
+        sync::{Client, SyncStorage},
         vault::{Summary, VaultId},
         vfs,
     },
@@ -185,11 +185,13 @@ pub async fn simulate_device(
 /// Get the number of events in a log.
 pub async fn num_events(
     owner: &mut NetworkAccount,
-    folder: &VaultId,
+    folder_id: &VaultId,
 ) -> usize {
     let storage = owner.storage().await.unwrap();
     let reader = storage.read().await;
-    let events = reader.cache().get(folder).unwrap();
+    let folder = reader.cache().get(folder_id).unwrap();
+    let events = folder.event_log();
+    let events = events.read().await;
     events.tree().len()
 }
 
@@ -235,11 +237,7 @@ pub async fn assert_local_remote_events_eq(
     provider: &mut RemoteBridge,
 ) -> Result<()> {
     // Compare event log status (commit proofs)
-    let local_status = {
-        let storage = owner.storage().await?;
-        let reader = storage.read().await;
-        reader.sync_status().await?
-    };
+    let local_status = owner.sync_status().await?;
     let remote_status = provider.client().sync_status().await?.unwrap();
 
     //println!(" local {:#?}", local_status);

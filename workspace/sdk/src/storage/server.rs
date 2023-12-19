@@ -219,14 +219,22 @@ impl ServerStorage {
         let vault: Vault = decode(buffer.as_ref()).await?;
         let (vault, events) = EventReducer::split(vault).await?;
 
+        if id != vault.id() {
+            return Err(Error::VaultIdentifierMismatch(*id, *vault.id()));
+        }
+
         let vault_path = self.paths.vault_path(id);
         let buffer = encode(&vault).await?;
         vfs::write(vault_path, &buffer).await?;
 
-        let event_log_path = self.paths.event_log_path(id);
-        let mut event_log = FolderEventLog::new(&event_log_path).await?;
-        event_log.clear().await?;
-        event_log.apply(events.iter().collect()).await?;
+        self.create_cache_entry(id).await?;
+
+        {
+            let event_log = self.cache.get_mut(id).unwrap();
+            let mut event_log = event_log.write().await;
+            event_log.clear().await?;
+            event_log.apply(events.iter().collect()).await?;
+        }
 
         // If there is an existing folder
         // and we are overwriting then log the update

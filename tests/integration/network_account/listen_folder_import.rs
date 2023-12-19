@@ -42,7 +42,8 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
     let mut vault = {
         let storage = device1.owner.storage().await?;
         let reader = storage.read().await;
-        reader.current().unwrap().vault().clone()
+        let folder = reader.cache().get(new_folder.id()).unwrap();
+        folder.keeper().vault().clone()
     };
 
     // Need the vault passphrase to import a buffer

@@ -33,8 +33,6 @@ async fn integration_sync_listen_create_folder() -> Result<()> {
     assert_eq!(1, num_events(&mut device1.owner, &default_folder_id).await);
     assert_eq!(1, num_events(&mut device2.owner, &default_folder_id).await);
 
-    println!("CREATE FOLDER");
-
     let (new_folder, sync_error) = device1
         .owner
         .create_folder("sync_folder".to_string())
@@ -47,8 +45,6 @@ async fn integration_sync_listen_create_folder() -> Result<()> {
     // Pause a while to give the listener some time to process
     // the change notification
     sync_pause().await;
-
-    println!("PAUSE FINISHED");
 
     // The synced client should also have the same number of events
     assert_eq!(1, num_events(&mut device2.owner, new_folder.id()).await);

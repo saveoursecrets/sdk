@@ -451,8 +451,11 @@ impl NetworkAccount {
         name: String,
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
-        let mut account = self.account.lock().await;
-        let (summary, _, _) = account.create_folder(name).await?;
+        let summary = {
+            let mut account = self.account.lock().await;
+            let (summary, _, _) = account.create_folder(name).await?;
+            summary
+        };
         Ok((summary, self.sync().await))
     }
 
@@ -462,8 +465,10 @@ impl NetworkAccount {
         summary: &Summary,
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
-        let mut account = self.account.lock().await;
-        account.delete_folder(summary).await?;
+        {
+            let mut account = self.account.lock().await;
+            account.delete_folder(summary).await?;
+        }
         Ok(self.sync().await)
     }
 
@@ -474,8 +479,10 @@ impl NetworkAccount {
         name: String,
     ) -> Result<Option<SyncError>> {
         let _ = self.sync_lock.lock().await;
-        let mut account = self.account.lock().await;
-        account.rename_folder(summary, name).await?;
+        {
+            let mut account = self.account.lock().await;
+            account.rename_folder(summary, name).await?;
+        }
         Ok(self.sync().await)
     }
 
@@ -526,9 +533,12 @@ impl NetworkAccount {
     ) -> Result<(Summary, Option<SyncError>)> {
         let _ = self.sync_lock.lock().await;
 
-        let mut account = self.account.lock().await;
-        let (summary, _, _) =
-            account.import_folder_buffer(buffer, key, overwrite).await?;
+        let summary = {
+            let mut account = self.account.lock().await;
+            let (summary, _, _) =
+                account.import_folder_buffer(buffer, key, overwrite).await?;
+            summary
+        };
 
         Ok((summary, self.sync().await))
     }

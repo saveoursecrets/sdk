@@ -3,7 +3,13 @@ use crate::client::{
     NetworkAccount, RemoteSync, Remotes, SyncError, SyncOptions,
 };
 use async_trait::async_trait;
-use sos_sdk::account::AccountHandler;
+use sos_sdk::{
+    account::AccountHandler,
+    events::{AccountEventLog, FolderEventLog},
+    sync::{SyncStatus, SyncStorage},
+    vault::VaultId,
+    Result,
+};
 use std::{any::Any, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -190,5 +196,31 @@ impl RemoteSync for NetworkAccount {
 
     fn as_any_mut(&mut self) -> &mut (dyn Any + Send + Sync) {
         self
+    }
+}
+
+#[async_trait]
+impl SyncStorage for NetworkAccount {
+    async fn sync_status(&self) -> Result<SyncStatus> {
+        let account = self.account.lock().await;
+        account.sync_status().await
+    }
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let account = self.account.lock().await;
+        account.identity_log().await
+    }
+
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+        let account = self.account.lock().await;
+        account.account_log().await
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let account = self.account.lock().await;
+        account.folder_log(id).await
     }
 }
