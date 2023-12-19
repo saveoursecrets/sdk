@@ -8,6 +8,7 @@ use crate::{
     vault::VaultId,
     Error, Result,
 };
+use indexmap::IndexMap;
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
@@ -121,7 +122,7 @@ impl Account {
 
     async fn merge_folders(
         &mut self,
-        folders: &HashMap<VaultId, FolderDiff>,
+        folders: &IndexMap<VaultId, FolderDiff>,
     ) -> Result<usize> {
         let mut num_changes = 0;
 
@@ -182,7 +183,7 @@ impl SyncStorage for Account {
             reader.tree().commit_state()?
         };
 
-        let mut folders = HashMap::new();
+        let mut folders = IndexMap::new();
         for summary in &summaries {
             let folder = storage
                 .cache()

@@ -9,6 +9,7 @@ use crate::{
     vault::VaultId,
     Error, Result,
 };
+use indexmap::IndexMap;
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use serde::{Deserialize, Serialize};
@@ -82,8 +83,8 @@ pub struct SyncStatus {
     /// Account log commit state.
     pub account: CommitState,
     /// Commit proofs for the account folders.
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub folders: HashMap<VaultId, CommitState>,
+    #[serde(skip_serializing_if = "IndexMap::is_empty")]
+    pub folders: IndexMap<VaultId, CommitState>,
 }
 
 /// Diff between all events logs on local and remote.
@@ -94,7 +95,7 @@ pub struct SyncDiff {
     /// Diff of the account event log.
     pub account: Option<AccountDiff>,
     /// Diff for folders in the account.
-    pub folders: HashMap<VaultId, FolderDiff>,
+    pub folders: IndexMap<VaultId, FolderDiff>,
 }
 
 /// Comparison between local and remote status.
@@ -109,7 +110,7 @@ pub struct SyncComparison {
     /// Comparison of the account event log.
     pub account: Comparison,
     /// Comparison for each folder in the account.
-    pub folders: HashMap<VaultId, Comparison>,
+    pub folders: IndexMap<VaultId, Comparison>,
 }
 
 impl SyncComparison {
@@ -133,7 +134,7 @@ impl SyncComparison {
         };
 
         let folders = {
-            let mut folders = HashMap::new();
+            let mut folders = IndexMap::new();
             for (id, folder) in &remote_status.folders {
                 // Folder may exist on remote but not locally
                 // if we have just deleted a folder
@@ -332,20 +333,6 @@ pub trait SyncStorage {
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>>;
-
-    /*
-    /// Merge identity events.
-    async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize>;
-
-    /// Merge account events.
-    async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize>;
-
-    /// Merge folder events.
-    async fn merge_folders(
-        &mut self,
-        folders: &HashMap<VaultId, FolderDiff>,
-    );
-    */
 }
 
 /// Difference between a local sync status and a remote

@@ -14,6 +14,7 @@ use crate::{
     vault::VaultId,
     vfs, Error, Paths, Result,
 };
+use indexmap::IndexMap;
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
@@ -166,7 +167,7 @@ impl ServerStorage {
 
     async fn merge_folders(
         &mut self,
-        folders: &HashMap<VaultId, FolderDiff>,
+        folders: &IndexMap<VaultId, FolderDiff>,
     ) -> Result<usize> {
         let mut num_changes = 0;
         for (id, diff) in folders {
@@ -203,7 +204,7 @@ impl SyncStorage for ServerStorage {
             reader.tree().commit_state()?
         };
 
-        let mut folders = HashMap::new();
+        let mut folders = IndexMap::new();
         for (id, event_log) in &self.cache {
             let event_log = event_log.read().await;
             let commit_state = event_log.tree().commit_state()?;
