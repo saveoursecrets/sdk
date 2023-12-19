@@ -344,7 +344,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, signature, body).await?;
+        let response = self.send_request(url, body, signature, None).await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<Option<SyncStatus>>(
@@ -379,7 +379,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, signature, body).await?;
+        let response = self.send_request(url, body, signature, None).await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<SyncStatus>(
@@ -415,7 +415,7 @@ impl RpcClient {
             encode_signature(self.signer.sign(&body).await?).await?;
 
         let body = self.encrypt_request(&body).await?;
-        let response = self.send_request(url, signature, body).await?;
+        let response = self.send_request(url, body, signature, None).await?;
         let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<()>(
@@ -444,13 +444,23 @@ impl RpcClient {
     async fn send_request(
         &self,
         url: Url,
-        signature: String,
         body: Vec<u8>,
+        account_signature: String,
+        device_signature: Option<String>,
     ) -> Result<reqwest::Response> {
+        let auth = if let Some(device_signature) = &device_signature {
+            format!(
+                "{},{}",
+                bearer_prefix(&account_signature),
+                bearer_prefix(device_signature))
+        } else {
+            bearer_prefix(&account_signature)
+        };
+
         let response = self
             .client
             .post(url)
-            .header(AUTHORIZATION, bearer_prefix(&signature))
+            .header(AUTHORIZATION, auth)
             .body(body)
             .send()
             .await?;
