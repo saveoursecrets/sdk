@@ -38,7 +38,9 @@ impl ServiceHandler {
         body: Bytes,
     ) -> impl IntoResponse {
         let service = AccountService {};
-        match private_service(service, state, backend, bearer, body).await {
+        match private_service(service, state, backend, bearer, body, false)
+            .await
+        {
             Ok(result) => result.into_response(),
             Err(error) => error.into_response(),
         }
@@ -52,7 +54,9 @@ impl ServiceHandler {
         body: Bytes,
     ) -> impl IntoResponse {
         let service = DeviceService {};
-        match private_service(service, state, backend, bearer, body).await {
+        match private_service(service, state, backend, bearer, body, true)
+            .await
+        {
             Ok(result) => result.into_response(),
             Err(error) => error.into_response(),
         }
@@ -66,7 +70,9 @@ impl ServiceHandler {
         body: Bytes,
     ) -> impl IntoResponse {
         let service = SyncService {};
-        match private_service(service, state, backend, bearer, body).await {
+        match private_service(service, state, backend, bearer, body, true)
+            .await
+        {
             Ok(result) => result.into_response(),
             Err(error) => error.into_response(),
         }

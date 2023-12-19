@@ -157,10 +157,11 @@ pub(crate) async fn private_service(
     backend: ServerBackend,
     bearer: Authorization<Bearer>,
     body: Bytes,
+    restricted: bool,
 ) -> Result<(StatusCode, HeaderMap, Bytes)> {
     let mut headers = HeaderMap::new();
 
-    let (server_public_key, client_public_key, request, token) = {
+    let (server_public_key, client_public_key, request, token, message_body) = {
         let mut writer = state.write().await;
         let message: ServerEnvelope = decode(&body).await?;
 
@@ -194,15 +195,20 @@ pub(crate) async fn private_service(
         // Refresh the transport on activity
         transport.refresh();
 
-        (server_public_key, client_public_key, request, token)
+        (server_public_key, client_public_key, request, token, body)
     };
+
+    // Restricted services require a device signature
+    if restricted && token.device_signature.is_none() {
+        return Err(Error::Forbidden);
+    }
 
     // Call the target service for a reply
     let owner = Caller {
         token,
         public_key: client_public_key.clone(),
     };
-    
+
     // Deny unauthorized account addresses
     {
         let reader = state.read().await;
