@@ -40,17 +40,15 @@ impl NetworkAccount {
 
     /// Restore from an archive file.
     pub async fn restore_backup_archive<P: AsRef<Path>>(
+        &mut self,
         path: P,
-        owner: &mut NetworkAccount,
         password: SecretString,
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
-        let mut account = owner.account.lock().await;
-
-        Ok(LocalAccount::restore_backup_archive(
+        let mut account = self.account.lock().await;
+        Ok(account.restore_backup_archive(
             path,
-            &mut *account,
             password,
             options,
             data_dir,

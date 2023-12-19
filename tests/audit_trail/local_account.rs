@@ -193,9 +193,8 @@ async fn simulate_session(
         files_dir: None,
     };
 
-    LocalAccount::restore_backup_archive(
+    account.restore_backup_archive(
         archive,
-        account,
         passphrase.clone(),
         restore_options,
         Some(data_dir.clone()),

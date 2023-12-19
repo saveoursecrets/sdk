@@ -106,24 +106,24 @@ impl Account {
 
     /// Restore from a backup archive file.
     pub async fn restore_backup_archive<P: AsRef<Path>>(
+        &mut self,
         path: P,
-        owner: &mut Account,
         password: SecretString,
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
         let file = File::open(path).await?;
         let account = Self::restore_backup_reader(
-            file, owner, password, options, data_dir,
+            file, self, password, options, data_dir,
         )
         .await?;
 
         let audit_event = AuditEvent::new(
             EventKind::ImportBackupArchive,
-            owner.address().clone(),
+            self.address().clone(),
             None,
         );
-        owner.paths.append_audit_events(vec![audit_event]).await?;
+        self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(account)
     }

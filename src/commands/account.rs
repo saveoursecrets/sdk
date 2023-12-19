@@ -2,14 +2,17 @@ use clap::Subcommand;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
-use sos_net::sdk::{
-    account::archive::{
-        AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
+use sos_net::{
+    client::NetworkAccount,
+    sdk::{
+        account::archive::{
+            AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
+        },
+        identity::{AccountRef, PublicIdentity},
+        migrate::import::{ImportFormat, ImportTarget},
+        storage::ClientStorage,
+        vfs, Paths,
     },
-    identity::{AccountRef, PublicIdentity},
-    migrate::import::{ImportFormat, ImportTarget},
-    storage::ClientStorage,
-    vfs, Paths,
 };
 
 use crate::{
@@ -399,7 +402,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
     let account_ref = AccountRef::Address(inventory.manifest.address);
     let account = find_account(&account_ref).await?;
 
-    let provider: Option<Arc<RwLock<ClientStorage>>> =
+    let mut owner =
         if let Some(account) = account {
             let confirmed = read_flag(Some(
                 "Overwrite all account data from backup? (y/n) ",
@@ -409,26 +412,32 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
             }
 
             let account = AccountRef::Name(account.label().to_owned());
-            let (owner, _) = sign_in(&account).await?;
-            Some(owner.storage().await?)
+            let (owner, password) = sign_in(&account).await?;
+            Some((owner, password))
         } else {
             None
         };
 
-    let address = inventory.manifest.address.to_string();
-    let paths = Paths::new(Paths::data_dir()?, &address);
-    let files_dir = paths.files_dir();
-    let options = RestoreOptions {
-        selected: inventory.vaults,
-        files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
-    };
-    let (targets, account) =
-        AccountBackup::import_archive_file(&input, options, None).await?;
+    let account = if let Some((mut owner, password)) = owner.take() {
+        let files_dir = owner.paths().files_dir();
+        let options = RestoreOptions {
+            selected: inventory.vaults,
+            files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
+        };
 
-    if let Some(provider) = provider {
-        let mut writer = provider.write().await;
-        writer.restore_archive(&targets).await?;
-    }
+        owner.restore_backup_archive(
+            &input, password, options, None).await?
+    } else {
+        let address = inventory.manifest.address.to_string();
+        let paths = Paths::new(Paths::data_dir()?, &address);
+        let files_dir = paths.files_dir();
+        let options = RestoreOptions {
+            selected: inventory.vaults,
+            files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
+        };
+
+        NetworkAccount::import_backup_archive(&input, options, None).await?
+    };
 
     Ok(Some(account))
 }

@@ -73,9 +73,8 @@ async fn export_restore() -> Result<()> {
         selected: folders.clone(),
         ..Default::default()
     };
-    LocalAccount::restore_backup_archive(
+    account.restore_backup_archive(
         &archive,
-        &mut account,
         password.clone(),
         options,
         Some(data_dir.clone()),
