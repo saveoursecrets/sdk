@@ -24,7 +24,9 @@ use super::send_notification;
 
 /// Sync service.
 ///
-/// * `Sync.status`: Status overview of an account.
+/// This service is restricted; it requires account
+/// and device signatures.
+///
 /// * `Sync.resolve`: Apply a diff from a client and reply with a diff.
 ///
 pub struct SyncService;
@@ -41,26 +43,6 @@ impl Service for SyncService {
         let (caller, (state, backend)) = state;
 
         match request.method() {
-            SYNC_STATUS => {
-                let account_exists = {
-                    let reader = backend.read().await;
-                    reader.handler().account_exists(caller.address()).await?
-                };
-
-                let result = if account_exists {
-                    let reader = backend.read().await;
-                    let accounts = reader.accounts();
-                    let reader = accounts.read().await;
-                    let account = reader.get(caller.address()).unwrap();
-                    let account = account.read().await;
-                    Some(account.storage.sync_status().await?)
-                } else {
-                    None
-                };
-                let reply: ResponseMessage<'_> =
-                    (request.id(), result).try_into()?;
-                Ok(reply)
-            }
             SYNC_RESOLVE => {
                 let account = {
                     let reader = backend.read().await;

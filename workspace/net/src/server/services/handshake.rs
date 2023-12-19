@@ -12,6 +12,8 @@ use std::borrow::Cow;
 
 /// Handshake service.
 ///
+/// This service is public, no signatures required.
+///
 /// * `Handshake.initiate`: Client handshake initiation.
 ///
 pub struct HandshakeService;

@@ -386,7 +386,7 @@ impl RpcClient {
     async fn try_sync_status(
         &self,
     ) -> Result<MaybeRetry<Option<SyncStatus>>> {
-        let url = self.origin.url.join("api/sync")?;
+        let url = self.origin.url.join("api/account")?;
 
         let id = self.next_id().await;
         let request = RequestMessage::new_call(Some(id), SYNC_STATUS, ())?;

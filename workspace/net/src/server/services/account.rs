@@ -1,8 +1,10 @@
 use axum::http::StatusCode;
 
 use sos_sdk::{
-    constants::ACCOUNT_CREATE, decode, device::DevicePublicKey,
-    sync::ChangeSet,
+    constants::{ACCOUNT_CREATE, DEVICE_TRUST, SYNC_STATUS},
+    decode,
+    device::DevicePublicKey,
+    sync::{ChangeSet, SyncStorage},
 };
 
 use async_trait::async_trait;
@@ -15,7 +17,12 @@ use crate::{
 
 /// Account management service.
 ///
+/// This service requires an account signature but **does not**
+/// require a device signature.
+///
 /// * `Account.create`: Create a new account.
+/// * `Device.trust`: Trust the public key of a device.
+/// * `Sync.status`: Account sync status.
 ///
 pub struct AccountService;
 
@@ -63,6 +70,38 @@ impl Service for AccountService {
                 let reply: ResponseMessage<'_> =
                     (request.id(), ()).try_into()?;
 
+                Ok(reply)
+            }
+            DEVICE_TRUST => {
+                let device_public_key =
+                    request.parameters::<DevicePublicKey>()?;
+                let mut writer = backend.write().await;
+                let result = writer
+                    .handler_mut()
+                    .trust_device(caller.address(), device_public_key)
+                    .await?;
+                let reply: ResponseMessage<'_> =
+                    (request.id(), result).try_into()?;
+                Ok(reply)
+            }
+            SYNC_STATUS => {
+                let account_exists = {
+                    let reader = backend.read().await;
+                    reader.handler().account_exists(caller.address()).await?
+                };
+
+                let result = if account_exists {
+                    let reader = backend.read().await;
+                    let accounts = reader.accounts();
+                    let reader = accounts.read().await;
+                    let account = reader.get(caller.address()).unwrap();
+                    let account = account.read().await;
+                    Some(account.storage.sync_status().await?)
+                } else {
+                    None
+                };
+                let reply: ResponseMessage<'_> =
+                    (request.id(), result).try_into()?;
                 Ok(reply)
             }
             _ => Err(Error::RpcUnknownMethod(request.method().to_owned())),

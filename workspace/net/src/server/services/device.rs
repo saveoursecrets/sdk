@@ -13,7 +13,9 @@ use crate::{
 
 /// Device management service for an account.
 ///
-/// * `Device.trust`: Trust the public key of a device.
+/// This service is restricted; it requires account
+/// and device signatures.
+///
 /// * `Device.revoke`: Revoke trust in a device public key.
 pub struct DeviceService;
 
@@ -29,18 +31,6 @@ impl Service for DeviceService {
         let (caller, (_state, backend)) = state;
 
         match request.method() {
-            DEVICE_TRUST => {
-                let device_public_key =
-                    request.parameters::<DevicePublicKey>()?;
-                let mut writer = backend.write().await;
-                let result = writer
-                    .handler_mut()
-                    .trust_device(caller.address(), device_public_key)
-                    .await?;
-                let reply: ResponseMessage<'_> =
-                    (request.id(), result).try_into()?;
-                Ok(reply)
-            }
             DEVICE_REVOKE => {
                 let device_public_key =
                     request.parameters::<DevicePublicKey>()?;
