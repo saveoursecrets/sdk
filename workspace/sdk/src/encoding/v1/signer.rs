@@ -1,4 +1,4 @@
-use crate::{encoding::encoding_error, signer::ecdsa::BinarySignature};
+use crate::{encoding::encoding_error, signer::ecdsa::BinaryEcdsaSignature};
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
@@ -7,7 +7,7 @@ use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 
 #[async_trait]
-impl Encodable for BinarySignature {
+impl Encodable for BinaryEcdsaSignature {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -20,7 +20,7 @@ impl Encodable for BinarySignature {
 }
 
 #[async_trait]
-impl Decodable for BinarySignature {
+impl Decodable for BinaryEcdsaSignature {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,

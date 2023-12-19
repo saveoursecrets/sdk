@@ -72,7 +72,7 @@ pub mod ecdsa {
 
     /// Signature that can be encoded and decoded to binary.
     #[derive(Default)]
-    pub struct BinarySignature(pub(crate) Signature);
+    pub struct BinaryEcdsaSignature(pub(crate) Signature);
 
     /// Recover the address from a signature.
     pub fn recover_address(
@@ -105,14 +105,14 @@ pub mod ecdsa {
         Ok((address == &signed_address, recovered_key))
     }
 
-    impl From<Signature> for BinarySignature {
+    impl From<Signature> for BinaryEcdsaSignature {
         fn from(value: Signature) -> Self {
-            BinarySignature(value)
+            BinaryEcdsaSignature(value)
         }
     }
 
-    impl From<BinarySignature> for Signature {
-        fn from(value: BinarySignature) -> Self {
+    impl From<BinaryEcdsaSignature> for Signature {
+        fn from(value: BinaryEcdsaSignature) -> Self {
             value.0
         }
     }

@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use sos_sdk::{
     decode,
-    signer::ecdsa::{recover_address, BinarySignature},
+    signer::ecdsa::{recover_address, BinaryEcdsaSignature},
 };
 use web3_address::ethereum::Address;
 use web3_signature::Signature;
@@ -30,7 +30,7 @@ impl BearerToken {
     /// Create a new bearer token.
     pub async fn new(token: &str, message: &[u8]) -> Result<Self> {
         let value = bs58::decode(token).into_vec()?;
-        let binary_sig: BinarySignature = decode(&value).await?;
+        let binary_sig: BinaryEcdsaSignature = decode(&value).await?;
         let signature: Signature = binary_sig.into();
         let address = recover_address(signature, message)?;
         Ok(Self {
