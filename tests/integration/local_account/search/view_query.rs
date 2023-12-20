@@ -5,7 +5,7 @@ use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "search_view_query";
 
-/// Tests querying the search index.
+/// Tests querying the search index using views and search queries.
 #[tokio::test]
 async fn integration_search_view_query() -> Result<()> {
     //crate::test_utils::init_tracing();

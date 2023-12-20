@@ -583,6 +583,15 @@ impl SearchIndex {
         Ok(())
     }
 
+    /// Remove the meta data from the entries in a folder.
+    pub async fn remove_folder(&mut self, folder: &Gatekeeper) -> Result<()> {
+        let vault = folder.vault();
+        for id in vault.keys() {
+            self.remove(folder.id(), id);
+        }
+        Ok(())
+    }
+
     /// Remove and vacuum a document from the index.
     pub fn remove(&mut self, vault_id: &VaultId, id: &SecretId) {
         let key = self

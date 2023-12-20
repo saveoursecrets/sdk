@@ -416,85 +416,40 @@ impl ClientStorage {
         let buffer = encode(&vault).await?;
         self.write_vault_file(summary.id(), &buffer).await?;
 
-        #[cfg(feature = "search")]
-        if let Some(index) = &self.index {
-            let index = index.search();
-            if let Some(current) = self.current_folder() {
-                if let Some(folder) = self.cache.get_mut(current.id()) {
-                    let keeper = folder.keeper_mut();
-                    if keeper.id() == summary.id() {
-                        Self::replace_vault(index, keeper, vault, new_key)
-                            .await?;
-                    }
+        if let Some(current) = self.current_folder() {
+            if let Some(folder) = self.cache.get_mut(current.id()) {
+                let keeper = folder.keeper_mut();
+
+                keeper.lock();
+                keeper.replace_vault(vault.clone()).await?;
+
+                if let Some(key) = new_key {
+                    keeper.unlock(key).await?;
                 }
             }
         }
+
         Ok(buffer)
     }
-
-    /// Replace a vault in a gatekeeper and update the
-    /// search index if the access key for the vault is
-    /// available.
+    
+    /*
     #[cfg(feature = "search")]
-    async fn replace_vault(
-        index: Arc<RwLock<SearchIndex>>,
-        keeper: &mut Gatekeeper,
-        vault: Vault,
-        new_key: Option<&AccessKey>,
+    pub(crate) async fn refresh_folder_search_index(
+        &mut self,
+        summary: &Summary,
     ) -> Result<()> {
-        let existing_keys = vault.keys().collect::<HashSet<_>>();
-
-        keeper.lock();
-        keeper.replace_vault(vault.clone()).await?;
-
-        if let Some(key) = new_key {
-            keeper.unlock(key).await?;
-
-            let updated_keys = keeper.vault().keys().collect::<HashSet<_>>();
+        if let (Some(index), Some(folder)) =
+            (&self.index, self.cache.get_mut(summary.id()))
+        {
+            let keeper = folder.keeper();
+            let index = index.search();
             let mut writer = index.write().await;
-
-            for added_key in updated_keys.difference(&existing_keys) {
-                if let Some((meta, secret, _)) =
-                    keeper.read_secret(added_key).await?
-                {
-                    writer.add(keeper.id(), added_key, &meta, &secret);
-                }
-            }
-
-            for deleted_key in existing_keys.difference(&updated_keys) {
-                writer.remove(keeper.id(), deleted_key);
-            }
-
-            for maybe_updated in updated_keys.union(&existing_keys) {
-                if let (
-                    Some(VaultCommit(existing_hash, _)),
-                    Some(VaultCommit(updated_hash, _)),
-                ) = (
-                    keeper.vault().get(maybe_updated),
-                    vault.get(maybe_updated),
-                ) {
-                    if existing_hash != updated_hash {
-                        if let Some((meta, secret, _)) = keeper
-                            .read_secret(
-                                maybe_updated,
-                                //Some(&vault),
-                                //derived_key,
-                            )
-                            .await?
-                        {
-                            writer.update(
-                                keeper.id(),
-                                maybe_updated,
-                                &meta,
-                                &secret,
-                            );
-                        }
-                    }
-                }
-            }
+            writer.remove_folder(&keeper);
+            writer.add_folder(&keeper);
         }
         Ok(())
     }
+    */
 
     /// Read a vault from the file on disc.
     pub(crate) async fn read_vault(&self, id: &VaultId) -> Result<Vault> {

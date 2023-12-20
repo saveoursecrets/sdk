@@ -2,11 +2,11 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "search_restore_archive";
+const TEST_ID: &str = "search_folder_import";
 
-/// Tests querying the index after restoring from a backup archive.
+/// Tests querying the search index after importing a folder.
 #[tokio::test]
-async fn integration_search_restore_archive() -> Result<()> {
+async fn integration_search_folder_import() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -22,8 +22,9 @@ async fn integration_search_restore_archive() -> Result<()> {
     )
     .await?;
 
-    let key: AccessKey = password.clone().into();
-    let folders = account.sign_in(&key).await?;
+    let key: AccessKey = password.into();
+    account.sign_in(&key).await?;
+    let folder = account.default_folder().await.unwrap();
 
     // Create a secret
     let (meta, secret) = mock::note("note", TEST_ID);
@@ -31,29 +32,28 @@ async fn integration_search_restore_archive() -> Result<()> {
         .create_secret(meta, secret, Default::default())
         .await?;
 
-    // Export a backup archive
-    let archive = data_dir.join("backup.zip");
-    account.export_backup_archive(&archive).await?;
-    assert!(vfs::try_exists(&archive).await?);
+    // Export a folder
+    let (folder_password, _) = generate_passphrase()?;
+    let exported = data_dir.join("exported.vault");
+    account
+        .export_folder(
+            &exported,
+            &folder,
+            folder_password.clone().into(),
+            true,
+        )
+        .await?;
+    assert!(vfs::try_exists(&exported).await?);
 
     // Delete the secret
     account.delete_secret(&id, Default::default()).await?;
 
-    // Restore from the backup archive
-    let options = RestoreOptions {
-        selected: folders.clone(),
-        ..Default::default()
-    };
+    // Import the folder we exported
     account
-        .restore_backup_archive(
-            &archive,
-            password.clone(),
-            options,
-            Some(data_dir.clone()),
-        )
+        .import_folder(&exported, folder_password.into(), false)
         .await?;
 
-    // Check we can find the restored secret
+    // Check we can find the secret
     let documents = account.query_map("note", Default::default()).await?;
     assert_eq!(1, documents.len());
 
