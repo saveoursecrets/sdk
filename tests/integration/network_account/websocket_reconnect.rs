@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use std::time::Duration;
 
-use sos_net::client::{ListenOptions, RpcClient};
+use sos_net::client::{ListenOptions, RpcClient, Origin};
 
 use crate::test_utils::{spawn, teardown};
 
@@ -29,7 +29,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
         // 1000ms, 2000ms, 4000ms and 8000ms before giving up.
         owner
             .listen(
-                &origin,
+                &Origin::Hosted(origin.clone()),
                 ListenOptions::new_config("device_1".to_string(), 500, 4)
                     .unwrap(),
             )
