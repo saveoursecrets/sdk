@@ -6,7 +6,7 @@ use std::{
 };
 use url::{Host, Url};
 
-use super::backend::{Backend, FileSystemBackend};
+use super::backend::Backend;
 use super::{Error, Result};
 
 use mpc_protocol::{decode_keypair, Keypair};
@@ -265,9 +265,9 @@ impl ServerConfig {
                     Error::UrlFilePath(self.storage.url.clone())
                 })?;
 
-                let mut backend = FileSystemBackend::new(path);
+                let mut backend = Backend::new(path);
                 backend.read_dir().await?;
-                Ok(Backend::FileSystem(backend))
+                Ok(backend)
             }
             _ => Err(Error::InvalidUrlScheme(
                 self.storage.url.scheme().to_string(),

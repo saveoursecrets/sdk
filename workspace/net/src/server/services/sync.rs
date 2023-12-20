@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use super::{PrivateState, Service};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
-    server::{backend::BackendHandler, Error, Result},
+    server::{Error, Result},
 };
 use std::sync::Arc;
 

@@ -12,7 +12,7 @@ pub use error::Error;
 /// Result type for the server module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 
-pub use backend::{Backend, BackendHandler, FileSystemBackend};
+pub use backend::Backend;
 pub use config::*;
 pub use server::{Server, ServerBackend, ServerInfo, ServerState, State};
 pub use transports::{TransportChannel, TransportManager};

@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use super::{PrivateState, Service};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
-    server::{BackendHandler, Error, Result},
+    server::{Error, Result},
 };
 
 /// Device management service for an account.
@@ -36,7 +36,6 @@ impl Service for DeviceService {
                     request.parameters::<DevicePublicKey>()?;
                 let mut writer = backend.write().await;
                 let result = writer
-                    .handler_mut()
                     .revoke_device(caller.address(), device_public_key)
                     .await?;
                 let reply: ResponseMessage<'_> =

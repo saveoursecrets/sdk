@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use super::{PrivateState, Service};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
-    server::{BackendHandler, Error, Result},
+    server::{Error, Result},
 };
 
 /// Account management service.
@@ -42,7 +42,6 @@ impl Service for AccountService {
                 {
                     let reader = backend.read().await;
                     if reader
-                        .handler()
                         .account_exists(caller.address())
                         .await?
                     {
@@ -59,7 +58,6 @@ impl Service for AccountService {
 
                 let mut writer = backend.write().await;
                 writer
-                    .handler_mut()
                     .create_account(
                         caller.address(),
                         account,
@@ -77,7 +75,6 @@ impl Service for AccountService {
                     request.parameters::<DevicePublicKey>()?;
                 let mut writer = backend.write().await;
                 let result = writer
-                    .handler_mut()
                     .trust_device(caller.address(), device_public_key)
                     .await?;
                 let reply: ResponseMessage<'_> =
@@ -87,7 +84,7 @@ impl Service for AccountService {
             SYNC_STATUS => {
                 let account_exists = {
                     let reader = backend.read().await;
-                    reader.handler().account_exists(caller.address()).await?
+                    reader.account_exists(caller.address()).await?
                 };
 
                 let result = if account_exists {

@@ -87,82 +87,12 @@ pub type ServerAccount = Arc<RwLock<AccountStorage>>;
 pub type Accounts = Arc<RwLock<HashMap<Address, ServerAccount>>>;
 
 /// Backend for a server.
-pub enum Backend {
-    /// File storage backend.
-    FileSystem(FileSystemBackend),
-}
-
-impl Backend {
-    /// Get a reference to the backend handler.
-    pub fn handler(&self) -> &(impl BackendHandler + Send + Sync) {
-        match self {
-            Self::FileSystem(handler) => handler,
-        }
-    }
-
-    /// Get a mutable reference to the backend handler.
-    pub fn handler_mut(
-        &mut self,
-    ) -> &mut (impl BackendHandler + Send + Sync) {
-        match self {
-            Self::FileSystem(handler) => handler,
-        }
-    }
-
-    /// Get the accounts map.
-    pub fn accounts(&self) -> Accounts {
-        match self {
-            Self::FileSystem(handler) => handler.accounts(),
-        }
-    }
-}
-
-/// Trait for types that provide an interface to vault storage.
-#[async_trait]
-pub trait BackendHandler {
-    /// Create a new account.
-    async fn create_account(
-        &mut self,
-        owner: &Address,
-        account_data: ChangeSet,
-        device_public_key: DevicePublicKey,
-    ) -> Result<()>;
-
-    // TODO: support account deletion
-
-    /// Determine if an account exists.
-    async fn account_exists(&self, owner: &Address) -> Result<bool>;
-
-    /// Trust a device.
-    async fn trust_device(
-        &mut self,
-        owner: &Address,
-        device_public_key: DevicePublicKey,
-    ) -> Result<()>;
-
-    /// Revoke trust in a device.
-    async fn revoke_device(
-        &mut self,
-        owner: &Address,
-        device_public_key: DevicePublicKey,
-    ) -> Result<()>;
-
-    /// Verify a device is allowed to access an account.
-    async fn verify_device(
-        &self,
-        owner: &Address,
-        device_signature: &ed25519::Signature,
-        message_body: &[u8],
-    ) -> Result<()>;
-}
-
-/// Backend storage for accounts on the file system.
-pub struct FileSystemBackend {
+pub struct Backend {
     directory: PathBuf,
     accounts: Accounts,
 }
 
-impl FileSystemBackend {
+impl Backend {
     /// Create a new file system backend.
     pub fn new<P: AsRef<Path>>(directory: P) -> Self {
         let directory = directory.as_ref().to_path_buf();
@@ -178,7 +108,7 @@ impl FileSystemBackend {
     }
 
     /// Read accounts and event logs into memory.
-    pub async fn read_dir(&mut self) -> Result<()> {
+    pub(crate) async fn read_dir(&mut self) -> Result<()> {
         if !vfs::metadata(&self.directory).await?.is_dir() {
             return Err(Error::NotDirectory(self.directory.clone()));
         }
@@ -234,11 +164,9 @@ impl FileSystemBackend {
         }
         Ok(())
     }
-}
-
-#[async_trait]
-impl BackendHandler for FileSystemBackend {
-    async fn create_account(
+    
+    /// Create an account.
+    pub async fn create_account(
         &mut self,
         owner: &Address,
         account_data: ChangeSet,
@@ -287,8 +215,9 @@ impl BackendHandler for FileSystemBackend {
 
         Ok(())
     }
-
-    async fn trust_device(
+    
+    /// Trust a device.
+    pub async fn trust_device(
         &mut self,
         owner: &Address,
         device_public_key: DevicePublicKey,
@@ -302,8 +231,9 @@ impl BackendHandler for FileSystemBackend {
         writer.trust_device(device_public_key).await?;
         Ok(())
     }
-
-    async fn revoke_device(
+    
+    /// Revoke a device.
+    pub async fn revoke_device(
         &mut self,
         owner: &Address,
         device_public_key: DevicePublicKey,
@@ -319,7 +249,7 @@ impl BackendHandler for FileSystemBackend {
     }
 
     /// Verify a device is allowed to access an account.
-    async fn verify_device(
+    pub(crate) async fn verify_device(
         &self,
         owner: &Address,
         device_signature: &ed25519::Signature,
@@ -343,8 +273,9 @@ impl BackendHandler for FileSystemBackend {
             Ok(())
         }
     }
-
-    async fn account_exists(&self, owner: &Address) -> Result<bool> {
+    
+    /// Determine if an account exists.
+    pub async fn account_exists(&self, owner: &Address) -> Result<bool> {
         let accounts = self.accounts.read().await;
         Ok(accounts.get(owner).is_some())
     }

@@ -19,7 +19,6 @@ use crate::{
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},
     server::{
         authenticate::{self, BearerToken},
-        backend::BackendHandler,
         handlers::{service::ServiceQuery, websocket::BroadcastMessage},
         Error, Result, ServerBackend, ServerState, State,
     },
@@ -219,7 +218,6 @@ pub(crate) async fn private_service(
         (true, Some(device_signature)) => {
             let reader = backend.read().await;
             reader
-                .handler()
                 .verify_device(
                     &token.address,
                     device_signature,
