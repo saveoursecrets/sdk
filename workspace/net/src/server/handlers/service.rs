@@ -1,13 +1,12 @@
 use axum::{
     body::Bytes,
-    extract::{Extension, TypedHeader, Query},
+    extract::{Extension, Query, TypedHeader},
     headers::{authorization::Bearer, Authorization},
     response::IntoResponse,
 };
 
 //use axum_macros::debug_handler;
 
-use serde::Deserialize;
 use crate::server::{
     services::{
         private_service, public_service, AccountService, DeviceService,
@@ -15,15 +14,13 @@ use crate::server::{
     },
     ServerBackend, ServerState,
 };
+use serde::Deserialize;
 
 /// Query string for service connections.
 #[derive(Debug, Deserialize)]
 pub struct ServiceQuery {
     pub connection_id: String,
 }
-
-
-    //Query(query): Query<ServiceQuery>,
 
 // Handlers for account events.
 pub(crate) struct ServiceHandler;
@@ -45,11 +42,14 @@ impl ServiceHandler {
         Extension(state): Extension<ServerState>,
         Extension(backend): Extension<ServerBackend>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+        Query(query): Query<ServiceQuery>,
         body: Bytes,
     ) -> impl IntoResponse {
         let service = AccountService {};
-        match private_service(service, state, backend, bearer, body, false)
-            .await
+        match private_service(
+            service, state, backend, bearer, query, body, false,
+        )
+        .await
         {
             Ok(result) => result.into_response(),
             Err(error) => error.into_response(),
@@ -61,11 +61,14 @@ impl ServiceHandler {
         Extension(state): Extension<ServerState>,
         Extension(backend): Extension<ServerBackend>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+        Query(query): Query<ServiceQuery>,
         body: Bytes,
     ) -> impl IntoResponse {
         let service = DeviceService {};
-        match private_service(service, state, backend, bearer, body, true)
-            .await
+        match private_service(
+            service, state, backend, bearer, query, body, true,
+        )
+        .await
         {
             Ok(result) => result.into_response(),
             Err(error) => error.into_response(),
@@ -77,11 +80,14 @@ impl ServiceHandler {
         Extension(state): Extension<ServerState>,
         Extension(backend): Extension<ServerBackend>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+        Query(query): Query<ServiceQuery>,
         body: Bytes,
     ) -> impl IntoResponse {
         let service = SyncService {};
-        match private_service(service, state, backend, bearer, body, true)
-            .await
+        match private_service(
+            service, state, backend, bearer, query, body, true,
+        )
+        .await
         {
             Ok(result) => result.into_response(),
             Err(error) => error.into_response(),

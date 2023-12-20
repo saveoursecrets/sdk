@@ -143,6 +143,9 @@ pub async fn simulate_device(
     )
     .await?;
 
+    let connection_id = "device_1".to_string();
+    owner.set_connection_id(connection_id.clone());
+
     let key: AccessKey = password.clone().into();
     let folders = owner.sign_in(&key).await?;
     let default_folder = owner.default_folder().await.unwrap();
@@ -173,7 +176,7 @@ pub async fn simulate_device(
     let default_folder_id = *default_folder.id();
 
     Ok(SimulatedDevice {
-        id: "device_1".to_string(),
+        id: connection_id,
         owner,
         default_folder,
         folders,

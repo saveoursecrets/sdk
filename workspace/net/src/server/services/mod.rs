@@ -20,7 +20,7 @@ use crate::{
     server::{
         authenticate::{self, BearerToken},
         backend::BackendHandler,
-        handlers::websocket::BroadcastMessage,
+        handlers::{service::ServiceQuery, websocket::BroadcastMessage},
         Error, Result, ServerBackend, ServerState, State,
     },
 };
@@ -77,17 +77,23 @@ pub trait Service {
 pub struct Caller {
     token: BearerToken,
     public_key: Vec<u8>,
+    connection_id: String,
 }
 
 impl Caller {
-    /// Get the address of the caller.
+    /// Account address of the caller.
     pub fn address(&self) -> &Address {
         &self.token.address
     }
 
-    /// Get the public key of the caller.
+    /// Noise protocol ublic key of the caller.
     pub fn public_key(&self) -> &[u8] {
         &self.public_key
+    }
+
+    /// Connection identifier.
+    pub fn connection_id(&self) -> &str {
+        &self.connection_id
     }
 }
 
@@ -107,7 +113,7 @@ fn send_notification(
             if let Some(conn) = writer.sockets.get(caller.address()) {
                 let message = BroadcastMessage {
                     buffer,
-                    public_key: caller.public_key.clone(),
+                    connection_id: caller.connection_id().to_owned(),
                 };
                 if conn.tx.send(message).is_err() {
                     tracing::debug!("websocket events channel dropped");
@@ -162,6 +168,7 @@ pub(crate) async fn private_service(
     state: ServerState,
     backend: ServerBackend,
     bearer: Authorization<Bearer>,
+    query: ServiceQuery,
     body: Bytes,
     restricted: bool,
 ) -> Result<(StatusCode, HeaderMap, Bytes)> {
@@ -227,6 +234,7 @@ pub(crate) async fn private_service(
     let owner = Caller {
         token,
         public_key: client_public_key.clone(),
+        connection_id: query.connection_id,
     };
 
     // Deny unauthorized account addresses

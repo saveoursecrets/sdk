@@ -242,6 +242,15 @@ impl RpcClient {
         id.fetch_add(1, Ordering::SeqCst)
     }
 
+    /// Build a URL including the connection identifier
+    /// in the query string.
+    fn build_url(&self, route: &str) -> Result<Url> {
+        let mut url = self.origin.url.join(route)?;
+        url.query_pairs_mut()
+            .append_pair("connection_id", &self.connection_id);
+        Ok(url)
+    }
+
     /// Perform the handshake for the noise protocol.
     pub async fn handshake(&self) -> Result<()> {
         // If we are already in a transport state, discard
@@ -351,7 +360,7 @@ impl RpcClient {
         &self,
         account: &ChangeSet,
     ) -> Result<MaybeRetry<Option<()>>> {
-        let url = self.origin.url.join("api/account")?;
+        let url = self.build_url("api/account")?;
 
         let device_public_key: DevicePublicKey =
             self.device_signer.verifying_key().to_bytes().into();
@@ -389,7 +398,7 @@ impl RpcClient {
     async fn try_sync_status(
         &self,
     ) -> Result<MaybeRetry<Option<SyncStatus>>> {
-        let url = self.origin.url.join("api/account")?;
+        let url = self.build_url("api/account")?;
 
         let id = self.next_id().await;
         let request = RequestMessage::new_call(Some(id), SYNC_STATUS, ())?;
@@ -428,7 +437,7 @@ impl RpcClient {
         local_status: &SyncStatus,
         diff: &SyncDiff,
     ) -> Result<MaybeRetry<Vec<u8>>> {
-        let url = self.origin.url.join("api/sync")?;
+        let url = self.build_url("api/sync")?;
 
         let id = self.next_id().await;
         let body = encode(diff).await?;

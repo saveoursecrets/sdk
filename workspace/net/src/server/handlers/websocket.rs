@@ -18,18 +18,15 @@ use tokio::sync::{
     mpsc,
 };
 
-use serde::Deserialize;
 use mpc_protocol::channel::encrypt_server_channel;
+use serde::Deserialize;
 use sos_sdk::encode;
 use tracing::{span, Level};
 use web3_address::ethereum::Address;
 
 use crate::{
     rpc::ServerEnvelope,
-    server::{
-        authenticate,
-        Result, ServerState,
-    },
+    server::{authenticate, Result, ServerState},
 };
 
 const MAX_SOCKET_CONNECTIONS_PER_CLIENT: u8 = 6;
@@ -47,8 +44,8 @@ pub struct WebsocketQuery {
 pub struct BroadcastMessage {
     /// Buffer of the message to broadcast.
     pub buffer: Vec<u8>,
-    /// Public key of the noise protocol channel.
-    pub public_key: Vec<u8>,
+    /// Connection identifier of the caller.
+    pub connection_id: String,
 }
 
 /// State for the websocket  connection for a single
@@ -97,6 +94,7 @@ pub async fn upgrade(
             .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let address = token.address;
+    let connection_id = query.connection_id;
 
     // Prevent this session from expiring because
     // we need it to last as long as the socket connection
@@ -139,6 +137,7 @@ pub async fn upgrade(
             address,
             server_public_key,
             client_public_key,
+            connection_id,
             close_tx,
             close_rx,
         )
@@ -182,6 +181,7 @@ async fn handle_socket(
     address: Address,
     server_public_key: Vec<u8>,
     client_public_key: Vec<u8>,
+    connection_id: String,
     close_tx: mpsc::Sender<Message>,
     close_rx: mpsc::Receiver<Message>,
 ) {
@@ -191,6 +191,7 @@ async fn handle_socket(
         address,
         server_public_key,
         client_public_key.clone(),
+        connection_id,
         writer,
         outgoing,
         close_rx,
@@ -237,6 +238,7 @@ async fn write(
     address: Address,
     server_public_key: Vec<u8>,
     client_public_key: Vec<u8>,
+    connection_id: String,
     mut sender: SplitSink<WebSocket, Message>,
     mut outgoing: Receiver<BroadcastMessage>,
     mut close_rx: mpsc::Receiver<Message>,
@@ -255,50 +257,54 @@ async fn write(
             event = outgoing.recv().fuse() => {
                 match event {
                     Ok(msg) => {
-                        println!("Broadcast sender {}",
-                            hex::encode(&msg.public_key));
-                        println!("Broadcast client {}",
-                            hex::encode(&client_public_key));
 
-                        let mut writer = state.write().await;
-                        let transport = writer
-                            .transports
-                            .get_mut(&client_public_key)
-                            .expect("failed to locate websocket session");
+                        let other_connection =
+                            !msg.connection_id.is_empty() && !connection_id.is_empty() && &msg.connection_id != &connection_id;
 
-                        let envelope =
-                            encrypt_server_channel(
-                                transport.protocol_mut(),
-                                &msg.buffer,
-                                false,
-                            ).await?;
 
-                        let message = ServerEnvelope {
-                            public_key: server_public_key.clone(),
-                            envelope,
-                        };
+                        // Only broadcast change notifications to listeners
+                        // other than the caller
+                        if other_connection {
+                            let mut writer = state.write().await;
+                            let transport = writer
+                                .transports
+                                .get_mut(&client_public_key)
+                                .expect("failed to locate websocket session");
 
-                        drop(writer);
+                            let envelope =
+                                encrypt_server_channel(
+                                    transport.protocol_mut(),
+                                    &msg.buffer,
+                                    false,
+                                ).await?;
 
-                        match encode(&message).await {
-                            Ok(buffer) => {
-                                if sender.send(Message::Binary(buffer)).await.is_err() {
+                            let message = ServerEnvelope {
+                                public_key: server_public_key.clone(),
+                                envelope,
+                            };
+
+                            drop(writer);
+
+                            match encode(&message).await {
+                                Ok(buffer) => {
+                                    if sender.send(Message::Binary(buffer)).await.is_err() {
+                                        disconnect(
+                                            state,
+                                            address,
+                                            client_public_key,
+                                        ).await;
+                                        return Ok(());
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::error!("{}", e);
                                     disconnect(
                                         state,
                                         address,
                                         client_public_key,
                                     ).await;
-                                    return Ok(());
+                                    return Err(e.into());
                                 }
-                            }
-                            Err(e) => {
-                                tracing::error!("{}", e);
-                                disconnect(
-                                    state,
-                                    address,
-                                    client_public_key,
-                                ).await;
-                                return Err(e.into());
                             }
                         }
                     }

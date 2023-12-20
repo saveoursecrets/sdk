@@ -251,8 +251,6 @@ mod listen {
             bridge: Arc<RemoteBridge>,
             _change: ChangeNotification,
         ) -> Result<()> {
-            println!("Got change notification...");
-
             if let Some(e) = bridge.sync().await {
                 tracing::error!(
                     error = ?e,
