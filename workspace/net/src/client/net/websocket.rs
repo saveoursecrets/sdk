@@ -349,7 +349,7 @@ impl WebSocketChangeListener {
                                 future.await;
                             }
                             Err(e) => {
-                                tracing::error!("{}", e);
+                                tracing::error!(error = ?e);
                                 break;
                             }
                         }
