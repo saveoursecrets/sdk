@@ -19,9 +19,6 @@ pub struct ServerConfig {
     /// Path to the server key.
     pub key: PathBuf,
 
-    /// Audit log file.
-    pub audit: AuditConfig,
-
     /// Storage for the backend.
     pub storage: StorageConfig,
 
@@ -127,21 +124,6 @@ impl Default for SessionConfig {
     }
 }
 
-/// Configuration for audit logs.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AuditConfig {
-    /// File system path to the audit log.
-    pub file: PathBuf,
-}
-
-impl Default for AuditConfig {
-    fn default() -> Self {
-        Self {
-            file: PathBuf::from("audit.dat"),
-        }
-    }
-}
-
 /// Configuration for storage locations.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StorageConfig {
@@ -208,17 +190,6 @@ impl ServerConfig {
             .parent()
             .map(|p| p.to_path_buf())
             .unwrap()
-    }
-
-    /// Path to the audit log file.
-    pub fn audit_file(&self) -> PathBuf {
-        // Config file directory for relative file paths.
-        let dir = self.directory();
-        if self.audit.file.is_absolute() {
-            self.audit.file.clone()
-        } else {
-            dir.join(&self.audit.file)
-        }
     }
 
     /// Get the backend implementation.
