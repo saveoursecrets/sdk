@@ -5,6 +5,7 @@ use futures::{
     Future, FutureExt, StreamExt,
 };
 use std::{
+    borrow::Cow,
     pin::Pin,
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -15,8 +16,10 @@ use std::{
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
-        self, client::IntoClientRequest, handshake::client::generate_key,
-        protocol::Message,
+        self,
+        client::IntoClientRequest,
+        handshake::client::generate_key,
+        protocol::{frame::coding::CloseCode, CloseFrame, Message},
     },
     MaybeTlsStream, WebSocketStream,
 };
@@ -33,7 +36,7 @@ use mpc_protocol::{generate_keypair, Keypair};
 use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 
 use crate::{
-    client::{HostedOrigin, Result, RpcClient},
+    client::{HostedOrigin, Error, Result, RpcClient},
     events::ChangeNotification,
 };
 
@@ -233,31 +236,32 @@ pub fn changes(
         move |message| -> Result<
             Pin<Box<dyn Future<Output = Result<ChangeNotification>> + Send>>,
         > {
-
             match message {
                 Ok(message) => {
                     let rpc = Arc::clone(&client);
                     Ok(Box::pin(async move {
-                        match message {
-                            Message::Binary(buffer) => {
-                                let buffer =
-                                    rpc.decrypt_server_envelope(&buffer).await?;
-                                let notification: ChangeNotification =
-                                    serde_json::from_slice(&buffer)?;
-                                Ok(notification)
-                            }
-                            _ => panic!(
-                                "bad websocket message type, expected binary data"
-                            ),
-                        }
+                        Ok(decode_notification(rpc, message).await?)
                     }))
                 }
-                Err(e) => {
-                    Ok(Box::pin(async move { Err(e.into()) }))
-                }
+                Err(e) => Ok(Box::pin(async move { Err(e.into()) })),
             }
         },
     )
+}
+
+async fn decode_notification(
+    client: Arc<RpcClient>,
+    message: Message,
+) -> Result<ChangeNotification> {
+    match message {
+        Message::Binary(buffer) => {
+            let buffer = client.decrypt_server_envelope(&buffer).await?;
+            let notification: ChangeNotification =
+                serde_json::from_slice(&buffer)?;
+            Ok(notification)
+        }
+        _ => Err(Error::NotBinaryWebsocketMessageType),
+    }
 }
 
 /// Handle to a websocket listener.
@@ -282,7 +286,6 @@ pub struct WebSocketChangeListener {
     options: ListenOptions,
     retries: Arc<Mutex<AtomicU64>>,
     notify: Arc<Notify>,
-    closed: Arc<Mutex<bool>>,
 }
 
 impl WebSocketChangeListener {
@@ -301,7 +304,6 @@ impl WebSocketChangeListener {
             options,
             retries: Arc::new(Mutex::new(AtomicU64::from(1))),
             notify,
-            closed: Arc::new(Mutex::new(false)),
         }
     }
 
@@ -324,50 +326,47 @@ impl WebSocketChangeListener {
     #[async_recursion]
     async fn listen<F>(
         &self,
-        stream: WsStream,
+        mut stream: WsStream,
         client: Arc<RpcClient>,
         handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let mut stream = changes(stream, client);
-
         tracing::debug!("connected");
 
         let shutdown = Arc::clone(&self.notify);
         loop {
             select! {
-                event = stream.next().fuse() => {
-                    if let Some(notification) = event {
-                        match notification?.await {
-                            Ok(notification) => {
+                message = stream.next().fuse() => {
+                    if let Some(message) = message {
+                        match message {
+                            Ok(message) => {
+                                let notification = decode_notification(
+                                    Arc::clone(&client), message).await?;
+                                // Call the handler
                                 let future = handler(notification);
                                 future.await;
                             }
                             Err(e) => {
-                                tracing::error!(error = ?e);
+                                tracing::error!("{}", e);
                                 break;
                             }
                         }
                     }
                 }
                 _ = shutdown.notified().fuse() => {
-                    tracing::debug!("closing websocket");
-                    let mut closed = self.closed.lock().await;
-                    *closed = true;
-                    break;
+                    // Perform close handshake
+                    let _ = stream.close(Some(CloseFrame {
+                        code: CloseCode::Normal,
+                        reason: Cow::Borrowed("closed"),
+                    })).await;
+                    return Ok(());
                 }
             }
         }
 
-        // Try to re-connect if not explicitly closed
-        let closed = self.closed.lock().await;
-        if !*closed {
-            self.delay_connect(handler).await
-        } else {
-            Ok(())
-        }
+        self.delay_connect(handler).await
     }
 
     async fn stream(&self) -> Result<(WsStream, Arc<RpcClient>)> {

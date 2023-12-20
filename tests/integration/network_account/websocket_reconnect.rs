@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use std::time::Duration;
 
-use sos_net::client::{ListenOptions, RpcClient, Origin};
+use sos_net::client::{ListenOptions, Origin, RpcClient};
 
 use crate::test_utils::{spawn, teardown};
 

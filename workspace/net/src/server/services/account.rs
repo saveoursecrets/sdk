@@ -41,10 +41,7 @@ impl Service for AccountService {
             ACCOUNT_CREATE => {
                 {
                     let reader = backend.read().await;
-                    if reader
-                        .account_exists(caller.address())
-                        .await?
-                    {
+                    if reader.account_exists(caller.address()).await? {
                         return Ok(
                             (StatusCode::CONFLICT, request.id()).into()
                         );

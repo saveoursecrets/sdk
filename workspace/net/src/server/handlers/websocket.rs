@@ -221,6 +221,7 @@ async fn read(
                 Message::Pong(_) => {}
                 Message::Close(frame) => {
                     let _ = close_tx.send(Message::Close(frame)).await;
+                    disconnect(state, address, public_key).await;
                     return Ok(());
                 }
             },
@@ -259,7 +260,9 @@ async fn write(
                     Ok(msg) => {
 
                         let other_connection =
-                            !msg.connection_id.is_empty() && !connection_id.is_empty() && &msg.connection_id != &connection_id;
+                            !msg.connection_id.is_empty()
+                                && !connection_id.is_empty()
+                                && &msg.connection_id != &connection_id;
 
 
                         // Only broadcast change notifications to listeners

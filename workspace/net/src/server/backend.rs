@@ -164,7 +164,7 @@ impl Backend {
         }
         Ok(())
     }
-    
+
     /// Create an account.
     pub async fn create_account(
         &mut self,
@@ -215,7 +215,7 @@ impl Backend {
 
         Ok(())
     }
-    
+
     /// Trust a device.
     pub async fn trust_device(
         &mut self,
@@ -231,7 +231,7 @@ impl Backend {
         writer.trust_device(device_public_key).await?;
         Ok(())
     }
-    
+
     /// Revoke a device.
     pub async fn revoke_device(
         &mut self,
@@ -273,7 +273,7 @@ impl Backend {
             Ok(())
         }
     }
-    
+
     /// Determine if an account exists.
     pub async fn account_exists(&self, owner: &Address) -> Result<bool> {
         let accounts = self.accounts.read().await;
