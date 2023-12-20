@@ -1,29 +1,22 @@
 key = "./server_identity.pem"
 
-[audit]
-file = "audit.dat"
-
 [cors]
 origins = [
   "http://localhost:5053",
   "http://localhost:8080",
   "http://localhost:8000",
-
   "https://localhost:5053",
   "https://localhost:8080",
 ]
 
-[access]
-deny = [
-  "0x6f4e977644ca8f21d335ab13271616b615ea28cb"
-]
+#[access]
+#deny = [
+  #"0x6f4e977644ca8f21d335ab13271616b615ea28cb"
+#]
 
 #[tls]
 #cert = "cert.pem"
 #key = "key.pem"
 
-#[storage]
-#url = "file://./accounts"
-
 [storage]
-url = "file:///Users/muji/Library/Application Support/SaveOurSecrets/debug"
+path = "./accounts"

@@ -6,4 +6,4 @@ origins = [
 ]
 
 [storage]
-url = "file://../target/integration-test/server"
+path = "../target/integration-test/server"

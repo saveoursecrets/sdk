@@ -40,18 +40,6 @@ pub struct ServerConfig {
     file: Option<PathBuf>,
 }
 
-impl ServerConfig {
-    /*
-    /// Create a new server config with a file path.
-    pub fn new_dummy_file(path: PathBuf) -> Self {
-        Self {
-            file: Some(path),
-            ..Default::default()
-        }
-    }
-    */
-}
-
 /// Access control configuration.
 ///
 /// Denied entries take precedence so if you allow and
@@ -128,13 +116,13 @@ impl Default for SessionConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StorageConfig {
     /// URL for the backend storage.
-    pub url: Url,
+    pub path: PathBuf,
 }
 
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
-            url: Url::parse("file://.").unwrap(),
+            path: PathBuf::from("."),
         }
     }
 }
@@ -197,52 +185,15 @@ impl ServerConfig {
         // Config file directory for relative file paths.
         let dir = self.directory();
 
-        match self.storage.url.scheme() {
-            "file" => {
-                let url = self.storage.url.clone();
-                let mut is_relative = false;
-                let relative_prefix =
-                    if let Some(Host::Domain(name)) = url.host() {
-                        if name == "." || name == ".." {
-                            is_relative = true;
-                            Some(name)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-                let url = if is_relative {
-                    let base_file = format!(
-                        "file://{}",
-                        dir.to_string_lossy().into_owned()
-                    );
-                    let mut base: Url = base_file.parse()?;
-                    // Must end with a slash to join the relative path
-                    // correctly
-                    if !base.path().ends_with('/') {
-                        let path = format!("{}/", base.path());
-                        base.set_path(&path);
-                    }
+        let path = &self.storage.path;
+        let path = if path.is_relative() {
+            dir.join(path)
+        } else {
+            path.to_owned()
+        };
 
-                    let rel_prefix = relative_prefix.unwrap_or(".");
-                    let path = format!("{}{}", rel_prefix, url.path());
-                    base.join(&path)?
-                } else {
-                    url
-                };
-
-                let path = url.to_file_path().map_err(|_| {
-                    Error::UrlFilePath(self.storage.url.clone())
-                })?;
-
-                let mut backend = Backend::new(path);
-                backend.read_dir().await?;
-                Ok(backend)
-            }
-            _ => Err(Error::InvalidUrlScheme(
-                self.storage.url.scheme().to_string(),
-            )),
-        }
+        let mut backend = Backend::new(path);
+        backend.read_dir().await?;
+        Ok(backend)
     }
 }

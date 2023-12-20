@@ -77,18 +77,6 @@ pub enum Error {
     #[error("no commit proof")]
     NoCommitProof,
 
-    /// Error generated when a URL scheme is invalid.
-    #[error("url scheme {0} is not supported")]
-    InvalidUrlScheme(String),
-
-    /// Error generated when a URL file path is invalid.
-    #[error("url {0} is not a valid file path")]
-    UrlFilePath(Url),
-
-    /// Error generated when an audit file is already locked.
-    #[error("audit log {0} is already open for writing")]
-    AuditWouldBlock(PathBuf),
-
     /// Error generated when a checksum does not match a event log file.
     #[error("checksum mismatch validating event log file")]
     EventValidateMismatch,

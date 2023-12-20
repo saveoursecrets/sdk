@@ -69,8 +69,7 @@ impl MockServer {
 
         // Override the storage path to use the path
         // using the test identifier
-        config.storage.url =
-            Url::parse(&format!("file://{}", self.path.display()))?;
+        config.storage.path = self.path.clone();
 
         let backend = config.backend().await?;
 
