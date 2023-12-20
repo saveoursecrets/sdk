@@ -36,8 +36,7 @@ async fn integration_search_migrate_import() -> Result<()> {
 
     // Can find the updated secret
     let documents = account.query_map("mock", Default::default()).await?;
-    println!("{}", documents.len());
-    //assert_eq!(1, documents.len());
+    assert_eq!(3, documents.len());
 
     teardown(TEST_ID).await;
 

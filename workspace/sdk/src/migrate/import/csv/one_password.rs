@@ -196,7 +196,7 @@ mod test {
         assert!(!first.favorite);
 
         let second = records.remove(0);
-        assert_eq!("Mock Archive Password", second.title);
+        assert_eq!("Archive Password", second.title);
         assert_eq!(Some(Url::parse("https://example.com")?), second.url);
         assert_eq!("mock-user", second.username,);
         assert_eq!("XXX-MOCK-2", second.password);

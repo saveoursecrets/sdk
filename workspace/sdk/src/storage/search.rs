@@ -638,8 +638,12 @@ impl SearchIndex {
         &self,
         needle: &str,
     ) -> Vec<QueryResult<(VaultId, SecretId)>> {
-        self.index
-            .query(needle, &mut bm25::new(), query_tokenizer, &[1., 1., 1.])
+        self.index.query(
+            needle,
+            &mut bm25::new(),
+            query_tokenizer,
+            &[1., 1., 1.],
+        )
     }
 
     /// Query the index and map each result to the corresponding document.
