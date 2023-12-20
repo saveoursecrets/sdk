@@ -18,6 +18,7 @@ use tokio::sync::{
     mpsc,
 };
 
+use serde::Deserialize;
 use mpc_protocol::channel::encrypt_server_channel;
 use sos_sdk::encode;
 use tracing::{span, Level};
@@ -26,12 +27,20 @@ use web3_address::ethereum::Address;
 use crate::{
     rpc::ServerEnvelope,
     server::{
-        authenticate::{self, QueryMessage},
+        authenticate,
         Result, ServerState,
     },
 };
 
 const MAX_SOCKET_CONNECTIONS_PER_CLIENT: u8 = 6;
+
+/// Query string for websocket connections.
+#[derive(Debug, Deserialize)]
+pub struct WebsocketQuery {
+    pub bearer: String,
+    pub public_key: String,
+    pub connection_id: String,
+}
 
 /// Message broadcast to connected sockets.
 #[derive(Clone)]
@@ -59,7 +68,7 @@ pub struct WebSocketConnection {
 /// Upgrade to a websocket connection.
 pub async fn upgrade(
     Extension(state): Extension<ServerState>,
-    Query(query): Query<QueryMessage>,
+    Query(query): Query<WebsocketQuery>,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
     let span = span!(Level::DEBUG, "ws_server");
@@ -246,6 +255,11 @@ async fn write(
             event = outgoing.recv().fuse() => {
                 match event {
                     Ok(msg) => {
+                        println!("Broadcast sender {}",
+                            hex::encode(&msg.public_key));
+                        println!("Broadcast client {}",
+                            hex::encode(&client_public_key));
+
                         let mut writer = state.write().await;
                         let transport = writer
                             .transports

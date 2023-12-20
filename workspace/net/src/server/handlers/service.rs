@@ -1,12 +1,13 @@
 use axum::{
     body::Bytes,
-    extract::{Extension, TypedHeader},
+    extract::{Extension, TypedHeader, Query},
     headers::{authorization::Bearer, Authorization},
     response::IntoResponse,
 };
 
 //use axum_macros::debug_handler;
 
+use serde::Deserialize;
 use crate::server::{
     services::{
         private_service, public_service, AccountService, DeviceService,
@@ -14,6 +15,15 @@ use crate::server::{
     },
     ServerBackend, ServerState,
 };
+
+/// Query string for service connections.
+#[derive(Debug, Deserialize)]
+pub struct ServiceQuery {
+    pub connection_id: String,
+}
+
+
+    //Query(query): Query<ServiceQuery>,
 
 // Handlers for account events.
 pub(crate) struct ServiceHandler;

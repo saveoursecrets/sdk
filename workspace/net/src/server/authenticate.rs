@@ -14,13 +14,6 @@ use sos_sdk::{
 
 use super::{Error, Result};
 
-/// An RPC message and authorization encoded in a query string.
-#[derive(Debug, Deserialize)]
-pub struct QueryMessage {
-    pub bearer: String,
-    pub public_key: String,
-}
-
 #[derive(Debug)]
 pub struct BearerToken {
     pub address: Address,

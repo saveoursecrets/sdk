@@ -80,6 +80,9 @@ impl SimulatedDevice {
         )
         .await?;
 
+        let connection_id = format!("device_{}", index + 1);
+        owner.set_connection_id(connection_id.clone());
+
         let key: AccessKey = self.password.clone().into();
         owner.sign_in(&key).await?;
 
@@ -97,7 +100,7 @@ impl SimulatedDevice {
         owner.open_folder(&self.default_folder).await?;
 
         Ok(SimulatedDevice {
-            id: format!("device_{}", index + 1),
+            id: connection_id,
             owner,
             data_dir: data_dir.clone(),
             default_folder: self.default_folder.clone(),

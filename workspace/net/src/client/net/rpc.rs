@@ -133,6 +133,7 @@ pub struct RpcClient {
     protocol: Arc<RwLock<Option<ProtocolState>>>,
     client: reqwest::Client,
     id: Arc<Mutex<AtomicU64>>,
+    connection_id: String,
 }
 
 impl RpcClient {
@@ -142,6 +143,7 @@ impl RpcClient {
         account_signer: BoxedEcdsaSigner,
         device_signer: BoxedEd25519Signer,
         keypair: Keypair,
+        connection_id: String,
     ) -> Result<Self> {
         let client = reqwest::Client::new();
         let protocol = Self::new_handshake(&keypair, &origin.public_key)?;
@@ -153,6 +155,7 @@ impl RpcClient {
             protocol: Arc::new(RwLock::new(protocol)),
             client,
             id: Arc::new(Mutex::new(AtomicU64::from(1))),
+            connection_id,
         })
     }
 

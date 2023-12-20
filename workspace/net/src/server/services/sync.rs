@@ -78,7 +78,6 @@ impl Service for SyncService {
                         caller.address(),
                         caller.public_key(),
                     );
-
                     let mut writer = state.write().await;
                     send_notification(&mut *writer, &caller, notification);
                 }

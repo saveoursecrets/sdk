@@ -105,7 +105,10 @@ fn send_notification(
     match serde_json::to_vec(&notification) {
         Ok(buffer) => {
             if let Some(conn) = writer.sockets.get(caller.address()) {
-                let message = BroadcastMessage { buffer, public_key: caller.public_key.clone() };
+                let message = BroadcastMessage {
+                    buffer,
+                    public_key: caller.public_key.clone(),
+                };
                 if conn.tx.send(message).is_err() {
                     tracing::debug!("websocket events channel dropped");
                 }

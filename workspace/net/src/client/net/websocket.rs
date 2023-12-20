@@ -94,13 +94,18 @@ impl ListenOptions {
 }
 
 /// Get the URI for a websocket connection.
-fn websocket_uri(endpoint: Url, bearer: String, public_key: &[u8]) -> String {
+fn websocket_uri(
+    endpoint: Url,
+    bearer: String,
+    public_key: &[u8],
+    connection_id: &str,
+) -> String {
     format!(
-        "{}?bearer={}&public_key={}",
+        "{}?bearer={}&public_key={}&connection_id={}",
         endpoint,
-        //bs58::encode(&request).into_string(),
-        bearer,
-        hex::encode(public_key),
+        urlencoding::encode(&bearer),
+        urlencoding::encode(&hex::encode(public_key)),
+        urlencoding::encode(connection_id),
     )
 }
 
@@ -132,11 +137,12 @@ async fn changes_uri(
     remote: &Url,
     signer: &BoxedEcdsaSigner,
     public_key: &[u8],
+    connection_id: &str,
 ) -> Result<String> {
     let endpoint = changes_endpoint_url(remote)?;
     let bearer =
         encode_account_signature(signer.sign(&public_key).await?).await?;
-    let uri = websocket_uri(endpoint, bearer, public_key);
+    let uri = websocket_uri(endpoint, bearer, public_key, connection_id);
     Ok(uri)
 }
 
@@ -173,17 +179,29 @@ pub async fn connect(
     signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
     keypair: Keypair,
+    connection_id: String,
 ) -> Result<(WsStream, Arc<RpcClient>)> {
     let url_origin = origin.url.origin();
     let endpoint = origin.url.clone();
     let public_key = keypair.public_key().to_vec();
 
-    let client = RpcClient::new(origin, signer, device, keypair)?;
+    let client = RpcClient::new(
+        origin,
+        signer,
+        device,
+        keypair,
+        connection_id.clone(),
+    )?;
     client.handshake().await?;
 
     let host = endpoint.host_str().unwrap().to_string();
-    let uri =
-        changes_uri(&endpoint, client.account_signer(), &public_key).await?;
+    let uri = changes_uri(
+        &endpoint,
+        client.account_signer(),
+        &public_key,
+        &connection_id,
+    )
+    .await?;
 
     tracing::debug!(uri = %uri);
 
@@ -358,6 +376,7 @@ impl WebSocketChangeListener {
             self.signer.clone(),
             self.device.clone(),
             self.options.keypair.clone(),
+            self.options.connection_id.clone(),
         )
         .await
     }

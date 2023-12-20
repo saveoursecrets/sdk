@@ -60,6 +60,13 @@ pub struct NetworkAccount {
     /// Websocket change listeners.
     #[cfg(feature = "listen")]
     pub(super) listeners: Mutex<Vec<WebSocketHandle>>,
+
+    /// Identifier for this client connection.
+    ///
+    /// When listening for changes use the same identifier
+    /// so the server can filter out broadcast messages
+    /// made by this client.
+    connection_id: String,
 }
 
 impl NetworkAccount {
@@ -84,6 +91,7 @@ impl NetworkAccount {
             sync_lock: Mutex::new(()),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
+            connection_id: String::new(),
         })
     }
 
@@ -142,9 +150,23 @@ impl NetworkAccount {
             sync_lock: Mutex::new(()),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
+            connection_id: String::new(),
         };
 
         Ok(owner)
+    }
+
+    /// Set the connection identifier.
+    pub fn set_connection_id(&mut self, value: String) {
+        self.connection_id = value;
+    }
+
+    /// Connection identifier.
+    ///
+    /// Empty string when no explicit connection identifier has
+    /// been set.
+    pub fn connection_id(&self) -> &str {
+        &self.connection_id
     }
 
     /// Clone of the local account.
@@ -222,6 +244,7 @@ impl NetworkAccount {
             signer,
             device.into(),
             keypair,
+            self.connection_id.clone(),
         )?;
 
         // Noise protocol handshake

@@ -103,8 +103,15 @@ impl RemoteBridge {
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
         keypair: Keypair,
+        connection_id: String,
     ) -> Result<Self> {
-        let remote = RpcClient::new(origin.clone(), signer, device, keypair)?;
+        let remote = RpcClient::new(
+            origin.clone(),
+            signer,
+            device,
+            keypair,
+            connection_id,
+        )?;
         Ok(Self {
             account,
             origin,
@@ -244,6 +251,8 @@ mod listen {
             bridge: Arc<RemoteBridge>,
             _change: ChangeNotification,
         ) -> Result<()> {
+            println!("Got change notification...");
+
             if let Some(e) = bridge.sync().await {
                 tracing::error!(
                     error = ?e,
