@@ -4,7 +4,7 @@ use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "search_sign_in";
 
-/// Tests querying the search index after signing in 
+/// Tests querying the search index after signing in
 /// and building a fresh search index.
 #[tokio::test]
 async fn integration_search_sign_in() -> Result<()> {
@@ -30,18 +30,13 @@ async fn integration_search_sign_in() -> Result<()> {
     account.insert_secrets(docs).await?;
 
     account.sign_out().await?;
-    
+
     // Sign in and create the new search index
     account.sign_in(&key).await?;
     account.initialize_search_index().await?;
-    
+
     // Check we can find the document
-    let documents = account
-        .query_map(
-            "note",
-            Default::default(),
-        )
-        .await?;
+    let documents = account.query_map("note", Default::default()).await?;
     assert_eq!(1, documents.len());
 
     teardown(TEST_ID).await;

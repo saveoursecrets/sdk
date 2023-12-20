@@ -17,7 +17,9 @@ use crate::{
     crypto::AccessKey,
     storage::search::SearchIndex,
     vault::{
-        secret::{IdentityKind, Secret, SecretId, SecretMeta, SecretRow},
+        secret::{
+            IdentityKind, Secret, SecretId, SecretMeta, SecretRow, UserData,
+        },
         Gatekeeper, Vault,
     },
     Timestamp,
@@ -84,11 +86,19 @@ impl From<GenericCsvEntry> for Secret {
                 account: record.username,
                 password: SecretString::new(record.password),
                 url: record.url,
-                user_data: Default::default(),
+                user_data: if let Some(notes) = record.note {
+                    UserData::new_comment(notes)
+                } else {
+                    Default::default()
+                },
             },
             GenericCsvEntry::Note(record) => Secret::Note {
                 text: SecretString::new(record.text),
-                user_data: Default::default(),
+                user_data: if let Some(notes) = record.note {
+                    UserData::new_comment(notes)
+                } else {
+                    Default::default()
+                },
             },
             GenericCsvEntry::Id(record) => Secret::Identity {
                 id_kind: record.id_kind,
@@ -96,13 +106,18 @@ impl From<GenericCsvEntry> for Secret {
                 issue_place: record.issue_place,
                 issue_date: record.issue_date,
                 expiry_date: record.expiration_date,
-                user_data: Default::default(),
+                user_data: if let Some(notes) = record.note {
+                    UserData::new_comment(notes)
+                } else {
+                    Default::default()
+                },
             },
             GenericCsvEntry::Payment(record) => match record {
                 GenericPaymentRecord::Card {
                     number,
                     code,
                     expiration,
+                    note,
                     ..
                 } => {
                     // TODO: handle country?
@@ -112,12 +127,17 @@ impl From<GenericCsvEntry> for Secret {
                         expiry: expiration,
                         name: None,
                         atm_pin: None,
-                        user_data: Default::default(),
+                        user_data: if let Some(notes) = note {
+                            UserData::new_comment(notes)
+                        } else {
+                            Default::default()
+                        },
                     }
                 }
                 GenericPaymentRecord::BankAccount {
                     account_number,
                     routing_number,
+                    note,
                     ..
                 } => {
                     // TODO: handle country and account_holder
@@ -127,13 +147,21 @@ impl From<GenericCsvEntry> for Secret {
                         bic: None,
                         iban: None,
                         swift: None,
-                        user_data: Default::default(),
+                        user_data: if let Some(notes) = note {
+                            UserData::new_comment(notes)
+                        } else {
+                            Default::default()
+                        },
                     }
                 }
             },
             GenericCsvEntry::Contact(record) => Secret::Contact {
                 vcard: Box::new(record.vcard),
-                user_data: Default::default(),
+                user_data: if let Some(notes) = record.note {
+                    UserData::new_comment(notes)
+                } else {
+                    Default::default()
+                },
             },
         }
     }

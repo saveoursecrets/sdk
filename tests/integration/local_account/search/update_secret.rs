@@ -32,8 +32,7 @@ async fn integration_search_update_secret() -> Result<()> {
         .await?;
 
     // Can find the new secret
-    let documents = account
-        .query_map("note", Default::default()).await?;
+    let documents = account.query_map("note", Default::default()).await?;
     assert_eq!(1, documents.len());
 
     // Update with a new label
@@ -43,13 +42,11 @@ async fn integration_search_update_secret() -> Result<()> {
         .await?;
 
     // Check we can't find with the old label
-    let documents = account
-        .query_map("note", Default::default()).await?;
+    let documents = account.query_map("note", Default::default()).await?;
     assert_eq!(0, documents.len());
 
     // Can find the updated secret
-    let documents = account
-        .query_map("upda", Default::default()).await?;
+    let documents = account.query_map("upda", Default::default()).await?;
     assert_eq!(1, documents.len());
 
     teardown(TEST_ID).await;

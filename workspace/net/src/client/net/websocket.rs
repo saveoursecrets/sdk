@@ -36,7 +36,7 @@ use mpc_protocol::{generate_keypair, Keypair};
 use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 
 use crate::{
-    client::{HostedOrigin, Error, Result, RpcClient},
+    client::{Error, HostedOrigin, Result, RpcClient},
     events::ChangeNotification,
 };
 

@@ -82,6 +82,15 @@ fn tags_extract(d: &Document) -> Vec<&str> {
     d.meta().tags().iter().map(|s| &s[..]).collect()
 }
 
+// Comment
+fn comment_extract(d: &Document) -> Vec<&str> {
+    if let Some(comment) = d.extra().comment() {
+        vec![comment]
+    } else {
+        vec![""]
+    }
+}
+
 /// Count of documents by vault identitier and secret kind.
 #[derive(Default, Debug, Clone)]
 pub struct DocumentCount {
@@ -259,13 +268,16 @@ impl IndexStatistics {
 /// be exposed.
 #[derive(Default, Debug, Serialize, Clone)]
 pub struct ExtraFields {
-    /// The contact type for contact secrets.
+    /// Comment about a secret.
+    pub comment: Option<String>,
+    /// Contact type for contact secrets.
     pub contact_type: Option<vcard4::property::Kind>,
 }
 
 impl From<&Secret> for ExtraFields {
     fn from(value: &Secret) -> Self {
         let mut extra: ExtraFields = Default::default();
+        extra.comment = value.user_data().comment().map(|c| c.to_owned());
         if let Secret::Contact { vcard, .. } = value {
             extra.contact_type = vcard
                 .kind
@@ -274,6 +286,13 @@ impl From<&Secret> for ExtraFields {
                 .or(Some(vcard4::property::Kind::Individual));
         }
         extra
+    }
+}
+
+impl ExtraFields {
+    /// Optional comment.
+    pub fn comment(&self) -> Option<&str> {
+        self.comment.as_ref().map(|c| &c[..])
     }
 }
 
@@ -329,7 +348,7 @@ impl SearchIndex {
     /// Create a new search index.
     pub fn new() -> Self {
         // Create index with N fields
-        let index = Index::<(VaultId, SecretId)>::new(2);
+        let index = Index::<(VaultId, SecretId)>::new(3);
         Self {
             index,
             documents: Default::default(),
@@ -371,19 +390,6 @@ impl SearchIndex {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-
-    /*
-    /// Find document by URN.
-    pub fn find_by_urn<'a>(
-        &'a self,
-        vault_id: &VaultId,
-        urn: &Urn,
-    ) -> Option<&'a Document> {
-        self.documents
-            .values()
-            .find(|d| d.vault_id() == vault_id && d.meta().urn() == Some(urn))
-    }
-    */
 
     /// Find document by label.
     ///
@@ -524,7 +530,7 @@ impl SearchIndex {
             let doc = self.documents.entry(key).or_insert(doc);
             if !exists {
                 self.index.add_document(
-                    &[label_extract, tags_extract],
+                    &[label_extract, tags_extract, comment_extract],
                     tokenizer,
                     (doc.vault_id, doc.secret_id),
                     doc,
@@ -633,7 +639,7 @@ impl SearchIndex {
         needle: &str,
     ) -> Vec<QueryResult<(VaultId, SecretId)>> {
         self.index
-            .query(needle, &mut bm25::new(), query_tokenizer, &[1., 1.])
+            .query(needle, &mut bm25::new(), query_tokenizer, &[1., 1., 1.])
     }
 
     /// Query the index and map each result to the corresponding document.
