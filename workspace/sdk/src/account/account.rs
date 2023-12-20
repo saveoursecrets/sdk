@@ -576,7 +576,7 @@ impl Account {
         let events = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.delete_folder(&summary).await?
+            writer.delete_folder(&summary, true).await?
         };
         self.user_mut()?
             .remove_folder_password(summary.id())
@@ -828,7 +828,9 @@ impl Account {
         let (event, summary) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.import_folder(buffer.as_ref(), Some(&key)).await?
+            writer
+                .import_folder(buffer.as_ref(), Some(&key), true)
+                .await?
         };
 
         // If we are overwriting then we must remove the existing

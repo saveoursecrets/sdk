@@ -58,67 +58,71 @@ impl Account {
             num_events = diff.patch.len(),
             "account",
         );
-        for event in diff.patch.iter() {
-            tracing::debug!(event_kind = %event.event_kind());
-            match &event {
-                AccountEvent::Noop => {
-                    tracing::warn!("merge got noop event (client)");
-                }
-                AccountEvent::CreateFolder(id, buf)
-                | AccountEvent::UpdateFolder(id, buf)
-                | AccountEvent::CompactFolder(id, buf)
-                | AccountEvent::ChangeFolderPassword(id, buf) => {
-                    // If the folder was created and later deleted
-                    // in the same sequence of events then the folder
-                    // password won't exist after merging the identity
-                    // events so we need to skip the operation.
-                    if let Ok(key) = self
-                        .user()?
-                        .identity()?
-                        .find_folder_password(id)
-                        .await
-                    {
-                        // Must operate on the storage level otherwise
-                        // we would duplicate identity events for folder
-                        // password
-                        let storage = self.storage()?;
-                        let mut storage = storage.write().await;
-                        storage.import_folder(buf, Some(&key)).await?;
-                    // Otherwise we must still apply the event
-                    } else {
-                        let storage = self.storage()?;
-                        let storage = storage.read().await;
-                        let mut account_log =
-                            storage.account_log.write().await;
-                        account_log.apply(vec![event]).await?;
+
+        let checked_patch = {
+            let account_log = self.account_log().await?;
+            let mut event_log = account_log.write().await;
+            event_log.patch_checked(&diff.before, &diff.patch).await?
+        };
+
+        if let CheckedPatch::Success(_, _) = &checked_patch {
+            for event in diff.patch.iter() {
+                tracing::debug!(event_kind = %event.event_kind());
+
+                match &event {
+                    AccountEvent::Noop => {
+                        tracing::warn!("merge got noop event (client)");
                     }
-                }
-                AccountEvent::RenameFolder(id, name) => {
-                    let summary = self.find(|s| s.id() == id).await;
-                    if let Some(summary) = &summary {
-                        let storage = self.storage()?;
-                        let mut storage = storage.write().await;
-                        storage
-                            .rename_folder(summary, name.to_owned())
-                            .await?;
+                    AccountEvent::CreateFolder(id, buf)
+                    | AccountEvent::UpdateFolder(id, buf)
+                    | AccountEvent::CompactFolder(id, buf)
+                    | AccountEvent::ChangeFolderPassword(id, buf) => {
+                        // If the folder was created and later deleted
+                        // in the same sequence of events then the folder
+                        // password won't exist after merging the identity
+                        // events so we need to skip the operation.
+                        if let Ok(key) = self
+                            .user()?
+                            .identity()?
+                            .find_folder_password(id)
+                            .await
+                        {
+                            // Must operate on the storage level otherwise
+                            // we would duplicate identity events for folder
+                            // password
+                            let storage = self.storage()?;
+                            let mut storage = storage.write().await;
+                            storage
+                                .import_folder(buf, Some(&key), false)
+                                .await?;
+                        }
                     }
-                }
-                AccountEvent::DeleteFolder(id) => {
-                    let summary = self.find(|s| s.id() == id).await;
-                    if let Some(summary) = &summary {
-                        let storage = self.storage()?;
-                        let mut storage = storage.write().await;
-                        storage.delete_folder(summary).await?;
-                    } else {
-                        let storage = self.storage()?;
-                        let storage = storage.read().await;
-                        let mut account_log =
-                            storage.account_log.write().await;
-                        account_log.apply(vec![event]).await?;
+                    AccountEvent::RenameFolder(id, name) => {
+                        let summary = self.find(|s| s.id() == id).await;
+                        if let Some(summary) = &summary {
+                            let storage = self.storage()?;
+                            let mut storage = storage.write().await;
+                            // Note that this event is recorded at both
+                            // the account level and the folder level so
+                            // we only update the in-memory version here
+                            // and let the folder merge make the other
+                            // necessary changes
+                            storage
+                                .set_folder_name(summary, name.to_owned())?;
+                        }
+                    }
+                    AccountEvent::DeleteFolder(id) => {
+                        let summary = self.find(|s| s.id() == id).await;
+                        if let Some(summary) = &summary {
+                            let storage = self.storage()?;
+                            let mut storage = storage.write().await;
+                            storage.delete_folder(summary, false).await?;
+                        }
                     }
                 }
             }
         }
+
         Ok(diff.patch.len())
     }
 

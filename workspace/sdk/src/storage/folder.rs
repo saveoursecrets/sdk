@@ -211,8 +211,6 @@ where
             event_log.patch_checked(&diff.before, &diff.patch).await?
         };
 
-        // FIXME: update search index on create/update/delete
-
         if let CheckedPatch::Success(_, _) = &checked_patch {
             for event in diff.patch.iter() {
                 tracing::debug!(event_kind = %event.event_kind());

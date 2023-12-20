@@ -314,7 +314,7 @@ impl ClientStorage {
         // Import folders
         for folder in &account.folders {
             let buffer = encode(folder).await?;
-            let (event, _) = self.import_folder(buffer, None).await?;
+            let (event, _) = self.import_folder(buffer, None, true).await?;
             events.push(event);
         }
 
@@ -662,6 +662,7 @@ impl ClientStorage {
         &mut self,
         buffer: impl AsRef<[u8]>,
         key: Option<&AccessKey>,
+        apply_event: bool,
     ) -> Result<(Event, Summary)> {
         let (exists, write_event, summary) =
             self.upsert_vault_buffer(buffer.as_ref(), key).await?;
@@ -682,8 +683,10 @@ impl ClientStorage {
             )
         };
 
-        let mut account_log = self.account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
+        if apply_event {
+            let mut account_log = self.account_log.write().await;
+            account_log.apply(vec![&account_event]).await?;
+        }
 
         #[cfg(feature = "audit")]
         {
@@ -891,6 +894,7 @@ impl ClientStorage {
     pub async fn delete_folder(
         &mut self,
         summary: &Summary,
+        apply_event: bool,
     ) -> Result<Vec<Event>> {
         // Remove the files
         self.remove_vault_file(summary).await?;
@@ -916,8 +920,11 @@ impl ClientStorage {
         }
 
         let account_event = AccountEvent::DeleteFolder(*summary.id());
-        let mut account_log = self.account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
+
+        if apply_event {
+            let mut account_log = self.account_log.write().await;
+            account_log.apply(vec![&account_event]).await?;
+        }
 
         #[cfg(feature = "audit")]
         {
@@ -931,6 +938,20 @@ impl ClientStorage {
         Ok(events)
     }
 
+    pub(crate) fn set_folder_name(
+        &mut self,
+        summary: &Summary,
+        name: impl AsRef<str>,
+    ) -> Result<()> {
+        // Update the in-memory name.
+        for item in self.summaries.iter_mut() {
+            if item.id() == summary.id() {
+                item.set_name(name.as_ref().to_owned());
+            }
+        }
+        Ok(())
+    }
+
     /// Set the name of a vault.
     pub async fn rename_folder(
         &mut self,
@@ -938,11 +959,7 @@ impl ClientStorage {
         name: impl AsRef<str>,
     ) -> Result<Event> {
         // Update the in-memory name.
-        for item in self.summaries.iter_mut() {
-            if item.id() == summary.id() {
-                item.set_name(name.as_ref().to_owned());
-            }
-        }
+        self.set_folder_name(summary, name.as_ref())?;
 
         let folder = self
             .cache
