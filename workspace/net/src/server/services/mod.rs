@@ -20,6 +20,7 @@ use crate::{
     server::{
         authenticate::{self, BearerToken},
         backend::BackendHandler,
+        handlers::websocket::BroadcastMessage,
         Error, Result, ServerBackend, ServerState, State,
     },
 };
@@ -96,15 +97,16 @@ pub type PrivateState = (Caller, (ServerState, ServerBackend));
 /// Send change notifications to connected clients.
 #[cfg(feature = "listen")]
 fn send_notification(
-    writer: &mut RwLockWriteGuard<'_, State>,
-    _caller: &Caller,
+    writer: &mut State,
+    caller: &Caller,
     notification: ChangeNotification,
 ) {
     // Send notification on the websockets channel
     match serde_json::to_vec(&notification) {
         Ok(buffer) => {
-            if let Some(conn) = writer.sockets.get(notification.address()) {
-                if conn.tx.send(buffer).is_err() {
+            if let Some(conn) = writer.sockets.get(caller.address()) {
+                let message = BroadcastMessage { buffer, public_key: caller.public_key.clone() };
+                if conn.tx.send(message).is_err() {
                     tracing::debug!("websocket events channel dropped");
                 }
             }

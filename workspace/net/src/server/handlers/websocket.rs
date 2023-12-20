@@ -33,6 +33,15 @@ use crate::{
 
 const MAX_SOCKET_CONNECTIONS_PER_CLIENT: u8 = 6;
 
+/// Message broadcast to connected sockets.
+#[derive(Clone)]
+pub struct BroadcastMessage {
+    /// Buffer of the message to broadcast.
+    pub buffer: Vec<u8>,
+    /// Public key of the noise protocol channel.
+    pub public_key: Vec<u8>,
+}
+
 /// State for the websocket  connection for a single
 /// authenticated client.
 pub struct WebSocketConnection {
@@ -40,7 +49,7 @@ pub struct WebSocketConnection {
     ///
     /// Handlers can send messages via this sender to broadcast
     /// to all the connected sockets for the client.
-    pub(crate) tx: Sender<Vec<u8>>,
+    pub(crate) tx: Sender<BroadcastMessage>,
 
     /// Number of connected clients, used to know when
     /// the connection state can be disposed of.
@@ -92,7 +101,7 @@ pub async fn upgrade(
     let conn = if let Some(conn) = writer.sockets.get_mut(&token.address) {
         conn
     } else {
-        let (tx, _) = broadcast::channel::<Vec<u8>>(32);
+        let (tx, _) = broadcast::channel::<BroadcastMessage>(32);
         writer
             .sockets
             .entry(token.address)
@@ -160,7 +169,7 @@ async fn disconnect(
 async fn handle_socket(
     socket: WebSocket,
     state: ServerState,
-    outgoing: Receiver<Vec<u8>>,
+    outgoing: Receiver<BroadcastMessage>,
     address: Address,
     server_public_key: Vec<u8>,
     client_public_key: Vec<u8>,
@@ -220,7 +229,7 @@ async fn write(
     server_public_key: Vec<u8>,
     client_public_key: Vec<u8>,
     mut sender: SplitSink<WebSocket, Message>,
-    mut outgoing: Receiver<Vec<u8>>,
+    mut outgoing: Receiver<BroadcastMessage>,
     mut close_rx: mpsc::Receiver<Message>,
 ) -> Result<()> {
     loop {
@@ -246,7 +255,7 @@ async fn write(
                         let envelope =
                             encrypt_server_channel(
                                 transport.protocol_mut(),
-                                &msg,
+                                &msg.buffer,
                                 false,
                             ).await?;
 

@@ -80,7 +80,7 @@ impl Service for SyncService {
                     );
 
                     let mut writer = state.write().await;
-                    send_notification(&mut writer, &caller, notification);
+                    send_notification(&mut *writer, &caller, notification);
                 }
 
                 let buffer = encode(&diff).await?;
