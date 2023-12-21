@@ -412,11 +412,12 @@ impl ClientStorage {
             if let Some(folder) = self.cache.get_mut(current.id()) {
                 let keeper = folder.keeper_mut();
 
-                keeper.lock();
-                keeper.replace_vault(vault.clone()).await?;
-
                 if let Some(key) = new_key {
+                    keeper.lock();
+                    keeper.replace_vault(vault.clone()).await?;
                     keeper.unlock(key).await?;
+                } else {
+                    keeper.replace_vault(vault.clone()).await?;
                 }
             }
         }

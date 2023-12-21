@@ -587,15 +587,9 @@ impl AccountBackup {
         // Check all the decoded vaults can be decrypted
         if let Some(passphrase) = &password {
             // Check the identity vault can be unlocked
-            let vault: Vault = decode(&identity.1).await?;
-            let mut keeper = Gatekeeper::new(vault);
+            // and get the signing address from the identity folder 
+            // and verify it matches the manifest address
             let key: AccessKey = passphrase.clone().into();
-            keeper.unlock(&key).await?;
-
-            // Get the signing address from the identity vault and
-            // verify it matches the manifest address
-            let key: AccessKey = passphrase.clone().into();
-
             let restored_user =
                 MemoryIdentityFolder::login(&identity.1, &key).await?;
 

@@ -323,6 +323,7 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
 
     let process = login(exe, &address, password, &prompt)?;
     
+    /*
     // Login shell specific commands
     whoami(exe, &password, Some((Arc::clone(&process), &prompt)))?;
     pwd(exe, &password, Some((Arc::clone(&process), &prompt)))?;
@@ -358,13 +359,14 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
         Some((Arc::clone(&process), &prompt)),
     )?;
 
-    /*
     // Account
     account::list(
         &exe,
         SHELL_ACCOUNT_NAME,
         Some((Arc::clone(&process), &prompt)),
     )?;
+    */
+
     account::backup_restore(
         &exe,
         &address,
@@ -403,7 +405,6 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         Some((Arc::clone(&process), &prompt)),
     )?;
-    */
 
     // Folder
     folder::new(

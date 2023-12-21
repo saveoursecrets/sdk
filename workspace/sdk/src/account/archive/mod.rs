@@ -145,6 +145,7 @@ impl Account {
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
+
         let current_folder = {
             let storage = owner.storage()?;
             let reader = storage.read().await;
