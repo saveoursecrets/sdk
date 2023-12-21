@@ -330,6 +330,7 @@ impl ClientStorage {
     pub async fn restore_archive(
         &mut self,
         targets: &RestoreTargets,
+        folder_keys: &FolderKeys,
     ) -> Result<()> {
         let RestoreTargets { vaults, .. } = targets;
 
@@ -351,7 +352,8 @@ impl ClientStorage {
                 .await?;
 
             // Refresh the in-memory and disc-based mirror
-            self.refresh_vault(vault.summary(), None).await?;
+            let key = folder_keys.find(vault.id()).ok_or(Error::NoFolderKey(*vault.id()))?;
+            self.refresh_vault(vault.summary(), &key).await?;
         }
 
         Ok(())
@@ -400,7 +402,7 @@ impl ClientStorage {
     async fn refresh_vault(
         &mut self,
         summary: &Summary,
-        new_key: Option<&AccessKey>,
+        key: &AccessKey,
     ) -> Result<Vec<u8>> {
         let vault = self.reduce_event_log(summary).await?;
 
@@ -408,18 +410,11 @@ impl ClientStorage {
         let buffer = encode(&vault).await?;
         self.write_vault_file(summary.id(), &buffer).await?;
 
-        if let Some(current) = self.current_folder() {
-            if let Some(folder) = self.cache.get_mut(current.id()) {
-                let keeper = folder.keeper_mut();
-
-                if let Some(key) = new_key {
-                    keeper.lock();
-                    keeper.replace_vault(vault.clone()).await?;
-                    keeper.unlock(key).await?;
-                } else {
-                    keeper.replace_vault(vault.clone()).await?;
-                }
-            }
+        if let Some(folder) = self.cache.get_mut(summary.id()) {
+            let keeper = folder.keeper_mut();
+            keeper.lock();
+            keeper.replace_vault(vault.clone()).await?;
+            keeper.unlock(key).await?;
         }
 
         Ok(buffer)
@@ -772,7 +767,7 @@ impl ClientStorage {
         };
 
         // Refresh in-memory vault and mirrored copy
-        let buffer = self.refresh_vault(summary, Some(key)).await?;
+        let buffer = self.refresh_vault(summary, key).await?;
 
         let account_event =
             AccountEvent::CompactFolder(*summary.id(), buffer);
@@ -965,7 +960,7 @@ impl ClientStorage {
             AccountEvent::ChangeFolderPassword(*vault.id(), buffer);
 
         // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.summary(), Some(&new_key)).await?;
+        self.refresh_vault(vault.summary(), &new_key).await?;
 
         if let Some(folder) = self.cache.get_mut(vault.id()) {
             let keeper = folder.keeper_mut();

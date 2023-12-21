@@ -475,7 +475,6 @@ impl AccountBackup {
         mut data_dir: Option<PathBuf>,
     ) -> Result<(RestoreTargets, PublicIdentity)> {
         // FIXME: ensure we still have ONE vault marked as default vault!!!
-        //
 
         let data_dir = if let Some(data_dir) = data_dir.take() {
             data_dir
@@ -507,21 +506,21 @@ impl AccountBackup {
             .clone();
 
         let address = address.to_string();
-
         let paths = Paths::new(data_dir, &address);
-        let identity_vault_file = paths.identity_vault().clone();
         let mut user = Identity::new(paths.clone());
         let key: AccessKey = passphrase.clone().into();
+        let identity_vault_file = paths.identity_vault().clone();
         user.login(&identity_vault_file, &key).await?;
 
         let restored_user =
             MemoryIdentityFolder::login(&identity.1, &key).await?;
-
+        
         // Use the delegated passwords for the folders
         // that were restored
         for (_, vault) in vaults {
             let vault_passphrase =
                 restored_user.find_folder_password(vault.id()).await?;
+
             user.save_folder_password(vault.id(), vault_passphrase)
                 .await?;
         }

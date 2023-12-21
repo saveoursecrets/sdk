@@ -118,14 +118,41 @@ impl Account {
         &mut self,
         path: P,
         password: SecretString,
-        options: RestoreOptions,
+        mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
-        let file = File::open(path).await?;
-        let account = Self::restore_backup_reader(
-            file, self, password, options, data_dir,
+        let current_folder = {
+            let storage = self.storage()?;
+            let reader = storage.read().await;
+            reader.current_folder()
+        };
+
+        let files_dir =
+            ExtractFilesLocation::Path(self.paths().files_dir().clone());
+
+        options.files_dir = Some(files_dir);
+
+        let reader = File::open(path).await?;
+        let (targets, account) = AccountBackup::restore_archive_reader(
+            reader, options, password, data_dir,
         )
         .await?;
+
+        {
+            let keys = self.folder_keys().await?;
+            let storage = self.storage()?;
+            let mut writer = storage.write().await;
+            writer.restore_archive(&targets, &keys).await?;
+        }
+
+        #[cfg(feature = "search")]
+        self.build_search_index().await?;
+
+        if let Some(folder) = &current_folder {
+            // Note that we don't want the additional
+            // audit event here
+            self.open_vault(folder, false).await?;
+        }
 
         let audit_event = AuditEvent::new(
             EventKind::ImportBackupArchive,
@@ -133,48 +160,6 @@ impl Account {
             None,
         );
         self.paths.append_audit_events(vec![audit_event]).await?;
-
-        Ok(account)
-    }
-
-    /// Restore from an archive reader.
-    async fn restore_backup_reader<R: AsyncRead + AsyncSeek + Unpin>(
-        reader: R,
-        owner: &mut Account,
-        password: SecretString,
-        mut options: RestoreOptions,
-        data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
-
-        let current_folder = {
-            let storage = owner.storage()?;
-            let reader = storage.read().await;
-            reader.current_folder()
-        };
-
-        let files_dir =
-            ExtractFilesLocation::Path(owner.paths().files_dir().clone());
-
-        options.files_dir = Some(files_dir);
-
-        let (targets, account) = AccountBackup::restore_archive_reader(
-            reader, options, password, data_dir,
-        )
-        .await?;
-
-        {
-            let storage = owner.storage()?;
-            let mut writer = storage.write().await;
-            writer.restore_archive(&targets).await?;
-        }
-
-        owner.build_search_index().await?;
-
-        if let Some(folder) = &current_folder {
-            // Note that we don't want the additional
-            // audit event here
-            owner.open_vault(folder, false).await?;
-        }
 
         Ok(account)
     }

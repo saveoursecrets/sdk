@@ -1324,8 +1324,8 @@ impl Account {
         writer.build_search_index(&keys).await
     }
 
-    /// Get the access keys for all folders.
-    async fn folder_keys(&self) -> Result<FolderKeys> {
+    /// Access keys for all folders.
+    pub(super) async fn folder_keys(&self) -> Result<FolderKeys> {
         let storage = self.storage()?;
         let reader = storage.read().await;
         let folders = reader.list_folders();

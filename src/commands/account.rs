@@ -421,7 +421,6 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
             selected: inventory.vaults,
             files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
         };
-
         owner
             .restore_backup_archive(&input, password, options, None)
             .await?
@@ -433,7 +432,6 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
             selected: inventory.vaults,
             files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
         };
-
         NetworkAccount::import_backup_archive(&input, options, None).await?
     };
 
