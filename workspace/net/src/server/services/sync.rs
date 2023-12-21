@@ -2,9 +2,9 @@ use axum::http::StatusCode;
 use std::borrow::Cow;
 
 use sos_sdk::{
-    constants::{SYNC_RESOLVE, SYNC_STATUS},
+    constants::SYNC_RESOLVE,
     decode, encode,
-    sync::{self, SyncComparison, SyncDiff, SyncStatus, SyncStorage},
+    sync::{self, SyncDiff, SyncStatus},
 };
 
 use async_trait::async_trait;

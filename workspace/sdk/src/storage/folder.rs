@@ -1,6 +1,6 @@
 //! Storage backed by the filesystem.
 use crate::{
-    commit::{CommitState, Comparison},
+    commit::CommitState,
     constants::EVENT_LOG_EXT,
     crypto::AccessKey,
     decode,
@@ -272,7 +272,7 @@ where
                         #[cfg(feature = "search")]
                         if let (
                             Some(index_doc),
-                            FolderMergeOptions::Search(folder_id, index),
+                            FolderMergeOptions::Search(_, index),
                         ) = (index_doc.take(), &mut options)
                         {
                             index.commit(index_doc);
@@ -311,7 +311,7 @@ where
                         #[cfg(feature = "search")]
                         if let (
                             Some(index_doc),
-                            FolderMergeOptions::Search(folder_id, index),
+                            FolderMergeOptions::Search(_, index),
                         ) = (index_doc.take(), &mut options)
                         {
                             index.commit(index_doc);

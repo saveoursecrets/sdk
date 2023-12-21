@@ -16,13 +16,12 @@ use crate::{
     account::archive::{ArchiveItem, Inventory, Reader, Writer},
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
-    decode, encode,
+    decode,
     events::{EventLogExt, FolderEventLog, WriteEvent},
     identity::{Identity, MemoryIdentityFolder, PublicIdentity},
     sha2::{Digest, Sha256},
     vault::{
-        secret::SecretId, Gatekeeper, Summary, Vault, VaultAccess, VaultId,
-        VaultWriter,
+        secret::SecretId, Summary, Vault, VaultAccess, VaultId, VaultWriter,
     },
     vfs::{self, File},
     Error, Paths, Result,
@@ -514,7 +513,7 @@ impl AccountBackup {
 
         let restored_user =
             MemoryIdentityFolder::login(&identity.1, &key).await?;
-        
+
         // Use the delegated passwords for the folders
         // that were restored
         for (_, vault) in vaults {
@@ -524,7 +523,7 @@ impl AccountBackup {
             user.save_folder_password(vault.id(), vault_passphrase)
                 .await?;
         }
-        
+
         Ok((targets, account))
     }
 
@@ -580,7 +579,7 @@ impl AccountBackup {
         // Check all the decoded vaults can be decrypted
         if let Some(passphrase) = &password {
             // Check the identity vault can be unlocked
-            // and get the signing address from the identity folder 
+            // and get the signing address from the identity folder
             // and verify it matches the manifest address
             let key: AccessKey = passphrase.clone().into();
             let restored_user =

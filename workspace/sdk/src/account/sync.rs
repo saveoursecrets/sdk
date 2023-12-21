@@ -12,7 +12,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{span, Level};
 

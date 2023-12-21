@@ -32,16 +32,11 @@ use crate::{
 #[cfg(feature = "audit")]
 use crate::audit::{AuditData, AuditEvent};
 
-#[cfg(feature = "sync")]
-use crate::sync::{SyncStatus, SyncStorage};
-
 use tracing::{span, Level};
 
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-
-use async_trait::async_trait;
 
 /// Type alias for a local account.
 pub type LocalAccount = Account;
@@ -1420,10 +1415,7 @@ impl Account {
 
     /// Compact an event log file.
     pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let key = self
-            .user()?
-            .find_folder_password(summary.id())
-            .await?;
+        let key = self.user()?.find_folder_password(summary.id()).await?;
 
         let (old_size, new_size) = {
             let storage = self.storage()?;

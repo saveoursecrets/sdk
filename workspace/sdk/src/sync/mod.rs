@@ -253,7 +253,7 @@ impl SyncComparison {
 
         // Handle events for new folders on local that
         // don't exist on remote yet
-        for (id, folder) in &self.local_status.folders {
+        for (id, _) in &self.local_status.folders {
             if self.remote_status.folders.get(id).is_none() {
                 let log = storage.folder_log(id).await?;
                 let log = log.read().await;

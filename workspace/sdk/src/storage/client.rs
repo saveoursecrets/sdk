@@ -1,12 +1,12 @@
 //! Storage backed by the filesystem.
 use crate::{
-    commit::{CommitHash, CommitState, CommitTree},
+    commit::{CommitHash, CommitState},
     constants::VAULT_EXT,
     crypto::AccessKey,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
-        EventReducer, FolderEventLog, ReadEvent, WriteEvent,
+        AccountEvent, AccountEventLog, Event, EventLogExt, EventReducer,
+        FolderEventLog, ReadEvent, WriteEvent,
     },
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
@@ -14,18 +14,13 @@ use crate::{
     storage::{AccessOptions, AccountPack, DiscFolder},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        FolderRef, Gatekeeper, Header, Summary, Vault, VaultAccess,
-        VaultBuilder, VaultCommit, VaultFlags, VaultId, VaultWriter,
+        FolderRef, Header, Summary, Vault, VaultBuilder, VaultId,
     },
     vfs, Error, Paths, Result, Timestamp,
 };
 
 use secrecy::SecretString;
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use tracing::{span, Level};
 
@@ -39,7 +34,7 @@ use crate::audit::AuditEvent;
 use crate::events::{FileEvent, FileEventLog};
 
 #[cfg(feature = "search")]
-use crate::storage::search::{AccountSearch, DocumentCount, SearchIndex};
+use crate::storage::search::{AccountSearch, DocumentCount};
 
 /// Client storage for folders loaded into memory and mirrored to disc.
 pub struct ClientStorage {
@@ -262,7 +257,7 @@ impl ClientStorage {
 
             for (summary, key) in &keys.0 {
                 if let Some(folder) = self.cache.get_mut(summary.id()) {
-                    let mut keeper = folder.keeper_mut();
+                    let keeper = folder.keeper_mut();
                     keeper.unlock(key).await?;
                     writer.add_folder(keeper).await?;
                 }
@@ -352,7 +347,9 @@ impl ClientStorage {
                 .await?;
 
             // Refresh the in-memory and disc-based mirror
-            let key = folder_keys.find(vault.id()).ok_or(Error::NoFolderKey(*vault.id()))?;
+            let key = folder_keys
+                .find(vault.id())
+                .ok_or(Error::NoFolderKey(*vault.id()))?;
             self.refresh_vault(vault.summary(), &key).await?;
         }
 
@@ -419,7 +416,7 @@ impl ClientStorage {
 
         Ok(buffer)
     }
-    
+
     /// Read a vault from the file on disc.
     pub(crate) async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
         let buffer = self.read_vault_file(id).await?;
@@ -564,7 +561,7 @@ impl ClientStorage {
 
         // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault)).await?;
-        
+
         self.unlock_folder(summary.id(), &key).await?;
 
         Ok((buffer, key, summary))
@@ -893,7 +890,8 @@ impl ClientStorage {
             .cache
             .get_mut(summary.id())
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-        let event = folder.rename_folder(name.as_ref()).await?;
+
+        folder.rename_folder(name.as_ref()).await?;
 
         let account_event = AccountEvent::RenameFolder(
             *summary.id(),
@@ -1178,7 +1176,7 @@ impl ClientStorage {
 
         let event = {
             let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
-            let mut folder = self
+            let folder = self
                 .cache
                 .get_mut(summary.id())
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;

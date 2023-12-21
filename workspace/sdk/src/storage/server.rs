@@ -1,10 +1,10 @@
 //! Server storage backed by the filesystem.
 use crate::{
-    commit::{CommitState, CommitTree},
+    commit::CommitState,
     constants::VAULT_EXT,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, Event, EventLogExt, EventReducer,
+        AccountEvent, AccountEventLog, EventLogExt, EventReducer,
         FolderEventLog,
     },
     signer::ecdsa::Address,

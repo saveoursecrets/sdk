@@ -1,17 +1,8 @@
 use crate::{
     audit::{AuditData, AuditEvent, AuditLogFile, AuditLogFlags},
-    commit::CommitHash,
-    crypto::AeadPack,
     encoding::{decode_uuid, encoding_error},
-    formats::{EventLogRecord, FileRecord, VaultRecord},
-    vault::VaultCommit,
     Timestamp,
 };
-
-use crate::events::AccountEvent;
-
-#[cfg(feature = "files")]
-use crate::events::FileEvent;
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result, SeekFrom};

@@ -1,7 +1,4 @@
-use sos_sdk::{
-    constants::{DEVICE_REVOKE, DEVICE_TRUST},
-    device::DevicePublicKey,
-};
+use sos_sdk::{constants::DEVICE_REVOKE, device::DevicePublicKey};
 
 use async_trait::async_trait;
 

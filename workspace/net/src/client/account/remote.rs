@@ -9,16 +9,13 @@ use serde::{Deserialize, Serialize};
 use sos_sdk::{
     account::LocalAccount,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::ClientStorage,
-    sync::{self, Client, SyncComparison, SyncStatus},
+    sync::{self, Client, SyncStatus},
     url::Url,
 };
 
 use mpc_protocol::Keypair;
 use std::{any::Any, collections::HashMap, fmt, sync::Arc};
-use tokio::sync::{Mutex, RwLock};
-
-use tracing::{span, Level};
+use tokio::sync::Mutex;
 
 /// Self hosted origin.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -242,7 +239,6 @@ mod listen {
     };
 
     use std::sync::Arc;
-    use tracing::{span, Level};
 
     // Listen to change notifications and attempt to sync.
     #[cfg(not(target_arch = "wasm32"))]

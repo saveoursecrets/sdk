@@ -1,7 +1,6 @@
 //! Authentication helper functions for extracting an address
 //! from a signature given in bearer authorization data.
 use axum::headers::{authorization::Bearer, Authorization};
-use serde::Deserialize;
 
 use sos_sdk::{
     decode,
@@ -10,7 +9,6 @@ use sos_sdk::{
         ed25519::{self, BinaryEd25519Signature},
     },
 };
-//use web3_signature::Signature;
 
 use super::{Error, Result};
 

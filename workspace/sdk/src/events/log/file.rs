@@ -255,7 +255,7 @@ where
     /// and in-memory.
     async fn clear(&mut self) -> Result<()> {
         self.truncate().await?;
-        let mut tree = self.tree_mut();
+        let tree = self.tree_mut();
         *tree = CommitTree::new();
         Ok(())
     }

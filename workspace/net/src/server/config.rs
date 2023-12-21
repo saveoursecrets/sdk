@@ -4,7 +4,7 @@ use std::{
     collections::HashSet,
     path::{Path, PathBuf},
 };
-use url::{Host, Url};
+use url::Url;
 
 use super::backend::Backend;
 use super::{Error, Result};

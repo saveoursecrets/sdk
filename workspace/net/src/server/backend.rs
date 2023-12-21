@@ -13,7 +13,6 @@ use crate::{
         vfs, Paths,
     },
 };
-use async_trait::async_trait;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},

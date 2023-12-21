@@ -13,7 +13,6 @@ use sos_sdk::{constants::MIME_TYPE_RPC, decode, encode};
 use web3_address::ethereum::Address;
 
 use std::sync::Arc;
-use tokio::sync::RwLockWriteGuard;
 
 use crate::{
     rpc::{Packet, RequestMessage, ResponseMessage, ServerEnvelope},

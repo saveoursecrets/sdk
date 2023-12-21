@@ -1,6 +1,5 @@
 //! Synchronization helpers.
 use crate::{
-    account::Account,
     encode,
     events::{
         AccountEvent, AccountEventLog, EventLogExt, EventReducer,
@@ -17,7 +16,7 @@ use crate::{
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use tracing::{span, Level};
 
 impl ServerStorage {
@@ -81,8 +80,6 @@ impl ServerStorage {
                 .await?
                 .build(false)
                 .await?;
-
-            let summary = vault.summary().clone();
 
             let buffer = encode(&vault).await?;
             vfs::write(vault_path, buffer).await?;

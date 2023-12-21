@@ -8,7 +8,7 @@
 //! key and folder passwords using a single primary password.
 use crate::{
     crypto::AccessKey,
-    events::{Event, EventKind},
+    events::Event,
     identity::{DiscIdentityFolder, PublicIdentity},
     signer::ecdsa::Address,
     vault::{secret::SecretId, Summary, Vault, VaultId},
@@ -22,9 +22,6 @@ use std::{
 };
 use tracing::{span, Level};
 use urn::Urn;
-
-#[cfg(feature = "audit")]
-use crate::audit::AuditEvent;
 
 #[cfg(feature = "device")]
 use crate::device::DeviceManager;

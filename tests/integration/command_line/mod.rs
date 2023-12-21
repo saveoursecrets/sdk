@@ -204,7 +204,7 @@ async fn integration_command_line() -> Result<()> {
 
     // Run tests in the context of a shell session
     shell(&exe, &password).await?;
-    
+
     account::new(&exe, &password, ACCOUNT_NAME, None)?;
 
     let address = helpers::first_account_address(&exe, ACCOUNT_NAME)?;
@@ -319,7 +319,7 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
     let prompt = format_prompt(SHELL_ACCOUNT_NAME, DEFAULT_VAULT_NAME);
 
     let process = login(exe, &address, password, &prompt)?;
-   
+
     // Login shell specific commands
     whoami(exe, &password, Some((Arc::clone(&process), &prompt)))?;
     pwd(exe, &password, Some((Arc::clone(&process), &prompt)))?;
@@ -461,7 +461,7 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         Some((Arc::clone(&process), &prompt)),
     )?;
-    
+
     // Secret
     secret::add_note(
         &exe,
