@@ -509,7 +509,6 @@ impl AccountBackup {
         let address = address.to_string();
 
         let paths = Paths::new(data_dir, &address);
-
         let identity_vault_file = paths.identity_vault().clone();
         let mut user = Identity::new(paths.clone());
         let key: AccessKey = passphrase.clone().into();
@@ -526,12 +525,7 @@ impl AccountBackup {
             user.save_folder_password(vault.id(), vault_passphrase)
                 .await?;
         }
-
-        let vault = user.identity()?.vault().clone();
-        // Must re-write the identity vault
-        let buffer = encode(&vault).await?;
-        vfs::write(identity_vault_file, buffer).await?;
-
+        
         Ok((targets, account))
     }
 
