@@ -367,14 +367,6 @@ impl ClientStorage {
         self.current.clone()
     }
 
-    /*
-    /// Get a mutable reference to the current in-memory vault access.
-    pub(crate) fn current_mut(&mut self) -> Option<&mut Gatekeeper> {
-        //self.current.as_mut()
-        todo!("restore currrent_mut");
-    }
-    */
-
     /// Create new event log cache entries.
     async fn create_cache_entry(
         &mut self,
@@ -432,25 +424,6 @@ impl ClientStorage {
         Ok(buffer)
     }
     
-    /*
-    #[cfg(feature = "search")]
-    pub(crate) async fn refresh_folder_search_index(
-        &mut self,
-        summary: &Summary,
-    ) -> Result<()> {
-        if let (Some(index), Some(folder)) =
-            (&self.index, self.cache.get_mut(summary.id()))
-        {
-            let keeper = folder.keeper();
-            let index = index.search();
-            let mut writer = index.write().await;
-            writer.remove_folder(&keeper);
-            writer.add_folder(&keeper);
-        }
-        Ok(())
-    }
-    */
-
     /// Read a vault from the file on disc.
     pub(crate) async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
         let buffer = self.read_vault_file(id).await?;
@@ -595,7 +568,7 @@ impl ClientStorage {
 
         // Initialize the local cache for the event log
         self.create_cache_entry(&summary, Some(vault)).await?;
-
+        
         self.unlock_folder(summary.id(), &key).await?;
 
         Ok((buffer, key, summary))
@@ -774,7 +747,11 @@ impl ClientStorage {
     }
 
     /// Compact an event log file.
-    pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+    pub async fn compact(
+        &mut self,
+        summary: &Summary,
+        key: &AccessKey,
+    ) -> Result<(u64, u64)> {
         let (old_size, new_size) = {
             let folder = self
                 .cache
@@ -794,7 +771,7 @@ impl ClientStorage {
         };
 
         // Refresh in-memory vault and mirrored copy
-        let buffer = self.refresh_vault(summary, None).await?;
+        let buffer = self.refresh_vault(summary, Some(key)).await?;
 
         let account_event =
             AccountEvent::CompactFolder(*summary.id(), buffer);

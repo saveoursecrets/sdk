@@ -329,11 +329,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                         "Compaction will remove history, are you sure (y/n)? ",
                     );
                     if read_flag(prompt)? {
-                        let owner = user.read().await;
-                        let storage = owner.storage().await?;
-                        let mut writer = storage.write().await;
+                        let mut owner = user.write().await;
                         let (old_size, new_size) =
-                            writer.compact(&summary).await?;
+                            owner.compact(&summary).await?;
                         println!("Old: {}", human_bytes(old_size as f64));
                         println!("New: {}", human_bytes(new_size as f64));
                     }

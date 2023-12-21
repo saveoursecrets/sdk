@@ -1420,10 +1420,15 @@ impl Account {
 
     /// Compact an event log file.
     pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+        let key = self
+            .user()?
+            .find_folder_password(summary.id())
+            .await?;
+
         let (old_size, new_size) = {
             let storage = self.storage()?;
             let mut writer = storage.write().await;
-            writer.compact(&summary).await?
+            writer.compact(&summary, &key).await?
         };
 
         Ok((old_size, new_size))

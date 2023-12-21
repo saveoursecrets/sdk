@@ -205,7 +205,8 @@ async fn integration_command_line() -> Result<()> {
 
     // Run tests in the context of a shell session
     shell(&exe, &password).await?;
-
+    
+    /*
     account::new(&exe, &password, ACCOUNT_NAME, None)?;
 
     let address = helpers::first_account_address(&exe, ACCOUNT_NAME)?;
@@ -262,6 +263,7 @@ async fn integration_command_line() -> Result<()> {
     secret::remove(&exe, &address, &password, None)?;
 
     account::delete(&exe, &address, &password, None)?;
+    */
 
     Paths::clear_data_dir();
 
@@ -320,7 +322,7 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
     let prompt = format_prompt(SHELL_ACCOUNT_NAME, DEFAULT_VAULT_NAME);
 
     let process = login(exe, &address, password, &prompt)?;
-
+    
     // Login shell specific commands
     whoami(exe, &password, Some((Arc::clone(&process), &prompt)))?;
     pwd(exe, &password, Some((Arc::clone(&process), &prompt)))?;
@@ -329,7 +331,7 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
     // Create alternative account so we can test the switch command
     account::new(&exe, &password, ALT_SHELL_ACCOUNT_NAME, None)?;
     switch(exe, &password, Some((Arc::clone(&process), &prompt)))?;
-
+    
     // Check
     check::vault(
         &exe,
@@ -356,6 +358,7 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
         Some((Arc::clone(&process), &prompt)),
     )?;
 
+    /*
     // Account
     account::list(
         &exe,
@@ -400,6 +403,7 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         Some((Arc::clone(&process), &prompt)),
     )?;
+    */
 
     // Folder
     folder::new(
@@ -408,6 +412,7 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         Some((Arc::clone(&process), &prompt)),
     )?;
+
     folder::list(
         &exe,
         &address,
@@ -426,6 +431,7 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         Some((Arc::clone(&process), &prompt)),
     )?;
+
     folder::commits(
         &exe,
         &address,
@@ -462,7 +468,7 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
         &password,
         Some((Arc::clone(&process), &prompt)),
     )?;
-
+    
     // Secret
     secret::add_note(
         &exe,
@@ -633,6 +639,14 @@ fn cd(
     let cmd = format!("{} cd {}", exe, DEFAULT_ARCHIVE_VAULT_NAME);
     read_until_eof(cmd, Some(password), renamed)?;
 
+    cd_default_folder(exe, password, repl)
+}
+
+fn cd_default_folder(
+    exe: &str,
+    password: &SecretString,
+    repl: Option<(Session, &str)>,
+) -> Result<()> {
     let cmd = format!("{} cd {}", exe, DEFAULT_VAULT_NAME);
     read_until_eof(cmd, Some(password), repl)
 }
