@@ -268,40 +268,43 @@ impl<R: AsyncRead + AsyncSeek + Unpin> Reader<R> {
 
             if !is_dir {
                 let file_name = entry.entry().filename();
+                
                 let path = sanitize_file_path(file_name.as_str()?);
                 let mut it = path.iter();
                 if let (Some(first), Some(second)) = (it.next(), it.next()) {
                     if first == FILES_DIR {
-                        let vault_id: VaultId =
-                            second.to_string_lossy().parse()?;
+                        if let Ok(vault_id) =
+                            second.to_string_lossy().parse::<VaultId>() {
 
-                        // Only restore files for the selected vaults
-                        if selected.iter().any(|s| s.id() == &vault_id) {
-                            // The given target path should already
-                            // include any files/ prefix so we need
-                            // to skip it
-                            let mut relative = PathBuf::new();
-                            for part in path.iter().skip(1) {
-                                relative = relative.join(part);
-                            }
-                            let destination = target.as_ref().join(relative);
-                            if let Some(parent) = destination.parent() {
-                                if !vfs::try_exists(&parent).await? {
-                                    vfs::create_dir_all(parent).await?;
+                            // Only restore files for the selected vaults
+                            if selected.iter().any(|s| s.id() == &vault_id) {
+                                // The given target path should already
+                                // include any files/ prefix so we need
+                                // to skip it
+                                let mut relative = PathBuf::new();
+                                for part in path.iter().skip(1) {
+                                    relative = relative.join(part);
                                 }
-                            }
+                                let destination = target.as_ref().join(relative);
+                                if let Some(parent) = destination.parent() {
+                                    if !vfs::try_exists(&parent).await? {
+                                        vfs::create_dir_all(parent).await?;
+                                    }
+                                }
 
-                            let mut reader = self
-                                .archive
-                                .reader_without_entry(index)
+                                let mut reader = self
+                                    .archive
+                                    .reader_without_entry(index)
+                                    .await?;
+                                let output = File::create(destination).await?;
+                                futures_util::io::copy(
+                                    &mut reader,
+                                    &mut output.compat_write(),
+                                )
                                 .await?;
-                            let output = File::create(destination).await?;
-                            futures_util::io::copy(
-                                &mut reader,
-                                &mut output.compat_write(),
-                            )
-                            .await?;
+                            }
                         }
+
                     }
                 }
             }
