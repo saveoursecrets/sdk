@@ -64,8 +64,9 @@ Several events logs are stored on both the client and server so that complete de
 
 1) Application event log tracks changes to accounts. [^1]
 2) Account event log tracks changes to folders.
-3) Folder event log tracks changes to secrets in a folder.
-4) File event log tracks changes to external files.
+3) Device event log tracks trusted devices.
+4) Folder event log tracks changes to secrets in a folder.
+5) File event log tracks changes to external files.
 
 It is important to note that the folder event log stores secret data in the same encrypted format as a vault and is therefore inaccessible to the untrusted server.
 
