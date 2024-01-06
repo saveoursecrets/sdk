@@ -153,7 +153,7 @@ where
         paths: &Paths,
     ) -> Result<()> {
         use crate::constants::DEVICE_KEY_URN;
-        let device_vault_path = paths.devices_file().to_owned();
+        let device_vault_path = paths.device_file().to_owned();
 
         let device_vault = if vfs::try_exists(&device_vault_path).await? {
             let buffer = vfs::read(&device_vault_path).await?;

@@ -30,6 +30,12 @@ use crate::account::archive::RestoreTargets;
 #[cfg(feature = "audit")]
 use crate::audit::AuditEvent;
 
+#[cfg(feature = "device")]
+use crate::{
+    device::TrustedDevice,
+    events::{DeviceEvent, DeviceEventLog},
+};
+
 #[cfg(feature = "files")]
 use crate::events::{FileEvent, FileEventLog};
 
@@ -67,6 +73,10 @@ pub struct ClientStorage {
     /// Folder event logs.
     pub(super) cache: HashMap<VaultId, DiscFolder>,
 
+    /// Device event log.
+    #[cfg(feature = "device")]
+    pub(super) device_log: DeviceEventLog,
+
     /// File event log.
     #[cfg(feature = "files")]
     pub(super) file_log: FileEventLog,
@@ -82,6 +92,7 @@ impl ClientStorage {
         address: Address,
         data_dir: Option<PathBuf>,
         identity_log: Arc<RwLock<FolderEventLog>>,
+        #[cfg(feature = "device")] device: TrustedDevice,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
@@ -90,7 +101,14 @@ impl ClientStorage {
         };
 
         let dirs = Paths::new(data_dir, address.to_string());
-        Self::new_paths(Arc::new(dirs), address, identity_log).await
+        Self::new_paths(
+            Arc::new(dirs),
+            address,
+            identity_log,
+            #[cfg(feature = "device")]
+            device,
+        )
+        .await
     }
 
     /// Create new storage backed by files on disc.
@@ -98,6 +116,7 @@ impl ClientStorage {
         paths: Arc<Paths>,
         address: Address,
         identity_log: Arc<RwLock<FolderEventLog>>,
+        #[cfg(feature = "device")] device: TrustedDevice,
     ) -> Result<Self> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
@@ -112,6 +131,9 @@ impl ClientStorage {
         event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
+        #[cfg(feature = "device")]
+        let device_log = Self::initialize_device_log(&*paths, device).await?;
+
         #[cfg(feature = "files")]
         let file_log = Self::initialize_file_log(&*paths).await?;
 
@@ -125,6 +147,8 @@ impl ClientStorage {
             account_log,
             #[cfg(feature = "search")]
             index: Some(AccountSearch::new()),
+            #[cfg(feature = "device")]
+            device_log,
             #[cfg(feature = "files")]
             file_log,
             #[cfg(feature = "files")]
@@ -135,6 +159,31 @@ impl ClientStorage {
     /// Address of the account owner.
     pub fn address(&self) -> &Address {
         &self.address
+    }
+
+    #[cfg(feature = "device")]
+    async fn initialize_device_log(
+        paths: &Paths,
+        device: TrustedDevice,
+    ) -> Result<DeviceEventLog> {
+        let span = span!(Level::DEBUG, "init_device_log");
+        let _enter = span.enter();
+
+        let log_file = paths.device_events();
+        let mut event_log = DeviceEventLog::new_device(log_file).await?;
+        let needs_init = event_log.tree().root().is_none();
+
+        tracing::debug!(needs_init = %needs_init);
+        
+        // Trust this device on initialization if the event 
+        // log is empty so that we are backwards compatible with 
+        // accounts that existed before device event logs.
+        if needs_init {
+            let event = DeviceEvent::Trust(device);
+            event_log.apply(vec![&event]).await?;
+        }
+
+        Ok(event_log)
     }
 
     /// Set the password for file encryption.

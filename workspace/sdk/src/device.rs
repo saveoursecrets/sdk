@@ -1,15 +1,9 @@
 //! Types for device support.
 use crate::{
-    constants::DEVICES_NSS,
-    identity::UrnLookup,
     signer::ed25519::{BoxedEd25519Signer, SingleParty, VerifyingKey},
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow},
-        Gatekeeper,
-    },
+    vault::Gatekeeper,
     Error, Result,
 };
-use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, fmt};
@@ -138,28 +132,7 @@ impl DeviceManager {
     /// Most applications will want to use other platform native
     /// code to get more information about the device hardware.
     pub fn device_info() -> DeviceMetaData {
-        let mut info = HashMap::new();
-        info.insert("realname".to_owned(), Value::String(whoami::realname()));
-        info.insert("username".to_owned(), Value::String(whoami::username()));
-        info.insert(
-            "device_name".to_owned(),
-            Value::String(whoami::devicename()),
-        );
-        info.insert("hostname".to_owned(), Value::String(whoami::hostname()));
-        info.insert(
-            "platform".to_owned(),
-            Value::String(whoami::platform().to_string()),
-        );
-        info.insert("distro".to_owned(), Value::String(whoami::distro()));
-        info.insert(
-            "arch".to_owned(),
-            Value::String(whoami::arch().to_string()),
-        );
-        info.insert(
-            "desktop".to_owned(),
-            Value::String(whoami::desktop_env().to_string()),
-        );
-        DeviceMetaData { info }
+        Default::default()
     }
 
     /// Current device information.
@@ -264,10 +237,37 @@ impl DeviceManager {
 
 /// Additional information about the device such as the
 /// device name, manufacturer and model.
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DeviceMetaData {
     #[serde(flatten)]
     info: HashMap<String, Value>,
+}
+
+impl Default for DeviceMetaData {
+    fn default() -> Self {
+        let mut info = HashMap::new();
+        info.insert("realname".to_owned(), Value::String(whoami::realname()));
+        info.insert("username".to_owned(), Value::String(whoami::username()));
+        info.insert(
+            "device_name".to_owned(),
+            Value::String(whoami::devicename()),
+        );
+        info.insert("hostname".to_owned(), Value::String(whoami::hostname()));
+        info.insert(
+            "platform".to_owned(),
+            Value::String(whoami::platform().to_string()),
+        );
+        info.insert("distro".to_owned(), Value::String(whoami::distro()));
+        info.insert(
+            "arch".to_owned(),
+            Value::String(whoami::arch().to_string()),
+        );
+        info.insert(
+            "desktop".to_owned(),
+            Value::String(whoami::desktop_env().to_string()),
+        );
+        Self { info }
+    }
 }
 
 impl fmt::Display for DeviceMetaData {

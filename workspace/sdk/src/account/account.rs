@@ -201,6 +201,11 @@ impl Account {
             address.clone(),
             data_dir.clone(),
             identity_log,
+            #[cfg(feature = "device")]
+            new_account
+                .identity_folder
+                .devices()?
+                .current_device(Default::default()),
         )
         .await?;
 
@@ -281,6 +286,10 @@ impl Account {
             signer.address()?,
             Some(data_dir),
             identity_log,
+            #[cfg(feature = "device")]
+            user.identity()?
+                .devices()?
+                .current_device(Default::default()),
         )
         .await?;
         self.paths = storage.paths();

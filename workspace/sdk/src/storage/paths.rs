@@ -11,10 +11,10 @@ use std::{
 
 use crate::{
     constants::{
-        ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICES_FILE,
-        EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR, JSON_EXT,
-        LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE, REMOTE_DIR,
-        VAULTS_DIR, VAULT_EXT,
+        ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICE_EVENTS,
+        DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR,
+        JSON_EXT, LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE,
+        REMOTE_DIR, VAULTS_DIR, VAULT_EXT,
     },
     vault::{secret::SecretId, VaultId},
     vfs,
@@ -68,7 +68,7 @@ pub struct Paths {
     /// User vault storage.
     vaults_dir: PathBuf,
     /// User devices storage.
-    devices_file: PathBuf,
+    device_file: PathBuf,
 }
 
 impl Paths {
@@ -117,8 +117,8 @@ impl Paths {
         let user_dir = local_dir.join(user_id.as_ref());
         let files_dir = user_dir.join(FILES_DIR);
         let vaults_dir = user_dir.join(VAULTS_DIR);
-        let devices_file =
-            user_dir.join(format!("{}.{}", DEVICES_FILE, VAULT_EXT));
+        let device_file =
+            user_dir.join(format!("{}.{}", DEVICE_FILE, VAULT_EXT));
         Self {
             user_id: user_id.as_ref().to_owned(),
             documents_dir,
@@ -129,7 +129,7 @@ impl Paths {
             user_dir,
             files_dir,
             vaults_dir,
-            devices_file,
+            device_file,
         }
     }
 
@@ -242,16 +242,16 @@ impl Paths {
         &self.vaults_dir
     }
 
-    /// User's devices vault file.
+    /// User's device signing key vault file.
     ///
     /// # Panics
     ///
     /// If this set of paths are global (no user identifier).
-    pub fn devices_file(&self) -> &PathBuf {
+    pub fn device_file(&self) -> &PathBuf {
         if self.is_global() {
             panic!("devices file is not accessible for global paths");
         }
-        &self.devices_file
+        &self.device_file
     }
 
     /// Path to the identity vault file for this user.
@@ -317,6 +317,20 @@ impl Paths {
             panic!("account events are not accessible for global paths");
         }
         let mut vault_path = self.user_dir.join(ACCOUNT_EVENTS);
+        vault_path.set_extension(EVENT_LOG_EXT);
+        vault_path
+    }
+
+    /// Path to the user's event log of device changes.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn device_events(&self) -> PathBuf {
+        if self.is_global() {
+            panic!("device events are not accessible for global paths");
+        }
+        let mut vault_path = self.user_dir.join(DEVICE_EVENTS);
         vault_path.set_extension(EVENT_LOG_EXT);
         vault_path
     }

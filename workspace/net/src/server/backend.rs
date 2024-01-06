@@ -2,7 +2,7 @@ use super::{Error, Result};
 use crate::{
     device::DeviceSet,
     sdk::{
-        constants::{DEVICES_FILE, JSON_EXT},
+        constants::{DEVICE_FILE, JSON_EXT},
         device::DevicePublicKey,
         signer::{
             ecdsa::Address,
@@ -56,7 +56,7 @@ impl AccountStorage {
 
     /// Devices file for server-side storage.
     fn devices_file(&self) -> PathBuf {
-        let mut path = self.storage.paths().user_dir().join(DEVICES_FILE);
+        let mut path = self.storage.paths().user_dir().join(DEVICE_FILE);
         path.set_extension(JSON_EXT);
         path
     }

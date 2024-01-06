@@ -85,12 +85,6 @@ mod urn {
 
     /// Device signing key.
     pub const DEVICE_KEY_URN: &str = "urn:sos:device:key";
-
-    /// Namespace for trusted devices.
-    ///
-    /// The namespace is followed by the trusted
-    /// device public identifier.
-    pub const DEVICES_NSS: &str = "devices:trusted:";
 }
 
 /// Constants for MIME types.
@@ -154,8 +148,11 @@ mod folders {
     /// Name of the file for account events.
     pub const ACCOUNT_EVENTS: &str = "account";
 
+    /// Name of the file for device events.
+    pub const DEVICE_EVENTS: &str = "devices";
+
     /// Name of the file for file events.
-    pub const FILE_EVENTS: &str = "file";
+    pub const FILE_EVENTS: &str = "files";
 
     /// Name of the file for account preferences.
     pub const PREFERENCES_FILE: &str = "preferences";
@@ -165,7 +162,7 @@ mod folders {
 
     /// Name of the vault file that stores the device
     /// signing key.
-    pub const DEVICES_FILE: &str = "devices";
+    pub const DEVICE_FILE: &str = "device";
 }
 
 /// File names.
