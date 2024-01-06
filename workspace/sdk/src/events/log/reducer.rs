@@ -58,7 +58,6 @@ mod device {
                     _ => {}
                 }
             }
-
             Ok(devices)
         }
     }

@@ -19,6 +19,9 @@ use tracing::{span, Level};
 #[cfg(feature = "audit")]
 use crate::audit::AuditEvent;
 
+#[cfg(feature = "device")]
+use crate::events::DeviceEventLog;
+
 #[cfg(feature = "files")]
 use crate::events::{FileEvent, FileEventLog};
 
@@ -38,6 +41,10 @@ pub struct ServerStorage {
 
     /// Folder event logs.
     pub(super) cache: HashMap<VaultId, Arc<RwLock<FolderEventLog>>>,
+
+    /// Device event log.
+    #[cfg(feature = "device")]
+    pub(super) device_log: DeviceEventLog,
 
     /// File event log.
     #[cfg(feature = "files")]
@@ -80,6 +87,9 @@ impl ServerStorage {
         event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
+        #[cfg(feature = "device")]
+        let device_log = Self::initialize_device_log(&*paths).await?;
+
         #[cfg(feature = "files")]
         let file_log = Self::initialize_file_log(&*paths).await?;
 
@@ -89,6 +99,8 @@ impl ServerStorage {
             paths,
             identity_log,
             account_log,
+            #[cfg(feature = "device")]
+            device_log,
             #[cfg(feature = "files")]
             file_log,
         })
@@ -107,6 +119,20 @@ impl ServerStorage {
     /// Access to the account log.
     pub fn account_log(&self) -> Arc<RwLock<AccountEventLog>> {
         Arc::clone(&self.account_log)
+    }
+
+    #[cfg(feature = "device")]
+    async fn initialize_device_log(
+        paths: &Paths,
+    ) -> Result<DeviceEventLog>
+    {
+        let span = span!(Level::DEBUG, "init_device_log");
+        let _enter = span.enter();
+
+        let log_file = paths.device_events();
+        let event_log = DeviceEventLog::new_device(log_file).await?;
+
+        Ok(event_log)
     }
 
     #[cfg(feature = "files")]

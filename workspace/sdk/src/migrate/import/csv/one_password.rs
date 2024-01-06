@@ -202,18 +202,19 @@ mod test {
         assert_eq!("XXX-MOCK-2", second.password);
         assert_eq!("mock;passwords", second.tags);
         assert_eq!(
-            "Mock notes about the mock password that was moved to the archive.",
+            "Archived password notes",
             second.notes
         );
         assert!(second.archived);
         assert!(!second.favorite);
 
         let third = records.remove(0);
+        
         assert_eq!("", third.title);
         assert_eq!(None, third.url);
         assert_eq!("", third.username,);
         assert_eq!("", third.password);
-        assert_eq!("", third.tags);
+        assert_eq!("Mock notes about the mock password that was moved to the archive.", third.tags);
         assert_eq!("", third.notes);
         assert!(!third.archived);
         assert!(!third.favorite);

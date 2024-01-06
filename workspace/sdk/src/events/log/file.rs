@@ -88,6 +88,7 @@ pub type MemoryFolderLog =
 pub type AccountEventLog = DiscEventLog<AccountEvent>;
 
 /// Event log for devices.
+#[cfg(feature = "device")]
 pub type DeviceEventLog = DiscEventLog<DeviceEvent>;
 
 /// Event log for changes to a folder.
