@@ -46,7 +46,7 @@ mod device {
             pin_mut!(stream);
 
             while let Some(event) = stream.next().await {
-                let (record, event) = event?;
+                let (_, event) = event?;
 
                 match event {
                     DeviceEvent::Trust(device) => {
@@ -155,7 +155,6 @@ impl EventReducer {
         mut self,
         event_log: &FolderEventLog,
     ) -> Result<EventReducer> {
-        
         // TODO: use event_log.stream() !
 
         let mut it = event_log.iter(false).await?;

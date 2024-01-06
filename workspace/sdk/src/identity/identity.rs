@@ -93,15 +93,6 @@ impl Identity {
             .devices()
     }
 
-    /// Device manager.
-    #[cfg(feature = "device")]
-    pub fn devices_mut(&mut self) -> Result<&mut DeviceManager> {
-        self.identity
-            .as_mut()
-            .ok_or(Error::NotAuthenticated)?
-            .devices_mut()
-    }
-
     /// Account information.
     pub fn account(&self) -> Result<&PublicIdentity> {
         self.account.as_ref().ok_or(Error::NotAuthenticated)
@@ -212,6 +203,14 @@ impl Identity {
         key: &AccessKey,
     ) -> Result<()> {
         self.identity = Some(DiscIdentityFolder::login(file, key).await?);
+
+        // Lazily create or retrieve a device specific signing key
+        #[cfg(feature = "device")]
+        {
+            let identity = self.identity.as_mut().unwrap();
+            identity.ensure_device_vault(&self.paths).await?;
+        }
+
         Ok(())
     }
 
@@ -237,13 +236,6 @@ impl Identity {
         self.login(identity_path, key).await?;
 
         tracing::debug!("identity verified");
-
-        // Lazily create or retrieve a device specific signing key
-        #[cfg(feature = "device")]
-        {
-            let identity = self.identity.as_mut().unwrap();
-            identity.ensure_device_vault(&self.paths).await?;
-        }
 
         self.account = Some(account);
         Ok(())

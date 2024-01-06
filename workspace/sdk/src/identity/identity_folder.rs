@@ -129,12 +129,6 @@ where
         self.devices.as_ref().ok_or(Error::NotAuthenticated)
     }
 
-    /// Device manager.
-    #[cfg(feature = "device")]
-    pub fn devices_mut(&mut self) -> Result<&mut DeviceManager> {
-        self.devices.as_mut().ok_or(Error::NotAuthenticated)
-    }
-
     /// Rename this identity vault.
     pub async fn rename(&mut self, account_name: String) -> Result<()> {
         self.folder
@@ -260,10 +254,8 @@ where
             Ok(DeviceManager::new(signer, device_keeper))
         };
 
-        let mut device_manager = device_manager?;
-        device_manager.load().await?;
+        self.devices = Some(device_manager?);
 
-        self.devices = Some(device_manager);
         Ok(())
     }
 

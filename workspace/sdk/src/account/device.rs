@@ -10,13 +10,4 @@ impl Account {
             .user
             .devices()
     }
-
-    /// Devices mutable reference.
-    pub fn devices_mut(&mut self) -> Result<&mut DeviceManager> {
-        self.authenticated
-            .as_mut()
-            .ok_or(Error::NotAuthenticated)?
-            .user
-            .devices_mut()
-    }
 }

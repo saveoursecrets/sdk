@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, fmt};
 use time::OffsetDateTime;
-use urn::Urn;
 
 const DEVICE_PUBLIC_KEY_LEN: usize = 32;
 
@@ -107,9 +106,8 @@ impl From<SingleParty> for DeviceSigner {
 pub struct DeviceManager {
     /// Signing key for this device.
     signer: DeviceSigner,
-    /// Access to the vault that stores
-    /// trusted device information for
-    /// the account.
+    /// Access to the vault that stores the device
+    /// signing key.
     keeper: Gatekeeper,
 }
 
@@ -147,89 +145,7 @@ impl DeviceManager {
         )
     }
 
-    /// Load trusted devices.
-    pub(crate) async fn load(&mut self) -> Result<()> {
-        todo!("use trusted device event log");
-
-        /*
-        for id in self.keeper.vault().keys() {
-            if let Some((meta, secret, _)) =
-                self.keeper.read_secret(id).await?
-            {
-                if let Some(urn) = meta.urn() {
-                    if urn.nss().starts_with(DEVICES_NSS) {
-                        let device_id: String = urn
-                            .nss()
-                            .trim_start_matches(DEVICES_NSS)
-                            .to_owned();
-                        if let Secret::Note { text, .. } = &secret {
-                            let device: TrustedDevice =
-                                serde_json::from_str(text.expose_secret())?;
-                            self.devices.insert(device_id, device);
-                            self.lookup.insert(
-                                (*self.keeper.id(), urn.clone()),
-                                *id,
-                            );
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-        */
-    }
-
-    /// List trusted devices.
-    pub fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {
-        todo!("use trusted device event log");
-
-        //self.devices.values().collect()
-    }
-
-    /// Add a trusted device.
-    pub async fn add_device(&mut self, device: TrustedDevice) -> Result<()> {
-        todo!("use trusted device event log");
-
-        /*
-        let urn = device.device_urn()?;
-        let device_id = device.public_id()?;
-        let secret_id = SecretId::new_v4();
-        let text = serde_json::to_string_pretty(&device)?;
-        let secret = Secret::Note {
-            text: SecretString::new(text),
-            user_data: Default::default(),
-        };
-        let mut meta = SecretMeta::new(urn.to_string(), secret.kind());
-        meta.set_urn(Some(urn.clone()));
-        let secret_data = SecretRow::new(secret_id, meta, secret);
-        self.keeper.create_secret(&secret_data).await?;
-        self.devices.insert(device_id, device);
-        self.lookup.insert((*self.keeper.id(), urn), secret_id);
-        Ok(())
-        */
-    }
-
-    /// Remove a trusted device.
-    pub async fn remove_device(
-        &mut self,
-        device: &TrustedDevice,
-    ) -> Result<()> {
-        todo!("use trusted device event log");
-
-        /*
-        let urn = device.device_urn()?;
-        let device_id = device.public_id()?;
-        let key = (*self.keeper.id(), urn);
-        if let Some(secret_id) = self.lookup.get(&key) {
-            self.keeper.delete_secret(secret_id).await?;
-            self.devices.remove(&device_id);
-            self.lookup.remove(&key);
-        }
-        Ok(())
-        */
-    }
-
-    /// Sign out locking the devices vault.
+    /// Sign out locking the device vault.
     pub fn sign_out(&mut self) {
         self.keeper.lock();
     }

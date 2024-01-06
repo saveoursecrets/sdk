@@ -1,9 +1,6 @@
 //! Event for trusting and revoking devices.
 use super::{EventKind, LogEvent};
-use crate::{
-    device::{DevicePublicKey, TrustedDevice},
-    vault::{secret::SecretId, VaultId},
-};
+use crate::device::{DevicePublicKey, TrustedDevice};
 
 /// Device event records trust and revocation of account devices.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]

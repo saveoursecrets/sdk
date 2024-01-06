@@ -136,7 +136,8 @@ impl ClientStorage {
         let account_log = Arc::new(RwLock::new(event_log));
 
         #[cfg(feature = "device")]
-        let (device_log, devices) = Self::initialize_device_log(&*paths, device).await?;
+        let (device_log, devices) =
+            Self::initialize_device_log(&*paths, device).await?;
 
         #[cfg(feature = "files")]
         let file_log = Self::initialize_file_log(&*paths).await?;
@@ -171,7 +172,8 @@ impl ClientStorage {
     async fn initialize_device_log(
         paths: &Paths,
         device: TrustedDevice,
-    ) -> Result<(DeviceEventLog, HashMap<DevicePublicKey, TrustedDevice>)> {
+    ) -> Result<(DeviceEventLog, HashMap<DevicePublicKey, TrustedDevice>)>
+    {
         let span = span!(Level::DEBUG, "init_device_log");
         let _enter = span.enter();
 
@@ -1311,5 +1313,29 @@ impl ClientStorage {
         }
 
         Ok(event)
+    }
+}
+
+#[cfg(feature = "device")]
+impl ClientStorage {
+    /// List trusted devices.
+    pub fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {
+        self.devices.values().collect()
+    }
+
+    /// Revoke trust in a device.
+    pub async fn revoke_device(
+        &mut self,
+        public_key: &DevicePublicKey,
+    ) -> Result<()> {
+        if self.devices.get(public_key).is_some() {
+            let event = DeviceEvent::Revoke(*public_key);
+            self.device_log.apply(vec![&event]).await?;
+
+            let reducer = DeviceReducer::new(&self.device_log);
+            self.devices = reducer.reduce().await?;
+        }
+
+        Ok(())
     }
 }

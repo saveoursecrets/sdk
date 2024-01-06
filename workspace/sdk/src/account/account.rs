@@ -195,7 +195,7 @@ impl Account {
         tracing::debug!(address = %new_account.address, "created account");
 
         let address = new_account.address.clone();
-        let identity_log = new_account.identity_folder.event_log();
+        let identity_log = new_account.user.identity()?.event_log();
 
         let mut storage = ClientStorage::new(
             address.clone(),
@@ -203,7 +203,8 @@ impl Account {
             identity_log,
             #[cfg(feature = "device")]
             new_account
-                .identity_folder
+                .user
+                .identity()?
                 .devices()?
                 .current_device(Default::default()),
         )

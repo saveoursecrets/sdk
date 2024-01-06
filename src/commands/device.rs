@@ -25,9 +25,8 @@ pub enum Command {
         #[clap(short, long)]
         verbose: bool,
     },
-    /// Remove a device.
-    #[clap(alias = "rm")]
-    Remove {
+    /// Revoke trust in a device.
+    Revoke {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
@@ -44,7 +43,9 @@ async fn resolve_device(
     let owner = user.read().await;
     let local_account = owner.local_account();
     let local = local_account.lock().await;
-    let devices = local.devices()?.list_trusted_devices();
+    let storage = local.storage()?;
+    let storage = storage.read().await;
+    let devices = storage.list_trusted_devices();
     for device in devices {
         if device.public_id()? == id {
             return Ok(Some(device.clone()));
@@ -60,7 +61,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let local_account = owner.local_account();
             let local = local_account.lock().await;
-            let devices = local.devices()?.list_trusted_devices();
+            let storage = local.storage()?;
+            let storage = storage.read().await;
+            let devices = storage.list_trusted_devices();
             for device in devices {
                 println!("{}", device.public_id()?);
                 if verbose {
@@ -68,7 +71,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
             }
         }
-        Command::Remove { account, id } => {
+        Command::Revoke { account, id } => {
             let user = resolve_user(account.as_ref(), false).await?;
             if let Some(device) =
                 resolve_device(Arc::clone(&user), &id).await?
@@ -77,8 +80,12 @@ pub async fn run(cmd: Command) -> Result<()> {
                 if read_flag(Some(&prompt))? {
                     let owner = user.read().await;
                     let local_account = owner.local_account();
-                    let mut local = local_account.lock().await;
-                    local.devices_mut()?.remove_device(&device).await?;
+                    let local = local_account.lock().await;
+
+                    let storage = local.storage()?;
+                    let mut storage = storage.write().await;
+
+                    storage.revoke_device(device.public_key()).await?;
                     println!("Device removed ✓");
                 }
             } else {
