@@ -20,7 +20,10 @@ use tracing::{span, Level};
 use crate::audit::AuditEvent;
 
 #[cfg(feature = "device")]
-use crate::events::DeviceEventLog;
+use crate::{
+    device::{DevicePublicKey, TrustedDevice},
+    events::{DeviceEvent, DeviceEventLog, DeviceReducer},
+};
 
 #[cfg(feature = "files")]
 use crate::events::{FileEvent, FileEventLog};
@@ -45,6 +48,10 @@ pub struct ServerStorage {
     /// Device event log.
     #[cfg(feature = "device")]
     pub(super) device_log: DeviceEventLog,
+
+    /// Reduced collection of devices.
+    #[cfg(feature = "device")]
+    pub(super) devices: HashMap<DevicePublicKey, TrustedDevice>,
 
     /// File event log.
     #[cfg(feature = "files")]
@@ -88,7 +95,7 @@ impl ServerStorage {
         let account_log = Arc::new(RwLock::new(event_log));
 
         #[cfg(feature = "device")]
-        let device_log = Self::initialize_device_log(&*paths).await?;
+        let (device_log, devices) = Self::initialize_device_log(&*paths).await?;
 
         #[cfg(feature = "files")]
         let file_log = Self::initialize_file_log(&*paths).await?;
@@ -101,6 +108,8 @@ impl ServerStorage {
             account_log,
             #[cfg(feature = "device")]
             device_log,
+            #[cfg(feature = "device")]
+            devices,
             #[cfg(feature = "files")]
             file_log,
         })
@@ -124,7 +133,7 @@ impl ServerStorage {
     #[cfg(feature = "device")]
     async fn initialize_device_log(
         paths: &Paths,
-    ) -> Result<DeviceEventLog>
+    ) -> Result<(DeviceEventLog, HashMap<DevicePublicKey, TrustedDevice>)>
     {
         let span = span!(Level::DEBUG, "init_device_log");
         let _enter = span.enter();
@@ -132,7 +141,10 @@ impl ServerStorage {
         let log_file = paths.device_events();
         let event_log = DeviceEventLog::new_device(log_file).await?;
 
-        Ok(event_log)
+        let reducer = DeviceReducer::new(&event_log);
+        let devices = reducer.reduce().await?;
+
+        Ok((event_log, devices))
     }
 
     #[cfg(feature = "files")]
