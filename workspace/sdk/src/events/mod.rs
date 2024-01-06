@@ -20,13 +20,13 @@ mod types;
 mod write;
 
 pub use self::log::{
-    AccountEventLog, AccountReducer, DiscData, DiscEventLog, DiscLog,
-    EventLogExt, EventRecord, EventReducer, FolderEventLog, MemoryData,
-    MemoryEventLog, MemoryFolderLog, MemoryLog,
+    AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
+    EventRecord, EventReducer, FolderEventLog, MemoryData, MemoryEventLog,
+    MemoryFolderLog, MemoryLog,
 };
 
 #[cfg(feature = "device")]
-pub use self::log::DeviceEventLog;
+pub use self::log::{DeviceEventLog, DeviceReducer};
 
 #[cfg(feature = "files")]
 pub use self::log::FileEventLog;

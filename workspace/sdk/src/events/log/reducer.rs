@@ -14,6 +14,60 @@ use crate::{
 
 use indexmap::IndexMap;
 
+#[cfg(feature = "device")]
+mod device {
+    use crate::{
+        device::{DevicePublicKey, TrustedDevice},
+        events::{DeviceEvent, DeviceEventLog, EventLogExt},
+        Result,
+    };
+    use futures::{pin_mut, stream::StreamExt};
+    use std::collections::HashMap;
+
+    /// Reduce device events to a collection of devices.
+    pub struct DeviceReducer<'a> {
+        log: &'a DeviceEventLog,
+    }
+
+    impl<'a> DeviceReducer<'a> {
+        /// Create a new device reducer.
+        pub fn new(log: &'a DeviceEventLog) -> Self {
+            Self { log }
+        }
+
+        /// Reduce devive events to a canonical collection
+        /// of trusted devices.
+        pub async fn reduce(
+            self,
+        ) -> Result<HashMap<DevicePublicKey, TrustedDevice>> {
+            let mut devices = HashMap::new();
+
+            let stream = self.log.stream(false).await;
+            pin_mut!(stream);
+
+            while let Some(event) = stream.next().await {
+                let (record, event) = event?;
+
+                match event {
+                    DeviceEvent::Trust(device) => {
+                        devices.insert(*device.public_key(), device);
+                    }
+                    DeviceEvent::Revoke(public_key) => {
+                        devices.remove(&public_key);
+                    }
+                    _ => {}
+                }
+            }
+
+            Ok(devices)
+        }
+    }
+}
+
+#[cfg(feature = "device")]
+pub use device::DeviceReducer;
+
+/*
 /// Reduce account events to a collection of folders.
 pub struct AccountReducer<'a> {
     log: &'a mut AccountEventLog,
@@ -46,6 +100,7 @@ impl<'a> AccountReducer<'a> {
         Ok(folders)
     }
 }
+*/
 
 /// Reduce log events to a vault.
 #[derive(Default)]
@@ -100,6 +155,9 @@ impl EventReducer {
         mut self,
         event_log: &FolderEventLog,
     ) -> Result<EventReducer> {
+        
+        // TODO: use event_log.stream() !
+
         let mut it = event_log.iter(false).await?;
         if let Some(log) = it.next().await? {
             let event = event_log.decode_event(&log).await?;

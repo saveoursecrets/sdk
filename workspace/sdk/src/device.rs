@@ -286,7 +286,7 @@ impl fmt::Display for DeviceMetaData {
 }
 
 /// Device that has been trusted.
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustedDevice {
     /// Public key of the device.
@@ -295,6 +295,12 @@ pub struct TrustedDevice {
     extra_info: DeviceMetaData,
     /// When this device was trusted.
     created_date: OffsetDateTime,
+}
+
+impl PartialEq for TrustedDevice {
+    fn eq(&self, other: &Self) -> bool {
+        self.public_key == other.public_key
+    }
 }
 
 impl TrustedDevice {
@@ -309,6 +315,11 @@ impl TrustedDevice {
             extra_info,
             created_date,
         }
+    }
+
+    /// Device public key.
+    pub fn public_key(&self) -> &DevicePublicKey {
+        &self.public_key
     }
 
     /// Public identifier derived from the public key (base58 encoded).

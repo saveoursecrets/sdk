@@ -11,13 +11,16 @@ mod reducer;
 #[cfg(feature = "device")]
 pub use file::DeviceEventLog;
 
+#[cfg(feature = "device")]
+pub use reducer::DeviceReducer;
+
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
 pub use file::{
     AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
     FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog, MemoryLog,
 };
-pub use reducer::{AccountReducer, EventReducer};
+pub use reducer::EventReducer;
 
 /// Record for a row in the event log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]

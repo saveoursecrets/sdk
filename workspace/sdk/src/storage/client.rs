@@ -32,8 +32,8 @@ use crate::audit::AuditEvent;
 
 #[cfg(feature = "device")]
 use crate::{
-    device::TrustedDevice,
-    events::{DeviceEvent, DeviceEventLog},
+    device::{DevicePublicKey, TrustedDevice},
+    events::{DeviceEvent, DeviceEventLog, DeviceReducer},
 };
 
 #[cfg(feature = "files")]
@@ -76,6 +76,10 @@ pub struct ClientStorage {
     /// Device event log.
     #[cfg(feature = "device")]
     pub(super) device_log: DeviceEventLog,
+
+    /// Reduced collection of devices.
+    #[cfg(feature = "device")]
+    pub(super) devices: HashMap<DevicePublicKey, TrustedDevice>,
 
     /// File event log.
     #[cfg(feature = "files")]
@@ -132,7 +136,7 @@ impl ClientStorage {
         let account_log = Arc::new(RwLock::new(event_log));
 
         #[cfg(feature = "device")]
-        let device_log = Self::initialize_device_log(&*paths, device).await?;
+        let (device_log, devices) = Self::initialize_device_log(&*paths, device).await?;
 
         #[cfg(feature = "files")]
         let file_log = Self::initialize_file_log(&*paths).await?;
@@ -149,6 +153,8 @@ impl ClientStorage {
             index: Some(AccountSearch::new()),
             #[cfg(feature = "device")]
             device_log,
+            #[cfg(feature = "device")]
+            devices,
             #[cfg(feature = "files")]
             file_log,
             #[cfg(feature = "files")]
@@ -165,7 +171,7 @@ impl ClientStorage {
     async fn initialize_device_log(
         paths: &Paths,
         device: TrustedDevice,
-    ) -> Result<DeviceEventLog> {
+    ) -> Result<(DeviceEventLog, HashMap<DevicePublicKey, TrustedDevice>)> {
         let span = span!(Level::DEBUG, "init_device_log");
         let _enter = span.enter();
 
@@ -174,16 +180,19 @@ impl ClientStorage {
         let needs_init = event_log.tree().root().is_none();
 
         tracing::debug!(needs_init = %needs_init);
-        
-        // Trust this device on initialization if the event 
-        // log is empty so that we are backwards compatible with 
+
+        // Trust this device on initialization if the event
+        // log is empty so that we are backwards compatible with
         // accounts that existed before device event logs.
         if needs_init {
             let event = DeviceEvent::Trust(device);
             event_log.apply(vec![&event]).await?;
         }
 
-        Ok(event_log)
+        let reducer = DeviceReducer::new(&event_log);
+        let devices = reducer.reduce().await?;
+
+        Ok((event_log, devices))
     }
 
     /// Set the password for file encryption.
