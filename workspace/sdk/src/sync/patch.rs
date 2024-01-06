@@ -4,6 +4,9 @@ use crate::{
 };
 use binary_stream::futures::{Decodable, Encodable};
 
+#[cfg(feature = "device")]
+use crate::events::DeviceEvent;
+
 #[cfg(feature = "files")]
 use crate::events::FileEvent;
 
@@ -12,6 +15,10 @@ pub type AccountPatch = Patch<AccountEvent>;
 
 /// Patch of folder events.
 pub type FolderPatch = Patch<WriteEvent>;
+
+/// Patch of device events.
+#[cfg(feature = "device")]
+pub type DevicePatch = Patch<DeviceEvent>;
 
 /// Patch of file events.
 #[cfg(feature = "files")]

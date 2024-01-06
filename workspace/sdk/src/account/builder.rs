@@ -6,7 +6,7 @@ use crate::{
         DEFAULT_CONTACTS_VAULT_NAME,
     },
     crypto::AccessKey,
-    identity::{DiscIdentityFolder, FolderKeys, Identity, IdentityFolder},
+    identity::{FolderKeys, Identity, IdentityFolder},
     signer::ecdsa::Address,
     storage::AccountPack,
     vault::{

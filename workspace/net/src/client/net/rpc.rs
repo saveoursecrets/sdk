@@ -12,9 +12,7 @@ use sos_sdk::{
         ACCOUNT_CREATE, HANDSHAKE_INITIATE, MIME_TYPE_RPC, SYNC_RESOLVE,
         SYNC_STATUS,
     },
-    decode,
-    device::DevicePublicKey,
-    encode,
+    decode, encode,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     sync::{ChangeSet, Client, SyncDiff, SyncStatus},
 };
@@ -362,15 +360,12 @@ impl RpcClient {
     ) -> Result<MaybeRetry<Option<()>>> {
         let url = self.build_url("api/account")?;
 
-        let device_public_key: DevicePublicKey =
-            self.device_signer.verifying_key().to_bytes().into();
-
         let id = self.next_id().await;
         let body = encode(account).await?;
         let request = RequestMessage::new(
             Some(id),
             ACCOUNT_CREATE,
-            device_public_key,
+            (),
             Cow::Owned(body),
         )?;
         let packet = Packet::new_request(request);

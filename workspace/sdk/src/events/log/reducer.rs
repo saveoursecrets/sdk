@@ -1,14 +1,9 @@
-use std::collections::HashSet;
-
 use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     decode, encode,
-    events::{
-        AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
-        WriteEvent,
-    },
-    vault::{secret::SecretId, Vault, VaultCommit, VaultId},
+    events::{EventLogExt, FolderEventLog, WriteEvent},
+    vault::{secret::SecretId, Vault, VaultCommit},
     Error, Result,
 };
 

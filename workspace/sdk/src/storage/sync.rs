@@ -68,6 +68,16 @@ impl ServerStorage {
             writer.patch_unchecked(&account_data.account).await?;
         }
 
+        #[cfg(feature = "device")]
+        {
+            use crate::events::DeviceReducer;
+            self.device_log
+                .patch_unchecked(&account_data.device)
+                .await?;
+            let reducer = DeviceReducer::new(&self.device_log);
+            self.devices = reducer.reduce().await?;
+        }
+
         for (id, folder) in &account_data.folders {
             let vault_path = self.paths.vault_path(id);
             let events_path = self.paths.event_log_path(id);
@@ -271,10 +281,15 @@ impl ClientStorage {
             folders.insert(*summary.id(), log_file.diff(None).await?);
         }
 
+        #[cfg(feature = "device")]
+        let device = self.device_log.diff(None).await?;
+
         Ok(ChangeSet {
             identity,
             account,
             folders,
+            #[cfg(feature = "device")]
+            device,
         })
     }
 }

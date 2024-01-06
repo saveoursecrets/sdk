@@ -9,8 +9,8 @@ use axum::{
 
 use crate::server::{
     services::{
-        private_service, public_service, AccountService, 
-        HandshakeService, SyncService,
+        private_service, public_service, AccountService, HandshakeService,
+        SyncService,
     },
     ServerBackend, ServerState,
 };
@@ -55,7 +55,7 @@ impl ServiceHandler {
             Err(error) => error.into_response(),
         }
     }
-    
+
     /// Handle requests for the sync service.
     pub(crate) async fn sync(
         Extension(state): Extension<ServerState>,

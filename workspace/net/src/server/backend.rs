@@ -1,20 +1,15 @@
 use super::{Error, Result};
-use crate::{
-    device::DeviceSet,
-    sdk::{
-        constants::{DEVICE_FILE, JSON_EXT},
-        device::DevicePublicKey,
-        signer::{
-            ecdsa::Address,
-            ed25519::{self, Verifier, VerifyingKey},
-        },
-        storage::{DiscFolder, ServerStorage},
-        sync::ChangeSet,
-        vfs, Paths,
+use crate::sdk::{
+    signer::{
+        ecdsa::Address,
+        ed25519::{self, Verifier, VerifyingKey},
     },
+    storage::{DiscFolder, ServerStorage},
+    sync::ChangeSet,
+    vfs, Paths,
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -24,59 +19,6 @@ use tracing::{span, Level};
 /// Account storage.
 pub struct AccountStorage {
     pub(crate) storage: ServerStorage,
-    /// Set of trusted devices.
-    devices: DeviceSet,
-}
-
-impl AccountStorage {
-    /// Trust a device.
-    pub async fn trust_device(
-        &mut self,
-        public_key: DevicePublicKey,
-    ) -> Result<()> {
-        self.devices.0.insert(public_key);
-        self.save_devices().await?;
-        Ok(())
-    }
-
-    /// Revoke trust in a device.
-    pub async fn revoke_device(
-        &mut self,
-        public_key: &DevicePublicKey,
-    ) -> Result<()> {
-        self.devices.0.remove(public_key);
-        self.save_devices().await?;
-        Ok(())
-    }
-
-    /// List device public keys.
-    pub fn list_device_keys(&self) -> &HashSet<DevicePublicKey> {
-        &self.devices.0
-    }
-
-    /// Devices file for server-side storage.
-    fn devices_file(&self) -> PathBuf {
-        let mut path = self.storage.paths().user_dir().join(DEVICE_FILE);
-        path.set_extension(JSON_EXT);
-        path
-    }
-
-    async fn save_devices(&self) -> Result<()> {
-        let path = self.devices_file();
-        let contents = serde_json::to_vec(&self.devices)?;
-        vfs::write(&path, contents).await?;
-        Ok(())
-    }
-
-    async fn load_devices(&mut self) -> Result<()> {
-        let path = self.devices_file();
-        if vfs::try_exists(&path).await? {
-            let contents = vfs::read(&path).await?;
-            let devices: DeviceSet = serde_json::from_slice(&contents)?;
-            self.devices = devices;
-        }
-        Ok(())
-    }
 }
 
 /// Individual account.
@@ -140,16 +82,14 @@ impl Backend {
                         let identity_log =
                             DiscFolder::new_event_log(&user_paths).await?;
 
-                        let mut account = AccountStorage {
+                        let account = AccountStorage {
                             storage: ServerStorage::new(
                                 owner.clone(),
                                 Some(self.directory.clone()),
                                 identity_log,
                             )
                             .await?,
-                            devices: Default::default(),
                         };
-                        account.load_devices().await?;
 
                         let mut accounts = self.accounts.write().await;
                         let account = accounts
@@ -169,7 +109,6 @@ impl Backend {
         &mut self,
         owner: &Address,
         account_data: ChangeSet,
-        device_public_key: DevicePublicKey,
     ) -> Result<()> {
         {
             let accounts = self.accounts.read().await;
@@ -200,50 +139,12 @@ impl Backend {
         .await?;
         storage.import_account(&account_data).await?;
 
-        let mut account = AccountStorage {
-            storage,
-            devices: Default::default(),
-        };
-
-        account.trust_device(device_public_key).await?;
-
+        let account = AccountStorage { storage };
         let mut accounts = self.accounts.write().await;
         accounts
             .entry(owner.clone())
             .or_insert(Arc::new(RwLock::new(account)));
 
-        Ok(())
-    }
-
-    /// Trust a device.
-    pub async fn trust_device(
-        &mut self,
-        owner: &Address,
-        device_public_key: DevicePublicKey,
-    ) -> Result<()> {
-        let accounts = self.accounts.read().await;
-        let account = accounts
-            .get(owner)
-            .ok_or(Error::NoAccount(owner.to_owned()))?;
-
-        let mut writer = account.write().await;
-        writer.trust_device(device_public_key).await?;
-        Ok(())
-    }
-
-    /// Revoke a device.
-    pub async fn revoke_device(
-        &mut self,
-        owner: &Address,
-        device_public_key: DevicePublicKey,
-    ) -> Result<()> {
-        let accounts = self.accounts.read().await;
-        let account = accounts
-            .get(owner)
-            .ok_or(Error::NoAccount(owner.to_owned()))?;
-
-        let mut writer = account.write().await;
-        writer.revoke_device(&device_public_key).await?;
         Ok(())
     }
 
@@ -257,7 +158,7 @@ impl Backend {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
             let reader = account.read().await;
-            let account_devices = reader.list_device_keys();
+            let account_devices = reader.storage.list_device_keys();
             for device_key in account_devices {
                 let verifying_key: VerifyingKey = device_key.try_into()?;
                 if verifying_key

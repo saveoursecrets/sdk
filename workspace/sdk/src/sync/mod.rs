@@ -21,6 +21,9 @@ mod patch;
 
 pub use patch::{AccountPatch, FolderPatch, Patch};
 
+#[cfg(feature = "device")]
+pub use patch::DevicePatch;
+
 #[cfg(feature = "files")]
 pub use patch::FilePatch;
 
@@ -283,6 +286,9 @@ pub struct ChangeSet {
     pub identity: FolderPatch,
     /// Account event logs.
     pub account: AccountPatch,
+    /// Device event logs.
+    #[cfg(feature = "device")]
+    pub device: DevicePatch,
     /// Folders to be imported into the new account.
     pub folders: HashMap<VaultId, FolderPatch>,
 }

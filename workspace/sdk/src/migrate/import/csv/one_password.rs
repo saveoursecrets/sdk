@@ -201,15 +201,12 @@ mod test {
         assert_eq!("mock-user", second.username,);
         assert_eq!("XXX-MOCK-2", second.password);
         assert_eq!("mock;passwords", second.tags);
-        assert_eq!(
-            "Archived password notes",
-            second.notes
-        );
+        assert_eq!("Archived password notes", second.notes);
         assert!(second.archived);
         assert!(!second.favorite);
 
         let third = records.remove(0);
-        
+
         assert_eq!("", third.title);
         assert_eq!(None, third.url);
         assert_eq!("", third.username,);

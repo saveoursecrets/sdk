@@ -3,7 +3,6 @@ use axum::http::StatusCode;
 use sos_sdk::{
     constants::{ACCOUNT_CREATE, SYNC_STATUS},
     decode,
-    device::DevicePublicKey,
     sync::{ChangeSet, SyncStorage},
 };
 
@@ -47,19 +46,10 @@ impl Service for AccountService {
                     }
                 }
 
-                let device_public_key =
-                    request.parameters::<DevicePublicKey>()?;
-
                 let account: ChangeSet = decode(request.body()).await?;
 
                 let mut writer = backend.write().await;
-                writer
-                    .create_account(
-                        caller.address(),
-                        account,
-                        device_public_key,
-                    )
-                    .await?;
+                writer.create_account(caller.address(), account).await?;
 
                 let reply: ResponseMessage<'_> =
                     (request.id(), ()).try_into()?;

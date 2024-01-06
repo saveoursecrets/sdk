@@ -22,8 +22,11 @@ use crate::audit::AuditEvent;
 #[cfg(feature = "device")]
 use crate::{
     device::{DevicePublicKey, TrustedDevice},
-    events::{DeviceEvent, DeviceEventLog, DeviceReducer},
+    events::{DeviceEventLog, DeviceReducer},
 };
+
+#[cfg(feature = "device")]
+use std::collections::HashSet;
 
 #[cfg(feature = "files")]
 use crate::events::{FileEvent, FileEventLog};
@@ -95,7 +98,8 @@ impl ServerStorage {
         let account_log = Arc::new(RwLock::new(event_log));
 
         #[cfg(feature = "device")]
-        let (device_log, devices) = Self::initialize_device_log(&*paths).await?;
+        let (device_log, devices) =
+            Self::initialize_device_log(&*paths).await?;
 
         #[cfg(feature = "files")]
         let file_log = Self::initialize_file_log(&*paths).await?;
@@ -370,5 +374,13 @@ impl ServerStorage {
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
         let event_log = event_log.read().await;
         Ok(event_log.tree().commit_state()?)
+    }
+}
+
+#[cfg(feature = "device")]
+impl ServerStorage {
+    /// List the public keys of trusted devices.
+    pub fn list_device_keys(&self) -> HashSet<&DevicePublicKey> {
+        self.devices.keys().collect()
     }
 }

@@ -72,6 +72,16 @@ impl Encodable for ChangeSet {
         writer.write_u32(length as u32).await?;
         writer.write_bytes(&buffer).await?;
 
+        // Device patch
+        #[cfg(feature = "device")]
+        {
+            let buffer =
+                encode(&self.device).await.map_err(encoding_error)?;
+            let length = buffer.len();
+            writer.write_u32(length as u32).await?;
+            writer.write_bytes(&buffer).await?;
+        }
+
         // Folder patches
         writer.write_u16(self.folders.len() as u16).await?;
         for (id, folder) in &self.folders {
@@ -101,6 +111,14 @@ impl Decodable for ChangeSet {
         let length = reader.read_u32().await?;
         let buffer = reader.read_bytes(length as usize).await?;
         self.account = decode(&buffer).await.map_err(encoding_error)?;
+
+        // Device patch
+        #[cfg(feature = "device")]
+        {
+            let length = reader.read_u32().await?;
+            let buffer = reader.read_bytes(length as usize).await?;
+            self.device = decode(&buffer).await.map_err(encoding_error)?;
+        }
 
         // Folder patches
         let num_folders = reader.read_u16().await?;
@@ -210,12 +228,19 @@ mod test {
     use crate::{
         decode, encode,
         events::{AccountEvent, WriteEvent},
-        sync::ChangeSet,
-        sync::{AccountPatch, FolderPatch},
+        sync::{AccountPatch, ChangeSet, FolderPatch},
         vault::Vault,
     };
     use anyhow::Result;
     use std::collections::HashMap;
+    use time::OffsetDateTime;
+
+    #[cfg(feature = "device")]
+    use crate::{
+        device::{DeviceSigner, TrustedDevice},
+        events::DeviceEvent,
+        sync::DevicePatch,
+    };
 
     #[tokio::test]
     async fn encode_decode_change_set() -> Result<()> {
@@ -235,10 +260,25 @@ mod test {
         let folder: FolderPatch = vec![WriteEvent::CreateVault(buf)].into();
         folders.insert(folder_id, folder);
 
+        #[cfg(feature = "device")]
+        let device = {
+            let device_signer = DeviceSigner::new_random();
+            let mock_device = TrustedDevice::new(
+                device_signer.public_key(),
+                Default::default(),
+                OffsetDateTime::now_utc(),
+            );
+            let device: DevicePatch =
+                vec![DeviceEvent::Trust(mock_device)].into();
+            device
+        };
+
         let account_data = ChangeSet {
             identity,
             account,
             folders,
+            #[cfg(feature = "device")]
+            device,
         };
 
         let buffer = encode(&account_data).await?;
