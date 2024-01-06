@@ -37,6 +37,9 @@ use futures::io::{
     AsyncWriteExt, BufReader, Cursor,
 };
 
+#[cfg(feature = "device")]
+use crate::events::DeviceEvent;
+
 #[cfg(feature = "files")]
 use crate::events::FileEvent;
 
@@ -83,6 +86,9 @@ pub type MemoryFolderLog =
 
 /// Event log for changes to an account.
 pub type AccountEventLog = DiscEventLog<AccountEvent>;
+
+/// Event log for devices.
+pub type DeviceEventLog = DiscEventLog<DeviceEvent>;
 
 /// Event log for changes to a folder.
 pub type FolderEventLog = DiscEventLog<WriteEvent>;
@@ -670,6 +676,33 @@ impl EventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &ACCOUNT_EVENT_LOG_IDENTITY,
+            version: Some(VERSION),
+            phantom: std::marker::PhantomData,
+        })
+    }
+}
+
+#[cfg(feature = "device")]
+impl EventLog<DeviceEvent, DiscLog, DiscLog, PathBuf> {
+    /// Create a new device event log file.
+    pub async fn new_device(path: impl AsRef<Path>) -> Result<Self> {
+        use crate::{
+            constants::DEVICE_EVENT_LOG_IDENTITY, encoding::VERSION,
+        };
+        let writer = Self::create_writer(
+            path.as_ref(),
+            &DEVICE_EVENT_LOG_IDENTITY,
+            Some(VERSION),
+        )
+        .await?;
+
+        let reader = Self::create_reader(path.as_ref()).await?;
+
+        Ok(Self {
+            file: Arc::new(Mutex::new((reader, writer))),
+            data: path.as_ref().to_path_buf(),
+            tree: Default::default(),
+            identity: &DEVICE_EVENT_LOG_IDENTITY,
             version: Some(VERSION),
             phantom: std::marker::PhantomData,
         })

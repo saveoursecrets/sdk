@@ -20,6 +20,9 @@ mod identity {
     /// Folder event log identity magic bytes (SOSW).
     pub const FOLDER_EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
 
+    /// Device event log identity magic bytes (SOSD).
+    pub const DEVICE_EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x44];
+
     /// File event log identity magic bytes (SOSF).
     pub const FILE_EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x46];
 

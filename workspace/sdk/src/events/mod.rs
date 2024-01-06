@@ -9,6 +9,8 @@
 //! an audit trail of actions.
 
 mod account;
+#[cfg(feature = "device")]
+mod device;
 mod event;
 #[cfg(feature = "files")]
 mod file;
@@ -23,10 +25,15 @@ pub use self::log::{
     MemoryEventLog, MemoryFolderLog, MemoryLog,
 };
 
+#[cfg(feature = "device")]
+pub use self::log::DeviceEventLog;
+
 #[cfg(feature = "files")]
 pub use self::log::FileEventLog;
 
 pub use account::AccountEvent;
+#[cfg(feature = "device")]
+pub use device::DeviceEvent;
 pub use event::Event;
 #[cfg(feature = "files")]
 pub use file::FileEvent;

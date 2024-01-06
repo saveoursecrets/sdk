@@ -63,6 +63,10 @@ const DELETE_FILE: u16 = 26;
 const COMPACT_VAULT: u16 = 27;
 /// Type identifier for changing a password.
 const CHANGE_PASSWORD: u16 = 28;
+/// Type identifier for trusting a device.
+const TRUST_DEVICE: u16 = 29;
+/// Type identifier for revoking a device.
+const REVOKE_DEVICE: u16 = 30;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -126,6 +130,10 @@ pub enum EventKind {
     CompactVault,
     /// Event for changing a password.
     ChangePassword,
+    /// Event for trusting a device.
+    TrustDevice,
+    /// Event for revoking a device.
+    RevokeDevice,
 }
 
 impl Default for EventKind {
@@ -167,6 +175,8 @@ impl TryFrom<u16> for EventKind {
             DELETE_FILE => EventKind::DeleteFile,
             COMPACT_VAULT => EventKind::CompactVault,
             CHANGE_PASSWORD => EventKind::ChangePassword,
+            TRUST_DEVICE => EventKind::TrustDevice,
+            REVOKE_DEVICE => EventKind::RevokeDevice,
             _ => return Err(Error::UnknownEventKind(value)),
         })
     }
@@ -204,6 +214,8 @@ impl From<&EventKind> for u16 {
             EventKind::DeleteFile => DELETE_FILE,
             EventKind::CompactVault => COMPACT_VAULT,
             EventKind::ChangePassword => CHANGE_PASSWORD,
+            EventKind::TrustDevice => TRUST_DEVICE,
+            EventKind::RevokeDevice => REVOKE_DEVICE,
         }
     }
 }
@@ -247,6 +259,8 @@ impl fmt::Display for EventKind {
                 EventKind::DeleteFile => "DELETE_FILE",
                 EventKind::CompactVault => "COMPACT_FOLDER",
                 EventKind::ChangePassword => "CHANGE_PASSWORD",
+                EventKind::TrustDevice => "TRUST_DEVICE",
+                EventKind::RevokeDevice => "REVOKE_DEVICE",
             }
         })
     }

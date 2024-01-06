@@ -16,9 +16,18 @@ use std::{collections::HashMap, fmt};
 use time::OffsetDateTime;
 use urn::Urn;
 
+const DEVICE_PUBLIC_KEY_LEN: usize = 32;
+
 /// Type of a device public key.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
-pub struct DevicePublicKey(#[serde(with = "hex::serde")] [u8; 32]);
+pub struct DevicePublicKey(
+    #[serde(with = "hex::serde")] [u8; DEVICE_PUBLIC_KEY_LEN],
+);
+
+impl DevicePublicKey {
+    /// Device public key byte length.
+    pub const SIZE: usize = DEVICE_PUBLIC_KEY_LEN;
+}
 
 impl hex::FromHex for DevicePublicKey {
     type Error = Error;
@@ -116,10 +125,7 @@ impl DeviceManager {
     /// The gatekeeper should be unlocked before assigning to a
     /// device manager.
     pub(super) fn new(signer: DeviceSigner, keeper: Gatekeeper) -> Self {
-        Self {
-            signer,
-            keeper,
-        }
+        Self { signer, keeper }
     }
 
     /// Signing key for this device.
@@ -171,7 +177,7 @@ impl DeviceManager {
     /// Load trusted devices.
     pub(crate) async fn load(&mut self) -> Result<()> {
         todo!("use trusted device event log");
-        
+
         /*
         for id in self.keeper.vault().keys() {
             if let Some((meta, secret, _)) =
@@ -199,7 +205,7 @@ impl DeviceManager {
         Ok(())
         */
     }
-    
+
     /// List trusted devices.
     pub fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {
         todo!("use trusted device event log");
@@ -210,7 +216,7 @@ impl DeviceManager {
     /// Add a trusted device.
     pub async fn add_device(&mut self, device: TrustedDevice) -> Result<()> {
         todo!("use trusted device event log");
-        
+
         /*
         let urn = device.device_urn()?;
         let device_id = device.public_id()?;
@@ -236,7 +242,7 @@ impl DeviceManager {
         device: &TrustedDevice,
     ) -> Result<()> {
         todo!("use trusted device event log");
-        
+
         /*
         let urn = device.device_urn()?;
         let device_id = device.public_id()?;
@@ -258,7 +264,7 @@ impl DeviceManager {
 
 /// Additional information about the device such as the
 /// device name, manufacturer and model.
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DeviceMetaData {
     #[serde(flatten)]
     info: HashMap<String, Value>,
@@ -280,7 +286,7 @@ impl fmt::Display for DeviceMetaData {
 }
 
 /// Device that has been trusted.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustedDevice {
     /// Public key of the device.

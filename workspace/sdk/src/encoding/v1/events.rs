@@ -10,6 +10,9 @@ use crate::{
 
 use crate::events::AccountEvent;
 
+#[cfg(feature = "device")]
+use crate::events::DeviceEvent;
+
 #[cfg(feature = "files")]
 use crate::events::FileEvent;
 
@@ -356,6 +359,68 @@ impl Decodable for AccountEvent {
                 return Err(Error::new(
                     ErrorKind::Other,
                     format!("unknown account event kind {}", op),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "device")]
+#[async_trait]
+impl Encodable for DeviceEvent {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        let op = self.event_kind();
+        op.encode(&mut *writer).await?;
+        match self {
+            DeviceEvent::Noop => panic!("attempt to encode a noop"),
+            DeviceEvent::Trust(device) => {
+                let buf = serde_json::to_vec(device)?;
+                writer.write_u32(buf.len() as u32).await?;
+                writer.write_bytes(&buf).await?;
+            }
+            DeviceEvent::Revoke(public_key) => {
+                writer.write_bytes(public_key.as_ref()).await?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "device")]
+#[async_trait]
+impl Decodable for DeviceEvent {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        use crate::device::{DevicePublicKey, TrustedDevice};
+        let mut op: EventKind = Default::default();
+        op.decode(&mut *reader).await?;
+        match op {
+            EventKind::Noop => panic!("attempt to decode a noop"),
+            EventKind::TrustDevice => {
+                let len = reader.read_u32().await?;
+                let buf = reader.read_bytes(len as usize).await?;
+                let device: TrustedDevice = serde_json::from_slice(&buf)?;
+                *self = DeviceEvent::Trust(device);
+            }
+            EventKind::RevokeDevice => {
+                let public_key: [u8; DevicePublicKey::SIZE] = reader
+                    .read_bytes(DevicePublicKey::SIZE)
+                    .await?
+                    .as_slice()
+                    .try_into()
+                    .map_err(encoding_error)?;
+                *self = DeviceEvent::Revoke(public_key.into());
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown device event kind {}", op),
                 ));
             }
         }

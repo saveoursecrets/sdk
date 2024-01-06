@@ -8,6 +8,9 @@ use binary_stream::futures::Decodable;
 mod file;
 mod reducer;
 
+#[cfg(feature = "device")]
+pub use file::DeviceEventLog;
+
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
 pub use file::{
