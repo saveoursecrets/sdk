@@ -98,12 +98,7 @@ impl From<SingleParty> for DeviceSigner {
     }
 }
 
-/// Manages the trusted devices for a user.
-///
-/// Device manager stores the signing key for this device and
-/// documents for devices that have been trusted by this device.
-///
-/// Trusted device documents are stored as JSON in secret notes.
+/// Manages the gatekeeper that protects the device signing key.
 ///
 /// Call [DeviceManager::sign_out] to lock the device vault.
 pub struct DeviceManager {
@@ -113,10 +108,6 @@ pub struct DeviceManager {
     /// trusted device information for
     /// the account.
     keeper: Gatekeeper,
-    /// Devices loaded into memory.
-    devices: HashMap<String, TrustedDevice>,
-    /// Lookup table by URN.
-    lookup: UrnLookup,
 }
 
 impl DeviceManager {
@@ -128,8 +119,6 @@ impl DeviceManager {
         Self {
             signer,
             keeper,
-            devices: Default::default(),
-            lookup: Default::default(),
         }
     }
 
@@ -181,6 +170,9 @@ impl DeviceManager {
 
     /// Load trusted devices.
     pub(crate) async fn load(&mut self) -> Result<()> {
+        todo!("use trusted device event log");
+        
+        /*
         for id in self.keeper.vault().keys() {
             if let Some((meta, secret, _)) =
                 self.keeper.read_secret(id).await?
@@ -205,15 +197,21 @@ impl DeviceManager {
             }
         }
         Ok(())
+        */
     }
-
+    
     /// List trusted devices.
     pub fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {
-        self.devices.values().collect()
+        todo!("use trusted device event log");
+
+        //self.devices.values().collect()
     }
 
     /// Add a trusted device.
     pub async fn add_device(&mut self, device: TrustedDevice) -> Result<()> {
+        todo!("use trusted device event log");
+        
+        /*
         let urn = device.device_urn()?;
         let device_id = device.public_id()?;
         let secret_id = SecretId::new_v4();
@@ -229,6 +227,7 @@ impl DeviceManager {
         self.devices.insert(device_id, device);
         self.lookup.insert((*self.keeper.id(), urn), secret_id);
         Ok(())
+        */
     }
 
     /// Remove a trusted device.
@@ -236,6 +235,9 @@ impl DeviceManager {
         &mut self,
         device: &TrustedDevice,
     ) -> Result<()> {
+        todo!("use trusted device event log");
+        
+        /*
         let urn = device.device_urn()?;
         let device_id = device.public_id()?;
         let key = (*self.keeper.id(), urn);
@@ -245,6 +247,7 @@ impl DeviceManager {
             self.lookup.remove(&key);
         }
         Ok(())
+        */
     }
 
     /// Sign out locking the devices vault.
@@ -317,13 +320,6 @@ impl TrustedDevice {
     /// Date and time this trusted device was created.
     pub fn created_date(&self) -> &OffsetDateTime {
         &self.created_date
-    }
-
-    /// Get the URN for this device.
-    fn device_urn(&self) -> Result<Urn> {
-        let device_urn =
-            format!("urn:sos:{}{}", DEVICES_NSS, self.public_id()?);
-        Ok(device_urn.parse()?)
     }
 }
 
