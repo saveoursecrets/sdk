@@ -9,7 +9,7 @@ use axum::{
 
 use crate::server::{
     services::{
-        private_service, public_service, AccountService, DeviceService,
+        private_service, public_service, AccountService, 
         HandshakeService, SyncService,
     },
     ServerBackend, ServerState,
@@ -55,26 +55,7 @@ impl ServiceHandler {
             Err(error) => error.into_response(),
         }
     }
-
-    /// Handle requests for the device service.
-    pub(crate) async fn device(
-        Extension(state): Extension<ServerState>,
-        Extension(backend): Extension<ServerBackend>,
-        TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
-        Query(query): Query<ServiceQuery>,
-        body: Bytes,
-    ) -> impl IntoResponse {
-        let service = DeviceService {};
-        match private_service(
-            service, state, backend, bearer, query, body, true,
-        )
-        .await
-        {
-            Ok(result) => result.into_response(),
-            Err(error) => error.into_response(),
-        }
-    }
-
+    
     /// Handle requests for the sync service.
     pub(crate) async fn sync(
         Extension(state): Extension<ServerState>,

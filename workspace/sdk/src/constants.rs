@@ -109,12 +109,6 @@ mod rpc {
     /// Account create method call.
     pub const ACCOUNT_CREATE: &str = "Account.create";
 
-    /// Device trust method call.
-    pub const DEVICE_TRUST: &str = "Device.trust";
-
-    /// Device revoke method call.
-    pub const DEVICE_REVOKE: &str = "Device.revoke";
-
     /// Sync status method call.
     pub const SYNC_STATUS: &str = "Sync.status";
 

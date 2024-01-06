@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 
 use sos_sdk::{
-    constants::{ACCOUNT_CREATE, DEVICE_TRUST, SYNC_STATUS},
+    constants::{ACCOUNT_CREATE, SYNC_STATUS},
     decode,
     device::DevicePublicKey,
     sync::{ChangeSet, SyncStorage},
@@ -21,7 +21,6 @@ use crate::{
 /// require a device signature.
 ///
 /// * `Account.create`: Create a new account.
-/// * `Device.trust`: Trust the public key of a device.
 /// * `Sync.status`: Account sync status.
 ///
 pub struct AccountService;
@@ -65,17 +64,6 @@ impl Service for AccountService {
                 let reply: ResponseMessage<'_> =
                     (request.id(), ()).try_into()?;
 
-                Ok(reply)
-            }
-            DEVICE_TRUST => {
-                let device_public_key =
-                    request.parameters::<DevicePublicKey>()?;
-                let mut writer = backend.write().await;
-                let result = writer
-                    .trust_device(caller.address(), device_public_key)
-                    .await?;
-                let reply: ResponseMessage<'_> =
-                    (request.id(), result).try_into()?;
                 Ok(reply)
             }
             SYNC_STATUS => {

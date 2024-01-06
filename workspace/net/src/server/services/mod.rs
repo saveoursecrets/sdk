@@ -27,12 +27,12 @@ use crate::{
 use crate::events::ChangeNotification;
 
 mod account;
-mod device;
+//mod device;
 mod handshake;
 mod sync;
 
 pub use account::AccountService;
-pub use device::DeviceService;
+//pub use device::DeviceService;
 pub use handshake::HandshakeService;
 pub use sync::SyncService;
 
