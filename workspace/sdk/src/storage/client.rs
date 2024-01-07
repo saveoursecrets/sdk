@@ -179,9 +179,8 @@ impl ClientStorage {
 
         let log_file = paths.device_events();
         
-        println!("DEVICE LOG FILE: {:#?}", log_file);
-
         let mut event_log = DeviceEventLog::new_device(log_file).await?;
+        event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
         tracing::debug!(needs_init = %needs_init);
