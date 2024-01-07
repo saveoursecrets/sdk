@@ -10,7 +10,7 @@ use super::copy_account;
 /// event without any networking.
 #[tokio::test]
 async fn integration_diff_merge_secret_create() -> Result<()> {
-    //crate::test_utils::init_tracing();
+    crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);

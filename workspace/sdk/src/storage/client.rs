@@ -178,15 +178,19 @@ impl ClientStorage {
         let _enter = span.enter();
 
         let log_file = paths.device_events();
+        
+        println!("DEVICE LOG FILE: {:#?}", log_file);
+
         let mut event_log = DeviceEventLog::new_device(log_file).await?;
         let needs_init = event_log.tree().root().is_none();
 
         tracing::debug!(needs_init = %needs_init);
-
+        
         // Trust this device on initialization if the event
         // log is empty so that we are backwards compatible with
         // accounts that existed before device event logs.
         if needs_init {
+            tracing::info!("initialize root device {}", device.public_key());
             let event = DeviceEvent::Trust(device);
             event_log.apply(vec![&event]).await?;
         }

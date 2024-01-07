@@ -66,6 +66,12 @@ impl AsRef<[u8]> for DevicePublicKey {
     }
 }
 
+impl fmt::Display for DevicePublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(self.0))
+    }
+}
+
 /// Signing key for a device.
 #[derive(Clone)]
 pub struct DeviceSigner(pub(crate) BoxedEd25519Signer);

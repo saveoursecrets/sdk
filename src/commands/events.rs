@@ -5,7 +5,7 @@ use binary_stream::futures::{Decodable, Encodable};
 use sos_net::sdk::{
     events::{
         AccountEvent, AccountEventLog, DiscEventLog, EventLogExt, FileEvent,
-        FileEventLog, FolderEventLog, LogEvent, WriteEvent,
+        FileEventLog, FolderEventLog, LogEvent, WriteEvent, DeviceEvent, DeviceEventLog,
     },
     vfs,
 };
@@ -18,6 +18,15 @@ use crate::{Error, Result};
 pub enum Command {
     /// Print account event log records.
     Account {
+        /// Reverse the iteration direction.
+        #[clap(short, long)]
+        reverse: bool,
+
+        /// Log file path.
+        file: PathBuf,
+    },
+    /// Print device event log records.
+    Device {
         /// Reverse the iteration direction.
         #[clap(short, long)]
         reverse: bool,
@@ -53,6 +62,13 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
             let event_log = AccountEventLog::new_account(&file).await?;
             print_events::<AccountEvent>(event_log, reverse).await?;
+        }
+        Command::Device { file, reverse } => {
+            if !vfs::metadata(&file).await?.is_file() {
+                return Err(Error::NotFile(file));
+            }
+            let event_log = DeviceEventLog::new_device(&file).await?;
+            print_events::<DeviceEvent>(event_log, reverse).await?;
         }
         Command::Folder { file, reverse } => {
             if !vfs::metadata(&file).await?.is_file() {
