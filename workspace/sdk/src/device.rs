@@ -6,7 +6,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fmt};
+use std::{collections::BTreeMap, fmt};
 use time::OffsetDateTime;
 
 const DEVICE_PUBLIC_KEY_LEN: usize = 32;
@@ -161,13 +161,16 @@ impl DeviceManager {
 /// device name, manufacturer and model.
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DeviceMetaData {
+    // Note that order is very important here as this type
+    // is included in the device event log and if the order
+    // is non-deterministic the commit hashes will differ.
     #[serde(flatten)]
-    info: HashMap<String, Value>,
+    info: BTreeMap<String, Value>,
 }
 
 impl Default for DeviceMetaData {
     fn default() -> Self {
-        let mut info = HashMap::new();
+        let mut info = BTreeMap::new();
         info.insert("realname".to_owned(), Value::String(whoami::realname()));
         info.insert("username".to_owned(), Value::String(whoami::username()));
         info.insert(

@@ -151,7 +151,7 @@ impl SyncComparison {
             let reader = account.read().await;
             reader.tree().compare(&remote_status.account.1)?
         };
-        
+
         #[cfg(feature = "device")]
         let device = {
             let device = storage.device_log().await?;
@@ -247,7 +247,7 @@ impl SyncComparison {
                 println!("todo! : handle account with diverged trees");
             }
         }
-        
+
         #[cfg(feature = "device")]
         match self.device {
             Comparison::Equal => {}
