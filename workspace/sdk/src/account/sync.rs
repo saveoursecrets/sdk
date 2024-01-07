@@ -189,6 +189,9 @@ impl SyncStorage for Account {
             reader.tree().commit_state()?
         };
 
+        #[cfg(feature = "device")]
+        let device = storage.device_log.tree().commit_state()?;
+
         let mut folders = IndexMap::new();
         for summary in &summaries {
             let folder = storage
@@ -202,6 +205,8 @@ impl SyncStorage for Account {
         Ok(SyncStatus {
             identity,
             account,
+            #[cfg(feature = "device")]
+            device,
             folders,
         })
     }

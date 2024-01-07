@@ -75,7 +75,7 @@ pub struct ClientStorage {
 
     /// Device event log.
     #[cfg(feature = "device")]
-    pub(super) device_log: DeviceEventLog,
+    pub(crate) device_log: DeviceEventLog,
 
     /// Reduced collection of devices.
     #[cfg(feature = "device")]

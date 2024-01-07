@@ -85,6 +85,9 @@ pub struct SyncStatus {
     pub identity: CommitState,
     /// Account log commit state.
     pub account: CommitState,
+    /// Device log commit state.
+    #[cfg(feature = "device")]
+    pub device: CommitState,
     /// Commit proofs for the account folders.
     #[serde(skip_serializing_if = "IndexMap::is_empty")]
     pub folders: IndexMap<VaultId, CommitState>,
