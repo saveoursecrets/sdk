@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use sos_sdk::{
     account::LocalAccount,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{self, Client, SyncStatus},
+    sync::{self, Client, SyncStatus, SyncStorage},
     url::Url,
 };
 
@@ -132,9 +132,7 @@ impl RemoteBridge {
     /// Create an account on the remote.
     async fn create_remote_account(&self) -> Result<()> {
         let account = self.account.lock().await;
-        let storage = account.storage()?;
-        let storage = storage.read().await;
-        let public_account = storage.change_set().await?;
+        let public_account = account.change_set().await?;
         self.remote.create_account(&public_account).await?;
 
         // FIXME: import files here!

@@ -83,6 +83,11 @@ impl SyncStorage for NetworkAccount {
         account.device_log().await
     }
 
+    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
+        let account = self.account.lock().await;
+        account.folder_identifiers().await
+    }
+
     async fn folder_log(
         &self,
         id: &VaultId,

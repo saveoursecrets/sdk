@@ -5,7 +5,7 @@ use crate::{
         AccountEvent, AccountEventLog, EventLogExt, EventReducer,
         FolderEventLog, LogEvent, WriteEvent,
     },
-    storage::{ClientStorage, ServerStorage},
+    storage::ServerStorage,
     sync::{
         AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch,
         SyncDiff, SyncStatus, SyncStorage,
@@ -15,7 +15,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{span, Level};
 
@@ -291,6 +291,10 @@ impl SyncStorage for ServerStorage {
         Ok(Arc::clone(&self.device_log))
     }
 
+    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
+        Ok(self.cache.keys().copied().collect())
+    }
+
     async fn folder_log(
         &self,
         id: &VaultId,
@@ -298,48 +302,5 @@ impl SyncStorage for ServerStorage {
         Ok(Arc::clone(
             self.cache.get(id).ok_or(Error::CacheNotAvailable(*id))?,
         ))
-    }
-}
-
-impl ClientStorage {
-    /// Change set of all event logs.
-    ///
-    /// Used by network aware implementations to send
-    /// account information to a server.
-    pub async fn change_set(&self) -> Result<ChangeSet> {
-        let identity = {
-            let reader = self.identity_log.read().await;
-            reader.diff(None).await?
-        };
-
-        let account = {
-            let reader = self.account_log.read().await;
-            reader.diff(None).await?
-        };
-
-        #[cfg(feature = "device")]
-        let device = {
-            let reader = self.device_log.read().await;
-            reader.diff(None).await?
-        };
-
-        let mut folders = HashMap::new();
-        for summary in &self.summaries {
-            let folder = self
-                .cache
-                .get(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
-            let event_log = folder.event_log();
-            let log_file = event_log.read().await;
-            folders.insert(*summary.id(), log_file.diff(None).await?);
-        }
-
-        Ok(ChangeSet {
-            identity,
-            account,
-            folders,
-            #[cfg(feature = "device")]
-            device,
-        })
     }
 }

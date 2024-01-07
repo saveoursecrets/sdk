@@ -192,7 +192,7 @@ pub enum Error {
     #[error("not binary message type on websocket")]
     NotBinaryWebsocketMessageType,
 
-    /// Error generated when failing to fetch account from a remote 
+    /// Error generated when failing to fetch account from a remote
     /// during device enrollment.
     #[error("could not fetch account from remote '{0}'")]
     EnrollFetch(String),

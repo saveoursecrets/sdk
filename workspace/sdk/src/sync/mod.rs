@@ -397,11 +397,56 @@ pub trait SyncStorage {
     #[cfg(feature = "device")]
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>>;
 
+    /// Folder identifiers managed by this storage.
+    async fn folder_identifiers(&self) -> Result<Vec<VaultId>>;
+
     /// Folder event log.
     async fn folder_log(
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>>;
+
+    /// Change set of all event logs.
+    ///
+    /// Used by network aware implementations to transfer
+    /// entire accounts.
+    async fn change_set(&self) -> Result<ChangeSet> {
+        let identity = {
+            let log = self.identity_log().await?;
+            let reader = log.read().await;
+            reader.diff(None).await?
+        };
+
+        let account = {
+            let log = self.account_log().await?;
+            let reader = log.read().await;
+            reader.diff(None).await?
+        };
+
+        #[cfg(feature = "device")]
+        let device = {
+            let log = self.device_log().await?;
+            let reader = log.read().await;
+            reader.diff(None).await?
+        };
+
+        let mut folders = HashMap::new();
+        let identifiers = self.folder_identifiers().await?;
+
+        for id in &identifiers {
+            let event_log = self.folder_log(id).await?;
+            let log_file = event_log.read().await;
+            folders.insert(*id, log_file.diff(None).await?);
+        }
+
+        Ok(ChangeSet {
+            identity,
+            account,
+            folders,
+            #[cfg(feature = "device")]
+            device,
+        })
+    }
 }
 
 /// Difference between a local sync status and a remote

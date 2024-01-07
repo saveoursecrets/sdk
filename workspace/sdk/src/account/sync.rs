@@ -279,6 +279,13 @@ impl SyncStorage for Account {
         Ok(Arc::clone(&storage.device_log))
     }
 
+    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
+        let storage = self.storage()?;
+        let storage = storage.read().await;
+        let summaries = storage.list_folders().to_vec();
+        Ok(summaries.iter().map(|s| *s.id()).collect())
+    }
+
     async fn folder_log(
         &self,
         id: &VaultId,

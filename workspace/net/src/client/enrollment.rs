@@ -1,8 +1,10 @@
 //! Enroll a device to an account on a remote server.
 
 use crate::{
-    client::{net::RpcClient, Origin, Result, Error},
-    sdk::{device::DeviceSigner, signer::ecdsa::Address, Paths, sync::Client},
+    client::{Error, Result},
+    sdk::{
+        device::DeviceSigner, signer::ecdsa::Address, sync::Client, Paths,
+    },
 };
 use std::path::PathBuf;
 
@@ -10,18 +12,13 @@ use std::path::PathBuf;
 pub struct DeviceEnrollment {
     /// Account paths.
     paths: Paths,
-    /// Account address.
-    address: Address,
     /// Device signing key.
     pub(crate) device_signing_key: DeviceSigner,
 }
 
 impl DeviceEnrollment {
     /// Create a new device enrollment.
-    pub fn new(
-        address: Address,
-        data_dir: Option<PathBuf>,
-    ) -> Result<Self> {
+    pub fn new(address: &Address, data_dir: Option<PathBuf>) -> Result<Self> {
         let data_dir = if let Some(data_dir) = &data_dir {
             data_dir.clone()
         } else {
@@ -31,7 +28,6 @@ impl DeviceEnrollment {
 
         Ok(Self {
             paths,
-            address,
             device_signing_key: DeviceSigner::new_random(),
         })
     }
@@ -44,9 +40,7 @@ impl DeviceEnrollment {
             Ok(change_set) => {
                 todo!("perform device enrollment");
             }
-            Err(e) => {
-                Err(Error::EnrollFetch(client.url().to_string()))
-            }
+            Err(_) => Err(Error::EnrollFetch(client.url().to_string())),
         }
     }
 }
