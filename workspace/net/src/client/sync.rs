@@ -1,4 +1,5 @@
 use super::{Error, Origin};
+use crate::{sdk::signer::ecdsa::BoxedEcdsaSigner, client::Result};
 use async_trait::async_trait;
 use std::any::Any;
 
@@ -32,7 +33,7 @@ pub trait RemoteSync: Sync + Send + Any {
         &self,
         options: &SyncOptions,
     ) -> Option<SyncError>;
-
+    
     /// Cast to the Any trait.
     fn as_any(&self) -> &(dyn Any + Send + Sync);
 

@@ -154,6 +154,23 @@ impl NetworkAccount {
         Ok(owner)
     }
 
+    /// Enroll a new device.
+    #[cfg(feature = "device")]
+    pub async fn enroll(
+        origin: Origin,
+        account_signing_key: BoxedEcdsaSigner,
+        data_dir: Option<PathBuf>,
+    ) -> Result<Self> {
+        use crate::client::enrollment::DeviceEnrollment;
+
+        let address = account_signing_key.address()?;
+        let enrollment = DeviceEnrollment::new(
+            origin, account_signing_key, data_dir.clone())?;
+        enrollment.enroll().await?;
+
+        Self::new_unauthenticated(address, data_dir, None).await
+    }
+
     /// Set the connection identifier.
     pub fn set_connection_id(&mut self, value: String) {
         self.connection_id = value;
