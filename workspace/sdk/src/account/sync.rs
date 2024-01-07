@@ -17,7 +17,10 @@ use tokio::sync::RwLock;
 use tracing::{span, Level};
 
 #[cfg(feature = "device")]
-use crate::events::DeviceEventLog;
+use crate::{
+    events::{DeviceEventLog, DeviceReducer},
+    sync::DeviceDiff,
+};
 
 impl Account {
     /// Merge a diff into this account.
@@ -36,6 +39,11 @@ impl Account {
 
         if let Some(diff) = &diff.account {
             num_changes += self.merge_account(diff).await?;
+        }
+
+        #[cfg(feature = "device")]
+        if let Some(diff) = &diff.device {
+            num_changes += self.merge_device(diff).await?;
         }
 
         num_changes += self.merge_folders(&diff.folders).await?;
@@ -124,6 +132,41 @@ impl Account {
                     }
                 }
             }
+        }
+
+        Ok(diff.patch.len())
+    }
+
+    #[cfg(feature = "device")]
+    async fn merge_device(&mut self, diff: &DeviceDiff) -> Result<usize> {
+        tracing::debug!(
+            before = ?diff.before,
+            num_events = diff.patch.len(),
+            "device",
+        );
+
+        let checked_patch = {
+            let storage = self.storage()?;
+            let storage = storage.read().await;
+            let mut event_log = storage.device_log.write().await;
+            event_log.patch_checked(&diff.before, &diff.patch).await?
+        };
+
+        if let CheckedPatch::Success(_, _) = &checked_patch {
+            let devices = {
+                let storage = self.storage()?;
+                let storage = storage.read().await;
+                let event_log = storage.device_log.read().await;
+                let reducer = DeviceReducer::new(&*event_log);
+                reducer.reduce().await?
+            };
+
+            let storage = self.storage()?;
+            let mut storage = storage.write().await;
+            storage.devices = devices;
+        } else {
+            // FIXME: handle conflict situation
+            println!("todo! device patch could not be merged");
         }
 
         Ok(diff.patch.len())

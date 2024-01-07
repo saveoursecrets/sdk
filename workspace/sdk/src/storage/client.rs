@@ -79,7 +79,7 @@ pub struct ClientStorage {
 
     /// Reduced collection of devices.
     #[cfg(feature = "device")]
-    pub(super) devices: HashMap<DevicePublicKey, TrustedDevice>,
+    pub(crate) devices: HashMap<DevicePublicKey, TrustedDevice>,
 
     /// File event log.
     #[cfg(feature = "files")]
