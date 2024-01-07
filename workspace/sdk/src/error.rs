@@ -122,8 +122,8 @@ pub enum Error {
     InvalidKeyValue(String),
 
     /// Error generated when a vault identity byte is wrong.
-    #[error("bad identity byte {0}")]
-    BadIdentity(u8),
+    #[error("bad identity byte {0:#04x} at position {1} expecting {2}")]
+    BadIdentity(u8, usize, String),
 
     /// Error generated when a buffer used to read identity bytes
     /// is not long enough.

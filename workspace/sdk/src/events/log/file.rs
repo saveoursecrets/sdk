@@ -22,6 +22,7 @@ use crate::{
     formats::{
         stream::{MemoryBuffer, MemoryInner},
         EventLogRecord, FileItem, FormatStream, FormatStreamIterator,
+        FileIdentity,
     },
     timestamp::Timestamp,
     vfs::{self, File, OpenOptions},
@@ -537,6 +538,9 @@ impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
         )
         .await?;
 
+        FileIdentity::read_file(
+            path.as_ref(), &FOLDER_EVENT_LOG_IDENTITY).await?;
+
         let reader = Self::create_reader(path.as_ref()).await?;
 
         Ok(Self {
@@ -670,6 +674,9 @@ impl EventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
         )
         .await?;
 
+        FileIdentity::read_file(
+            path.as_ref(), &ACCOUNT_EVENT_LOG_IDENTITY).await?;
+
         let reader = Self::create_reader(path.as_ref()).await?;
 
         Ok(Self {
@@ -697,6 +704,9 @@ impl EventLog<DeviceEvent, DiscLog, DiscLog, PathBuf> {
         )
         .await?;
 
+        FileIdentity::read_file(
+            path.as_ref(), &DEVICE_EVENT_LOG_IDENTITY).await?;
+
         let reader = Self::create_reader(path.as_ref()).await?;
 
         Ok(Self {
@@ -721,6 +731,9 @@ impl EventLog<FileEvent, DiscLog, DiscLog, PathBuf> {
             Some(VERSION),
         )
         .await?;
+
+        FileIdentity::read_file(
+            path.as_ref(), &FILE_EVENT_LOG_IDENTITY).await?;
 
         let reader = Self::create_reader(path.as_ref()).await?;
 
