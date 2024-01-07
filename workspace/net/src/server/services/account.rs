@@ -1,13 +1,13 @@
+use std::borrow::Cow;
 use axum::http::StatusCode;
 
 use sos_sdk::{
-    constants::{ACCOUNT_CREATE, SYNC_STATUS},
-    decode,
+    constants::{ACCOUNT_CREATE, ACCOUNT_FETCH, SYNC_STATUS},
+    encode, decode,
     sync::{ChangeSet, SyncStorage},
 };
 
 use async_trait::async_trait;
-
 use super::{PrivateState, Service};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
@@ -20,6 +20,7 @@ use crate::{
 /// require a device signature.
 ///
 /// * `Account.create`: Create a new account.
+/// * `Account.fetch`: Fetch an existing account.
 /// * `Sync.status`: Account sync status.
 ///
 pub struct AccountService;
@@ -54,6 +55,19 @@ impl Service for AccountService {
                 let reply: ResponseMessage<'_> =
                     (request.id(), ()).try_into()?;
 
+                Ok(reply)
+            }
+            ACCOUNT_FETCH => {
+                let reader = backend.read().await;
+                let account: ChangeSet =
+                    reader.fetch_account(caller.address()).await?;
+                let buffer = encode(&account).await?;
+                let reply = ResponseMessage::new(
+                    request.id(),
+                    StatusCode::OK,
+                    Some(Ok(())),
+                    Cow::Owned(buffer),
+                )?;
                 Ok(reply)
             }
             SYNC_STATUS => {

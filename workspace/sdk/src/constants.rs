@@ -109,6 +109,9 @@ mod rpc {
     /// Account create method call.
     pub const ACCOUNT_CREATE: &str = "Account.create";
 
+    /// Account fetch method call.
+    pub const ACCOUNT_FETCH: &str = "Account.fetch";
+
     /// Sync status method call.
     pub const SYNC_STATUS: &str = "Sync.status";
 

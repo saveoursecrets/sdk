@@ -5,7 +5,7 @@ use crate::sdk::{
         ed25519::{self, Verifier, VerifyingKey},
     },
     storage::{DiscFolder, ServerStorage},
-    sync::ChangeSet,
+    sync::{ChangeSet, SyncStorage},
     vfs, Paths,
 };
 use std::{
@@ -146,6 +146,24 @@ impl Backend {
             .or_insert(Arc::new(RwLock::new(account)));
 
         Ok(())
+    }
+
+    /// Fetch an existing account.
+    pub async fn fetch_account(
+        &self,
+        owner: &Address,
+    ) -> Result<ChangeSet> {
+        let span = span!(Level::DEBUG, "fetch_account");
+        let _enter = span.enter();
+        tracing::debug!(address = %owner);
+
+        let accounts = self.accounts.read().await;
+        let account = accounts.get(owner).ok_or(Error::NoAccount(*owner))?;
+
+        let reader = account.read().await;
+        let change_set = reader.storage.change_set().await?;
+        
+        Ok(change_set)
     }
 
     /// Verify a device is allowed to access an account.
