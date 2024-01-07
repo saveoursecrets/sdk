@@ -10,6 +10,9 @@ use sos_sdk::{
 use std::{any::Any, sync::Arc};
 use tokio::sync::RwLock;
 
+#[cfg(feature = "device")]
+use sos_sdk::events::DeviceEventLog;
+
 #[async_trait]
 impl RemoteSync for NetworkAccount {
     async fn sync(&self) -> Option<SyncError> {
@@ -191,6 +194,12 @@ impl SyncStorage for NetworkAccount {
     async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
         let account = self.account.lock().await;
         account.account_log().await
+    }
+
+    #[cfg(feature = "device")]
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        let account = self.account.lock().await;
+        account.device_log().await
     }
 
     async fn folder_log(

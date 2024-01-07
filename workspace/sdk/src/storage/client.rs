@@ -75,7 +75,7 @@ pub struct ClientStorage {
 
     /// Device event log.
     #[cfg(feature = "device")]
-    pub(crate) device_log: DeviceEventLog,
+    pub(crate) device_log: Arc<RwLock<DeviceEventLog>>,
 
     /// Reduced collection of devices.
     #[cfg(feature = "device")]
@@ -153,7 +153,7 @@ impl ClientStorage {
             #[cfg(feature = "search")]
             index: Some(AccountSearch::new()),
             #[cfg(feature = "device")]
-            device_log,
+            device_log: Arc::new(RwLock::new(device_log)),
             #[cfg(feature = "device")]
             devices,
             #[cfg(feature = "files")]
@@ -178,13 +178,13 @@ impl ClientStorage {
         let _enter = span.enter();
 
         let log_file = paths.device_events();
-        
+
         let mut event_log = DeviceEventLog::new_device(log_file).await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
         tracing::debug!(needs_init = %needs_init);
-        
+
         // Trust this device on initialization if the event
         // log is empty so that we are backwards compatible with
         // accounts that existed before device event logs.
@@ -1333,9 +1333,11 @@ impl ClientStorage {
     ) -> Result<()> {
         if self.devices.get(public_key).is_some() {
             let event = DeviceEvent::Revoke(*public_key);
-            self.device_log.apply(vec![&event]).await?;
 
-            let reducer = DeviceReducer::new(&self.device_log);
+            let mut writer = self.device_log.write().await;
+            writer.apply(vec![&event]).await?;
+
+            let reducer = DeviceReducer::new(&*writer);
             self.devices = reducer.reduce().await?;
         }
 

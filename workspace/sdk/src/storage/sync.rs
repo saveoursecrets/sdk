@@ -19,6 +19,9 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use tracing::{span, Level};
 
+#[cfg(feature = "device")]
+use crate::events::DeviceEventLog;
+
 impl ServerStorage {
     /// Create a new vault file on disc and the associated
     /// event log.
@@ -71,10 +74,9 @@ impl ServerStorage {
         #[cfg(feature = "device")]
         {
             use crate::events::DeviceReducer;
-            self.device_log
-                .patch_unchecked(&account_data.device)
-                .await?;
-            let reducer = DeviceReducer::new(&self.device_log);
+            let mut writer = self.device_log.write().await;
+            writer.patch_unchecked(&account_data.device).await?;
+            let reducer = DeviceReducer::new(&*writer);
             self.devices = reducer.reduce().await?;
         }
 
@@ -224,7 +226,10 @@ impl SyncStorage for ServerStorage {
         };
 
         #[cfg(feature = "device")]
-        let device = self.device_log.tree().commit_state()?;
+        let device = {
+            let reader = self.device_log.read().await;
+            reader.tree().commit_state()?
+        };
 
         let mut folders = IndexMap::new();
         for (id, event_log) in &self.cache {
@@ -247,6 +252,11 @@ impl SyncStorage for ServerStorage {
 
     async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
         Ok(Arc::clone(&self.account_log))
+    }
+
+    #[cfg(feature = "device")]
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        Ok(Arc::clone(&self.device_log))
     }
 
     async fn folder_log(
@@ -275,6 +285,12 @@ impl ClientStorage {
             reader.diff(None).await?
         };
 
+        #[cfg(feature = "device")]
+        let device = {
+            let reader = self.device_log.read().await;
+            reader.diff(None).await?
+        };
+
         let mut folders = HashMap::new();
         for summary in &self.summaries {
             let folder = self
@@ -285,9 +301,6 @@ impl ClientStorage {
             let log_file = event_log.read().await;
             folders.insert(*summary.id(), log_file.diff(None).await?);
         }
-
-        #[cfg(feature = "device")]
-        let device = self.device_log.diff(None).await?;
 
         Ok(ChangeSet {
             identity,

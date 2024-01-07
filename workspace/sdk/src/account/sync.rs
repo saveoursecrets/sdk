@@ -16,6 +16,9 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{span, Level};
 
+#[cfg(feature = "device")]
+use crate::events::DeviceEventLog;
+
 impl Account {
     /// Merge a diff into this account.
     pub async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
@@ -190,7 +193,10 @@ impl SyncStorage for Account {
         };
 
         #[cfg(feature = "device")]
-        let device = storage.device_log.tree().commit_state()?;
+        let device = {
+            let reader = storage.device_log.read().await;
+            reader.tree().commit_state()?
+        };
 
         let mut folders = IndexMap::new();
         for summary in &summaries {
@@ -221,6 +227,13 @@ impl SyncStorage for Account {
         let storage = self.storage()?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.account_log))
+    }
+
+    #[cfg(feature = "device")]
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        let storage = self.storage()?;
+        let storage = storage.read().await;
+        Ok(Arc::clone(&storage.device_log))
     }
 
     async fn folder_log(

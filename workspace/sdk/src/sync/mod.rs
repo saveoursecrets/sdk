@@ -22,6 +22,9 @@ mod patch;
 pub use patch::{AccountPatch, FolderPatch, Patch};
 
 #[cfg(feature = "device")]
+use crate::events::{DeviceEvent, DeviceEventLog};
+
+#[cfg(feature = "device")]
 pub use patch::DevicePatch;
 
 #[cfg(feature = "files")]
@@ -72,6 +75,10 @@ where
 /// Diff between account events logs.
 pub type AccountDiff = Diff<AccountEvent>;
 
+/// Diff between device events logs.
+#[cfg(feature = "device")]
+pub type DeviceDiff = Diff<DeviceEvent>;
+
 /// Diff between folder events logs.
 pub type FolderDiff = Diff<WriteEvent>;
 
@@ -100,6 +107,11 @@ pub struct SyncDiff {
     pub identity: Option<FolderDiff>,
     /// Diff of the account event log.
     pub account: Option<AccountDiff>,
+    /*
+    /// Diff of the device event log.
+    #[cfg(feature = "device")]
+    pub device: Option<DeviceDiff>,
+    */
     /// Diff for folders in the account.
     pub folders: IndexMap<VaultId, FolderDiff>,
 }
@@ -115,6 +127,11 @@ pub struct SyncComparison {
     pub identity: Comparison,
     /// Comparison of the account event log.
     pub account: Comparison,
+    /*
+    /// Comparison of the device event log.
+    #[cfg(feature = "device")]
+    pub device: Comparison,
+    */
     /// Comparison for each folder in the account.
     pub folders: IndexMap<VaultId, Comparison>,
 }
@@ -336,6 +353,10 @@ pub trait SyncStorage {
 
     /// Clone of the account log.
     async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>>;
+
+    /// Clone of the device log.
+    #[cfg(feature = "device")]
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>>;
 
     /// Folder event log.
     async fn folder_log(

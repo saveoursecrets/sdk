@@ -7,11 +7,9 @@ use futures::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 use crate::{vfs::File, Error, Result};
 
 /// String of formatted identity bytes for error messages.
-fn format_identity_bytes(
-    identity: &[u8],
-) -> String {
-    let c = std::str::from_utf8(identity)
-        .expect("identity bytes to be UTF-8");
+fn format_identity_bytes(identity: &[u8]) -> String {
+    let c =
+        std::str::from_utf8(identity).expect("identity bytes to be UTF-8");
     let mut s = String::new();
     for (index, byte) in identity.iter().enumerate() {
         s.push_str(&format!("{:#04x}", byte));
@@ -42,7 +40,10 @@ impl FileIdentity {
                 let byte = buffer[index];
                 if byte != *ident {
                     return Err(Error::BadIdentity(
-                        byte, index, format_identity_bytes(identity)));
+                        byte,
+                        index,
+                        format_identity_bytes(identity),
+                    ));
                 }
             }
         } else {
@@ -58,7 +59,10 @@ impl FileIdentity {
                 let byte = buffer[index];
                 if byte != *ident {
                     return Err(Error::BadIdentity(
-                        byte, index, format_identity_bytes(identity)));
+                        byte,
+                        index,
+                        format_identity_bytes(identity),
+                    ));
                 }
             }
         } else {
@@ -76,7 +80,10 @@ impl FileIdentity {
             let byte = reader.read_u8().await?;
             if byte != *ident {
                 return Err(Error::BadIdentity(
-                    byte, index, format_identity_bytes(identity)));
+                    byte,
+                    index,
+                    format_identity_bytes(identity),
+                ));
             }
         }
         Ok(())
@@ -92,5 +99,4 @@ impl FileIdentity {
         writer.write_bytes(identity).await?;
         Ok(())
     }
-
 }

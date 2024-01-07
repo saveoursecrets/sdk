@@ -50,7 +50,7 @@ pub struct ServerStorage {
 
     /// Device event log.
     #[cfg(feature = "device")]
-    pub(super) device_log: DeviceEventLog,
+    pub(super) device_log: Arc<RwLock<DeviceEventLog>>,
 
     /// Reduced collection of devices.
     #[cfg(feature = "device")]
@@ -111,7 +111,7 @@ impl ServerStorage {
             identity_log,
             account_log,
             #[cfg(feature = "device")]
-            device_log,
+            device_log: Arc::new(RwLock::new(device_log)),
             #[cfg(feature = "device")]
             devices,
             #[cfg(feature = "files")]
