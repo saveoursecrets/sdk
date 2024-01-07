@@ -75,7 +75,6 @@ impl ServerStorage {
         {
             use crate::events::DeviceReducer;
             let mut writer = self.device_log.write().await;
-
             writer.patch_unchecked(&account_data.device).await?;
             let reducer = DeviceReducer::new(&*writer);
             self.devices = reducer.reduce().await?;

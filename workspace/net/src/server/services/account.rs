@@ -72,6 +72,7 @@ impl Service for AccountService {
                 } else {
                     None
                 };
+                
                 let reply: ResponseMessage<'_> =
                     (request.id(), result).try_into()?;
                 Ok(reply)

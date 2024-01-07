@@ -143,7 +143,8 @@ impl ServerStorage {
         let _enter = span.enter();
 
         let log_file = paths.device_events();
-        let event_log = DeviceEventLog::new_device(log_file).await?;
+        let mut event_log = DeviceEventLog::new_device(log_file).await?;
+        event_log.load_tree().await?;
 
         let reducer = DeviceReducer::new(&event_log);
         let devices = reducer.reduce().await?;

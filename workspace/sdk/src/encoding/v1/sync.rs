@@ -151,6 +151,14 @@ impl Encodable for SyncDiff {
             account.encode(&mut *writer).await?;
         }
 
+        #[cfg(feature = "device")]
+        {
+            writer.write_bool(self.device.is_some()).await?;
+            if let Some(device) = &self.device {
+                device.encode(&mut *writer).await?;
+            }
+        }
+
         writer.write_u16(self.folders.len() as u16).await?;
         for (id, diff) in &self.folders {
             writer.write_bytes(id.as_ref()).await?;
@@ -178,6 +186,17 @@ impl Decodable for SyncDiff {
             let mut account: AccountDiff = Default::default();
             account.decode(&mut *reader).await?;
             self.account = Some(account);
+        }
+
+        #[cfg(feature = "device")]
+        {
+            use crate::sync::DeviceDiff;
+            let has_device = reader.read_bool().await?;
+            if has_device {
+                let mut device: DeviceDiff = Default::default();
+                device.decode(&mut *reader).await?;
+                self.device = Some(device);
+            }
         }
 
         let num_folders = reader.read_u16().await?;
