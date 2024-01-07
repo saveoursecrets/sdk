@@ -585,6 +585,12 @@ impl Client for RpcClient {
         Ok(())
     }
 
+    async fn fetch_account(
+        &self,
+    ) -> std::result::Result<ChangeSet, Self::Error> {
+        todo!();
+    }
+
     async fn sync_status(&self) -> Result<Option<SyncStatus>> {
         let (_, value) = retry!(|| self.try_sync_status(), self);
         Ok(value)

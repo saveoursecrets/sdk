@@ -1,32 +1,27 @@
 //! Enroll a device to an account on a remote server.
 
-use std::path::PathBuf;
 use crate::{
-    client::{Origin, Result, net::RpcClient},
-    sdk::{signer::ecdsa::BoxedEcdsaSigner, device::DeviceSigner, Paths},
+    client::{net::RpcClient, Origin, Result, Error},
+    sdk::{device::DeviceSigner, signer::ecdsa::Address, Paths, sync::Client},
 };
+use std::path::PathBuf;
 
 /// Enroll a device to a remote server account.
 pub struct DeviceEnrollment {
-    /// Origin server.
-    origin: Origin,
     /// Account paths.
     paths: Paths,
-    /// Account signing key.
-    account_signing_key: BoxedEcdsaSigner,
+    /// Account address.
+    address: Address,
     /// Device signing key.
-    device_signing_key: DeviceSigner,
+    pub(crate) device_signing_key: DeviceSigner,
 }
 
 impl DeviceEnrollment {
     /// Create a new device enrollment.
     pub fn new(
-        origin: Origin,
-        account_signing_key: BoxedEcdsaSigner,
+        address: Address,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
-        let address = account_signing_key.address()?;
-
         let data_dir = if let Some(data_dir) = &data_dir {
             data_dir.clone()
         } else {
@@ -35,16 +30,23 @@ impl DeviceEnrollment {
         let paths = Paths::new(data_dir, address.to_string());
 
         Ok(Self {
-            origin,
             paths,
-            account_signing_key,
+            address,
             device_signing_key: DeviceSigner::new_random(),
         })
     }
-    
-    /// Enroll to an account on the remote origin.
-    pub async fn enroll(&self) -> Result<()> {
-        todo!("perform device enrollment");
-        //Ok(())
+
+    /// Enroll this device to an account using the given client.
+    pub async fn enroll(&self, client: impl Client) -> Result<()> {
+        self.paths.ensure().await?;
+
+        match client.fetch_account().await {
+            Ok(change_set) => {
+                todo!("perform device enrollment");
+            }
+            Err(e) => {
+                Err(Error::EnrollFetch(client.url().to_string()))
+            }
+        }
     }
 }

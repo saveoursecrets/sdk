@@ -362,6 +362,11 @@ pub trait Client {
         account: &ChangeSet,
     ) -> std::result::Result<(), Self::Error>;
 
+    /// Fetch an account from a remote server.
+    async fn fetch_account(
+        &self,
+    ) -> std::result::Result<ChangeSet, Self::Error>;
+
     /// Sync status on remote, the result is `None` when the
     /// account does not exist.
     async fn sync_status(

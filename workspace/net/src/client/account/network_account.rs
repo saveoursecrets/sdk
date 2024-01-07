@@ -8,6 +8,7 @@ use sos_sdk::{
     device::DeviceSigner,
     events::{Event, ReadEvent},
     identity::{AccountRef, PublicIdentity},
+    sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
         search::{
@@ -21,7 +22,6 @@ use sos_sdk::{
         Summary, VaultId,
     },
     vfs, Paths,
-    sha2::{Digest, Sha256},
 };
 use std::{
     path::{Path, PathBuf},
@@ -162,12 +162,32 @@ impl NetworkAccount {
         account_signing_key: BoxedEcdsaSigner,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
-        use crate::client::enrollment::DeviceEnrollment;
+        use crate::sdk::signer::ed25519::BoxedEd25519Signer;
+        use crate::client::{enrollment::DeviceEnrollment, RpcClient};
 
         let address = account_signing_key.address()?;
-        let enrollment = DeviceEnrollment::new(
-            origin, account_signing_key, data_dir.clone())?;
-        enrollment.enroll().await?;
+        let enrollment =
+            DeviceEnrollment::new(
+                address.clone(),
+                data_dir.clone(),
+            )?;
+
+        let device_signing_key = enrollment.device_signing_key.clone();
+
+        match origin {
+            Origin::Hosted(origin) => {
+                let keypair = generate_keypair()?;
+                let device: BoxedEd25519Signer = device_signing_key.into();
+                let remote = RpcClient::new(
+                    origin,
+                    account_signing_key,
+                    device,
+                    keypair,
+                    String::new(),
+                )?;
+                enrollment.enroll(remote).await?;
+            }
+        }
 
         Self::new_unauthenticated(address, data_dir, None).await
     }
@@ -181,13 +201,13 @@ impl NetworkAccount {
     pub fn connection_id(&self) -> Option<&str> {
         self.connection_id.as_ref().map(|x| x.as_str())
     }
-    
-    /// Connection identifier either explicitly set 
+
+    /// Connection identifier either explicitly set
     /// or inferred by convention.
     ///
-    /// The convention is to use an Sha256 hash of the path 
-    /// to the documents directory for the account and when 
-    /// the account is authenticated include the device signing 
+    /// The convention is to use an Sha256 hash of the path
+    /// to the documents directory for the account and when
+    /// the account is authenticated include the device signing
     /// public key in the computed hash.
     async fn client_connection_id(&self) -> Result<String> {
         Ok(if let Some(conn_id) = &self.connection_id {
