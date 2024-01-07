@@ -149,10 +149,7 @@ impl Backend {
     }
 
     /// Fetch an existing account.
-    pub async fn fetch_account(
-        &self,
-        owner: &Address,
-    ) -> Result<ChangeSet> {
+    pub async fn fetch_account(&self, owner: &Address) -> Result<ChangeSet> {
         let span = span!(Level::DEBUG, "fetch_account");
         let _enter = span.enter();
         tracing::debug!(address = %owner);
@@ -162,7 +159,7 @@ impl Backend {
 
         let reader = account.read().await;
         let change_set = reader.storage.change_set().await?;
-        
+
         Ok(change_set)
     }
 

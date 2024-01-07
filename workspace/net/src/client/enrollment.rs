@@ -32,7 +32,8 @@ impl DeviceEnrollment {
         })
     }
 
-    /// Enroll this device to an account using the given client.
+    /// Enroll this device to an account using the given client to 
+    /// fetch the account data.
     pub async fn enroll(&self, client: impl Client) -> Result<()> {
         self.paths.ensure().await?;
 

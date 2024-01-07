@@ -9,8 +9,8 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 use sos_sdk::{
     constants::{
-        ACCOUNT_CREATE, HANDSHAKE_INITIATE, MIME_TYPE_RPC, SYNC_RESOLVE,
-        SYNC_STATUS,
+        ACCOUNT_CREATE, ACCOUNT_FETCH, HANDSHAKE_INITIATE, MIME_TYPE_RPC,
+        SYNC_RESOLVE, SYNC_STATUS,
     },
     decode, encode,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
@@ -389,6 +389,33 @@ impl RpcClient {
         maybe_retry.map(|result, _| Ok(result.ok()))
     }
 
+    /// Try to fetch an existing account.
+    async fn try_fetch_account(&self) -> Result<MaybeRetry<Vec<u8>>> {
+        let url = self.build_url("api/account")?;
+
+        let id = self.next_id().await;
+        let request = RequestMessage::new_call(Some(id), ACCOUNT_FETCH, ())?;
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+
+        let body = self.encrypt_request(&body).await?;
+        let response = self
+            .send_request(url, body, account_signature, None)
+            .await?;
+        let response = self.check_response(response).await?;
+        let maybe_retry = self
+            .read_encrypted_response::<()>(
+                response.status(),
+                &response.bytes().await?,
+            )
+            .await?;
+
+        maybe_retry.map(|_, body| Ok(body))
+    }
+
     /// Try to sync status on remote.
     async fn try_sync_status(
         &self,
@@ -588,7 +615,19 @@ impl Client for RpcClient {
     async fn fetch_account(
         &self,
     ) -> std::result::Result<ChangeSet, Self::Error> {
-        todo!();
+        let span = span!(Level::DEBUG, "fetch_account");
+        let _enter = span.enter();
+
+        let (status, body) = retry!(|| self.try_fetch_account(), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(decode(&body).await?)
     }
 
     async fn sync_status(&self) -> Result<Option<SyncStatus>> {

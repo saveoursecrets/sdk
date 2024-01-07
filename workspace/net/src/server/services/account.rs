@@ -1,18 +1,18 @@
-use std::borrow::Cow;
 use axum::http::StatusCode;
+use std::borrow::Cow;
 
 use sos_sdk::{
     constants::{ACCOUNT_CREATE, ACCOUNT_FETCH, SYNC_STATUS},
-    encode, decode,
+    decode, encode,
     sync::{ChangeSet, SyncStorage},
 };
 
-use async_trait::async_trait;
 use super::{PrivateState, Service};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
     server::{Error, Result},
 };
+use async_trait::async_trait;
 
 /// Account management service.
 ///
