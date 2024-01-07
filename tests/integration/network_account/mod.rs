@@ -79,7 +79,7 @@ impl SimulatedDevice {
         .await?;
 
         let connection_id = format!("device_{}", index + 1);
-        owner.set_connection_id(connection_id.clone());
+        owner.set_connection_id(Some(connection_id.clone()));
 
         let key: AccessKey = self.password.clone().into();
         owner.sign_in(&key).await?;
@@ -142,7 +142,7 @@ pub async fn simulate_device(
     .await?;
 
     let connection_id = "device_1".to_string();
-    owner.set_connection_id(connection_id.clone());
+    owner.set_connection_id(Some(connection_id.clone()));
 
     let key: AccessKey = password.clone().into();
     let folders = owner.sign_in(&key).await?;

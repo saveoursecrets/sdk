@@ -21,6 +21,7 @@ use sos_sdk::{
         Summary, VaultId,
     },
     vfs, Paths,
+    sha2::{Digest, Sha256},
 };
 use std::{
     path::{Path, PathBuf},
@@ -64,7 +65,7 @@ pub struct NetworkAccount {
     /// When listening for changes use the same identifier
     /// so the server can filter out broadcast messages
     /// made by this client.
-    connection_id: String,
+    connection_id: Option<String>,
 }
 
 impl NetworkAccount {
@@ -89,7 +90,7 @@ impl NetworkAccount {
             sync_lock: Mutex::new(()),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
-            connection_id: String::new(),
+            connection_id: None,
         })
     }
 
@@ -148,7 +149,7 @@ impl NetworkAccount {
             sync_lock: Mutex::new(()),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
-            connection_id: String::new(),
+            connection_id: None,
         };
 
         Ok(owner)
@@ -172,16 +173,43 @@ impl NetworkAccount {
     }
 
     /// Set the connection identifier.
-    pub fn set_connection_id(&mut self, value: String) {
+    pub fn set_connection_id(&mut self, value: Option<String>) {
         self.connection_id = value;
     }
 
     /// Connection identifier.
+    pub fn connection_id(&self) -> Option<&str> {
+        self.connection_id.as_ref().map(|x| x.as_str())
+    }
+    
+    /// Connection identifier either explicitly set 
+    /// or inferred by convention.
     ///
-    /// Empty string when no explicit connection identifier has
-    /// been set.
-    pub fn connection_id(&self) -> &str {
-        &self.connection_id
+    /// The convention is to use an Sha256 hash of the path 
+    /// to the documents directory for the account and when 
+    /// the account is authenticated include the device signing 
+    /// public key in the computed hash.
+    async fn client_connection_id(&self) -> Result<String> {
+        Ok(if let Some(conn_id) = &self.connection_id {
+            conn_id.to_owned()
+        } else {
+            let mut hasher = Sha256::new();
+            let docs_dir = self.paths.documents_dir();
+            let docs_path = docs_dir.to_string_lossy().into_owned();
+
+            if !self.is_authenticated().await {
+                hasher.update(docs_path.as_bytes());
+            } else {
+                let device_signer = self.device_signer().await?;
+                let device_public_key = device_signer.public_key();
+
+                hasher.update(docs_path.as_bytes());
+                hasher.update(device_public_key.as_ref());
+            }
+
+            let result = hasher.finalize();
+            hex::encode(&result)
+        })
     }
 
     /// Clone of the local account.
@@ -259,7 +287,7 @@ impl NetworkAccount {
             signer,
             device.into(),
             keypair,
-            self.connection_id.clone(),
+            self.client_connection_id().await?,
         )?;
 
         // Noise protocol handshake
