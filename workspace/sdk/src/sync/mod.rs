@@ -107,11 +107,9 @@ pub struct SyncDiff {
     pub identity: Option<FolderDiff>,
     /// Diff of the account event log.
     pub account: Option<AccountDiff>,
-    /*
     /// Diff of the device event log.
     #[cfg(feature = "device")]
     pub device: Option<DeviceDiff>,
-    */
     /// Diff for folders in the account.
     pub folders: IndexMap<VaultId, FolderDiff>,
 }
@@ -127,11 +125,9 @@ pub struct SyncComparison {
     pub identity: Comparison,
     /// Comparison of the account event log.
     pub account: Comparison,
-    /*
     /// Comparison of the device event log.
     #[cfg(feature = "device")]
     pub device: Comparison,
-    */
     /// Comparison for each folder in the account.
     pub folders: IndexMap<VaultId, Comparison>,
 }
@@ -155,6 +151,13 @@ impl SyncComparison {
             let reader = account.read().await;
             reader.tree().compare(&remote_status.account.1)?
         };
+        
+        #[cfg(feature = "device")]
+        let device = {
+            let device = storage.device_log().await?;
+            let reader = device.read().await;
+            reader.tree().compare(&remote_status.device.1)?
+        };
 
         let folders = {
             let mut folders = IndexMap::new();
@@ -175,6 +178,8 @@ impl SyncComparison {
             remote_status,
             identity,
             account,
+            #[cfg(feature = "device")]
+            device,
             folders,
         })
     }
@@ -211,7 +216,7 @@ impl SyncComparison {
                 }
             }
             Comparison::Unknown => {
-                //unreachable!("identity event log is never rewritten");
+                println!("todo! : handle identity with diverged trees");
             }
         }
 
@@ -239,7 +244,36 @@ impl SyncComparison {
                 }
             }
             Comparison::Unknown => {
-                //unreachable!("account event log is never rewritten");
+                println!("todo! : handle account with diverged trees");
+            }
+        }
+        
+        #[cfg(feature = "device")]
+        match self.device {
+            Comparison::Equal => {}
+            Comparison::Contains(_, _) => {
+                // Need to push changes to remote
+                let log = storage.device_log().await?;
+                let reader = log.read().await;
+
+                let is_last_commit = Some(&self.remote_status.device.0)
+                    == reader.tree().last_commit().as_ref();
+
+                // Avoid empty patches when commit is already the last
+                if !is_last_commit {
+                    let after = reader.tree().head()?;
+                    let device = DeviceDiff {
+                        patch: reader
+                            .diff(Some(&self.remote_status.device.0))
+                            .await?,
+                        after,
+                        before: self.remote_status.device.1.clone(),
+                    };
+                    diff.device = Some(device);
+                }
+            }
+            Comparison::Unknown => {
+                println!("todo! : handle device with diverged trees");
             }
         }
 
