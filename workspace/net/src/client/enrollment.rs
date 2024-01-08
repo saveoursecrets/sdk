@@ -105,13 +105,13 @@ impl DeviceEnrollment {
         // a remote when the sign in is successful
         self.add_origin().await?;
 
-        // TODO: ensure the device signing key is used
-        // TODO: in the device vault
+        // Ensure the correct device signing key is saved
+        // when lazily creating the device vault
+        let _ = crate::sdk::device::DEVICE_SIGNER
+            .set(self.device_signing_key.clone());
 
         // Sign in to the new account
         account.sign_in(key).await?;
-
-        println!("BEGIN SYNC ON DEVICE FINISH");
 
         // Sync the updated device log first so we can
         // do a full sync using the newly trusted device
@@ -120,15 +120,11 @@ impl DeviceEnrollment {
             return Err(Error::EnrollSync(self.origin.url().to_string()));
         }
 
-        println!("PATCH DEVICES COMPLETED");
-
         // Sync to save the amended identity folder on the remote
         if let Some(e) = account.sync().await {
             tracing::error!(error = ?e);
             return Err(Error::EnrollSync(self.origin.url().to_string()));
         }
-
-        println!("DEVICE ENROLL SYNC COMPLETED");
 
         Ok(account)
     }

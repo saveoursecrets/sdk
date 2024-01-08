@@ -200,6 +200,12 @@ impl ClientStorage {
         Ok((event_log, devices))
     }
 
+    /// Collection of trusted devices.
+    #[cfg(feature = "device")]
+    pub fn devices(&self) -> &HashMap<DevicePublicKey, TrustedDevice> {
+        &self.devices
+    }
+
     /// Set the password for file encryption.
     #[cfg(feature = "files")]
     pub fn set_file_password(&mut self, file_password: Option<SecretString>) {

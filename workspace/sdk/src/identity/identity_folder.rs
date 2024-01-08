@@ -146,7 +146,7 @@ where
         &mut self,
         paths: &Paths,
     ) -> Result<()> {
-        use crate::constants::DEVICE_KEY_URN;
+        use crate::{constants::DEVICE_KEY_URN, device::DEVICE_SIGNER};
         let device_vault_path = paths.device_file().to_owned();
 
         let device_vault = if vfs::try_exists(&device_vault_path).await? {
@@ -232,7 +232,12 @@ where
             let key: AccessKey = device_password.into();
             device_keeper.unlock(&key).await?;
 
-            let signer = DeviceSigner::new_random();
+            let signer = if let Some(signer) = DEVICE_SIGNER.get() {
+                signer.clone()
+            } else {
+                DeviceSigner::new_random()
+            };
+
             let secret = Secret::Signer {
                 private_key: SecretSigner::SinglePartyEd25519(
                     SecretVec::new(signer.signing_key().to_bytes()),

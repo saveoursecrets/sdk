@@ -44,8 +44,6 @@ impl Service for SyncService {
 
         match request.method() {
             SYNC_RESOLVE => {
-                println!("SYNC RESOLVE WAS CALLED...");
-
                 let account = {
                     let reader = backend.read().await;
                     let accounts = reader.accounts();

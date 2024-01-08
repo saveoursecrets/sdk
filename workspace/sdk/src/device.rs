@@ -16,6 +16,13 @@ use time::OffsetDateTime;
 /// will prefer this meta data.
 pub static DEVICE: OnceCell<DeviceMetaData> = OnceCell::new();
 
+/// Device signer.
+///
+/// Used when enrolling a new device to ensure a specific
+/// device signing key is used rather than the default random
+/// device signing key.
+pub static DEVICE_SIGNER: OnceCell<DeviceSigner> = OnceCell::new();
+
 const DEVICE_PUBLIC_KEY_LEN: usize = 32;
 
 /// Type of a device public key.
