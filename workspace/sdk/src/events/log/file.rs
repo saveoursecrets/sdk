@@ -206,7 +206,9 @@ where
             while let Some(record) = it.next().await? {
                 let event_buffer = read_event_buffer(
                     Arc::clone(&handle), &record).await?;
+
                 let event_record: EventRecord = (record, event_buffer).into();
+                
                 let event = event_record.decode_event::<E>().await?;
                 yield (event_record, event);
             }
@@ -484,6 +486,9 @@ where
 
         file.seek(SeekFrom::Start(0)).await?;
         file.write_all(&self.identity).await?;
+        if let Some(version) = self.version() {
+            file.write_all(&version.to_le_bytes()).await?;
+        }
         file.flush().await?;
         Ok(())
     }
