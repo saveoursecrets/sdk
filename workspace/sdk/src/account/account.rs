@@ -202,11 +202,7 @@ impl Account {
             data_dir.clone(),
             identity_log,
             #[cfg(feature = "device")]
-            new_account
-                .user
-                .identity()?
-                .devices()?
-                .current_device(None),
+            new_account.user.identity()?.devices()?.current_device(None),
         )
         .await?;
 
@@ -288,9 +284,7 @@ impl Account {
             Some(data_dir),
             identity_log,
             #[cfg(feature = "device")]
-            user.identity()?
-                .devices()?
-                .current_device(None),
+            user.identity()?.devices()?.current_device(None),
         )
         .await?;
         self.paths = storage.paths();

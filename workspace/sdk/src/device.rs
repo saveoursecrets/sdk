@@ -12,7 +12,7 @@ use time::OffsetDateTime;
 
 /// Device meta data.
 ///
-/// Applications can set this when they boot so that trusted devices 
+/// Applications can set this when they boot so that trusted devices
 /// will prefer this meta data.
 pub static DEVICE: OnceCell<DeviceMetaData> = OnceCell::new();
 

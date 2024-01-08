@@ -24,6 +24,7 @@ use sos_sdk::{
     vfs, Paths,
 };
 use std::{
+    collections::HashSet,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -161,15 +162,17 @@ impl NetworkAccount {
         origin: Origin,
         account_signing_key: BoxedEcdsaSigner,
         data_dir: Option<PathBuf>,
-    ) -> Result<Self> {
+    ) -> Result<crate::client::enrollment::DeviceEnrollment> {
         use crate::client::{enrollment::DeviceEnrollment, RpcClient};
         use crate::sdk::signer::ed25519::BoxedEd25519Signer;
 
         let address = account_signing_key.address()?;
-        let enrollment = DeviceEnrollment::new(&address, data_dir.clone())?;
-
+        let enrollment = DeviceEnrollment::new(
+            &address,
+            data_dir.clone(),
+            origin.clone(),
+        )?;
         let device_signing_key = enrollment.device_signing_key.clone();
-
         match origin {
             Origin::Hosted(origin) => {
                 let keypair = generate_keypair()?;
@@ -184,8 +187,7 @@ impl NetworkAccount {
                 enrollment.enroll(remote).await?;
             }
         }
-
-        Self::new_unauthenticated(address, data_dir, None).await
+        Ok(enrollment)
     }
 
     /// Set the connection identifier.
@@ -366,6 +368,25 @@ impl NetworkAccount {
         }
     }
 
+    /// Add a remote origin to this account.
+    pub async fn add_origin(&self, origin: Origin) -> Result<()> {
+        let remotes_file = self.paths().remote_origins();
+        let mut origins = if vfs::try_exists(&remotes_file).await? {
+            let contents = vfs::read(&remotes_file).await?;
+            let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
+            origins
+        } else {
+            HashSet::new()
+        };
+
+        origins.insert(origin);
+
+        let data = serde_json::to_vec_pretty(&origins)?;
+        vfs::write(remotes_file, data).await?;
+
+        Ok(())
+    }
+
     /// Sign in to an account.
     pub async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let folders = {
@@ -380,7 +401,7 @@ impl NetworkAccount {
         let remotes_file = self.paths().remote_origins();
         if vfs::try_exists(&remotes_file).await? {
             let contents = vfs::read(&remotes_file).await?;
-            let origins: Vec<Origin> = serde_json::from_slice(&contents)?;
+            let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
             let mut remotes: Remotes = Default::default();
             for origin in origins {
                 match &origin {

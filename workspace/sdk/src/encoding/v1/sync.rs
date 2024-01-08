@@ -281,11 +281,8 @@ mod test {
         #[cfg(feature = "device")]
         let device = {
             let device_signer = DeviceSigner::new_random();
-            let mock_device = TrustedDevice::new(
-                device_signer.public_key(),
-                None,
-                None,
-            );
+            let mock_device =
+                TrustedDevice::new(device_signer.public_key(), None, None);
             let device: DevicePatch =
                 vec![DeviceEvent::Trust(mock_device)].into();
             device

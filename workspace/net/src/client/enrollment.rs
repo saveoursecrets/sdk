@@ -1,7 +1,8 @@
 //! Enroll a device to an account on a remote server.
 use crate::{
-    client::{Error, Result},
+    client::{sync::RemoteSync, Error, NetworkAccount, Origin, Result},
     sdk::{
+        crypto::AccessKey,
         device::DeviceSigner,
         encode,
         events::{
@@ -28,31 +29,43 @@ use crate::sdk::{
 
 /// Enroll a device to a remote server account.
 pub struct DeviceEnrollment {
+    /// Account address.
+    address: Address,
     /// Account paths.
     paths: Paths,
+    /// Data directory.
+    data_dir: Option<PathBuf>,
+    /// Remote server origin.
+    origin: Origin,
     /// Device signing key.
     pub(crate) device_signing_key: DeviceSigner,
 }
 
 impl DeviceEnrollment {
     /// Create a new device enrollment.
-    pub fn new(address: &Address, data_dir: Option<PathBuf>) -> Result<Self> {
-        let data_dir = if let Some(data_dir) = &data_dir {
-            data_dir.clone()
+    pub fn new(
+        address: &Address,
+        data_dir: Option<PathBuf>,
+        origin: Origin,
+    ) -> Result<Self> {
+        let paths = if let Some(data_dir) = &data_dir {
+            Paths::new(data_dir.clone(), address.to_string())
         } else {
-            Paths::data_dir()?
+            Paths::new(Paths::data_dir()?, address.to_string())
         };
-        let paths = Paths::new(data_dir, address.to_string());
 
         Ok(Self {
+            address: address.to_owned(),
             paths,
+            data_dir,
+            origin,
             device_signing_key: DeviceSigner::new_random(),
         })
     }
 
-    /// Prepare to enroll this device to an account using the 
+    /// Prepare to enroll this device to an account using the
     /// given client to fetch the account data.
-    pub async fn enroll(self, client: impl Client) -> Result<()> {
+    pub async fn enroll(&self, client: impl Client) -> Result<()> {
         let identity_vault = self.paths.identity_vault();
         if vfs::try_exists(&identity_vault).await? {
             return Err(Error::EnrollAccountExists(
@@ -73,6 +86,31 @@ impl DeviceEnrollment {
             }
             Err(_) => Err(Error::EnrollFetch(client.url().to_string())),
         }
+    }
+
+    /// Finish device enrollment by authenticating the new account.
+    pub async fn finish(&self, key: &AccessKey) -> Result<NetworkAccount> {
+        let mut account = NetworkAccount::new_unauthenticated(
+            self.address.clone(),
+            self.data_dir.clone(),
+            None,
+        )
+        .await?;
+
+        // Add the remote origin so it is loaded as
+        // a remote when the sign in is successful
+        account.add_origin(self.origin.clone()).await?;
+
+        // Sign in to the new account
+        account.sign_in(key).await?;
+
+        // Sync to save the amended device event log
+        // to the remote server
+        account.sync().await.ok_or_else(|| {
+            Error::EnrollSync(self.origin.url().to_string())
+        })?;
+
+        Ok(account)
     }
 
     async fn create_folders(
