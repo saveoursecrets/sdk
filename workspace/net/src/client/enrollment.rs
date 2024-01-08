@@ -4,6 +4,7 @@ use crate::{
     client::{Error, Result},
     sdk::{
         device::DeviceSigner, signer::ecdsa::Address, sync::Client, Paths,
+        vfs,
     },
 };
 use std::path::PathBuf;
@@ -35,6 +36,13 @@ impl DeviceEnrollment {
     /// Enroll this device to an account using the given client to 
     /// fetch the account data.
     pub async fn enroll(&self, client: impl Client) -> Result<()> {
+
+        let identity_vault = self.paths.identity_vault();
+        if vfs::try_exists(&identity_vault).await? {
+            return Err(Error::EnrollAccountExists(
+                self.paths.user_id().to_owned()));
+        }
+
         self.paths.ensure().await?;
 
         match client.fetch_account().await {

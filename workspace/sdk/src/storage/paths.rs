@@ -146,6 +146,11 @@ impl Paths {
         }
         Ok(())
     }
+    
+    /// User identifier.
+    pub fn user_id(&self) -> &str {
+        &self.user_id
+    }
 
     /// Top-level storage directory.
     pub fn documents_dir(&self) -> &PathBuf {
