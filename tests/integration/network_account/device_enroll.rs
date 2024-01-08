@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use super::{assert_local_remote_events_eq, num_events, simulate_device};
+use super::{assert_local_remote_events_eq, simulate_device};
 use crate::test_utils::{mock, spawn, teardown};
 use sos_net::{
     client::{NetworkAccount, Origin, RemoteBridge, RemoteSync},

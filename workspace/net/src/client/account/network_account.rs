@@ -36,7 +36,7 @@ use crate::client::WebSocketHandle;
 
 use crate::client::{
     HostedOrigin, Origin, Remote, RemoteBridge, RemoteSync, Remotes, Result,
-    SyncError,
+    SyncError, Error,
 };
 
 /// Account with networking capability.
@@ -190,6 +190,22 @@ impl NetworkAccount {
             }
         }
         Ok(enrollment)
+    }
+
+    /// Revoke a device.
+    #[cfg(feature = "device")]
+    pub async fn revoke_device(
+        &mut self, device_key: &crate::sdk::device::DevicePublicKey) -> Result<()> {
+        let account = self.account.lock().await;
+        let storage = account.storage()?;
+        let mut storage = storage.write().await;
+        storage.revoke_device(device_key).await?;
+
+        self.patch_devices().await.ok_or_else(|| {
+            Error::RevokeDeviceSync
+        })?;
+
+        Ok(())
     }
 
     /// Set the connection identifier.

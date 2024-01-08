@@ -78,15 +78,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             {
                 let prompt = format!(r#"Remove device "{}" (y/n)? "#, &id);
                 if read_flag(Some(&prompt))? {
-                    let owner = user.read().await;
-                    let local_account = owner.local_account();
-                    let local = local_account.lock().await;
-
-                    let storage = local.storage()?;
-                    let mut storage = storage.write().await;
-
-                    storage.revoke_device(device.public_key()).await?;
-                    println!("Device removed ✓");
+                    let mut owner = user.write().await;
+                    owner.revoke_device(device.public_key()).await?;
+                    println!("Device revoked ✓");
                 }
             } else {
                 return Err(Error::DeviceNotFound(id));
