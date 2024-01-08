@@ -1,5 +1,7 @@
-use super::{assert_local_remote_events_eq, num_events, simulate_device};
-use crate::test_utils::{mock, spawn, sync_pause, teardown};
+use crate::test_utils::{
+    assert_local_remote_events_eq, mock, num_events, simulate_device, spawn,
+    sync_pause, teardown,
+};
 use anyhow::Result;
 use sos_net::client::{RemoteBridge, RemoteSync};
 

@@ -1,15 +1,11 @@
+use crate::test_utils::{
+    assert_local_remote_events_eq, assert_local_remote_vaults_eq,
+    simulate_device, spawn, teardown,
+};
 use anyhow::Result;
-
 use sos_net::{
     client::RemoteBridge,
     sdk::{encode, vault::Summary},
-};
-
-use crate::test_utils::{spawn, teardown};
-
-use super::{
-    assert_local_remote_events_eq, assert_local_remote_vaults_eq,
-    simulate_device,
 };
 
 const TEST_ID: &str = "sync_import_folder";

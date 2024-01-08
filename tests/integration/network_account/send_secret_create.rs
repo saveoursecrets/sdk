@@ -1,10 +1,9 @@
+use crate::test_utils::{
+    assert_local_remote_events_eq, mock_note, num_events, simulate_device,
+    spawn, teardown,
+};
 use anyhow::Result;
-
 use sos_net::client::{RemoteBridge, RemoteSync};
-
-use crate::test_utils::{mock_note, spawn, teardown};
-
-use super::{assert_local_remote_events_eq, num_events, simulate_device};
 
 const TEST_ID: &str = "sync_create_secret";
 

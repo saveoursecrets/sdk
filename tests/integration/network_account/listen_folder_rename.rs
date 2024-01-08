@@ -1,8 +1,7 @@
-use super::{
+use crate::test_utils::{
     assert_local_remote_events_eq, assert_local_remote_vaults_eq,
-    simulate_device,
+    simulate_device, spawn, sync_pause, teardown,
 };
-use crate::test_utils::{spawn, sync_pause, teardown};
 use anyhow::Result;
 use sos_net::client::RemoteBridge;
 

@@ -4133,6 +4133,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum-server",
+ "copy_dir",
+ "pretty_assertions",
  "secrecy",
  "serde_json",
  "sos-net",

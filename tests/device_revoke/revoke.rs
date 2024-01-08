@@ -1,18 +1,22 @@
 use anyhow::Result;
 
-use super::{assert_local_remote_events_eq, simulate_device};
-use crate::test_utils::{mock, spawn, teardown};
+use crate::test_utils::{
+    assert_local_remote_events_eq, simulate_device, spawn, teardown,
+};
+use http::StatusCode;
 use sos_net::{
-    client::{NetworkAccount, Origin, RemoteBridge, RemoteSync},
+    client::{
+        Error as ClientError, NetworkAccount, Origin, RemoteBridge,
+        RemoteSync, SyncError,
+    },
     sdk::prelude::*,
 };
 
-const TEST_ID: &str = "sync_device_enroll";
+const TEST_ID: &str = "device_revoke";
 
-/// Tests enrolling a new device and syncing the device event log
-/// including the newly enrolled device back on to a primary device.
+/// Tests enrolling a new device and revoking trust in the device.
 #[tokio::test]
-async fn integration_sync_device_enroll() -> Result<()> {
+async fn device_revoke() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
@@ -20,15 +24,6 @@ async fn integration_sync_device_enroll() -> Result<()> {
 
     // Prepare mock devices
     let mut primary_device = simulate_device(TEST_ID, &server, 2).await?;
-
-    // Create a secret in the primary owner which won't exist
-    // in the second device
-    let (meta, secret) = mock::note(TEST_ID, TEST_ID);
-    let (id, sync_error) = primary_device
-        .owner
-        .create_secret(meta, secret, Default::default())
-        .await?;
-    assert!(sync_error.is_none());
 
     let password = primary_device.password.clone();
     let key: AccessKey = password.into();
@@ -51,25 +46,37 @@ async fn integration_sync_device_enroll() -> Result<()> {
 
     // Complete device enrollment by authenticating
     // to the new account
-    let mut enrolled_account = enrollment.finish(&key).await?;
+    let enrolled_account = enrollment.finish(&key).await?;
 
     // Sync on the original device to fetch the updated device logs
     assert!(primary_device.owner.sync().await.is_none());
 
-    // Read the secret on the newly enrolled account
-    let (secret_data, _) = enrolled_account.read_secret(&id, None).await?;
-    assert_eq!(TEST_ID, secret_data.meta().label());
+    // Primary device revokes access to the newly enrolled device
+    // as if it were lost or stolen
+    let device_public_key = enrolled_account.device_public_key().await?;
+    primary_device
+        .owner
+        .revoke_device(&device_public_key)
+        .await?;
 
-    // Primary device has two trusted devices
+    // Attempting to sync after the device was revoked
+    // yields a forbidden response
+    let sync_error = enrolled_account.sync().await;
+    if let Some(SyncError::Multiple(mut errors)) = sync_error {
+        let (_, err) = errors.remove(0);
+        assert!(matches!(
+            err,
+            ClientError::ResponseJson(StatusCode::FORBIDDEN, _)
+        ));
+    } else {
+        panic!("expecting multiple sync error (forbidden)");
+    }
+
+    // Primary device has one trusted device (itself)
     let primary_device_storage =
         primary_device.owner.storage().await.unwrap();
     let primary_device_storage = primary_device_storage.read().await;
-    assert_eq!(2, primary_device_storage.devices().len());
-
-    // Enrolled device has two trusted devices
-    let enrolled_storage = enrolled_account.storage().await.unwrap();
-    let enrolled_storage = enrolled_storage.read().await;
-    assert_eq!(2, enrolled_storage.devices().len());
+    assert_eq!(1, primary_device_storage.devices().len());
 
     // Check primary device is in sync with remote
     let mut provider =
@@ -81,20 +88,6 @@ async fn integration_sync_device_enroll() -> Result<()> {
     assert_local_remote_events_eq(
         folders.clone(),
         &mut primary_device.owner,
-        remote_provider,
-    )
-    .await?;
-
-    // Check the enrolled device is in sync with remote
-    let mut provider =
-        enrolled_account.delete_remote(&origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
-    assert_local_remote_events_eq(
-        folders,
-        &mut enrolled_account,
         remote_provider,
     )
     .await?;

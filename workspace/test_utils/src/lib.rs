@@ -12,6 +12,9 @@ use sos_net::{
     server::{Server, ServerConfig, ServerInfo, State, TransportManager},
 };
 
+mod network;
+pub use network::*;
+
 const ADDR: &str = "127.0.0.1:0";
 const SERVER_PUBLIC_KEY: &str =
     include_str!("../../../tests/server_public_key.txt");

@@ -1,13 +1,9 @@
-use anyhow::Result;
-
-use sos_net::{client::RemoteBridge, sdk::vault::Summary};
-
-use crate::test_utils::{spawn, teardown};
-
-use super::{
-    assert_local_remote_events_eq, num_events, simulate_device,
-    SimulatedDevice,
+use crate::test_utils::{
+    assert_local_remote_events_eq, num_events, simulate_device, spawn,
+    teardown, SimulatedDevice,
 };
+use anyhow::Result;
+use sos_net::{client::RemoteBridge, sdk::vault::Summary};
 
 const TEST_ID: &str = "sync_create_folder";
 

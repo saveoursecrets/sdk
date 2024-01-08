@@ -1,14 +1,12 @@
+use crate::test_utils::{
+    num_events, simulate_device, spawn, teardown, SimulatedDevice,
+};
 use anyhow::Result;
-
 use sos_net::sdk::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     vault::Summary,
     vfs,
 };
-
-use crate::test_utils::{spawn, teardown};
-
-use super::{num_events, simulate_device, SimulatedDevice};
 
 const TEST_ID: &str = "sync_delete_folder";
 

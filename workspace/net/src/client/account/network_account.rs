@@ -5,7 +5,7 @@ use sos_sdk::{
     account::{AccountBuilder, AccountData, DetachedView, LocalAccount},
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
-    device::DeviceSigner,
+    device::{DevicePublicKey, DeviceSigner},
     events::{Event, ReadEvent},
     identity::{AccountRef, PublicIdentity},
     sha2::{Digest, Sha256},
@@ -35,8 +35,8 @@ use tracing::{span, Level};
 use crate::client::WebSocketHandle;
 
 use crate::client::{
-    HostedOrigin, Origin, Remote, RemoteBridge, RemoteSync, Remotes, Result,
-    SyncError, Error,
+    Error, HostedOrigin, Origin, Remote, RemoteBridge, RemoteSync, Remotes,
+    Result, SyncError,
 };
 
 /// Account with networking capability.
@@ -195,15 +195,22 @@ impl NetworkAccount {
     /// Revoke a device.
     #[cfg(feature = "device")]
     pub async fn revoke_device(
-        &mut self, device_key: &crate::sdk::device::DevicePublicKey) -> Result<()> {
-        let account = self.account.lock().await;
-        let storage = account.storage()?;
-        let mut storage = storage.write().await;
-        storage.revoke_device(device_key).await?;
+        &mut self,
+        device_key: &crate::sdk::device::DevicePublicKey,
+    ) -> Result<()> {
+        // Update the local device event log
+        {
+            let account = self.account.lock().await;
+            let storage = account.storage()?;
+            let mut storage = storage.write().await;
+            storage.revoke_device(device_key).await?;
+        }
 
-        self.patch_devices().await.ok_or_else(|| {
-            Error::RevokeDeviceSync
-        })?;
+        // Send the device event logs to the remote servers
+        if let Some(e) = self.patch_devices().await {
+            tracing::error!(error = ?e);
+            return Err(Error::RevokeDeviceSync);
+        }
 
         Ok(())
     }
@@ -296,6 +303,13 @@ impl NetworkAccount {
     pub async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
         let account = self.account.lock().await;
         Ok(account.user()?.identity()?.signer().clone())
+    }
+
+    /// Public key for the device signing key.
+    pub async fn device_public_key(&self) -> Result<DevicePublicKey> {
+        let account = self.account.lock().await;
+        let device = account.user()?.identity()?.device();
+        Ok(device.public_key())
     }
 
     async fn device_signer(&self) -> Result<DeviceSigner> {

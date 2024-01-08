@@ -1,5 +1,4 @@
-use super::simulate_device;
-use crate::test_utils::{spawn, teardown};
+use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_net::client::RpcClient;
 use std::time::Duration;

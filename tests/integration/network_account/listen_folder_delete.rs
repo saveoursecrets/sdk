@@ -1,5 +1,4 @@
-use super::simulate_device;
-use crate::test_utils::{spawn, sync_pause, teardown};
+use crate::test_utils::{simulate_device, spawn, sync_pause, teardown};
 use anyhow::Result;
 use sos_net::sdk::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},

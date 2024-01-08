@@ -14,3 +14,5 @@ anyhow = "1"
 sos-net = { path = "../net", features = ["full"] }
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
 axum-server = { version = "0.5", features = ["tls-rustls"] }
+pretty_assertions = "1.4"
+copy_dir = "0.1"

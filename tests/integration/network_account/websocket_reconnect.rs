@@ -1,12 +1,7 @@
+use crate::test_utils::{simulate_device, spawn, teardown, SimulatedDevice};
 use anyhow::Result;
-
-use std::time::Duration;
-
 use sos_net::client::{ListenOptions, Origin, RpcClient};
-
-use crate::test_utils::{spawn, teardown};
-
-use super::{simulate_device, SimulatedDevice};
+use std::time::Duration;
 
 const TEST_ID: &str = "websocket_reconnect";
 

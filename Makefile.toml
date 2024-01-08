@@ -102,10 +102,14 @@ args = ["test", "audit", "--", "--nocapture"]
 command = "cargo"
 args = ["test", "backup_archive", "--", "--nocapture"]
 
+[tasks.test-device]
+command = "cargo"
+args = ["test", "device_", "--", "--nocapture"]
+
 [tasks.integration]
 command = "cargo"
 args = ["test", "integration"]
-dependencies = ["test-audit-trail", "test-backup-archive"]
+dependencies = ["test-audit-trail", "test-backup-archive", "test-device"]
 
 [tasks.test-wasm]
 command = "wasm-pack"
