@@ -20,6 +20,9 @@ use sos_net::{
 use std::path::PathBuf;
 
 mod create_remote_data;
+
+mod device_enroll;
+
 mod send_secret_create;
 mod send_secret_delete;
 mod send_secret_update;

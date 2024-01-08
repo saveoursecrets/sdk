@@ -184,6 +184,8 @@ impl NetworkAccount {
                     keypair,
                     String::new(),
                 )?;
+                
+                remote.handshake().await?;
                 enrollment.enroll(remote).await?;
             }
         }
@@ -273,8 +275,9 @@ impl NetworkAccount {
         let account = self.account.lock().await;
         Ok(account.user()?.generate_folder_password()?)
     }
-
-    async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
+    
+    /// Signing key for the account.
+    pub async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
         let account = self.account.lock().await;
         Ok(account.user()?.identity()?.signer().clone())
     }
@@ -366,25 +369,6 @@ impl NetworkAccount {
                 tracing::error!(error = ?e, "failed to sync before change");
             }
         }
-    }
-
-    /// Add a remote origin to this account.
-    pub async fn add_origin(&self, origin: Origin) -> Result<()> {
-        let remotes_file = self.paths().remote_origins();
-        let mut origins = if vfs::try_exists(&remotes_file).await? {
-            let contents = vfs::read(&remotes_file).await?;
-            let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
-            origins
-        } else {
-            HashSet::new()
-        };
-
-        origins.insert(origin);
-
-        let data = serde_json::to_vec_pretty(&origins)?;
-        vfs::write(remotes_file, data).await?;
-
-        Ok(())
     }
 
     /// Sign in to an account.

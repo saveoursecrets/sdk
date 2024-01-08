@@ -351,7 +351,7 @@ pub struct ChangeSet {
 #[async_trait]
 pub trait Client {
     /// Errors produced by the client.
-    type Error;
+    type Error: std::fmt::Debug;
 
     /// URL of the remote server.
     fn url(&self) -> &Url;

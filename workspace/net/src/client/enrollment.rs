@@ -16,7 +16,7 @@ use crate::{
     },
 };
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
 };
 
@@ -72,7 +72,8 @@ impl DeviceEnrollment {
                 self.paths.user_id().to_owned(),
             ));
         }
-
+        
+        Paths::scaffold(self.data_dir.clone()).await?;
         self.paths.ensure().await?;
 
         match client.fetch_account().await {
@@ -84,7 +85,10 @@ impl DeviceEnrollment {
                 self.create_identity(change_set.identity).await?;
                 Ok(())
             }
-            Err(_) => Err(Error::EnrollFetch(client.url().to_string())),
+            Err(e) => {
+                tracing::error!(error = ?e);
+                Err(Error::EnrollFetch(client.url().to_string()))
+            },
         }
     }
 
@@ -99,7 +103,7 @@ impl DeviceEnrollment {
 
         // Add the remote origin so it is loaded as
         // a remote when the sign in is successful
-        account.add_origin(self.origin.clone()).await?;
+        self.add_origin().await?;
 
         // Sign in to the new account
         account.sign_in(key).await?;
@@ -111,6 +115,25 @@ impl DeviceEnrollment {
         })?;
 
         Ok(account)
+    }
+
+    /// Add a remote origin to the enrolled account paths.
+    async fn add_origin(&self) -> Result<()> {
+        let remotes_file = self.paths.remote_origins();
+        let mut origins = if vfs::try_exists(&remotes_file).await? {
+            let contents = vfs::read(&remotes_file).await?;
+            let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
+            origins
+        } else {
+            HashSet::new()
+        };
+
+        origins.insert(self.origin.clone());
+
+        let data = serde_json::to_vec_pretty(&origins)?;
+        vfs::write(remotes_file, data).await?;
+
+        Ok(())
     }
 
     async fn create_folders(
@@ -143,8 +166,7 @@ impl DeviceEnrollment {
         let mut event_log = DeviceEventLog::new_device(file).await?;
         event_log.clear().await?;
 
-        let events: Vec<DeviceEvent> = patch.into();
-        event_log.apply(events.iter().collect()).await?;
+        let mut events: Vec<DeviceEvent> = patch.into();
 
         // Include this device in the list of trusted devices
         // stored locally.
@@ -159,8 +181,10 @@ impl DeviceEnrollment {
             None,
         );
         let event = DeviceEvent::Trust(device);
-        event_log.apply(vec![&event]).await?;
+        events.push(event);
 
+        event_log.apply(events.iter().collect()).await?;
+        
         Ok(())
     }
 
