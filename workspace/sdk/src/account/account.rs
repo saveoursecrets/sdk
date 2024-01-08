@@ -206,7 +206,7 @@ impl Account {
                 .user
                 .identity()?
                 .devices()?
-                .current_device(Default::default()),
+                .current_device(None),
         )
         .await?;
 
@@ -290,7 +290,7 @@ impl Account {
             #[cfg(feature = "device")]
             user.identity()?
                 .devices()?
-                .current_device(Default::default()),
+                .current_device(None),
         )
         .await?;
         self.paths = storage.paths();

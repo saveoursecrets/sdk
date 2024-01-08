@@ -144,7 +144,7 @@ impl EventReducer {
         Ok((head, events))
     }
 
-    /// Reduce the events in the given iterator.
+    /// Reduce the events in the given event log.
     pub async fn reduce(
         mut self,
         event_log: &FolderEventLog,

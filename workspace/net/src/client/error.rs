@@ -197,7 +197,7 @@ pub enum Error {
     #[error("could not fetch account from remote '{0}'")]
     EnrollFetch(String),
 
-    /// Error generated attempting to enroll a new device and 
+    /// Error generated attempting to enroll a new device and
     /// the account already exists on the device.
     #[error("cannot enroll, account '{0}' already exists on this device")]
     EnrollAccountExists(String),

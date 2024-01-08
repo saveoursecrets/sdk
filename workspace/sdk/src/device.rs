@@ -4,10 +4,17 @@ use crate::{
     vault::Gatekeeper,
     Error, Result,
 };
+use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::BTreeMap, fmt};
 use time::OffsetDateTime;
+
+/// Device meta data.
+///
+/// Applications can set this when they boot so that trusted devices 
+/// will prefer this meta data.
+pub static DEVICE: OnceCell<DeviceMetaData> = OnceCell::new();
 
 const DEVICE_PUBLIC_KEY_LEN: usize = 32;
 
@@ -142,13 +149,9 @@ impl DeviceManager {
     /// Current device information.
     pub fn current_device(
         &self,
-        extra_info: DeviceMetaData,
+        extra_info: Option<DeviceMetaData>,
     ) -> TrustedDevice {
-        TrustedDevice::new(
-            self.signer.public_key(),
-            extra_info,
-            OffsetDateTime::now_utc(),
-        )
+        TrustedDevice::new(self.signer.public_key(), extra_info, None)
     }
 
     /// Sign out locking the device vault.
@@ -232,13 +235,24 @@ impl TrustedDevice {
     /// Create a new trusted device.
     pub fn new(
         public_key: DevicePublicKey,
-        extra_info: DeviceMetaData,
-        created_date: OffsetDateTime,
+        extra_info: Option<DeviceMetaData>,
+        created_date: Option<OffsetDateTime>,
     ) -> Self {
+        let extra_info = if let Some(extra_info) = extra_info {
+            extra_info
+        } else {
+            if let Some(device) = DEVICE.get() {
+                device.clone()
+            } else {
+                Default::default()
+            }
+        };
+
         Self {
             public_key,
             extra_info,
-            created_date,
+            created_date: created_date
+                .unwrap_or_else(|| OffsetDateTime::now_utc()),
         }
     }
 

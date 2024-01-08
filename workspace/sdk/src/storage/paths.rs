@@ -146,7 +146,7 @@ impl Paths {
         }
         Ok(())
     }
-    
+
     /// User identifier.
     pub fn user_id(&self) -> &str {
         &self.user_id

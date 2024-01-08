@@ -252,7 +252,6 @@ mod test {
     };
     use anyhow::Result;
     use std::collections::HashMap;
-    use time::OffsetDateTime;
 
     #[cfg(feature = "device")]
     use crate::{
@@ -284,8 +283,8 @@ mod test {
             let device_signer = DeviceSigner::new_random();
             let mock_device = TrustedDevice::new(
                 device_signer.public_key(),
-                Default::default(),
-                OffsetDateTime::now_utc(),
+                None,
+                None,
             );
             let device: DevicePatch =
                 vec![DeviceEvent::Trust(mock_device)].into();
