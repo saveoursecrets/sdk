@@ -26,6 +26,7 @@ impl RemoteSync for NetworkAccount {
         let _ = self.sync_lock.lock().await;
         let mut errors = Vec::new();
         let remotes = self.remotes.read().await;
+
         for (origin, remote) in &*remotes {
             let sync_remote = options.origins.is_empty()
                 || options.origins.contains(origin);
@@ -38,6 +39,29 @@ impl RemoteSync for NetworkAccount {
                             errors.append(&mut errs)
                         }
                     }
+                }
+            }
+        }
+        if errors.is_empty() {
+            None
+        } else {
+            for error in &errors {
+                tracing::error!(error = ?error);
+            }
+            Some(SyncError::Multiple(errors))
+        }
+    }
+
+    async fn patch_devices(&self) -> Option<SyncError> {
+        let _ = self.sync_lock.lock().await;
+        let mut errors = Vec::new();
+        let remotes = self.remotes.read().await;
+
+        for (origin, remote) in &*remotes {
+            if let Some(e) = remote.patch_devices().await {
+                match e {
+                    SyncError::One(e) => errors.push((origin.clone(), e)),
+                    SyncError::Multiple(mut errs) => errors.append(&mut errs),
                 }
             }
         }

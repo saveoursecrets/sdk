@@ -33,6 +33,9 @@ pub trait RemoteSync: Sync + Send + Any {
         options: &SyncOptions,
     ) -> Option<SyncError>;
 
+    /// Patch the device log on the remote.
+    async fn patch_devices(&self) -> Option<SyncError>;
+
     /// Cast to the Any trait.
     fn as_any(&self) -> &(dyn Any + Send + Sync);
 

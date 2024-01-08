@@ -9,8 +9,8 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 use sos_sdk::{
     constants::{
-        ACCOUNT_CREATE, ACCOUNT_FETCH, HANDSHAKE_INITIATE, MIME_TYPE_RPC,
-        SYNC_RESOLVE, SYNC_STATUS,
+        ACCOUNT_CREATE, ACCOUNT_FETCH, DEVICE_PATCH, HANDSHAKE_INITIATE,
+        MIME_TYPE_RPC, SYNC_RESOLVE, SYNC_STATUS,
     },
     decode, encode,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
@@ -29,6 +29,9 @@ use crate::events::ChangeNotification;
 
 #[cfg(feature = "listen")]
 use super::websocket::WebSocketChangeListener;
+
+#[cfg(feature = "device")]
+use crate::sdk::sync::DeviceDiff;
 
 use std::{
     borrow::Cow,
@@ -416,6 +419,43 @@ impl RpcClient {
         maybe_retry.map(|_, body| Ok(body))
     }
 
+    /// Try to patch the event log on remote.
+    async fn try_patch_devices(
+        &self,
+        diff: &DeviceDiff,
+    ) -> Result<MaybeRetry<()>> {
+        let url = self.build_url("api/account")?;
+
+        let id = self.next_id().await;
+        let body = encode(diff).await?;
+        let request = RequestMessage::new(
+            Some(id),
+            DEVICE_PATCH,
+            (),
+            Cow::Owned(body),
+        )?;
+
+        let packet = Packet::new_request(request);
+        let body = encode(&packet).await?;
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+
+        let body = self.encrypt_request(&body).await?;
+        let response = self
+            .send_request(url, body, account_signature, None)
+            .await?;
+        let response = self.check_response(response).await?;
+        let maybe_retry = self
+            .read_encrypted_response::<()>(
+                response.status(),
+                &response.bytes().await?,
+            )
+            .await?;
+
+        maybe_retry.map(|result, _| Ok(result?))
+    }
+
     /// Try to sync status on remote.
     async fn try_sync_status(
         &self,
@@ -651,5 +691,25 @@ impl Client for RpcClient {
             .ok_or(Error::ResponseCode(status))?;
 
         Ok(decode(&body).await?)
+    }
+
+    #[cfg(feature = "device")]
+    async fn patch_devices(
+        &self,
+        diff: &DeviceDiff,
+    ) -> std::result::Result<(), Self::Error> {
+        let span = span!(Level::DEBUG, "patch_devices");
+        let _enter = span.enter();
+
+        let (status, _) = retry!(|| self.try_patch_devices(diff), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(())
     }
 }

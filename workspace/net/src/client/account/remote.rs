@@ -176,6 +176,43 @@ impl RemoteBridge {
         }
         errors
     }
+
+    async fn send_devices_patch(
+        &self,
+        remote_status: SyncStatus,
+    ) -> Result<()> {
+        let account = self.account.lock().await;
+
+        let (needs_sync, _local_status, local_changes) =
+            sync::diff(&*account, remote_status).await?;
+
+        if let (true, Some(device)) = (needs_sync, local_changes.device) {
+            self.remote.patch_devices(&device).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn execute_sync_devices(&self) -> Vec<Error> {
+        let mut errors = Vec::new();
+        match self.remote.sync_status().await {
+            Ok(sync_status) => {
+                if let Some(sync_status) = sync_status {
+                    if let Err(e) = self.send_devices_patch(sync_status).await
+                    {
+                        errors.push(e);
+                    }
+                } else {
+                    todo!("add not found error...");
+                    //errors.push(Error::Not);
+                }
+            }
+            Err(e) => {
+                errors.push(e);
+            }
+        }
+        errors
+    }
 }
 
 #[async_trait]
@@ -203,6 +240,22 @@ impl RemoteSync for RemoteBridge {
         tracing::debug!(origin = %self.origin.url);
 
         let errors = self.execute_sync().await;
+        if errors.is_empty() {
+            None
+        } else {
+            let errors = errors
+                .into_iter()
+                .map(|e| {
+                    let origin: Origin = self.origin.clone().into();
+                    (origin, e)
+                })
+                .collect::<Vec<_>>();
+            Some(SyncError::Multiple(errors))
+        }
+    }
+
+    async fn patch_devices(&self) -> Option<SyncError> {
+        let errors = self.execute_sync_devices().await;
         if errors.is_empty() {
             None
         } else {

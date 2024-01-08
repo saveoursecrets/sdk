@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use std::borrow::Cow;
 
 use sos_sdk::{
-    constants::{ACCOUNT_CREATE, ACCOUNT_FETCH, SYNC_STATUS},
+    constants::{ACCOUNT_CREATE, ACCOUNT_FETCH, DEVICE_PATCH, SYNC_STATUS},
     decode, encode,
     sync::{ChangeSet, SyncStorage},
 };
@@ -14,6 +14,9 @@ use crate::{
 };
 use async_trait::async_trait;
 
+#[cfg(feature = "device")]
+use sos_sdk::sync::DeviceDiff;
+
 /// Account management service.
 ///
 /// This service requires an account signature but **does not**
@@ -21,6 +24,7 @@ use async_trait::async_trait;
 ///
 /// * `Account.create`: Create a new account.
 /// * `Account.fetch`: Fetch an existing account.
+/// * `Device.patch`: Apply a patch to the devices event log.
 /// * `Sync.status`: Account sync status.
 ///
 pub struct AccountService;
@@ -68,6 +72,15 @@ impl Service for AccountService {
                     Some(Ok(())),
                     Cow::Owned(buffer),
                 )?;
+                Ok(reply)
+            }
+            #[cfg(feature = "device")]
+            DEVICE_PATCH => {
+                let diff: DeviceDiff = decode(request.body()).await?;
+                let reader = backend.read().await;
+                reader.patch_devices(caller.address(), &diff).await?;
+                let reply: ResponseMessage<'_> =
+                    (request.id(), ()).try_into()?;
                 Ok(reply)
             }
             SYNC_STATUS => {

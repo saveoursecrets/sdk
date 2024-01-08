@@ -112,6 +112,9 @@ mod rpc {
     /// Account fetch method call.
     pub const ACCOUNT_FETCH: &str = "Account.fetch";
 
+    /// Device patch method call.
+    pub const DEVICE_PATCH: &str = "Device.patch";
+
     /// Sync status method call.
     pub const SYNC_STATUS: &str = "Sync.status";
 

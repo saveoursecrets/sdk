@@ -72,7 +72,7 @@ impl DeviceEnrollment {
                 self.paths.user_id().to_owned(),
             ));
         }
-        
+
         Paths::scaffold(self.data_dir.clone()).await?;
         self.paths.ensure().await?;
 
@@ -88,7 +88,7 @@ impl DeviceEnrollment {
             Err(e) => {
                 tracing::error!(error = ?e);
                 Err(Error::EnrollFetch(client.url().to_string()))
-            },
+            }
         }
     }
 
@@ -105,14 +105,30 @@ impl DeviceEnrollment {
         // a remote when the sign in is successful
         self.add_origin().await?;
 
+        // TODO: ensure the device signing key is used
+        // TODO: in the device vault
+
         // Sign in to the new account
         account.sign_in(key).await?;
 
-        // Sync to save the amended device event log
-        // to the remote server
-        account.sync().await.ok_or_else(|| {
-            Error::EnrollSync(self.origin.url().to_string())
-        })?;
+        println!("BEGIN SYNC ON DEVICE FINISH");
+
+        // Sync the updated device log first so we can
+        // do a full sync using the newly trusted device
+        if let Some(e) = account.patch_devices().await {
+            tracing::error!(error = ?e);
+            return Err(Error::EnrollSync(self.origin.url().to_string()));
+        }
+
+        println!("PATCH DEVICES COMPLETED");
+
+        // Sync to save the amended identity folder on the remote
+        if let Some(e) = account.sync().await {
+            tracing::error!(error = ?e);
+            return Err(Error::EnrollSync(self.origin.url().to_string()));
+        }
+
+        println!("DEVICE ENROLL SYNC COMPLETED");
 
         Ok(account)
     }
@@ -184,7 +200,7 @@ impl DeviceEnrollment {
         events.push(event);
 
         event_log.apply(events.iter().collect()).await?;
-        
+
         Ok(())
     }
 

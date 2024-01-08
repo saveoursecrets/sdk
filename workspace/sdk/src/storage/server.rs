@@ -23,6 +23,7 @@ use crate::audit::AuditEvent;
 use crate::{
     device::{DevicePublicKey, TrustedDevice},
     events::{DeviceEventLog, DeviceReducer},
+    sync::DeviceDiff,
 };
 
 #[cfg(feature = "device")]
@@ -383,5 +384,18 @@ impl ServerStorage {
     /// List the public keys of trusted devices.
     pub fn list_device_keys(&self) -> HashSet<&DevicePublicKey> {
         self.devices.keys().collect()
+    }
+
+    /// Patch the devices event log.
+    pub async fn patch_devices(&mut self, diff: &DeviceDiff) -> Result<()> {
+        let mut event_log = self.device_log.write().await;
+        event_log.patch_checked(&diff.before, &diff.patch).await?;
+
+        // Update in-memory cache of trusted devices
+        let reducer = DeviceReducer::new(&event_log);
+        let devices = reducer.reduce().await?;
+        self.devices = devices;
+
+        Ok(())
     }
 }

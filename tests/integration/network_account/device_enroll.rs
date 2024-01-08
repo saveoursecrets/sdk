@@ -1,12 +1,15 @@
 use anyhow::Result;
 
-use sos_net::{client::{RemoteBridge, RemoteSync, NetworkAccount, Origin}, sdk::prelude::*};
-use crate::test_utils::{mock, spawn, teardown};
 use super::{assert_local_remote_events_eq, num_events, simulate_device};
+use crate::test_utils::{mock, spawn, teardown};
+use sos_net::{
+    client::{NetworkAccount, Origin, RemoteBridge, RemoteSync},
+    sdk::prelude::*,
+};
 
 const TEST_ID: &str = "sync_device_enroll";
 
-/// Tests enrolling a new device and syncing the device event log 
+/// Tests enrolling a new device and syncing the device event log
 /// for the enrolled device.
 #[tokio::test]
 async fn integration_sync_device_enroll() -> Result<()> {
@@ -20,32 +23,36 @@ async fn integration_sync_device_enroll() -> Result<()> {
 
     // Create a secret in the primary owner which won't exist
     // in the second device
-    let (meta, secret) = mock::note("note_first_owner", TEST_ID);
+    let (meta, secret) = mock::note(TEST_ID, TEST_ID);
     device1
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    
+
     let password = device1.password.clone();
     let key: AccessKey = password.into();
     let origin = Origin::Hosted(device1.origin.clone());
     let signing_key = device1.owner.account_signer().await?;
     let data_dir = device1.dirs.clients.get(1).cloned().unwrap();
-    
+
     // Need to clear the data directory for the second client
-    // as simulate_device() copies all the account data and 
+    // as simulate_device() copies all the account data and
     // the identity folder must not exist to enroll a new device
     std::fs::remove_dir_all(&data_dir)?;
     std::fs::create_dir(&data_dir)?;
-    
-    // Start enrollment by fetching the account data 
-    // from the remote server
-    let enrollment = NetworkAccount::enroll(
-        origin, signing_key, Some(data_dir)).await?;
 
-    // Complete device enrollment by authenticating 
+    // Start enrollment by fetching the account data
+    // from the remote server
+    let enrollment =
+        NetworkAccount::enroll(origin, signing_key, Some(data_dir)).await?;
+
+    // Complete device enrollment by authenticating
     // to the new account
     let enrolled_account = enrollment.finish(&key).await?;
+
+    // Sync on the original device to fetch the updated
+    // device logs
+    assert!(device1.owner.sync().await.is_none());
 
     //teardown(TEST_ID).await;
 

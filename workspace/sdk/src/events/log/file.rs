@@ -208,7 +208,7 @@ where
                     Arc::clone(&handle), &record).await?;
 
                 let event_record: EventRecord = (record, event_buffer).into();
-                
+
                 let event = event_record.decode_event::<E>().await?;
                 yield (event_record, event);
             }

@@ -184,7 +184,7 @@ impl NetworkAccount {
                     keypair,
                     String::new(),
                 )?;
-                
+
                 remote.handshake().await?;
                 enrollment.enroll(remote).await?;
             }
@@ -275,7 +275,7 @@ impl NetworkAccount {
         let account = self.account.lock().await;
         Ok(account.user()?.generate_folder_password()?)
     }
-    
+
     /// Signing key for the account.
     pub async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
         let account = self.account.lock().await;

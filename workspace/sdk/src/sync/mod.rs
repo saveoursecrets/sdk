@@ -379,6 +379,13 @@ pub trait Client {
         local_status: &SyncStatus,
         diff: &SyncDiff,
     ) -> std::result::Result<SyncDiff, Self::Error>;
+
+    /// Patch the device event log.
+    #[cfg(feature = "device")]
+    async fn patch_devices(
+        &self,
+        diff: &crate::sync::DeviceDiff,
+    ) -> std::result::Result<(), Self::Error>;
 }
 
 /// Storage implementations that can synchronize.
