@@ -25,6 +25,9 @@ use crate::{
     sync::DeviceDiff,
 };
 
+#[cfg(feature = "files")]
+use crate::{events::FileEventLog, sync::FileDiff};
+
 impl ServerStorage {
     /// Create a new vault file on disc and the associated
     /// event log.
@@ -201,8 +204,6 @@ impl ServerStorage {
             "device",
         );
 
-        println!("SERVER MERGING DEVICE CHANGES...");
-
         let checked_patch = {
             let mut event_log = self.device_log.write().await;
             event_log.patch_checked(&diff.before, &diff.patch).await?
@@ -303,6 +304,11 @@ impl SyncStorage for ServerStorage {
     #[cfg(feature = "device")]
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
         Ok(Arc::clone(&self.device_log))
+    }
+
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        Ok(Arc::clone(&self.file_log))
     }
 
     async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {

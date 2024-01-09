@@ -13,6 +13,9 @@ use tokio::sync::RwLock;
 #[cfg(feature = "device")]
 use sos_sdk::events::DeviceEventLog;
 
+#[cfg(feature = "files")]
+use sos_sdk::events::FileEventLog;
+
 #[async_trait]
 impl RemoteSync for NetworkAccount {
     async fn sync(&self) -> Option<SyncError> {
@@ -105,6 +108,12 @@ impl SyncStorage for NetworkAccount {
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
         let account = self.account.lock().await;
         account.device_log().await
+    }
+
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        let account = self.account.lock().await;
+        account.file_log().await
     }
 
     async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {

@@ -82,6 +82,16 @@ impl Encodable for ChangeSet {
             writer.write_bytes(&buffer).await?;
         }
 
+        // Files patch
+        #[cfg(feature = "files")]
+        {
+            let buffer =
+                encode(&self.files).await.map_err(encoding_error)?;
+            let length = buffer.len();
+            writer.write_u32(length as u32).await?;
+            writer.write_bytes(&buffer).await?;
+        }
+
         // Folder patches
         writer.write_u16(self.folders.len() as u16).await?;
         for (id, folder) in &self.folders {
@@ -118,6 +128,14 @@ impl Decodable for ChangeSet {
             let length = reader.read_u32().await?;
             let buffer = reader.read_bytes(length as usize).await?;
             self.device = decode(&buffer).await.map_err(encoding_error)?;
+        }
+
+        // Files patch
+        #[cfg(feature = "files")]
+        {
+            let length = reader.read_u32().await?;
+            let buffer = reader.read_bytes(length as usize).await?;
+            self.files = decode(&buffer).await.map_err(encoding_error)?;
         }
 
         // Folder patches
@@ -260,6 +278,14 @@ mod test {
         sync::DevicePatch,
     };
 
+    #[cfg(feature = "files")]
+    use crate::{
+        events::FileEvent,
+        storage::files::ExternalFileName,
+        vault::{VaultId, secret::SecretId},
+        sync::FilePatch,
+    };
+
     #[tokio::test]
     async fn encode_decode_change_set() -> Result<()> {
         let vault: Vault = Default::default();
@@ -288,16 +314,39 @@ mod test {
             device
         };
 
+        #[cfg(feature = "files")]
+        let files = {
+            let checksum: [u8; 32] = [0; 32];
+            let files: FilePatch =
+                vec![FileEvent::CreateFile(
+                    VaultId::new_v4(),
+                    SecretId::new_v4(),
+                    checksum.into(),
+                )].into();
+            files
+        };
+
         let account_data = ChangeSet {
             identity,
             account,
-            folders,
             #[cfg(feature = "device")]
             device,
+            #[cfg(feature = "files")]
+            files,
+            folders,
         };
 
         let buffer = encode(&account_data).await?;
-        let _: ChangeSet = decode(&buffer).await?;
+        let result: ChangeSet = decode(&buffer).await?;
+
+        assert_eq!(1, result.identity.len());
+        assert_eq!(1, result.account.len());
+        assert_eq!(1, result.device.len());
+        assert_eq!(1, result.files.len());
+
+        let folder = result.folders.get(&folder_id).unwrap();
+        assert_eq!(1, folder.len());
+
         Ok(())
     }
 }

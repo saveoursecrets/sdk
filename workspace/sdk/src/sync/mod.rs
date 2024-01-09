@@ -373,6 +373,9 @@ pub struct ChangeSet {
     /// Device event logs.
     #[cfg(feature = "device")]
     pub device: DevicePatch,
+    /// File event logs.
+    #[cfg(feature = "files")]
+    pub files: FilePatch,
     /// Folders to be imported into the new account.
     pub folders: HashMap<VaultId, FolderPatch>,
 }
@@ -434,6 +437,10 @@ pub trait SyncStorage {
     #[cfg(feature = "device")]
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>>;
 
+    /// Clone of the file log.
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>>;
+
     /// Folder identifiers managed by this storage.
     async fn folder_identifiers(&self) -> Result<Vec<VaultId>>;
 
@@ -467,6 +474,13 @@ pub trait SyncStorage {
             reader.diff(None).await?
         };
 
+        #[cfg(feature = "files")]
+        let files = {
+            let log = self.file_log().await?;
+            let reader = log.read().await;
+            reader.diff(None).await?
+        };
+
         let mut folders = HashMap::new();
         let identifiers = self.folder_identifiers().await?;
 
@@ -482,6 +496,8 @@ pub trait SyncStorage {
             folders,
             #[cfg(feature = "device")]
             device,
+            #[cfg(feature = "files")]
+            files,
         })
     }
 }

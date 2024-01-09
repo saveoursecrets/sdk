@@ -22,6 +22,9 @@ use crate::{
     sync::DeviceDiff,
 };
 
+#[cfg(feature = "files")]
+use crate::{events::FileEventLog, sync::FileDiff};
+
 impl Account {
     /// Merge a diff into this account.
     pub async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
@@ -289,6 +292,13 @@ impl SyncStorage for Account {
         let storage = self.storage()?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.device_log))
+    }
+
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        let storage = self.storage()?;
+        let storage = storage.read().await;
+        Ok(Arc::clone(&storage.file_log))
     }
 
     async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {

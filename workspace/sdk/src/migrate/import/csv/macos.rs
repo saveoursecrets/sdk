@@ -152,14 +152,6 @@ mod test {
             .password(passphrase.clone(), None)
             .await?;
 
-        /*
-        println!("{:#?}", std::env::current_dir().unwrap());
-        println!("{:#?}", std::path::PathBuf::from("../../tests/fixtures/migrate/macos-export.csv").exists());
-
-        let file = std::fs::read_to_string("../../tests/fixtures/migrate/macos-export.csv")?;
-        println!("{}", file);
-        */
-
         let key: AccessKey = passphrase.into();
         let vault = MacPasswordCsv
             .convert(
