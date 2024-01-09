@@ -83,7 +83,7 @@ pub struct ClientStorage {
 
     /// File event log.
     #[cfg(feature = "files")]
-    pub(super) file_log: FileEventLog,
+    pub(crate) file_log: Arc<RwLock<FileEventLog>>,
 
     /// Password for file encryption.
     #[cfg(feature = "files")]
@@ -157,7 +157,7 @@ impl ClientStorage {
             #[cfg(feature = "device")]
             devices,
             #[cfg(feature = "files")]
-            file_log,
+            file_log: Arc::new(RwLock::new(file_log)),
             #[cfg(feature = "files")]
             file_password: None,
         })
@@ -901,7 +901,8 @@ impl ClientStorage {
         #[cfg(feature = "files")]
         {
             let mut file_events = self.delete_folder_files(&summary).await?;
-            self.file_log.apply(file_events.iter().collect()).await?;
+            let mut writer = self.file_log.write().await;
+            writer.apply(file_events.iter().collect()).await?;
             for event in file_events.drain(..) {
                 events.push(Event::File(event));
             }

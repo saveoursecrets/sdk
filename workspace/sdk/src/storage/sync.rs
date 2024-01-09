@@ -265,6 +265,16 @@ impl SyncStorage for ServerStorage {
             reader.tree().commit_state()?
         };
 
+        #[cfg(feature = "files")]
+        let files = {
+            let reader = self.file_log.read().await;
+            if reader.tree().is_empty() {
+                None
+            } else {
+                Some(reader.tree().commit_state()?)
+            }
+        };
+
         let mut folders = IndexMap::new();
         for (id, event_log) in &self.cache {
             let event_log = event_log.read().await;
@@ -276,6 +286,8 @@ impl SyncStorage for ServerStorage {
             account,
             #[cfg(feature = "device")]
             device,
+            #[cfg(feature = "files")]
+            files,
             folders,
         })
     }

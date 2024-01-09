@@ -241,6 +241,16 @@ impl SyncStorage for Account {
             reader.tree().commit_state()?
         };
 
+        #[cfg(feature = "files")]
+        let files = {
+            let reader = storage.file_log.read().await;
+            if reader.tree().is_empty() {
+                None
+            } else {
+                Some(reader.tree().commit_state()?)
+            }
+        };
+
         let mut folders = IndexMap::new();
         for summary in &summaries {
             let folder = storage
@@ -256,6 +266,8 @@ impl SyncStorage for Account {
             account,
             #[cfg(feature = "device")]
             device,
+            #[cfg(feature = "files")]
+            files,
             folders,
         })
     }

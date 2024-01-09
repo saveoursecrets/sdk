@@ -59,7 +59,7 @@ pub struct ServerStorage {
 
     /// File event log.
     #[cfg(feature = "files")]
-    pub(super) file_log: FileEventLog,
+    pub(super) file_log: Arc<RwLock<FileEventLog>>,
 }
 
 impl ServerStorage {
@@ -116,7 +116,7 @@ impl ServerStorage {
             #[cfg(feature = "device")]
             devices,
             #[cfg(feature = "files")]
-            file_log,
+            file_log: Arc::new(RwLock::new(file_log)),
         })
     }
 

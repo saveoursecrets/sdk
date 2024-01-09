@@ -106,7 +106,8 @@ impl ClientStorage {
             }
         }
 
-        self.file_log.apply(file_events).await?;
+        let mut writer = self.file_log.write().await;
+        writer.apply(file_events).await?;
 
         Ok(())
     }

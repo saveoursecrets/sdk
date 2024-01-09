@@ -18,7 +18,6 @@ use tokio::sync::RwLock;
 use url::Url;
 
 mod patch;
-
 pub use patch::{AccountPatch, FolderPatch, Patch};
 
 #[cfg(feature = "device")]
@@ -26,6 +25,9 @@ use crate::events::{DeviceEvent, DeviceEventLog};
 
 #[cfg(feature = "device")]
 pub use patch::DevicePatch;
+
+#[cfg(feature = "files")]
+use crate::events::{FileEvent, FileEventLog};
 
 #[cfg(feature = "files")]
 pub use patch::FilePatch;
@@ -79,6 +81,10 @@ pub type AccountDiff = Diff<AccountEvent>;
 #[cfg(feature = "device")]
 pub type DeviceDiff = Diff<DeviceEvent>;
 
+/// Diff between file events logs.
+#[cfg(feature = "files")]
+pub type FileDiff = Diff<FileEvent>;
+
 /// Diff between folder events logs.
 pub type FolderDiff = Diff<WriteEvent>;
 
@@ -95,6 +101,10 @@ pub struct SyncStatus {
     /// Device log commit state.
     #[cfg(feature = "device")]
     pub device: CommitState,
+    /// Files log commit state.
+    #[cfg(feature = "files")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub files: Option<CommitState>,
     /// Commit proofs for the account folders.
     #[serde(skip_serializing_if = "IndexMap::is_empty")]
     pub folders: IndexMap<VaultId, CommitState>,
