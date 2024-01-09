@@ -138,6 +138,9 @@ pub struct SyncComparison {
     /// Comparison of the device event log.
     #[cfg(feature = "device")]
     pub device: Comparison,
+    /// Comparison of the files event log.
+    #[cfg(feature = "files")]
+    pub files: Option<Comparison>,
     /// Comparison for each folder in the account.
     pub folders: IndexMap<VaultId, Comparison>,
 }
@@ -169,6 +172,21 @@ impl SyncComparison {
             reader.tree().compare(&remote_status.device.1)?
         };
 
+        #[cfg(feature = "files")]
+        let files = {
+            let device = storage.device_log().await?;
+            let reader = device.read().await;
+            if let Some(files) = &remote_status.files {
+                if reader.tree().is_empty() {
+                    Some(Comparison::Unknown)
+                } else {
+                    Some(reader.tree().compare(&files.1)?)
+                }
+            } else {
+                None
+            }
+        };
+
         let folders = {
             let mut folders = IndexMap::new();
             for (id, folder) in &remote_status.folders {
@@ -190,6 +208,8 @@ impl SyncComparison {
             account,
             #[cfg(feature = "device")]
             device,
+            #[cfg(feature = "files")]
+            files,
             folders,
         })
     }
