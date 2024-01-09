@@ -49,6 +49,11 @@ impl Account {
             num_changes += self.merge_device(diff).await?;
         }
 
+        #[cfg(feature = "files")]
+        if let Some(diff) = &diff.files {
+            num_changes += self.merge_files(diff).await?;
+        }
+
         num_changes += self.merge_folders(&diff.folders).await?;
 
         tracing::debug!(num_changes = %num_changes, "merge complete");
@@ -173,6 +178,44 @@ impl Account {
         }
 
         Ok(diff.patch.len())
+    }
+
+    #[cfg(feature = "files")]
+    async fn merge_files(&mut self, diff: &FileDiff) -> Result<usize> {
+        tracing::debug!(
+            before = ?diff.before,
+            num_events = diff.patch.len(),
+            "files",
+        );
+
+        let num_events = diff.patch.len();
+
+        let storage = self.storage()?;
+        let storage = storage.read().await;
+        let mut event_log = storage.file_log.write().await;
+
+        // File events may not have a root commit if there are
+        // no files yet and we distinguish this by the before
+        // commit state being the default.
+        let is_init_diff = diff.before == Default::default();
+        let checked_patch = if is_init_diff && event_log.tree().is_empty() {
+            event_log.apply((&diff.patch).into()).await?;
+            None
+        } else {
+            Some(event_log.patch_checked(&diff.before, &diff.patch).await?)
+        };
+
+        let num_changes = if let Some(checked_patch) = checked_patch {
+            if let CheckedPatch::Success(_, _) = &checked_patch {
+                num_events
+            } else {
+                0
+            }
+        } else {
+            num_events
+        };
+
+        Ok(num_changes)
     }
 
     async fn merge_folders(
