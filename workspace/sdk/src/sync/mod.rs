@@ -120,6 +120,9 @@ pub struct SyncDiff {
     /// Diff of the device event log.
     #[cfg(feature = "device")]
     pub device: Option<DeviceDiff>,
+    /// Diff of the files event log.
+    #[cfg(feature = "files")]
+    pub files: Option<FileDiff>,
     /// Diff for folders in the account.
     pub folders: IndexMap<VaultId, FolderDiff>,
 }
@@ -178,12 +181,16 @@ impl SyncComparison {
             let reader = device.read().await;
             if let Some(files) = &remote_status.files {
                 if reader.tree().is_empty() {
-                    Some(Comparison::Unknown)
+                    None
                 } else {
                     Some(reader.tree().compare(&files.1)?)
                 }
             } else {
-                None
+                if reader.tree().is_empty() {
+                    None
+                } else {
+                    Some(Comparison::Unknown)
+                }
             }
         };
 
@@ -305,6 +312,61 @@ impl SyncComparison {
             Comparison::Unknown => {
                 println!("todo! : handle device with diverged trees");
             }
+        }
+
+        #[cfg(feature = "files")]
+        match (&self.files, &self.remote_status.files) {
+            (Some(files), Some(remote_files)) => {
+                match files {
+                    Comparison::Equal => {}
+                    Comparison::Contains(_, _) => {
+                        // Need to push changes to remote
+                        let log = storage.file_log().await?;
+                        let reader = log.read().await;
+
+                        let is_last_commit = Some(&remote_files.0)
+                            == reader.tree().last_commit().as_ref();
+
+                        // Avoid empty patches when commit is already the last
+                        if !is_last_commit {
+                            let after = reader.tree().head()?;
+                            let files = FileDiff {
+                                patch: reader
+                                    .diff(Some(&remote_files.0))
+                                    .await?,
+                                after,
+                                before: remote_files.1.clone(),
+                            };
+                            diff.files = Some(files);
+                        }
+                    }
+                    Comparison::Unknown => {
+                        println!("todo! : handle files with diverged trees");
+                    }
+                }
+            }
+            // Remote does not have any files yet so we need
+            // to send the entire file event log
+            (Some(files), None) => {
+                match files {
+                    Comparison::Unknown => {
+                        // Need to push changes to remote
+                        let log = storage.file_log().await?;
+                        let reader = log.read().await;
+                        if !reader.tree().is_empty() {
+                            let after = reader.tree().head()?;
+                            let files = FileDiff {
+                                patch: reader.diff(None).await?,
+                                after,
+                                before: Default::default(),
+                            };
+                            diff.files = Some(files);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
         }
 
         for (id, folder) in &self.folders {

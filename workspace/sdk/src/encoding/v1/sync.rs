@@ -85,8 +85,7 @@ impl Encodable for ChangeSet {
         // Files patch
         #[cfg(feature = "files")]
         {
-            let buffer =
-                encode(&self.files).await.map_err(encoding_error)?;
+            let buffer = encode(&self.files).await.map_err(encoding_error)?;
             let length = buffer.len();
             writer.write_u32(length as u32).await?;
             writer.write_bytes(&buffer).await?;
@@ -177,6 +176,14 @@ impl Encodable for SyncDiff {
             }
         }
 
+        #[cfg(feature = "files")]
+        {
+            writer.write_bool(self.files.is_some()).await?;
+            if let Some(files) = &self.files {
+                files.encode(&mut *writer).await?;
+            }
+        }
+
         writer.write_u16(self.folders.len() as u16).await?;
         for (id, diff) in &self.folders {
             writer.write_bytes(id.as_ref()).await?;
@@ -214,6 +221,17 @@ impl Decodable for SyncDiff {
                 let mut device: DeviceDiff = Default::default();
                 device.decode(&mut *reader).await?;
                 self.device = Some(device);
+            }
+        }
+
+        #[cfg(feature = "files")]
+        {
+            use crate::sync::FileDiff;
+            let has_files = reader.read_bool().await?;
+            if has_files {
+                let mut files: FileDiff = Default::default();
+                files.decode(&mut *reader).await?;
+                self.files = Some(files);
             }
         }
 
@@ -281,9 +299,8 @@ mod test {
     #[cfg(feature = "files")]
     use crate::{
         events::FileEvent,
-        storage::files::ExternalFileName,
-        vault::{VaultId, secret::SecretId},
         sync::FilePatch,
+        vault::{secret::SecretId, VaultId},
     };
 
     #[tokio::test]
@@ -317,12 +334,12 @@ mod test {
         #[cfg(feature = "files")]
         let files = {
             let checksum: [u8; 32] = [0; 32];
-            let files: FilePatch =
-                vec![FileEvent::CreateFile(
-                    VaultId::new_v4(),
-                    SecretId::new_v4(),
-                    checksum.into(),
-                )].into();
+            let files: FilePatch = vec![FileEvent::CreateFile(
+                VaultId::new_v4(),
+                SecretId::new_v4(),
+                checksum.into(),
+            )]
+            .into();
             files
         };
 
