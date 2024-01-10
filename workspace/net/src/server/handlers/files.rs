@@ -167,14 +167,19 @@ async fn receive_file(
         Arc::clone(account)
     };
 
-    let file_path = {
+    let (parent_path, file_path) = {
         let reader = account.read().await;
         let paths = reader.storage.paths();
         let name = file_name.to_string();
-        paths.file_location(&vault_id, &secret_id, &name)
+        let parent_path = paths.file_folder_location(&vault_id)
+            .join(secret_id.to_string());
+        (parent_path, paths.file_location(&vault_id, &secret_id, &name))
     };
 
-    // TODO: create parent directory
+    if !tokio::fs::try_exists(&parent_path).await? {
+        tokio::fs::create_dir_all(&parent_path).await?;
+    }
+
     // TODO: compute and verify checksum
 
     let mut bytes_written = 0;
