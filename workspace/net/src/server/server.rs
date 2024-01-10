@@ -1,6 +1,8 @@
 use super::{
     config::TlsConfig,
-    handlers::{api, connections, home, service::ServiceHandler},
+    handlers::{
+        api, connections, files::FileHandler, home, service::ServiceHandler,
+    },
     Backend, Result, ServerConfig, TransportManager,
 };
 use axum::{
@@ -9,7 +11,7 @@ use axum::{
         header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method,
     },
-    routing::{get, post},
+    routing::{get, post, put},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
@@ -217,7 +219,11 @@ impl Server {
             .route("/api/connections", get(connections))
             .route("/api/handshake", post(ServiceHandler::handshake))
             .route("/api/account", post(ServiceHandler::account))
-            //.route("/api/device", post(ServiceHandler::device))
+            .route(
+                "/api/file/:vault_id/:secret_id/:file_name",
+                put(FileHandler::receive_file)
+                    .delete(FileHandler::delete_file),
+            )
             .route("/api/sync", post(ServiceHandler::sync));
 
         #[cfg(feature = "listen")]

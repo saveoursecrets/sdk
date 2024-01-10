@@ -9,6 +9,7 @@ use axum::{
 use super::ServerState;
 use serde_json::json;
 
+pub(crate) mod files;
 pub(crate) mod service;
 
 #[cfg(feature = "listen")]

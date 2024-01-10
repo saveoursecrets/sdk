@@ -563,8 +563,8 @@ impl RpcClient {
             Body,
         };
         use tokio_util::io::ReaderStream;
-        
-        // For this request we sign the request path 
+
+        // For this request we sign the request path
         // bytes that encode the file name information
         let signed_data = format!(
             "{}/{}/{}",
