@@ -1,9 +1,9 @@
 use axum::{
-    body::Bytes,
-    extract::{BodyStream, Extension, Path, Query, TypedHeader},
+    body::boxed,
+    extract::{BodyStream, Extension, Path, TypedHeader},
     headers::{authorization::Bearer, Authorization, ContentLength},
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
 };
 use futures::StreamExt;
 
@@ -19,12 +19,12 @@ use crate::{
         Error, Result, ServerBackend, ServerState,
     },
 };
-use serde::Deserialize;
 use std::sync::Arc;
 use tokio::{
     fs::File,
     io::{AsyncWriteExt, BufWriter},
 };
+use tokio_util::io::ReaderStream;
 
 // Handler for files.
 pub(crate) struct FileHandler;
@@ -98,6 +98,39 @@ impl FileHandler {
             Err(error) => error.into_response(),
         }
     }
+
+    /// Handler that sends an external file.
+    pub(crate) async fn send_file(
+        Extension(state): Extension<ServerState>,
+        Extension(backend): Extension<ServerBackend>,
+        TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+        Path((vault_id, secret_id, file_name)): Path<(
+            VaultId,
+            SecretId,
+            ExternalFileName,
+        )>,
+    ) -> impl IntoResponse {
+        match authenticate_file_api(bearer, &vault_id, &secret_id, &file_name)
+            .await
+        {
+            Ok(token) => {
+                match send_file(
+                    state,
+                    backend,
+                    token,
+                    vault_id,
+                    secret_id,
+                    file_name,
+                )
+                .await
+                {
+                    Ok(result) => result.into_response(),
+                    Err(error) => error.into_response(),
+                }
+            }
+            Err(error) => error.into_response(),
+        }
+    }
 }
 
 // Parse the bearer token
@@ -141,6 +174,7 @@ async fn receive_file(
         paths.file_location(&vault_id, &secret_id, &name)
     };
 
+    // TODO: create parent directory
     // TODO: compute and verify checksum
 
     let mut bytes_written = 0;
@@ -191,4 +225,40 @@ async fn delete_file(
     tokio::fs::remove_file(&file_path).await?;
 
     Ok(())
+}
+
+async fn send_file(
+    _state: ServerState,
+    backend: ServerBackend,
+    token: BearerToken,
+    vault_id: VaultId,
+    secret_id: SecretId,
+    file_name: ExternalFileName,
+) -> Result<Response> {
+    let account = {
+        let backend = backend.read().await;
+        let accounts = backend.accounts();
+        let accounts = accounts.read().await;
+        let account = accounts
+            .get(&token.address)
+            .ok_or_else(|| Error::NoAccount(token.address))?;
+        Arc::clone(account)
+    };
+
+    let file_path = {
+        let reader = account.read().await;
+        let paths = reader.storage.paths();
+        let name = file_name.to_string();
+        paths.file_location(&vault_id, &secret_id, &name)
+    };
+
+    if !tokio::fs::try_exists(&file_path).await? {
+        return Err(Error::Status(StatusCode::NOT_FOUND));
+    }
+
+    let file = File::open(&file_path).await?;
+    let stream = ReaderStream::new(file);
+    
+    let body = axum::body::Body::wrap_stream(stream);
+    Ok(Response::builder().body(boxed(body))?)
 }

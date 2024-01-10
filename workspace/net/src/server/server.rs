@@ -222,6 +222,7 @@ impl Server {
             .route(
                 "/api/file/:vault_id/:secret_id/:file_name",
                 put(FileHandler::receive_file)
+                    .get(FileHandler::send_file)
                     .delete(FileHandler::delete_file),
             )
             .route("/api/sync", post(ServiceHandler::sync));
