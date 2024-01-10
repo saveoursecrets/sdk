@@ -1,11 +1,11 @@
 use axum::{
     body::Bytes,
-    headers::{authorization::Bearer, Authorization},
     http::{
         header::{self, HeaderMap, HeaderValue},
         StatusCode,
     },
 };
+use axum_extra::headers::{authorization::Bearer, Authorization};
 
 use async_trait::async_trait;
 use mpc_protocol::channel::{decrypt_server_channel, encrypt_server_channel};

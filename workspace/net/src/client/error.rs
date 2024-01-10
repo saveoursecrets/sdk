@@ -1,7 +1,7 @@
 //! Error type for the client module.
 #[cfg(feature = "client")]
 use crate::client::{Origin, SyncError};
-use http::StatusCode;
+use reqwest::StatusCode;
 use serde_json::Value;
 use sos_sdk::{commit::CommitHash, events::WriteEvent, vault::Summary};
 use std::path::PathBuf;

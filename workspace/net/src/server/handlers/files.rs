@@ -1,11 +1,12 @@
 use axum::{
-    body::boxed,
-    extract::{BodyStream, Extension, Path, TypedHeader},
-    headers::{authorization::Bearer, Authorization, ContentLength},
+    body::Body,
+    extract::{Extension, Path},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use futures::StreamExt;
+
+use axum_extra::{headers::{authorization::Bearer, Authorization, ContentLength}, typed_header::TypedHeader};
+use futures::TryStreamExt;
 
 //use axum_macros::debug_handler;
 
@@ -40,7 +41,7 @@ impl FileHandler {
             SecretId,
             ExternalFileName,
         )>,
-        body: BodyStream,
+        body: Body,
     ) -> impl IntoResponse {
         match authenticate_file_api(bearer, &vault_id, &secret_id, &file_name)
             .await
@@ -155,7 +156,7 @@ async fn receive_file(
     secret_id: SecretId,
     file_name: ExternalFileName,
     content_length: u64,
-    mut body: BodyStream,
+    body: Body,
 ) -> Result<()> {
     let account = {
         let backend = backend.read().await;
@@ -185,10 +186,19 @@ async fn receive_file(
     let mut bytes_written = 0;
     let file = File::create(&file_path).await?;
     let mut buf_writer = BufWriter::new(file);
+
+    let mut stream = body.into_data_stream();
+    while let Some(chunk) = stream.try_next().await? {
+        bytes_written += buf_writer.write(&chunk).await?;
+    }
+    
+    /*
     while let Some(chunk) = body.next().await {
         let chunk = chunk?;
         bytes_written += buf_writer.write(&chunk).await?;
     }
+    */
+
     buf_writer.flush().await?;
 
     if bytes_written != content_length as usize {
@@ -263,7 +273,7 @@ async fn send_file(
 
     let file = File::open(&file_path).await?;
     let stream = ReaderStream::new(file);
-    
-    let body = axum::body::Body::wrap_stream(stream);
-    Ok(Response::builder().body(boxed(body))?)
+
+    let body = axum::body::Body::from_stream(stream);
+    Ok(Response::builder().body(body)?)
 }

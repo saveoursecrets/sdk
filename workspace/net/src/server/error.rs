@@ -1,7 +1,7 @@
 //! Error type for the server.
 use crate::sdk::signer::ecdsa::Address;
 use axum::{
-    body::BoxBody,
+    body::Body,
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
@@ -188,7 +188,7 @@ impl Error {
 }
 
 impl IntoResponse for Error {
-    fn into_response(self) -> Response<BoxBody> {
+    fn into_response(self) -> Response<Body> {
         let status = self.status();
         let body = self.body();
         (status, Json(body)).into_response()

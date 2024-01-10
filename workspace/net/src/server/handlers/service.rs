@@ -1,9 +1,10 @@
 use axum::{
     body::Bytes,
-    extract::{Extension, Query, TypedHeader},
-    headers::{authorization::Bearer, Authorization},
+    extract::{Extension, Query},
     response::IntoResponse,
 };
+
+use axum_extra::{headers::{authorization::Bearer, Authorization}, typed_header::TypedHeader};
 
 //use axum_macros::debug_handler;
 

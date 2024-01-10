@@ -1,8 +1,8 @@
 //! Remote procedure call (RPC) client implementation.
 use async_trait::async_trait;
 use futures::Future;
-use http::{
-    header::{self, HeaderValue},
+use reqwest::{
+    header::{self, HeaderValue, AUTHORIZATION},
     StatusCode,
 };
 use serde::de::DeserializeOwned;
@@ -17,7 +17,6 @@ use sos_sdk::{
     sync::{ChangeSet, Client, SyncDiff, SyncStatus},
 };
 
-use http::header::AUTHORIZATION;
 use mpc_protocol::{
     channel::{decrypt_server_channel, encrypt_server_channel},
     snow, Keypair, ProtocolState, PATTERN,
@@ -654,6 +653,9 @@ impl RpcClient {
         let response: ResponseMessage<'static> = reply.try_into()?;
         let (_, status, result, body) = response.take::<T>()?;
         let result = result.ok_or(Error::NoReturnValue)?;
+        // Hack for incompatible http lib 
+        // version (reqwest uses old version)
+        let status = StatusCode::from_u16(status.as_u16()).unwrap();
         Ok((status, result, body))
     }
 
@@ -673,6 +675,9 @@ impl RpcClient {
             let response: ResponseMessage<'static> = reply.try_into()?;
             let (_, status, result, body) = response.take::<T>()?;
             let result = result.ok_or(Error::NoReturnValue)?;
+            // Hack for incompatible http lib 
+            // version (reqwest uses old version)
+            let status = StatusCode::from_u16(status.as_u16()).unwrap();
             Ok(RetryResponse::Complete(status, result, body))
         } else {
             Err(Error::ResponseCode(http_status))

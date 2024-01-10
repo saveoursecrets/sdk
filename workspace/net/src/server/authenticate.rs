@@ -1,6 +1,6 @@
 //! Authentication helper functions for extracting an address
 //! from a signature given in bearer authorization data.
-use axum::headers::{authorization::Bearer, Authorization};
+use axum_extra::headers::{authorization::Bearer, Authorization};
 
 use sos_sdk::{
     decode,
