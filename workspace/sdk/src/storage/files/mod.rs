@@ -73,6 +73,23 @@ impl From<ExternalFile> for FileEvent {
     }
 }
 
+impl ExternalFile {
+    /// Vault identifier.
+    pub fn vault_id(&self) -> &VaultId {
+        &self.0
+    }
+
+    /// Secret identifier.
+    pub fn secret_id(&self) -> &SecretId {
+        &self.1
+    }
+
+    /// File name.
+    pub fn file_name(&self) -> &ExternalFileName {
+        &self.2
+    }
+}
+
 /// List all the external files in an account.
 ///
 /// If a directory name cannot be parsed to a folder or secret

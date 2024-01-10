@@ -33,8 +33,12 @@ use super::websocket::WebSocketChangeListener;
 #[cfg(feature = "device")]
 use crate::sdk::sync::DeviceDiff;
 
+#[cfg(feature = "files")]
+use crate::sdk::storage::files::ExternalFile;
+
 use std::{
     borrow::Cow,
+    path::PathBuf,
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
@@ -539,6 +543,66 @@ impl RpcClient {
         maybe_retry.map(|_, body| Ok(body))
     }
 
+    /// Try to send a file to remote.
+    ///
+    /// Note this method bypasses the noise encryption protocol as
+    /// we need to be able to stream large files.
+    ///
+    /// Files are already encrypted so no sensitive information is leaked
+    /// although this could make us more vulnerable to MitM or replay attacks
+    /// when the backend server is not using TLS.
+    #[cfg(feature = "files")]
+    async fn try_send_file(
+        &self,
+        file_info: &ExternalFile,
+        path: &PathBuf,
+    ) -> Result<MaybeRetry<()>> {
+        use crate::sdk::vfs;
+        use reqwest::{
+            header::{CONTENT_LENGTH, CONTENT_TYPE},
+            Body,
+        };
+        use tokio_util::io::ReaderStream;
+        
+        // For this request we sign the request path 
+        // bytes that encode the file name information
+        let signed_data = format!(
+            "{}/{}/{}",
+            file_info.vault_id(),
+            file_info.secret_id(),
+            file_info.file_name(),
+        );
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(signed_data.as_bytes()).await?,
+        )
+        .await?;
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(signed_data.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+
+        let url_path = format!("api/file/{}", signed_data);
+        let url = self.build_url(&url_path)?;
+        let metadata = vfs::metadata(path).await?;
+        let file_size = metadata.len();
+
+        let file = vfs::File::open(path).await?;
+        let stream = ReaderStream::new(file);
+
+        let response = self
+            .client
+            .put(url)
+            .header(AUTHORIZATION, auth)
+            .header(CONTENT_LENGTH, file_size)
+            .header(CONTENT_TYPE, "application/octet-stream")
+            .body(Body::wrap_stream(stream))
+            .send()
+            .await?;
+        let response = self.check_response(response).await?;
+        Ok(MaybeRetry::Complete(response.status(), ()))
+    }
+
     /// Build an encrypted request.
     async fn encrypt_request(&self, request: &[u8]) -> Result<Vec<u8>> {
         let mut writer = self.protocol.write().await;
@@ -702,6 +766,28 @@ impl Client for RpcClient {
         let _enter = span.enter();
 
         let (status, _) = retry!(|| self.try_patch_devices(diff), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "files")]
+    async fn send_file(
+        &self,
+        file_info: &ExternalFile,
+        path: &PathBuf,
+    ) -> std::result::Result<(), Self::Error> {
+        let span = span!(Level::DEBUG, "send_file");
+        let _enter = span.enter();
+
+        let (status, _) =
+            retry!(|| self.try_send_file(file_info, path), self);
 
         tracing::debug!(status = %status);
 

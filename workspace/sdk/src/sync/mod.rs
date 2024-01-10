@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use url::Url;
 
@@ -480,6 +480,14 @@ pub trait Client {
     async fn patch_devices(
         &self,
         diff: &crate::sync::DeviceDiff,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Send a file.
+    #[cfg(feature = "files")]
+    async fn send_file(
+        &self,
+        file_name: &crate::storage::files::ExternalFile,
+        path: &PathBuf,
     ) -> std::result::Result<(), Self::Error>;
 }
 

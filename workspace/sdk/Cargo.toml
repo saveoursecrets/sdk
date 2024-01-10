@@ -33,6 +33,7 @@ sync = []
 [dependencies]
 binary-stream.workspace = true
 secrecy.workspace = true
+tokio-util.workspace = true
 async_zip = { version = "0.0.15", default-features = false, features = ["deflate", "tokio"], optional = true }
 csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
 sos-vfs = { version = "0.2", path = "../vfs" }
@@ -85,7 +86,6 @@ mime_guess = { version = "2" }
 anyhow = {version = "1", optional = true }
 futures = "0.3"
 sanitize-filename = "0.4"
-tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
 futures-util = "0.3"
 vsss-rs = {version = "3", optional = true }
 security-framework = { version = "2.8", optional = true}
