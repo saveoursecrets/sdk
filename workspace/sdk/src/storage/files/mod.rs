@@ -11,11 +11,13 @@ use std::{collections::HashSet, fmt, path::Path, str::FromStr};
 mod external_files;
 mod external_files_sync;
 mod file_manager;
+#[cfg(feature = "sync")]
 mod transfer;
 
 pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;
 pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
+#[cfg(feature = "sync")]
 pub use transfer::{TransferOperation, Transfers};
 
 /// Meta data about an encrypted file.
