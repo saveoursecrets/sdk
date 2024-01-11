@@ -64,7 +64,7 @@ impl FromStr for ExternalFileName {
 }
 
 /// Pointer to an external file.
-#[derive(Debug, Hash, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct ExternalFile(VaultId, SecretId, ExternalFileName);
 
 impl From<ExternalFile> for FileEvent {
@@ -74,6 +74,12 @@ impl From<ExternalFile> for FileEvent {
 }
 
 impl ExternalFile {
+    
+    /// Create a new external file reference.
+    pub fn new(vault_id: VaultId, secret_id: SecretId, file_name: ExternalFileName) -> Self {
+        Self(vault_id, secret_id, file_name)
+    }
+
     /// Vault identifier.
     pub fn vault_id(&self) -> &VaultId {
         &self.0

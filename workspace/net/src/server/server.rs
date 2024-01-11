@@ -18,9 +18,10 @@ use axum_server::{tls_rustls::RustlsConfig, Handle};
 use futures::StreamExt;
 use mpc_protocol::Keypair;
 use serde::{Deserialize, Serialize};
+use crate::sdk::storage::files::ExternalFile;
 
 use std::time::Duration;
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{collections::{HashMap, HashSet}, net::SocketAddr, sync::Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio_stream::wrappers::IntervalStream;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
@@ -76,6 +77,12 @@ pub type ServerState = Arc<RwLock<State>>;
 
 /// State for the server backend.
 pub type ServerBackend = Arc<RwLock<Backend>>;
+
+/// Transfer operations in progress.
+pub type TransferOperations = HashSet<ExternalFile>;
+
+/// State for the file transfer operations.
+pub type ServerTransfer = Arc<RwLock<TransferOperations>>;
 
 /// Web server implementation.
 #[derive(Default)]
@@ -222,6 +229,7 @@ impl Server {
             .route(
                 "/api/file/:vault_id/:secret_id/:file_name",
                 put(FileHandler::receive_file)
+                    .post(FileHandler::move_file)
                     .get(FileHandler::send_file)
                     .delete(FileHandler::delete_file),
             )
@@ -232,10 +240,14 @@ impl Server {
             app = app.route("/api/changes", get(upgrade));
         }
 
+        let file_operations: ServerTransfer =
+            Arc::new(RwLock::new(HashSet::new()));
+
         app = app
             .layer(cors)
             .layer(TraceLayer::new_for_http())
             .layer(Extension(backend))
+            .layer(Extension(file_operations))
             .layer(Extension(state));
 
         Ok(app)
