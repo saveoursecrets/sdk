@@ -103,6 +103,33 @@ impl ExternalFile {
     }
 }
 
+impl fmt::Display for ExternalFile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}/{}", self.0, self.1, self.2)
+    }
+}
+
+impl FromStr for ExternalFile {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let mut parts = s.splitn(3, '/');
+        let vault_id = parts
+            .next()
+            .ok_or(Error::InvalidExternalFile(s.to_owned()))?;
+        let secret_id = parts
+            .next()
+            .ok_or(Error::InvalidExternalFile(s.to_owned()))?;
+        let file_name = parts
+            .next()
+            .ok_or(Error::InvalidExternalFile(s.to_owned()))?;
+        let vault_id: VaultId = vault_id.parse()?;
+        let secret_id: SecretId = secret_id.parse()?;
+        let file_name: ExternalFileName = file_name.parse()?;
+        Ok(Self(vault_id, secret_id, file_name))
+    }
+}
+
 /// List all the external files in an account.
 ///
 /// If a directory name cannot be parsed to a folder or secret

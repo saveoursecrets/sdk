@@ -39,6 +39,9 @@ use crate::{
 #[cfg(feature = "files")]
 use crate::events::{FileEvent, FileEventLog};
 
+#[cfg(all(feature = "files", feature = "sync"))]
+use crate::storage::files::Transfers;
+
 #[cfg(feature = "search")]
 use crate::storage::search::{AccountSearch, DocumentCount};
 
@@ -84,6 +87,9 @@ pub struct ClientStorage {
     /// File event log.
     #[cfg(feature = "files")]
     pub(crate) file_log: Arc<RwLock<FileEventLog>>,
+
+    #[cfg(all(feature = "files", feature = "sync"))]
+    pub(crate) transfers: Arc<RwLock<Transfers>>,
 
     /// Password for file encryption.
     #[cfg(feature = "files")]
@@ -142,6 +148,9 @@ impl ClientStorage {
         #[cfg(feature = "files")]
         let file_log = Self::initialize_file_log(&*paths).await?;
 
+        #[cfg(all(feature = "files", feature = "sync"))]
+        let transfers = Transfers::new(&*paths).await?;
+
         Ok(Self {
             address,
             summaries: Vec::new(),
@@ -158,6 +167,8 @@ impl ClientStorage {
             devices,
             #[cfg(feature = "files")]
             file_log: Arc::new(RwLock::new(file_log)),
+            #[cfg(all(feature = "files", feature = "sync"))]
+            transfers: Arc::new(RwLock::new(transfers)),
             #[cfg(feature = "files")]
             file_password: None,
         })

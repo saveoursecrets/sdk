@@ -5,6 +5,7 @@ use crate::{
     vfs, Paths, Result,
 };
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::Mutex;
 
@@ -54,10 +55,12 @@ impl From<&FileEvent> for (ExternalFile, TransferOperation) {
 }
 
 /// Queue of transfer operations.
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct Transfers {
     #[serde(skip)]
     path: Mutex<PathBuf>,
+    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     #[serde(flatten)]
     queue: HashMap<ExternalFile, Vec<TransferOperation>>,
 }
@@ -112,14 +115,15 @@ impl Transfers {
         self.queue.is_empty()
     }
 
-    /// Add a file transfer operation to the queue.
-    pub async fn queue_transfer(
+    /// Add file transfer operations to the queue.
+    pub async fn queue_transfers(
         &mut self,
-        file: ExternalFile,
-        op: TransferOperation,
+        ops: HashMap<ExternalFile, Vec<TransferOperation>>,
     ) -> Result<()> {
-        let entries = self.queue.entry(file).or_insert(vec![]);
-        entries.push(op);
+        for (file, mut operations) in ops {
+            let entries = self.queue.entry(file).or_insert(vec![]);
+            entries.append(&mut operations);
+        }
         self.save().await
     }
 

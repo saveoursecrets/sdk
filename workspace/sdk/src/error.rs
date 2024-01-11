@@ -429,6 +429,10 @@ pub enum Error {
     #[error(r#"secret "{0}" not found"#)]
     SecretNotFound(SecretId),
 
+    /// Error generated when an external file could not be parsed.
+    #[error("external file reference '{0}' could not be parsed")]
+    InvalidExternalFile(String),
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
