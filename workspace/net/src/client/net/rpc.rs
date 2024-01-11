@@ -688,6 +688,49 @@ impl RpcClient {
         Ok(MaybeRetry::Complete(response.status(), ()))
     }
 
+    /// Try to move a file on remote.
+    #[cfg(feature = "files")]
+    async fn try_move_file(
+        &self,
+        from: &ExternalFile,
+        to: &ExternalFile,
+    ) -> Result<MaybeRetry<()>> {
+        // For this request we sign the request path
+        // bytes that encode the file name information
+        let signed_data = format!(
+            "{}/{}/{}",
+            from.vault_id(),
+            from.secret_id(),
+            from.file_name(),
+        );
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(signed_data.as_bytes()).await?,
+        )
+        .await?;
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(signed_data.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+
+        let url_path = format!("api/file/{}", signed_data);
+        let mut url = self.build_url(&url_path)?;
+        url.query_pairs_mut()
+            .append_pair("vault_id", &to.vault_id().to_string())
+            .append_pair("secret_id", &to.secret_id().to_string())
+            .append_pair("name", &to.file_name().to_string());
+
+        let response = self
+            .client
+            .post(url)
+            .header(AUTHORIZATION, auth)
+            .send()
+            .await?;
+
+        let response = self.check_response(response).await?;
+        Ok(MaybeRetry::Complete(response.status(), ()))
+    }
+
     /// Build an encrypted request.
     async fn encrypt_request(&self, request: &[u8]) -> Result<Vec<u8>> {
         let mut writer = self.protocol.write().await;
@@ -920,8 +963,28 @@ impl Client for RpcClient {
         let span = span!(Level::DEBUG, "delete_file");
         let _enter = span.enter();
 
-        let (status, _) =
-            retry!(|| self.try_delete_file(file_info), self);
+        let (status, _) = retry!(|| self.try_delete_file(file_info), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "files")]
+    async fn move_file(
+        &self,
+        from: &ExternalFile,
+        to: &ExternalFile,
+    ) -> std::result::Result<(), Self::Error> {
+        let span = span!(Level::DEBUG, "move_file");
+        let _enter = span.enter();
+
+        let (status, _) = retry!(|| self.try_move_file(from, to), self);
 
         tracing::debug!(status = %status);
 

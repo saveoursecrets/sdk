@@ -504,6 +504,14 @@ pub trait Client {
         &self,
         file_info: &crate::storage::files::ExternalFile,
     ) -> std::result::Result<(), Self::Error>;
+
+    /// Move a file on the remote server.
+    #[cfg(feature = "files")]
+    async fn move_file(
+        &self,
+        from: &crate::storage::files::ExternalFile,
+        to: &crate::storage::files::ExternalFile,
+    ) -> std::result::Result<(), Self::Error>;
 }
 
 /// Storage implementations that can synchronize.
