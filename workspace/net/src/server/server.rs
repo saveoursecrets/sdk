@@ -1,7 +1,7 @@
 use super::{
     config::TlsConfig,
     handlers::{
-        api, connections, files::FileHandler, home, service::ServiceHandler,
+        api, connections, files::{FileHandler, file_operation_lock}, home, service::ServiceHandler,
     },
     Backend, Result, ServerConfig, TransportManager,
 };
@@ -11,6 +11,7 @@ use axum::{
         header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method,
     },
+    middleware,
     routing::{get, post, put},
     Router,
 };
@@ -231,7 +232,8 @@ impl Server {
                 put(FileHandler::receive_file)
                     .post(FileHandler::move_file)
                     .get(FileHandler::send_file)
-                    .delete(FileHandler::delete_file),
+                    .delete(FileHandler::delete_file)
+                    .route_layer(middleware::from_fn(file_operation_lock)),
             )
             .route("/api/sync", post(ServiceHandler::sync));
 

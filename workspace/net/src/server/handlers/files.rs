@@ -1,6 +1,7 @@
 use axum::{
     body::Body,
-    extract::{Extension, Path, Query},
+    extract::{Request, Extension, Path, Query},
+    middleware::Next,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
@@ -44,7 +45,6 @@ impl FileHandler {
     pub(crate) async fn receive_file(
         Extension(state): Extension<ServerState>,
         Extension(backend): Extension<ServerBackend>,
-        Extension(transfer): Extension<ServerTransfer>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         TypedHeader(content_length): TypedHeader<ContentLength>,
         Path((vault_id, secret_id, file_name)): Path<(
@@ -61,7 +61,6 @@ impl FileHandler {
                 match receive_file(
                     state,
                     backend,
-                    transfer,
                     token,
                     vault_id,
                     secret_id,
@@ -83,7 +82,6 @@ impl FileHandler {
     pub(crate) async fn delete_file(
         Extension(state): Extension<ServerState>,
         Extension(backend): Extension<ServerBackend>,
-        Extension(transfer): Extension<ServerTransfer>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         Path((vault_id, secret_id, file_name)): Path<(
             VaultId,
@@ -98,7 +96,6 @@ impl FileHandler {
                 match delete_file(
                     state,
                     backend,
-                    transfer,
                     token,
                     vault_id,
                     secret_id,
@@ -118,7 +115,6 @@ impl FileHandler {
     pub(crate) async fn send_file(
         Extension(state): Extension<ServerState>,
         Extension(backend): Extension<ServerBackend>,
-        Extension(transfer): Extension<ServerTransfer>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         Path((vault_id, secret_id, file_name)): Path<(
             VaultId,
@@ -133,7 +129,6 @@ impl FileHandler {
                 match send_file(
                     state,
                     backend,
-                    transfer,
                     token,
                     vault_id,
                     secret_id,
@@ -153,7 +148,6 @@ impl FileHandler {
     pub(crate) async fn move_file(
         Extension(state): Extension<ServerState>,
         Extension(backend): Extension<ServerBackend>,
-        Extension(transfer): Extension<ServerTransfer>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         Path((vault_id, secret_id, file_name)): Path<(
             VaultId,
@@ -169,7 +163,6 @@ impl FileHandler {
                 match move_file(
                     state,
                     backend,
-                    transfer,
                     token,
                     vault_id,
                     secret_id,
@@ -205,7 +198,6 @@ async fn authenticate_file_api(
 async fn receive_file(
     _state: ServerState,
     backend: ServerBackend,
-    transfer: ServerTransfer,
     token: BearerToken,
     vault_id: VaultId,
     secret_id: SecretId,
@@ -234,15 +226,6 @@ async fn receive_file(
 
     // TODO: compute and verify checksum
 
-    let file_ref = ExternalFile::new(vault_id, secret_id, file_name);
-    {
-        let mut writer = transfer.write().await;
-        if writer.get(&file_ref).is_some() {
-            return Err(Error::Status(StatusCode::CONFLICT));
-        }
-        writer.insert(file_ref);
-    }
-
     if !tokio::fs::try_exists(&parent_path).await? {
         tokio::fs::create_dir_all(&parent_path).await?;
     }
@@ -264,18 +247,12 @@ async fn receive_file(
         ));
     }
 
-    {
-        let mut writer = transfer.write().await;
-        writer.remove(&file_ref);
-    }
-
     Ok(())
 }
 
 async fn delete_file(
     _state: ServerState,
     backend: ServerBackend,
-    transfer: ServerTransfer,
     token: BearerToken,
     vault_id: VaultId,
     secret_id: SecretId,
@@ -298,21 +275,7 @@ async fn delete_file(
         paths.file_location(&vault_id, &secret_id, &name)
     };
 
-    let file_ref = ExternalFile::new(vault_id, secret_id, file_name);
-    {
-        let mut writer = transfer.write().await;
-        if writer.get(&file_ref).is_some() {
-            return Err(Error::Status(StatusCode::CONFLICT));
-        }
-        writer.insert(file_ref);
-    }
-
     tokio::fs::remove_file(&file_path).await?;
-
-    {
-        let mut writer = transfer.write().await;
-        writer.remove(&file_ref);
-    }
 
     Ok(())
 }
@@ -320,7 +283,6 @@ async fn delete_file(
 async fn send_file(
     _state: ServerState,
     backend: ServerBackend,
-    transfer: ServerTransfer,
     token: BearerToken,
     vault_id: VaultId,
     secret_id: SecretId,
@@ -357,7 +319,6 @@ async fn send_file(
 async fn move_file(
     _state: ServerState,
     backend: ServerBackend,
-    transfer: ServerTransfer,
     token: BearerToken,
     vault_id: VaultId,
     secret_id: SecretId,
@@ -391,15 +352,6 @@ async fn move_file(
         return Err(Error::Status(StatusCode::NOT_FOUND));
     }
 
-    let file_ref = ExternalFile::new(vault_id, secret_id, file_name);
-    {
-        let mut writer = transfer.write().await;
-        if writer.get(&file_ref).is_some() {
-            return Err(Error::Status(StatusCode::CONFLICT));
-        }
-        writer.insert(file_ref);
-    }
-
     if tokio::fs::try_exists(&target_path).await? {
         return Err(Error::Status(StatusCode::CONFLICT));
     }
@@ -415,10 +367,36 @@ async fn move_file(
     }
     tokio::fs::remove_file(&source_path).await?;
 
+    Ok(())
+}
+
+/// Middleware to lock file operations so that concurrent 
+/// operations on an external file reference are not possible.
+pub async fn file_operation_lock(
+    Extension(transfer): Extension<ServerTransfer>,
+    Path((vault_id, secret_id, file_name)): Path<(
+        VaultId,
+        SecretId,
+        ExternalFileName,
+    )>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let file_ref = ExternalFile::new(vault_id, secret_id, file_name);
+    {
+        let mut writer = transfer.write().await;
+        if writer.get(&file_ref).is_some() {
+            return StatusCode::CONFLICT.into_response();
+        }
+        writer.insert(file_ref);
+    }
+
+    let response = next.run(request).await;
+
     {
         let mut writer = transfer.write().await;
         writer.remove(&file_ref);
     }
 
-    Ok(())
+    response
 }
