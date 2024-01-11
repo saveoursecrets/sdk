@@ -484,7 +484,7 @@ pub trait Client {
 
     /// Send a file.
     #[cfg(feature = "files")]
-    async fn send_file(
+    async fn upload_file(
         &self,
         file_name: &crate::storage::files::ExternalFile,
         path: &PathBuf,

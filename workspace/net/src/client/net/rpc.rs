@@ -551,7 +551,7 @@ impl RpcClient {
     /// although this could make us more vulnerable to MitM or replay attacks
     /// when the backend server is not using TLS.
     #[cfg(feature = "files")]
-    async fn try_send_file(
+    async fn try_upload_file(
         &self,
         file_info: &ExternalFile,
         path: &PathBuf,
@@ -783,16 +783,16 @@ impl Client for RpcClient {
     }
 
     #[cfg(feature = "files")]
-    async fn send_file(
+    async fn upload_file(
         &self,
         file_info: &ExternalFile,
         path: &PathBuf,
     ) -> std::result::Result<(), Self::Error> {
-        let span = span!(Level::DEBUG, "send_file");
+        let span = span!(Level::DEBUG, "upload_file");
         let _enter = span.enter();
 
         let (status, _) =
-            retry!(|| self.try_send_file(file_info, path), self);
+            retry!(|| self.try_upload_file(file_info, path), self);
 
         tracing::debug!(status = %status);
 
