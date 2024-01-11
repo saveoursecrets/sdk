@@ -139,9 +139,6 @@ mod folders {
     /// Directory to store files.
     pub const FILES_DIR: &str = "files";
 
-    /// Directory to store temporary files.
-    pub const TEMP_DIR: &str = "temp";
-
     /// Directory to store log files.
     pub const LOGS_DIR: &str = "logs";
 
@@ -163,6 +160,9 @@ mod folders {
     /// Name of the vault file that stores the device
     /// signing key.
     pub const DEVICE_FILE: &str = "device";
+
+    /// File that tracks external file transfers.
+    pub const TRANSFERS_FILE: &str = "transfers";
 }
 
 /// File names.

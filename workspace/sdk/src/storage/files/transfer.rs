@@ -27,6 +27,8 @@ pub struct Transfers {
 
 impl Transfers {
     /// Create a new transfers queue backed by the given file.
+    ///
+    /// If the file already exists the queue is loaded from disc.
     pub async fn new(path: PathBuf) -> Result<Self> {
         let queue = if vfs::try_exists(&path).await? {
             let buf = vfs::read(&path).await?;
