@@ -11,10 +11,12 @@ use std::{collections::HashSet, fmt, path::Path, str::FromStr};
 mod external_files;
 mod external_files_sync;
 mod file_manager;
+mod transfer;
 
 pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;
 pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
+pub use transfer::{TransferOperation, Transfers};
 
 /// Meta data about an encrypted file.
 #[derive(Debug, Clone)]
@@ -64,7 +66,7 @@ impl FromStr for ExternalFileName {
 }
 
 /// Pointer to an external file.
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ExternalFile(VaultId, SecretId, ExternalFileName);
 
 impl From<ExternalFile> for FileEvent {
