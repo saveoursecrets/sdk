@@ -1,5 +1,8 @@
 //! Manage pending file transfer operations.
-use crate::{storage::files::ExternalFile, Result, vfs};
+use crate::{
+    storage::files::{list_external_files, ExternalFile},
+    vfs, Paths, Result,
+};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::Mutex;
@@ -27,10 +30,32 @@ pub struct Transfers {
 }
 
 impl Transfers {
+    /// Create the transfer list from the external files on disc
+    /// if the transfers cache does not exist.
+    ///
+    /// If the transfers cache already exists it is loaded into memory.
+    pub async fn new(paths: &Paths) -> Result<Self> {
+        let transfers = paths.file_transfers();
+        if vfs::try_exists(&transfers).await? {
+            Self::create(transfers.to_owned()).await
+        } else {
+            let mut cache = Self {
+                path: Mutex::new(transfers.to_owned()),
+                queue: Default::default(),
+            };
+            let external_files = list_external_files(paths).await?;
+            for file in external_files {
+                cache.queue.insert(file, vec![TransferOperation::Upload]);
+            }
+            cache.save().await?;
+            Ok(cache)
+        }
+    }
+
     /// Create a new transfers queue backed by the given file.
     ///
     /// If the file already exists the queue is loaded from disc.
-    pub async fn new(path: PathBuf) -> Result<Self> {
+    async fn create(path: PathBuf) -> Result<Self> {
         let queue = if vfs::try_exists(&path).await? {
             let buf = vfs::read(&path).await?;
             let transfers: Self = serde_json::from_slice(&buf)?;
@@ -38,9 +63,12 @@ impl Transfers {
         } else {
             Default::default()
         };
-        Ok(Self { path: Mutex::new(path), queue })
+        Ok(Self {
+            path: Mutex::new(path),
+            queue,
+        })
     }
-    
+
     /// Number of file transfers in the queue.
     pub fn len(&self) -> usize {
         self.queue.len()
@@ -61,7 +89,7 @@ impl Transfers {
         entries.push(op);
         self.save().await
     }
-    
+
     /// Mark a transfer operation as completed.
     pub async fn transfer_completed(
         &mut self,
