@@ -2,6 +2,7 @@
 use crate::{storage::files::ExternalFile, Result, vfs};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
+use tokio::sync::Mutex;
 
 /// Operations for file transfers.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -20,7 +21,7 @@ pub enum TransferOperation {
 #[derive(Serialize, Deserialize)]
 pub struct Transfers {
     #[serde(skip)]
-    path: PathBuf,
+    path: Mutex<PathBuf>,
     #[serde(flatten)]
     queue: HashMap<ExternalFile, Vec<TransferOperation>>,
 }
@@ -37,7 +38,7 @@ impl Transfers {
         } else {
             Default::default()
         };
-        Ok(Self { path, queue })
+        Ok(Self { path: Mutex::new(path), queue })
     }
     
     /// Number of file transfers in the queue.
@@ -79,8 +80,9 @@ impl Transfers {
     }
 
     async fn save(&self) -> Result<()> {
+        let path = self.path.lock().await;
         let buffer = serde_json::to_vec_pretty(self)?;
-        vfs::write(&self.path, &buffer).await?;
+        vfs::write(&*path, &buffer).await?;
         Ok(())
     }
 }
