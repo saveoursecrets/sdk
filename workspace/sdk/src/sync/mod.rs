@@ -486,7 +486,7 @@ pub trait Client {
     #[cfg(feature = "files")]
     async fn upload_file(
         &self,
-        file_name: &crate::storage::files::ExternalFile,
+        file_info: &crate::storage::files::ExternalFile,
         path: &PathBuf,
     ) -> std::result::Result<(), Self::Error>;
 
@@ -494,8 +494,15 @@ pub trait Client {
     #[cfg(feature = "files")]
     async fn download_file(
         &self,
-        file_name: &crate::storage::files::ExternalFile,
+        file_info: &crate::storage::files::ExternalFile,
         path: &PathBuf,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Delete a file on the remote server.
+    #[cfg(feature = "files")]
+    async fn delete_file(
+        &self,
+        file_info: &crate::storage::files::ExternalFile,
     ) -> std::result::Result<(), Self::Error>;
 }
 

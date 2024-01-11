@@ -650,6 +650,44 @@ impl RpcClient {
         Ok(MaybeRetry::Complete(response.status(), ()))
     }
 
+    /// Try to delete a file on remote.
+    #[cfg(feature = "files")]
+    async fn try_delete_file(
+        &self,
+        file_info: &ExternalFile,
+    ) -> Result<MaybeRetry<()>> {
+        // For this request we sign the request path
+        // bytes that encode the file name information
+        let signed_data = format!(
+            "{}/{}/{}",
+            file_info.vault_id(),
+            file_info.secret_id(),
+            file_info.file_name(),
+        );
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(signed_data.as_bytes()).await?,
+        )
+        .await?;
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(signed_data.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+
+        let url_path = format!("api/file/{}", signed_data);
+        let url = self.build_url(&url_path)?;
+
+        let response = self
+            .client
+            .delete(url)
+            .header(AUTHORIZATION, auth)
+            .send()
+            .await?;
+
+        let response = self.check_response(response).await?;
+        Ok(MaybeRetry::Complete(response.status(), ()))
+    }
+
     /// Build an encrypted request.
     async fn encrypt_request(&self, request: &[u8]) -> Result<Vec<u8>> {
         let mut writer = self.protocol.write().await;
@@ -863,6 +901,27 @@ impl Client for RpcClient {
 
         let (status, _) =
             retry!(|| self.try_download_file(file_info, path), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "files")]
+    async fn delete_file(
+        &self,
+        file_info: &ExternalFile,
+    ) -> std::result::Result<(), Self::Error> {
+        let span = span!(Level::DEBUG, "delete_file");
+        let _enter = span.enter();
+
+        let (status, _) =
+            retry!(|| self.try_delete_file(file_info), self);
 
         tracing::debug!(status = %status);
 
