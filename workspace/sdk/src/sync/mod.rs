@@ -489,6 +489,14 @@ pub trait Client {
         file_name: &crate::storage::files::ExternalFile,
         path: &PathBuf,
     ) -> std::result::Result<(), Self::Error>;
+
+    /// Receive a file.
+    #[cfg(feature = "files")]
+    async fn download_file(
+        &self,
+        file_name: &crate::storage::files::ExternalFile,
+        path: &PathBuf,
+    ) -> std::result::Result<(), Self::Error>;
 }
 
 /// Storage implementations that can synchronize.

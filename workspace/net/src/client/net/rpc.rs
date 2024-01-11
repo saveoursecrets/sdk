@@ -21,6 +21,7 @@ use mpc_protocol::{
     channel::{decrypt_server_channel, encrypt_server_channel},
     snow, Keypair, ProtocolState, PATTERN,
 };
+use tokio::io::AsyncWriteExt;
 use tracing::{span, Level};
 
 #[cfg(feature = "listen")]
@@ -602,6 +603,53 @@ impl RpcClient {
         Ok(MaybeRetry::Complete(response.status(), ()))
     }
 
+    /// Try to receive a file from remote.
+    #[cfg(feature = "files")]
+    async fn try_download_file(
+        &self,
+        file_info: &ExternalFile,
+        path: &PathBuf,
+    ) -> Result<MaybeRetry<()>> {
+        use crate::sdk::vfs;
+
+        // For this request we sign the request path
+        // bytes that encode the file name information
+        let signed_data = format!(
+            "{}/{}/{}",
+            file_info.vault_id(),
+            file_info.secret_id(),
+            file_info.file_name(),
+        );
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(signed_data.as_bytes()).await?,
+        )
+        .await?;
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(signed_data.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+
+        let url_path = format!("api/file/{}", signed_data);
+        let url = self.build_url(&url_path)?;
+
+        let response = self
+            .client
+            .get(url)
+            .header(AUTHORIZATION, auth)
+            .send()
+            .await?;
+
+        let mut response = self.check_response(response).await?;
+        let mut file = vfs::File::create(path).await?;
+        while let Some(chunk) = response.chunk().await? {
+            file.write_all(&chunk).await?;
+        }
+        file.flush().await?;
+
+        Ok(MaybeRetry::Complete(response.status(), ()))
+    }
+
     /// Build an encrypted request.
     async fn encrypt_request(&self, request: &[u8]) -> Result<Vec<u8>> {
         let mut writer = self.protocol.write().await;
@@ -653,7 +701,7 @@ impl RpcClient {
         let response: ResponseMessage<'static> = reply.try_into()?;
         let (_, status, result, body) = response.take::<T>()?;
         let result = result.ok_or(Error::NoReturnValue)?;
-        // Hack for incompatible http lib 
+        // Hack for incompatible http lib
         // version (reqwest uses old version)
         let status = StatusCode::from_u16(status.as_u16()).unwrap();
         Ok((status, result, body))
@@ -675,7 +723,7 @@ impl RpcClient {
             let response: ResponseMessage<'static> = reply.try_into()?;
             let (_, status, result, body) = response.take::<T>()?;
             let result = result.ok_or(Error::NoReturnValue)?;
-            // Hack for incompatible http lib 
+            // Hack for incompatible http lib
             // version (reqwest uses old version)
             let status = StatusCode::from_u16(status.as_u16()).unwrap();
             Ok(RetryResponse::Complete(status, result, body))
@@ -793,6 +841,28 @@ impl Client for RpcClient {
 
         let (status, _) =
             retry!(|| self.try_upload_file(file_info, path), self);
+
+        tracing::debug!(status = %status);
+
+        status
+            .is_success()
+            .then_some(())
+            .ok_or(Error::ResponseCode(status))?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "files")]
+    async fn download_file(
+        &self,
+        file_info: &ExternalFile,
+        path: &PathBuf,
+    ) -> std::result::Result<(), Self::Error> {
+        let span = span!(Level::DEBUG, "download_file");
+        let _enter = span.enter();
+
+        let (status, _) =
+            retry!(|| self.try_download_file(file_info, path), self);
 
         tracing::debug!(status = %status);
 

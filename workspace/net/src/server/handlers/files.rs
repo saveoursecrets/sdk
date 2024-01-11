@@ -1,12 +1,15 @@
 use axum::{
     body::Body,
-    extract::{Request, Extension, Path, Query},
-    middleware::Next,
+    extract::{Extension, Path, Query, Request},
     http::StatusCode,
+    middleware::Next,
     response::{IntoResponse, Response},
 };
 
-use axum_extra::{headers::{authorization::Bearer, Authorization, ContentLength}, typed_header::TypedHeader};
+use axum_extra::{
+    headers::{authorization::Bearer, Authorization, ContentLength},
+    typed_header::TypedHeader,
+};
 use futures::TryStreamExt;
 
 //use axum_macros::debug_handler;
@@ -28,7 +31,6 @@ use tokio::{
     io::{AsyncWriteExt, BufWriter},
 };
 use tokio_util::io::ReaderStream;
-
 
 /// Query string for moving a file.
 #[derive(Debug, Deserialize)]
@@ -94,12 +96,7 @@ impl FileHandler {
         {
             Ok(token) => {
                 match delete_file(
-                    state,
-                    backend,
-                    token,
-                    vault_id,
-                    secret_id,
-                    file_name,
+                    state, backend, token, vault_id, secret_id, file_name,
                 )
                 .await
                 {
@@ -127,12 +124,7 @@ impl FileHandler {
         {
             Ok(token) => {
                 match send_file(
-                    state,
-                    backend,
-                    token,
-                    vault_id,
-                    secret_id,
-                    file_name,
+                    state, backend, token, vault_id, secret_id, file_name,
                 )
                 .await
                 {
@@ -161,12 +153,7 @@ impl FileHandler {
         {
             Ok(token) => {
                 match move_file(
-                    state,
-                    backend,
-                    token,
-                    vault_id,
-                    secret_id,
-                    file_name,
+                    state, backend, token, vault_id, secret_id, file_name,
                     query,
                 )
                 .await
@@ -178,7 +165,6 @@ impl FileHandler {
             Err(error) => error.into_response(),
         }
     }
-
 }
 
 // Parse the bearer token
@@ -219,9 +205,13 @@ async fn receive_file(
         let reader = account.read().await;
         let paths = reader.storage.paths();
         let name = file_name.to_string();
-        let parent_path = paths.file_folder_location(&vault_id)
+        let parent_path = paths
+            .file_folder_location(&vault_id)
             .join(secret_id.to_string());
-        (parent_path, paths.file_location(&vault_id, &secret_id, &name))
+        (
+            parent_path,
+            paths.file_location(&vault_id, &secret_id, &name),
+        )
     };
 
     // TODO: compute and verify checksum
@@ -236,7 +226,7 @@ async fn receive_file(
     while let Some(chunk) = stream.try_next().await? {
         bytes_written += buf_writer.write(&chunk).await?;
     }
-    
+
     buf_writer.flush().await?;
 
     if bytes_written != content_length as usize {
@@ -341,8 +331,12 @@ async fn move_file(
         let name = file_name.to_string();
         let source = paths.file_location(&vault_id, &secret_id, &name);
         let target = paths.file_location(
-            &query.vault_id, &query.secret_id, &query.name.to_string());
-        let parent_path = paths.file_folder_location(&query.vault_id)
+            &query.vault_id,
+            &query.secret_id,
+            &query.name.to_string(),
+        );
+        let parent_path = paths
+            .file_folder_location(&query.vault_id)
             .join(query.secret_id.to_string());
 
         (source, target, parent_path)
@@ -370,7 +364,7 @@ async fn move_file(
     Ok(())
 }
 
-/// Middleware to lock file operations so that concurrent 
+/// Middleware to lock file operations so that concurrent
 /// operations on an external file reference are not possible.
 pub async fn file_operation_lock(
     Extension(transfer): Extension<ServerTransfer>,

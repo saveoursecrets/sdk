@@ -4,7 +4,10 @@ use axum::{
     response::IntoResponse,
 };
 
-use axum_extra::{headers::{authorization::Bearer, Authorization}, typed_header::TypedHeader};
+use axum_extra::{
+    headers::{authorization::Bearer, Authorization},
+    typed_header::TypedHeader,
+};
 
 //use axum_macros::debug_handler;
 

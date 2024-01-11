@@ -74,9 +74,12 @@ impl From<ExternalFile> for FileEvent {
 }
 
 impl ExternalFile {
-    
     /// Create a new external file reference.
-    pub fn new(vault_id: VaultId, secret_id: SecretId, file_name: ExternalFileName) -> Self {
+    pub fn new(
+        vault_id: VaultId,
+        secret_id: SecretId,
+        file_name: ExternalFileName,
+    ) -> Self {
         Self(vault_id, secret_id, file_name)
     }
 
