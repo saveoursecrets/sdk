@@ -426,7 +426,6 @@ impl RpcClient {
             .body(Body::wrap_stream(stream))
             .send()
             .await?;
-        let response = self.check_response(response).await?;
         Ok(convert_status_code(response.status()))
     }
 
@@ -460,14 +459,12 @@ impl RpcClient {
         let url_path = format!("api/file/{}", signed_data);
         let url = self.build_url(&url_path)?;
 
-        let response = self
+        let mut response = self
             .client
             .get(url)
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
-
-        let mut response = self.check_response(response).await?;
         let mut file = vfs::File::create(path).await?;
         while let Some(chunk) = response.chunk().await? {
             file.write_all(&chunk).await?;
@@ -510,7 +507,6 @@ impl RpcClient {
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
-        let response = self.check_response(response).await?;
         Ok(convert_status_code(response.status()))
     }
 
@@ -552,7 +548,6 @@ impl RpcClient {
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
-        let response = self.check_response(response).await?;
         Ok(convert_status_code(response.status()))
     }
 

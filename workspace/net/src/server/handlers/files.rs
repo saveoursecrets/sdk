@@ -214,6 +214,10 @@ async fn receive_file(
         )
     };
 
+    if tokio::fs::try_exists(&file_path).await? {
+        return Err(Error::Status(StatusCode::CONFLICT));
+    }
+
     // TODO: compute and verify checksum
 
     if !tokio::fs::try_exists(&parent_path).await? {
@@ -264,6 +268,10 @@ async fn delete_file(
         let name = file_name.to_string();
         paths.file_location(&vault_id, &secret_id, &name)
     };
+
+    if !tokio::fs::try_exists(&file_path).await? {
+        return Err(Error::Status(StatusCode::NOT_FOUND));
+    }
 
     tokio::fs::remove_file(&file_path).await?;
 

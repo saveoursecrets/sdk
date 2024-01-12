@@ -14,6 +14,7 @@ use sos_sdk::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
         },
+        files::FileTransfers,
         AccessOptions, ClientStorage,
     },
     vault::{
@@ -320,7 +321,7 @@ impl NetworkAccount {
     }
 
     /// Create a remote bridge associated with this local storage and
-    /// signing identity and perform the initial noise protocol handshake.
+    /// signing identity.
     pub async fn remote_bridge(
         &self,
         origin: &HostedOrigin,
@@ -407,15 +408,28 @@ impl NetworkAccount {
             let contents = vfs::read(&remotes_file).await?;
             let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
             let mut remotes: Remotes = Default::default();
+        
+            let mut clients = Vec::new();
+
             for origin in origins {
                 match &origin {
                     Origin::Hosted(host) => {
                         let remote = self.remote_bridge(host).await?;
+                        clients.push(remote.client().clone());
                         remotes.insert(origin, Box::new(remote));
                     }
                 }
             }
+
             self.remotes = Arc::new(RwLock::new(remotes));
+
+            let (paths, transfers) = {
+                let storage = self.storage().await?;
+                let reader = storage.read().await;
+                (reader.paths(), reader.transfers())
+            };
+
+            FileTransfers::start(paths, transfers, clients);
         }
 
         Ok(folders)

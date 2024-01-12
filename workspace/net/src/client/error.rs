@@ -32,7 +32,7 @@ pub enum Error {
     /// Error generated when an unexpected response code is received.
     #[error("unexpected response {1} (code: {0})")]
     ResponseJson(StatusCode, Value),
-    
+
     /// Error generated when a return value is expected from a RPC call
     /// but the response did not have a result.
     #[error("method did not return a value")]

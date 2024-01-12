@@ -5,9 +5,10 @@ use crate::{
     sync::Client,
     vfs, Paths, Result,
 };
+use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::{Mutex, RwLock};
 
 /// Operations for file transfers.
@@ -162,17 +163,30 @@ pub struct FileTransfers;
 
 impl FileTransfers {
     /// Spawn a task to transfer file operations.
-    pub fn start_transfer<E: Send + Sync + 'static>(
+    pub fn start<E, C>(
         paths: Arc<Paths>,
         queue: Arc<RwLock<Transfers>>,
-        clients: Vec<impl Client<Error = E> + Send + Sync + 'static>,
-    ) -> tokio::task::JoinHandle<std::result::Result<(), E>> {
+        clients: Vec<C>,
+    ) -> tokio::task::JoinHandle<std::result::Result<(), E>>
+    where
+        E: Send + Sync + 'static,
+        C: Client<Error = E> + Clone + Send + Sync + 'static,
+    {
         tokio::task::spawn(async move {
             loop {
                 let pending_operations = {
                     let reader = queue.read().await;
                     reader.queue.clone()
                 };
+                
+                // Try again later
+                if pending_operations.is_empty() {
+                    tokio::time::sleep(Duration::from_secs(30)).await;
+                    continue;
+                }
+
+                let pending_len = pending_operations.len();
+                let mut completed_operations = Vec::new();
 
                 for (file, ops) in pending_operations {
                     for op in ops {
@@ -180,24 +194,48 @@ impl FileTransfers {
                             Arc::clone(&paths),
                             &file,
                             &op,
-                            &clients,
+                            clients.as_slice(),
                         )
                         .await?;
 
-                        todo!("check results indicate the operations are all completed...");
+                        // Check the operation was successful for all clients
+                        let success =
+                            results.into_iter().all(|done| done == true);
+                        if success {
+                            let mut writer = queue.write().await;
+                            if let Err(e) =
+                                writer.transfer_completed(&file, &op).await
+                            {
+                                tracing::error!(
+                                    error = ?e,
+                                    "failed to remove pending transfer");
+                            }
+                            completed_operations.push((file, op));
+                        }
                     }
                 }
+
+                let pending = pending_len != completed_operations.len();
+                if pending {
+                    // Pause a little so we don't overwhelm if re-trying
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
             }
-            Ok::<(), E>(())
+            //Ok::<(), E>(())
         })
     }
 
-    async fn run_operation<E: Send + Sync + 'static>(
+    async fn run_operation<E, C>(
         paths: Arc<Paths>,
         file: &ExternalFile,
         op: &TransferOperation,
-        clients: &Vec<impl Client<Error = E> + Send + Sync + 'static>,
-    ) -> std::result::Result<(), E> {
+        clients: &[C],
+    ) -> std::result::Result<Vec<bool>, E>
+    where
+        E: Send + Sync + 'static,
+        C: Client<Error = E> + Clone + Send + Sync + 'static,
+    {
+        let mut results = Vec::new();
         match op {
             TransferOperation::Upload => {
                 let path = paths.file_location(
@@ -206,7 +244,8 @@ impl FileTransfers {
                     file.file_name().to_string(),
                 );
                 for client in clients {
-                    client.upload_file(&file, &path).await?;
+                    let status = client.upload_file(&file, &path).await?;
+                    results.push(Self::is_success(op, status));
                 }
             }
             TransferOperation::Download => {
@@ -216,20 +255,36 @@ impl FileTransfers {
                     file.file_name().to_string(),
                 );
                 for client in clients {
-                    client.download_file(&file, &path).await?;
+                    let status = client.download_file(&file, &path).await?;
+                    results.push(Self::is_success(op, status));
                 }
             }
             TransferOperation::Delete => {
                 for client in clients {
-                    client.delete_file(&file).await?;
+                    let status = client.delete_file(&file).await?;
+                    results.push(Self::is_success(op, status));
                 }
             }
             TransferOperation::Move(dest) => {
                 for client in clients {
-                    client.move_file(&file, dest).await?;
+                    let status = client.move_file(&file, dest).await?;
+                    results.push(Self::is_success(op, status));
                 }
             }
         }
-        Ok(())
+        Ok(results)
+    }
+
+    fn is_success(op: &TransferOperation, status: StatusCode) -> bool {
+        match op {
+            TransferOperation::Upload => {
+                status == StatusCode::OK || status == StatusCode::CONFLICT
+            }
+            TransferOperation::Download => status == StatusCode::OK,
+            TransferOperation::Delete => {
+                status == StatusCode::OK || status == StatusCode::NOT_FOUND
+            }
+            TransferOperation::Move(_) => status == StatusCode::OK,
+        }
     }
 }
