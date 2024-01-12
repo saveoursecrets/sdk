@@ -1,6 +1,6 @@
 use crate::test_utils::{
-    assert_local_remote_events_eq, mock_note, simulate_device, spawn,
-    sync_pause, teardown,
+    assert_local_remote_events_eq, mock, simulate_device, spawn, sync_pause,
+    teardown,
 };
 use anyhow::Result;
 use sos_net::client::{RemoteBridge, RemoteSync, SyncError};
@@ -39,7 +39,7 @@ async fn integration_sync_multiple_remotes_fallback() -> Result<()> {
     sync_pause(None).await;
 
     // Create a secret that should be synced to multiple remotes
-    let (meta, secret) = mock_note("note", TEST_ID);
+    let (meta, secret) = mock::note("note", TEST_ID);
     device1
         .owner
         .create_secret(meta, secret, Default::default())

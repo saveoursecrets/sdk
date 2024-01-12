@@ -409,13 +409,13 @@ impl NetworkAccount {
             let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
             let mut remotes: Remotes = Default::default();
 
-            let mut clients = Vec::new();
+            //let mut clients = Vec::new();
 
             for origin in origins {
                 match &origin {
                     Origin::Hosted(host) => {
                         let remote = self.remote_bridge(host).await?;
-                        clients.push(remote.client().clone());
+                        //clients.push(remote.client().clone());
                         remotes.insert(origin, Box::new(remote));
                     }
                 }
@@ -423,16 +423,42 @@ impl NetworkAccount {
 
             self.remotes = Arc::new(RwLock::new(remotes));
 
-            let (paths, transfers) = {
-                let storage = self.storage().await?;
-                let reader = storage.read().await;
-                (reader.paths(), reader.transfers())
-            };
-
-            FileTransfers::start(paths, transfers, clients);
+            //self.start_file_transfers();
         }
 
         Ok(folders)
+    }
+
+    /// Spawn a task to handle file transfers.
+    pub async fn start_file_transfers(&self) -> Result<()> {
+        if !self.is_authenticated().await {
+            return Err(crate::sdk::Error::NotAuthenticated.into());
+        }
+
+        // FIXME: stop any existing transfers task
+
+        let clients = {
+            let remotes = self.remotes.read().await;
+            let mut clients = Vec::new();
+            for (_, remote) in &*remotes {
+                if let Some(remote) =
+                    remote.as_any().downcast_ref::<RemoteBridge>()
+                {
+                    clients.push(remote.client().clone());
+                }
+            }
+            clients
+        };
+
+        let (paths, transfers) = {
+            let storage = self.storage().await?;
+            let reader = storage.read().await;
+            (reader.paths(), reader.transfers())
+        };
+
+        FileTransfers::start(paths, transfers, clients);
+
+        Ok(())
     }
 
     /// User storage paths.

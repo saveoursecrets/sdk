@@ -1,6 +1,6 @@
 use crate::test_utils::{
-    assert_local_remote_events_eq, mock_note, simulate_device, spawn,
-    sync_pause, teardown,
+    assert_local_remote_events_eq, mock, simulate_device, spawn, sync_pause,
+    teardown,
 };
 use anyhow::Result;
 use sos_net::{
@@ -68,7 +68,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
     // Ensure we can open and write to the synced folder
     device2.owner.open_folder(&new_folder).await?;
     let (meta, secret) =
-        mock_note("note_second_owner", "listen_import_folder");
+        mock::note("note_second_owner", "listen_import_folder");
     let (_, sync_error) = device2
         .owner
         .create_secret(meta, secret, Default::default())

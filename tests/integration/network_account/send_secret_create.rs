@@ -1,6 +1,6 @@
 use crate::test_utils::{
-    assert_local_remote_events_eq, mock_note, num_events, simulate_device,
-    spawn, teardown,
+    assert_local_remote_events_eq, mock, num_events, simulate_device, spawn,
+    teardown,
 };
 use anyhow::Result;
 use sos_net::client::{RemoteBridge, RemoteSync};
@@ -28,7 +28,7 @@ async fn integration_sync_create_secret() -> Result<()> {
 
     // Create a secret in the primary owner which won't exist
     // in the second device
-    let (meta, secret) = mock_note("note_first_owner", "send_events_secret");
+    let (meta, secret) = mock::note("note_first_owner", "send_events_secret");
     device1
         .owner
         .create_secret(meta, secret, Default::default())
@@ -40,7 +40,8 @@ async fn integration_sync_create_secret() -> Result<()> {
 
     // The other owner creates a secret which should trigger a pull
     // of the remote patch before applying changes
-    let (meta, secret) = mock_note("note_second_owner", "send_events_secret");
+    let (meta, secret) =
+        mock::note("note_second_owner", "send_events_secret");
     device2
         .owner
         .create_secret(meta, secret, Default::default())

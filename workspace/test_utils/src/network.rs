@@ -8,13 +8,14 @@ use sos_net::{
         RemoteSync, WebSocketHandle,
     },
     sdk::{
-        constants::VAULT_EXT,
+        constants::{FILES_DIR, VAULT_EXT},
         crypto::AccessKey,
         events::EventLogExt,
         passwd::diceware::generate_passphrase,
+        storage::files::ExternalFile,
         sync::{Client, SyncStorage},
         vault::{Summary, VaultId},
-        vfs,
+        vfs, Paths,
     },
 };
 use std::path::PathBuf;
@@ -136,6 +137,8 @@ pub async fn simulate_device(
         .insert_remote(origin.clone().into(), Box::new(provider))
         .await?;
 
+    owner.start_file_transfers().await?;
+
     // Sync the local account to create the account on remote
     let sync_error = owner.sync().await;
     assert!(sync_error.is_none());
@@ -221,6 +224,32 @@ pub async fn assert_local_remote_events_eq(
     //println!("remote {:#?}", remote_status);
 
     assert_eq!(local_status, remote_status);
+
+    Ok(())
+}
+
+pub async fn assert_local_remote_file_eq(
+    local_paths: &Paths,
+    server_path: &PathBuf,
+    file: &ExternalFile,
+) -> Result<()> {
+    let expected_client_file = local_paths.file_location(
+        file.vault_id(),
+        file.secret_id(),
+        file.file_name().to_string(),
+    );
+    let expected_server_file = server_path
+        .join(FILES_DIR)
+        .join(file.vault_id().to_string())
+        .join(file.secret_id().to_string())
+        .join(file.file_name().to_string());
+
+    assert!(vfs::try_exists(&expected_client_file).await?);
+    assert!(vfs::try_exists(&expected_server_file).await?);
+
+    let client_file = vfs::read(&expected_client_file).await?;
+    let server_file = vfs::read(&expected_server_file).await?;
+    assert_eq!(client_file, server_file);
 
     Ok(())
 }

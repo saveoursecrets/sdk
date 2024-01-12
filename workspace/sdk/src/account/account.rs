@@ -32,6 +32,9 @@ use crate::{
 #[cfg(feature = "audit")]
 use crate::audit::{AuditData, AuditEvent};
 
+#[cfg(all(feature = "files", feature = "sync"))]
+use crate::storage::files::Transfers;
+
 use tracing::{span, Level};
 
 use secrecy::SecretString;
@@ -244,6 +247,14 @@ impl Account {
         let auth =
             self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         Ok(Arc::clone(&auth.storage))
+    }
+
+    /// Transfers queue.
+    #[cfg(all(feature = "files", feature = "sync"))]
+    pub async fn transfers(&self) -> Result<Arc<RwLock<Transfers>>> {
+        let storage = self.storage()?;
+        let storage = storage.read().await;
+        Ok(storage.transfers())
     }
 
     /// Account address.

@@ -8,8 +8,11 @@ use crate::{
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
+
+#[cfg(not(debug_assertions))]
+use std::time::Duration;
 
 /// Operations for file transfers.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -58,7 +61,7 @@ impl From<&FileEvent> for (ExternalFile, TransferOperation) {
 
 /// Queue of transfer operations.
 #[serde_as]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Transfers {
     #[serde(skip)]
     path: Mutex<PathBuf>,
@@ -115,6 +118,11 @@ impl Transfers {
     /// Whether the queue is empty.
     pub fn is_empty(&self) -> bool {
         self.queue.is_empty()
+    }
+
+    /// Queued transfer operations.
+    pub fn queue(&self) -> &HashMap<ExternalFile, Vec<TransferOperation>> {
+        &self.queue
     }
 
     /// Add file transfer operations to the queue.
@@ -181,6 +189,7 @@ impl FileTransfers {
 
                 // Try again later
                 if pending_operations.is_empty() {
+                    #[cfg(not(debug_assertions))]
                     tokio::time::sleep(Duration::from_secs(30)).await;
                     continue;
                 }
@@ -218,14 +227,14 @@ impl FileTransfers {
                         if let Err(e) =
                             writer.transfer_completed(&file, &op).await
                         {
-                            tracing::error!(
-                                error = ?e,
-                                "failed to remove pending transfer");
+                            tracing::error!(error = ?e);
+                            panic!("failed to remove pending transfer");
                         }
                     }
                 }
 
                 // Pause a little so we don't overwhelm if re-trying
+                #[cfg(not(debug_assertions))]
                 tokio::time::sleep(Duration::from_secs(15)).await;
             }
         })

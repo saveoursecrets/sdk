@@ -1,6 +1,6 @@
 use crate::test_utils::{
-    assert_local_remote_events_eq, mock_note, num_events, simulate_device,
-    spawn, teardown, SimulatedDevice,
+    assert_local_remote_events_eq, mock, num_events, simulate_device, spawn,
+    teardown, SimulatedDevice,
 };
 use anyhow::Result;
 use sos_net::client::RemoteBridge;
@@ -28,7 +28,7 @@ async fn integration_sync_delete_secret() -> Result<()> {
     } = device;
 
     // Create a secret
-    let (meta, secret) = mock_note("note", "secret1");
+    let (meta, secret) = mock::note("note", "secret1");
     let (id, sync_error) = owner
         .create_secret(meta, secret, Default::default())
         .await?;

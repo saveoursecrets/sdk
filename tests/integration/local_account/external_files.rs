@@ -1,8 +1,13 @@
+use crate::test_utils::{
+    mock::{
+        self,
+        files::{create_file_secret, update_file_secret},
+    },
+    setup, teardown,
+};
 use anyhow::Result;
 use sos_net::sdk::{hex, prelude::*};
-use std::{path::PathBuf, sync::Arc};
-
-use crate::test_utils::{mock, setup, teardown};
+use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
 const TEST_ID: &str = "external_files";
@@ -168,67 +173,14 @@ async fn integration_external_files() -> Result<()> {
     Ok(())
 }
 
-async fn create_file_secret(
-    account: &mut LocalAccount,
-    default_folder: &Summary,
-    progress_tx: mpsc::Sender<FileProgress>,
-) -> Result<(SecretId, SecretRow, PathBuf)> {
-    let (meta, secret, file_path) = mock::file_image_secret()?;
-
-    // Create the file secret in the default folder
-    let options = AccessOptions {
-        folder: Some(default_folder.clone()),
-        file_progress: Some(progress_tx),
-    };
-    let (id, _, _, _) = account.create_secret(meta, secret, options).await?;
-    let (secret_data, _) = account
-        .read_secret(&id, Some(default_folder.clone()))
-        .await?;
-
-    Ok((id, secret_data, file_path))
-}
-
-async fn update_file_secret(
-    account: &mut LocalAccount,
-    default_folder: &Summary,
-    secret_data: &SecretRow,
-    destination: Option<&Summary>,
-    progress_tx: mpsc::Sender<FileProgress>,
-) -> Result<SecretRow> {
-    let id = *secret_data.id();
-
-    let mut new_meta = secret_data.meta().clone();
-    new_meta.set_label("Text file".to_string());
-
-    let (new_id, _, _, _) = account
-        .update_file(
-            &id,
-            new_meta,
-            "tests/fixtures/test-file.txt",
-            AccessOptions {
-                folder: None,
-                file_progress: Some(progress_tx),
-            },
-            destination,
-        )
-        .await?;
-
-    let folder = destination
-        .cloned()
-        .unwrap_or_else(|| default_folder.clone());
-    let (new_secret_data, _) =
-        account.read_secret(&new_id, Some(folder)).await?;
-
-    Ok(new_secret_data)
-}
-
 async fn assert_create_file_secret(
     account: &mut LocalAccount,
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(SecretId, SecretRow, [u8; 32])> {
     let (id, secret_data, file_path) =
-        create_file_secret(account, default_folder, progress_tx).await?;
+        create_file_secret(account, default_folder, Some(progress_tx))
+            .await?;
 
     let checksum = if let Secret::File {
         content:
@@ -282,7 +234,7 @@ async fn assert_update_file_secret(
         default_folder,
         secret_data,
         None,
-        progress_tx,
+        Some(progress_tx),
     )
     .await?;
 
@@ -422,9 +374,12 @@ async fn assert_create_update_move_file_secret(
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(Summary, SecretId, [u8; 32])> {
-    let (id, secret_data, _) =
-        create_file_secret(account, default_folder, progress_tx.clone())
-            .await?;
+    let (id, secret_data, _) = create_file_secret(
+        account,
+        default_folder,
+        Some(progress_tx.clone()),
+    )
+    .await?;
 
     let original_checksum = if let Secret::File {
         content: FileContent::External { checksum, .. },
@@ -444,7 +399,7 @@ async fn assert_create_update_move_file_secret(
         default_folder,
         &secret_data,
         Some(&destination),
-        progress_tx,
+        Some(progress_tx),
     )
     .await?;
     let new_id = *new_secret_data.id();
@@ -512,7 +467,8 @@ async fn assert_attach_file_secret(
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<()> {
     let (id, mut secret_data, _) =
-        create_file_secret(account, folder, progress_tx.clone()).await?;
+        create_file_secret(account, folder, Some(progress_tx.clone()))
+            .await?;
 
     // Add an attachment
     let (meta, secret, _) = mock::file_text_secret()?;

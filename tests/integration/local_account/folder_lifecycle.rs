@@ -1,4 +1,4 @@
-use crate::test_utils::{mock_note, setup, teardown};
+use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
@@ -36,7 +36,7 @@ async fn integration_folder_lifecycle() -> Result<()> {
     account.open_folder(&folder).await?;
 
     // Create a secret in the new folder
-    let (meta, secret) = mock_note("note", TEST_ID);
+    let (meta, secret) = mock::note("note", TEST_ID);
     let (id, _, _, secret_folder) = account
         .create_secret(meta, secret, Default::default())
         .await?;

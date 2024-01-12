@@ -1,6 +1,6 @@
 use crate::test_utils::{
-    assert_local_remote_events_eq, mock_note, num_events, simulate_device,
-    spawn, sync_pause, teardown,
+    assert_local_remote_events_eq, mock, num_events, simulate_device, spawn,
+    sync_pause, teardown,
 };
 use anyhow::Result;
 use sos_net::client::RemoteBridge;
@@ -32,7 +32,7 @@ async fn integration_sync_listen_create_secret() -> Result<()> {
 
     // Create a secret in the primary owner which won't exist
     // in the second device
-    let (meta, secret) = mock_note("note_first_owner", "send_events_secret");
+    let (meta, secret) = mock::note("note_first_owner", "send_events_secret");
     let (_, sync_error) = device1
         .owner
         .create_secret(meta, secret, Default::default())
