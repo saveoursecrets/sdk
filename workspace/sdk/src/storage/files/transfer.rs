@@ -178,75 +178,78 @@ impl FileTransfers {
                     let reader = queue.read().await;
                     reader.queue.clone()
                 };
-                
+
                 // Try again later
                 if pending_operations.is_empty() {
                     tokio::time::sleep(Duration::from_secs(30)).await;
                     continue;
                 }
 
-                let pending_len = pending_operations.len();
-                let mut completed_operations = Vec::new();
-
+                // Build the futures for each file operation and client
+                let mut futures = Vec::new();
                 for (file, ops) in pending_operations {
                     for op in ops {
-                        let results = Self::run_operation(
-                            Arc::clone(&paths),
-                            &file,
-                            &op,
-                            clients.as_slice(),
-                        )
-                        .await?;
-
-                        // Check the operation was successful for all clients
-                        let success =
-                            results.into_iter().all(|done| done == true);
-                        if success {
-                            let mut writer = queue.write().await;
-                            if let Err(e) =
-                                writer.transfer_completed(&file, &op).await
-                            {
-                                tracing::error!(
-                                    error = ?e,
-                                    "failed to remove pending transfer");
-                            }
-                            completed_operations.push((file, op));
+                        for client in &clients {
+                            futures.push(Self::run_client_operation(
+                                Arc::clone(&paths),
+                                client.clone(),
+                                file,
+                                op,
+                            ));
                         }
                     }
                 }
 
-                let pending = pending_len != completed_operations.len();
-                if pending {
-                    // Pause a little so we don't overwhelm if re-trying
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                // Execute the client requests
+                let results = futures::future::try_join_all(futures).await?;
+
+                // Collate results that completed for all clients
+                let mut collated = HashMap::new();
+                for (file, op, done) in results {
+                    let entry = collated.entry((file, op)).or_insert(done);
+                    *entry = *entry && done;
                 }
+
+                // Mark transfers that were successful for all clients
+                // as completed, removing them from the queue
+                for ((file, op), done) in collated {
+                    if done {
+                        let mut writer = queue.write().await;
+                        if let Err(e) =
+                            writer.transfer_completed(&file, &op).await
+                        {
+                            tracing::error!(
+                                error = ?e,
+                                "failed to remove pending transfer");
+                        }
+                    }
+                }
+
+                // Pause a little so we don't overwhelm if re-trying
+                tokio::time::sleep(Duration::from_secs(15)).await;
             }
-            //Ok::<(), E>(())
         })
     }
 
-    async fn run_operation<E, C>(
+    async fn run_client_operation<E, C>(
         paths: Arc<Paths>,
-        file: &ExternalFile,
-        op: &TransferOperation,
-        clients: &[C],
-    ) -> std::result::Result<Vec<bool>, E>
+        client: C,
+        file: ExternalFile,
+        op: TransferOperation,
+    ) -> std::result::Result<(ExternalFile, TransferOperation, bool), E>
     where
         E: Send + Sync + 'static,
         C: Client<Error = E> + Clone + Send + Sync + 'static,
     {
-        let mut results = Vec::new();
-        match op {
+        let success = match &op {
             TransferOperation::Upload => {
                 let path = paths.file_location(
                     file.vault_id(),
                     file.secret_id(),
                     file.file_name().to_string(),
                 );
-                for client in clients {
-                    let status = client.upload_file(&file, &path).await?;
-                    results.push(Self::is_success(op, status));
-                }
+                let status = client.upload_file(&file, &path).await?;
+                Self::is_success(&op, status)
             }
             TransferOperation::Download => {
                 let path = paths.file_location(
@@ -254,25 +257,19 @@ impl FileTransfers {
                     file.secret_id(),
                     file.file_name().to_string(),
                 );
-                for client in clients {
-                    let status = client.download_file(&file, &path).await?;
-                    results.push(Self::is_success(op, status));
-                }
+                let status = client.download_file(&file, &path).await?;
+                Self::is_success(&op, status)
             }
             TransferOperation::Delete => {
-                for client in clients {
-                    let status = client.delete_file(&file).await?;
-                    results.push(Self::is_success(op, status));
-                }
+                let status = client.delete_file(&file).await?;
+                Self::is_success(&op, status)
             }
             TransferOperation::Move(dest) => {
-                for client in clients {
-                    let status = client.move_file(&file, dest).await?;
-                    results.push(Self::is_success(op, status));
-                }
+                let status = client.move_file(&file, dest).await?;
+                Self::is_success(&op, status)
             }
-        }
-        Ok(results)
+        };
+        Ok((file, op, success))
     }
 
     fn is_success(op: &TransferOperation, status: StatusCode) -> bool {

@@ -246,7 +246,7 @@ impl ClientStorage {
 
         Ok(event_log)
     }
-    
+
     /// File transfers collection.
     #[cfg(all(feature = "files", feature = "sync"))]
     pub fn transfers(&self) -> Arc<RwLock<Transfers>> {

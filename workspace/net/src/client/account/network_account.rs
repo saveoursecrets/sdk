@@ -10,11 +10,11 @@ use sos_sdk::{
     sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
+        files::FileTransfers,
         search::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
         },
-        files::FileTransfers,
         AccessOptions, ClientStorage,
     },
     vault::{
@@ -408,7 +408,7 @@ impl NetworkAccount {
             let contents = vfs::read(&remotes_file).await?;
             let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
             let mut remotes: Remotes = Default::default();
-        
+
             let mut clients = Vec::new();
 
             for origin in origins {
