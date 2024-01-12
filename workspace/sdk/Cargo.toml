@@ -67,7 +67,7 @@ bitflags = "1"
 pem = { version = "3", features = ["serde"] }
 tempfile = "3.5"
 log = "0.4"
-http = "0.2"
+http = "1"
 zxcvbn = "2"
 totp-rs = { version = "5.3", features = ["qr", "serde_support", "zeroize"] }
 #totp-sos = { version = "3", features = ["serde"] }

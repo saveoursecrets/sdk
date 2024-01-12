@@ -488,7 +488,7 @@ pub trait Client {
         &self,
         file_info: &crate::storage::files::ExternalFile,
         path: &PathBuf,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> std::result::Result<http::StatusCode, Self::Error>;
 
     /// Receive a file.
     #[cfg(feature = "files")]
@@ -496,14 +496,14 @@ pub trait Client {
         &self,
         file_info: &crate::storage::files::ExternalFile,
         path: &PathBuf,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> std::result::Result<http::StatusCode, Self::Error>;
 
     /// Delete a file on the remote server.
     #[cfg(feature = "files")]
     async fn delete_file(
         &self,
         file_info: &crate::storage::files::ExternalFile,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> std::result::Result<http::StatusCode, Self::Error>;
 
     /// Move a file on the remote server.
     #[cfg(feature = "files")]
@@ -511,7 +511,7 @@ pub trait Client {
         &self,
         from: &crate::storage::files::ExternalFile,
         to: &crate::storage::files::ExternalFile,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> std::result::Result<http::StatusCode, Self::Error>;
 }
 
 /// Storage implementations that can synchronize.

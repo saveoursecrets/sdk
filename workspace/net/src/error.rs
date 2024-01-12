@@ -54,3 +54,4 @@ pub enum Error {
     #[error(transparent)]
     Base58(#[from] bs58::encode::Error),
 }
+

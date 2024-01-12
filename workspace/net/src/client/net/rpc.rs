@@ -3,7 +3,6 @@ use async_trait::async_trait;
 use futures::Future;
 use reqwest::{
     header::{self, HeaderValue, AUTHORIZATION},
-    StatusCode,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -69,7 +68,7 @@ macro_rules! retry {
 
         match maybe_retry {
             MaybeRetry::Retry(status) => {
-                if status == StatusCode::UNAUTHORIZED
+                if status == http::StatusCode::UNAUTHORIZED
                     && $client.is_transport_ready().await
                 {
                     tracing::debug!("renew client session");
@@ -78,7 +77,7 @@ macro_rules! retry {
                     let maybe_retry = future.await?;
                     match maybe_retry {
                         MaybeRetry::Retry(status) => {
-                            if status == StatusCode::UNAUTHORIZED {
+                            if status == http::StatusCode::UNAUTHORIZED {
                                 return Err(Error::NotAuthorized);
                             } else {
                                 return Err(Error::ResponseCode(status));
@@ -97,19 +96,27 @@ macro_rules! retry {
     }};
 }
 
+// Hack for incompatible http types as reqwest is currently 
+// using an old version of HTTP.
+//
+// Once reqwest ships with http@1 we can remove this hack.
+fn convert_status_code(value: reqwest::StatusCode) -> http::StatusCode {
+    http::StatusCode::from_u16(value.as_u16()).unwrap()
+}
+
 /// Result for a request that may be retried.
 #[derive(Debug)]
 enum MaybeRetry<T> {
     /// Indicates the previous request should be retried.
-    Retry(StatusCode),
+    Retry(http::StatusCode),
     /// Indicates the request was completed.
-    Complete(StatusCode, T),
+    Complete(http::StatusCode, T),
 }
 
 /// Response that may retry the request.
 enum RetryResponse<T> {
-    Retry(StatusCode),
-    Complete(StatusCode, crate::rpc::Result<T>, Vec<u8>),
+    Retry(http::StatusCode),
+    Complete(http::StatusCode, crate::rpc::Result<T>, Vec<u8>),
 }
 
 impl<T> RetryResponse<T> {
@@ -289,7 +296,7 @@ impl RpcClient {
 
                 let (_status, result, body) = self
                     .read_response::<usize>(
-                        response.status(),
+                        convert_status_code(response.status()),
                         &response.bytes().await?,
                     )
                     .await?;
@@ -327,13 +334,13 @@ impl RpcClient {
     ) -> Result<reqwest::Response> {
         let json_type = HeaderValue::from_static("application/json");
         let rpc_type = HeaderValue::from_static(MIME_TYPE_RPC);
-        let status = response.status();
+        let status = convert_status_code(response.status());
         let content_type = response.headers().get(&header::CONTENT_TYPE);
         match (status, content_type) {
             // OK with the correct MIME type can be handled
             // or conflict with the correct MIME type can be handled
-            (StatusCode::OK, Some(content_type))
-            | (StatusCode::CONFLICT, Some(content_type)) => {
+            (http::StatusCode::OK, Some(content_type))
+            | (http::StatusCode::CONFLICT, Some(content_type)) => {
                 if content_type == &rpc_type {
                     Ok(response)
                 } else {
@@ -342,8 +349,8 @@ impl RpcClient {
             }
             // Unauthorized responses can be retried
             // to renew the noise protocol transport
-            (StatusCode::UNAUTHORIZED, None)
-            | (StatusCode::UNAUTHORIZED, Some(_)) => Ok(response),
+            (http::StatusCode::UNAUTHORIZED, None)
+            | (http::StatusCode::UNAUTHORIZED, Some(_)) => Ok(response),
             // Otherwise exit out early
             _ => {
                 if let Some(content_type) = content_type {
@@ -388,7 +395,7 @@ impl RpcClient {
         let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<()>(
-                response.status(),
+                convert_status_code(response.status()),
                 &response.bytes().await?,
             )
             .await?;
@@ -415,7 +422,7 @@ impl RpcClient {
         let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<()>(
-                response.status(),
+                convert_status_code(response.status()),
                 &response.bytes().await?,
             )
             .await?;
@@ -452,7 +459,7 @@ impl RpcClient {
         let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<()>(
-                response.status(),
+                convert_status_code(response.status()),
                 &response.bytes().await?,
             )
             .await?;
@@ -489,7 +496,7 @@ impl RpcClient {
         let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<Option<SyncStatus>>(
-                response.status(),
+                convert_status_code(response.status()),
                 &response.bytes().await?,
             )
             .await?;
@@ -535,7 +542,7 @@ impl RpcClient {
         let response = self.check_response(response).await?;
         let maybe_retry = self
             .read_encrypted_response::<SyncStatus>(
-                response.status(),
+                convert_status_code(response.status()),
                 &response.bytes().await?,
             )
             .await?;
@@ -556,7 +563,7 @@ impl RpcClient {
         &self,
         file_info: &ExternalFile,
         path: &PathBuf,
-    ) -> Result<MaybeRetry<()>> {
+    ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use reqwest::{
             header::{CONTENT_LENGTH, CONTENT_TYPE},
@@ -599,8 +606,8 @@ impl RpcClient {
             .body(Body::wrap_stream(stream))
             .send()
             .await?;
-        let response = self.check_response(response).await?;
-        Ok(MaybeRetry::Complete(response.status(), ()))
+
+        Ok(convert_status_code(response.status()))
     }
 
     /// Try to receive a file from remote.
@@ -609,7 +616,7 @@ impl RpcClient {
         &self,
         file_info: &ExternalFile,
         path: &PathBuf,
-    ) -> Result<MaybeRetry<()>> {
+    ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
 
         // For this request we sign the request path
@@ -646,8 +653,8 @@ impl RpcClient {
             file.write_all(&chunk).await?;
         }
         file.flush().await?;
-
-        Ok(MaybeRetry::Complete(response.status(), ()))
+        
+        Ok(convert_status_code(response.status()))
     }
 
     /// Try to delete a file on remote.
@@ -655,7 +662,7 @@ impl RpcClient {
     async fn try_delete_file(
         &self,
         file_info: &ExternalFile,
-    ) -> Result<MaybeRetry<()>> {
+    ) -> Result<http::StatusCode> {
         // For this request we sign the request path
         // bytes that encode the file name information
         let signed_data = format!(
@@ -684,8 +691,7 @@ impl RpcClient {
             .send()
             .await?;
 
-        let response = self.check_response(response).await?;
-        Ok(MaybeRetry::Complete(response.status(), ()))
+        Ok(convert_status_code(response.status()))
     }
 
     /// Try to move a file on remote.
@@ -694,7 +700,7 @@ impl RpcClient {
         &self,
         from: &ExternalFile,
         to: &ExternalFile,
-    ) -> Result<MaybeRetry<()>> {
+    ) -> Result<http::StatusCode> {
         // For this request we sign the request path
         // bytes that encode the file name information
         let signed_data = format!(
@@ -711,8 +717,8 @@ impl RpcClient {
             self.device_signer.sign(signed_data.as_bytes()).await?,
         )
         .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
 
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
         let url_path = format!("api/file/{}", signed_data);
         let mut url = self.build_url(&url_path)?;
         url.query_pairs_mut()
@@ -726,9 +732,8 @@ impl RpcClient {
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
-
-        let response = self.check_response(response).await?;
-        Ok(MaybeRetry::Complete(response.status(), ()))
+        
+        Ok(convert_status_code(response.status()))
     }
 
     /// Build an encrypted request.
@@ -770,9 +775,9 @@ impl RpcClient {
     /// Read a response that is not encrypted.
     async fn read_response<T: DeserializeOwned>(
         &self,
-        status: StatusCode,
+        status: http::StatusCode,
         buffer: &[u8],
-    ) -> Result<(StatusCode, crate::rpc::Result<T>, Vec<u8>)> {
+    ) -> Result<(http::StatusCode, crate::rpc::Result<T>, Vec<u8>)> {
         status
             .is_success()
             .then_some(())
@@ -782,31 +787,25 @@ impl RpcClient {
         let response: ResponseMessage<'static> = reply.try_into()?;
         let (_, status, result, body) = response.take::<T>()?;
         let result = result.ok_or(Error::NoReturnValue)?;
-        // Hack for incompatible http lib
-        // version (reqwest uses old version)
-        let status = StatusCode::from_u16(status.as_u16()).unwrap();
         Ok((status, result, body))
     }
 
     /// Read an encrypted response to an RPC call.
     async fn read_encrypted_response<T: DeserializeOwned>(
         &self,
-        http_status: StatusCode,
+        http_status: http::StatusCode,
         buffer: &[u8],
     ) -> Result<RetryResponse<T>> {
-        if http_status == StatusCode::UNAUTHORIZED {
+        if http_status == http::StatusCode::UNAUTHORIZED {
             Ok(RetryResponse::Retry(http_status))
         } else if http_status.is_success()
-            || http_status == StatusCode::CONFLICT
+            || http_status == http::StatusCode::CONFLICT
         {
             let buffer = self.decrypt_server_envelope(buffer).await?;
             let reply: Packet<'static> = decode(&buffer).await?;
             let response: ResponseMessage<'static> = reply.try_into()?;
             let (_, status, result, body) = response.take::<T>()?;
             let result = result.ok_or(Error::NoReturnValue)?;
-            // Hack for incompatible http lib
-            // version (reqwest uses old version)
-            let status = StatusCode::from_u16(status.as_u16()).unwrap();
             Ok(RetryResponse::Complete(status, result, body))
         } else {
             Err(Error::ResponseCode(http_status))
@@ -916,21 +915,12 @@ impl Client for RpcClient {
         &self,
         file_info: &ExternalFile,
         path: &PathBuf,
-    ) -> std::result::Result<(), Self::Error> {
+    ) -> std::result::Result<http::StatusCode, Self::Error> {
         let span = span!(Level::DEBUG, "upload_file");
         let _enter = span.enter();
-
-        let (status, _) =
-            retry!(|| self.try_upload_file(file_info, path), self);
-
+        let status = self.try_upload_file(file_info, path).await?;
         tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok(())
+        Ok(status)
     }
 
     #[cfg(feature = "files")]
@@ -938,41 +928,24 @@ impl Client for RpcClient {
         &self,
         file_info: &ExternalFile,
         path: &PathBuf,
-    ) -> std::result::Result<(), Self::Error> {
+    ) -> std::result::Result<http::StatusCode, Self::Error> {
         let span = span!(Level::DEBUG, "download_file");
         let _enter = span.enter();
-
-        let (status, _) =
-            retry!(|| self.try_download_file(file_info, path), self);
-
+        let status = self.try_download_file(file_info, path).await?;
         tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok(())
+        Ok(status)
     }
 
     #[cfg(feature = "files")]
     async fn delete_file(
         &self,
         file_info: &ExternalFile,
-    ) -> std::result::Result<(), Self::Error> {
+    ) -> std::result::Result<http::StatusCode, Self::Error> {
         let span = span!(Level::DEBUG, "delete_file");
         let _enter = span.enter();
-
-        let (status, _) = retry!(|| self.try_delete_file(file_info), self);
-
+        let status = self.try_delete_file(file_info).await?;
         tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok(())
+        Ok(status)
     }
 
     #[cfg(feature = "files")]
@@ -980,19 +953,11 @@ impl Client for RpcClient {
         &self,
         from: &ExternalFile,
         to: &ExternalFile,
-    ) -> std::result::Result<(), Self::Error> {
+    ) -> std::result::Result<http::StatusCode, Self::Error> {
         let span = span!(Level::DEBUG, "move_file");
         let _enter = span.enter();
-
-        let (status, _) = retry!(|| self.try_move_file(from, to), self);
-
+        let status = self.try_move_file(from, to).await?;
         tracing::debug!(status = %status);
-
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-
-        Ok(())
+        Ok(status)
     }
 }
