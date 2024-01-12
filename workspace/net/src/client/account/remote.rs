@@ -13,7 +13,6 @@ use sos_sdk::{
     url::Url,
 };
 
-use mpc_protocol::Keypair;
 use std::{any::Any, collections::HashMap, fmt, sync::Arc};
 use tokio::sync::Mutex;
 
@@ -25,9 +24,6 @@ pub struct HostedOrigin {
     pub name: String,
     /// URL of the remote server.
     pub url: Url,
-    /// Public key of the remote server.
-    #[serde(with = "hex::serde")]
-    pub public_key: Vec<u8>,
 }
 
 impl fmt::Display for HostedOrigin {
@@ -99,16 +95,10 @@ impl RemoteBridge {
         origin: HostedOrigin,
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
-        keypair: Keypair,
         connection_id: String,
     ) -> Result<Self> {
-        let remote = RpcClient::new(
-            origin.clone(),
-            signer,
-            device,
-            keypair,
-            connection_id,
-        )?;
+        let remote =
+            RpcClient::new(origin.clone(), signer, device, connection_id)?;
         Ok(Self {
             account,
             origin,
@@ -124,11 +114,6 @@ impl RemoteBridge {
 
 /// Sync helper functions.
 impl RemoteBridge {
-    /// Perform the noise protocol handshake.
-    pub async fn handshake(&self) -> Result<()> {
-        Ok(self.remote.handshake().await?)
-    }
-
     /// Create an account on the remote.
     async fn create_remote_account(&self) -> Result<()> {
         let account = self.account.lock().await;

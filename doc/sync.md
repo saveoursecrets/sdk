@@ -6,13 +6,11 @@ Synchronization is achieved via an untrusted intermediary server.
 
 ## Transport Security
 
-Even though all data is encrypted on the client before being sent over the network, servers **must protect** the data in transit to protect against MITM attacks that could be used to replay requests and alter the server state of an account.
+Even though all data is encrypted on the client before being sent over the network, servers **must protect** the data in transit to prevent against MitM attacks that could be used to replay requests and alter the server state of an account.
 
-Servers should either use TLS or to support HTTP transport they can use the [noise protocol](https://noiseprotocol.org/).
+For development and it is convenient to use HTTP rather than configure certificates for TLS however in a production environment we recommend securing connections with TLS.
 
-For development and self-hosting it is convenient to use HTTP rather than configure certificates for TLS however in a production environment we recommend securing connections with TLS.
-
-Note that the self-hosted server implementation supports TLS certificate configuration if desired which would add an extra layer of security on top of the [noise protocol](https://noiseprotocol.org/).
+Production servers **must use TLS** to protect the data in transit.
 
 ## Reference Implementation
 

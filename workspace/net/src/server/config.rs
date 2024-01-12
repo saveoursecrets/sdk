@@ -9,21 +9,14 @@ use url::Url;
 use super::backend::Backend;
 use super::{Error, Result};
 
-use mpc_protocol::{decode_keypair, Keypair};
 use sos_sdk::{signer::ecdsa::Address, vfs};
 
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ServerConfig {
-    /// Path to the server key.
-    pub key: PathBuf,
-
     /// Storage for the backend.
     pub storage: StorageConfig,
-
-    /// Settings for session management.
-    pub session: SessionConfig,
 
     /// Configuration for TLS encryption.
     pub tls: Option<TlsConfig>,
@@ -91,27 +84,6 @@ pub struct CorsConfig {
     pub origins: Vec<Url>,
 }
 
-/// Configuration for server sessions.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SessionConfig {
-    /// Duration for sessions in seconds.
-    pub duration: u64,
-
-    /// Interval in seconds to reap expired sessions.
-    ///
-    /// Default is every 30 minutes.
-    pub reap_interval: u64,
-}
-
-impl Default for SessionConfig {
-    fn default() -> Self {
-        Self {
-            duration: 900,
-            reap_interval: 1800,
-        }
-    }
-}
-
 /// Configuration for storage locations.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StorageConfig {
@@ -129,7 +101,7 @@ impl Default for StorageConfig {
 
 impl ServerConfig {
     /// Load a server config from a file path.
-    pub async fn load<P: AsRef<Path>>(path: P) -> Result<(Self, Keypair)> {
+    pub async fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
         if !vfs::try_exists(path.as_ref()).await? {
             return Err(Error::NotFile(path.as_ref().to_path_buf()));
         }
@@ -139,21 +111,6 @@ impl ServerConfig {
         config.file = Some(path.as_ref().canonicalize()?);
 
         let dir = config.directory();
-
-        if config.key.to_string_lossy().is_empty() {
-            return Err(Error::KeyNotFound(config.key.clone()));
-        }
-
-        if config.key.is_relative() {
-            config.key = dir.join(&config.key).canonicalize()?;
-        }
-
-        if !vfs::try_exists(&config.key).await? {
-            return Err(Error::KeyNotFound(config.key.clone()));
-        }
-
-        let contents = vfs::read_to_string(&config.key).await?;
-        let keypair = decode_keypair(contents)?;
 
         if let Some(tls) = config.tls.as_mut() {
             if tls.cert.is_relative() {
@@ -167,7 +124,7 @@ impl ServerConfig {
             tls.key = tls.key.canonicalize()?;
         }
 
-        Ok((config, keypair))
+        Ok(config)
     }
 
     /// Parent directory of the configuration file.

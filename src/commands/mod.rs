@@ -5,7 +5,6 @@ pub mod check;
 pub mod device;
 pub mod events;
 pub mod folder;
-pub mod generate_keypair;
 pub mod secret;
 pub mod security_report;
 pub mod server;

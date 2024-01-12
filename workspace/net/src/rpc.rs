@@ -3,8 +3,6 @@
 //! Message identifiers have the same semantics as JSON-RPC;
 //! if a request does not have an `id` than no reply is expected
 //! otherwise a service must reply.
-use mpc_protocol::SealedEnvelope;
-
 use http::StatusCode;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
@@ -39,15 +37,6 @@ pub enum Error {
 
 /// Result type for the RPC module.
 pub type Result<T> = std::result::Result<T, Error>;
-
-/// Encrypted envelope sent to a remote server.
-#[derive(Default)]
-pub struct ServerEnvelope {
-    /// Client public key.
-    pub public_key: Vec<u8>,
-    /// Encrypted payload.
-    pub envelope: SealedEnvelope,
-}
 
 /// Packet including identity bytes.
 #[derive(Default)]

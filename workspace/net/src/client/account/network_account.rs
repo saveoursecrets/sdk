@@ -1,5 +1,4 @@
 //! Network aware account.
-use mpc_protocol::generate_keypair;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{AccountBuilder, AccountData, DetachedView, LocalAccount},
@@ -175,17 +174,14 @@ impl NetworkAccount {
         let device_signing_key = enrollment.device_signing_key.clone();
         match origin {
             Origin::Hosted(origin) => {
-                let keypair = generate_keypair()?;
                 let device: BoxedEd25519Signer = device_signing_key.into();
                 let remote = RpcClient::new(
                     origin,
                     account_signing_key,
                     device,
-                    keypair,
                     String::new(),
                 )?;
 
-                remote.handshake().await?;
                 enrollment.enroll(remote).await?;
             }
         }
@@ -329,7 +325,6 @@ impl NetworkAccount {
         &self,
         origin: &HostedOrigin,
     ) -> Result<RemoteBridge> {
-        let keypair = generate_keypair()?;
         let signer = self.account_signer().await?;
         let device = self.device_signer().await?;
         let provider = RemoteBridge::new(
@@ -337,13 +332,8 @@ impl NetworkAccount {
             origin.clone(),
             signer,
             device.into(),
-            keypair,
             self.client_connection_id().await?,
         )?;
-
-        // Noise protocol handshake
-        provider.handshake().await?;
-
         Ok(provider)
     }
 

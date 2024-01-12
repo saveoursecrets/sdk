@@ -55,7 +55,6 @@ mem-fs = ["sos-sdk/mem-fs"]
 test-utils = ["sos-sdk/test-utils"]
 
 [dependencies]
-mpc-protocol.workspace = true
 tokio-util.workspace = true
 thiserror = "1"
 tracing = "0.1"

@@ -74,10 +74,8 @@ impl Service for SyncService {
 
                 #[cfg(feature = "listen")]
                 if num_changes > 0 {
-                    let notification = ChangeNotification::new(
-                        caller.address(),
-                        caller.public_key(),
-                    );
+                    let notification =
+                        ChangeNotification::new(caller.address());
                     let mut writer = state.write().await;
                     send_notification(&mut *writer, &caller, notification);
                 }

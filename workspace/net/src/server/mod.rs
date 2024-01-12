@@ -6,7 +6,6 @@ mod error;
 mod handlers;
 mod server;
 mod services;
-mod transports;
 
 pub use error::Error;
 /// Result type for the server module.
@@ -17,4 +16,3 @@ pub use config::*;
 pub use server::{
     Server, ServerBackend, ServerInfo, ServerState, ServerTransfer, State,
 };
-pub use transports::{TransportChannel, TransportManager};

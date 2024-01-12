@@ -103,9 +103,6 @@ mod mime {
 }
 
 mod rpc {
-    /// Noise protocol handshake initiation.
-    pub const HANDSHAKE_INITIATE: &str = "Handshake.initiate";
-
     /// Account create method call.
     pub const ACCOUNT_CREATE: &str = "Account.create";
 

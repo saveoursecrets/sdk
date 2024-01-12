@@ -13,22 +13,6 @@ BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 # tests take a while due to so many exec calls
 RUST_TEST_TIME_INTEGRATION = "120000,240000"
 
-# NOTE: we use the --release flag to prevent a stack overflow on
-# windows, see: https://github.com/clap-rs/clap/issues/5134
-[tasks.gen-test-key]
-command = "cargo"
-args = [
-  "run",
-  "--release",
-  "--bin",
-  "sos-server",
-  "--",
-  "generate-keypair",
-  "tests/test.pem",
-  "--public-key",
-  "tests/server_public_key.txt"
-]
-
 [tasks.fix-all]
 workspace = true
 command = "cargo"

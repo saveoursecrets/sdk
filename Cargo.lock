@@ -2560,26 +2560,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mpc-protocol"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "062617669bec35199c8f2c8f3b72ddf6a830177aaf6f67bec60d0a56c1515ca4"
-dependencies = [
- "async-trait",
- "binary-stream",
- "futures",
- "hex",
- "http 1.0.0",
- "log",
- "pem",
- "serde",
- "serde_json",
- "snow",
- "thiserror",
- "uuid",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4015,22 +3995,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7c388c1b5e93756d0c740965c41e8822f866621d41acbdf6336a6a168f8840c"
 
 [[package]]
-name = "snow"
-version = "0.9.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58021967fd0a5eeeb23b08df6cc244a4d4a5b4aec1d27c9e02fad1a58b4cd74e"
-dependencies = [
- "aes-gcm",
- "blake2",
- "chacha20poly1305",
- "curve25519-dalek 4.1.1",
- "rand_core 0.6.4",
- "rustc_version",
- "sha2",
- "subtle",
-]
-
-[[package]]
 name = "socket2"
 version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4057,7 +4021,6 @@ dependencies = [
  "human_bytes",
  "log",
  "maplit2",
- "mpc-protocol",
  "once_cell",
  "parking_lot",
  "pretty_assertions",
@@ -4119,7 +4082,6 @@ dependencies = [
  "http 1.0.0",
  "if-addrs",
  "log",
- "mpc-protocol",
  "once_cell",
  "ouroboros",
  "parking_lot",

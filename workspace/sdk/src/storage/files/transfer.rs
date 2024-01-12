@@ -177,7 +177,12 @@ impl FileTransfers {
                 for (file, ops) in pending_operations {
                     for op in ops {
                         let results = Self::run_operation(
-                            Arc::clone(&paths), &file, &op, &clients).await?;
+                            Arc::clone(&paths),
+                            &file,
+                            &op,
+                            &clients,
+                        )
+                        .await?;
 
                         todo!("check results indicate the operations are all completed...");
                     }
@@ -198,7 +203,8 @@ impl FileTransfers {
                 let path = paths.file_location(
                     file.vault_id(),
                     file.secret_id(),
-                    file.file_name().to_string());
+                    file.file_name().to_string(),
+                );
                 for client in clients {
                     client.upload_file(&file, &path).await?;
                 }
@@ -207,7 +213,8 @@ impl FileTransfers {
                 let path = paths.file_location(
                     file.vault_id(),
                     file.secret_id(),
-                    file.file_name().to_string());
+                    file.file_name().to_string(),
+                );
                 for client in clients {
                     client.download_file(&file, &path).await?;
                 }

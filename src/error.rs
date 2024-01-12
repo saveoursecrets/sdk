@@ -161,9 +161,6 @@ pub enum Error {
     Clipboard(#[from] arboard::Error),
 
     #[error(transparent)]
-    Mpc(#[from] sos_net::mpc::Error),
-
-    #[error(transparent)]
     Hex(#[from] sos_net::sdk::hex::FromHexError),
 
     #[error(transparent)]

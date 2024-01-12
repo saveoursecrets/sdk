@@ -32,11 +32,10 @@ use tokio::{
 };
 use url::Url;
 
-use mpc_protocol::{generate_keypair, Keypair};
 use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 
 use crate::{
-    client::{Error, HostedOrigin, Result, RpcClient},
+    client::{Error, HostedOrigin, Result},
     events::ChangeNotification,
 };
 
@@ -51,10 +50,6 @@ pub struct ListenOptions {
     /// client so the server can ignore sending change notifications
     /// to the caller.
     pub(crate) connection_id: String,
-    /// Noise protocol keypair.
-    ///
-    /// Must NOT be the same as the RPC client keypair.
-    pub(crate) keypair: Keypair,
 
     /// Base reconnection interval for exponential backoff reconnect
     /// attempts.
@@ -72,7 +67,6 @@ impl ListenOptions {
             connection_id,
             reconnect_interval: 1000,
             maximum_retries: 16,
-            keypair: generate_keypair()?,
         })
     }
 
@@ -91,7 +85,6 @@ impl ListenOptions {
             connection_id,
             reconnect_interval,
             maximum_retries,
-            keypair: generate_keypair()?,
         })
     }
 }
@@ -100,14 +93,14 @@ impl ListenOptions {
 fn websocket_uri(
     endpoint: Url,
     bearer: String,
-    public_key: &[u8],
+    sign_bytes: &[u8],
     connection_id: &str,
 ) -> String {
     format!(
-        "{}?bearer={}&public_key={}&connection_id={}",
+        "{}?bearer={}&sign_bytes={}&connection_id={}",
         endpoint,
         urlencoding::encode(&bearer),
-        urlencoding::encode(&hex::encode(public_key)),
+        urlencoding::encode(&hex::encode(sign_bytes)),
         urlencoding::encode(connection_id),
     )
 }
@@ -139,13 +132,13 @@ fn changes_endpoint_url(remote: &Url) -> Result<Url> {
 async fn changes_uri(
     remote: &Url,
     signer: &BoxedEcdsaSigner,
-    public_key: &[u8],
+    sign_bytes: &[u8],
     connection_id: &str,
 ) -> Result<String> {
     let endpoint = changes_endpoint_url(remote)?;
     let bearer =
-        encode_account_signature(signer.sign(&public_key).await?).await?;
-    let uri = websocket_uri(endpoint, bearer, public_key, connection_id);
+        encode_account_signature(signer.sign(&sign_bytes).await?).await?;
+    let uri = websocket_uri(endpoint, bearer, sign_bytes, connection_id);
     Ok(uri)
 }
 
@@ -181,30 +174,15 @@ pub async fn connect(
     origin: HostedOrigin,
     signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
-    keypair: Keypair,
     connection_id: String,
-) -> Result<(WsStream, Arc<RpcClient>)> {
+) -> Result<WsStream> {
     let url_origin = origin.url.origin();
     let endpoint = origin.url.clone();
-    let public_key = keypair.public_key().to_vec();
 
-    let client = RpcClient::new(
-        origin,
-        signer,
-        device,
-        keypair,
-        connection_id.clone(),
-    )?;
-    client.handshake().await?;
-
+    let sign_bytes = device.verifying_key().to_bytes();
     let host = endpoint.host_str().unwrap().to_string();
-    let uri = changes_uri(
-        &endpoint,
-        client.account_signer(),
-        &public_key,
-        &connection_id,
-    )
-    .await?;
+    let uri =
+        changes_uri(&endpoint, &signer, &sign_bytes, &connection_id).await?;
 
     tracing::debug!(uri = %uri);
 
@@ -214,15 +192,14 @@ pub async fn connect(
         origin: url_origin,
     };
     let (ws_stream, _) = connect_async(request).await?;
-    Ok((ws_stream, Arc::new(client)))
+    Ok(ws_stream)
 }
 
 /// Read change messages from a websocket stream,
-/// decrypt them from the noise protocol and decode
-/// to change notifications that can be processed.
+/// and decode to change notifications that can
+/// be processed.
 pub fn changes(
     stream: WsStream,
-    client: Arc<RpcClient>,
 ) -> Map<
     SplitStream<WsStream>,
     impl FnMut(
@@ -237,25 +214,18 @@ pub fn changes(
             Pin<Box<dyn Future<Output = Result<ChangeNotification>> + Send>>,
         > {
             match message {
-                Ok(message) => {
-                    let rpc = Arc::clone(&client);
-                    Ok(Box::pin(async move {
-                        Ok(decode_notification(rpc, message).await?)
-                    }))
-                }
+                Ok(message) => Ok(Box::pin(async move {
+                    Ok(decode_notification(message).await?)
+                })),
                 Err(e) => Ok(Box::pin(async move { Err(e.into()) })),
             }
         },
     )
 }
 
-async fn decode_notification(
-    client: Arc<RpcClient>,
-    message: Message,
-) -> Result<ChangeNotification> {
+async fn decode_notification(message: Message) -> Result<ChangeNotification> {
     match message {
         Message::Binary(buffer) => {
-            let buffer = client.decrypt_server_envelope(&buffer).await?;
             let notification: ChangeNotification =
                 serde_json::from_slice(&buffer)?;
             Ok(notification)
@@ -327,7 +297,6 @@ impl WebSocketChangeListener {
     async fn listen<F>(
         &self,
         mut stream: WsStream,
-        client: Arc<RpcClient>,
         handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
@@ -343,7 +312,7 @@ impl WebSocketChangeListener {
                         match message {
                             Ok(message) => {
                                 let notification = decode_notification(
-                                    Arc::clone(&client), message).await?;
+                                    message).await?;
                                 // Call the handler
                                 let future = handler(notification);
                                 future.await;
@@ -369,12 +338,11 @@ impl WebSocketChangeListener {
         self.delay_connect(handler).await
     }
 
-    async fn stream(&self) -> Result<(WsStream, Arc<RpcClient>)> {
+    async fn stream(&self) -> Result<WsStream> {
         connect(
             self.origin.clone(),
             self.signer.clone(),
             self.device.clone(),
-            self.options.keypair.clone(),
             self.options.connection_id.clone(),
         )
         .await
@@ -388,9 +356,7 @@ impl WebSocketChangeListener {
         F: Future<Output = ()> + Send + 'static,
     {
         match self.stream().await {
-            Ok((stream, client)) => {
-                self.listen(stream, client, handler).await
-            }
+            Ok(stream) => self.listen(stream, handler).await,
             Err(_) => self.delay_connect(handler).await,
         }
     }

@@ -8,16 +8,14 @@ use tokio::sync::{oneshot, RwLock};
 
 use sos_net::{
     client::HostedOrigin,
-    sdk::{hex, signer::ecdsa::Address, url::Url, vfs, Paths},
-    server::{Server, ServerConfig, ServerInfo, State, TransportManager},
+    sdk::{signer::ecdsa::Address, url::Url, vfs, Paths},
+    server::{Server, ServerConfig, ServerInfo, State},
 };
 
 mod network;
 pub use network::*;
 
 const ADDR: &str = "127.0.0.1:0";
-const SERVER_PUBLIC_KEY: &str =
-    include_str!("../../../tests/server_public_key.txt");
 
 #[allow(dead_code)]
 pub fn init_tracing() {
@@ -67,8 +65,7 @@ impl MockServer {
             path = ?self.path,
             "start mock server");
 
-        let (mut config, keypair) =
-            ServerConfig::load("tests/config.toml").await?;
+        let mut config = ServerConfig::load("tests/config.toml").await?;
 
         // Override the storage path to use the path
         // using the test identifier
@@ -80,12 +77,9 @@ impl MockServer {
             info: ServerInfo {
                 name: String::from("integration-test"),
                 version: String::from("0.0.0"),
-                public_key: keypair.public_key().to_owned(),
             },
-            keypair,
             config,
             sockets: Default::default(),
-            transports: TransportManager::new(3000),
         }));
 
         let server = Server::new();
@@ -208,7 +202,6 @@ pub async fn spawn(
         origin: HostedOrigin {
             name: "origin".to_owned(),
             url: url.clone(),
-            public_key: hex::decode(SERVER_PUBLIC_KEY)?,
         },
         addr,
         url,

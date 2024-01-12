@@ -18,16 +18,11 @@ use tokio::sync::{
     mpsc,
 };
 
-use mpc_protocol::channel::encrypt_server_channel;
 use serde::Deserialize;
-use sos_sdk::encode;
 use tracing::{span, Level};
 use web3_address::ethereum::Address;
 
-use crate::{
-    rpc::ServerEnvelope,
-    server::{authenticate, Result, ServerState},
-};
+use crate::server::{authenticate, Result, ServerState};
 
 const MAX_SOCKET_CONNECTIONS_PER_CLIENT: u8 = 6;
 
@@ -35,7 +30,7 @@ const MAX_SOCKET_CONNECTIONS_PER_CLIENT: u8 = 6;
 #[derive(Debug, Deserialize)]
 pub struct WebsocketQuery {
     pub bearer: String,
-    pub public_key: String,
+    pub sign_bytes: String,
     pub connection_id: String,
 }
 
@@ -74,34 +69,18 @@ pub async fn upgrade(
     tracing::debug!("upgrade request");
 
     let mut writer = state.write().await;
-    let server_public_key = writer.keypair.public_key().to_vec();
-    let client_public_key = hex::decode(&query.public_key)
+
+    // Bytes that are signed is the device public key
+    let sign_bytes = hex::decode(&query.sign_bytes)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let transport = writer
-        .transports
-        .get_mut(&client_public_key)
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-    transport
-        .valid()
-        .then_some(())
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-
     // Parse the bearer token
-    let token =
-        authenticate::BearerToken::new(&query.bearer, &client_public_key)
-            .await
-            .map_err(|_| StatusCode::BAD_REQUEST)?;
+    let token = authenticate::BearerToken::new(&query.bearer, &sign_bytes)
+        .await
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let address = token.address;
     let connection_id = query.connection_id;
-
-    // Prevent this session from expiring because
-    // we need it to last as long as the socket connection
-    transport.set_keep_alive(true);
-
-    // Refresh the transport on activity
-    transport.refresh();
 
     let (close_tx, close_rx) = mpsc::channel::<Message>(32);
 
@@ -135,8 +114,6 @@ pub async fn upgrade(
             state,
             rx,
             address,
-            server_public_key,
-            client_public_key,
             connection_id,
             close_tx,
             close_rx,
@@ -144,21 +121,13 @@ pub async fn upgrade(
     }))
 }
 
-async fn disconnect(
-    state: ServerState,
-    address: Address,
-    public_key: Vec<u8>,
-) {
+async fn disconnect(state: ServerState, address: Address) {
     let span = span!(Level::DEBUG, "ws_server");
     let _enter = span.enter();
 
     let mut writer = state.write().await;
 
     tracing::debug!("server websocket disconnect");
-
-    // Sessions for websocket connections have the keep alive
-    // flag so we must remove them on disconnect
-    writer.transports.remove_channel(&public_key);
 
     let clients = if let Some(conn) = writer.sockets.get_mut(&address) {
         conn.clients -= 1;
@@ -179,8 +148,6 @@ async fn handle_socket(
     state: ServerState,
     outgoing: Receiver<BroadcastMessage>,
     address: Address,
-    server_public_key: Vec<u8>,
-    client_public_key: Vec<u8>,
     connection_id: String,
     close_tx: mpsc::Sender<Message>,
     close_rx: mpsc::Receiver<Message>,
@@ -189,26 +156,17 @@ async fn handle_socket(
     tokio::spawn(write(
         Arc::clone(&state),
         address,
-        server_public_key,
-        client_public_key.clone(),
         connection_id,
         writer,
         outgoing,
         close_rx,
     ));
-    tokio::spawn(read(
-        Arc::clone(&state),
-        address,
-        client_public_key,
-        reader,
-        close_tx,
-    ));
+    tokio::spawn(read(Arc::clone(&state), address, reader, close_tx));
 }
 
 async fn read(
     state: ServerState,
     address: Address,
-    public_key: Vec<u8>,
     mut receiver: SplitStream<WebSocket>,
     close_tx: mpsc::Sender<Message>,
 ) -> Result<()> {
@@ -221,12 +179,12 @@ async fn read(
                 Message::Pong(_) => {}
                 Message::Close(frame) => {
                     let _ = close_tx.send(Message::Close(frame)).await;
-                    disconnect(state, address, public_key).await;
+                    disconnect(state, address).await;
                     return Ok(());
                 }
             },
             Err(e) => {
-                disconnect(state, address, public_key).await;
+                disconnect(state, address).await;
                 return Err(e.into());
             }
         }
@@ -237,8 +195,6 @@ async fn read(
 async fn write(
     state: ServerState,
     address: Address,
-    server_public_key: Vec<u8>,
-    client_public_key: Vec<u8>,
     connection_id: String,
     mut sender: SplitSink<WebSocket, Message>,
     mut outgoing: Receiver<BroadcastMessage>,
@@ -268,46 +224,12 @@ async fn write(
                         // Only broadcast change notifications to listeners
                         // other than the caller
                         if other_connection {
-                            let mut writer = state.write().await;
-                            let transport = writer
-                                .transports
-                                .get_mut(&client_public_key)
-                                .expect("failed to locate websocket session");
-
-                            let envelope =
-                                encrypt_server_channel(
-                                    transport.protocol_mut(),
-                                    &msg.buffer,
-                                    false,
-                                ).await?;
-
-                            let message = ServerEnvelope {
-                                public_key: server_public_key.clone(),
-                                envelope,
-                            };
-
-                            drop(writer);
-
-                            match encode(&message).await {
-                                Ok(buffer) => {
-                                    if sender.send(Message::Binary(buffer)).await.is_err() {
-                                        disconnect(
-                                            state,
-                                            address,
-                                            client_public_key,
-                                        ).await;
-                                        return Ok(());
-                                    }
-                                }
-                                Err(e) => {
-                                    tracing::error!("{}", e);
-                                    disconnect(
-                                        state,
-                                        address,
-                                        client_public_key,
-                                    ).await;
-                                    return Err(e.into());
-                                }
+                            if sender.send(Message::Binary(msg.buffer)).await.is_err() {
+                                disconnect(
+                                    state,
+                                    address,
+                                ).await;
+                                return Ok(());
                             }
                         }
                     }
