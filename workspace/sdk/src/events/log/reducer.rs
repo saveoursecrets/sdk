@@ -9,93 +9,6 @@ use crate::{
 
 use indexmap::IndexMap;
 
-#[cfg(feature = "device")]
-mod device {
-    use crate::{
-        device::{DevicePublicKey, TrustedDevice},
-        events::{DeviceEvent, DeviceEventLog, EventLogExt},
-        Result,
-    };
-    use futures::{pin_mut, stream::StreamExt};
-    use std::collections::HashMap;
-
-    /// Reduce device events to a collection of devices.
-    pub struct DeviceReducer<'a> {
-        log: &'a DeviceEventLog,
-    }
-
-    impl<'a> DeviceReducer<'a> {
-        /// Create a new device reducer.
-        pub fn new(log: &'a DeviceEventLog) -> Self {
-            Self { log }
-        }
-
-        /// Reduce devive events to a canonical collection
-        /// of trusted devices.
-        pub async fn reduce(
-            self,
-        ) -> Result<HashMap<DevicePublicKey, TrustedDevice>> {
-            let mut devices = HashMap::new();
-
-            let stream = self.log.stream(false).await;
-            pin_mut!(stream);
-
-            while let Some(event) = stream.next().await {
-                let (_, event) = event?;
-
-                match event {
-                    DeviceEvent::Trust(device) => {
-                        devices.insert(*device.public_key(), device);
-                    }
-                    DeviceEvent::Revoke(public_key) => {
-                        devices.remove(&public_key);
-                    }
-                    _ => {}
-                }
-            }
-            Ok(devices)
-        }
-    }
-}
-
-#[cfg(feature = "device")]
-pub use device::DeviceReducer;
-
-/*
-/// Reduce account events to a collection of folders.
-pub struct AccountReducer<'a> {
-    log: &'a mut AccountEventLog,
-}
-
-impl<'a> AccountReducer<'a> {
-    /// Create a new account reducer.
-    pub fn new(log: &'a mut AccountEventLog) -> Self {
-        Self { log }
-    }
-
-    /// Reduce account events to a canonical collection
-    /// of folders.
-    pub async fn reduce(self) -> Result<HashSet<VaultId>> {
-        let mut folders = HashSet::new();
-        let events = self.log.diff_records(None).await?;
-        for record in events {
-            let event = record.decode_event::<AccountEvent>().await?;
-            match event {
-                AccountEvent::UpdateFolder(id, _)
-                | AccountEvent::CreateFolder(id, _) => {
-                    folders.insert(id);
-                }
-                AccountEvent::DeleteFolder(id) => {
-                    folders.remove(&id);
-                }
-                _ => {}
-            }
-        }
-        Ok(folders)
-    }
-}
-*/
-
 /// Reduce log events to a vault.
 #[derive(Default)]
 pub struct FolderReducer {
@@ -267,6 +180,177 @@ impl FolderReducer {
         }
     }
 }
+
+#[cfg(feature = "device")]
+mod device {
+    use crate::{
+        device::{DevicePublicKey, TrustedDevice},
+        events::{DeviceEvent, DeviceEventLog, EventLogExt},
+        Result,
+    };
+    use futures::{pin_mut, stream::StreamExt};
+    use std::collections::HashMap;
+
+    /// Reduce device events to a collection of devices.
+    pub struct DeviceReducer<'a> {
+        log: &'a DeviceEventLog,
+    }
+
+    impl<'a> DeviceReducer<'a> {
+        /// Create a new device reducer.
+        pub fn new(log: &'a DeviceEventLog) -> Self {
+            Self { log }
+        }
+
+        /// Reduce device events to a canonical collection
+        /// of trusted devices.
+        pub async fn reduce(
+            self,
+        ) -> Result<HashMap<DevicePublicKey, TrustedDevice>> {
+            let mut devices = HashMap::new();
+
+            let stream = self.log.stream(false).await;
+            pin_mut!(stream);
+
+            while let Some(event) = stream.next().await {
+                let (_, event) = event?;
+
+                match event {
+                    DeviceEvent::Trust(device) => {
+                        devices.insert(*device.public_key(), device);
+                    }
+                    DeviceEvent::Revoke(public_key) => {
+                        devices.remove(&public_key);
+                    }
+                    _ => {}
+                }
+            }
+            Ok(devices)
+        }
+    }
+}
+
+#[cfg(feature = "device")]
+pub use device::DeviceReducer;
+
+#[cfg(feature = "files")]
+mod files {
+    use crate::{
+        commit::CommitHash,
+        events::{EventLogExt, FileEvent, FileEventLog},
+        storage::files::ExternalFile,
+        Result,
+    };
+    use futures::{pin_mut, stream::StreamExt};
+    use indexmap::IndexSet;
+
+    /// Reduce file events to a collection of external files.
+    pub struct FileReducer<'a> {
+        log: &'a FileEventLog,
+    }
+
+    impl<'a> FileReducer<'a> {
+        /// Create a new file reducer.
+        pub fn new(log: &'a FileEventLog) -> Self {
+            Self { log }
+        }
+
+        /// Reduce file events to a canonical collection
+        /// of external files.
+        pub async fn reduce(
+            self,
+            from: Option<&CommitHash>,
+        ) -> Result<IndexSet<ExternalFile>> {
+            let mut files: IndexSet<ExternalFile> = IndexSet::new();
+
+            let stream = self.log.stream(false).await;
+            pin_mut!(stream);
+
+            fn add_file_event(
+                event: FileEvent,
+                files: &mut IndexSet<ExternalFile>,
+            ) {
+                match event {
+                    FileEvent::CreateFile(vault_id, secret_id, file_name) => {
+                        files.insert(ExternalFile::new(
+                            vault_id, secret_id, file_name,
+                        ));
+                    }
+                    FileEvent::MoveFile { name, from, dest } => {
+                        let file = ExternalFile::new(from.0, from.1, name);
+                        files.remove(&file);
+                        files.insert(ExternalFile::new(dest.0, dest.1, name));
+                    }
+                    FileEvent::DeleteFile(vault_id, secret_id, file_name) => {
+                        let file =
+                            ExternalFile::new(vault_id, secret_id, file_name);
+                        files.remove(&file);
+                    }
+                    _ => {}
+                }
+            }
+
+            // Scan until target commit
+            //
+            // TODO: we could optimize this to scan the rows
+            // TODO: more efficiently without decoding the record/event
+            if let Some(from) = from {
+                while let Some(event) = stream.next().await {
+                    let (record, event) = event?;
+                    if from == record.commit() {
+                        add_file_event(event, &mut files);
+                        break;
+                    }
+                }
+            }
+
+            while let Some(event) = stream.next().await {
+                let (_, event) = event?;
+                add_file_event(event, &mut files);
+            }
+
+            Ok(files)
+        }
+    }
+}
+
+#[cfg(feature = "files")]
+pub use files::FileReducer;
+
+/*
+/// Reduce account events to a collection of folders.
+pub struct AccountReducer<'a> {
+    log: &'a mut AccountEventLog,
+}
+
+impl<'a> AccountReducer<'a> {
+    /// Create a new account reducer.
+    pub fn new(log: &'a mut AccountEventLog) -> Self {
+        Self { log }
+    }
+
+    /// Reduce account events to a canonical collection
+    /// of folders.
+    pub async fn reduce(self) -> Result<HashSet<VaultId>> {
+        let mut folders = HashSet::new();
+        let events = self.log.diff_records(None).await?;
+        for record in events {
+            let event = record.decode_event::<AccountEvent>().await?;
+            match event {
+                AccountEvent::UpdateFolder(id, _)
+                | AccountEvent::CreateFolder(id, _) => {
+                    folders.insert(id);
+                }
+                AccountEvent::DeleteFolder(id) => {
+                    folders.remove(&id);
+                }
+                _ => {}
+            }
+        }
+        Ok(folders)
+    }
+}
+*/
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod test {

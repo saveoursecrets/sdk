@@ -182,6 +182,7 @@ impl Account {
 
     #[cfg(feature = "files")]
     async fn merge_files(&mut self, diff: &FileDiff) -> Result<usize> {
+        use crate::events::FileReducer;
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -194,16 +195,26 @@ impl Account {
         let storage = storage.read().await;
         let mut event_log = storage.file_log.write().await;
 
-        // File events may not have a root commit if there are
-        // no files yet and we distinguish this by the before
-        // commit state being the default.
-        let is_init_diff = diff.before == Default::default();
-        let checked_patch = if is_init_diff && event_log.tree().is_empty() {
+        // File events may not have a root commit
+        let is_init_diff = diff.last_commit.is_none();
+        let (checked_patch, external_files) = if is_init_diff
+            && event_log.tree().is_empty()
+        {
             event_log.apply((&diff.patch).into()).await?;
-            None
+            let reducer = FileReducer::new(&*event_log);
+            let external_files = reducer.reduce(None).await?;
+            (None, external_files)
         } else {
-            Some(event_log.patch_checked(&diff.before, &diff.patch).await?)
+            let checked_patch =
+                event_log.patch_checked(&diff.before, &diff.patch).await?;
+            let reducer = FileReducer::new(&*event_log);
+            let external_files =
+                reducer.reduce(diff.last_commit.as_ref()).await?;
+            (Some(checked_patch), external_files)
         };
+
+        // TODO: compute which external files need to be downloaded
+        // TODO: add computed downloads to the transfers list
 
         let num_changes = if let Some(checked_patch) = checked_patch {
             if let CheckedPatch::Success(_, _) = &checked_patch {

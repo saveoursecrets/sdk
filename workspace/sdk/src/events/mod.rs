@@ -29,7 +29,7 @@ pub use self::log::{
 pub use self::log::{DeviceEventLog, DeviceReducer};
 
 #[cfg(feature = "files")]
-pub use self::log::FileEventLog;
+pub use self::log::{FileEventLog, FileReducer};
 
 pub use account::AccountEvent;
 #[cfg(feature = "device")]

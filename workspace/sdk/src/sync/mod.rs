@@ -66,6 +66,8 @@ pub struct Diff<T>
 where
     T: Default + Encodable + Decodable,
 {
+    /// Last commit hash before the patch.
+    pub last_commit: Option<CommitHash>,
     /// Contents of the patch.
     pub patch: Patch<T>,
     /// Head of the event log before applying the patch.
@@ -243,6 +245,7 @@ impl SyncComparison {
                 if !is_last_commit {
                     let after = reader.tree().head()?;
                     let identity = FolderDiff {
+                        last_commit: Some(self.remote_status.identity.0),
                         patch: reader
                             .diff(Some(&self.remote_status.identity.0))
                             .await?,
@@ -271,6 +274,7 @@ impl SyncComparison {
                 if !is_last_commit {
                     let after = reader.tree().head()?;
                     let account = AccountDiff {
+                        last_commit: Some(self.remote_status.account.0),
                         patch: reader
                             .diff(Some(&self.remote_status.account.0))
                             .await?,
@@ -300,6 +304,7 @@ impl SyncComparison {
                 if !is_last_commit {
                     let after = reader.tree().head()?;
                     let device = DeviceDiff {
+                        last_commit: Some(self.remote_status.device.0),
                         patch: reader
                             .diff(Some(&self.remote_status.device.0))
                             .await?,
@@ -331,6 +336,7 @@ impl SyncComparison {
                         if !is_last_commit {
                             let after = reader.tree().head()?;
                             let files = FileDiff {
+                                last_commit: Some(remote_files.0),
                                 patch: reader
                                     .diff(Some(&remote_files.0))
                                     .await?,
@@ -356,6 +362,7 @@ impl SyncComparison {
                         if !reader.tree().is_empty() {
                             let after = reader.tree().head()?;
                             let files = FileDiff {
+                                last_commit: None,
                                 patch: reader.diff(None).await?,
                                 after,
                                 before: Default::default(),
@@ -385,6 +392,7 @@ impl SyncComparison {
 
                     let after = log.tree().head()?;
                     let folder = FolderDiff {
+                        last_commit: Some(commit_state.0),
                         patch: log.diff(Some(&commit_state.0)).await?,
                         after,
                         before: commit_state.1.clone(),
@@ -410,6 +418,7 @@ impl SyncComparison {
                 let after = log.tree().commit_state()?.1;
 
                 let folder = FolderDiff {
+                    last_commit: Some(first_commit.0),
                     patch: log.diff(Some(&first_commit.0)).await?,
                     after,
                     before: first_commit.1,

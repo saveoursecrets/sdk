@@ -16,6 +16,10 @@ pub use reducer::DeviceReducer;
 
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
+
+#[cfg(feature = "files")]
+pub use reducer::FileReducer;
+
 pub use file::{
     AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
     FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog, MemoryLog,

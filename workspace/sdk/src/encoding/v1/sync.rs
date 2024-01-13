@@ -1,4 +1,5 @@
 use crate::{
+    commit::CommitHash,
     decode, encode,
     encoding::{decode_uuid, encoding_error},
     prelude::{FileIdentity, PATCH_IDENTITY},
@@ -255,6 +256,11 @@ where
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
+        writer.write_bool(self.last_commit.is_some()).await?;
+        if let Some(last_commit) = &self.last_commit {
+            writer.write_bytes(last_commit.as_ref()).await?;
+            //last_commit.encode(&mut *writer).await?;
+        }
         self.before.encode(&mut *writer).await?;
         self.after.encode(&mut *writer).await?;
         self.patch.encode(&mut *writer).await?;
@@ -271,6 +277,17 @@ where
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
+        let has_last_commit = reader.read_bool().await?;
+        if has_last_commit {
+            let commit: [u8; 32] = reader
+                .read_bytes(32)
+                .await?
+                .as_slice()
+                .try_into()
+                .map_err(encoding_error)?;
+            self.last_commit = Some(CommitHash(commit));
+        }
+
         self.before.decode(&mut *reader).await?;
         self.after.decode(&mut *reader).await?;
         self.patch.decode(&mut *reader).await?;
