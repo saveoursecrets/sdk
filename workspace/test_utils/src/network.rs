@@ -248,6 +248,13 @@ pub async fn assert_local_remote_file_eq(
     //println!("client {:#?}", expected_client_file);
     //println!("server {:#?}", expected_server_file);
 
+    if !vfs::try_exists(&expected_client_file).await? {
+        eprintln!("expected_client_file {:#?}", expected_client_file);
+    }
+    if !vfs::try_exists(&expected_server_file).await? {
+        eprintln!("expected_server_file {:#?}", expected_server_file);
+    }
+
     assert!(vfs::try_exists(&expected_client_file).await?);
     assert!(vfs::try_exists(&expected_server_file).await?);
 

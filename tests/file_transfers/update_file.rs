@@ -5,11 +5,11 @@ use crate::test_utils::{
     mock::files::{create_file_secret, update_file_secret},
     simulate_device, spawn, teardown, wait_for_transfers,
 };
+use sos_net::sdk::storage::files::{ExternalFile, TransferOperation};
 
 const TEST_ID: &str = "file_transfers_update";
 
 /// Tests uploading an updated external file.
-#[ignore = "flaky, needs debugging"]
 #[tokio::test]
 async fn file_transfers_update() -> Result<()> {
     //crate::test_utils::init_tracing();
@@ -26,7 +26,7 @@ async fn file_transfers_update() -> Result<()> {
     // Create an external file secret
     let (id, _, _) =
         create_file_secret(&mut *account, &default_folder, None).await?;
-    
+
     // Wait for the upload event
     wait_for_transfers(&account).await?;
 
@@ -40,15 +40,25 @@ async fn file_transfers_update() -> Result<()> {
     let file = {
         let transfers = account.transfers().await?;
         let transfers = transfers.read().await;
+
         // Updating file content yields delete
         // and upload events
         assert_eq!(2, transfers.len());
-        transfers
-            .queue()
-            .keys()
-            .copied()
-            .collect::<Vec<_>>()
-            .remove(0)
+
+        let mut file: Option<ExternalFile> = None;
+        for (key, ops) in transfers.queue() {
+            let mut ops = ops.clone();
+            let first = ops.drain(..).next().unwrap();
+            if let TransferOperation::Upload = first {
+                file = Some(*key);
+            }
+        }
+
+        if let Some(file) = file {
+            file
+        } else {
+            panic!("expecting upload transfer operation");
+        }
     };
 
     // Wait until the transfers are completed

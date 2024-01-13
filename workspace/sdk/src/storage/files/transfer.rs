@@ -190,7 +190,6 @@ impl FileTransfers {
         C: Client<Error = E> + Clone + Send + Sync + 'static,
     {
         tokio::task::spawn(async move {
-
             loop {
                 select! {
                     _ = shutdown.notified().fuse() => {
@@ -245,38 +244,63 @@ impl FileTransfers {
         E: Send + Sync + 'static,
         C: Client<Error = E> + Clone + Send + Sync + 'static,
     {
-        // Split uploads and downloads as they require different
-        // handling.
-        //
-        // Uploads must be successful for all remote servers whilst
-        // a download only needs to execute successfully against a
-        // single server.
-        let mut uploads = Vec::new();
-        let mut downloads = Vec::new();
         for (file, ops) in pending_transfers {
-            for op in ops {
-                for client in clients {
-                    if let TransferOperation::Download = &op {
-                        downloads.push(Self::run_client_operation(
-                            Arc::clone(&paths),
-                            client.clone(),
-                            file,
-                            op,
-                        ));
-                    } else {
-                        uploads.push(Self::run_client_operation(
-                            Arc::clone(&paths),
-                            client.clone(),
-                            file,
-                            op,
-                        ));
-                    }
-                }
-            }
+            Self::process_operations(
+                file,
+                ops,
+                Arc::clone(&paths),
+                Arc::clone(&queue),
+                clients,
+            )
+            .await?;
         }
 
-        Self::process_uploads(Arc::clone(&queue), uploads).await?;
-        Self::process_downloads(Arc::clone(&queue), downloads).await?;
+        Ok(())
+    }
+
+    async fn process_operations<E, C>(
+        file: ExternalFile,
+        operations: IndexSet<TransferOperation>,
+        paths: Arc<Paths>,
+        queue: Arc<RwLock<Transfers>>,
+        clients: &[C],
+    ) -> std::result::Result<(), E>
+    where
+        E: Send + Sync + 'static,
+        C: Client<Error = E> + Clone + Send + Sync + 'static,
+    {
+        for op in operations {
+            // Split uploads and downloads as they require different
+            // handling.
+            //
+            // Uploads must be successful for all remote servers whilst
+            // a download only needs to execute successfully against a
+            // single server.
+            //
+            let mut uploads = Vec::new();
+            let mut downloads = Vec::new();
+
+            for client in clients {
+                if let TransferOperation::Download = &op {
+                    downloads.push(Self::run_client_operation(
+                        Arc::clone(&paths),
+                        client.clone(),
+                        file,
+                        op,
+                    ));
+                } else {
+                    uploads.push(Self::run_client_operation(
+                        Arc::clone(&paths),
+                        client.clone(),
+                        file,
+                        op,
+                    ));
+                }
+            }
+
+            Self::process_uploads(Arc::clone(&queue), uploads).await?;
+            Self::process_downloads(Arc::clone(&queue), downloads).await?;
+        }
 
         Ok(())
     }

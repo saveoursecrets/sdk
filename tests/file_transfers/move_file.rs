@@ -8,7 +8,7 @@ use sos_net::sdk::storage::files::TransferOperation;
 
 const TEST_ID: &str = "file_transfers_move";
 
-/// Tests uploading an external file after moving 
+/// Tests uploading an external file after moving
 /// the secret to a different folder.
 #[tokio::test]
 async fn file_transfers_move() -> Result<()> {
@@ -24,7 +24,8 @@ async fn file_transfers_move() -> Result<()> {
     let mut account = account.lock().await;
 
     // Create an external file secret
-    let (id, _, _) = create_file_secret(&mut *account, &default_folder, None).await?;
+    let (id, _, _) =
+        create_file_secret(&mut *account, &default_folder, None).await?;
 
     // Wait until the upload is completed
     wait_for_transfers(&account).await?;
@@ -32,13 +33,11 @@ async fn file_transfers_move() -> Result<()> {
     // Create a folder
     let (destination, _, _) =
         account.create_folder("new_folder".to_owned()).await?;
-    
+
     // Moving the secret also needs to move the file
-    account.move_secret(
-        &id,
-        &default_folder,
-        &destination,
-        Default::default()).await?;
+    account
+        .move_secret(&id, &default_folder, &destination, Default::default())
+        .await?;
 
     // Check we have a pending transfer operation
     let file = {
@@ -61,7 +60,7 @@ async fn file_transfers_move() -> Result<()> {
 
     // Wait until the move is completed
     wait_for_transfers(&account).await?;
-    
+
     // Assert the files on disc are equal
     assert_local_remote_file_eq(account.paths(), &device.server_path, &file)
         .await?;
