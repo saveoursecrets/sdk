@@ -8,7 +8,7 @@ use crate::{
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, future::Future, path::PathBuf, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
 
 #[cfg(not(debug_assertions))]
@@ -194,50 +194,116 @@ impl FileTransfers {
                     continue;
                 }
 
-                // Build the futures for each file operation and client
-                let mut futures = Vec::new();
+                // Split uploads and downloads as they require different
+                // handling.
+                //
+                // Uploads must be successful for all remote servers whilst
+                // a download only needs to execute successfully against a
+                // single server.
+                let mut uploads = Vec::new();
+                let mut downloads = Vec::new();
                 for (file, ops) in pending_operations {
                     for op in ops {
                         for client in &clients {
-                            futures.push(Self::run_client_operation(
-                                Arc::clone(&paths),
-                                client.clone(),
-                                file,
-                                op,
-                            ));
+                            if let TransferOperation::Download = &op {
+                                downloads.push(Self::run_client_operation(
+                                    Arc::clone(&paths),
+                                    client.clone(),
+                                    file,
+                                    op,
+                                ));
+                            } else {
+                                uploads.push(Self::run_client_operation(
+                                    Arc::clone(&paths),
+                                    client.clone(),
+                                    file,
+                                    op,
+                                ));
+                            }
                         }
                     }
                 }
 
-                // Execute the client requests
-                let results = futures::future::try_join_all(futures).await?;
-
-                // Collate results that completed for all clients
-                let mut collated = HashMap::new();
-                for (file, op, done) in results {
-                    let entry = collated.entry((file, op)).or_insert(done);
-                    *entry = *entry && done;
-                }
-
-                // Mark transfers that were successful for all clients
-                // as completed, removing them from the queue
-                for ((file, op), done) in collated {
-                    if done {
-                        let mut writer = queue.write().await;
-                        if let Err(e) =
-                            writer.transfer_completed(&file, &op).await
-                        {
-                            tracing::error!(error = ?e);
-                            panic!("failed to remove pending transfer");
-                        }
-                    }
-                }
+                Self::process_uploads(Arc::clone(&queue), uploads).await?;
+                Self::process_downloads(Arc::clone(&queue), downloads)
+                    .await?;
 
                 // Pause a little so we don't overwhelm if re-trying
                 #[cfg(not(debug_assertions))]
                 tokio::time::sleep(Duration::from_secs(15)).await;
             }
         })
+    }
+
+    async fn process_uploads<E>(
+        queue: Arc<RwLock<Transfers>>,
+        uploads: Vec<
+            impl Future<
+                Output = std::result::Result<
+                    (ExternalFile, TransferOperation, bool),
+                    E,
+                >,
+            >,
+        >,
+    ) -> std::result::Result<(), E>
+    where
+        E: Send + Sync + 'static,
+    {
+        // Execute the client requests
+        let results = futures::future::try_join_all(uploads).await?;
+
+        // Collate results that completed for all clients
+        let mut collated = HashMap::new();
+        for (file, op, done) in results {
+            let entry = collated.entry((file, op)).or_insert(done);
+            *entry = *entry && done;
+        }
+
+        // Mark transfers that were successful for all clients
+        // as completed, removing them from the queue
+        for ((file, op), done) in collated {
+            if done {
+                let mut writer = queue.write().await;
+                if let Err(e) = writer.transfer_completed(&file, &op).await {
+                    tracing::error!(error = ?e);
+                    panic!("failed to remove pending transfer");
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn process_downloads<E>(
+        queue: Arc<RwLock<Transfers>>,
+        downloads: Vec<
+            impl Future<
+                Output = std::result::Result<
+                    (ExternalFile, TransferOperation, bool),
+                    E,
+                >,
+            >,
+        >,
+    ) -> std::result::Result<(), E>
+    where
+        E: Send + Sync + 'static,
+    {
+        for fut in downloads {
+            let (file, op, done) = fut.await?;
+            if done {
+                let mut writer = queue.write().await;
+                if let Err(e) = writer.transfer_completed(&file, &op).await {
+                    tracing::error!(error = ?e);
+                    panic!("failed to remove pending transfer");
+                }
+                return Ok(());
+            }
+        }
+
+        // Retry the download on the next
+        // loop iteration if the download
+        // failed on all servers
+        Ok(())
     }
 
     async fn run_client_operation<E, C>(
