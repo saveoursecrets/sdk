@@ -9,9 +9,6 @@
 //! with support for sending and listening for change notification over
 //! a websocket connection.
 
-#[cfg(not(target_arch = "wasm32"))]
-mod file_locks;
-
 #[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "device")]
@@ -33,9 +30,6 @@ mod error;
 /// Result type for the network module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 pub use error::Error;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use file_locks::FileLocks;
 
 #[cfg(feature = "client")]
 pub use reqwest;

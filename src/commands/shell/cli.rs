@@ -5,7 +5,6 @@ use terminal_banner::{Banner, Padding};
 use sos_net::{
     client::NetworkAccount,
     sdk::{identity::AccountRef, vault::FolderRef, vfs, Paths},
-    FileLocks,
 };
 
 use tokio::sync::RwLock;
@@ -60,10 +59,6 @@ pub async fn run(
     if !vfs::metadata(&data_dir).await?.is_dir() {
         return Err(Error::NotDirectory(data_dir));
     }
-
-    let cache_lock = data_dir.join("client.lock");
-    let mut locks = FileLocks::new();
-    locks.add(&cache_lock)?;
 
     // FIXME: support ephemeral device signer for when the CLI
     // FIXME: is running on the same device as a GUI
