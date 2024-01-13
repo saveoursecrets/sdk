@@ -5,15 +5,19 @@ use crate::{
     sync::Client,
     vfs, Paths, Result,
 };
+use futures::{select, FutureExt};
 use http::StatusCode;
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::{collections::HashMap, future::Future, path::PathBuf, sync::Arc};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{Mutex, Notify, RwLock};
+use tracing::{span, Level};
 
 #[cfg(not(debug_assertions))]
 use std::time::Duration;
+
+type TransferQueue = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 
 /// Operations for file transfers.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -68,7 +72,7 @@ pub struct Transfers {
     path: Mutex<PathBuf>,
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     #[serde(flatten)]
-    queue: HashMap<ExternalFile, IndexSet<TransferOperation>>,
+    queue: TransferQueue,
 }
 
 impl Transfers {
@@ -124,16 +128,14 @@ impl Transfers {
     }
 
     /// Queued transfer operations.
-    pub fn queue(
-        &self,
-    ) -> &HashMap<ExternalFile, IndexSet<TransferOperation>> {
+    pub fn queue(&self) -> &TransferQueue {
         &self.queue
     }
 
     /// Add file transfer operations to the queue.
     pub async fn queue_transfers(
         &mut self,
-        ops: HashMap<ExternalFile, IndexSet<TransferOperation>>,
+        ops: TransferQueue,
     ) -> Result<()> {
         for (file, mut operations) in ops {
             let entries = self.queue.entry(file).or_insert(IndexSet::new());
@@ -159,6 +161,7 @@ impl Transfers {
         self.save().await
     }
 
+    /// Save the transfer queue to disc.
     async fn save(&self) -> Result<()> {
         let path = self.path.lock().await;
         let buffer = serde_json::to_vec_pretty(self)?;
@@ -180,64 +183,99 @@ impl FileTransfers {
         paths: Arc<Paths>,
         queue: Arc<RwLock<Transfers>>,
         clients: Vec<C>,
-    ) -> tokio::task::JoinHandle<std::result::Result<(), E>>
+        shutdown: Arc<Notify>,
+    ) -> ()
+    where
+        E: std::fmt::Debug + Send + Sync + 'static,
+        C: Client<Error = E> + Clone + Send + Sync + 'static,
+    {
+        tokio::task::spawn(async move {
+            let span = span!(Level::DEBUG, "file_transfers");
+            let _enter = span.enter();
+
+            loop {
+                select! {
+                    _ = shutdown.notified().fuse() => {
+                        tracing::debug!("shutdown");
+                        break;
+                    }
+                    _ = futures::future::ready(()).fuse() => {
+                        let pending_transfers = {
+                            let reader = queue.read().await;
+                            reader.queue.clone()
+                        };
+
+                        // Try again later
+                        if pending_transfers.is_empty() {
+                            #[cfg(not(debug_assertions))]
+                            tokio::time::sleep(Duration::from_secs(30)).await;
+                            continue;
+                        }
+
+                        // Try to process pending transfers
+                        if let Err(e) = Self::try_process_transfers(
+                            Arc::clone(&paths),
+                            Arc::clone(&queue),
+                            clients.as_slice(),
+                            pending_transfers,
+                        ).await {
+                            tracing::warn!(error = ?e);
+                        }
+
+                        // Pause so we don't overwhelm when re-trying
+                        #[cfg(not(debug_assertions))]
+                        tokio::time::sleep(Duration::from_secs(30)).await;
+                    }
+                }
+            }
+        });
+    }
+
+    /// Try to process the pending transfers list.
+    async fn try_process_transfers<E, C>(
+        paths: Arc<Paths>,
+        queue: Arc<RwLock<Transfers>>,
+        clients: &[C],
+        pending_transfers: TransferQueue,
+    ) -> std::result::Result<(), E>
     where
         E: Send + Sync + 'static,
         C: Client<Error = E> + Clone + Send + Sync + 'static,
     {
-        tokio::task::spawn(async move {
-            loop {
-                let pending_operations = {
-                    let reader = queue.read().await;
-                    reader.queue.clone()
-                };
-
-                // Try again later
-                if pending_operations.is_empty() {
-                    #[cfg(not(debug_assertions))]
-                    tokio::time::sleep(Duration::from_secs(30)).await;
-                    continue;
-                }
-
-                // Split uploads and downloads as they require different
-                // handling.
-                //
-                // Uploads must be successful for all remote servers whilst
-                // a download only needs to execute successfully against a
-                // single server.
-                let mut uploads = Vec::new();
-                let mut downloads = Vec::new();
-                for (file, ops) in pending_operations {
-                    for op in ops {
-                        for client in &clients {
-                            if let TransferOperation::Download = &op {
-                                downloads.push(Self::run_client_operation(
-                                    Arc::clone(&paths),
-                                    client.clone(),
-                                    file,
-                                    op,
-                                ));
-                            } else {
-                                uploads.push(Self::run_client_operation(
-                                    Arc::clone(&paths),
-                                    client.clone(),
-                                    file,
-                                    op,
-                                ));
-                            }
-                        }
+        // Split uploads and downloads as they require different
+        // handling.
+        //
+        // Uploads must be successful for all remote servers whilst
+        // a download only needs to execute successfully against a
+        // single server.
+        let mut uploads = Vec::new();
+        let mut downloads = Vec::new();
+        for (file, ops) in pending_transfers {
+            for op in ops {
+                for client in clients {
+                    if let TransferOperation::Download = &op {
+                        downloads.push(Self::run_client_operation(
+                            Arc::clone(&paths),
+                            client.clone(),
+                            file,
+                            op,
+                        ));
+                    } else {
+                        uploads.push(Self::run_client_operation(
+                            Arc::clone(&paths),
+                            client.clone(),
+                            file,
+                            op,
+                        ));
                     }
                 }
-
-                Self::process_uploads(Arc::clone(&queue), uploads).await?;
-                Self::process_downloads(Arc::clone(&queue), downloads)
-                    .await?;
-
-                // Pause a little so we don't overwhelm if re-trying
-                #[cfg(not(debug_assertions))]
-                tokio::time::sleep(Duration::from_secs(15)).await;
             }
-        })
+        }
+
+        Self::process_uploads(Arc::clone(&queue), uploads).await?;
+        Self::process_downloads(Arc::clone(&queue), downloads).await?;
+
+        Ok(())
     }
 
     async fn process_uploads<E>(

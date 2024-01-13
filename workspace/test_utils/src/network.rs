@@ -244,6 +244,9 @@ pub async fn assert_local_remote_file_eq(
         .join(file.secret_id().to_string())
         .join(file.file_name().to_string());
 
+    //println!("client {:#?}", expected_client_file);
+    //println!("server {:#?}", expected_server_file);
+
     assert!(vfs::try_exists(&expected_client_file).await?);
     assert!(vfs::try_exists(&expected_server_file).await?);
 

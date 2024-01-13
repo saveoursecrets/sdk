@@ -28,7 +28,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{Mutex, Notify, RwLock};
 use tracing::{span, Level};
 
 #[cfg(feature = "listen")]
@@ -67,6 +67,9 @@ pub struct NetworkAccount {
     /// so the server can filter out broadcast messages
     /// made by this client.
     connection_id: Option<String>,
+
+    /// Shutdown handle for the file transfers background task.
+    file_transfers: Option<Arc<Notify>>,
 }
 
 impl NetworkAccount {
@@ -92,6 +95,7 @@ impl NetworkAccount {
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
             connection_id: None,
+            file_transfers: None,
         })
     }
 
@@ -151,6 +155,7 @@ impl NetworkAccount {
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
             connection_id: None,
+            file_transfers: None,
         };
 
         Ok(owner)
@@ -430,12 +435,13 @@ impl NetworkAccount {
     }
 
     /// Spawn a task to handle file transfers.
-    pub async fn start_file_transfers(&self) -> Result<()> {
+    pub async fn start_file_transfers(&mut self) -> Result<()> {
         if !self.is_authenticated().await {
             return Err(crate::sdk::Error::NotAuthenticated.into());
         }
 
-        // FIXME: stop any existing transfers task
+        // Stop any existing transfers task
+        self.stop_file_transfers();
 
         let clients = {
             let remotes = self.remotes.read().await;
@@ -456,9 +462,24 @@ impl NetworkAccount {
             (reader.paths(), reader.transfers())
         };
 
-        FileTransfers::start(paths, transfers, clients);
+        let shutdown = Arc::new(Notify::new());
 
+        FileTransfers::start(
+            paths,
+            transfers,
+            clients,
+            Arc::clone(&shutdown),
+        );
+
+        self.file_transfers = Some(shutdown);
         Ok(())
+    }
+
+    /// Stop a file transfers task.
+    pub fn stop_file_transfers(&mut self) {
+        if let Some(file_transfers) = self.file_transfers.take() {
+            file_transfers.notify_one();
+        }
     }
 
     /// User storage paths.
