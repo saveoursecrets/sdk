@@ -8,6 +8,7 @@ use sos_net::{
         RemoteSync, WebSocketHandle,
     },
     sdk::{
+        account::Account,
         constants::{FILES_DIR, VAULT_EXT},
         crypto::AccessKey,
         events::EventLogExt,
@@ -254,5 +255,17 @@ pub async fn assert_local_remote_file_eq(
     let server_file = vfs::read(&expected_server_file).await?;
     assert_eq!(client_file, server_file);
 
+    Ok(())
+}
+
+/// Wait for file transfers to complete.
+pub async fn wait_for_transfers(account: &Account) -> Result<()> {
+    loop {
+        let transfers = account.transfers().await?;
+        let transfers = transfers.read().await;
+        if transfers.is_empty() {
+            break;
+        }
+    }
     Ok(())
 }

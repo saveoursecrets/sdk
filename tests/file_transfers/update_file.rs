@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::test_utils::{
     assert_local_remote_file_eq,
     mock::files::{create_file_secret, update_file_secret},
-    simulate_device, spawn, teardown,
+    simulate_device, spawn, teardown, wait_for_transfers,
 };
 
 const TEST_ID: &str = "file_transfers_update";
@@ -26,6 +26,9 @@ async fn file_transfers_update() -> Result<()> {
     // Create an external file secret
     let (id, _, _) =
         create_file_secret(&mut *account, &default_folder, None).await?;
+    
+    // Wait for the upload event
+    wait_for_transfers(&account).await?;
 
     let (data, _) = account.read_secret(&id, None).await?;
 
@@ -45,17 +48,11 @@ async fn file_transfers_update() -> Result<()> {
             .keys()
             .copied()
             .collect::<Vec<_>>()
-            .remove(1)
+            .remove(0)
     };
 
     // Wait until the transfers are completed
-    loop {
-        let transfers = account.transfers().await?;
-        let transfers = transfers.read().await;
-        if transfers.is_empty() {
-            break;
-        }
-    }
+    wait_for_transfers(&account).await?;
 
     // Assert the files on disc are equal
     assert_local_remote_file_eq(account.paths(), &device.server_path, &file)

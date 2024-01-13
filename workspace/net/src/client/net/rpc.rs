@@ -658,6 +658,7 @@ impl Client for RpcClient {
     ) -> std::result::Result<http::StatusCode, Self::Error> {
         let span = span!(Level::DEBUG, "upload_file");
         let _enter = span.enter();
+        tracing::debug!(file = %file_info);
         let status = self.try_upload_file(file_info, path).await?;
         tracing::debug!(status = %status);
         Ok(status)
@@ -671,6 +672,7 @@ impl Client for RpcClient {
     ) -> std::result::Result<http::StatusCode, Self::Error> {
         let span = span!(Level::DEBUG, "download_file");
         let _enter = span.enter();
+        tracing::debug!(file = %file_info);
         let status = self.try_download_file(file_info, path).await?;
         tracing::debug!(status = %status);
         Ok(status)
@@ -683,6 +685,7 @@ impl Client for RpcClient {
     ) -> std::result::Result<http::StatusCode, Self::Error> {
         let span = span!(Level::DEBUG, "delete_file");
         let _enter = span.enter();
+        tracing::debug!(file = %file_info);
         let status = self.try_delete_file(file_info).await?;
         tracing::debug!(status = %status);
         Ok(status)
@@ -696,6 +699,7 @@ impl Client for RpcClient {
     ) -> std::result::Result<http::StatusCode, Self::Error> {
         let span = span!(Level::DEBUG, "move_file");
         let _enter = span.enter();
+        tracing::debug!(from = %from, to = %to);
         let status = self.try_move_file(from, to).await?;
         tracing::debug!(status = %status);
         Ok(status)

@@ -3,7 +3,7 @@ use sos_net::sdk::prelude::*;
 
 use crate::test_utils::{
     assert_local_remote_file_eq, mock::files::create_file_secret,
-    simulate_device, spawn, teardown,
+    simulate_device, spawn, teardown, wait_for_transfers,
 };
 
 const TEST_ID: &str = "file_transfers_delete";
@@ -40,13 +40,7 @@ async fn file_transfers_delete() -> Result<()> {
     };
 
     // Wait until the transfers are completed
-    loop {
-        let transfers = account.transfers().await?;
-        let transfers = transfers.read().await;
-        if transfers.is_empty() {
-            break;
-        }
-    }
+    wait_for_transfers(&account).await?;
 
     // Assert the files on disc are equal
     assert_local_remote_file_eq(account.paths(), &device.server_path, &file)
@@ -68,13 +62,7 @@ async fn file_transfers_delete() -> Result<()> {
     };
 
     // Wait until the transfers are completed
-    loop {
-        let transfers = account.transfers().await?;
-        let transfers = transfers.read().await;
-        if transfers.is_empty() {
-            break;
-        }
-    }
+    wait_for_transfers(&account).await?;
 
     let local_paths = account.paths();
     let expected_client_file = local_paths.file_location(

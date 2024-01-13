@@ -190,8 +190,6 @@ impl FileTransfers {
         C: Client<Error = E> + Clone + Send + Sync + 'static,
     {
         tokio::task::spawn(async move {
-            let span = span!(Level::DEBUG, "file_transfers");
-            let _enter = span.enter();
 
             loop {
                 select! {
@@ -212,14 +210,19 @@ impl FileTransfers {
                             continue;
                         }
 
-                        // Try to process pending transfers
-                        if let Err(e) = Self::try_process_transfers(
-                            Arc::clone(&paths),
-                            Arc::clone(&queue),
-                            clients.as_slice(),
-                            pending_transfers,
-                        ).await {
-                            tracing::warn!(error = ?e);
+                        {
+                            let span = span!(Level::DEBUG, "file_transfers");
+                            let _enter = span.enter();
+
+                            // Try to process pending transfers
+                            if let Err(e) = Self::try_process_transfers(
+                                Arc::clone(&paths),
+                                Arc::clone(&queue),
+                                clients.as_slice(),
+                                pending_transfers,
+                            ).await {
+                                tracing::warn!(error = ?e);
+                            }
                         }
 
                         // Pause so we don't overwhelm when re-trying
