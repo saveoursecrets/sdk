@@ -10,7 +10,9 @@ use http::StatusCode;
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use std::{collections::HashMap, future::Future, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashMap, future::Future, path::PathBuf, pin::Pin, sync::Arc,
+};
 use tokio::sync::{Mutex, Notify, RwLock};
 use tracing::{span, Level};
 
@@ -276,7 +278,6 @@ impl FileTransfers {
             // Uploads must be successful for all remote servers whilst
             // a download only needs to execute successfully against a
             // single server.
-            //
             let mut uploads = Vec::new();
             let mut downloads = Vec::new();
 
@@ -297,9 +298,27 @@ impl FileTransfers {
                     ));
                 }
             }
-
-            Self::process_uploads(Arc::clone(&queue), uploads).await?;
-            Self::process_downloads(Arc::clone(&queue), downloads).await?;
+            
+            // Process uploads and downloads concurrently
+            let up: Pin<
+                Box<
+                    dyn Future<Output = std::result::Result<(), E>>
+                        + Send
+                        + 'static,
+                >,
+            > = Box::pin(Self::process_uploads(Arc::clone(&queue), uploads));
+            let down: Pin<
+                Box<
+                    dyn Future<Output = std::result::Result<(), E>>
+                        + Send
+                        + 'static,
+                >,
+            > = Box::pin(Self::process_downloads(
+                Arc::clone(&queue),
+                downloads,
+            ));
+            let transfers = vec![up, down];
+            futures::future::try_join_all(transfers).await?;
         }
 
         Ok(())
@@ -309,11 +328,12 @@ impl FileTransfers {
         queue: Arc<RwLock<Transfers>>,
         uploads: Vec<
             impl Future<
-                Output = std::result::Result<
-                    (ExternalFile, TransferOperation, bool),
-                    E,
-                >,
-            >,
+                    Output = std::result::Result<
+                        (ExternalFile, TransferOperation, bool),
+                        E,
+                    >,
+                > + Send
+                + 'static,
         >,
     ) -> std::result::Result<(), E>
     where
@@ -348,11 +368,12 @@ impl FileTransfers {
         queue: Arc<RwLock<Transfers>>,
         downloads: Vec<
             impl Future<
-                Output = std::result::Result<
-                    (ExternalFile, TransferOperation, bool),
-                    E,
-                >,
-            >,
+                    Output = std::result::Result<
+                        (ExternalFile, TransferOperation, bool),
+                        E,
+                    >,
+                > + Send
+                + 'static,
         >,
     ) -> std::result::Result<(), E>
     where
