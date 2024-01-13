@@ -8,6 +8,7 @@ use crate::{
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
+use indexmap::IndexSet;
 use std::{collections::HashMap, future::Future, path::PathBuf, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
 
@@ -67,7 +68,7 @@ pub struct Transfers {
     path: Mutex<PathBuf>,
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     #[serde(flatten)]
-    queue: HashMap<ExternalFile, Vec<TransferOperation>>,
+    queue: HashMap<ExternalFile, IndexSet<TransferOperation>>,
 }
 
 impl Transfers {
@@ -86,7 +87,9 @@ impl Transfers {
             };
             let external_files = list_external_files(paths).await?;
             for file in external_files {
-                cache.queue.insert(file, vec![TransferOperation::Upload]);
+                let mut set = IndexSet::new();
+                set.insert(TransferOperation::Upload);
+                cache.queue.insert(file, set);
             }
             cache.save().await?;
             Ok(cache)
@@ -121,18 +124,20 @@ impl Transfers {
     }
 
     /// Queued transfer operations.
-    pub fn queue(&self) -> &HashMap<ExternalFile, Vec<TransferOperation>> {
+    pub fn queue(&self) -> &HashMap<ExternalFile, IndexSet<TransferOperation>> {
         &self.queue
     }
 
     /// Add file transfer operations to the queue.
     pub async fn queue_transfers(
         &mut self,
-        ops: HashMap<ExternalFile, Vec<TransferOperation>>,
+        ops: HashMap<ExternalFile, IndexSet<TransferOperation>>,
     ) -> Result<()> {
         for (file, mut operations) in ops {
-            let entries = self.queue.entry(file).or_insert(vec![]);
-            entries.append(&mut operations);
+            let entries = self.queue.entry(file).or_insert(IndexSet::new());
+            for op in operations.drain(..) {
+                entries.insert(op);
+            }
         }
         self.save().await
     }
@@ -144,9 +149,7 @@ impl Transfers {
         op: &TransferOperation,
     ) -> Result<()> {
         if let Some(entries) = self.queue.get_mut(file) {
-            if let Some(position) = entries.iter().position(|o| o == op) {
-                entries.remove(position);
-            }
+            entries.remove(op);
             if entries.is_empty() {
                 self.queue.remove(file);
             }

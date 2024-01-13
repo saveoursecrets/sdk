@@ -19,6 +19,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
+use indexmap::IndexSet;
 use tokio::sync::mpsc;
 use tracing::{span, Level};
 
@@ -118,8 +119,8 @@ impl ClientStorage {
             for event in events {
                 let (file, op): (ExternalFile, TransferOperation) =
                     event.into();
-                let entries = ops.entry(file).or_insert(vec![]);
-                entries.push(op);
+                let entries = ops.entry(file).or_insert(IndexSet::new());
+                entries.insert(op);
             }
 
             let mut writer = self.transfers.write().await;
