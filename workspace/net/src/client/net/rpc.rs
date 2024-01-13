@@ -373,9 +373,6 @@ impl RpcClient {
 
     /// Try to send a file to remote.
     ///
-    /// Note this method bypasses the noise encryption protocol as
-    /// we need to be able to stream large files.
-    ///
     /// Files are already encrypted so no sensitive information is leaked
     /// although this could make us more vulnerable to MitM or replay attacks
     /// when the backend server is not using TLS.
@@ -394,12 +391,7 @@ impl RpcClient {
 
         // For this request we sign the request path
         // bytes that encode the file name information
-        let signed_data = format!(
-            "{}/{}/{}",
-            file_info.vault_id(),
-            file_info.secret_id(),
-            file_info.file_name(),
-        );
+        let signed_data = file_info.to_string();
         let account_signature = encode_account_signature(
             self.account_signer.sign(signed_data.as_bytes()).await?,
         )
@@ -441,12 +433,7 @@ impl RpcClient {
 
         // For this request we sign the request path
         // bytes that encode the file name information
-        let signed_data = format!(
-            "{}/{}/{}",
-            file_info.vault_id(),
-            file_info.secret_id(),
-            file_info.file_name(),
-        );
+        let signed_data = file_info.to_string();
         let account_signature = encode_account_signature(
             self.account_signer.sign(signed_data.as_bytes()).await?,
         )
@@ -494,12 +481,7 @@ impl RpcClient {
     ) -> Result<http::StatusCode> {
         // For this request we sign the request path
         // bytes that encode the file name information
-        let signed_data = format!(
-            "{}/{}/{}",
-            file_info.vault_id(),
-            file_info.secret_id(),
-            file_info.file_name(),
-        );
+        let signed_data = file_info.to_string();
         let account_signature = encode_account_signature(
             self.account_signer.sign(signed_data.as_bytes()).await?,
         )
@@ -531,12 +513,7 @@ impl RpcClient {
     ) -> Result<http::StatusCode> {
         // For this request we sign the request path
         // bytes that encode the file name information
-        let signed_data = format!(
-            "{}/{}/{}",
-            from.vault_id(),
-            from.secret_id(),
-            from.file_name(),
-        );
+        let signed_data = from.to_string();
         let account_signature = encode_account_signature(
             self.account_signer.sign(signed_data.as_bytes()).await?,
         )
