@@ -182,7 +182,11 @@ impl Account {
 
     #[cfg(feature = "files")]
     async fn merge_files(&mut self, diff: &FileDiff) -> Result<usize> {
-        use crate::events::FileReducer;
+        use crate::{
+            events::FileReducer, storage::files::TransferOperation, vfs,
+        };
+        use indexmap::IndexSet;
+        use std::collections::HashMap;
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -197,7 +201,7 @@ impl Account {
 
         // File events may not have a root commit
         let is_init_diff = diff.last_commit.is_none();
-        let (checked_patch, external_files) = if is_init_diff
+        let (checked_patch, mut external_files) = if is_init_diff
             && event_log.tree().is_empty()
         {
             event_log.apply((&diff.patch).into()).await?;
@@ -213,8 +217,31 @@ impl Account {
             (Some(checked_patch), external_files)
         };
 
-        // TODO: compute which external files need to be downloaded
-        // TODO: add computed downloads to the transfers list
+        // Compute which external files need to be downloaded
+        // and add to the transfers queue
+        if !external_files.is_empty() {
+            let transfers = storage.transfers();
+            let mut writer = transfers.write().await;
+
+            for file in external_files.drain(..) {
+                let file_path = self.paths.file_location(
+                    file.vault_id(),
+                    file.secret_id(),
+                    file.file_name().to_string(),
+                );
+                if !vfs::try_exists(file_path).await? {
+                    tracing::debug!(
+                        file = ?file,
+                        "add file download to transfers",
+                    );
+                    let mut map = HashMap::new();
+                    let mut set = IndexSet::new();
+                    set.insert(TransferOperation::Download);
+                    map.insert(file, set);
+                    writer.queue_transfers(map).await?;
+                }
+            }
+        }
 
         let num_changes = if let Some(checked_patch) = checked_patch {
             if let CheckedPatch::Success(_, _) = &checked_patch {
