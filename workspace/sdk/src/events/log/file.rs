@@ -60,7 +60,7 @@ use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
 use tempfile::NamedTempFile;
 
-use super::{EventRecord, EventReducer};
+use super::{EventRecord, FolderReducer};
 
 /// Type for logging events to a file.
 pub type DiscLog = Compat<File>;
@@ -636,7 +636,7 @@ impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
 
         // Get the reduced set of events
         let events =
-            EventReducer::new().reduce(self).await?.compact().await?;
+            FolderReducer::new().reduce(self).await?.compact().await?;
         let temp = NamedTempFile::new()?;
 
         // Apply them to a temporary event log file

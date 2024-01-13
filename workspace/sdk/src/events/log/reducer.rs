@@ -98,7 +98,7 @@ impl<'a> AccountReducer<'a> {
 
 /// Reduce log events to a vault.
 #[derive(Default)]
-pub struct EventReducer {
+pub struct FolderReducer {
     /// Buffer for the create or last update vault event.
     vault: Option<Vec<u8>>,
     /// Last encountered vault name.
@@ -111,7 +111,7 @@ pub struct EventReducer {
     until_commit: Option<CommitHash>,
 }
 
-impl EventReducer {
+impl FolderReducer {
     /// Create a new reducer.
     pub fn new() -> Self {
         Default::default()
@@ -148,7 +148,7 @@ impl EventReducer {
     pub async fn reduce(
         mut self,
         event_log: &FolderEventLog,
-    ) -> Result<EventReducer> {
+    ) -> Result<FolderReducer> {
         // TODO: use event_log.stream() !
 
         let mut it = event_log.iter(false).await?;
@@ -345,7 +345,7 @@ mod test {
 
         assert_eq!(5, event_log.tree().len());
 
-        let vault = EventReducer::new()
+        let vault = FolderReducer::new()
             .reduce(&event_log)
             .await?
             .build(true)
@@ -385,14 +385,14 @@ mod test {
         assert_eq!(5, event_log.tree().len());
 
         // Get a vault so we can assert on the compaction result
-        let vault = EventReducer::new()
+        let vault = FolderReducer::new()
             .reduce(&event_log)
             .await?
             .build(true)
             .await?;
 
         // Get the compacted series of events
-        let events = EventReducer::new()
+        let events = FolderReducer::new()
             .reduce(&event_log)
             .await?
             .compact()
@@ -406,7 +406,7 @@ mod test {
             compact.apply(vec![&event]).await?;
         }
 
-        let compact_vault = EventReducer::new()
+        let compact_vault = FolderReducer::new()
             .reduce(&compact)
             .await?
             .build(true)

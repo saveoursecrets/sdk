@@ -24,7 +24,7 @@ pub enum WriteEvent {
     ///
     /// The buffer is the initial state of the vault,
     /// if the vault contains secrets they should be
-    /// separated using an [EventReducer::split]() beforehand
+    /// separated using an [FolderReducer::split]() beforehand
     /// and appended to the event log as create secret events.
     CreateVault(Vec<u8>),
 

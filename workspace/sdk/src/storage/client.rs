@@ -5,8 +5,8 @@ use crate::{
     crypto::AccessKey,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, Event, EventLogExt, EventReducer,
-        FolderEventLog, ReadEvent, WriteEvent,
+        AccountEvent, AccountEventLog, Event, EventLogExt, FolderEventLog,
+        FolderReducer, ReadEvent, WriteEvent,
     },
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
@@ -466,7 +466,7 @@ impl ClientStorage {
             // does not end up with multiple create vault events
             event_log.clear().await?;
 
-            let (_, events) = EventReducer::split(vault).await?;
+            let (_, events) = FolderReducer::split(vault).await?;
             event_log.apply(events.iter().collect()).await?;
         }
 
@@ -869,7 +869,7 @@ impl ClientStorage {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
-        Ok(EventReducer::new()
+        Ok(FolderReducer::new()
             .reduce(&*log_file)
             .await?
             .build(true)

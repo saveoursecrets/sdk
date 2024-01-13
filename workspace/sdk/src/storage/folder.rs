@@ -5,7 +5,7 @@ use crate::{
     crypto::AccessKey,
     decode,
     events::{
-        DiscData, DiscLog, EventLogExt, EventReducer, FolderEventLog,
+        DiscData, DiscLog, EventLogExt, FolderEventLog, FolderReducer,
         LogEvent, MemoryData, MemoryFolderLog, MemoryLog, ReadEvent,
         WriteEvent,
     },
@@ -380,7 +380,7 @@ impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
             // server will have when an account is first synced
             let buffer = vfs::read(path.as_ref()).await?;
             let vault: Vault = decode(&buffer).await?;
-            let (_, events) = EventReducer::split(vault.clone()).await?;
+            let (_, events) = FolderReducer::split(vault.clone()).await?;
             event_log.apply(events.iter().collect()).await?;
             vault
         } else {

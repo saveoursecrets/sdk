@@ -13,7 +13,7 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
-        EventReducer, ReadEvent, WriteEvent,
+        FolderReducer, ReadEvent, WriteEvent,
     },
     identity::{FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::Address,
@@ -1373,7 +1373,7 @@ impl Account {
 
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
-        let vault = EventReducer::new_until_commit(commit)
+        let vault = FolderReducer::new_until_commit(commit)
             .reduce(&*log_file)
             .await?
             .build(true)

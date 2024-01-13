@@ -6,8 +6,8 @@ use crate::{
         device::DeviceSigner,
         encode,
         events::{
-            AccountEvent, AccountEventLog, EventLogExt, EventReducer,
-            FolderEventLog, WriteEvent,
+            AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
+            FolderReducer, WriteEvent,
         },
         signer::ecdsa::Address,
         sync::{AccountPatch, Client, FolderPatch},
@@ -218,7 +218,7 @@ impl DeviceEnrollment {
         let events: Vec<WriteEvent> = patch.into();
         event_log.apply(events.iter().collect()).await?;
 
-        let vault = EventReducer::new()
+        let vault = FolderReducer::new()
             .reduce(&event_log)
             .await?
             .build(true)

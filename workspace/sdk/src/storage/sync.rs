@@ -2,8 +2,8 @@
 use crate::{
     encode,
     events::{
-        AccountEvent, AccountEventLog, EventLogExt, EventReducer,
-        FolderEventLog, LogEvent, WriteEvent,
+        AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
+        FolderReducer, LogEvent, WriteEvent,
     },
     storage::ServerStorage,
     sync::{
@@ -48,7 +48,7 @@ impl ServerStorage {
         event_log.clear().await?;
         event_log.apply(events).await?;
 
-        let vault = EventReducer::new()
+        let vault = FolderReducer::new()
             .reduce(&event_log)
             .await?
             .build(false)
@@ -92,7 +92,7 @@ impl ServerStorage {
             let mut event_log = FolderEventLog::new(events_path).await?;
             event_log.patch_unchecked(folder).await?;
 
-            let vault = EventReducer::new()
+            let vault = FolderReducer::new()
                 .reduce(&event_log)
                 .await?
                 .build(false)

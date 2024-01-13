@@ -21,7 +21,7 @@ mod write;
 
 pub use self::log::{
     AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
-    EventRecord, EventReducer, FolderEventLog, MemoryData, MemoryEventLog,
+    EventRecord, FolderEventLog, FolderReducer, MemoryData, MemoryEventLog,
     MemoryFolderLog, MemoryLog,
 };
 

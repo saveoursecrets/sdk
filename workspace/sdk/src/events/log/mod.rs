@@ -20,7 +20,7 @@ pub use file::{
     AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
     FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog, MemoryLog,
 };
-pub use reducer::EventReducer;
+pub use reducer::FolderReducer;
 
 /// Record for a row in the event log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]

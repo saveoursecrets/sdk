@@ -4,8 +4,8 @@ use crate::{
     constants::VAULT_EXT,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, EventLogExt, EventReducer,
-        FolderEventLog,
+        AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
+        FolderReducer,
     },
     signer::ecdsa::Address,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
@@ -264,7 +264,7 @@ impl ServerStorage {
         let exists = self.cache.get(id).is_some();
 
         let vault: Vault = decode(buffer.as_ref()).await?;
-        let (vault, events) = EventReducer::split(vault).await?;
+        let (vault, events) = FolderReducer::split(vault).await?;
 
         if id != vault.id() {
             return Err(Error::VaultIdentifierMismatch(*id, *vault.id()));
