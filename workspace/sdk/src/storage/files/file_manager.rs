@@ -15,11 +15,11 @@ use crate::{
     },
     vfs, Error, Result,
 };
+use indexmap::IndexSet;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
-use indexmap::IndexSet;
 use tokio::sync::mpsc;
 use tracing::{span, Level};
 

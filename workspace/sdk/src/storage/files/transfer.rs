@@ -6,9 +6,9 @@ use crate::{
     vfs, Paths, Result,
 };
 use http::StatusCode;
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use indexmap::IndexSet;
 use std::{collections::HashMap, future::Future, path::PathBuf, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
 
@@ -124,7 +124,9 @@ impl Transfers {
     }
 
     /// Queued transfer operations.
-    pub fn queue(&self) -> &HashMap<ExternalFile, IndexSet<TransferOperation>> {
+    pub fn queue(
+        &self,
+    ) -> &HashMap<ExternalFile, IndexSet<TransferOperation>> {
         &self.queue
     }
 
