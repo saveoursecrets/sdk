@@ -10,6 +10,7 @@ use sos_sdk::{
         SYNC_RESOLVE, SYNC_STATUS,
     },
     decode, encode,
+    sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     sync::{ChangeSet, Client, SyncDiff, SyncStatus},
 };
@@ -465,11 +466,22 @@ impl RpcClient {
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
+        let mut hasher = Sha256::new();
         let mut file = vfs::File::create(path).await?;
         while let Some(chunk) = response.chunk().await? {
             file.write_all(&chunk).await?;
+            hasher.update(&chunk);
         }
         file.flush().await?;
+        let digest = hasher.finalize();
+
+        if digest.as_slice() != file_info.file_name().as_ref() {
+            tokio::fs::remove_file(path).await?;
+            return Err(Error::FileChecksumMismatch(
+                file_info.file_name().to_string(),
+                hex::encode(digest.as_slice()),
+            ));
+        }
 
         Ok(convert_status_code(response.status()))
     }

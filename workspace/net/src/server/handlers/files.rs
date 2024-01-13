@@ -7,10 +7,11 @@ use axum::{
 };
 
 use axum_extra::{
-    headers::{authorization::Bearer, Authorization, ContentLength},
+    headers::{authorization::Bearer, Authorization},
     typed_header::TypedHeader,
 };
 use futures::TryStreamExt;
+use sos_sdk::sha2::{Digest, Sha256};
 
 //use axum_macros::debug_handler;
 
@@ -48,7 +49,6 @@ impl FileHandler {
         Extension(state): Extension<ServerState>,
         Extension(backend): Extension<ServerBackend>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
-        TypedHeader(content_length): TypedHeader<ContentLength>,
         Path((vault_id, secret_id, file_name)): Path<(
             VaultId,
             SecretId,
@@ -61,13 +61,7 @@ impl FileHandler {
         {
             Ok(token) => {
                 match receive_file(
-                    state,
-                    backend,
-                    token,
-                    vault_id,
-                    secret_id,
-                    file_name,
-                    content_length.0,
+                    state, backend, token, vault_id, secret_id, file_name,
                     body,
                 )
                 .await
@@ -188,7 +182,6 @@ async fn receive_file(
     vault_id: VaultId,
     secret_id: SecretId,
     file_name: ExternalFileName,
-    content_length: u64,
     body: Body,
 ) -> Result<()> {
     let account = {
@@ -218,26 +211,27 @@ async fn receive_file(
         return Err(Error::Status(StatusCode::CONFLICT));
     }
 
-    // TODO: compute and verify checksum
-
     if !tokio::fs::try_exists(&parent_path).await? {
         tokio::fs::create_dir_all(&parent_path).await?;
     }
-    let mut bytes_written = 0;
+
+    let mut hasher = Sha256::new();
     let file = File::create(&file_path).await?;
     let mut buf_writer = BufWriter::new(file);
     let mut stream = body.into_data_stream();
     while let Some(chunk) = stream.try_next().await? {
-        bytes_written += buf_writer.write(&chunk).await?;
+        buf_writer.write(&chunk).await?;
+        hasher.update(&chunk);
     }
 
     buf_writer.flush().await?;
+    let digest = hasher.finalize();
 
-    if bytes_written != content_length as usize {
+    if digest.as_slice() != file_name.as_ref() {
         tokio::fs::remove_file(&file_path).await?;
-        return Err(Error::ContentLengthMismatch(
-            content_length as usize,
-            bytes_written,
+        return Err(Error::FileChecksumMismatch(
+            file_name.to_string(),
+            hex::encode(digest.as_slice()),
         ));
     }
 
