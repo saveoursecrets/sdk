@@ -355,7 +355,7 @@ impl FileTransfers {
     fn is_success(op: &TransferOperation, status: StatusCode) -> bool {
         match op {
             TransferOperation::Upload => {
-                status == StatusCode::OK || status == StatusCode::CONFLICT
+                status == StatusCode::OK || status == StatusCode::NOT_MODIFIED
             }
             TransferOperation::Download => status == StatusCode::OK,
             TransferOperation::Delete => {

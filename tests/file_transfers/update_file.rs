@@ -1,7 +1,8 @@
 use anyhow::Result;
 
 use crate::test_utils::{
-    assert_local_remote_file_eq, mock::files::{create_file_secret, update_file_secret},
+    assert_local_remote_file_eq,
+    mock::files::{create_file_secret, update_file_secret},
     simulate_device, spawn, teardown,
 };
 
@@ -22,20 +23,20 @@ async fn file_transfers_update() -> Result<()> {
     let mut account = account.lock().await;
 
     // Create an external file secret
-    let (id, _, _) = create_file_secret(
-        &mut *account, &default_folder, None).await?;
+    let (id, _, _) =
+        create_file_secret(&mut *account, &default_folder, None).await?;
 
     let (data, _) = account.read_secret(&id, None).await?;
-    
+
     // Update the file secret with new file content
-    update_file_secret(
-        &mut *account, &default_folder, &data, None, None).await?;
+    update_file_secret(&mut *account, &default_folder, &data, None, None)
+        .await?;
 
     // Check we have a pending transfer operation
     let file = {
         let transfers = account.transfers().await?;
         let transfers = transfers.read().await;
-        // Updating file content yields delete 
+        // Updating file content yields delete
         // and upload events
         assert_eq!(2, transfers.len());
         transfers
@@ -45,7 +46,7 @@ async fn file_transfers_update() -> Result<()> {
             .collect::<Vec<_>>()
             .remove(0)
     };
-        
+
     // Wait until the transfers are completed
     loop {
         let transfers = account.transfers().await?;

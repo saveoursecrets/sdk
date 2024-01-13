@@ -208,7 +208,7 @@ async fn receive_file(
     };
 
     if tokio::fs::try_exists(&file_path).await? {
-        return Err(Error::Status(StatusCode::CONFLICT));
+        return Err(Error::Status(StatusCode::NOT_MODIFIED));
     }
 
     if !tokio::fs::try_exists(&parent_path).await? {
