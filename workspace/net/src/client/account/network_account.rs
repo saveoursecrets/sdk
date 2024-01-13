@@ -590,6 +590,8 @@ impl NetworkAccount {
         #[cfg(feature = "listen")]
         self.shutdown_listeners().await;
 
+        self.stop_file_transfers();
+
         self.remotes = Default::default();
 
         let mut account = self.account.lock().await;

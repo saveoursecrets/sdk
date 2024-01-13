@@ -23,6 +23,8 @@ type TransferQueue = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 
 /// Operations for file transfers.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde_as]
+#[serde(rename_all = "lowercase")]
 pub enum TransferOperation {
     /// Upload a file.
     Upload,
@@ -31,7 +33,7 @@ pub enum TransferOperation {
     /// Delete a file.
     Delete,
     /// Move a file.
-    Move(ExternalFile),
+    Move(#[serde_as(as = "DisplayFromStr")] ExternalFile),
 }
 
 impl From<&FileMutationEvent> for (ExternalFile, TransferOperation) {
@@ -298,7 +300,7 @@ impl FileTransfers {
                     ));
                 }
             }
-            
+
             // Process uploads and downloads concurrently
             let up: Pin<
                 Box<
