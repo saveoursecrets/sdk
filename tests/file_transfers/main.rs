@@ -2,6 +2,9 @@
 mod delete_file;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod download_file;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod move_file;
 
 #[cfg(not(target_arch = "wasm32"))]

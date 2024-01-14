@@ -420,6 +420,20 @@ impl FileTransfers {
                 Self::is_success(&op, status)
             }
             TransferOperation::Download => {
+                // Ensure the parent directory for the download exists
+                let parent_path = paths
+                    .file_folder_location(file.vault_id())
+                    .join(file.secret_id().to_string());
+
+                // TODO: fix type declarations so we can do
+                // TODO: error conversion
+                if vfs::try_exists(&parent_path).await.is_ok() {
+                    if let Err(e) = vfs::create_dir_all(&parent_path).await {
+                        tracing::error!(error = ?e);
+                    }
+                }
+
+                // Fetch the file
                 let path = paths.file_location(
                     file.vault_id(),
                     file.secret_id(),

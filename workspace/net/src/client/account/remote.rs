@@ -131,6 +131,8 @@ impl RemoteBridge {
         let (needs_sync, local_status, local_changes) =
             sync::diff(&*account, remote_status).await?;
 
+        tracing::debug!(needs_sync = %needs_sync);
+
         if needs_sync {
             let remote_changes =
                 self.remote.sync(&local_status, &local_changes).await?;
