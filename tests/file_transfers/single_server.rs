@@ -3,7 +3,7 @@
 use anyhow::Result;
 
 use crate::test_utils::{
-    assert_local_remote_file_eq,
+    assert_local_remote_file_eq, assert_local_remote_file_not_exist,
     mock::files::net::{create_file_secret, update_file_secret},
     simulate_device, spawn, teardown, wait_for_transfers,
 };
@@ -188,20 +188,13 @@ async fn file_transfers_delete() -> Result<()> {
     wait_for_transfers(&device.owner).await?;
 
     let local_paths = device.owner.paths();
-    let expected_client_file = local_paths.file_location(
-        file.vault_id(),
-        file.secret_id(),
-        file.file_name().to_string(),
-    );
-    let expected_server_file = device
-        .server_path
-        .join(FILES_DIR)
-        .join(file.vault_id().to_string())
-        .join(file.secret_id().to_string())
-        .join(file.file_name().to_string());
 
-    assert!(!vfs::try_exists(expected_client_file).await?);
-    assert!(!vfs::try_exists(expected_server_file).await?);
+    assert_local_remote_file_not_exist(
+        local_paths,
+        &device.server_path,
+        &file,
+    )
+    .await?;
 
     teardown(TEST_ID).await;
 

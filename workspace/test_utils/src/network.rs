@@ -259,6 +259,28 @@ pub async fn assert_local_remote_file_eq(
     Ok(())
 }
 
+pub async fn assert_local_remote_file_not_exist(
+    local_paths: &Paths,
+    server_path: &PathBuf,
+    file: &ExternalFile,
+) -> Result<()> {
+    let expected_client_file = local_paths.file_location(
+        file.vault_id(),
+        file.secret_id(),
+        file.file_name().to_string(),
+    );
+    let expected_server_file = server_path
+        .join(FILES_DIR)
+        .join(file.vault_id().to_string())
+        .join(file.secret_id().to_string())
+        .join(file.file_name().to_string());
+
+    assert!(!vfs::try_exists(expected_client_file).await?);
+    assert!(!vfs::try_exists(expected_server_file).await?);
+
+    Ok(())
+}
+
 /// Wait for file transfers to complete.
 pub async fn wait_for_transfers(account: &NetworkAccount) -> Result<()> {
     loop {
