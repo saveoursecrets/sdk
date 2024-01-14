@@ -72,7 +72,7 @@ args = [
 
 [tasks.unit]
 command = "cargo"
-args = ["test", "--all", "--lib", "--", "--nocapture"]
+args = ["test", "--all", "--lib"]
 
 [tasks.test-cli]
 command = "cargo"
@@ -80,19 +80,19 @@ args = ["test", "command_line", "--", "--nocapture"]
 
 [tasks.test-audit-trail]
 command = "cargo"
-args = ["test", "audit", "--", "--nocapture"]
+args = ["test", "audit"]
 
 [tasks.test-backup-archive]
 command = "cargo"
-args = ["test", "backup_archive", "--", "--nocapture"]
+args = ["test", "backup_archive"]
 
 [tasks.test-device]
 command = "cargo"
-args = ["test", "device_", "--", "--nocapture"]
+args = ["test", "device_"]
 
 [tasks.test-file-transfers]
 command = "cargo"
-args = ["test", "file_transfers_", "--", "--nocapture"]
+args = ["test", "file_transfers_"]
 
 [tasks.integration]
 command = "cargo"

@@ -201,6 +201,11 @@ impl FileTransfers {
                         break;
                     }
                     _ = futures::future::ready(()).fuse() => {
+
+                        if let Err(e) = Self::normalize_transfers(Arc::clone(&paths), Arc::clone(&queue)).await {
+                            tracing::error!(error = ?e);
+                        }
+
                         let pending_transfers = {
                             let reader = queue.read().await;
                             reader.queue.clone()
@@ -237,6 +242,65 @@ impl FileTransfers {
         });
     }
 
+    async fn normalize_transfers(
+        paths: Arc<Paths>,
+        queue: Arc<RwLock<Transfers>>,
+    ) -> Result<()> {
+        let (deletions, additions) = {
+            let mut deletions = Vec::new();
+            let mut additions = Vec::new();
+            let reader = queue.read().await;
+            for (file, ops) in reader.queue() {
+                let path = paths.file_location(
+                    file.vault_id(),
+                    file.secret_id(),
+                    file.file_name().to_string(),
+                );
+                let ops = ops.iter().collect::<Vec<_>>();
+                // Single upload event without a local file to
+                // upload can be removed
+                if let (true, Some(&TransferOperation::Upload)) =
+                    (ops.len() == 1, ops.get(0))
+                {
+                    if !vfs::try_exists(&path).await? {
+                        deletions.push(*file);
+                    }
+                }
+
+                // Rewrite an upload and move that no longer
+                // exists on disc into an upload of the move
+                // destination
+                if let (
+                    true,
+                    Some(&TransferOperation::Upload),
+                    Some(&TransferOperation::Move(dest)),
+                ) = (ops.len() == 2, ops.get(0), ops.get(1))
+                {
+                    if !vfs::try_exists(&path).await? {
+                        deletions.push(*file);
+                        let mut set = IndexSet::new();
+                        set.insert(TransferOperation::Upload);
+                        additions.push((*dest, set));
+                    }
+                }
+            }
+            (deletions, additions)
+        };
+
+        let mut writer = queue.write().await;
+        for file in deletions {
+            writer.queue.remove(&file);
+        }
+
+        for (file, ops) in additions {
+            writer.queue.insert(file, ops);
+        }
+
+        writer.save().await?;
+
+        Ok(())
+    }
+
     /// Try to process the pending transfers list.
     async fn try_process_transfers<E, C>(
         paths: Arc<Paths>,
@@ -245,7 +309,7 @@ impl FileTransfers {
         pending_transfers: TransferQueue,
     ) -> std::result::Result<(), E>
     where
-        E: Send + Sync + 'static,
+        E: std::fmt::Debug + Send + Sync + 'static,
         C: Client<Error = E> + Clone + Send + Sync + 'static,
     {
         for (file, ops) in pending_transfers {
@@ -270,7 +334,7 @@ impl FileTransfers {
         clients: &[C],
     ) -> std::result::Result<(), E>
     where
-        E: Send + Sync + 'static,
+        E: std::fmt::Debug + Send + Sync + 'static,
         C: Client<Error = E> + Clone + Send + Sync + 'static,
     {
         for op in operations {
@@ -339,7 +403,7 @@ impl FileTransfers {
         >,
     ) -> std::result::Result<(), E>
     where
-        E: Send + Sync + 'static,
+        E: std::fmt::Debug + Send + Sync + 'static,
     {
         // Execute the client requests
         let results = futures::future::try_join_all(uploads).await?;
@@ -379,7 +443,7 @@ impl FileTransfers {
         >,
     ) -> std::result::Result<(), E>
     where
-        E: Send + Sync + 'static,
+        E: std::fmt::Debug + Send + Sync + 'static,
     {
         for fut in downloads {
             let (file, op, done) = fut.await?;
@@ -406,9 +470,12 @@ impl FileTransfers {
         op: TransferOperation,
     ) -> std::result::Result<(ExternalFile, TransferOperation, bool), E>
     where
-        E: Send + Sync + 'static,
+        E: std::fmt::Debug + Send + Sync + 'static,
         C: Client<Error = E> + Clone + Send + Sync + 'static,
     {
+        tracing::debug!(op = ?op, url = %client.url());
+        //println!("{:#?}", op);
+
         let success = match &op {
             TransferOperation::Upload => {
                 let path = paths.file_location(
@@ -416,8 +483,15 @@ impl FileTransfers {
                     file.secret_id(),
                     file.file_name().to_string(),
                 );
-                let status = client.upload_file(&file, &path).await?;
-                Self::is_success(&op, status)
+
+                match client.upload_file(&file, &path).await {
+                    Ok(status) => Self::is_success(&op, status),
+                    Err(e) => {
+                        //eprintln!("UPLOAD FAIL {:#?}", e);
+                        tracing::warn!(error = ?e);
+                        false
+                    }
+                }
             }
             TransferOperation::Download => {
                 // Ensure the parent directory for the download exists
@@ -439,16 +513,32 @@ impl FileTransfers {
                     file.secret_id(),
                     file.file_name().to_string(),
                 );
-                let status = client.download_file(&file, &path).await?;
-                Self::is_success(&op, status)
+                match client.download_file(&file, &path).await {
+                    Ok(status) => Self::is_success(&op, status),
+                    Err(e) => {
+                        tracing::warn!(error = ?e);
+                        false
+                    }
+                }
             }
             TransferOperation::Delete => {
-                let status = client.delete_file(&file).await?;
-                Self::is_success(&op, status)
+                match client.delete_file(&file).await {
+                    Ok(status) => Self::is_success(&op, status),
+                    Err(e) => {
+                        tracing::warn!(error = ?e);
+                        false
+                    }
+                }
             }
             TransferOperation::Move(dest) => {
-                let status = client.move_file(&file, dest).await?;
-                Self::is_success(&op, status)
+                match client.move_file(&file, dest).await {
+                    Ok(status) => Self::is_success(&op, status),
+                    Err(e) => {
+                        //eprintln!("MOVE FAIL {:#?}", e);
+                        tracing::warn!(error = ?e);
+                        false
+                    }
+                }
             }
         };
         Ok((file, op, success))

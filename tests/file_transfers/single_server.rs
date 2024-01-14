@@ -60,13 +60,11 @@ async fn file_transfers_update() -> Result<()> {
     let default_folder = device.owner.default_folder().await.unwrap();
 
     // Create an external file secret
-    let (secret_id, _, _, _) =
+    let (secret_id, data, _, _) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
 
     // Wait for the upload event
     wait_for_transfers(&device.owner).await?;
-
-    let (data, _) = device.owner.read_secret(&secret_id, None).await?;
 
     // Update the file secret with new file content
     let (_, file_name) = update_file_secret(

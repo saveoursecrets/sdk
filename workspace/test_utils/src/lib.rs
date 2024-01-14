@@ -241,9 +241,7 @@ pub async fn teardown(test_id: &str) {
         .expect("failed to get current working directory");
     let target = current_dir.join("target/integration-test").join(test_id);
     tracing::debug!(path = ?target, "teardown");
-    vfs::remove_dir_all(&target)
-        .await
-        .expect("to remove test directory");
+    std::fs::remove_dir_all(&target).expect("to remove test directory");
     /*
     let _ = tracing::subscriber::set_global_default(
         tracing::subscriber::NoSubscriber::new(),
