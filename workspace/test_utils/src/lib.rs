@@ -7,7 +7,7 @@ use std::{
 use tokio::sync::{oneshot, RwLock};
 
 use sos_net::{
-    client::HostedOrigin,
+    client::Origin,
     sdk::{signer::ecdsa::Address, url::Url, vfs, Paths},
     server::{Server, ServerConfig, ServerInfo, State},
 };
@@ -154,7 +154,7 @@ pub struct TestServer {
     #[allow(dead_code)]
     handle: ShutdownHandle,
     /// Origin for remote connections.
-    pub origin: HostedOrigin,
+    pub origin: Origin,
 }
 
 impl TestServer {
@@ -200,7 +200,7 @@ pub async fn spawn(
     Ok(TestServer {
         test_id: test_id.to_owned(),
         path,
-        origin: HostedOrigin {
+        origin: Origin {
             name: "origin".to_owned(),
             url: url.clone(),
         },

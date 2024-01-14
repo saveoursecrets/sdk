@@ -4,8 +4,8 @@ use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
     client::{
-        HostedOrigin, ListenOptions, NetworkAccount, RemoteBridge,
-        RemoteSync, WebSocketHandle,
+        ListenOptions, NetworkAccount, Origin, RemoteBridge, RemoteSync,
+        WebSocketHandle,
     },
     sdk::{
         constants::{FILES_DIR, VAULT_EXT},
@@ -25,7 +25,7 @@ pub struct SimulatedDevice {
     pub owner: NetworkAccount,
     pub default_folder: Summary,
     pub folders: Vec<Summary>,
-    pub origin: HostedOrigin,
+    pub origin: Origin,
     pub dirs: TestDirs,
     pub default_folder_id: VaultId,
     pub data_dir: PathBuf,
@@ -38,7 +38,7 @@ impl SimulatedDevice {
     pub async fn connect(
         &self,
         index: usize,
-        origin: Option<HostedOrigin>,
+        origin: Option<Origin>,
     ) -> Result<SimulatedDevice> {
         let data_dir = self.dirs.clients.get(index).unwrap();
 
@@ -86,10 +86,7 @@ impl SimulatedDevice {
     pub async fn listen(&self) -> Result<WebSocketHandle> {
         Ok(self
             .owner
-            .listen(
-                &(&self.origin).into(),
-                ListenOptions::new(self.id.clone())?,
-            )
+            .listen(&self.origin, ListenOptions::new(self.id.clone())?)
             .await?)
     }
 }

@@ -35,8 +35,8 @@ use tracing::{span, Level};
 use crate::client::WebSocketHandle;
 
 use crate::client::{
-    Error, HostedOrigin, Origin, Remote, RemoteBridge, RemoteSync, Remotes,
-    Result, SyncError,
+    Error, Origin, Remote, RemoteBridge, RemoteSync, Remotes, Result,
+    SyncError,
 };
 
 /// Account with networking capability.
@@ -178,19 +178,16 @@ impl NetworkAccount {
             origin.clone(),
         )?;
         let device_signing_key = enrollment.device_signing_key.clone();
-        match origin {
-            Origin::Hosted(origin) => {
-                let device: BoxedEd25519Signer = device_signing_key.into();
-                let remote = RpcClient::new(
-                    origin,
-                    account_signing_key,
-                    device,
-                    String::new(),
-                )?;
+        let device: BoxedEd25519Signer = device_signing_key.into();
+        let remote = RpcClient::new(
+            origin,
+            account_signing_key,
+            device,
+            String::new(),
+        )?;
 
-                enrollment.enroll(remote).await?;
-            }
-        }
+        enrollment.enroll(remote).await?;
+
         Ok(enrollment)
     }
 
@@ -329,7 +326,7 @@ impl NetworkAccount {
     /// signing identity.
     pub async fn remote_bridge(
         &self,
-        origin: &HostedOrigin,
+        origin: &Origin,
     ) -> Result<RemoteBridge> {
         let signer = self.account_signer().await?;
         let device = self.device_signer().await?;
@@ -343,12 +340,17 @@ impl NetworkAccount {
         Ok(provider)
     }
 
+    /// Add a server backend.
+    pub async fn add_server(&mut self, origin: Origin) -> Result<()> {
+        let provider = self.remote_bridge(&origin).await?;
+        self.insert_remote(origin.into(), Box::new(provider)).await
+    }
+
     /// Insert a remote origin for synchronization.
     ///
     /// If a remote with the given origin already exists it is
     /// overwritten.
     #[doc(hidden)]
-    #[cfg(debug_assertions)]
     pub async fn insert_remote(
         &mut self,
         origin: Origin,
@@ -425,16 +427,9 @@ impl NetworkAccount {
             let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
             let mut remotes: Remotes = Default::default();
 
-            //let mut clients = Vec::new();
-
             for origin in origins {
-                match &origin {
-                    Origin::Hosted(host) => {
-                        let remote = self.remote_bridge(host).await?;
-                        //clients.push(remote.client().clone());
-                        remotes.insert(origin, Box::new(remote));
-                    }
-                }
+                let remote = self.remote_bridge(&origin).await?;
+                remotes.insert(origin, Box::new(remote));
             }
 
             self.remotes = Arc::new(RwLock::new(remotes));

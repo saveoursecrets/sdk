@@ -33,7 +33,7 @@ async fn integration_sync_create_remote_data() -> Result<()> {
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
-    let mut provider = owner.delete_remote(&(&origin).into()).await?.unwrap();
+    let mut provider = owner.delete_remote(&origin).await?.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()

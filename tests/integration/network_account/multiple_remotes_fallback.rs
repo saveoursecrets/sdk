@@ -58,11 +58,8 @@ async fn integration_sync_multiple_remotes_fallback() -> Result<()> {
     assert!(device1.owner.sync().await.is_none());
 
     // Assert on first server
-    let mut provider = device1
-        .owner
-        .delete_remote(&(&server1.origin).into())
-        .await?
-        .unwrap();
+    let mut provider =
+        device1.owner.delete_remote(&server1.origin).await?.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
@@ -75,11 +72,8 @@ async fn integration_sync_multiple_remotes_fallback() -> Result<()> {
     .await?;
 
     // Assert on second server
-    let mut provider = device1
-        .owner
-        .delete_remote(&(&server2.origin).into())
-        .await?
-        .unwrap();
+    let mut provider =
+        device1.owner.delete_remote(&server2.origin).await?.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()

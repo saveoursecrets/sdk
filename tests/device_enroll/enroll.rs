@@ -4,7 +4,7 @@ use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use sos_net::{
-    client::{NetworkAccount, Origin, RemoteBridge, RemoteSync},
+    client::{NetworkAccount, RemoteBridge, RemoteSync},
     sdk::prelude::*,
 };
 
@@ -33,7 +33,7 @@ async fn device_enroll() -> Result<()> {
 
     let password = primary_device.password.clone();
     let key: AccessKey = password.into();
-    let origin = Origin::Hosted(primary_device.origin.clone());
+    let origin = primary_device.origin.clone();
     let signing_key = primary_device.owner.account_signer().await?;
     let data_dir = primary_device.dirs.clients.get(1).cloned().unwrap();
     let folders = primary_device.folders.clone();

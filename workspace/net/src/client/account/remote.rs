@@ -16,56 +16,25 @@ use sos_sdk::{
 use std::{any::Any, collections::HashMap, fmt, sync::Arc};
 use tokio::sync::Mutex;
 
-/// Self hosted origin.
+/// Server origin information.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HostedOrigin {
+pub struct Origin {
     /// Name of the origin.
     pub name: String,
     /// URL of the remote server.
     pub url: Url,
 }
 
-impl fmt::Display for HostedOrigin {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ({})", self.name, self.url)
-    }
-}
-
-/// Remote origin information.
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Origin {
-    /// Self hosted remote.
-    Hosted(HostedOrigin),
-}
-
 impl Origin {
     /// The URL for this origin.
     pub fn url(&self) -> &Url {
-        match self {
-            Self::Hosted(origin) => &origin.url,
-        }
+        &self.url
     }
 }
 
 impl fmt::Display for Origin {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Hosted(host) => host.fmt(f),
-        }
-    }
-}
-
-impl From<&HostedOrigin> for Origin {
-    fn from(value: &HostedOrigin) -> Self {
-        value.clone().into()
-    }
-}
-
-impl From<HostedOrigin> for Origin {
-    fn from(value: HostedOrigin) -> Self {
-        Origin::Hosted(value)
+        write!(f, "{} ({})", self.name, self.url)
     }
 }
 
@@ -79,7 +48,7 @@ pub type Remotes = HashMap<Origin, Remote>;
 #[derive(Clone)]
 pub struct RemoteBridge {
     /// Origin for this remote.
-    origin: HostedOrigin,
+    origin: Origin,
     /// Account so we can replay events
     /// when a remote diff is merged.
     account: Arc<Mutex<LocalAccount>>,
@@ -92,7 +61,7 @@ impl RemoteBridge {
     /// local provider.
     pub fn new(
         account: Arc<Mutex<LocalAccount>>,
-        origin: HostedOrigin,
+        origin: Origin,
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
         connection_id: String,
@@ -216,7 +185,7 @@ impl RemoteSync for RemoteBridge {
             || options
                 .origins
                 .iter()
-                .find(|&o| o == &Origin::Hosted(self.origin.clone()))
+                .find(|&o| o == &self.origin)
                 .is_some();
 
         if !should_sync {

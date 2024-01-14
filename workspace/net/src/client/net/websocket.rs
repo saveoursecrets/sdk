@@ -35,7 +35,7 @@ use url::Url;
 use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 
 use crate::{
-    client::{Error, HostedOrigin, Result},
+    client::{Error, Origin, Result},
     events::ChangeNotification,
 };
 
@@ -171,7 +171,7 @@ impl IntoClientRequest for WebSocketRequest {
 
 /// Create the websocket connection and listen for events.
 pub async fn connect(
-    origin: HostedOrigin,
+    origin: Origin,
     signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
     connection_id: String,
@@ -250,7 +250,7 @@ impl WebSocketHandle {
 /// Creates a websocket that listens for changes emitted by a remote
 /// server and invokes a handler with the change notifications.
 pub struct WebSocketChangeListener {
-    origin: HostedOrigin,
+    origin: Origin,
     signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
     options: ListenOptions,
@@ -261,7 +261,7 @@ pub struct WebSocketChangeListener {
 impl WebSocketChangeListener {
     /// Create a new websocket changes listener.
     pub fn new(
-        origin: HostedOrigin,
+        origin: Origin,
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
         options: ListenOptions,

@@ -42,7 +42,7 @@ use tokio::sync::Mutex;
 use url::Url;
 
 use crate::{
-    client::{Error, HostedOrigin, Result},
+    client::{Error, Origin, Result},
     rpc::{Packet, RequestMessage, ResponseMessage},
 };
 
@@ -65,7 +65,7 @@ fn convert_status_code(value: reqwest::StatusCode) -> http::StatusCode {
 /// communicates using RPC messages.
 #[derive(Clone)]
 pub struct RpcClient {
-    origin: HostedOrigin,
+    origin: Origin,
     account_signer: BoxedEcdsaSigner,
     device_signer: BoxedEd25519Signer,
     client: reqwest::Client,
@@ -76,7 +76,7 @@ pub struct RpcClient {
 impl RpcClient {
     /// Create a new client.
     pub fn new(
-        origin: HostedOrigin,
+        origin: Origin,
         account_signer: BoxedEcdsaSigner,
         device_signer: BoxedEd25519Signer,
         connection_id: String,
