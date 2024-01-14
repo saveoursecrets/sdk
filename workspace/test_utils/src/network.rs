@@ -8,7 +8,6 @@ use sos_net::{
         RemoteSync, WebSocketHandle,
     },
     sdk::{
-        account::Account,
         constants::{FILES_DIR, VAULT_EXT},
         crypto::AccessKey,
         events::EventLogExt,
@@ -264,7 +263,7 @@ pub async fn assert_local_remote_file_eq(
 }
 
 /// Wait for file transfers to complete.
-pub async fn wait_for_transfers(account: &Account) -> Result<()> {
+pub async fn wait_for_transfers(account: &NetworkAccount) -> Result<()> {
     loop {
         let transfers = account.transfers().await?;
         let transfers = transfers.read().await;

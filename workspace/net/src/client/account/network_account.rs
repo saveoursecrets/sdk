@@ -982,6 +982,15 @@ impl NetworkAccount {
             .download_file(vault_id, secret_id, file_name)
             .await?)
     }
+
+    /// Transfers queue.
+    #[cfg(feature = "files")]
+    pub async fn transfers(
+        &self,
+    ) -> Result<Arc<RwLock<crate::sdk::storage::files::Transfers>>> {
+        let account = self.account.lock().await;
+        Ok(account.transfers().await?)
+    }
 }
 
 // Search functions

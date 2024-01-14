@@ -179,8 +179,8 @@ impl SyncComparison {
 
         #[cfg(feature = "files")]
         let files = {
-            let device = storage.device_log().await?;
-            let reader = device.read().await;
+            let files = storage.file_log().await?;
+            let reader = files.read().await;
             if let Some(files) = &remote_status.files {
                 if reader.tree().is_empty() {
                     None
