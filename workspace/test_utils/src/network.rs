@@ -138,8 +138,6 @@ pub async fn simulate_device(
         .insert_remote(origin.clone().into(), Box::new(provider))
         .await?;
 
-    owner.start_file_transfers().await?;
-
     // Sync the local account to create the account on remote
     let sync_error = owner.sync().await;
     assert!(sync_error.is_none());

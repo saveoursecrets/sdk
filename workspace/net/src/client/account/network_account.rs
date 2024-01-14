@@ -347,24 +347,35 @@ impl NetworkAccount {
     ///
     /// If a remote with the given origin already exists it is
     /// overwritten.
+    #[doc(hidden)]
+    #[cfg(debug_assertions)]
     pub async fn insert_remote(
         &mut self,
         origin: Origin,
         remote: Remote,
     ) -> Result<()> {
-        let mut remotes = self.remotes.write().await;
-        remotes.insert(origin, remote);
-        self.save_remotes(&*remotes).await
+        {
+            let mut remotes = self.remotes.write().await;
+            remotes.insert(origin, remote);
+            self.save_remotes(&*remotes).await?;
+        }
+        self.start_file_transfers().await
     }
 
     /// Delete a remote if it exists.
+    #[doc(hidden)]
+    #[cfg(debug_assertions)]
     pub async fn delete_remote(
         &mut self,
         origin: &Origin,
     ) -> Result<Option<Remote>> {
-        let mut remotes = self.remotes.write().await;
-        let remote = remotes.remove(origin);
-        self.save_remotes(&*remotes).await?;
+        let remote = {
+            let mut remotes = self.remotes.write().await;
+            let remote = remotes.remove(origin);
+            self.save_remotes(&*remotes).await?;
+            remote
+        };
+        self.start_file_transfers().await?;
         Ok(remote)
     }
 
@@ -428,14 +439,14 @@ impl NetworkAccount {
 
             self.remotes = Arc::new(RwLock::new(remotes));
 
-            //self.start_file_transfers();
+            self.start_file_transfers().await?;
         }
 
         Ok(folders)
     }
 
     /// Spawn a task to handle file transfers.
-    pub async fn start_file_transfers(&mut self) -> Result<()> {
+    async fn start_file_transfers(&mut self) -> Result<()> {
         if !self.is_authenticated().await {
             return Err(crate::sdk::Error::NotAuthenticated.into());
         }
@@ -476,7 +487,7 @@ impl NetworkAccount {
     }
 
     /// Stop a file transfers task.
-    pub fn stop_file_transfers(&mut self) {
+    fn stop_file_transfers(&mut self) {
         if let Some(file_transfers) = self.file_transfers.take() {
             file_transfers.notify_one();
         }
