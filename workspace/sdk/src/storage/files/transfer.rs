@@ -13,7 +13,7 @@ use serde_with::{serde_as, DisplayFromStr};
 use std::{
     collections::HashMap, future::Future, path::PathBuf, pin::Pin, sync::Arc,
 };
-use tokio::sync::{Mutex, Notify, RwLock};
+use tokio::sync::{Mutex, RwLock, mpsc::UnboundedReceiver, oneshot};
 use tracing::{span, Level};
 
 #[cfg(not(debug_assertions))]
@@ -187,7 +187,8 @@ impl FileTransfers {
         paths: Arc<Paths>,
         queue: Arc<RwLock<Transfers>>,
         clients: Vec<C>,
-        shutdown: Arc<Notify>,
+        mut shutdown: UnboundedReceiver<()>,
+        shutdown_ack: oneshot::Sender<()>,
     ) -> ()
     where
         E: std::fmt::Debug + Send + Sync + 'static,
@@ -196,13 +197,20 @@ impl FileTransfers {
         tokio::task::spawn(async move {
             loop {
                 select! {
-                    _ = shutdown.notified().fuse() => {
-                        tracing::debug!("shutdown");
-                        break;
+                    signal = shutdown.recv().fuse() => {
+                        if signal.is_some() {
+                            let span = span!(Level::DEBUG, "file_transfers");
+                            let _enter = span.enter();
+                            tracing::debug!("shutdown");
+                            break;
+                        }
                     }
                     _ = futures::future::ready(()).fuse() => {
 
-                        if let Err(e) = Self::normalize_transfers(Arc::clone(&paths), Arc::clone(&queue)).await {
+                        if let Err(e) = Self::normalize_transfers(
+                            Arc::clone(&paths),
+                            Arc::clone(&queue),
+                        ).await {
                             tracing::error!(error = ?e);
                         }
 
@@ -239,6 +247,8 @@ impl FileTransfers {
                     }
                 }
             }
+
+            let _ = shutdown_ack.send(());
         });
     }
 

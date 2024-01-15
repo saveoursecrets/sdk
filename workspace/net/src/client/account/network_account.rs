@@ -28,7 +28,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::sync::{Mutex, Notify, RwLock};
+use tokio::sync::{Mutex, RwLock, mpsc::{self, UnboundedSender}, oneshot};
 use tracing::{span, Level};
 
 #[cfg(feature = "listen")]
@@ -69,7 +69,7 @@ pub struct NetworkAccount {
     connection_id: Option<String>,
 
     /// Shutdown handle for the file transfers background task.
-    file_transfers: Option<Arc<Notify>>,
+    file_transfers: Option<(UnboundedSender<()>, oneshot::Receiver<()>)>,
 }
 
 impl NetworkAccount {
@@ -447,7 +447,7 @@ impl NetworkAccount {
         }
 
         // Stop any existing transfers task
-        self.stop_file_transfers();
+        self.stop_file_transfers().await;
 
         let clients = {
             let remotes = self.remotes.read().await;
@@ -468,23 +468,26 @@ impl NetworkAccount {
             (reader.paths(), reader.transfers())
         };
 
-        let shutdown = Arc::new(Notify::new());
+        let (shutdown_send, shutdown_recv) = mpsc::unbounded_channel::<()>();
+        let (ack_send, ack_recv) = oneshot::channel::<()>();
 
         FileTransfers::start(
             paths,
             transfers,
             clients,
-            Arc::clone(&shutdown),
+            shutdown_recv,
+            ack_send,
         );
 
-        self.file_transfers = Some(shutdown);
+        self.file_transfers = Some((shutdown_send, ack_recv));
         Ok(())
     }
 
     /// Stop a file transfers task.
-    fn stop_file_transfers(&mut self) {
-        if let Some(file_transfers) = self.file_transfers.take() {
-            file_transfers.notify_one();
+    async fn stop_file_transfers(&mut self) {
+        if let Some((shutdown, ack)) = self.file_transfers.take() {
+            let _ = shutdown.send(());
+            let _ = ack.await;
         }
     }
 
@@ -596,7 +599,7 @@ impl NetworkAccount {
         #[cfg(feature = "listen")]
         self.shutdown_listeners().await;
 
-        self.stop_file_transfers();
+        self.stop_file_transfers().await;
 
         self.remotes = Default::default();
 
