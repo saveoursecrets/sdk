@@ -46,7 +46,7 @@ async fn device_revoke() -> Result<()> {
 
     // Complete device enrollment by authenticating
     // to the new account
-    let enrolled_account = enrollment.finish(&key).await?;
+    let mut enrolled_account = enrollment.finish(&key).await?;
 
     // Sync on the original device to fetch the updated device logs
     assert!(primary_device.owner.sync().await.is_none());
@@ -73,10 +73,12 @@ async fn device_revoke() -> Result<()> {
     }
 
     // Primary device has one trusted device (itself)
-    let primary_device_storage =
-        primary_device.owner.storage().await.unwrap();
-    let primary_device_storage = primary_device_storage.read().await;
-    assert_eq!(1, primary_device_storage.devices().len());
+    {
+        let primary_device_storage =
+            primary_device.owner.storage().await.unwrap();
+        let primary_device_storage = primary_device_storage.read().await;
+        assert_eq!(1, primary_device_storage.devices().len());
+    }
 
     // Check primary device is in sync with remote
     let mut provider =
@@ -91,6 +93,9 @@ async fn device_revoke() -> Result<()> {
         remote_provider,
     )
     .await?;
+
+    primary_device.owner.sign_out().await?;
+    enrolled_account.sign_out().await?;
 
     teardown(TEST_ID).await;
 

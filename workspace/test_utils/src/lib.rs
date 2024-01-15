@@ -250,6 +250,11 @@ pub async fn teardown(test_id: &str) {
         // Sometimes we get this:
         //
         // Os { code: 66, kind: DirectoryNotEmpty, message: "Directory not empty" }
+        //
+        // Typically this is caused by a test not signing out before
+        // calling teardown() and the file transfers background task
+        // writing the transfers queue whilst we are in the process of
+        // deleting the directory.
         eprintln!("teardown error {} {:#?}", test_id, e);
     }
     /*

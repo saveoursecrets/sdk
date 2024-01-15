@@ -10,7 +10,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 /// signing in again.
 ///
 /// When we sign in again the transfers queue should be loaded
-/// from disc and we should be able to sync and then complete 
+/// from disc and we should be able to sync and then complete
 /// the upload.
 #[tokio::test]
 async fn file_transfers_load_queue() -> Result<()> {

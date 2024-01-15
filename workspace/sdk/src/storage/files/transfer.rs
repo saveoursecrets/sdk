@@ -208,9 +208,9 @@ impl Transfers {
                 // destination
                 if let Some(&TransferOperation::Move(dest)) = ops.last() {
                     if !vfs::try_exists(&path).await? {
-                        deletions.push(*file);
                         let mut set = IndexSet::new();
                         set.insert(TransferOperation::Upload);
+                        deletions.push(*file);
                         additions.push((*dest, set));
                     }
                 }
@@ -225,9 +225,9 @@ impl Transfers {
                 ) = (ops.len() == 2, ops.get(0), ops.get(1))
                 {
                     if !vfs::try_exists(&path).await? {
-                        deletions.push(*file);
                         let mut set = IndexSet::new();
                         set.insert(TransferOperation::Delete);
+                        deletions.push(*file);
                         additions.push((*file, set));
                     }
                 }
