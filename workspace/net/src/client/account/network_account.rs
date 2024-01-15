@@ -325,24 +325,6 @@ impl NetworkAccount {
         Ok(account.storage()?)
     }
 
-    /// Create a remote bridge associated with this local storage and
-    /// signing identity.
-    pub async fn remote_bridge(
-        &self,
-        origin: &Origin,
-    ) -> Result<RemoteBridge> {
-        let signer = self.account_signer().await?;
-        let device = self.device_signer().await?;
-        let provider = RemoteBridge::new(
-            Arc::clone(&self.account),
-            origin.clone(),
-            signer,
-            device.into(),
-            self.client_connection_id().await?,
-        )?;
-        Ok(provider)
-    }
-
     /// Add a server backend.
     pub async fn add_server(&mut self, origin: Origin) -> Result<()> {
         let provider = self.remote_bridge(&origin).await?;
@@ -353,8 +335,7 @@ impl NetworkAccount {
     ///
     /// If a remote with the given origin already exists it is
     /// overwritten.
-    #[doc(hidden)]
-    pub async fn insert_remote(
+    async fn insert_remote(
         &mut self,
         origin: Origin,
         remote: Remote,
@@ -365,6 +346,21 @@ impl NetworkAccount {
             self.save_remotes(&*remotes).await?;
         }
         self.start_file_transfers().await
+    }
+
+    /// Create a remote bridge associated with this local storage and
+    /// signing identity.
+    async fn remote_bridge(&self, origin: &Origin) -> Result<RemoteBridge> {
+        let signer = self.account_signer().await?;
+        let device = self.device_signer().await?;
+        let provider = RemoteBridge::new(
+            Arc::clone(&self.account),
+            origin.clone(),
+            signer,
+            device.into(),
+            self.client_connection_id().await?,
+        )?;
+        Ok(provider)
     }
 
     /// Delete a remote if it exists.

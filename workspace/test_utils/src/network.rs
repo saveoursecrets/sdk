@@ -60,11 +60,7 @@ impl SimulatedDevice {
 
         // Mimic account owner on another owner connected to
         // the same remotes
-        let provider = owner.remote_bridge(&origin).await?;
-        // Insert the remote for the other owner
-        owner
-            .insert_remote(self.origin.clone().into(), Box::new(provider))
-            .await?;
+        owner.add_server(origin.clone()).await?;
 
         // Use the default folder
         owner.open_folder(&self.default_folder).await?;
@@ -92,7 +88,7 @@ impl SimulatedDevice {
     }
 }
 
-/// Simulate a primary device.
+/// Simulate a primary device connected to the given server.
 pub async fn simulate_device(
     test_id: &str,
     server: &TestServer,
@@ -128,12 +124,7 @@ pub async fn simulate_device(
 
     // Create the remote provider
     let origin = server.origin.clone();
-    let provider = owner.remote_bridge(&origin).await?;
-
-    // Insert the remote for the primary owner
-    owner
-        .insert_remote(origin.clone().into(), Box::new(provider))
-        .await?;
+    owner.add_server(origin.clone()).await?;
 
     // Sync the local account to create the account on remote
     let sync_error = owner.sync().await;

@@ -22,11 +22,7 @@ async fn integration_sync_multiple_remotes() -> Result<()> {
 
     // Create a remote provider for the additional server
     let origin = server2.origin.clone();
-    let provider = device1.owner.remote_bridge(&origin).await?;
-    device1
-        .owner
-        .insert_remote(origin.into(), Box::new(provider))
-        .await?;
+    device1.owner.add_server(origin.clone()).await?;
 
     // Sync again with the additional remote
     assert!(device1.owner.sync().await.is_none());
