@@ -28,7 +28,10 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::sync::{Mutex, RwLock, mpsc::{self, UnboundedSender}, oneshot};
+use tokio::sync::{
+    mpsc::{self, UnboundedSender},
+    oneshot, Mutex, RwLock,
+};
 use tracing::{span, Level};
 
 #[cfg(feature = "listen")]

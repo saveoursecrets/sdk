@@ -12,11 +12,11 @@ use sos_net::{
         crypto::AccessKey,
         events::EventLogExt,
         passwd::diceware::generate_passphrase,
+        sha2::{Digest, Sha256},
         storage::files::ExternalFile,
         sync::{Client, SyncStorage},
         vault::{Summary, VaultId},
         vfs, Paths,
-        sha2::{Digest, Sha256},
     },
 };
 use std::{path::PathBuf, time::Duration};

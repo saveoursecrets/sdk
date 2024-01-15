@@ -6,8 +6,7 @@ use anyhow::Result;
 use crate::test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
     mock::files::net::{create_file_secret, update_file_secret},
-    simulate_device, spawn, teardown, 
-    wait_for_file, wait_for_file_not_exist,
+    simulate_device, spawn, teardown, wait_for_file, wait_for_file_not_exist,
 };
 use sos_net::{client::RemoteSync, sdk::prelude::*};
 
@@ -41,10 +40,10 @@ async fn file_transfers_offline_multi_upload() -> Result<()> {
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
-    
+
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
-        
+
     let server1_path = device.server_path;
     let server2_path =
         server2.path.join(REMOTE_DIR).join(address.to_string());
@@ -207,8 +206,20 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
     // Bring the server back online
     let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
 
+    /*
+    println!("Move restarted server1");
+
+    {
+        let transfers = device.owner.transfers().await?;
+        let transfers = transfers.read().await;
+        println!("{:#?}", transfers.queue());
+    }
+    */
+
     // Wait for the file to exist
     wait_for_file(&server1_paths, &file).await?;
+
+    //println!("Move completed waiting for file on server1");
 
     // Assert the files on server1 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)

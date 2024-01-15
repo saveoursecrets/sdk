@@ -388,7 +388,7 @@ pub async fn file_operation_lock(
     }
 
     let response = next.run(request).await;
-    
+
     {
         let mut writer = transfer.write().await;
         writer.remove(&file_ref);

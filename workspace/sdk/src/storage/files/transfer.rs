@@ -12,12 +12,10 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::{
     collections::HashMap, future::Future, path::PathBuf, pin::Pin, sync::Arc,
+    time::Duration,
 };
-use tokio::sync::{Mutex, RwLock, mpsc::UnboundedReceiver, oneshot};
+use tokio::sync::{mpsc::UnboundedReceiver, oneshot, Mutex, RwLock};
 use tracing::{span, Level};
-
-#[cfg(not(debug_assertions))]
-use std::time::Duration;
 
 type TransferQueue = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 
@@ -244,6 +242,9 @@ impl FileTransfers {
                         // Pause so we don't overwhelm when re-trying
                         #[cfg(not(debug_assertions))]
                         tokio::time::sleep(Duration::from_secs(30)).await;
+
+                        #[cfg(debug_assertions)]
+                        tokio::time::sleep(Duration::from_millis(50)).await;
                     }
                 }
             }
@@ -277,20 +278,32 @@ impl FileTransfers {
                     }
                 }
 
-                // Rewrite an upload and move that no longer
+                // Rewrite a move that no longer
                 // exists on disc into an upload of the move
                 // destination
-                if let (
-                    true,
-                    Some(&TransferOperation::Upload),
-                    Some(&TransferOperation::Move(dest)),
-                ) = (ops.len() == 2, ops.get(0), ops.get(1))
-                {
+                if let Some(&TransferOperation::Move(dest)) = ops.last() {
                     if !vfs::try_exists(&path).await? {
                         deletions.push(*file);
                         let mut set = IndexSet::new();
                         set.insert(TransferOperation::Upload);
                         additions.push((*dest, set));
+                    }
+                }
+
+                // Rewrite an upload and delete into a delete
+                // so that we skip uploads for clients that
+                // have yet to receive the file
+                if let (
+                    true,
+                    Some(&TransferOperation::Upload),
+                    Some(&TransferOperation::Delete),
+                ) = (ops.len() == 2, ops.get(0), ops.get(1))
+                {
+                    if !vfs::try_exists(&path).await? {
+                        deletions.push(*file);
+                        let mut set = IndexSet::new();
+                        set.insert(TransferOperation::Delete);
+                        additions.push((*file, set));
                     }
                 }
             }
@@ -301,7 +314,6 @@ impl FileTransfers {
         for file in deletions {
             writer.queue.remove(&file);
         }
-
         for (file, ops) in additions {
             writer.queue.insert(file, ops);
         }
@@ -393,6 +405,7 @@ impl FileTransfers {
                 Arc::clone(&queue),
                 downloads,
             ));
+
             let transfers = vec![up, down];
             futures::future::try_join_all(transfers).await?;
         }
@@ -544,7 +557,6 @@ impl FileTransfers {
                 match client.move_file(&file, dest).await {
                     Ok(status) => Self::is_success(&op, status),
                     Err(e) => {
-                        //eprintln!("MOVE FAIL {:#?}", e);
                         tracing::warn!(error = ?e);
                         false
                     }
