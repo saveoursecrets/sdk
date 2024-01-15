@@ -170,6 +170,74 @@ impl Transfers {
         vfs::write(&*path, &buffer).await?;
         Ok(())
     }
+
+    /// Normalize queued operations and write the updated
+    /// queue to disc.
+    async fn normalize(&mut self, paths: Arc<Paths>) -> Result<()> {
+        let (deletions, additions) = {
+            let mut deletions = Vec::new();
+            let mut additions = Vec::new();
+            for (file, ops) in &self.queue {
+                let path = paths.file_location(
+                    file.vault_id(),
+                    file.secret_id(),
+                    file.file_name().to_string(),
+                );
+                let ops = ops.iter().collect::<Vec<_>>();
+
+                // Single upload event without a local file to
+                // upload can be removed
+                if let (true, Some(&TransferOperation::Upload)) =
+                    (ops.len() == 1, ops.get(0))
+                {
+                    if !vfs::try_exists(&path).await? {
+                        deletions.push(*file);
+                    }
+                }
+
+                // Rewrite a move that no longer
+                // exists on disc into an upload of the move
+                // destination
+                if let Some(&TransferOperation::Move(dest)) = ops.last() {
+                    if !vfs::try_exists(&path).await? {
+                        deletions.push(*file);
+                        let mut set = IndexSet::new();
+                        set.insert(TransferOperation::Upload);
+                        additions.push((*dest, set));
+                    }
+                }
+
+                // Rewrite an upload and delete into a delete
+                // so that we skip uploads for servers that
+                // have yet to receive the file
+                if let (
+                    true,
+                    Some(&TransferOperation::Upload),
+                    Some(&TransferOperation::Delete),
+                ) = (ops.len() == 2, ops.get(0), ops.get(1))
+                {
+                    if !vfs::try_exists(&path).await? {
+                        deletions.push(*file);
+                        let mut set = IndexSet::new();
+                        set.insert(TransferOperation::Delete);
+                        additions.push((*file, set));
+                    }
+                }
+            }
+            (deletions, additions)
+        };
+
+        for file in deletions {
+            self.queue.remove(&file);
+        }
+        for (file, ops) in additions {
+            self.queue.insert(file, ops);
+        }
+
+        self.save().await?;
+
+        Ok(())
+    }
 }
 
 /// Transfers files to multiple clients.
@@ -204,17 +272,14 @@ impl FileTransfers {
                         }
                     }
                     _ = futures::future::ready(()).fuse() => {
-
-                        if let Err(e) = Self::normalize_transfers(
-                            Arc::clone(&paths),
-                            Arc::clone(&queue),
-                        ).await {
-                            tracing::error!(error = ?e);
-                        }
-
                         let pending_transfers = {
-                            let reader = queue.read().await;
-                            reader.queue.clone()
+                            let mut writer = queue.write().await;
+                            if let Err(e) = writer.normalize(
+                                Arc::clone(&paths),
+                            ).await {
+                                tracing::error!(error = ?e);
+                            }
+                            writer.queue.clone()
                         };
 
                         // Try again later
@@ -251,76 +316,6 @@ impl FileTransfers {
 
             let _ = shutdown_ack.send(());
         });
-    }
-
-    async fn normalize_transfers(
-        paths: Arc<Paths>,
-        queue: Arc<RwLock<Transfers>>,
-    ) -> Result<()> {
-        let (deletions, additions) = {
-            let mut deletions = Vec::new();
-            let mut additions = Vec::new();
-            let reader = queue.read().await;
-            for (file, ops) in reader.queue() {
-                let path = paths.file_location(
-                    file.vault_id(),
-                    file.secret_id(),
-                    file.file_name().to_string(),
-                );
-                let ops = ops.iter().collect::<Vec<_>>();
-                // Single upload event without a local file to
-                // upload can be removed
-                if let (true, Some(&TransferOperation::Upload)) =
-                    (ops.len() == 1, ops.get(0))
-                {
-                    if !vfs::try_exists(&path).await? {
-                        deletions.push(*file);
-                    }
-                }
-
-                // Rewrite a move that no longer
-                // exists on disc into an upload of the move
-                // destination
-                if let Some(&TransferOperation::Move(dest)) = ops.last() {
-                    if !vfs::try_exists(&path).await? {
-                        deletions.push(*file);
-                        let mut set = IndexSet::new();
-                        set.insert(TransferOperation::Upload);
-                        additions.push((*dest, set));
-                    }
-                }
-
-                // Rewrite an upload and delete into a delete
-                // so that we skip uploads for clients that
-                // have yet to receive the file
-                if let (
-                    true,
-                    Some(&TransferOperation::Upload),
-                    Some(&TransferOperation::Delete),
-                ) = (ops.len() == 2, ops.get(0), ops.get(1))
-                {
-                    if !vfs::try_exists(&path).await? {
-                        deletions.push(*file);
-                        let mut set = IndexSet::new();
-                        set.insert(TransferOperation::Delete);
-                        additions.push((*file, set));
-                    }
-                }
-            }
-            (deletions, additions)
-        };
-
-        let mut writer = queue.write().await;
-        for file in deletions {
-            writer.queue.remove(&file);
-        }
-        for (file, ops) in additions {
-            writer.queue.insert(file, ops);
-        }
-
-        writer.save().await?;
-
-        Ok(())
     }
 
     /// Try to process the pending transfers list.
