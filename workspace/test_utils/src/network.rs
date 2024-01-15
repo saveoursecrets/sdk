@@ -94,6 +94,15 @@ pub async fn simulate_device(
     server: &TestServer,
     num_clients: usize,
 ) -> Result<SimulatedDevice> {
+    simulate_device_maybe_server(test_id, num_clients, Some(server)).await
+}
+
+/// Simulate a primary device connected to the given server.
+pub async fn simulate_device_maybe_server(
+    test_id: &str,
+    num_clients: usize,
+    server: Option<&TestServer>,
+) -> Result<SimulatedDevice> {
     let dirs = setup(test_id, num_clients).await?;
     let data_dir = dirs.clients.get(0).unwrap().clone();
 
@@ -112,6 +121,7 @@ pub async fn simulate_device(
     let key: AccessKey = password.clone().into();
     let folders = owner.sign_in(&key).await?;
     let default_folder = owner.default_folder().await.unwrap();
+    let default_folder_id = *default_folder.id();
 
     // Copy the initial data directory for the
     // alternative devices as they need to share
@@ -123,15 +133,24 @@ pub async fn simulate_device(
     }
 
     // Create the remote provider
-    let origin = server.origin.clone();
-    owner.add_server(origin.clone()).await?;
+    let (origin, server_path) = if let Some(server) = server {
+        let origin = server.origin.clone();
+        owner.add_server(origin.clone()).await?;
 
-    // Sync the local account to create the account on remote
-    let sync_error = owner.sync().await;
-    assert!(sync_error.is_none());
+        // Sync the local account to create the account on remote
+        let sync_error = owner.sync().await;
+        assert!(sync_error.is_none());
 
-    let server_path = server.account_path(owner.address());
-    let default_folder_id = *default_folder.id();
+        (origin, server.account_path(owner.address()))
+    } else {
+        (
+            Origin {
+                name: String::new(),
+                url: "https://example.com".parse()?,
+            },
+            PathBuf::new(),
+        )
+    };
 
     Ok(SimulatedDevice {
         id: connection_id,

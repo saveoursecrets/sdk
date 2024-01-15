@@ -163,6 +163,13 @@ impl Transfers {
         self.save().await
     }
 
+    /// Clear in-memory queued transfers.
+    ///
+    /// Does not affect the transfer queue stored on disc.
+    pub fn clear(&mut self) {
+        self.queue.clear();
+    }
+
     /// Save the transfer queue to disc.
     async fn save(&self) -> Result<()> {
         let path = self.path.lock().await;
@@ -173,7 +180,8 @@ impl Transfers {
 
     /// Normalize queued operations and write the updated
     /// queue to disc.
-    async fn normalize(&mut self, paths: Arc<Paths>) -> Result<()> {
+    #[doc(hidden)]
+    pub async fn normalize(&mut self, paths: Arc<Paths>) -> Result<()> {
         let (deletions, additions) = {
             let mut deletions = Vec::new();
             let mut additions = Vec::new();

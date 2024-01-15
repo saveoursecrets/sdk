@@ -599,6 +599,11 @@ impl NetworkAccount {
         self.shutdown_listeners().await;
 
         self.stop_file_transfers().await;
+        {
+            let transfers = self.transfers().await?;
+            let mut transfers = transfers.write().await;
+            transfers.clear();
+        }
 
         self.remotes = Default::default();
 

@@ -206,16 +206,6 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
     // Bring the server back online
     let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
 
-    /*
-    println!("Move restarted server1");
-
-    {
-        let transfers = device.owner.transfers().await?;
-        let transfers = transfers.read().await;
-        println!("{:#?}", transfers.queue());
-    }
-    */
-
     // Wait for the file to exist
     wait_for_file(&server1_paths, &file).await?;
 
