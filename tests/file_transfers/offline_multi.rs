@@ -6,15 +6,16 @@ use anyhow::Result;
 use crate::test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
     mock::files::net::{create_file_secret, update_file_secret},
-    simulate_device, spawn, sync_pause, teardown, wait_for_transfers,
+    simulate_device, spawn, teardown, 
+    wait_for_file, wait_for_file_not_exist,
 };
 use sos_net::{client::RemoteSync, sdk::prelude::*};
 
 /// Tests uploading an external file to multiple servers
 /// when the first server is offline.
 #[tokio::test]
-async fn file_transfers_multi_first_offline_upload() -> Result<()> {
-    const TEST_ID: &str = "file_transfers_multi_first_offline_upload";
+async fn file_transfers_offline_multi_upload() -> Result<()> {
+    const TEST_ID: &str = "file_transfers_offline_multi_upload";
 
     //crate::test_utils::init_tracing();
 
@@ -30,6 +31,9 @@ async fn file_transfers_multi_first_offline_upload() -> Result<()> {
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
+    let server1_paths = server1.paths(&address);
+    let server2_paths = server2.paths(&address);
+
     // Shutdown the first server
     drop(server1);
 
@@ -37,11 +41,10 @@ async fn file_transfers_multi_first_offline_upload() -> Result<()> {
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
-
-    // Wait a while which should give the second server time
-    // to complete the operation
-    sync_pause(Some(1000)).await;
-
+    
+    // Wait for the file to exist
+    wait_for_file(&server2_paths, &file).await?;
+        
     let server1_path = device.server_path;
     let server2_path =
         server2.path.join(REMOTE_DIR).join(address.to_string());
@@ -51,14 +54,16 @@ async fn file_transfers_multi_first_offline_upload() -> Result<()> {
         .await?;
 
     // Bring the server back online
-    let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+    let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
 
-    // Wait for the transfers to complete
-    wait_for_transfers(&device.owner).await?;
+    // Wait for the file to exist
+    wait_for_file(&server1_paths, &file).await?;
 
     // Assert the files on server1 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
         .await?;
+
+    device.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 
@@ -68,8 +73,8 @@ async fn file_transfers_multi_first_offline_upload() -> Result<()> {
 /// Tests uploading an external file after updating
 /// the file content on multiple servers.
 #[tokio::test]
-async fn file_transfers_multi_first_offline_update() -> Result<()> {
-    const TEST_ID: &str = "file_transfers_multi_first_offline_update";
+async fn file_transfers_offline_multi_update() -> Result<()> {
+    const TEST_ID: &str = "file_transfers_offline_multi_update";
 
     //crate::test_utils::init_tracing();
 
@@ -85,16 +90,19 @@ async fn file_transfers_multi_first_offline_update() -> Result<()> {
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
+    let server1_paths = server1.paths(&address);
+    let server2_paths = server2.paths(&address);
+
     // Shutdown the first server
     drop(server1);
 
     // Create an external file secret
-    let (secret_id, data, _, _) =
+    let (secret_id, data, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
+    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
-    // Wait a while which should give the second server time
-    // to complete the operation
-    sync_pause(Some(1000)).await;
+    // Wait for the file to exist
+    wait_for_file(&server2_paths, &file).await?;
 
     // Update the file secret with new file content
     let (_, file_name) = update_file_secret(
@@ -107,9 +115,8 @@ async fn file_transfers_multi_first_offline_update() -> Result<()> {
     .await?;
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
-    // Wait a while which should give the second server time
-    // to complete the operation
-    sync_pause(Some(1000)).await;
+    // Wait for the file to exist
+    wait_for_file(&server2_paths, &file).await?;
 
     let server1_path = device.server_path;
     let server2_path =
@@ -120,14 +127,16 @@ async fn file_transfers_multi_first_offline_update() -> Result<()> {
         .await?;
 
     // Bring the server back online
-    let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+    let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
 
-    // Wait for the transfers to complete
-    wait_for_transfers(&device.owner).await?;
+    // Wait for the file to exist
+    wait_for_file(&server1_paths, &file).await?;
 
     // Assert the files on server1 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
         .await?;
+
+    device.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 
@@ -136,10 +145,9 @@ async fn file_transfers_multi_first_offline_update() -> Result<()> {
 
 /// Tests uploading an external file after moving
 /// the secret to a different folder on multiple servers.
-#[ignore = "flaky, sometimes test never completes: check wait_for_transfers()"]
 #[tokio::test]
-async fn file_transfers_multi_first_offline_move() -> Result<()> {
-    const TEST_ID: &str = "file_transfers_multi_first_offline_move";
+async fn file_transfers_offline_multi_move() -> Result<()> {
+    const TEST_ID: &str = "file_transfers_offline_multi_move";
 
     //crate::test_utils::init_tracing();
 
@@ -155,16 +163,19 @@ async fn file_transfers_multi_first_offline_move() -> Result<()> {
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
+    let server1_paths = server1.paths(&address);
+    let server2_paths = server2.paths(&address);
+
     // Shutdown the first server
     drop(server1);
 
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
+    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
-    // Wait a while which should give the second server time
-    // to complete the operation
-    sync_pause(Some(1000)).await;
+    // Wait for the file to exist
+    wait_for_file(&server2_paths, &file).await?;
 
     // Create a folder
     let (destination, _) =
@@ -182,9 +193,8 @@ async fn file_transfers_multi_first_offline_move() -> Result<()> {
         .await?;
     let file = ExternalFile::new(*destination.id(), secret_id, file_name);
 
-    // Wait a while which should give the second server time
-    // to complete the operation
-    sync_pause(Some(1000)).await;
+    // Wait for the file to exist
+    wait_for_file(&server2_paths, &file).await?;
 
     let server1_path = device.server_path;
     let server2_path =
@@ -195,18 +205,16 @@ async fn file_transfers_multi_first_offline_move() -> Result<()> {
         .await?;
 
     // Bring the server back online
-    let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+    let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
 
-    //println!("waiting for transfers...");
-
-    // Wait for the transfers to complete
-    wait_for_transfers(&device.owner).await?;
-
-    //println!("completed waiting for transfers...");
+    // Wait for the file to exist
+    wait_for_file(&server1_paths, &file).await?;
 
     // Assert the files on server1 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
         .await?;
+
+    device.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 
@@ -215,8 +223,8 @@ async fn file_transfers_multi_first_offline_move() -> Result<()> {
 
 /// Tests uploading then deleting an external file on multiple servers.
 #[tokio::test]
-async fn file_transfers_multi_first_offline_delete() -> Result<()> {
-    const TEST_ID: &str = "file_transfers_multi_first_offline_delete";
+async fn file_transfers_offline_multi_delete() -> Result<()> {
+    const TEST_ID: &str = "file_transfers_offline_multi_delete";
 
     //crate::test_utils::init_tracing();
 
@@ -232,6 +240,9 @@ async fn file_transfers_multi_first_offline_delete() -> Result<()> {
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
+    let server1_paths = server1.paths(&address);
+    let server2_paths = server2.paths(&address);
+
     // Shutdown the first server
     drop(server1);
 
@@ -240,9 +251,8 @@ async fn file_transfers_multi_first_offline_delete() -> Result<()> {
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
-    // Wait a while which should give the second server time
-    // to complete the operation
-    sync_pause(Some(1000)).await;
+    // Wait for the file to exist
+    wait_for_file(&server2_paths, &file).await?;
 
     let server1_path = device.server_path;
     let server2_path =
@@ -258,9 +268,8 @@ async fn file_transfers_multi_first_offline_delete() -> Result<()> {
         .delete_secret(&secret_id, Default::default())
         .await?;
 
-    // Wait a while which should give the second server time
-    // to complete the operation
-    sync_pause(Some(1000)).await;
+    // Wait for the file to be deleted
+    wait_for_file_not_exist(&server2_paths, &file).await?;
 
     let local_paths = device.owner.paths();
 
@@ -269,14 +278,16 @@ async fn file_transfers_multi_first_offline_delete() -> Result<()> {
         .await?;
 
     // Bring the server back online
-    let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+    let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
 
-    // Wait for the transfers to complete
-    wait_for_transfers(&device.owner).await?;
+    // Wait for the file to be deleted
+    wait_for_file_not_exist(&server1_paths, &file).await?;
 
     // Assert the files on server1 do not exist
     assert_local_remote_file_not_exist(local_paths, &server1_path, &file)
         .await?;
+
+    device.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 
@@ -286,8 +297,8 @@ async fn file_transfers_multi_first_offline_delete() -> Result<()> {
 /// Tests uploading a file to multiple servers whilst one is
 /// offline then downloading on a different device.
 #[tokio::test]
-async fn file_transfers_multi_first_offline_download() -> Result<()> {
-    const TEST_ID: &str = "file_transfers_multi_first_offline_download";
+async fn file_transfers_offline_multi_download() -> Result<()> {
+    const TEST_ID: &str = "file_transfers_offline_multi_download";
 
     //crate::test_utils::init_tracing();
 
@@ -302,8 +313,7 @@ async fn file_transfers_multi_first_offline_download() -> Result<()> {
     let default_folder = uploader.owner.default_folder().await.unwrap();
     uploader.owner.add_server(origin.clone()).await?;
 
-    let server1_path =
-        server1.path.join(REMOTE_DIR).join(address.to_string());
+    let server2_paths = server2.paths(&address);
     let server2_path =
         server2.path.join(REMOTE_DIR).join(address.to_string());
 
@@ -322,9 +332,8 @@ async fn file_transfers_multi_first_offline_download() -> Result<()> {
         let file =
             ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
-        // Wait a while which should give the second server time
-        // to complete the operation
-        sync_pause(Some(1000)).await;
+        // Wait for the file to exist
+        wait_for_file(&server2_paths, &file).await?;
 
         assert_local_remote_file_eq(
             uploader.owner.paths(),
@@ -345,7 +354,9 @@ async fn file_transfers_multi_first_offline_download() -> Result<()> {
         let sync_error = downloader.owner.sync().await;
         assert!(sync_error.is_some());
 
-        wait_for_transfers(&downloader.owner).await?;
+        // Wait for the file to exist
+        let paths = downloader.owner.paths();
+        wait_for_file(paths, &file).await?;
 
         assert_local_remote_file_eq(
             downloader.owner.paths(),
@@ -354,6 +365,9 @@ async fn file_transfers_multi_first_offline_download() -> Result<()> {
         )
         .await?;
     }
+
+    uploader.owner.sign_out().await?;
+    downloader.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 

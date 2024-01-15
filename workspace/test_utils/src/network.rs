@@ -16,9 +16,10 @@ use sos_net::{
         sync::{Client, SyncStorage},
         vault::{Summary, VaultId},
         vfs, Paths,
+        sha2::{Digest, Sha256},
     },
 };
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
 pub struct SimulatedDevice {
     pub id: String,
@@ -287,6 +288,46 @@ pub async fn wait_for_transfers(account: &NetworkAccount) -> Result<()> {
         let transfers = account.transfers().await?;
         let transfers = transfers.read().await;
         if transfers.is_empty() {
+            break;
+        }
+    }
+    Ok(())
+}
+
+/// Wait for a file to exist whose content matches
+/// the file name checksum.
+pub async fn wait_for_file(paths: &Paths, file: &ExternalFile) -> Result<()> {
+    let path = paths.file_location(
+        file.vault_id(),
+        file.secret_id(),
+        file.file_name().to_string(),
+    );
+    loop {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        if vfs::try_exists(&path).await? {
+            let contents = vfs::read(&path).await?;
+            let checksum = Sha256::digest(&contents);
+            if checksum.as_slice() == file.file_name().as_ref() {
+                break;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Wait for a file to not exist.
+pub async fn wait_for_file_not_exist(
+    paths: &Paths,
+    file: &ExternalFile,
+) -> Result<()> {
+    let path = paths.file_location(
+        file.vault_id(),
+        file.secret_id(),
+        file.file_name().to_string(),
+    );
+    loop {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        if !vfs::try_exists(&path).await? {
             break;
         }
     }

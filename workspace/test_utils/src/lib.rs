@@ -158,9 +158,14 @@ pub struct TestServer {
 }
 
 impl TestServer {
+    /// Server paths for the given address.
+    pub fn paths(&self, address: &Address) -> Paths {
+        Paths::new_server(self.path.clone(), address.to_string())
+    }
+
     /// Path to the server account data.
     pub fn account_path(&self, address: &Address) -> PathBuf {
-        let paths = Paths::new_server(self.path.clone(), address.to_string());
+        let paths = self.paths(address);
         paths.user_dir().to_owned()
     }
 }
@@ -241,7 +246,12 @@ pub async fn teardown(test_id: &str) {
         .expect("failed to get current working directory");
     let target = current_dir.join("target/integration-test").join(test_id);
     tracing::debug!(path = ?target, "teardown");
-    std::fs::remove_dir_all(&target).expect("to remove test directory");
+    if let Err(e) = vfs::remove_dir_all(&target).await {
+        // Sometimes we get this:
+        //
+        // Os { code: 66, kind: DirectoryNotEmpty, message: "Directory not empty" }
+        eprintln!("teardown error {} {:#?}", test_id, e);
+    }
     /*
     let _ = tracing::subscriber::set_global_default(
         tracing::subscriber::NoSubscriber::new(),

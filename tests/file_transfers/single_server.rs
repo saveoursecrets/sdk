@@ -11,8 +11,8 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 
 /// Tests uploading an external file.
 #[tokio::test]
-async fn file_transfers_upload() -> Result<()> {
-    const TEST_ID: &str = "file_transfers_upload";
+async fn file_transfers_single_upload() -> Result<()> {
+    const TEST_ID: &str = "file_transfers_single_upload";
 
     //crate::test_utils::init_tracing();
 
@@ -39,6 +39,8 @@ async fn file_transfers_upload() -> Result<()> {
     )
     .await?;
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())
@@ -47,8 +49,8 @@ async fn file_transfers_upload() -> Result<()> {
 /// Tests uploading an external file after updating
 /// the file content.
 #[tokio::test]
-async fn file_transfers_update() -> Result<()> {
-    const TEST_ID: &str = "file_transfers_update";
+async fn file_transfers_single_update() -> Result<()> {
+    const TEST_ID: &str = "file_transfers_single_update";
 
     //crate::test_utils::init_tracing();
 
@@ -88,6 +90,8 @@ async fn file_transfers_update() -> Result<()> {
     )
     .await?;
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())
@@ -96,8 +100,8 @@ async fn file_transfers_update() -> Result<()> {
 /// Tests uploading an external file after moving
 /// the secret to a different folder.
 #[tokio::test]
-async fn file_transfers_move() -> Result<()> {
-    const TEST_ID: &str = "file_transfers_move";
+async fn file_transfers_single_move() -> Result<()> {
+    const TEST_ID: &str = "file_transfers_single_move";
 
     //crate::test_utils::init_tracing();
 
@@ -142,6 +146,8 @@ async fn file_transfers_move() -> Result<()> {
     )
     .await?;
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())
@@ -149,8 +155,8 @@ async fn file_transfers_move() -> Result<()> {
 
 /// Tests uploading then deleting an external file.
 #[tokio::test]
-async fn file_transfers_delete() -> Result<()> {
-    const TEST_ID: &str = "file_transfers_delete";
+async fn file_transfers_single_delete() -> Result<()> {
+    const TEST_ID: &str = "file_transfers_single_delete";
 
     //crate::test_utils::init_tracing();
 
@@ -194,6 +200,8 @@ async fn file_transfers_delete() -> Result<()> {
     )
     .await?;
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())
@@ -201,8 +209,8 @@ async fn file_transfers_delete() -> Result<()> {
 
 /// Tests downloading an uploaded file on a different device.
 #[tokio::test]
-async fn file_transfers_download() -> Result<()> {
-    const TEST_ID: &str = "file_transfers_download";
+async fn file_transfers_single_download() -> Result<()> {
+    const TEST_ID: &str = "file_transfers_single_download";
 
     //crate::test_utils::init_tracing();
 
@@ -212,8 +220,7 @@ async fn file_transfers_download() -> Result<()> {
     // Prepare mock devices
     let mut uploader = simulate_device(TEST_ID, &server, 2).await?;
     let default_folder = uploader.owner.default_folder().await.unwrap();
-
-    let downloader = uploader.connect(1, None).await?;
+    let mut downloader = uploader.connect(1, None).await?;
 
     // Create file secret then wait and assert on the upload
     let file = {
@@ -248,6 +255,9 @@ async fn file_transfers_download() -> Result<()> {
         )
         .await?;
     }
+
+    downloader.owner.sign_out().await?;
+    uploader.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 

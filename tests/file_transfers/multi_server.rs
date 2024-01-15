@@ -47,6 +47,8 @@ async fn file_transfers_multi_upload() -> Result<()> {
     assert_local_remote_file_eq(device.owner.paths(), &server2_path, &file)
         .await?;
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())
@@ -105,6 +107,8 @@ async fn file_transfers_multi_update() -> Result<()> {
     // Assert the files on server2 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server2_path, &file)
         .await?;
+
+    device.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 
@@ -168,6 +172,8 @@ async fn file_transfers_multi_move() -> Result<()> {
     assert_local_remote_file_eq(device.owner.paths(), &server2_path, &file)
         .await?;
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())
@@ -229,6 +235,8 @@ async fn file_transfers_multi_delete() -> Result<()> {
     assert_local_remote_file_not_exist(local_paths, &server2_path, &file)
         .await?;
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())
@@ -252,8 +260,7 @@ async fn file_transfers_multi_download() -> Result<()> {
     let address = uploader.owner.address().clone();
     let default_folder = uploader.owner.default_folder().await.unwrap();
     uploader.owner.add_server(origin).await?;
-
-    let downloader = uploader.connect(1, None).await?;
+    let mut downloader = uploader.connect(1, None).await?;
 
     // Create file secret then wait and assert on the upload
     let file = {
@@ -299,6 +306,9 @@ async fn file_transfers_multi_download() -> Result<()> {
         )
         .await?;
     }
+
+    uploader.owner.sign_out().await?;
+    downloader.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 
