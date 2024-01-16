@@ -13,7 +13,7 @@ async fn integration_sync_server_definitions() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare a mock device
-    let mut device = simulate_device(TEST_ID, &server, 1).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
 
     // Test server is configured as the remote
     let servers = device.owner.servers().await;

@@ -19,7 +19,7 @@ async fn integration_sync_import_folder() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare a mock device
-    let mut device = simulate_device(TEST_ID, &server, 1).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let origin = device.origin.clone();
     let server_path = device.server_path.clone();
 

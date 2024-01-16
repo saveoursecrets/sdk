@@ -1,6 +1,4 @@
-use crate::test_utils::{
-    num_events, simulate_device, spawn, teardown, SimulatedDevice,
-};
+use crate::test_utils::{num_events, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_net::sdk::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
@@ -19,30 +17,29 @@ async fn integration_sync_delete_folder() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare a mock device
-    let device = simulate_device(TEST_ID, &server, 1).await?;
-    let SimulatedDevice {
-        mut owner, folders, ..
-    } = device;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
+    let folders = device.folders.clone();
 
     let _original_summaries_len = folders.len();
 
     // Path that we expect the remote server to write to
-    let server_path = server.account_path(owner.address());
-    let address = owner.address().to_string();
+    let server_path = server.account_path(device.owner.address());
+    let address = device.owner.address().to_string();
 
-    let (new_folder, sync_error) = owner
+    let (new_folder, sync_error) = device
+        .owner
         .create_folder("sync_delete_folder".to_string())
         .await?;
     assert!(sync_error.is_none());
 
     // Our new local folder should have the single create vault event
-    assert_eq!(1, num_events(&mut owner, new_folder.id()).await);
+    assert_eq!(1, num_events(&mut device.owner, new_folder.id()).await);
 
-    let sync_error = owner.delete_folder(&new_folder).await?;
+    let sync_error = device.owner.delete_folder(&new_folder).await?;
     assert!(sync_error.is_none());
 
     let updated_summaries: Vec<Summary> = {
-        let storage = owner.storage().await?;
+        let storage = device.owner.storage().await?;
         let reader = storage.read().await;
         reader.list_folders().to_vec()
     };

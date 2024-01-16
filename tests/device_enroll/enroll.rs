@@ -20,7 +20,8 @@ async fn device_enroll() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare mock devices
-    let mut primary_device = simulate_device(TEST_ID, &server, 2).await?;
+    let mut primary_device =
+        simulate_device(TEST_ID, 2, Some(&server)).await?;
 
     // Create a secret in the primary owner which won't exist
     // in the second device

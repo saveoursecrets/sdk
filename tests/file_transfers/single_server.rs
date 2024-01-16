@@ -20,7 +20,7 @@ async fn file_transfers_single_upload() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare mock device
-    let mut device = simulate_device(TEST_ID, &server, 1).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let default_folder = device.owner.default_folder().await.unwrap();
 
     // Create an external file secret
@@ -58,7 +58,7 @@ async fn file_transfers_single_update() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare mock device
-    let mut device = simulate_device(TEST_ID, &server, 1).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let default_folder = device.owner.default_folder().await.unwrap();
 
     // Create an external file secret
@@ -109,7 +109,7 @@ async fn file_transfers_single_move() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare mock device
-    let mut device = simulate_device(TEST_ID, &server, 1).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let default_folder = device.owner.default_folder().await.unwrap();
 
     // Create an external file secret
@@ -164,7 +164,7 @@ async fn file_transfers_single_delete() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare mock device
-    let mut device = simulate_device(TEST_ID, &server, 1).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let default_folder = device.owner.default_folder().await.unwrap();
 
     // Create an external file secret
@@ -218,7 +218,7 @@ async fn file_transfers_single_download() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare mock devices
-    let mut uploader = simulate_device(TEST_ID, &server, 2).await?;
+    let mut uploader = simulate_device(TEST_ID, 2, Some(&server)).await?;
     let default_folder = uploader.owner.default_folder().await.unwrap();
     let mut downloader = uploader.connect(1, None).await?;
 

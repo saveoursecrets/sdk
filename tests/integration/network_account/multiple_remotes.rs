@@ -17,7 +17,7 @@ async fn integration_sync_multiple_remotes() -> Result<()> {
     let server2 = spawn(TEST_ID, None, Some("server2")).await?;
 
     // Prepare mock devices
-    let mut device1 = simulate_device(TEST_ID, &server1, 1).await?;
+    let mut device1 = simulate_device(TEST_ID, 1, Some(&server1)).await?;
     let folders = device1.folders.clone();
 
     // Create a remote provider for the additional server

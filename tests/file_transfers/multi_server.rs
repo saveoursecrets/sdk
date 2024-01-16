@@ -22,7 +22,7 @@ async fn file_transfers_multi_upload() -> Result<()> {
     let origin = server2.origin.clone();
 
     // Prepare mock device
-    let mut device = simulate_device(TEST_ID, &server1, 1).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
     let address = device.owner.address().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
@@ -68,7 +68,7 @@ async fn file_transfers_multi_update() -> Result<()> {
     let origin = server2.origin.clone();
 
     // Prepare mock device
-    let mut device = simulate_device(TEST_ID, &server1, 1).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
     let address = device.owner.address().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
@@ -129,7 +129,7 @@ async fn file_transfers_multi_move() -> Result<()> {
     let origin = server2.origin.clone();
 
     // Prepare mock device
-    let mut device = simulate_device(TEST_ID, &server1, 1).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
     let address = device.owner.address().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
@@ -192,7 +192,7 @@ async fn file_transfers_multi_delete() -> Result<()> {
     let origin = server2.origin.clone();
 
     // Prepare mock device
-    let mut device = simulate_device(TEST_ID, &server1, 1).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
     let address = device.owner.address().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
@@ -256,7 +256,7 @@ async fn file_transfers_multi_download() -> Result<()> {
     let origin = server2.origin.clone();
 
     // Prepare mock device
-    let mut uploader = simulate_device(TEST_ID, &server1, 2).await?;
+    let mut uploader = simulate_device(TEST_ID, 2, Some(&server1)).await?;
     let address = uploader.owner.address().clone();
     let default_folder = uploader.owner.default_folder().await.unwrap();
     uploader.owner.add_server(origin).await?;

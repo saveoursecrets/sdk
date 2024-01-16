@@ -18,7 +18,7 @@ async fn integration_sync_listen_rename_folder() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare mock devices
-    let mut device1 = simulate_device(TEST_ID, &server, 2).await?;
+    let mut device1 = simulate_device(TEST_ID, 2, Some(&server)).await?;
     let default_folder = device1.default_folder.clone();
     let origin = device1.origin.clone();
     let folders = device1.folders.clone();

@@ -14,7 +14,7 @@ async fn integration_websocket_shutdown() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare a mock device
-    let device = simulate_device(TEST_ID, &server, 1).await?;
+    let device = simulate_device(TEST_ID, 1, Some(&server)).await?;
 
     // Start the websocket connection
     let handle = device.listen().await?;

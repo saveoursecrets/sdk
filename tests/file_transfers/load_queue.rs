@@ -1,7 +1,7 @@
 //! Tests for loading the transfers queue from disc.
 use crate::test_utils::{
     assert_local_remote_file_eq, mock::files::net::create_file_secret,
-    simulate_device_maybe_server, spawn, teardown, wait_for_transfers,
+    simulate_device, spawn, teardown, wait_for_transfers,
 };
 use anyhow::Result;
 use sos_net::{client::RemoteSync, sdk::prelude::*};
@@ -19,7 +19,7 @@ async fn file_transfers_load_queue() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Prepare mock device
-    let mut device = simulate_device_maybe_server(TEST_ID, 1, None).await?;
+    let mut device = simulate_device(TEST_ID, 1, None).await?;
     let key: AccessKey = device.password.clone().into();
     let address = device.owner.address().clone();
     let default_folder = device.owner.default_folder().await.unwrap();

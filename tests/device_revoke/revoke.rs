@@ -23,7 +23,8 @@ async fn device_revoke() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare mock devices
-    let mut primary_device = simulate_device(TEST_ID, &server, 2).await?;
+    let mut primary_device =
+        simulate_device(TEST_ID, 2, Some(&server)).await?;
 
     let password = primary_device.password.clone();
     let key: AccessKey = password.into();

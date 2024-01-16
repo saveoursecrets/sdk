@@ -1,4 +1,4 @@
-use crate::test_utils::{simulate_device, spawn, teardown, SimulatedDevice};
+use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_net::client::{ListenOptions, RpcClient};
 use std::time::Duration;
@@ -15,14 +15,15 @@ async fn integration_websocket_reconnect() -> Result<()> {
     let addr = server.addr.clone();
 
     // Prepare a mock device
-    let device = simulate_device(TEST_ID, &server, 1).await?;
-    let SimulatedDevice { owner, origin, .. } = device;
+    let device = simulate_device(TEST_ID, 1, Some(&server)).await?;
+    let origin = device.origin.clone();
 
     tokio::task::spawn(async move {
         // Start a websocket listener that should
         // attempt to reconnect 4 times with delays of
         // 1000ms, 2000ms, 4000ms and 8000ms before giving up.
-        owner
+        device
+            .owner
             .listen(
                 &origin,
                 ListenOptions::new_config("device_1".to_string(), 500, 4)

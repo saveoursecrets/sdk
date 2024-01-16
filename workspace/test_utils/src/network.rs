@@ -88,17 +88,11 @@ impl SimulatedDevice {
     }
 }
 
-/// Simulate a primary device connected to the given server.
+/// Simulate a primary device.
+///
+/// If a server is given the device will be connected to
+/// the given server.
 pub async fn simulate_device(
-    test_id: &str,
-    server: &TestServer,
-    num_clients: usize,
-) -> Result<SimulatedDevice> {
-    simulate_device_maybe_server(test_id, num_clients, Some(server)).await
-}
-
-/// Simulate a primary device connected to the given server.
-pub async fn simulate_device_maybe_server(
     test_id: &str,
     num_clients: usize,
     server: Option<&TestServer>,
