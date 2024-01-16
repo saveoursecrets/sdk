@@ -178,7 +178,7 @@ async fn assert_create_file_secret(
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(SecretId, SecretRow, [u8; 32])> {
-    let (id, secret_data, file_path) =
+    let (id, secret_data, file_path, _) =
         create_file_secret(account, default_folder, Some(progress_tx))
             .await?;
 
@@ -229,7 +229,7 @@ async fn assert_update_file_secret(
     original_checksum: &[u8; 32],
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(SecretId, SecretRow, [u8; 32])> {
-    let new_secret_data = update_file_secret(
+    let (new_secret_data, _) = update_file_secret(
         account,
         default_folder,
         secret_data,
@@ -374,7 +374,7 @@ async fn assert_create_update_move_file_secret(
     default_folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<(Summary, SecretId, [u8; 32])> {
-    let (id, secret_data, _) = create_file_secret(
+    let (id, secret_data, _, _) = create_file_secret(
         account,
         default_folder,
         Some(progress_tx.clone()),
@@ -394,7 +394,7 @@ async fn assert_create_update_move_file_secret(
     let new_folder_name = "Mock folder".to_string();
     let (destination, _, _) = account.create_folder(new_folder_name).await?;
 
-    let new_secret_data = update_file_secret(
+    let (new_secret_data, _) = update_file_secret(
         account,
         default_folder,
         &secret_data,
@@ -466,7 +466,7 @@ async fn assert_attach_file_secret(
     folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<()> {
-    let (id, mut secret_data, _) =
+    let (id, mut secret_data, _, _) =
         create_file_secret(account, folder, Some(progress_tx.clone()))
             .await?;
 

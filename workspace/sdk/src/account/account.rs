@@ -101,11 +101,11 @@ pub struct SecretDelete<T> {
 /// Trait for account implementations.
 #[async_trait]
 pub trait Account {
-    /// Account to create.
+    /// Account type to create.
     type Account;
 
     /// Errors for this account.
-    type Error: std::fmt::Debug;
+    type Error: std::error::Error + std::fmt::Debug;
 
     /// Prepare an account for sign in.
     ///
@@ -433,6 +433,20 @@ pub trait Account {
         secret_meta: &SecretMeta,
         options: AccessOptions,
     ) -> std::result::Result<(SecretMove<Self::Error>, Summary), Self::Error>;
+
+    /// Update a file secret.
+    ///
+    /// If the secret exists and is not a file secret it will be
+    /// converted to a file secret so take care to ensure you only
+    /// use this on file secrets.
+    async fn update_file(
+        &mut self,
+        secret_id: &SecretId,
+        meta: SecretMeta,
+        path: impl AsRef<Path> + Send + Sync,
+        options: AccessOptions,
+        destination: Option<&Summary>,
+    ) -> std::result::Result<SecretChange<Self::Error>, Self::Error>;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -1888,5 +1902,30 @@ impl Account for LocalAccount {
         }
         let result = self.move_secret(secret_id, from, &to, options).await?;
         Ok((result, to))
+    }
+
+    /// Update a file secret.
+    ///
+    /// If the secret exists and is not a file secret it will be
+    /// converted to a file secret so take care to ensure you only
+    /// use this on file secrets.
+    async fn update_file(
+        &mut self,
+        secret_id: &SecretId,
+        meta: SecretMeta,
+        path: impl AsRef<Path> + Send + Sync,
+        options: AccessOptions,
+        destination: Option<&Summary>,
+    ) -> Result<SecretChange<Self::Error>> {
+        let path = path.as_ref().to_path_buf();
+        let secret: Secret = path.try_into()?;
+        self.update_secret(
+            secret_id,
+            meta,
+            Some(secret),
+            options,
+            destination,
+        )
+        .await
     }
 }

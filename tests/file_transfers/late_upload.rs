@@ -3,7 +3,7 @@
 //! transferring the files to the server.
 use crate::test_utils::{
     assert_local_remote_file_eq,
-    mock::{self, files::net::create_file_secret},
+    mock::{self, files::create_file_secret},
     simulate_device, spawn, teardown, wait_for_transfers,
 };
 use anyhow::Result;

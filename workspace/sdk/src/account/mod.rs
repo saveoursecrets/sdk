@@ -7,8 +7,8 @@ mod builder;
 pub mod contacts;
 #[cfg(feature = "device")]
 mod device;
-#[cfg(feature = "files")]
-mod files;
+//#[cfg(feature = "files")]
+//mod files;
 #[cfg(feature = "migrate")]
 mod migrate;
 //#[cfg(feature = "search")]

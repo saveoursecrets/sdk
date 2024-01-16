@@ -455,41 +455,6 @@ impl NetworkAccount {
         Ok((summary, self.sync().await))
     }
 
-    /// Update a file secret.
-    ///
-    /// If the secret exists and is not a file secret it will be
-    /// converted to a file secret so take care to ensure you only
-    /// use this on file secrets.
-    #[cfg(feature = "files")]
-    pub async fn update_file(
-        &mut self,
-        secret_id: &SecretId,
-        meta: SecretMeta,
-        path: impl AsRef<Path>,
-        options: AccessOptions,
-        destination: Option<&Summary>,
-    ) -> Result<SecretChange<Error>> {
-        let _ = self.sync_lock.lock().await;
-
-        let result = {
-            let mut account = self.account.lock().await;
-            let result = account
-                .update_file(secret_id, meta, path, options, destination)
-                .await?;
-            result
-        };
-
-        let result = SecretChange {
-            id: result.id,
-            event: result.event,
-            commit_state: result.commit_state,
-            folder: result.folder,
-            sync_error: self.sync().await,
-        };
-
-        Ok(result)
-    }
-
     /// Expected location for a file by convention.
     pub fn file_location(
         &self,
@@ -1009,5 +974,35 @@ impl Account for NetworkAccount {
         };
 
         Ok((result, to))
+    }
+
+    #[cfg(feature = "files")]
+    async fn update_file(
+        &mut self,
+        secret_id: &SecretId,
+        meta: SecretMeta,
+        path: impl AsRef<Path> + Send + Sync,
+        options: AccessOptions,
+        destination: Option<&Summary>,
+    ) -> Result<SecretChange<Error>> {
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            let result = account
+                .update_file(secret_id, meta, path, options, destination)
+                .await?;
+            result
+        };
+
+        let result = SecretChange {
+            id: result.id,
+            event: result.event,
+            commit_state: result.commit_state,
+            folder: result.folder,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
     }
 }

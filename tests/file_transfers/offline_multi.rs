@@ -5,7 +5,7 @@ use anyhow::Result;
 
 use crate::test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
-    mock::files::net::{create_file_secret, update_file_secret},
+    mock::files::{create_file_secret, update_file_secret},
     simulate_device, spawn, teardown, wait_for_file, wait_for_file_not_exist,
 };
 use sos_net::{client::RemoteSync, sdk::prelude::*};
