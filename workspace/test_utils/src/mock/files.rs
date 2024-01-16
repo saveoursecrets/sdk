@@ -36,7 +36,7 @@ pub async fn update_file_secret(
     let mut new_meta = secret_data.meta().clone();
     new_meta.set_label("Text file".to_string());
 
-    let (new_id, _, _, _) = account
+    let SecretChange { id: new_id, .. } = account
         .update_file(
             &id,
             new_meta,
@@ -107,7 +107,7 @@ pub mod net {
         let mut new_meta = secret_data.meta().clone();
         new_meta.set_label("Text file".to_string());
 
-        let (new_id, _) = account
+        let SecretChange { id: new_id, .. } = account
             .update_file(
                 &id,
                 new_meta,

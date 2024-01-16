@@ -28,7 +28,7 @@ async fn integration_search_favorites() -> Result<()> {
     // Create a secret
     let (meta, secret) =
         mock::login("login", TEST_ID, generate_passphrase()?.0);
-    let CreatedSecret { id, .. } = account
+    let SecretChange { id, .. } = account
         .create_secret(meta, secret, Default::default())
         .await?;
 
@@ -41,7 +41,7 @@ async fn integration_search_favorites() -> Result<()> {
     // Mark a secret as favorite
     let (mut data, _) = account.read_secret(&id, None).await?;
     data.meta_mut().set_favorite(true);
-    let (_, _, _, _) = account
+    account
         .update_secret(&id, data.into(), None, Default::default(), None)
         .await?;
 
@@ -54,7 +54,7 @@ async fn integration_search_favorites() -> Result<()> {
     // No longer a favorite
     let (mut data, _) = account.read_secret(&id, None).await?;
     data.meta_mut().set_favorite(false);
-    let (_, _, _, _) = account
+    account
         .update_secret(&id, data.into(), None, Default::default(), None)
         .await?;
 

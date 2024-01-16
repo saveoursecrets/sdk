@@ -27,7 +27,7 @@ async fn integration_search_update_secret() -> Result<()> {
 
     // Create a secret
     let (meta, secret) = mock::note("note", TEST_ID);
-    let CreatedSecret { id, .. } = account
+    let SecretChange { id, .. } = account
         .create_secret(meta, secret, Default::default())
         .await?;
 
@@ -37,7 +37,7 @@ async fn integration_search_update_secret() -> Result<()> {
 
     // Update with a new label
     let (meta, secret) = mock::note("updated", TEST_ID);
-    let (_, _, _, _) = account
+    account
         .update_secret(&id, meta, Some(secret), Default::default(), None)
         .await?;
 

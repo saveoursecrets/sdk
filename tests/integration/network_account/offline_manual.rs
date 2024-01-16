@@ -48,7 +48,7 @@ async fn integration_sync_offline_manual() -> Result<()> {
         .read_secret(&result.id, Default::default())
         .await?;
     let (meta, secret) = mock::note("note_edited", "offline_secret_edit");
-    let (_, sync_error) = device1
+    let SecretChange { sync_error, .. } = device1
         .owner
         .update_secret(
             &result.id,
@@ -59,7 +59,7 @@ async fn integration_sync_offline_manual() -> Result<()> {
         )
         .await?;
     assert!(sync_error.is_some());
-    let sync_error = device1
+    let SecretDelete { sync_error, .. } = device1
         .owner
         .delete_secret(&result.id, Default::default())
         .await?;

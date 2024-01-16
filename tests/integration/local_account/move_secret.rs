@@ -28,7 +28,7 @@ async fn integration_move_secret() -> Result<()> {
 
     // Create secret
     let (meta, secret) = mock::note("note", TEST_ID);
-    let CreatedSecret { id, folder, .. } = account
+    let SecretChange { id, folder, .. } = account
         .create_secret(meta, secret, Default::default())
         .await?;
     assert_eq!(&default_folder, &folder);

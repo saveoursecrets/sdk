@@ -26,7 +26,7 @@ use crate::{Error, Result, TARGET};
 ///
 /// A borrowed value indicates that no changes were made
 /// whilst an owned value indicates the user made some edits.
-pub type EditSecretResult<'a> = Cow<'a, Secret>;
+pub type EditSecretChange<'a> = Cow<'a, Secret>;
 
 /// Spawn the editor passing the file path and wait for it to exit.
 fn spawn_editor<P: AsRef<Path>>(cmd: String, file: P) -> Result<ExitStatus> {
@@ -185,7 +185,7 @@ fn digest<B: AsRef<[u8]>>(bytes: B) -> Vec<u8> {
 }
 
 /// Edit a secret.
-pub async fn edit(secret: &Secret) -> Result<EditSecretResult<'_>> {
+pub async fn edit(secret: &Secret) -> Result<EditSecretChange<'_>> {
     let (content, suffix) = to_bytes(secret)?;
     edit_secret(secret, content, &suffix).await
 }
@@ -195,7 +195,7 @@ async fn edit_secret<'a>(
     secret: &'a Secret,
     content: Vec<u8>,
     suffix: &str,
-) -> Result<EditSecretResult<'a>> {
+) -> Result<EditSecretChange<'a>> {
     let result = editor(&content, suffix).await?;
     match result {
         Cow::Borrowed(_) => Ok(Cow::Borrowed(secret)),

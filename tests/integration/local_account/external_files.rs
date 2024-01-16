@@ -289,7 +289,7 @@ async fn assert_move_file_secret(
     let new_folder_name = "Mock folder".to_string();
     let (destination, _, _) = account.create_folder(new_folder_name).await?;
 
-    let (new_id, _) = account
+    let SecretMove { id: new_id, .. } = account
         .move_secret(
             id,
             default_folder,

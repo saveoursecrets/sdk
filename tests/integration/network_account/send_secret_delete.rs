@@ -32,7 +32,7 @@ async fn integration_sync_delete_secret() -> Result<()> {
     // Should have two events
     assert_eq!(2, num_events(&mut device.owner, &default_folder_id).await);
 
-    let sync_error = device
+    let SecretDelete { sync_error, .. } = device
         .owner
         .delete_secret(&result.id, Default::default())
         .await?;

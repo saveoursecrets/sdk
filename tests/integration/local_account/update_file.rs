@@ -28,7 +28,7 @@ async fn integration_update_file() -> Result<()> {
 
     // Create the file secret
     let (meta, secret, _) = mock::file_image_secret()?;
-    let CreatedSecret { id, .. } = account
+    let SecretChange { id, .. } = account
         .create_secret(meta.clone(), secret, Default::default())
         .await?;
 

@@ -48,26 +48,51 @@ use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-/// Information about a created secret.
-pub struct CreatedSecret<T> {
+/// Result information for a created or updated secret.
+pub struct SecretChange<T> {
     /// Secret identifier.
     pub id: SecretId,
     /// Event to be logged.
     pub event: Event,
     /// Commit state of the folder event log before
-    /// the secret was created.
+    /// the secret was created (or updated).
     pub commit_state: CommitState,
-    /// Folder the secret was created in.
+    /// Folder containing the secret.
     pub folder: Summary,
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
 }
 
-/// Information about a bulk insert.
-pub struct BulkInsert<T> {
+/// Result information for a bulk insert.
+pub struct SecretInsert<T> {
     /// Created secrets.
-    pub results: Vec<CreatedSecret<T>>,
+    pub results: Vec<SecretChange<T>>,
+    /// Error generated during a sync.
+    #[cfg(feature = "sync")]
+    pub sync_error: Option<SyncError<T>>,
+}
+
+/// Result information for a secret move event.
+pub struct SecretMove<T> {
+    /// Secret identifier.
+    pub id: SecretId,
+    /// Event to be logged.
+    pub event: Event,
+    /// Error generated during a sync.
+    #[cfg(feature = "sync")]
+    pub sync_error: Option<SyncError<T>>,
+}
+
+/// Result information for a deleted secret.
+pub struct SecretDelete<T> {
+    /// Event to be logged.
+    pub event: Event,
+    /// Commit state of the folder event log before
+    /// the secret was deleted.
+    pub commit_state: CommitState,
+    /// Folder the secret was deleted from.
+    pub folder: Summary,
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
@@ -80,7 +105,7 @@ pub trait Account {
     type Account;
 
     /// Errors for this account.
-    type Error: std::fmt::Debug + From<Error>;
+    type Error: std::fmt::Debug;
 
     /// Prepare an account for sign in.
     ///
@@ -344,13 +369,70 @@ pub trait Account {
         meta: SecretMeta,
         secret: Secret,
         options: AccessOptions,
-    ) -> std::result::Result<CreatedSecret<Self::Error>, Self::Error>;
+    ) -> std::result::Result<SecretChange<Self::Error>, Self::Error>;
 
     /// Bulk insert secrets into the currently open folder.
     async fn insert_secrets(
         &mut self,
         secrets: Vec<(SecretMeta, Secret)>,
-    ) -> std::result::Result<BulkInsert<Self::Error>, Self::Error>;
+    ) -> std::result::Result<SecretInsert<Self::Error>, Self::Error>;
+
+    /// Update a secret in the current open folder or a specific folder.
+    ///
+    /// If a `destination` is given the secret is also moved to the
+    /// target folder.
+    async fn update_secret(
+        &mut self,
+        secret_id: &SecretId,
+        meta: SecretMeta,
+        secret: Option<Secret>,
+        options: AccessOptions,
+        destination: Option<&Summary>,
+    ) -> std::result::Result<SecretChange<Self::Error>, Self::Error>;
+
+    /// Move a secret between folders.
+    async fn move_secret(
+        &mut self,
+        secret_id: &SecretId,
+        from: &Summary,
+        to: &Summary,
+        options: AccessOptions,
+    ) -> std::result::Result<SecretMove<Self::Error>, Self::Error>;
+
+    /// Read a secret in the current open folder.
+    async fn read_secret(
+        &mut self,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+    ) -> std::result::Result<(SecretRow, ReadEvent), Self::Error>;
+
+    /// Delete a secret and remove any external files.
+    async fn delete_secret(
+        &mut self,
+        secret_id: &SecretId,
+        options: AccessOptions,
+    ) -> std::result::Result<SecretDelete<Self::Error>, Self::Error>;
+
+    /// Move a secret to the archive.
+    ///
+    /// An archive folder must exist.
+    async fn archive(
+        &mut self,
+        from: &Summary,
+        secret_id: &SecretId,
+        options: AccessOptions,
+    ) -> std::result::Result<SecretMove<Self::Error>, Self::Error>;
+
+    /// Move a secret out of the archive.
+    ///
+    /// The secret must be inside a folder with the archive flag set
+    async fn unarchive(
+        &mut self,
+        from: &Summary,
+        secret_id: &SecretId,
+        secret_meta: &SecretMeta,
+        options: AccessOptions,
+    ) -> std::result::Result<(SecretMove<Self::Error>, Summary), Self::Error>;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -938,15 +1020,6 @@ impl LocalAccount {
         Ok((id, event, folder))
     }
 
-    /// Read a secret in the current open folder.
-    pub async fn read_secret(
-        &mut self,
-        secret_id: &SecretId,
-        folder: Option<Summary>,
-    ) -> Result<(SecretRow, ReadEvent)> {
-        self.get_secret(secret_id, folder, true).await
-    }
-
     /// Get a secret in the current open folder and
     /// optionally append to the audit log.
     ///
@@ -983,68 +1056,13 @@ impl LocalAccount {
         Ok((SecretRow::new(*secret_id, meta, secret), read_event))
     }
 
-    /// Update a secret in the current open folder or a specific folder.
-    pub async fn update_secret(
-        &mut self,
-        secret_id: &SecretId,
-        meta: SecretMeta,
-        secret: Option<Secret>,
-        options: AccessOptions,
-        destination: Option<&Summary>,
-    ) -> Result<(SecretId, Event, CommitState, Summary)> {
-        let (folder, commit_state) =
-            self.compute_folder_state(&options).await?;
-
-        self.open_folder(&folder).await?;
-
-        if let Some(Secret::Pem { certificates, .. }) = &secret {
-            if certificates.is_empty() {
-                return Err(Error::PemEncoding);
-            }
-        }
-
-        let event = {
-            let storage = self.storage().await?;
-            let mut writer = storage.write().await;
-            writer
-                .update_secret(secret_id, meta, secret, options.clone())
-                .await?
-        };
-
-        let event = Event::Write(*folder.id(), event);
-
-        let id = if let Some(to) = destination.as_ref() {
-            let (new_id, _) =
-                self.mv_secret(secret_id, &folder, to, options).await?;
-            new_id
-        } else {
-            *secret_id
-        };
-
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
-
-        Ok((id, event, commit_state, folder))
-    }
-
-    /// Move a secret between folders.
-    pub async fn move_secret(
-        &mut self,
-        secret_id: &SecretId,
-        from: &Summary,
-        to: &Summary,
-        options: AccessOptions,
-    ) -> Result<(SecretId, Event)> {
-        self.mv_secret(secret_id, from, to, options).await
-    }
-
     async fn mv_secret(
         &mut self,
         secret_id: &SecretId,
         from: &Summary,
         to: &Summary,
         mut options: AccessOptions,
-    ) -> Result<(SecretId, Event)> {
+    ) -> Result<SecretMove<Error>> {
         self.open_vault(from, false).await?;
         let (secret_data, read_event) =
             self.get_secret(secret_id, None, false).await?;
@@ -1106,32 +1124,11 @@ impl LocalAccount {
         );
         self.paths.append_audit_events(vec![audit_event]).await?;
 
-        Ok((new_id, event))
-    }
-
-    /// Delete a secret and remove any external files.
-    pub async fn delete_secret(
-        &mut self,
-        secret_id: &SecretId,
-        options: AccessOptions,
-    ) -> Result<(Event, CommitState, Summary)> {
-        let (folder, commit_state) =
-            self.compute_folder_state(&options).await?;
-
-        self.open_folder(&folder).await?;
-
-        let event = {
-            let storage = self.storage().await?;
-            let mut writer = storage.write().await;
-            writer.delete_secret(secret_id, options).await?
-        };
-
-        let event = Event::Write(*folder.id(), event);
-
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
-
-        Ok((event, commit_state, folder))
+        Ok(SecretMove {
+            id: new_id,
+            event,
+            sync_error: None,
+        })
     }
 
     /// Change the password for a folder.
@@ -1169,59 +1166,6 @@ impl LocalAccount {
             .await?;
 
         Ok(())
-    }
-
-    /// Move a secret to the archive.
-    ///
-    /// An archive folder must exist.
-    pub async fn archive(
-        &mut self,
-        from: &Summary,
-        secret_id: &SecretId,
-        options: AccessOptions,
-    ) -> Result<(SecretId, Event)> {
-        if from.flags().is_archive() {
-            return Err(Error::AlreadyArchived);
-        }
-        self.open_folder(from).await?;
-        let to = self
-            .archive_folder()
-            .await
-            .ok_or_else(|| Error::NoArchive)?;
-        self.move_secret(secret_id, from, &to, options).await
-    }
-
-    /// Move a secret out of the archive.
-    ///
-    /// The secret must be inside a folder with the archive flag set
-    pub async fn unarchive(
-        &mut self,
-        from: &Summary,
-        secret_id: &SecretId,
-        secret_meta: &SecretMeta,
-        options: AccessOptions,
-    ) -> Result<(Summary, SecretId, Event)> {
-        if !from.flags().is_archive() {
-            return Err(Error::NotArchived);
-        }
-        self.open_folder(from).await?;
-        let mut to = self
-            .default_folder()
-            .await
-            .ok_or_else(|| Error::NoDefaultFolder)?;
-        let authenticator = self.authenticator_folder().await;
-        let contacts = self.contacts_folder().await;
-        if secret_meta.kind() == &SecretType::Totp && authenticator.is_some()
-        {
-            to = authenticator.unwrap();
-        } else if secret_meta.kind() == &SecretType::Contact
-            && contacts.is_some()
-        {
-            to = contacts.unwrap();
-        }
-        let (id, event) =
-            self.move_secret(secret_id, from, &to, options).await?;
-        Ok((to, id, event))
     }
 
     /// Build the search index for all folders.
@@ -1771,14 +1715,14 @@ impl Account for LocalAccount {
         meta: SecretMeta,
         secret: Secret,
         options: AccessOptions,
-    ) -> Result<CreatedSecret<Self::Error>> {
+    ) -> Result<SecretChange<Self::Error>> {
         let (folder, commit_state) =
             self.compute_folder_state(&options).await?;
 
         let (id, event, _) =
             self.add_secret(meta, secret, options, true).await?;
 
-        Ok(CreatedSecret {
+        Ok(SecretChange {
             id,
             event,
             commit_state,
@@ -1790,16 +1734,159 @@ impl Account for LocalAccount {
     async fn insert_secrets(
         &mut self,
         secrets: Vec<(SecretMeta, Secret)>,
-    ) -> Result<BulkInsert<Self::Error>> {
+    ) -> Result<SecretInsert<Self::Error>> {
         let mut results = Vec::new();
         for (meta, secret) in secrets {
             results.push(
                 self.create_secret(meta, secret, Default::default()).await?,
             );
         }
-        Ok(BulkInsert {
+        Ok(SecretInsert {
             results,
             sync_error: None,
         })
+    }
+
+    /// Update a secret in the current open folder or a specific folder.
+    async fn update_secret(
+        &mut self,
+        secret_id: &SecretId,
+        meta: SecretMeta,
+        secret: Option<Secret>,
+        options: AccessOptions,
+        destination: Option<&Summary>,
+    ) -> Result<SecretChange<Self::Error>> {
+        let (folder, commit_state) =
+            self.compute_folder_state(&options).await?;
+
+        self.open_folder(&folder).await?;
+
+        if let Some(Secret::Pem { certificates, .. }) = &secret {
+            if certificates.is_empty() {
+                return Err(Error::PemEncoding);
+            }
+        }
+
+        let event = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer
+                .update_secret(secret_id, meta, secret, options.clone())
+                .await?
+        };
+
+        let event = Event::Write(*folder.id(), event);
+
+        let id = if let Some(to) = destination.as_ref() {
+            let SecretMove { id, .. } =
+                self.mv_secret(secret_id, &folder, to, options).await?;
+            id
+        } else {
+            *secret_id
+        };
+
+        let audit_event: AuditEvent = (self.address(), &event).into();
+        self.paths.append_audit_events(vec![audit_event]).await?;
+
+        Ok(SecretChange {
+            id,
+            event,
+            commit_state,
+            folder,
+            sync_error: None,
+        })
+    }
+
+    async fn move_secret(
+        &mut self,
+        secret_id: &SecretId,
+        from: &Summary,
+        to: &Summary,
+        options: AccessOptions,
+    ) -> Result<SecretMove<Self::Error>> {
+        self.mv_secret(secret_id, from, to, options).await
+    }
+
+    async fn read_secret(
+        &mut self,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+    ) -> Result<(SecretRow, ReadEvent)> {
+        self.get_secret(secret_id, folder, true).await
+    }
+
+    async fn delete_secret(
+        &mut self,
+        secret_id: &SecretId,
+        options: AccessOptions,
+    ) -> Result<SecretDelete<Self::Error>> {
+        let (folder, commit_state) =
+            self.compute_folder_state(&options).await?;
+
+        self.open_folder(&folder).await?;
+
+        let event = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer.delete_secret(secret_id, options).await?
+        };
+
+        let event = Event::Write(*folder.id(), event);
+
+        let audit_event: AuditEvent = (self.address(), &event).into();
+        self.paths.append_audit_events(vec![audit_event]).await?;
+
+        Ok(SecretDelete {
+            event,
+            commit_state,
+            folder,
+            sync_error: None,
+        })
+    }
+
+    async fn archive(
+        &mut self,
+        from: &Summary,
+        secret_id: &SecretId,
+        options: AccessOptions,
+    ) -> Result<SecretMove<Self::Error>> {
+        if from.flags().is_archive() {
+            return Err(Error::AlreadyArchived);
+        }
+        self.open_folder(from).await?;
+        let to = self
+            .archive_folder()
+            .await
+            .ok_or_else(|| Error::NoArchive)?;
+        self.move_secret(secret_id, from, &to, options).await
+    }
+
+    async fn unarchive(
+        &mut self,
+        from: &Summary,
+        secret_id: &SecretId,
+        secret_meta: &SecretMeta,
+        options: AccessOptions,
+    ) -> Result<(SecretMove<Self::Error>, Summary)> {
+        if !from.flags().is_archive() {
+            return Err(Error::NotArchived);
+        }
+        self.open_folder(from).await?;
+        let mut to = self
+            .default_folder()
+            .await
+            .ok_or_else(|| Error::NoDefaultFolder)?;
+        let authenticator = self.authenticator_folder().await;
+        let contacts = self.contacts_folder().await;
+        if secret_meta.kind() == &SecretType::Totp && authenticator.is_some()
+        {
+            to = authenticator.unwrap();
+        } else if secret_meta.kind() == &SecretType::Contact
+            && contacts.is_some()
+        {
+            to = contacts.unwrap();
+        }
+        let result = self.move_secret(secret_id, from, &to, options).await?;
+        Ok((result, to))
     }
 }

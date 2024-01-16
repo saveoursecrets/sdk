@@ -40,7 +40,7 @@ async fn integration_sync_listen_delete_secret() -> Result<()> {
     assert!(result.sync_error.is_none());
 
     // Delete the secret
-    let sync_error = device1
+    let SecretDelete { sync_error, .. } = device1
         .owner
         .delete_secret(&result.id, Default::default())
         .await?;

@@ -33,7 +33,7 @@ async fn integration_sync_update_secret() -> Result<()> {
     assert_eq!(2, num_events(&mut device.owner, &default_folder_id).await);
 
     let (meta, secret) = mock::note("note", "secret1");
-    let (_, sync_error) = device
+    let SecretChange { sync_error, .. } = device
         .owner
         .update_secret(
             &result.id,

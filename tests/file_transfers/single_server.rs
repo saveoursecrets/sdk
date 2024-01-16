@@ -124,7 +124,7 @@ async fn file_transfers_single_move() -> Result<()> {
         device.owner.create_folder("new_folder".to_owned()).await?;
 
     // Moving the secret also needs to move the file
-    let ((secret_id, _), _) = device
+    let SecretMove { id: secret_id, .. } = device
         .owner
         .move_secret(
             &secret_id,

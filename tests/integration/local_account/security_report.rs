@@ -94,7 +94,7 @@ async fn simulate_session(
     let weak_meta =
         SecretMeta::new("Weak password".to_string(), weak_secret.kind());
 
-    let CreatedSecret { id: weak_id, .. } = account
+    let SecretChange { id: weak_id, .. } = account
         .create_secret(weak_meta, weak_secret, default_folder.clone().into())
         .await?;
 
@@ -126,7 +126,7 @@ async fn simulate_session(
     let strong_meta =
         SecretMeta::new("Strong password".to_string(), strong_secret.kind());
 
-    let CreatedSecret { id: strong_id, .. } = account
+    let SecretChange { id: strong_id, .. } = account
         .create_secret(
             strong_meta,
             strong_secret,

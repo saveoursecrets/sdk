@@ -34,12 +34,12 @@ async fn integration_events_file() -> Result<()> {
 
     // Create an external file secret
     let (meta, secret, _file_path) = mock::file_text_secret()?;
-    let CreatedSecret { id, .. } = account
+    let SecretChange { id, .. } = account
         .create_secret(meta, secret, Default::default())
         .await?;
 
     // Move the secret to move the associated file
-    let (id, _) = account
+    let SecretMove { id, .. } = account
         .move_secret(&id, &default_folder, &folder, Default::default())
         .await?;
 

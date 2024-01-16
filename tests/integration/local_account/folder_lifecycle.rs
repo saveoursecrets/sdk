@@ -37,7 +37,7 @@ async fn integration_folder_lifecycle() -> Result<()> {
 
     // Create a secret in the new folder
     let (meta, secret) = mock::note("note", TEST_ID);
-    let CreatedSecret {
+    let SecretChange {
         id,
         folder: secret_folder,
         ..

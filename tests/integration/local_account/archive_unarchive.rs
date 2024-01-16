@@ -31,13 +31,13 @@ async fn integration_archive_unarchive() -> Result<()> {
 
     // Create secret
     let (meta, secret) = mock::note("note", TEST_ID);
-    let CreatedSecret { id, folder, .. } = account
+    let SecretChange { id, folder, .. } = account
         .create_secret(meta.clone(), secret, Default::default())
         .await?;
     assert_eq!(&default_folder, &folder);
 
     // Archive the secret and get the new identifier
-    let (id, _) = account
+    let SecretMove { id, .. } = account
         .archive(&default_folder, &id, Default::default())
         .await?;
 

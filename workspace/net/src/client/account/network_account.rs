@@ -3,8 +3,8 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        Account, AccountBuilder, AccountData, BulkInsert, CreatedSecret,
-        DetachedView, LocalAccount,
+        Account, AccountBuilder, AccountData, DetachedView, LocalAccount,
+        SecretChange, SecretDelete, SecretInsert, SecretMove,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -455,16 +455,6 @@ impl NetworkAccount {
         Ok((summary, self.sync().await))
     }
 
-    /// Read a secret in the current open folder.
-    pub async fn read_secret(
-        &mut self,
-        secret_id: &SecretId,
-        folder: Option<Summary>,
-    ) -> Result<(SecretRow, ReadEvent)> {
-        let mut account = self.account.lock().await;
-        Ok(account.read_secret(secret_id, folder).await?)
-    }
-
     /// Update a file secret.
     ///
     /// If the secret exists and is not a file secret it will be
@@ -478,119 +468,26 @@ impl NetworkAccount {
         path: impl AsRef<Path>,
         options: AccessOptions,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, Option<SyncError>)> {
+    ) -> Result<SecretChange<Error>> {
         let _ = self.sync_lock.lock().await;
 
-        let id = {
+        let result = {
             let mut account = self.account.lock().await;
-            let (id, _, _, _) = account
+            let result = account
                 .update_file(secret_id, meta, path, options, destination)
                 .await?;
-            id
+            result
         };
 
-        Ok((id, self.sync().await))
-    }
-
-    /// Update a secret in the current open folder or a specific folder.
-    pub async fn update_secret(
-        &mut self,
-        secret_id: &SecretId,
-        meta: SecretMeta,
-        secret: Option<Secret>,
-        options: AccessOptions,
-        destination: Option<&Summary>,
-    ) -> Result<(SecretId, Option<SyncError>)> {
-        let _ = self.sync_lock.lock().await;
-
-        // Try to sync before we make the change
-        self.before_change().await;
-
-        let id = {
-            let mut account = self.account.lock().await;
-            let (id, _, _, _) = account
-                .update_secret(secret_id, meta, secret, options, destination)
-                .await?;
-            id
+        let result = SecretChange {
+            id: result.id,
+            event: result.event,
+            commit_state: result.commit_state,
+            folder: result.folder,
+            sync_error: self.sync().await,
         };
 
-        Ok((id, self.sync().await))
-    }
-
-    /// Move a secret between folders.
-    pub async fn move_secret(
-        &mut self,
-        secret_id: &SecretId,
-        from: &Summary,
-        to: &Summary,
-        options: AccessOptions,
-    ) -> Result<((SecretId, Event), Option<SyncError>)> {
-        let _ = self.sync_lock.lock().await;
-
-        let result = {
-            let mut account = self.account.lock().await;
-            account.move_secret(secret_id, from, to, options).await?
-        };
-
-        Ok((result, self.sync().await))
-    }
-
-    /// Delete a secret and remove any external files.
-    pub async fn delete_secret(
-        &mut self,
-        secret_id: &SecretId,
-        options: AccessOptions,
-    ) -> Result<Option<SyncError>> {
-        let _ = self.sync_lock.lock().await;
-
-        // Try to sync before we make the change
-        self.before_change().await;
-
-        {
-            let mut account = self.account.lock().await;
-            account.delete_secret(secret_id, options).await?;
-        }
-
-        Ok(self.sync().await)
-    }
-
-    /// Move a secret to the archive.
-    ///
-    /// An archive folder must exist.
-    pub async fn archive(
-        &mut self,
-        from: &Summary,
-        secret_id: &SecretId,
-        options: AccessOptions,
-    ) -> Result<((SecretId, Event), Option<SyncError>)> {
-        let _ = self.sync_lock.lock().await;
-        let result = {
-            let mut account = self.account.lock().await;
-            account.archive(from, secret_id, options).await?
-        };
-        Ok((result, self.sync().await))
-    }
-
-    /// Move a secret out of the archive.
-    ///
-    /// The secret must be inside a folder with the archive flag set.
-    pub async fn unarchive(
-        &mut self,
-        from: &Summary,
-        secret_id: &SecretId,
-        secret_meta: &SecretMeta,
-        options: AccessOptions,
-    ) -> Result<((Summary, SecretId, Event), Option<SyncError>)> {
-        let _ = self.sync_lock.lock().await;
-
-        let result = {
-            let mut account = self.account.lock().await;
-            account
-                .unarchive(from, secret_id, secret_meta, options)
-                .await?
-        };
-
-        Ok((result, self.sync().await))
+        Ok(result)
     }
 
     /// Expected location for a file by convention.
@@ -921,13 +818,12 @@ impl Account for NetworkAccount {
             .await?)
     }
 
-    /// Create a secret in the current open folder or a specific folder.
     async fn create_secret(
         &mut self,
         meta: SecretMeta,
         secret: Secret,
         options: AccessOptions,
-    ) -> Result<CreatedSecret<Self::Error>> {
+    ) -> Result<SecretChange<Self::Error>> {
         let _ = self.sync_lock.lock().await;
 
         // Try to sync before we make the change
@@ -939,7 +835,7 @@ impl Account for NetworkAccount {
             result
         };
 
-        let result = CreatedSecret {
+        let result = SecretChange {
             id: result.id,
             event: result.event,
             commit_state: result.commit_state,
@@ -950,11 +846,10 @@ impl Account for NetworkAccount {
         Ok(result)
     }
 
-    /// Bulk insert secrets into the currently open folder.
     async fn insert_secrets(
         &mut self,
         secrets: Vec<(SecretMeta, Secret)>,
-    ) -> Result<BulkInsert<Self::Error>> {
+    ) -> Result<SecretInsert<Self::Error>> {
         // Try to sync before we make the change
         self.before_change().await;
 
@@ -963,11 +858,11 @@ impl Account for NetworkAccount {
             account.insert_secrets(secrets).await?
         };
 
-        let result = BulkInsert {
+        let result = SecretInsert {
             results: result
                 .results
                 .into_iter()
-                .map(|result| CreatedSecret {
+                .map(|result| SecretChange {
                     id: result.id,
                     event: result.event,
                     commit_state: result.commit_state,
@@ -979,5 +874,140 @@ impl Account for NetworkAccount {
         };
 
         Ok(result)
+    }
+
+    async fn update_secret(
+        &mut self,
+        secret_id: &SecretId,
+        meta: SecretMeta,
+        secret: Option<Secret>,
+        options: AccessOptions,
+        destination: Option<&Summary>,
+    ) -> Result<SecretChange<Self::Error>> {
+        let _ = self.sync_lock.lock().await;
+
+        // Try to sync before we make the change
+        self.before_change().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            let result = account
+                .update_secret(secret_id, meta, secret, options, destination)
+                .await?;
+            result
+        };
+
+        let result = SecretChange {
+            id: result.id,
+            event: result.event,
+            commit_state: result.commit_state,
+            folder: result.folder,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    async fn move_secret(
+        &mut self,
+        secret_id: &SecretId,
+        from: &Summary,
+        to: &Summary,
+        options: AccessOptions,
+    ) -> Result<SecretMove<Self::Error>> {
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.move_secret(secret_id, from, to, options).await?
+        };
+
+        let result = SecretMove {
+            id: result.id,
+            event: result.event,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    async fn read_secret(
+        &mut self,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+    ) -> Result<(SecretRow, ReadEvent)> {
+        let mut account = self.account.lock().await;
+        Ok(account.read_secret(secret_id, folder).await?)
+    }
+
+    async fn delete_secret(
+        &mut self,
+        secret_id: &SecretId,
+        options: AccessOptions,
+    ) -> Result<SecretDelete<Self::Error>> {
+        let _ = self.sync_lock.lock().await;
+
+        // Try to sync before we make the change
+        self.before_change().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.delete_secret(secret_id, options).await?
+        };
+
+        let result = SecretDelete {
+            event: result.event,
+            commit_state: result.commit_state,
+            folder: result.folder,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    async fn archive(
+        &mut self,
+        from: &Summary,
+        secret_id: &SecretId,
+        options: AccessOptions,
+    ) -> Result<SecretMove<Self::Error>> {
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.archive(from, secret_id, options).await?
+        };
+
+        let result = SecretMove {
+            id: result.id,
+            event: result.event,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    async fn unarchive(
+        &mut self,
+        from: &Summary,
+        secret_id: &SecretId,
+        secret_meta: &SecretMeta,
+        options: AccessOptions,
+    ) -> Result<(SecretMove<Self::Error>, Summary)> {
+        let _ = self.sync_lock.lock().await;
+
+        let (result, to) = {
+            let mut account = self.account.lock().await;
+            account
+                .unarchive(from, secret_id, secret_meta, options)
+                .await?
+        };
+
+        let result = SecretMove {
+            id: result.id,
+            event: result.event,
+            sync_error: self.sync().await,
+        };
+
+        Ok((result, to))
     }
 }

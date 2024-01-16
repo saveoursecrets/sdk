@@ -2,15 +2,13 @@
 //! as secrets are created, updated and moved.
 
 use crate::{
-    account::LocalAccount,
-    commit::CommitState,
-    events::Event,
+    account::{Account, LocalAccount, SecretChange},
     storage::AccessOptions,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
         Summary,
     },
-    Result,
+    Error, Result,
 };
 use std::path::Path;
 
@@ -27,7 +25,7 @@ impl LocalAccount {
         path: impl AsRef<Path>,
         options: AccessOptions,
         destination: Option<&Summary>,
-    ) -> Result<(SecretId, Event, CommitState, Summary)> {
+    ) -> Result<SecretChange<Error>> {
         let path = path.as_ref().to_path_buf();
         let secret: Secret = path.try_into()?;
         self.update_secret(

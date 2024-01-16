@@ -42,7 +42,7 @@ async fn integration_sync_listen_update_secret() -> Result<()> {
     // Update the secret
     let (meta, secret) =
         mock::note("note_first_owner", "send_events_secret_updated");
-    let (_, sync_error) = device1
+    let SecretChange { sync_error, .. } = device1
         .owner
         .update_secret(
             &result.id,

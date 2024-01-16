@@ -20,8 +20,8 @@ mod sync;
 pub mod security_report;
 
 pub use account::{
-    Account, AccountData, BulkInsert, CreatedSecret, DetachedView,
-    LocalAccount,
+    Account, AccountData, DetachedView, LocalAccount, SecretChange,
+    SecretDelete, SecretInsert, SecretMove,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};
 

@@ -29,7 +29,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
 
     // Create secret
     let (meta, secret) = mock::note("note", TEST_ID);
-    let CreatedSecret { id, folder, .. } = account
+    let SecretChange { id, folder, .. } = account
         .create_secret(meta, secret, Default::default())
         .await?;
     assert_eq!(&default_folder, &folder);
@@ -41,7 +41,7 @@ async fn integration_secret_lifecycle() -> Result<()> {
 
     // Update secret
     let (meta, secret) = mock::note("note_edited", TEST_ID);
-    let (_, _, _, _) = account
+    account
         .update_secret(
             &id,
             meta.clone(),
