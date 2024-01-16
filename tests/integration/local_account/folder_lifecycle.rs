@@ -53,7 +53,7 @@ async fn integration_folder_lifecycle() -> Result<()> {
     // Changed the currently open folder by reading
     // from an explicit folder
     let current_folder = {
-        let storage = account.storage()?;
+        let storage = account.storage().await?;
         let reader = storage.read().await;
         reader.current_folder()
     };

@@ -8,6 +8,7 @@ use sos_net::{
         WebSocketHandle,
     },
     sdk::{
+        account::Account,
         constants::{FILES_DIR, VAULT_EXT},
         crypto::AccessKey,
         events::EventLogExt,
@@ -46,7 +47,6 @@ impl SimulatedDevice {
         let mut owner = NetworkAccount::new_unauthenticated(
             self.owner.address().clone(),
             Some(data_dir.clone()),
-            None,
         )
         .await?;
 
@@ -105,7 +105,6 @@ pub async fn simulate_device(
         test_id.to_owned(),
         password.clone(),
         Some(data_dir.clone()),
-        None,
     )
     .await?;
 

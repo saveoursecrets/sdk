@@ -3,10 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{
-    client::RemoteBridge,
-    sdk::{encode, vault::Summary},
-};
+use sos_net::{client::RemoteBridge, sdk::prelude::*};
 
 const TEST_ID: &str = "sync_import_folder";
 

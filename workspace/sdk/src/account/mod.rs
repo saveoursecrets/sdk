@@ -11,8 +11,8 @@ mod device;
 mod files;
 #[cfg(feature = "migrate")]
 mod migrate;
-#[cfg(feature = "search")]
-mod search;
+//#[cfg(feature = "search")]
+//mod search;
 #[cfg(feature = "sync")]
 mod sync;
 

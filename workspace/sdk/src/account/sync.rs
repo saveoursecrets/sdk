@@ -1,5 +1,5 @@
-use super::account::Account;
 use crate::{
+    account::{Account, LocalAccount},
     events::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog, LogEvent,
     },
@@ -25,7 +25,7 @@ use crate::{
 #[cfg(feature = "files")]
 use crate::{events::FileEventLog, sync::FileDiff};
 
-impl Account {
+impl LocalAccount {
     /// Merge a diff into this account.
     pub async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
         let span = span!(Level::DEBUG, "merge_client");
@@ -109,7 +109,7 @@ impl Account {
                             // Must operate on the storage level otherwise
                             // we would duplicate identity events for folder
                             // password
-                            let storage = self.storage()?;
+                            let storage = self.storage().await?;
                             let mut storage = storage.write().await;
                             storage
                                 .import_folder(buf, Some(&key), false)
@@ -119,7 +119,7 @@ impl Account {
                     AccountEvent::RenameFolder(id, name) => {
                         let summary = self.find(|s| s.id() == id).await;
                         if let Some(summary) = &summary {
-                            let storage = self.storage()?;
+                            let storage = self.storage().await?;
                             let mut storage = storage.write().await;
                             // Note that this event is recorded at both
                             // the account level and the folder level so
@@ -133,7 +133,7 @@ impl Account {
                     AccountEvent::DeleteFolder(id) => {
                         let summary = self.find(|s| s.id() == id).await;
                         if let Some(summary) = &summary {
-                            let storage = self.storage()?;
+                            let storage = self.storage().await?;
                             let mut storage = storage.write().await;
                             storage.delete_folder(summary, false).await?;
                         }
@@ -154,7 +154,7 @@ impl Account {
         );
 
         let checked_patch = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let storage = storage.read().await;
             let mut event_log = storage.device_log.write().await;
             event_log.patch_checked(&diff.before, &diff.patch).await?
@@ -162,14 +162,14 @@ impl Account {
 
         if let CheckedPatch::Success(_, _) = &checked_patch {
             let devices = {
-                let storage = self.storage()?;
+                let storage = self.storage().await?;
                 let storage = storage.read().await;
                 let event_log = storage.device_log.read().await;
                 let reducer = DeviceReducer::new(&*event_log);
                 reducer.reduce().await?
             };
 
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut storage = storage.write().await;
             storage.devices = devices;
         } else {
@@ -195,7 +195,7 @@ impl Account {
 
         let num_events = diff.patch.len();
 
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let storage = storage.read().await;
         let mut event_log = storage.file_log.write().await;
 
@@ -262,7 +262,7 @@ impl Account {
     ) -> Result<usize> {
         let mut num_changes = 0;
 
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let mut storage = storage.write().await;
 
         #[cfg(feature = "search")]
@@ -303,9 +303,9 @@ impl Account {
 }
 
 #[async_trait]
-impl SyncStorage for Account {
+impl SyncStorage for LocalAccount {
     async fn sync_status(&self) -> Result<SyncStatus> {
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let storage = storage.read().await;
         let summaries = storage.list_folders().to_vec();
 
@@ -357,33 +357,33 @@ impl SyncStorage for Account {
     }
 
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.identity_log))
     }
 
     async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.account_log))
     }
 
     #[cfg(feature = "device")]
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.device_log))
     }
 
     #[cfg(feature = "files")]
     async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.file_log))
     }
 
     async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let storage = storage.read().await;
         let summaries = storage.list_folders().to_vec();
         Ok(summaries.iter().map(|s| *s.id()).collect())
@@ -393,7 +393,7 @@ impl SyncStorage for Account {
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let storage = storage.read().await;
         let folder = storage
             .cache()

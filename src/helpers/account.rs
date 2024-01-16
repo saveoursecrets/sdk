@@ -4,6 +4,7 @@ use std::{borrow::Cow, sync::Arc};
 use sos_net::{
     client::NetworkAccount,
     sdk::{
+        account::Account,
         constants::DEFAULT_VAULT_NAME,
         crypto::AccessKey,
         identity::{AccountRef, Identity, PublicIdentity},
@@ -210,12 +211,9 @@ pub async fn sign_in(
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
 
-    let mut owner = NetworkAccount::new_unauthenticated(
-        account.address().clone(),
-        None,
-        None,
-    )
-    .await?;
+    let mut owner =
+        NetworkAccount::new_unauthenticated(account.address().clone(), None)
+            .await?;
 
     let key: AccessKey = passphrase.clone().into();
     owner.sign_in(&key).await?;
@@ -343,7 +341,6 @@ pub async fn new_account(
                     .create_authenticator(true)
                     .create_file_password(true)
             },
-            None,
             None,
         )
         .await?;

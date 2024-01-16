@@ -4,7 +4,7 @@ use tokio::sync::RwLock;
 
 use sos_net::{
     client::NetworkAccount,
-    sdk::{device::TrustedDevice, identity::AccountRef},
+    sdk::{account::Account, device::TrustedDevice, identity::AccountRef},
 };
 
 use crate::{
@@ -41,9 +41,7 @@ async fn resolve_device(
     id: &str,
 ) -> Result<Option<TrustedDevice>> {
     let owner = user.read().await;
-    let local_account = owner.local_account();
-    let local = local_account.lock().await;
-    let storage = local.storage()?;
+    let storage = owner.storage().await?;
     let storage = storage.read().await;
     let devices = storage.list_trusted_devices();
     for device in devices {
@@ -59,9 +57,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::List { account, verbose } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
-            let local_account = owner.local_account();
-            let local = local_account.lock().await;
-            let storage = local.storage()?;
+            let storage = owner.storage().await?;
             let storage = storage.read().await;
             let devices = storage.list_trusted_devices();
             for device in devices {

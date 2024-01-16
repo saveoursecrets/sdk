@@ -3,7 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteBridge, sdk::vault::Summary};
+use sos_net::{client::RemoteBridge, sdk::prelude::*};
 
 const TEST_ID: &str = "sync_create_folder";
 

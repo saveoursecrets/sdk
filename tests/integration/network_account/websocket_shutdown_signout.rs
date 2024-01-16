@@ -1,6 +1,6 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::client::RpcClient;
+use sos_net::{client::RpcClient, sdk::prelude::*};
 use std::time::Duration;
 
 const TEST_ID: &str = "websocket_shutdown_signout";

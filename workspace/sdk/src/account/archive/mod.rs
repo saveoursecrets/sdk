@@ -9,7 +9,7 @@ pub use backup::{
 pub use zip::*;
 
 use crate::{
-    account::Account,
+    account::{Account, LocalAccount},
     events::EventKind,
     identity::{Identity, PublicIdentity},
     vfs::File,
@@ -22,7 +22,7 @@ use tokio::io::{AsyncRead, AsyncSeek};
 #[cfg(feature = "audit")]
 use crate::audit::AuditEvent;
 
-impl Account {
+impl LocalAccount {
     /// Create a backup archive containing the
     /// encrypted data for the account.
     pub async fn export_backup_archive<P: AsRef<Path>>(
@@ -122,7 +122,7 @@ impl Account {
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
         let current_folder = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let reader = storage.read().await;
             reader.current_folder()
         };
@@ -140,7 +140,7 @@ impl Account {
 
         {
             let keys = self.folder_keys().await?;
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.restore_archive(&targets, &keys).await?;
         }

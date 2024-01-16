@@ -1,6 +1,6 @@
 //! Adds migration functions to an account.
 use crate::{
-    account::Account,
+    account::{Account, LocalAccount},
     crypto::AccessKey,
     encode,
     events::{Event, EventKind},
@@ -29,7 +29,7 @@ use std::{
 #[cfg(feature = "audit")]
 use crate::audit::AuditEvent;
 
-impl Account {
+impl LocalAccount {
     /// Write a zip archive containing all the secrets
     /// for the account unencrypted.
     ///
@@ -183,7 +183,7 @@ impl Account {
 
         let buffer = encode(&vault).await?;
         let (event, summary) = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             let key: AccessKey = vault_passphrase.clone().into();
             writer.import_folder(buffer, Some(&key), true).await?

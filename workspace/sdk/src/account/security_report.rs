@@ -1,6 +1,6 @@
 //! Generate a security report for all passwords.
 use crate::{
-    account::Account,
+    account::{Account, LocalAccount},
     vault::{
         secret::{Secret, SecretId, SecretType},
         Gatekeeper, Summary, VaultId,
@@ -178,7 +178,7 @@ async fn secret_security_report(
     Ok(())
 }
 
-impl Account {
+impl LocalAccount {
     /// Generate a security report.
     pub async fn generate_security_report<T, D, R>(
         &mut self,
@@ -202,7 +202,7 @@ impl Account {
             .collect();
 
         for target in targets {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let reader = storage.read().await;
 
             let folder = reader.cache().get(target.id()).unwrap();

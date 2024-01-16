@@ -1,6 +1,6 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::sdk::crypto::AccessKey;
+use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "server_definitions";
 

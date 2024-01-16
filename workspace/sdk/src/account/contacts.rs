@@ -1,6 +1,6 @@
 //! Support for importing and exporting account contacts.
 use crate::{
-    account::Account,
+    account::{Account, LocalAccount},
     crypto::AccessKey,
     events::EventKind,
     identity::Identity,
@@ -31,7 +31,7 @@ pub enum ContactImportProgress {
     },
 }
 
-impl Account {
+impl LocalAccount {
     /// Try to load an avatar JPEG image for a contact.
     ///
     /// Looks in the current open folder if no specified folder is given.
@@ -64,7 +64,7 @@ impl Account {
         folder: Option<Summary>,
     ) -> Result<()> {
         let current_folder = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let reader = storage.read().await;
             folder
                 .clone()
@@ -145,7 +145,7 @@ impl Account {
 
         let mut ids = Vec::new();
         let current = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let reader = storage.read().await;
             reader.current_folder()
         };

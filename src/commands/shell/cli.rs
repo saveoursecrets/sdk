@@ -4,7 +4,9 @@ use terminal_banner::{Banner, Padding};
 
 use sos_net::{
     client::NetworkAccount,
-    sdk::{identity::AccountRef, vault::FolderRef, vfs, Paths},
+    sdk::{
+        account::Account, identity::AccountRef, vault::FolderRef, vfs, Paths,
+    },
 };
 
 use tokio::sync::RwLock;

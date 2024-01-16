@@ -2,6 +2,7 @@
 use crate::{
     client::{sync::RemoteSync, Error, NetworkAccount, Origin, Result},
     sdk::{
+        account::Account,
         crypto::AccessKey,
         device::DeviceSigner,
         encode,
@@ -97,7 +98,6 @@ impl DeviceEnrollment {
         let mut account = NetworkAccount::new_unauthenticated(
             self.address.clone(),
             self.data_dir.clone(),
-            None,
         )
         .await?;
 

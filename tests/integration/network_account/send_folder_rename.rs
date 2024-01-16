@@ -3,7 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::client::RemoteBridge;
+use sos_net::{client::RemoteBridge, sdk::prelude::*};
 
 const TEST_ID: &str = "sync_rename_folder";
 

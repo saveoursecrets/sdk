@@ -2,31 +2,19 @@
 //! as secrets are created, updated and moved.
 
 use crate::{
-    account::Account,
+    account::LocalAccount,
     commit::CommitState,
     events::Event,
     storage::AccessOptions,
     vault::{
         secret::{Secret, SecretId, SecretMeta},
-        Summary, VaultId,
+        Summary,
     },
     Result,
 };
 use std::path::Path;
 
-impl Account {
-    /// Decrypt a file and return the buffer.
-    pub async fn download_file(
-        &self,
-        vault_id: &VaultId,
-        secret_id: &SecretId,
-        file_name: &str,
-    ) -> Result<Vec<u8>> {
-        let storage = self.storage()?;
-        let reader = storage.read().await;
-        reader.download_file(vault_id, secret_id, file_name).await
-    }
-
+impl LocalAccount {
     /// Update a file secret.
     ///
     /// If the secret exists and is not a file secret it will be

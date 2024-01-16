@@ -4,8 +4,12 @@ use std::{path::PathBuf, sync::Arc};
 use sos_net::{
     client::NetworkAccount,
     sdk::{
-        account::archive::{
-            AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
+        account::{
+            archive::{
+                AccountBackup, ExtractFilesLocation, Inventory,
+                RestoreOptions,
+            },
+            Account,
         },
         identity::{AccountRef, PublicIdentity},
         migrate::import::{ImportFormat, ImportTarget},

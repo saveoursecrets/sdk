@@ -32,17 +32,251 @@ use crate::{
 #[cfg(feature = "audit")]
 use crate::audit::{AuditData, AuditEvent};
 
+#[cfg(feature = "search")]
+use crate::storage::search::*;
+
 #[cfg(all(feature = "files", feature = "sync"))]
 use crate::storage::files::Transfers;
 
 use tracing::{span, Level};
 
+use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-/// Type alias for a local account.
-pub type LocalAccount = Account;
+/// Trait for account implementations.
+#[async_trait]
+pub trait Account {
+    /// Account to create.
+    type Account;
+
+    /// Errors for this account.
+    type Error: std::fmt::Debug + From<Error>;
+
+    /// Prepare an account for sign in.
+    ///
+    /// After preparing an account call `sign_in`
+    /// to authenticate a user.
+    async fn new_unauthenticated(
+        address: Address,
+        data_dir: Option<PathBuf>,
+    ) -> std::result::Result<Self::Account, Self::Error>;
+
+    /// Create a new account with the given
+    /// name, passphrase and provider.
+    ///
+    /// Uses standard flags for the account builder for
+    /// more control of the created account use
+    /// `new_account_with_builder()`.
+    async fn new_account(
+        account_name: String,
+        passphrase: SecretString,
+        data_dir: Option<PathBuf>,
+    ) -> std::result::Result<Self::Account, Self::Error>;
+
+    /// Create a new account with the given
+    /// name, passphrase and provider and modify the
+    /// account builder.
+    async fn new_account_with_builder(
+        account_name: String,
+        passphrase: SecretString,
+        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
+        data_dir: Option<PathBuf>,
+    ) -> std::result::Result<Self::Account, Self::Error>;
+
+    /// Account address.
+    fn address(&self) -> &Address;
+
+    /// User storage paths.
+    fn paths(&self) -> &Paths;
+
+    /// Access an account by signing in.
+    ///
+    /// If a default folder exists for the account it
+    /// is opened.
+    async fn sign_in(
+        &mut self,
+        key: &AccessKey,
+    ) -> std::result::Result<Vec<Summary>, Self::Error>;
+
+    /// Verify an access key for this account.
+    ///
+    /// If the account is not authenticated this returns false.
+    async fn verify(&self, key: &AccessKey) -> bool;
+
+    /// Open a folder.
+    async fn open_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Try to find a folder using a predicate.
+    async fn find<P>(&self, predicate: P) -> Option<Summary>
+    where
+        P: FnMut(&&Summary) -> bool + Send;
+
+    /// Find the default folder.
+    async fn default_folder(&self) -> Option<Summary> {
+        self.find(|s| s.flags().is_default()).await
+    }
+
+    /// Find the authenticator folder.
+    async fn authenticator_folder(&self) -> Option<Summary> {
+        self.find(|s| s.flags().is_authenticator()).await
+    }
+
+    /// Find the contacts folder.
+    async fn contacts_folder(&self) -> Option<Summary> {
+        self.find(|s| s.flags().is_contact()).await
+    }
+
+    /// Find the archive folder.
+    async fn archive_folder(&self) -> Option<Summary> {
+        self.find(|s| s.flags().is_archive()).await
+    }
+
+    /// Sign out of the account.
+    async fn sign_out(&mut self) -> std::result::Result<(), Self::Error>;
+
+    /// Rename this account.
+    async fn rename_account(
+        &mut self,
+        account_name: String,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Delete the account for this user and sign out.
+    async fn delete_account(
+        &mut self,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Storage provider.
+    async fn storage(
+        &self,
+    ) -> std::result::Result<Arc<RwLock<ClientStorage>>, Self::Error>;
+
+    /// Read the secret identifiers in a vault.
+    async fn secret_ids(
+        &self,
+        summary: &Summary,
+    ) -> std::result::Result<Vec<SecretId>, Self::Error>;
+
+    /// Load folders into memory.
+    ///
+    /// This method is automatically called on sign in to
+    /// prepare the in-memory vaults but can be explicitly
+    /// called to reload the data from disc.
+    async fn load_folders(
+        &mut self,
+    ) -> std::result::Result<Vec<Summary>, Self::Error>;
+
+    /// List in-memory folders managed by this account.
+    async fn list_folders(
+        &self,
+    ) -> std::result::Result<Vec<Summary>, Self::Error>;
+
+    /// Account data.
+    async fn account_data(
+        &self,
+    ) -> std::result::Result<AccountData, Self::Error>;
+
+    /// Root commit hash for a folder.
+    async fn root_commit(
+        &self,
+        summary: &Summary,
+    ) -> std::result::Result<CommitHash, Self::Error>;
+
+    /// Commit state of the identity vault.
+    ///
+    /// The folder must have at least one commit.
+    async fn identity_state(
+        &self,
+    ) -> std::result::Result<CommitState, Self::Error>;
+
+    /// Get the commit state for a folder.
+    ///
+    /// The folder must have at least one commit.
+    async fn commit_state(
+        &self,
+        summary: &Summary,
+    ) -> std::result::Result<CommitState, Self::Error>;
+
+    /// Compact the event log file for a folder.
+    async fn compact(
+        &mut self,
+        summary: &Summary,
+    ) -> std::result::Result<(u64, u64), Self::Error>;
+
+    /// Create a detached view of an event log until a
+    /// particular commit.
+    ///
+    /// This is useful for time travel; browsing the event
+    /// history at a particular point in time.
+    async fn detached_view(
+        &self,
+        summary: &Summary,
+        commit: CommitHash,
+    ) -> std::result::Result<DetachedView, Self::Error>;
+
+    /// Transfers queue.
+    #[cfg(all(feature = "files", feature = "sync"))]
+    async fn transfers(
+        &self,
+    ) -> std::result::Result<Arc<RwLock<Transfers>>, Self::Error>;
+
+    /// Compute the account statistics.
+    ///
+    /// If the account is not authenticated returns
+    /// a default statistics object (all values will be zero).
+    #[cfg(feature = "search")]
+    async fn statistics(&self) -> AccountStatistics;
+
+    /// Search index for the account.
+    #[cfg(feature = "search")]
+    async fn index(
+        &self,
+    ) -> std::result::Result<Arc<RwLock<SearchIndex>>, Self::Error>;
+
+    /// Query with document views.
+    #[cfg(feature = "search")]
+    async fn query_view(
+        &self,
+        views: Vec<DocumentView>,
+        archive: Option<ArchiveFilter>,
+    ) -> std::result::Result<Vec<Document>, Self::Error>;
+
+    /// Query the search index.
+    #[cfg(feature = "search")]
+    async fn query_map(
+        &self,
+        query: &str,
+        filter: QueryFilter,
+    ) -> std::result::Result<Vec<Document>, Self::Error>;
+
+    /// Get the search index document count statistics.
+    #[cfg(feature = "search")]
+    async fn document_count(
+        &self,
+    ) -> std::result::Result<DocumentCount, Self::Error>;
+
+    /// Determine if a document exists in a folder.
+    #[cfg(feature = "search")]
+    async fn document_exists(
+        &self,
+        vault_id: &VaultId,
+        label: &str,
+        id: Option<&SecretId>,
+    ) -> std::result::Result<bool, Self::Error>;
+
+    /// Decrypt a file and return the buffer.
+    #[cfg(feature = "files")]
+    async fn download_file(
+        &self,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
+        file_name: &str,
+    ) -> std::result::Result<Vec<u8>, Self::Error>;
+}
 
 /// Read-only view created from a specific event log commit.
 pub struct DetachedView {
@@ -99,7 +333,7 @@ pub(super) struct Authenticated {
 /// has been assigned the `handler` may alter the [CommitState]
 /// by returning a new state after changes from a remote server have
 /// been applied.
-pub struct Account {
+pub struct LocalAccount {
     /// Account address.
     address: Address,
 
@@ -111,121 +345,7 @@ pub struct Account {
     pub paths: Arc<Paths>,
 }
 
-impl Account {
-    /// Prepare an account for sign in.
-    ///
-    /// After preparing an account call `sign_in`
-    /// to authenticate a user.
-    pub async fn new_unauthenticated(
-        address: Address,
-        data_dir: Option<PathBuf>,
-    ) -> Result<Self> {
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
-        } else {
-            Paths::data_dir()?
-        };
-
-        let paths = Paths::new_global(data_dir);
-
-        Ok(Self {
-            address,
-            paths: Arc::new(paths),
-            authenticated: None,
-        })
-    }
-
-    /// Create a new account with the given
-    /// name, passphrase and provider.
-    ///
-    /// Uses standard flags for the account builder for
-    /// more control of the created account use
-    /// `new_account_with_builder()`.
-    pub async fn new_account(
-        account_name: String,
-        passphrase: SecretString,
-        data_dir: Option<PathBuf>,
-    ) -> Result<Self> {
-        Self::new_account_with_builder(
-            account_name,
-            passphrase,
-            |builder| builder.create_file_password(true),
-            data_dir,
-        )
-        .await
-    }
-
-    /// Create a new account with the given
-    /// name, passphrase and provider and modify the
-    /// account builder.
-    pub async fn new_account_with_builder(
-        account_name: String,
-        passphrase: SecretString,
-        builder: impl Fn(AccountBuilder) -> AccountBuilder,
-        data_dir: Option<PathBuf>,
-    ) -> Result<Self> {
-        let (account, _) = Self::new_account_with_data(
-            account_name,
-            passphrase,
-            builder,
-            data_dir,
-        )
-        .await?;
-        Ok(account)
-    }
-
-    /// Create a new account with the vault data.
-    ///
-    /// Used by network aware implementations to send
-    /// the account vaults to a server.
-    #[doc(hidden)]
-    pub async fn new_account_with_data(
-        account_name: String,
-        passphrase: SecretString,
-        builder: impl Fn(AccountBuilder) -> AccountBuilder,
-        data_dir: Option<PathBuf>,
-    ) -> Result<(Self, AccountPack)> {
-        let span = span!(Level::DEBUG, "new_account");
-        let _enter = span.enter();
-
-        let account_builder = builder(AccountBuilder::new(
-            account_name,
-            passphrase.clone(),
-            data_dir.clone(),
-        ));
-        let new_account = account_builder.finish().await?;
-
-        tracing::debug!(address = %new_account.address, "created account");
-
-        let address = new_account.address.clone();
-        let identity_log = new_account.user.identity()?.event_log();
-
-        let mut storage = ClientStorage::new(
-            address.clone(),
-            data_dir.clone(),
-            identity_log,
-            #[cfg(feature = "device")]
-            new_account.user.identity()?.devices()?.current_device(None),
-        )
-        .await?;
-
-        tracing::debug!("prepared storage provider");
-
-        // Must import the new account before signing in
-        let public_account: AccountPack = new_account.into();
-        storage.create_account(&public_account).await?;
-
-        tracing::debug!("imported new account");
-
-        let owner = Self {
-            address,
-            paths: storage.paths(),
-            authenticated: None,
-        };
-
-        Ok((owner, public_account))
-    }
-
+impl LocalAccount {
     /// Authenticated user information.
     pub fn user(&self) -> Result<&Identity> {
         self.authenticated
@@ -240,97 +360,6 @@ impl Account {
             .as_mut()
             .map(|a| &mut a.user)
             .ok_or(Error::NotAuthenticated)
-    }
-
-    /// Storage provider.
-    pub fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
-        let auth =
-            self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-        Ok(Arc::clone(&auth.storage))
-    }
-
-    /// Transfers queue.
-    #[cfg(all(feature = "files", feature = "sync"))]
-    pub async fn transfers(&self) -> Result<Arc<RwLock<Transfers>>> {
-        let storage = self.storage()?;
-        let storage = storage.read().await;
-        Ok(storage.transfers())
-    }
-
-    /// Account address.
-    pub fn address(&self) -> &Address {
-        &self.address
-    }
-
-    /// Access an account by signing in.
-    ///
-    /// If a default folder exists for the account it
-    /// is opened.
-    pub async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        let span = span!(Level::DEBUG, "sign_in");
-        let _enter = span.enter();
-
-        let address = &self.address;
-        let data_dir = self.paths().documents_dir().clone();
-
-        tracing::debug!(address = %address);
-
-        // Ensure all paths before sign_in
-        let paths = Paths::new(&data_dir, address.to_string());
-        paths.ensure().await?;
-
-        tracing::debug!(data_dir = ?paths.documents_dir());
-
-        let mut user = Identity::new(paths.clone());
-        user.sign_in(self.address(), key).await?;
-        tracing::debug!("sign in success");
-
-        // Signing key for the storage provider
-        let signer = user.identity()?.signer().clone();
-
-        let identity_log = user.identity().as_ref().unwrap().event_log();
-
-        let mut storage = ClientStorage::new(
-            signer.address()?,
-            Some(data_dir),
-            identity_log,
-            #[cfg(feature = "device")]
-            user.identity()?.devices()?.current_device(None),
-        )
-        .await?;
-        self.paths = storage.paths();
-
-        let file_password = user.find_file_encryption_password().await?;
-        storage.set_file_password(Some(file_password));
-
-        Self::initialize_account_log(
-            &*self.paths,
-            Arc::clone(&storage.account_log),
-        )
-        .await?;
-
-        self.authenticated = Some(Authenticated {
-            user,
-            storage: Arc::new(RwLock::new(storage)),
-        });
-
-        // Load vaults into memory and initialize folder
-        // event log commit trees
-        let folders = self.load_folders().await?;
-
-        // Unlock all the storage vaults
-        {
-            let folder_keys = self.folder_keys().await?;
-            let storage = self.storage()?;
-            let mut storage = storage.write().await;
-            storage.unlock(&folder_keys).await?;
-        }
-
-        if let Some(default_folder) = self.default_folder().await {
-            self.open_folder(&default_folder).await?;
-        }
-
-        Ok(folders)
     }
 
     async fn initialize_account_log(
@@ -381,11 +410,6 @@ impl Account {
         self.authenticated.is_some()
     }
 
-    /// User storage paths.
-    pub fn paths(&self) -> &Paths {
-        &self.paths
-    }
-
     /// Load the buffer of the encrypted vault for this account.
     ///
     /// Used when a client needs to authenticate other devices;
@@ -393,148 +417,10 @@ impl Account {
     /// can be unlocked then we have verified that the other
     /// device knows the primary password for this account.
     pub async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let reader = storage.read().await;
         let identity_path = reader.paths().identity_vault();
         Ok(vfs::read(identity_path).await?)
-    }
-
-    /// Account data.
-    pub async fn account_data(&self) -> Result<AccountData> {
-        let storage = self.storage()?;
-        let reader = storage.read().await;
-        let user = self.user()?;
-        Ok(AccountData {
-            account: user.account()?.clone(),
-            identity: user
-                .identity()?
-                .private_identity()
-                .recipient()
-                .to_string(),
-            folders: reader.list_folders().to_vec(),
-        })
-    }
-
-    /// Read the secret identifiers in a vault.
-    pub async fn secret_ids(
-        &self,
-        summary: &Summary,
-    ) -> Result<Vec<SecretId>> {
-        let storage = self.storage()?;
-        let reader = storage.read().await;
-        let vault: Vault = reader.read_vault(summary.id()).await?;
-        Ok(vault.keys().cloned().collect())
-    }
-
-    /// Verify an access key for this account.
-    ///
-    /// If the account is not authenticated this returns false.
-    pub async fn verify(&self, key: &AccessKey) -> bool {
-        if let Some(auth) = &self.authenticated {
-            auth.user.verify(key).await
-        } else {
-            false
-        }
-    }
-
-    /// Delete the account for this user and sign out.
-    pub async fn delete_account(&mut self) -> Result<()> {
-        let span = span!(Level::DEBUG, "delete_account");
-        let _enter = span.enter();
-
-        let paths = self.paths().clone();
-        let event = self.user_mut()?.delete_account(&paths).await?;
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
-        self.sign_out().await?;
-        Ok(())
-    }
-
-    /// Rename this account.
-    pub async fn rename_account(
-        &mut self,
-        account_name: String,
-    ) -> Result<()> {
-        Ok(self.user_mut()?.rename_account(account_name).await?)
-    }
-
-    /// Try to find a folder using a predicate.
-    pub async fn find<P>(&self, predicate: P) -> Option<Summary>
-    where
-        P: FnMut(&&Summary) -> bool,
-    {
-        if let Some(auth) = &self.authenticated {
-            let reader = auth.storage.read().await;
-            reader.find(predicate).cloned()
-        } else {
-            None
-        }
-    }
-
-    /// Find the default folder.
-    pub async fn default_folder(&self) -> Option<Summary> {
-        self.find(|s| s.flags().is_default()).await
-    }
-
-    /// Find the authenticator folder.
-    pub async fn authenticator_folder(&self) -> Option<Summary> {
-        self.find(|s| s.flags().is_authenticator()).await
-    }
-
-    /// Find the contacts folder.
-    pub async fn contacts_folder(&self) -> Option<Summary> {
-        self.find(|s| s.flags().is_contact()).await
-    }
-
-    /// Find the archive folder.
-    pub async fn archive_folder(&self) -> Option<Summary> {
-        self.find(|s| s.flags().is_archive()).await
-    }
-
-    /// Load folders into memory.
-    ///
-    /// This method is automatically called on sign in to
-    /// prepare the in-memory vaults but can be explicitly
-    /// called to reload the data from disc.
-    pub async fn load_folders(&mut self) -> Result<Vec<Summary>> {
-        tracing::debug!("load folders");
-        let storage = self.storage()?;
-        let mut writer = storage.write().await;
-        Ok(writer.load_folders().await?.to_vec())
-    }
-
-    /// List in-memory folders managed by this account.
-    pub async fn list_folders(&self) -> Result<Vec<Summary>> {
-        let storage = self.storage()?;
-        let reader = storage.read().await;
-        Ok(reader.list_folders().to_vec())
-    }
-
-    /// Sign out of the account.
-    pub async fn sign_out(&mut self) -> Result<()> {
-        let span = span!(Level::DEBUG, "sign_out");
-        let _enter = span.enter();
-
-        tracing::debug!(address = %self.address());
-
-        tracing::debug!("lock storage vaults");
-        // Lock all the storage vaults
-        let storage = self.storage()?;
-        let mut writer = storage.write().await;
-        writer.lock().await;
-
-        tracing::debug!("clear search index");
-        // Remove the search index
-        writer.index_mut()?.clear().await;
-
-        tracing::debug!("sign out user identity");
-        // Forget private identity information
-        self.user_mut()?.sign_out().await?;
-
-        tracing::debug!("remove authenticated state");
-        self.authenticated = None;
-
-        Ok(())
     }
 
     /// Create a folder.
@@ -548,7 +434,7 @@ impl Account {
         let key: AccessKey = passphrase.into();
 
         let (buffer, _, summary, account_event) = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.create_folder(name, Some(key.clone())).await?
         };
@@ -584,7 +470,7 @@ impl Account {
             self.compute_folder_state(&options).await?;
 
         let events = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.delete_folder(&summary, true).await?
         };
@@ -610,7 +496,7 @@ impl Account {
 
         // Update the provider
         let event = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.rename_folder(&summary, &name).await?
         };
@@ -627,7 +513,7 @@ impl Account {
     ) -> Result<String> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         self.open_folder(folder).await?;
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let reader = storage.read().await;
         Ok(reader.description().await?)
     }
@@ -643,7 +529,7 @@ impl Account {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         self.open_folder(folder).await?;
         let event = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.set_description(description).await?
         };
@@ -836,7 +722,7 @@ impl Account {
 
         // Import the vault
         let (event, summary) = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer
                 .import_folder(buffer.as_ref(), Some(&key), true)
@@ -862,7 +748,7 @@ impl Account {
             // is loaded into memory we must close it so
             // the UI does not show stale in-memory data
             {
-                let storage = self.storage()?;
+                let storage = self.storage().await?;
                 let mut writer = storage.write().await;
                 let is_current =
                     if let Some(current) = writer.current_folder() {
@@ -887,11 +773,6 @@ impl Account {
         Ok((summary, event, commit_state))
     }
 
-    /// Open a vault.
-    pub async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
-        self.open_vault(summary, true).await
-    }
-
     pub(crate) async fn open_vault(
         &mut self,
         summary: &Summary,
@@ -899,7 +780,7 @@ impl Account {
     ) -> Result<()> {
         // Bail early if the folder is already open
         {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let reader = storage.read().await;
             if let Some(current) = reader.current_folder() {
                 if current.id() == summary.id() {
@@ -909,7 +790,7 @@ impl Account {
         }
 
         let event = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.open_folder(summary).await?
         };
@@ -933,7 +814,7 @@ impl Account {
         options: &AccessOptions,
     ) -> Result<(Summary, CommitState)> {
         let (folder, commit_state) = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let reader = storage.read().await;
             let folder = options
                 .folder
@@ -991,7 +872,7 @@ impl Account {
         audit: bool,
     ) -> Result<(SecretId, Event, Summary)> {
         let folder = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let reader = storage.read().await;
             options
                 .folder
@@ -1011,7 +892,7 @@ impl Account {
         let id = SecretId::new_v4();
         let secret_data = SecretRow::new(id, meta, secret);
         let event = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.create_secret(secret_data, options).await?
         };
@@ -1046,7 +927,7 @@ impl Account {
         audit: bool,
     ) -> Result<(SecretRow, ReadEvent)> {
         let folder = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let reader = storage.read().await;
             folder
                 .or_else(|| reader.current_folder())
@@ -1056,7 +937,7 @@ impl Account {
         self.open_folder(&folder).await?;
 
         let (meta, secret, read_event) = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.read_secret(secret_id).await?
         };
@@ -1091,7 +972,7 @@ impl Account {
         }
 
         let event = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer
                 .update_secret(secret_id, meta, secret, options.clone())
@@ -1152,14 +1033,14 @@ impl Account {
         // as we need the original external files for the
         // move_files operation.
         let delete_event = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.remove_secret(secret_id).await?
         };
 
         #[cfg(feature = "files")]
         {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
 
             let events = writer
@@ -1208,7 +1089,7 @@ impl Account {
         self.open_folder(&folder).await?;
 
         let event = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.delete_secret(secret_id, options).await?
         };
@@ -1237,13 +1118,13 @@ impl Account {
             self.user()?.find_folder_password(folder.id()).await?;
 
         let vault = {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let reader = storage.read().await;
             reader.read_vault(folder.id()).await?
         };
 
         {
-            let storage = self.storage()?;
+            let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer
                 .change_password(&vault, current_key, new_key.clone())
@@ -1319,7 +1200,7 @@ impl Account {
         &mut self,
     ) -> Result<(DocumentCount, Vec<Summary>)> {
         let keys = self.folder_keys().await?;
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let mut writer = storage.write().await;
         writer.initialize_search_index(&keys).await
     }
@@ -1329,14 +1210,14 @@ impl Account {
         &mut self,
     ) -> Result<DocumentCount> {
         let keys = self.folder_keys().await?;
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let mut writer = storage.write().await;
         writer.build_search_index(&keys).await
     }
 
     /// Access keys for all folders.
     pub(super) async fn folder_keys(&self) -> Result<FolderKeys> {
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let reader = storage.read().await;
         let folders = reader.list_folders();
         let mut keys = HashMap::new();
@@ -1348,20 +1229,335 @@ impl Account {
         }
         Ok(FolderKeys(keys))
     }
+}
+
+#[async_trait]
+impl Account for LocalAccount {
+    type Account = LocalAccount;
+    type Error = Error;
+
+    async fn new_unauthenticated(
+        address: Address,
+        data_dir: Option<PathBuf>,
+    ) -> Result<Self> {
+        let data_dir = if let Some(data_dir) = data_dir {
+            data_dir
+        } else {
+            Paths::data_dir()?
+        };
+
+        let paths = Paths::new_global(data_dir);
+
+        Ok(Self {
+            address,
+            paths: Arc::new(paths),
+            authenticated: None,
+        })
+    }
+
+    async fn new_account(
+        account_name: String,
+        passphrase: SecretString,
+        data_dir: Option<PathBuf>,
+    ) -> Result<Self> {
+        Self::new_account_with_builder(
+            account_name,
+            passphrase,
+            |builder| builder.create_file_password(true),
+            data_dir,
+        )
+        .await
+    }
+
+    async fn new_account_with_builder(
+        account_name: String,
+        passphrase: SecretString,
+        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
+        data_dir: Option<PathBuf>,
+    ) -> Result<Self> {
+        let span = span!(Level::DEBUG, "new_account");
+        let _enter = span.enter();
+
+        let account_builder = builder(AccountBuilder::new(
+            account_name,
+            passphrase.clone(),
+            data_dir.clone(),
+        ));
+        let new_account = account_builder.finish().await?;
+
+        tracing::debug!(address = %new_account.address, "created account");
+
+        let address = new_account.address.clone();
+        let identity_log = new_account.user.identity()?.event_log();
+
+        let mut storage = ClientStorage::new(
+            address.clone(),
+            data_dir.clone(),
+            identity_log,
+            #[cfg(feature = "device")]
+            new_account.user.identity()?.devices()?.current_device(None),
+        )
+        .await?;
+
+        tracing::debug!("prepared storage provider");
+
+        // Must import the new account before signing in
+        let public_account: AccountPack = new_account.into();
+        storage.create_account(&public_account).await?;
+
+        tracing::debug!("imported new account");
+
+        let account = Self {
+            address,
+            paths: storage.paths(),
+            authenticated: None,
+        };
+
+        //Ok((owner, public_account))
+
+        //let (account, _) = Self::new_account_with_data(
+        //account_name,
+        //passphrase,
+        //builder,
+        //data_dir,
+        //)
+        //.await?;
+
+        Ok(account)
+    }
+
+    fn address(&self) -> &Address {
+        &self.address
+    }
+
+    fn paths(&self) -> &Paths {
+        &self.paths
+    }
+
+    async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
+        let span = span!(Level::DEBUG, "sign_in");
+        let _enter = span.enter();
+
+        let address = &self.address;
+        let data_dir = self.paths().documents_dir().clone();
+
+        tracing::debug!(address = %address);
+
+        // Ensure all paths before sign_in
+        let paths = Paths::new(&data_dir, address.to_string());
+        paths.ensure().await?;
+
+        tracing::debug!(data_dir = ?paths.documents_dir());
+
+        let mut user = Identity::new(paths.clone());
+        user.sign_in(self.address(), key).await?;
+        tracing::debug!("sign in success");
+
+        // Signing key for the storage provider
+        let signer = user.identity()?.signer().clone();
+
+        let identity_log = user.identity().as_ref().unwrap().event_log();
+
+        let mut storage = ClientStorage::new(
+            signer.address()?,
+            Some(data_dir),
+            identity_log,
+            #[cfg(feature = "device")]
+            user.identity()?.devices()?.current_device(None),
+        )
+        .await?;
+        self.paths = storage.paths();
+
+        let file_password = user.find_file_encryption_password().await?;
+        storage.set_file_password(Some(file_password));
+
+        Self::initialize_account_log(
+            &*self.paths,
+            Arc::clone(&storage.account_log),
+        )
+        .await?;
+
+        self.authenticated = Some(Authenticated {
+            user,
+            storage: Arc::new(RwLock::new(storage)),
+        });
+
+        // Load vaults into memory and initialize folder
+        // event log commit trees
+        let folders = self.load_folders().await?;
+
+        // Unlock all the storage vaults
+        {
+            let folder_keys = self.folder_keys().await?;
+            let storage = self.storage().await?;
+            let mut storage = storage.write().await;
+            storage.unlock(&folder_keys).await?;
+        }
+
+        if let Some(default_folder) = self.default_folder().await {
+            self.open_folder(&default_folder).await?;
+        }
+
+        Ok(folders)
+    }
+
+    async fn verify(&self, key: &AccessKey) -> bool {
+        if let Some(auth) = &self.authenticated {
+            auth.user.verify(key).await
+        } else {
+            false
+        }
+    }
+
+    async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
+        self.open_vault(summary, true).await
+    }
+
+    async fn sign_out(&mut self) -> Result<()> {
+        let span = span!(Level::DEBUG, "sign_out");
+        let _enter = span.enter();
+
+        tracing::debug!(address = %self.address());
+
+        tracing::debug!("lock storage vaults");
+        // Lock all the storage vaults
+        let storage = self.storage().await?;
+        let mut writer = storage.write().await;
+        writer.lock().await;
+
+        tracing::debug!("clear search index");
+        // Remove the search index
+        writer.index_mut()?.clear().await;
+
+        tracing::debug!("sign out user identity");
+        // Forget private identity information
+        self.user_mut()?.sign_out().await?;
+
+        tracing::debug!("remove authenticated state");
+        self.authenticated = None;
+
+        Ok(())
+    }
+
+    async fn rename_account(&mut self, account_name: String) -> Result<()> {
+        Ok(self.user_mut()?.rename_account(account_name).await?)
+    }
+
+    /// Delete the account for this user and sign out.
+    async fn delete_account(&mut self) -> Result<()> {
+        let span = span!(Level::DEBUG, "delete_account");
+        let _enter = span.enter();
+
+        let paths = self.paths().clone();
+        let event = self.user_mut()?.delete_account(&paths).await?;
+        let audit_event: AuditEvent = (self.address(), &event).into();
+        self.paths.append_audit_events(vec![audit_event]).await?;
+        self.sign_out().await?;
+        Ok(())
+    }
+
+    async fn find<P>(&self, predicate: P) -> Option<Summary>
+    where
+        P: FnMut(&&Summary) -> bool + Send,
+    {
+        if let Some(auth) = &self.authenticated {
+            let reader = auth.storage.read().await;
+            reader.find(predicate).cloned()
+        } else {
+            None
+        }
+    }
+
+    async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
+        let auth =
+            self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        Ok(Arc::clone(&auth.storage))
+    }
+
+    async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        let vault: Vault = reader.read_vault(summary.id()).await?;
+        Ok(vault.keys().cloned().collect())
+    }
+
+    async fn load_folders(&mut self) -> Result<Vec<Summary>> {
+        tracing::debug!("load folders");
+        let storage = self.storage().await?;
+        let mut writer = storage.write().await;
+        Ok(writer.load_folders().await?.to_vec())
+    }
+
+    async fn list_folders(&self) -> Result<Vec<Summary>> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        Ok(reader.list_folders().to_vec())
+    }
+
+    async fn account_data(&self) -> Result<AccountData> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        let user = self.user()?;
+        Ok(AccountData {
+            account: user.account()?.clone(),
+            identity: user
+                .identity()?
+                .private_identity()
+                .recipient()
+                .to_string(),
+            folders: reader.list_folders().to_vec(),
+        })
+    }
+
+    async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        let cache = reader.cache();
+        let folder = cache
+            .get(summary.id())
+            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
+        let event_log = folder.event_log();
+        let log_file = event_log.read().await;
+        Ok(log_file.tree().root().ok_or_else(|| Error::NoRootCommit)?)
+    }
+
+    async fn identity_state(&self) -> Result<CommitState> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        Ok(reader.identity_state().await?)
+    }
+
+    async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        Ok(reader.commit_state(summary).await?)
+    }
+
+    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+        let key = self.user()?.find_folder_password(summary.id()).await?;
+
+        let (old_size, new_size) = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer.compact(&summary, &key).await?
+        };
+
+        Ok((old_size, new_size))
+    }
 
     /// Create a detached view of an event log until a
     /// particular commit.
     ///
     /// This is useful for time travel; browsing the event
     /// history at a particular point in time.
-    pub async fn detached_view(
+    async fn detached_view(
         &self,
         summary: &Summary,
         commit: CommitHash,
     ) -> Result<DetachedView> {
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
 
-        let storage = self.storage()?;
+        let storage = self.storage().await?;
         let reader = storage.read().await;
         let cache = reader.cache();
         let folder = cache
@@ -1394,50 +1590,120 @@ impl Account {
         })
     }
 
-    /// Root commit hash for a folder.
-    pub async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
-        let storage = self.storage()?;
-        let reader = storage.read().await;
-        let cache = reader.cache();
-        let folder = cache
-            .get(summary.id())
-            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
-        let event_log = folder.event_log();
-        let log_file = event_log.read().await;
-        Ok(log_file.tree().root().ok_or_else(|| Error::NoRootCommit)?)
+    #[cfg(all(feature = "files", feature = "sync"))]
+    async fn transfers(&self) -> Result<Arc<RwLock<Transfers>>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        Ok(storage.transfers())
     }
 
-    /// Commit state of the identity vault.
+    /// Compute the account statistics.
     ///
-    /// The folder must have at least one commit.
-    pub async fn identity_state(&self) -> Result<CommitState> {
-        let storage = self.storage()?;
-        let reader = storage.read().await;
-        Ok(reader.identity_state().await?)
+    /// If the account is not authenticated returns
+    /// a default statistics object (all values will be zero).
+    #[cfg(feature = "search")]
+    async fn statistics(&self) -> AccountStatistics {
+        if self.authenticated.is_some() {
+            let storage = self.storage().await.unwrap();
+            let reader = storage.read().await;
+            if let Ok(index) = reader.index() {
+                let search_index = index.search();
+                let index = search_index.read().await;
+                let statistics = index.statistics();
+                let count = statistics.count();
+
+                let documents: usize = count.vaults().values().sum();
+                let mut folders = Vec::new();
+                let mut types = HashMap::new();
+
+                for (id, v) in count.vaults() {
+                    if let Some(summary) = self.find(|s| s.id() == id).await {
+                        folders.push((summary, *v));
+                    }
+                }
+
+                for (k, v) in count.kinds() {
+                    if let Ok(kind) = SecretType::try_from(*k) {
+                        types.insert(kind, *v);
+                    }
+                }
+
+                AccountStatistics {
+                    documents,
+                    folders,
+                    types,
+                    tags: count.tags().clone(),
+                    favorites: count.favorites(),
+                }
+            } else {
+                Default::default()
+            }
+        } else {
+            Default::default()
+        }
     }
 
-    /// Get the commit state for a folder.
-    ///
-    /// The folder must have at least one commit.
-    pub async fn commit_state(
+    #[cfg(feature = "search")]
+    async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        Ok(reader.index()?.search())
+    }
+
+    #[cfg(feature = "search")]
+    async fn query_view(
         &self,
-        summary: &Summary,
-    ) -> Result<CommitState> {
-        let storage = self.storage()?;
+        views: Vec<DocumentView>,
+        archive: Option<ArchiveFilter>,
+    ) -> Result<Vec<Document>> {
+        let storage = self.storage().await?;
         let reader = storage.read().await;
-        Ok(reader.commit_state(summary).await?)
+        reader.index()?.query_view(views, archive).await
     }
 
-    /// Compact an event log file.
-    pub async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let key = self.user()?.find_folder_password(summary.id()).await?;
+    #[cfg(feature = "search")]
+    async fn query_map(
+        &self,
+        query: &str,
+        filter: QueryFilter,
+    ) -> Result<Vec<Document>> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        reader.index()?.query_map(query, filter).await
+    }
 
-        let (old_size, new_size) = {
-            let storage = self.storage()?;
-            let mut writer = storage.write().await;
-            writer.compact(&summary, &key).await?
-        };
+    #[cfg(feature = "search")]
+    async fn document_count(&self) -> Result<DocumentCount> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        let search = reader.index()?.search();
+        let index = search.read().await;
+        Ok(index.statistics().count().clone())
+    }
 
-        Ok((old_size, new_size))
+    #[cfg(feature = "search")]
+    async fn document_exists(
+        &self,
+        vault_id: &VaultId,
+        label: &str,
+        id: Option<&SecretId>,
+    ) -> Result<bool> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        let search = reader.index()?.search();
+        let index = search.read().await;
+        Ok(index.find_by_label(vault_id, label, id).is_some())
+    }
+
+    #[cfg(feature = "files")]
+    async fn download_file(
+        &self,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
+        file_name: &str,
+    ) -> Result<Vec<u8>> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        reader.download_file(vault_id, secret_id, file_name).await
     }
 }

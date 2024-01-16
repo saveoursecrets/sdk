@@ -2,6 +2,7 @@ use clap::Subcommand;
 
 use human_bytes::human_bytes;
 use sos_net::sdk::{
+    account::Account,
     events::{EventLogExt, LogEvent},
     hex,
     identity::AccountRef,
@@ -240,10 +241,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner.open_folder(&summary).await?;
             }
 
-            let local_account = owner.local_account();
-            let local = local_account.lock().await;
-
-            let ids = local.secret_ids(&summary).await?;
+            let ids = owner.secret_ids(&summary).await?;
             for id in ids {
                 println!("{}", id);
             }

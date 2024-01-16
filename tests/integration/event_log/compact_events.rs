@@ -60,7 +60,7 @@ async fn integration_events_compact() -> Result<()> {
 
     // Check the in-memory commit tree
     let new_root = {
-        let storage = account.storage()?;
+        let storage = account.storage().await?;
         let reader = storage.read().await;
         let folder = reader.cache().get(default_folder.id()).unwrap();
         let event_log = folder.event_log();

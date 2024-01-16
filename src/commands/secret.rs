@@ -6,6 +6,7 @@ use futures::future::LocalBoxFuture;
 use terminal_banner::{Banner, Padding};
 
 use sos_net::sdk::{
+    account::Account,
     identity::AccountRef,
     storage::search::{ArchiveFilter, Document, DocumentView},
     vault::{
