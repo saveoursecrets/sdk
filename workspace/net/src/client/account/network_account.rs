@@ -5,6 +5,7 @@ use sos_sdk::{
     account::{
         Account, AccountBuilder, AccountData, DetachedView, LocalAccount,
         SecretChange, SecretDelete, SecretInsert, SecretMove, FolderCreate,
+        FolderRename,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -366,20 +367,6 @@ impl NetworkAccount {
         {
             let mut account = self.account.lock().await;
             account.delete_folder(summary).await?;
-        }
-        Ok(self.sync().await)
-    }
-
-    /// Rename a folder.
-    pub async fn rename_folder(
-        &mut self,
-        summary: &Summary,
-        name: String,
-    ) -> Result<Option<SyncError>> {
-        let _ = self.sync_lock.lock().await;
-        {
-            let mut account = self.account.lock().await;
-            account.rename_folder(summary, name).await?;
         }
         Ok(self.sync().await)
     }
@@ -1004,6 +991,26 @@ impl Account for NetworkAccount {
         
         let result = FolderCreate {
             folder: result.folder,
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    async fn rename_folder(
+        &mut self,
+        summary: &Summary,
+        name: String,
+    ) -> Result<FolderRename<Self::Error>> {
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.rename_folder(summary, name).await?
+        };
+        
+        let result = FolderRename {
             event: result.event,
             commit_state: result.commit_state,
             sync_error: self.sync().await,

@@ -111,6 +111,17 @@ pub struct FolderCreate<T> {
     pub sync_error: Option<SyncError<T>>,
 }
 
+/// Result information for folder renaming.
+pub struct FolderRename<T> {
+    /// Event to be logged.
+    pub event: Event,
+    /// Commit state of the new folder.
+    pub commit_state: CommitState,
+    /// Error generated during a sync.
+    #[cfg(feature = "sync")]
+    pub sync_error: Option<SyncError<T>>,
+}
+
 /// Trait for account implementations.
 #[async_trait]
 pub trait Account {
@@ -466,6 +477,13 @@ pub trait Account {
         &mut self,
         name: String,
     ) -> std::result::Result<FolderCreate<Self::Error>, Self::Error>;
+
+    /// Rename a folder.
+    async fn rename_folder(
+        &mut self,
+        summary: &Summary,
+        name: String,
+    ) -> std::result::Result<FolderRename<Self::Error>, Self::Error>;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -622,29 +640,6 @@ impl LocalAccount {
             .await?;
 
         Ok((events, commit_state))
-    }
-
-    /// Rename a folder.
-    pub async fn rename_folder(
-        &mut self,
-        summary: &Summary,
-        name: String,
-    ) -> Result<(Event, CommitState)> {
-        let options = AccessOptions {
-            folder: Some(summary.clone()),
-            ..Default::default()
-        };
-        let (summary, commit_state) =
-            self.compute_folder_state(&options).await?;
-
-        // Update the provider
-        let event = {
-            let storage = self.storage().await?;
-            let mut writer = storage.write().await;
-            writer.rename_folder(&summary, &name).await?
-        };
-
-        Ok((event, commit_state))
     }
 
     /// Get the description of a folder.
@@ -1909,6 +1904,28 @@ impl Account for LocalAccount {
         let event =
             Event::Folder(account_event, WriteEvent::CreateVault(buffer));
         Ok(FolderCreate { folder, event, commit_state, sync_error: None })
+    }
+
+    async fn rename_folder(
+        &mut self,
+        summary: &Summary,
+        name: String,
+    ) -> Result<FolderRename<Self::Error>> {
+        let options = AccessOptions {
+            folder: Some(summary.clone()),
+            ..Default::default()
+        };
+        let (summary, commit_state) =
+            self.compute_folder_state(&options).await?;
+
+        // Update the provider
+        let event = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer.rename_folder(&summary, &name).await?
+        };
+
+        Ok(FolderRename { event, commit_state, sync_error: None})
     }
 
 }

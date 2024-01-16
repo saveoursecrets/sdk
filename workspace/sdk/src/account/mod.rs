@@ -16,7 +16,7 @@ pub mod security_report;
 
 pub use account::{
     Account, AccountData, DetachedView, LocalAccount, SecretChange,
-    SecretDelete, SecretInsert, SecretMove, FolderCreate,
+    SecretDelete, SecretInsert, SecretMove, FolderCreate, FolderRename,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};
 
