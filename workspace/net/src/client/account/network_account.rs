@@ -630,17 +630,6 @@ impl NetworkAccount {
         Ok((result, self.sync().await))
     }
 
-    /// Initialize the search index.
-    ///
-    /// This should be called after a user has signed in to
-    /// create the initial search index.
-    pub async fn initialize_search_index(
-        &mut self,
-    ) -> Result<(DocumentCount, Vec<Summary>)> {
-        let mut account = self.account.lock().await;
-        Ok(account.initialize_search_index().await?)
-    }
-
     /// Expected location for a file by convention.
     pub fn file_location(
         &self,
@@ -898,17 +887,28 @@ impl Account for NetworkAccount {
         let account = self.account.lock().await;
         Ok(account.transfers().await?)
     }
+    
+    #[cfg(feature = "search")]
+    async fn initialize_search_index(
+        &mut self,
+    ) -> Result<(DocumentCount, Vec<Summary>)> {
+        let mut account = self.account.lock().await;
+        Ok(account.initialize_search_index().await?)
+    }
 
+    #[cfg(feature = "search")]
     async fn statistics(&self) -> AccountStatistics {
         let account = self.account.lock().await;
         account.statistics().await
     }
 
+    #[cfg(feature = "search")]
     async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
         let account = self.account.lock().await;
         Ok(account.index().await?)
     }
 
+    #[cfg(feature = "search")]
     async fn query_view(
         &self,
         views: Vec<DocumentView>,
@@ -918,6 +918,7 @@ impl Account for NetworkAccount {
         Ok(account.query_view(views, archive).await?)
     }
 
+    #[cfg(feature = "search")]
     async fn query_map(
         &self,
         query: &str,
@@ -927,11 +928,13 @@ impl Account for NetworkAccount {
         Ok(account.query_map(query, filter).await?)
     }
 
+    #[cfg(feature = "search")]
     async fn document_count(&self) -> Result<DocumentCount> {
         let account = self.account.lock().await;
         Ok(account.document_count().await?)
     }
 
+    #[cfg(feature = "search")]
     async fn document_exists(
         &self,
         vault_id: &VaultId,

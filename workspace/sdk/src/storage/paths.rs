@@ -2,6 +2,7 @@
 //! and user-specific account folders.
 use crate::{Error, Result};
 use app_dirs2::{get_app_root, AppDataType, AppInfo};
+#[cfg(feature = "audit")]
 use async_once_cell::OnceCell;
 use once_cell::sync::Lazy;
 use std::{
@@ -19,6 +20,8 @@ use crate::{
     vault::{secret::SecretId, VaultId},
     vfs,
 };
+
+#[cfg(feature = "audit")]
 use tokio::sync::Mutex;
 
 #[cfg(feature = "audit")]

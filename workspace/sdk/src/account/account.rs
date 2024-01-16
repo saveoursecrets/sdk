@@ -248,6 +248,15 @@ pub trait Account {
         &self,
     ) -> std::result::Result<Arc<RwLock<Transfers>>, Self::Error>;
 
+    /// Initialize the search index.
+    ///
+    /// This should be called after a user has signed in to
+    /// create the initial search index.
+    #[cfg(feature = "search")]
+    async fn initialize_search_index(
+        &mut self,
+    ) -> std::result::Result<(DocumentCount, Vec<Summary>), Self::Error>;
+
     /// Compute the account statistics.
     ///
     /// If the account is not authenticated returns
@@ -1203,20 +1212,8 @@ impl LocalAccount {
         Ok((to, id, event))
     }
 
-    /// Initialize the search index.
-    ///
-    /// This should be called after a user has signed in to
-    /// create the initial search index.
-    pub async fn initialize_search_index(
-        &mut self,
-    ) -> Result<(DocumentCount, Vec<Summary>)> {
-        let keys = self.folder_keys().await?;
-        let storage = self.storage().await?;
-        let mut writer = storage.write().await;
-        writer.initialize_search_index(&keys).await
-    }
-
     /// Build the search index for all folders.
+    #[cfg(feature = "search")]
     pub(crate) async fn build_search_index(
         &mut self,
     ) -> Result<DocumentCount> {
@@ -1631,6 +1628,20 @@ impl Account for LocalAccount {
         let storage = self.storage().await?;
         let storage = storage.read().await;
         Ok(storage.transfers())
+    }
+
+    /// Initialize the search index.
+    ///
+    /// This should be called after a user has signed in to
+    /// create the initial search index.
+    #[cfg(feature = "search")]
+    async fn initialize_search_index(
+        &mut self,
+    ) -> Result<(DocumentCount, Vec<Summary>)> {
+        let keys = self.folder_keys().await?;
+        let storage = self.storage().await?;
+        let mut writer = storage.write().await;
+        writer.initialize_search_index(&keys).await
     }
 
     /// Compute the account statistics.
