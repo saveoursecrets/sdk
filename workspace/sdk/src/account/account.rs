@@ -15,7 +15,7 @@ use crate::{
         AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
         FolderReducer, ReadEvent, WriteEvent,
     },
-    identity::{FolderKeys, Identity, PublicIdentity},
+    identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::Address,
     storage::AccountPack,
     storage::{
@@ -90,6 +90,30 @@ pub trait Account {
 
     /// User storage paths.
     fn paths(&self) -> &Paths;
+
+    /// Public identity information.
+    async fn public_identity(
+        &self,
+    ) -> std::result::Result<PublicIdentity, Self::Error>;
+
+    /// Reference to the identity for this account.
+    async fn account_ref(
+        &self,
+    ) -> std::result::Result<AccountRef, Self::Error>;
+
+    /// Label of this account.
+    async fn account_label(&self)
+        -> std::result::Result<String, Self::Error>;
+
+    /// Load the buffer of the encrypted vault for this account.
+    ///
+    /// Used when a client needs to enroll other devices;
+    /// it sends the encrypted identity vault and if the vault
+    /// can be unlocked then we have verified that the other
+    /// device knows the primary password for this account.
+    async fn identity_vault_buffer(
+        &self,
+    ) -> std::result::Result<Vec<u8>, Self::Error>;
 
     /// Access an account by signing in.
     ///
@@ -408,19 +432,6 @@ impl LocalAccount {
     /// Determine if the account is authenticated.
     pub fn is_authenticated(&self) -> bool {
         self.authenticated.is_some()
-    }
-
-    /// Load the buffer of the encrypted vault for this account.
-    ///
-    /// Used when a client needs to authenticate other devices;
-    /// it sends the encrypted identity vault and if the vault
-    /// can be unlocked then we have verified that the other
-    /// device knows the primary password for this account.
-    pub async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let storage = self.storage().await?;
-        let reader = storage.read().await;
-        let identity_path = reader.paths().identity_vault();
-        Ok(vfs::read(identity_path).await?)
     }
 
     /// Create a folder.
@@ -1332,6 +1343,31 @@ impl Account for LocalAccount {
 
     fn paths(&self) -> &Paths {
         &self.paths
+    }
+
+    async fn public_identity(&self) -> Result<PublicIdentity> {
+        Ok(self.user()?.account()?.clone())
+    }
+
+    async fn account_ref(&self) -> Result<AccountRef> {
+        Ok(self.user()?.account().unwrap().into())
+    }
+
+    async fn account_label(&self) -> Result<String> {
+        Ok(self.user()?.account()?.label().to_owned())
+    }
+
+    /// Load the buffer of the encrypted vault for this account.
+    ///
+    /// Used when a client needs to authenticate other devices;
+    /// it sends the encrypted identity vault and if the vault
+    /// can be unlocked then we have verified that the other
+    /// device knows the primary password for this account.
+    async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        let identity_path = reader.paths().identity_vault();
+        Ok(vfs::read(identity_path).await?)
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {

@@ -183,24 +183,6 @@ impl NetworkAccount {
         account.is_authenticated()
     }
 
-    /// Public identity information.
-    pub async fn public_identity(&self) -> Result<PublicIdentity> {
-        let account = self.account.lock().await;
-        Ok(account.user()?.account()?.clone())
-    }
-
-    /// Reference to the identity for this account.
-    pub async fn account_ref(&self) -> Result<AccountRef> {
-        let account = self.account.lock().await;
-        Ok(account.user()?.account().unwrap().into())
-    }
-
-    /// Label of this account.
-    pub async fn account_label(&self) -> Result<String> {
-        let account = self.account.lock().await;
-        Ok(account.user()?.account()?.label().to_owned())
-    }
-
     /// Find the password for a folder.
     pub async fn find_folder_password(
         &self,
@@ -362,17 +344,6 @@ impl NetworkAccount {
             let _ = shutdown.send(());
             let _ = ack.await;
         }
-    }
-
-    /// Load the buffer of the encrypted vault for this account.
-    ///
-    /// Used when a client needs to authenticate other devices;
-    /// it sends the encrypted identity vault and if the vault
-    /// can be unlocked then we have verified that the other
-    /// device knows the primary password for this account.
-    pub async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let account = self.account.lock().await;
-        Ok(account.identity_vault_buffer().await?)
     }
 
     /// Close all the websocket connections
@@ -761,6 +732,26 @@ impl Account for NetworkAccount {
 
     fn paths(&self) -> &Paths {
         &self.paths
+    }
+
+    async fn public_identity(&self) -> Result<PublicIdentity> {
+        let account = self.account.lock().await;
+        Ok(account.public_identity().await?)
+    }
+
+    async fn account_ref(&self) -> Result<AccountRef> {
+        let account = self.account.lock().await;
+        Ok(account.account_ref().await?)
+    }
+
+    async fn account_label(&self) -> Result<String> {
+        let account = self.account.lock().await;
+        Ok(account.account_label().await?)
+    }
+
+    async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
+        let account = self.account.lock().await;
+        Ok(account.identity_vault_buffer().await?)
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
