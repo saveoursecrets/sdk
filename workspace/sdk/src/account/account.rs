@@ -1291,16 +1291,6 @@ impl Account for LocalAccount {
             authenticated: None,
         };
 
-        //Ok((owner, public_account))
-
-        //let (account, _) = Self::new_account_with_data(
-        //account_name,
-        //passphrase,
-        //builder,
-        //data_dir,
-        //)
-        //.await?;
-
         Ok(account)
     }
 
@@ -1324,12 +1314,6 @@ impl Account for LocalAccount {
         Ok(self.user()?.account()?.label().to_owned())
     }
 
-    /// Load the buffer of the encrypted vault for this account.
-    ///
-    /// Used when a client needs to authenticate other devices;
-    /// it sends the encrypted identity vault and if the vault
-    /// can be unlocked then we have verified that the other
-    /// device knows the primary password for this account.
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
         let storage = self.storage().await?;
         let reader = storage.read().await;
@@ -1446,7 +1430,6 @@ impl Account for LocalAccount {
         Ok(self.user_mut()?.rename_account(account_name).await?)
     }
 
-    /// Delete the account for this user and sign out.
     async fn delete_account(&mut self) -> Result<()> {
         let span = span!(Level::DEBUG, "delete_account");
         let _enter = span.enter();
@@ -1548,11 +1531,6 @@ impl Account for LocalAccount {
         Ok((old_size, new_size))
     }
 
-    /// Create a detached view of an event log until a
-    /// particular commit.
-    ///
-    /// This is useful for time travel; browsing the event
-    /// history at a particular point in time.
     async fn detached_view(
         &self,
         summary: &Summary,
@@ -1600,10 +1578,6 @@ impl Account for LocalAccount {
         Ok(storage.transfers())
     }
 
-    /// Initialize the search index.
-    ///
-    /// This should be called after a user has signed in to
-    /// create the initial search index.
     #[cfg(feature = "search")]
     async fn initialize_search_index(
         &mut self,
@@ -1614,10 +1588,6 @@ impl Account for LocalAccount {
         writer.initialize_search_index(&keys).await
     }
 
-    /// Compute the account statistics.
-    ///
-    /// If the account is not authenticated returns
-    /// a default statistics object (all values will be zero).
     #[cfg(feature = "search")]
     async fn statistics(&self) -> AccountStatistics {
         if self.authenticated.is_some() {
@@ -1761,7 +1731,6 @@ impl Account for LocalAccount {
         })
     }
 
-    /// Update a secret in the current open folder or a specific folder.
     async fn update_secret(
         &mut self,
         secret_id: &SecretId,
@@ -1904,11 +1873,6 @@ impl Account for LocalAccount {
         Ok((result, to))
     }
 
-    /// Update a file secret.
-    ///
-    /// If the secret exists and is not a file secret it will be
-    /// converted to a file secret so take care to ensure you only
-    /// use this on file secrets.
     async fn update_file(
         &mut self,
         secret_id: &SecretId,
