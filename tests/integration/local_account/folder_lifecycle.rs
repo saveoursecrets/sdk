@@ -90,7 +90,7 @@ async fn integration_folder_lifecycle() -> Result<()> {
     assert!(account.find(|f| f.id() == folder.id()).await.is_none());
 
     // Import the folder we exported
-    let (imported_folder, _, _) = account
+    let FolderCreate { folder: imported_folder, .. } = account
         .import_folder(&exported, folder_password.into(), false)
         .await?;
     assert!(account.find(|f| f.id() == folder.id()).await.is_some());

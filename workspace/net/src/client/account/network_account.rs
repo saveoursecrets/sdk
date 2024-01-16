@@ -398,36 +398,6 @@ impl NetworkAccount {
             .await?)
     }
 
-    /// Import a vault file to a folder.
-    pub async fn import_folder<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        key: AccessKey,
-        overwrite: bool,
-    ) -> Result<(Summary, Option<SyncError>)> {
-        let buffer = vfs::read(path.as_ref()).await?;
-        self.import_folder_buffer(&buffer, key, overwrite).await
-    }
-
-    /// Import a vault buffer to a folder.
-    pub async fn import_folder_buffer(
-        &mut self,
-        buffer: impl AsRef<[u8]>,
-        key: AccessKey,
-        overwrite: bool,
-    ) -> Result<(Summary, Option<SyncError>)> {
-        let _ = self.sync_lock.lock().await;
-
-        let summary = {
-            let mut account = self.account.lock().await;
-            let (summary, _, _) =
-                account.import_folder_buffer(buffer, key, overwrite).await?;
-            summary
-        };
-
-        Ok((summary, self.sync().await))
-    }
-
     /// Expected location for a file by convention.
     pub fn file_location(
         &self,
@@ -1014,6 +984,39 @@ impl Account for NetworkAccount {
             event: result.event,
             commit_state: result.commit_state,
             sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    async fn import_folder(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        key: AccessKey,
+        overwrite: bool,
+    ) -> Result<FolderCreate<Self::Error>> {
+        let buffer = vfs::read(path.as_ref()).await?;
+        self.import_folder_buffer(&buffer, key, overwrite).await
+    }
+
+    async fn import_folder_buffer(
+        &mut self,
+        buffer: impl AsRef<[u8]> + Send + Sync,
+        key: AccessKey,
+        overwrite: bool,
+    ) -> Result<FolderCreate<Self::Error>> {
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.import_folder_buffer(buffer, key, overwrite).await?
+        };
+
+        let result = FolderCreate {
+            folder: result.folder,
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_error: self.sync().await
         };
 
         Ok(result)

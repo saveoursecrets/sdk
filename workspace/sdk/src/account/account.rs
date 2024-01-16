@@ -484,6 +484,22 @@ pub trait Account {
         summary: &Summary,
         name: String,
     ) -> std::result::Result<FolderRename<Self::Error>, Self::Error>;
+
+    /// Import a folder from a vault file.
+    async fn import_folder(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        key: AccessKey,
+        overwrite: bool,
+    ) -> std::result::Result<FolderCreate<Self::Error>, Self::Error>;
+
+    /// Import a folder from a vault buffer.
+    async fn import_folder_buffer(
+        &mut self,
+        buffer: impl AsRef<[u8]> + Send + Sync,
+        key: AccessKey,
+        overwrite: bool,
+    ) -> std::result::Result<FolderCreate<Self::Error>, Self::Error>;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -775,140 +791,6 @@ impl LocalAccount {
                 .await?;
 
         encode(&vault).await
-    }
-
-    /// Import a folder from a vault file.
-    pub async fn import_folder<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        key: AccessKey,
-        overwrite: bool,
-    ) -> Result<(Summary, Event, CommitState)> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-
-        let buffer = vfs::read(path.as_ref()).await?;
-        self.import_folder_buffer(&buffer, key, overwrite).await
-    }
-
-    /// Import a folder from a vault buffer.
-    pub async fn import_folder_buffer(
-        &mut self,
-        buffer: impl AsRef<[u8]>,
-        key: AccessKey,
-        overwrite: bool,
-    ) -> Result<(Summary, Event, CommitState)> {
-        let span = span!(Level::DEBUG, "import_folder");
-        let _enter = span.enter();
-
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-
-        let mut vault: Vault = decode(buffer.as_ref()).await?;
-
-        // Need to verify permission to access the data
-        vault.verify(&key).await?;
-
-        tracing::debug!(id = %vault.id(), name = %vault.name());
-
-        // Check for existing identifier
-        //let vaults = Self::list_local_folders(&self.paths, false).await?;
-        let existing_id = self.find(|s| s.id() == vault.summary().id()).await;
-
-        let default_vault = self.default_folder().await;
-
-        let remove_default_flag = !overwrite
-            && default_vault.is_some()
-            && vault.summary().flags().is_default();
-
-        // If we are not overwriting and the identifier already exists
-        // then we need to rotate the identifier
-        let has_id_changed = if existing_id.is_some() && !overwrite {
-            tracing::debug!("rotate identifier");
-            vault.rotate_identifier();
-            true
-        } else {
-            false
-        };
-
-        let existing_name =
-            self.find(|s| s.name() == vault.summary().name()).await;
-
-        let has_name_changed = if existing_name.is_some() && !overwrite {
-            let name = format!(
-                "{} ({})",
-                vault.summary().name(),
-                vault.summary().id()
-            );
-            tracing::debug!("change folder name");
-            vault.set_name(name);
-            true
-        } else {
-            false
-        };
-
-        if remove_default_flag {
-            tracing::debug!("remove default flag");
-            vault.set_default_flag(false);
-        }
-
-        let buffer: Cow<[u8]> =
-            if has_id_changed || has_name_changed || remove_default_flag {
-                // Need to update the buffer as we changed the data
-                Cow::Owned(encode(&vault).await?)
-            } else {
-                Cow::Borrowed(buffer.as_ref())
-            };
-
-        // Import the vault
-        let (event, summary) = {
-            let storage = self.storage().await?;
-            let mut writer = storage.write().await;
-            writer
-                .import_folder(buffer.as_ref(), Some(&key), true)
-                .await?
-        };
-
-        // If we are overwriting then we must remove the existing
-        // vault passphrase so we can save it using the passphrase
-        // assigned when exporting the folder
-        if overwrite {
-            self.user_mut()?
-                .remove_folder_password(summary.id())
-                .await?;
-        }
-
-        self.user_mut()?
-            .save_folder_password(summary.id(), key)
-            .await?;
-
-        // If overwriting remove old entries from the index
-        if overwrite {
-            // If we are overwriting and the current vault
-            // is loaded into memory we must close it so
-            // the UI does not show stale in-memory data
-            {
-                let storage = self.storage().await?;
-                let mut writer = storage.write().await;
-                let is_current =
-                    if let Some(current) = writer.current_folder() {
-                        current.id() == summary.id()
-                    } else {
-                        false
-                    };
-
-                if is_current {
-                    writer.close_folder();
-                }
-            }
-        }
-
-        let options = AccessOptions {
-            folder: Some(summary.clone()),
-            ..Default::default()
-        };
-        let (summary, commit_state) =
-            self.compute_folder_state(&options).await?;
-
-        Ok((summary, event, commit_state))
     }
 
     pub(crate) async fn open_vault(
@@ -1926,6 +1808,137 @@ impl Account for LocalAccount {
         };
 
         Ok(FolderRename { event, commit_state, sync_error: None})
+    }
+
+    async fn import_folder(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        key: AccessKey,
+        overwrite: bool,
+    ) -> Result<FolderCreate<Self::Error>> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        let buffer = vfs::read(path.as_ref()).await?;
+        self.import_folder_buffer(&buffer, key, overwrite).await
+    }
+
+    async fn import_folder_buffer(
+        &mut self,
+        buffer: impl AsRef<[u8]> + Send + Sync,
+        key: AccessKey,
+        overwrite: bool,
+    ) -> Result<FolderCreate<Self::Error>> {
+        let span = span!(Level::DEBUG, "import_folder");
+        let _enter = span.enter();
+
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
+        let mut vault: Vault = decode(buffer.as_ref()).await?;
+
+        // Need to verify permission to access the data
+        vault.verify(&key).await?;
+
+        tracing::debug!(id = %vault.id(), name = %vault.name());
+
+        // Check for existing identifier
+        //let vaults = Self::list_local_folders(&self.paths, false).await?;
+        let existing_id = self.find(|s| s.id() == vault.summary().id()).await;
+
+        let default_vault = self.default_folder().await;
+
+        let remove_default_flag = !overwrite
+            && default_vault.is_some()
+            && vault.summary().flags().is_default();
+
+        // If we are not overwriting and the identifier already exists
+        // then we need to rotate the identifier
+        let has_id_changed = if existing_id.is_some() && !overwrite {
+            tracing::debug!("rotate identifier");
+            vault.rotate_identifier();
+            true
+        } else {
+            false
+        };
+
+        let existing_name =
+            self.find(|s| s.name() == vault.summary().name()).await;
+
+        let has_name_changed = if existing_name.is_some() && !overwrite {
+            let name = format!(
+                "{} ({})",
+                vault.summary().name(),
+                vault.summary().id()
+            );
+            tracing::debug!("change folder name");
+            vault.set_name(name);
+            true
+        } else {
+            false
+        };
+
+        if remove_default_flag {
+            tracing::debug!("remove default flag");
+            vault.set_default_flag(false);
+        }
+
+        let buffer: Cow<[u8]> =
+            if has_id_changed || has_name_changed || remove_default_flag {
+                // Need to update the buffer as we changed the data
+                Cow::Owned(encode(&vault).await?)
+            } else {
+                Cow::Borrowed(buffer.as_ref())
+            };
+
+        // Import the vault
+        let (event, summary) = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer
+                .import_folder(buffer.as_ref(), Some(&key), true)
+                .await?
+        };
+
+        // If we are overwriting then we must remove the existing
+        // vault passphrase so we can save it using the passphrase
+        // assigned when exporting the folder
+        if overwrite {
+            self.user_mut()?
+                .remove_folder_password(summary.id())
+                .await?;
+        }
+
+        self.user_mut()?
+            .save_folder_password(summary.id(), key)
+            .await?;
+
+        // If overwriting remove old entries from the index
+        if overwrite {
+            // If we are overwriting and the current vault
+            // is loaded into memory we must close it so
+            // the UI does not show stale in-memory data
+            {
+                let storage = self.storage().await?;
+                let mut writer = storage.write().await;
+                let is_current =
+                    if let Some(current) = writer.current_folder() {
+                        current.id() == summary.id()
+                    } else {
+                        false
+                    };
+
+                if is_current {
+                    writer.close_folder();
+                }
+            }
+        }
+
+        let options = AccessOptions {
+            folder: Some(summary.clone()),
+            ..Default::default()
+        };
+        let (summary, commit_state) =
+            self.compute_folder_state(&options).await?;
+
+        Ok(FolderCreate { folder: summary, event, commit_state, sync_error: None })
     }
 
 }
