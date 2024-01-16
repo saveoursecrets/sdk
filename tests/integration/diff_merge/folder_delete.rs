@@ -40,8 +40,9 @@ async fn integration_diff_merge_folder_delete() -> Result<()> {
     remote.sign_in(&key).await?;
 
     // Create a new folder
-    let FolderCreate { folder: summary, .. } =
-        local.create_folder("new_folder".to_owned()).await?;
+    let FolderCreate {
+        folder: summary, ..
+    } = local.create_folder("new_folder".to_owned()).await?;
 
     // Delete the folder
     local.delete_folder(&summary).await?;

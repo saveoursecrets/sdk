@@ -232,6 +232,7 @@ impl<'de> serde::Deserialize<'de> for CommitProof {
     }
 }
 
+/*
 /// Pair of commit proofs.
 #[derive(Debug, Hash, Eq, PartialEq)]
 pub struct CommitPair {
@@ -240,7 +241,9 @@ pub struct CommitPair {
     /// Commit proof for a remote commit tree.
     pub remote: CommitProof,
 }
+*/
 
+/*
 /// Relationship between two trees.
 #[derive(Debug)]
 pub enum CommitRelationship {
@@ -291,3 +294,4 @@ impl CommitRelationship {
         }
     }
 }
+*/

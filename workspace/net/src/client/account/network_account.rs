@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        Account, AccountBuilder, AccountData, DetachedView, LocalAccount,
-        SecretChange, SecretDelete, SecretInsert, SecretMove, FolderCreate,
-        FolderRename, FolderDelete,
+        Account, AccountBuilder, AccountData, DetachedView, FolderCreate,
+        FolderDelete, FolderRename, LocalAccount, SecretChange, SecretDelete,
+        SecretInsert, SecretMove,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -918,7 +918,7 @@ impl Account for NetworkAccount {
             let mut account = self.account.lock().await;
             account.create_folder(name).await?
         };
-        
+
         let result = FolderCreate {
             folder: result.folder,
             event: result.event,
@@ -939,7 +939,7 @@ impl Account for NetworkAccount {
             let mut account = self.account.lock().await;
             account.rename_folder(summary, name).await?
         };
-        
+
         let result = FolderRename {
             event: result.event,
             commit_state: result.commit_state,
@@ -976,7 +976,7 @@ impl Account for NetworkAccount {
             folder: result.folder,
             event: result.event,
             commit_state: result.commit_state,
-            sync_error: self.sync().await
+            sync_error: self.sync().await,
         };
 
         Ok(result)
@@ -1016,7 +1016,7 @@ impl Account for NetworkAccount {
             let mut account = self.account.lock().await;
             account.delete_folder(summary).await?
         };
-            
+
         let result = FolderDelete {
             events: result.events,
             commit_state: result.commit_state,
@@ -1025,5 +1025,4 @@ impl Account for NetworkAccount {
 
         Ok(result)
     }
-
 }

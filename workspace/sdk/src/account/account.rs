@@ -1719,7 +1719,12 @@ impl Account for LocalAccount {
 
         let event =
             Event::Folder(account_event, WriteEvent::CreateVault(buffer));
-        Ok(FolderCreate { folder, event, commit_state, sync_error: None })
+        Ok(FolderCreate {
+            folder,
+            event,
+            commit_state,
+            sync_error: None,
+        })
     }
 
     async fn rename_folder(
@@ -1741,7 +1746,11 @@ impl Account for LocalAccount {
             writer.rename_folder(&summary, &name).await?
         };
 
-        Ok(FolderRename { event, commit_state, sync_error: None})
+        Ok(FolderRename {
+            event,
+            commit_state,
+            sync_error: None,
+        })
     }
 
     async fn import_folder(
@@ -1872,7 +1881,12 @@ impl Account for LocalAccount {
         let (summary, commit_state) =
             self.compute_folder_state(&options).await?;
 
-        Ok(FolderCreate { folder: summary, event, commit_state, sync_error: None })
+        Ok(FolderCreate {
+            folder: summary,
+            event,
+            commit_state,
+            sync_error: None,
+        })
     }
 
     async fn export_folder(
@@ -1969,7 +1983,10 @@ impl Account for LocalAccount {
             .remove_folder_password(summary.id())
             .await?;
 
-        Ok(FolderDelete { events, commit_state, sync_error: None })
+        Ok(FolderDelete {
+            events,
+            commit_state,
+            sync_error: None,
+        })
     }
-
 }

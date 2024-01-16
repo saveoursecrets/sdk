@@ -9,15 +9,15 @@ pub mod contacts;
 mod device;
 #[cfg(feature = "migrate")]
 mod migrate;
-#[cfg(feature = "sync")]
-mod sync;
 #[cfg(feature = "security-report")]
 pub mod security_report;
+#[cfg(feature = "sync")]
+mod sync;
 
 pub use account::{
-    Account, AccountData, DetachedView, LocalAccount, SecretChange,
-    SecretDelete, SecretInsert, SecretMove, FolderCreate, FolderRename,
-    FolderDelete,
+    Account, AccountData, DetachedView, FolderCreate, FolderDelete,
+    FolderRename, LocalAccount, SecretChange, SecretDelete, SecretInsert,
+    SecretMove,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};
 

@@ -2,10 +2,7 @@ use crate::{Error, Result};
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 use std::ops::Range;
 
-use super::{
-    CommitHash, CommitPair, CommitProof, CommitState,
-    Comparison,
-};
+use super::{CommitHash, CommitProof, CommitState, Comparison};
 
 /// Encapsulates a Merkle tree and provides functions
 /// for generating and comparing proofs.
@@ -209,7 +206,7 @@ impl CommitTree {
     pub fn root(&self) -> Option<CommitHash> {
         self.tree.root().map(CommitHash)
     }
-    
+
     /*
     /// Commit relationship between the proof in another tree and
     /// a match proof which indicates whether the current head proof
@@ -610,6 +607,7 @@ mod test {
         Ok(())
     }
 
+    /*
     #[test]
     fn commit_proof_relationship_equal() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -702,7 +700,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_proof_relationship_ahead() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -734,6 +734,7 @@ mod test {
 
         Ok(())
     }
+    */
 
     /*
     #[test]

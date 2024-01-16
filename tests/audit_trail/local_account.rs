@@ -155,8 +155,9 @@ async fn simulate_session(
         .archive(default_folder, &id, Default::default())
         .await?;
     // Create a new folder
-    let FolderCreate { folder: new_folder, .. } =
-        account.create_folder("New folder".to_string()).await?;
+    let FolderCreate {
+        folder: new_folder, ..
+    } = account.create_folder("New folder".to_string()).await?;
     // Rename the folder
     account
         .rename_folder(&new_folder, "New name".to_string())

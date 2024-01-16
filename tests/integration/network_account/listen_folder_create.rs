@@ -34,7 +34,11 @@ async fn integration_sync_listen_create_folder() -> Result<()> {
     assert_eq!(1, num_events(&mut device1.owner, &default_folder_id).await);
     assert_eq!(1, num_events(&mut device2.owner, &default_folder_id).await);
 
-    let FolderCreate { folder: new_folder, sync_error, .. } = device1
+    let FolderCreate {
+        folder: new_folder,
+        sync_error,
+        ..
+    } = device1
         .owner
         .create_folder("sync_folder".to_string())
         .await?;

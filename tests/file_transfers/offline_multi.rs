@@ -177,8 +177,10 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
     wait_for_file(&server2_paths, &file).await?;
 
     // Create a folder
-    let FolderCreate { folder: destination, .. } =
-        device.owner.create_folder("new_folder".to_owned()).await?;
+    let FolderCreate {
+        folder: destination,
+        ..
+    } = device.owner.create_folder("new_folder".to_owned()).await?;
 
     // Moving the secret also needs to move the file
     let SecretMove { id: secret_id, .. } = device

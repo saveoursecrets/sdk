@@ -47,8 +47,9 @@ async fn integration_diff_merge_secret_move() -> Result<()> {
         .await?;
 
     // Create a new folder
-    let FolderCreate { folder: summary, .. } =
-        local.create_folder("new_folder".to_owned()).await?;
+    let FolderCreate {
+        folder: summary, ..
+    } = local.create_folder("new_folder".to_owned()).await?;
 
     // Move the secret
     let SecretMove { id: new_id, .. } = local

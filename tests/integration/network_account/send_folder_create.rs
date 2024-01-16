@@ -22,7 +22,11 @@ async fn integration_sync_create_folder() -> Result<()> {
 
     let original_folders_len = folders.len();
 
-    let FolderCreate { folder: new_folder, sync_error, .. } = device
+    let FolderCreate {
+        folder: new_folder,
+        sync_error,
+        ..
+    } = device
         .owner
         .create_folder("sync_folder".to_string())
         .await?;
