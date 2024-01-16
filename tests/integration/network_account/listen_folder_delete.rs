@@ -33,7 +33,7 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
         .await?;
     assert!(sync_error.is_none());
 
-    let sync_error = device1.owner.delete_folder(&new_folder).await?;
+    let FolderDelete { sync_error, .. } = device1.owner.delete_folder(&new_folder).await?;
     if sync_error.is_some() {
         println!("{:#?}", sync_error);
     }

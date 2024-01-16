@@ -5,7 +5,7 @@ use sos_sdk::{
     account::{
         Account, AccountBuilder, AccountData, DetachedView, LocalAccount,
         SecretChange, SecretDelete, SecretInsert, SecretMove, FolderCreate,
-        FolderRename,
+        FolderRename, FolderDelete,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -356,19 +356,6 @@ impl NetworkAccount {
             tracing::debug!("close websocket");
             handle.close();
         }
-    }
-
-    /// Delete a folder.
-    pub async fn delete_folder(
-        &mut self,
-        summary: &Summary,
-    ) -> Result<Option<SyncError>> {
-        let _ = self.sync_lock.lock().await;
-        {
-            let mut account = self.account.lock().await;
-            account.delete_folder(summary).await?;
-        }
-        Ok(self.sync().await)
     }
 
     /// Expected location for a file by convention.
@@ -1018,6 +1005,25 @@ impl Account for NetworkAccount {
         Ok(account
             .export_folder_buffer(summary, new_key, save_key)
             .await?)
+    }
+
+    async fn delete_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<FolderDelete<Self::Error>> {
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.delete_folder(summary).await?
+        };
+            
+        let result = FolderDelete {
+            events: result.events,
+            commit_state: result.commit_state,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
     }
 
 }

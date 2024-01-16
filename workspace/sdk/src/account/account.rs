@@ -122,6 +122,17 @@ pub struct FolderRename<T> {
     pub sync_error: Option<SyncError<T>>,
 }
 
+/// Result information for folder deletion.
+pub struct FolderDelete<T> {
+    /// Events to be logged.
+    pub events: Vec<Event>,
+    /// Commit state of the folder.
+    pub commit_state: CommitState,
+    /// Error generated during a sync.
+    #[cfg(feature = "sync")]
+    pub sync_error: Option<SyncError<T>>,
+}
+
 /// Trait for account implementations.
 #[async_trait]
 pub trait Account {
@@ -517,6 +528,12 @@ pub trait Account {
         new_key: AccessKey,
         save_key: bool,
     ) -> std::result::Result<Vec<u8>, Self::Error>;
+
+    /// Delete a folder.
+    async fn delete_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> std::result::Result<FolderDelete<Self::Error>, Self::Error>;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -649,30 +666,6 @@ impl LocalAccount {
     /// Determine if the account is authenticated.
     pub fn is_authenticated(&self) -> bool {
         self.authenticated.is_some()
-    }
-
-    /// Delete a folder.
-    pub async fn delete_folder(
-        &mut self,
-        summary: &Summary,
-    ) -> Result<(Vec<Event>, CommitState)> {
-        let options = AccessOptions {
-            folder: Some(summary.clone()),
-            ..Default::default()
-        };
-        let (summary, commit_state) =
-            self.compute_folder_state(&options).await?;
-
-        let events = {
-            let storage = self.storage().await?;
-            let mut writer = storage.write().await;
-            writer.delete_folder(&summary, true).await?
-        };
-        self.user_mut()?
-            .remove_folder_password(summary.id())
-            .await?;
-
-        Ok((events, commit_state))
     }
 
     /// Get the description of a folder.
@@ -1954,6 +1947,29 @@ impl Account for LocalAccount {
         self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(buffer)
+    }
+
+    async fn delete_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<FolderDelete<Self::Error>> {
+        let options = AccessOptions {
+            folder: Some(summary.clone()),
+            ..Default::default()
+        };
+        let (summary, commit_state) =
+            self.compute_folder_state(&options).await?;
+
+        let events = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer.delete_folder(&summary, true).await?
+        };
+        self.user_mut()?
+            .remove_folder_password(summary.id())
+            .await?;
+
+        Ok(FolderDelete { events, commit_state, sync_error: None })
     }
 
 }

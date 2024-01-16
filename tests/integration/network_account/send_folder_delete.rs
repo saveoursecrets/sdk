@@ -31,7 +31,7 @@ async fn integration_sync_delete_folder() -> Result<()> {
     // Our new local folder should have the single create vault event
     assert_eq!(1, num_events(&mut device.owner, new_folder.id()).await);
 
-    let sync_error = device.owner.delete_folder(&new_folder).await?;
+    let FolderDelete { sync_error, .. } = device.owner.delete_folder(&new_folder).await?;
     assert!(sync_error.is_none());
 
     let updated_summaries: Vec<Summary> = {

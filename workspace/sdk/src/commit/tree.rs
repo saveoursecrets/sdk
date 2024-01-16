@@ -3,7 +3,7 @@ use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 use std::ops::Range;
 
 use super::{
-    CommitHash, CommitPair, CommitProof, CommitRelationship, CommitState,
+    CommitHash, CommitPair, CommitProof, CommitState,
     Comparison,
 };
 
@@ -209,7 +209,8 @@ impl CommitTree {
     pub fn root(&self) -> Option<CommitHash> {
         self.tree.root().map(CommitHash)
     }
-
+    
+    /*
     /// Commit relationship between the proof in another tree and
     /// a match proof which indicates whether the current head proof
     /// of this tree is contained in the other tree.
@@ -245,6 +246,7 @@ impl CommitTree {
             }
         })
     }
+    */
 
     /// Given a proof from another tree determine if this
     /// tree contains the other proof.
