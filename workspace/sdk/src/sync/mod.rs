@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, fmt, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use url::Url;
 
@@ -31,6 +31,38 @@ use crate::events::{FileEvent, FileEventLog};
 
 #[cfg(feature = "files")]
 pub use patch::FilePatch;
+
+/// Server origin information.
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct Origin {
+    /// Name of the origin.
+    pub name: String,
+    /// URL of the remote server.
+    pub url: Url,
+}
+
+impl Origin {
+    /// The URL for this origin.
+    pub fn url(&self) -> &Url {
+        &self.url
+    }
+}
+
+impl fmt::Display for Origin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.name, self.url)
+    }
+}
+
+/// Enumeration of error types that can be returned
+/// from a sync operation.
+#[derive(Debug)]
+pub enum SyncError<T> {
+    /// Single remote error.
+    One(T),
+    /// Collection of errors by remote origin.
+    Multiple(Vec<(Origin, T)>),
+}
 
 /// Options for folder merge.
 #[derive(Default)]

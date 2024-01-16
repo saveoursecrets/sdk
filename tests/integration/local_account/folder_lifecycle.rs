@@ -37,7 +37,11 @@ async fn integration_folder_lifecycle() -> Result<()> {
 
     // Create a secret in the new folder
     let (meta, secret) = mock::note("note", TEST_ID);
-    let (id, _, _, secret_folder) = account
+    let CreatedSecret {
+        id,
+        folder: secret_folder,
+        ..
+    } = account
         .create_secret(meta, secret, Default::default())
         .await?;
     assert_eq!(&folder, &secret_folder);

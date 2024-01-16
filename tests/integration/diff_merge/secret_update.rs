@@ -41,7 +41,7 @@ async fn integration_diff_merge_secret_update() -> Result<()> {
 
     // Create a new secret
     let (meta, secret) = mock::note("note", TEST_ID);
-    let (id, _, _, _) = local
+    let CreatedSecret { id, .. } = local
         .create_secret(meta, secret, Default::default())
         .await?;
 

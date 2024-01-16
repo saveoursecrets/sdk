@@ -26,11 +26,11 @@ async fn device_enroll() -> Result<()> {
     // Create a secret in the primary owner which won't exist
     // in the second device
     let (meta, secret) = mock::note(TEST_ID, TEST_ID);
-    let (id, sync_error) = primary_device
+    let result = primary_device
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(result.sync_error.is_none());
 
     let password = primary_device.password.clone();
     let key: AccessKey = password.into();
@@ -59,7 +59,8 @@ async fn device_enroll() -> Result<()> {
     assert!(primary_device.owner.sync().await.is_none());
 
     // Read the secret on the newly enrolled account
-    let (secret_data, _) = enrolled_account.read_secret(&id, None).await?;
+    let (secret_data, _) =
+        enrolled_account.read_secret(&result.id, None).await?;
     assert_eq!(TEST_ID, secret_data.meta().label());
 
     // Primary device has two trusted devices

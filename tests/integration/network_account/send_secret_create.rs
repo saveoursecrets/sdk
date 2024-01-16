@@ -3,7 +3,10 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::client::{RemoteBridge, RemoteSync};
+use sos_net::{
+    client::{RemoteBridge, RemoteSync},
+    sdk::prelude::*,
+};
 
 const TEST_ID: &str = "sync_create_secret";
 

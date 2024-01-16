@@ -3,7 +3,10 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::client::{RemoteBridge, RemoteSync, SyncError};
+use sos_net::{
+    client::{RemoteBridge, RemoteSync, SyncError},
+    sdk::prelude::*,
+};
 
 const TEST_ID: &str = "sync_multiple_remotes_fallback";
 

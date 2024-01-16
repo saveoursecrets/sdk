@@ -3,7 +3,8 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        Account, AccountBuilder, AccountData, DetachedView, LocalAccount,
+        Account, AccountBuilder, AccountData, BulkInsert, CreatedSecret,
+        DetachedView, LocalAccount,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -454,44 +455,6 @@ impl NetworkAccount {
         Ok((summary, self.sync().await))
     }
 
-    /// Bulk insert secrets into the currently open folder.
-    pub async fn insert_secrets(
-        &mut self,
-        secrets: Vec<(SecretMeta, Secret)>,
-    ) -> Result<(
-        Vec<(SecretId, Event, CommitState, Summary)>,
-        Option<SyncError>,
-    )> {
-        let result = {
-            let mut account = self.account.lock().await;
-            account.insert_secrets(secrets).await?
-        };
-
-        Ok((result, self.sync().await))
-    }
-
-    /// Create a secret in the current open folder or a specific folder.
-    pub async fn create_secret(
-        &mut self,
-        meta: SecretMeta,
-        secret: Secret,
-        options: AccessOptions,
-    ) -> Result<(SecretId, Option<SyncError>)> {
-        let _ = self.sync_lock.lock().await;
-
-        // Try to sync before we make the change
-        self.before_change().await;
-
-        let id = {
-            let mut account = self.account.lock().await;
-            let (id, _, _, _) =
-                account.create_secret(meta, secret, options).await?;
-            id
-        };
-
-        Ok((id, self.sync().await))
-    }
-
     /// Read a secret in the current open folder.
     pub async fn read_secret(
         &mut self,
@@ -887,7 +850,7 @@ impl Account for NetworkAccount {
         let account = self.account.lock().await;
         Ok(account.transfers().await?)
     }
-    
+
     #[cfg(feature = "search")]
     async fn initialize_search_index(
         &mut self,
@@ -956,5 +919,65 @@ impl Account for NetworkAccount {
         Ok(account
             .download_file(vault_id, secret_id, file_name)
             .await?)
+    }
+
+    /// Create a secret in the current open folder or a specific folder.
+    async fn create_secret(
+        &mut self,
+        meta: SecretMeta,
+        secret: Secret,
+        options: AccessOptions,
+    ) -> Result<CreatedSecret<Self::Error>> {
+        let _ = self.sync_lock.lock().await;
+
+        // Try to sync before we make the change
+        self.before_change().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            let result = account.create_secret(meta, secret, options).await?;
+            result
+        };
+
+        let result = CreatedSecret {
+            id: result.id,
+            event: result.event,
+            commit_state: result.commit_state,
+            folder: result.folder,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    /// Bulk insert secrets into the currently open folder.
+    async fn insert_secrets(
+        &mut self,
+        secrets: Vec<(SecretMeta, Secret)>,
+    ) -> Result<BulkInsert<Self::Error>> {
+        // Try to sync before we make the change
+        self.before_change().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.insert_secrets(secrets).await?
+        };
+
+        let result = BulkInsert {
+            results: result
+                .results
+                .into_iter()
+                .map(|result| CreatedSecret {
+                    id: result.id,
+                    event: result.event,
+                    commit_state: result.commit_state,
+                    folder: result.folder,
+                    sync_error: None,
+                })
+                .collect(),
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
     }
 }

@@ -37,8 +37,8 @@ async fn integration_events_change_password() -> Result<()> {
         mock::card("card", TEST_ID, "123"),
         mock::bank("bank", TEST_ID, "12-34-56"),
     ];
-    let results = account.insert_secrets(docs).await?;
-    let mut ids: Vec<_> = results.into_iter().map(|r| r.0).collect();
+    let bulk = account.insert_secrets(docs).await?;
+    let mut ids: Vec<_> = bulk.results.into_iter().map(|r| r.id).collect();
 
     let (new_password, _) = generate_passphrase()?;
     let new_key: AccessKey = new_password.into();

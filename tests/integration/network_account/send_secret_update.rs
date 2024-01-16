@@ -3,7 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::client::RemoteBridge;
+use sos_net::{client::RemoteBridge, sdk::prelude::*};
 
 const TEST_ID: &str = "sync_update_secret";
 
@@ -23,11 +23,11 @@ async fn integration_sync_update_secret() -> Result<()> {
 
     // Create a secret
     let (meta, secret) = mock::note("note", "secret1");
-    let (id, sync_error) = device
+    let result = device
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(result.sync_error.is_none());
 
     // Should have two events
     assert_eq!(2, num_events(&mut device.owner, &default_folder_id).await);
@@ -35,7 +35,13 @@ async fn integration_sync_update_secret() -> Result<()> {
     let (meta, secret) = mock::note("note", "secret1");
     let (_, sync_error) = device
         .owner
-        .update_secret(&id, meta, Some(secret), Default::default(), None)
+        .update_secret(
+            &result.id,
+            meta,
+            Some(secret),
+            Default::default(),
+            None,
+        )
         .await?;
     assert!(sync_error.is_none());
 

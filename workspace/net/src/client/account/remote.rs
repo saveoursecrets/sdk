@@ -16,27 +16,7 @@ use sos_sdk::{
 use std::{any::Any, collections::HashMap, fmt, sync::Arc};
 use tokio::sync::Mutex;
 
-/// Server origin information.
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct Origin {
-    /// Name of the origin.
-    pub name: String,
-    /// URL of the remote server.
-    pub url: Url,
-}
-
-impl Origin {
-    /// The URL for this origin.
-    pub fn url(&self) -> &Url {
-        &self.url
-    }
-}
-
-impl fmt::Display for Origin {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ({})", self.name, self.url)
-    }
-}
+pub use sos_sdk::sync::Origin;
 
 /// Remote synchronization target.
 pub type Remote = Box<dyn RemoteSync>;

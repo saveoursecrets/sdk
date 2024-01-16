@@ -4,13 +4,7 @@ use std::any::Any;
 
 /// Enumeration of error types that can be returned
 /// from a sync operation.
-#[derive(Debug)]
-pub enum SyncError {
-    /// Single remote error.
-    One(Error),
-    /// Collection of errors by remote origin.
-    Multiple(Vec<(Origin, Error)>),
-}
+pub type SyncError = sos_sdk::sync::SyncError<Error>;
 
 /// Options for sync operation.
 #[derive(Default, Debug)]

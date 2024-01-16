@@ -35,6 +35,9 @@ use crate::audit::{AuditData, AuditEvent};
 #[cfg(feature = "search")]
 use crate::storage::search::*;
 
+#[cfg(feature = "sync")]
+use crate::sync::SyncError;
+
 #[cfg(all(feature = "files", feature = "sync"))]
 use crate::storage::files::Transfers;
 
@@ -44,6 +47,31 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
+
+/// Information about a created secret.
+pub struct CreatedSecret<T> {
+    /// Secret identifier.
+    pub id: SecretId,
+    /// Event to be logged.
+    pub event: Event,
+    /// Commit state of the folder event log before
+    /// the secret was created.
+    pub commit_state: CommitState,
+    /// Folder the secret was created in.
+    pub folder: Summary,
+    /// Error generated during a sync.
+    #[cfg(feature = "sync")]
+    pub sync_error: Option<SyncError<T>>,
+}
+
+/// Information about a bulk insert.
+pub struct BulkInsert<T> {
+    /// Created secrets.
+    pub results: Vec<CreatedSecret<T>>,
+    /// Error generated during a sync.
+    #[cfg(feature = "sync")]
+    pub sync_error: Option<SyncError<T>>,
+}
 
 /// Trait for account implementations.
 #[async_trait]
@@ -309,6 +337,20 @@ pub trait Account {
         secret_id: &SecretId,
         file_name: &str,
     ) -> std::result::Result<Vec<u8>, Self::Error>;
+
+    /// Create a secret in the current open folder or a specific folder.
+    async fn create_secret(
+        &mut self,
+        meta: SecretMeta,
+        secret: Secret,
+        options: AccessOptions,
+    ) -> std::result::Result<CreatedSecret<Self::Error>, Self::Error>;
+
+    /// Bulk insert secrets into the currently open folder.
+    async fn insert_secrets(
+        &mut self,
+        secrets: Vec<(SecretMeta, Secret)>,
+    ) -> std::result::Result<BulkInsert<Self::Error>, Self::Error>;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -852,36 +894,6 @@ impl LocalAccount {
             (folder, commit_state)
         };
         Ok((folder, commit_state))
-    }
-
-    /// Bulk insert secrets into the currently open folder.
-    pub async fn insert_secrets(
-        &mut self,
-        secrets: Vec<(SecretMeta, Secret)>,
-    ) -> Result<Vec<(SecretId, Event, CommitState, Summary)>> {
-        let mut results = Vec::new();
-        for (meta, secret) in secrets {
-            results.push(
-                self.create_secret(meta, secret, Default::default()).await?,
-            );
-        }
-        Ok(results)
-    }
-
-    /// Create a secret in the current open folder or a specific folder.
-    pub async fn create_secret(
-        &mut self,
-        meta: SecretMeta,
-        secret: Secret,
-        options: AccessOptions,
-    ) -> Result<(SecretId, Event, CommitState, Summary)> {
-        let (folder, commit_state) =
-            self.compute_folder_state(&options).await?;
-
-        let (id, event, _) =
-            self.add_secret(meta, secret, options, true).await?;
-
-        Ok((id, event, commit_state, folder))
     }
 
     async fn add_secret(
@@ -1752,5 +1764,42 @@ impl Account for LocalAccount {
         let storage = self.storage().await?;
         let reader = storage.read().await;
         reader.download_file(vault_id, secret_id, file_name).await
+    }
+
+    async fn create_secret(
+        &mut self,
+        meta: SecretMeta,
+        secret: Secret,
+        options: AccessOptions,
+    ) -> Result<CreatedSecret<Self::Error>> {
+        let (folder, commit_state) =
+            self.compute_folder_state(&options).await?;
+
+        let (id, event, _) =
+            self.add_secret(meta, secret, options, true).await?;
+
+        Ok(CreatedSecret {
+            id,
+            event,
+            commit_state,
+            folder,
+            sync_error: None,
+        })
+    }
+
+    async fn insert_secrets(
+        &mut self,
+        secrets: Vec<(SecretMeta, Secret)>,
+    ) -> Result<BulkInsert<Self::Error>> {
+        let mut results = Vec::new();
+        for (meta, secret) in secrets {
+            results.push(
+                self.create_secret(meta, secret, Default::default()).await?,
+            );
+        }
+        Ok(BulkInsert {
+            results,
+            sync_error: None,
+        })
     }
 }

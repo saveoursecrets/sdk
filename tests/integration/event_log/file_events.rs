@@ -34,7 +34,7 @@ async fn integration_events_file() -> Result<()> {
 
     // Create an external file secret
     let (meta, secret, _file_path) = mock::file_text_secret()?;
-    let (id, _, _, _) = account
+    let CreatedSecret { id, .. } = account
         .create_secret(meta, secret, Default::default())
         .await?;
 

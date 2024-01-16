@@ -28,7 +28,7 @@ async fn integration_search_folder_import() -> Result<()> {
 
     // Create a secret
     let (meta, secret) = mock::note("note", TEST_ID);
-    let (id, _, _, _) = account
+    let CreatedSecret { id, .. } = account
         .create_secret(meta, secret, Default::default())
         .await?;
 

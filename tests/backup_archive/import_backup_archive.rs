@@ -57,8 +57,8 @@ async fn export_import() -> Result<()> {
         mock::page("page", "Title", "Body"),
     ];
 
-    let results = account.insert_secrets(docs).await?;
-    let ids: Vec<_> = results.into_iter().map(|r| r.0).collect();
+    let bulk = account.insert_secrets(docs).await?;
+    let ids: Vec<_> = bulk.results.into_iter().map(|r| r.id).collect();
 
     // Export a backup archive
     let archive = data_dir.join("backup.zip");

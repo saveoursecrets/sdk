@@ -119,7 +119,7 @@ async fn simulate_session(
 ) -> Result<()> {
     // Create a secret
     let (meta, secret) = mock::note("Audit note", "Note value");
-    let (id, _, _, _) = account
+    let CreatedSecret { id, .. } = account
         .create_secret(meta, secret, default_folder.clone().into())
         .await?;
 
@@ -147,7 +147,7 @@ async fn simulate_session(
     // Create a new secret so we can archive it
     let (meta, secret) =
         mock::note("Audit note to archive", "Note value to archive");
-    let (id, _, _, _) = account
+    let CreatedSecret { id, .. } = account
         .create_secret(meta, secret, default_folder.clone().into())
         .await?;
     // Archive the secret to generate move event

@@ -3,7 +3,7 @@ use crate::test_utils::{
     sync_pause, teardown,
 };
 use anyhow::Result;
-use sos_net::client::RemoteBridge;
+use sos_net::{client::RemoteBridge, sdk::prelude::*};
 
 const TEST_ID: &str = "sync_listen_delete_secret";
 
@@ -33,15 +33,17 @@ async fn integration_sync_listen_delete_secret() -> Result<()> {
     // Create a secret in the primary owner which won't exist
     // in the second device
     let (meta, secret) = mock::note("note_first_owner", "send_events_secret");
-    let (id, sync_error) = device1
+    let result = device1
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(result.sync_error.is_none());
 
     // Delete the secret
-    let sync_error =
-        device1.owner.delete_secret(&id, Default::default()).await?;
+    let sync_error = device1
+        .owner
+        .delete_secret(&result.id, Default::default())
+        .await?;
     assert!(sync_error.is_none());
 
     // Pause a while to give the listener some time to process

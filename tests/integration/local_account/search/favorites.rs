@@ -28,7 +28,7 @@ async fn integration_search_favorites() -> Result<()> {
     // Create a secret
     let (meta, secret) =
         mock::login("login", TEST_ID, generate_passphrase()?.0);
-    let (id, _, _, _) = account
+    let CreatedSecret { id, .. } = account
         .create_secret(meta, secret, Default::default())
         .await?;
 

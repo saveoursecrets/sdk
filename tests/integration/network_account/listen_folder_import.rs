@@ -66,11 +66,11 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
     device2.owner.open_folder(&new_folder).await?;
     let (meta, secret) =
         mock::note("note_second_owner", "listen_import_folder");
-    let (_, sync_error) = device2
+    let result = device2
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(result.sync_error.is_none());
 
     // Pause a while to allow the first owner to sync
     // with the new change

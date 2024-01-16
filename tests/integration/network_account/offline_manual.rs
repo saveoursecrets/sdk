@@ -3,7 +3,10 @@ use crate::test_utils::{
     sync_pause, teardown,
 };
 use anyhow::Result;
-use sos_net::client::{RemoteBridge, RemoteSync};
+use sos_net::{
+    client::{RemoteBridge, RemoteSync},
+    sdk::prelude::*,
+};
 
 const TEST_ID: &str = "sync_offline_manual";
 
@@ -35,20 +38,31 @@ async fn integration_sync_offline_manual() -> Result<()> {
     // Perform all the basic CRUD operations to make sure
     // we are not affected by the remote being offline
     let (meta, secret) = mock::note("note", "offline_secret");
-    let (id, sync_error) = device1
+    let result = device1
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(sync_error.is_some());
-    let (_, _) = device1.owner.read_secret(&id, Default::default()).await?;
+    assert!(result.sync_error.is_some());
+    let (_, _) = device1
+        .owner
+        .read_secret(&result.id, Default::default())
+        .await?;
     let (meta, secret) = mock::note("note_edited", "offline_secret_edit");
     let (_, sync_error) = device1
         .owner
-        .update_secret(&id, meta, Some(secret), Default::default(), None)
+        .update_secret(
+            &result.id,
+            meta,
+            Some(secret),
+            Default::default(),
+            None,
+        )
         .await?;
     assert!(sync_error.is_some());
-    let sync_error =
-        device1.owner.delete_secret(&id, Default::default()).await?;
+    let sync_error = device1
+        .owner
+        .delete_secret(&result.id, Default::default())
+        .await?;
     assert!(sync_error.is_some());
 
     // The first client is now very much ahead of the second client

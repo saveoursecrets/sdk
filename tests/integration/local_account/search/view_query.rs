@@ -71,9 +71,8 @@ async fn integration_search_view_query() -> Result<()> {
     let total_docs = default_folder_docs.len() + new_folder_docs.len();
 
     // Create a document for each secret type
-    let results = account.insert_secrets(default_folder_docs).await?;
-
-    let ids: Vec<_> = results.into_iter().map(|r| r.0).collect();
+    let bulk = account.insert_secrets(default_folder_docs).await?;
+    let ids: Vec<_> = bulk.results.into_iter().map(|r| r.id).collect();
 
     // Secret we will move to the archive
     let card_id = *ids.get(2).unwrap();

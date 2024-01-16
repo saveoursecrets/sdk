@@ -178,9 +178,9 @@ impl LocalAccount {
             });
 
             let meta = SecretMeta::new(label, secret.kind());
-            let (id, _, _, _) =
+            let result =
                 self.create_secret(meta, secret, Default::default()).await?;
-            ids.push(id);
+            ids.push(result.id);
         }
 
         if let Some(folder) = current {

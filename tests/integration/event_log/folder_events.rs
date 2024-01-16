@@ -38,7 +38,7 @@ async fn integration_events_folder() -> Result<()> {
     // Create secret event
     let commit = event_log.tree().last_commit();
     let (meta, secret) = mock::note("note", TEST_ID);
-    let (id, _, _, _) = account
+    let CreatedSecret { id, .. } = account
         .create_secret(meta, secret, Default::default())
         .await?;
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;

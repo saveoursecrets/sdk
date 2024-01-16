@@ -3,7 +3,7 @@ use crate::test_utils::{
     sync_pause, teardown,
 };
 use anyhow::Result;
-use sos_net::client::RemoteBridge;
+use sos_net::{client::RemoteBridge, sdk::prelude::*};
 
 const TEST_ID: &str = "sync_listen_multiple";
 
@@ -36,11 +36,11 @@ async fn integration_sync_listen_multiple() -> Result<()> {
     // Create a secret in the primary owner which won't exist
     // in the second device
     let (meta, secret) = mock::note("note_first_owner", "send_events_secret");
-    let (_, sync_error) = device1
+    let result = device1
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(result.sync_error.is_none());
 
     // First client is now ahead
     assert_eq!(2, num_events(&mut device1.owner, &default_folder_id).await);

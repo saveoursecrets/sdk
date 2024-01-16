@@ -16,12 +16,12 @@ pub async fn create_file_secret(
         folder: Some(default_folder.clone()),
         file_progress: progress_tx,
     };
-    let (id, _, _, _) = account.create_secret(meta, secret, options).await?;
+    let result = account.create_secret(meta, secret, options).await?;
     let (secret_data, _) = account
-        .read_secret(&id, Some(default_folder.clone()))
+        .read_secret(&result.id, Some(default_folder.clone()))
         .await?;
 
-    Ok((id, secret_data, file_path))
+    Ok((result.id, secret_data, file_path))
 }
 
 pub async fn update_file_secret(
@@ -77,9 +77,9 @@ pub mod net {
             folder: Some(default_folder.clone()),
             file_progress: progress_tx,
         };
-        let (id, _) = account.create_secret(meta, secret, options).await?;
+        let result = account.create_secret(meta, secret, options).await?;
         let (secret_data, _) = account
-            .read_secret(&id, Some(default_folder.clone()))
+            .read_secret(&result.id, Some(default_folder.clone()))
             .await?;
 
         let file_name: ExternalFileName = if let Secret::File {
@@ -92,7 +92,7 @@ pub mod net {
             panic!("expecting file secret");
         };
 
-        Ok((id, secret_data, file_path, file_name))
+        Ok((result.id, secret_data, file_path, file_name))
     }
 
     pub async fn update_file_secret(

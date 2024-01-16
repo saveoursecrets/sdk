@@ -42,7 +42,7 @@ async fn integration_diff_merge_secret_move() -> Result<()> {
 
     // Create a secret in the default folder.
     let (meta, secret) = mock::note("note", TEST_ID);
-    let (id, _, _, _) = local
+    let CreatedSecret { id, .. } = local
         .create_secret(meta.clone(), secret.clone(), Default::default())
         .await?;
 

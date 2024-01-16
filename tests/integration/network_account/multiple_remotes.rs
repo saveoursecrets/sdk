@@ -2,7 +2,10 @@ use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::client::{RemoteBridge, RemoteSync};
+use sos_net::{
+    client::{RemoteBridge, RemoteSync},
+    sdk::prelude::*,
+};
 
 const TEST_ID: &str = "sync_multiple_remotes";
 

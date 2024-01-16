@@ -29,7 +29,7 @@ async fn integration_time_travel() -> Result<()> {
 
     // Create the first secret
     let (meta, secret) = mock::note("note1", TEST_ID);
-    let (id1, _, _, _) = account
+    let CreatedSecret { id: id1, .. } = account
         .create_secret(meta, secret, Default::default())
         .await?;
 
@@ -38,7 +38,7 @@ async fn integration_time_travel() -> Result<()> {
 
     // Create another secret
     let (meta, secret) = mock::note("note2", TEST_ID);
-    let (id2, _, _, _) = account
+    let CreatedSecret { id: id2, .. } = account
         .create_secret(meta, secret, Default::default())
         .await?;
 
