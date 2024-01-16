@@ -79,7 +79,7 @@ async fn integration_search_view_query() -> Result<()> {
 
     // Create a folder and add secrets to the other folder
     let folder_name = "folder_name";
-    let (folder, _, _) =
+    let FolderCreate { folder, .. } =
         account.create_folder(folder_name.to_string()).await?;
 
     account.open_folder(&folder).await?;

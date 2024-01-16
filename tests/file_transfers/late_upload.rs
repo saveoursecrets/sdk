@@ -48,7 +48,7 @@ async fn file_transfers_late_upload() -> Result<()> {
     // Create a file secret and move to a different folder
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
-    let (destination, _) =
+    let FolderCreate { folder: destination, .. } =
         device.owner.create_folder("new_folder".to_owned()).await?;
     let SecretMove { id: secret_id, .. } = device
         .owner

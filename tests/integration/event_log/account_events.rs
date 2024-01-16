@@ -35,7 +35,7 @@ async fn integration_events_account() -> Result<()> {
     // Create a folder
     let commit = event_log.tree().last_commit();
     let folder_name = "folder_name";
-    let (folder, _, _) =
+    let FolderCreate { folder, .. } =
         account.create_folder(folder_name.to_string()).await?;
 
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;

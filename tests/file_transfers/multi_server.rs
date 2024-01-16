@@ -142,7 +142,7 @@ async fn file_transfers_multi_move() -> Result<()> {
     wait_for_transfers(&device.owner).await?;
 
     // Create a folder
-    let (destination, _) =
+    let FolderCreate { folder: destination, .. } =
         device.owner.create_folder("new_folder".to_owned()).await?;
 
     // Moving the secret also needs to move the file

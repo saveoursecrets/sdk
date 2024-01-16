@@ -22,7 +22,7 @@ async fn integration_sync_import_folder() -> Result<()> {
 
     // Create a folder as we don't want an import to collide
     // with the default folder
-    let (new_folder, sync_error) = device
+    let FolderCreate{ folder: new_folder, sync_error, .. } = device
         .owner
         .create_folder("sync_folder".to_string())
         .await?;

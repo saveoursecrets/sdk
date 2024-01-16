@@ -38,7 +38,7 @@ async fn integration_move_secret() -> Result<()> {
 
     // Create a folder
     let folder_name = "folder_name";
-    let (folder, _, _) =
+    let FolderCreate { folder, .. } =
         account.create_folder(folder_name.to_string()).await?;
 
     // Move to the new folder

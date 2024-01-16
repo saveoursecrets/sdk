@@ -205,7 +205,7 @@ async fn integration_account_statistics() -> Result<()> {
 
     // Create a folder and add a secret to the folder
     let folder_name = "folder_name";
-    let (folder, _, _) =
+    let FolderCreate { folder, .. } =
         account.create_folder(folder_name.to_string()).await?;
     let (login_password, _) = generate_passphrase()?;
     let (mut meta, secret) = mock::login("login", TEST_ID, login_password);

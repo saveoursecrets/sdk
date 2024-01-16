@@ -7,21 +7,16 @@ mod builder;
 pub mod contacts;
 #[cfg(feature = "device")]
 mod device;
-//#[cfg(feature = "files")]
-//mod files;
 #[cfg(feature = "migrate")]
 mod migrate;
-//#[cfg(feature = "search")]
-//mod search;
 #[cfg(feature = "sync")]
 mod sync;
-
 #[cfg(feature = "security-report")]
 pub mod security_report;
 
 pub use account::{
     Account, AccountData, DetachedView, LocalAccount, SecretChange,
-    SecretDelete, SecretInsert, SecretMove,
+    SecretDelete, SecretInsert, SecretMove, FolderCreate,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};
 

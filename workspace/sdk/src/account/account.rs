@@ -98,6 +98,19 @@ pub struct SecretDelete<T> {
     pub sync_error: Option<SyncError<T>>,
 }
 
+/// Result information for folder creation.
+pub struct FolderCreate<T> {
+    /// Created folder.
+    pub folder: Summary,
+    /// Event to be logged.
+    pub event: Event,
+    /// Commit state of the new folder.
+    pub commit_state: CommitState,
+    /// Error generated during a sync.
+    #[cfg(feature = "sync")]
+    pub sync_error: Option<SyncError<T>>,
+}
+
 /// Trait for account implementations.
 #[async_trait]
 pub trait Account {
@@ -447,6 +460,12 @@ pub trait Account {
         options: AccessOptions,
         destination: Option<&Summary>,
     ) -> std::result::Result<SecretChange<Self::Error>, Self::Error>;
+
+    /// Create a folder.
+    async fn create_folder(
+        &mut self,
+        name: String,
+    ) -> std::result::Result<FolderCreate<Self::Error>, Self::Error>;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -579,40 +598,6 @@ impl LocalAccount {
     /// Determine if the account is authenticated.
     pub fn is_authenticated(&self) -> bool {
         self.authenticated.is_some()
-    }
-
-    /// Create a folder.
-    pub async fn create_folder(
-        &mut self,
-        name: String,
-    ) -> Result<(Summary, Event, CommitState)> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-
-        let passphrase = self.user()?.generate_folder_password()?;
-        let key: AccessKey = passphrase.into();
-
-        let (buffer, _, summary, account_event) = {
-            let storage = self.storage().await?;
-            let mut writer = storage.write().await;
-            writer.create_folder(name, Some(key.clone())).await?
-        };
-
-        // Must save the password before getting the secure access key
-        self.user_mut()?
-            .save_folder_password(summary.id(), key)
-            .await?;
-
-        let options = AccessOptions {
-            folder: Some(summary),
-            ..Default::default()
-        };
-
-        let (summary, commit_state) =
-            self.compute_folder_state(&options).await?;
-
-        let event =
-            Event::Folder(account_event, WriteEvent::CreateVault(buffer));
-        Ok((summary, event, commit_state))
     }
 
     /// Delete a folder.
@@ -1892,4 +1877,38 @@ impl Account for LocalAccount {
         )
         .await
     }
+
+    async fn create_folder(
+        &mut self,
+        name: String,
+    ) -> Result<FolderCreate<Self::Error>> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
+        let passphrase = self.user()?.generate_folder_password()?;
+        let key: AccessKey = passphrase.into();
+
+        let (buffer, _, summary, account_event) = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer.create_folder(name, Some(key.clone())).await?
+        };
+
+        // Must save the password before getting the secure access key
+        self.user_mut()?
+            .save_folder_password(summary.id(), key)
+            .await?;
+
+        let options = AccessOptions {
+            folder: Some(summary),
+            ..Default::default()
+        };
+
+        let (folder, commit_state) =
+            self.compute_folder_state(&options).await?;
+
+        let event =
+            Event::Folder(account_event, WriteEvent::CreateVault(buffer));
+        Ok(FolderCreate { folder, event, commit_state, sync_error: None })
+    }
+
 }

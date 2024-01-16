@@ -2,7 +2,7 @@ use clap::Subcommand;
 
 use human_bytes::human_bytes;
 use sos_net::sdk::{
-    account::Account,
+    account::{Account, FolderCreate},
     events::{EventLogExt, LogEvent},
     hex,
     identity::AccountRef,
@@ -156,11 +156,11 @@ pub async fn run(cmd: Command) -> Result<()> {
                 return Err(Error::FolderExists(name));
             }
 
-            let (summary, _) = writer.create_folder(name).await?;
+            let FolderCreate { folder, .. } = writer.create_folder(name).await?;
             println!("Folder created ✓");
             drop(writer);
             if cwd {
-                let target = Some(FolderRef::Id(*summary.id()));
+                let target = Some(FolderRef::Id(*folder.id()));
                 cd_folder(user, target.as_ref()).await?;
             }
         }

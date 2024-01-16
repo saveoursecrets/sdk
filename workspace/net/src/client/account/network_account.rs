@@ -4,7 +4,7 @@ use secrecy::SecretString;
 use sos_sdk::{
     account::{
         Account, AccountBuilder, AccountData, DetachedView, LocalAccount,
-        SecretChange, SecretDelete, SecretInsert, SecretMove,
+        SecretChange, SecretDelete, SecretInsert, SecretMove, FolderCreate,
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -355,20 +355,6 @@ impl NetworkAccount {
             tracing::debug!("close websocket");
             handle.close();
         }
-    }
-
-    /// Create a folder.
-    pub async fn create_folder(
-        &mut self,
-        name: String,
-    ) -> Result<(Summary, Option<SyncError>)> {
-        let _ = self.sync_lock.lock().await;
-        let summary = {
-            let mut account = self.account.lock().await;
-            let (summary, _, _) = account.create_folder(name).await?;
-            summary
-        };
-        Ok((summary, self.sync().await))
     }
 
     /// Delete a folder.
@@ -1005,4 +991,25 @@ impl Account for NetworkAccount {
 
         Ok(result)
     }
+
+    async fn create_folder(
+        &mut self,
+        name: String,
+    ) -> Result<FolderCreate<Self::Error>> {
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.create_folder(name).await?
+        };
+        
+        let result = FolderCreate {
+            folder: result.folder,
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
 }

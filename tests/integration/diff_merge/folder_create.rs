@@ -40,7 +40,7 @@ async fn integration_diff_merge_folder_create() -> Result<()> {
     remote.sign_in(&key).await?;
 
     // Create a new folder
-    let (summary, _, _) =
+    let FolderCreate { folder: summary, .. } =
         local.create_folder("new_folder".to_owned()).await?;
 
     assert_ne!(local.sync_status().await?, remote.sync_status().await?);

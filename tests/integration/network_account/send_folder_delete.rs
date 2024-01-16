@@ -22,7 +22,7 @@ async fn integration_sync_delete_folder() -> Result<()> {
     let server_path = server.account_path(device.owner.address());
     let address = device.owner.address().to_string();
 
-    let (new_folder, sync_error) = device
+    let FolderCreate { folder: new_folder, sync_error, .. } = device
         .owner
         .create_folder("sync_delete_folder".to_string())
         .await?;

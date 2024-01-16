@@ -26,7 +26,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
     device1.listen().await?;
     device2.listen().await?;
 
-    let (new_folder, sync_error) = device1
+    let FolderCreate{ folder: new_folder, sync_error, .. } = device1
         .owner
         .create_folder("sync_folder".to_string())
         .await?;

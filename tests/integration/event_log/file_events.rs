@@ -29,7 +29,7 @@ async fn integration_events_file() -> Result<()> {
 
     // Create a folder so we can move the secret
     let folder_name = "folder_name";
-    let (folder, _, _) =
+    let FolderCreate { folder, .. } =
         account.create_folder(folder_name.to_string()).await?;
 
     // Create an external file secret
