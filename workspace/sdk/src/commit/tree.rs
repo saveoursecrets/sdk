@@ -488,7 +488,7 @@ mod test {
     fn from_vault(vault: &Vault) -> CommitTree {
         let mut commit_tree = CommitTree::new();
         for (_, commit) in vault.commits() {
-            commit_tree.tree.insert(commit.to_bytes());
+            commit_tree.tree.insert(commit.into());
         }
         commit_tree.tree.commit();
         commit_tree

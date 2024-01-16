@@ -25,13 +25,6 @@ impl AsRef<[u8; 32]> for CommitHash {
     }
 }
 
-impl CommitHash {
-    /// Copy of the underlying bytes for the commit hash.
-    pub fn to_bytes(&self) -> [u8; 32] {
-        self.0
-    }
-}
-
 impl From<CommitHash> for [u8; 32] {
     fn from(value: CommitHash) -> Self {
         value.0
