@@ -371,33 +371,6 @@ impl NetworkAccount {
         Ok(self.sync().await)
     }
 
-    /// Export a folder as a vault file.
-    pub async fn export_folder<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        summary: &Summary,
-        new_key: AccessKey,
-        save_key: bool,
-    ) -> Result<()> {
-        let mut account = self.account.lock().await;
-        Ok(account
-            .export_folder(path, summary, new_key, save_key)
-            .await?)
-    }
-
-    /// Export a folder to a buffer.
-    pub async fn export_folder_buffer(
-        &mut self,
-        summary: &Summary,
-        new_key: AccessKey,
-        save_key: bool,
-    ) -> Result<Vec<u8>> {
-        let mut account = self.account.lock().await;
-        Ok(account
-            .export_folder_buffer(summary, new_key, save_key)
-            .await?)
-    }
-
     /// Expected location for a file by convention.
     pub fn file_location(
         &self,
@@ -1020,6 +993,31 @@ impl Account for NetworkAccount {
         };
 
         Ok(result)
+    }
+
+    async fn export_folder(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        summary: &Summary,
+        new_key: AccessKey,
+        save_key: bool,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account
+            .export_folder(path, summary, new_key, save_key)
+            .await?)
+    }
+
+    async fn export_folder_buffer(
+        &mut self,
+        summary: &Summary,
+        new_key: AccessKey,
+        save_key: bool,
+    ) -> Result<Vec<u8>> {
+        let mut account = self.account.lock().await;
+        Ok(account
+            .export_folder_buffer(summary, new_key, save_key)
+            .await?)
     }
 
 }

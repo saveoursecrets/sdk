@@ -500,6 +500,23 @@ pub trait Account {
         key: AccessKey,
         overwrite: bool,
     ) -> std::result::Result<FolderCreate<Self::Error>, Self::Error>;
+
+    /// Export a folder as a vault file.
+    async fn export_folder(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        summary: &Summary,
+        new_key: AccessKey,
+        save_key: bool,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Export a folder to a buffer.
+    async fn export_folder_buffer(
+        &mut self,
+        summary: &Summary,
+        new_key: AccessKey,
+        save_key: bool,
+    ) -> std::result::Result<Vec<u8>, Self::Error>;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -688,82 +705,6 @@ impl LocalAccount {
             writer.set_description(description).await?
         };
         Ok(event)
-    }
-
-    /// Export a folder as a vault file.
-    pub async fn export_folder<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        summary: &Summary,
-        new_key: AccessKey,
-        save_key: bool,
-    ) -> Result<()> {
-        let buffer = self
-            .export_folder_buffer(summary, new_key, save_key)
-            .await?;
-        vfs::write(path, buffer).await?;
-        Ok(())
-    }
-
-    /// Export a folder to a buffer.
-    pub async fn export_folder_buffer(
-        &mut self,
-        summary: &Summary,
-        new_key: AccessKey,
-        save_key: bool,
-    ) -> Result<Vec<u8>> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-
-        let buffer = self
-            .change_vault_password(summary.id(), new_key.clone())
-            .await?;
-
-        if save_key {
-            let default_summary = self
-                .default_folder()
-                .await
-                .ok_or_else(|| Error::NoDefaultFolder)?;
-
-            let _passphrase = self
-                .user()?
-                .find_folder_password(default_summary.id())
-                .await?;
-
-            let timestamp: Timestamp = Default::default();
-            let label = format!(
-                "Exported folder {}.vault ({})",
-                summary.id(),
-                timestamp.to_rfc3339()?
-            );
-            let secret = Secret::Account {
-                account: format!("{}.vault", summary.id()),
-                url: None,
-                password: new_key.into(),
-                user_data: Default::default(),
-            };
-            let meta = SecretMeta::new(label, secret.kind());
-
-            let (vault, _) =
-                Identity::load_local_vault(&self.paths, default_summary.id())
-                    .await?;
-
-            self.add_secret(
-                meta,
-                secret,
-                vault.summary().clone().into(),
-                false,
-            )
-            .await?;
-        }
-
-        let audit_event = AuditEvent::new(
-            EventKind::ExportVault,
-            self.address().clone(),
-            Some(AuditData::Vault(*summary.id())),
-        );
-        self.paths.append_audit_events(vec![audit_event]).await?;
-
-        Ok(buffer)
     }
 
     /// Export a vault by changing the vault passphrase and
@@ -1939,6 +1880,80 @@ impl Account for LocalAccount {
             self.compute_folder_state(&options).await?;
 
         Ok(FolderCreate { folder: summary, event, commit_state, sync_error: None })
+    }
+
+    async fn export_folder(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        summary: &Summary,
+        new_key: AccessKey,
+        save_key: bool,
+    ) -> Result<()> {
+        let buffer = self
+            .export_folder_buffer(summary, new_key, save_key)
+            .await?;
+        vfs::write(path, buffer).await?;
+        Ok(())
+    }
+
+    async fn export_folder_buffer(
+        &mut self,
+        summary: &Summary,
+        new_key: AccessKey,
+        save_key: bool,
+    ) -> Result<Vec<u8>> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
+        let buffer = self
+            .change_vault_password(summary.id(), new_key.clone())
+            .await?;
+
+        if save_key {
+            let default_summary = self
+                .default_folder()
+                .await
+                .ok_or_else(|| Error::NoDefaultFolder)?;
+
+            let _passphrase = self
+                .user()?
+                .find_folder_password(default_summary.id())
+                .await?;
+
+            let timestamp: Timestamp = Default::default();
+            let label = format!(
+                "Exported folder {}.vault ({})",
+                summary.id(),
+                timestamp.to_rfc3339()?
+            );
+            let secret = Secret::Account {
+                account: format!("{}.vault", summary.id()),
+                url: None,
+                password: new_key.into(),
+                user_data: Default::default(),
+            };
+            let meta = SecretMeta::new(label, secret.kind());
+
+            let (vault, _) =
+                Identity::load_local_vault(&self.paths, default_summary.id())
+                    .await?;
+
+            self.add_secret(
+                meta,
+                secret,
+                vault.summary().clone().into(),
+                false,
+            )
+            .await?;
+        }
+
+        let audit_event = AuditEvent::new(
+            EventKind::ExportVault,
+            self.address().clone(),
+            Some(AuditData::Vault(*summary.id())),
+        );
+        self.paths.append_audit_events(vec![audit_event]).await?;
+
+        Ok(buffer)
     }
 
 }
