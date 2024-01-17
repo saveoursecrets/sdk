@@ -36,7 +36,7 @@ use crate::audit::{AuditData, AuditEvent};
 use crate::account::archive::{Inventory, RestoreOptions};
 
 #[cfg(feature = "device")]
-use crate::device::{DeviceManager, DevicePublicKey, DeviceSigner};
+use crate::device::{DevicePublicKey, DeviceSigner, TrustedDevice};
 
 #[cfg(feature = "search")]
 use crate::storage::search::*;
@@ -234,14 +234,20 @@ pub trait Account {
     ) -> std::result::Result<BoxedEcdsaSigner, Self::Error>;
 
     /// Signing key for the device.
+    #[cfg(feature = "device")]
     async fn device_signer(
         &self,
     ) -> std::result::Result<DeviceSigner, Self::Error>;
 
     /// Public key for the device signing key.
+    #[cfg(feature = "device")]
     async fn device_public_key(
         &self,
     ) -> std::result::Result<DevicePublicKey, Self::Error>;
+
+    /// Current device information.
+    #[cfg(feature = "device")]
+    async fn current_device(&self) -> std::result::Result<TrustedDevice, Self::Error>;
 
     /// Public identity information.
     async fn public_identity(
@@ -797,17 +803,7 @@ impl LocalAccount {
             .map(|a| &mut a.user)
             .ok_or(Error::NotAuthenticated)
     }
-
-    /// Device manager.
-    #[cfg(feature = "device")]
-    pub fn devices(&self) -> Result<&DeviceManager> {
-        self.authenticated
-            .as_ref()
-            .ok_or(Error::NotAuthenticated)?
-            .user
-            .devices()
-    }
-
+    
     async fn initialize_account_log(
         paths: &Paths,
         account_log: Arc<RwLock<AccountEventLog>>,
@@ -1331,12 +1327,24 @@ impl Account for LocalAccount {
         Ok(self.user()?.identity()?.signer().clone())
     }
 
+    #[cfg(feature = "device")]
     async fn device_signer(&self) -> Result<DeviceSigner> {
         Ok(self.user()?.identity()?.device().clone())
     }
 
+    #[cfg(feature = "device")]
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
         Ok(self.user()?.identity()?.device().public_key())
+    }
+
+    #[cfg(feature = "device")]
+    async fn current_device(&self) -> Result<TrustedDevice> {
+        Ok(self.authenticated
+            .as_ref()
+            .ok_or(Error::NotAuthenticated)?
+            .user
+            .devices()?
+            .current_device(None))
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {

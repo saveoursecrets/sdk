@@ -9,7 +9,6 @@ use sos_sdk::{
     },
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
-    device::{DevicePublicKey, DeviceSigner},
     events::ReadEvent,
     identity::{AccountRef, PublicIdentity},
     sha2::{Digest, Sha256},
@@ -45,6 +44,9 @@ use tracing::{span, Level};
 
 #[cfg(feature = "archive")]
 use crate::sdk::account::archive::{Inventory, RestoreOptions};
+
+#[cfg(feature = "device")]
+use crate::sdk::device::{DevicePublicKey, DeviceSigner, TrustedDevice};
 
 #[cfg(feature = "listen")]
 use crate::client::WebSocketHandle;
@@ -428,15 +430,23 @@ impl Account for NetworkAccount {
         let account = self.account.lock().await;
         Ok(account.account_signer().await?)
     }
-
+    
+    #[cfg(feature = "device")]
     async fn device_signer(&self) -> Result<DeviceSigner> {
         let account = self.account.lock().await;
         Ok(account.device_signer().await?)
     }
 
+    #[cfg(feature = "device")]
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
         let account = self.account.lock().await;
         Ok(account.device_public_key().await?)
+    }
+
+    #[cfg(feature = "device")]
+    async fn current_device(&self) -> Result<TrustedDevice> {
+        let account = self.account.lock().await;
+        Ok(account.current_device().await?)
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
