@@ -196,26 +196,6 @@ impl NetworkAccount {
         Arc::clone(&self.account)
     }
 
-    /// Find the password for a folder.
-    pub async fn find_folder_password(
-        &self,
-        folder_id: &VaultId,
-    ) -> Result<AccessKey> {
-        let account = self.account.lock().await;
-        Ok(account.user()?.find_folder_password(folder_id).await?)
-    }
-
-    /// Generate the password for a folder.
-    pub async fn generate_folder_password(&self) -> Result<SecretString> {
-        let account = self.account.lock().await;
-        Ok(account.user()?.generate_folder_password()?)
-    }
-
-    async fn device_signer(&self) -> Result<DeviceSigner> {
-        let account = self.account.lock().await;
-        Ok(account.user()?.identity()?.device().clone())
-    }
-
     /// Add a server backend.
     pub async fn add_server(&mut self, origin: Origin) -> Result<()> {
         let provider = self.remote_bridge(&origin).await?;
@@ -446,7 +426,12 @@ impl Account for NetworkAccount {
 
     async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
         let account = self.account.lock().await;
-        Ok(account.user()?.identity()?.signer().clone())
+        Ok(account.account_signer().await?)
+    }
+
+    async fn device_signer(&self) -> Result<DeviceSigner> {
+        let account = self.account.lock().await;
+        Ok(account.device_signer().await?)
     }
 
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
@@ -467,6 +452,19 @@ impl Account for NetworkAccount {
     async fn account_label(&self) -> Result<String> {
         let account = self.account.lock().await;
         Ok(account.account_label().await?)
+    }
+
+    async fn find_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<AccessKey> {
+        let account = self.account.lock().await;
+        Ok(account.find_folder_password(folder_id).await?)
+    }
+
+    async fn generate_folder_password(&self) -> Result<SecretString> {
+        let account = self.account.lock().await;
+        Ok(account.generate_folder_password().await?)
     }
 
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
@@ -600,6 +598,15 @@ impl Account for NetworkAccount {
     async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
         let mut account = self.account.lock().await;
         Ok(account.compact(summary).await?)
+    }
+
+    async fn change_folder_password(
+        &mut self,
+        folder: &Summary,
+        new_key: AccessKey,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.change_folder_password(folder, new_key).await?)
     }
 
     async fn detached_view(
@@ -1154,4 +1161,5 @@ impl Account for NetworkAccount {
             .restore_backup_archive(path, password, options, data_dir)
             .await?)
     }
+
 }

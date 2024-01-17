@@ -36,7 +36,7 @@ use crate::audit::{AuditData, AuditEvent};
 use crate::account::archive::{Inventory, RestoreOptions};
 
 #[cfg(feature = "device")]
-use crate::device::{DevicePublicKey, DeviceManager};
+use crate::device::{DeviceManager, DevicePublicKey, DeviceSigner};
 
 #[cfg(feature = "search")]
 use crate::storage::search::*;
@@ -229,10 +229,19 @@ pub trait Account {
     async fn is_authenticated(&self) -> bool;
 
     /// Signing key for the account.
-    async fn account_signer(&self) -> std::result::Result<BoxedEcdsaSigner, Self::Error>;
+    async fn account_signer(
+        &self,
+    ) -> std::result::Result<BoxedEcdsaSigner, Self::Error>;
+
+    /// Signing key for the device.
+    async fn device_signer(
+        &self,
+    ) -> std::result::Result<DeviceSigner, Self::Error>;
 
     /// Public key for the device signing key.
-    async fn device_public_key(&self) -> std::result::Result<DevicePublicKey, Self::Error>;
+    async fn device_public_key(
+        &self,
+    ) -> std::result::Result<DevicePublicKey, Self::Error>;
 
     /// Public identity information.
     async fn public_identity(
@@ -247,6 +256,17 @@ pub trait Account {
     /// Label of this account.
     async fn account_label(&self)
         -> std::result::Result<String, Self::Error>;
+
+    /// Find the password for a folder.
+    async fn find_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> std::result::Result<AccessKey, Self::Error>;
+
+    /// Generate the password for a folder.
+    async fn generate_folder_password(
+        &self,
+    ) -> std::result::Result<SecretString, Self::Error>;
 
     /// Load the buffer of the encrypted vault for this account.
     ///
@@ -373,6 +393,17 @@ pub trait Account {
         &mut self,
         summary: &Summary,
     ) -> std::result::Result<(u64, u64), Self::Error>;
+
+    /// Change the password for a folder.
+    ///
+    /// If this folder is part of a recovery pack it is
+    /// the caller's responsbility to ensure the recovery
+    /// pack is updated with the new folder password.
+    async fn change_folder_password(
+        &mut self,
+        folder: &Summary,
+        new_key: AccessKey,
+    ) -> std::result::Result<(), Self::Error>;
 
     /// Create a detached view of an event log until a
     /// particular commit.
@@ -687,6 +718,7 @@ pub trait Account {
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> std::result::Result<PublicIdentity, Self::Error>;
+
 }
 
 /// Read-only view created from a specific event log commit.
@@ -738,12 +770,6 @@ pub(super) struct Authenticated {
 /// Many functions require that the account is authenticated and will
 /// return [Error::NotAuthenticated] if the account is not authenticated
 /// to authenticate a user call [Account::sign_in].
-///
-/// For functions that return a [CommitState] it represents
-/// the state *before* any changes were made. If a `handler`
-/// has been assigned the `handler` may alter the [CommitState]
-/// by returning a new state after changes from a remote server have
-/// been applied.
 pub struct LocalAccount {
     /// Account address.
     address: Address,
@@ -758,7 +784,7 @@ pub struct LocalAccount {
 
 impl LocalAccount {
     /// Authenticated user information.
-    pub fn user(&self) -> Result<&Identity> {
+    pub(super) fn user(&self) -> Result<&Identity> {
         self.authenticated
             .as_ref()
             .map(|a| &a.user)
@@ -766,7 +792,7 @@ impl LocalAccount {
     }
 
     /// Mutable authenticated user information.
-    pub fn user_mut(&mut self) -> Result<&mut Identity> {
+    pub(super) fn user_mut(&mut self) -> Result<&mut Identity> {
         self.authenticated
             .as_mut()
             .map(|a| &mut a.user)
@@ -1099,43 +1125,6 @@ impl LocalAccount {
         })
     }
 
-    /// Change the password for a folder.
-    ///
-    /// If this folder is part of a recovery pack it is
-    /// the caller's responsbility to ensure the recovery
-    /// pack is updated with the new folder password.
-    pub async fn change_folder_password(
-        &mut self,
-        folder: &Summary,
-        new_key: AccessKey,
-    ) -> Result<()> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-
-        let current_key =
-            self.user()?.find_folder_password(folder.id()).await?;
-
-        let vault = {
-            let storage = self.storage().await?;
-            let reader = storage.read().await;
-            reader.read_vault(folder.id()).await?
-        };
-
-        {
-            let storage = self.storage().await?;
-            let mut writer = storage.write().await;
-            writer
-                .change_password(&vault, current_key, new_key.clone())
-                .await?;
-        }
-
-        // Save the new password
-        self.user_mut()?
-            .save_folder_password(folder.id(), new_key)
-            .await?;
-
-        Ok(())
-    }
-
     /// Build the search index for all folders.
     #[cfg(feature = "search")]
     pub(crate) async fn build_search_index(
@@ -1343,6 +1332,10 @@ impl Account for LocalAccount {
         Ok(self.user()?.identity()?.signer().clone())
     }
 
+    async fn device_signer(&self) -> Result<DeviceSigner> {
+        Ok(self.user()?.identity()?.device().clone())
+    }
+
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
         Ok(self.user()?.identity()?.device().public_key())
     }
@@ -1357,6 +1350,17 @@ impl Account for LocalAccount {
 
     async fn account_label(&self) -> Result<String> {
         Ok(self.user()?.account()?.label().to_owned())
+    }
+
+    async fn find_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<AccessKey> {
+        Ok(self.user()?.find_folder_password(folder_id).await?)
+    }
+
+    async fn generate_folder_password(&self) -> Result<SecretString> {
+        Ok(self.user()?.generate_folder_password()?)
     }
 
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
@@ -1574,6 +1578,38 @@ impl Account for LocalAccount {
         };
 
         Ok((old_size, new_size))
+    }
+
+    async fn change_folder_password(
+        &mut self,
+        folder: &Summary,
+        new_key: AccessKey,
+    ) -> Result<()> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
+        let current_key =
+            self.user()?.find_folder_password(folder.id()).await?;
+
+        let vault = {
+            let storage = self.storage().await?;
+            let reader = storage.read().await;
+            reader.read_vault(folder.id()).await?
+        };
+
+        {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer
+                .change_password(&vault, current_key, new_key.clone())
+                .await?;
+        }
+
+        // Save the new password
+        self.user_mut()?
+            .save_folder_password(folder.id(), new_key)
+            .await?;
+
+        Ok(())
     }
 
     async fn detached_view(
@@ -2721,4 +2757,5 @@ impl Account for LocalAccount {
 
         Ok(account)
     }
+
 }

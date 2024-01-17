@@ -47,9 +47,12 @@ async fn device_enroll() -> Result<()> {
 
     // Start enrollment by fetching the account data
     // from the remote server
-    let enrollment =
-        NetworkAccount::enroll_device(origin.clone(), signing_key, Some(data_dir))
-            .await?;
+    let enrollment = NetworkAccount::enroll_device(
+        origin.clone(),
+        signing_key,
+        Some(data_dir),
+    )
+    .await?;
 
     // Complete device enrollment by authenticating
     // to the new account
