@@ -16,7 +16,7 @@ use crate::{
         FolderReducer, ReadEvent, WriteEvent,
     },
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
-    signer::ecdsa::Address,
+    signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::AccountPack,
     storage::{
         search::{DocumentCount, SearchIndex},
@@ -221,6 +221,9 @@ pub trait Account {
 
     /// User storage paths.
     fn paths(&self) -> Arc<Paths>;
+
+    /// Signing key for the account.
+    async fn account_signer(&self) -> std::result::Result<BoxedEcdsaSigner, Self::Error>;
 
     /// Public identity information.
     async fn public_identity(
@@ -1316,6 +1319,10 @@ impl Account for LocalAccount {
 
     fn paths(&self) -> Arc<Paths> {
         Arc::clone(&self.paths)
+    }
+
+    async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
+        Ok(self.user()?.identity()?.signer().clone())
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {

@@ -217,12 +217,6 @@ impl NetworkAccount {
         Ok(account.user()?.generate_folder_password()?)
     }
 
-    /// Signing key for the account.
-    pub async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
-        let account = self.account.lock().await;
-        Ok(account.user()?.identity()?.signer().clone())
-    }
-
     /// Public key for the device signing key.
     pub async fn device_public_key(&self) -> Result<DevicePublicKey> {
         let account = self.account.lock().await;
@@ -466,6 +460,11 @@ impl Account for NetworkAccount {
 
     fn paths(&self) -> Arc<Paths> {
         Arc::clone(&self.paths)
+    }
+
+    async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
+        let account = self.account.lock().await;
+        Ok(account.user()?.identity()?.signer().clone())
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
