@@ -3,7 +3,7 @@
 //! transferring the files to the server.
 use crate::test_utils::{
     assert_local_remote_file_eq,
-    mock::{self, files::create_file_secret},
+    mock::{self, files::{create_file_secret, create_attachment}},
     simulate_device, spawn, teardown, wait_for_transfers,
 };
 use anyhow::Result;
@@ -64,48 +64,13 @@ async fn file_transfers_late_upload() -> Result<()> {
     files.push(ExternalFile::new(*destination.id(), secret_id, file_name));
 
     // Add an attachment to the moved secret
-    let (mut secret_data, _) = device
-        .owner
-        .read_secret(&secret_id, Some(destination.clone()))
-        .await?;
-    let (meta, secret, _) = mock::file_text_secret()?;
-    let attachment_id = SecretId::new_v4();
-    let attachment = SecretRow::new(attachment_id, meta, secret);
-    secret_data.secret_mut().add_field(attachment);
-    device
-        .owner
-        .update_secret(
-            &secret_id,
-            secret_data.meta().clone(),
-            Some(secret_data.secret().clone()),
-            AccessOptions {
-                folder: Some(destination.clone()),
-                file_progress: None,
-            },
-            None,
-        )
-        .await?;
-    let (mut secret_data, _) = device
-        .owner
-        .read_secret(&secret_id, Some(destination.clone()))
-        .await?;
-    let attached = secret_data
-        .secret()
-        .find_field_by_id(&attachment_id)
-        .expect("attachment to exist");
-    let attachment_checksum = if let Secret::File {
-        content: FileContent::External { checksum, .. },
-        ..
-    } = attached.secret()
-    {
-        *checksum
-    } else {
-        panic!("expecting file secret variant (attachment)");
-    };
+    let (_, _, file_name) = create_attachment(
+        &mut device.owner,
+        &secret_id, &destination, None).await?;
     files.push(ExternalFile::new(
         *destination.id(),
         secret_id,
-        attachment_checksum.into(),
+        file_name,
     ));
 
     // Should have transfer operations for each file in

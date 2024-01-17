@@ -1,7 +1,7 @@
 use crate::test_utils::{
     mock::{
         self,
-        files::{create_file_secret, update_file_secret},
+        files::{create_file_secret, update_file_secret, create_attachment},
     },
     setup, teardown,
 };
@@ -477,28 +477,13 @@ async fn assert_attach_file_secret(
             .await?;
 
     // Add an attachment
-    let (meta, secret, _) = mock::file_text_secret()?;
-    let attachment_id = SecretId::new_v4();
-    let attachment = SecretRow::new(attachment_id, meta, secret);
-    secret_data.secret_mut().add_field(attachment);
-
-    account
-        .update_secret(
-            &id,
-            secret_data.meta().clone(),
-            Some(secret_data.secret().clone()),
-            AccessOptions {
-                folder: Some(folder.clone()),
-                file_progress: Some(progress_tx.clone()),
-            },
-            None,
-        )
-        .await?;
-
-    // Read the secret with attachment
-    let (mut secret_data, _) =
-        account.read_secret(&id, Some(folder.clone())).await?;
-
+    let (attachment_id, mut secret_data, _) = create_attachment(
+        account,
+        &id,
+        &folder,
+        Some(progress_tx.clone()),
+    ).await?;
+    
     // We never modify the root secret so assert on every change
     async fn assert_root_file_secret(
         account: &mut LocalAccount,
