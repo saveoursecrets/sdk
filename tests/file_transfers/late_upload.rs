@@ -3,7 +3,10 @@
 //! transferring the files to the server.
 use crate::test_utils::{
     assert_local_remote_file_eq,
-    mock::{self, files::{create_file_secret, create_attachment}},
+    mock::{
+        self,
+        files::{create_attachment, create_file_secret},
+    },
     simulate_device, spawn, teardown, wait_for_transfers,
 };
 use anyhow::Result;
@@ -64,14 +67,10 @@ async fn file_transfers_late_upload() -> Result<()> {
     files.push(ExternalFile::new(*destination.id(), secret_id, file_name));
 
     // Add an attachment to the moved secret
-    let (_, _, file_name) = create_attachment(
-        &mut device.owner,
-        &secret_id, &destination, None).await?;
-    files.push(ExternalFile::new(
-        *destination.id(),
-        secret_id,
-        file_name,
-    ));
+    let (_, _, file_name) =
+        create_attachment(&mut device.owner, &secret_id, &destination, None)
+            .await?;
+    files.push(ExternalFile::new(*destination.id(), secret_id, file_name));
 
     // Should have transfer operations for each file in
     // the transfers queue

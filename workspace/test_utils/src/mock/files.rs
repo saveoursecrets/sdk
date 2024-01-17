@@ -132,3 +132,52 @@ where
     Ok((attachment_id, secret_data, file_name))
 }
 
+pub async fn update_attachment<E>(
+    account: &mut (impl Account<Error = E> + Send + Sync),
+    secret_data: &mut SecretRow,
+    attachment_id: &SecretId,
+    destination: &Summary,
+    progress_tx: Option<mpsc::Sender<FileProgress>>,
+) -> Result<(SecretRow, SecretRow, ExternalFileName)>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    let (meta, secret, _) = mock::file_image_secret()?;
+    let new_attachment = SecretRow::new(*attachment_id, meta, secret);
+    secret_data.secret_mut().update_field(new_attachment)?;
+    account
+        .update_secret(
+            secret_data.id(),
+            secret_data.meta().clone(),
+            Some(secret_data.secret().clone()),
+            AccessOptions {
+                folder: Some(destination.clone()),
+                file_progress: progress_tx,
+            },
+            None,
+        )
+        .await?;
+
+    let (mut updated_secret_data, _) = account
+        .read_secret(secret_data.id(), Some(destination.clone()))
+        .await?;
+    assert_eq!(1, updated_secret_data.secret().user_data().len());
+
+    let updated_attachment = updated_secret_data
+        .secret()
+        .find_field_by_id(&attachment_id)
+        .cloned()
+        .expect("attachment to exist");
+
+    let file_name: ExternalFileName = if let Secret::File {
+        content: FileContent::External { checksum, .. },
+        ..
+    } = updated_attachment.secret()
+    {
+        (*checksum).into()
+    } else {
+        panic!("expecting file secret variant (attachment)");
+    };
+
+    Ok((updated_secret_data, updated_attachment, file_name))
+}

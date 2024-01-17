@@ -1,7 +1,10 @@
 use crate::test_utils::{
     mock::{
         self,
-        files::{create_file_secret, update_file_secret, create_attachment},
+        files::{
+            create_attachment, create_file_secret, update_attachment,
+            update_file_secret,
+        },
     },
     setup, teardown,
 };
@@ -477,13 +480,10 @@ async fn assert_attach_file_secret(
             .await?;
 
     // Add an attachment
-    let (attachment_id, mut secret_data, _) = create_attachment(
-        account,
-        &id,
-        &folder,
-        Some(progress_tx.clone()),
-    ).await?;
-    
+    let (attachment_id, mut secret_data, _) =
+        create_attachment(account, &id, &folder, Some(progress_tx.clone()))
+            .await?;
+
     // We never modify the root secret so assert on every change
     async fn assert_root_file_secret(
         account: &mut LocalAccount,
@@ -561,34 +561,16 @@ async fn assert_attach_file_secret(
         };
 
         // Now update the attachment
-        let (meta, secret, _) = mock::file_image_secret()?;
-        let new_attachment = SecretRow::new(*attached.id(), meta, secret);
-        secret_data.secret_mut().update_field(new_attachment)?;
-        account
-            .update_secret(
-                &id,
-                secret_data.meta().clone(),
-                Some(secret_data.secret().clone()),
-                AccessOptions {
-                    folder: Some(folder.clone()),
-                    file_progress: Some(progress_tx.clone()),
-                },
-                None,
+        let attachment_id = *attached.id();
+        let (mut updated_secret_data, updated_attachment, _) =
+            update_attachment(
+                account,
+                &mut secret_data,
+                &attachment_id,
+                &folder,
+                Some(progress_tx.clone()),
             )
             .await?;
-
-        assert_root_file_secret(account, folder, &id, secret_data.secret())
-            .await?;
-
-        let (mut updated_secret_data, _) =
-            account.read_secret(&id, Some(folder.clone())).await?;
-        assert_eq!(1, updated_secret_data.secret().user_data().len());
-
-        let updated_attachment = updated_secret_data
-            .secret()
-            .find_field_by_id(&attachment_id)
-            .cloned()
-            .expect("attachment to exist");
 
         let updated_attachment_checksum = if let Secret::File {
             content:
@@ -624,6 +606,9 @@ async fn assert_attach_file_secret(
         } else {
             panic!("expecting file secret variant (attachment)");
         };
+
+        assert_root_file_secret(account, folder, &id, secret_data.secret())
+            .await?;
 
         // Now insert an attachment before the previous one
         let (meta, secret, _) = mock::file_text_secret()?;
