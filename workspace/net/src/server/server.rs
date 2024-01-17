@@ -22,6 +22,7 @@ use axum::{
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use serde::{Deserialize, Serialize};
 
+use sos_sdk::signer::ecdsa::Address;
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
@@ -29,7 +30,6 @@ use std::{
 };
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use web3_address::ethereum::Address;
 
 #[cfg(feature = "listen")]
 use super::handlers::websocket::{upgrade, WebSocketConnection};

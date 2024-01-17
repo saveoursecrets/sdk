@@ -36,6 +36,7 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 secrecy = { version = "0.8", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_with = { version = "3", features = ["base64"] }
 tokio-util = { version = "0.7", default-features = false, features = ["io", "compat"] }
 async-trait = "0.1"
 async-recursion = "1"
@@ -47,6 +48,15 @@ k256 = { version = "0.13.1", features = ["ecdsa"] }
 sha1 = "0.10.6"
 sha2 = "0.10.6"
 sha3 = "0.10.6"
+once_cell = "1"
+rand = "0.8"
+url = { version = "2", features = ["serde"] }
+time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
+futures = "0.3"
+bs58 = "0.4"
+urlencoding = "2"
+parking_lot = "0.12"
+indexmap = { version = "2", features = ["serde"] }
 
 [workspace.dependencies.binary-stream]
 version = "8.0.0"
@@ -61,15 +71,14 @@ tracing-subscriber.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 async-recursion.workspace = true
-web3-address = { version = "0.6", features = ["ethereum"] }
-futures = "0.3"
+futures.workspace = true
+parking_lot.workspace = true
+once_cell.workspace = true
 human_bytes = "0.3"
 tempfile = "3.5"
 shell-words = "1"
 terminal-banner = "0.2"
 unicode-width = "0.1"
-parking_lot = "0.12"
-once_cell = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
@@ -96,12 +105,8 @@ path = "workspace/net"
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow = "1"
 tokio = { version = "1", features = ["full"] }
-url = "2"
-tracing = "0.1"
-futures = "0.3"
 secrecy = "0.8"
 http = "1"
-tempfile = "3.5"
 copy_dir = "0.1"
 maplit2 = "1"
 sos_test_utils = { path = "workspace/test_utils" }

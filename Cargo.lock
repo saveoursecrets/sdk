@@ -129,12 +129,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aliasable"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "250f629c0161ad8107cf89319e990051fae62832fd343083bea452d93e2205fd"
-
-[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2758,30 +2752,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ouroboros"
-version = "0.17.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2ba07320d39dfea882faa70554b4bd342a5f273ed59ba7c1c6b4c840492c954"
-dependencies = [
- "aliasable",
- "ouroboros_macro",
- "static_assertions",
-]
-
-[[package]]
-name = "ouroboros_macro"
-version = "0.17.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec4c6225c69b4ca778c0aea097321a64c421cf4577b331c61b229267edabb6f8"
-dependencies = [
- "heck",
- "proc-macro-error",
- "proc-macro2 1.0.76",
- "quote 1.0.35",
- "syn 2.0.48",
-]
-
-[[package]]
 name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3791,22 +3761,6 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "2.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07ff71d2c147a7b57362cead5e22f772cd52f6ab31cfcd9edcd7f6aeb2a0afbe"
-dependencies = [
- "base64 0.13.1",
- "chrono",
- "hex",
- "indexmap 1.9.3",
- "serde",
- "serde_json",
- "serde_with_macros 2.3.3",
- "time",
-]
-
-[[package]]
-name = "serde_with"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64cd236ccc1b7a29e7e2739f27c0b2dd199804abc4290e32f59f3b68d6405c23"
@@ -3818,20 +3772,8 @@ dependencies = [
  "indexmap 2.1.0",
  "serde",
  "serde_json",
- "serde_with_macros 3.4.0",
+ "serde_with_macros",
  "time",
-]
-
-[[package]]
-name = "serde_with_macros"
-version = "2.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "881b6f881b17d13214e5d494c939ebab463d01264ce1811e9d4ac3a882e7695f"
-dependencies = [
- "darling 0.20.3",
- "proc-macro2 1.0.76",
- "quote 1.0.35",
- "syn 2.0.48",
 ]
 
 [[package]]
@@ -4009,11 +3951,9 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unicode-width",
- "url",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "wasm-log",
- "web3-address",
 ]
 
 [[package]]
@@ -4048,21 +3988,17 @@ dependencies = [
  "futures",
  "hex",
  "http 1.0.0",
- "log",
  "once_cell",
- "ouroboros",
  "parking_lot",
- "pin-project-lite",
  "rand 0.8.5",
  "reqwest",
  "rustc_version",
  "secrecy",
  "serde",
  "serde_json",
- "serde_with 2.3.3",
+ "serde_with",
  "sha3",
  "sos-sdk",
- "tempfile",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -4076,8 +4012,6 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
- "web3-address",
- "web3-signature",
 ]
 
 [[package]]
@@ -4110,7 +4044,6 @@ dependencies = [
  "http 1.0.0",
  "indexmap 2.1.0",
  "k256",
- "log",
  "logos",
  "mime_guess",
  "once_cell",
@@ -4126,7 +4059,7 @@ dependencies = [
  "security-framework",
  "serde",
  "serde_json",
- "serde_with 3.4.0",
+ "serde_with",
  "serial_test",
  "sha1",
  "sha2",
@@ -4149,7 +4082,6 @@ dependencies = [
  "web3-address",
  "web3-signature",
  "whoami",
- "zeroize",
  "zxcvbn",
 ]
 

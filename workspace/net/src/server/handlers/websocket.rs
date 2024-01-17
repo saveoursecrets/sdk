@@ -19,8 +19,8 @@ use tokio::sync::{
 };
 
 use serde::Deserialize;
+use sos_sdk::signer::ecdsa::Address;
 use tracing::{span, Level};
-use web3_address::ethereum::Address;
 
 use crate::server::{authenticate, Result, ServerState};
 

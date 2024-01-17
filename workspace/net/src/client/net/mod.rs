@@ -3,12 +3,10 @@
 use sos_sdk::{
     encode,
     signer::{
-        ecdsa::BinaryEcdsaSignature,
+        ecdsa::{BinaryEcdsaSignature, Signature},
         ed25519::{BinaryEd25519Signature, Signature as Ed25519Signature},
     },
 };
-
-use web3_signature::Signature;
 
 use super::Result;
 
