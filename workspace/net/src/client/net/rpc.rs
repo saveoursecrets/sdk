@@ -12,7 +12,7 @@ use sos_sdk::{
     decode, encode,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, Client, Origin, SyncDiff, SyncStatus},
+    sync::{ChangeSet, Origin, SyncClient, SyncDiff, SyncStatus},
 };
 
 use tokio::io::AsyncWriteExt;
@@ -582,7 +582,7 @@ impl RpcClient {
 }
 
 #[async_trait]
-impl Client for RpcClient {
+impl SyncClient for RpcClient {
     type Error = Error;
 
     fn url(&self) -> &Url {

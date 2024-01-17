@@ -11,7 +11,7 @@ use crate::{
             FolderReducer, WriteEvent,
         },
         signer::ecdsa::Address,
-        sync::{AccountPatch, Client, FolderPatch, Origin},
+        sync::{AccountPatch, FolderPatch, Origin, SyncClient},
         vault::VaultId,
         vfs, Paths,
     },
@@ -66,7 +66,7 @@ impl DeviceEnrollment {
 
     /// Prepare to enroll this device to an account using the
     /// given client to fetch the account data.
-    pub async fn enroll(&self, client: impl Client) -> Result<()> {
+    pub async fn enroll(&self, client: impl SyncClient) -> Result<()> {
         let identity_vault = self.paths.identity_vault();
         if vfs::try_exists(&identity_vault).await? {
             return Err(Error::EnrollAccountExists(

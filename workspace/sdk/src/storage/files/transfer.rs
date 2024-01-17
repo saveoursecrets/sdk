@@ -2,7 +2,7 @@
 use crate::{
     events::FileEvent,
     storage::files::{list_external_files, ExternalFile, FileMutationEvent},
-    sync::Client,
+    sync::SyncClient,
     vfs, Paths, Result,
 };
 use futures::{select, FutureExt};
@@ -274,7 +274,7 @@ impl FileTransfers {
     ) -> ()
     where
         E: std::fmt::Debug + Send + Sync + 'static,
-        C: Client<Error = E> + Clone + Send + Sync + 'static,
+        C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
     {
         tokio::task::spawn(async move {
             loop {
@@ -343,7 +343,7 @@ impl FileTransfers {
     ) -> std::result::Result<(), E>
     where
         E: std::fmt::Debug + Send + Sync + 'static,
-        C: Client<Error = E> + Clone + Send + Sync + 'static,
+        C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
     {
         for (file, ops) in pending_transfers {
             Self::process_operations(
@@ -368,7 +368,7 @@ impl FileTransfers {
     ) -> std::result::Result<(), E>
     where
         E: std::fmt::Debug + Send + Sync + 'static,
-        C: Client<Error = E> + Clone + Send + Sync + 'static,
+        C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
     {
         for op in operations {
             // Split uploads and downloads as they require different
@@ -505,7 +505,7 @@ impl FileTransfers {
     ) -> std::result::Result<(ExternalFile, TransferOperation, bool), E>
     where
         E: std::fmt::Debug + Send + Sync + 'static,
-        C: Client<Error = E> + Clone + Send + Sync + 'static,
+        C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
     {
         tracing::debug!(op = ?op, url = %client.url());
         //println!("{:#?}", op);

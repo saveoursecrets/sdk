@@ -66,7 +66,7 @@ pub enum SyncError<T> {
 
 /// Options for folder merge.
 #[derive(Default)]
-pub enum FolderMergeOptions<'a> {
+pub(crate) enum FolderMergeOptions<'a> {
     #[doc(hidden)]
     #[default]
     Noop,
@@ -483,9 +483,9 @@ pub struct ChangeSet {
     pub folders: HashMap<VaultId, FolderPatch>,
 }
 
-/// Client can communicate with a remote server.
+/// Client that can synchronize with a remote server.
 #[async_trait]
-pub trait Client {
+pub trait SyncClient {
     /// Errors produced by the client.
     type Error: std::fmt::Debug;
 

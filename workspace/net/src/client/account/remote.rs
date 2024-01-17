@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use sos_sdk::{
     account::LocalAccount,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{self, Client, Origin, SyncStatus, SyncStorage},
+    sync::{self, Origin, SyncClient, SyncStatus, SyncStorage},
 };
 use std::{any::Any, collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
