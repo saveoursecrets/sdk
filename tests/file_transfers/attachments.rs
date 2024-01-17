@@ -1,10 +1,12 @@
 //! Tests for attachment external files.
 use crate::test_utils::{
-    assert_local_remote_file_eq,
-    assert_local_remote_file_not_exist,
+    assert_local_remote_file_eq, assert_local_remote_file_not_exist,
     mock::{
         self,
-        files::{create_attachment, create_file_secret, update_attachment, delete_attachment},
+        files::{
+            create_attachment, create_file_secret, delete_attachment,
+            update_attachment,
+        },
     },
     simulate_device, spawn, teardown, wait_for_transfers,
 };
@@ -252,7 +254,7 @@ async fn file_transfers_attach_delete() -> Result<()> {
         secret_id,
         file_name,
     ));
-    
+
     // Delete the secret to remove both files
     device
         .owner

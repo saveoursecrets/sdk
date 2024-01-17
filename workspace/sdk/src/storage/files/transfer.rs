@@ -208,9 +208,17 @@ impl Transfers {
                 // destination
                 if let Some(&TransferOperation::Move(dest)) = ops.last() {
                     if !vfs::try_exists(&path).await? {
+                        // The file may already have been
+                        // uploaded to some servers so we
+                        // need to add a delete operation
+                        // for the old file
+                        let mut set = IndexSet::new();
+                        set.insert(TransferOperation::Delete);
+                        additions.push((*file, set));
+
+                        // Upload operation for the new file
                         let mut set = IndexSet::new();
                         set.insert(TransferOperation::Upload);
-                        deletions.push(*file);
                         additions.push((*dest, set));
                     }
                 }
