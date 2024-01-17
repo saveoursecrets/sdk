@@ -192,13 +192,8 @@ impl NetworkAccount {
             hex::encode(&result)
         })
     }
-
-    /// Clone of the local account.
-    pub fn local_account(&self) -> Arc<Mutex<LocalAccount>> {
-        Arc::clone(&self.account)
-    }
-
-    /// Add a server backend.
+    
+    /// Add a server.
     pub async fn add_server(&mut self, origin: Origin) -> Result<()> {
         let provider = self.remote_bridge(&origin).await?;
         self.insert_remote(origin.into(), Box::new(provider)).await
