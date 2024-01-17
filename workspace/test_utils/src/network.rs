@@ -228,11 +228,11 @@ pub async fn assert_local_remote_events_eq(
 }
 
 pub async fn assert_local_remote_file_eq(
-    local_paths: &Paths,
+    local_paths: impl AsRef<Paths>,
     server_path: &PathBuf,
     file: &ExternalFile,
 ) -> Result<()> {
-    let expected_client_file = local_paths.file_location(
+    let expected_client_file = local_paths.as_ref().file_location(
         file.vault_id(),
         file.secret_id(),
         file.file_name().to_string(),
@@ -264,11 +264,11 @@ pub async fn assert_local_remote_file_eq(
 }
 
 pub async fn assert_local_remote_file_not_exist(
-    local_paths: &Paths,
+    local_paths: impl AsRef<Paths>,
     server_path: &PathBuf,
     file: &ExternalFile,
 ) -> Result<()> {
-    let expected_client_file = local_paths.file_location(
+    let expected_client_file = local_paths.as_ref().file_location(
         file.vault_id(),
         file.secret_id(),
         file.file_name().to_string(),
@@ -299,8 +299,11 @@ pub async fn wait_for_transfers(account: &NetworkAccount) -> Result<()> {
 
 /// Wait for a file to exist whose content matches
 /// the file name checksum.
-pub async fn wait_for_file(paths: &Paths, file: &ExternalFile) -> Result<()> {
-    let path = paths.file_location(
+pub async fn wait_for_file(
+    paths: impl AsRef<Paths>,
+    file: &ExternalFile,
+) -> Result<()> {
+    let path = paths.as_ref().file_location(
         file.vault_id(),
         file.secret_id(),
         file.file_name().to_string(),
@@ -320,10 +323,10 @@ pub async fn wait_for_file(paths: &Paths, file: &ExternalFile) -> Result<()> {
 
 /// Wait for a file to not exist.
 pub async fn wait_for_file_not_exist(
-    paths: &Paths,
+    paths: impl AsRef<Paths>,
     file: &ExternalFile,
 ) -> Result<()> {
-    let path = paths.file_location(
+    let path = paths.as_ref().file_location(
         file.vault_id(),
         file.secret_id(),
         file.file_name().to_string(),

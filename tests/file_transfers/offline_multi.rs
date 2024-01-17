@@ -274,11 +274,13 @@ async fn file_transfers_offline_multi_delete() -> Result<()> {
     // Wait for the file to be deleted
     wait_for_file_not_exist(&server2_paths, &file).await?;
 
-    let local_paths = device.owner.paths();
-
     // Assert the files on server2 do not exist
-    assert_local_remote_file_not_exist(local_paths, &server2_path, &file)
-        .await?;
+    assert_local_remote_file_not_exist(
+        device.owner.paths(),
+        &server2_path,
+        &file,
+    )
+    .await?;
 
     // Bring the server back online
     let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
@@ -287,8 +289,12 @@ async fn file_transfers_offline_multi_delete() -> Result<()> {
     wait_for_file_not_exist(&server1_paths, &file).await?;
 
     // Assert the files on server1 do not exist
-    assert_local_remote_file_not_exist(local_paths, &server1_path, &file)
-        .await?;
+    assert_local_remote_file_not_exist(
+        device.owner.paths(),
+        &server1_path,
+        &file,
+    )
+    .await?;
 
     device.owner.sign_out().await?;
 

@@ -5,8 +5,6 @@ pub mod archive;
 mod builder;
 #[cfg(feature = "device")]
 mod device;
-#[cfg(feature = "migrate")]
-mod migrate;
 #[cfg(feature = "security-report")]
 pub mod security_report;
 #[cfg(feature = "sync")]

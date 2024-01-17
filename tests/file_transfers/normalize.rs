@@ -6,7 +6,6 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_net::{client::RemoteSync, sdk::prelude::*};
-use std::sync::Arc;
 
 /// Tests creating then deleting an external file whilst
 /// not connected to any servers and that the corresponding
@@ -44,9 +43,7 @@ async fn file_transfers_normalize_upload_delete() -> Result<()> {
         assert!(matches!(ops.get(1), Some(&TransferOperation::Delete)));
 
         // Normalize the transfers queue
-        transfers
-            .normalize(Arc::new(device.owner.paths().clone()))
-            .await?;
+        transfers.normalize(device.owner.paths()).await?;
 
         // Should now just have the delete operation
         let ops = transfers.queue().get(&file).unwrap().clone();
@@ -134,9 +131,7 @@ async fn file_transfers_normalize_move() -> Result<()> {
         assert!(matches!(ops.get(1), Some(&TransferOperation::Move(_))));
 
         // Normalize the transfers queue
-        transfers
-            .normalize(Arc::new(device.owner.paths().clone()))
-            .await?;
+        transfers.normalize(device.owner.paths()).await?;
 
         // Delete operation for the old file
         let ops = transfers.queue().get(&old_file).unwrap().clone();

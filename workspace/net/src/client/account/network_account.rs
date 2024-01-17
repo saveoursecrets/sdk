@@ -34,11 +34,17 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::sync::{
-    mpsc::{self, UnboundedSender},
-    oneshot, Mutex, RwLock,
+use tokio::{
+    io::{AsyncRead, AsyncSeek},
+    sync::{
+        mpsc::{self, UnboundedSender},
+        oneshot, Mutex, RwLock,
+    },
 };
 use tracing::{span, Level};
+
+#[cfg(feature = "archive")]
+use crate::sdk::account::archive::{Inventory, RestoreOptions};
 
 #[cfg(feature = "listen")]
 use crate::client::WebSocketHandle;
@@ -393,7 +399,7 @@ impl Account for NetworkAccount {
             LocalAccount::new_unauthenticated(address, data_dir).await?;
         Ok(Self {
             address: Default::default(),
-            paths: Arc::clone(&account.paths),
+            paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
             sync_lock: Mutex::new(()),
@@ -441,7 +447,7 @@ impl Account for NetworkAccount {
 
         let owner = Self {
             address: account.address().clone(),
-            paths: Arc::clone(&account.paths),
+            paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
             sync_lock: Mutex::new(()),
@@ -458,8 +464,8 @@ impl Account for NetworkAccount {
         &self.address
     }
 
-    fn paths(&self) -> &Paths {
-        &self.paths
+    fn paths(&self) -> Arc<Paths> {
+        Arc::clone(&self.paths)
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
@@ -486,7 +492,7 @@ impl Account for NetworkAccount {
         let folders = {
             let mut account = self.account.lock().await;
             let folders = account.sign_in(key).await?;
-            self.paths = Arc::clone(&account.paths);
+            self.paths = account.paths();
             self.address = account.address().clone();
             folders
         };
@@ -1119,5 +1125,47 @@ impl Account for NetworkAccount {
         };
 
         Ok(result)
+    }
+
+    #[cfg(feature = "archive")]
+    async fn export_backup_archive(
+        &self,
+        path: impl AsRef<Path> + Send + Sync,
+    ) -> Result<()> {
+        let account = self.account.lock().await;
+        Ok(account.export_backup_archive(path).await?)
+    }
+
+    #[cfg(feature = "archive")]
+    async fn restore_archive_inventory<
+        R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
+    >(
+        buffer: R,
+    ) -> Result<Inventory> {
+        Ok(LocalAccount::restore_archive_inventory(buffer).await?)
+    }
+
+    #[cfg(feature = "archive")]
+    async fn import_backup_archive(
+        path: impl AsRef<Path> + Send + Sync,
+        options: RestoreOptions,
+        data_dir: Option<PathBuf>,
+    ) -> Result<PublicIdentity> {
+        Ok(LocalAccount::import_backup_archive(path, options, data_dir)
+            .await?)
+    }
+
+    #[cfg(feature = "archive")]
+    async fn restore_backup_archive(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        password: SecretString,
+        options: RestoreOptions,
+        data_dir: Option<PathBuf>,
+    ) -> Result<PublicIdentity> {
+        let mut account = self.account.lock().await;
+        Ok(account
+            .restore_backup_archive(path, password, options, data_dir)
+            .await?)
     }
 }

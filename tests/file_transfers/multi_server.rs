@@ -223,19 +223,25 @@ async fn file_transfers_multi_delete() -> Result<()> {
     // Wait until the transfers are completed
     wait_for_transfers(&device.owner).await?;
 
-    let local_paths = device.owner.paths();
-
     let server1_path = device.server_path;
     let server2_path =
         server2.path.join(REMOTE_DIR).join(address.to_string());
 
     // Assert the files on server1 do not exist
-    assert_local_remote_file_not_exist(local_paths, &server1_path, &file)
-        .await?;
+    assert_local_remote_file_not_exist(
+        device.owner.paths(),
+        &server1_path,
+        &file,
+    )
+    .await?;
 
     // Assert the files on server2 do not exist
-    assert_local_remote_file_not_exist(local_paths, &server2_path, &file)
-        .await?;
+    assert_local_remote_file_not_exist(
+        device.owner.paths(),
+        &server2_path,
+        &file,
+    )
+    .await?;
 
     device.owner.sign_out().await?;
 

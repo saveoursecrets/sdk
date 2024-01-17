@@ -158,8 +158,8 @@ pub struct TestServer {
 
 impl TestServer {
     /// Server paths for the given address.
-    pub fn paths(&self, address: &Address) -> Paths {
-        Paths::new_server(self.path.clone(), address.to_string())
+    pub fn paths(&self, address: &Address) -> Arc<Paths> {
+        Arc::new(Paths::new_server(self.path.clone(), address.to_string()))
     }
 
     /// Path to the server account data.

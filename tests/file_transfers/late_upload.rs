@@ -8,7 +8,6 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_net::{client::RemoteSync, sdk::prelude::*};
-use std::sync::Arc;
 
 /// Tests creating external files then adding a remote
 /// server, syncing and uploading the files.
@@ -75,9 +74,7 @@ async fn file_transfers_late_upload() -> Result<()> {
         let mut transfers = transfers.write().await;
 
         // Must normalize before asserting
-        transfers
-            .normalize(Arc::new(device.owner.paths().clone()))
-            .await?;
+        transfers.normalize(device.owner.paths()).await?;
 
         for file in &files {
             assert!(transfers.queue().get(file).is_some());

@@ -420,7 +420,8 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
     };
 
     let account = if let Some((mut owner, password)) = owner.take() {
-        let files_dir = owner.paths().files_dir();
+        let paths = owner.paths();
+        let files_dir = paths.files_dir();
         let options = RestoreOptions {
             selected: inventory.vaults,
             files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),

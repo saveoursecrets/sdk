@@ -1,7 +1,5 @@
 //! Network aware account storage.
 
-#[cfg(feature = "archive")]
-mod archive;
 #[cfg(feature = "listen")]
 mod listen;
 mod network_account;

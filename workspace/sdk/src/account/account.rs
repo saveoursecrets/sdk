@@ -32,6 +32,9 @@ use crate::{
 #[cfg(feature = "audit")]
 use crate::audit::{AuditData, AuditEvent};
 
+#[cfg(feature = "archive")]
+use crate::account::archive::{Inventory, RestoreOptions};
+
 #[cfg(feature = "search")]
 use crate::storage::search::*;
 
@@ -45,16 +48,20 @@ use crate::storage::files::Transfers;
 use crate::{account::security_report::*, zxcvbn::Entropy};
 
 #[cfg(feature = "migrate")]
-use crate::migrate::{
-    export::PublicExport,
-    import::{
-        csv::{
-            bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
-            dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
-            macos::MacPasswordCsv, one_password::OnePasswordCsv,
+use crate::{
+    migrate::{
+        export::PublicExport,
+        import::{
+            csv::{
+                bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
+                dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
+                macos::MacPasswordCsv, one_password::OnePasswordCsv,
+            },
+            ImportFormat, ImportTarget,
         },
-        ImportFormat, ImportTarget,
+        Convert,
     },
+    vault::VaultBuilder,
 };
 
 use tracing::{span, Level};
@@ -62,7 +69,10 @@ use tracing::{span, Level};
 use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
+use tokio::{
+    io::{AsyncRead, AsyncSeek},
+    sync::RwLock,
+};
 
 /// Result information for a created or updated secret.
 pub struct SecretChange<T> {
@@ -210,7 +220,7 @@ pub trait Account {
     fn address(&self) -> &Address;
 
     /// User storage paths.
-    fn paths(&self) -> &Paths;
+    fn paths(&self) -> Arc<Paths>;
 
     /// Public identity information.
     async fn public_identity(
@@ -631,6 +641,40 @@ pub trait Account {
         &mut self,
         target: ImportTarget,
     ) -> std::result::Result<FolderCreate<Self::Error>, Self::Error>;
+
+    /// Create a backup archive containing the
+    /// encrypted data for the account.
+    #[cfg(feature = "archive")]
+    async fn export_backup_archive(
+        &self,
+        path: impl AsRef<Path> + Send + Sync,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Read the inventory from an archive.
+    #[cfg(feature = "archive")]
+    async fn restore_archive_inventory<
+        R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
+    >(
+        buffer: R,
+    ) -> std::result::Result<Inventory, Self::Error>;
+
+    /// Restore from a backup archive file.
+    #[cfg(feature = "archive")]
+    async fn import_backup_archive(
+        path: impl AsRef<Path> + Send + Sync,
+        options: RestoreOptions,
+        data_dir: Option<PathBuf>,
+    ) -> std::result::Result<PublicIdentity, Self::Error>;
+
+    /// Restore from a backup archive file.
+    #[cfg(feature = "archive")]
+    async fn restore_backup_archive(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        password: SecretString,
+        mut options: RestoreOptions,
+        data_dir: Option<PathBuf>,
+    ) -> std::result::Result<PublicIdentity, Self::Error>;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -697,7 +741,7 @@ pub struct LocalAccount {
     pub(super) authenticated: Option<Authenticated>,
 
     /// Storage paths.
-    pub paths: Arc<Paths>,
+    paths: Arc<Paths>,
 }
 
 impl LocalAccount {
@@ -1100,6 +1144,85 @@ impl LocalAccount {
         }
         Ok(FolderKeys(keys))
     }
+
+    /// Generic CSV import implementation.
+    #[cfg(feature = "migrate")]
+    async fn import_csv<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        folder_name: String,
+        converter: impl Convert<Input = PathBuf>,
+    ) -> Result<FolderCreate<Error>> {
+        let paths = self.paths();
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ImportUnsafe,
+                self.address().clone(),
+                None,
+            );
+            paths.append_audit_events(vec![audit_event]).await?;
+        }
+
+        let vaults = Identity::list_local_folders(&paths).await?;
+        let existing_name =
+            vaults.iter().find(|(s, _)| s.name() == folder_name);
+
+        let vault_passphrase = self.user()?.generate_folder_password()?;
+
+        let vault_id = VaultId::new_v4();
+        let name = if existing_name.is_some() {
+            format!("{} ({})", folder_name, vault_id)
+        } else {
+            folder_name
+        };
+
+        let vault = VaultBuilder::new()
+            .id(vault_id)
+            .public_name(name)
+            .password(vault_passphrase.clone(), None)
+            .await?;
+
+        // Parse the CSV records into the vault
+        let key = vault_passphrase.clone().into();
+        let vault = converter
+            .convert(path.as_ref().to_path_buf(), vault, &key)
+            .await?;
+
+        let buffer = encode(&vault).await?;
+        let key: AccessKey = vault_passphrase.clone().into();
+        let result = self.import_folder_buffer(&buffer, key, false).await?;
+
+        self.user_mut()?
+            .save_folder_password(vault.id(), vault_passphrase.clone().into())
+            .await?;
+
+        Ok(result)
+    }
+
+    /// Import from an archive reader.
+    #[cfg(feature = "archive")]
+    async fn import_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
+        buffer: R,
+        mut options: RestoreOptions,
+        data_dir: Option<PathBuf>,
+    ) -> Result<PublicIdentity> {
+        use super::archive::{AccountBackup, ExtractFilesLocation};
+        let files_dir = ExtractFilesLocation::Builder(Box::new(|address| {
+            let data_dir = Paths::data_dir().unwrap();
+            let paths = Paths::new(data_dir, address);
+            Some(paths.files_dir().to_owned())
+        }));
+
+        options.files_dir = Some(files_dir);
+
+        let (_, account) =
+            AccountBackup::import_archive_reader(buffer, options, data_dir)
+                .await?;
+
+        Ok(account)
+    }
 }
 
 #[async_trait]
@@ -1191,8 +1314,8 @@ impl Account for LocalAccount {
         &self.address
     }
 
-    fn paths(&self) -> &Paths {
-        &self.paths
+    fn paths(&self) -> Arc<Paths> {
+        Arc::clone(&self.paths)
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
@@ -2345,15 +2468,15 @@ impl Account for LocalAccount {
         use std::io::Cursor;
 
         let paths = self.paths();
-
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
         let vaults = Identity::list_local_folders(&paths).await?;
 
         for (summary, _) in vaults {
-            let (vault, _) = Identity::load_local_vault(paths, summary.id())
-                .await
-                .map_err(Box::from)?;
+            let (vault, _) =
+                Identity::load_local_vault(&*paths, summary.id())
+                    .await
+                    .map_err(Box::from)?;
             let vault_passphrase =
                 self.user()?.find_folder_password(summary.id()).await?;
 
@@ -2441,5 +2564,132 @@ impl Account for LocalAccount {
         };
 
         Ok(result)
+    }
+
+    #[cfg(feature = "archive")]
+    async fn export_backup_archive(
+        &self,
+        path: impl AsRef<Path> + Send + Sync,
+    ) -> Result<()> {
+        use super::archive::AccountBackup;
+
+        AccountBackup::export_archive_file(path, self.address(), &self.paths)
+            .await?;
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ExportBackupArchive,
+                self.address().clone(),
+                None,
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
+
+        Ok(())
+    }
+
+    #[cfg(feature = "archive")]
+    async fn restore_archive_inventory<
+        R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
+    >(
+        buffer: R,
+    ) -> Result<Inventory> {
+        use super::archive::AccountBackup;
+
+        let mut inventory =
+            AccountBackup::restore_archive_inventory(buffer).await?;
+        let accounts = Identity::list_accounts(None).await?;
+        let exists_local = accounts
+            .iter()
+            .any(|account| account.address() == &inventory.manifest.address);
+        inventory.exists_local = exists_local;
+        Ok(inventory)
+    }
+
+    /// Restore from a backup archive file.
+    #[cfg(feature = "archive")]
+    async fn import_backup_archive(
+        path: impl AsRef<Path> + Send + Sync,
+        options: RestoreOptions,
+        data_dir: Option<PathBuf>,
+    ) -> Result<PublicIdentity> {
+        let file = vfs::File::open(path).await?;
+        let account =
+            Self::import_archive_reader(file, options, data_dir.clone())
+                .await?;
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ImportBackupArchive,
+                account.address().clone(),
+                None,
+            );
+
+            let data_dir = if let Some(data_dir) = &data_dir {
+                data_dir.clone()
+            } else {
+                Paths::data_dir()?
+            };
+            let paths = Paths::new(data_dir, account.address().to_string());
+            paths.append_audit_events(vec![audit_event]).await?;
+        }
+
+        Ok(account)
+    }
+
+    /// Restore from a backup archive file.
+    #[cfg(feature = "archive")]
+    async fn restore_backup_archive(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        password: SecretString,
+        mut options: RestoreOptions,
+        data_dir: Option<PathBuf>,
+    ) -> Result<PublicIdentity> {
+        use super::archive::{AccountBackup, ExtractFilesLocation};
+
+        let current_folder = {
+            let storage = self.storage().await?;
+            let reader = storage.read().await;
+            reader.current_folder()
+        };
+
+        let files_dir =
+            ExtractFilesLocation::Path(self.paths().files_dir().clone());
+
+        options.files_dir = Some(files_dir);
+
+        let reader = vfs::File::open(path).await?;
+        let (targets, account) = AccountBackup::restore_archive_reader(
+            reader, options, password, data_dir,
+        )
+        .await?;
+
+        {
+            let keys = self.folder_keys().await?;
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer.restore_archive(&targets, &keys).await?;
+        }
+
+        #[cfg(feature = "search")]
+        self.build_search_index().await?;
+
+        if let Some(folder) = &current_folder {
+            // Note that we don't want the additional
+            // audit event here
+            self.open_vault(folder, false).await?;
+        }
+
+        let audit_event = AuditEvent::new(
+            EventKind::ImportBackupArchive,
+            self.address().clone(),
+            None,
+        );
+        self.paths.append_audit_events(vec![audit_event]).await?;
+
+        Ok(account)
     }
 }

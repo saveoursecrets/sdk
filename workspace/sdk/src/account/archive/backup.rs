@@ -31,7 +31,7 @@ use secrecy::SecretString;
 
 /// Get the path to the file storage directory for the given
 /// account address.
-type ExtractFilesBuilder = Box<dyn Fn(&str) -> Option<PathBuf>>;
+type ExtractFilesBuilder = Box<dyn Fn(&str) -> Option<PathBuf> + Send + Sync>;
 
 /// Known path or builder for a files directory.
 ///

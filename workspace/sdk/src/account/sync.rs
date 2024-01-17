@@ -224,7 +224,7 @@ impl LocalAccount {
             let mut writer = transfers.write().await;
 
             for file in external_files.drain(..) {
-                let file_path = self.paths.file_location(
+                let file_path = self.paths().file_location(
                     file.vault_id(),
                     file.secret_id(),
                     file.file_name().to_string(),
