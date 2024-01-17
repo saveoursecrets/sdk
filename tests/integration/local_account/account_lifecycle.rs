@@ -34,7 +34,7 @@ async fn integration_account_lifecycle() -> Result<()> {
 
     let key: AccessKey = passphrase.into();
     account.sign_in(&key).await?;
-    assert!(account.is_authenticated());
+    assert!(account.is_authenticated().await);
 
     let folders = account.list_folders().await?;
     assert_eq!(1, folders.len());
@@ -44,7 +44,7 @@ async fn integration_account_lifecycle() -> Result<()> {
     assert_eq!("account_name", data.account.label());
 
     account.sign_out().await?;
-    assert!(!account.is_authenticated());
+    assert!(!account.is_authenticated().await);
 
     // Must sign in again to delete the account
     account.sign_in(&key).await?;
@@ -52,7 +52,7 @@ async fn integration_account_lifecycle() -> Result<()> {
     account.delete_account().await?;
 
     // Deleting the account is an automatic sign out
-    assert!(!account.is_authenticated());
+    assert!(!account.is_authenticated().await);
 
     teardown(TEST_ID).await;
 

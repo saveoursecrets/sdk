@@ -3,8 +3,6 @@ mod account;
 #[cfg(feature = "archive")]
 pub mod archive;
 mod builder;
-#[cfg(feature = "device")]
-mod device;
 #[cfg(feature = "security-report")]
 pub mod security_report;
 #[cfg(feature = "sync")]

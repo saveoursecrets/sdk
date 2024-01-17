@@ -196,12 +196,6 @@ impl NetworkAccount {
         Arc::clone(&self.account)
     }
 
-    /// Determine if the account is authenticated.
-    pub async fn is_authenticated(&self) -> bool {
-        let account = self.account.lock().await;
-        account.is_authenticated()
-    }
-
     /// Find the password for a folder.
     pub async fn find_folder_password(
         &self,
@@ -443,6 +437,11 @@ impl Account for NetworkAccount {
 
     fn paths(&self) -> Arc<Paths> {
         Arc::clone(&self.paths)
+    }
+
+    async fn is_authenticated(&self) -> bool {
+        let account = self.account.lock().await;
+        account.is_authenticated().await
     }
 
     async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {

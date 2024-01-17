@@ -36,7 +36,7 @@ use crate::audit::{AuditData, AuditEvent};
 use crate::account::archive::{Inventory, RestoreOptions};
 
 #[cfg(feature = "device")]
-use crate::device::DevicePublicKey;
+use crate::device::{DevicePublicKey, DeviceManager};
 
 #[cfg(feature = "search")]
 use crate::storage::search::*;
@@ -224,6 +224,9 @@ pub trait Account {
 
     /// User storage paths.
     fn paths(&self) -> Arc<Paths>;
+
+    /// Determine if the account is authenticated.
+    async fn is_authenticated(&self) -> bool;
 
     /// Signing key for the account.
     async fn account_signer(&self) -> std::result::Result<BoxedEcdsaSigner, Self::Error>;
@@ -770,6 +773,16 @@ impl LocalAccount {
             .ok_or(Error::NotAuthenticated)
     }
 
+    /// Device manager.
+    #[cfg(feature = "device")]
+    pub fn devices(&self) -> Result<&DeviceManager> {
+        self.authenticated
+            .as_ref()
+            .ok_or(Error::NotAuthenticated)?
+            .user
+            .devices()
+    }
+
     async fn initialize_account_log(
         paths: &Paths,
         account_log: Arc<RwLock<AccountEventLog>>,
@@ -811,11 +824,6 @@ impl LocalAccount {
         }
 
         Ok(())
-    }
-
-    /// Determine if the account is authenticated.
-    pub fn is_authenticated(&self) -> bool {
-        self.authenticated.is_some()
     }
 
     /// Get the description of a folder.
@@ -1325,6 +1333,10 @@ impl Account for LocalAccount {
 
     fn paths(&self) -> Arc<Paths> {
         Arc::clone(&self.paths)
+    }
+
+    async fn is_authenticated(&self) -> bool {
+        self.authenticated.is_some()
     }
 
     async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {

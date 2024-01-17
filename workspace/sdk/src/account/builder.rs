@@ -60,7 +60,7 @@ impl From<PrivateNewAccount> for AccountPack {
     }
 }
 
-/// Create a new account.
+/// Create the data for a new account.
 pub struct AccountBuilder {
     data_dir: Option<PathBuf>,
     account_name: String,

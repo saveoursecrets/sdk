@@ -67,7 +67,7 @@ async fn export_import() -> Result<()> {
 
     // Delete the account
     account.delete_account().await?;
-    assert!(!account.is_authenticated());
+    assert!(!account.is_authenticated().await);
 
     // Restore from the backup archive
     let options = RestoreOptions {

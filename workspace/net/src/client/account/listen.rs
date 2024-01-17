@@ -10,7 +10,7 @@ use crate::{
 use std::sync::Arc;
 
 impl NetworkAccount {
-    /// Listen for changes on a remote origin.
+    /// Listen for changes on a remote server.
     pub async fn listen(
         &self,
         origin: &Origin,
