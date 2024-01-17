@@ -1,18 +1,11 @@
 //! Tests for attachment external files.
 use crate::test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
-    mock::{
-        self,
-        files::{
-            create_attachment, create_file_secret, delete_attachment,
-            update_attachment,
-        },
-    },
+    mock::files::{create_attachment, create_file_secret, update_attachment},
     simulate_device, spawn, teardown, wait_for_transfers,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteSync, sdk::prelude::*};
-use std::sync::Arc;
+use sos_net::sdk::prelude::*;
 
 /// Tests creating an attachment.
 #[tokio::test]

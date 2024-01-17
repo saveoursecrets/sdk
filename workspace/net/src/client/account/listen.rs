@@ -1,8 +1,11 @@
 //! Adds functions for listening to change notifications using
 //! a websocket connection.
-use crate::client::{
-    Error, ListenOptions, NetworkAccount, Origin, RemoteBridge, Result,
-    WebSocketHandle,
+use crate::{
+    client::{
+        Error, ListenOptions, NetworkAccount, RemoteBridge, Result,
+        WebSocketHandle,
+    },
+    sdk::sync::Origin,
 };
 use std::sync::Arc;
 

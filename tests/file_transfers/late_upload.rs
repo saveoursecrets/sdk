@@ -3,10 +3,7 @@
 //! transferring the files to the server.
 use crate::test_utils::{
     assert_local_remote_file_eq,
-    mock::{
-        self,
-        files::{create_attachment, create_file_secret},
-    },
+    mock::files::{create_attachment, create_file_secret},
     simulate_device, spawn, teardown, wait_for_transfers,
 };
 use anyhow::Result;
@@ -23,13 +20,12 @@ async fn file_transfers_late_upload() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, None).await?;
-    let key: AccessKey = device.password.clone().into();
     let address = device.owner.address().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
 
     // Create an external file secret then delete it,
     // this will be normalized to a single delete operation
-    let (secret_id, _, _, file_name) =
+    let (secret_id, _, _, _) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     device
         .owner

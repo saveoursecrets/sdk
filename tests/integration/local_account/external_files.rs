@@ -475,7 +475,7 @@ async fn assert_attach_file_secret(
     folder: &Summary,
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<()> {
-    let (id, mut secret_data, _, _) =
+    let (id, _, _, _) =
         create_file_secret(account, folder, Some(progress_tx.clone()))
             .await?;
 
@@ -633,7 +633,7 @@ async fn assert_attach_file_secret(
         assert_root_file_secret(account, folder, &id, secret_data.secret())
             .await?;
 
-        let (mut insert_field_secret_data, _) =
+        let (insert_field_secret_data, _) =
             account.read_secret(&id, Some(folder.clone())).await?;
         assert_eq!(2, insert_field_secret_data.secret().user_data().len());
 

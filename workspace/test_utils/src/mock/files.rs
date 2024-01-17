@@ -112,7 +112,7 @@ where
             None,
         )
         .await?;
-    let (mut secret_data, _) = account
+    let (secret_data, _) = account
         .read_secret(&secret_id, Some(destination.clone()))
         .await?;
     let attached = secret_data
@@ -158,7 +158,7 @@ where
         )
         .await?;
 
-    let (mut updated_secret_data, _) = account
+    let (updated_secret_data, _) = account
         .read_secret(secret_data.id(), Some(destination.clone()))
         .await?;
     assert_eq!(1, updated_secret_data.secret().user_data().len());

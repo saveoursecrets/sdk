@@ -7,8 +7,7 @@ use std::{
 use tokio::sync::{oneshot, RwLock};
 
 use sos_net::{
-    client::Origin,
-    sdk::{signer::ecdsa::Address, url::Url, vfs, Paths},
+    sdk::{signer::ecdsa::Address, sync::Origin, url::Url, vfs, Paths},
     server::{Server, ServerConfig, ServerInfo, State},
 };
 

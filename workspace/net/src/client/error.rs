@@ -1,8 +1,9 @@
 //! Error type for the client module.
-#[cfg(feature = "client")]
-use crate::client::{Origin, SyncError};
+use crate::client::SyncError;
 use http::StatusCode;
 use serde_json::Value;
+#[cfg(feature = "client")]
+use sos_sdk::sync::Origin;
 use std::path::PathBuf;
 use thiserror::Error;
 

@@ -1,6 +1,6 @@
 //! Enroll a device to an account on a remote server.
 use crate::{
-    client::{sync::RemoteSync, Error, NetworkAccount, Origin, Result},
+    client::{sync::RemoteSync, Error, NetworkAccount, Result},
     sdk::{
         account::Account,
         crypto::AccessKey,
@@ -11,7 +11,7 @@ use crate::{
             FolderReducer, WriteEvent,
         },
         signer::ecdsa::Address,
-        sync::{AccountPatch, Client, FolderPatch},
+        sync::{AccountPatch, Client, FolderPatch, Origin},
         vault::VaultId,
         vfs, Paths,
     },

@@ -32,10 +32,13 @@ use tokio::{
 };
 use url::Url;
 
-use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
+use sos_sdk::{
+    signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
+    sync::Origin,
+};
 
 use crate::{
-    client::{Error, Origin, Result},
+    client::{Error, Result},
     events::ChangeNotification,
 };
 

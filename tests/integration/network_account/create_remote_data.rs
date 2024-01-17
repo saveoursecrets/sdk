@@ -3,7 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteBridge, sdk::prelude::*};
+use sos_net::client::RemoteBridge;
 
 const TEST_ID: &str = "sync_create_remote_data";
 

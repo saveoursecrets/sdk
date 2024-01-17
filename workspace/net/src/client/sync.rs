@@ -1,5 +1,6 @@
-use super::{Error, Origin};
+use super::Error;
 use async_trait::async_trait;
+use sos_sdk::sync::Origin;
 use std::any::Any;
 
 /// Enumeration of error types that can be returned

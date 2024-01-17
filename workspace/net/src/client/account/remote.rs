@@ -2,21 +2,14 @@
 use crate::client::{
     net::RpcClient, Error, RemoteSync, Result, SyncError, SyncOptions,
 };
-
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-
 use sos_sdk::{
     account::LocalAccount,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{self, Client, SyncStatus, SyncStorage},
-    url::Url,
+    sync::{self, Client, Origin, SyncStatus, SyncStorage},
 };
-
-use std::{any::Any, collections::HashMap, fmt, sync::Arc};
+use std::{any::Any, collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
-
-pub use sos_sdk::sync::Origin;
 
 /// Remote synchronization target.
 pub type Remote = Box<dyn RemoteSync>;

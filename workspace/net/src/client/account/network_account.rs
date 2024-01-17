@@ -10,7 +10,7 @@ use sos_sdk::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     device::{DevicePublicKey, DeviceSigner},
-    events::{Event, ReadEvent},
+    events::ReadEvent,
     identity::{AccountRef, PublicIdentity},
     sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
@@ -22,6 +22,7 @@ use sos_sdk::{
         },
         AccessOptions, ClientStorage,
     },
+    sync::Origin,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Summary, VaultId,
@@ -43,8 +44,7 @@ use tracing::{span, Level};
 use crate::client::WebSocketHandle;
 
 use crate::client::{
-    Error, Origin, Remote, RemoteBridge, RemoteSync, Remotes, Result,
-    SyncError,
+    Error, Remote, RemoteBridge, RemoteSync, Remotes, Result,
 };
 
 /// Account with networking capability.

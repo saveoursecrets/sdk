@@ -12,7 +12,7 @@ use sos_sdk::{
     decode, encode,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, Client, SyncDiff, SyncStatus},
+    sync::{ChangeSet, Client, Origin, SyncDiff, SyncStatus},
 };
 
 use tokio::io::AsyncWriteExt;
@@ -42,7 +42,7 @@ use tokio::sync::Mutex;
 use url::Url;
 
 use crate::{
-    client::{Error, Origin, Result},
+    client::{Error, Result},
     rpc::{Packet, RequestMessage, ResponseMessage},
 };
 
