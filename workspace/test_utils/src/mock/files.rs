@@ -181,3 +181,33 @@ where
 
     Ok((updated_secret_data, updated_attachment, file_name))
 }
+
+pub async fn delete_attachment<E>(
+    account: &mut (impl Account<Error = E> + Send + Sync),
+    mut secret_data: SecretRow,
+    attachment_id: &SecretId,
+    destination: &Summary,
+    progress_tx: Option<mpsc::Sender<FileProgress>>,
+) -> Result<()>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    secret_data.secret_mut().remove_field(&attachment_id);
+
+    let secret_id = *secret_data.id();
+    let (_, meta, secret) = secret_data.into();
+    account
+        .update_secret(
+            &secret_id,
+            meta,
+            Some(secret),
+            AccessOptions {
+                folder: Some(destination.clone()),
+                file_progress: progress_tx,
+            },
+            None,
+        )
+        .await?;
+
+    Ok(())
+}

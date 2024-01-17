@@ -2,8 +2,8 @@ use crate::test_utils::{
     mock::{
         self,
         files::{
-            create_attachment, create_file_secret, update_attachment,
-            update_file_secret,
+            create_attachment, create_file_secret, delete_attachment,
+            update_attachment, update_file_secret,
         },
     },
     setup, teardown,
@@ -480,7 +480,7 @@ async fn assert_attach_file_secret(
             .await?;
 
     // Add an attachment
-    let (attachment_id, mut secret_data, _) =
+    let (attachment_id, mut secret_data, file_name) =
         create_attachment(account, &id, &folder, Some(progress_tx.clone()))
             .await?;
 
@@ -518,7 +518,7 @@ async fn assert_attach_file_secret(
         Ok(())
     }
 
-    let checksums = if let Secret::File {
+    let file_names = if let Secret::File {
         content: FileContent::External { checksum, .. },
         ..
     } = secret_data.secret()
@@ -647,21 +647,25 @@ async fn assert_attach_file_secret(
             .find_field_by_id(&attachment_id)
             .expect("attachment to exist");
 
-        let inserted_attachment_checksum = if let Secret::File {
-            content: FileContent::External { checksum, .. },
-            ..
-        } = inserted_attachment.secret()
-        {
-            assert_ne!(ZERO, *checksum);
-            let file_name = hex::encode(checksum);
-            let file_path =
-                account.paths().file_location(folder.id(), &id, &file_name);
-            assert!(vfs::try_exists(&file_path).await?);
+        let inserted_attachment_name: ExternalFileName =
+            if let Secret::File {
+                content: FileContent::External { checksum, .. },
+                ..
+            } = inserted_attachment.secret()
+            {
+                assert_ne!(ZERO, *checksum);
+                let file_name = hex::encode(checksum);
+                let file_path = account.paths().file_location(
+                    folder.id(),
+                    &id,
+                    &file_name,
+                );
+                assert!(vfs::try_exists(&file_path).await?);
 
-            *checksum
-        } else {
-            panic!("expecting file secret variant (attachment)");
-        };
+                (*checksum).into()
+            } else {
+                panic!("expecting file secret variant (attachment)");
+            };
 
         if let Secret::File {
             content: FileContent::External { checksum, .. },
@@ -678,23 +682,14 @@ async fn assert_attach_file_secret(
         };
 
         // Delete the original attachment (index 1)
-        insert_field_secret_data
-            .secret_mut()
-            .remove_field(&attachment_id);
-
-        let (_, meta, secret) = insert_field_secret_data.into();
-        account
-            .update_secret(
-                &id,
-                meta,
-                Some(secret),
-                AccessOptions {
-                    folder: Some(folder.clone()),
-                    file_progress: Some(progress_tx.clone()),
-                },
-                None,
-            )
-            .await?;
+        delete_attachment(
+            account,
+            insert_field_secret_data,
+            &attachment_id,
+            &folder,
+            Some(progress_tx.clone()),
+        )
+        .await?;
 
         assert_root_file_secret(account, folder, &id, secret_data.secret())
             .await?;
@@ -725,7 +720,7 @@ async fn assert_attach_file_secret(
             panic!("expecting file secret variant (attachment)");
         };
 
-        vec![file_checksum, inserted_attachment_checksum]
+        vec![file_name, inserted_attachment_name]
     } else {
         panic!("expecting file secret variant");
     };
@@ -741,11 +736,11 @@ async fn assert_attach_file_secret(
         )
         .await?;
 
-    for checksum in checksums {
+    for file_name in file_names {
         let file_path = account.paths().file_location(
             folder.id(),
             &id,
-            &hex::encode(checksum),
+            file_name.to_string(),
         );
         assert!(!vfs::try_exists(&file_path).await?);
     }
