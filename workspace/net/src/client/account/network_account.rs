@@ -1161,5 +1161,4 @@ impl Account for NetworkAccount {
             .restore_backup_archive(path, password, options, data_dir)
             .await?)
     }
-
 }

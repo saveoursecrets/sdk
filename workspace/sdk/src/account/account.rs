@@ -718,7 +718,6 @@ pub trait Account {
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> std::result::Result<PublicIdentity, Self::Error>;
-
 }
 
 /// Read-only view created from a specific event log commit.
@@ -2757,5 +2756,4 @@ impl Account for LocalAccount {
 
         Ok(account)
     }
-
 }
