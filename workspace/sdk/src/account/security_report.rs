@@ -1,6 +1,5 @@
-//! Generate a security report for all passwords.
+//! Types for security report generation.
 use crate::{
-    account::{Account, LocalAccount},
     vault::{
         secret::{Secret, SecretId, SecretType},
         Gatekeeper, Summary, VaultId,
@@ -140,7 +139,7 @@ pub struct SecurityReportRecord {
     pub entropy: Option<Entropy>,
 }
 
-async fn secret_security_report(
+pub(super) async fn secret_security_report(
     secret_id: &SecretId,
     keeper: &Gatekeeper,
     password_hashes: &mut Vec<(
@@ -178,6 +177,7 @@ async fn secret_security_report(
     Ok(())
 }
 
+/*
 impl LocalAccount {
     /// Generate a security report.
     pub async fn generate_security_report<T, D, R>(
@@ -262,3 +262,4 @@ impl LocalAccount {
         })
     }
 }
+*/

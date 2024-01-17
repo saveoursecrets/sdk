@@ -41,6 +41,9 @@ use crate::sync::SyncError;
 #[cfg(all(feature = "files", feature = "sync"))]
 use crate::storage::files::Transfers;
 
+#[cfg(feature = "security-report")]
+use crate::{account::security_report::*, zxcvbn::Entropy};
+
 use tracing::{span, Level};
 
 use async_trait::async_trait;
@@ -588,6 +591,16 @@ pub trait Account {
         content: &str,
         progress: impl Fn(ContactImportProgress) + Send + Sync,
     ) -> std::result::Result<Vec<SecretId>, Self::Error>;
+
+    /// Generate a security report.
+    #[cfg(feature = "security-report")]
+    async fn generate_security_report<T, D, R>(
+        &mut self,
+        options: SecurityReportOptions<T, D, R>,
+    ) -> std::result::Result<SecurityReport<T>, Self::Error>
+    where
+        D: Fn(Vec<String>) -> R + Send + Sync,
+        R: std::future::Future<Output = Vec<T>> + Send + Sync;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -2208,5 +2221,89 @@ impl Account for LocalAccount {
         }
 
         Ok(ids)
+    }
+
+    /// Generate a security report.
+    #[cfg(feature = "security-report")]
+    async fn generate_security_report<T, D, R>(
+        &mut self,
+        options: SecurityReportOptions<T, D, R>,
+    ) -> Result<SecurityReport<T>>
+    where
+        D: Fn(Vec<String>) -> R + Send + Sync,
+        R: std::future::Future<Output = Vec<T>> + Send + Sync,
+    {
+        let mut records = Vec::new();
+        let mut hashes = Vec::new();
+        let folders = self.list_folders().await?;
+        let targets: Vec<Summary> = folders
+            .into_iter()
+            .filter(|folder| {
+                if let Some(target) = &options.target {
+                    return folder.id() == &target.0;
+                }
+                !options.excludes.contains(folder.id())
+            })
+            .collect();
+
+        for target in targets {
+            let storage = self.storage().await?;
+            let reader = storage.read().await;
+
+            let folder = reader.cache().get(target.id()).unwrap();
+            let keeper = folder.keeper();
+
+            let vault = keeper.vault();
+            let mut password_hashes: Vec<(
+                SecretId,
+                (Option<Entropy>, Vec<u8>),
+                Option<SecretId>,
+            )> = Vec::new();
+
+            if let Some(target) = &options.target {
+                secret_security_report(
+                    &target.1,
+                    keeper,
+                    &mut password_hashes,
+                    target.2.as_ref(),
+                )
+                .await?;
+            } else {
+                for secret_id in vault.keys() {
+                    secret_security_report(
+                        secret_id,
+                        keeper,
+                        &mut password_hashes,
+                        None,
+                    )
+                    .await?;
+                }
+            }
+
+            for (secret_id, check, field_id) in password_hashes {
+                let (entropy, sha1) = check;
+
+                let record = SecurityReportRecord {
+                    folder: target.clone(),
+                    secret_id,
+                    field_id,
+                    entropy,
+                };
+
+                hashes.push(hex::encode(sha1));
+                records.push(record);
+            }
+        }
+
+        let database_checks =
+            if let Some(database_handler) = options.database_handler {
+                (database_handler)(hashes).await
+            } else {
+                vec![]
+            };
+        Ok(SecurityReport {
+            records,
+            database_checks,
+        })
     }
 }

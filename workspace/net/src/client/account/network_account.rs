@@ -46,6 +46,11 @@ use crate::client::WebSocketHandle;
 #[cfg(feature = "contacts")]
 use crate::sdk::account::ContactImportProgress;
 
+#[cfg(feature = "security-report")]
+use crate::sdk::account::security_report::{
+    SecurityReport, SecurityReportOptions,
+};
+
 use crate::client::{
     Error, Remote, RemoteBridge, RemoteSync, Remotes, Result,
 };
@@ -1067,5 +1072,18 @@ impl Account for NetworkAccount {
     ) -> Result<Vec<SecretId>> {
         let mut account = self.account.lock().await;
         Ok(account.import_contacts(content, progress).await?)
+    }
+
+    #[cfg(feature = "security-report")]
+    async fn generate_security_report<T, D, R>(
+        &mut self,
+        options: SecurityReportOptions<T, D, R>,
+    ) -> Result<SecurityReport<T>>
+    where
+        D: Fn(Vec<String>) -> R + Send + Sync,
+        R: std::future::Future<Output = Vec<T>> + Send + Sync,
+    {
+        let mut account = self.account.lock().await;
+        Ok(account.generate_security_report(options).await?)
     }
 }

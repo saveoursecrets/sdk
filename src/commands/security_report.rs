@@ -1,14 +1,16 @@
 use sos_net::{
     client::hashcheck,
     sdk::{
-        account::security_report::{
-            SecurityReportOptions, SecurityReportRow,
+        account::{
+            Account,
+            security_report::{
+                SecurityReportOptions, SecurityReportRow,
+            },
         },
         identity::AccountRef,
     },
 };
 use std::{fmt, path::PathBuf, str::FromStr};
-
 use crate::{helpers::account::resolve_user, Error, Result};
 
 /// Formats for writing reports.
