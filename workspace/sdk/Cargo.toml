@@ -34,40 +34,39 @@ sync = []
 binary-stream.workspace = true
 secrecy.workspace = true
 tokio-util.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+async-recursion.workspace = true
+http.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+hex.workspace = true
+k256.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+sha3.workspace = true
 async_zip = { version = "0.0.15", default-features = false, features = ["deflate", "tokio"], optional = true }
 csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
 sos-vfs = { version = "0.2", path = "../vfs" }
-async-trait = "0.1"
-async-recursion = "1"
 aes-gcm = { version = "0.10.1", features = ["std"] }
 chacha20poly1305 = { version = "0.10.1", features = ["std"] }
-tracing = "0.1"
 filetime = "0.2"
 rand = "0.8"
-thiserror = "1"
 web3-signature = { version = "0.4", features = ["single-party"] }
 web3-address = { version = "0.6", features = ["ethereum"] }
-serde = { version = "1", features = ["derive"] }
-hex = { version = "0.4", features = ["serde"] }
-serde_json = "1"
-k256 = { version = "0.13.1", features = ["ecdsa"] }
-subtle = "2"
+#subtle = "2"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
 serde_with = { version = "3", features = ["base64"] }
-# matches the version in k256
-sha1 = "0.10.6"
-sha2 = "0.10.6"
-sha3 = "0.10.6"
 app_dirs2 = "2"
-uuid = { version = "1", features = ["serde", "v4"] }
 url = { version = "2", features = ["serde"] }
 bitflags = "1"
 pem = { version = "3", features = ["serde"] }
 tempfile = "3.5"
 log = "0.4"
-http = "1"
 zxcvbn = "2"
 totp-rs = { version = "5.3", features = ["qr", "serde_support", "zeroize"] }
 #totp-sos = { version = "3", features = ["serde"] }

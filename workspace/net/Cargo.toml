@@ -36,7 +36,6 @@ server = [
   "dep:tower-http",
   "dep:async-stream",
   "dep:tokio-stream",
-
   "device",
 ]
 hashcheck = []
@@ -53,30 +52,29 @@ test-utils = ["sos-sdk/test-utils"]
 
 [dependencies]
 tokio-util.workspace = true
-thiserror = "1"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-async-trait = "0.1"
-async-recursion = "1"
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+async-trait.workspace = true
+async-recursion.workspace = true
+http.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+uuid.workspace = true
+hex.workspace = true
+sha3.workspace = true
 web3-signature = { version = "0.4", features = ["single-party"] }
 web3-address = { version = "0.6", features = ["ethereum"] }
-serde = "1"
-serde_json = "1"
 serde_with = "2"
 rand = "0.8"
 url = "2"
 urlencoding = "2"
 futures = "0.3"
 pin-project-lite = "0.2"
-uuid = { version = "1", features = ["serde", "v4"] }
-hex = "0.4"
 tempfile = "3.5"
-dirs = "4"
-http = "1"
 bs58 = "0.4"
 secrecy = "0.8"
 log = "0.4"
-sha3 = "0.10"
 once_cell = "1"
 parking_lot = "0.12"
 ouroboros = "0.17"
