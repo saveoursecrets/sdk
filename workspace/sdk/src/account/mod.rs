@@ -3,8 +3,6 @@ mod account;
 #[cfg(feature = "archive")]
 pub mod archive;
 mod builder;
-#[cfg(feature = "contacts")]
-pub mod contacts;
 #[cfg(feature = "device")]
 mod device;
 #[cfg(feature = "migrate")]
@@ -20,6 +18,9 @@ pub use account::{
     SecretMove,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};
+
+#[cfg(feature = "contacts")]
+pub use account::ContactImportProgress;
 
 /*
 use std::collections::HashMap;

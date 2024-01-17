@@ -133,6 +133,23 @@ pub struct FolderDelete<T> {
     pub sync_error: Option<SyncError<T>>,
 }
 
+/// Progress event when importing contacts.
+#[cfg(feature = "contacts")]
+pub enum ContactImportProgress {
+    /// Progress event when the number of contacts is known.
+    Ready {
+        /// Total number of contacts.
+        total: usize,
+    },
+    /// Progress event when a contact is being imported.
+    Item {
+        /// Label of the contact.
+        label: String,
+        /// Index of the contact.
+        index: usize,
+    },
+}
+
 /// Trait for account implementations.
 #[async_trait]
 pub trait Account {
@@ -534,6 +551,43 @@ pub trait Account {
         &mut self,
         summary: &Summary,
     ) -> std::result::Result<FolderDelete<Self::Error>, Self::Error>;
+
+    /// Try to load an avatar JPEG image for a contact.
+    ///
+    /// Looks in the current open folder if no specified folder is given.
+    #[cfg(feature = "contacts")]
+    async fn load_avatar(
+        &mut self,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+    ) -> std::result::Result<Option<Vec<u8>>, Self::Error>;
+
+    /// Export a contact secret to a vCard file.
+    #[cfg(feature = "contacts")]
+    async fn export_contact(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Export all contacts to a single vCard.
+    #[cfg(feature = "contacts")]
+    async fn export_all_contacts(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Import contacts from a vCard string buffer.
+    ///
+    /// The account must have a folder with the contacts
+    /// flag.
+    #[cfg(feature = "contacts")]
+    async fn import_contacts(
+        &mut self,
+        content: &str,
+        progress: impl Fn(ContactImportProgress) + Send + Sync,
+    ) -> std::result::Result<Vec<SecretId>, Self::Error>;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -1988,5 +2042,171 @@ impl Account for LocalAccount {
             commit_state,
             sync_error: None,
         })
+    }
+
+    #[cfg(feature = "contacts")]
+    async fn load_avatar(
+        &mut self,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+    ) -> Result<Option<Vec<u8>>> {
+        let (data, _) = self.read_secret(secret_id, folder).await?;
+        if let Secret::Contact { vcard, .. } = &data.secret {
+            let jpeg = if let Ok(mut jpegs) = vcard.parse_photo_jpeg() {
+                if !jpegs.is_empty() {
+                    Some(jpegs.remove(0))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            return Ok(jpeg);
+        }
+        Ok(None)
+    }
+
+    #[cfg(feature = "contacts")]
+    async fn export_contact(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+    ) -> Result<()> {
+        let current_folder = {
+            let storage = self.storage().await?;
+            let reader = storage.read().await;
+            folder
+                .clone()
+                .or_else(|| reader.current_folder())
+                .ok_or(Error::NoOpenFolder)?
+        };
+
+        let (data, _) = self.get_secret(secret_id, folder, false).await?;
+        if let Secret::Contact { vcard, .. } = &data.secret {
+            let content = vcard.to_string();
+            vfs::write(&path, content).await?;
+        } else {
+            return Err(Error::NotContact);
+        }
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ExportContacts,
+                self.address().clone(),
+                Some(AuditData::Secret(*current_folder.id(), *secret_id)),
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
+
+        Ok(())
+    }
+
+    #[cfg(feature = "contacts")]
+    async fn export_all_contacts(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+    ) -> Result<()> {
+        let contacts = self
+            .contacts_folder()
+            .await
+            .ok_or_else(|| Error::NoContactsFolder)?;
+
+        let contacts_passphrase =
+            self.user()?.find_folder_password(contacts.id()).await?;
+        let (vault, _) =
+            Identity::load_local_vault(&self.paths, contacts.id()).await?;
+        let mut keeper = Gatekeeper::new(vault);
+        let key: AccessKey = contacts_passphrase.into();
+        keeper.unlock(&key).await?;
+
+        let mut vcf = String::new();
+        let keys: Vec<&SecretId> = keeper.vault().keys().collect();
+        for key in keys {
+            if let Some((_, Secret::Contact { vcard, .. }, _)) =
+                keeper.read_secret(key).await?
+            {
+                vcf.push_str(&vcard.to_string());
+            }
+        }
+        vfs::write(path, vcf.as_bytes()).await?;
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ExportContacts,
+                self.address().clone(),
+                None,
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
+
+        Ok(())
+    }
+
+    #[cfg(feature = "contacts")]
+    async fn import_contacts(
+        &mut self,
+        content: &str,
+        progress: impl Fn(ContactImportProgress) + Send + Sync,
+    ) -> Result<Vec<SecretId>> {
+        use crate::vcard4::parse;
+
+        let mut ids = Vec::new();
+        let current = {
+            let storage = self.storage().await?;
+            let reader = storage.read().await;
+            reader.current_folder()
+        };
+
+        let contacts = self
+            .contacts_folder()
+            .await
+            .ok_or_else(|| Error::NoContactsFolder)?;
+        self.open_vault(&contacts, false).await?;
+
+        let cards = parse(content)?;
+
+        progress(ContactImportProgress::Ready { total: cards.len() });
+
+        for (index, vcard) in cards.into_iter().enumerate() {
+            let label = vcard
+                .formatted_name
+                .get(0)
+                .as_ref()
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+            let secret = Secret::Contact {
+                vcard: Box::new(vcard),
+                user_data: Default::default(),
+            };
+
+            progress(ContactImportProgress::Item {
+                label: label.clone(),
+                index,
+            });
+
+            let meta = SecretMeta::new(label, secret.kind());
+            let result =
+                self.create_secret(meta, secret, Default::default()).await?;
+            ids.push(result.id);
+        }
+
+        if let Some(folder) = current {
+            self.open_vault(&folder, false).await?;
+        }
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ImportContacts,
+                self.address().clone(),
+                None,
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
+
+        Ok(ids)
     }
 }

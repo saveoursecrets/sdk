@@ -2,8 +2,8 @@
 
 #[cfg(feature = "archive")]
 mod archive;
-#[cfg(feature = "contacts")]
-mod contacts;
+//#[cfg(feature = "contacts")]
+//mod contacts;
 //#[cfg(feature = "device")]
 //mod device;
 #[cfg(feature = "listen")]

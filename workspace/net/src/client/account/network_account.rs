@@ -43,6 +43,9 @@ use tracing::{span, Level};
 #[cfg(feature = "listen")]
 use crate::client::WebSocketHandle;
 
+#[cfg(feature = "contacts")]
+use crate::sdk::account::ContactImportProgress;
+
 use crate::client::{
     Error, Remote, RemoteBridge, RemoteSync, Remotes, Result,
 };
@@ -1024,5 +1027,45 @@ impl Account for NetworkAccount {
         };
 
         Ok(result)
+    }
+
+    #[cfg(feature = "contacts")]
+    async fn load_avatar(
+        &mut self,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+    ) -> Result<Option<Vec<u8>>> {
+        let mut account = self.account.lock().await;
+        Ok(account.load_avatar(secret_id, folder).await?)
+    }
+
+    #[cfg(feature = "contacts")]
+    async fn export_contact(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+        secret_id: &SecretId,
+        folder: Option<Summary>,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.export_contact(path, secret_id, folder).await?)
+    }
+
+    #[cfg(feature = "contacts")]
+    async fn export_all_contacts(
+        &mut self,
+        path: impl AsRef<Path> + Send + Sync,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.export_all_contacts(path).await?)
+    }
+
+    #[cfg(feature = "contacts")]
+    async fn import_contacts(
+        &mut self,
+        content: &str,
+        progress: impl Fn(ContactImportProgress) + Send + Sync,
+    ) -> Result<Vec<SecretId>> {
+        let mut account = self.account.lock().await;
+        Ok(account.import_contacts(content, progress).await?)
     }
 }
