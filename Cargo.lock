@@ -4068,7 +4068,7 @@ dependencies = [
  "tokio-stream",
  "tokio-tungstenite",
  "tokio-util",
- "toml 0.5.11",
+ "toml 0.8.8",
  "tower",
  "tower-http",
  "tracing",
