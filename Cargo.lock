@@ -2177,16 +2177,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "if-addrs"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cabb0019d51a643781ff15c9c8a3e5dedc365c47211270f4e8f82812fedd8f0a"
-dependencies = [
- "libc",
- "windows-sys 0.48.0",
-]
-
-[[package]]
 name = "image"
 version = "0.24.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4080,7 +4070,6 @@ dependencies = [
  "futures",
  "hex",
  "http 1.0.0",
- "if-addrs",
  "log",
  "once_cell",
  "ouroboros",

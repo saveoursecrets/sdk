@@ -44,10 +44,7 @@ archive = ["sos-sdk/archive"]
 files = ["sos-sdk/files"]
 contacts = ["sos-sdk/contacts"]
 migrate = ["sos-sdk/migrate"]
-device = [
-  "dep:if-addrs",
-  "sos-sdk/device",
-]
+device = ["sos-sdk/device"]
 recovery = ["sos-sdk/recovery"]
 search = ["sos-sdk/search"]
 security-report = ["sos-sdk/security-report"]
@@ -95,9 +92,6 @@ tower-http = { version = "0.5", features = ["cors", "trace"], optional = true }
 async-stream = { version = "0.3", optional = true }
 tokio-stream = { version = "0.1", optional = true }
 tokio-tungstenite = { version = "0.21", features = ["rustls-tls-native-roots"] , optional = true}
-
-# device
-if-addrs = { version = "0.10.1", optional = true }
 
 [dependencies.sos-sdk]
 version = "0.8"
