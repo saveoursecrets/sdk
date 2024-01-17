@@ -263,9 +263,6 @@ mod files {
         ) -> Result<IndexSet<ExternalFile>> {
             let mut files: IndexSet<ExternalFile> = IndexSet::new();
 
-            let stream = self.log.stream(false).await;
-            pin_mut!(stream);
-
             fn add_file_event(
                 event: FileEvent,
                 files: &mut IndexSet<ExternalFile>,
@@ -290,23 +287,26 @@ mod files {
                 }
             }
 
-            // Scan until target commit
+            // Reduce from the target commit.
             //
-            // TODO: we could optimize this to scan the rows
-            // TODO: more efficiently without decoding the record/event
+            // When reducing from a target commit we perform
+            // a diff as this reads from the tail of the event
+            // log which will be faster than scanning when there
+            // are lots of file events.
             if let Some(from) = from {
-                while let Some(event) = stream.next().await {
-                    let (record, event) = event?;
-                    if from == record.commit() {
-                        add_file_event(event, &mut files);
-                        break;
-                    }
+                let patch = self.log.diff(Some(from)).await?;
+                let events: Vec<FileEvent> = patch.into();
+                for event in events {
+                    add_file_event(event, &mut files);
                 }
-            }
+            } else {
+                let stream = self.log.stream(false).await;
+                pin_mut!(stream);
 
-            while let Some(event) = stream.next().await {
-                let (_, event) = event?;
-                add_file_event(event, &mut files);
+                while let Some(event) = stream.next().await {
+                    let (_, event) = event?;
+                    add_file_event(event, &mut files);
+                }
             }
 
             Ok(files)
