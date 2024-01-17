@@ -51,6 +51,9 @@ use crate::sdk::account::security_report::{
     SecurityReport, SecurityReportOptions,
 };
 
+#[cfg(feature = "migrate")]
+use crate::sdk::migrate::import::ImportTarget;
+
 use crate::client::{
     Error, Remote, RemoteBridge, RemoteSync, Remotes, Result,
 };
@@ -1085,5 +1088,36 @@ impl Account for NetworkAccount {
     {
         let mut account = self.account.lock().await;
         Ok(account.generate_security_report(options).await?)
+    }
+
+    #[cfg(feature = "migrate")]
+    async fn export_unsafe_archive(
+        &self,
+        path: impl AsRef<Path> + Send + Sync,
+    ) -> Result<()> {
+        let account = self.account.lock().await;
+        Ok(account.export_unsafe_archive(path).await?)
+    }
+
+    #[cfg(feature = "migrate")]
+    async fn import_file(
+        &mut self,
+        target: ImportTarget,
+    ) -> Result<FolderCreate<Self::Error>> {
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.import_file(target).await?
+        };
+
+        let result = FolderCreate {
+            folder: result.folder,
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
     }
 }
