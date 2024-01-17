@@ -42,7 +42,7 @@ async fn device_revoke() -> Result<()> {
     // Start enrollment by fetching the account data
     // from the remote server
     let enrollment =
-        NetworkAccount::enroll(origin.clone(), signing_key, Some(data_dir))
+        NetworkAccount::enroll_device(origin.clone(), signing_key, Some(data_dir))
             .await?;
 
     // Complete device enrollment by authenticating

@@ -35,6 +35,9 @@ use crate::audit::{AuditData, AuditEvent};
 #[cfg(feature = "archive")]
 use crate::account::archive::{Inventory, RestoreOptions};
 
+#[cfg(feature = "device")]
+use crate::device::DevicePublicKey;
+
 #[cfg(feature = "search")]
 use crate::storage::search::*;
 
@@ -224,6 +227,9 @@ pub trait Account {
 
     /// Signing key for the account.
     async fn account_signer(&self) -> std::result::Result<BoxedEcdsaSigner, Self::Error>;
+
+    /// Public key for the device signing key.
+    async fn device_public_key(&self) -> std::result::Result<DevicePublicKey, Self::Error>;
 
     /// Public identity information.
     async fn public_identity(
@@ -1323,6 +1329,10 @@ impl Account for LocalAccount {
 
     async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
         Ok(self.user()?.identity()?.signer().clone())
+    }
+
+    async fn device_public_key(&self) -> Result<DevicePublicKey> {
+        Ok(self.user()?.identity()?.device().public_key())
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {

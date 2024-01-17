@@ -100,7 +100,7 @@ pub struct NetworkAccount {
 impl NetworkAccount {
     /// Enroll a new device.
     #[cfg(feature = "device")]
-    pub async fn enroll(
+    pub async fn enroll_device(
         origin: Origin,
         account_signing_key: BoxedEcdsaSigner,
         data_dir: Option<PathBuf>,
@@ -215,13 +215,6 @@ impl NetworkAccount {
     pub async fn generate_folder_password(&self) -> Result<SecretString> {
         let account = self.account.lock().await;
         Ok(account.user()?.generate_folder_password()?)
-    }
-
-    /// Public key for the device signing key.
-    pub async fn device_public_key(&self) -> Result<DevicePublicKey> {
-        let account = self.account.lock().await;
-        let device = account.user()?.identity()?.device();
-        Ok(device.public_key())
     }
 
     async fn device_signer(&self) -> Result<DeviceSigner> {
@@ -368,16 +361,6 @@ impl NetworkAccount {
             handle.close();
         }
     }
-
-    /// Expected location for a file by convention.
-    pub fn file_location(
-        &self,
-        vault_id: &VaultId,
-        secret_id: &SecretId,
-        file_name: &str,
-    ) -> PathBuf {
-        self.paths().file_location(vault_id, secret_id, file_name)
-    }
 }
 
 #[async_trait]
@@ -465,6 +448,11 @@ impl Account for NetworkAccount {
     async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
         let account = self.account.lock().await;
         Ok(account.user()?.identity()?.signer().clone())
+    }
+
+    async fn device_public_key(&self) -> Result<DevicePublicKey> {
+        let account = self.account.lock().await;
+        Ok(account.device_public_key().await?)
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
