@@ -91,6 +91,8 @@ pub struct SecretChange<T> {
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
+    #[doc(hidden)]
+    pub marker: std::marker::PhantomData<T>,
 }
 
 /// Result information for a bulk insert.
@@ -100,6 +102,8 @@ pub struct SecretInsert<T> {
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
+    #[doc(hidden)]
+    pub marker: std::marker::PhantomData<T>,
 }
 
 /// Result information for a secret move event.
@@ -111,6 +115,8 @@ pub struct SecretMove<T> {
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
+    #[doc(hidden)]
+    pub marker: std::marker::PhantomData<T>,
 }
 
 /// Result information for a deleted secret.
@@ -125,6 +131,8 @@ pub struct SecretDelete<T> {
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
+    #[doc(hidden)]
+    pub marker: std::marker::PhantomData<T>,
 }
 
 /// Result information for folder creation.
@@ -138,6 +146,8 @@ pub struct FolderCreate<T> {
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
+    #[doc(hidden)]
+    pub marker: std::marker::PhantomData<T>,
 }
 
 /// Result information for changes to a folder's attributes.
@@ -149,6 +159,8 @@ pub struct FolderChange<T> {
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
+    #[doc(hidden)]
+    pub marker: std::marker::PhantomData<T>,
 }
 
 /// Result information for folder deletion.
@@ -160,6 +172,8 @@ pub struct FolderDelete<T> {
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
+    #[doc(hidden)]
+    pub marker: std::marker::PhantomData<T>,
 }
 
 /// Progress event when importing contacts.
@@ -1107,7 +1121,9 @@ impl LocalAccount {
         Ok(SecretMove {
             id: new_id,
             event,
+            #[cfg(feature = "sync")]
             sync_error: None,
+            marker: std::marker::PhantomData,
         })
     }
 
@@ -1399,7 +1415,9 @@ impl Account for LocalAccount {
         Ok(FolderChange {
             event,
             commit_state,
+            #[cfg(feature = "sync")]
             sync_error: None,
+            marker: std::marker::PhantomData,
         })
     }
 
@@ -1843,7 +1861,9 @@ impl Account for LocalAccount {
             event,
             commit_state,
             folder,
+            #[cfg(feature = "sync")]
             sync_error: None,
+            marker: std::marker::PhantomData,
         })
     }
 
@@ -1859,7 +1879,9 @@ impl Account for LocalAccount {
         }
         Ok(SecretInsert {
             results,
+            #[cfg(feature = "sync")]
             sync_error: None,
+            marker: std::marker::PhantomData,
         })
     }
 
@@ -1908,7 +1930,9 @@ impl Account for LocalAccount {
             event,
             commit_state,
             folder,
+            #[cfg(feature = "sync")]
             sync_error: None,
+            marker: std::marker::PhantomData,
         })
     }
 
@@ -1955,7 +1979,9 @@ impl Account for LocalAccount {
             event,
             commit_state,
             folder,
+            #[cfg(feature = "sync")]
             sync_error: None,
+            marker: std::marker::PhantomData,
         })
     }
 
@@ -2059,7 +2085,9 @@ impl Account for LocalAccount {
             folder,
             event,
             commit_state,
+            #[cfg(feature = "sync")]
             sync_error: None,
+            marker: std::marker::PhantomData,
         })
     }
 
@@ -2085,7 +2113,9 @@ impl Account for LocalAccount {
         Ok(FolderChange {
             event,
             commit_state,
+            #[cfg(feature = "sync")]
             sync_error: None,
+            marker: std::marker::PhantomData,
         })
     }
 
@@ -2221,7 +2251,9 @@ impl Account for LocalAccount {
             folder: summary,
             event,
             commit_state,
+            #[cfg(feature = "sync")]
             sync_error: None,
+            marker: std::marker::PhantomData,
         })
     }
 
@@ -2322,7 +2354,9 @@ impl Account for LocalAccount {
         Ok(FolderDelete {
             events,
             commit_state,
+            #[cfg(feature = "sync")]
             sync_error: None,
+            marker: std::marker::PhantomData,
         })
     }
 

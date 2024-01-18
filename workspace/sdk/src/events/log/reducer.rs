@@ -233,7 +233,7 @@ mod device {
 #[cfg(feature = "device")]
 pub use device::DeviceReducer;
 
-#[cfg(feature = "files")]
+#[cfg(all(feature = "files", feature = "sync"))]
 mod files {
     use crate::{
         commit::CommitHash,
@@ -314,7 +314,7 @@ mod files {
     }
 }
 
-#[cfg(feature = "files")]
+#[cfg(all(feature = "files", feature = "sync"))]
 pub use files::FileReducer;
 
 /*

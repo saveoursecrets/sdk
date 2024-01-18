@@ -480,6 +480,7 @@ impl Account for NetworkAccount {
             event: result.event,
             commit_state: result.commit_state,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -750,6 +751,7 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -777,9 +779,11 @@ impl Account for NetworkAccount {
                     commit_state: result.commit_state,
                     folder: result.folder,
                     sync_error: None,
+                    marker: std::marker::PhantomData,
                 })
                 .collect(),
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -812,6 +816,7 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -835,6 +840,7 @@ impl Account for NetworkAccount {
             id: result.id,
             event: result.event,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -869,6 +875,7 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -890,6 +897,7 @@ impl Account for NetworkAccount {
             id: result.id,
             event: result.event,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -915,6 +923,7 @@ impl Account for NetworkAccount {
             id: result.id,
             event: result.event,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok((result, to))
@@ -945,6 +954,7 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -965,6 +975,7 @@ impl Account for NetworkAccount {
             event: result.event,
             commit_state: result.commit_state,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -985,6 +996,7 @@ impl Account for NetworkAccount {
             event: result.event,
             commit_state: result.commit_state,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -1018,6 +1030,7 @@ impl Account for NetworkAccount {
             event: result.event,
             commit_state: result.commit_state,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -1062,6 +1075,7 @@ impl Account for NetworkAccount {
             events: result.events,
             commit_state: result.commit_state,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
@@ -1146,6 +1160,7 @@ impl Account for NetworkAccount {
             event: result.event,
             commit_state: result.commit_state,
             sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
         };
 
         Ok(result)
