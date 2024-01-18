@@ -85,6 +85,7 @@ impl Service for AccountService {
                     (request.id(), ()).try_into()?;
                 Ok(reply)
             }
+            /*
             SYNC_STATUS => {
                 let account_exists = {
                     let reader = backend.read().await;
@@ -106,6 +107,7 @@ impl Service for AccountService {
                     (request.id(), result).try_into()?;
                 Ok(reply)
             }
+            */
             _ => Err(Error::RpcUnknownMethod(request.method().to_owned())),
         }
     }

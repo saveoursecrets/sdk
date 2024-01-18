@@ -242,35 +242,20 @@ impl RpcClient {
         &self,
         diff: &DeviceDiff,
     ) -> Result<http::StatusCode> {
-        let url = self.build_url("api/account")?;
-
-        let id = self.next_id().await;
         let body = encode(diff).await?;
-        let request = RequestMessage::new(
-            Some(id),
-            DEVICE_PATCH,
-            (),
-            Cow::Owned(body),
-        )?;
-
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
+        let url = self.build_url("api/v1/sync/account/devices")?;
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
-
+        let auth = bearer_prefix(&account_signature, None);
         let response = self
-            .send_request(url, body, account_signature, None)
+            .client
+            .patch(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
             .await?;
-        let response = self.check_response(response).await?;
-        let (status, _, _) = self
-            .read_response::<()>(
-                convert_status_code(response.status()),
-                &response.bytes().await?,
-            )
-            .await?;
-
-        Ok(status)
+        Ok(convert_status_code(response.status()))
     }
 
     /// Try to sync status on remote.

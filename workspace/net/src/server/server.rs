@@ -17,7 +17,7 @@ use axum::{
         HeaderValue, Method,
     },
     middleware,
-    routing::{get, post, put},
+    routing::{get, post, put, patch},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
@@ -211,6 +211,14 @@ impl Server {
                     .route_layer(middleware::from_fn(file_operation_lock)),
             )
             .route("/api/sync", post(ServiceHandler::sync));
+
+        #[cfg(feature = "device")]
+        {
+            app = app.route(
+                "/api/v1/sync/account/devices",
+                patch(AccountHandler::patch_devices),
+            );
+        }
 
         #[cfg(feature = "listen")]
         {

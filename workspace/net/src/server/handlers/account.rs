@@ -39,6 +39,9 @@ use tokio::{
 };
 use tokio_util::io::ReaderStream;
 
+// FIXME: sensible body limit
+const BODY_LIMIT: usize = usize::MAX;
+
 // Handler for accounts.
 pub(crate) struct AccountHandler;
 impl AccountHandler {
@@ -49,7 +52,7 @@ impl AccountHandler {
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         body: Body,
     ) -> impl IntoResponse {
-        match to_bytes(body, usize::MAX).await {
+        match to_bytes(body, BODY_LIMIT).await {
             Ok(bytes) => match authenticate_endpoint(bearer, &bytes).await {
                 Ok(caller) => {
                     match create_account(state, backend, caller, &bytes).await
@@ -78,6 +81,29 @@ impl AccountHandler {
                 Err(error) => error.into_response(),
             },
             Err(error) => error.into_response(),
+        }
+    }
+
+    /// Handler that patches device events.
+    #[cfg(feature = "device")]
+    pub(crate) async fn patch_devices(
+        Extension(state): Extension<ServerState>,
+        Extension(backend): Extension<ServerBackend>,
+        TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+        body: Body,
+    ) -> impl IntoResponse {
+        match to_bytes(body, BODY_LIMIT).await {
+            Ok(bytes) => match authenticate_endpoint(bearer, &bytes).await {
+                Ok(caller) => {
+                    match patch_devices(state, backend, caller, &bytes).await
+                    {
+                        Ok(result) => result.into_response(),
+                        Err(error) => error.into_response(),
+                    }
+                }
+                Err(error) => error.into_response(),
+            },
+            Err(e) => StatusCode::BAD_REQUEST.into_response(),
         }
     }
 
@@ -149,4 +175,18 @@ async fn sync_status(
         None
     };
     Ok(serde_json::to_vec(&result)?)
+}
+
+#[cfg(feature = "device")]
+async fn patch_devices(
+    _state: ServerState,
+    backend: ServerBackend,
+    caller: Caller,
+    bytes: &[u8],
+) -> Result<()> {
+    use crate::sdk::sync::DeviceDiff;
+    let diff: DeviceDiff = decode(bytes).await?;
+    let reader = backend.read().await;
+    reader.patch_devices(caller.address(), &diff).await?;
+    Ok(())
 }
