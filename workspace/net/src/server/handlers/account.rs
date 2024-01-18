@@ -53,7 +53,15 @@ impl AccountHandler {
         body: Body,
     ) -> impl IntoResponse {
         match to_bytes(body, BODY_LIMIT).await {
-            Ok(bytes) => match authenticate_endpoint(bearer, &bytes).await {
+            Ok(bytes) => match authenticate_endpoint(
+                bearer,
+                &bytes,
+                Arc::clone(&state),
+                Arc::clone(&backend),
+                false,
+            )
+            .await
+            {
                 Ok(caller) => {
                     match create_account(state, backend, caller, &bytes).await
                     {
@@ -75,7 +83,15 @@ impl AccountHandler {
         request: Request,
     ) -> impl IntoResponse {
         let uri = request.uri().path().to_string();
-        match authenticate_endpoint(bearer, uri.as_bytes()).await {
+        match authenticate_endpoint(
+            bearer,
+            uri.as_bytes(),
+            Arc::clone(&state),
+            Arc::clone(&backend),
+            false,
+        )
+        .await
+        {
             Ok(caller) => match fetch_account(state, backend, caller).await {
                 Ok(result) => result.into_response(),
                 Err(error) => error.into_response(),
@@ -93,7 +109,15 @@ impl AccountHandler {
         body: Body,
     ) -> impl IntoResponse {
         match to_bytes(body, BODY_LIMIT).await {
-            Ok(bytes) => match authenticate_endpoint(bearer, &bytes).await {
+            Ok(bytes) => match authenticate_endpoint(
+                bearer,
+                &bytes,
+                Arc::clone(&state),
+                Arc::clone(&backend),
+                false,
+            )
+            .await
+            {
                 Ok(caller) => {
                     match patch_devices(state, backend, caller, &bytes).await
                     {
@@ -115,7 +139,16 @@ impl AccountHandler {
         request: Request,
     ) -> impl IntoResponse {
         let uri = request.uri().path().to_string();
-        match authenticate_endpoint(bearer, uri.as_bytes()).await {
+        // FIXME: this endpoint should be restricted!
+        match authenticate_endpoint(
+            bearer,
+            uri.as_bytes(),
+            Arc::clone(&state),
+            Arc::clone(&backend),
+            false,
+        )
+        .await
+        {
             Ok(caller) => match sync_status(state, backend, caller).await {
                 Ok(result) => result.into_response(),
                 Err(error) => error.into_response(),

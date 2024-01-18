@@ -17,7 +17,7 @@ use axum::{
         HeaderValue, Method,
     },
     middleware,
-    routing::{get, post, put, patch},
+    routing::{get, patch, post, put},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};

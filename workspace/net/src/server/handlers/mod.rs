@@ -9,7 +9,7 @@ use axum::{
 use super::ServerState;
 use crate::server::{
     authenticate::{self, BearerToken},
-    Error, Result,
+    Error, Result, ServerBackend,
 };
 use axum_extra::{
     headers::{authorization::Bearer, Authorization},
@@ -74,10 +74,35 @@ impl Caller {
 async fn authenticate_endpoint(
     bearer: Authorization<Bearer>,
     signed_data: &[u8],
+    state: ServerState,
+    backend: ServerBackend,
+    restricted: bool,
 ) -> Result<Caller> {
     let token = authenticate::bearer(bearer, signed_data)
         .await
         .map_err(|_| Error::BadRequest)?;
+
+    // Deny unauthorized account addresses
+    {
+        let reader = state.read().await;
+        if !reader.config.access.is_allowed_access(&token.address) {
+            return Err(Error::Forbidden);
+        }
+    }
+
+    // Restricted services require a device signature
+    match (restricted, &token.device_signature) {
+        (true, None) => {
+            return Err(Error::Forbidden);
+        }
+        (true, Some(device_signature)) => {
+            let reader = backend.read().await;
+            reader
+                .verify_device(&token.address, device_signature, &signed_data)
+                .await?;
+        }
+        _ => {}
+    }
 
     // Call the target service for a reply
     let owner = Caller {
