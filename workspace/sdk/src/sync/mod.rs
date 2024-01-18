@@ -636,6 +636,62 @@ pub trait SyncStorage {
     }
 }
 
+/// Trait for types that can merge diffs.
+#[async_trait]
+pub trait Merge {
+    /// Merge changes to the identity folder.
+    async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize>;
+
+    /// Merge changes to the account event log.
+    async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize>;
+
+    /// Merge changes to the devices event log.
+    #[cfg(feature = "device")]
+    async fn merge_device(&mut self, diff: &DeviceDiff) -> Result<usize>;
+
+    /// Merge changes to the files event log.
+    #[cfg(feature = "files")]
+    async fn merge_files(&mut self, diff: &FileDiff) -> Result<usize>;
+
+    /// Merge changes to folders.
+    async fn merge_folders(
+        &mut self,
+        folders: &IndexMap<VaultId, FolderDiff>,
+    ) -> Result<usize>;
+
+    /// Merge a diff into this storage.
+    async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
+        //let span = span!(Level::DEBUG, "merge");
+        //let _enter = span.enter();
+
+        let mut num_changes = 0;
+
+        if let Some(diff) = &diff.identity {
+            num_changes += self.merge_identity(diff).await?;
+        }
+
+        if let Some(diff) = &diff.account {
+            num_changes += self.merge_account(diff).await?;
+        }
+
+        #[cfg(feature = "device")]
+        if let Some(diff) = &diff.device {
+            num_changes += self.merge_device(diff).await?;
+        }
+
+        #[cfg(feature = "files")]
+        if let Some(diff) = &diff.files {
+            num_changes += self.merge_files(diff).await?;
+        }
+
+        num_changes += self.merge_folders(&diff.folders).await?;
+
+        tracing::debug!(num_changes = %num_changes, "merge complete");
+
+        Ok(num_changes)
+    }
+}
+
 /// Difference between a local sync status and a remote
 /// sync status.
 pub async fn diff(

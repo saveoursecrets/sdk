@@ -247,7 +247,9 @@ pub trait Account {
 
     /// Current device information.
     #[cfg(feature = "device")]
-    async fn current_device(&self) -> std::result::Result<TrustedDevice, Self::Error>;
+    async fn current_device(
+        &self,
+    ) -> std::result::Result<TrustedDevice, Self::Error>;
 
     /// Public identity information.
     async fn public_identity(
@@ -803,7 +805,7 @@ impl LocalAccount {
             .map(|a| &mut a.user)
             .ok_or(Error::NotAuthenticated)
     }
-    
+
     async fn initialize_account_log(
         paths: &Paths,
         account_log: Arc<RwLock<AccountEventLog>>,
@@ -1339,7 +1341,8 @@ impl Account for LocalAccount {
 
     #[cfg(feature = "device")]
     async fn current_device(&self) -> Result<TrustedDevice> {
-        Ok(self.authenticated
+        Ok(self
+            .authenticated
             .as_ref()
             .ok_or(Error::NotAuthenticated)?
             .user

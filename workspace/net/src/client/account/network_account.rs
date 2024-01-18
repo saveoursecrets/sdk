@@ -62,9 +62,8 @@ use crate::sdk::account::security_report::{
 #[cfg(feature = "migrate")]
 use crate::sdk::migrate::import::ImportTarget;
 
-use crate::client::{
-    Error, Remote, RemoteBridge, RemoteSync, Remotes, Result,
-};
+use super::remote::Remotes;
+use crate::client::{Error, Remote, RemoteBridge, RemoteSync, Result};
 
 /// Account with networking capability.
 pub struct NetworkAccount {
@@ -192,32 +191,39 @@ impl NetworkAccount {
             hex::encode(&result)
         })
     }
-    
-    /// Add a server.
-    pub async fn add_server(&mut self, origin: Origin) -> Result<()> {
-        let provider = self.remote_bridge(&origin).await?;
-        self.insert_remote(origin.into(), Box::new(provider)).await
-    }
 
-    /// Insert a remote origin for synchronization.
+    /// Add a server.
     ///
-    /// If a remote with the given origin already exists it is
+    /// If a server with the given origin already exists it is
     /// overwritten.
-    async fn insert_remote(
-        &mut self,
-        origin: Origin,
-        remote: Remote,
-    ) -> Result<()> {
+    pub async fn add_server(&mut self, origin: Origin) -> Result<()> {
+        let remote = self.remote_bridge(&origin).await?;
         {
             let mut remotes = self.remotes.write().await;
-            remotes.insert(origin, remote);
+            remotes.insert(origin, Box::new(remote));
             self.save_remotes(&*remotes).await?;
         }
         self.start_file_transfers().await
     }
 
-    /// Create a remote bridge associated with this local storage and
-    /// signing identity.
+    /// Remove a server.
+    pub async fn remove_server(
+        &mut self,
+        origin: &Origin,
+    ) -> Result<Option<Remote>> {
+        let remote = {
+            let mut remotes = self.remotes.write().await;
+            let remote = remotes.remove(origin);
+            if remote.is_some() {
+                self.save_remotes(&*remotes).await?;
+            }
+            remote
+        };
+        self.start_file_transfers().await?;
+        Ok(remote)
+    }
+
+    /// Create a remote bridge between this account and the origin server.
     async fn remote_bridge(&self, origin: &Origin) -> Result<RemoteBridge> {
         let signer = self.account_signer().await?;
         let device = self.device_signer().await?;
@@ -229,23 +235,6 @@ impl NetworkAccount {
             self.client_connection_id().await?,
         )?;
         Ok(provider)
-    }
-
-    /// Delete a remote if it exists.
-    #[doc(hidden)]
-    #[cfg(debug_assertions)]
-    pub async fn delete_remote(
-        &mut self,
-        origin: &Origin,
-    ) -> Result<Option<Remote>> {
-        let remote = {
-            let mut remotes = self.remotes.write().await;
-            let remote = remotes.remove(origin);
-            self.save_remotes(&*remotes).await?;
-            remote
-        };
-        self.start_file_transfers().await?;
-        Ok(remote)
     }
 
     /// List the origin servers.
@@ -425,7 +414,7 @@ impl Account for NetworkAccount {
         let account = self.account.lock().await;
         Ok(account.account_signer().await?)
     }
-    
+
     #[cfg(feature = "device")]
     async fn device_signer(&self) -> Result<DeviceSigner> {
         let account = self.account.lock().await;

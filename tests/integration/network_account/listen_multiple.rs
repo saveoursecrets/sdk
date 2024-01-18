@@ -57,7 +57,7 @@ async fn integration_sync_listen_multiple() -> Result<()> {
     assert_eq!(2, num_events(&mut device3.owner, &default_folder_id).await);
 
     // Assert first device
-    let mut provider = device1.owner.delete_remote(&origin).await?.unwrap();
+    let mut provider = device1.owner.remove_server(&origin).await?.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
@@ -71,7 +71,7 @@ async fn integration_sync_listen_multiple() -> Result<()> {
     .await?;
 
     // Assert second device
-    let mut provider = device2.owner.delete_remote(&origin).await?.unwrap();
+    let mut provider = device2.owner.remove_server(&origin).await?.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
@@ -85,7 +85,7 @@ async fn integration_sync_listen_multiple() -> Result<()> {
     .await?;
 
     // Assert third device
-    let mut provider = device3.owner.delete_remote(&origin).await?.unwrap();
+    let mut provider = device3.owner.remove_server(&origin).await?.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()

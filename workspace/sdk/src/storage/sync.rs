@@ -7,8 +7,8 @@ use crate::{
     },
     storage::ServerStorage,
     sync::{
-        AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch,
-        SyncDiff, SyncStatus, SyncStorage,
+        AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch, Merge,
+        SyncStatus, SyncStorage,
     },
     vault::VaultId,
     vfs, Error, Paths, Result,
@@ -17,7 +17,6 @@ use async_trait::async_trait;
 use indexmap::IndexMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{span, Level};
 
 #[cfg(feature = "device")]
 use crate::{
@@ -107,39 +106,10 @@ impl ServerStorage {
 
         Ok(())
     }
+}
 
-    /// Merge a diff into this storage.
-    pub async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
-        let span = span!(Level::DEBUG, "merge_server");
-        let _enter = span.enter();
-
-        let mut num_changes = 0;
-
-        if let Some(diff) = &diff.identity {
-            num_changes += self.merge_identity(diff).await?;
-        }
-
-        if let Some(diff) = &diff.account {
-            num_changes += self.merge_account(diff).await?;
-        }
-
-        #[cfg(feature = "device")]
-        if let Some(diff) = &diff.device {
-            num_changes += self.merge_device(diff).await?;
-        }
-
-        #[cfg(feature = "files")]
-        if let Some(diff) = &diff.files {
-            num_changes += self.merge_files(diff).await?;
-        }
-
-        num_changes += self.merge_folders(&diff.folders).await?;
-
-        tracing::debug!(num_changes = %num_changes, "merge complete");
-
-        Ok(num_changes)
-    }
-
+#[async_trait]
+impl Merge for ServerStorage {
     async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize> {
         let mut writer = self.identity_log.write().await;
         tracing::debug!(

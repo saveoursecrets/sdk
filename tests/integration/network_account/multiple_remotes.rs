@@ -40,7 +40,7 @@ async fn integration_sync_multiple_remotes() -> Result<()> {
     // Assert on first server
     let mut provider = device1
         .owner
-        .delete_remote(&(server1.origin).into())
+        .remove_server(&(server1.origin).into())
         .await?
         .unwrap();
     let remote_provider = provider
@@ -57,7 +57,7 @@ async fn integration_sync_multiple_remotes() -> Result<()> {
     // Assert on second server
     let mut provider = device1
         .owner
-        .delete_remote(&(server2.origin).into())
+        .remove_server(&(server2.origin).into())
         .await?
         .unwrap();
     let remote_provider = provider

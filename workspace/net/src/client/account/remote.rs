@@ -6,16 +6,17 @@ use async_trait::async_trait;
 use sos_sdk::{
     account::LocalAccount,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{self, Origin, SyncClient, SyncStatus, SyncStorage},
+    sync::{self, Merge, Origin, SyncClient, SyncStatus, SyncStorage},
 };
 use std::{any::Any, collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
+use tracing::{span, Level};
 
 /// Remote synchronization target.
 pub type Remote = Box<dyn RemoteSync>;
 
 /// Collection of remote targets for synchronization.
-pub type Remotes = HashMap<Origin, Remote>;
+pub(crate) type Remotes = HashMap<Origin, Remote>;
 
 /// Bridge between a local account and a remote.
 #[derive(Clone)]
@@ -76,6 +77,8 @@ impl RemoteBridge {
         tracing::debug!(needs_sync = %needs_sync);
 
         if needs_sync {
+            let span = span!(Level::DEBUG, "merge_client");
+            let _enter = span.enter();
             let remote_changes =
                 self.remote.sync(&local_status, &local_changes).await?;
             //println!("{:#?}", remote_changes);

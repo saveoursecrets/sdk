@@ -7,4 +7,4 @@ mod remote;
 mod sync;
 
 pub use network_account::NetworkAccount;
-pub use remote::{Remote, RemoteBridge, Remotes};
+pub use remote::{Remote, RemoteBridge};

@@ -4,7 +4,7 @@ use crate::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog, LogEvent,
     },
     sync::{
-        AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, SyncDiff,
+        AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, Merge,
         SyncStatus, SyncStorage,
     },
     vault::VaultId,
@@ -14,7 +14,6 @@ use async_trait::async_trait;
 use indexmap::IndexMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{span, Level};
 
 #[cfg(feature = "device")]
 use crate::{
@@ -25,42 +24,8 @@ use crate::{
 #[cfg(feature = "files")]
 use crate::{events::FileEventLog, sync::FileDiff};
 
-impl LocalAccount {
-    /// Merge a diff into this account.
-    pub async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
-        let span = span!(Level::DEBUG, "merge_client");
-        let _enter = span.enter();
-
-        let mut num_changes = 0;
-
-        // Identity must be merged first so delegated
-        // folder passwords are available before we merge
-        // account level events
-        if let Some(diff) = &diff.identity {
-            num_changes += self.merge_identity(diff).await?;
-        }
-
-        if let Some(diff) = &diff.account {
-            num_changes += self.merge_account(diff).await?;
-        }
-
-        #[cfg(feature = "device")]
-        if let Some(diff) = &diff.device {
-            num_changes += self.merge_device(diff).await?;
-        }
-
-        #[cfg(feature = "files")]
-        if let Some(diff) = &diff.files {
-            num_changes += self.merge_files(diff).await?;
-        }
-
-        num_changes += self.merge_folders(&diff.folders).await?;
-
-        tracing::debug!(num_changes = %num_changes, "merge complete");
-
-        Ok(num_changes)
-    }
-
+#[async_trait]
+impl Merge for LocalAccount {
     async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize> {
         tracing::debug!(
             before = ?diff.before,

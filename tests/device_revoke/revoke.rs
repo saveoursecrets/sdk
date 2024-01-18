@@ -86,7 +86,7 @@ async fn device_revoke() -> Result<()> {
 
     // Check primary device is in sync with remote
     let mut provider =
-        primary_device.owner.delete_remote(&origin).await?.unwrap();
+        primary_device.owner.remove_server(&origin).await?.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()

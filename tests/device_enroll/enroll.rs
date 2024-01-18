@@ -83,7 +83,7 @@ async fn device_enroll() -> Result<()> {
 
     // Check primary device is in sync with remote
     let mut provider =
-        primary_device.owner.delete_remote(&origin).await?.unwrap();
+        primary_device.owner.remove_server(&origin).await?.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
@@ -97,7 +97,7 @@ async fn device_enroll() -> Result<()> {
 
     // Check the enrolled device is in sync with remote
     let mut provider =
-        enrolled_account.delete_remote(&origin).await?.unwrap();
+        enrolled_account.remove_server(&origin).await?.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()

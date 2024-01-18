@@ -1,9 +1,10 @@
-//! Sync workaround for the futures::io::copy() bug,
-//! see: https://github.com/fzyzcjy/flutter_rust_bridge/discussions/1267
+//! Sync workaround for the futures::io::copy() bug.
 //!
 //! Hopefully one day we can remove this and use the newer FileStorage
 //! which works fine when executing natively but not when executed
 //! via flutter_rust_bridge.
+
+// SEE: https://github.com/fzyzcjy/flutter_rust_bridge/discussions/1267
 
 use age::Encryptor;
 use secrecy::SecretString;

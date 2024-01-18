@@ -4,17 +4,17 @@ use std::borrow::Cow;
 use sos_sdk::{
     constants::SYNC_RESOLVE,
     decode, encode,
-    sync::{self, SyncDiff, SyncStatus},
+    sync::{self, Merge, SyncDiff, SyncStatus},
 };
-
-use async_trait::async_trait;
 
 use super::{PrivateState, Service};
 use crate::{
     rpc::{RequestMessage, ResponseMessage},
     server::{Error, Result},
 };
+use async_trait::async_trait;
 use std::sync::Arc;
+use tracing::{span, Level};
 
 #[cfg(feature = "listen")]
 use crate::events::ChangeNotification;
@@ -59,6 +59,8 @@ impl Service for SyncService {
 
                 // Apply the diff to the storage
                 let num_changes = {
+                    let span = span!(Level::DEBUG, "merge_server");
+                    let _enter = span.enter();
                     let mut writer = account.write().await;
                     writer.storage.merge(&diff).await?
                 };

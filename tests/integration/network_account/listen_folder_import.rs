@@ -89,7 +89,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
     };
 
     // Assert first device
-    let mut provider = device1.owner.delete_remote(&origin).await?.unwrap();
+    let mut provider = device1.owner.remove_server(&origin).await?.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
@@ -102,7 +102,7 @@ async fn integration_sync_listen_import_folder() -> Result<()> {
     .await?;
 
     // Assert second device
-    let mut provider = device2.owner.delete_remote(&origin).await?.unwrap();
+    let mut provider = device2.owner.remove_server(&origin).await?.unwrap();
     let remote_provider = provider
         .as_any_mut()
         .downcast_mut::<RemoteBridge>()
