@@ -23,7 +23,7 @@ pub(crate) mod websocket;
 
 #[cfg(feature = "listen")]
 use crate::{
-    events::ChangeNotification,
+    ChangeNotification,
     server::{handlers::websocket::BroadcastMessage, ServerState, State},
 };
 

@@ -23,7 +23,7 @@ use crate::{
 use std::sync::Arc;
 
 #[cfg(feature = "listen")]
-use crate::events::ChangeNotification;
+use crate::ChangeNotification;
 
 #[cfg(feature = "listen")]
 use super::send_notification;

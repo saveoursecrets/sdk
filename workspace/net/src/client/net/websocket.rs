@@ -39,7 +39,7 @@ use sos_sdk::{
 
 use crate::{
     client::{Error, Result},
-    events::ChangeNotification,
+    ChangeNotification,
 };
 
 use super::encode_account_signature;

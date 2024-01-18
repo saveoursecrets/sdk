@@ -223,7 +223,7 @@ mod listen {
             sync::RemoteSync, ListenOptions, RemoteBridge, Result,
             WebSocketHandle,
         },
-        events::ChangeNotification,
+        ChangeNotification,
     };
 
     use std::sync::Arc;

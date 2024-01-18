@@ -13,7 +13,7 @@ use tokio::io::AsyncWriteExt;
 use tracing::{span, Level};
 
 #[cfg(feature = "listen")]
-use crate::events::ChangeNotification;
+use crate::ChangeNotification;
 
 #[cfg(feature = "listen")]
 use super::websocket::WebSocketChangeListener;
