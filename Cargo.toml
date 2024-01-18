@@ -59,7 +59,7 @@ parking_lot = "0.12"
 indexmap = { version = "2", features = ["serde"] }
 
 [workspace.dependencies.binary-stream]
-version = "8.0.0"
+version = "8.3.0"
 features = ["async"]
 #path = "../../../../binary-stream"
 

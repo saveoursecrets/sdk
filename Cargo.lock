@@ -522,9 +522,9 @@ checksum = "3a8241f3ebb85c056b509d4327ad0358fbbba6ffb340bf388f26350aeda225b1"
 
 [[package]]
 name = "binary-stream"
-version = "8.1.0"
+version = "8.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c84e20b5dc7395451f8603c24378db15f8a285369151fd6800c51da106bc154c"
+checksum = "9f6360d7850b387de8ede37e2364c374b7bb18af166d1b62f556b9db693f539e"
 dependencies = [
  "async-trait",
  "futures",

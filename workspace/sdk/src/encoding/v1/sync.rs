@@ -1,5 +1,5 @@
 use crate::{
-    commit::{CommitHash, CommitState},
+    commit::CommitState,
     decode, encode,
     encoding::{decode_uuid, encoding_error},
     prelude::{FileIdentity, PATCH_IDENTITY},
@@ -12,7 +12,7 @@ use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 
 use crate::sync::{
-    AccountDiff, ChangeSet, Diff, FolderDiff, FolderPatch, Patch, SyncDiff,
+    ChangeSet, Diff, FolderDiff, FolderPatch, Patch, SyncDiff,
     SyncPacket, SyncStatus,
 };
 
@@ -62,36 +62,12 @@ impl Encodable for ChangeSet {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        // Identity patch
-        let buffer = encode(&self.identity).await.map_err(encoding_error)?;
-        let length = buffer.len();
-        writer.write_u32(length as u32).await?;
-        writer.write_bytes(&buffer).await?;
-
-        // Account patch
-        let buffer = encode(&self.account).await.map_err(encoding_error)?;
-        let length = buffer.len();
-        writer.write_u32(length as u32).await?;
-        writer.write_bytes(&buffer).await?;
-
-        // Device patch
+        self.identity.encode(&mut *writer).await?;
+        self.account.encode(&mut *writer).await?;
         #[cfg(feature = "device")]
-        {
-            let buffer =
-                encode(&self.device).await.map_err(encoding_error)?;
-            let length = buffer.len();
-            writer.write_u32(length as u32).await?;
-            writer.write_bytes(&buffer).await?;
-        }
-
-        // Files patch
+        self.device.encode(&mut *writer).await?;
         #[cfg(feature = "files")]
-        {
-            let buffer = encode(&self.files).await.map_err(encoding_error)?;
-            let length = buffer.len();
-            writer.write_u32(length as u32).await?;
-            writer.write_bytes(&buffer).await?;
-        }
+        self.files.encode(&mut *writer).await?;
 
         // Folder patches
         writer.write_u16(self.folders.len() as u16).await?;
@@ -113,31 +89,12 @@ impl Decodable for ChangeSet {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        // Identity patch
-        let length = reader.read_u32().await?;
-        let buffer = reader.read_bytes(length as usize).await?;
-        self.identity = decode(&buffer).await.map_err(encoding_error)?;
-
-        // Account patch
-        let length = reader.read_u32().await?;
-        let buffer = reader.read_bytes(length as usize).await?;
-        self.account = decode(&buffer).await.map_err(encoding_error)?;
-
-        // Device patch
+        self.identity.decode(&mut *reader).await?;
+        self.account.decode(&mut *reader).await?;
         #[cfg(feature = "device")]
-        {
-            let length = reader.read_u32().await?;
-            let buffer = reader.read_bytes(length as usize).await?;
-            self.device = decode(&buffer).await.map_err(encoding_error)?;
-        }
-
-        // Files patch
+        self.device.decode(&mut *reader).await?;
         #[cfg(feature = "files")]
-        {
-            let length = reader.read_u32().await?;
-            let buffer = reader.read_bytes(length as usize).await?;
-            self.files = decode(&buffer).await.map_err(encoding_error)?;
-        }
+        self.files.decode(&mut *reader).await?;
 
         // Folder patches
         let num_folders = reader.read_u16().await?;
@@ -178,11 +135,6 @@ impl Decodable for SyncPacket {
     }
 }
 
-/*
-    #[serde(skip_serializing_if = "IndexMap::is_empty")]
-    pub folders: IndexMap<VaultId, CommitState>,
-*/
-
 #[async_trait]
 impl Encodable for SyncStatus {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
@@ -194,14 +146,9 @@ impl Encodable for SyncStatus {
         #[cfg(feature = "device")]
         self.device.encode(&mut *writer).await?;
         #[cfg(feature = "files")]
-        {
-            writer.write_bool(self.files.is_some()).await?;
-            if let Some(files) = &self.files {
-                files.encode(&mut *writer).await?;
-            }
-        }
+        self.files.encode(&mut *writer).await?;
 
-        writer.write_u32(self.folders.len() as u32).await?;
+        writer.write_u16(self.folders.len() as u16).await?;
         for (id, commit_state) in &self.folders {
             writer.write_bytes(id.as_bytes()).await?;
             commit_state.encode(&mut *writer).await?;
@@ -221,16 +168,9 @@ impl Decodable for SyncStatus {
         #[cfg(feature = "device")]
         self.device.decode(&mut *reader).await?;
         #[cfg(feature = "files")]
-        {
-            let has_files = reader.read_bool().await?;
-            if has_files {
-                let mut files: CommitState = Default::default();
-                files.decode(&mut *reader).await?;
-                self.files = Some(files);
-            }
-        }
+        self.files.decode(&mut *reader).await?;
 
-        let num_folders = reader.read_u32().await?;
+        let num_folders = reader.read_u16().await?;
         for _ in 0..num_folders {
             let id = decode_uuid(&mut *reader).await?;
             let mut commit_state: CommitState = Default::default();
@@ -247,31 +187,12 @@ impl Encodable for SyncDiff {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        writer.write_bool(self.identity.is_some()).await?;
-        if let Some(identity) = &self.identity {
-            identity.encode(&mut *writer).await?;
-        }
-
-        writer.write_bool(self.account.is_some()).await?;
-        if let Some(account) = &self.account {
-            account.encode(&mut *writer).await?;
-        }
-
+        self.identity.encode(&mut *writer).await?;
+        self.account.encode(&mut *writer).await?;
         #[cfg(feature = "device")]
-        {
-            writer.write_bool(self.device.is_some()).await?;
-            if let Some(device) = &self.device {
-                device.encode(&mut *writer).await?;
-            }
-        }
-
+        self.device.encode(&mut *writer).await?;
         #[cfg(feature = "files")]
-        {
-            writer.write_bool(self.files.is_some()).await?;
-            if let Some(files) = &self.files {
-                files.encode(&mut *writer).await?;
-            }
-        }
+        self.files.encode(&mut *writer).await?;
 
         writer.write_u16(self.folders.len() as u16).await?;
         for (id, diff) in &self.folders {
@@ -288,41 +209,12 @@ impl Decodable for SyncDiff {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        let has_identity = reader.read_bool().await?;
-        if has_identity {
-            let mut identity: FolderDiff = Default::default();
-            identity.decode(&mut *reader).await?;
-            self.identity = Some(identity);
-        }
-
-        let has_account = reader.read_bool().await?;
-        if has_account {
-            let mut account: AccountDiff = Default::default();
-            account.decode(&mut *reader).await?;
-            self.account = Some(account);
-        }
-
+        self.identity.decode(&mut *reader).await?;
+        self.account.decode(&mut *reader).await?;
         #[cfg(feature = "device")]
-        {
-            use crate::sync::DeviceDiff;
-            let has_device = reader.read_bool().await?;
-            if has_device {
-                let mut device: DeviceDiff = Default::default();
-                device.decode(&mut *reader).await?;
-                self.device = Some(device);
-            }
-        }
-
+        self.device.decode(&mut *reader).await?;
         #[cfg(feature = "files")]
-        {
-            use crate::sync::FileDiff;
-            let has_files = reader.read_bool().await?;
-            if has_files {
-                let mut files: FileDiff = Default::default();
-                files.decode(&mut *reader).await?;
-                self.files = Some(files);
-            }
-        }
+        self.files.decode(&mut *reader).await?;
 
         let num_folders = reader.read_u16().await?;
         for _ in 0..num_folders {
@@ -344,11 +236,7 @@ where
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        writer.write_bool(self.last_commit.is_some()).await?;
-        if let Some(last_commit) = &self.last_commit {
-            writer.write_bytes(last_commit.as_ref()).await?;
-            //last_commit.encode(&mut *writer).await?;
-        }
+        self.last_commit.encode(&mut *writer).await?;
         self.before.encode(&mut *writer).await?;
         self.after.encode(&mut *writer).await?;
         self.patch.encode(&mut *writer).await?;
@@ -365,17 +253,7 @@ where
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        let has_last_commit = reader.read_bool().await?;
-        if has_last_commit {
-            let commit: [u8; 32] = reader
-                .read_bytes(32)
-                .await?
-                .as_slice()
-                .try_into()
-                .map_err(encoding_error)?;
-            self.last_commit = Some(CommitHash(commit));
-        }
-
+        self.last_commit.decode(&mut *reader).await?;
         self.before.decode(&mut *reader).await?;
         self.after.decode(&mut *reader).await?;
         self.patch.decode(&mut *reader).await?;

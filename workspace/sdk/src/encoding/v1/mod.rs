@@ -14,3 +14,4 @@ mod vault;
 
 ///
 pub const VERSION: u16 = 1;
+
