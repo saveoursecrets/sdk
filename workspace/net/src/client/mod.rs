@@ -11,7 +11,7 @@ mod sync;
 
 pub use account::*;
 pub use error::Error;
-pub use net::RpcClient;
+pub use net::HttpClient;
 #[cfg(feature = "listen")]
 pub use net::{changes, connect, ListenOptions, WebSocketHandle};
 pub use sync::{RemoteSync, SyncError, SyncOptions};

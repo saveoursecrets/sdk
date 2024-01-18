@@ -1,5 +1,4 @@
 //! HTTP transport trait and implementations.
-
 use sos_sdk::{
     encode,
     signer::{
@@ -10,13 +9,11 @@ use sos_sdk::{
 
 use super::Result;
 
+mod http;
 #[cfg(feature = "listen")]
 mod websocket;
 
-mod rpc;
-
-pub use rpc::RpcClient;
-
+pub use http::HttpClient;
 #[cfg(feature = "listen")]
 pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};
 

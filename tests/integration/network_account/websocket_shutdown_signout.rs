@@ -1,6 +1,6 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::{client::RpcClient, sdk::prelude::*};
+use sos_net::{client::HttpClient, sdk::prelude::*};
 use std::time::Duration;
 
 /// Tests websocket shutdown logic on sign out.
@@ -21,7 +21,7 @@ async fn integration_websocket_shutdown_signout() -> Result<()> {
     // Wait a moment for the connection to complete
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    let num_conns = RpcClient::num_connections(&server.origin.url).await?;
+    let num_conns = HttpClient::num_connections(&server.origin.url).await?;
     assert_eq!(1, num_conns);
 
     // Sign out of the account
@@ -30,7 +30,7 @@ async fn integration_websocket_shutdown_signout() -> Result<()> {
     // Wait a moment for the connection to close
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    let num_conns = RpcClient::num_connections(&server.origin.url).await?;
+    let num_conns = HttpClient::num_connections(&server.origin.url).await?;
     assert_eq!(0, num_conns);
 
     teardown(TEST_ID).await;

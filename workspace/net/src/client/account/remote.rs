@@ -1,6 +1,6 @@
 //! Bridge between local storage and a remote server.
 use crate::client::{
-    net::RpcClient, Error, RemoteSync, Result, SyncError, SyncOptions,
+    net::HttpClient, Error, RemoteSync, Result, SyncError, SyncOptions,
 };
 use async_trait::async_trait;
 use sos_sdk::{
@@ -29,7 +29,7 @@ pub struct RemoteBridge {
     /// when a remote diff is merged.
     account: Arc<Mutex<LocalAccount>>,
     /// Client to use for remote communication.
-    remote: RpcClient,
+    remote: HttpClient,
 }
 
 impl RemoteBridge {
@@ -43,7 +43,7 @@ impl RemoteBridge {
         connection_id: String,
     ) -> Result<Self> {
         let remote =
-            RpcClient::new(origin.clone(), signer, device, connection_id)?;
+            HttpClient::new(origin.clone(), signer, device, connection_id)?;
         Ok(Self {
             account,
             origin,
@@ -52,7 +52,7 @@ impl RemoteBridge {
     }
 
     /// Client implementation.
-    pub fn client(&self) -> &RpcClient {
+    pub fn client(&self) -> &HttpClient {
         &self.remote
     }
 }

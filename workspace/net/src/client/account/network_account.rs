@@ -106,7 +106,7 @@ impl NetworkAccount {
         account_signing_key: BoxedEcdsaSigner,
         data_dir: Option<PathBuf>,
     ) -> Result<crate::client::enrollment::DeviceEnrollment> {
-        use crate::client::{enrollment::DeviceEnrollment, RpcClient};
+        use crate::client::{enrollment::DeviceEnrollment, HttpClient};
         use crate::sdk::signer::ed25519::BoxedEd25519Signer;
 
         let address = account_signing_key.address()?;
@@ -117,7 +117,7 @@ impl NetworkAccount {
         )?;
         let device_signing_key = enrollment.device_signing_key.clone();
         let device: BoxedEd25519Signer = device_signing_key.into();
-        let remote = RpcClient::new(
+        let remote = HttpClient::new(
             origin,
             account_signing_key,
             device,

@@ -1,6 +1,6 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::client::{ListenOptions, RpcClient};
+use sos_net::client::{ListenOptions, HttpClient};
 use std::time::Duration;
 
 /// Tests websocket reconnect logic.
@@ -35,7 +35,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
     // Wait a little to give the websocket time to connect
     tokio::time::sleep(Duration::from_millis(10)).await;
 
-    let num_conns = RpcClient::num_connections(&server.origin.url).await?;
+    let num_conns = HttpClient::num_connections(&server.origin.url).await?;
     assert_eq!(1, num_conns);
 
     // Drop the server handle to shutdown the server
@@ -52,7 +52,7 @@ async fn integration_websocket_reconnect() -> Result<()> {
     // connection
     tokio::time::sleep(Duration::from_millis(5000)).await;
 
-    let num_conns = RpcClient::num_connections(&server.origin.url).await?;
+    let num_conns = HttpClient::num_connections(&server.origin.url).await?;
     assert_eq!(1, num_conns);
 
     teardown(TEST_ID).await;

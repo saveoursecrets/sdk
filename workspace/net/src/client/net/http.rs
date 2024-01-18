@@ -1,4 +1,4 @@
-//! Remote procedure call (RPC) client implementation.
+//! HTTP client implementation.
 use async_trait::async_trait;
 use futures::Future;
 use reqwest::header::AUTHORIZATION;
@@ -44,10 +44,9 @@ fn convert_status_code(value: reqwest::StatusCode) -> http::StatusCode {
     http::StatusCode::from_u16(value.as_u16()).unwrap()
 }
 
-/// Client for the self-hosted server that
-/// communicates using RPC messages.
+/// Client that can synchronize with a server over HTTP(S).
 #[derive(Clone)]
-pub struct RpcClient {
+pub struct HttpClient {
     origin: Origin,
     account_signer: BoxedEcdsaSigner,
     device_signer: BoxedEd25519Signer,
@@ -55,7 +54,7 @@ pub struct RpcClient {
     connection_id: String,
 }
 
-impl RpcClient {
+impl HttpClient {
     /// Create a new client.
     pub fn new(
         origin: Origin,
@@ -458,7 +457,7 @@ impl RpcClient {
 }
 
 #[async_trait]
-impl SyncClient for RpcClient {
+impl SyncClient for HttpClient {
     type Error = Error;
 
     fn url(&self) -> &Url {
