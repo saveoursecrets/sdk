@@ -20,7 +20,6 @@ use sos_sdk::signer::ecdsa::Address;
 
 pub(crate) mod account;
 pub(crate) mod files;
-pub(crate) mod service;
 
 #[cfg(feature = "listen")]
 pub(crate) mod websocket;

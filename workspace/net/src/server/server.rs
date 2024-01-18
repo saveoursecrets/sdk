@@ -5,7 +5,6 @@ use super::{
         api, connections,
         files::{file_operation_lock, FileHandler},
         home,
-        service::ServiceHandler,
     },
     Backend, Result, ServerConfig,
 };
@@ -209,8 +208,7 @@ impl Server {
                     .get(FileHandler::send_file)
                     .delete(FileHandler::delete_file)
                     .route_layer(middleware::from_fn(file_operation_lock)),
-            )
-            .route("/api/sync", post(ServiceHandler::sync));
+            );
 
         #[cfg(feature = "device")]
         {
