@@ -26,10 +26,10 @@ use crate::{
 #[cfg(feature = "listen")]
 use crate::events::ChangeNotification;
 
-mod account;
+//mod account;
 mod sync;
 
-pub use account::AccountService;
+//pub use account::AccountService;
 pub use sync::SyncService;
 
 /// Trait for implementations that process incoming requests.

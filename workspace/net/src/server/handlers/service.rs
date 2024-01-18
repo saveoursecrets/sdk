@@ -12,7 +12,7 @@ use axum_extra::{
 //use axum_macros::debug_handler;
 
 use crate::server::{
-    services::{private_service, AccountService, SyncService},
+    services::{private_service, SyncService},
     ServerBackend, ServerState,
 };
 use serde::Deserialize;
@@ -26,25 +26,6 @@ pub struct ServiceQuery {
 // Handlers for account events.
 pub(crate) struct ServiceHandler;
 impl ServiceHandler {
-    /// Handle requests for the account service.
-    pub(crate) async fn account(
-        Extension(state): Extension<ServerState>,
-        Extension(backend): Extension<ServerBackend>,
-        TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
-        Query(query): Query<ServiceQuery>,
-        body: Bytes,
-    ) -> impl IntoResponse {
-        let service = AccountService {};
-        match private_service(
-            service, state, backend, bearer, query, body, false,
-        )
-        .await
-        {
-            Ok(result) => result.into_response(),
-            Err(error) => error.into_response(),
-        }
-    }
-
     /// Handle requests for the sync service.
     pub(crate) async fn sync(
         Extension(state): Extension<ServerState>,

@@ -192,7 +192,6 @@ impl Server {
             .route("/", get(home))
             .route("/api", get(api))
             .route("/api/connections", get(connections))
-            .route("/api/account", post(ServiceHandler::account))
             .route(
                 "/api/v1/sync/account",
                 post(AccountHandler::create_account)
