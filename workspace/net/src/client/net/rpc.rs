@@ -1,18 +1,12 @@
 //! Remote procedure call (RPC) client implementation.
 use async_trait::async_trait;
 use futures::Future;
-use reqwest::header::{self, HeaderValue, AUTHORIZATION};
-use serde::de::DeserializeOwned;
-use serde_json::Value;
+use reqwest::header::AUTHORIZATION;
 use sos_sdk::{
-    constants::{
-        ACCOUNT_CREATE, ACCOUNT_FETCH, DEVICE_PATCH, MIME_TYPE_RPC,
-        SYNC_RESOLVE, SYNC_STATUS,
-    },
     decode, encode,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, Origin, SyncClient, SyncDiff, SyncPacket, SyncStatus},
+    sync::{ChangeSet, Origin, SyncClient, SyncPacket, SyncStatus},
 };
 
 use tokio::io::AsyncWriteExt;
@@ -30,15 +24,7 @@ use crate::sdk::sync::DeviceDiff;
 #[cfg(feature = "files")]
 use crate::sdk::storage::files::ExternalFile;
 
-use std::{
-    borrow::Cow,
-    path::PathBuf,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
-};
-use tokio::sync::Mutex;
+use std::path::PathBuf;
 use url::Url;
 
 use crate::client::{Error, Result};

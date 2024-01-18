@@ -102,23 +102,6 @@ mod mime {
     pub const MIME_TYPE_RPC: &str = "application/sos+rpc";
 }
 
-mod rpc {
-    /// Account create method call.
-    pub const ACCOUNT_CREATE: &str = "Account.create";
-
-    /// Account fetch method call.
-    pub const ACCOUNT_FETCH: &str = "Account.fetch";
-
-    /// Device patch method call.
-    pub const DEVICE_PATCH: &str = "Device.patch";
-
-    /// Sync status method call.
-    pub const SYNC_STATUS: &str = "Sync.status";
-
-    /// Sync resolve method call.
-    pub const SYNC_RESOLVE: &str = "Sync.resolve";
-}
-
 /// Constants for directory names.
 mod folders {
     /// Directory to store vaults.
@@ -173,6 +156,5 @@ pub use files::*;
 pub use folders::*;
 pub use identity::*;
 pub use mime::*;
-pub use rpc::*;
 pub use urn::*;
 pub use vault::*;

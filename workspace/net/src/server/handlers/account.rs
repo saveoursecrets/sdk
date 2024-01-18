@@ -1,44 +1,26 @@
 use super::{authenticate_endpoint, Caller};
 use axum::{
     body::{to_bytes, Body},
-    extract::{Extension, Path, Query, Request},
+    extract::{Extension, Query, Request},
     http::StatusCode,
-    middleware::Next,
-    response::{IntoResponse, Response},
+    response::IntoResponse,
 };
 use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     typed_header::TypedHeader,
 };
-use futures::TryStreamExt;
-use sos_sdk::{
-    decode, encode,
-    sha2::{Digest, Sha256},
-    sync::ChangeSet,
-};
+use sos_sdk::{decode, encode, sync::ChangeSet};
 use tracing::{span, Level};
 
 //use axum_macros::debug_handler;
 
 use crate::{
-    sdk::{
-        storage::files::{ExternalFile, ExternalFileName},
-        sync::{self, Merge, SyncPacket, SyncStorage},
-        vault::{secret::SecretId, VaultId},
-    },
+    sdk::sync::{self, Merge, SyncPacket, SyncStorage},
     server::{
-        authenticate::{self, BearerToken},
-        handlers::ConnectionQuery,
-        Error, Result, ServerBackend, ServerState, ServerTransfer,
+        handlers::ConnectionQuery, Error, Result, ServerBackend, ServerState,
     },
 };
-use serde::Deserialize;
 use std::sync::Arc;
-use tokio::{
-    fs::File,
-    io::{AsyncWriteExt, BufWriter},
-};
-use tokio_util::io::ReaderStream;
 
 #[cfg(feature = "listen")]
 use crate::events::ChangeNotification;
@@ -80,7 +62,7 @@ impl AccountHandler {
                 }
                 Err(error) => error.into_response(),
             },
-            Err(e) => StatusCode::BAD_REQUEST.into_response(),
+            Err(_) => StatusCode::BAD_REQUEST.into_response(),
         }
     }
 
@@ -140,7 +122,7 @@ impl AccountHandler {
                 }
                 Err(error) => error.into_response(),
             },
-            Err(e) => StatusCode::BAD_REQUEST.into_response(),
+            Err(_) => StatusCode::BAD_REQUEST.into_response(),
         }
     }
 
@@ -168,7 +150,7 @@ impl AccountHandler {
                 Ok(result) => result.into_response(),
                 Err(error) => error.into_response(),
             },
-            Err(error) => error.into_response(),
+            Err(e) => e.into_response(),
         }
     }
 
@@ -199,7 +181,7 @@ impl AccountHandler {
                 }
                 Err(error) => error.into_response(),
             },
-            Err(e) => StatusCode::BAD_REQUEST.into_response(),
+            Err(_) => StatusCode::BAD_REQUEST.into_response(),
         }
     }
 }
