@@ -32,6 +32,10 @@ pub enum Error {
     #[error("forbidden")]
     Forbidden,
 
+    /// Conflict.
+    #[error("conflict")]
+    Conflict,
+
     /// Error generated when an RPC method is not supported.
     #[error("unknown rpc method '{0}'")]
     RpcUnknownMethod(String),
@@ -136,9 +140,7 @@ impl Error {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::BadRequest => StatusCode::BAD_REQUEST,
             Self::Forbidden => StatusCode::FORBIDDEN,
-            /*
             Self::Conflict => StatusCode::CONFLICT,
-            */
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

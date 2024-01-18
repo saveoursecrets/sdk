@@ -201,6 +201,28 @@ impl RpcClient {
         &self,
         account: &ChangeSet,
     ) -> Result<http::StatusCode> {
+        let body = encode(account).await?;
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+        let auth = bearer_prefix(&account_signature, None);
+        let url = self.build_url("api/v1/sync/account")?;
+        let response = self
+            .client
+            .post(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        Ok(convert_status_code(response.status()))
+    }
+    
+    /*
+    /// Try to create a new account.
+    async fn try_create_account(
+        &self,
+        account: &ChangeSet,
+    ) -> Result<http::StatusCode> {
         let url = self.build_url("api/account")?;
 
         let id = self.next_id().await;
@@ -229,6 +251,7 @@ impl RpcClient {
             .await?;
         Ok(status)
     }
+    */
 
     /// Try to fetch an existing account.
     async fn try_fetch_account(&self) -> Result<(http::StatusCode, Vec<u8>)> {
@@ -402,7 +425,7 @@ impl RpcClient {
         .await?;
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
 
-        let url_path = format!("api/file/{}", signed_data);
+        let url_path = format!("api/v1/sync/file/{}", signed_data);
         let url = self.build_url(&url_path)?;
         let metadata = vfs::metadata(path).await?;
         let file_size = metadata.len();
@@ -444,7 +467,7 @@ impl RpcClient {
         .await?;
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
 
-        let url_path = format!("api/file/{}", signed_data);
+        let url_path = format!("api/v1/sync/file/{}", signed_data);
         let url = self.build_url(&url_path)?;
 
         let mut response = self
@@ -492,7 +515,7 @@ impl RpcClient {
         .await?;
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
 
-        let url_path = format!("api/file/{}", signed_data);
+        let url_path = format!("api/v1/sync/file/{}", signed_data);
         let url = self.build_url(&url_path)?;
 
         let response = self
@@ -524,7 +547,7 @@ impl RpcClient {
         .await?;
 
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
-        let url_path = format!("api/file/{}", signed_data);
+        let url_path = format!("api/v1/sync/file/{}", signed_data);
         let mut url = self.build_url(&url_path)?;
         url.query_pairs_mut()
             .append_pair("vault_id", &to.vault_id().to_string())

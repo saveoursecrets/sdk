@@ -2,6 +2,7 @@ use super::{
     config::TlsConfig,
     handlers::{
         api, connections,
+        account::AccountHandler,
         files::{file_operation_lock, FileHandler},
         home,
         service::ServiceHandler,
@@ -192,8 +193,9 @@ impl Server {
             .route("/api", get(api))
             .route("/api/connections", get(connections))
             .route("/api/account", post(ServiceHandler::account))
+            .route("/api/v1/sync/account", post(AccountHandler::create_account))
             .route(
-                "/api/file/:vault_id/:secret_id/:file_name",
+                "/api/v1/sync/file/:vault_id/:secret_id/:file_name",
                 put(FileHandler::receive_file)
                     .post(FileHandler::move_file)
                     .get(FileHandler::send_file)

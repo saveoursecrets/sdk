@@ -8,7 +8,6 @@ use sos_net::{client::RemoteBridge, sdk::prelude::*};
 #[tokio::test]
 async fn integration_sync_folder_description() -> Result<()> {
     const TEST_ID: &str = "sync_folder_description";
-
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

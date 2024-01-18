@@ -6,9 +6,16 @@ use axum::{
 
 //use axum_macros::debug_handler;
 
+use axum_extra::{
+    headers::{authorization::Bearer, Authorization},
+    typed_header::TypedHeader,
+};
+use crate::server::{Error, Result, authenticate::{self, BearerToken}};
+use sos_sdk::signer::ecdsa::Address;
 use super::ServerState;
 use serde_json::json;
 
+pub(crate) mod account;
 pub(crate) mod files;
 pub(crate) mod service;
 
@@ -40,4 +47,41 @@ pub(crate) async fn connections(
         .values()
         .fold(0, |acc, conn| acc + conn.clients);
     Json(json!(num_connections))
+}
+
+/// Type to represent the caller of a service request.
+pub struct Caller {
+    token: BearerToken,
+    connection_id: String,
+}
+
+impl Caller {
+    /// Account address of the caller.
+    pub fn address(&self) -> &Address {
+        &self.token.address
+    }
+
+    /// Connection identifier.
+    pub fn connection_id(&self) -> &str {
+        &self.connection_id
+    }
+}
+
+/// Authenticate an endpoint.
+async fn authenticate_endpoint(
+    bearer: Authorization<Bearer>,
+    signed_data: &[u8],
+) -> Result<Caller> {
+    let token = authenticate::bearer(bearer, signed_data)
+        .await
+        .map_err(|_| Error::BadRequest)?;
+
+    // Call the target service for a reply
+    let owner = Caller {
+        token,
+        connection_id: String::new(),
+        //connection_id: query.connection_id,
+    };
+
+    Ok(owner)
 }
