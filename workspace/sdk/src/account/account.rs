@@ -144,7 +144,7 @@ pub struct FolderCreate<T> {
 pub struct FolderRename<T> {
     /// Event to be logged.
     pub event: Event,
-    /// Commit state of the new folder.
+    /// Commit state before the change.
     pub commit_state: CommitState,
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
@@ -259,6 +259,23 @@ pub trait Account {
     /// Label of this account.
     async fn account_label(&self)
         -> std::result::Result<String, Self::Error>;
+
+    /// Get the description of a folder.
+    ///
+    /// The target folder will become the currently open folder.
+    async fn folder_description(
+        &mut self,
+        folder: &Summary,
+    ) -> std::result::Result<String, Self::Error>;
+
+    /// Set the description of a folder.
+    ///
+    /// The target folder will become the currently open folder.
+    async fn set_folder_description(
+        &mut self,
+        folder: &Summary,
+        description: impl AsRef<str> + Send + Sync,
+    ) -> std::result::Result<FolderRename<Self::Error>, Self::Error>;
 
     /// Find the password for a folder.
     async fn find_folder_password(
@@ -844,38 +861,6 @@ impl LocalAccount {
         Ok(())
     }
 
-    /// Get the description of a folder.
-    ///
-    /// The target folder will become the currently open folder.
-    pub async fn folder_description(
-        &mut self,
-        folder: &Summary,
-    ) -> Result<String> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-        self.open_folder(folder).await?;
-        let storage = self.storage().await?;
-        let reader = storage.read().await;
-        Ok(reader.description().await?)
-    }
-
-    /// Set the description of a folder.
-    ///
-    /// The target folder will become the currently open folder.
-    pub async fn set_folder_description(
-        &mut self,
-        folder: &Summary,
-        description: impl AsRef<str>,
-    ) -> Result<WriteEvent> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-        self.open_folder(folder).await?;
-        let event = {
-            let storage = self.storage().await?;
-            let mut writer = storage.write().await;
-            writer.set_description(description).await?
-        };
-        Ok(event)
-    }
-
     /// Export a vault by changing the vault passphrase and
     /// converting it to a buffer.
     ///
@@ -1357,6 +1342,51 @@ impl Account for LocalAccount {
 
     async fn account_label(&self) -> Result<String> {
         Ok(self.user()?.account()?.label().to_owned())
+    }
+
+    async fn folder_description(
+        &mut self,
+        folder: &Summary,
+    ) -> Result<String> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.open_folder(folder).await?;
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        Ok(reader.description().await?)
+    }
+
+    /// Set the description of a folder.
+    ///
+    /// The target folder will become the currently open folder.
+    async fn set_folder_description(
+        &mut self,
+        folder: &Summary,
+        description: impl AsRef<str> + Send + Sync,
+    ) -> Result<FolderRename<Self::Error>> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
+        self.open_folder(folder).await?;
+
+        let options = AccessOptions {
+            folder: Some(folder.clone()),
+            ..Default::default()
+        };
+        let (_, commit_state) =
+            self.compute_folder_state(&options).await?;
+
+        let event = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer.set_description(description).await?
+        };
+
+        let event = Event::Write(*folder.id(), event);
+
+        Ok(FolderRename {
+            event,
+            commit_state,
+            sync_error: None,
+        })
     }
 
     async fn find_folder_password(

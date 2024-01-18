@@ -449,6 +449,34 @@ impl Account for NetworkAccount {
         Ok(account.account_label().await?)
     }
 
+    async fn folder_description(
+        &mut self,
+        folder: &Summary,
+    ) -> Result<String> {
+        let mut account = self.account.lock().await;
+        Ok(account.folder_description(folder).await?)
+    }
+
+    async fn set_folder_description(
+        &mut self,
+        folder: &Summary,
+        description: impl AsRef<str> + Send + Sync,
+    ) -> Result<FolderRename<Self::Error>> {
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.set_folder_description(folder, description).await?
+        };
+
+        let result = FolderRename {
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
     async fn find_folder_password(
         &self,
         folder_id: &VaultId,
