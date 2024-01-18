@@ -6,7 +6,6 @@ use axum::{
 
 //use axum_macros::debug_handler;
 
-use super::ServerState;
 use crate::server::{
     authenticate::{self, BearerToken},
     Error, Result, ServerBackend,
@@ -15,6 +14,7 @@ use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     typed_header::TypedHeader,
 };
+use serde::Deserialize;
 use serde_json::json;
 use sos_sdk::signer::ecdsa::Address;
 
@@ -24,6 +24,18 @@ pub(crate) mod service;
 
 #[cfg(feature = "listen")]
 pub(crate) mod websocket;
+
+#[cfg(feature = "listen")]
+use crate::{
+    events::ChangeNotification,
+    server::{handlers::websocket::BroadcastMessage, ServerState, State},
+};
+
+/// Query string for connections.
+#[derive(Debug, Deserialize)]
+pub struct ConnectionQuery {
+    pub connection_id: String,
+}
 
 /// Serve the home page.
 pub(crate) async fn home(
@@ -74,6 +86,7 @@ impl Caller {
 async fn authenticate_endpoint(
     bearer: Authorization<Bearer>,
     signed_data: &[u8],
+    query: ConnectionQuery,
     state: ServerState,
     backend: ServerBackend,
     restricted: bool,
@@ -104,12 +117,36 @@ async fn authenticate_endpoint(
         _ => {}
     }
 
-    // Call the target service for a reply
     let owner = Caller {
         token,
-        connection_id: String::new(),
-        //connection_id: query.connection_id,
+        connection_id: query.connection_id,
     };
 
     Ok(owner)
+}
+
+/// Send change notifications to connected clients.
+#[cfg(feature = "listen")]
+fn send_notification(
+    writer: &mut State,
+    caller: &Caller,
+    notification: ChangeNotification,
+) {
+    // Send notification on the websockets channel
+    match serde_json::to_vec(&notification) {
+        Ok(buffer) => {
+            if let Some(conn) = writer.sockets.get(caller.address()) {
+                let message = BroadcastMessage {
+                    buffer,
+                    connection_id: caller.connection_id().to_owned(),
+                };
+                if conn.tx.send(message).is_err() {
+                    tracing::debug!("websocket events channel dropped");
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("{}", e);
+        }
+    }
 }

@@ -33,7 +33,8 @@ async fn integration_time_travel() -> Result<()> {
         .await?;
 
     // Store the state so we can backtrack
-    let (commit, _) = account.commit_state(&default_folder).await?;
+    let CommitState(commit, _) =
+        account.commit_state(&default_folder).await?;
 
     // Create another secret
     let (meta, secret) = mock::note("note2", TEST_ID);

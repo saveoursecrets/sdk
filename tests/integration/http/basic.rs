@@ -2,10 +2,10 @@ use crate::test_utils::{spawn, teardown};
 use anyhow::Result;
 use sos_net::client::RpcClient;
 
-const TEST_ID: &str = "rpc_basic";
+const TEST_ID: &str = "http_basic";
 
 #[tokio::test]
-async fn integration_rpc_basic() -> Result<()> {
+async fn integration_http_basic() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let server = spawn(TEST_ID, None, None).await?;

@@ -122,6 +122,15 @@ pub type FileDiff = Diff<FileEvent>;
 /// Diff between folder events logs.
 pub type FolderDiff = Diff<WriteEvent>;
 
+/// Combined sync status and diff.
+#[derive(Debug, Default)]
+pub struct SyncPacket {
+    /// Sync status.
+    pub status: SyncStatus,
+    /// Sync diff.
+    pub diff: SyncDiff,
+}
+
 /// Provides a status overview of an account.
 ///
 /// Intended to be used during a synchronization protocol.
@@ -512,9 +521,8 @@ pub trait SyncClient {
     /// Sync with a remote.
     async fn sync(
         &self,
-        local_status: &SyncStatus,
-        diff: &SyncDiff,
-    ) -> std::result::Result<SyncDiff, Self::Error>;
+        packet: &SyncPacket,
+    ) -> std::result::Result<SyncPacket, Self::Error>;
 
     /// Patch the device event log.
     #[cfg(feature = "device")]

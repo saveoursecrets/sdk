@@ -1,5 +1,5 @@
 use crate::{
-    commit::CommitHash,
+    commit::{CommitHash, CommitState},
     decode, encode,
     encoding::{decode_uuid, encoding_error},
     prelude::{FileIdentity, PATCH_IDENTITY},
@@ -13,6 +13,7 @@ use std::io::Result;
 
 use crate::sync::{
     AccountDiff, ChangeSet, Diff, FolderDiff, FolderPatch, Patch, SyncDiff,
+    SyncPacket, SyncStatus,
 };
 
 #[async_trait]
@@ -149,6 +150,93 @@ impl Decodable for ChangeSet {
             self.folders.insert(id, folder);
         }
 
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Encodable for SyncPacket {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        self.status.encode(&mut *writer).await?;
+        self.diff.encode(&mut *writer).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for SyncPacket {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        self.status.decode(&mut *reader).await?;
+        self.diff.decode(&mut *reader).await?;
+        Ok(())
+    }
+}
+
+/*
+    #[serde(skip_serializing_if = "IndexMap::is_empty")]
+    pub folders: IndexMap<VaultId, CommitState>,
+*/
+
+#[async_trait]
+impl Encodable for SyncStatus {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        self.identity.encode(&mut *writer).await?;
+        self.account.encode(&mut *writer).await?;
+        #[cfg(feature = "device")]
+        self.device.encode(&mut *writer).await?;
+        #[cfg(feature = "files")]
+        {
+            writer.write_bool(self.files.is_some()).await?;
+            if let Some(files) = &self.files {
+                files.encode(&mut *writer).await?;
+            }
+        }
+
+        writer.write_u32(self.folders.len() as u32).await?;
+        for (id, commit_state) in &self.folders {
+            writer.write_bytes(id.as_bytes()).await?;
+            commit_state.encode(&mut *writer).await?;
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for SyncStatus {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        self.identity.decode(&mut *reader).await?;
+        self.account.decode(&mut *reader).await?;
+        #[cfg(feature = "device")]
+        self.device.decode(&mut *reader).await?;
+        #[cfg(feature = "files")]
+        {
+            let has_files = reader.read_bool().await?;
+            if has_files {
+                let mut files: CommitState = Default::default();
+                files.decode(&mut *reader).await?;
+                self.files = Some(files);
+            }
+        }
+
+        let num_folders = reader.read_u32().await?;
+        for _ in 0..num_folders {
+            let id = decode_uuid(&mut *reader).await?;
+            let mut commit_state: CommitState = Default::default();
+            commit_state.decode(&mut *reader).await?;
+            self.folders.insert(id, commit_state);
+        }
         Ok(())
     }
 }

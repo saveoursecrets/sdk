@@ -195,6 +195,7 @@ impl Server {
             .route(
                 "/api/v1/sync/account",
                 post(AccountHandler::create_account)
+                    .put(AccountHandler::sync_account)
                     .get(AccountHandler::fetch_account),
             )
             .route(

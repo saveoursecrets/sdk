@@ -8,13 +8,13 @@ mod command_line;
 mod diff_merge;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod http;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod local_account;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod network_account;
-
-#[cfg(not(target_arch = "wasm32"))]
-mod rpc;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use sos_test_utils as test_utils;

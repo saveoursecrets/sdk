@@ -1,5 +1,5 @@
 use crate::{
-    commit::{CommitHash, CommitProof},
+    commit::{CommitHash, CommitProof, CommitState},
     encoding::encoding_error,
 };
 use async_trait::async_trait;
@@ -9,6 +9,58 @@ use binary_stream::futures::{
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use rs_merkle::{algorithms::Sha256, MerkleProof};
 use std::io::Result;
+
+#[async_trait]
+impl Encodable for CommitHash {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        writer.write_bytes(self.as_ref()).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for CommitHash {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let commit: [u8; 32] = reader
+            .read_bytes(32)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
+        *self = CommitHash(commit);
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Encodable for CommitState {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        self.0.encode(&mut *writer).await?;
+        self.1.encode(&mut *writer).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for CommitState {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        self.0.decode(&mut *reader).await?;
+        self.1.decode(&mut *reader).await?;
+        Ok(())
+    }
+}
 
 #[async_trait]
 impl Encodable for CommitProof {

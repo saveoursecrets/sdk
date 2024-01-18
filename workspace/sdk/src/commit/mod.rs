@@ -12,4 +12,7 @@ pub use tree::CommitTree;
 
 /// Commit state combines the last commit hash with
 /// a commit proof.
-pub type CommitState = (CommitHash, CommitProof);
+#[derive(
+    Default, Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize,
+)]
+pub struct CommitState(pub CommitHash, pub CommitProof);

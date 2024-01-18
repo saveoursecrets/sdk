@@ -6,7 +6,9 @@ use async_trait::async_trait;
 use sos_sdk::{
     account::LocalAccount,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{self, Merge, Origin, SyncClient, SyncStatus, SyncStorage},
+    sync::{
+        self, Merge, Origin, SyncClient, SyncPacket, SyncStatus, SyncStorage,
+    },
 };
 use std::{any::Any, collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
@@ -79,10 +81,13 @@ impl RemoteBridge {
         if needs_sync {
             let span = span!(Level::DEBUG, "merge_client");
             let _enter = span.enter();
-            let remote_changes =
-                self.remote.sync(&local_status, &local_changes).await?;
+            let packet = SyncPacket {
+                status: local_status,
+                diff: local_changes,
+            };
+            let remote_changes = self.remote.sync(&packet).await?;
             //println!("{:#?}", remote_changes);
-            account.merge(&remote_changes).await?;
+            account.merge(&remote_changes.diff).await?;
         }
 
         Ok(())

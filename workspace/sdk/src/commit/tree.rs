@@ -186,7 +186,7 @@ impl CommitTree {
         let first_commit =
             CommitHash(*leaves.first().ok_or(Error::NoRootCommit)?);
         let first_proof = self.proof_at(&first_commit)?;
-        Ok((first_commit, first_proof))
+        Ok(CommitState(first_commit, first_proof))
     }
 
     /// Last commit hash in the underlying merkle tree.
@@ -199,7 +199,7 @@ impl CommitTree {
     /// The tree must already have some commits.
     pub fn commit_state(&self) -> Result<CommitState> {
         let last_commit = self.last_commit().ok_or(Error::NoRootCommit)?;
-        Ok((last_commit, self.head()?))
+        Ok(CommitState(last_commit, self.head()?))
     }
 
     /// Root hash of the underlying merkle tree.

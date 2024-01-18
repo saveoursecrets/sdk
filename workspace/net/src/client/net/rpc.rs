@@ -12,7 +12,7 @@ use sos_sdk::{
     decode, encode,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, Origin, SyncClient, SyncDiff, SyncStatus},
+    sync::{ChangeSet, Origin, SyncClient, SyncDiff, SyncPacket, SyncStatus},
 };
 
 use tokio::io::AsyncWriteExt;
@@ -41,10 +41,7 @@ use std::{
 use tokio::sync::Mutex;
 use url::Url;
 
-use crate::{
-    client::{Error, Result},
-    rpc::{Packet, RequestMessage, ResponseMessage},
-};
+use crate::client::{Error, Result};
 
 #[cfg(feature = "listen")]
 use crate::client::{ListenOptions, WebSocketHandle};
@@ -69,7 +66,6 @@ pub struct RpcClient {
     account_signer: BoxedEcdsaSigner,
     device_signer: BoxedEd25519Signer,
     client: reqwest::Client,
-    id: Arc<Mutex<AtomicU64>>,
     connection_id: String,
 }
 
@@ -87,7 +83,6 @@ impl RpcClient {
             account_signer,
             device_signer,
             client,
-            id: Arc::new(Mutex::new(AtomicU64::from(1))),
             connection_id,
         })
     }
@@ -146,12 +141,6 @@ impl RpcClient {
         Ok(value)
     }
 
-    /// Get the next request identifier.
-    async fn next_id(&self) -> u64 {
-        let id = self.id.lock().await;
-        id.fetch_add(1, Ordering::SeqCst)
-    }
-
     /// Build a URL including the connection identifier
     /// in the query string.
     fn build_url(&self, route: &str) -> Result<Url> {
@@ -161,6 +150,7 @@ impl RpcClient {
         Ok(url)
     }
 
+    /*
     /// Check if we are able to handle a response status code
     /// and content type.
     async fn check_response(
@@ -195,6 +185,7 @@ impl RpcClient {
             }
         }
     }
+    */
 
     /// Try to create a new account.
     async fn try_create_account(
@@ -287,45 +278,27 @@ impl RpcClient {
     /// Try to sync with a remote.
     async fn try_sync(
         &self,
-        local_status: &SyncStatus,
-        diff: &SyncDiff,
+        packet: &SyncPacket,
     ) -> Result<(http::StatusCode, Vec<u8>)> {
-        let url = self.build_url("api/sync")?;
-
-        let id = self.next_id().await;
-        let body = encode(diff).await?;
-        let request = RequestMessage::new(
-            Some(id),
-            SYNC_RESOLVE,
-            &local_status,
-            Cow::Owned(body),
-        )?;
-
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
+        let body = encode(packet).await?;
+        let url = self.build_url("api/v1/sync/account")?;
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
         let device_signature =
             encode_device_signature(self.device_signer.sign(&body).await?)
                 .await?;
-
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
         let response = self
-            .send_request(
-                url,
-                body,
-                account_signature,
-                Some(device_signature),
-            )
+            .client
+            .put(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
             .await?;
-        let response = self.check_response(response).await?;
-        let (status, _, body) = self
-            .read_response::<SyncStatus>(
-                convert_status_code(response.status()),
-                &response.bytes().await?,
-            )
-            .await?;
-        Ok((status, body))
+        let status = convert_status_code(response.status());
+        let result = response.bytes().await?;
+        Ok((status, result.to_vec()))
     }
 
     /// Try to send a file to remote.
@@ -496,46 +469,6 @@ impl RpcClient {
             .await?;
         Ok(convert_status_code(response.status()))
     }
-
-    /// Send an encrypted session request.
-    async fn send_request(
-        &self,
-        url: Url,
-        body: Vec<u8>,
-        account_signature: String,
-        device_signature: Option<String>,
-    ) -> Result<reqwest::Response> {
-        let auth = if let Some(device_signature) = &device_signature {
-            bearer_prefix(&account_signature, Some(device_signature))
-        } else {
-            bearer_prefix(&account_signature, None)
-        };
-        let response = self
-            .client
-            .post(url)
-            .header(AUTHORIZATION, auth)
-            .body(body)
-            .send()
-            .await?;
-        Ok(response)
-    }
-
-    /// Read a response to an RPC call.
-    async fn read_response<T: DeserializeOwned>(
-        &self,
-        http_status: http::StatusCode,
-        buffer: &[u8],
-    ) -> Result<(http::StatusCode, crate::rpc::Result<T>, Vec<u8>)> {
-        if http_status.is_success() {
-            let reply: Packet<'static> = decode(buffer).await?;
-            let response: ResponseMessage<'static> = reply.try_into()?;
-            let (_, status, result, body) = response.take::<T>()?;
-            let result = result.ok_or(Error::NoReturnValue)?;
-            Ok((status, result, body))
-        } else {
-            Err(Error::ResponseCode(http_status))
-        }
-    }
 }
 
 #[async_trait]
@@ -579,10 +512,9 @@ impl SyncClient for RpcClient {
 
     async fn sync(
         &self,
-        local_status: &SyncStatus,
-        diff: &SyncDiff,
-    ) -> std::result::Result<SyncDiff, Self::Error> {
-        let (status, body) = self.try_sync(local_status, diff).await?;
+        packet: &SyncPacket,
+    ) -> std::result::Result<SyncPacket, Self::Error> {
+        let (status, body) = self.try_sync(packet).await?;
         tracing::debug!(status = %status);
         status
             .is_success()
