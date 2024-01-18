@@ -12,11 +12,10 @@ use sos_net::{
     sdk::prelude::*,
 };
 
-const TEST_ID: &str = "device_revoke";
-
 /// Tests enrolling a new device and revoking trust in the device.
 #[tokio::test]
 async fn device_revoke() -> Result<()> {
+    const TEST_ID: &str = "device_revoke";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

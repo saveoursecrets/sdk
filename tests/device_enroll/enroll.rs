@@ -8,12 +8,11 @@ use sos_net::{
     sdk::prelude::*,
 };
 
-const TEST_ID: &str = "device_enroll";
-
 /// Tests enrolling a new device and syncing the device event log
 /// including the newly enrolled device back on to a primary device.
 #[tokio::test]
 async fn device_enroll() -> Result<()> {
+    const TEST_ID: &str = "device_enroll";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

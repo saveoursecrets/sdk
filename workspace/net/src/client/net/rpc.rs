@@ -202,11 +202,11 @@ impl RpcClient {
         account: &ChangeSet,
     ) -> Result<http::StatusCode> {
         let body = encode(account).await?;
+        let url = self.build_url("api/v1/sync/account")?;
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
         let auth = bearer_prefix(&account_signature, None);
-        let url = self.build_url("api/v1/sync/account")?;
         let response = self
             .client
             .post(url)
@@ -216,66 +216,25 @@ impl RpcClient {
             .await?;
         Ok(convert_status_code(response.status()))
     }
-    
-    /*
-    /// Try to create a new account.
-    async fn try_create_account(
-        &self,
-        account: &ChangeSet,
-    ) -> Result<http::StatusCode> {
-        let url = self.build_url("api/account")?;
-
-        let id = self.next_id().await;
-        let body = encode(account).await?;
-        let request = RequestMessage::new(
-            Some(id),
-            ACCOUNT_CREATE,
-            (),
-            Cow::Owned(body),
-        )?;
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
-        let account_signature =
-            encode_account_signature(self.account_signer.sign(&body).await?)
-                .await?;
-
-        let response = self
-            .send_request(url, body, account_signature, None)
-            .await?;
-        let response = self.check_response(response).await?;
-        let (status, _, _) = self
-            .read_response::<()>(
-                convert_status_code(response.status()),
-                &response.bytes().await?,
-            )
-            .await?;
-        Ok(status)
-    }
-    */
 
     /// Try to fetch an existing account.
     async fn try_fetch_account(&self) -> Result<(http::StatusCode, Vec<u8>)> {
-        let url = self.build_url("api/account")?;
-
-        let id = self.next_id().await;
-        let request = RequestMessage::new_call(Some(id), ACCOUNT_FETCH, ())?;
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
-        let account_signature =
-            encode_account_signature(self.account_signer.sign(&body).await?)
-                .await?;
-
+        let url = self.build_url("api/v1/sync/account")?;
+        let sign_url = url.path();
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, None);
         let response = self
-            .send_request(url, body, account_signature, None)
+            .client
+            .get(url)
+            .header(AUTHORIZATION, auth)
+            .send()
             .await?;
-        let response = self.check_response(response).await?;
-        let (status, _, body) = self
-            .read_response::<()>(
-                convert_status_code(response.status()),
-                &response.bytes().await?,
-            )
-            .await?;
-        Ok((status, body))
+        let status = convert_status_code(response.status());
+        let buffer = response.bytes().await?;
+        Ok((status, buffer.to_vec()))
     }
 
     /// Try to patch the event log on remote.
@@ -318,36 +277,26 @@ impl RpcClient {
     async fn try_sync_status(
         &self,
     ) -> Result<(http::StatusCode, Option<SyncStatus>)> {
-        let url = self.build_url("api/account")?;
-
-        let id = self.next_id().await;
-        let request = RequestMessage::new_call(Some(id), SYNC_STATUS, ())?;
-        let packet = Packet::new_request(request);
-        let body = encode(&packet).await?;
-        let account_signature =
-            encode_account_signature(self.account_signer.sign(&body).await?)
-                .await?;
-        let device_signature =
-            encode_device_signature(self.device_signer.sign(&body).await?)
-                .await?;
-
+        let url = self.build_url("api/v1/sync/account/status")?;
+        let sign_url = url.path();
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
         let response = self
-            .send_request(
-                url,
-                body,
-                account_signature,
-                Some(device_signature),
-            )
+            .client
+            .get(url)
+            .header(AUTHORIZATION, auth)
+            .send()
             .await?;
-        let response = self.check_response(response).await?;
-        let (status, result, _) = self
-            .read_response::<Option<SyncStatus>>(
-                convert_status_code(response.status()),
-                &response.bytes().await?,
-            )
-            .await?;
-
-        Ok((status, result?))
+        let status = convert_status_code(response.status());
+        let sync_status: Option<SyncStatus> = response.json().await?;
+        Ok((status, sync_status))
     }
 
     /// Try to sync with a remote.

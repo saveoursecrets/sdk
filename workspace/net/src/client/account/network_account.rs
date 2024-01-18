@@ -29,7 +29,7 @@ use sos_sdk::{
     vfs, Paths,
 };
 use std::{
-    collections::{HashSet, HashMap},
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
 };

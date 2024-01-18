@@ -6,14 +6,17 @@ use axum::{
 
 //use axum_macros::debug_handler;
 
+use super::ServerState;
+use crate::server::{
+    authenticate::{self, BearerToken},
+    Error, Result,
+};
 use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     typed_header::TypedHeader,
 };
-use crate::server::{Error, Result, authenticate::{self, BearerToken}};
-use sos_sdk::signer::ecdsa::Address;
-use super::ServerState;
 use serde_json::json;
+use sos_sdk::signer::ecdsa::Address;
 
 pub(crate) mod account;
 pub(crate) mod files;

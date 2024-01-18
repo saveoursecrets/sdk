@@ -41,6 +41,7 @@ impl Service for AccountService {
         let (caller, (_state, backend)) = state;
 
         match request.method() {
+            /*
             ACCOUNT_CREATE => {
                 {
                     let reader = backend.read().await;
@@ -74,6 +75,7 @@ impl Service for AccountService {
                 )?;
                 Ok(reply)
             }
+            */
             #[cfg(feature = "device")]
             DEVICE_PATCH => {
                 let diff: DeviceDiff = decode(request.body()).await?;
