@@ -21,8 +21,8 @@ use crate::{
         vault::{secret::SecretId, VaultId},
     },
     server::{
-        authenticate::{self, BearerToken},
         Error, Result, ServerBackend, ServerState, ServerTransfer,
+        handlers::{authenticate_endpoint, ConnectionQuery, Caller},
     },
 };
 use serde::Deserialize;
@@ -54,15 +54,24 @@ impl FileHandler {
             SecretId,
             ExternalFileName,
         )>,
-        body: Body,
+        Query(query): Query<ConnectionQuery>,
+        request: Request,
+        //body: Body,
     ) -> impl IntoResponse {
-        match authenticate_file_api(bearer, &vault_id, &secret_id, &file_name)
-            .await
-        {
-            Ok(token) => {
+        let uri = request.uri().path().to_string();
+        match authenticate_endpoint(
+            bearer,
+            uri.as_bytes(),
+            query,
+            Arc::clone(&state),
+            Arc::clone(&backend),
+            true,
+        )
+        .await {
+            Ok(caller) => {
                 match receive_file(
-                    state, backend, token, vault_id, secret_id, file_name,
-                    body,
+                    state, backend, caller, vault_id, secret_id, file_name,
+                    request.into_body(),
                 )
                 .await
                 {
@@ -84,13 +93,22 @@ impl FileHandler {
             SecretId,
             ExternalFileName,
         )>,
+        Query(query): Query<ConnectionQuery>,
+        request: Request,
     ) -> impl IntoResponse {
-        match authenticate_file_api(bearer, &vault_id, &secret_id, &file_name)
-            .await
-        {
-            Ok(token) => {
+        let uri = request.uri().path().to_string();
+        match authenticate_endpoint(
+            bearer,
+            uri.as_bytes(),
+            query,
+            Arc::clone(&state),
+            Arc::clone(&backend),
+            true,
+        )
+        .await {
+            Ok(caller) => {
                 match delete_file(
-                    state, backend, token, vault_id, secret_id, file_name,
+                    state, backend, caller, vault_id, secret_id, file_name,
                 )
                 .await
                 {
@@ -112,13 +130,22 @@ impl FileHandler {
             SecretId,
             ExternalFileName,
         )>,
+        Query(query): Query<ConnectionQuery>,
+        request: Request,
     ) -> impl IntoResponse {
-        match authenticate_file_api(bearer, &vault_id, &secret_id, &file_name)
-            .await
-        {
-            Ok(token) => {
+        let uri = request.uri().path().to_string();
+        match authenticate_endpoint(
+            bearer,
+            uri.as_bytes(),
+            query,
+            Arc::clone(&state),
+            Arc::clone(&backend),
+            true,
+        )
+        .await {
+            Ok(caller) => {
                 match send_file(
-                    state, backend, token, vault_id, secret_id, file_name,
+                    state, backend, caller, vault_id, secret_id, file_name,
                 )
                 .await
                 {
@@ -140,15 +167,24 @@ impl FileHandler {
             SecretId,
             ExternalFileName,
         )>,
-        Query(query): Query<MoveFileQuery>,
+        Query(query): Query<ConnectionQuery>,
+        Query(move_query): Query<MoveFileQuery>,
+        request: Request,
     ) -> impl IntoResponse {
-        match authenticate_file_api(bearer, &vault_id, &secret_id, &file_name)
-            .await
-        {
+        let uri = request.uri().path().to_string();
+        match authenticate_endpoint(
+            bearer,
+            uri.as_bytes(),
+            query,
+            Arc::clone(&state),
+            Arc::clone(&backend),
+            true,
+        )
+        .await {
             Ok(token) => {
                 match move_file(
                     state, backend, token, vault_id, secret_id, file_name,
-                    query,
+                    move_query,
                 )
                 .await
                 {
@@ -161,24 +197,10 @@ impl FileHandler {
     }
 }
 
-// Parse the bearer token
-async fn authenticate_file_api(
-    bearer: Authorization<Bearer>,
-    vault_id: &VaultId,
-    secret_id: &SecretId,
-    file_name: &ExternalFileName,
-) -> Result<BearerToken> {
-    let signed_data = format!("{}/{}/{}", vault_id, secret_id, file_name);
-    let token = authenticate::bearer(bearer, signed_data.as_bytes())
-        .await
-        .map_err(|_| Error::BadRequest)?;
-    Ok(token)
-}
-
 async fn receive_file(
     _state: ServerState,
     backend: ServerBackend,
-    token: BearerToken,
+    caller: Caller,
     vault_id: VaultId,
     secret_id: SecretId,
     file_name: ExternalFileName,
@@ -189,8 +211,8 @@ async fn receive_file(
         let accounts = backend.accounts();
         let accounts = accounts.read().await;
         let account = accounts
-            .get(&token.address)
-            .ok_or_else(|| Error::NoAccount(token.address))?;
+            .get(caller.address())
+            .ok_or_else(|| Error::NoAccount(*caller.address()))?;
         Arc::clone(account)
     };
 
@@ -241,7 +263,7 @@ async fn receive_file(
 async fn delete_file(
     _state: ServerState,
     backend: ServerBackend,
-    token: BearerToken,
+    caller: Caller,
     vault_id: VaultId,
     secret_id: SecretId,
     file_name: ExternalFileName,
@@ -251,8 +273,8 @@ async fn delete_file(
         let accounts = backend.accounts();
         let accounts = accounts.read().await;
         let account = accounts
-            .get(&token.address)
-            .ok_or_else(|| Error::NoAccount(token.address))?;
+            .get(caller.address())
+            .ok_or_else(|| Error::NoAccount(*caller.address()))?;
         Arc::clone(account)
     };
 
@@ -275,7 +297,7 @@ async fn delete_file(
 async fn send_file(
     _state: ServerState,
     backend: ServerBackend,
-    token: BearerToken,
+    caller: Caller,
     vault_id: VaultId,
     secret_id: SecretId,
     file_name: ExternalFileName,
@@ -285,8 +307,8 @@ async fn send_file(
         let accounts = backend.accounts();
         let accounts = accounts.read().await;
         let account = accounts
-            .get(&token.address)
-            .ok_or_else(|| Error::NoAccount(token.address))?;
+            .get(caller.address())
+            .ok_or_else(|| Error::NoAccount(*caller.address()))?;
         Arc::clone(account)
     };
 
@@ -311,7 +333,7 @@ async fn send_file(
 async fn move_file(
     _state: ServerState,
     backend: ServerBackend,
-    token: BearerToken,
+    caller: Caller,
     vault_id: VaultId,
     secret_id: SecretId,
     file_name: ExternalFileName,
@@ -322,8 +344,8 @@ async fn move_file(
         let accounts = backend.accounts();
         let accounts = accounts.read().await;
         let account = accounts
-            .get(&token.address)
-            .ok_or_else(|| Error::NoAccount(token.address))?;
+            .get(caller.address())
+            .ok_or_else(|| Error::NoAccount(*caller.address()))?;
         Arc::clone(account)
     };
 

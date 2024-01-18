@@ -304,21 +304,19 @@ impl HttpClient {
         };
         use tokio_util::io::ReaderStream;
 
-        // For this request we sign the request path
-        // bytes that encode the file name information
-        let signed_data = file_info.to_string();
+        let url_path = format!("api/v1/sync/file/{}", file_info);
+        let url = self.build_url(&url_path)?;
+        let sign_url = url.path();
         let account_signature = encode_account_signature(
-            self.account_signer.sign(signed_data.as_bytes()).await?,
+            self.account_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
         let device_signature = encode_device_signature(
-            self.device_signer.sign(signed_data.as_bytes()).await?,
+            self.device_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
 
-        let url_path = format!("api/v1/sync/file/{}", signed_data);
-        let url = self.build_url(&url_path)?;
         let metadata = vfs::metadata(path).await?;
         let file_size = metadata.len();
 
@@ -346,21 +344,18 @@ impl HttpClient {
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
 
-        // For this request we sign the request path
-        // bytes that encode the file name information
-        let signed_data = file_info.to_string();
+        let url_path = format!("api/v1/sync/file/{}", file_info);
+        let url = self.build_url(&url_path)?;
+        let sign_url = url.path();
         let account_signature = encode_account_signature(
-            self.account_signer.sign(signed_data.as_bytes()).await?,
+            self.account_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
         let device_signature = encode_device_signature(
-            self.device_signer.sign(signed_data.as_bytes()).await?,
+            self.device_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
-
-        let url_path = format!("api/v1/sync/file/{}", signed_data);
-        let url = self.build_url(&url_path)?;
 
         let mut response = self
             .client
@@ -394,21 +389,18 @@ impl HttpClient {
         &self,
         file_info: &ExternalFile,
     ) -> Result<http::StatusCode> {
-        // For this request we sign the request path
-        // bytes that encode the file name information
-        let signed_data = file_info.to_string();
+        let url_path = format!("api/v1/sync/file/{}", file_info);
+        let url = self.build_url(&url_path)?;
+        let sign_url = url.path();
         let account_signature = encode_account_signature(
-            self.account_signer.sign(signed_data.as_bytes()).await?,
+            self.account_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
         let device_signature = encode_device_signature(
-            self.device_signer.sign(signed_data.as_bytes()).await?,
+            self.device_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
-
-        let url_path = format!("api/v1/sync/file/{}", signed_data);
-        let url = self.build_url(&url_path)?;
 
         let response = self
             .client
@@ -426,25 +418,23 @@ impl HttpClient {
         from: &ExternalFile,
         to: &ExternalFile,
     ) -> Result<http::StatusCode> {
-        // For this request we sign the request path
-        // bytes that encode the file name information
-        let signed_data = from.to_string();
-        let account_signature = encode_account_signature(
-            self.account_signer.sign(signed_data.as_bytes()).await?,
-        )
-        .await?;
-        let device_signature = encode_device_signature(
-            self.device_signer.sign(signed_data.as_bytes()).await?,
-        )
-        .await?;
-
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
-        let url_path = format!("api/v1/sync/file/{}", signed_data);
+        let url_path = format!("api/v1/sync/file/{}", from);
         let mut url = self.build_url(&url_path)?;
         url.query_pairs_mut()
             .append_pair("vault_id", &to.vault_id().to_string())
             .append_pair("secret_id", &to.secret_id().to_string())
             .append_pair("name", &to.file_name().to_string());
+        let sign_url = url.path();
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
 
         let response = self
             .client
