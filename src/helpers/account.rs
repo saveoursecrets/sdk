@@ -98,7 +98,7 @@ pub async fn resolve_account(
         if let Some(owner) = USER.get() {
             let reader = owner.read().await;
             if reader.is_authenticated().await {
-                return Some(reader.account_ref().await.unwrap());
+                return Some((&*reader).into());
             }
         }
 

@@ -636,7 +636,7 @@ pub trait SyncStorage {
     }
 }
 
-/// Trait for types that can merge diffs.
+/// Types that can merge diffs.
 #[async_trait]
 pub trait Merge {
     /// Merge changes to the identity folder.

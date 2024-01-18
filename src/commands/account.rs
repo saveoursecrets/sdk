@@ -479,7 +479,7 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
         verify(Arc::clone(&user)).await?;
 
         let owner = user.read().await;
-        owner.account_ref().await?
+        (&*owner).into()
     };
 
     let user = resolve_user(Some(&account), false).await?;

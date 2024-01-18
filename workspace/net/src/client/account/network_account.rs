@@ -323,6 +323,12 @@ impl NetworkAccount {
     }
 }
 
+impl From<&NetworkAccount> for AccountRef {
+    fn from(value: &NetworkAccount) -> Self {
+        Self::Address(value.address().clone())
+    }
+}
+
 #[async_trait]
 impl Account for NetworkAccount {
     type Account = NetworkAccount;
@@ -436,11 +442,6 @@ impl Account for NetworkAccount {
     async fn public_identity(&self) -> Result<PublicIdentity> {
         let account = self.account.lock().await;
         Ok(account.public_identity().await?)
-    }
-
-    async fn account_ref(&self) -> Result<AccountRef> {
-        let account = self.account.lock().await;
-        Ok(account.account_ref().await?)
     }
 
     async fn account_label(&self) -> Result<String> {
@@ -1156,3 +1157,4 @@ impl Account for NetworkAccount {
             .await?)
     }
 }
+

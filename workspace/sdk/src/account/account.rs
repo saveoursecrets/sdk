@@ -256,11 +256,6 @@ pub trait Account {
         &self,
     ) -> std::result::Result<PublicIdentity, Self::Error>;
 
-    /// Reference to the identity for this account.
-    async fn account_ref(
-        &self,
-    ) -> std::result::Result<AccountRef, Self::Error>;
-
     /// Label of this account.
     async fn account_label(&self)
         -> std::result::Result<String, Self::Error>;
@@ -1228,6 +1223,12 @@ impl LocalAccount {
     }
 }
 
+impl From<&LocalAccount> for AccountRef {
+    fn from(value: &LocalAccount) -> Self {
+        Self::Address(value.address().clone())
+    }
+}
+
 #[async_trait]
 impl Account for LocalAccount {
     type Account = LocalAccount;
@@ -1352,10 +1353,6 @@ impl Account for LocalAccount {
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
         Ok(self.user()?.account()?.clone())
-    }
-
-    async fn account_ref(&self) -> Result<AccountRef> {
-        Ok(self.user()?.account().unwrap().into())
     }
 
     async fn account_label(&self) -> Result<String> {
