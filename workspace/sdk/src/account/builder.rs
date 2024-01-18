@@ -1,5 +1,4 @@
 //! Create a new local account.
-
 use crate::{
     constants::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,

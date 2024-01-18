@@ -2,11 +2,10 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "search_update_secret";
-
 /// Tests updating the search index when we update secrets.
 #[tokio::test]
 async fn integration_search_update_secret() -> Result<()> {
+    const TEST_ID: &str = "search_update_secret";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

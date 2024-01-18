@@ -5,12 +5,12 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_net::client::RemoteBridge;
 
-const TEST_ID: &str = "sync_create_remote_data";
-
 /// Tests creating all the account data on a remote
 /// when the server does not have the account data yet.
 #[tokio::test]
 async fn integration_sync_create_remote_data() -> Result<()> {
+    const TEST_ID: &str = "sync_create_remote_data";
+
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

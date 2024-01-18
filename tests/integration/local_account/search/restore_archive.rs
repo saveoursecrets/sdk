@@ -2,11 +2,10 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "search_restore_archive";
-
 /// Tests querying the index after restoring from a backup archive.
 #[tokio::test]
 async fn integration_search_restore_archive() -> Result<()> {
+    const TEST_ID: &str = "search_restore_archive";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

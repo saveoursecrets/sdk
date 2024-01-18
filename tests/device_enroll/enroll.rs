@@ -67,19 +67,12 @@ async fn device_enroll() -> Result<()> {
     assert_eq!(TEST_ID, secret_data.meta().label());
 
     // Primary device has two trusted devices
-    {
-        let primary_device_storage =
-            primary_device.owner.storage().await.unwrap();
-        let primary_device_storage = primary_device_storage.read().await;
-        assert_eq!(2, primary_device_storage.devices().len());
-    }
+    let devices = primary_device.owner.trusted_devices().await?;
+    assert_eq!(2, devices.len());
 
     // Enrolled device has two trusted devices
-    {
-        let enrolled_storage = enrolled_account.storage().await.unwrap();
-        let enrolled_storage = enrolled_storage.read().await;
-        assert_eq!(2, enrolled_storage.devices().len());
-    }
+    let devices = enrolled_account.trusted_devices().await?;
+    assert_eq!(2, devices.len());
 
     // Check primary device is in sync with remote
     let mut provider =

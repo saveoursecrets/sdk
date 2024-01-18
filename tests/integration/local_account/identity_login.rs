@@ -2,12 +2,11 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::{prelude::*, vfs};
 
-const TEST_ID: &str = "identity_login";
-
 /// Tests creating an identity vault and logging in
 /// with the new vault and managing delegated passwords.
 #[tokio::test]
 async fn integration_identity_login() -> Result<()> {
+    const TEST_ID: &str = "identity_login";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

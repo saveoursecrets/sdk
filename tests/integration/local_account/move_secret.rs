@@ -2,11 +2,10 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "move_secret";
-
 /// Tests moving a secret between folders.
 #[tokio::test]
 async fn integration_move_secret() -> Result<()> {
+    const TEST_ID: &str = "move_secret";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

@@ -8,13 +8,12 @@ use sos_net::{
     sdk::prelude::*,
 };
 
-const TEST_ID: &str = "sync_offline_manual";
-
 /// Tests syncing events between two clients after
 /// a server goes offline and a client commits changes
 /// to local storage whilst disconnected.
 #[tokio::test]
 async fn integration_sync_offline_manual() -> Result<()> {
+    const TEST_ID: &str = "sync_offline_manual";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

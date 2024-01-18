@@ -3,11 +3,10 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "events_account";
-
 /// Tests that basic account events are being logged.
 #[tokio::test]
 async fn integration_events_account() -> Result<()> {
+    const TEST_ID: &str = "events_account";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

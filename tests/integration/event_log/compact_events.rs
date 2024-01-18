@@ -3,11 +3,10 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "events_compact";
-
 /// Tests compacting a folder event log.
 #[tokio::test]
 async fn integration_events_compact() -> Result<()> {
+    const TEST_ID: &str = "events_compact";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

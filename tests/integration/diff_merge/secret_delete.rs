@@ -1,15 +1,13 @@
+use super::copy_account;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
-
-const TEST_ID: &str = "diff_merge_secret_delete";
-
-use super::copy_account;
 
 /// Tests creating a diff and merging a delete secret
 /// event without any networking.
 #[tokio::test]
 async fn integration_diff_merge_secret_delete() -> Result<()> {
+    const TEST_ID: &str = "diff_merge_secret_delete";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;

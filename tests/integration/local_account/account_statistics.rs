@@ -3,11 +3,10 @@ use anyhow::Result;
 use maplit2::{hashmap, hashset};
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "account_statistics";
-
 /// Tests the account statistics.
 #[tokio::test]
 async fn integration_account_statistics() -> Result<()> {
+    const TEST_ID: &str = "account_statistics";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

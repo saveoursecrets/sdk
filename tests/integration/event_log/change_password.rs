@@ -6,12 +6,11 @@ use sos_net::sdk::prelude::*;
 
 use super::last_log_event;
 
-const TEST_ID: &str = "events_change_password";
-
 /// Tests the account events after changing the encryption
 /// password of a folder.
 #[tokio::test]
 async fn integration_events_change_password() -> Result<()> {
+    const TEST_ID: &str = "events_change_password";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

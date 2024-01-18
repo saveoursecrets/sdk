@@ -13,11 +13,10 @@ use sos_net::sdk::{hex, prelude::*};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
-const TEST_ID: &str = "external_files";
-
 /// Tests for the external file logic for a local account.
 #[tokio::test]
 async fn integration_external_files() -> Result<()> {
+    const TEST_ID: &str = "external_files";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

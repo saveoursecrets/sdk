@@ -2,11 +2,10 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::{prelude::*, vfs};
 
-const TEST_ID: &str = "migrate_export";
-
 /// Tests exporting an archive of plain text secrets.
 #[tokio::test]
 async fn integration_migrate_export() -> Result<()> {
+    const TEST_ID: &str = "migrate_export";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

@@ -3,12 +3,11 @@ use sos_net::sdk::prelude::*;
 
 use crate::test_utils::{setup, teardown};
 
-const TEST_ID: &str = "account_lifecycle";
-
 /// Tests the basic account lifecycle. Account creation, sign in
 /// and sign out followed by account deletion.
 #[tokio::test]
 async fn integration_account_lifecycle() -> Result<()> {
+    const TEST_ID: &str = "account_lifecycle";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

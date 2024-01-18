@@ -9,8 +9,8 @@ pub mod security_report;
 mod sync;
 
 pub use account::{
-    Account, AccountData, DetachedView, FolderCreate, FolderDelete,
-    FolderChange, LocalAccount, SecretChange, SecretDelete, SecretInsert,
+    Account, AccountData, DetachedView, FolderChange, FolderCreate,
+    FolderDelete, LocalAccount, SecretChange, SecretDelete, SecretInsert,
     SecretMove,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};

@@ -2,12 +2,11 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "folder_lifecycle";
-
 /// Tests the basic folder lifecycle; create, write, export,
 /// import and delete.
 #[tokio::test]
 async fn integration_folder_lifecycle() -> Result<()> {
+    const TEST_ID: &str = "folder_lifecycle";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

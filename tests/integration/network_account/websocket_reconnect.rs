@@ -3,11 +3,10 @@ use anyhow::Result;
 use sos_net::client::{ListenOptions, RpcClient};
 use std::time::Duration;
 
-const TEST_ID: &str = "websocket_reconnect";
-
 /// Tests websocket reconnect logic.
 #[tokio::test]
 async fn integration_websocket_reconnect() -> Result<()> {
+    const TEST_ID: &str = "websocket_reconnect";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

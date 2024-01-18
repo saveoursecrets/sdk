@@ -2,11 +2,10 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "search_favorites";
-
 /// Tests the favorites view.
 #[tokio::test]
 async fn integration_search_favorites() -> Result<()> {
+    const TEST_ID: &str = "search_favorites";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

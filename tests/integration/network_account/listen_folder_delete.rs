@@ -2,14 +2,13 @@ use crate::test_utils::{simulate_device, spawn, sync_pause, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "sync_listen_delete_folder";
-
 /// Tests syncing delete folder events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
 #[ignore = "flaky, needs debugging"]
 #[tokio::test]
 async fn integration_sync_listen_delete_folder() -> Result<()> {
+    const TEST_ID: &str = "sync_listen_delete_folder";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

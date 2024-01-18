@@ -8,12 +8,11 @@ use sos_net::{
     sdk::prelude::*,
 };
 
-const TEST_ID: &str = "sync_multiple_remotes_fallback";
-
 /// Tests syncing a single client with multiple
 /// remote servers when one of the servers is offline.
 #[tokio::test]
 async fn integration_sync_multiple_remotes_fallback() -> Result<()> {
+    const TEST_ID: &str = "sync_multiple_remotes_fallback";
     //crate::test_utils::init_tracing();
 
     // Spawn some backend servers

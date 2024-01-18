@@ -2,11 +2,10 @@ use crate::test_utils::{num_events, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "sync_delete_folder";
-
 /// Tests sending delete folder events to a remote.
 #[tokio::test]
 async fn integration_sync_delete_folder() -> Result<()> {
+    const TEST_ID: &str = "sync_delete_folder";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

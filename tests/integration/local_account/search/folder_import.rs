@@ -2,11 +2,10 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "search_folder_import";
-
 /// Tests querying the search index after importing a folder.
 #[tokio::test]
 async fn integration_search_folder_import() -> Result<()> {
+    const TEST_ID: &str = "search_folder_import";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

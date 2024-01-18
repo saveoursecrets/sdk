@@ -2,12 +2,11 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "custom_fields";
-
 /// Tests modifiying custom fields. Custom fields are
 /// nested secrets included in a secret's user data.
 #[tokio::test]
 async fn integration_custom_fields() -> Result<()> {
+    const TEST_ID: &str = "custom_fields";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

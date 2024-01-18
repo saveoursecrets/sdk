@@ -1,14 +1,12 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-//use sos_net::migrate::import::{ImportFormat, ImportTarget};
 use sos_net::sdk::prelude::*;
 use std::path::PathBuf;
-
-const TEST_ID: &str = "migrate_import";
 
 /// Tests importing plain text secrets from other apps.
 #[tokio::test]
 async fn integration_migrate_import() -> Result<()> {
+    const TEST_ID: &str = "migrate_import";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

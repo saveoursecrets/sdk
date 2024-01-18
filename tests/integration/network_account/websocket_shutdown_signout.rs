@@ -3,11 +3,10 @@ use anyhow::Result;
 use sos_net::{client::RpcClient, sdk::prelude::*};
 use std::time::Duration;
 
-const TEST_ID: &str = "websocket_shutdown_signout";
-
 /// Tests websocket shutdown logic on sign out.
 #[tokio::test]
 async fn integration_websocket_shutdown_signout() -> Result<()> {
+    const TEST_ID: &str = "websocket_shutdown_signout";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

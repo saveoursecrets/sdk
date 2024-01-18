@@ -3,11 +3,10 @@ use anyhow::Result;
 use maplit2::{hashmap, hashset};
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "search_view_query";
-
 /// Tests querying the search index using views and search queries.
 #[tokio::test]
 async fn integration_search_view_query() -> Result<()> {
+    const TEST_ID: &str = "search_view_query";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

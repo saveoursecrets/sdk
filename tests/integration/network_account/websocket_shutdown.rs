@@ -3,11 +3,10 @@ use anyhow::Result;
 use sos_net::client::RpcClient;
 use std::time::Duration;
 
-const TEST_ID: &str = "websocket_shutdown";
-
 /// Tests websocket shutdown logic.
 #[tokio::test]
 async fn integration_websocket_shutdown() -> Result<()> {
+    const TEST_ID: &str = "websocket_shutdown";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

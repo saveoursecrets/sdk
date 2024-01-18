@@ -3,8 +3,8 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        Account, AccountBuilder, AccountData, DetachedView, FolderCreate,
-        FolderDelete, FolderChange, LocalAccount, SecretChange, SecretDelete,
+        Account, AccountBuilder, AccountData, DetachedView, FolderChange,
+        FolderCreate, FolderDelete, LocalAccount, SecretChange, SecretDelete,
         SecretInsert, SecretMove,
     },
     commit::{CommitHash, CommitState},
@@ -29,7 +29,7 @@ use sos_sdk::{
     vfs, Paths,
 };
 use std::{
-    collections::HashSet,
+    collections::{HashSet, HashMap},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -437,6 +437,14 @@ impl Account for NetworkAccount {
     async fn current_device(&self) -> Result<TrustedDevice> {
         let account = self.account.lock().await;
         Ok(account.current_device().await?)
+    }
+
+    #[cfg(feature = "device")]
+    async fn trusted_devices(
+        &self,
+    ) -> Result<HashMap<DevicePublicKey, TrustedDevice>> {
+        let account = self.account.lock().await;
+        Ok(account.trusted_devices().await?)
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
@@ -1185,4 +1193,3 @@ impl Account for NetworkAccount {
             .await?)
     }
 }
-

@@ -251,6 +251,15 @@ pub trait Account {
         &self,
     ) -> std::result::Result<TrustedDevice, Self::Error>;
 
+    /// Collection of trusted devices.
+    #[cfg(feature = "device")]
+    async fn trusted_devices(
+        &self,
+    ) -> std::result::Result<
+        HashMap<DevicePublicKey, TrustedDevice>,
+        Self::Error,
+    >;
+
     /// Public identity information.
     async fn public_identity(
         &self,
@@ -1336,6 +1345,15 @@ impl Account for LocalAccount {
             .current_device(None))
     }
 
+    #[cfg(feature = "device")]
+    async fn trusted_devices(
+        &self,
+    ) -> Result<HashMap<DevicePublicKey, TrustedDevice>> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        Ok(reader.devices().clone())
+    }
+
     async fn public_identity(&self) -> Result<PublicIdentity> {
         Ok(self.user()?.account()?.clone())
     }
@@ -1368,8 +1386,7 @@ impl Account for LocalAccount {
             folder: Some(folder.clone()),
             ..Default::default()
         };
-        let (_, commit_state) =
-            self.compute_folder_state(&options).await?;
+        let (_, commit_state) = self.compute_folder_state(&options).await?;
 
         let event = {
             let storage = self.storage().await?;

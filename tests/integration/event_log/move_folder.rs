@@ -1,14 +1,12 @@
+use super::all_events;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-use super::all_events;
-
-const TEST_ID: &str = "events_move_folder";
-
 /// Tests events after moving a folder between accounts.
 #[tokio::test]
 async fn integration_events_move_folder() -> Result<()> {
+    const TEST_ID: &str = "events_move_folder";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

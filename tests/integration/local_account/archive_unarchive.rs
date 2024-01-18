@@ -2,12 +2,11 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "archive_unarchive";
-
 /// Tests moving a secret to the archive and restoring
 /// from the archive.
 #[tokio::test]
 async fn integration_archive_unarchive() -> Result<()> {
+    const TEST_ID: &str = "archive_unarchive";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

@@ -10,12 +10,12 @@
 //! securely.
 //!
 //! This library provides primitives for syncing when the `sync`
-//! feature flag is enabled but does not perform any networking, 
-//! for networking support use the 
+//! feature flag is enabled but does not perform any networking,
+//! for networking support use the
 //! [sos-net](https://docs.rs/sos-net/latest/sos_net/) crate.
 //!
-//! The high-level account management API is described in [account::Account] 
-//! which is implemented by [account::LocalAccount] for a network aware 
+//! The high-level account management API is described in [account::Account]
+//! which is implemented by [account::LocalAccount] for a network aware
 //! account use [NetworkAccount](https://docs.rs/sos-net/latest/sos_net/client/struct.NetworkAccount.html) in [sos-net](https://docs.rs/sos-net/latest/sos_net/).
 //!
 //! For lower-level access use the types in the [vault] module.

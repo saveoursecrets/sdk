@@ -2,14 +2,14 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "contacts";
-const CONTACT: &str = include_str!("../../../tests/fixtures/contact.vcf");
-const AVATAR: &str = include_str!("../../../tests/fixtures/avatar.vcf");
-
 /// Tests importing and exporting contacts from vCard
 /// files.
 #[tokio::test]
 async fn integration_contacts() -> Result<()> {
+    const TEST_ID: &str = "contacts";
+    const CONTACT: &str = include_str!("../../../tests/fixtures/contact.vcf");
+    const AVATAR: &str = include_str!("../../../tests/fixtures/avatar.vcf");
+
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

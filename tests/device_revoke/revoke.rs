@@ -77,12 +77,8 @@ async fn device_revoke() -> Result<()> {
     }
 
     // Primary device has one trusted device (itself)
-    {
-        let primary_device_storage =
-            primary_device.owner.storage().await.unwrap();
-        let primary_device_storage = primary_device_storage.read().await;
-        assert_eq!(1, primary_device_storage.devices().len());
-    }
+    let devices = primary_device.owner.trusted_devices().await?;
+    assert_eq!(1, devices.len());
 
     // Check primary device is in sync with remote
     let mut provider =

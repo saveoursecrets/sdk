@@ -5,13 +5,12 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_net::{client::RemoteBridge, sdk::prelude::*};
 
-const TEST_ID: &str = "sync_listen_import_folder";
-
 /// Tests syncing update folder events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
 #[tokio::test]
 async fn integration_sync_listen_import_folder() -> Result<()> {
+    const TEST_ID: &str = "sync_listen_import_folder";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

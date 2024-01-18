@@ -2,12 +2,11 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "search_sign_in";
-
 /// Tests querying the search index after signing in
 /// and building a fresh search index.
 #[tokio::test]
 async fn integration_search_sign_in() -> Result<()> {
+    const TEST_ID: &str = "search_sign_in";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

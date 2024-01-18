@@ -2,12 +2,11 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "secret_lifecycle";
-
 /// Tests the basic secret lifecycle; create, read, update
 /// and delete.
 #[tokio::test]
 async fn integration_secret_lifecycle() -> Result<()> {
+    const TEST_ID: &str = "secret_lifecycle";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

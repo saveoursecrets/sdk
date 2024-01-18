@@ -1,13 +1,11 @@
+use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use secrecy::SecretString;
 use sos_net::sdk::prelude::*;
 
-use crate::test_utils::{setup, teardown};
-
-const TEST_ID: &str = "security_report";
-
 #[tokio::test]
 async fn integration_security_report() -> Result<()> {
+    const TEST_ID: &str = "security_report";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

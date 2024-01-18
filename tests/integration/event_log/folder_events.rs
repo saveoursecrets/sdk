@@ -1,14 +1,12 @@
+use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-use super::last_log_event;
-
-const TEST_ID: &str = "events_folder";
-
 /// Tests events saved to a folder event log.
 #[tokio::test]
 async fn integration_events_folder() -> Result<()> {
+    const TEST_ID: &str = "events_folder";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

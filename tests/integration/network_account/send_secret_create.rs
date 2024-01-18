@@ -8,12 +8,11 @@ use sos_net::{
     sdk::prelude::*,
 };
 
-const TEST_ID: &str = "sync_create_secret";
-
 /// Tests syncing create secret events between two
 /// clients.
 #[tokio::test]
 async fn integration_sync_create_secret() -> Result<()> {
+    const TEST_ID: &str = "sync_create_secret";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

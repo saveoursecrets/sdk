@@ -2,12 +2,11 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const TEST_ID: &str = "time_travel";
-
 /// Tests creating a detached view at a point in time of a
 /// folder's commit history.
 #[tokio::test]
 async fn integration_time_travel() -> Result<()> {
+    const TEST_ID: &str = "time_travel";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

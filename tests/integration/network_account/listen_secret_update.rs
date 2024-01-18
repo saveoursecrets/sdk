@@ -5,13 +5,12 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_net::{client::RemoteBridge, sdk::prelude::*};
 
-const TEST_ID: &str = "sync_listen_update_secret";
-
 /// Tests syncing update secret events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
 #[tokio::test]
 async fn integration_sync_listen_update_secret() -> Result<()> {
+    const TEST_ID: &str = "sync_listen_update_secret";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

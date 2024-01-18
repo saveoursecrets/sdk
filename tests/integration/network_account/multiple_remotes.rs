@@ -7,12 +7,11 @@ use sos_net::{
     sdk::prelude::*,
 };
 
-const TEST_ID: &str = "sync_multiple_remotes";
-
 /// Tests syncing a single client with multiple
 /// remote servers.
 #[tokio::test]
 async fn integration_sync_multiple_remotes() -> Result<()> {
+    const TEST_ID: &str = "sync_multiple_remotes";
     //crate::test_utils::init_tracing();
 
     // Spawn some backend servers

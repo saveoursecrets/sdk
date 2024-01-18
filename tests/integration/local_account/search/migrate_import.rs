@@ -3,12 +3,11 @@ use anyhow::Result;
 use sos_net::sdk::prelude::*;
 use std::path::PathBuf;
 
-const TEST_ID: &str = "search_migrate_import";
-
 /// Tests querying the search index after importing
 /// a migration.
 #[tokio::test]
 async fn integration_search_migrate_import() -> Result<()> {
+    const TEST_ID: &str = "search_migrate_import";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

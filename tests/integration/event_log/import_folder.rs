@@ -1,15 +1,13 @@
+use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
-
-use super::last_log_event;
-
-const TEST_ID: &str = "events_import_folder";
 
 /// Tests the update folder event when importing a folder
 /// that overwrites an existing folder.
 #[tokio::test]
 async fn integration_events_import_folder() -> Result<()> {
+    const TEST_ID: &str = "events_import_folder";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

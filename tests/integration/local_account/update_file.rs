@@ -2,11 +2,10 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::{hex, prelude::*, vfs};
 
-const TEST_ID: &str = "update_file";
-
 /// Tests creating a file and updating the secret contents.
 #[tokio::test]
 async fn integration_update_file() -> Result<()> {
+    const TEST_ID: &str = "update_file";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
