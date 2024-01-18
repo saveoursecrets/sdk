@@ -10,7 +10,7 @@ mod sync;
 
 pub use account::{
     Account, AccountData, DetachedView, FolderCreate, FolderDelete,
-    FolderRename, LocalAccount, SecretChange, SecretDelete, SecretInsert,
+    FolderChange, LocalAccount, SecretChange, SecretDelete, SecretInsert,
     SecretMove,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};

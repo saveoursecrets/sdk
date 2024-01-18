@@ -4,7 +4,7 @@ use secrecy::SecretString;
 use sos_sdk::{
     account::{
         Account, AccountBuilder, AccountData, DetachedView, FolderCreate,
-        FolderDelete, FolderRename, LocalAccount, SecretChange, SecretDelete,
+        FolderDelete, FolderChange, LocalAccount, SecretChange, SecretDelete,
         SecretInsert, SecretMove,
     },
     commit::{CommitHash, CommitState},
@@ -461,14 +461,14 @@ impl Account for NetworkAccount {
         &mut self,
         folder: &Summary,
         description: impl AsRef<str> + Send + Sync,
-    ) -> Result<FolderRename<Self::Error>> {
+    ) -> Result<FolderChange<Self::Error>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
             account.set_folder_description(folder, description).await?
         };
 
-        let result = FolderRename {
+        let result = FolderChange {
             event: result.event,
             commit_state: result.commit_state,
             sync_error: self.sync().await,
@@ -966,14 +966,14 @@ impl Account for NetworkAccount {
         &mut self,
         summary: &Summary,
         name: String,
-    ) -> Result<FolderRename<Self::Error>> {
+    ) -> Result<FolderChange<Self::Error>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
             account.rename_folder(summary, name).await?
         };
 
-        let result = FolderRename {
+        let result = FolderChange {
             event: result.event,
             commit_state: result.commit_state,
             sync_error: self.sync().await,

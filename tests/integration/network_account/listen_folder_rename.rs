@@ -29,7 +29,7 @@ async fn integration_sync_listen_rename_folder() -> Result<()> {
     device1.listen().await?;
     device2.listen().await?;
 
-    let FolderRename { sync_error, .. } = device1
+    let FolderChange { sync_error, .. } = device1
         .owner
         .rename_folder(&default_folder, "new_name".to_string())
         .await?;

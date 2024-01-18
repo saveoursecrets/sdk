@@ -24,7 +24,7 @@ async fn integration_sync_rename_folder() -> Result<()> {
     // Path that we expect the remote server to write to
     let server_path = server.account_path(device.owner.address());
 
-    let FolderRename { sync_error, .. } = device
+    let FolderChange { sync_error, .. } = device
         .owner
         .rename_folder(&default_folder, "new_name".to_string())
         .await?;

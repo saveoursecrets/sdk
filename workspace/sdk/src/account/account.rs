@@ -140,8 +140,8 @@ pub struct FolderCreate<T> {
     pub sync_error: Option<SyncError<T>>,
 }
 
-/// Result information for folder renaming.
-pub struct FolderRename<T> {
+/// Result information for changes to a folder's attributes.
+pub struct FolderChange<T> {
     /// Event to be logged.
     pub event: Event,
     /// Commit state before the change.
@@ -275,7 +275,7 @@ pub trait Account {
         &mut self,
         folder: &Summary,
         description: impl AsRef<str> + Send + Sync,
-    ) -> std::result::Result<FolderRename<Self::Error>, Self::Error>;
+    ) -> std::result::Result<FolderChange<Self::Error>, Self::Error>;
 
     /// Find the password for a folder.
     async fn find_folder_password(
@@ -600,7 +600,7 @@ pub trait Account {
         &mut self,
         summary: &Summary,
         name: String,
-    ) -> std::result::Result<FolderRename<Self::Error>, Self::Error>;
+    ) -> std::result::Result<FolderChange<Self::Error>, Self::Error>;
 
     /// Import a folder from a vault file.
     async fn import_folder(
@@ -1355,14 +1355,11 @@ impl Account for LocalAccount {
         Ok(reader.description().await?)
     }
 
-    /// Set the description of a folder.
-    ///
-    /// The target folder will become the currently open folder.
     async fn set_folder_description(
         &mut self,
         folder: &Summary,
         description: impl AsRef<str> + Send + Sync,
-    ) -> Result<FolderRename<Self::Error>> {
+    ) -> Result<FolderChange<Self::Error>> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
         self.open_folder(folder).await?;
@@ -1382,7 +1379,7 @@ impl Account for LocalAccount {
 
         let event = Event::Write(*folder.id(), event);
 
-        Ok(FolderRename {
+        Ok(FolderChange {
             event,
             commit_state,
             sync_error: None,
@@ -2053,7 +2050,7 @@ impl Account for LocalAccount {
         &mut self,
         summary: &Summary,
         name: String,
-    ) -> Result<FolderRename<Self::Error>> {
+    ) -> Result<FolderChange<Self::Error>> {
         let options = AccessOptions {
             folder: Some(summary.clone()),
             ..Default::default()
@@ -2068,7 +2065,7 @@ impl Account for LocalAccount {
             writer.rename_folder(&summary, &name).await?
         };
 
-        Ok(FolderRename {
+        Ok(FolderChange {
             event,
             commit_state,
             sync_error: None,
