@@ -1,6 +1,6 @@
 use axum::{
     body::Body,
-    extract::{Extension, Path, Query, Request},
+    extract::{Extension, OriginalUri, Path, Query, Request},
     http::StatusCode,
     middleware::Next,
     response::{IntoResponse, Response},
@@ -21,8 +21,8 @@ use crate::{
         vault::{secret::SecretId, VaultId},
     },
     server::{
+        handlers::{authenticate_endpoint, Caller, ConnectionQuery},
         Error, Result, ServerBackend, ServerState, ServerTransfer,
-        handlers::{authenticate_endpoint, ConnectionQuery, Caller},
     },
 };
 use serde::Deserialize;
@@ -55,10 +55,10 @@ impl FileHandler {
             ExternalFileName,
         )>,
         Query(query): Query<ConnectionQuery>,
-        request: Request,
-        //body: Body,
+        OriginalUri(uri): OriginalUri,
+        body: Body,
     ) -> impl IntoResponse {
-        let uri = request.uri().path().to_string();
+        let uri = uri.path().to_string();
         match authenticate_endpoint(
             bearer,
             uri.as_bytes(),
@@ -67,11 +67,12 @@ impl FileHandler {
             Arc::clone(&backend),
             true,
         )
-        .await {
+        .await
+        {
             Ok(caller) => {
                 match receive_file(
                     state, backend, caller, vault_id, secret_id, file_name,
-                    request.into_body(),
+                    body,
                 )
                 .await
                 {
@@ -94,9 +95,9 @@ impl FileHandler {
             ExternalFileName,
         )>,
         Query(query): Query<ConnectionQuery>,
-        request: Request,
+        OriginalUri(uri): OriginalUri,
     ) -> impl IntoResponse {
-        let uri = request.uri().path().to_string();
+        let uri = uri.path().to_string();
         match authenticate_endpoint(
             bearer,
             uri.as_bytes(),
@@ -105,7 +106,8 @@ impl FileHandler {
             Arc::clone(&backend),
             true,
         )
-        .await {
+        .await
+        {
             Ok(caller) => {
                 match delete_file(
                     state, backend, caller, vault_id, secret_id, file_name,
@@ -131,9 +133,9 @@ impl FileHandler {
             ExternalFileName,
         )>,
         Query(query): Query<ConnectionQuery>,
-        request: Request,
+        OriginalUri(uri): OriginalUri,
     ) -> impl IntoResponse {
-        let uri = request.uri().path().to_string();
+        let uri = uri.path().to_string();
         match authenticate_endpoint(
             bearer,
             uri.as_bytes(),
@@ -142,7 +144,8 @@ impl FileHandler {
             Arc::clone(&backend),
             true,
         )
-        .await {
+        .await
+        {
             Ok(caller) => {
                 match send_file(
                     state, backend, caller, vault_id, secret_id, file_name,
@@ -169,9 +172,9 @@ impl FileHandler {
         )>,
         Query(query): Query<ConnectionQuery>,
         Query(move_query): Query<MoveFileQuery>,
-        request: Request,
+        OriginalUri(uri): OriginalUri,
     ) -> impl IntoResponse {
-        let uri = request.uri().path().to_string();
+        let uri = uri.path().to_string();
         match authenticate_endpoint(
             bearer,
             uri.as_bytes(),
@@ -180,7 +183,8 @@ impl FileHandler {
             Arc::clone(&backend),
             true,
         )
-        .await {
+        .await
+        {
             Ok(token) => {
                 match move_file(
                     state, backend, token, vault_id, secret_id, file_name,

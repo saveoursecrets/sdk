@@ -12,8 +12,8 @@ use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 
 use crate::sync::{
-    ChangeSet, Diff, FolderDiff, FolderPatch, Patch, SyncDiff,
-    SyncPacket, SyncStatus,
+    ChangeSet, Diff, FolderDiff, FolderPatch, Patch, SyncDiff, SyncPacket,
+    SyncStatus,
 };
 
 #[async_trait]

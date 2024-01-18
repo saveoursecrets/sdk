@@ -8,9 +8,6 @@ mod command_line;
 mod diff_merge;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod http;
-
-#[cfg(not(target_arch = "wasm32"))]
 mod local_account;
 
 #[cfg(not(target_arch = "wasm32"))]

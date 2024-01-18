@@ -12,6 +12,4 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub use backend::Backend;
 pub use config::*;
-pub use server::{
-    Server, ServerBackend, ServerInfo, ServerState, ServerTransfer, State,
-};
+pub use server::{Server, ServerBackend, ServerState, ServerTransfer, State};

@@ -8,7 +8,7 @@ use super::{
     },
     Backend, Result, ServerConfig,
 };
-use crate::sdk::storage::files::ExternalFile;
+use crate::{sdk::storage::files::ExternalFile, ServerInfo};
 use axum::{
     extract::Extension,
     http::{
@@ -20,8 +20,6 @@ use axum::{
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
-use serde::{Deserialize, Serialize};
-
 use sos_sdk::signer::ecdsa::Address;
 use std::{
     collections::{HashMap, HashSet},
@@ -43,16 +41,6 @@ pub struct State {
     /// Map of websocket  channels by authenticated
     /// client address.
     pub sockets: HashMap<Address, WebSocketConnection>,
-}
-
-/// Server information.
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ServerInfo {
-    /// Name of the crate.
-    pub name: String,
-    /// Version of the crate.
-    pub version: String,
 }
 
 /// State for the server.
@@ -187,6 +175,62 @@ impl Server {
             .expose_headers(vec![])
             .allow_origin(origins);
 
+        let v1 = {
+            let mut router = Router::new()
+                .route("/", get(api))
+                .route("/connections", get(connections))
+                .route(
+                    "/sync/account",
+                    post(AccountHandler::create_account)
+                        .put(AccountHandler::sync_account)
+                        .get(AccountHandler::fetch_account),
+                )
+                .route(
+                    "/sync/account/status",
+                    get(AccountHandler::sync_status),
+                )
+                .route(
+                    "/sync/file/:vault_id/:secret_id/:file_name",
+                    put(FileHandler::receive_file)
+                        .post(FileHandler::move_file)
+                        .get(FileHandler::send_file)
+                        .delete(FileHandler::delete_file)
+                        .route_layer(middleware::from_fn(
+                            file_operation_lock,
+                        )),
+                );
+
+            #[cfg(feature = "device")]
+            {
+                router = router.route(
+                    "/sync/account/devices",
+                    patch(AccountHandler::patch_devices),
+                );
+            }
+
+            #[cfg(feature = "listen")]
+            {
+                router = router.route("/changes", get(upgrade));
+            }
+
+            router
+        };
+
+        let file_operations: ServerTransfer =
+            Arc::new(RwLock::new(HashSet::new()));
+
+        let v1 = v1
+            .layer(cors)
+            .layer(TraceLayer::new_for_http())
+            .layer(Extension(backend))
+            .layer(Extension(file_operations))
+            .layer(Extension(state));
+
+        let app = Router::new()
+            .route("/", get(home))
+            .nest_service("/api/v1", v1);
+
+        /*
         let mut app = Router::new()
             .route("/", get(home))
             .route("/api", get(api))
@@ -220,18 +264,18 @@ impl Server {
 
         #[cfg(feature = "listen")]
         {
-            app = app.route("/api/changes", get(upgrade));
+            app = app.route("/api/v1/changes", get(upgrade));
         }
+        */
 
-        let file_operations: ServerTransfer =
-            Arc::new(RwLock::new(HashSet::new()));
-
+        /*
         app = app
             .layer(cors)
             .layer(TraceLayer::new_for_http())
             .layer(Extension(backend))
             .layer(Extension(file_operations))
             .layer(Extension(state));
+        */
 
         Ok(app)
     }

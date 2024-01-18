@@ -37,7 +37,9 @@ pub struct ConnectionQuery {
 pub(crate) async fn home(
     Extension(_): Extension<ServerState>,
 ) -> impl IntoResponse {
-    Redirect::permanent("/api")
+    println!("HOME RUNNING...");
+
+    Redirect::permanent("/api/v1")
 }
 
 /// Serve the API identity page.

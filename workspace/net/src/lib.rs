@@ -11,13 +11,9 @@
 
 #[cfg(feature = "client")]
 pub mod client;
+mod error;
 #[cfg(feature = "server")]
 pub mod server;
-
-#[cfg(any(feature = "client", feature = "server"))]
-pub mod events;
-
-mod error;
 
 /// Result type for the network module.
 pub type Result<T> = std::result::Result<T, error::Error>;
@@ -27,3 +23,36 @@ pub use error::Error;
 pub use reqwest;
 
 pub use sos_sdk as sdk;
+
+/// Server information.
+#[cfg(any(feature = "client", feature = "server"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ServerInfo {
+    /// Name of the crate.
+    pub name: String,
+    /// Version of the crate.
+    pub version: String,
+}
+
+#[cfg(feature = "listen")]
+use sos_sdk::signer::ecdsa::Address;
+
+/// Notification sent by the server when changes were made.
+#[cfg(feature = "listen")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct ChangeNotification {
+    /// Account owner address.
+    address: Address,
+}
+
+impl ChangeNotification {
+    /// Create a new change notification.
+    pub fn new(address: &Address) -> Self {
+        Self { address: *address }
+    }
+
+    /// Address of the account owner.
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+}

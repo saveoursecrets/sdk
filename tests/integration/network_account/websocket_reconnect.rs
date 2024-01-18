@@ -1,6 +1,6 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::client::{ListenOptions, HttpClient};
+use sos_net::client::{HttpClient, ListenOptions};
 use std::time::Duration;
 
 /// Tests websocket reconnect logic.

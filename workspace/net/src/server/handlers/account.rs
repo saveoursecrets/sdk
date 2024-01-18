@@ -1,7 +1,7 @@
 use super::{authenticate_endpoint, Caller};
 use axum::{
     body::{to_bytes, Body},
-    extract::{Extension, Query, Request},
+    extract::{Extension, OriginalUri, Query},
     http::StatusCode,
     response::IntoResponse,
 };
@@ -72,9 +72,9 @@ impl AccountHandler {
         Extension(backend): Extension<ServerBackend>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         Query(query): Query<ConnectionQuery>,
-        request: Request,
+        OriginalUri(uri): OriginalUri,
     ) -> impl IntoResponse {
-        let uri = request.uri().path().to_string();
+        let uri = uri.path().to_string();
         match authenticate_endpoint(
             bearer,
             uri.as_bytes(),
@@ -132,9 +132,9 @@ impl AccountHandler {
         Extension(backend): Extension<ServerBackend>,
         TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
         Query(query): Query<ConnectionQuery>,
-        request: Request,
+        OriginalUri(uri): OriginalUri,
     ) -> impl IntoResponse {
-        let uri = request.uri().path().to_string();
+        let uri = uri.path().to_string();
         // FIXME: this endpoint should be restricted!
         match authenticate_endpoint(
             bearer,

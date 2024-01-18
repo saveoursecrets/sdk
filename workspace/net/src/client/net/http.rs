@@ -27,7 +27,10 @@ use crate::sdk::storage::files::ExternalFile;
 use std::path::PathBuf;
 use url::Url;
 
-use crate::client::{Error, Result};
+use crate::{
+    client::{Error, Result},
+    ServerInfo,
+};
 
 #[cfg(feature = "listen")]
 use crate::client::{ListenOptions, WebSocketHandle};
@@ -103,27 +106,22 @@ impl HttpClient {
         listener.spawn(handler)
     }
 
-    /// Generic GET function.
-    pub async fn get(url: Url) -> Result<reqwest::Response> {
-        let client = reqwest::Client::new();
-        Ok(client.get(url).send().await?)
-    }
-
     /// Server information.
-    pub async fn server_info(server: Url) -> Result<reqwest::Response> {
+    pub async fn server_info(server: Url) -> Result<ServerInfo> {
         let client = reqwest::Client::new();
-        let url = server.join("api")?;
-        Ok(client.get(url).send().await?)
+        let url = server.join("api/v1")?;
+        let response = client.get(url).send().await?;
+        let response = response.error_for_status()?;
+        Ok(response.json::<ServerInfo>().await?)
     }
 
     /// Total number of websocket connections on remote.
     pub async fn num_connections(server: &Url) -> Result<usize> {
         let client = reqwest::Client::new();
-        let url = server.join("api/connections")?;
-        let res = client.get(url).send().await?;
-        let res = res.error_for_status()?;
-        let value = res.json::<usize>().await?;
-        Ok(value)
+        let url = server.join("api/v1/connections")?;
+        let response = client.get(url).send().await?;
+        let response = response.error_for_status()?;
+        Ok(response.json::<usize>().await?)
     }
 
     /// Build a URL including the connection identifier
@@ -171,120 +169,6 @@ impl HttpClient {
         }
     }
     */
-
-    /// Try to create a new account.
-    async fn try_create_account(
-        &self,
-        account: &ChangeSet,
-    ) -> Result<http::StatusCode> {
-        let body = encode(account).await?;
-        let url = self.build_url("api/v1/sync/account")?;
-        let account_signature =
-            encode_account_signature(self.account_signer.sign(&body).await?)
-                .await?;
-        let auth = bearer_prefix(&account_signature, None);
-        let response = self
-            .client
-            .post(url)
-            .header(AUTHORIZATION, auth)
-            .body(body)
-            .send()
-            .await?;
-        Ok(convert_status_code(response.status()))
-    }
-
-    /// Try to fetch an existing account.
-    async fn try_fetch_account(&self) -> Result<(http::StatusCode, Vec<u8>)> {
-        let url = self.build_url("api/v1/sync/account")?;
-        let sign_url = url.path();
-        let account_signature = encode_account_signature(
-            self.account_signer.sign(sign_url.as_bytes()).await?,
-        )
-        .await?;
-        let auth = bearer_prefix(&account_signature, None);
-        let response = self
-            .client
-            .get(url)
-            .header(AUTHORIZATION, auth)
-            .send()
-            .await?;
-        let status = convert_status_code(response.status());
-        let buffer = response.bytes().await?;
-        Ok((status, buffer.to_vec()))
-    }
-
-    /// Try to patch the event log on remote.
-    async fn try_patch_devices(
-        &self,
-        diff: &DeviceDiff,
-    ) -> Result<http::StatusCode> {
-        let body = encode(diff).await?;
-        let url = self.build_url("api/v1/sync/account/devices")?;
-        let account_signature =
-            encode_account_signature(self.account_signer.sign(&body).await?)
-                .await?;
-        let auth = bearer_prefix(&account_signature, None);
-        let response = self
-            .client
-            .patch(url)
-            .header(AUTHORIZATION, auth)
-            .body(body)
-            .send()
-            .await?;
-        Ok(convert_status_code(response.status()))
-    }
-
-    /// Try to sync status on remote.
-    async fn try_sync_status(
-        &self,
-    ) -> Result<(http::StatusCode, Option<SyncStatus>)> {
-        let url = self.build_url("api/v1/sync/account/status")?;
-        let sign_url = url.path();
-        let account_signature = encode_account_signature(
-            self.account_signer.sign(sign_url.as_bytes()).await?,
-        )
-        .await?;
-        let device_signature = encode_device_signature(
-            self.device_signer.sign(sign_url.as_bytes()).await?,
-        )
-        .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
-        let response = self
-            .client
-            .get(url)
-            .header(AUTHORIZATION, auth)
-            .send()
-            .await?;
-        let status = convert_status_code(response.status());
-        let sync_status: Option<SyncStatus> = response.json().await?;
-        Ok((status, sync_status))
-    }
-
-    /// Try to sync with a remote.
-    async fn try_sync(
-        &self,
-        packet: &SyncPacket,
-    ) -> Result<(http::StatusCode, Vec<u8>)> {
-        let body = encode(packet).await?;
-        let url = self.build_url("api/v1/sync/account")?;
-        let account_signature =
-            encode_account_signature(self.account_signer.sign(&body).await?)
-                .await?;
-        let device_signature =
-            encode_device_signature(self.device_signer.sign(&body).await?)
-                .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
-        let response = self
-            .client
-            .put(url)
-            .header(AUTHORIZATION, auth)
-            .body(body)
-            .send()
-            .await?;
-        let status = convert_status_code(response.status());
-        let result = response.bytes().await?;
-        Ok((status, result.to_vec()))
-    }
 
     /// Try to send a file to remote.
     ///
@@ -457,12 +341,26 @@ impl SyncClient for HttpClient {
     async fn create_account(&self, account: &ChangeSet) -> Result<()> {
         let span = span!(Level::DEBUG, "create_account");
         let _enter = span.enter();
-        let status = self.try_create_account(account).await?;
+
+        let body = encode(account).await?;
+        let url = self.build_url("api/v1/sync/account")?;
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+        let auth = bearer_prefix(&account_signature, None);
+        let response = self
+            .client
+            .post(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        let status = convert_status_code(response.status());
         tracing::debug!(status = %status);
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
+        response
+            .error_for_status()
+            .map_err(|_| Error::ResponseCode(status))?;
+
         Ok(())
     }
 
@@ -471,31 +369,90 @@ impl SyncClient for HttpClient {
     ) -> std::result::Result<ChangeSet, Self::Error> {
         let span = span!(Level::DEBUG, "fetch_account");
         let _enter = span.enter();
-        let (status, body) = self.try_fetch_account().await?;
+
+        let url = self.build_url("api/v1/sync/account")?;
+        let sign_url = url.path();
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, None);
+        let response = self
+            .client
+            .get(url)
+            .header(AUTHORIZATION, auth)
+            .send()
+            .await?;
+        let status = convert_status_code(response.status());
         tracing::debug!(status = %status);
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(decode(&body).await?)
+        let response = response
+            .error_for_status()
+            .map_err(|_| Error::ResponseCode(status))?;
+        let buffer = response.bytes().await?;
+        Ok(decode(&buffer).await?)
     }
 
     async fn sync_status(&self) -> Result<Option<SyncStatus>> {
-        let (_, value) = self.try_sync_status().await?;
-        Ok(value)
+        let span = span!(Level::DEBUG, "sync_status");
+        let _enter = span.enter();
+
+        let url = self.build_url("api/v1/sync/account/status")?;
+        let sign_url = url.path();
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let response = self
+            .client
+            .get(url)
+            .header(AUTHORIZATION, auth)
+            .send()
+            .await?;
+        let status = convert_status_code(response.status());
+        tracing::debug!(status = %status);
+        let response = response
+            .error_for_status()
+            .map_err(|_| Error::ResponseCode(status))?;
+        let sync_status: Option<SyncStatus> = response.json().await?;
+        Ok(sync_status)
     }
 
     async fn sync(
         &self,
         packet: &SyncPacket,
     ) -> std::result::Result<SyncPacket, Self::Error> {
-        let (status, body) = self.try_sync(packet).await?;
+        let span = span!(Level::DEBUG, "sync_account");
+        let _enter = span.enter();
+
+        let body = encode(packet).await?;
+        let url = self.build_url("api/v1/sync/account")?;
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+        let device_signature =
+            encode_device_signature(self.device_signer.sign(&body).await?)
+                .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let response = self
+            .client
+            .put(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        let status = convert_status_code(response.status());
         tracing::debug!(status = %status);
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
-        Ok(decode(&body).await?)
+        let response = response
+            .error_for_status()
+            .map_err(|_| Error::ResponseCode(status))?;
+        let buffer = response.bytes().await?;
+
+        Ok(decode(&buffer).await?)
     }
 
     #[cfg(feature = "device")]
@@ -505,12 +462,26 @@ impl SyncClient for HttpClient {
     ) -> std::result::Result<(), Self::Error> {
         let span = span!(Level::DEBUG, "patch_devices");
         let _enter = span.enter();
-        let status = self.try_patch_devices(diff).await?;
+
+        let body = encode(diff).await?;
+        let url = self.build_url("api/v1/sync/account/devices")?;
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+        let auth = bearer_prefix(&account_signature, None);
+        let response = self
+            .client
+            .patch(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        let status = convert_status_code(response.status());
         tracing::debug!(status = %status);
-        status
-            .is_success()
-            .then_some(())
-            .ok_or(Error::ResponseCode(status))?;
+        response
+            .error_for_status()
+            .map_err(|_| Error::ResponseCode(status))?;
+
         Ok(())
     }
 

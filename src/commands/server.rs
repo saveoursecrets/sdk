@@ -1,4 +1,7 @@
-use sos_net::server::{Result, Server, ServerConfig, ServerInfo, State};
+use sos_net::{
+    server::{Result, Server, ServerConfig, State},
+    ServerInfo,
+};
 
 use axum_server::Handle;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};

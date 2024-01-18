@@ -75,7 +75,7 @@ parking_lot.workspace = true
 
 # server
 toml = { version = "0.8", optional = true }
-axum = { version = "0.7", features = ["ws"], optional = true }
+axum = { version = "0.7", features = ["ws", "original-uri"], optional = true }
 axum-extra = {version = "0.9", features = ["typed-header"], optional = true}
 axum-macros = { version = "0.4", optional = true }
 axum-server = { version = "0.6", features = ["tls-rustls"], optional = true }

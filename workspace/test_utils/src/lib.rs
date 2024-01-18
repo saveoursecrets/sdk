@@ -8,7 +8,8 @@ use tokio::sync::{oneshot, RwLock};
 
 use sos_net::{
     sdk::{signer::ecdsa::Address, sync::Origin, url::Url, vfs, Paths},
-    server::{Server, ServerConfig, ServerInfo, State},
+    server::{Server, ServerConfig, State},
+    ServerInfo,
 };
 
 pub mod mock;

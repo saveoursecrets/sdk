@@ -25,6 +25,7 @@ mod multiple_remotes_fallback;
 
 mod offline_manual;
 mod server_definitions;
+mod server_info;
 
 mod websocket_reconnect;
 mod websocket_shutdown;
