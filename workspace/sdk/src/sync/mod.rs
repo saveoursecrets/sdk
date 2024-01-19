@@ -134,8 +134,7 @@ pub struct SyncPacket {
 /// Provides a status overview of an account.
 ///
 /// Intended to be used during a synchronization protocol.
-#[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
-#[serde(default)]
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct SyncStatus {
     /// Identity vault commit state.
     pub identity: CommitState,
@@ -146,10 +145,8 @@ pub struct SyncStatus {
     pub device: CommitState,
     /// Files log commit state.
     #[cfg(feature = "files")]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub files: Option<CommitState>,
     /// Commit proofs for the account folders.
-    #[serde(skip_serializing_if = "IndexMap::is_empty")]
     pub folders: IndexMap<VaultId, CommitState>,
 }
 
