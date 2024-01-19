@@ -9,7 +9,6 @@ use tokio::sync::{oneshot, RwLock};
 use sos_net::{
     sdk::{signer::ecdsa::Address, sync::Origin, url::Url, vfs, Paths},
     server::{Server, ServerConfig, State},
-    ServerInfo,
 };
 
 pub mod mock;
@@ -75,10 +74,6 @@ impl MockServer {
         let backend = config.backend().await?;
 
         let state = Arc::new(RwLock::new(State {
-            info: ServerInfo {
-                name: String::from("integration-test"),
-                version: String::from("0.0.0"),
-            },
             config,
             sockets: Default::default(),
         }));

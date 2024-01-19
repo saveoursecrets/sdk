@@ -39,11 +39,10 @@ pub(crate) async fn home() -> impl IntoResponse {
 }
 
 /// Serve the API identity page.
-pub(crate) async fn api(
-    Extension(state): Extension<ServerState>,
-) -> impl IntoResponse {
-    let reader = state.read().await;
-    Json(json!(&reader.info))
+pub(crate) async fn api() -> impl IntoResponse {
+    let name = env!("CARGO_PKG_NAME");
+    let version = env!("CARGO_PKG_VERSION");
+    Json(json!({"name": name, "version": version}))
 }
 
 /// Get the number of websocket connections.

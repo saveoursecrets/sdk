@@ -11,6 +11,11 @@ pub struct SosServer {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    /// Create a configuration file.
+    Init{
+        /// Config file to write.
+        config: PathBuf,
+    },
     /// Start a server.
     Start {
         /// Bind to host:port.
@@ -18,7 +23,6 @@ pub enum Command {
         bind: String,
 
         /// Config file to load.
-        #[clap(short, long)]
         config: PathBuf,
     },
 }
@@ -27,6 +31,9 @@ pub async fn run() -> Result<()> {
     let args = SosServer::parse();
 
     match args.cmd {
+        Command::Init{ config } => {
+            server::init(config).await?;
+        }
         Command::Start { bind, config } => {
             server::run(bind, config).await?;
         }

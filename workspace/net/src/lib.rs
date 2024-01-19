@@ -24,16 +24,6 @@ pub use reqwest;
 
 pub use sos_sdk as sdk;
 
-/// Server information.
-#[cfg(any(feature = "client", feature = "server"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct ServerInfo {
-    /// Name of the crate.
-    pub name: String,
-    /// Version of the crate.
-    pub version: String,
-}
-
 #[cfg(feature = "listen")]
 use sos_sdk::signer::ecdsa::Address;
 

@@ -29,7 +29,6 @@ use url::Url;
 
 use crate::{
     client::{Error, Result},
-    ServerInfo,
 };
 
 #[cfg(feature = "listen")]
@@ -104,15 +103,6 @@ impl HttpClient {
             options,
         );
         listener.spawn(handler)
-    }
-
-    /// Server information.
-    pub async fn server_info(server: Url) -> Result<ServerInfo> {
-        let client = reqwest::Client::new();
-        let url = server.join("api/v1")?;
-        let response = client.get(url).send().await?;
-        let response = response.error_for_status()?;
-        Ok(response.json::<ServerInfo>().await?)
     }
 
     /// Total number of websocket connections on remote.

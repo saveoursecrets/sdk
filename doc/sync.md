@@ -8,13 +8,59 @@ Synchronization is achieved via an untrusted intermediary server.
 
 Even though all data is encrypted on the client before being sent over the network, servers **must protect** the data in transit to prevent against MitM attacks that could be used to replay requests and alter the server state of an account.
 
-For development and it is convenient to use HTTP rather than configure certificates for TLS however in a production environment we recommend securing connections with TLS.
+For development it is convenient to use HTTP rather than configure certificates for TLS however in a production environment servers **must** secure connections with TLS.
 
-Production servers **must use TLS** to protect the data in transit.
+## Authorization
+
+Servers provide endpoints with different levels of protection from unauthorized access:
+
+1) Private endpoints require a signature from the account signing key.
+2) Restricted endpoints require a signature from the account signing key and a signature from a trusted device.
+
+TODO: define bearer token authorization format.
 
 ## Reference Implementation
 
-The [sos-net](/workspace/net) crate provides a client and server reference implementation. The server is suitable to be hosted on a LAN and is permissionless so should **not be exposed to the internet**, configuring a network for self-hosting is beyond the scope of this document and will vary depending upon the network.
+The [sos-net](/workspace/net) crate provides a client and server reference implementation; pre-built binaries can be [downloaded from our website](https://saveoursecrets.com/command-line-tools/).
+
+To start a server first initialize a configuration file:
+
+```
+sos-server init config.toml     # create config.toml file
+sos-server start config.toml    # start with config.toml file
+```
+
+The server API is documented using Open API, to view the endpoints as JSON navigate to `/api/v1/docs/openapi.json` for a web interface navigate to `/api/v1/docs`.
+
+The server is suitable to be hosted on a LAN and is permissionless so should **not be exposed to the internet**, configuring a network for self-hosting is beyond the scope of this document and will vary depending upon the network.
+
+### Configuration
+
+### Storage
+
+Set the storage path to determine the root directory where the server will store data:
+
+```toml
+[storage]
+path = "sandbox/accounts"
+```
+
+Relative paths are resolved from the current working directory when the server is started.
+
+The server will create top-level folders:
+
+```
+sandbox/accounts
+├── identity
+├── logs
+└── remote
+```
+
+* `identity`: Account identity folders.
+* `logs`: Log files.
+* `remote`: Account data.
+
+### Access Controls
 
 It is **strongly recommended** to use the `allow` and `deny` access controls to determine which accounts are allowed to store data otherwise your server may be abused to store data on behalf of unknown connections.
 
@@ -47,14 +93,6 @@ deny = [
   "0x3ebe1c7c8e56a1e9b813073e30caf1a0cd8e7634"
 ]
 ```
-
-## Endpoints
-
-Servers provide endpoints with different levels of protection from unauthorized access:
-
-1) Public endpoints require no authentication.
-2) Private endpoints require a signature from the account signing key.
-3) Restricted endpoints require a signature from the account signing key and a signature from a trusted device.
 
 ## Event Logs
 

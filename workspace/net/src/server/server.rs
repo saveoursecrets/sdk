@@ -7,7 +7,7 @@ use super::{
     },
     Backend, Result, ServerConfig,
 };
-use crate::{sdk::storage::files::ExternalFile, ServerInfo};
+use crate::{sdk::storage::files::ExternalFile};
 use axum::{
     extract::Extension,
     http::{
@@ -36,8 +36,6 @@ use super::handlers::websocket::{upgrade, WebSocketConnection};
 pub struct State {
     /// The server configuration.
     pub config: ServerConfig,
-    /// Server information.
-    pub info: ServerInfo,
     /// Map of websocket  channels by authenticated
     /// client address.
     pub sockets: HashMap<Address, WebSocketConnection>,
@@ -179,6 +177,7 @@ impl Server {
             let mut router = Router::new()
                 .route("/", get(api))
                 .route("/docs", get(apidocs))
+                .route("/docs/", get(apidocs))
                 .route("/docs/openapi.json", get(openapi))
                 .route("/connections", get(connections))
                 .route(

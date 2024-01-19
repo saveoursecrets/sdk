@@ -101,6 +101,10 @@ pub enum Error {
     #[error(transparent)]
     TomlDeser(#[from] toml::de::Error),
 
+    /// Error generated serializing to TOML.
+    #[error(transparent)]
+    TomlSer(#[from] toml::ser::Error),
+
     /// Error generated attempting to parse a socket address.
     #[error(transparent)]
     AddrParse(#[from] std::net::AddrParseError),
