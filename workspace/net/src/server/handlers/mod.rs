@@ -15,16 +15,16 @@ use serde::Deserialize;
 use serde_json::json;
 use sos_sdk::signer::ecdsa::Address;
 
-pub(crate) mod account;
-pub(crate) mod files;
+pub mod account;
+pub mod files;
 
 #[cfg(feature = "listen")]
 pub(crate) mod websocket;
 
 #[cfg(feature = "listen")]
 use crate::{
-    ChangeNotification,
     server::{handlers::websocket::BroadcastMessage, ServerState, State},
+    ChangeNotification,
 };
 
 /// Query string for connections.
@@ -34,11 +34,7 @@ pub struct ConnectionQuery {
 }
 
 /// Serve the home page.
-pub(crate) async fn home(
-    Extension(_): Extension<ServerState>,
-) -> impl IntoResponse {
-    println!("HOME RUNNING...");
-
+pub(crate) async fn home() -> impl IntoResponse {
     Redirect::permanent("/api/v1")
 }
 
@@ -125,7 +121,7 @@ async fn authenticate_endpoint(
 
 /// Send change notifications to connected clients.
 #[cfg(feature = "listen")]
-fn send_notification(
+pub(crate) fn send_notification(
     writer: &mut State,
     caller: &Caller,
     notification: ChangeNotification,

@@ -1,9 +1,8 @@
 use super::{
     config::TlsConfig,
     handlers::{
-        account::AccountHandler,
-        api, connections,
-        files::{file_operation_lock, FileHandler},
+        account, api, connections,
+        files::{self, file_operation_lock},
         home,
     },
     Backend, Result, ServerConfig,
@@ -16,6 +15,7 @@ use axum::{
         HeaderValue, Method,
     },
     middleware,
+    response::{IntoResponse, Json},
     routing::{get, patch, post, put},
     Router,
 };
@@ -178,23 +178,22 @@ impl Server {
         let v1 = {
             let mut router = Router::new()
                 .route("/", get(api))
+                .route("/docs", get(apidocs))
+                .route("/docs/openapi.json", get(openapi))
                 .route("/connections", get(connections))
                 .route(
                     "/sync/account",
-                    post(AccountHandler::create_account)
-                        .put(AccountHandler::sync_account)
-                        .get(AccountHandler::fetch_account),
+                    post(account::create_account)
+                        .put(account::sync_account)
+                        .get(account::fetch_account),
                 )
-                .route(
-                    "/sync/account/status",
-                    get(AccountHandler::sync_status),
-                )
+                .route("/sync/account/status", get(account::sync_status))
                 .route(
                     "/sync/file/:vault_id/:secret_id/:file_name",
-                    put(FileHandler::receive_file)
-                        .post(FileHandler::move_file)
-                        .get(FileHandler::send_file)
-                        .delete(FileHandler::delete_file)
+                    put(files::receive_file)
+                        .post(files::move_file)
+                        .get(files::send_file)
+                        .delete(files::delete_file)
                         .route_layer(middleware::from_fn(
                             file_operation_lock,
                         )),
@@ -204,7 +203,7 @@ impl Server {
             {
                 router = router.route(
                     "/sync/account/devices",
-                    patch(AccountHandler::patch_devices),
+                    patch(account::patch_devices),
                 );
             }
 
@@ -230,53 +229,40 @@ impl Server {
             .route("/", get(home))
             .nest_service("/api/v1", v1);
 
-        /*
-        let mut app = Router::new()
-            .route("/", get(home))
-            .route("/api", get(api))
-            .route("/api/connections", get(connections))
-            .route(
-                "/api/v1/sync/account",
-                post(AccountHandler::create_account)
-                    .put(AccountHandler::sync_account)
-                    .get(AccountHandler::fetch_account),
-            )
-            .route(
-                "/api/v1/sync/account/status",
-                get(AccountHandler::sync_status),
-            )
-            .route(
-                "/api/v1/sync/file/:vault_id/:secret_id/:file_name",
-                put(FileHandler::receive_file)
-                    .post(FileHandler::move_file)
-                    .get(FileHandler::send_file)
-                    .delete(FileHandler::delete_file)
-                    .route_layer(middleware::from_fn(file_operation_lock)),
-            );
-
-        #[cfg(feature = "device")]
-        {
-            app = app.route(
-                "/api/v1/sync/account/devices",
-                patch(AccountHandler::patch_devices),
-            );
-        }
-
-        #[cfg(feature = "listen")]
-        {
-            app = app.route("/api/v1/changes", get(upgrade));
-        }
-        */
-
-        /*
-        app = app
-            .layer(cors)
-            .layer(TraceLayer::new_for_http())
-            .layer(Extension(backend))
-            .layer(Extension(file_operations))
-            .layer(Extension(state));
-        */
-
         Ok(app)
     }
+}
+
+/// Get OpenAPI JSON definition.
+#[utoipa::path(
+    get,
+    path = "/docs/openapi.json",
+    responses(
+        (
+            status = StatusCode::OK,
+            description = "OpenAPI definition",
+        ),
+    ),
+)]
+pub async fn openapi() -> impl IntoResponse {
+    let value = crate::server::api_docs::openapi();
+    Json(serde_json::json!(&value))
+}
+
+/// OpenAPI documentation.
+#[utoipa::path(
+    get,
+    path = "/docs",
+    responses(
+        (
+            status = StatusCode::OK,
+            description = "Render OpenAPI documentation",
+        ),
+    ),
+)]
+pub async fn apidocs() -> impl IntoResponse {
+    use utoipa_rapidoc::RapiDoc;
+    let rapidoc = RapiDoc::new("/api/v1/docs/openapi.json");
+    let html = rapidoc.to_html();
+    ([(CONTENT_TYPE, "text/html")], html)
 }

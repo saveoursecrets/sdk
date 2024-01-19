@@ -1,4 +1,5 @@
 //! Web server implementation.
+mod api_docs;
 mod authenticate;
 mod backend;
 mod config;
