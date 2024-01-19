@@ -108,7 +108,7 @@ impl HttpClient {
     /// Total number of websocket connections on remote.
     pub async fn num_connections(server: &Url) -> Result<usize> {
         let client = reqwest::Client::new();
-        let url = server.join("api/v1/connections")?;
+        let url = server.join("api/v1/sync/connections")?;
         let response = client.get(url).send().await?;
         let response = response.error_for_status()?;
         Ok(response.json::<usize>().await?)

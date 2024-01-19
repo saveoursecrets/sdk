@@ -117,7 +117,7 @@ fn websocket_uri(
 /// Panics if the remote scheme is invalid or it failed to
 /// set the scheme on the endpoint.
 fn changes_endpoint_url(remote: &Url) -> Result<Url> {
-    let mut endpoint = remote.join("api/v1/changes")?;
+    let mut endpoint = remote.join("api/v1/sync/changes")?;
     let scheme = if endpoint.scheme() == "http" {
         "ws"
     } else if endpoint.scheme() == "https" {

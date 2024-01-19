@@ -17,6 +17,8 @@ Servers provide endpoints with different levels of protection from unauthorized 
 1) Private endpoints require a signature from the account signing key.
 2) Restricted endpoints require a signature from the account signing key and a signature from a trusted device.
 
+The data to be signed for each request is either the request body or if no request body exists the path of the URL (without any query parameters).
+
 TODO: define bearer token authorization format.
 
 ## Reference Implementation

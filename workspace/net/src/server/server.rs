@@ -167,7 +167,13 @@ impl Server {
         origins: Vec<HeaderValue>,
     ) -> Result<Router> {
         let cors = CorsLayer::new()
-            .allow_methods(vec![Method::GET, Method::POST])
+            .allow_methods(vec![
+                Method::GET,
+                Method::POST,
+                Method::PUT,
+                Method::PATCH,
+                Method::DELETE,
+            ])
             .allow_credentials(true)
             .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE])
             .expose_headers(vec![])
@@ -179,7 +185,6 @@ impl Server {
                 .route("/docs", get(apidocs))
                 .route("/docs/", get(apidocs))
                 .route("/docs/openapi.json", get(openapi))
-                .route("/connections", get(connections))
                 .route(
                     "/sync/account",
                     post(account::create_account)
@@ -208,7 +213,9 @@ impl Server {
 
             #[cfg(feature = "listen")]
             {
-                router = router.route("/changes", get(upgrade));
+                router = router
+                    .route("/sync/connections", get(connections))
+                    .route("/sync/changes", get(upgrade));
             }
 
             router
