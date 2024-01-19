@@ -1,10 +1,25 @@
 use crate::server::handlers::{account, files};
-use utoipa::{openapi::security::*, Modify, OpenApi};
+use utoipa::{openapi::security::*, Modify, OpenApi, ToSchema};
+
+#[derive(ToSchema)]
+struct ChangeSet(crate::sdk::sync::ChangeSet);
+
+#[derive(ToSchema)]
+struct SyncStatus(crate::sdk::sync::SyncStatus);
+
+#[derive(ToSchema)]
+struct SyncPacket(crate::sdk::sync::SyncPacket);
 
 #[derive(OpenApi)]
 #[openapi(
     info(
-        description = "Save Our Secrets self-hosted REST API",
+        title = "Save Our Secrets API",
+        description = "Sever backend for self-hosted Save Our Secrets accounts.",
+        version = "v1",
+        contact(
+            name = "Save Our Secrets",
+            url = "https://saveoursecrets.com",
+        ),
     ),
     servers(
         (
@@ -24,7 +39,11 @@ use utoipa::{openapi::security::*, Modify, OpenApi};
         files::delete_file,
     ),
     components(
-        schemas(),
+        schemas(
+            ChangeSet,
+            SyncStatus,
+            SyncPacket,
+        ),
     ),
 )]
 pub struct ApiDoc;

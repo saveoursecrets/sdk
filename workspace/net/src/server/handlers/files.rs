@@ -41,10 +41,27 @@ pub struct MoveFileQuery {
     security(
         ("bearer_token" = [])
     ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = Vec<u8>,
+    ),
+    params(
+        ("vault_id" = Uuid, description = "Vault identifier"),
+        ("secret_id" = Uuid, description = "Secret identifier"),
+        ("file_name" = ExternalFileName, description = "Hex-encoded SHA256 checksum"),
+    ),
     responses(
         (
             status = StatusCode::UNAUTHORIZED,
             description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "File was uploaded.",
         ),
     ),
 )]
@@ -74,8 +91,7 @@ pub(crate) async fn receive_file(
     {
         Ok(caller) => {
             match handlers::receive_file(
-                state, backend, caller, vault_id, secret_id, file_name,
-                body,
+                state, backend, caller, vault_id, secret_id, file_name, body,
             )
             .await
             {
@@ -94,10 +110,23 @@ pub(crate) async fn receive_file(
     security(
         ("bearer_token" = [])
     ),
+    params(
+        ("vault_id" = Uuid, description = "Vault identifier"),
+        ("secret_id" = Uuid, description = "Secret identifier"),
+        ("file_name" = ExternalFileName, description = "Hex-encoded SHA256 checksum"),
+    ),
     responses(
         (
             status = StatusCode::UNAUTHORIZED,
             description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "File was deleted.",
         ),
     ),
 )]
@@ -145,10 +174,24 @@ pub(crate) async fn delete_file(
     security(
         ("bearer_token" = [])
     ),
+    params(
+        ("vault_id" = Uuid, description = "Vault identifier"),
+        ("secret_id" = Uuid, description = "Secret identifier"),
+        ("file_name" = ExternalFileName, description = "Hex-encoded SHA256 checksum"),
+    ),
     responses(
         (
             status = StatusCode::UNAUTHORIZED,
             description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            content_type = "application/octet-stream",
+            description = "File was sent.",
         ),
     ),
 )]
@@ -196,10 +239,23 @@ pub(crate) async fn send_file(
     security(
         ("bearer_token" = [])
     ),
+    params(
+        ("vault_id" = Uuid, description = "Vault identifier"),
+        ("secret_id" = Uuid, description = "Secret identifier"),
+        ("file_name" = ExternalFileName, description = "Hex-encoded SHA256 checksum"),
+    ),
     responses(
         (
             status = StatusCode::UNAUTHORIZED,
             description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "File was moved.",
         ),
     ),
 )]
@@ -244,11 +300,7 @@ pub(crate) async fn move_file(
 
 mod handlers {
 
-    use axum::{
-        body::Body,
-        http::StatusCode,
-        response::Response,
-    };
+    use axum::{body::Body, http::StatusCode, response::Response};
 
     use futures::TryStreamExt;
     use sos_sdk::sha2::{Digest, Sha256};
@@ -261,8 +313,7 @@ mod handlers {
             vault::{secret::SecretId, VaultId},
         },
         server::{
-            handlers::Caller,
-            Error, Result, ServerBackend, ServerState,
+            handlers::Caller, Error, Result, ServerBackend, ServerState,
         },
     };
     use std::sync::Arc;
@@ -464,7 +515,6 @@ mod handlers {
 
         Ok(())
     }
-
 }
 
 /// Middleware to lock file operations so that concurrent

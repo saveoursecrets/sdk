@@ -12,17 +12,11 @@ use axum_extra::{
 
 //use axum_macros::debug_handler;
 
-use crate::{
-    server::{
-        handlers::ConnectionQuery, ServerBackend, ServerState,
-    },
-};
+use crate::server::{handlers::ConnectionQuery, ServerBackend, ServerState};
 use std::sync::Arc;
 
 // FIXME: sensible body limit
 const BODY_LIMIT: usize = usize::MAX;
-
-//body = ErrorMessage,
 
 /// Create an account.
 #[utoipa::path(
@@ -31,10 +25,26 @@ const BODY_LIMIT: usize = usize::MAX;
     security(
         ("bearer_token" = [])
     ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = ChangeSet,
+    ),
     responses(
         (
             status = StatusCode::UNAUTHORIZED,
             description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::CONFLICT,
+            description = "Account already exists.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "Account was created.",
         ),
     ),
 )]
@@ -82,6 +92,16 @@ pub(crate) async fn create_account(
             status = StatusCode::UNAUTHORIZED,
             description = "Authorization failed.",
         ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            content_type = "application/octet-stream",
+            description = "Account data sent.",
+            body = ChangeSet,
+        ),
     ),
 )]
 pub(crate) async fn fetch_account(
@@ -119,10 +139,19 @@ pub(crate) async fn fetch_account(
     security(
         ("bearer_token" = [])
     ),
+
     responses(
         (
             status = StatusCode::UNAUTHORIZED,
             description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "Patch was applied to device event log.",
         ),
     ),
 )]
@@ -171,6 +200,16 @@ pub(crate) async fn patch_devices(
             status = StatusCode::UNAUTHORIZED,
             description = "Authorization failed.",
         ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            content_type = "application/octet-stream",
+            description = "Account sync status sent.",
+            body = SyncStatus,
+        ),
     ),
 )]
 pub(crate) async fn sync_status(
@@ -209,10 +248,24 @@ pub(crate) async fn sync_status(
     security(
         ("bearer_token" = [])
     ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = SyncPacket,
+    ),
     responses(
         (
             status = StatusCode::UNAUTHORIZED,
             description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            content_type = "application/octet-stream",
+            description = "Account event logs were patched.",
+            body = SyncPacket,
         ),
     ),
 )]
@@ -252,10 +305,7 @@ mod handlers {
     use super::Caller;
     use crate::{
         sdk::sync::{self, Merge, SyncPacket, SyncStorage},
-        server::{
-            Error, Result, ServerBackend,
-            ServerState,
-        },
+        server::{Error, Result, ServerBackend, ServerState},
     };
     use sos_sdk::{decode, encode, sync::ChangeSet};
     use std::sync::Arc;
