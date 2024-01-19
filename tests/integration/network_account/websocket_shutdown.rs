@@ -21,7 +21,7 @@ async fn integration_websocket_shutdown() -> Result<()> {
     // Wait a moment for the connection to complete
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    let num_conns = HttpClient::num_connections(&server.origin.url).await?;
+    let num_conns = HttpClient::num_connections(server.origin.url()).await?;
     assert_eq!(1, num_conns);
 
     // Close the websocket connection
@@ -30,7 +30,7 @@ async fn integration_websocket_shutdown() -> Result<()> {
     // Wait a moment for the connection to close
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    let num_conns = HttpClient::num_connections(&server.origin.url).await?;
+    let num_conns = HttpClient::num_connections(server.origin.url()).await?;
     assert_eq!(0, num_conns);
 
     device.owner.sign_out().await?;

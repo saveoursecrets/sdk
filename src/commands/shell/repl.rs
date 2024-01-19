@@ -7,7 +7,7 @@ use sos_net::sdk::{
 };
 
 use crate::{
-    commands::{AccountCommand, CheckCommand, FolderCommand, SecretCommand},
+    commands::{AccountCommand, CheckCommand, FolderCommand, SecretCommand, ServerCommand},
     helpers::account::{cd_folder, switch, Owner},
 };
 
@@ -41,26 +41,12 @@ enum ShellCommand {
         #[clap(subcommand)]
         cmd: SecretCommand,
     },
-
+    /// Add and remove servers.
+    Server {
+        #[clap(subcommand)]
+        cmd: ServerCommand,
+    },
     /*
-    /// Print commit status.
-    Status {
-        /// Print more information; include commit tree root hashes.
-        #[clap(short, long)]
-        verbose: bool,
-    },
-    /// Download changes from the remote server.
-    Pull {
-        /// Force a pull from the remote server.
-        #[clap(short, long)]
-        force: bool,
-    },
-    /// Upload changes to the remote server.
-    Push {
-        /// Force a push to the remote server.
-        #[clap(short, long)]
-        force: bool,
-    },
     /// Change encryption password for the selected vault.
     #[clap(alias = "passwd")]
     Password,
@@ -181,6 +167,9 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
             }
 
             Ok(())
+        }
+        ShellCommand::Server { cmd } => {
+            crate::commands::server::run(cmd).await
         }
         ShellCommand::Folder { cmd } => {
             crate::commands::folder::run(cmd).await

@@ -22,6 +22,9 @@ pub enum Error {
     #[error(r#"attachment "{0}" not found"#)]
     FieldNotFound(SecretRef),
 
+    #[error(r#"initial sync has errors"#)]
+    InitialSync,
+
     #[error("unable to copy to the clipboard, secret type may not support copy operation")]
     ClipboardCopy,
 

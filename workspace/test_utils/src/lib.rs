@@ -143,8 +143,6 @@ pub struct TestServer {
     pub path: PathBuf,
     /// Bind address.
     pub addr: SocketAddr,
-    /// URL for clients to connect to.
-    pub url: Url,
     /// Handle when dropped will shutdown the server.
     #[allow(dead_code)]
     handle: ShutdownHandle,
@@ -200,12 +198,8 @@ pub async fn spawn(
     Ok(TestServer {
         test_id: test_id.to_owned(),
         path,
-        origin: Origin {
-            name: "origin".to_owned(),
-            url: url.clone(),
-        },
+        origin: url.into(),
         addr,
-        url,
         handle,
     })
 }

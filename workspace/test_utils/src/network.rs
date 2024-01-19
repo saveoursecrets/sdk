@@ -18,6 +18,7 @@ use sos_net::{
         sync::{Origin, SyncClient, SyncStorage},
         vault::{Summary, VaultId},
         vfs, Paths,
+        url::Url,
     },
 };
 use std::{path::PathBuf, time::Duration};
@@ -136,11 +137,9 @@ pub async fn simulate_device(
 
         (origin, server.account_path(owner.address()))
     } else {
+        let url: Url = "https://example.com".parse()?;
         (
-            Origin {
-                name: String::new(),
-                url: "https://example.com".parse()?,
-            },
+            url.into(),
             PathBuf::new(),
         )
     };

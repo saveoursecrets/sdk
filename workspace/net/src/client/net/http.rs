@@ -115,7 +115,7 @@ impl HttpClient {
     /// Build a URL including the connection identifier
     /// in the query string.
     fn build_url(&self, route: &str) -> Result<Url> {
-        let mut url = self.origin.url.join(route)?;
+        let mut url = self.origin.url().join(route)?;
         url.query_pairs_mut()
             .append_pair("connection_id", &self.connection_id);
         Ok(url)
@@ -323,7 +323,7 @@ impl SyncClient for HttpClient {
     type Error = Error;
 
     fn url(&self) -> &Url {
-        &self.origin.url
+        self.origin.url()
     }
 
     async fn create_account(&self, account: &ChangeSet) -> Result<()> {

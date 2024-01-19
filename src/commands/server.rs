@@ -1,40 +1,95 @@
+use clap::Subcommand;
 use sos_net::{
-    sdk::vfs,
-    server::{Error, Result, Server, ServerConfig, State},
+    client::{RemoteSync, SyncOptions},
+    sdk::{
+        identity::AccountRef,
+        url::Url,
+        sync::Origin,
+    },
+
 };
+use crate::{Error, Result, helpers::account::resolve_user};
 
-use axum_server::Handle;
-use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
-use tokio::sync::RwLock;
+#[derive(Subcommand, Debug)]
+pub enum Command {
+    /// Add a server.
+    Add {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+        /// Server url.
+        url: Url,
+    },
+    /// List servers.
+    #[clap(alias = "ls")]
+    List {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+    },
+    /// Remove a server.
+    #[clap(alias = "rm")]
+    Remove {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+        /// Server url.
+        url: Url,
+    },
+}
 
-/// Initialize default server configuration.
-pub async fn init(path: PathBuf) -> Result<()> {
-    if vfs::try_exists(&path).await? {
-        return Err(Error::FileExists(path));
+/// Handle server commands.
+pub async fn run(cmd: Command) -> Result<()> {
+    match cmd {
+        Command::Add {
+            account,
+            url,
+        } => {
+            let user = resolve_user(account.as_ref(), false).await?;
+            let mut owner = user.write().await;
+            let origin: Origin = url.into();
+            owner.add_server(origin.clone()).await?;
+            let options = SyncOptions {
+                origins: vec![origin.clone()],
+            };
+            let sync_error = owner.sync_with_options(&options).await;
+            if sync_error.is_some() {
+                owner.remove_server(&origin).await?;
+                return Err(Error::InitialSync);
+            } else {
+                println!("Added {} ✓", origin.url());
+            }
+        }
+        Command::List {
+            account,
+        } => {
+            let user = resolve_user(account.as_ref(), false).await?;
+            let owner = user.read().await;
+            let servers = owner.servers().await;
+            if servers.is_empty() {
+                println!("No servers yet");
+            } else {
+                for server in &servers {
+                    println!("name = {}", server.name());
+                    println!("url  = {}", server.url());
+                }
+            }
+        }
+        Command::Remove {
+            account,
+            url,
+        } => {
+            let user = resolve_user(account.as_ref(), false).await?;
+            let mut owner = user.write().await;
+            let origin: Origin = url.into();
+            let remote = owner.remove_server(&origin).await?;
+            if remote.is_some() {
+                println!("Removed {} ✓", origin.url());
+            } else {
+                println!("Server {} does not exist", origin.url());
+            }
+        }
     }
-
-    let config: ServerConfig = Default::default();
-    let content = toml::to_string_pretty(&config)?;
-    vfs::write(path, content.as_bytes()).await?;
     Ok(())
 }
 
-/// Run a web server.
-pub async fn run(bind: String, config: PathBuf) -> Result<()> {
-    let config = ServerConfig::load(&config).await?;
-    let backend = config.backend().await?;
-
-    let state = Arc::new(RwLock::new(State {
-        config,
-        sockets: Default::default(),
-    }));
-
-    let handle = Handle::new();
-
-    let addr = SocketAddr::from_str(&bind)?;
-    let server = Server::new();
-    server
-        .start(addr, state, Arc::new(RwLock::new(backend)), handle)
-        .await?;
-    Ok(())
-}

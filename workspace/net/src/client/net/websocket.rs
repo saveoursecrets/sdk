@@ -179,8 +179,8 @@ pub async fn connect(
     device: BoxedEd25519Signer,
     connection_id: String,
 ) -> Result<WsStream> {
-    let url_origin = origin.url.origin();
-    let endpoint = origin.url.clone();
+    let url_origin = origin.url().origin();
+    let endpoint = origin.url().clone();
 
     let sign_bytes = device.verifying_key().to_bytes();
     let host = endpoint.host_str().unwrap().to_string();

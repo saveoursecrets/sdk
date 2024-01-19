@@ -174,7 +174,7 @@ impl RemoteSync for RemoteBridge {
             return None;
         }
 
-        tracing::debug!(origin = %self.origin.url);
+        tracing::debug!(origin = %self.origin.url());
 
         let errors = self.execute_sync().await;
         if errors.is_empty() {

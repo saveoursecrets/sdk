@@ -33,24 +33,43 @@ use crate::events::{FileEvent, FileEventLog};
 pub use patch::FilePatch;
 
 /// Server origin information.
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct Origin {
-    /// Name of the origin.
-    pub name: String,
-    /// URL of the remote server.
-    pub url: Url,
+    name: String,
+    url: Url,
 }
 
 impl Origin {
-    /// The URL for this origin.
+    /// Name of the origin server.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// URL of the origin server.
     pub fn url(&self) -> &Url {
         &self.url
+    }
+}
+
+impl PartialEq for Origin {
+    fn eq(&self, other: &Self) -> bool {
+        self.url == other.url
     }
 }
 
 impl fmt::Display for Origin {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} ({})", self.name, self.url)
+    }
+}
+
+impl From<Url> for Origin {
+    fn from(url: Url) -> Self {
+        let name = url.authority().to_owned();
+        Self {
+            name,
+            url,
+        }
     }
 }
 

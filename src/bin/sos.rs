@@ -14,6 +14,7 @@ async fn main() -> Result<()> {
 
     if let Err(e) = sos::cli::sos::run().await {
         tracing::error!(target: TARGET, "{}", e);
+        std::process::exit(1);
     }
 
     Ok(())

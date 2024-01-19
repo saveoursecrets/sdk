@@ -120,7 +120,7 @@ async fn print_events<
         println!("version: {}", version);
         println!("{}", divider);
     } else {
-        println!("no events yet");
+        println!("No events yet");
     }
 
     Ok(())

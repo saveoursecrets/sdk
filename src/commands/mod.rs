@@ -17,3 +17,4 @@ pub use device::Command as DeviceCommand;
 pub use events::Command as EventsCommand;
 pub use folder::Command as FolderCommand;
 pub use secret::Command as SecretCommand;
+pub use server::Command as ServerCommand;

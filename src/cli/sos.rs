@@ -5,9 +5,10 @@ use std::path::PathBuf;
 use crate::{
     commands::{
         account, audit, check, device, events, folder, secret,
+        server,
         security_report::{self, SecurityReportFormat},
         shell, AccountCommand, AuditCommand, CheckCommand, DeviceCommand,
-        EventsCommand, FolderCommand, SecretCommand,
+        EventsCommand, FolderCommand, SecretCommand, ServerCommand,
     },
     Result,
 };
@@ -62,6 +63,16 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: FolderCommand,
     },
+    /// Create, edit and delete secrets.
+    Secret {
+        #[clap(subcommand)]
+        cmd: SecretCommand,
+    },
+    /// Add and remove servers.
+    Server {
+        #[clap(subcommand)]
+        cmd: ServerCommand,
+    },
     /// Generate a security report.
     ///
     /// Inspect all passwords in an account and report
@@ -89,11 +100,6 @@ pub enum Command {
 
         /// Write report to this file.
         file: PathBuf,
-    },
-    /// Create, edit and delete secrets.
-    Secret {
-        #[clap(subcommand)]
-        cmd: SecretCommand,
     },
     /// Print and monitor audit logs.
     Audit {
@@ -138,6 +144,8 @@ pub async fn run() -> Result<()> {
         Command::Account { cmd } => account::run(cmd).await?,
         Command::Device { cmd } => device::run(cmd).await?,
         Command::Folder { cmd } => folder::run(cmd).await?,
+        Command::Secret { cmd } => secret::run(cmd).await?,
+        Command::Server { cmd } => server::run(cmd).await?,
         Command::SecurityReport {
             account,
             force,
@@ -154,7 +162,6 @@ pub async fn run() -> Result<()> {
             )
             .await?
         }
-        Command::Secret { cmd } => secret::run(cmd).await?,
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Check { cmd } => check::run(cmd).await?,
         Command::Events { cmd } => events::run(cmd).await?,
