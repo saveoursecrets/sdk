@@ -66,10 +66,7 @@ impl fmt::Display for Origin {
 impl From<Url> for Origin {
     fn from(url: Url) -> Self {
         let name = url.authority().to_owned();
-        Self {
-            name,
-            url,
-        }
+        Self { name, url }
     }
 }
 

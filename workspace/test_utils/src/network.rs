@@ -16,9 +16,9 @@ use sos_net::{
         sha2::{Digest, Sha256},
         storage::files::ExternalFile,
         sync::{Origin, SyncClient, SyncStorage},
+        url::Url,
         vault::{Summary, VaultId},
         vfs, Paths,
-        url::Url,
     },
 };
 use std::{path::PathBuf, time::Duration};
@@ -138,10 +138,7 @@ pub async fn simulate_device(
         (origin, server.account_path(owner.address()))
     } else {
         let url: Url = "https://example.com".parse()?;
-        (
-            url.into(),
-            PathBuf::new(),
-        )
+        (url.into(), PathBuf::new())
     };
 
     Ok(SimulatedDevice {

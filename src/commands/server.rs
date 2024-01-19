@@ -1,14 +1,9 @@
+use crate::{helpers::account::resolve_user, Error, Result};
 use clap::Subcommand;
 use sos_net::{
     client::{RemoteSync, SyncOptions},
-    sdk::{
-        identity::AccountRef,
-        url::Url,
-        sync::Origin,
-    },
-
+    sdk::{identity::AccountRef, sync::Origin, url::Url},
 };
-use crate::{Error, Result, helpers::account::resolve_user};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -41,10 +36,7 @@ pub enum Command {
 /// Handle server commands.
 pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
-        Command::Add {
-            account,
-            url,
-        } => {
+        Command::Add { account, url } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let mut owner = user.write().await;
             let origin: Origin = url.into();
@@ -60,9 +52,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 println!("Added {} ✓", origin.url());
             }
         }
-        Command::List {
-            account,
-        } => {
+        Command::List { account } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let servers = owner.servers().await;
@@ -75,10 +65,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
             }
         }
-        Command::Remove {
-            account,
-            url,
-        } => {
+        Command::Remove { account, url } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let mut owner = user.write().await;
             let origin: Origin = url.into();
@@ -92,4 +79,3 @@ pub async fn run(cmd: Command) -> Result<()> {
     }
     Ok(())
 }
-

@@ -7,7 +7,10 @@ use sos_net::sdk::{
 };
 
 use crate::{
-    commands::{AccountCommand, CheckCommand, FolderCommand, SecretCommand, ServerCommand},
+    commands::{
+        AccountCommand, CheckCommand, FolderCommand, SecretCommand,
+        ServerCommand, SyncCommand,
+    },
     helpers::account::{cd_folder, switch, Owner},
 };
 
@@ -45,6 +48,11 @@ enum ShellCommand {
     Server {
         #[clap(subcommand)]
         cmd: ServerCommand,
+    },
+    /// Sync with remote servers.
+    Sync {
+        #[clap(subcommand)]
+        cmd: SyncCommand,
     },
     /*
     /// Change encryption password for the selected vault.
@@ -168,15 +176,16 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
 
             Ok(())
         }
-        ShellCommand::Server { cmd } => {
-            crate::commands::server::run(cmd).await
-        }
         ShellCommand::Folder { cmd } => {
             crate::commands::folder::run(cmd).await
         }
         ShellCommand::Secret { cmd } => {
             crate::commands::secret::run(cmd).await
         }
+        ShellCommand::Server { cmd } => {
+            crate::commands::server::run(cmd).await
+        }
+        ShellCommand::Sync { cmd } => crate::commands::sync::run(cmd).await,
         ShellCommand::Cd { folder } => cd_folder(user, folder.as_ref()).await,
 
         /*

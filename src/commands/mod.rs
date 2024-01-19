@@ -9,6 +9,7 @@ pub mod secret;
 pub mod security_report;
 pub mod server;
 pub mod shell;
+pub mod sync;
 
 pub use account::Command as AccountCommand;
 pub use audit::Command as AuditCommand;
@@ -18,3 +19,4 @@ pub use events::Command as EventsCommand;
 pub use folder::Command as FolderCommand;
 pub use secret::Command as SecretCommand;
 pub use server::Command as ServerCommand;
+pub use sync::Command as SyncCommand;

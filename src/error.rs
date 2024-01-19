@@ -25,6 +25,15 @@ pub enum Error {
     #[error(r#"initial sync has errors"#)]
     InitialSync,
 
+    #[error(r#"sync failed"#)]
+    SyncFail,
+
+    #[error(r#"no servers"#)]
+    NoServers,
+
+    #[error(r#"no servers found matching the request"#)]
+    NoMatchServers,
+
     #[error("unable to copy to the clipboard, secret type may not support copy operation")]
     ClipboardCopy,
 

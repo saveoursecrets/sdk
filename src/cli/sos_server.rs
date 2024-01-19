@@ -43,12 +43,11 @@ pub async fn run() -> Result<()> {
 }
 
 mod service {
+    use axum_server::Handle;
     use sos_net::{
         sdk::vfs,
         server::{Error, Result, Server, ServerConfig, State},
-
     };
-    use axum_server::Handle;
     use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
     use tokio::sync::RwLock;
 
