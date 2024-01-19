@@ -418,7 +418,8 @@ impl SyncClient for HttpClient {
         let response = response
             .error_for_status()
             .map_err(|_| Error::ResponseCode(status))?;
-        let sync_status: Option<SyncStatus> = response.json().await?;
+        let buffer = response.bytes().await?;
+        let sync_status: Option<SyncStatus> = decode(&buffer).await?;
         Ok(sync_status)
     }
 

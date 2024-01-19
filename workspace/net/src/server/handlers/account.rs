@@ -364,7 +364,7 @@ mod handlers {
         } else {
             None
         };
-        Ok(serde_json::to_vec(&result)?)
+        Ok(encode(&result).await?)
     }
 
     #[cfg(feature = "device")]
