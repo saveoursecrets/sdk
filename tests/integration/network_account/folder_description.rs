@@ -43,6 +43,8 @@ async fn integration_sync_folder_description() -> Result<()> {
     )
     .await?;
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())

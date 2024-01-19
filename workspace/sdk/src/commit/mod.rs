@@ -12,7 +12,5 @@ pub use tree::CommitTree;
 
 /// Commit state combines the last commit hash with
 /// a commit proof.
-#[derive(
-    Default, Debug, Clone, Eq, PartialEq, 
-)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct CommitState(pub CommitHash, pub CommitProof);

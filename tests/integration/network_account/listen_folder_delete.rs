@@ -20,7 +20,7 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
     let folders = device1.folders.clone();
     let address = device1.owner.address().to_string();
     let server_path = device1.server_path.clone();
-    let device2 = device1.connect(1, None).await?;
+    let mut device2 = device1.connect(1, None).await?;
 
     // Start listening for change notifications
     device1.listen().await?;
@@ -83,6 +83,9 @@ async fn integration_sync_listen_delete_folder() -> Result<()> {
         device2.owner.paths().vault_path(new_folder.id());
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
+
+    device1.owner.sign_out().await?;
+    device2.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 

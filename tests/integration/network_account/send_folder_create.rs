@@ -61,6 +61,8 @@ async fn integration_sync_create_folder() -> Result<()> {
     )
     .await?;
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())

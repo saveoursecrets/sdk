@@ -1,6 +1,6 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::client::HttpClient;
+use sos_net::{client::HttpClient, sdk::prelude::*};
 use std::time::Duration;
 
 /// Tests websocket shutdown logic.
@@ -13,7 +13,7 @@ async fn integration_websocket_shutdown() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare a mock device
-    let device = simulate_device(TEST_ID, 1, Some(&server)).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
 
     // Start the websocket connection
     let handle = device.listen().await?;
@@ -32,6 +32,8 @@ async fn integration_websocket_shutdown() -> Result<()> {
 
     let num_conns = HttpClient::num_connections(&server.origin.url).await?;
     assert_eq!(0, num_conns);
+
+    device.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 

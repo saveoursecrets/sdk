@@ -55,6 +55,8 @@ async fn integration_sync_delete_secret() -> Result<()> {
     )
     .await?;
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())

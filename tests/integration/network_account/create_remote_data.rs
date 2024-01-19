@@ -3,7 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::client::RemoteBridge;
+use sos_net::{client::RemoteBridge, sdk::prelude::*};
 
 /// Tests creating all the account data on a remote
 /// when the server does not have the account data yet.
@@ -48,6 +48,8 @@ async fn integration_sync_create_remote_data() -> Result<()> {
         remote_provider,
     )
     .await?;
+
+    device.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 

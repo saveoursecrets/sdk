@@ -12,7 +12,7 @@ pub struct SosServer {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Create a configuration file.
-    Init{
+    Init {
         /// Config file to write.
         config: PathBuf,
     },
@@ -31,7 +31,7 @@ pub async fn run() -> Result<()> {
     let args = SosServer::parse();
 
     match args.cmd {
-        Command::Init{ config } => {
+        Command::Init { config } => {
             server::init(config).await?;
         }
         Command::Start { bind, config } => {

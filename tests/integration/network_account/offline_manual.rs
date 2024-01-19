@@ -115,6 +115,9 @@ async fn integration_sync_offline_manual() -> Result<()> {
     )
     .await?;
 
+    device1.owner.sign_out().await?;
+    device2.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())

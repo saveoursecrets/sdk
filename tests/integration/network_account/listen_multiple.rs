@@ -97,6 +97,10 @@ async fn integration_sync_listen_multiple() -> Result<()> {
     )
     .await?;
 
+    device1.owner.sign_out().await?;
+    device2.owner.sign_out().await?;
+    device3.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())

@@ -7,7 +7,7 @@ use super::{
     },
     Backend, Result, ServerConfig,
 };
-use crate::{sdk::storage::files::ExternalFile};
+use crate::sdk::storage::files::ExternalFile;
 use axum::{
     extract::Extension,
     http::{

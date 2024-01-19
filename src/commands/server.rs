@@ -17,7 +17,6 @@ pub async fn init(path: PathBuf) -> Result<()> {
     let content = toml::to_string_pretty(&config)?;
     vfs::write(path, content.as_bytes()).await?;
     Ok(())
-
 }
 
 /// Run a web server.

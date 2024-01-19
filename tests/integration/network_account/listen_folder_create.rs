@@ -101,6 +101,9 @@ async fn integration_sync_listen_create_folder() -> Result<()> {
     )
     .await?;
 
+    device1.owner.sign_out().await?;
+    device2.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())

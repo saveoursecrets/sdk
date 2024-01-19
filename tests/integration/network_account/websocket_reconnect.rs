@@ -1,7 +1,11 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::client::{HttpClient, ListenOptions};
-use std::time::Duration;
+use sos_net::{
+    client::{HttpClient, ListenOptions},
+    sdk::prelude::*,
+};
+use std::{sync::Arc, time::Duration};
+use tokio::sync::Mutex;
 
 /// Tests websocket reconnect logic.
 #[tokio::test]
@@ -17,10 +21,14 @@ async fn integration_websocket_reconnect() -> Result<()> {
     let device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let origin = device.origin.clone();
 
+    let main_device = Arc::new(Mutex::new(device));
+    let listen_device = Arc::clone(&main_device);
+
     tokio::task::spawn(async move {
         // Start a websocket listener that should
         // attempt to reconnect 4 times with delays of
         // 1000ms, 2000ms, 4000ms and 8000ms before giving up.
+        let device = listen_device.lock().await;
         device
             .owner
             .listen(
@@ -54,6 +62,9 @@ async fn integration_websocket_reconnect() -> Result<()> {
 
     let num_conns = HttpClient::num_connections(&server.origin.url).await?;
     assert_eq!(1, num_conns);
+
+    let mut writer = main_device.lock().await;
+    writer.owner.sign_out().await?;
 
     teardown(TEST_ID).await;
 

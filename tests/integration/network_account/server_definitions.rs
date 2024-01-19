@@ -32,6 +32,8 @@ async fn integration_sync_server_definitions() -> Result<()> {
     let servers = device.owner.servers().await;
     assert_eq!(1, servers.len());
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())

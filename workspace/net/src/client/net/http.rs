@@ -27,9 +27,7 @@ use crate::sdk::storage::files::ExternalFile;
 use std::path::PathBuf;
 use url::Url;
 
-use crate::{
-    client::{Error, Result},
-};
+use crate::client::{Error, Result};
 
 #[cfg(feature = "listen")]
 use crate::client::{ListenOptions, WebSocketHandle};

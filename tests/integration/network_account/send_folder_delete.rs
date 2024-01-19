@@ -61,6 +61,8 @@ async fn integration_sync_delete_folder() -> Result<()> {
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
 
+    device.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())
