@@ -35,6 +35,7 @@ pub struct ChangeNotification {
     address: Address,
 }
 
+#[cfg(feature = "listen")]
 impl ChangeNotification {
     /// Create a new change notification.
     pub fn new(address: &Address) -> Self {
