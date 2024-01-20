@@ -13,16 +13,16 @@ env:
 
 jobs:
   checks:
-    uses: ./.github/workflows/checks.yaml
+    uses: ./.github/workflows/checks.yml
 
   publish:
-    uses: ./.github/workflows/publish.yaml
+    uses: ./.github/workflows/publish.yml
     needs:
       - check
     secrets: inherit
 
   homebrew:
-    uses: ./.github/workflows/homebrew.yaml
+    uses: ./.github/workflows/homebrew.yml
     needs:
       - publish
     secrets: inherit

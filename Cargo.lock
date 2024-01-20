@@ -4243,7 +4243,7 @@ dependencies = [
  "pretty_assertions",
  "secrecy",
  "serde_json",
- "sos-net 0.8.0",
+ "sos-net 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
  "tracing",
  "tracing-subscriber",

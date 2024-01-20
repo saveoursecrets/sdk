@@ -11,7 +11,7 @@ tracing-subscriber.workspace = true
 secrecy.workspace = true
 serde_json.workspace = true
 anyhow = "1"
-sos-net = { path = "../net", features = ["full"] }
+sos-net = { version = "0.8", features = ["full"] }
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
 axum-server = { version = "0.6", features = ["tls-rustls"] }
 pretty_assertions = "1.4"
