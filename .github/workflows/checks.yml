@@ -46,7 +46,7 @@ jobs:
       - name: Copy mock keychain
         if: matrix.binary_target == 'x86_64-apple-darwin'
         run: |
-          cp workspace/migrate/fixtures/sos-mock.keychain-db $HOME/Library/Keychains/
+          cp tests/fixtures/migrate/sos-mock.keychain-db $HOME/Library/Keychains/
           security list-keychains -s $HOME/Library/Keychains/sos-mock.keychain-db
           security list-keychains
 
