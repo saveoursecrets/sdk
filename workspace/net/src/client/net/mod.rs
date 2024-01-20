@@ -13,7 +13,8 @@ mod http;
 #[cfg(feature = "listen")]
 mod websocket;
 
-pub use http::HttpClient;
+pub use self::http::HttpClient;
+
 #[cfg(feature = "listen")]
 pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};
 

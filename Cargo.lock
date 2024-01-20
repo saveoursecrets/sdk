@@ -3896,7 +3896,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.8.2"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "arboard",
@@ -3920,7 +3920,7 @@ dependencies = [
  "secrecy",
  "serde_json",
  "shell-words",
- "sos-net 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-net 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "sos_test_utils",
  "tempfile",
  "terminal-banner",
@@ -3951,7 +3951,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -3997,9 +3997,9 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "069d9ce9a13ee56f39c57bee74665f229272bfed94771cd6320863107184a0e6"
+checksum = "da5af97e7718d249dc8cb087f3693c11b2962284fb350a09a487f0c54ca95142"
 dependencies = [
  "async-recursion",
  "async-stream",
@@ -4222,7 +4222,7 @@ dependencies = [
  "pretty_assertions",
  "secrecy",
  "serde_json",
- "sos-net 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-net 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
  "tracing",
  "tracing-subscriber",
