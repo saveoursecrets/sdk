@@ -17,7 +17,7 @@ async fn main() -> Result<()> {
         if !e.is_interrupted() {
             tracing::error!(target: TARGET, "{}", e);
         }
-        
+
         if let Some(user) = USER.get() {
             let mut owner = user.write().await;
             if let Err(e) = owner.sign_out().await {

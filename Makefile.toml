@@ -74,10 +74,6 @@ args = [
 command = "cargo"
 args = ["test", "--all", "--lib"]
 
-[tasks.test-cli]
-command = "cargo"
-args = ["test", "command_line", "--", "--nocapture"]
-
 [tasks.test-audit-trail]
 command = "cargo"
 args = ["test", "audit"]
@@ -85,6 +81,10 @@ args = ["test", "audit"]
 [tasks.test-backup-archive]
 command = "cargo"
 args = ["test", "backup_archive"]
+
+[tasks.test-cli]
+command = "cargo"
+args = ["test", "command_line"]
 
 [tasks.test-device]
 command = "cargo"
@@ -94,14 +94,18 @@ args = ["test", "device_"]
 command = "cargo"
 args = ["test", "file_transfers_"]
 
-[tasks.integration]
+[tasks.test-integration]
 command = "cargo"
-args = ["test", "integration"]
+args = ["test", "integration_"]
+
+[tasks.integration]
 dependencies = [
   "test-audit-trail",
   "test-backup-archive",
   "test-device",
   "test-file-transfers",
+  "test-integration",
+  "test-cli",
 ]
 
 [tasks.test-wasm]
@@ -110,6 +114,16 @@ args = ["test", "--firefox"]
 
 [tasks.test]
 dependencies = ["unit", "integration"]
+
+[tasks.test-ci]
+dependencies = [
+  "unit",
+  "test-audit-trail",
+  "test-backup-archive",
+  "test-device",
+  "test-file-transfers",
+  "test-integration",
+]
 
 [tasks.dev]
 dependencies = ["check-wasm", "test", "format"]
@@ -132,20 +146,9 @@ command = "cargo"
 args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-sdk"]
 dependencies = ["check-wasm-node-client"]
 
-[tasks.gen-server-key]
-command = "cargo"
-args = [
-  "run",
-  "--bin",
-  "sos-server",
-  "--",
-  "generate-keypair",
-  "sandbox/server_identity.pem",
-]
-
 [tasks.dev-server]
 script = '''
-cargo run --bin sos-server -- start -c sandbox/config.toml
+cargo run --bin sos-server -- start sandbox/config.toml
 '''
 
 [tasks.dev-certs]

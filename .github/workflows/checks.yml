@@ -57,21 +57,10 @@ jobs:
           command: check
           args: --all --locked --target ${{ matrix.binary_target }} --all-features
 
-      - name: Generate test server key
-        shell: bash
+      - name: Install cargo-make
         run: |
-          cargo run -- keypair \
-            tests/test.pem \
-            --public-key tests/server_public_key.txt
+          cargo install cargo-make
 
-      - name: Unit tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all --lib --locked --target ${{ matrix.binary_target }}
-
-      - name: Integration tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all --locked --target ${{ matrix.binary_target }} integration
+      - name: Run tests
+        run: |
+          cargo make test-ci

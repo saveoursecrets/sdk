@@ -75,7 +75,8 @@ jobs:
           generate_release_notes: true
           files: |
             target/artifacts/*
-            LICENSE
+            LICENSE-APACHE
+            LICENSE-MIT
             COPYRIGHT
       - name: Update release notes
         env:

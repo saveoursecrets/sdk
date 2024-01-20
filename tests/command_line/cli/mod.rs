@@ -175,7 +175,7 @@ pub(crate) fn read_until_eof(
 }
 
 #[tokio::test]
-async fn integration_command_line() -> Result<()> {
+async fn command_line() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 
     let data_dir = PathBuf::from("target/command_line_test");
