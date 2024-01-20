@@ -3896,7 +3896,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.8.0"
+version = "0.8.2"
 dependencies = [
  "anyhow",
  "arboard",
@@ -3920,7 +3920,7 @@ dependencies = [
  "secrecy",
  "serde_json",
  "shell-words",
- "sos-net 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-net 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "sos_test_utils",
  "tempfile",
  "terminal-banner",
@@ -3951,7 +3951,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.8.1"
+version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -3977,7 +3977,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "sha3",
- "sos-sdk 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -3997,9 +3997,9 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.8.1"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f36f9ef5d2a7a826b08cc30d9da9f107886e5c5f152c1062dde7cf680542d853"
+checksum = "069d9ce9a13ee56f39c57bee74665f229272bfed94771cd6320863107184a0e6"
 dependencies = [
  "async-recursion",
  "async-stream",
@@ -4024,7 +4024,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "sha3",
- "sos-sdk 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-sdk 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -4044,7 +4044,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.8.2"
+version = "0.8.3"
 dependencies = [
  "aes-gcm",
  "age",
@@ -4115,9 +4115,9 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.8.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61622f319629d564da4b4980f78bc693a4c09258636ae5c61295da548566ab83"
+checksum = "057b6985108a61a36cea20c7ee576d943c8c343c45d66f14cc7fa753b1829804"
 dependencies = [
  "aes-gcm",
  "age",
@@ -4222,7 +4222,7 @@ dependencies = [
  "pretty_assertions",
  "secrecy",
  "serde_json",
- "sos-net 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-net 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
  "tracing",
  "tracing-subscriber",

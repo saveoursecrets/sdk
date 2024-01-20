@@ -156,5 +156,5 @@ pub use files::*;
 pub use folders::*;
 pub use identity::*;
 pub use mime::*;
-pub use urn::*;
+pub use self::urn::*;
 pub use vault::*;
