@@ -76,7 +76,7 @@ jobs:
           arch: x86_64
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3.1.1
+        uses: sigstore/cosign-installer@v3.3.0
       - name: Check cosign install
         run: cosign version
 
