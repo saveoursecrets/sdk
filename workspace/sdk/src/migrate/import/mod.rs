@@ -6,7 +6,8 @@ use std::{fmt, path::PathBuf, str::FromStr};
 use tokio::io::AsyncRead;
 
 pub mod csv;
-#[cfg(target_os = "macos")]
+
+#[cfg(all(target_os = "macos", feature = "keychain-access"))]
 pub mod keychain;
 
 pub(crate) async fn read_csv_records<

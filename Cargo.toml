@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.8.0"
+version = "0.8.2"
 edition = "2021"
 rust-version = "1.68.2"
 description = "Distributed, encrypted database for private secrets."
@@ -82,6 +82,11 @@ shell-words = "1"
 terminal-banner = "0.2"
 unicode-width = "0.1"
 
+[dependencies.sos-net]
+version = "0.8.2" 
+features = ["full"]
+#path = "workspace/net"
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
 axum-server = { version = "0.6", features = ["tls-rustls"] }
@@ -90,19 +95,8 @@ arboard = "3"
 rustyline = "11"
 rustyline-derive = "0.8"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies.sos-net]
-version = "0.8" 
-features = ["full"]
-#path = "workspace/net"
-
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { version = "1", features = ["rt", "time", "sync"] }
-
-[target.'cfg(target_arch = "wasm32")'.dependencies.sos-net]
-version = "0.8"
-default-features = false
-features = ["client"]
-#path = "workspace/net"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow = "1"

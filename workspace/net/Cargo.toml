@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.8.0"
+version = "0.8.2"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -21,6 +21,7 @@ full = [
   "search",
   "server",
   "security-report",
+  "keychain-access",
 ]
 client = [
   "dep:reqwest",
@@ -45,6 +46,7 @@ archive = ["sos-sdk/archive"]
 files = ["sos-sdk/files"]
 contacts = ["sos-sdk/contacts"]
 migrate = ["sos-sdk/migrate"]
+keychain-access = ["sos-sdk/keychain-access"]
 device = ["sos-sdk/device"]
 recovery = ["sos-sdk/recovery"]
 search = ["sos-sdk/search"]
@@ -90,7 +92,7 @@ utoipa = { version = "4", features = ["uuid"], optional = true }
 utoipa-rapidoc = { version = "3", features = ["axum"], optional = true }
 
 [dependencies.sos-sdk]
-version = "0.8"
+version = "0.8.2"
 features = ["sync"]
 #path = "../sdk"
 

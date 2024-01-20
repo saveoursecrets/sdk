@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.8.0"
+version = "0.8.2"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -22,7 +22,7 @@ device = [
 ]
 files = []
 mem-fs = ["sos-vfs/mem-fs"]
-migrate = ["dep:async_zip", "dep:csv-async", "keychain-access"]
+migrate = ["dep:async_zip", "dep:csv-async"]
 keychain-access = ["dep:security-framework", "dep:plist", "dep:logos"]
 recovery = ["dep:vsss-rs"]
 test-utils = ["dep:anyhow"]
@@ -84,11 +84,9 @@ anyhow = {version = "1", optional = true }
 sanitize-filename = "0.4"
 futures-util = "0.3"
 vsss-rs = {version = "3", optional = true }
-security-framework = { version = "2.8", optional = true}
-logos = { version = "0.12", optional = true }
-plist = { version = "1", optional = true }
 whoami = { version = "1.4", optional = true }
 async-stream = "0.3"
+
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"
@@ -96,6 +94,11 @@ optional = true
 #path = "../../../../forks/probly-search"
 #git = "https://github.com/tmpfs/probly-search/"
 #branch = "multi-field"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = { version = "2.8", optional = true }
+logos = { version = "0.12", optional = true }
+plist = { version = "1", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
