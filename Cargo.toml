@@ -88,7 +88,7 @@ axum-server = { version = "0.6", features = ["tls-rustls"] }
 tokio = { version = "1", features = ["full"] }
 arboard = "3"
 rustyline = "11"
-rustyline-derive = "0.8"
+rustyline-derive = "0.10"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.sos-net]
 version = "0.8" 
