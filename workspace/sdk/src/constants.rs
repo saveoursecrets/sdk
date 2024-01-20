@@ -151,10 +151,10 @@ mod files {
     pub const ARCHIVE_MANIFEST: &str = "sos-manifest.json";
 }
 
+pub use self::urn::*;
 pub use extensions::*;
 pub use files::*;
 pub use folders::*;
 pub use identity::*;
 pub use mime::*;
-pub use self::urn::*;
 pub use vault::*;

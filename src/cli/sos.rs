@@ -6,9 +6,9 @@ use crate::{
     commands::{
         account, audit, check, device, events, folder, secret,
         security_report::{self, SecurityReportFormat},
-        server, shell, AccountCommand, AuditCommand, CheckCommand,
+        server, shell, sync, AccountCommand, AuditCommand, CheckCommand,
         DeviceCommand, EventsCommand, FolderCommand, SecretCommand,
-        ServerCommand,
+        ServerCommand, SyncCommand,
     },
     Result,
 };
@@ -72,6 +72,11 @@ pub enum Command {
     Server {
         #[clap(subcommand)]
         cmd: ServerCommand,
+    },
+    /// Sync with remote servers.
+    Sync {
+        #[clap(subcommand)]
+        cmd: SyncCommand,
     },
     /// Generate a security report.
     ///
@@ -146,6 +151,7 @@ pub async fn run() -> Result<()> {
         Command::Folder { cmd } => folder::run(cmd).await?,
         Command::Secret { cmd } => secret::run(cmd).await?,
         Command::Server { cmd } => server::run(cmd).await?,
+        Command::Sync { cmd } => sync::run(cmd).await?,
         Command::SecurityReport {
             account,
             force,
