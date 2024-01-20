@@ -1,20 +1,14 @@
 use clap::{Parser, Subcommand};
-use sos_net::{
-    client::provider::ProviderFactory,
-    sdk::{
-        account::AccountRef, hex, storage::AppPaths, url::Url,
-        vault::VaultRef,
-    },
-};
+use sos_net::sdk::{identity::AccountRef, vault::FolderRef, Paths};
 use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, changes, check, device, folder, generate_keypair,
-        secret,
+        account, audit, check, device, events, folder, secret,
         security_report::{self, SecurityReportFormat},
-        shell, AccountCommand, AuditCommand, CheckCommand, DeviceCommand,
-        FolderCommand, SecretCommand,
+        server, shell, AccountCommand, AuditCommand, CheckCommand,
+        DeviceCommand, EventsCommand, FolderCommand, SecretCommand,
+        ServerCommand,
     },
     Result,
 };
@@ -40,13 +34,9 @@ pub struct Sos {
     )]
     password: Option<String>,
 
-    /// Storage provider factory.
-    #[clap(long, env = "SOS_PROVIDER")]
-    provider: Option<ProviderFactory>,
-
     /// Local storage directory.
-    #[clap(long, env = "SOS_CACHE")]
-    cache: Option<PathBuf>,
+    #[clap(long, env = "SOS_DATA_DIR")]
+    storage: Option<PathBuf>,
 
     /// Affirmative for all confirmation prompts.
     #[clap(long, env = "SOS_YES")]
@@ -73,18 +63,15 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: FolderCommand,
     },
-    /// Generate PEM-encoded noise protocol keypair.
-    Keypair {
-        /// Force overwrite if the file exists.
-        #[clap(short, long)]
-        force: bool,
-
-        /// Write hex-encoded public key to a file.
-        #[clap(long)]
-        public_key: Option<PathBuf>,
-
-        /// Write keypair to this file.
-        file: PathBuf,
+    /// Create, edit and delete secrets.
+    Secret {
+        #[clap(subcommand)]
+        cmd: SecretCommand,
+    },
+    /// Add and remove servers.
+    Server {
+        #[clap(subcommand)]
+        cmd: ServerCommand,
     },
     /// Generate a security report.
     ///
@@ -114,40 +101,26 @@ pub enum Command {
         /// Write report to this file.
         file: PathBuf,
     },
-    /// Create, edit and delete secrets.
-    Secret {
-        #[clap(subcommand)]
-        cmd: SecretCommand,
-    },
     /// Print and monitor audit logs.
     Audit {
         #[clap(subcommand)]
         cmd: AuditCommand,
-    },
-
-    /// Listen to changes event stream.
-    Changes {
-        /// Server URL.
-        #[clap(short, long)]
-        server: Url,
-
-        /// Public key of the remote server.
-        public_key: String,
-
-        /// Account name or address.
-        #[clap(short, long)]
-        account: AccountRef,
     },
     /// Check file status and integrity.
     Check {
         #[clap(subcommand)]
         cmd: CheckCommand,
     },
+    /// Inspect event records.
+    Events {
+        #[clap(subcommand)]
+        cmd: EventsCommand,
+    },
     /// Interactive login shell.
     Shell {
         /// Folder name or identifier.
         #[clap(short, long)]
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
 
         /// Account name or address.
         account: Option<AccountRef>,
@@ -156,12 +129,11 @@ pub enum Command {
 
 pub async fn run() -> Result<()> {
     let mut args = Sos::parse();
-    let factory = args.provider.unwrap_or_default();
 
-    if let Some(cache) = args.cache.take() {
-        AppPaths::set_data_dir(cache);
+    if let Some(storage) = &args.storage {
+        Paths::set_data_dir(storage.clone());
     }
-    AppPaths::scaffold().await?;
+    Paths::scaffold(args.storage).await?;
 
     #[cfg(any(test, debug_assertions))]
     if let Some(password) = args.password.take() {
@@ -169,14 +141,11 @@ pub async fn run() -> Result<()> {
     }
 
     match args.cmd {
-        Command::Account { cmd } => account::run(cmd, factory).await?,
-        Command::Device { cmd } => device::run(cmd, factory).await?,
-        Command::Folder { cmd } => folder::run(cmd, factory).await?,
-        Command::Keypair {
-            file,
-            force,
-            public_key,
-        } => generate_keypair::run(file, force, public_key).await?,
+        Command::Account { cmd } => account::run(cmd).await?,
+        Command::Device { cmd } => device::run(cmd).await?,
+        Command::Folder { cmd } => folder::run(cmd).await?,
+        Command::Secret { cmd } => secret::run(cmd).await?,
+        Command::Server { cmd } => server::run(cmd).await?,
         Command::SecurityReport {
             account,
             force,
@@ -190,23 +159,14 @@ pub async fn run() -> Result<()> {
                 output_format,
                 include_all,
                 file,
-                factory,
             )
             .await?
         }
-        Command::Secret { cmd } => secret::run(cmd, factory).await?,
         Command::Audit { cmd } => audit::run(cmd).await?,
-        Command::Changes {
-            server,
-            public_key,
-            account,
-        } => {
-            let server_public_key = hex::decode(&public_key)?;
-            changes::run(server, server_public_key, account).await?
-        }
         Command::Check { cmd } => check::run(cmd).await?,
+        Command::Events { cmd } => events::run(cmd).await?,
         Command::Shell { account, folder } => {
-            shell::run(factory, account, folder).await?
+            shell::run(account, folder).await?
         }
     }
     Ok(())

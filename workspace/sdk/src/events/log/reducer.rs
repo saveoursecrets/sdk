@@ -1,30 +1,30 @@
-use std::{borrow::Cow, collections::HashMap};
-
 use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     decode, encode,
-    events::{EventLogFile, WriteEvent},
+    events::{EventLogExt, FolderEventLog, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
     Error, Result,
 };
 
+use indexmap::IndexMap;
+
 /// Reduce log events to a vault.
 #[derive(Default)]
-pub struct EventReducer<'a> {
+pub struct FolderReducer {
     /// Buffer for the create or last update vault event.
-    vault: Option<Cow<'a, [u8]>>,
+    vault: Option<Vec<u8>>,
     /// Last encountered vault name.
-    vault_name: Option<Cow<'a, str>>,
+    vault_name: Option<String>,
     /// Last encountered vault meta data.
-    vault_meta: Option<Cow<'a, Option<AeadPack>>>,
+    vault_meta: Option<AeadPack>,
     /// Map of the reduced secrets.
-    secrets: HashMap<SecretId, Cow<'a, VaultCommit>>,
+    secrets: IndexMap<SecretId, VaultCommit>,
     /// Reduce events until a particular commit.
     until_commit: Option<CommitHash>,
 }
 
-impl<'a> EventReducer<'a> {
+impl FolderReducer {
     /// Create a new reducer.
     pub fn new() -> Self {
         Default::default()
@@ -39,37 +39,34 @@ impl<'a> EventReducer<'a> {
     }
 
     /// Split a vault into a truncated vault and a collection
-    /// of events that represent the vault.
+    /// of events that represent the vault content.
     ///
     /// The truncated vault represents the header of the vault and
     /// has no contents.
-    pub async fn split(
-        vault: Vault,
-    ) -> Result<(Vault, Vec<WriteEvent<'static>>)> {
+    pub async fn split(vault: Vault) -> Result<(Vault, Vec<WriteEvent>)> {
         let mut events = Vec::with_capacity(vault.len() + 1);
         let header = vault.header().clone();
         let head: Vault = header.into();
 
         let buffer = encode(&head).await?;
-        events.push(WriteEvent::CreateVault(Cow::Owned(buffer)));
+        events.push(WriteEvent::CreateVault(buffer));
         for (id, entry) in vault {
-            let event = WriteEvent::CreateSecret(id, Cow::Owned(entry));
-            events.push(event);
+            events.push(WriteEvent::CreateSecret(id, entry));
         }
-
-        events.sort();
 
         Ok((head, events))
     }
 
-    /// Reduce the events in the given iterator.
+    /// Reduce the events in the given event log.
     pub async fn reduce(
         mut self,
-        event_log: &'a EventLogFile,
-    ) -> Result<EventReducer<'a>> {
-        let mut it = event_log.iter().await?;
-        if let Some(log) = it.next_entry().await? {
-            let event = event_log.event_data(&log).await?;
+        event_log: &FolderEventLog,
+    ) -> Result<FolderReducer> {
+        // TODO: use event_log.stream() !
+
+        let mut it = event_log.iter(false).await?;
+        if let Some(log) = it.next().await? {
+            let event = event_log.decode_event(&log).await?;
 
             if let WriteEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
@@ -82,23 +79,23 @@ impl<'a> EventReducer<'a> {
                     }
                 }
 
-                while let Some(log) = it.next_entry().await? {
-                    let event = event_log.event_data(&log).await?;
+                while let Some(log) = it.next().await? {
+                    let event = event_log.decode_event(&log).await?;
                     match event {
                         WriteEvent::CreateVault(_) => {
                             return Err(Error::CreateEventOnlyFirst)
                         }
                         WriteEvent::SetVaultName(name) => {
-                            self.vault_name = Some(name.clone());
+                            self.vault_name = Some(name);
                         }
                         WriteEvent::SetVaultMeta(meta) => {
-                            self.vault_meta = Some(meta.clone());
+                            self.vault_meta = Some(meta);
                         }
                         WriteEvent::CreateSecret(id, entry) => {
-                            self.secrets.insert(id, entry.clone());
+                            self.secrets.insert(id, entry);
                         }
                         WriteEvent::UpdateSecret(id, entry) => {
-                            self.secrets.insert(id, entry.clone());
+                            self.secrets.insert(id, entry);
                         }
                         WriteEvent::DeleteSecret(id) => {
                             self.secrets.remove(&id);
@@ -136,24 +133,23 @@ impl<'a> EventReducer<'a> {
     /// the new series of events have been applied so callers
     /// must generate a new commit tree once the new event log has
     /// been created.
-    pub async fn compact(self) -> Result<Vec<WriteEvent<'a>>> {
+    pub async fn compact(self) -> Result<Vec<WriteEvent>> {
         if let Some(vault) = self.vault {
             let mut events = Vec::new();
 
             let mut vault: Vault = decode(&vault).await?;
             if let Some(name) = self.vault_name {
-                vault.set_name(name.into_owned());
+                vault.set_name(name);
             }
 
             if let Some(meta) = self.vault_meta {
-                vault.header_mut().set_meta(meta.into_owned());
+                vault.header_mut().set_meta(Some(meta));
             }
 
             let buffer = encode(&vault).await?;
-            events.push(WriteEvent::CreateVault(Cow::Owned(buffer)));
+            events.push(WriteEvent::CreateVault(buffer));
             for (id, entry) in self.secrets {
-                let entry = entry.into_owned();
-                events.push(WriteEvent::CreateSecret(id, Cow::Owned(entry)));
+                events.push(WriteEvent::CreateSecret(id, entry));
             }
             Ok(events)
         } else {
@@ -162,20 +158,21 @@ impl<'a> EventReducer<'a> {
     }
 
     /// Consume this reducer and build a vault.
-    pub async fn build(self) -> Result<Vault> {
+    pub async fn build(self, include_secrets: bool) -> Result<Vault> {
         if let Some(vault) = self.vault {
             let mut vault: Vault = decode(&vault).await?;
             if let Some(name) = self.vault_name {
-                vault.set_name(name.into_owned());
+                vault.set_name(name);
             }
 
             if let Some(meta) = self.vault_meta {
-                vault.header_mut().set_meta(meta.into_owned());
+                vault.header_mut().set_meta(Some(meta));
             }
 
-            for (id, entry) in self.secrets {
-                let entry = entry.into_owned();
-                vault.insert_entry(id, entry);
+            if include_secrets {
+                for (id, entry) in self.secrets {
+                    vault.insert_entry(id, entry);
+                }
             }
             Ok(vault)
         } else {
@@ -184,6 +181,177 @@ impl<'a> EventReducer<'a> {
     }
 }
 
+#[cfg(feature = "device")]
+mod device {
+    use crate::{
+        device::{DevicePublicKey, TrustedDevice},
+        events::{DeviceEvent, DeviceEventLog, EventLogExt},
+        Result,
+    };
+    use futures::{pin_mut, stream::StreamExt};
+    use std::collections::HashMap;
+
+    /// Reduce device events to a collection of devices.
+    pub struct DeviceReducer<'a> {
+        log: &'a DeviceEventLog,
+    }
+
+    impl<'a> DeviceReducer<'a> {
+        /// Create a new device reducer.
+        pub fn new(log: &'a DeviceEventLog) -> Self {
+            Self { log }
+        }
+
+        /// Reduce device events to a canonical collection
+        /// of trusted devices.
+        pub async fn reduce(
+            self,
+        ) -> Result<HashMap<DevicePublicKey, TrustedDevice>> {
+            let mut devices = HashMap::new();
+
+            let stream = self.log.stream(false).await;
+            pin_mut!(stream);
+
+            while let Some(event) = stream.next().await {
+                let (_, event) = event?;
+
+                match event {
+                    DeviceEvent::Trust(device) => {
+                        devices.insert(*device.public_key(), device);
+                    }
+                    DeviceEvent::Revoke(public_key) => {
+                        devices.remove(&public_key);
+                    }
+                    _ => {}
+                }
+            }
+            Ok(devices)
+        }
+    }
+}
+
+#[cfg(feature = "device")]
+pub use device::DeviceReducer;
+
+#[cfg(all(feature = "files", feature = "sync"))]
+mod files {
+    use crate::{
+        commit::CommitHash,
+        events::{EventLogExt, FileEvent, FileEventLog},
+        storage::files::ExternalFile,
+        Result,
+    };
+    use futures::{pin_mut, stream::StreamExt};
+    use indexmap::IndexSet;
+
+    /// Reduce file events to a collection of external files.
+    pub struct FileReducer<'a> {
+        log: &'a FileEventLog,
+    }
+
+    impl<'a> FileReducer<'a> {
+        /// Create a new file reducer.
+        pub fn new(log: &'a FileEventLog) -> Self {
+            Self { log }
+        }
+
+        /// Reduce file events to a canonical collection
+        /// of external files.
+        pub async fn reduce(
+            self,
+            from: Option<&CommitHash>,
+        ) -> Result<IndexSet<ExternalFile>> {
+            let mut files: IndexSet<ExternalFile> = IndexSet::new();
+
+            fn add_file_event(
+                event: FileEvent,
+                files: &mut IndexSet<ExternalFile>,
+            ) {
+                match event {
+                    FileEvent::CreateFile(vault_id, secret_id, file_name) => {
+                        files.insert(ExternalFile::new(
+                            vault_id, secret_id, file_name,
+                        ));
+                    }
+                    FileEvent::MoveFile { name, from, dest } => {
+                        let file = ExternalFile::new(from.0, from.1, name);
+                        files.remove(&file);
+                        files.insert(ExternalFile::new(dest.0, dest.1, name));
+                    }
+                    FileEvent::DeleteFile(vault_id, secret_id, file_name) => {
+                        let file =
+                            ExternalFile::new(vault_id, secret_id, file_name);
+                        files.remove(&file);
+                    }
+                    _ => {}
+                }
+            }
+
+            // Reduce from the target commit.
+            //
+            // When reducing from a target commit we perform
+            // a diff as this reads from the tail of the event
+            // log which will be faster than scanning when there
+            // are lots of file events.
+            if let Some(from) = from {
+                let patch = self.log.diff(Some(from)).await?;
+                let events: Vec<FileEvent> = patch.into();
+                for event in events {
+                    add_file_event(event, &mut files);
+                }
+            } else {
+                let stream = self.log.stream(false).await;
+                pin_mut!(stream);
+
+                while let Some(event) = stream.next().await {
+                    let (_, event) = event?;
+                    add_file_event(event, &mut files);
+                }
+            }
+
+            Ok(files)
+        }
+    }
+}
+
+#[cfg(all(feature = "files", feature = "sync"))]
+pub use files::FileReducer;
+
+/*
+/// Reduce account events to a collection of folders.
+pub struct AccountReducer<'a> {
+    log: &'a mut AccountEventLog,
+}
+
+impl<'a> AccountReducer<'a> {
+    /// Create a new account reducer.
+    pub fn new(log: &'a mut AccountEventLog) -> Self {
+        Self { log }
+    }
+
+    /// Reduce account events to a canonical collection
+    /// of folders.
+    pub async fn reduce(self) -> Result<HashSet<VaultId>> {
+        let mut folders = HashSet::new();
+        let events = self.log.diff_records(None).await?;
+        for record in events {
+            let event = record.decode_event::<AccountEvent>().await?;
+            match event {
+                AccountEvent::UpdateFolder(id, _)
+                | AccountEvent::CreateFolder(id, _) => {
+                    folders.insert(id);
+                }
+                AccountEvent::DeleteFolder(id) => {
+                    folders.remove(&id);
+                }
+                _ => {}
+            }
+        }
+        Ok(folders)
+    }
+}
+*/
+
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod test {
     use super::*;
@@ -191,7 +359,7 @@ mod test {
         commit::CommitHash,
         crypto::PrivateKey,
         decode,
-        events::{EventLogFile, WriteEvent},
+        events::{FolderEventLog, WriteEvent},
         test_utils::*,
         vault::{
             secret::{Secret, SecretId, SecretMeta},
@@ -204,7 +372,7 @@ mod test {
 
     async fn mock_event_log_file() -> Result<(
         NamedTempFile,
-        EventLogFile,
+        FolderEventLog,
         Vec<CommitHash>,
         PrivateKey,
         SecretId,
@@ -213,19 +381,19 @@ mod test {
         let (_, mut vault, buffer) = mock_vault_file().await?;
 
         let temp = NamedTempFile::new()?;
-        let mut event_log = EventLogFile::new(temp.path()).await?;
+        let mut event_log = FolderEventLog::new(temp.path()).await?;
 
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = WriteEvent::CreateVault(Cow::Owned(buffer));
-        commits.push(event_log.append_event(event).await?);
+        let event = WriteEvent::CreateVault(buffer);
+        commits.append(&mut event_log.apply(vec![&event]).await?);
 
         // Create a secret
         let (secret_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "foo", "bar")
                 .await?;
-        commits.push(event_log.append_event(event).await?);
+        commits.append(&mut event_log.apply(vec![&event]).await?);
 
         // Update the secret
         let (_, _, _, event) = mock_vault_note_update(
@@ -237,18 +405,18 @@ mod test {
         )
         .await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event).await?);
+            commits.append(&mut event_log.apply(vec![&event]).await?);
         }
 
         // Create another secret
         let (del_id, _, _, _, event) =
             mock_vault_note(&mut vault, &encryption_key, "qux", "baz")
                 .await?;
-        commits.push(event_log.append_event(event).await?);
+        commits.append(&mut event_log.apply(vec![&event]).await?);
 
         let event = vault.delete(&del_id).await?;
         if let Some(event) = event {
-            commits.push(event_log.append_event(event).await?);
+            commits.append(&mut event_log.apply(vec![&event]).await?);
         }
 
         Ok((temp, event_log, commits, encryption_key, secret_id))
@@ -261,10 +429,10 @@ mod test {
 
         assert_eq!(5, event_log.tree().len());
 
-        let vault = EventReducer::new()
+        let vault = FolderReducer::new()
             .reduce(&event_log)
             .await?
-            .build()
+            .build(true)
             .await?;
 
         assert_eq!(1, vault.len());
@@ -301,14 +469,14 @@ mod test {
         assert_eq!(5, event_log.tree().len());
 
         // Get a vault so we can assert on the compaction result
-        let vault = EventReducer::new()
+        let vault = FolderReducer::new()
             .reduce(&event_log)
             .await?
-            .build()
+            .build(true)
             .await?;
 
         // Get the compacted series of events
-        let events = EventReducer::new()
+        let events = FolderReducer::new()
             .reduce(&event_log)
             .await?
             .compact()
@@ -317,13 +485,16 @@ mod test {
         assert_eq!(2, events.len());
 
         let compact_temp = NamedTempFile::new()?;
-        let mut compact = EventLogFile::new(compact_temp.path()).await?;
+        let mut compact = FolderEventLog::new(compact_temp.path()).await?;
         for event in events {
-            compact.append_event(event).await?;
+            compact.apply(vec![&event]).await?;
         }
 
-        let compact_vault =
-            EventReducer::new().reduce(&compact).await?.build().await?;
+        let compact_vault = FolderReducer::new()
+            .reduce(&compact)
+            .await?
+            .build(true)
+            .await?;
         assert_eq!(vault, compact_vault);
 
         Ok(())

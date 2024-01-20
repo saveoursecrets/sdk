@@ -1,161 +1,113 @@
 [package]
 name = "sos-net"
-version = "0.6.2"
+version = "0.8.0"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
-license = "GPL-3.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
-default = ["peer"]
+default = []
 full = [
+  "archive",
   "client",
-  "server",
-  "peer",
-  "migrate",
   "contacts",
   "device",
+  "files",
+  "hashcheck",
+  "listen",
+  "migrate",
+  "search",
+  "server",
   "security-report",
 ]
 client = [
-  "reqwest",
+  "dep:reqwest",
 ]
-peer = [
-  "libp2p",
-  "libp2p-quic",
-  "either",
-  "void",
-  "libp2p-kad",
-  "libp2p-noise",
-  "libp2p-yamux",
-  "libp2p-tls"
-]
+listen = ["dep:tokio-tungstenite"]
 server = [
-  "toml",
-  "axum",
-  "axum-macros",
-  "axum-server",
-  "tower",
-  "tower-http",
-  "async-stream",
-  "tokio-stream",
+  "dep:toml",
+  "dep:axum",
+  "dep:axum-extra",
+  "dep:axum-macros",
+  "dep:axum-server",
+  "dep:tower",
+  "dep:tower-http",
+  "dep:async-stream",
+  "dep:tokio-stream",
+  "dep:utoipa",
+  "dep:utoipa-rapidoc",
+  "device",
 ]
-contacts = []
-migrate = ["sos-migrate"]
-device = [
-  "if-addrs",
-  "whoami",
-]
-security-report = []
+hashcheck = []
+archive = ["sos-sdk/archive"]
+files = ["sos-sdk/files"]
+contacts = ["sos-sdk/contacts"]
+migrate = ["sos-sdk/migrate"]
+device = ["sos-sdk/device"]
+recovery = ["sos-sdk/recovery"]
+search = ["sos-sdk/search"]
+security-report = ["sos-sdk/security-report"]
 mem-fs = ["sos-sdk/mem-fs"]
 test-utils = ["sos-sdk/test-utils"]
 
 [dependencies]
-thiserror = "1"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-async-trait = "0.1"
-async-recursion = "1"
-web3-signature = { version = "0.4", features = ["single-party"] }
-web3-address = { version = "0.6", features = ["ethereum"] }
-serde = "1"
-serde_json = "1"
-serde_with = "2"
-rand = "0.8"
-url = "2"
-futures = "0.3"
-pin-project-lite = "0.2"
-uuid = { version = "1", features = ["serde", "v4"] }
-hex = "0.4"
-tempfile = "3.5"
-dirs = "4"
-http = "0.2"
-bs58 = "0.4"
-secrecy = "0.8"
-log = "0.4"
-sha3 = "0.10"
-once_cell = "1"
-parking_lot = "0.12"
-ouroboros = "0.17"
+tokio-util.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+async-trait.workspace = true
+async-recursion.workspace = true
+http.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+uuid.workspace = true
+hex.workspace = true
+sha3.workspace = true
+secrecy.workspace = true
+serde_with.workspace = true
+once_cell.workspace = true
+rand.workspace = true
+url.workspace = true
+futures.workspace = true
+bs58.workspace = true
+urlencoding.workspace = true
+parking_lot.workspace = true
 
 # server
-toml = { version = "0.5", optional = true }
-axum = { version = "0.6", features = ["headers", "ws"], optional = true }
-axum-macros = { version = "0.3", optional = true }
-axum-server = { version = "0.5", features = ["tls-rustls"], optional = true }
+toml = { workspace = true, optional = true }
+axum = { version = "0.7", features = ["ws", "original-uri"], optional = true }
+axum-extra = {version = "0.9", features = ["typed-header"], optional = true}
+axum-macros = { version = "0.4", optional = true }
+axum-server = { version = "0.6", features = ["tls-rustls"], optional = true }
 tower = { version = "0.4", optional = true }
-tower-http = { version = "0.3", features = ["cors", "trace"], optional = true }
+tower-http = { version = "0.5", features = ["cors", "trace"], optional = true }
 async-stream = { version = "0.3", optional = true }
 tokio-stream = { version = "0.1", optional = true }
-
-# device
-whoami = { version = "1.4", optional = true }
-if-addrs = { version = "0.10.1", optional = true }
-
-# peer
-void = { version = "1", optional = true }
-either = { version = "1.8", optional = true }
+tokio-tungstenite = { version = "0.21", features = ["rustls-tls-native-roots"] , optional = true}
+utoipa = { version = "4", features = ["uuid"], optional = true }
+utoipa-rapidoc = { version = "3", features = ["axum"], optional = true }
 
 [dependencies.sos-sdk]
-version = "0.6"
-#path = "../sdk"
+version = "0.8"
+features = ["sync"]
+path = "../sdk"
 
-[dependencies.sos-migrate]
-version = "0.6.2"
-optional = true
-#path = "../migrate"
-
-[dependencies.libp2p]
-version = "0.52.4"
-optional = true
-features = [
-  "tokio", 
-  "gossipsub",
-  "noise",
-  "macros",
-  "tcp",
-  "quic",
-  "dns",
-  "yamux",
-  "kad",
-  "request-response",
-  "rendezvous",
-  "identify",
-]
-
-[dependencies.libp2p-noise]
-version = "0.43"
-optional = true
-
-[dependencies.libp2p-yamux]
-version = "0.44"
-optional = true
-
-[dependencies.libp2p-tls]
-version = "0.2"
-optional = true
-
-[dependencies.libp2p-kad]
-version = "0.44"
-optional = true
-
-[dependencies.libp2p-quic]
-version = "0.9.2"
-optional = true
-features = ["tokio"]
+[dependencies.binary-stream]
+version = "8.0.0"
+features = ["async"]
+#path = "../../../../binary-stream"
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 file-guard = "0.1"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
-#parity-tokio-ipc = { version = "0.9", optional = true }
-tokio-tungstenite = { version = "0.20", features = ["rustls-tls-native-roots"] }
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
 tokio = { version = "1", features = ["rt", "time", "sync"] }
 
 [target.'cfg(target_os="macos")'.dependencies]
-reqwest = { version = "0.11.22", default-features = true, features = ["json", "rustls-tls"], optional = true }
+reqwest = { version = "0.11.22", default-features = true, features = ["json", "rustls-tls", "stream"], optional = true }
 
 # NOTE: Must disable default-features so that openssl
 # NOTE: is not compiled when cross-compiling in CI.
@@ -168,7 +120,7 @@ reqwest = { version = "0.11.22", default-features = true, features = ["json", "r
 # NOTE: being compiled on macos when `default-features` is 
 # NOTE: disabled.
 [target.'cfg(not(target_os="macos"))'.dependencies]
-reqwest = { version = "0.11.22", default-features = false, features = ["json", "rustls-tls"], optional = true }
+reqwest = { version = "0.11.22", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
 
 [dev-dependencies]
 anyhow = "1"

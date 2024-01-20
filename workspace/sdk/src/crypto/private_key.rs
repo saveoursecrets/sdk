@@ -90,7 +90,7 @@ pub enum PrivateKey {
     /// Private key used for symmetric ciphers.
     Symmetric(DerivedPrivateKey),
     /// Private key used for asymmetric ciphers.
-    Asymmetric(age::x25519::Identity),
+    Asymmetric(Identity),
 }
 
 /// Encapsulates the bytes for a derived symmetric secret key.
@@ -135,5 +135,13 @@ impl DerivedPrivateKey {
 impl AsRef<[u8]> for DerivedPrivateKey {
     fn as_ref(&self) -> &[u8] {
         self.inner.expose_secret()
+    }
+}
+
+impl From<Vec<u8>> for DerivedPrivateKey {
+    fn from(value: Vec<u8>) -> Self {
+        Self {
+            inner: SecretVec::new(value),
+        }
     }
 }

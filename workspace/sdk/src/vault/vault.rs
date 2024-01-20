@@ -9,6 +9,7 @@ use tokio_util::compat::TokioAsyncReadCompatExt;
 
 use age::x25519::{Identity, Recipient};
 use bitflags::bitflags;
+use indexmap::IndexMap;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
@@ -20,7 +21,7 @@ use uuid::Uuid;
 
 use crate::{
     commit::CommitHash,
-    constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY},
+    constants::{DEFAULT_VAULT_NAME, VAULT_IDENTITY, VAULT_NSS},
     crypto::{
         AccessKey, AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed,
     },
@@ -163,16 +164,16 @@ impl VaultMeta {
     }
 }
 
-/// Reference to a vault using an id or a named label.
+/// Reference to a folder using an id or a named label.
 #[derive(Debug, Clone)]
-pub enum VaultRef {
+pub enum FolderRef {
     /// Vault identifier.
     Id(VaultId),
     /// Vault label.
     Name(String),
 }
 
-impl fmt::Display for VaultRef {
+impl fmt::Display for FolderRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Id(id) => write!(f, "{}", id),
@@ -181,7 +182,7 @@ impl fmt::Display for VaultRef {
     }
 }
 
-impl FromStr for VaultRef {
+impl FromStr for FolderRef {
     type Err = Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if let Ok(id) = Uuid::parse_str(s) {
@@ -189,6 +190,12 @@ impl FromStr for VaultRef {
         } else {
             Ok(Self::Name(s.to_string()))
         }
+    }
+}
+
+impl From<VaultId> for FolderRef {
+    fn from(value: VaultId) -> Self {
+        Self::Id(value)
     }
 }
 
@@ -220,23 +227,20 @@ pub trait VaultAccess {
     async fn vault_name(&self) -> Result<Cow<'_, str>>;
 
     /// Set the name of a vault.
-    async fn set_vault_name(
-        &mut self,
-        name: String,
-    ) -> Result<WriteEvent<'_>>;
+    async fn set_vault_name(&mut self, name: String) -> Result<WriteEvent>;
 
     /// Set the vault meta data.
     async fn set_vault_meta(
         &mut self,
-        meta_data: Option<AeadPack>,
-    ) -> Result<WriteEvent<'_>>;
+        meta_data: AeadPack,
+    ) -> Result<WriteEvent>;
 
     /// Add an encrypted secret to the vault.
     async fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent<'_>>;
+    ) -> Result<WriteEvent>;
 
     /// Insert an encrypted secret to the vault with the given id.
     ///
@@ -248,7 +252,7 @@ pub trait VaultAccess {
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent<'_>>;
+    ) -> Result<WriteEvent>;
 
     /// Get an encrypted secret from the vault.
     async fn read<'a>(
@@ -262,13 +266,10 @@ pub trait VaultAccess {
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<WriteEvent<'_>>>;
+    ) -> Result<Option<WriteEvent>>;
 
     /// Remove an encrypted secret from the vault.
-    async fn delete(
-        &mut self,
-        id: &SecretId,
-    ) -> Result<Option<WriteEvent<'_>>>;
+    async fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent>>;
 }
 
 /// Authentication information.
@@ -391,6 +392,12 @@ impl Summary {
     /// Get a mutable reference to the vault flags.
     pub fn flags_mut(&mut self) -> &mut VaultFlags {
         &mut self.flags
+    }
+}
+
+impl From<Summary> for VaultId {
+    fn from(value: Summary) -> Self {
+        value.id
     }
 }
 
@@ -583,7 +590,7 @@ impl SharedAccess {
 /// The vault contents
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Contents {
-    pub(crate) data: HashMap<SecretId, VaultCommit>,
+    pub(crate) data: IndexMap<SecretId, VaultCommit>,
 }
 
 /// Vault file storage.
@@ -615,7 +622,7 @@ impl Vault {
 
     /// Get the URN for a vault identifier.
     pub fn vault_urn(id: &VaultId) -> Result<Urn> {
-        let vault_urn = format!("urn:sos:vault:{}", id);
+        let vault_urn = format!("urn:sos:{}{}", VAULT_NSS, id);
         Ok(vault_urn.parse()?)
     }
 
@@ -990,10 +997,15 @@ impl From<Header> for Vault {
     }
 }
 
+impl From<Vault> for Header {
+    fn from(value: Vault) -> Self {
+        value.header
+    }
+}
+
 impl IntoIterator for Vault {
     type Item = (SecretId, VaultCommit);
-    type IntoIter =
-        std::collections::hash_map::IntoIter<SecretId, VaultCommit>;
+    type IntoIter = indexmap::map::IntoIter<SecretId, VaultCommit>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.contents.data.into_iter()
@@ -1011,28 +1023,24 @@ impl VaultAccess for Vault {
         Ok(Cow::Borrowed(self.name()))
     }
 
-    async fn set_vault_name(
-        &mut self,
-        name: String,
-    ) -> Result<WriteEvent<'_>> {
+    async fn set_vault_name(&mut self, name: String) -> Result<WriteEvent> {
         self.set_name(name.clone());
-        Ok(WriteEvent::SetVaultName(Cow::Owned(name)))
+        Ok(WriteEvent::SetVaultName(name))
     }
 
     async fn set_vault_meta(
         &mut self,
-        meta_data: Option<AeadPack>,
-    ) -> Result<WriteEvent<'_>> {
-        self.header.set_meta(meta_data);
-        let meta = self.header.meta().cloned();
-        Ok(WriteEvent::SetVaultMeta(Cow::Owned(meta)))
+        meta_data: AeadPack,
+    ) -> Result<WriteEvent> {
+        self.header.set_meta(Some(meta_data.clone()));
+        Ok(WriteEvent::SetVaultMeta(meta_data))
     }
 
     async fn create(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<WriteEvent> {
         let id = Uuid::new_v4();
         self.insert(id, commit, secret).await
     }
@@ -1042,13 +1050,13 @@ impl VaultAccess for Vault {
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent<'_>> {
+    ) -> Result<WriteEvent> {
         let value = self
             .contents
             .data
             .entry(id)
             .or_insert(VaultCommit(commit, secret));
-        Ok(WriteEvent::CreateSecret(id, Cow::Borrowed(value)))
+        Ok(WriteEvent::CreateSecret(id, value.clone()))
     }
 
     async fn read<'a>(
@@ -1064,20 +1072,17 @@ impl VaultAccess for Vault {
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<WriteEvent<'_>>> {
+    ) -> Result<Option<WriteEvent>> {
         let _vault_id = *self.id();
         if let Some(value) = self.contents.data.get_mut(id) {
             *value = VaultCommit(commit, secret);
-            Ok(Some(WriteEvent::UpdateSecret(*id, Cow::Borrowed(value))))
+            Ok(Some(WriteEvent::UpdateSecret(*id, value.clone())))
         } else {
             Ok(None)
         }
     }
 
-    async fn delete(
-        &mut self,
-        id: &SecretId,
-    ) -> Result<Option<WriteEvent<'_>>> {
+    async fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent>> {
         let entry = self.contents.data.remove(id);
         if entry.is_some() {
             Ok(Some(WriteEvent::DeleteSecret(*id)))
@@ -1095,7 +1100,7 @@ mod tests {
         decode, encode,
         passwd::diceware::generate_passphrase,
         test_utils::*,
-        vault::{Gatekeeper, VaultBuilder},
+        vault::{secret::SecretRow, Gatekeeper, VaultBuilder},
         Error,
     };
 
@@ -1172,16 +1177,14 @@ mod tests {
             .await?;
 
         // Owner adds a secret
-        let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
+        let mut keeper = Gatekeeper::new(vault);
+        let key = AccessKey::Identity(owner.clone());
+        keeper.unlock(&key).await?;
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
-        let event = keeper.create(meta.clone(), secret.clone()).await?;
-        let id = if let WriteEvent::CreateSecret(id, _) = event {
-            id
-        } else {
-            unreachable!();
-        };
+        let id = SecretId::new_v4();
+        let secret_data = SecretRow::new(id, meta.clone(), secret.clone());
+        keeper.create_secret(&secret_data).await?;
 
         // In the real world this exchange of the vault
         // would happen via a sync operation
@@ -1191,11 +1194,12 @@ mod tests {
         let encoded = encode(&vault).await?;
         let vault: Vault = decode(&encoded).await?;
 
-        let mut keeper_1 = Gatekeeper::new(vault, None);
-        keeper_1
-            .unlock(AccessKey::Identity(other_1.clone()))
-            .await?;
-        if let Some((read_meta, read_secret, _)) = keeper_1.read(&id).await? {
+        let mut keeper_1 = Gatekeeper::new(vault);
+        let key = AccessKey::Identity(other_1.clone());
+        keeper_1.unlock(&key).await?;
+        if let Some((read_meta, read_secret, _)) =
+            keeper_1.read_secret(&id).await?
+        {
             assert_eq!(meta, read_meta);
             assert_eq!(secret, read_secret);
         } else {
@@ -1206,7 +1210,7 @@ mod tests {
             mock_secret_note("Shared label updated", "Shared note updated")
                 .await?;
         keeper_1
-            .update(&id, new_meta.clone(), new_secret.clone())
+            .update_secret(&id, new_meta.clone(), new_secret.clone())
             .await?;
 
         // In the real world this exchange of the vault
@@ -1214,9 +1218,12 @@ mod tests {
         let vault: Vault = keeper_1.into();
 
         // Check the owner can see the updated secret
-        let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
-        if let Some((read_meta, read_secret, _)) = keeper.read(&id).await? {
+        let mut keeper = Gatekeeper::new(vault);
+        let key = AccessKey::Identity(owner.clone());
+        keeper.unlock(&key).await?;
+        if let Some((read_meta, read_secret, _)) =
+            keeper.read_secret(&id).await?
+        {
             assert_eq!(new_meta, read_meta);
             assert_eq!(new_secret, read_secret);
         } else {
@@ -1238,23 +1245,21 @@ mod tests {
             VaultBuilder::new().shared(&owner, recipients, true).await?;
 
         // Owner adds a secret
-        let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(AccessKey::Identity(owner.clone())).await?;
+        let mut keeper = Gatekeeper::new(vault);
+        let key = AccessKey::Identity(owner.clone());
+        keeper.unlock(&key).await?;
         let (meta, secret, _, _) =
             mock_secret_note("Shared label", "Shared note").await?;
-        let event = keeper.create(meta.clone(), secret.clone()).await?;
-        let id = if let WriteEvent::CreateSecret(id, _) = event {
-            id
-        } else {
-            unreachable!();
-        };
+        let id = SecretId::new_v4();
+        let secret_data = SecretRow::new(id, meta.clone(), secret.clone());
+        keeper.create_secret(&secret_data).await?;
 
         // Check the owner can update
         let (new_meta, new_secret, _, _) =
             mock_secret_note("Shared label updated", "Shared note updated")
                 .await?;
         keeper
-            .update(&id, new_meta.clone(), new_secret.clone())
+            .update_secret(&id, new_meta.clone(), new_secret.clone())
             .await?;
 
         // In the real world this exchange of the vault
@@ -1265,13 +1270,14 @@ mod tests {
         let encoded = encode(&vault).await?;
         let vault: Vault = decode(&encoded).await?;
 
-        let mut keeper_1 = Gatekeeper::new(vault, None);
-        keeper_1
-            .unlock(AccessKey::Identity(other_1.clone()))
-            .await?;
+        let mut keeper_1 = Gatekeeper::new(vault);
+        let key = AccessKey::Identity(other_1.clone());
+        keeper_1.unlock(&key).await?;
 
         // Other recipient can read the secret
-        if let Some((read_meta, read_secret, _)) = keeper_1.read(&id).await? {
+        if let Some((read_meta, read_secret, _)) =
+            keeper_1.read_secret(&id).await?
+        {
             assert_eq!(new_meta, read_meta);
             assert_eq!(new_secret, read_secret);
         } else {
@@ -1286,18 +1292,19 @@ mod tests {
         )
         .await?;
         let result = keeper_1
-            .update(&id, updated_meta.clone(), updated_secret.clone())
+            .update_secret(&id, updated_meta.clone(), updated_secret.clone())
             .await;
         assert!(matches!(result, Err(Error::PermissionDenied)));
 
         // Trying to create a secret is also denied
-        let result = keeper_1
-            .create(updated_meta.clone(), updated_secret.clone())
-            .await;
+        let id = SecretId::new_v4();
+        let secret_data =
+            SecretRow::new(id, updated_meta.clone(), updated_secret.clone());
+        let result = keeper_1.create_secret(&secret_data).await;
         assert!(matches!(result, Err(Error::PermissionDenied)));
 
         // Trying to delete a secret is also denied
-        let result = keeper_1.delete(&id).await;
+        let result = keeper_1.delete_secret(&id).await;
         assert!(matches!(result, Err(Error::PermissionDenied)));
 
         Ok(())

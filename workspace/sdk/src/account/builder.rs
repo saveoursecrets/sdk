@@ -1,61 +1,67 @@
-//! Create new local account.
-
-use urn::Urn;
-
+//! Create a new local account.
 use crate::{
     constants::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
-        DEFAULT_CONTACTS_VAULT_NAME, FILE_PASSWORD_URN,
+        DEFAULT_CONTACTS_VAULT_NAME,
     },
     crypto::AccessKey,
-    encode,
-    storage::AppPaths,
+    identity::{FolderKeys, Identity, IdentityFolder},
+    signer::ecdsa::Address,
+    storage::AccountPack,
     vault::{
-        secret::{Secret, SecretMeta, UserData},
-        Gatekeeper, Summary, Vault, VaultBuilder, VaultFlags,
+        secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
+        Gatekeeper, Vault, VaultBuilder, VaultFlags,
     },
-    vfs, Result,
+    Paths, Result,
 };
-use web3_address::ethereum::Address;
-
-use super::{DelegatedPassphrase, Identity, UserIdentity};
-
 use secrecy::SecretString;
+use std::{collections::HashMap, path::PathBuf};
 
-/// Newly created account information.
-pub struct NewAccount {
+/// Private information about a new account.
+pub struct PrivateNewAccount {
+    /// Directory for the new account.
+    pub data_dir: Option<PathBuf>,
     /// Address of the account signing key.
     pub address: Address,
-    /// Identity for the new user.
-    pub user: UserIdentity,
-    /// Default vault.
-    pub default_vault: Vault,
-    /// Archive vault.
+    /// User identity.
+    pub user: Identity,
+    /// Identity vault.
+    pub identity_vault: Vault,
+    /// Default folder.
+    pub default_folder: Vault,
+    /// Archive folder.
     pub archive: Option<Vault>,
-    /// Authenticator vault.
+    /// Authenticator folder.
     pub authenticator: Option<Vault>,
-    /// Contacts vault.
+    /// Contacts folder.
     pub contacts: Option<Vault>,
+    /// Folder access keys.
+    pub folder_keys: FolderKeys,
 }
 
-/// New account vaults that have been imported into
-/// a storage provider.
-pub struct ImportedAccount {
-    /// Summary for the default folder.
-    pub summary: Summary,
-    /// Sumary for an archive if the new account
-    /// includes an archive folder.
-    pub archive: Option<Summary>,
-    /// Sumary for an authenticator if the new account
-    /// includes an authenticator folder.
-    pub authenticator: Option<Summary>,
-    /// Sumary for contacts if the new account
-    /// includes a contacts folder.
-    pub contacts: Option<Summary>,
+impl From<PrivateNewAccount> for AccountPack {
+    fn from(mut value: PrivateNewAccount) -> Self {
+        let mut folders = vec![value.default_folder];
+        if let Some(archive) = value.archive.take() {
+            folders.push(archive);
+        }
+        if let Some(authenticator) = value.authenticator.take() {
+            folders.push(authenticator);
+        }
+        if let Some(contacts) = value.contacts.take() {
+            folders.push(contacts);
+        }
+        Self {
+            address: value.address.clone(),
+            identity_vault: value.identity_vault,
+            folders,
+        }
+    }
 }
 
-/// Create a new account.
+/// Create the data for a new account.
 pub struct AccountBuilder {
+    data_dir: Option<PathBuf>,
     account_name: String,
     passphrase: SecretString,
     save_passphrase: bool,
@@ -68,8 +74,13 @@ pub struct AccountBuilder {
 
 impl AccountBuilder {
     /// Create a new account builder.
-    pub fn new(account_name: String, passphrase: SecretString) -> Self {
+    pub fn new(
+        account_name: String,
+        passphrase: SecretString,
+        data_dir: Option<PathBuf>,
+    ) -> Self {
         Self {
+            data_dir,
             account_name,
             passphrase,
             save_passphrase: false,
@@ -118,8 +129,9 @@ impl AccountBuilder {
     }
 
     /// Create a new identity vault and account folders.
-    pub async fn build(self) -> Result<(Vault, NewAccount)> {
+    async fn build(self) -> Result<PrivateNewAccount> {
         let AccountBuilder {
+            data_dir,
             account_name,
             passphrase,
             save_passphrase,
@@ -130,36 +142,55 @@ impl AccountBuilder {
             mut default_folder_name,
         } = self;
 
-        // Prepare the identity vault
-        let (address, identity_vault) = Identity::new_login_vault(
+        Paths::scaffold(data_dir.clone()).await?;
+
+        // Prepare the identity folder
+        let identity_folder = IdentityFolder::new(
             account_name.clone(),
             passphrase.clone(),
+            data_dir.clone(),
         )
         .await?;
 
+        let address = identity_folder.address().clone();
+
+        let mut folder_keys = HashMap::new();
+
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
-        let buffer = encode(&identity_vault).await?;
-        let user =
-            Identity::login_buffer(buffer, passphrase.clone(), None, None)
-                .await?;
+        let paths = if let Some(data_dir) = &data_dir {
+            Paths::new(data_dir, address.to_string())
+        } else {
+            Paths::new(Paths::data_dir()?, address.to_string())
+        };
+
+        paths.ensure().await?;
+
+        let mut user = Identity::new(paths.clone());
+        let key: AccessKey = passphrase.clone().into();
+        user.login(paths.identity_vault(), &key).await?;
 
         // Prepare the passphrase for the default vault
-        let vault_passphrase =
-            DelegatedPassphrase::generate_vault_passphrase()?;
+        let vault_passphrase = user.generate_folder_password()?;
 
         // Prepare the default vault
         let mut builder = VaultBuilder::new().flags(VaultFlags::DEFAULT);
         if let Some(name) = default_folder_name.take() {
             builder = builder.public_name(name);
         }
-        let mut default_vault =
+        let mut default_folder =
             builder.password(vault_passphrase.clone(), None).await?;
+
+        folder_keys.insert(
+            default_folder.summary().clone(),
+            vault_passphrase.clone().into(),
+        );
 
         // Save the master passphrase in the default vault
         if save_passphrase {
-            let mut keeper = Gatekeeper::new(default_vault, None);
-            keeper.unlock(vault_passphrase.clone().into()).await?;
+            let mut keeper = Gatekeeper::new(default_folder);
+            let key: AccessKey = vault_passphrase.clone().into();
+            keeper.unlock(&key).await?;
 
             let secret = Secret::Account {
                 account: account_name,
@@ -172,140 +203,93 @@ impl AccountBuilder {
                 secret.kind(),
             );
             meta.set_favorite(true);
-            keeper.create(meta, secret).await?;
 
-            default_vault = keeper.into();
+            let secret_data =
+                SecretRow::new(SecretId::new_v4(), meta, secret);
+            keeper.create_secret(&secret_data).await?;
+
+            default_folder = keeper.into();
         }
 
-        // Store the vault passphrase in the identity vault
-        let mut keeper = Gatekeeper::new(identity_vault, None);
-        keeper.unlock(passphrase.into()).await?;
-
-        DelegatedPassphrase::save_vault_passphrase(
-            &mut keeper,
-            default_vault.id(),
+        user.save_folder_password(
+            default_folder.id(),
             AccessKey::Password(vault_passphrase),
         )
         .await?;
 
         if create_file_password {
-            let file_passphrase =
-                DelegatedPassphrase::generate_vault_passphrase()?;
-            let secret = Secret::Password {
-                password: file_passphrase,
-                name: None,
-                user_data: UserData::new_comment(address.to_string()),
-            };
-            let mut meta =
-                SecretMeta::new("File Encryption".to_string(), secret.kind());
-            let urn: Urn = FILE_PASSWORD_URN.parse()?;
-            meta.set_urn(Some(urn));
-            keeper.create(meta, secret).await?;
+            user.create_file_encryption_password().await?;
         }
 
         let archive = if create_archive {
-            // Prepare the passphrase for the archive vault
-            let archive_passphrase =
-                DelegatedPassphrase::generate_vault_passphrase()?;
-
-            // Prepare the archive vault
+            let password = user.generate_folder_password()?;
             let vault = VaultBuilder::new()
                 .public_name(DEFAULT_ARCHIVE_VAULT_NAME.to_string())
                 .flags(VaultFlags::ARCHIVE)
-                .password(archive_passphrase.clone(), None)
+                .password(password.clone(), None)
                 .await?;
 
-            DelegatedPassphrase::save_vault_passphrase(
-                &mut keeper,
-                vault.id(),
-                AccessKey::Password(archive_passphrase),
-            )
-            .await?;
+            folder_keys
+                .insert(vault.summary().clone(), password.clone().into());
+
+            user.save_folder_password(vault.id(), password.into())
+                .await?;
             Some(vault)
         } else {
             None
         };
 
         let authenticator = if create_authenticator {
-            // Prepare the passphrase for the authenticator vault
-            let auth_passphrase =
-                DelegatedPassphrase::generate_vault_passphrase()?;
-
-            // Prepare the authenticator vault
+            let password = user.generate_folder_password()?;
             let vault = VaultBuilder::new()
                 .public_name(DEFAULT_AUTHENTICATOR_VAULT_NAME.to_string())
                 .flags(VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC_SELF)
-                .password(auth_passphrase.clone(), None)
+                .password(password.clone(), None)
                 .await?;
 
-            DelegatedPassphrase::save_vault_passphrase(
-                &mut keeper,
-                vault.id(),
-                AccessKey::Password(auth_passphrase),
-            )
-            .await?;
+            folder_keys
+                .insert(vault.summary().clone(), password.clone().into());
+
+            user.save_folder_password(vault.id(), password.into())
+                .await?;
             Some(vault)
         } else {
             None
         };
 
         let contacts = if create_contacts {
-            // Prepare the passphrase for the authenticator vault
-            let auth_passphrase =
-                DelegatedPassphrase::generate_vault_passphrase()?;
-
-            // Prepare the authenticator vault
+            let password = user.generate_folder_password()?;
             let vault = VaultBuilder::new()
                 .public_name(DEFAULT_CONTACTS_VAULT_NAME.to_string())
                 .flags(VaultFlags::CONTACT)
-                .password(auth_passphrase.clone(), None)
+                .password(password.clone(), None)
                 .await?;
 
-            DelegatedPassphrase::save_vault_passphrase(
-                &mut keeper,
-                vault.id(),
-                AccessKey::Password(auth_passphrase),
-            )
-            .await?;
+            folder_keys
+                .insert(vault.summary().clone(), password.clone().into());
+
+            user.save_folder_password(vault.id(), password.into())
+                .await?;
             Some(vault)
         } else {
             None
         };
 
-        Ok((
-            keeper.into(),
-            NewAccount {
-                address,
-                user,
-                default_vault,
-                archive,
-                authenticator,
-                contacts,
-            },
-        ))
-    }
-
-    /// Write the identity vault to disc and prepare storage directories.
-    pub async fn write(
-        identity_vault: Vault,
-        account: NewAccount,
-    ) -> Result<NewAccount> {
-        let address = account.address.to_string();
-        // Persist the identity vault to disc, MUST re-encode the buffer
-        // as we have modified the identity vault
-        let identity_vault_file = AppPaths::identity_vault(&address)?;
-        let buffer = encode(&identity_vault).await?;
-        vfs::write(identity_vault_file, buffer).await?;
-
-        // Ensure the files directory exists
-        AppPaths::files_dir(&address)?;
-
-        Ok(account)
+        Ok(PrivateNewAccount {
+            data_dir,
+            address,
+            user,
+            identity_vault: identity_folder.into(),
+            default_folder,
+            archive,
+            authenticator,
+            contacts,
+            folder_keys: FolderKeys(folder_keys),
+        })
     }
 
     /// Create a new account and write the identity vault to disc.
-    pub async fn finish(self) -> Result<NewAccount> {
-        let (identity_vault, account) = self.build().await?;
-        Self::write(identity_vault, account).await
+    pub async fn finish(self) -> Result<PrivateNewAccount> {
+        self.build().await
     }
 }

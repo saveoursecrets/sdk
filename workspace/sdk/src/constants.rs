@@ -6,14 +6,6 @@ pub const APP_NAME: &str = "SaveOurSecrets";
 /// Application author.
 pub const APP_AUTHOR: &str = "SaveOurSecrets";
 
-/*
-/// Bundle identifier for MacOS and iOS.
-///
-/// This is used to determine the default local storage directory
-/// for the macos and ios platforms.
-pub const BUNDLE_ID: &str = "com.saveoursecrets";
-*/
-
 /// File name for audit logs.
 pub const AUDIT_FILE_NAME: &str = "audit.dat";
 
@@ -22,8 +14,17 @@ mod identity {
     /// Audit log identity magic bytes (SOSA).
     pub const AUDIT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x41];
 
-    /// Write-ahead log identity magic bytes (SOSW).
-    pub const EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
+    /// Account event log identity magic bytes (SOSU).
+    pub const ACCOUNT_EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x55];
+
+    /// Folder event log identity magic bytes (SOSW).
+    pub const FOLDER_EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x57];
+
+    /// Device event log identity magic bytes (SOSD).
+    pub const DEVICE_EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x44];
+
+    /// File event log identity magic bytes (SOSF).
+    pub const FILE_EVENT_LOG_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x46];
 
     /// Patch file identity magic bytes (SOSP).
     pub const PATCH_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x50];
@@ -40,17 +41,11 @@ mod extensions {
     /// File extension used for event log files.
     pub const EVENT_LOG_EXT: &str = "events";
 
-    /// File extension used when deleting event log files.
-    pub const EVENT_LOG_DELETED_EXT: &str = "events.deleted";
-
     /// File extension used for vault files.
     pub const VAULT_EXT: &str = "vault";
 
-    /// File extension used when creating a vault file backup.
-    pub const VAULT_BACKUP_EXT: &str = "vault.backup";
-
-    /// File extension used for patch files.
-    pub const PATCH_EXT: &str = "patch";
+    /// File extension for JSON documents.
+    pub const JSON_EXT: &str = "json";
 }
 
 /// Constants for vaults.
@@ -66,7 +61,9 @@ mod vault {
 
     /// Default name for the authenticator vault.
     pub const DEFAULT_AUTHENTICATOR_VAULT_NAME: &str = "Authenticator";
+}
 
+mod urn {
     /// Login vault signing key name.
     pub const LOGIN_SIGNING_KEY_URN: &str = "urn:sos:identity:signer";
 
@@ -81,7 +78,12 @@ mod vault {
     /// embedded in a vault.
     pub const FILE_PASSWORD_URN: &str = "urn:sos:identity:file";
 
-    /// Device key used to identify a device.
+    /// Namespace for vault passwords.
+    ///
+    /// The namespace is followed by the vault identifier.
+    pub const VAULT_NSS: &str = "vault:";
+
+    /// Device signing key.
     pub const DEVICE_KEY_URN: &str = "urn:sos:device:key";
 }
 
@@ -95,38 +97,9 @@ mod mime {
 
     /// Mime type for patches.
     pub const MIME_TYPE_PATCH: &str = "application/sos+patch";
-}
 
-mod rpc {
-    /// Noise protocol handshake initiation.
-    pub const HANDSHAKE_INITIATE: &str = "Handshake.initiate";
-
-    /// Account create method call.
-    pub const ACCOUNT_CREATE: &str = "Account.create";
-
-    /// Account list vaults method call.
-    pub const ACCOUNT_LIST_VAULTS: &str = "Account.list_vaults";
-
-    /// Vault create method call.
-    pub const VAULT_CREATE: &str = "Vault.create";
-
-    /// Vault save method call.
-    pub const VAULT_SAVE: &str = "Vault.save";
-
-    /// Vault delete method call.
-    pub const VAULT_DELETE: &str = "Vault.delete";
-
-    /// event log load method call.
-    pub const EVENT_LOG_LOAD: &str = "Events.load";
-
-    /// event log status method call.
-    pub const EVENT_LOG_STATUS: &str = "Events.status";
-
-    /// event log patch method call.
-    pub const EVENT_LOG_PATCH: &str = "Events.patch";
-
-    /// event log save method call.
-    pub const EVENT_LOG_SAVE: &str = "Events.save";
+    /// Mime type for RPC packets.
+    pub const MIME_TYPE_RPC: &str = "application/sos+rpc";
 }
 
 /// Constants for directory names.
@@ -134,8 +107,11 @@ mod folders {
     /// Directory to store vaults.
     pub const VAULTS_DIR: &str = "vaults";
 
-    /// Directory to store local provider data.
+    /// Directory to store data for clients.
     pub const LOCAL_DIR: &str = "local";
+
+    /// Directory to store data for servers.
+    pub const REMOTE_DIR: &str = "remote";
 
     /// Directory to store identity vaults.
     pub const IDENTITY_DIR: &str = "identity";
@@ -143,34 +119,42 @@ mod folders {
     /// Directory to store files.
     pub const FILES_DIR: &str = "files";
 
-    /// Directory to store trusted devices public keys.
-    pub const DEVICES_DIR: &str = "devices";
-
-    /// Directory to store temporary files.
-    pub const TEMP_DIR: &str = "temp";
-
-    /// Directory to store deleted files.
-    pub const TRASH_DIR: &str = "trash";
-
     /// Directory to store log files.
     pub const LOGS_DIR: &str = "logs";
+
+    /// Name of the file for account events.
+    pub const ACCOUNT_EVENTS: &str = "account";
+
+    /// Name of the file for device events.
+    pub const DEVICE_EVENTS: &str = "devices";
+
+    /// Name of the file for file events.
+    pub const FILE_EVENTS: &str = "files";
+
+    /// Name of the file for account preferences.
+    pub const PREFERENCES_FILE: &str = "preferences";
+
+    /// Name of the file for remote origins.
+    pub const REMOTES_FILE: &str = "servers";
+
+    /// Name of the vault file that stores the device
+    /// signing key.
+    pub const DEVICE_FILE: &str = "device";
+
+    /// File that tracks external file transfers.
+    pub const TRANSFERS_FILE: &str = "transfers";
 }
 
-mod archive {
+/// File names.
+mod files {
     /// Manifest file for archives.
     pub const ARCHIVE_MANIFEST: &str = "sos-manifest.json";
 }
 
-mod scheme {
-    /// Scheme for P2P URIs.
-    pub const P2P_URI_SCHEME: &str = "sos+p2p";
-}
-
-pub use archive::*;
 pub use extensions::*;
+pub use files::*;
 pub use folders::*;
 pub use identity::*;
 pub use mime::*;
-pub use rpc::*;
-pub use scheme::*;
+pub use urn::*;
 pub use vault::*;

@@ -1,73 +1,57 @@
 use super::{
     config::TlsConfig,
     handlers::{
-        api, home,
-        service::ServiceHandler,
-        websocket::{upgrade, WebSocketConnection},
+        account, api, connections,
+        files::{self, file_operation_lock},
+        home,
     },
-    Backend, Result, ServerConfig, TransportManager,
+    Backend, Result, ServerConfig,
 };
+use crate::sdk::storage::files::ExternalFile;
 use axum::{
     extract::Extension,
     http::{
         header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method,
     },
-    routing::{get, post},
+    middleware,
+    response::{IntoResponse, Json},
+    routing::{get, patch, post, put},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
-use futures::StreamExt;
-use serde::Serialize;
-use sos_sdk::{events::AuditLogFile, mpc::Keypair};
-use std::time::Duration;
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use sos_sdk::signer::ecdsa::Address;
+use std::{
+    collections::{HashMap, HashSet},
+    net::SocketAddr,
+    sync::Arc,
+};
 use tokio::sync::{RwLock, RwLockReadGuard};
-use tokio_stream::wrappers::IntervalStream;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use web3_address::ethereum::Address;
 
-async fn session_reaper(state: Arc<RwLock<State>>, interval_secs: u64) {
-    let interval = tokio::time::interval(Duration::from_secs(interval_secs));
-    let mut stream = IntervalStream::new(interval);
-    while (stream.next().await).is_some() {
-        let mut writer = state.write().await;
-        let expired_transports = writer.transports.expired_keys();
-        tracing::debug!(
-            expired_transports = %expired_transports.len());
-        for key in expired_transports {
-            writer.transports.remove_channel(&key);
-        }
-    }
-}
+#[cfg(feature = "listen")]
+use super::handlers::websocket::{upgrade, WebSocketConnection};
 
 /// Server state.
 pub struct State {
-    /// Server keypair.
-    pub keypair: Keypair,
     /// The server configuration.
     pub config: ServerConfig,
-    /// Server information.
-    pub info: ServerInfo,
-    /// Storage backend.
-    pub backend: Backend,
-    /// Audit log file
-    pub audit_log: AuditLogFile,
-    /// Server transport manager.
-    pub transports: TransportManager,
     /// Map of websocket  channels by authenticated
     /// client address.
     pub sockets: HashMap<Address, WebSocketConnection>,
 }
 
-/// Server information.
-#[derive(Serialize)]
-pub struct ServerInfo {
-    /// Name of the crate.
-    pub name: String,
-    /// Version of the crate.
-    pub version: String,
-}
+/// State for the server.
+pub type ServerState = Arc<RwLock<State>>;
+
+/// State for the server backend.
+pub type ServerBackend = Arc<RwLock<Backend>>;
+
+/// Transfer operations in progress.
+pub type TransferOperations = HashSet<ExternalFile>;
+
+/// State for the file transfer operations.
+pub type ServerTransfer = Arc<RwLock<TransferOperations>>;
 
 /// Web server implementation.
 #[derive(Default)]
@@ -83,22 +67,20 @@ impl Server {
     pub async fn start(
         &self,
         addr: SocketAddr,
-        state: Arc<RwLock<State>>,
+        state: ServerState,
+        backend: ServerBackend,
         handle: Handle,
     ) -> Result<()> {
         let reader = state.read().await;
         let origins = Server::read_origins(&reader)?;
-        let reap_interval = reader.config.session.reap_interval;
         let tls = reader.config.tls.as_ref().cloned();
         drop(reader);
 
-        // Spawn task to reap expired sessions
-        tokio::task::spawn(session_reaper(Arc::clone(&state), reap_interval));
-
         if let Some(tls) = tls {
-            self.run_tls(addr, state, handle, origins, tls).await
+            self.run_tls(addr, state, backend, handle, origins, tls)
+                .await
         } else {
-            self.run(addr, state, handle, origins).await
+            self.run(addr, state, backend, handle, origins).await
         }
     }
 
@@ -106,14 +88,17 @@ impl Server {
     async fn run_tls(
         &self,
         addr: SocketAddr,
-        state: Arc<RwLock<State>>,
+        state: ServerState,
+        backend: ServerBackend,
         handle: Handle,
         origins: Vec<HeaderValue>,
         tls: TlsConfig,
     ) -> Result<()> {
         let tls = RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
-        let app = Server::router(state, origins)?;
-        tracing::info!("listening on {}", addr);
+        let app = Server::router(Arc::clone(&state), backend, origins)?;
+
+        self.startup_message(state, &addr, true).await;
+
         axum_server::bind_rustls(addr, tls)
             .handle(handle)
             .serve(app.into_make_service())
@@ -125,17 +110,43 @@ impl Server {
     async fn run(
         &self,
         addr: SocketAddr,
-        state: Arc<RwLock<State>>,
+        state: ServerState,
+        backend: ServerBackend,
         handle: Handle,
         origins: Vec<HeaderValue>,
     ) -> Result<()> {
-        let app = Server::router(state, origins)?;
-        tracing::info!("listening on {}", addr);
+        let app = Server::router(Arc::clone(&state), backend, origins)?;
+
+        self.startup_message(state, &addr, false).await;
+
         axum_server::bind(addr)
             .handle(handle)
             .serve(app.into_make_service())
             .await?;
         Ok(())
+    }
+
+    async fn startup_message(
+        &self,
+        state: ServerState,
+        addr: &SocketAddr,
+        tls: bool,
+    ) {
+        tracing::info!(addr = %addr);
+        tracing::info!(tls = %tls);
+        {
+            let reader = state.read().await;
+            if let Some(allow) = &reader.config.access.allow {
+                for address in allow {
+                    tracing::info!(allow = %address);
+                }
+            }
+            if let Some(deny) = &reader.config.access.deny {
+                for address in deny {
+                    tracing::info!(deny = %address);
+                }
+            }
+        }
     }
 
     fn read_origins(
@@ -151,30 +162,113 @@ impl Server {
     }
 
     fn router(
-        state: Arc<RwLock<State>>,
+        state: ServerState,
+        backend: ServerBackend,
         origins: Vec<HeaderValue>,
     ) -> Result<Router> {
         let cors = CorsLayer::new()
-            .allow_methods(vec![Method::GET, Method::POST])
+            .allow_methods(vec![
+                Method::GET,
+                Method::POST,
+                Method::PUT,
+                Method::PATCH,
+                Method::DELETE,
+            ])
             .allow_credentials(true)
             .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE])
             .expose_headers(vec![])
             .allow_origin(origins);
 
-        let mut app = Router::new()
-            .route("/", get(home))
-            .route("/api", get(api))
-            .route("/api/changes", get(upgrade))
-            .route("/api/handshake", post(ServiceHandler::handshake))
-            .route("/api/account", post(ServiceHandler::account))
-            .route("/api/vault", post(ServiceHandler::vault))
-            .route("/api/events", post(ServiceHandler::events));
+        let v1 = {
+            let mut router = Router::new()
+                .route("/", get(api))
+                .route("/docs", get(apidocs))
+                .route("/docs/", get(apidocs))
+                .route("/docs/openapi.json", get(openapi))
+                .route(
+                    "/sync/account",
+                    post(account::create_account)
+                        .put(account::sync_account)
+                        .get(account::fetch_account),
+                )
+                .route("/sync/account/status", get(account::sync_status))
+                .route(
+                    "/sync/file/:vault_id/:secret_id/:file_name",
+                    put(files::receive_file)
+                        .post(files::move_file)
+                        .get(files::send_file)
+                        .delete(files::delete_file)
+                        .route_layer(middleware::from_fn(
+                            file_operation_lock,
+                        )),
+                );
 
-        app = app
+            #[cfg(feature = "device")]
+            {
+                router = router.route(
+                    "/sync/account/devices",
+                    patch(account::patch_devices),
+                );
+            }
+
+            #[cfg(feature = "listen")]
+            {
+                router = router
+                    .route("/sync/connections", get(connections))
+                    .route("/sync/changes", get(upgrade));
+            }
+
+            router
+        };
+
+        let file_operations: ServerTransfer =
+            Arc::new(RwLock::new(HashSet::new()));
+
+        let v1 = v1
             .layer(cors)
             .layer(TraceLayer::new_for_http())
+            .layer(Extension(backend))
+            .layer(Extension(file_operations))
             .layer(Extension(state));
+
+        let app = Router::new()
+            .route("/", get(home))
+            .nest_service("/api/v1", v1);
 
         Ok(app)
     }
+}
+
+/// Get OpenAPI JSON definition.
+#[utoipa::path(
+    get,
+    path = "/docs/openapi.json",
+    responses(
+        (
+            status = StatusCode::OK,
+            description = "OpenAPI definition",
+        ),
+    ),
+)]
+pub async fn openapi() -> impl IntoResponse {
+    let value = crate::server::api_docs::openapi();
+    Json(serde_json::json!(&value))
+}
+
+/// OpenAPI documentation.
+#[utoipa::path(
+    get,
+    path = "/docs",
+    responses(
+        (
+            status = StatusCode::OK,
+            description = "Render OpenAPI documentation",
+        ),
+    ),
+)]
+pub async fn apidocs() -> impl IntoResponse {
+    use utoipa_rapidoc::RapiDoc;
+    let rapidoc = RapiDoc::new("/api/v1/docs/openapi.json");
+    let html = rapidoc.to_html();
+    ([(CONTENT_TYPE, "text/html")], html)
 }

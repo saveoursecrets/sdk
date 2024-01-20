@@ -1,13 +1,12 @@
 //! Listen for changes events on the server sent events channel.
 use futures::stream::StreamExt;
 use sos_net::{
-    client::{
-        net::changes::{changes, connect},
-        provider::ProviderFactory,
-    },
+    client::{changes, connect, Origin},
     sdk::{
-        account::AccountRef, mpc::generate_keypair, mpc::Keypair,
-        signer::ecdsa::BoxedEcdsaSigner, url::Url,
+        hex,
+        identity::AccountRef,
+        signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
+        url::Url,
     },
 };
 
@@ -15,13 +14,19 @@ use crate::{helpers::account::sign_in, Result, TARGET};
 
 /// Creates a changes stream and calls handler for every change notification.
 async fn changes_stream(
-    server: Url,
-    server_public_key: Vec<u8>,
+    url: Url,
+    public_key: Vec<u8>,
     signer: BoxedEcdsaSigner,
-    keypair: Keypair,
+    device: BoxedEd25519Signer,
 ) -> sos_net::client::Result<()> {
-    let (stream, client) =
-        connect(server, server_public_key, signer, keypair).await?;
+    let name = hex::encode(&public_key);
+    let origin = Origin {
+        url,
+        public_key,
+        name,
+    };
+
+    let (stream, client) = connect(origin, signer, device).await?;
     let mut stream = changes(stream, client);
     while let Some(notification) = stream.next().await {
         let notification = notification?.await?;
@@ -40,11 +45,16 @@ pub async fn run(
     server_public_key: Vec<u8>,
     account: AccountRef,
 ) -> Result<()> {
-    let (owner, _) = sign_in(&account, ProviderFactory::Local(None)).await?;
-    let signer = owner.user().identity().signer().clone();
-    let keypair = generate_keypair()?;
-    if let Err(e) =
-        changes_stream(server, server_public_key, signer, keypair).await
+    let (owner, _) = sign_in(&account).await?;
+    let signer = owner.user()?.identity()?.signer().clone();
+    let device = owner.user()?.identity()?.device().clone();
+    if let Err(e) = changes_stream(
+        server,
+        server_public_key,
+        signer,
+        device.into(),
+    )
+    .await
     {
         tracing::error!(target: TARGET, "{}", e);
         std::process::exit(1);

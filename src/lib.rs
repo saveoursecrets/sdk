@@ -17,3 +17,5 @@ pub(crate) mod helpers;
 pub use error::Error;
 #[cfg(not(target_arch = "wasm32"))]
 pub type Result<T> = std::result::Result<T, error::Error>;
+
+pub use helpers::USER;

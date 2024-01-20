@@ -1,13 +1,11 @@
 use anyhow::Result;
 use rexpect::{session::PtySession, spawn, ReadUntil};
 use secrecy::SecretString;
-use serial_test::serial;
 use sos_net::sdk::{
     constants::{DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_VAULT_NAME},
     passwd::diceware::generate_passphrase,
     secrecy::ExposeSecret,
-    storage::AppPaths,
-    vfs,
+    vfs, Paths,
 };
 use std::{
     ops::DerefMut,
@@ -177,7 +175,6 @@ pub(crate) fn read_until_eof(
 }
 
 #[tokio::test]
-#[serial]
 async fn integration_command_line() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 
@@ -185,10 +182,11 @@ async fn integration_command_line() -> Result<()> {
     let _ = vfs::remove_dir_all(&data_dir).await;
 
     // Set cache directory for child processes
-    std::env::set_var("SOS_CACHE", data_dir.clone());
+    std::env::set_var("SOS_DATA_DIR", data_dir.clone());
+
     // Set so test functions can access
-    AppPaths::set_data_dir(data_dir);
-    AppPaths::scaffold().await?;
+    Paths::set_data_dir(data_dir.clone());
+    Paths::scaffold(Some(data_dir)).await?;
 
     if is_ci() {
         std::env::set_var("SOS_YES", true.to_string());
@@ -204,12 +202,17 @@ async fn integration_command_line() -> Result<()> {
         "target/debug/sos".to_owned()
     };
 
+    // Run tests in the context of a shell session
     shell(&exe, &password).await?;
 
     account::new(&exe, &password, ACCOUNT_NAME, None)?;
 
     let address = helpers::first_account_address(&exe, ACCOUNT_NAME)?;
     let default_id = helpers::default_folder_id(&exe, &address, &password)?;
+
+    // These are the tests that execute each command line
+    // and therefore are much slower than the shell execution
+    // as we need to spawn the debug executable for each command
 
     check::vault(&exe, &address, &default_id, None)?;
     check::keys(&exe, &address, &default_id, None)?;
@@ -259,8 +262,9 @@ async fn integration_command_line() -> Result<()> {
 
     account::delete(&exe, &address, &password, None)?;
 
-    AppPaths::clear_data_dir();
-    std::env::remove_var("SOS_CACHE");
+    Paths::clear_data_dir();
+
+    std::env::remove_var("SOS_DATA_DIR");
     std::env::remove_var("SOS_YES");
     std::env::remove_var("SOS_PASSWORD");
     Ok(())
@@ -308,10 +312,12 @@ async fn shell(exe: &str, password: &SecretString) -> Result<()> {
     helpers::set_password_ci_vars(&attachment_password);
 
     account::new(&exe, &password, SHELL_ACCOUNT_NAME, None)?;
+
     let address = helpers::first_account_address(&exe, SHELL_ACCOUNT_NAME)?;
     let default_id = helpers::default_folder_id(&exe, &address, &password)?;
 
     let prompt = format_prompt(SHELL_ACCOUNT_NAME, DEFAULT_VAULT_NAME);
+
     let process = login(exe, &address, password, &prompt)?;
 
     // Login shell specific commands
@@ -626,6 +632,14 @@ fn cd(
     let cmd = format!("{} cd {}", exe, DEFAULT_ARCHIVE_VAULT_NAME);
     read_until_eof(cmd, Some(password), renamed)?;
 
+    cd_default_folder(exe, password, repl)
+}
+
+fn cd_default_folder(
+    exe: &str,
+    password: &SecretString,
+    repl: Option<(Session, &str)>,
+) -> Result<()> {
     let cmd = format!("{} cd {}", exe, DEFAULT_VAULT_NAME);
     read_until_eof(cmd, Some(password), repl)
 }

@@ -1,41 +1,54 @@
 //! Authentication helper functions for extracting an address
 //! from a signature given in bearer authorization data.
-use axum::headers::{authorization::Bearer, Authorization};
-use serde::Deserialize;
+use axum_extra::headers::{authorization::Bearer, Authorization};
 
 use sos_sdk::{
     decode,
-    signer::ecdsa::{recover_address, BinarySignature},
+    signer::{
+        ecdsa::{self, recover_address, Address, BinaryEcdsaSignature},
+        ed25519::{self, BinaryEd25519Signature},
+    },
 };
-use web3_address::ethereum::Address;
-use web3_signature::Signature;
 
-use super::Result;
-
-/// An RPC message and authorization encoded in a query string.
-#[derive(Debug, Deserialize)]
-pub struct QueryMessage {
-    //pub request: String,
-    pub bearer: String,
-    pub public_key: String,
-}
+use super::{Error, Result};
 
 #[derive(Debug)]
 pub struct BearerToken {
-    //public_key: [u8; 33],
     pub address: Address,
+    pub device_signature: Option<ed25519::Signature>,
 }
 
 impl BearerToken {
     /// Create a new bearer token.
     pub async fn new(token: &str, message: &[u8]) -> Result<Self> {
-        let value = bs58::decode(token).into_vec()?;
-        let binary_sig: BinarySignature = decode(&value).await?;
-        let signature: Signature = binary_sig.into();
+        // When a token contains a period we are expecting
+        // an account signature and a device signature
+        let token = if token.contains('.') {
+            token.split_once('.').map(|s| (s.0, Some(s.1)))
+        } else {
+            Some((token, None))
+        };
+
+        let token = token.ok_or_else(|| Error::BadRequest)?;
+        let (account_token, device_token) = token;
+
+        let value = bs58::decode(account_token).into_vec()?;
+        let buffer: BinaryEcdsaSignature = decode(&value).await?;
+        let signature: ecdsa::Signature = buffer.into();
         let address = recover_address(signature, message)?;
+
+        let device_signature = if let Some(device_token) = device_token {
+            let value = bs58::decode(device_token).into_vec()?;
+            let buffer: BinaryEd25519Signature = decode(&value).await?;
+            let signature: ed25519::Signature = buffer.into();
+            Some(signature)
+        } else {
+            None
+        };
+
         Ok(Self {
-            //public_key,
             address,
+            device_signature,
         })
     }
 }

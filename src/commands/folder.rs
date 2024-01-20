@@ -1,9 +1,12 @@
 use clap::Subcommand;
 
 use human_bytes::human_bytes;
-use sos_net::{
-    client::provider::ProviderFactory,
-    sdk::{account::AccountRef, hex, vault::VaultRef},
+use sos_net::sdk::{
+    account::{Account, FolderCreate},
+    events::{EventLogExt, LogEvent},
+    hex,
+    identity::AccountRef,
+    vault::FolderRef,
 };
 
 use crate::{
@@ -37,7 +40,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
 
     /// List folders.
@@ -62,7 +65,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Print secret keys for a folder.
     Keys {
@@ -71,7 +74,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Print commits for a folder.
     Commits {
@@ -80,7 +83,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Rename a folder.
     #[clap(alias = "mv")]
@@ -94,7 +97,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Manage the history for a folder.
     History {
@@ -113,7 +116,7 @@ pub enum History {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Verify the integrity of the folder history.
     Check {
@@ -122,7 +125,7 @@ pub enum History {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// List history events.
     #[clap(alias = "ls")]
@@ -136,33 +139,34 @@ pub enum History {
         account: Option<AccountRef>,
 
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
 }
 
-pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
+pub async fn run(cmd: Command) -> Result<()> {
     let is_shell = USER.get().is_some();
 
     match cmd {
         Command::New { account, name, cwd } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
             let mut writer = user.write().await;
 
-            let existing = writer.find(|s| s.name() == name);
+            let existing = writer.find(|s| s.name() == name).await;
             if existing.is_some() {
                 return Err(Error::FolderExists(name));
             }
 
-            let summary = writer.create_folder(name).await?;
+            let FolderCreate { folder, .. } =
+                writer.create_folder(name).await?;
             println!("Folder created ✓");
             drop(writer);
             if cwd {
-                let target = Some(VaultRef::Id(*summary.id()));
+                let target = Some(FolderRef::Id(*folder.id()));
                 cd_folder(user, target.as_ref()).await?;
             }
         }
         Command::Remove { account, folder } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -171,21 +175,25 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 return Err(Error::NoRemoveDefaultFolder);
             }
 
-            let mut owner = user.write().await;
-            let is_current = if let Some(current) = owner.storage().current()
-            {
-                current.id() == summary.id()
-            } else {
-                false
+            let is_current = {
+                let owner = user.read().await;
+                let storage = owner.storage().await?;
+                let reader = storage.read().await;
+                if let Some(current) = reader.current_folder() {
+                    current.id() == summary.id()
+                } else {
+                    false
+                }
             };
 
             let prompt =
                 format!(r#"Delete folder "{}" (y/n)? "#, summary.name());
             if read_flag(Some(&prompt))? {
+                let mut owner = user.write().await;
                 owner.delete_folder(&summary).await?;
                 println!("Folder deleted ✓");
-
                 drop(owner);
+
                 // Removing current folder so try to use
                 // the default folder
                 if is_current {
@@ -194,9 +202,11 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::List { account, verbose } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
-            let mut writer = user.write().await;
-            let folders = writer.storage_mut().load_vaults().await?;
+            let user = resolve_user(account.as_ref(), false).await?;
+            let owner = user.read().await;
+            let storage = owner.storage().await?;
+            let reader = storage.read().await;
+            let folders = reader.list_folders();
             for summary in folders {
                 if verbose {
                     println!("{} {}", summary.id(), summary.name());
@@ -210,7 +220,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             verbose,
         } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -221,38 +231,42 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Keys { account, folder } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
 
-            let mut writer = user.write().await;
+            let mut owner = user.write().await;
 
             if !is_shell {
-                writer.open_folder(&summary).await?;
+                owner.open_folder(&summary).await?;
             }
 
-            let keeper =
-                writer.storage().current().ok_or(Error::NoVaultSelected)?;
-            for uuid in keeper.vault().keys() {
-                println!("{}", uuid);
+            let ids = owner.secret_ids(&summary).await?;
+            for id in ids {
+                println!("{}", id);
             }
         }
         Command::Commits { account, folder } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
 
-            let reader = user.read().await;
-            if let Some(tree) = reader.storage().commit_tree(&summary) {
+            let owner = user.read().await;
+            let storage = owner.storage().await?;
+            let reader = storage.read().await;
+            if let Some(folder) = reader.cache().get(summary.id()) {
+                let event_log = folder.event_log();
+                let event_log = event_log.read().await;
+                let tree = event_log.tree();
                 if let Some(leaves) = tree.leaves() {
                     for leaf in &leaves {
                         println!("{}", hex::encode(leaf));
                     }
                     println!("size = {}", leaves.len());
                 }
-                if let Some(root) = tree.root_hex() {
+                if let Some(root) = tree.root() {
                     println!("root = {}", root);
                 }
             }
@@ -263,7 +277,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folder,
             name,
         } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -286,7 +300,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
                 } => (account.clone(), folder),
             };
 
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
             let summary = resolve_folder(&user, folder.as_ref())
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
@@ -300,42 +314,45 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
 
             match cmd {
                 History::Compact { .. } => {
-                    let reader = user.read().await;
-                    let keeper = reader
-                        .storage()
-                        .current()
-                        .ok_or(Error::NoVaultSelected)?;
-                    let summary = keeper.summary().clone();
-                    drop(reader);
+                    let summary = {
+                        let owner = user.read().await;
+                        let storage = owner.storage().await?;
+                        let reader = storage.read().await;
+                        let summary = reader
+                            .current_folder()
+                            .ok_or(Error::NoVaultSelected)?;
+                        summary.clone()
+                    };
 
                     let prompt = Some(
                         "Compaction will remove history, are you sure (y/n)? ",
                     );
                     if read_flag(prompt)? {
-                        let mut writer = user.write().await;
+                        let mut owner = user.write().await;
                         let (old_size, new_size) =
-                            writer.storage_mut().compact(&summary).await?;
+                            owner.compact(&summary).await?;
                         println!("Old: {}", human_bytes(old_size as f64));
                         println!("New: {}", human_bytes(new_size as f64));
                     }
                 }
                 History::Check { .. } => {
-                    let reader = user.read().await;
-                    let keeper = reader
-                        .storage()
-                        .current()
+                    let owner = user.read().await;
+                    let storage = owner.storage().await?;
+                    let reader = storage.read().await;
+                    let summary = reader
+                        .current_folder()
                         .ok_or(Error::NoVaultSelected)?;
-                    reader.storage().verify(keeper.summary()).await?;
+                    reader.verify(&summary).await?;
                     println!("Verified ✓");
                 }
                 History::List { verbose, .. } => {
-                    let reader = user.read().await;
-                    let keeper = reader
-                        .storage()
-                        .current()
+                    let owner = user.read().await;
+                    let storage = owner.storage().await?;
+                    let reader = storage.read().await;
+                    let summary = reader
+                        .current_folder()
                         .ok_or(Error::NoVaultSelected)?;
-                    let records =
-                        reader.storage().history(keeper.summary()).await?;
+                    let records = reader.history(&summary).await?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);
                         if verbose {

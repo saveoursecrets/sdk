@@ -1,7 +1,7 @@
 use super::*;
 use anyhow::Result;
 use rexpect::{session::PtySession, spawn, ReadUntil};
-use sos_net::sdk::{storage::AppPaths, vault::VaultId};
+use sos_net::sdk::{vault::VaultId, Paths};
 use std::{
     ops::DerefMut,
     sync::{Arc, Mutex},
@@ -13,7 +13,8 @@ pub fn vault(
     vault_id: &VaultId,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let vault_path = AppPaths::vault_path(address, vault_id.to_string())?;
+    let paths = Paths::new(Paths::data_dir()?, address);
+    let vault_path = paths.vault_path(vault_id);
 
     let cmd = format!("{} check vault {}", exe, vault_path.display());
     run!(repl, cmd, true, |ps: &mut PtySession,
@@ -41,7 +42,8 @@ pub fn keys(
     vault_id: &VaultId,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let vault_path = AppPaths::vault_path(address, vault_id.to_string())?;
+    let paths = Paths::new(Paths::data_dir()?, address);
+    let vault_path = paths.vault_path(vault_id);
     let cmd = format!("{} check keys {}", exe, vault_path.display());
     read_until_eof(cmd, None, repl)
 }
@@ -52,7 +54,8 @@ pub fn header(
     vault_id: &VaultId,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let vault_path = AppPaths::vault_path(address, vault_id.to_string())?;
+    let paths = Paths::new(Paths::data_dir()?, address);
+    let vault_path = paths.vault_path(vault_id);
     let cmd = format!("{} check header {}", exe, vault_path.display());
     read_until_eof(cmd, None, repl)
 }
@@ -63,7 +66,8 @@ pub fn log(
     vault_id: &VaultId,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let log_path = AppPaths::event_log_path(address, vault_id.to_string())?;
+    let paths = Paths::new(Paths::data_dir()?, address);
+    let log_path = paths.event_log_path(vault_id);
 
     let cmd = format!("{} check log {}", exe, log_path.display());
     read_until_eof(cmd, None, repl.clone())?;

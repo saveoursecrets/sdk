@@ -1,0 +1,34 @@
+{
+  "publicKey": "e85122da1edcd3761201f3683998f0727ce4c340648b038e8f5e97245755621a",
+  "extraInfo": {
+    "info": {
+      "arch": "Unknown: iPhone12,1",
+      "desktopEnv": "Unknown: Unknown",
+      "deviceName": "Test iPhone",
+      "distro": "Unknown Linux",
+      "hostname": "star",
+      "platform": "Linux",
+      "realname": "Mobile",
+      "username": "mobile"
+    },
+    "data": {
+      "identifierForVendor": "REDACTED",
+      "isIpad": false,
+      "isPhysicalDevice": "true",
+      "localizedModel": "iPhone",
+      "model": "iPhone",
+      "name": "iPhone",
+      "platform": "ios",
+      "systemName": "iOS",
+      "systemVersion": "16.3.1",
+      "utsname": {
+        "machine": "iPhone12,1",
+        "nodename": "Test iPhone",
+        "release": "22.3.0",
+        "sysname": "Darwin",
+        "version": "Darwin Kernel Version 22.3.0: Wed Jan  4 21:25:00 PST 2023; root:xnu-8792.82.2~1/RELEASE_ARM64_T8030"
+      }
+    }
+  },
+  "createdDate": "2023-07-02 06:25:05.610957 +00:00:00"
+}

@@ -4,16 +4,16 @@ version = "0.8.6"
 edition = "2021"
 description = "Types for release artifact meta data"
 homepage = "https://saveoursecrets.com"
-license = "GPL-3.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
-thiserror = "1"
-time = { version = "0.3.19", features = ["serde-human-readable"] }
-serde = { version = "1", features = ["derive"] }
+url.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+hex.workspace = true
+time.workspace = true
 semver = { version = "1", features = ["serde"] }
-hex = { version = "0.4", features = ["serde"] }
-url = { version = "2", features = ["serde"] }
 
 [dev-dependencies]
 anyhow = "1"

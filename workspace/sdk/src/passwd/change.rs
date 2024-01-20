@@ -8,8 +8,6 @@ use crate::{
     Error, Result,
 };
 
-use std::borrow::Cow;
-
 /// Builder that changes a vault password.
 ///
 /// Generates a new vault derived from the original vault so
@@ -86,9 +84,7 @@ impl<'a> ChangePassword<'a> {
     /// Yields the encrpytion passphrase for the new vault, the
     /// new computed vault and a collection of events that can
     /// be used to generate a fresh write-ahead log file.
-    pub async fn build(
-        self,
-    ) -> Result<(AccessKey, Vault, Vec<WriteEvent<'static>>)> {
+    pub async fn build(self) -> Result<(AccessKey, Vault, Vec<WriteEvent>)> {
         // Decrypt current vault meta data blob
         let current_private_key = self.current_private_key()?;
         let vault_meta_aead =
@@ -132,7 +128,7 @@ impl<'a> ChangePassword<'a> {
         let mut event_log_events = Vec::new();
 
         let buffer = encode(&new_vault).await?;
-        let create_vault = WriteEvent::CreateVault(Cow::Owned(buffer));
+        let create_vault = WriteEvent::CreateVault(buffer);
         event_log_events.push(create_vault);
 
         // Iterate the current vault and decrypt the secrets
@@ -161,10 +157,10 @@ impl<'a> ChangePassword<'a> {
                 .insert(*id, commit, VaultEntry(meta_aead, secret_aead))
                 .await?;
 
-            event_log_events.push(sync_event.into_owned());
+            event_log_events.push(sync_event);
         }
 
-        event_log_events.sort();
+        //event_log_events.sort();
 
         Ok((self.new_key, new_vault, event_log_events))
     }
@@ -176,7 +172,10 @@ mod test {
     use crate::{
         crypto::AccessKey,
         test_utils::*,
-        vault::{Gatekeeper, VaultBuilder},
+        vault::{
+            secret::{SecretId, SecretRow},
+            Gatekeeper, VaultBuilder,
+        },
     };
     use anyhow::Result;
 
@@ -187,8 +186,9 @@ mod test {
             .password(current_key.clone(), None)
             .await?;
 
-        let mut keeper = Gatekeeper::new(mock_vault, None);
-        keeper.unlock(current_key.clone().into()).await?;
+        let mut keeper = Gatekeeper::new(mock_vault);
+        let key: AccessKey = current_key.clone().into();
+        keeper.unlock(&key).await?;
 
         // Propagate some secrets
         let notes = vec![
@@ -199,7 +199,9 @@ mod test {
         for item in notes {
             let (secret_meta, secret_value, _, _) =
                 mock_secret_note(item.0, item.1).await?;
-            keeper.create(secret_meta, secret_value).await?;
+            let secret_data =
+                SecretRow::new(SecretId::new_v4(), secret_meta, secret_value);
+            keeper.create_secret(&secret_data).await?;
         }
 
         let expected_len = keeper.vault().len();

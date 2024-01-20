@@ -4,7 +4,10 @@ use thiserror::Error;
 use urn::Urn;
 use uuid::Uuid;
 
-use crate::vault::{secret::SecretId, VaultId};
+use crate::{
+    commit::CommitHash,
+    vault::{secret::SecretId, VaultId},
+};
 
 /// Error thrown by the core library.
 #[derive(Debug, Error)]
@@ -17,29 +20,70 @@ pub enum Error {
     #[error("permission denied")]
     PermissionDenied,
 
-    /// Expected a request payload.
-    #[error("expected a request payload")]
-    RpcRequestPayload,
-
-    /// Expected a response payload.
-    #[error("expected a response payload")]
-    RpcResponsePayload,
-
-    /// Error encapsulated in RPC messages.
-    #[error("{0}")]
-    RpcError(String),
-
-    /// Error generated when an RPC method is not supported.
-    #[error("unknown rpc method '{0}'")]
-    RpcUnknownMethod(String),
-
     /// Error generated when a path is not a file.
     #[error("path {0} is not a file")]
     NotFile(PathBuf),
 
+    /// Error generated accessing an account that is not
+    /// authenticated.
+    #[error("account not authenticated, sign in required")]
+    NotAuthenticated,
+
     /// Error generated if we could not determine a cache directory.
     #[error("could not determine cache directory")]
     NoCache,
+
+    /// Error generated when a search index is required.
+    #[error("no search index")]
+    NoSearchIndex,
+
+    /// Error generated when a file encryption password is required.
+    #[error("no file password")]
+    NoFilePassword,
+
+    /// Error generated when an open folder is expected.
+    #[error("no open folder")]
+    NoOpenFolder,
+
+    /// Error generated when a device signer is expected.
+    #[error("no device available")]
+    NoDevice,
+
+    /// Error generated when no default folder is available.
+    #[error("no default folder")]
+    NoDefaultFolder,
+
+    /// Error generated when a PEM-encoded certificate is invalid.
+    #[error("invalid PEM encoding")]
+    PemEncoding,
+
+    /// Error generated when a file secret is expected.
+    #[error("not a file secret")]
+    NotFileContent,
+
+    /// Error generated when attempting to unarchive a secret that
+    /// is not archived.
+    #[error("cannot unarchive, not archived")]
+    NotArchived,
+
+    /// Error generated when an archive folder is not available.
+    #[error("archive folder does not exist")]
+    NoArchive,
+
+    /// Error generated when attempting to archive a secret that
+    /// is already archived.
+    #[error("cannot move to archive, already archived")]
+    AlreadyArchived,
+
+    /// Error generated when a contacts folder is not available.
+    #[cfg(feature = "contacts")]
+    #[error("no contacts folder")]
+    NoContactsFolder,
+
+    /// Error generated when a secret is not a contact secret.
+    #[cfg(feature = "contacts")]
+    #[error("not a contact")]
+    NotContact,
 
     /// Error generated when decrypting via AGE and expecting passhrase
     /// based encryption.
@@ -78,13 +122,17 @@ pub enum Error {
     InvalidKeyValue(String),
 
     /// Error generated when a vault identity byte is wrong.
-    #[error("bad identity byte {0}")]
-    BadIdentity(u8),
+    #[error("bad identity byte {0:#04x} at position {1} expecting {2}")]
+    BadIdentity(u8, usize, String),
 
     /// Error generated when a buffer used to read identity bytes
     /// is not long enough.
     #[error("buffer passed for identity check is too short")]
     IdentityLength,
+
+    /// Error generated when vault identifiers must match.
+    #[error("identifier '{0}' does not match '{1}'")]
+    VaultIdentifierMismatch(VaultId, VaultId),
 
     /// Error generated when a vault cipher identifier byte is wrong.
     #[error("unknown cipher {0}")]
@@ -120,6 +168,7 @@ pub enum Error {
     #[error("invalid nonce")]
     InvalidNonce,
 
+    #[deprecated]
     /// Error generated attempting to convert to a change event.
     #[error("not compatible with change event")]
     NoChangeEvent,
@@ -152,7 +201,7 @@ pub enum Error {
     /// Error generated when a login vault does not contain
     /// the identity bit flag.
     #[error("vault is not an identity vault")]
-    NotIdentityVault,
+    NotIdentityFolder,
 
     /// Error generated when a vault does not contain a secret by URN.
     #[error("vault {0} does not contain {1}")]
@@ -162,13 +211,23 @@ pub enum Error {
     #[error("vault {0} does not contain {1}")]
     NoSecretId(VaultId, SecretId),
 
-    /// Error generated when a secret is of the wrong kind.
-    #[error("secret {1} in vault {0} is of the wrong kind")]
-    WrongSecretKind(VaultId, SecretId),
+    /// Error generated when a signing key could not be
+    /// found in an identity vault.
+    #[error("identity vault does not contain a valid account signing key")]
+    NoSigningKey,
+
+    /// Error generated when an identity key could not be
+    /// found in an identity vault.
+    #[error("identity vault does not contain a valid account identity key")]
+    NoIdentityKey,
 
     /// Error generated when a vault has not been initialized (no encrypted meta data).
     #[error("vault is not initialized")]
     VaultNotInit,
+
+    /// Error generated when a folder access key was not found.
+    #[error("folder access key for '{0}' not found")]
+    NoFolderKey(VaultId),
 
     /// Error generated attempting to a initialize a vault when it has already been initialized.
     #[error("vault is already initialized")]
@@ -178,33 +237,11 @@ pub enum Error {
     #[error("unknown key type identifier")]
     UnknownKeyTypeId,
 
-    /// Error generated when the leading byte for a compressed public key is invalid.
-    #[error(
-        "compressed public key has wrong first byte, must be 0x02 0r 0x03"
-    )]
-    BadPublicKeyByte,
-
-    /// Error generated when a public key is not compressed.
-    #[error("not a compressed public key")]
-    NotCompressedPublicKey,
-
-    /// Error generated when a response to a challenge is invalid.
-    #[error("invalid challenge response")]
-    InvalidChallengeResponse,
-
-    /// Error generated when a challenge could not be found.
-    #[error("challenge not found")]
-    ChallengeNotFound,
-
     /// Error generated when a public key has the wrong length.
     #[error(
         "public key is wrong length, expecting {0} bytes but got {1} bytes"
     )]
     InvalidPublicKeyLength(u8, usize),
-
-    /// Error generated when an address has the wrong prefix.
-    #[error("address must begin with 0x")]
-    BadAddressPrefix,
 
     /// Error generated when event log row data does not match the commit hash.
     #[error("row checksums do not match, expected {commit} but got {value}")]
@@ -228,6 +265,10 @@ pub enum Error {
     /// Error generated when a commit tree is expected to have a root.
     #[error("commit tree does not have a root")]
     NoRootCommit,
+
+    /// Error generated when a target commit hash could not be found.
+    #[error("commit '{0}' could not be found")]
+    CommitNotFound(CommitHash),
 
     /// Error generated when an RPC method kind is invalid.
     #[error("method kind {0} is invalid")]
@@ -369,7 +410,28 @@ pub enum Error {
 
     /// Error generated when an attachment could not be found.
     #[error(r#"attachment "{0}" not found"#)]
-    AttachmentNotFound(SecretId),
+    FieldNotFound(SecretId),
+
+    /// Error generated attempting to access a vault that is not available.
+    #[error("cache not available for {0}")]
+    CacheNotAvailable(Uuid),
+
+    /// Error generated when unlocking a vault failed.
+    #[error("failed to unlock vault")]
+    VaultUnlockFail,
+
+    /// Error generated attempting to make changes to the current
+    /// vault but no vault is open.
+    #[error("no vault is available, vault must be open")]
+    NoOpenVault,
+
+    /// Error generated when a secret could not be found.
+    #[error(r#"secret "{0}" not found"#)]
+    SecretNotFound(SecretId),
+
+    /// Error generated when an external file could not be parsed.
+    #[error("external file reference '{0}' could not be parsed")]
+    InvalidExternalFile(String),
 
     /// Generic boxed error.
     #[error(transparent)]
@@ -459,6 +521,7 @@ pub enum Error {
     #[error(transparent)]
     Zxcvbn(#[from] zxcvbn::ZxcvbnError),
 
+    #[cfg(any(feature = "archive", feature = "migrate"))]
     /// Error generated by the async zip library.
     #[error(transparent)]
     Zip(#[from] async_zip::error::ZipError),
@@ -503,15 +566,30 @@ pub enum Error {
     #[error(transparent)]
     Join(#[from] tokio::task::JoinError),
 
-    /// Error generated by the MPC protocol library.
-    #[error(transparent)]
-    Mpc(#[from] mpc_protocol::Error),
-
-    /// Error generated by the noise protocol library.
-    #[error(transparent)]
-    Snow(#[from] mpc_protocol::snow::Error),
-
     /// Error generated by verifiable secret sharing library.
     #[error("vss error: {0}")]
     Vsss(String),
+
+    /// Error generated converting from UTF8.
+    #[error(transparent)]
+    Utf8String(#[from] std::str::Utf8Error),
+
+    /// Error generated by the vcard library.
+    #[cfg(feature = "contacts")]
+    #[error(transparent)]
+    Vcard(#[from] crate::vcard4::Error),
+
+    #[cfg(feature = "migrate")]
+    /// Error generated by the migrate library.
+    #[error(transparent)]
+    Migrate(#[from] crate::migrate::Error),
+
+    #[cfg(all(
+        target_os = "macos",
+        feature = "migrate",
+        feature = "keychain-access"
+    ))]
+    /// Error generated by the migrate library.
+    #[error(transparent)]
+    Keychain(#[from] crate::migrate::import::keychain::Error),
 }

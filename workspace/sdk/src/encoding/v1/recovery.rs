@@ -1,10 +1,9 @@
 use secrecy::{ExposeSecret, SecretString};
 use std::io::Result;
-use uuid::Uuid;
 
 use crate::{
     crypto::SEED_SIZE,
-    encoding::encoding_error,
+    encoding::{decode_uuid, encoding_error},
     recovery::{RecoveryData, RecoveryOptions, RecoveryPack},
 };
 
@@ -38,13 +37,7 @@ impl Decodable for RecoveryData {
     ) -> Result<()> {
         let len = reader.read_u32().await?;
         for _ in 0..len {
-            let uuid: [u8; 16] = reader
-                .read_bytes(16)
-                .await?
-                .as_slice()
-                .try_into()
-                .map_err(encoding_error)?;
-            let id = Uuid::from_bytes(uuid);
+            let id = decode_uuid(&mut *reader).await?;
             let password = SecretString::new(reader.read_string().await?);
             self.vaults_mut().insert(id, password);
         }
@@ -105,23 +98,12 @@ impl Decodable for RecoveryPack {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        let uuid: [u8; 16] = reader
-            .read_bytes(16)
-            .await?
-            .as_slice()
-            .try_into()
-            .map_err(encoding_error)?;
-        self.id = Uuid::from_bytes(uuid);
+        self.id = decode_uuid(&mut *reader).await?;
 
         let len = reader.read_u32().await? as usize;
         for _ in 0..len {
-            let uuid: [u8; 16] = reader
-                .read_bytes(16)
-                .await?
-                .as_slice()
-                .try_into()
-                .map_err(encoding_error)?;
-            self.vaults.push(Uuid::from_bytes(uuid));
+            let id = decode_uuid(&mut *reader).await?;
+            self.vaults.push(id);
         }
 
         self.options.decode(&mut *reader).await?;

@@ -2,11 +2,11 @@
   "gui": {
     "beta": {
       "meta": {
-        "version": "1.0.0-beta+87",
+        "version": "1.0.0-beta+91",
         "notes": {
-          "text": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/release-notes.txt",
-          "markdown": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/release-notes.md",
-          "html": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/release-notes.html"
+          "text": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+91/release-notes.txt",
+          "markdown": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+91/release-notes.md",
+          "html": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+91/release-notes.html"
         }
       },
       "platforms": {
@@ -15,12 +15,12 @@
             "platform": "macos",
             "arch": "universal",
             "name": "saveoursecrets.pkg",
-            "version": "1.0.0-beta+87",
-            "sha256": "4ba319beb284bc557f9b51def8d1dc2b15dfdf6273a8bd88a2153b8c1be1b5e6",
-            "timestamp": "2023-10-09 10:45:31.958386 +00:00:00",
-            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
-            "size": 39424923,
-            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/macos/universal/saveoursecrets.pkg"
+            "version": "1.0.0-beta+91",
+            "sha256": "fdf8862219a452db7e39085e03fd7c7a4ecad65fb6e85341f42888f4ad2f30ac",
+            "timestamp": "2023-11-16 03:33:37.318956 +00:00:00",
+            "commit": "6566628ac870de02ab7a8d886f68c3c329add2c0",
+            "size": 37460985,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+91/macos/universal/saveoursecrets.pkg"
           }
         ],
         "debian": [
@@ -28,12 +28,38 @@
             "platform": "debian",
             "arch": "x86_64",
             "name": "saveoursecrets.deb",
-            "version": "1.0.0-beta+87",
-            "sha256": "e586f7a52a46980a9d3050eee492fe0f33f5a26012fa1ab4f956d4f2c648076f",
-            "timestamp": "2023-10-09 10:44:14.403563787 +00:00:00",
-            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
-            "size": 17865892,
-            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/debian/x86_64/saveoursecrets.deb"
+            "version": "1.0.0-beta+91",
+            "sha256": "92d0f78ac79b5acdebf09587ca1d58b00ce09d04d881f77e80e52a1c5bacc940",
+            "timestamp": "2023-11-16 03:34:14.090966755 +00:00:00",
+            "commit": "6566628ac870de02ab7a8d886f68c3c329add2c0",
+            "size": 16870032,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+91/debian/x86_64/saveoursecrets.deb"
+          }
+        ],
+        "redhat": [
+          {
+            "platform": "redhat",
+            "arch": "x86_64",
+            "name": "saveoursecrets.rpm",
+            "version": "1.0.0-beta+91",
+            "sha256": "6023ba69d8b424af817605a86dc1a6b879643720fa0f380b82fde61f8ad1717c",
+            "timestamp": "2023-11-16 03:32:40.498529741 +00:00:00",
+            "commit": "6566628ac870de02ab7a8d886f68c3c329add2c0",
+            "size": 23404291,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+91/redhat/x86_64/saveoursecrets.rpm"
+          }
+        ],
+        "flatpak": [
+          {
+            "platform": "flatpak",
+            "arch": "x86_64",
+            "name": "saveoursecrets.flatpak",
+            "version": "1.0.0-beta+91",
+            "sha256": "cfe96052a25a08c96bca72fa28d2fc1daea32b1d6d4e2e3dbb499964ffde074e",
+            "timestamp": "2023-11-16 03:36:46.901249954 +00:00:00",
+            "commit": "6566628ac870de02ab7a8d886f68c3c329add2c0",
+            "size": 14381400,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+91/flatpak/x86_64/saveoursecrets.flatpak"
           }
         ],
         "windows": [
@@ -41,12 +67,12 @@
             "platform": "windows",
             "arch": "x86_64",
             "name": "saveoursecrets.msix",
-            "version": "1.0.0-beta+87",
-            "sha256": "02419bfcd8af8d712ecb979aba0ffc60c52be2d8fa74785a79fef9f0f5a680d3",
-            "timestamp": "2023-10-09 10:56:26.3850014 +00:00:00",
-            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
-            "size": 22763771,
-            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/windows/x86_64/saveoursecrets.msix"
+            "version": "1.0.0-beta+91",
+            "sha256": "0ffbc6cea31f2105bab8d2f8ab6c306362da0022db7faff1a3ef42c74398a4ce",
+            "timestamp": "2023-11-16 03:51:16.4967971 +00:00:00",
+            "commit": "6566628ac870de02ab7a8d886f68c3c329add2c0",
+            "size": 23419933,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+91/windows/x86_64/saveoursecrets.msix"
           }
         ],
         "android": [
@@ -54,12 +80,12 @@
             "platform": "android",
             "arch": "universal",
             "name": "saveoursecrets.apk",
-            "version": "1.0.0-beta+87",
-            "sha256": "ee620681fd4e6a0f45f8385b9e17a8030e4efa27c8b7b0f573721318a25c462c",
-            "timestamp": "2023-10-09 10:41:41.668717765 +00:00:00",
-            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
-            "size": 76830841,
-            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/android/universal/saveoursecrets.apk",
+            "version": "1.0.0-beta+91",
+            "sha256": "ab5e922552cf79b3fc62b5c4fa0e8d8e47f696f7eb772043c384b68112ae22b5",
+            "timestamp": "2023-11-16 03:31:49.178677432 +00:00:00",
+            "commit": "6566628ac870de02ab7a8d886f68c3c329add2c0",
+            "size": 80368508,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+91/android/universal/saveoursecrets.apk",
             "store": "https://play.google.com/store/apps/details?id=com.saveoursecrets"
           }
         ],
@@ -68,13 +94,13 @@
             "platform": "ios",
             "arch": "universal",
             "name": "saveoursecrets.ipa",
-            "version": "1.0.0-beta+87",
-            "sha256": "2854aa7deaed63db34722de998b79f44f97bc6ab2915e177cf78cb313ea14302",
-            "timestamp": "2023-10-09 10:57:19.820767 +00:00:00",
-            "commit": "f75273c6f6d371000247f8492234e9318132c3da",
-            "size": 116151448,
-            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+87/ios/universal/saveoursecrets.ipa",
-            "store": "https://appstore.com/saveoursecrets"
+            "version": "1.0.0-beta+91",
+            "sha256": "4781e66c2745ea5ac48093cca70f0a179504bd67279a4930e0025ab472a8d317",
+            "timestamp": "2023-11-16 03:45:35.26336 +00:00:00",
+            "commit": "6566628ac870de02ab7a8d886f68c3c329add2c0",
+            "size": 117839484,
+            "artifact": "https://releases.saveoursecrets.com/beta/gui/1.0.0-beta+91/ios/universal/saveoursecrets.ipa",
+            "store": "https://testflight.apple.com/join/2Hej0NMc"
           }
         ]
       }

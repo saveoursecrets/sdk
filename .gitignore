@@ -8,7 +8,7 @@ target
 *.changes
 *.sig
 *.bundle
-*.csv
+/*.csv
 .homebrew
 tests/server_public_key.txt
 geiger-report.txt

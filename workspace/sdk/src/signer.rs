@@ -72,7 +72,19 @@ pub mod ecdsa {
 
     /// Signature that can be encoded and decoded to binary.
     #[derive(Default)]
-    pub struct BinarySignature(pub(crate) Signature);
+    pub struct BinaryEcdsaSignature(pub(crate) Signature);
+
+    impl From<Signature> for BinaryEcdsaSignature {
+        fn from(value: Signature) -> Self {
+            BinaryEcdsaSignature(value)
+        }
+    }
+
+    impl From<BinaryEcdsaSignature> for Signature {
+        fn from(value: BinaryEcdsaSignature) -> Self {
+            value.0
+        }
+    }
 
     /// Recover the address from a signature.
     pub fn recover_address(
@@ -85,36 +97,7 @@ pub mod ecdsa {
             &signature,
             recid,
         )?;
-        let address: Address = (&public_key).try_into()?;
-        Ok(address)
-    }
-
-    /// Verify the signature matches an expected address.
-    pub fn verify_signature_address(
-        address: &Address,
-        signature: Signature,
-        message: &[u8],
-    ) -> Result<(bool, VerifyingKey)> {
-        let (ecdsa_signature, recid) = signature.try_into()?;
-        let recovered_key = VerifyingKey::recover_from_digest(
-            Keccak256::new_with_prefix(message),
-            &ecdsa_signature,
-            recid,
-        )?;
-        let signed_address: Address = (&recovered_key).try_into()?;
-        Ok((address == &signed_address, recovered_key))
-    }
-
-    impl From<Signature> for BinarySignature {
-        fn from(value: Signature) -> Self {
-            BinarySignature(value)
-        }
-    }
-
-    impl From<BinarySignature> for Signature {
-        fn from(value: BinarySignature) -> Self {
-            value.0
-        }
+        Ok((&public_key).try_into()?)
     }
 
     impl Clone for BoxedEcdsaSigner {
@@ -204,8 +187,8 @@ pub mod ecdsa {
 pub mod ed25519 {
     use async_trait::async_trait;
     pub use ed25519_dalek::{
-        Signature, Signer as Ed25519Signer, SigningKey, VerifyingKey,
-        SECRET_KEY_LENGTH,
+        Signature, Signer as Ed25519Signer, SigningKey, Verifier,
+        VerifyingKey, SECRET_KEY_LENGTH,
     };
     use rand::rngs::OsRng;
 
@@ -219,6 +202,27 @@ pub mod ed25519 {
     impl Clone for BoxedEd25519Signer {
         fn clone(&self) -> Self {
             self.clone_boxed()
+        }
+    }
+
+    /// Signature that can be encoded and decoded to binary.
+    pub struct BinaryEd25519Signature(pub(crate) Signature);
+
+    impl Default for BinaryEd25519Signature {
+        fn default() -> Self {
+            Self(Signature::from_bytes(&[0; 64]))
+        }
+    }
+
+    impl From<Signature> for BinaryEd25519Signature {
+        fn from(value: Signature) -> Self {
+            BinaryEd25519Signature(value)
+        }
+    }
+
+    impl From<BinaryEd25519Signature> for Signature {
+        fn from(value: BinaryEd25519Signature) -> Self {
+            value.0
         }
     }
 

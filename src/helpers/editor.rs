@@ -26,7 +26,7 @@ use crate::{Error, Result, TARGET};
 ///
 /// A borrowed value indicates that no changes were made
 /// whilst an owned value indicates the user made some edits.
-pub type EditSecretResult<'a> = Cow<'a, Secret>;
+pub type EditSecretChange<'a> = Cow<'a, Secret>;
 
 /// Spawn the editor passing the file path and wait for it to exit.
 fn spawn_editor<P: AsRef<Path>>(cmd: String, file: P) -> Result<ExitStatus> {
@@ -73,7 +73,7 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
         ),
         Secret::Signer { .. } | Secret::Age { .. } => {
             // TODO: handle this more gracefully
-            todo!("secret type is not editable (yet!)")
+            unimplemented!("secret type is not editable (yet!)")
         }
         Secret::Contact { vcard, .. } => {
             (vcard.to_string().as_bytes().to_vec(), ".txt".to_string())
@@ -141,7 +141,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         },
         Secret::Signer { .. } | Secret::Age { .. } => {
             // TODO: handle this more gracefully
-            todo!("secret type is not editable (yet!)")
+            unimplemented!("secret type is not editable (yet!)")
         }
         Secret::Contact { user_data, .. } => {
             let value = std::str::from_utf8(content)?;
@@ -185,7 +185,7 @@ fn digest<B: AsRef<[u8]>>(bytes: B) -> Vec<u8> {
 }
 
 /// Edit a secret.
-pub async fn edit(secret: &Secret) -> Result<EditSecretResult<'_>> {
+pub async fn edit(secret: &Secret) -> Result<EditSecretChange<'_>> {
     let (content, suffix) = to_bytes(secret)?;
     edit_secret(secret, content, &suffix).await
 }
@@ -195,7 +195,7 @@ async fn edit_secret<'a>(
     secret: &'a Secret,
     content: Vec<u8>,
     suffix: &str,
-) -> Result<EditSecretResult<'a>> {
+) -> Result<EditSecretChange<'a>> {
     let result = editor(&content, suffix).await?;
     match result {
         Cow::Borrowed(_) => Ok(Cow::Borrowed(secret)),

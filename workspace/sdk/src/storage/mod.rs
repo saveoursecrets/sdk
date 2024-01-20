@@ -1,32 +1,68 @@
-//! File system paths and encrypted file storage.
-use crate::Result;
-
+//! Folder storage backed by the file system.
+use crate::{
+    signer::ecdsa::Address,
+    vault::{Summary, Vault},
+    Result,
+};
 use std::path::Path;
+use tokio::sync::mpsc;
 
-mod app;
-mod external_files;
-mod external_files_sync;
-mod user;
+mod client;
+#[cfg(feature = "files")]
+pub mod files;
+mod folder;
+pub(crate) mod paths;
+#[cfg(feature = "search")]
+pub mod search;
+mod server;
+#[cfg(feature = "sync")]
+pub(crate) mod sync;
 
-pub use app::AppPaths;
-pub use external_files::FileStorage;
-pub use external_files_sync::FileStorageSync;
-pub use user::UserPaths;
+pub use client::ClientStorage;
+pub use folder::{DiscFolder, Folder, MemoryFolder};
+pub use server::ServerStorage;
 
-/// Result of encrypting a file.
-#[derive(Debug, Clone)]
-pub struct EncryptedFile {
-    /// Size of the encrypted data in bytes.
-    pub size: u64,
-    /// Sha256 digest of the encrypted buffer.
-    pub digest: Vec<u8>,
+/// Collection of vaults for an account.
+#[derive(Default)]
+pub struct AccountPack {
+    /// Address of the account.
+    pub address: Address,
+    /// Identity vault.
+    pub identity_vault: Vault,
+    /// Addtional folders to be imported
+    /// into the new account.
+    pub folders: Vec<Vault>,
+}
+
+/// Options used when accessing account data.
+#[derive(Default, Clone)]
+pub struct AccessOptions {
+    /// Target folder for the operation.
+    ///
+    /// If no target folder is given the current open folder
+    /// will be used. When no folder is open and the target
+    /// folder is not given an error will be returned.
+    pub folder: Option<Summary>,
+    /// Channel for file progress operations.
+    #[cfg(feature = "files")]
+    pub file_progress: Option<mpsc::Sender<files::FileProgress>>,
+}
+
+impl From<Summary> for AccessOptions {
+    fn from(value: Summary) -> Self {
+        Self {
+            folder: Some(value),
+            #[cfg(feature = "files")]
+            file_progress: None,
+        }
+    }
 }
 
 /// Compute the file name from a path.
 ///
 /// If no file name is available the returned value is the
 /// empty string.
-pub fn basename<P: AsRef<Path>>(path: P) -> String {
+pub fn basename(path: impl AsRef<Path>) -> String {
     path.as_ref()
         .file_name()
         .unwrap_or_default()
@@ -39,7 +75,7 @@ pub fn basename<P: AsRef<Path>>(path: P) -> String {
 /// This implementation supports some more types
 /// that are not in the the mime_guess library that
 /// we also want to recognize.
-pub fn guess_mime<P: AsRef<Path>>(path: P) -> Result<String> {
+pub fn guess_mime(path: impl AsRef<Path>) -> Result<String> {
     if let Some(extension) = path.as_ref().extension() {
         let fixed = match extension.to_string_lossy().as_ref() {
             "heic" => Some("image/heic".to_string()),

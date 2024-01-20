@@ -6,6 +6,21 @@ use futures::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
 
 use crate::{vfs::File, Error, Result};
 
+/// String of formatted identity bytes for error messages.
+fn format_identity_bytes(identity: &[u8]) -> String {
+    let c =
+        std::str::from_utf8(identity).expect("identity bytes to be UTF-8");
+    let mut s = String::new();
+    for (index, byte) in identity.iter().enumerate() {
+        s.push_str(&format!("{:#04x}", byte));
+        if index < identity.len() - 1 {
+            s.push_str(", ");
+        }
+    }
+    s.push_str(&format!(" ({})", c));
+    s
+}
+
 /// Read and write the identity bytes for a file.
 pub struct FileIdentity;
 
@@ -24,7 +39,11 @@ impl FileIdentity {
             for (index, ident) in identity.iter().enumerate() {
                 let byte = buffer[index];
                 if byte != *ident {
-                    return Err(Error::BadIdentity(byte));
+                    return Err(Error::BadIdentity(
+                        byte,
+                        index,
+                        format_identity_bytes(identity),
+                    ));
                 }
             }
         } else {
@@ -39,7 +58,11 @@ impl FileIdentity {
             for (index, ident) in identity.iter().enumerate() {
                 let byte = buffer[index];
                 if byte != *ident {
-                    return Err(Error::BadIdentity(byte));
+                    return Err(Error::BadIdentity(
+                        byte,
+                        index,
+                        format_identity_bytes(identity),
+                    ));
                 }
             }
         } else {
@@ -53,10 +76,14 @@ impl FileIdentity {
         reader: &mut BinaryReader<R>,
         identity: &[u8],
     ) -> Result<()> {
-        for ident in identity {
+        for (index, ident) in identity.iter().enumerate() {
             let byte = reader.read_u8().await?;
             if byte != *ident {
-                return Err(Error::BadIdentity(byte));
+                return Err(Error::BadIdentity(
+                    byte,
+                    index,
+                    format_identity_bytes(identity),
+                ));
             }
         }
         Ok(())

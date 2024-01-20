@@ -1,65 +1,76 @@
 //! Encoding of all operations.
 
+use super::AccountEvent;
+use super::{EventKind, LogEvent, ReadEvent, WriteEvent};
+use crate::{signer::ecdsa::Address, vault::VaultId, Error, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::{vault::VaultId, Error, Result};
-
-use super::{AuditEvent, EventKind, ReadEvent, WriteEvent};
+#[cfg(feature = "files")]
+use super::FileEvent;
 
 /// Events generated when reading or writing.
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
-pub enum Event<'a> {
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub enum Event {
     /// Create account event.
-    CreateAccount(AuditEvent),
+    CreateAccount(Address),
 
-    /// Read vault operations.
+    /// Account changes.
+    Account(AccountEvent),
+
+    /// Combined event that encapsulates an account
+    /// event with a folder write event.
+    ///
+    /// Typically used to combine the folder creation
+    /// (which includes the secure access key) with the
+    /// create vault event which contains the vault buffer.
+    Folder(AccountEvent, WriteEvent),
+
+    #[cfg(feature = "files")]
+    /// File event.
+    File(FileEvent),
+
+    /// Read folder operations.
     Read(VaultId, ReadEvent),
 
-    /// Write vault operations.
-    Write(VaultId, WriteEvent<'a>),
+    /// Write folder operations.
+    Write(VaultId, WriteEvent),
 
     /// Move secret operation.
-    MoveSecret(ReadEvent, WriteEvent<'a>, WriteEvent<'a>),
+    MoveSecret(ReadEvent, WriteEvent, WriteEvent),
 
     /// Delete account event.
-    DeleteAccount(AuditEvent),
+    DeleteAccount(Address),
 }
 
-impl Event<'_> {
-    /// Determine if this payload would mutate state.
-    ///
-    /// Some payloads are purely for auditing and do not
-    /// mutate any data.
-    pub fn is_mutation(&self) -> bool {
-        !matches!(self, Self::Write(_, _))
-    }
-
+impl Event {
     /// Get the event kind for this event.
     pub fn event_kind(&self) -> EventKind {
         match self {
-            Self::CreateAccount(event) => event.event_kind(),
+            Self::CreateAccount(_) => EventKind::CreateAccount,
+            Self::Account(event) => event.event_kind(),
+            Self::Folder(event, _) => event.event_kind(),
+            #[cfg(feature = "files")]
+            Self::File(event) => event.event_kind(),
             Self::Read(_, event) => event.event_kind(),
             Self::Write(_, event) => event.event_kind(),
             Self::MoveSecret(_, _, _) => EventKind::MoveSecret,
-            Self::DeleteAccount(event) => event.event_kind(),
+            Self::DeleteAccount(_) => EventKind::DeleteAccount,
         }
     }
 }
 
-impl From<(VaultId, WriteEvent<'static>)> for Event<'static> {
-    fn from(value: (VaultId, WriteEvent<'static>)) -> Self {
+impl From<(VaultId, WriteEvent)> for Event {
+    fn from(value: (VaultId, WriteEvent)) -> Self {
         Self::Write(value.0, value.1)
     }
 }
 
 // Convert to an owned write event.
-impl<'a> TryFrom<Event<'a>> for (VaultId, WriteEvent<'static>) {
+impl TryFrom<Event> for (VaultId, WriteEvent) {
     type Error = Error;
-    fn try_from(value: Event<'a>) -> Result<Self> {
+    fn try_from(value: Event) -> Result<Self> {
         match value {
-            Event::Write(vault_id, event) => {
-                Ok((vault_id, event.into_owned()))
-            }
+            Event::Write(vault_id, event) => Ok((vault_id, event)),
             _ => panic!("not a write event"),
         }
     }

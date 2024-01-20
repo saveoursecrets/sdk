@@ -3,9 +3,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use sos_net::{
-    client::{provider::ProviderFactory, user::UserStorage},
-    device::TrustedDevice,
-    sdk::account::AccountRef,
+    client::NetworkAccount,
+    sdk::{account::Account, device::TrustedDevice, identity::AccountRef},
 };
 
 use crate::{
@@ -26,9 +25,8 @@ pub enum Command {
         #[clap(short, long)]
         verbose: bool,
     },
-    /// Remove a device.
-    #[clap(alias = "rm")]
-    Remove {
+    /// Revoke trust in a device.
+    Revoke {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
@@ -39,43 +37,46 @@ pub enum Command {
 }
 
 async fn resolve_device(
-    user: Arc<RwLock<UserStorage>>,
+    user: Arc<RwLock<NetworkAccount>>,
     id: &str,
 ) -> Result<Option<TrustedDevice>> {
     let owner = user.read().await;
-    let devices = owner.devices().load().await?;
+    let storage = owner.storage().await?;
+    let storage = storage.read().await;
+    let devices = storage.list_trusted_devices();
     for device in devices {
-        let address = device.address()?;
-        if address == id {
-            return Ok(Some(device));
+        if device.public_id()? == id {
+            return Ok(Some(device.clone()));
         }
     }
     Ok(None)
 }
 
-pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
+pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::List { account, verbose } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
-            let devices = owner.devices().load().await?;
+            let storage = owner.storage().await?;
+            let storage = storage.read().await;
+            let devices = storage.list_trusted_devices();
             for device in devices {
-                println!("{}", device.address()?);
+                println!("{}", device.public_id()?);
                 if verbose {
-                    print!("{}", device.extra_info);
+                    print!("{}", device.extra_info());
                 }
             }
         }
-        Command::Remove { account, id } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+        Command::Revoke { account, id } => {
+            let user = resolve_user(account.as_ref(), false).await?;
             if let Some(device) =
                 resolve_device(Arc::clone(&user), &id).await?
             {
                 let prompt = format!(r#"Remove device "{}" (y/n)? "#, &id);
                 if read_flag(Some(&prompt))? {
                     let mut owner = user.write().await;
-                    owner.devices_mut().remove(&device).await?;
-                    println!("Device removed ✓");
+                    owner.revoke_device(device.public_key()).await?;
+                    println!("Device revoked ✓");
                 }
             } else {
                 return Err(Error::DeviceNotFound(id));

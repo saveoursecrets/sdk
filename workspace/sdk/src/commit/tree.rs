@@ -1,18 +1,16 @@
 use crate::{Error, Result};
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
-use std::{
-    collections::{HashMap, HashSet},
-    hash::Hash,
-    ops::Range,
-};
+use std::ops::Range;
 
-use super::{CommitPair, CommitProof, CommitRelationship, Comparison};
+use super::{CommitHash, CommitProof, CommitState, Comparison};
 
 /// Encapsulates a Merkle tree and provides functions
 /// for generating and comparing proofs.
 #[derive(Default)]
 pub struct CommitTree {
     tree: MerkleTree<Sha256>,
+    maybe_last_commit: Option<<Sha256 as Hasher>::Hash>,
+    last_commit: Option<<Sha256 as Hasher>::Hash>,
 }
 
 impl CommitTree {
@@ -20,6 +18,8 @@ impl CommitTree {
     pub fn new() -> Self {
         Self {
             tree: MerkleTree::<Sha256>::new(),
+            maybe_last_commit: None,
+            last_commit: None,
         }
     }
 
@@ -28,7 +28,7 @@ impl CommitTree {
         Sha256::hash(data)
     }
 
-    /// Get the number of leaves in the tree.
+    /// Number of leaves in the tree.
     pub fn len(&self) -> usize {
         self.tree.leaves_len()
     }
@@ -40,6 +40,7 @@ impl CommitTree {
 
     /// Insert a commit hash into the tree,
     pub fn insert(&mut self, hash: <Sha256 as Hasher>::Hash) -> &mut Self {
+        self.maybe_last_commit = Some(hash.clone());
         self.tree.insert(hash);
         self
     }
@@ -49,38 +50,78 @@ impl CommitTree {
         &mut self,
         hashes: &mut Vec<<Sha256 as Hasher>::Hash>,
     ) -> &mut Self {
+        self.maybe_last_commit = hashes.last().cloned();
         self.tree.append(hashes);
         self
     }
 
     /// Commit changes to the tree to compute the root.
     pub fn commit(&mut self) {
-        self.tree.commit()
+        self.tree.commit();
+        self.last_commit = self.maybe_last_commit.take();
     }
 
     /// Revert changes to the tree.
     pub fn rollback(&mut self) {
-        self.tree.rollback()
+        self.tree.rollback();
+        self.maybe_last_commit = None;
+        if let Some(leaves) = self.leaves() {
+            self.last_commit = leaves.last().cloned();
+        } else {
+            self.last_commit = None;
+        }
     }
 
-    /// Get the leaves of the tree.
+    /// Leaves of the tree.
     pub fn leaves(&self) -> Option<Vec<<Sha256 as Hasher>::Hash>> {
         self.tree.leaves()
     }
 
-    /// Get the root hash and a proof of the last leaf node.
+    /// Root hash and a proof of the last leaf node.
     pub fn head(&self) -> Result<CommitProof> {
+        if self.is_empty() {
+            return Err(Error::NoRootCommit);
+        }
         let range = self.tree.leaves_len() - 1..self.tree.leaves_len();
         self.proof_range(range)
     }
 
-    /// Get a proof for the given range.
+    /// Get a proof up to a particular commit.
+    pub fn proof_at(&self, commit: &CommitHash) -> Result<CommitProof> {
+        let mut leaves = self.tree.leaves().unwrap_or_default();
+        let position = leaves.iter().position(|leaf| leaf == commit.as_ref());
+        if let Some(position) = position {
+            if position < leaves.len() - 1 {
+                leaves.truncate(position + 1);
+                let partial = MerkleTree::from_leaves(&leaves);
+                let indices = 0..leaves.len();
+                let leaf_indices = indices.clone().collect::<Vec<_>>();
+                let proof = partial.proof(&leaf_indices);
+                let root = partial
+                    .root()
+                    .map(CommitHash)
+                    .ok_or(Error::NoRootCommit)?;
+                Ok(CommitProof {
+                    root,
+                    proof,
+                    length: leaves.len(),
+                    indices,
+                })
+            } else {
+                self.head()
+            }
+        } else {
+            Err(Error::NoRootCommit)
+        }
+    }
+
+    /// Proof for the given range.
     pub fn proof_range(&self, indices: Range<usize>) -> Result<CommitProof> {
         let leaf_indices = indices.collect::<Vec<_>>();
         self.proof(&leaf_indices)
     }
 
-    /// Get a proof for the given indices.
+    /// Proof for the given indices.
     pub fn proof(&self, leaf_indices: &[usize]) -> Result<CommitProof> {
         let root = self.root().ok_or(Error::NoRootCommit)?;
         let proof = self.tree.proof(leaf_indices);
@@ -123,7 +164,7 @@ impl CommitTree {
                 .map(|i| *leaves.get(i).unwrap())
                 .collect::<Vec<_>>();
             if proof.verify(
-                *other_root,
+                other_root.into(),
                 indices_to_prove.as_slice(),
                 leaves_to_prove.as_slice(),
                 *length,
@@ -137,17 +178,37 @@ impl CommitTree {
         }
     }
 
-    /// Get the root hash of the underlying merkle tree.
-    pub fn root(&self) -> Option<<Sha256 as Hasher>::Hash> {
-        self.tree.root()
+    /// Compute the first commit state.
+    ///
+    /// Must have at least one commit.
+    pub fn first_commit(&self) -> Result<CommitState> {
+        let leaves = self.tree.leaves().ok_or(Error::NoRootCommit)?;
+        let first_commit =
+            CommitHash(*leaves.first().ok_or(Error::NoRootCommit)?);
+        let first_proof = self.proof_at(&first_commit)?;
+        Ok(CommitState(first_commit, first_proof))
     }
 
-    /// Get the root hash of the underlying merkle tree as hexadecimal.
-    pub fn root_hex(&self) -> Option<String> {
-        self.tree.root_hex()
+    /// Last commit hash in the underlying merkle tree.
+    pub fn last_commit(&self) -> Option<CommitHash> {
+        self.last_commit.map(CommitHash)
     }
 
-    /// Get the commit relationship from the proof in another tree and
+    /// Commit state of this tree.
+    ///
+    /// The tree must already have some commits.
+    pub fn commit_state(&self) -> Result<CommitState> {
+        let last_commit = self.last_commit().ok_or(Error::NoRootCommit)?;
+        Ok(CommitState(last_commit, self.head()?))
+    }
+
+    /// Root hash of the underlying merkle tree.
+    pub fn root(&self) -> Option<CommitHash> {
+        self.tree.root().map(CommitHash)
+    }
+
+    /*
+    /// Commit relationship between the proof in another tree and
     /// a match proof which indicates whether the current head proof
     /// of this tree is contained in the other tree.
     pub fn relationship(
@@ -182,6 +243,7 @@ impl CommitTree {
             }
         })
     }
+    */
 
     /// Given a proof from another tree determine if this
     /// tree contains the other proof.
@@ -198,6 +260,7 @@ impl CommitTree {
     }
 }
 
+/*
 /// Multi tree allows comparison between multiple trees each
 /// represented by a unique identifier.
 ///
@@ -265,7 +328,9 @@ where
         Ok(relationships)
     }
 }
+*/
 
+/*
 /// Node tree represents multi trees from different nodes
 /// combined so that a node can determine which actions to
 /// take for a sync operation.
@@ -354,7 +419,9 @@ where
         Ok(ops)
     }
 }
+*/
 
+/*
 /// Operation that can be made to sync between two peers.
 #[derive(Debug, Hash, Eq, PartialEq)]
 pub enum Operation<I, K>
@@ -403,6 +470,7 @@ where
         commit: CommitPair,
     },
 }
+*/
 
 #[cfg(test)]
 mod test {
@@ -413,7 +481,6 @@ mod test {
         vault::{Vault, VaultAccess, VaultBuilder, VaultEntry},
     };
     use anyhow::Result;
-    use uuid::Uuid;
 
     /// Create a commit tree from an existing vault using the
     /// hashes of the encrypted data that are used to verify
@@ -421,7 +488,7 @@ mod test {
     fn from_vault(vault: &Vault) -> CommitTree {
         let mut commit_tree = CommitTree::new();
         for (_, commit) in vault.commits() {
-            commit_tree.tree.insert(commit.to_bytes());
+            commit_tree.tree.insert(commit.into());
         }
         commit_tree.tree.commit();
         commit_tree
@@ -540,6 +607,7 @@ mod test {
         Ok(())
     }
 
+    /*
     #[test]
     fn commit_proof_relationship_equal() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -632,7 +700,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_proof_relationship_ahead() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -664,7 +734,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_multi_equal() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -716,7 +788,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_multi_ahead() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -770,7 +844,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_multi_behind() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -824,7 +900,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_multi_diverged() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -877,7 +955,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_equal() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -926,7 +1006,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_push() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -991,7 +1073,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_pull() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -1056,7 +1140,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_conflict() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -1119,7 +1205,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_pull_push() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -1197,7 +1285,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_node_pull_push_conflict() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -1297,7 +1387,9 @@ mod test {
 
         Ok(())
     }
+    */
 
+    /*
     #[test]
     fn commit_multi_node() -> Result<()> {
         let hash1 = CommitTree::hash(b"hello");
@@ -1429,4 +1521,5 @@ mod test {
 
         Ok(())
     }
+    */
 }

@@ -2,13 +2,15 @@ use std::{ffi::OsString, sync::Arc};
 
 use clap::{CommandFactory, Parser, Subcommand};
 
-use sos_net::{
-    client::provider::ProviderFactory,
-    sdk::{account::AccountRef, vault::VaultRef},
+use sos_net::sdk::{
+    account::Account, identity::AccountRef, vault::FolderRef,
 };
 
 use crate::{
-    commands::{AccountCommand, CheckCommand, FolderCommand, SecretCommand},
+    commands::{
+        AccountCommand, CheckCommand, FolderCommand, SecretCommand,
+        ServerCommand, SyncCommand,
+    },
     helpers::account::{cd_folder, switch, Owner},
 };
 
@@ -42,26 +44,17 @@ enum ShellCommand {
         #[clap(subcommand)]
         cmd: SecretCommand,
     },
-
+    /// Add and remove servers.
+    Server {
+        #[clap(subcommand)]
+        cmd: ServerCommand,
+    },
+    /// Sync with remote servers.
+    Sync {
+        #[clap(subcommand)]
+        cmd: SyncCommand,
+    },
     /*
-    /// Print commit status.
-    Status {
-        /// Print more information; include commit tree root hashes.
-        #[clap(short, long)]
-        verbose: bool,
-    },
-    /// Download changes from the remote server.
-    Pull {
-        /// Force a pull from the remote server.
-        #[clap(short, long)]
-        force: bool,
-    },
-    /// Upload changes to the remote server.
-    Push {
-        /// Force a push to the remote server.
-        #[clap(short, long)]
-        force: bool,
-    },
     /// Change encryption password for the selected vault.
     #[clap(alias = "passwd")]
     Password,
@@ -69,7 +62,7 @@ enum ShellCommand {
     /// Set a folder as the current working directory.
     Cd {
         /// Folder name or id.
-        folder: Option<VaultRef>,
+        folder: Option<FolderRef>,
     },
     /// Switch account.
     #[clap(alias = "su")]
@@ -166,11 +159,7 @@ where
 */
 
 /// Execute the program command.
-async fn exec_program(
-    program: Shell,
-    factory: ProviderFactory,
-    user: Owner,
-) -> Result<()> {
+async fn exec_program(program: Shell, user: Owner) -> Result<()> {
     match program.cmd {
         ShellCommand::Account { cmd } => {
             let mut new_name: Option<String> = None;
@@ -178,21 +167,25 @@ async fn exec_program(
                 new_name = Some(name.to_owned());
             }
 
-            crate::commands::account::run(cmd, factory).await?;
+            crate::commands::account::run(cmd).await?;
 
             if let Some(new_name) = new_name {
                 let mut owner = user.write().await;
-                owner.user_mut().rename_account(new_name).await?;
+                owner.rename_account(new_name).await?;
             }
 
             Ok(())
         }
         ShellCommand::Folder { cmd } => {
-            crate::commands::folder::run(cmd, factory).await
+            crate::commands::folder::run(cmd).await
         }
         ShellCommand::Secret { cmd } => {
-            crate::commands::secret::run(cmd, factory).await
+            crate::commands::secret::run(cmd).await
         }
+        ShellCommand::Server { cmd } => {
+            crate::commands::server::run(cmd).await
+        }
+        ShellCommand::Sync { cmd } => crate::commands::sync::run(cmd).await,
         ShellCommand::Cd { folder } => cd_folder(user, folder.as_ref()).await,
 
         /*
@@ -330,21 +323,15 @@ async fn exec_program(
         }
         */
         ShellCommand::Switch { account } => {
-            let factory = {
-                let owner = user.read().await;
-                let factory = owner.factory().clone();
-                factory
-            };
-
-            let user = switch(&account, factory).await?;
+            let user = switch(&account).await?;
 
             // Try to select the default folder
             let default_folder = {
                 let owner = user.read().await;
-                owner.default_folder()
+                owner.default_folder().await
             };
             if let Some(summary) = default_folder {
-                let folder = Some(VaultRef::Id(*summary.id()));
+                let folder = Some(FolderRef::Id(*summary.id()));
                 cd_folder(Arc::clone(&user), folder.as_ref()).await?;
             }
 
@@ -353,55 +340,41 @@ async fn exec_program(
         ShellCommand::Check { cmd } => crate::commands::check::run(cmd).await,
         ShellCommand::Whoami => {
             let owner = user.read().await;
-            println!(
-                "{} {}",
-                owner.user().account().label(),
-                owner.user().identity().address()
-            );
+            println!("{} {}", owner.account_label().await?, owner.address());
             Ok(())
         }
         ShellCommand::Pwd => {
             let owner = user.read().await;
-            if let Some(current) = owner.storage().current() {
-                println!(
-                    "{} {}",
-                    current.summary().name(),
-                    current.summary().id(),
-                );
+            let storage = owner.storage().await?;
+            let reader = storage.read().await;
+            if let Some(current) = reader.current_folder() {
+                println!("{} {}", current.name(), current.id(),);
             }
             Ok(())
         }
         ShellCommand::Quit => {
             let mut owner = user.write().await;
-            owner.user_mut().sign_out();
+            owner.sign_out().await?;
             std::process::exit(0);
         }
     }
 }
 
 /// Intermediary to pretty print clap parse errors.
-async fn exec_args<I, T>(
-    it: I,
-    factory: ProviderFactory,
-    user: Owner,
-) -> Result<()>
+async fn exec_args<I, T>(it: I, user: Owner) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
     match Shell::try_parse_from(it) {
-        Ok(program) => exec_program(program, factory, user).await?,
+        Ok(program) => exec_program(program, user).await?,
         Err(e) => e.print().expect("unable to write error output"),
     }
     Ok(())
 }
 
 /// Execute a line of input in the context of the shell program.
-pub async fn exec(
-    line: &str,
-    factory: ProviderFactory,
-    user: Owner,
-) -> Result<()> {
+pub async fn exec(line: &str, user: Owner) -> Result<()> {
     if !line.trim().is_empty() {
         let mut sanitized = shell_words::split(line.trim_end_matches(' '))?;
         sanitized.insert(0, String::from("sos-shell"));
@@ -418,7 +391,7 @@ pub async fn exec(
         } else if line == "help" || line == "--help" {
             cmd.print_long_help()?;
         } else {
-            exec_args(it, factory, user).await?;
+            exec_args(it, user).await?;
         }
     }
     Ok(())

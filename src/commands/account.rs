@@ -2,15 +2,18 @@ use clap::Subcommand;
 use std::{path::PathBuf, sync::Arc};
 
 use sos_net::{
-    client::provider::{BoxedProvider, ProviderFactory},
-    migrate::import::{ImportFormat, ImportTarget},
+    client::NetworkAccount,
     sdk::{
         account::{
-            archive::Inventory, AccountBackup, AccountInfo, AccountRef,
-            ExtractFilesLocation, RestoreOptions,
+            archive::{
+                AccountBackup, ExtractFilesLocation, Inventory,
+                RestoreOptions,
+            },
+            Account,
         },
-        storage::AppPaths,
-        vfs,
+        identity::{AccountRef, PublicIdentity},
+        migrate::import::{ImportFormat, ImportTarget},
+        vfs, Paths,
     },
 };
 
@@ -180,7 +183,7 @@ pub enum ContactsCommand {
     },
 }
 
-pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
+pub async fn run(cmd: Command) -> Result<()> {
     let is_shell = USER.get().is_some();
     match cmd {
         Command::New { name, folder_name } => {
@@ -215,11 +218,11 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Rename { name, account } => {
-            account_rename(account, name, factory).await?;
+            account_rename(account, name).await?;
             tracing::info!(target: TARGET, "account renamed ✓");
         }
         Command::Migrate { account, cmd } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
             match cmd {
                 MigrateCommand::Export { output, force } => {
                     let exported =
@@ -239,16 +242,22 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Contacts { account, cmd } => {
-            let user = resolve_user(account.as_ref(), factory, false).await?;
+            let user = resolve_user(account.as_ref(), false).await?;
 
             // Get the current folder so that the shell client
             // does not lose context when importing and exporting contacts
             let original_folder = {
                 let mut owner = user.write().await;
-                let current =
-                    owner.storage().current().map(|g| g.summary().clone());
+
+                let current = {
+                    let storage = owner.storage().await?;
+                    let reader = storage.read().await;
+                    reader.current_folder()
+                };
+
                 let contacts = owner
                     .contacts_folder()
+                    .await
                     .ok_or_else(|| Error::NoContactsFolder)?;
                 owner.open_folder(&contacts).await?;
                 current
@@ -280,7 +289,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             folders,
             types,
         } => {
-            let user = resolve_user(account.as_ref(), factory, true).await?;
+            let user = resolve_user(account.as_ref(), true).await?;
             let owner = user.read().await;
             let statistics = owner.statistics().await;
 
@@ -319,7 +328,7 @@ pub async fn run(cmd: Command, factory: ProviderFactory) -> Result<()> {
             }
         }
         Command::Delete { account } => {
-            let deleted = account_delete(account, factory).await?;
+            let deleted = account_delete(account).await?;
             if deleted {
                 tracing::info!(target: TARGET, "account deleted ✓");
                 if is_shell {
@@ -338,11 +347,9 @@ async fn account_info(
     verbose: bool,
     json: bool,
 ) -> Result<()> {
-    let user =
-        resolve_user(account.as_ref(), ProviderFactory::Local(None), false)
-            .await?;
+    let user = resolve_user(account.as_ref(), false).await?;
     let owner = user.read().await;
-    let data = owner.account_data()?;
+    let data = owner.account_data().await?;
 
     if json {
         serde_json::to_writer_pretty(&mut std::io::stdout(), &data)?;
@@ -376,12 +383,15 @@ async fn account_backup(
     let account = find_account(&account)
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
-    AccountBackup::export_archive_file(&output, account.address()).await?;
+    let address = account.address();
+    let paths = Paths::new(Paths::data_dir()?, &address.to_string());
+
+    AccountBackup::export_archive_file(&output, address, &paths).await?;
     Ok(())
 }
 
 /// Restore from a zip archive.
-async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
+async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
     if !vfs::try_exists(&input).await?
         || !vfs::metadata(&input).await?.is_file()
     {
@@ -394,7 +404,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
     let account_ref = AccountRef::Address(inventory.manifest.address);
     let account = find_account(&account_ref).await?;
 
-    let provider: Option<BoxedProvider> = if let Some(account) = account {
+    let mut owner = if let Some(account) = account {
         let confirmed = read_flag(Some(
             "Overwrite all account data from backup? (y/n) ",
         ))?;
@@ -403,31 +413,32 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
         }
 
         let account = AccountRef::Name(account.label().to_owned());
-        let (owner, _) =
-            sign_in(&account, ProviderFactory::Local(None)).await?;
-        Some(owner.into())
+        let (owner, password) = sign_in(&account).await?;
+        Some((owner, password))
     } else {
         None
     };
 
-    let files_dir =
-        AppPaths::files_dir(inventory.manifest.address.to_string())?;
-    let options = RestoreOptions {
-        selected: inventory.vaults,
-        passphrase: None,
-        files_dir: Some(ExtractFilesLocation::Path(files_dir)),
+    let account = if let Some((mut owner, password)) = owner.take() {
+        let paths = owner.paths();
+        let files_dir = paths.files_dir();
+        let options = RestoreOptions {
+            selected: inventory.vaults,
+            files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
+        };
+        owner
+            .restore_backup_archive(&input, password, options, None)
+            .await?
+    } else {
+        let address = inventory.manifest.address.to_string();
+        let paths = Paths::new(Paths::data_dir()?, &address);
+        let files_dir = paths.files_dir();
+        let options = RestoreOptions {
+            selected: inventory.vaults,
+            files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
+        };
+        NetworkAccount::import_backup_archive(&input, options, None).await?
     };
-    let reader = vfs::File::open(&input).await?;
-    let (targets, account) = AccountBackup::restore_archive_buffer(
-        reader,
-        options,
-        provider.is_some(),
-    )
-    .await?;
-
-    if let Some(mut provider) = provider {
-        provider.restore_archive(&targets).await?;
-    }
 
     Ok(Some(account))
 }
@@ -436,19 +447,15 @@ async fn account_restore(input: PathBuf) -> Result<Option<AccountInfo>> {
 async fn account_rename(
     account: Option<AccountRef>,
     name: String,
-    factory: ProviderFactory,
 ) -> Result<()> {
-    let user = resolve_user(account.as_ref(), factory, false).await?;
+    let user = resolve_user(account.as_ref(), false).await?;
     let mut owner = user.write().await;
-    owner.user_mut().rename_account(name).await?;
+    owner.rename_account(name).await?;
     Ok(())
 }
 
 /// Delete an account.
-async fn account_delete(
-    account: Option<AccountRef>,
-    factory: ProviderFactory,
-) -> Result<bool> {
+async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
     let is_shell = USER.get().is_some();
 
     let account = if !is_shell {
@@ -472,15 +479,15 @@ async fn account_delete(
         verify(Arc::clone(&user)).await?;
 
         let owner = user.read().await;
-        owner.user().account().into()
+        (&*owner).into()
     };
 
-    let user = resolve_user(Some(&account), factory, false).await?;
+    let user = resolve_user(Some(&account), false).await?;
     let mut owner = user.write().await;
 
     let prompt = format!(
         r#"Delete account "{}" (y/n)? "#,
-        owner.user().account().label(),
+        owner.account_label().await?,
     );
     let result = if read_flag(Some(&prompt))? {
         owner.delete_account().await?;
@@ -505,7 +512,7 @@ async fn migrate_export(
     let owner = user.read().await;
     let prompt = format!(
         r#"Export UNENCRYPTED account "{}" (y/n)? "#,
-        owner.user().account().label(),
+        owner.account_label().await?,
     );
 
     let result = if read_flag(Some(&prompt))? {
@@ -545,7 +552,7 @@ async fn contacts_export(
         return Err(Error::FileExists(output));
     }
     let mut owner = user.write().await;
-    owner.export_all_vcards(output).await?;
+    owner.export_all_contacts(output).await?;
     Ok(())
 }
 
@@ -553,6 +560,6 @@ async fn contacts_export(
 async fn contacts_import(user: Owner, input: PathBuf) -> Result<()> {
     let mut owner = user.write().await;
     let content = vfs::read_to_string(&input).await?;
-    owner.import_vcard(&content, |_| {}).await?;
+    owner.import_contacts(&content, |_| {}).await?;
     Ok(())
 }

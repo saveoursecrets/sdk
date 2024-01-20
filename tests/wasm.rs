@@ -40,14 +40,4 @@ mod wasm_tests {
         let decoded: Timestamp = decode(&buffer).unwrap();
         assert_eq!(timestamp, decoded);
     }
-
-    /*
-    #[wasm_bindgen_test]
-    async fn event_log_memory_parse() {
-        use std::path::PathBuf;
-        let buffer = include_bytes!("fixtures/simple-vault.sos");
-        let mut event_log = EventLogFile::new(PathBuf::from("")).unwrap();
-        event_log.write_buffer(buffer.to_vec()).await.unwrap();
-    }
-    */
 }

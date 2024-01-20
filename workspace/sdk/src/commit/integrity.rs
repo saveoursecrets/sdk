@@ -1,15 +1,17 @@
 //! Functions to build commit trees and run integrity checks.
+use crate::events::{EventLogExt, FolderEventLog};
 use crate::{
     commit::CommitTree,
+    constants::VAULT_IDENTITY,
     encoding::encoding_options,
-    formats::{vault_stream, EventLogFileRecord, FileItem, VaultRecord},
+    formats::{EventLogRecord, FileItem, VaultRecord},
+    formats::{FileIdentity, FormatStream, FormatStreamIterator},
+    vault::Header,
     vfs, Error, Result,
 };
 use binary_stream::futures::BinaryReader;
 use std::io::SeekFrom;
-use tokio_util::compat::TokioAsyncReadCompatExt;
-
-use crate::events::EventLogFile;
+use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
 use std::path::Path;
 
@@ -28,25 +30,37 @@ macro_rules! read_iterator_item {
 ///
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
-pub async fn vault_commit_tree_file<P: AsRef<Path>, F>(
-    vault: P,
+pub async fn vault_commit_tree_file<F>(
+    vault: impl AsRef<Path>,
     verify: bool,
     func: F,
 ) -> Result<CommitTree>
 where
     F: Fn(&VaultRecord),
 {
+    FileIdentity::read_file(vault.as_ref(), &VAULT_IDENTITY).await?;
+
     let mut tree = CommitTree::new();
     // Need an additional reader as we may also read in the
     // values for the rows
     let mut file = vfs::File::open(vault.as_ref()).await?.compat();
     let mut reader = BinaryReader::new(&mut file, encoding_options());
-    let mut it = vault_stream(vault.as_ref()).await?;
-    while let Some(record) = it.next_entry().await? {
+
+    let stream = vfs::File::open(vault.as_ref()).await?.compat();
+    let content_offset = Header::read_content_offset(vault.as_ref()).await?;
+    let mut it = FormatStream::<VaultRecord, Compat<vfs::File>>::new_file(
+        stream,
+        &VAULT_IDENTITY,
+        true,
+        Some(content_offset),
+        false,
+    )
+    .await?;
+
+    while let Some(record) = it.next().await? {
         if verify {
             let commit = record.commit();
             let buffer = read_iterator_item!(&record, &mut reader);
-
             let checksum = CommitTree::hash(&buffer);
             if checksum != commit {
                 return Err(Error::HashMismatch {
@@ -69,13 +83,13 @@ where
 ///
 /// The `func` is invoked with the row information so
 /// callers can display debugging information if necessary.
-pub async fn event_log_commit_tree_file<P: AsRef<Path>, F>(
-    event_log_file: P,
+pub async fn event_log_commit_tree_file<F>(
+    event_log_file: impl AsRef<Path>,
     verify: bool,
     func: F,
 ) -> Result<CommitTree>
 where
-    F: Fn(&EventLogFileRecord),
+    F: Fn(&EventLogRecord),
 {
     let mut tree = CommitTree::new();
 
@@ -84,11 +98,11 @@ where
     let mut file = vfs::File::open(event_log_file.as_ref()).await?.compat();
     let mut reader = BinaryReader::new(&mut file, encoding_options());
 
-    let event_log = EventLogFile::new(event_log_file.as_ref()).await?;
-    let mut it = event_log.iter().await?;
+    let event_log = FolderEventLog::new(event_log_file.as_ref()).await?;
+    let mut it = event_log.iter(false).await?;
     let mut last_checksum: Option<[u8; 32]> = None;
 
-    while let Some(record) = it.next_entry().await? {
+    while let Some(record) = it.next().await? {
         if verify {
             // Verify the row last commit matches the checksum
             // for the previous row
@@ -114,8 +128,7 @@ where
                 });
             }
 
-            let buffer = event_log.read_buffer(&record).await?;
-            last_checksum = Some(CommitTree::hash(&buffer));
+            last_checksum = Some(record.commit());
         }
 
         func(&record);

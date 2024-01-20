@@ -1,4 +1,4 @@
-//! Read operations.
+//! Folder read operations.
 
 use super::EventKind;
 use crate::vault::secret::SecretId;

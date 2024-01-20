@@ -1,10 +1,10 @@
 [package]
 name = "sos-sdk"
-version = "0.6.0"
+version = "0.8.0"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
-license = "GPL-3.0"
+license = "MIT OR Apache-2.0"
 categories = ["cryptography::cryptocurrencies", "authentication"]
 repository = "https://github.com/saveoursecrets/sdk"
 
@@ -12,75 +12,87 @@ repository = "https://github.com/saveoursecrets/sdk"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["recovery"]
-mem-fs = []
-test-utils = ["dep:anyhow"]
+default = ["account", "archive", "audit", "files", "search"]
+account = []
+archive = ["dep:async_zip"]
+audit = []
+contacts = []
+device = [
+  "dep:whoami",
+]
+files = []
+mem-fs = ["sos-vfs/mem-fs"]
+migrate = ["dep:async_zip", "dep:csv-async", "keychain-access"]
+keychain-access = ["dep:security-framework", "dep:plist", "dep:logos"]
 recovery = ["dep:vsss-rs"]
+test-utils = ["dep:anyhow"]
+search = ["dep:probly-search"]
+security-report = []
+sync = []
 
 [dependencies]
-async-trait = "0.1"
-async-recursion = "1"
+binary-stream.workspace = true
+secrecy.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+async-recursion.workspace = true
+http.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+hex.workspace = true
+k256.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+sha3.workspace = true
+serde_with.workspace = true
+once_cell.workspace = true
+rand.workspace = true
+url.workspace = true
+time.workspace = true
+futures.workspace = true
+parking_lot.workspace = true
+bs58.workspace = true
+indexmap.workspace = true
+async_zip = { version = "0.0.15", default-features = false, features = ["deflate", "tokio"], optional = true }
+csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
+sos-vfs = { version = "0.2", path = "../vfs" }
 aes-gcm = { version = "0.10.1", features = ["std"] }
 chacha20poly1305 = { version = "0.10.1", features = ["std"] }
-tracing = "0.1"
 filetime = "0.2"
-rand = "0.8"
-thiserror = "1"
 web3-signature = { version = "0.4", features = ["single-party"] }
 web3-address = { version = "0.6", features = ["ethereum"] }
-serde = { version = "1", features = ["derive"] }
-hex = { version = "0.4", features = ["serde"] }
-serde_json = "1"
-k256 = { version = "0.13.1", features = ["ecdsa"] }
-subtle = "2"
-zeroize = { version = "1", features = ["zeroize_derive"] }
 argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
-serde_with = { version = "3", features = ["base64"] }
-# matches the version in k256
-sha1 = "0.10.6"
-sha2 = "0.10.6"
-sha3 = "0.10.6"
 app_dirs2 = "2"
-uuid = { version = "1", features = ["serde", "v4"] }
-url = { version = "2", features = ["serde"] }
 bitflags = "1"
 pem = { version = "3", features = ["serde"] }
-secrecy = { version = "0.8", features = ["serde"] }
 tempfile = "3.5"
-log = "0.4"
-http = "0.2"
 zxcvbn = "2"
 totp-rs = { version = "5.3", features = ["qr", "serde_support", "zeroize"] }
-#totp-sos = { version = "3", features = ["serde"] }
 vcard4 = { version = "0.4.4", features = ["serde"] }
-parking_lot = "0.12"
-once_cell = "1"
+async-once-cell = "0.5"
 age = { version = "0.9", features = ["async"] }
 ed25519-dalek = { version = "2.0.0-pre.0", features = ["rand_core"] }
-bs58 = "0.4"
 urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
-time = { version = "0.3.19", features = ["serde-human-readable", "local-offset", "wasm-bindgen"] }
 unicode-segmentation = "1.10"
 mime_guess = { version = "2" }
 anyhow = {version = "1", optional = true }
-futures = "0.3"
-async_zip = { version = "0.0.15", default-features = false, features = ["deflate", "tokio"] }
 sanitize-filename = "0.4"
-tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
 futures-util = "0.3"
-mpc-protocol = "0.4.1"
-
 vsss-rs = {version = "3", optional = true }
-
-[dependencies.binary-stream]
-version = "8.0.0"
-features = ["async"]
-#path = "../../../../binary-stream"
+security-framework = { version = "2.8", optional = true}
+logos = { version = "0.12", optional = true }
+plist = { version = "1", optional = true }
+whoami = { version = "1.4", optional = true }
+async-stream = "0.3"
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"
+optional = true
 #path = "../../../../forks/probly-search"
 #git = "https://github.com/tmpfs/probly-search/"
 #branch = "multi-field"

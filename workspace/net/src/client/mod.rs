@@ -1,17 +1,20 @@
-//! Traits and implementations for clients.
+//! Client user account and types for bridging with remote origins.
 
-#[cfg(not(target_arch = "wasm32"))]
-mod changes_listener;
-pub mod hashcheck;
-pub mod net;
-pub mod provider;
-pub mod user;
-
+mod account;
+#[cfg(feature = "device")]
+pub mod enrollment;
 mod error;
+#[cfg(feature = "hashcheck")]
+pub mod hashcheck;
+mod net;
+mod sync;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use changes_listener::ChangesListener;
+pub use account::*;
 pub use error::Error;
+pub use net::HttpClient;
+#[cfg(feature = "listen")]
+pub use net::{changes, connect, ListenOptions, WebSocketHandle};
+pub use sync::{RemoteSync, SyncError, SyncOptions};
 
 /// Result type for the client module.
 pub type Result<T> = std::result::Result<T, error::Error>;

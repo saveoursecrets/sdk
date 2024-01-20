@@ -1,0 +1,18 @@
+[package]
+name = "sos_test_utils"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+tracing.workspace = true
+tracing-subscriber.workspace = true
+secrecy.workspace = true
+serde_json.workspace = true
+anyhow = "1"
+sos-net = { path = "../net", features = ["full"] }
+tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
+axum-server = { version = "0.6", features = ["tls-rustls"] }
+pretty_assertions = "1.4"
+copy_dir = "0.1"

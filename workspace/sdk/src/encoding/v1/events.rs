@@ -1,17 +1,20 @@
-use std::borrow::Cow;
-
 use crate::{
     commit::CommitHash,
     crypto::AeadPack,
-    encoding::encoding_error,
-    events::{
-        AuditData, AuditEvent, AuditLogFile, EventKind, EventRecord,
-        LogFlags, WriteEvent,
-    },
-    formats::{EventLogFileRecord, FileRecord, VaultRecord},
-    vault::{secret::SecretId, VaultCommit},
+    encoding::{decode_uuid, encoding_error},
+    events::{EventKind, EventRecord, LogEvent, WriteEvent},
+    formats::{EventLogRecord, FileRecord, VaultRecord},
+    vault::VaultCommit,
     Timestamp,
 };
+
+use crate::events::AccountEvent;
+
+#[cfg(feature = "device")]
+use crate::events::DeviceEvent;
+
+#[cfg(feature = "files")]
+use crate::events::FileEvent;
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result, SeekFrom};
@@ -20,8 +23,6 @@ use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
-
-use uuid::Uuid;
 
 #[async_trait]
 impl Encodable for EventKind {
@@ -133,153 +134,7 @@ impl Decodable for EventRecord {
 }
 
 #[async_trait]
-impl Encodable for AuditEvent {
-    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> Result<()> {
-        // Context bit flags
-        let flags = self.log_flags();
-        writer.write_u16(flags.bits()).await?;
-        // Time - the when
-        self.time.encode(&mut *writer).await?;
-        // EventKind - the what
-        self.event_kind.encode(&mut *writer).await?;
-        // Address - by whom
-        writer.write_bytes(self.address.as_ref()).await?;
-        // Data - context
-        if flags.contains(LogFlags::DATA) {
-            let data = self.data.as_ref().unwrap();
-            data.encode(&mut *writer).await?;
-        }
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Decodable for AuditEvent {
-    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> Result<()> {
-        // Context bit flags
-        let bits = reader.read_u16().await?;
-        // Time - the when
-        let mut timestamp: Timestamp = Default::default();
-        timestamp.decode(&mut *reader).await?;
-        self.time = timestamp;
-        // EventKind - the what
-        self.event_kind.decode(&mut *reader).await?;
-        // Address - by whom
-        let address = reader.read_bytes(20).await?;
-        let address: [u8; 20] =
-            address.as_slice().try_into().map_err(encoding_error)?;
-        self.address = address.into();
-        // Data - context
-        if let Some(flags) = LogFlags::from_bits(bits) {
-            if flags.contains(LogFlags::DATA) {
-                if flags.contains(LogFlags::DATA_VAULT) {
-                    let vault_id: [u8; 16] = reader
-                        .read_bytes(16)
-                        .await?
-                        .as_slice()
-                        .try_into()
-                        .map_err(encoding_error)?;
-                    if !flags.contains(LogFlags::DATA_SECRET) {
-                        self.data = Some(AuditData::Vault(Uuid::from_bytes(
-                            vault_id,
-                        )));
-                    } else {
-                        let secret_id: [u8; 16] = reader
-                            .read_bytes(16)
-                            .await?
-                            .as_slice()
-                            .try_into()
-                            .map_err(encoding_error)?;
-                        self.data = Some(AuditData::Secret(
-                            Uuid::from_bytes(vault_id),
-                            Uuid::from_bytes(secret_id),
-                        ));
-                    }
-                } else if flags.contains(LogFlags::MOVE_SECRET) {
-                    let from_vault_id: [u8; 16] = reader
-                        .read_bytes(16)
-                        .await?
-                        .as_slice()
-                        .try_into()
-                        .map_err(encoding_error)?;
-
-                    let from_secret_id: [u8; 16] = reader
-                        .read_bytes(16)
-                        .await?
-                        .as_slice()
-                        .try_into()
-                        .map_err(encoding_error)?;
-
-                    let to_vault_id: [u8; 16] = reader
-                        .read_bytes(16)
-                        .await?
-                        .as_slice()
-                        .try_into()
-                        .map_err(encoding_error)?;
-
-                    let to_secret_id: [u8; 16] = reader
-                        .read_bytes(16)
-                        .await?
-                        .as_slice()
-                        .try_into()
-                        .map_err(encoding_error)?;
-
-                    self.data = Some(AuditData::MoveSecret {
-                        from_vault_id: Uuid::from_bytes(from_vault_id),
-                        from_secret_id: Uuid::from_bytes(from_secret_id),
-                        to_vault_id: Uuid::from_bytes(to_vault_id),
-                        to_secret_id: Uuid::from_bytes(to_secret_id),
-                    });
-                }
-            }
-        } else {
-            return Err(Error::new(
-                ErrorKind::Other,
-                "log data flags has bad bits",
-            ));
-        }
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Encodable for AuditData {
-    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> Result<()> {
-        match self {
-            AuditData::Vault(vault_id) => {
-                writer.write_bytes(vault_id.as_bytes()).await?;
-            }
-            AuditData::Secret(vault_id, secret_id) => {
-                writer.write_bytes(vault_id.as_bytes()).await?;
-                writer.write_bytes(secret_id.as_bytes()).await?;
-            }
-            AuditData::MoveSecret {
-                from_vault_id,
-                from_secret_id,
-                to_vault_id,
-                to_secret_id,
-            } => {
-                writer.write_bytes(from_vault_id.as_bytes()).await?;
-                writer.write_bytes(from_secret_id.as_bytes()).await?;
-                writer.write_bytes(to_vault_id.as_bytes()).await?;
-                writer.write_bytes(to_secret_id.as_bytes()).await?;
-            }
-        }
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl<'a> Encodable for WriteEvent<'a> {
+impl Encodable for WriteEvent {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -291,28 +146,23 @@ impl<'a> Encodable for WriteEvent<'a> {
             WriteEvent::Noop => {
                 panic!("attempt to encode a noop")
             }
-            WriteEvent::CreateVault(vault)
-            | WriteEvent::UpdateVault(vault) => {
-                writer.write_u32(vault.as_ref().len() as u32).await?;
-                writer.write_bytes(vault.as_ref()).await?;
+            WriteEvent::CreateVault(vault) => {
+                writer.write_u32(vault.len() as u32).await?;
+                writer.write_bytes(vault).await?;
             }
-            WriteEvent::DeleteVault => {}
             WriteEvent::SetVaultName(name) => {
                 writer.write_string(name).await?;
             }
             WriteEvent::SetVaultMeta(meta) => {
-                writer.write_bool(meta.is_some()).await?;
-                if let Some(meta) = meta.as_ref() {
-                    meta.encode(&mut *writer).await?;
-                }
+                meta.encode(&mut *writer).await?;
             }
             WriteEvent::CreateSecret(uuid, value) => {
                 writer.write_bytes(uuid.as_bytes()).await?;
-                value.as_ref().encode(&mut *writer).await?;
+                value.encode(&mut *writer).await?;
             }
             WriteEvent::UpdateSecret(uuid, value) => {
                 writer.write_bytes(uuid.as_bytes()).await?;
-                value.as_ref().encode(&mut *writer).await?;
+                value.encode(&mut *writer).await?;
             }
             WriteEvent::DeleteSecret(uuid) => {
                 writer.write_bytes(uuid.as_bytes()).await?;
@@ -323,7 +173,7 @@ impl<'a> Encodable for WriteEvent<'a> {
 }
 
 #[async_trait]
-impl<'a> Decodable for WriteEvent<'a> {
+impl Decodable for WriteEvent {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -335,66 +185,31 @@ impl<'a> Decodable for WriteEvent<'a> {
             EventKind::CreateVault => {
                 let length = reader.read_u32().await?;
                 let buffer = reader.read_bytes(length as usize).await?;
-                *self = WriteEvent::CreateVault(Cow::Owned(buffer))
-            }
-            EventKind::UpdateVault => {
-                let length = reader.read_u32().await?;
-                let buffer = reader.read_bytes(length as usize).await?;
-                *self = WriteEvent::UpdateVault(Cow::Owned(buffer))
-            }
-            EventKind::DeleteVault => {
-                *self = WriteEvent::DeleteVault;
+                *self = WriteEvent::CreateVault(buffer);
             }
             EventKind::SetVaultName => {
                 let name = reader.read_string().await?;
-                *self = WriteEvent::SetVaultName(Cow::Owned(name));
+                *self = WriteEvent::SetVaultName(name);
             }
             EventKind::SetVaultMeta => {
-                let has_meta = reader.read_bool().await?;
-                let aead_pack = if has_meta {
-                    let mut aead_pack: AeadPack = Default::default();
-                    aead_pack.decode(&mut *reader).await?;
-                    Some(aead_pack)
-                } else {
-                    None
-                };
-                *self = WriteEvent::SetVaultMeta(Cow::Owned(aead_pack));
+                let mut aead_pack: AeadPack = Default::default();
+                aead_pack.decode(&mut *reader).await?;
+                *self = WriteEvent::SetVaultMeta(aead_pack);
             }
             EventKind::CreateSecret => {
-                let id = SecretId::from_bytes(
-                    reader
-                        .read_bytes(16)
-                        .await?
-                        .as_slice()
-                        .try_into()
-                        .map_err(encoding_error)?,
-                );
+                let id = decode_uuid(&mut *reader).await?;
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *reader).await?;
-                *self = WriteEvent::CreateSecret(id, Cow::Owned(commit));
+                *self = WriteEvent::CreateSecret(id, commit);
             }
             EventKind::UpdateSecret => {
-                let id = SecretId::from_bytes(
-                    reader
-                        .read_bytes(16)
-                        .await?
-                        .as_slice()
-                        .try_into()
-                        .map_err(encoding_error)?,
-                );
+                let id = decode_uuid(&mut *reader).await?;
                 let mut commit: VaultCommit = Default::default();
                 commit.decode(&mut *reader).await?;
-                *self = WriteEvent::UpdateSecret(id, Cow::Owned(commit));
+                *self = WriteEvent::UpdateSecret(id, commit);
             }
             EventKind::DeleteSecret => {
-                let id = SecretId::from_bytes(
-                    reader
-                        .read_bytes(16)
-                        .await?
-                        .as_slice()
-                        .try_into()
-                        .map_err(encoding_error)?,
-                );
+                let id = decode_uuid(&mut *reader).await?;
                 *self = WriteEvent::DeleteSecret(id);
             }
             _ => {
@@ -409,7 +224,7 @@ impl<'a> Decodable for WriteEvent<'a> {
 }
 
 #[async_trait]
-impl Decodable for EventLogFileRecord {
+impl Decodable for EventLogRecord {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -466,49 +281,236 @@ impl Decodable for VaultRecord {
     }
 }
 
-impl AuditLogFile {
-    /// Encodable an audit log event record.
-    pub(crate) async fn encode_row<
-        W: AsyncWrite + AsyncSeek + Unpin + Send,
-    >(
+#[async_trait]
+impl Encodable for AccountEvent {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
         writer: &mut BinaryWriter<W>,
-        event: AuditEvent,
     ) -> Result<()> {
-        // Set up the leading row length
-        let size_pos = writer.stream_position().await?;
-        writer.write_u32(0).await?;
+        let op = self.event_kind();
+        op.encode(&mut *writer).await?;
 
-        // Encodable the event data for the row
-        event.encode(&mut *writer).await?;
-
-        // Backtrack to size_pos and write new length
-        let row_pos = writer.stream_position().await?;
-        let row_len = row_pos - (size_pos + 4);
-        writer.seek(SeekFrom::Start(size_pos)).await?;
-        writer.write_u32(row_len as u32).await?;
-        writer.seek(SeekFrom::Start(row_pos)).await?;
-
-        // Write out the row len at the end of the record too
-        // so we can support double ended iteration
-        writer.write_u32(row_len as u32).await?;
-
+        match self {
+            AccountEvent::Noop => panic!("attempt to encode a noop"),
+            AccountEvent::UpdateFolder(id, buffer)
+            | AccountEvent::CompactFolder(id, buffer)
+            | AccountEvent::ChangeFolderPassword(id, buffer)
+            | AccountEvent::CreateFolder(id, buffer) => {
+                writer.write_bytes(id.as_bytes()).await?;
+                writer.write_u32(buffer.len() as u32).await?;
+                writer.write_bytes(buffer).await?;
+            }
+            AccountEvent::RenameFolder(id, name) => {
+                writer.write_bytes(id.as_bytes()).await?;
+                writer.write_string(name).await?;
+            }
+            AccountEvent::DeleteFolder(id) => {
+                writer.write_bytes(id.as_bytes()).await?;
+            }
+        }
         Ok(())
     }
+}
 
-    /// Decodable an audit log event record.
-    pub(crate) async fn decode_row<
-        R: AsyncRead + AsyncSeek + Unpin + Send,
-    >(
+#[async_trait]
+impl Decodable for AccountEvent {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
         reader: &mut BinaryReader<R>,
-    ) -> Result<AuditEvent> {
-        // Read in the row length
-        let _ = reader.read_u32().await?;
+    ) -> Result<()> {
+        let mut op: EventKind = Default::default();
+        op.decode(&mut *reader).await?;
+        match op {
+            EventKind::Noop => panic!("attempt to decode a noop"),
+            EventKind::CreateVault => {
+                let id = decode_uuid(&mut *reader).await?;
+                let len = reader.read_u32().await?;
+                let buffer = reader.read_bytes(len as usize).await?;
+                *self = AccountEvent::CreateFolder(id, buffer)
+            }
+            EventKind::ChangePassword => {
+                let id = decode_uuid(&mut *reader).await?;
+                let len = reader.read_u32().await?;
+                let buffer = reader.read_bytes(len as usize).await?;
+                *self = AccountEvent::ChangeFolderPassword(id, buffer)
+            }
+            EventKind::UpdateVault => {
+                let id = decode_uuid(&mut *reader).await?;
+                let len = reader.read_u32().await?;
+                let buffer = reader.read_bytes(len as usize).await?;
+                *self = AccountEvent::UpdateFolder(id, buffer)
+            }
+            EventKind::CompactVault => {
+                let id = decode_uuid(&mut *reader).await?;
+                let len = reader.read_u32().await?;
+                let buffer = reader.read_bytes(len as usize).await?;
+                *self = AccountEvent::CompactFolder(id, buffer)
+            }
+            EventKind::SetVaultName => {
+                let id = decode_uuid(&mut *reader).await?;
+                let name = reader.read_string().await?;
+                *self = AccountEvent::RenameFolder(id, name);
+            }
+            EventKind::DeleteVault => {
+                let id = decode_uuid(&mut *reader).await?;
+                *self = AccountEvent::DeleteFolder(id);
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown account event kind {}", op),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
 
-        let mut event: AuditEvent = Default::default();
-        event.decode(&mut *reader).await?;
+#[cfg(feature = "device")]
+#[async_trait]
+impl Encodable for DeviceEvent {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        let op = self.event_kind();
+        op.encode(&mut *writer).await?;
+        match self {
+            DeviceEvent::Noop => panic!("attempt to encode a noop"),
+            DeviceEvent::Trust(device) => {
+                let buf = serde_json::to_vec(device)?;
+                writer.write_u32(buf.len() as u32).await?;
+                writer.write_bytes(&buf).await?;
+            }
+            DeviceEvent::Revoke(public_key) => {
+                writer.write_bytes(public_key.as_ref()).await?;
+            }
+        }
+        Ok(())
+    }
+}
 
-        // Read in the row length appended to the end of the record
-        let _ = reader.read_u32().await?;
-        Ok(event)
+#[cfg(feature = "device")]
+#[async_trait]
+impl Decodable for DeviceEvent {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        use crate::device::{DevicePublicKey, TrustedDevice};
+        let mut op: EventKind = Default::default();
+        op.decode(&mut *reader).await?;
+        match op {
+            EventKind::Noop => panic!("attempt to decode a noop"),
+            EventKind::TrustDevice => {
+                let len = reader.read_u32().await?;
+                let buf = reader.read_bytes(len as usize).await?;
+                let device: TrustedDevice = serde_json::from_slice(&buf)?;
+                *self = DeviceEvent::Trust(device);
+            }
+            EventKind::RevokeDevice => {
+                let public_key: [u8; DevicePublicKey::SIZE] = reader
+                    .read_bytes(DevicePublicKey::SIZE)
+                    .await?
+                    .as_slice()
+                    .try_into()
+                    .map_err(encoding_error)?;
+                *self = DeviceEvent::Revoke(public_key.into());
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown device event kind {}", op),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "files")]
+#[async_trait]
+impl Encodable for FileEvent {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        let op = self.event_kind();
+        op.encode(&mut *writer).await?;
+        match self {
+            FileEvent::Noop => panic!("attempt to encode a noop"),
+            FileEvent::CreateFile(folder_id, secret_id, name)
+            | FileEvent::DeleteFile(folder_id, secret_id, name) => {
+                writer.write_bytes(folder_id.as_bytes()).await?;
+                writer.write_bytes(secret_id.as_bytes()).await?;
+                writer.write_bytes(name.as_ref()).await?;
+            }
+            FileEvent::MoveFile { name, from, dest } => {
+                writer.write_bytes(name.as_ref()).await?;
+                writer.write_bytes(from.0.as_bytes()).await?;
+                writer.write_bytes(from.1.as_bytes()).await?;
+                writer.write_bytes(dest.0.as_bytes()).await?;
+                writer.write_bytes(dest.1.as_bytes()).await?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "files")]
+#[async_trait]
+impl Decodable for FileEvent {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let mut op: EventKind = Default::default();
+        op.decode(&mut *reader).await?;
+        match op {
+            EventKind::Noop => panic!("attempt to decode a noop"),
+            EventKind::CreateFile => {
+                let folder_id = decode_uuid(&mut *reader).await?;
+                let secret_id = decode_uuid(&mut *reader).await?;
+                let name = reader.read_bytes(32).await?;
+                let name: [u8; 32] =
+                    name.as_slice().try_into().map_err(encoding_error)?;
+                *self =
+                    FileEvent::CreateFile(folder_id, secret_id, name.into())
+            }
+            EventKind::DeleteFile => {
+                let folder_id = decode_uuid(&mut *reader).await?;
+                let secret_id = decode_uuid(&mut *reader).await?;
+                let name = reader.read_bytes(32).await?;
+                let name: [u8; 32] =
+                    name.as_slice().try_into().map_err(encoding_error)?;
+                *self =
+                    FileEvent::DeleteFile(folder_id, secret_id, name.into())
+            }
+            EventKind::MoveFile => {
+                let name = reader.read_bytes(32).await?;
+                let name: [u8; 32] =
+                    name.as_slice().try_into().map_err(encoding_error)?;
+                let from = (
+                    decode_uuid(&mut *reader).await?,
+                    decode_uuid(&mut *reader).await?,
+                );
+                let dest = (
+                    decode_uuid(&mut *reader).await?,
+                    decode_uuid(&mut *reader).await?,
+                );
+                *self = FileEvent::MoveFile {
+                    name: name.into(),
+                    from,
+                    dest,
+                }
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown file event kind {}", op),
+                ));
+            }
+        }
+        Ok(())
     }
 }

@@ -2,12 +2,9 @@ use super::*;
 use anyhow::Result;
 use rexpect::{session::PtySession, spawn};
 use secrecy::SecretString;
-use sos_net::{
-    migrate::import::ImportFormat,
-    sdk::{
-        constants::DEFAULT_VAULT_NAME, secrecy::ExposeSecret,
-        storage::AppPaths,
-    },
+use sos_net::sdk::{
+    constants::DEFAULT_VAULT_NAME, migrate::import::ImportFormat,
+    secrecy::ExposeSecret, Paths,
 };
 use std::{
     ops::DerefMut,
@@ -74,7 +71,7 @@ pub fn backup_restore(
     account_name: &str,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let data_dir = AppPaths::data_dir().unwrap();
+    let data_dir = Paths::data_dir().unwrap();
     let backup_file = data_dir.join(format!("{}-backup.zip", address));
 
     let cmd = format!(
@@ -226,9 +223,9 @@ pub fn migrate(
     password: &SecretString,
     repl: Option<(Session, &str)>,
 ) -> Result<()> {
-    let data_dir = AppPaths::data_dir().unwrap();
+    let data_dir = Paths::data_dir().unwrap();
     let export_file = data_dir.join(format!("{}-export.zip", address));
-    let fixtures = PathBuf::from("workspace/migrate/fixtures");
+    let fixtures = PathBuf::from("tests/fixtures/migrate");
 
     let cmd = format!(
         "{} account migrate -a {} export {}",
@@ -397,7 +394,7 @@ pub fn contacts(
 ) -> Result<()> {
     let import_file = PathBuf::from("tests/fixtures/contacts.vcf");
 
-    let data_dir = AppPaths::data_dir().unwrap();
+    let data_dir = Paths::data_dir().unwrap();
     let export_file = data_dir.join(format!("{}-contacts.vcf", address));
 
     let cmd = format!(

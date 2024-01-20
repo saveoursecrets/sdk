@@ -1,14 +1,30 @@
-//! Write ahead log types and traits.
+//! Event log types and traits.
 use crate::{
-    commit::CommitHash, decode, events::WriteEvent,
-    formats::EventLogFileRecord, timestamp::Timestamp, Result,
+    commit::CommitHash, decode, formats::EventLogRecord,
+    timestamp::Timestamp, Result,
 };
+use binary_stream::futures::Decodable;
 
 mod file;
 mod reducer;
 
-pub use file::EventLogFile;
-pub use reducer::EventReducer;
+#[cfg(feature = "device")]
+pub use file::DeviceEventLog;
+
+#[cfg(feature = "device")]
+pub use reducer::DeviceReducer;
+
+#[cfg(feature = "files")]
+pub use file::FileEventLog;
+
+#[cfg(all(feature = "files", feature = "sync"))]
+pub use reducer::FileReducer;
+
+pub use file::{
+    AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
+    FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog, MemoryLog,
+};
+pub use reducer::FolderReducer;
 
 /// Record for a row in the event log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
@@ -20,35 +36,39 @@ pub struct EventRecord(
 );
 
 impl EventRecord {
-    /// Get the time for the record.
+    /// Date and time the record was created.
     pub fn time(&self) -> &Timestamp {
         &self.0
     }
 
-    /// Get the last commit hash for the record.
+    /// Last commit hash for the record.
     pub fn last_commit(&self) -> &CommitHash {
         &self.1
     }
 
-    /// Get the commit hash for the record.
+    /// Commit hash for the record.
     pub fn commit(&self) -> &CommitHash {
         &self.2
     }
 
-    /// Get the event bytes the record.
+    /// Record event bytes.
     pub fn event_bytes(&self) -> &[u8] {
         self.3.as_slice()
     }
 
-    /// Decode this event record into a write event.
-    pub async fn decode_event(&self) -> Result<WriteEvent<'static>> {
-        let event: WriteEvent<'static> = decode(&self.3).await?;
-        Ok(event)
+    /// Size of the event buffer.
+    pub fn size(&self) -> usize {
+        self.3.len()
+    }
+
+    /// Decode this event record.
+    pub async fn decode_event<T: Default + Decodable>(&self) -> Result<T> {
+        Ok(decode(&self.3).await?)
     }
 }
 
-impl From<(EventLogFileRecord, Vec<u8>)> for EventRecord {
-    fn from(value: (EventLogFileRecord, Vec<u8>)) -> Self {
+impl From<(EventLogRecord, Vec<u8>)> for EventRecord {
+    fn from(value: (EventLogRecord, Vec<u8>)) -> Self {
         Self(
             value.0.time,
             CommitHash(value.0.last_commit),
@@ -62,7 +82,7 @@ impl From<(EventLogFileRecord, Vec<u8>)> for EventRecord {
 mod test {
     use anyhow::Result;
     use serial_test::serial;
-    use std::{borrow::Cow, path::PathBuf};
+    use std::path::PathBuf;
 
     use uuid::Uuid;
 
@@ -77,16 +97,17 @@ mod test {
 
     const MOCK_LOG: &str = "target/mock-event-log-standalone.events";
 
-    async fn mock_secret<'a>() -> Result<(SecretId, Cow<'a, VaultCommit>)> {
+    async fn mock_secret<'a>() -> Result<(SecretId, VaultCommit)> {
         let id = Uuid::new_v4();
         let entry = VaultEntry(Default::default(), Default::default());
         let buffer = encode(&entry).await?;
         let commit = CommitHash(CommitTree::hash(&buffer));
         let result = VaultCommit(commit, entry);
-        Ok((id, Cow::Owned(result)))
+        Ok((id, result))
     }
 
-    async fn mock_event_log_standalone() -> Result<(EventLogFile, SecretId)> {
+    async fn mock_event_log_standalone() -> Result<(FolderEventLog, SecretId)>
+    {
         let path = PathBuf::from(MOCK_LOG);
         if vfs::try_exists(&path).await? {
             vfs::remove_file(&path).await?;
@@ -99,22 +120,19 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut server = EventLogFile::new(path).await?;
+        let mut server = FolderEventLog::new(path).await?;
         server
-            .apply(
-                vec![
-                    WriteEvent::CreateVault(Cow::Owned(vault_buffer)),
-                    WriteEvent::CreateSecret(id, data),
-                ],
-                None,
-            )
+            .apply(vec![
+                &WriteEvent::CreateVault(vault_buffer),
+                &WriteEvent::CreateSecret(id, data),
+            ])
             .await?;
 
         Ok((server, id))
     }
 
     async fn mock_event_log_server_client(
-    ) -> Result<(EventLogFile, EventLogFile, SecretId)> {
+    ) -> Result<(FolderEventLog, FolderEventLog, SecretId)> {
         // Required for CI which is setting the current
         // working directory to the workspace member rather
         // than using the top-level working directory
@@ -139,23 +157,20 @@ mod test {
         let (id, data) = mock_secret().await?;
 
         // Create a simple event log
-        let mut server = EventLogFile::new(&server_file).await?;
+        let mut server = FolderEventLog::new(&server_file).await?;
         server
-            .apply(
-                vec![
-                    WriteEvent::CreateVault(Cow::Owned(vault_buffer)),
-                    WriteEvent::CreateSecret(id, data),
-                ],
-                None,
-            )
+            .apply(vec![
+                &WriteEvent::CreateVault(vault_buffer),
+                &WriteEvent::CreateSecret(id, data),
+            ])
             .await?;
 
         // Duplicate the server events on the client
-        let mut client = EventLogFile::new(&client_file).await?;
-        let mut it = server.iter().await?;
-        while let Some(record) = it.next_entry().await? {
-            let event = server.event_data(&record).await?;
-            client.append_event(event).await?;
+        let mut client = FolderEventLog::new(&client_file).await?;
+        let mut it = server.iter(false).await?;
+        while let Some(record) = it.next().await? {
+            let event = server.decode_event(&record).await?;
+            client.apply(vec![&event]).await?;
         }
 
         let proof = client.tree().head()?;
@@ -172,7 +187,7 @@ mod test {
         let (mut server, client, id) = mock_event_log_server_client().await?;
 
         // Add another event to the server from another client.
-        server.append_event(WriteEvent::DeleteSecret(id)).await?;
+        server.apply(vec![&WriteEvent::DeleteSecret(id)]).await?;
 
         // Check that the server contains the client proof
         let proof = client.tree().head()?;
@@ -204,63 +219,13 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn event_log_diff() -> Result<()> {
-        let partial =
-            PathBuf::from("target/mock-event-log-partial.event_log");
-
-        if vfs::try_exists(&partial).await? {
-            let _ = vfs::remove_file(&partial).await;
-        }
-
-        let (mut server, client, id) = mock_event_log_server_client().await?;
-
-        // Add another event to the server from another client.
-        server.append_event(WriteEvent::DeleteSecret(id)).await?;
-
-        // Get the last record for our assertion
-        let record = server.iter().await?.rev().next_entry().await?.unwrap();
-
-        let proof = client.tree().head()?;
-
-        let comparison = server.tree().compare(&proof)?;
-
-        if let Comparison::Contains(indices, leaves) = comparison {
-            assert_eq!(vec![1], indices);
-            let leaf = leaves.first().unwrap();
-            if let Some(buffer) = server.diff(*leaf).await? {
-                let mut partial_log = EventLogFile::new(&partial).await?;
-                partial_log.write_buffer(&buffer).await?;
-                let mut records = Vec::new();
-                let mut it = partial_log.iter().await?;
-                while let Some(record) = it.next_entry().await? {
-                    records.push(record);
-                }
-
-                assert_eq!(1, records.len());
-                if let Some(diff_record) = records.get(0) {
-                    assert_eq!(&record, diff_record);
-                } else {
-                    panic!("expecting record");
-                }
-            } else {
-                panic!("expected records from diff result");
-            }
-        } else {
-            panic!("expected comparison contains variant");
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    #[serial]
     async fn event_log_file_load() -> Result<()> {
         mock_event_log_standalone().await?;
         let path = PathBuf::from(MOCK_LOG);
-        let event_log = EventLogFile::new(path).await?;
-        let mut it = event_log.iter().await?;
-        while let Some(record) = it.next_entry().await? {
-            let _event = event_log.event_data(&record).await?;
+        let event_log = FolderEventLog::new(path).await?;
+        let mut it = event_log.iter(false).await?;
+        while let Some(record) = it.next().await? {
+            let _event = event_log.decode_event(&record).await?;
         }
 
         Ok(())

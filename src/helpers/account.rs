@@ -2,15 +2,16 @@
 use std::{borrow::Cow, sync::Arc};
 
 use sos_net::{
-    client::{provider::ProviderFactory, user::UserStorage},
+    client::NetworkAccount,
     sdk::{
-        account::{AccountInfo, AccountRef, LocalAccounts},
+        account::Account,
         constants::DEFAULT_VAULT_NAME,
         crypto::AccessKey,
+        identity::{AccountRef, Identity, PublicIdentity},
         passwd::diceware::generate_passphrase,
         secrecy::{ExposeSecret, SecretString},
-        storage::AppPaths,
-        vault::{Summary, VaultRef},
+        vault::{FolderRef, Summary},
+        Paths,
     },
 };
 use terminal_banner::{Banner, Padding};
@@ -26,10 +27,10 @@ use once_cell::sync::OnceCell;
 use crate::{Error, Result};
 
 /// Account owner.
-pub type Owner = Arc<RwLock<UserStorage>>;
+pub type Owner = Arc<RwLock<NetworkAccount>>;
 
 /// Current user for the shell REPL.
-pub(crate) static USER: OnceCell<Owner> = OnceCell::new();
+pub static USER: OnceCell<Owner> = OnceCell::new();
 
 #[derive(Copy, Clone)]
 enum AccountPasswordOption {
@@ -38,14 +39,14 @@ enum AccountPasswordOption {
 }
 
 /// Choose an account.
-pub async fn choose_account() -> Result<Option<AccountInfo>> {
-    let mut accounts = LocalAccounts::list_accounts().await?;
+pub async fn choose_account() -> Result<Option<PublicIdentity>> {
+    let mut accounts = Identity::list_accounts(None).await?;
     if accounts.is_empty() {
         Ok(None)
     } else if accounts.len() == 1 {
         Ok(Some(accounts.remove(0)))
     } else {
-        let options: Vec<Choice<'_, AccountInfo>> = accounts
+        let options: Vec<Choice<'_, PublicIdentity>> = accounts
             .into_iter()
             .map(|a| Choice(Cow::Owned(a.label().to_string()), a))
             .collect();
@@ -62,7 +63,6 @@ pub async fn choose_account() -> Result<Option<AccountInfo>> {
 /// the user must sign in to the target account.
 pub async fn resolve_user(
     account: Option<&AccountRef>,
-    factory: ProviderFactory,
     build_search_index: bool,
 ) -> Result<Owner> {
     let account = resolve_account(account)
@@ -73,7 +73,7 @@ pub async fn resolve_user(
         return Ok(Arc::clone(owner));
     }
 
-    let (mut owner, _) = sign_in(&account, factory).await?;
+    let (mut owner, _) = sign_in(&account).await?;
 
     // For non-shell we need to initialize the search index
     if USER.get().is_none() {
@@ -97,11 +97,12 @@ pub async fn resolve_account(
     if account.is_none() {
         if let Some(owner) = USER.get() {
             let reader = owner.read().await;
-            let account: AccountRef = reader.user().account().into();
-            return Some(account);
+            if reader.is_authenticated().await {
+                return Some((&*reader).into());
+            }
         }
 
-        if let Ok(mut accounts) = LocalAccounts::list_accounts().await {
+        if let Ok(mut accounts) = Identity::list_accounts(None).await {
             if accounts.len() == 1 {
                 return Some(accounts.remove(0).into());
             }
@@ -112,57 +113,59 @@ pub async fn resolve_account(
 
 pub async fn resolve_folder(
     user: &Owner,
-    folder: Option<&VaultRef>,
+    folder: Option<&FolderRef>,
 ) -> Result<Option<Summary>> {
     let owner = user.read().await;
     if let Some(vault) = folder {
+        let storage = owner.storage().await?;
+        let reader = storage.read().await;
         Ok(Some(
-            owner
-                .storage()
-                .state()
-                .find_vault(vault)
+            reader
+                .find_folder(vault)
                 .cloned()
                 .ok_or(Error::FolderNotFound(vault.to_string()))?,
         ))
     } else if let Some(owner) = USER.get() {
         let owner = owner.read().await;
-        let keeper =
-            owner.storage().current().ok_or(Error::NoVaultSelected)?;
-        Ok(Some(keeper.summary().clone()))
+        let storage = owner.storage().await?;
+        let reader = storage.read().await;
+        let summary =
+            reader.current_folder().ok_or(Error::NoVaultSelected)?;
+        Ok(Some(summary.clone()))
     } else {
-        Ok(owner
-            .storage()
-            .state()
-            .find(|s| s.flags().is_default())
-            .cloned())
+        let storage = owner.storage().await?;
+        let reader = storage.read().await;
+        Ok(reader.find(|s| s.flags().is_default()).cloned())
     }
 }
 
-pub async fn cd_folder(user: Owner, folder: Option<&VaultRef>) -> Result<()> {
-    let mut owner = user.write().await;
-    let summary = if let Some(vault) = folder {
-        Some(
-            owner
-                .storage()
-                .state()
-                .find_vault(vault)
-                .cloned()
-                .ok_or(Error::FolderNotFound(vault.to_string()))?,
-        )
-    } else {
-        owner
-            .storage()
-            .state()
-            .find(|s| s.flags().is_default())
-            .cloned()
-    };
+pub async fn cd_folder(
+    user: Owner,
+    folder: Option<&FolderRef>,
+) -> Result<()> {
+    let summary = {
+        let owner = user.read().await;
+        let storage = owner.storage().await?;
+        let reader = storage.read().await;
+        let summary = if let Some(vault) = folder {
+            Some(
+                reader
+                    .find_folder(vault)
+                    .cloned()
+                    .ok_or(Error::FolderNotFound(vault.to_string()))?,
+            )
+        } else {
+            reader.find(|s| s.flags().is_default()).cloned()
+        };
 
-    let summary = summary.ok_or(Error::NoVault)?;
+        summary.ok_or(Error::NoVault)?
+    };
+    let mut owner = user.write().await;
     owner.open_folder(&summary).await?;
     Ok(())
 }
 
-/// Verify the master password for an account.
+/// Verify the primary password for an account.
 pub async fn verify(user: Owner) -> Result<bool> {
     let passphrase = read_password(Some("Password: "))?;
     let owner = user.read().await;
@@ -171,21 +174,24 @@ pub async fn verify(user: Owner) -> Result<bool> {
 
 /// List local accounts.
 pub async fn list_accounts(verbose: bool) -> Result<()> {
-    let accounts = LocalAccounts::list_accounts().await?;
-    for account in accounts {
+    let accounts = Identity::list_accounts(None).await?;
+    for account in &accounts {
         if verbose {
             println!("{} {}", account.address(), account.label());
         } else {
             println!("{}", account.label());
         }
     }
+    if accounts.is_empty() {
+        println!("no accounts yet");
+    }
     Ok(())
 }
 
 pub async fn find_account(
     account: &AccountRef,
-) -> Result<Option<AccountInfo>> {
-    let accounts = LocalAccounts::list_accounts().await?;
+) -> Result<Option<PublicIdentity>> {
+    let accounts = Identity::list_accounts(None).await?;
     match account {
         AccountRef::Address(address) => {
             Ok(accounts.into_iter().find(|a| a.address() == address))
@@ -199,24 +205,27 @@ pub async fn find_account(
 /// Helper to sign in to an account.
 pub async fn sign_in(
     account: &AccountRef,
-    factory: ProviderFactory,
-) -> Result<(UserStorage, SecretString)> {
+) -> Result<(NetworkAccount, SecretString)> {
     let account = find_account(account)
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
-    let owner =
-        UserStorage::sign_in(account.address(), passphrase.clone(), factory)
+
+    let mut owner =
+        NetworkAccount::new_unauthenticated(account.address().clone(), None)
             .await?;
+
+    let key: AccessKey = passphrase.clone().into();
+    owner.sign_in(&key).await?;
+
     Ok((owner, passphrase))
 }
 
 /// Switch to a different account.
 pub async fn switch(
     account: &AccountRef,
-    factory: ProviderFactory,
-) -> Result<Arc<RwLock<UserStorage>>> {
-    let (mut owner, _) = sign_in(account, factory).await?;
+) -> Result<Arc<RwLock<NetworkAccount>>> {
+    let (mut owner, _) = sign_in(account).await?;
 
     owner.initialize_search_index().await?;
     owner.list_folders().await?;
@@ -244,7 +253,7 @@ pub async fn new_account(
             "WELCOME",
         ))
         .text(Cow::Borrowed(
-            "Your new account requires a master password; you must memorize this password or you will lose access to your secrets.",
+            "Your new account requires a primary password; you must memorize this password or you will lose access to your secrets.",
         ))
         .text(Cow::Borrowed(
             "You may generate a strong diceware password or choose your own password; if you choose a password it must be excellent strength.",
@@ -274,7 +283,7 @@ pub async fn new_account(
     let is_generated =
         matches!(password_option, AccountPasswordOption::Generated);
 
-    // Generate a master password
+    // Generate a primary password
     let passphrase = match password_option {
         AccountPasswordOption::Generated => {
             // Support for CI environments choosing the account password
@@ -322,16 +331,25 @@ pub async fn new_account(
             display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
         }
 
-        let factory = ProviderFactory::Local(None);
-        let (owner, _, _) = UserStorage::new_account(
+        let mut owner = NetworkAccount::new_account_with_builder(
             account_name.clone(),
-            passphrase,
-            factory,
+            passphrase.clone(),
+            |builder| {
+                builder
+                    .create_contacts(true)
+                    .create_archive(true)
+                    .create_authenticator(true)
+                    .create_file_password(true)
+            },
+            None,
         )
         .await?;
         let address = owner.address().to_string();
 
-        let data_dir = AppPaths::data_dir()?;
+        let key: AccessKey = passphrase.into();
+        owner.sign_in(&key).await?;
+
+        let data_dir = Paths::data_dir()?;
         let message = format!(
             r#"* Account: {} ({})
 * Storage: {}"#,

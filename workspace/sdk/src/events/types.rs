@@ -11,9 +11,8 @@ const NOOP: u16 = 0;
 const CREATE_ACCOUNT: u16 = 1;
 /// Type identifier for the delete account operation.
 const DELETE_ACCOUNT: u16 = 2;
-/// Type identifier for the login response operation.
-#[deprecated]
-const LOGIN_RESPONSE: u16 = 3;
+/// Type identifier for a list vaults operation.
+const LIST_VAULTS: u16 = 3;
 /// Type identifier for the create vault operation.
 const CREATE_VAULT: u16 = 4;
 /// Type identifier for the read vault operation.
@@ -42,20 +41,32 @@ const MOVE_SECRET: u16 = 15;
 const READ_EVENT_LOG: u16 = 16;
 /// Type identifier for the export vault operation.
 const EXPORT_VAULT: u16 = 17;
-/// Type identifier for the import vault operation.
-const IMPORT_VAULT: u16 = 18;
 /// Type identifier for export account archive.
-const EXPORT_BACKUP_ARCHIVE: u16 = 19;
+const EXPORT_BACKUP_ARCHIVE: u16 = 18;
 /// Type identifier for restore account archive.
-const IMPORT_BACKUP_ARCHIVE: u16 = 20;
+const IMPORT_BACKUP_ARCHIVE: u16 = 19;
 /// Type identifier for exporting unencrypted secrets.
-const EXPORT_UNSAFE: u16 = 21;
+const EXPORT_UNSAFE: u16 = 20;
 /// Type identifier for importing unencrypted secrets.
-const IMPORT_UNSAFE: u16 = 22;
+const IMPORT_UNSAFE: u16 = 21;
 /// Type identifier for exporting contacts.
-const EXPORT_CONTACTS: u16 = 23;
+const EXPORT_CONTACTS: u16 = 22;
 /// Type identifier for importing contacts.
-const IMPORT_CONTACTS: u16 = 24;
+const IMPORT_CONTACTS: u16 = 23;
+/// Type identifier for creating a file.
+const CREATE_FILE: u16 = 24;
+/// Type identifier for moving a file.
+const MOVE_FILE: u16 = 25;
+/// Type identifier for deleting a file.
+const DELETE_FILE: u16 = 26;
+/// Type identifier for vault event compaction.
+const COMPACT_VAULT: u16 = 27;
+/// Type identifier for changing a password.
+const CHANGE_PASSWORD: u16 = 28;
+/// Type identifier for trusting a device.
+const TRUST_DEVICE: u16 = 29;
+/// Type identifier for revoking a device.
+const REVOKE_DEVICE: u16 = 30;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -67,8 +78,8 @@ pub enum EventKind {
     CreateAccount,
     /// Event to delete an account.
     DeleteAccount,
-    /// Event to create a login response.
-    LoginResponse,
+    /// Event to represent a sign in.
+    ListVaults,
     /// Event to create a vault.
     CreateVault,
     /// Event to read a vault.
@@ -97,8 +108,6 @@ pub enum EventKind {
     ReadEventLog,
     /// Event to export a vault.
     ExportVault,
-    /// Event to import a vault.
-    ImportVault,
     /// Event to export an account archive.
     ExportBackupArchive,
     /// Event to import an account archive.
@@ -111,6 +120,20 @@ pub enum EventKind {
     ExportContacts,
     /// Event to import contacts.
     ImportContacts,
+    /// Event for creating a file.
+    CreateFile,
+    /// Event for moving a file.
+    MoveFile,
+    /// Event for deleting a file.
+    DeleteFile,
+    /// Event for vault compaction.
+    CompactVault,
+    /// Event for changing a password.
+    ChangePassword,
+    /// Event for trusting a device.
+    TrustDevice,
+    /// Event for revoking a device.
+    RevokeDevice,
 }
 
 impl Default for EventKind {
@@ -126,7 +149,7 @@ impl TryFrom<u16> for EventKind {
             NOOP => EventKind::Noop,
             CREATE_ACCOUNT => EventKind::CreateAccount,
             DELETE_ACCOUNT => EventKind::DeleteAccount,
-            LOGIN_RESPONSE => EventKind::LoginResponse,
+            LIST_VAULTS => EventKind::ListVaults,
             CREATE_VAULT => EventKind::CreateVault,
             READ_VAULT => EventKind::ReadVault,
             UPDATE_VAULT => EventKind::UpdateVault,
@@ -141,13 +164,19 @@ impl TryFrom<u16> for EventKind {
             MOVE_SECRET => EventKind::MoveSecret,
             READ_EVENT_LOG => EventKind::ReadEventLog,
             EXPORT_VAULT => EventKind::ExportVault,
-            IMPORT_VAULT => EventKind::ImportVault,
             EXPORT_BACKUP_ARCHIVE => EventKind::ExportBackupArchive,
             IMPORT_BACKUP_ARCHIVE => EventKind::ImportBackupArchive,
             EXPORT_UNSAFE => EventKind::ExportUnsafe,
             IMPORT_UNSAFE => EventKind::ImportUnsafe,
             EXPORT_CONTACTS => EventKind::ExportContacts,
             IMPORT_CONTACTS => EventKind::ImportContacts,
+            CREATE_FILE => EventKind::CreateFile,
+            MOVE_FILE => EventKind::MoveFile,
+            DELETE_FILE => EventKind::DeleteFile,
+            COMPACT_VAULT => EventKind::CompactVault,
+            CHANGE_PASSWORD => EventKind::ChangePassword,
+            TRUST_DEVICE => EventKind::TrustDevice,
+            REVOKE_DEVICE => EventKind::RevokeDevice,
             _ => return Err(Error::UnknownEventKind(value)),
         })
     }
@@ -159,7 +188,7 @@ impl From<&EventKind> for u16 {
             EventKind::Noop => NOOP,
             EventKind::CreateAccount => CREATE_ACCOUNT,
             EventKind::DeleteAccount => DELETE_ACCOUNT,
-            EventKind::LoginResponse => LOGIN_RESPONSE,
+            EventKind::ListVaults => LIST_VAULTS,
             EventKind::CreateVault => CREATE_VAULT,
             EventKind::ReadVault => READ_VAULT,
             EventKind::UpdateVault => UPDATE_VAULT,
@@ -174,14 +203,26 @@ impl From<&EventKind> for u16 {
             EventKind::MoveSecret => MOVE_SECRET,
             EventKind::ReadEventLog => READ_EVENT_LOG,
             EventKind::ExportVault => EXPORT_VAULT,
-            EventKind::ImportVault => IMPORT_VAULT,
             EventKind::ExportBackupArchive => EXPORT_BACKUP_ARCHIVE,
             EventKind::ImportBackupArchive => IMPORT_BACKUP_ARCHIVE,
             EventKind::ExportUnsafe => EXPORT_UNSAFE,
             EventKind::ImportUnsafe => IMPORT_UNSAFE,
             EventKind::ExportContacts => EXPORT_CONTACTS,
             EventKind::ImportContacts => IMPORT_CONTACTS,
+            EventKind::CreateFile => CREATE_FILE,
+            EventKind::MoveFile => MOVE_FILE,
+            EventKind::DeleteFile => DELETE_FILE,
+            EventKind::CompactVault => COMPACT_VAULT,
+            EventKind::ChangePassword => CHANGE_PASSWORD,
+            EventKind::TrustDevice => TRUST_DEVICE,
+            EventKind::RevokeDevice => REVOKE_DEVICE,
         }
+    }
+}
+
+impl From<EventKind> for u16 {
+    fn from(value: EventKind) -> Self {
+        (&value).into()
     }
 }
 
@@ -192,7 +233,7 @@ impl fmt::Display for EventKind {
                 EventKind::Noop => "NOOP",
                 EventKind::CreateAccount => "CREATE_ACCOUNT",
                 EventKind::DeleteAccount => "DELETE_ACCOUNT",
-                EventKind::LoginResponse => "LOGIN_RESPONSE",
+                EventKind::ListVaults => "LIST_FOLDERS",
                 EventKind::CreateVault => "CREATE_FOLDER",
                 EventKind::ReadVault => "READ_FOLDER",
                 EventKind::UpdateVault => "UPDATE_FOLDER",
@@ -207,13 +248,19 @@ impl fmt::Display for EventKind {
                 EventKind::MoveSecret => "MOVE_SECRET",
                 EventKind::ReadEventLog => "READ_EVENT_LOG",
                 EventKind::ExportVault => "EXPORT_FOLDER",
-                EventKind::ImportVault => "IMPORT_FOLDER",
                 EventKind::ExportBackupArchive => "EXPORT_BACKUP_ARCHIVE",
                 EventKind::ImportBackupArchive => "IMPORT_BACKUP_ARCHIVE",
                 EventKind::ExportUnsafe => "EXPORT_UNSAFE",
                 EventKind::ImportUnsafe => "IMPORT_UNSAFE",
                 EventKind::ExportContacts => "EXPORT_CONTACTS",
                 EventKind::ImportContacts => "IMPORT_CONTACTS",
+                EventKind::CreateFile => "CREATE_FILE",
+                EventKind::MoveFile => "MOVE_FILE",
+                EventKind::DeleteFile => "DELETE_FILE",
+                EventKind::CompactVault => "COMPACT_FOLDER",
+                EventKind::ChangePassword => "CHANGE_PASSWORD",
+                EventKind::TrustDevice => "TRUST_DEVICE",
+                EventKind::RevokeDevice => "REVOKE_DEVICE",
             }
         })
     }

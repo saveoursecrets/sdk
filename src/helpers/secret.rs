@@ -9,9 +9,9 @@ use terminal_banner::{Banner, Padding};
 
 use secrecy::{ExposeSecret, SecretString};
 use sos_net::sdk::{
-    hex,
-    search::Document,
-    secrecy,
+    account::Account,
+    hex, secrecy,
+    storage::search::Document,
     url::Url,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
@@ -46,7 +46,8 @@ pub async fn resolve_secret(
     secret: &SecretRef,
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let owner = user.read().await;
-    let index_reader = owner.index().search().read().await;
+    let search = owner.index().await?;
+    let index_reader = search.read().await;
     if let Some(Document {
         secret_id, meta, ..
     }) = index_reader.find_by_uuid_or_label(summary.id(), secret)
@@ -501,7 +502,7 @@ pub(crate) async fn download_file_secret(
             FileContent::External { checksum, .. } => {
                 let file_name = hex::encode(checksum);
                 let buffer = owner
-                    .decrypt_file_storage(
+                    .download_file(
                         resolved.summary.id(),
                         &resolved.secret_id,
                         &file_name,

@@ -1,12 +1,9 @@
 key = "test.pem"
 
-[audit]
-file = "../target/integration-test/audit.dat"
-
 [api]
 origins = [
   "http://localhost:3505",
 ]
 
 [storage]
-url = "file://../target/integration-test/server"
+path = "../target/integration-test/server"

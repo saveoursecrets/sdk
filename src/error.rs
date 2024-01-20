@@ -11,7 +11,7 @@ pub enum Error {
     FolderExists(String),
 
     #[error(r#"attachment "{0}" already exists"#)]
-    AttachmentExists(String),
+    FieldExists(String),
 
     #[error(r#"folder "{0}" not found"#)]
     FolderNotFound(String),
@@ -20,7 +20,19 @@ pub enum Error {
     DeviceNotFound(String),
 
     #[error(r#"attachment "{0}" not found"#)]
-    AttachmentNotFound(SecretRef),
+    FieldNotFound(SecretRef),
+
+    #[error(r#"initial sync has errors"#)]
+    InitialSync,
+
+    #[error(r#"sync failed"#)]
+    SyncFail,
+
+    #[error(r#"no servers"#)]
+    NoServers,
+
+    #[error(r#"no servers found matching the request"#)]
+    NoMatchServers,
 
     #[error("unable to copy to the clipboard, secret type may not support copy operation")]
     ClipboardCopy,
@@ -158,13 +170,7 @@ pub enum Error {
     Server(#[from] sos_net::server::Error),
 
     #[error(transparent)]
-    Peer(#[from] sos_net::peer::Error),
-
-    #[error(transparent)]
     Clipboard(#[from] arboard::Error),
-
-    #[error(transparent)]
-    Mpc(#[from] sos_net::sdk::mpc::Error),
 
     #[error(transparent)]
     Hex(#[from] sos_net::sdk::hex::FromHexError),
