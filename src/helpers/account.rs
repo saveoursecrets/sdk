@@ -30,7 +30,7 @@ use crate::{Error, Result};
 pub type Owner = Arc<RwLock<NetworkAccount>>;
 
 /// Current user for the shell REPL.
-pub(crate) static USER: OnceCell<Owner> = OnceCell::new();
+pub static USER: OnceCell<Owner> = OnceCell::new();
 
 #[derive(Copy, Clone)]
 enum AccountPasswordOption {

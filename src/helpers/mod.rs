@@ -10,6 +10,8 @@ pub(crate) mod editor;
 pub(crate) mod readline;
 pub(crate) mod secret;
 
+pub use account::USER;
+
 /// Global clipboard singleton.
 pub(crate) static CLIPBOARD: Lazy<Mutex<Option<Clipboard>>> =
     Lazy::new(|| Mutex::new(Clipboard::new().ok()));
