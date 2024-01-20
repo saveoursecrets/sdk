@@ -18,21 +18,15 @@ impl NetworkAccount {
     ) -> Result<WebSocketHandle> {
         let remotes = self.remotes.read().await;
         if let Some(remote) = remotes.get(origin) {
-            if let Some(remote) =
-                remote.as_any().downcast_ref::<RemoteBridge>()
-            {
-                let remote = Arc::new(remote.clone());
-                let handle = RemoteBridge::listen(remote, options);
+            let remote = Arc::new(remote.clone());
+            let handle = RemoteBridge::listen(remote, options);
 
-                // Store the listeners so we can
-                // close the connections on sign out
-                let mut listeners = self.listeners.lock().await;
-                listeners.push(handle.clone());
+            // Store the listeners so we can
+            // close the connections on sign out
+            let mut listeners = self.listeners.lock().await;
+            listeners.push(handle.clone());
 
-                Ok(handle)
-            } else {
-                unreachable!();
-            }
+            Ok(handle)
         } else {
             Err(Error::OriginNotFound(origin.clone()))
         }

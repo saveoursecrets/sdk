@@ -3,10 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::{
-    client::{RemoteBridge, RemoteSync},
-    sdk::prelude::*,
-};
+use sos_net::{client::RemoteSync, sdk::prelude::*};
 
 /// Tests syncing create secret events between two
 /// clients.
@@ -62,29 +59,19 @@ async fn integration_sync_create_secret() -> Result<()> {
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
-    let mut provider = device1.owner.remove_server(&origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
-
-    let mut provider = device2.owner.remove_server(&origin).await?.unwrap();
-    let other_remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
-
+    let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_events_eq(
         folders.clone(),
         &mut device1.owner,
-        remote_provider,
+        &mut bridge,
     )
     .await?;
 
+    let mut bridge = device2.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_events_eq(
         folders.clone(),
         &mut device2.owner,
-        other_remote_provider,
+        &mut bridge,
     )
     .await?;
 

@@ -3,7 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, sync_pause, teardown,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteBridge, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 /// Tests syncing folder rename events between two clients
 /// where the second client listens for changes emitted
@@ -39,48 +39,32 @@ async fn integration_sync_listen_rename_folder() -> Result<()> {
     sync_pause(None).await;
 
     // Assert first device
-    let mut provider = device1.owner.remove_server(&origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
-
+    let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_vaults_eq(
         folders.clone(),
         &server_path,
         &mut device1.owner,
-        remote_provider,
+        &mut bridge,
     )
     .await?;
-
     assert_local_remote_events_eq(
         folders.clone(),
         &mut device1.owner,
-        remote_provider,
+        &mut bridge,
     )
     .await?;
 
     // Assert second device
-    let mut provider = device2.owner.remove_server(&origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
-
+    let mut bridge = device2.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_vaults_eq(
         folders.clone(),
         &server_path,
         &mut device2.owner,
-        remote_provider,
+        &mut bridge,
     )
     .await?;
-
-    assert_local_remote_events_eq(
-        folders,
-        &mut device2.owner,
-        remote_provider,
-    )
-    .await?;
+    assert_local_remote_events_eq(folders, &mut device2.owner, &mut bridge)
+        .await?;
 
     device1.owner.sign_out().await?;
     device2.owner.sign_out().await?;

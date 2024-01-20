@@ -4,7 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_net::{
-    client::{RemoteBridge, RemoteSync, SyncError},
+    client::{RemoteSync, SyncError},
     sdk::prelude::*,
 };
 
@@ -56,30 +56,22 @@ async fn integration_sync_multiple_remotes_fallback() -> Result<()> {
     assert!(device.owner.sync().await.is_none());
 
     // Assert on first server
-    let mut provider =
+    let mut bridge =
         device.owner.remove_server(&server1.origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
     assert_local_remote_events_eq(
         folders.clone(),
         &mut device.owner,
-        remote_provider,
+        &mut bridge,
     )
     .await?;
 
     // Assert on second server
-    let mut provider =
+    let mut bridge =
         device.owner.remove_server(&server2.origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
     assert_local_remote_events_eq(
         folders.clone(),
         &mut device.owner,
-        remote_provider,
+        &mut bridge,
     )
     .await?;
 

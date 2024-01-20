@@ -3,10 +3,7 @@ use crate::test_utils::{
     sync_pause, teardown,
 };
 use anyhow::Result;
-use sos_net::{
-    client::{RemoteBridge, RemoteSync},
-    sdk::prelude::*,
-};
+use sos_net::{client::RemoteSync, sdk::prelude::*};
 
 /// Tests syncing events between two clients after
 /// a server goes offline and a client commits changes
@@ -89,31 +86,17 @@ async fn integration_sync_offline_manual() -> Result<()> {
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
-    let mut provider = device1.owner.remove_server(&origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
-
+    let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_events_eq(
         folders.clone(),
         &mut device1.owner,
-        remote_provider,
+        &mut bridge,
     )
     .await?;
 
-    let mut provider = device2.owner.remove_server(&origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
-
-    assert_local_remote_events_eq(
-        folders,
-        &mut device2.owner,
-        remote_provider,
-    )
-    .await?;
+    let mut bridge = device2.owner.remove_server(&origin).await?.unwrap();
+    assert_local_remote_events_eq(folders, &mut device2.owner, &mut bridge)
+        .await?;
 
     device1.owner.sign_out().await?;
     device2.owner.sign_out().await?;

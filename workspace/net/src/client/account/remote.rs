@@ -14,11 +14,8 @@ use std::{any::Any, collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{span, Level};
 
-/// Remote synchronization target.
-pub type Remote = Box<dyn RemoteSync>;
-
 /// Collection of remote targets for synchronization.
-pub(crate) type Remotes = HashMap<Origin, Remote>;
+pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
 
 /// Bridge between a local account and a remote.
 #[derive(Clone)]
@@ -29,7 +26,7 @@ pub struct RemoteBridge {
     /// when a remote diff is merged.
     account: Arc<Mutex<LocalAccount>>,
     /// Client to use for remote communication.
-    remote: HttpClient,
+    pub(crate) client: HttpClient,
 }
 
 impl RemoteBridge {
@@ -42,18 +39,18 @@ impl RemoteBridge {
         device: BoxedEd25519Signer,
         connection_id: String,
     ) -> Result<Self> {
-        let remote =
+        let client =
             HttpClient::new(origin.clone(), signer, device, connection_id)?;
         Ok(Self {
             account,
             origin,
-            remote,
+            client,
         })
     }
 
     /// Client implementation.
     pub fn client(&self) -> &HttpClient {
-        &self.remote
+        &self.client
     }
 }
 
@@ -63,7 +60,7 @@ impl RemoteBridge {
     async fn create_remote_account(&self) -> Result<()> {
         let account = self.account.lock().await;
         let public_account = account.change_set().await?;
-        self.remote.create_account(&public_account).await?;
+        self.client.create_account(&public_account).await?;
 
         // FIXME: import files here!
 
@@ -85,7 +82,7 @@ impl RemoteBridge {
                 status: local_status,
                 diff: local_changes,
             };
-            let remote_changes = self.remote.sync(&packet).await?;
+            let remote_changes = self.client.sync(&packet).await?;
             //println!("{:#?}", remote_changes);
             account.merge(&remote_changes.diff).await?;
         }
@@ -95,7 +92,7 @@ impl RemoteBridge {
 
     async fn execute_sync(&self) -> Vec<Error> {
         let mut errors = Vec::new();
-        match self.remote.sync_status().await {
+        match self.client.sync_status().await {
             Ok(sync_status) => {
                 if let Some(sync_status) = sync_status {
                     if let Err(e) = self.sync_account(sync_status).await {
@@ -124,7 +121,7 @@ impl RemoteBridge {
             sync::diff(&*account, remote_status).await?;
 
         if let (true, Some(device)) = (needs_sync, local_changes.device) {
-            self.remote.patch_devices(&device).await?;
+            self.client.patch_devices(&device).await?;
         }
 
         Ok(())
@@ -132,7 +129,7 @@ impl RemoteBridge {
 
     async fn execute_sync_devices(&self) -> Vec<Error> {
         let mut errors = Vec::new();
-        match self.remote.sync_status().await {
+        match self.client.sync_status().await {
             Ok(sync_status) => {
                 if let Some(sync_status) = sync_status {
                     if let Err(e) = self.send_devices_patch(sync_status).await
@@ -258,7 +255,7 @@ mod listen {
             options: ListenOptions,
         ) -> WebSocketHandle {
             let remote_bridge = Arc::clone(&bridge);
-            let handle = bridge.remote.listen(options, move |notification| {
+            let handle = bridge.client.listen(options, move |notification| {
                 let bridge = Arc::clone(&remote_bridge);
                 async move {
                     tracing::debug!(notification = ?notification);

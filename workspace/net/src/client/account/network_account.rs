@@ -63,7 +63,7 @@ use crate::sdk::account::security_report::{
 use crate::sdk::migrate::import::ImportTarget;
 
 use super::remote::Remotes;
-use crate::client::{Error, Remote, RemoteBridge, RemoteSync, Result};
+use crate::client::{Error, RemoteBridge, RemoteSync, Result};
 
 /// Account with networking capability.
 pub struct NetworkAccount {
@@ -200,7 +200,7 @@ impl NetworkAccount {
         let remote = self.remote_bridge(&origin).await?;
         {
             let mut remotes = self.remotes.write().await;
-            remotes.insert(origin, Box::new(remote));
+            remotes.insert(origin, remote);
             self.save_remotes(&*remotes).await?;
         }
         self.start_file_transfers().await
@@ -210,7 +210,7 @@ impl NetworkAccount {
     pub async fn remove_server(
         &mut self,
         origin: &Origin,
-    ) -> Result<Option<Remote>> {
+    ) -> Result<Option<RemoteBridge>> {
         let remote = {
             let mut remotes = self.remotes.write().await;
             let remote = remotes.remove(origin);
@@ -522,7 +522,7 @@ impl Account for NetworkAccount {
 
             for origin in origins {
                 let remote = self.remote_bridge(&origin).await?;
-                remotes.insert(origin, Box::new(remote));
+                remotes.insert(origin, remote);
             }
 
             self.remotes = Arc::new(RwLock::new(remotes));

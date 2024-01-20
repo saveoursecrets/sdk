@@ -231,6 +231,7 @@ impl ClientStorage {
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
         let mut event_log = FileEventLog::new_file(log_file).await?;
+        event_log.load_tree().await?;
 
         tracing::debug!(needs_init = %needs_init);
 

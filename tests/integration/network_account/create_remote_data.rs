@@ -3,7 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteBridge, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 /// Tests creating all the account data on a remote
 /// when the server does not have the account data yet.
@@ -28,26 +28,18 @@ async fn integration_sync_create_remote_data() -> Result<()> {
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
-    let mut provider = device.owner.remove_server(&origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
+    let mut bridge = device.owner.remove_server(&origin).await?.unwrap();
 
     assert_local_remote_vaults_eq(
         folders.clone(),
         &server_path,
         &mut device.owner,
-        remote_provider,
+        &mut bridge,
     )
     .await?;
 
-    assert_local_remote_events_eq(
-        folders,
-        &mut device.owner,
-        remote_provider,
-    )
-    .await?;
+    assert_local_remote_events_eq(folders, &mut device.owner, &mut bridge)
+        .await?;
 
     device.owner.sign_out().await?;
 

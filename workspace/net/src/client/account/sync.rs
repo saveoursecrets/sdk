@@ -3,11 +3,11 @@ use crate::client::{NetworkAccount, RemoteSync, SyncError, SyncOptions};
 use async_trait::async_trait;
 use sos_sdk::{
     events::{AccountEventLog, FolderEventLog},
-    sync::{SyncStatus, SyncStorage},
+    sync::{Origin, SyncClient, SyncStatus, SyncStorage},
     vault::VaultId,
     Result,
 };
-use std::{any::Any, sync::Arc};
+use std::{any::Any, collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "device")]
@@ -15,6 +15,33 @@ use sos_sdk::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
 use sos_sdk::events::FileEventLog;
+
+impl NetworkAccount {
+    /// Sync status for remote servers.
+    pub async fn server_status(
+        &self,
+        options: &SyncOptions,
+    ) -> HashMap<Origin, crate::client::Result<Option<SyncStatus>>> {
+        let remotes = self.remotes.read().await;
+        let mut server_status = HashMap::new();
+        for (origin, remote) in &*remotes {
+            let sync_remote = options.origins.is_empty()
+                || options.origins.contains(origin);
+
+            if sync_remote {
+                match remote.client.sync_status().await {
+                    Ok(status) => {
+                        server_status.insert(origin.clone(), Ok(status));
+                    }
+                    Err(e) => {
+                        server_status.insert(origin.clone(), Err(e));
+                    }
+                }
+            }
+        }
+        server_status
+    }
+}
 
 #[async_trait]
 impl RemoteSync for NetworkAccount {

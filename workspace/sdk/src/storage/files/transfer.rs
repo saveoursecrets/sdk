@@ -108,8 +108,13 @@ impl Transfers {
     async fn create(path: PathBuf) -> Result<Self> {
         let queue = if vfs::try_exists(&path).await? {
             let buf = vfs::read(&path).await?;
-            let transfers: Self = serde_json::from_slice(&buf)?;
-            transfers.queue
+            match serde_json::from_slice::<Self>(&buf) {
+                Ok(transfers) => transfers.queue,
+                Err(e) => {
+                    tracing::warn!(error = ?e, "file transfers parse");
+                    Default::default()
+                }
+            }
         } else {
             Default::default()
         };
