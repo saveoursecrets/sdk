@@ -96,14 +96,12 @@ impl ListenOptions {
 fn websocket_uri(
     endpoint: Url,
     bearer: String,
-    sign_bytes: &[u8],
     connection_id: &str,
 ) -> String {
     format!(
-        "{}?bearer={}&sign_bytes={}&connection_id={}",
+        "{}?bearer={}&connection_id={}",
         endpoint,
         urlencoding::encode(&bearer),
-        urlencoding::encode(&hex::encode(sign_bytes)),
         urlencoding::encode(connection_id),
     )
 }
@@ -135,13 +133,14 @@ fn changes_endpoint_url(remote: &Url) -> Result<Url> {
 async fn changes_uri(
     remote: &Url,
     signer: &BoxedEcdsaSigner,
-    sign_bytes: &[u8],
     connection_id: &str,
 ) -> Result<String> {
     let endpoint = changes_endpoint_url(remote)?;
+    let sign_url = endpoint.path();
     let bearer =
-        encode_account_signature(signer.sign(&sign_bytes).await?).await?;
-    let uri = websocket_uri(endpoint, bearer, sign_bytes, connection_id);
+        encode_account_signature(signer.sign(sign_url.as_bytes()).await?)
+            .await?;
+    let uri = websocket_uri(endpoint, bearer, connection_id);
     Ok(uri)
 }
 
@@ -181,11 +180,9 @@ pub async fn connect(
 ) -> Result<WsStream> {
     let url_origin = origin.url().origin();
     let endpoint = origin.url().clone();
-
-    let sign_bytes = device.verifying_key().to_bytes();
     let host = endpoint.host_str().unwrap().to_string();
     let uri =
-        changes_uri(&endpoint, &signer, &sign_bytes, &connection_id).await?;
+        changes_uri(&endpoint, &signer, &connection_id).await?;
 
     tracing::debug!(uri = %uri);
 

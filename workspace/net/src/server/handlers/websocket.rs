@@ -2,6 +2,7 @@ use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         Extension, Query,
+        OriginalUri,
     },
     http::StatusCode,
     response::Response,
@@ -30,7 +31,6 @@ const MAX_SOCKET_CONNECTIONS_PER_CLIENT: u8 = 6;
 #[derive(Debug, Deserialize)]
 pub struct WebsocketQuery {
     pub bearer: String,
-    pub sign_bytes: String,
     pub connection_id: String,
 }
 
@@ -61,6 +61,7 @@ pub struct WebSocketConnection {
 pub async fn upgrade(
     Extension(state): Extension<ServerState>,
     Query(query): Query<WebsocketQuery>,
+    OriginalUri(uri): OriginalUri,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
     let span = span!(Level::DEBUG, "ws_server");
@@ -68,14 +69,11 @@ pub async fn upgrade(
 
     tracing::debug!("upgrade request");
 
+    let uri = uri.path().to_string();
     let mut writer = state.write().await;
 
-    // Bytes that are signed is the device public key
-    let sign_bytes = hex::decode(&query.sign_bytes)
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-
     // Parse the bearer token
-    let token = authenticate::BearerToken::new(&query.bearer, &sign_bytes)
+    let token = authenticate::BearerToken::new(&query.bearer, uri.as_bytes())
         .await
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 

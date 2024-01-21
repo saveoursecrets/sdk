@@ -289,7 +289,7 @@ impl FileTransfers {
                             let span = span!(Level::DEBUG, "file_transfers");
                             let _enter = span.enter();
                             tracing::debug!("shutdown");
-                            
+
                             // Wait for any pending writes to disc
                             let transfers = queue.read().await;
                             let _ = transfers.path.lock().await;
