@@ -7,7 +7,7 @@ use sos_sdk::{
     vault::VaultId,
     Result,
 };
-use std::{any::Any, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "device")]
@@ -103,14 +103,6 @@ impl RemoteSync for NetworkAccount {
             }
             Some(SyncError::Multiple(errors))
         }
-    }
-
-    fn as_any(&self) -> &(dyn Any + Send + Sync) {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut (dyn Any + Send + Sync) {
-        self
     }
 }
 

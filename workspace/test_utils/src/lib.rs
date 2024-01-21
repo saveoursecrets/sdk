@@ -6,7 +6,11 @@ use anyhow::Result;
 use axum_server::Handle;
 use copy_dir::copy_dir;
 use std::{
-    net::SocketAddr, path::{PathBuf, Path}, sync::Arc, thread, time::Duration,
+    net::SocketAddr,
+    path::{Path, PathBuf},
+    sync::Arc,
+    thread,
+    time::Duration,
 };
 use tokio::sync::{oneshot, RwLock};
 
@@ -27,9 +31,8 @@ pub fn init_tracing() {
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
     let _ = tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| {
-                "debug,hyper=info".into()
-            }),
+            std::env::var("RUST_LOG")
+                .unwrap_or_else(|_| "debug,hyper=info".into()),
         ))
         .with(tracing_subscriber::fmt::layer().without_time())
         .try_init();
@@ -177,7 +180,7 @@ impl TestServer {
     }
 }
 
-/// Spawn a mock server and wait for it to be listening 
+/// Spawn a mock server and wait for it to be listening
 /// using the default test config.
 pub async fn spawn(
     test_id: &str,

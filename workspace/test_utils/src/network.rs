@@ -215,7 +215,7 @@ pub async fn assert_local_remote_vaults_eq(
     Ok(())
 }
 
-/// Compare events between a local account and a server 
+/// Compare events between a local account and a server
 /// and assert they are equal.
 pub async fn assert_local_remote_events_eq(
     _expected_summaries: Vec<Summary>,

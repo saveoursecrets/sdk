@@ -4,7 +4,7 @@ use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use sos_net::{
-    client::{NetworkAccount, RemoteBridge, RemoteSync},
+    client::{NetworkAccount, RemoteSync},
     sdk::prelude::*,
 };
 
@@ -74,30 +74,21 @@ async fn device_enroll() -> Result<()> {
     assert_eq!(2, devices.len());
 
     // Check primary device is in sync with remote
-    let mut provider =
+    let mut bridge =
         primary_device.owner.remove_server(&origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
     assert_local_remote_events_eq(
         folders.clone(),
         &mut primary_device.owner,
-        remote_provider,
+        &mut bridge,
     )
     .await?;
 
     // Check the enrolled device is in sync with remote
-    let mut provider =
-        enrolled_account.remove_server(&origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
+    let mut bridge = enrolled_account.remove_server(&origin).await?.unwrap();
     assert_local_remote_events_eq(
         folders,
         &mut enrolled_account,
-        remote_provider,
+        &mut bridge,
     )
     .await?;
 

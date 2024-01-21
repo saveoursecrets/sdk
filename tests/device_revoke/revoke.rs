@@ -5,10 +5,7 @@ use crate::test_utils::{
 };
 use http::StatusCode;
 use sos_net::{
-    client::{
-        Error as ClientError, NetworkAccount, RemoteBridge, RemoteSync,
-        SyncError,
-    },
+    client::{Error as ClientError, NetworkAccount, RemoteSync, SyncError},
     sdk::prelude::*,
 };
 
@@ -80,16 +77,12 @@ async fn device_revoke() -> Result<()> {
     assert_eq!(1, devices.len());
 
     // Check primary device is in sync with remote
-    let mut provider =
+    let mut bridge =
         primary_device.owner.remove_server(&origin).await?.unwrap();
-    let remote_provider = provider
-        .as_any_mut()
-        .downcast_mut::<RemoteBridge>()
-        .expect("to be a remote provider");
     assert_local_remote_events_eq(
         folders.clone(),
         &mut primary_device.owner,
-        remote_provider,
+        &mut bridge,
     )
     .await?;
 

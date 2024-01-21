@@ -277,11 +277,7 @@ impl NetworkAccount {
             let remotes = self.remotes.read().await;
             let mut clients = Vec::new();
             for (_, remote) in &*remotes {
-                if let Some(remote) =
-                    remote.as_any().downcast_ref::<RemoteBridge>()
-                {
-                    clients.push(remote.client().clone());
-                }
+                clients.push(remote.client().clone());
             }
             clients
         };

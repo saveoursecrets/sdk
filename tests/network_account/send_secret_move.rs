@@ -38,18 +38,20 @@ async fn network_sync_secret_move() -> Result<()> {
         .owner
         .create_folder("dest_folder".to_string())
         .await?;
-    
+
     // Sync up both clients
     assert!(device1.owner.sync().await.is_none());
     assert!(device2.owner.sync().await.is_none());
-    
+
     // Move the secret
     device1
         .owner
         .move_secret(
             &secret_id,
             &default_folder,
-            &destination, Default::default())
+            &destination,
+            Default::default(),
+        )
         .await?;
 
     // First client is now ahead in the destination folder
@@ -63,7 +65,7 @@ async fn network_sync_secret_move() -> Result<()> {
     // Folder is now up to date
     assert_eq!(2, num_events(&mut device1.owner, destination.id()).await);
     assert_eq!(2, num_events(&mut device2.owner, destination.id()).await);
-    
+
     let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_events_eq(
         folders.clone(),

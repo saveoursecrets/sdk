@@ -10,7 +10,7 @@ use sos_sdk::{
         self, Merge, Origin, SyncClient, SyncPacket, SyncStatus, SyncStorage,
     },
 };
-use std::{any::Any, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{span, Level};
 
@@ -119,7 +119,7 @@ impl RemoteBridge {
 
         let (needs_sync, _local_status, local_changes) =
             sync::diff(&*account, remote_status).await?;
-        
+
         #[cfg(feature = "device")]
         if let (true, Some(device)) = (needs_sync, local_changes.device) {
             self.client.patch_devices(&device).await?;
@@ -203,14 +203,6 @@ impl RemoteSync for RemoteBridge {
                 .collect::<Vec<_>>();
             Some(SyncError::Multiple(errors))
         }
-    }
-
-    fn as_any(&self) -> &(dyn Any + Send + Sync) {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut (dyn Any + Send + Sync) {
-        self
     }
 }
 
