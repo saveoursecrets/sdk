@@ -307,7 +307,10 @@ mod handlers {
         sdk::sync::{self, Merge, SyncPacket, SyncStorage},
         server::{Error, Result, ServerBackend, ServerState},
     };
-    use sos_sdk::{decode, encode, sync::ChangeSet};
+    use http::header::{self, HeaderMap, HeaderValue};
+    use sos_sdk::{
+        constants::MIME_TYPE_SOS, decode, encode, sync::ChangeSet,
+    };
     use std::sync::Arc;
     use tracing::{span, Level};
 
@@ -337,18 +340,25 @@ mod handlers {
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<(HeaderMap, Vec<u8>)> {
         let reader = backend.read().await;
         let account: ChangeSet =
             reader.fetch_account(caller.address()).await?;
-        Ok(encode(&account).await?)
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_SOS),
+        );
+
+        Ok((headers, encode(&account).await?))
     }
 
     pub(super) async fn sync_status(
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<(HeaderMap, Vec<u8>)> {
         let account_exists = {
             let reader = backend.read().await;
             reader.account_exists(caller.address()).await?
@@ -364,7 +374,14 @@ mod handlers {
         } else {
             None
         };
-        Ok(encode(&result).await?)
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_SOS),
+        );
+
+        Ok((headers, encode(&result).await?))
     }
 
     #[cfg(feature = "device")]
@@ -386,7 +403,7 @@ mod handlers {
         backend: ServerBackend,
         caller: Caller,
         bytes: &[u8],
-    ) -> Result<Vec<u8>> {
+    ) -> Result<(HeaderMap, Vec<u8>)> {
         let account = {
             let reader = backend.read().await;
             let accounts = reader.accounts();
@@ -429,6 +446,12 @@ mod handlers {
             diff,
         };
 
-        Ok(encode(&packet).await?)
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_SOS),
+        );
+
+        Ok((headers, encode(&packet).await?))
     }
 }

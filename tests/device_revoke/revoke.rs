@@ -69,7 +69,7 @@ async fn device_revoke() -> Result<()> {
         let (_, err) = errors.remove(0);
         assert!(matches!(
             err,
-            ClientError::ResponseCode(StatusCode::FORBIDDEN)
+            ClientError::ResponseJson(StatusCode::FORBIDDEN, _)
         ));
     } else {
         panic!("expecting multiple sync error (forbidden)");

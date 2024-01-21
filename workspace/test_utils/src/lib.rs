@@ -37,6 +37,11 @@ pub async fn sync_pause(millis: Option<u64>) {
     tokio::time::sleep(Duration::from_millis(millis.unwrap_or(250))).await;
 }
 
+/// Load the default test server config.
+pub async fn default_server_config() -> Result<ServerConfig> {
+    Ok(ServerConfig::load("tests/config.toml").await?)
+}
+
 /// Convert a socket address to a URL.
 fn socket_addr_url(addr: &SocketAddr) -> Url {
     let server = format!("http://{}:{}", addr.ip(), addr.port());
@@ -59,20 +64,23 @@ impl MockServer {
         })
     }
 
-    async fn start(&self) -> Result<()> {
+    async fn start(&self, config: Option<ServerConfig>) -> Result<()> {
         tracing::info!(
             addr = ?self.addr,
             path = ?self.path,
             "start mock server");
 
-        let mut config = ServerConfig::load("tests/config.toml").await?;
+        let mut config = if let Some(config) = config {
+            config
+        } else {
+            default_server_config().await?
+        };
 
         // Override the storage path to use the path
         // using the test identifier
         config.storage.path = self.path.clone();
 
         let backend = config.backend().await?;
-
         let state = Arc::new(RwLock::new(State {
             config,
             sockets: Default::default(),
@@ -95,6 +103,7 @@ impl MockServer {
         addr: Option<SocketAddr>,
         path: PathBuf,
         tx: oneshot::Sender<SocketAddr>,
+        config: Option<ServerConfig>,
     ) -> Result<ShutdownHandle> {
         let server = MockServer::new(addr, path)?;
         let listen_handle = server.handle.clone();
@@ -117,7 +126,7 @@ impl MockServer {
         thread::spawn(move || {
             let runtime = tokio::runtime::Runtime::new().unwrap();
             runtime.block_on(async {
-                server.start().await.expect("failed to start server");
+                server.start(config).await.expect("failed to start server");
             });
         });
 
@@ -163,12 +172,21 @@ impl TestServer {
     }
 }
 
-/// Spawn a mock server and wait for it to be listening
-/// then return test server information.
 pub async fn spawn(
     test_id: &str,
     addr: Option<SocketAddr>,
     server_id: Option<&str>,
+) -> Result<TestServer> {
+    spawn_with_config(test_id, addr, server_id, None).await
+}
+
+/// Spawn a mock server and wait for it to be listening
+/// then return test server information.
+pub async fn spawn_with_config(
+    test_id: &str,
+    addr: Option<SocketAddr>,
+    server_id: Option<&str>,
+    config: Option<ServerConfig>,
 ) -> Result<TestServer> {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
@@ -192,7 +210,7 @@ pub async fn spawn(
     vfs::create_dir_all(&path).await?;
 
     let (tx, rx) = oneshot::channel::<SocketAddr>();
-    let handle = MockServer::launch(addr, path.clone(), tx)?;
+    let handle = MockServer::launch(addr, path.clone(), tx, config)?;
     let addr = rx.await?;
     let url = socket_addr_url(&addr);
     Ok(TestServer {

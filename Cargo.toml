@@ -85,7 +85,7 @@ unicode-width = "0.1"
 [dependencies.sos-net]
 version = "0.8.4" 
 features = ["full"]
-#path = "workspace/net"
+path = "workspace/net"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
