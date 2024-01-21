@@ -1,3 +1,5 @@
+//! Mock data.
+
 use anyhow::Result;
 use secrecy::SecretString;
 use sos_net::sdk::{
@@ -15,6 +17,7 @@ pub mod files;
 const IPHONE: &str =
     include_str!("../../../../tests/fixtures/devices/iphone.json");
 
+/// Create a login secret.
 pub fn login(
     label: &str,
     account: &str,
@@ -30,6 +33,7 @@ pub fn login(
     (secret_meta, secret_value)
 }
 
+/// Create a note secret.
 pub fn note(label: &str, text: &str) -> (SecretMeta, Secret) {
     let secret_value = Secret::Note {
         text: secrecy::Secret::new(text.to_string()),
@@ -39,6 +43,7 @@ pub fn note(label: &str, text: &str) -> (SecretMeta, Secret) {
     (secret_meta, secret_value)
 }
 
+/// Create a debit/credit card secret.
 pub fn card(label: &str, number: &str, cvv: &str) -> (SecretMeta, Secret) {
     let secret_value = Secret::Card {
         number: secrecy::Secret::new(number.to_string()),
@@ -52,6 +57,7 @@ pub fn card(label: &str, number: &str, cvv: &str) -> (SecretMeta, Secret) {
     (secret_meta, secret_value)
 }
 
+/// Create a bank account secret.
 pub fn bank(
     label: &str,
     number: &str,
@@ -69,6 +75,7 @@ pub fn bank(
     (secret_meta, secret_value)
 }
 
+/// Create a list secret.
 pub fn list(label: &str, items: HashMap<&str, &str>) -> (SecretMeta, Secret) {
     let secret_value = Secret::List {
         items: items
@@ -81,6 +88,7 @@ pub fn list(label: &str, items: HashMap<&str, &str>) -> (SecretMeta, Secret) {
     (secret_meta, secret_value)
 }
 
+/// Create a certificate secret.
 pub fn pem(label: &str) -> (SecretMeta, Secret) {
     const CERTIFICATE: &str =
         include_str!("../../../../tests/fixtures/mock-cert.pem");
@@ -93,6 +101,7 @@ pub fn pem(label: &str) -> (SecretMeta, Secret) {
     (secret_meta, secret_value)
 }
 
+/// Create an internal file secret.
 pub fn internal_file(
     label: &str,
     name: &str,
@@ -113,6 +122,7 @@ pub fn internal_file(
     (secret_meta, secret_value)
 }
 
+/// Create a link secret.
 pub fn link(label: &str, url: &str) -> (SecretMeta, Secret) {
     let secret_value = Secret::Link {
         url: SecretString::new(url.to_string()),
@@ -124,6 +134,7 @@ pub fn link(label: &str, url: &str) -> (SecretMeta, Secret) {
     (secret_meta, secret_value)
 }
 
+/// Create a password secret.
 pub fn password(label: &str, password: SecretString) -> (SecretMeta, Secret) {
     let secret_value = Secret::Password {
         password,
@@ -134,6 +145,7 @@ pub fn password(label: &str, password: SecretString) -> (SecretMeta, Secret) {
     (secret_meta, secret_value)
 }
 
+/// Create an AGE secret.
 pub fn age(label: &str) -> (SecretMeta, Secret) {
     let secret_value = Secret::Age {
         version: Default::default(),
@@ -144,6 +156,7 @@ pub fn age(label: &str) -> (SecretMeta, Secret) {
     (secret_meta, secret_value)
 }
 
+/// Create an identity secret.
 pub fn identity(
     label: &str,
     id_kind: IdentityKind,
@@ -161,6 +174,7 @@ pub fn identity(
     (secret_meta, secret_value)
 }
 
+/// Create a TOTP secret.
 pub fn totp(label: &str) -> (SecretMeta, Secret) {
     use sos_net::sdk::totp::{Algorithm, TOTP};
     let totp = TOTP::new(
@@ -182,6 +196,7 @@ pub fn totp(label: &str) -> (SecretMeta, Secret) {
     (secret_meta, secret_value)
 }
 
+/// Create a contact secret.
 pub fn contact(label: &str, full_name: &str) -> (SecretMeta, Secret) {
     use sos_net::sdk::vcard4::Vcard;
     let text = format!(
@@ -200,6 +215,7 @@ END:VCARD"#,
     (secret_meta, secret_value)
 }
 
+/// Create a page secret.
 pub fn page(
     label: &str,
     title: &str,
@@ -215,6 +231,7 @@ pub fn page(
     (secret_meta, secret_value)
 }
 
+/// Create an external file secret (image).
 pub fn file_image_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
     let file_path = PathBuf::from("tests/fixtures/sample.heic");
     let secret: Secret = file_path.clone().try_into()?;
@@ -222,6 +239,7 @@ pub fn file_image_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
     Ok((meta, secret, file_path))
 }
 
+/// Create an external file secret (text).
 pub fn file_text_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
     let file_path = PathBuf::from("tests/fixtures/test-file.txt");
     let secret: Secret = file_path.clone().try_into()?;
@@ -229,6 +247,7 @@ pub fn file_text_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
     Ok((meta, secret, file_path))
 }
 
+/// Create a mock trusted device.
 pub fn device() -> Result<TrustedDevice> {
     let device: TrustedDevice = serde_json::from_str(IPHONE)?;
     Ok(device)

@@ -1,3 +1,7 @@
+//! Test utilities.
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+
 use anyhow::Result;
 use axum_server::Handle;
 use copy_dir::copy_dir;
@@ -17,13 +21,14 @@ pub use network::*;
 
 const ADDR: &str = "127.0.0.1:0";
 
+/// Initialize a tracing subscriber.
 #[allow(dead_code)]
 pub fn init_tracing() {
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
     let _ = tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| {
-                "integration=debug,sos_net=debug,sos_sdk=debug".into()
+                "debug,hyper=info".into()
             }),
         ))
         .with(tracing_subscriber::fmt::layer().without_time())
@@ -172,6 +177,8 @@ impl TestServer {
     }
 }
 
+/// Spawn a mock server and wait for it to be listening 
+/// using the default test config.
 pub async fn spawn(
     test_id: &str,
     addr: Option<SocketAddr>,
@@ -180,8 +187,7 @@ pub async fn spawn(
     spawn_with_config(test_id, addr, server_id, None).await
 }
 
-/// Spawn a mock server and wait for it to be listening
-/// then return test server information.
+/// Spawn a mock server using the given config.
 pub async fn spawn_with_config(
     test_id: &str,
     addr: Option<SocketAddr>,
@@ -222,9 +228,12 @@ pub async fn spawn_with_config(
     })
 }
 
+/// Test directory information.
 #[derive(Debug, Clone)]
 pub struct TestDirs {
+    /// Target directory.
     pub target: PathBuf,
+    /// Directory for each created client (local account).
     pub clients: Vec<PathBuf>,
 }
 
@@ -247,6 +256,7 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
     Ok(TestDirs { target, clients })
 }
 
+/// Copy account files removing the target directory first.
 pub fn copy_account(
     source: impl AsRef<Path>,
     target: impl AsRef<Path>,
