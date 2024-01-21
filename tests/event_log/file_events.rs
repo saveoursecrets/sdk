@@ -119,8 +119,8 @@ async fn event_log_file() -> Result<()> {
 /// Tests that delete file events are logged when a folder
 /// is deleted.
 #[tokio::test]
-async fn integration_events_file_folder_delete() -> Result<()> {
-    const TEST_ID: &str = "events_file_folder_delete";
+async fn event_log_file_folder_delete() -> Result<()> {
+    const TEST_ID: &str = "event_log_file_folder_delete";
 
     //crate::test_utils::init_tracing();
 
