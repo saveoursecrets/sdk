@@ -316,6 +316,7 @@ mod handlers {
             handlers::Caller, Error, Result, ServerBackend, ServerState,
         },
     };
+    use http::header;
     use std::sync::Arc;
     use tokio::{
         fs::File,
@@ -455,7 +456,9 @@ mod handlers {
         let stream = ReaderStream::new(file);
 
         let body = axum::body::Body::from_stream(stream);
-        Ok(Response::builder().body(body)?)
+        Ok(Response::builder()
+            .header(header::CONTENT_TYPE, "application/octet-stream")
+            .body(body)?)
     }
 
     pub(super) async fn move_file(

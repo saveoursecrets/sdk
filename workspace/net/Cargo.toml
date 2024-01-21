@@ -94,7 +94,7 @@ utoipa-rapidoc = { version = "3", features = ["axum"], optional = true }
 [dependencies.sos-sdk]
 version = "0.8.3"
 features = ["sync"]
-#path = "../sdk"
+path = "../sdk"
 
 [dependencies.binary-stream]
 version = "8.0.0"
