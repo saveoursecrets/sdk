@@ -4,6 +4,7 @@ mod folder_description;
 mod send_secret_create;
 mod send_secret_delete;
 mod send_secret_update;
+mod send_secret_move;
 
 mod send_folder_create;
 mod send_folder_delete;
