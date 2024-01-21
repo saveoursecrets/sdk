@@ -360,6 +360,7 @@ impl Account for NetworkAccount {
         Self::new_account_with_builder(
             account_name,
             passphrase,
+            data_dir,
             |builder| {
                 builder
                     .save_passphrase(false)
@@ -368,7 +369,6 @@ impl Account for NetworkAccount {
                     .create_contacts(false)
                     .create_file_password(true)
             },
-            data_dir,
         )
         .await
     }
@@ -376,14 +376,14 @@ impl Account for NetworkAccount {
     async fn new_account_with_builder(
         account_name: String,
         passphrase: SecretString,
-        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
         data_dir: Option<PathBuf>,
+        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
         let account = LocalAccount::new_account_with_builder(
             account_name,
             passphrase.clone(),
-            builder,
             data_dir.clone(),
+            builder,
         )
         .await?;
 
@@ -904,7 +904,6 @@ impl Account for NetworkAccount {
 
     async fn unarchive(
         &mut self,
-        from: &Summary,
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
         options: AccessOptions,
@@ -913,9 +912,7 @@ impl Account for NetworkAccount {
 
         let (result, to) = {
             let mut account = self.account.lock().await;
-            account
-                .unarchive(from, secret_id, secret_meta, options)
-                .await?
+            account.unarchive(secret_id, secret_meta, options).await?
         };
 
         let result = SecretMove {

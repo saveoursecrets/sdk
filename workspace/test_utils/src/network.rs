@@ -8,7 +8,7 @@ use sos_net::{
         WebSocketHandle,
     },
     sdk::{
-        account::Account,
+        account::{Account, AccountBuilder},
         constants::{FILES_DIR, VAULT_EXT},
         crypto::AccessKey,
         events::EventLogExt,
@@ -100,23 +100,22 @@ impl SimulatedDevice {
     }
 }
 
-/// Simulate a primary device.
-///
-/// If a server is given the device will be connected to
-/// the given server.
-pub async fn simulate_device(
+/// Simulate a device using the given account builder.
+pub async fn simulate_device_with_builder(
     test_id: &str,
     num_clients: usize,
     server: Option<&TestServer>,
+    builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
 ) -> Result<SimulatedDevice> {
     let dirs = setup(test_id, num_clients).await?;
     let data_dir = dirs.clients.get(0).unwrap().clone();
 
     let (password, _) = generate_passphrase()?;
-    let mut owner = NetworkAccount::new_account(
+    let mut owner = NetworkAccount::new_account_with_builder(
         test_id.to_owned(),
         password.clone(),
         Some(data_dir.clone()),
+        builder,
     )
     .await?;
 
@@ -164,6 +163,21 @@ pub async fn simulate_device(
         data_dir,
         password,
     })
+}
+
+/// Simulate a primary device.
+///
+/// If a server is given the device will be connected to
+/// the given server.
+pub async fn simulate_device(
+    test_id: &str,
+    num_clients: usize,
+    server: Option<&TestServer>,
+) -> Result<SimulatedDevice> {
+    simulate_device_with_builder(test_id, num_clients, server, |builder| {
+        builder.create_file_password(true)
+    })
+    .await
 }
 
 /// Get the number of events in a log.

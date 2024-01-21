@@ -27,7 +27,7 @@ async fn network_sync_secret_create() -> Result<()> {
 
     // Create a secret in the primary owner which won't exist
     // in the second device
-    let (meta, secret) = mock::note("note_first_owner", "send_events_secret");
+    let (meta, secret) = mock::note(TEST_ID, TEST_ID);
     device1
         .owner
         .create_secret(meta, secret, Default::default())

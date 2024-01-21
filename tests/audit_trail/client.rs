@@ -18,6 +18,7 @@ async fn audit_trail_client() -> Result<()> {
     let mut account = LocalAccount::new_account_with_builder(
         account_name.to_owned(),
         passphrase.clone(),
+        Some(data_dir.clone()),
         |builder| {
             builder
                 .save_passphrase(false)
@@ -26,7 +27,6 @@ async fn audit_trail_client() -> Result<()> {
                 .create_contacts(true)
                 .create_file_password(true)
         },
-        Some(data_dir.clone()),
     )
     .await?;
     let key: AccessKey = passphrase.clone().into();

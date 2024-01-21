@@ -18,8 +18,8 @@ async fn local_archive_unarchive() -> Result<()> {
     let mut account = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),
-        |builder| builder.create_archive(true).create_file_password(true),
         Some(data_dir.clone()),
+        |builder| builder.create_archive(true).create_file_password(true),
     )
     .await?;
 
@@ -45,9 +45,7 @@ async fn local_archive_unarchive() -> Result<()> {
     assert!(statistics.folders.contains(&(archive_folder.clone(), 1)));
 
     // Move from the archive back to the default folder
-    account
-        .unarchive(&archive_folder, &id, &meta, Default::default())
-        .await?;
+    account.unarchive(&id, &meta, Default::default()).await?;
 
     let statistics = account.statistics().await;
     assert!(statistics.folders.contains(&(default_folder.clone(), 1)));

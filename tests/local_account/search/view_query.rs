@@ -18,8 +18,8 @@ async fn local_search_view_query() -> Result<()> {
     let mut account = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),
-        |builder| builder.create_archive(true).create_file_password(true),
         Some(data_dir.clone()),
+        |builder| builder.create_archive(true).create_file_password(true),
     )
     .await?;
 

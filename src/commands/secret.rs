@@ -1210,7 +1210,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let mut owner = resolved.user.write().await;
                 owner
                     .unarchive(
-                        &resolved.summary,
                         &resolved.secret_id,
                         &resolved.meta,
                         Default::default(),
