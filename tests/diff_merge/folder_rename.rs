@@ -1,5 +1,4 @@
-use super::copy_account;
-use crate::test_utils::{setup, teardown};
+use crate::test_utils::{setup, teardown, copy_account};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 

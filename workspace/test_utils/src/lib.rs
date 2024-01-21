@@ -1,8 +1,8 @@
 use anyhow::Result;
 use axum_server::Handle;
-
+use copy_dir::copy_dir;
 use std::{
-    net::SocketAddr, path::PathBuf, sync::Arc, thread, time::Duration,
+    net::SocketAddr, path::{PathBuf, Path}, sync::Arc, thread, time::Duration,
 };
 use tokio::sync::{oneshot, RwLock};
 
@@ -245,6 +245,15 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
     }
 
     Ok(TestDirs { target, clients })
+}
+
+pub fn copy_account(
+    source: impl AsRef<Path>,
+    target: impl AsRef<Path>,
+) -> Result<()> {
+    std::fs::remove_dir(target.as_ref())?;
+    copy_dir(source.as_ref(), target.as_ref())?;
+    Ok(())
 }
 
 /// Clean up test resources on disc.
