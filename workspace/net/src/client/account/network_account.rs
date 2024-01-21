@@ -180,11 +180,14 @@ impl NetworkAccount {
             if !self.is_authenticated().await {
                 hasher.update(docs_path.as_bytes());
             } else {
-                let device_signer = self.device_signer().await?;
-                let device_public_key = device_signer.public_key();
+                #[cfg(feature = "device")]
+                {
+                    let device_signer = self.device_signer().await?;
+                    let device_public_key = device_signer.public_key();
 
-                hasher.update(docs_path.as_bytes());
-                hasher.update(device_public_key.as_ref());
+                    hasher.update(docs_path.as_bytes());
+                    hasher.update(device_public_key.as_ref());
+                }
             }
 
             let result = hasher.finalize();

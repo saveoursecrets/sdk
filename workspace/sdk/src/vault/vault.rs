@@ -217,8 +217,7 @@ pub struct VaultCommit(pub CommitHash, pub VaultEntry);
 /// from an in-memory `Vault` we can return references whereas
 /// other containers such as file access would return owned data.
 ///
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 pub trait VaultAccess {
     /// Get the vault summary.
     async fn summary(&self) -> Result<Summary>;
@@ -1012,8 +1011,7 @@ impl IntoIterator for Vault {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl VaultAccess for Vault {
     async fn summary(&self) -> Result<Summary> {
         Ok(self.header.summary.clone())

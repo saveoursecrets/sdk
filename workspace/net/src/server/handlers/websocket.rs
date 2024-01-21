@@ -16,14 +16,12 @@ use futures::{
     FutureExt, SinkExt, StreamExt,
 };
 
+use sos_sdk::signer::ecdsa::Address;
 use std::sync::Arc;
 use tokio::sync::{
     broadcast::{self, Receiver, Sender},
     mpsc,
 };
-
-use serde::Deserialize;
-use sos_sdk::signer::ecdsa::Address;
 use tracing::{span, Level};
 
 use super::{authenticate_endpoint, ConnectionQuery};

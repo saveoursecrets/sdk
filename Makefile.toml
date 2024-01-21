@@ -82,9 +82,21 @@ args = ["test", "audit"]
 command = "cargo"
 args = ["test", "backup_archive"]
 
-[tasks.test-cli]
+[tasks.test-event-log]
 command = "cargo"
-args = ["test", "command_line"]
+args = ["test", "event_log_"]
+
+[tasks.test-diff-merge]
+command = "cargo"
+args = ["test", "diff_merge_"]
+
+[tasks.test-local-account]
+command = "cargo"
+args = ["test", "local_"]
+
+[tasks.test-network-account]
+command = "cargo"
+args = ["test", "network_"]
 
 [tasks.test-device]
 command = "cargo"
@@ -102,20 +114,24 @@ args = ["test", "access_control_"]
 command = "cargo"
 args = ["test", "integration_"]
 
+[tasks.test-cli]
+command = "cargo"
+args = ["test", "command_line"]
+
 [tasks.integration]
 dependencies = [
   "test-audit-trail",
   "test-backup-archive",
+  "test-event-log",
+  "test-diff-merge",
+  "test-local-account",
+  "test-network-account",
   "test-device",
   "test-access-control",
   "test-file-transfers",
   "test-integration",
   "test-cli",
 ]
-
-[tasks.test-wasm]
-command = "wasm-pack"
-args = ["test", "--firefox"]
 
 [tasks.test]
 dependencies = ["unit", "integration"]
@@ -125,6 +141,10 @@ dependencies = [
   "unit",
   "test-audit-trail",
   "test-backup-archive",
+  "test-event-log",
+  "test-diff-merge",
+  "test-local-account",
+  "test-network-account",
   "test-device",
   "test-access-control",
   "test-file-transfers",

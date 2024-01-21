@@ -1,9 +1,2 @@
-key = "test.pem"
-
-[api]
-origins = [
-  "http://localhost:3505",
-]
-
 [storage]
 path = "../target/integration-test/server"

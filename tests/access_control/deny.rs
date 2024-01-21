@@ -2,13 +2,11 @@ use anyhow::Result;
 use std::collections::HashSet;
 
 use crate::test_utils::{
-    default_server_config, mock, simulate_device, spawn_with_config, teardown,
+    default_server_config, simulate_device, spawn_with_config, teardown,
 };
 use http::StatusCode;
 use sos_net::{
-    client::{
-        Error as ClientError, NetworkAccount, RemoteBridge, RemoteSync,
-    },
+    client::{Error as ClientError, NetworkAccount, RemoteSync},
     sdk::prelude::*,
     server::AccessControlConfig,
 };

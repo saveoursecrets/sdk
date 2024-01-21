@@ -119,7 +119,8 @@ impl RemoteBridge {
 
         let (needs_sync, _local_status, local_changes) =
             sync::diff(&*account, remote_status).await?;
-
+        
+        #[cfg(feature = "device")]
         if let (true, Some(device)) = (needs_sync, local_changes.device) {
             self.client.patch_devices(&device).await?;
         }
