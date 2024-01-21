@@ -1,11 +1,14 @@
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Extension, Query,
-        OriginalUri,
+        Extension, OriginalUri, Query,
     },
     http::StatusCode,
     response::Response,
+};
+use axum_extra::{
+    headers::{authorization::Bearer, Authorization},
+    typed_header::TypedHeader,
 };
 use futures::{
     select,
@@ -23,16 +26,10 @@ use serde::Deserialize;
 use sos_sdk::signer::ecdsa::Address;
 use tracing::{span, Level};
 
-use crate::server::{authenticate, Result, ServerState};
+use super::{authenticate_endpoint, ConnectionQuery};
+use crate::server::{Result, ServerBackend, ServerState};
 
 const MAX_SOCKET_CONNECTIONS_PER_CLIENT: u8 = 6;
-
-/// Query string for websocket connections.
-#[derive(Debug, Deserialize)]
-pub struct WebsocketQuery {
-    pub bearer: String,
-    pub connection_id: String,
-}
 
 /// Message broadcast to connected sockets.
 #[derive(Clone)]
@@ -60,7 +57,9 @@ pub struct WebSocketConnection {
 /// Upgrade to a websocket connection.
 pub async fn upgrade(
     Extension(state): Extension<ServerState>,
-    Query(query): Query<WebsocketQuery>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
@@ -70,25 +69,30 @@ pub async fn upgrade(
     tracing::debug!("upgrade request");
 
     let uri = uri.path().to_string();
+    let caller = authenticate_endpoint(
+        bearer,
+        uri.as_bytes(),
+        query,
+        Arc::clone(&state),
+        Arc::clone(&backend),
+        true,
+    )
+    .await
+    .map_err(|_| StatusCode::BAD_REQUEST)?;
+
     let mut writer = state.write().await;
-
-    // Parse the bearer token
-    let token = authenticate::BearerToken::new(&query.bearer, uri.as_bytes())
-        .await
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    let address = token.address;
-    let connection_id = query.connection_id;
+    let address = caller.address().clone();
+    let connection_id = caller.connection_id().to_string();
 
     let (close_tx, close_rx) = mpsc::channel::<Message>(32);
 
-    let conn = if let Some(conn) = writer.sockets.get_mut(&token.address) {
+    let conn = if let Some(conn) = writer.sockets.get_mut(caller.address()) {
         conn
     } else {
         let (tx, _) = broadcast::channel::<BroadcastMessage>(32);
         writer
             .sockets
-            .entry(token.address)
+            .entry(address.clone())
             .or_insert(WebSocketConnection { tx, clients: 0 })
     };
 

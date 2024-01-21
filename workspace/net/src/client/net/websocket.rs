@@ -42,7 +42,9 @@ use crate::{
     ChangeNotification,
 };
 
-use super::encode_account_signature;
+use super::{
+    bearer_prefix, encode_account_signature, encode_device_signature,
+};
 
 /// Options used when listening for change notifications.
 #[derive(Clone)]
@@ -93,15 +95,10 @@ impl ListenOptions {
 }
 
 /// Get the URI for a websocket connection.
-fn websocket_uri(
-    endpoint: Url,
-    bearer: String,
-    connection_id: &str,
-) -> String {
+fn websocket_uri(endpoint: Url, connection_id: &str) -> String {
     format!(
-        "{}?bearer={}&connection_id={}",
+        "{}?connection_id={}",
         endpoint,
-        urlencoding::encode(&bearer),
         urlencoding::encode(connection_id),
     )
 }
@@ -133,15 +130,21 @@ fn changes_endpoint_url(remote: &Url) -> Result<Url> {
 async fn changes_uri(
     remote: &Url,
     signer: &BoxedEcdsaSigner,
+    device: &BoxedEd25519Signer,
     connection_id: &str,
-) -> Result<String> {
+) -> Result<(String, String)> {
     let endpoint = changes_endpoint_url(remote)?;
     let sign_url = endpoint.path();
-    let bearer =
+
+    let account_signature =
         encode_account_signature(signer.sign(sign_url.as_bytes()).await?)
             .await?;
-    let uri = websocket_uri(endpoint, bearer, connection_id);
-    Ok(uri)
+    let device_signature =
+        encode_device_signature(device.sign(sign_url.as_bytes()).await?)
+            .await?;
+    let auth = bearer_prefix(&account_signature, Some(&device_signature));
+    let uri = websocket_uri(endpoint, connection_id);
+    Ok((uri, auth))
 }
 
 /// Type of stream created for websocket connections.
@@ -150,6 +153,7 @@ pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 struct WebSocketRequest {
     uri: String,
     host: String,
+    bearer: String,
     origin: url::Origin,
 }
 
@@ -160,6 +164,7 @@ impl IntoClientRequest for WebSocketRequest {
         let origin = self.origin.unicode_serialization();
         let request = http::Request::builder()
             .uri(self.uri)
+            .header("authorization", self.bearer)
             .header("sec-websocket-key", generate_key())
             .header("sec-websocket-version", "13")
             .header("host", self.host)
@@ -181,14 +186,15 @@ pub async fn connect(
     let url_origin = origin.url().origin();
     let endpoint = origin.url().clone();
     let host = endpoint.host_str().unwrap().to_string();
-    let uri =
-        changes_uri(&endpoint, &signer, &connection_id).await?;
+    let (uri, bearer) =
+        changes_uri(&endpoint, &signer, &device, &connection_id).await?;
 
     tracing::debug!(uri = %uri);
 
     let request = WebSocketRequest {
         host,
         uri,
+        bearer,
         origin: url_origin,
     };
     let (ws_stream, _) = connect_async(request).await?;
