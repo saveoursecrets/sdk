@@ -2,15 +2,18 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
+const CONTACT: &str = include_str!("../../tests/fixtures/contact.vcf");
+const AVATAR: &str = include_str!("../../tests/fixtures/avatar.vcf");
+
 /// Tests importing and exporting contacts from vCard
 /// files.
 #[tokio::test]
 async fn local_contacts() -> Result<()> {
     const TEST_ID: &str = "contacts";
-    const CONTACT: &str = include_str!("../../tests/fixtures/contact.vcf");
-    const AVATAR: &str = include_str!("../../tests/fixtures/avatar.vcf");
 
     //crate::test_utils::init_tracing();
+
+    let expected_contact = CONTACT.replace("\r", "");
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -42,7 +45,7 @@ async fn local_contacts() -> Result<()> {
 
     let contact_content = vfs::read_to_string(&contact).await?;
     let contact_content = contact_content.replace('\r', "");
-    assert_eq!(CONTACT, &contact_content);
+    assert_eq!(&expected_contact, &contact_content);
 
     let contacts = data_dir.join("contacts.vcf");
     account.export_all_contacts(&contacts).await?;
@@ -50,7 +53,7 @@ async fn local_contacts() -> Result<()> {
 
     let contacts_content = vfs::read_to_string(&contacts).await?;
     let contacts_content = contacts_content.replace('\r', "");
-    assert_eq!(CONTACT, &contacts_content);
+    assert_eq!(&expected_contact, &contacts_content);
 
     // Try loading bytes for a JPEG avatar
     let ids = account.import_contacts(AVATAR, |_| {}).await?;
