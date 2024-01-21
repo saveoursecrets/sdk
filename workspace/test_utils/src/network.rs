@@ -8,7 +8,7 @@ use sos_net::{
         WebSocketHandle,
     },
     sdk::{
-        account::Account,
+        account::{Account, AccountBuilder},
         constants::{FILES_DIR, VAULT_EXT},
         crypto::AccessKey,
         events::EventLogExt,
@@ -23,16 +23,27 @@ use sos_net::{
 };
 use std::{path::PathBuf, time::Duration};
 
+/// Simulated device information.
 pub struct SimulatedDevice {
+    /// Test identifier for the device.
     pub id: String,
+    /// Network account.
     pub owner: NetworkAccount,
+    /// Default folder.
     pub default_folder: Summary,
+    /// Folders when the account was created.
     pub folders: Vec<Summary>,
+    /// Origin for a remote server.
     pub origin: Origin,
+    /// Directories for test data.
     pub dirs: TestDirs,
+    /// Default folder identifier.
     pub default_folder_id: VaultId,
+    /// Data storage directory.
     pub data_dir: PathBuf,
+    /// Path to the server data directory.
     pub server_path: PathBuf,
+    /// Password used for account creation.
     pub password: SecretString,
 }
 
@@ -89,23 +100,22 @@ impl SimulatedDevice {
     }
 }
 
-/// Simulate a primary device.
-///
-/// If a server is given the device will be connected to
-/// the given server.
-pub async fn simulate_device(
+/// Simulate a device using the given account builder.
+pub async fn simulate_device_with_builder(
     test_id: &str,
     num_clients: usize,
     server: Option<&TestServer>,
+    builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
 ) -> Result<SimulatedDevice> {
     let dirs = setup(test_id, num_clients).await?;
     let data_dir = dirs.clients.get(0).unwrap().clone();
 
     let (password, _) = generate_passphrase()?;
-    let mut owner = NetworkAccount::new_account(
+    let mut owner = NetworkAccount::new_account_with_builder(
         test_id.to_owned(),
         password.clone(),
         Some(data_dir.clone()),
+        builder,
     )
     .await?;
 
@@ -155,6 +165,21 @@ pub async fn simulate_device(
     })
 }
 
+/// Simulate a primary device.
+///
+/// If a server is given the device will be connected to
+/// the given server.
+pub async fn simulate_device(
+    test_id: &str,
+    num_clients: usize,
+    server: Option<&TestServer>,
+) -> Result<SimulatedDevice> {
+    simulate_device_with_builder(test_id, num_clients, server, |builder| {
+        builder.create_file_password(true)
+    })
+    .await
+}
+
 /// Get the number of events in a log.
 pub async fn num_events(
     owner: &mut NetworkAccount,
@@ -168,7 +193,7 @@ pub async fn num_events(
     events.tree().len()
 }
 
-/// Assert that local and remote storage are equal.
+/// Assert that local and remote vault files are equal.
 ///
 /// Note that this assertion can only be performed
 /// when no secrets have been added to the vault
@@ -204,6 +229,8 @@ pub async fn assert_local_remote_vaults_eq(
     Ok(())
 }
 
+/// Compare events between a local account and a server
+/// and assert they are equal.
 pub async fn assert_local_remote_events_eq(
     _expected_summaries: Vec<Summary>,
     owner: &mut NetworkAccount,
@@ -223,6 +250,7 @@ pub async fn assert_local_remote_events_eq(
     Ok(())
 }
 
+/// Compare local and remote file and assert they are equal.
 pub async fn assert_local_remote_file_eq(
     local_paths: impl AsRef<Paths>,
     server_path: &PathBuf,
@@ -259,6 +287,7 @@ pub async fn assert_local_remote_file_eq(
     Ok(())
 }
 
+/// Assert that both a local and remote file do not exist.
 pub async fn assert_local_remote_file_not_exist(
     local_paths: impl AsRef<Paths>,
     server_path: &PathBuf,

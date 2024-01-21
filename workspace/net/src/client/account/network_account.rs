@@ -180,11 +180,14 @@ impl NetworkAccount {
             if !self.is_authenticated().await {
                 hasher.update(docs_path.as_bytes());
             } else {
-                let device_signer = self.device_signer().await?;
-                let device_public_key = device_signer.public_key();
+                #[cfg(feature = "device")]
+                {
+                    let device_signer = self.device_signer().await?;
+                    let device_public_key = device_signer.public_key();
 
-                hasher.update(docs_path.as_bytes());
-                hasher.update(device_public_key.as_ref());
+                    hasher.update(docs_path.as_bytes());
+                    hasher.update(device_public_key.as_ref());
+                }
             }
 
             let result = hasher.finalize();
@@ -274,11 +277,7 @@ impl NetworkAccount {
             let remotes = self.remotes.read().await;
             let mut clients = Vec::new();
             for (_, remote) in &*remotes {
-                if let Some(remote) =
-                    remote.as_any().downcast_ref::<RemoteBridge>()
-                {
-                    clients.push(remote.client().clone());
-                }
+                clients.push(remote.client().clone());
             }
             clients
         };
@@ -361,6 +360,7 @@ impl Account for NetworkAccount {
         Self::new_account_with_builder(
             account_name,
             passphrase,
+            data_dir,
             |builder| {
                 builder
                     .save_passphrase(false)
@@ -369,7 +369,6 @@ impl Account for NetworkAccount {
                     .create_contacts(false)
                     .create_file_password(true)
             },
-            data_dir,
         )
         .await
     }
@@ -377,14 +376,14 @@ impl Account for NetworkAccount {
     async fn new_account_with_builder(
         account_name: String,
         passphrase: SecretString,
-        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
         data_dir: Option<PathBuf>,
+        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
         let account = LocalAccount::new_account_with_builder(
             account_name,
             passphrase.clone(),
-            builder,
             data_dir.clone(),
+            builder,
         )
         .await?;
 
@@ -905,7 +904,6 @@ impl Account for NetworkAccount {
 
     async fn unarchive(
         &mut self,
-        from: &Summary,
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
         options: AccessOptions,
@@ -914,9 +912,7 @@ impl Account for NetworkAccount {
 
         let (result, to) = {
             let mut account = self.account.lock().await;
-            account
-                .unarchive(from, secret_id, secret_meta, options)
-                .await?
+            account.unarchive(secret_id, secret_meta, options).await?
         };
 
         let result = SecretMove {

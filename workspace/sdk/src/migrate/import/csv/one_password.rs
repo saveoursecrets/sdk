@@ -112,8 +112,7 @@ pub async fn parse_path<P: AsRef<Path>>(
 /// Import a MacOS passwords CSV export into a vault.
 pub struct OnePasswordCsv;
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Convert for OnePasswordCsv {
     type Input = PathBuf;
 

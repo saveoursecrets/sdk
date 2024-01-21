@@ -75,8 +75,7 @@ pub async fn parse_path<P: AsRef<Path>>(
 /// Import a Chrome passwords CSV export into a vault.
 pub struct ChromePasswordCsv;
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Convert for ChromePasswordCsv {
     type Input = PathBuf;
 

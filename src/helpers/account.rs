@@ -334,6 +334,7 @@ pub async fn new_account(
         let mut owner = NetworkAccount::new_account_with_builder(
             account_name.clone(),
             passphrase.clone(),
+            None,
             |builder| {
                 builder
                     .create_contacts(true)
@@ -341,7 +342,6 @@ pub async fn new_account(
                     .create_authenticator(true)
                     .create_file_password(true)
             },
-            None,
         )
         .await?;
         let address = owner.address().to_string();

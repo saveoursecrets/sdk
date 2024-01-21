@@ -1,9 +1,12 @@
+//! Helper functions for mocking files.
+
 use crate::mock;
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 
+/// Create a file secret.
 pub async fn create_file_secret<E>(
     account: &mut (impl Account<Error = E> + Send + Sync),
     default_folder: &Summary,
@@ -37,6 +40,7 @@ where
     Ok((result.id, secret_data, file_path, file_name))
 }
 
+/// Update a file secret.
 pub async fn update_file_secret<E>(
     account: &mut (impl Account<Error = E> + Send + Sync),
     default_folder: &Summary,
@@ -84,6 +88,7 @@ where
     Ok((new_secret_data, file_name))
 }
 
+/// Create an attachment.
 pub async fn create_attachment<E>(
     account: &mut (impl Account<Error = E> + Send + Sync),
     secret_id: &SecretId,
@@ -132,6 +137,7 @@ where
     Ok((attachment_id, secret_data, file_name))
 }
 
+/// Update an attachment.
 pub async fn update_attachment<E>(
     account: &mut (impl Account<Error = E> + Send + Sync),
     secret_data: &mut SecretRow,
@@ -182,6 +188,7 @@ where
     Ok((updated_secret_data, updated_attachment, file_name))
 }
 
+/// Delete an attachment.
 pub async fn delete_attachment<E>(
     account: &mut (impl Account<Error = E> + Send + Sync),
     mut secret_data: SecretRow,

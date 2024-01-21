@@ -296,8 +296,7 @@ impl GenericPaymentRecord {
 /// Convert from generic password records.
 pub struct GenericCsvConvert;
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Convert for GenericCsvConvert {
     type Input = Vec<GenericCsvEntry>;
 

@@ -229,8 +229,8 @@ pub trait Account {
     async fn new_account_with_builder(
         account_name: String,
         passphrase: SecretString,
-        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
         data_dir: Option<PathBuf>,
+        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> std::result::Result<Self::Account, Self::Error>;
 
     /// Account address.
@@ -589,10 +589,17 @@ pub trait Account {
 
     /// Move a secret out of the archive.
     ///
-    /// The secret must be inside a folder with the archive flag set
+    /// The secret must be inside a folder with the archive flag set.
+    ///
+    /// If the secret is a contact and a contacts folder exists
+    /// it is restored to the contacts folder.
+    ///
+    /// If the secret is a TOTP and an authenticator folder exists
+    /// it is restored to the authenticator folder.
+    ///
+    /// Otherwise the secret is restored to the default folder.
     async fn unarchive(
         &mut self,
-        from: &Summary,
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
         options: AccessOptions,
@@ -1271,8 +1278,8 @@ impl Account for LocalAccount {
         Self::new_account_with_builder(
             account_name,
             passphrase,
-            |builder| builder.create_file_password(true),
             data_dir,
+            |builder| builder.create_file_password(true),
         )
         .await
     }
@@ -1280,8 +1287,8 @@ impl Account for LocalAccount {
     async fn new_account_with_builder(
         account_name: String,
         passphrase: SecretString,
-        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
         data_dir: Option<PathBuf>,
+        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
         let span = span!(Level::DEBUG, "new_account");
         let _enter = span.enter();
@@ -2004,15 +2011,18 @@ impl Account for LocalAccount {
 
     async fn unarchive(
         &mut self,
-        from: &Summary,
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
         options: AccessOptions,
     ) -> Result<(SecretMove<Self::Error>, Summary)> {
+        let from = self
+            .archive_folder()
+            .await
+            .ok_or_else(|| Error::NoArchive)?;
         if !from.flags().is_archive() {
             return Err(Error::NotArchived);
         }
-        self.open_folder(from).await?;
+        self.open_folder(&from).await?;
         let mut to = self
             .default_folder()
             .await
@@ -2027,7 +2037,7 @@ impl Account for LocalAccount {
         {
             to = contacts.unwrap();
         }
-        let result = self.move_secret(secret_id, from, &to, options).await?;
+        let result = self.move_secret(secret_id, &from, &to, options).await?;
         Ok((result, to))
     }
 

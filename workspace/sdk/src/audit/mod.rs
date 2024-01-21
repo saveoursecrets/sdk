@@ -31,8 +31,7 @@ bitflags! {
 }
 
 /// Trait for types that append to an audit log.
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 pub trait AuditProvider {
     /// Error type for this implementation.
     type Error;

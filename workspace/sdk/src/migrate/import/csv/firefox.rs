@@ -76,8 +76,7 @@ pub async fn parse_path<P: AsRef<Path>>(
 /// Import a Firefox passwords CSV export into a vault.
 pub struct FirefoxPasswordCsv;
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Convert for FirefoxPasswordCsv {
     type Input = PathBuf;
 

@@ -122,8 +122,7 @@ pub async fn parse_path<P: AsRef<Path>>(
 /// Import a Bitwarden passwords CSV export into a vault.
 pub struct BitwardenCsv;
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl Convert for BitwardenCsv {
     type Input = PathBuf;
 

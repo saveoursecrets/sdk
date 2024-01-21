@@ -1,7 +1,6 @@
 use super::Error;
 use async_trait::async_trait;
 use sos_sdk::sync::Origin;
-use std::any::Any;
 
 /// Enumeration of error types that can be returned
 /// from a sync operation.
@@ -16,7 +15,7 @@ pub struct SyncOptions {
 
 /// Trait for types that can sync accounts with a remote.
 #[async_trait]
-pub trait RemoteSync: Sync + Send + Any {
+pub trait RemoteSync {
     /// Perform a full sync of the account using
     /// the default options.
     async fn sync(&self) -> Option<SyncError>;
@@ -30,10 +29,4 @@ pub trait RemoteSync: Sync + Send + Any {
 
     /// Patch the device log on the remote.
     async fn patch_devices(&self) -> Option<SyncError>;
-
-    /// Cast to the Any trait.
-    fn as_any(&self) -> &(dyn Any + Send + Sync);
-
-    /// Cast to the Any trait.
-    fn as_any_mut(&mut self) -> &mut (dyn Any + Send + Sync);
 }

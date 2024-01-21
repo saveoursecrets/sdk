@@ -188,8 +188,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[async_trait]
 impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
     for VaultWriter<F>
 {
@@ -330,7 +329,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
     }
 }
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(test)]
 mod tests {
     use super::VaultWriter;
     use crate::test_utils::*;
