@@ -57,13 +57,15 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::List { account, verbose } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
-            let storage = owner.storage().await?;
-            let storage = storage.read().await;
-            let devices = storage.list_trusted_devices();
-            for device in devices {
+            let devices = owner.trusted_devices().await?;
+
+            for (_, device) in devices {
                 println!("{}", device.public_id()?);
                 if verbose {
-                    print!("{}", device.extra_info());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(device.extra_info())?
+                    );
                 }
             }
         }
@@ -72,7 +74,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             if let Some(device) =
                 resolve_device(Arc::clone(&user), &id).await?
             {
-                let prompt = format!(r#"Remove device "{}" (y/n)? "#, &id);
+                let prompt = format!(r#"Revoke device "{}" (y/n)? "#, &id);
                 if read_flag(Some(&prompt))? {
                     let mut owner = user.write().await;
                     owner.revoke_device(device.public_key()).await?;
