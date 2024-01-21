@@ -97,18 +97,6 @@ deny = [
 ]
 ```
 
-Denied addresses take precedence so take care when combining `allow` and `deny`as it's possible to block all access:
-
-```toml
-[access]
-allow = [
-  "0x3ebe1c7c8e56a1e9b813073e30caf1a0cd8e7634"
-]
-deny = [
-  "0x3ebe1c7c8e56a1e9b813073e30caf1a0cd8e7634"
-]
-```
-
 ## Event Logs
 
 Several events logs are stored on both the client and server so that complete deterministic, incremental synchronization is possible for an account.

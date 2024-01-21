@@ -51,17 +51,30 @@ impl AccessControlConfig {
     pub fn is_allowed_access(&self, address: &Address) -> bool {
         let has_definitions = self.allow.is_some() || self.deny.is_some();
         if has_definitions {
-            if let Some(deny) = &self.deny {
-                if deny.iter().any(|a| a == address) {
-                    return false;
+            match (&self.deny, &self.allow) {
+                (Some(deny), None) => {
+                    if deny.iter().any(|a| a == address) {
+                        return false;
+                    }
+                    true
                 }
-            }
-            if let Some(allow) = &self.allow {
-                if allow.iter().any(|a| a == address) {
-                    return true;
+                (None, Some(allow)) => {
+                    if allow.iter().any(|a| a == address) {
+                        return true;
+                    }
+                    false
                 }
+                (Some(deny), Some(allow)) => {
+                    if allow.iter().any(|a| a == address) {
+                        return true;
+                    }
+                    if deny.iter().any(|a| a == address) {
+                        return false;
+                    }
+                    false
+                }
+                _ => true,
             }
-            false
         } else {
             true
         }
