@@ -10,7 +10,7 @@ jobs:
   homebrew:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set environment variables
         run: |
           VERSION=$(cargo pkgid | cut -f2 -d '@')
@@ -26,7 +26,7 @@ jobs:
           echo "ARM_SHA=$ARM_SHA" >> $GITHUB_ENV
           echo "X86_SHA=$X86_SHA" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: 'saveoursecrets/homebrew-sos'
           path: '.homebrew'
