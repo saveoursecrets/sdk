@@ -1,13 +1,5 @@
-key = "./server_identity.pem"
-
-[cors]
-origins = [
-  "http://localhost:5053",
-  "http://localhost:8080",
-  "http://localhost:8000",
-  "https://localhost:5053",
-  "https://localhost:8080",
-]
+[storage]
+path = "./accounts"
 
 #[access]
 #deny = [
@@ -17,6 +9,3 @@ origins = [
 #[tls]
 #cert = "cert.pem"
 #key = "key.pem"
-
-[storage]
-path = "./accounts"

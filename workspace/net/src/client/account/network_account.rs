@@ -135,6 +135,11 @@ impl NetworkAccount {
         &mut self,
         device_key: &crate::sdk::device::DevicePublicKey,
     ) -> Result<()> {
+        let current_device = self.current_device().await?;
+        if current_device.public_key() == device_key {
+            return Err(Error::RevokeDeviceSelf);
+        }
+
         // Update the local device event log
         {
             let account = self.account.lock().await;
