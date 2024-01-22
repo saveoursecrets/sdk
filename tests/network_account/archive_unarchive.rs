@@ -22,7 +22,6 @@ async fn network_sync_archive_unarchive() -> Result<()> {
         .await?;
     let default_folder = device1.default_folder.clone();
     let origin = device1.origin.clone();
-    let server_path = device1.server_path.clone();
     let folders = device1.folders.clone();
     let archive_folder = device1.owner.archive_folder().await.unwrap();
 

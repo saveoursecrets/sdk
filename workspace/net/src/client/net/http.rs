@@ -1,6 +1,6 @@
 //! HTTP client implementation.
 use async_trait::async_trait;
-use futures::Future;
+use futures::{Future, StreamExt};
 use reqwest::header::AUTHORIZATION;
 use sos_sdk::{
     constants::MIME_TYPE_SOS,
@@ -24,7 +24,7 @@ use super::websocket::WebSocketChangeListener;
 use crate::sdk::sync::DeviceDiff;
 
 #[cfg(feature = "files")]
-use crate::sdk::storage::files::ExternalFile;
+use crate::sdk::storage::files::{ExternalFile, InflightTransfer};
 
 use std::path::PathBuf;
 use url::Url;
@@ -326,6 +326,7 @@ impl SyncClient for HttpClient {
         &self,
         file_info: &ExternalFile,
         path: &PathBuf,
+        inflight_transfer: InflightTransfer,
     ) -> std::result::Result<http::StatusCode, Self::Error> {
         use crate::sdk::vfs;
         use reqwest::{
@@ -355,7 +356,23 @@ impl SyncClient for HttpClient {
         let file_size = metadata.len();
 
         let file = vfs::File::open(path).await?;
-        let stream = ReaderStream::new(file);
+        let meta_data = vfs::metadata(path).await?;
+
+        {
+            let mut writer = inflight_transfer.write().await;
+            writer.bytes_total = metadata.len();
+        }
+
+        let mut reader_stream = ReaderStream::new(file);
+        let progress_stream = async_stream::stream! {
+            while let Some(chunk) = reader_stream.next().await {
+                if let Ok(bytes) = &chunk {
+                    let mut writer = inflight_transfer.write().await;
+                    writer.bytes_transferred += bytes.len() as u64;
+                }
+                yield chunk;
+            }
+        };
 
         let response = self
             .client
@@ -363,7 +380,7 @@ impl SyncClient for HttpClient {
             .header(AUTHORIZATION, auth)
             .header(CONTENT_LENGTH, file_size)
             .header(CONTENT_TYPE, "application/octet-stream")
-            .body(Body::wrap_stream(stream))
+            .body(Body::wrap_stream(progress_stream))
             .send()
             .await?;
         let status = convert_status_code(response.status());
@@ -379,6 +396,7 @@ impl SyncClient for HttpClient {
         &self,
         file_info: &ExternalFile,
         path: &PathBuf,
+        inflight_transfer: InflightTransfer,
     ) -> std::result::Result<http::StatusCode, Self::Error> {
         use crate::sdk::vfs;
 
@@ -405,11 +423,20 @@ impl SyncClient for HttpClient {
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
+
+        if let Some(len) = response.content_length() {
+            let mut writer = inflight_transfer.write().await;
+            writer.bytes_total = len;
+        }
+
         let mut hasher = Sha256::new();
         let mut file = vfs::File::create(path).await?;
         while let Some(chunk) = response.chunk().await? {
             file.write_all(&chunk).await?;
             hasher.update(&chunk);
+
+            let mut writer = inflight_transfer.write().await;
+            writer.bytes_transferred += chunk.len() as u64;
         }
         file.flush().await?;
         let digest = hasher.finalize();

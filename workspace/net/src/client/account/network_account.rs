@@ -287,10 +287,14 @@ impl NetworkAccount {
             clients
         };
 
-        let (paths, transfers) = {
+        let (paths, transfers, inflight_transfers) = {
             let storage = self.storage().await?;
             let reader = storage.read().await;
-            (reader.paths(), reader.transfers())
+            (
+                reader.paths(),
+                reader.transfers(),
+                reader.inflight_transfers(),
+            )
         };
 
         let (shutdown_send, shutdown_recv) = mpsc::unbounded_channel::<()>();
@@ -299,6 +303,7 @@ impl NetworkAccount {
         FileTransfers::start(
             paths,
             transfers,
+            inflight_transfers,
             clients,
             shutdown_recv,
             ack_send,
