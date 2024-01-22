@@ -66,6 +66,10 @@ pub enum Error {
     #[error("could not sync to '{0}' after device enrollment")]
     EnrollSync(String),
 
+    /// Error generated attempting to revoke the current device.
+    #[error("cannot revoke access to this device")]
+    RevokeDeviceSelf,
+
     /// Error generated when failing to sync after revoking a device.
     #[error("failed to sync after revoking device")]
     RevokeDeviceSync,

@@ -35,6 +35,15 @@ async fn device_revoke() -> Result<()> {
     std::fs::remove_dir_all(&data_dir)?;
     std::fs::create_dir(&data_dir)?;
 
+    // Cannot revoke the current device
+    let current_device_public_key = primary_device
+        .owner.current_device().await?.public_key().clone();
+    let result = primary_device
+        .owner
+        .revoke_device(&current_device_public_key)
+        .await;
+    assert!(matches!(result, Err(ClientError::RevokeDeviceSelf)));
+
     // Start enrollment by fetching the account data
     // from the remote server
     let enrollment = NetworkAccount::enroll_device(
