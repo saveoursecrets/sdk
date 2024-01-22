@@ -11,13 +11,53 @@ use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::{
-    collections::HashMap, future::Future, path::PathBuf, pin::Pin, sync::Arc,
+    collections::HashMap, future::Future, path::PathBuf, pin::Pin, sync::{Arc, atomic::{AtomicU64, Ordering}},
     time::Duration,
 };
 use tokio::sync::{mpsc::UnboundedReceiver, oneshot, Mutex, RwLock};
 use tracing::{span, Level};
 
 type TransferQueue = HashMap<ExternalFile, IndexSet<TransferOperation>>;
+
+type PendingTransfersQueue =
+    Arc<RwLock<HashMap<u64, Arc<Mutex<PendingOperation>>>>>;
+
+/// Collection of pending transfers.
+pub struct PendingTransfers {
+    inflight: PendingTransfersQueue,
+    request_id: Arc<Mutex<AtomicU64>>,
+}
+
+impl PendingTransfers {
+    /// Create new pending transfers.
+    pub fn new() -> Self {
+        Self {
+            inflight: Arc::new(RwLock::new(Default::default())),
+            request_id: Arc::new(Mutex::new(AtomicU64::new(0))),
+        }
+    }
+    
+    /// Next request id.
+    pub async fn request_id(&self) -> u64 {
+        let id = self.request_id.lock().await;
+        id.fetch_add(1, Ordering::SeqCst)
+    }
+
+    /// In flight transfers queue.
+    pub fn inflight(&self) -> PendingTransfersQueue {
+        Arc::clone(&self.inflight)
+    }
+}
+
+/// In flight transfer operation.
+pub struct PendingOperation {
+    /// Transfer operation.
+    pub operation: TransferOperation,
+    /// Total size (upload and download only).
+    pub bytes_total: usize,
+    /// Total bytes transferred (upload and download only).
+    pub bytes_transferred: usize,
+}
 
 /// Operations for file transfers.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]

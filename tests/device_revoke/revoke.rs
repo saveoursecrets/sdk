@@ -37,7 +37,11 @@ async fn device_revoke() -> Result<()> {
 
     // Cannot revoke the current device
     let current_device_public_key = primary_device
-        .owner.current_device().await?.public_key().clone();
+        .owner
+        .current_device()
+        .await?
+        .public_key()
+        .clone();
     let result = primary_device
         .owner
         .revoke_device(&current_device_public_key)
