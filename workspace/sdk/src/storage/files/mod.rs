@@ -23,6 +23,20 @@ pub use transfer::{
     Transfers,
 };
 
+/// Set of files built from the state on disc.
+#[derive(Debug)]
+pub struct FileSet(pub HashSet<ExternalFile>);
+
+/// Sets of files that should be uploaded and
+/// downloaded from a remote server.
+#[derive(Debug)]
+pub struct FileTransfersSet {
+    /// Files that exist on local but not on remote.
+    pub uploads: FileSet,
+    /// Files that exist on remote but not on local.
+    pub downloads: FileSet,
+}
+
 /// Meta data about an encrypted file.
 #[derive(Debug, Clone)]
 pub struct EncryptedFile {
@@ -34,7 +48,9 @@ pub struct EncryptedFile {
 
 /// External file name is an SHA2-256 checksum of
 /// the encrypted file contents.
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Default, Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize,
+)]
 pub struct ExternalFileName(#[serde(with = "hex::serde")] [u8; 32]);
 
 impl From<ExternalFileName> for [u8; 32] {
@@ -71,7 +87,9 @@ impl FromStr for ExternalFileName {
 }
 
 /// Pointer to an external file.
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Default, Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize,
+)]
 pub struct ExternalFile(VaultId, SecretId, ExternalFileName);
 
 impl From<ExternalFile> for FileEvent {

@@ -16,6 +16,9 @@ use crate::sync::{
     SyncStatus,
 };
 
+#[cfg(feature = "files")]
+use crate::storage::files::{ExternalFile, FileSet};
+
 #[async_trait]
 impl<T> Encodable for Patch<T>
 where
@@ -347,6 +350,72 @@ mod test {
         let folder = result.folders.get(&folder_id).unwrap();
         assert_eq!(1, folder.len());
 
+        Ok(())
+    }
+}
+
+#[cfg(feature = "files")]
+#[async_trait]
+impl Encodable for ExternalFile {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        writer.write_bytes(self.vault_id().as_bytes()).await?;
+        writer.write_bytes(self.secret_id().as_bytes()).await?;
+        writer.write_bytes(self.file_name().as_ref()).await?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "files")]
+#[async_trait]
+impl Decodable for ExternalFile {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let vault_id = decode_uuid(&mut *reader).await?;
+        let secret_id = decode_uuid(&mut *reader).await?;
+        let file_name: [u8; 32] = reader
+            .read_bytes(32)
+            .await?
+            .as_slice()
+            .try_into()
+            .map_err(encoding_error)?;
+        *self = ExternalFile::new(vault_id, secret_id, file_name.into());
+        Ok(())
+    }
+}
+
+#[cfg(feature = "files")]
+#[async_trait]
+impl Encodable for FileSet {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        let num_files = self.0.len();
+        writer.write_u32(num_files as u32).await?;
+        for file in &self.0 {
+            file.encode(&mut *writer).await?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "files")]
+#[async_trait]
+impl Decodable for FileSet {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let num_files = reader.read_u32().await? as usize;
+        for _ in 0..num_files {
+            let mut file: ExternalFile = Default::default();
+            file.decode(&mut *reader).await?;
+        }
         Ok(())
     }
 }

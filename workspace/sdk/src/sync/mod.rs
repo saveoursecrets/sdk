@@ -576,6 +576,19 @@ pub trait SyncClient {
         from: &crate::storage::files::ExternalFile,
         to: &crate::storage::files::ExternalFile,
     ) -> std::result::Result<http::StatusCode, Self::Error>;
+
+    /// Compare local files with a remote server.
+    ///
+    /// Used to build a transfer queue that will eventually ensure
+    /// external files are in sync.
+    #[cfg(feature = "files")]
+    async fn compare_files(
+        &self,
+        local_files: &crate::storage::files::FileSet,
+    ) -> std::result::Result<
+        crate::storage::files::FileTransfersSet,
+        Self::Error,
+    >;
 }
 
 /// Storage implementations that can synchronize.

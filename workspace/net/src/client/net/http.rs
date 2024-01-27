@@ -24,7 +24,9 @@ use super::websocket::WebSocketChangeListener;
 use crate::sdk::sync::DeviceDiff;
 
 #[cfg(feature = "files")]
-use crate::sdk::storage::files::{ExternalFile, InflightTransfer};
+use crate::sdk::storage::files::{
+    ExternalFile, FileSet, FileTransfersSet, InflightTransfer,
+};
 
 use std::path::PathBuf;
 use url::Url;
@@ -528,5 +530,12 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status);
         self.error_json(response).await?;
         Ok(status)
+    }
+
+    async fn compare_files(
+        &self,
+        local_files: &FileSet,
+    ) -> std::result::Result<FileTransfersSet, Self::Error> {
+        todo!();
     }
 }
