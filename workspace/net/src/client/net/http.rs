@@ -364,11 +364,10 @@ impl SyncClient for HttpClient {
         let file_size = metadata.len();
 
         let file = vfs::File::open(path).await?;
-        let meta_data = vfs::metadata(path).await?;
 
         {
             let mut writer = inflight_transfer.write().await;
-            writer.bytes_total = metadata.len();
+            writer.bytes_total = file_size;
         }
 
         let mut reader_stream = ReaderStream::new(file);

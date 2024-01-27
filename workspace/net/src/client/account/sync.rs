@@ -96,7 +96,7 @@ impl RemoteSync for NetworkAccount {
         let mut maybe_error: SyncError = Default::default();
         let remotes = self.remotes.read().await;
 
-        for (origin, remote) in &*remotes {
+        for remote in remotes.values() {
             if let Some(mut e) = remote.patch_devices().await {
                 maybe_error.errors.append(&mut e.errors);
             }

@@ -1,7 +1,7 @@
 //! Manage pending file transfer operations.
 use crate::{
     events::FileEvent,
-    storage::files::{list_external_files, ExternalFile, FileMutationEvent},
+    storage::files::{list_external_files, ExternalFile, FileMutationEvent, FileTransfersSet},
     sync::SyncClient,
     vfs, Paths, Result,
 };
@@ -218,6 +218,11 @@ impl Transfers {
             }
         }
         self.save().await
+    }
+
+    /// Merge file transfers into this transfers queue.
+    pub fn merge_file_transfers(&mut self, file_transfers: FileTransfersSet) {
+        todo!("merge_file_transfers");
     }
 
     /// Clear in-memory queued transfers.

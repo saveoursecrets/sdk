@@ -1,5 +1,4 @@
 //! Error type for the client module.
-use crate::client::SyncError;
 use http::StatusCode;
 use serde_json::Value;
 #[cfg(feature = "client")]
@@ -150,14 +149,3 @@ pub enum Error {
     #[cfg(feature = "migrate")]
     Migrate(#[from] sos_sdk::migrate::Error),
 }
-
-/*
-impl From<SyncError> for Error {
-    fn from(value: SyncError) -> Self {
-        match value {
-            SyncError::One(e) => e,
-            _ => unreachable!(),
-        }
-    }
-}
-*/
