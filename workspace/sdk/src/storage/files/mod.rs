@@ -24,12 +24,12 @@ pub use transfer::{
 };
 
 /// Set of files built from the state on disc.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FileSet(pub HashSet<ExternalFile>);
 
 /// Sets of files that should be uploaded and
 /// downloaded from a remote server.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FileTransfersSet {
     /// Files that exist on local but not on remote.
     pub uploads: FileSet,
@@ -151,12 +151,14 @@ impl FromStr for ExternalFile {
     }
 }
 
-/// List all the external files in an account.
+/// List all the external files in an account by reading the
+/// state from disc.
 ///
 /// If a directory name cannot be parsed to a folder or secret
 /// identifier or the file name cannot be converted to `[u8; 32]`
 /// the directory or file will be ignored.
-pub(crate) async fn list_external_files(
+#[doc(hidden)]
+pub async fn list_external_files(
     paths: &Paths,
 ) -> Result<HashSet<ExternalFile>> {
     let mut files = HashSet::new();

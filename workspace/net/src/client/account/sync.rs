@@ -82,6 +82,13 @@ impl RemoteSync for NetworkAccount {
         }
     }
 
+    async fn sync_file_transfers(
+        &self,
+        options: &SyncOptions,
+    ) -> Option<SyncError> {
+        todo!("sync_file_transfers");
+    }
+
     async fn patch_devices(&self) -> Option<SyncError> {
         let _ = self.sync_lock.lock().await;
         let mut errors = Vec::new();

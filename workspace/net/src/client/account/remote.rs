@@ -138,8 +138,7 @@ impl RemoteBridge {
                         errors.push(e);
                     }
                 } else {
-                    todo!("add not found error...");
-                    //errors.push(Error::Not);
+                    errors.push(Error::NoAccountPatchDevices);
                 }
             }
             Err(e) => {
@@ -187,6 +186,13 @@ impl RemoteSync for RemoteBridge {
                 .collect::<Vec<_>>();
             Some(SyncError::Multiple(errors))
         }
+    }
+
+    async fn sync_file_transfers(
+        &self,
+        options: &SyncOptions,
+    ) -> Option<SyncError> {
+        todo!("sync_file_transfers");
     }
 
     async fn patch_devices(&self) -> Option<SyncError> {

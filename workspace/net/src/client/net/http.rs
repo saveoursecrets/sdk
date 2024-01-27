@@ -536,6 +536,34 @@ impl SyncClient for HttpClient {
         &self,
         local_files: &FileSet,
     ) -> std::result::Result<FileTransfersSet, Self::Error> {
-        todo!();
+        let span = span!(Level::DEBUG, "compare_files");
+        let _enter = span.enter();
+
+        let url_path = format!("api/v1/sync/files");
+        let url = self.build_url(&url_path)?;
+        let sign_url = url.path();
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+
+        let body = encode(local_files).await?;
+        let response = self
+            .client
+            .post(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        let status = convert_status_code(response.status());
+        tracing::debug!(status = %status);
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(decode(&buffer).await?)
     }
 }

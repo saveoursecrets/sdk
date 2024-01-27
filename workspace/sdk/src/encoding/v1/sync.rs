@@ -17,7 +17,7 @@ use crate::sync::{
 };
 
 #[cfg(feature = "files")]
-use crate::storage::files::{ExternalFile, FileSet};
+use crate::storage::files::{ExternalFile, FileSet, FileTransfersSet};
 
 #[async_trait]
 impl<T> Encodable for Patch<T>
@@ -416,6 +416,32 @@ impl Decodable for FileSet {
             let mut file: ExternalFile = Default::default();
             file.decode(&mut *reader).await?;
         }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "files")]
+#[async_trait]
+impl Encodable for FileTransfersSet {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        self.uploads.encode(&mut *writer).await?;
+        self.downloads.encode(&mut *writer).await?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "files")]
+#[async_trait]
+impl Decodable for FileTransfersSet {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        self.uploads.decode(&mut *reader).await?;
+        self.downloads.decode(&mut *reader).await?;
         Ok(())
     }
 }

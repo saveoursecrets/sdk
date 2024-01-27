@@ -581,6 +581,10 @@ pub trait SyncClient {
     ///
     /// Used to build a transfer queue that will eventually ensure
     /// external files are in sync.
+    ///
+    /// Comparing sets of files is expensive as both local and remote 
+    /// need to read the external files state from disc so only use this 
+    /// when necessary.
     #[cfg(feature = "files")]
     async fn compare_files(
         &self,

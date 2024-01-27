@@ -21,6 +21,9 @@ pub mod files;
 #[cfg(feature = "listen")]
 pub(crate) mod websocket;
 
+// 32MB limit for the body size
+const BODY_LIMIT: usize = 33554432;
+
 #[cfg(feature = "listen")]
 use crate::{
     server::{handlers::websocket::BroadcastMessage, ServerState, State},

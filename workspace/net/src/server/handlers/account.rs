@@ -12,11 +12,9 @@ use axum_extra::{
 
 //use axum_macros::debug_handler;
 
+use super::BODY_LIMIT;
 use crate::server::{handlers::ConnectionQuery, ServerBackend, ServerState};
 use std::sync::Arc;
-
-// FIXME: sensible body limit
-const BODY_LIMIT: usize = usize::MAX;
 
 /// Create an account.
 #[utoipa::path(

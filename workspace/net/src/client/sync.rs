@@ -27,6 +27,12 @@ pub trait RemoteSync {
         options: &SyncOptions,
     ) -> Option<SyncError>;
 
+    /// Sync file transfers.
+    async fn sync_file_transfers(
+        &self,
+        options: &SyncOptions,
+    ) -> Option<SyncError>;
+
     /// Patch the device log on the remote.
     async fn patch_devices(&self) -> Option<SyncError>;
 }

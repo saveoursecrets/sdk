@@ -192,6 +192,7 @@ impl Server {
                         .get(account::fetch_account),
                 )
                 .route("/sync/account/status", get(account::sync_status))
+                .route("/sync/files", post(files::compare_files))
                 .route(
                     "/sync/file/:vault_id/:secret_id/:file_name",
                     put(files::receive_file)
