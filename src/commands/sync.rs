@@ -14,7 +14,7 @@ use sos_net::{
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// Sync with all remote origins.
+    /// Sync with remote servers.
     All {
         /// Account name or address.
         #[clap(short, long)]
@@ -31,6 +31,18 @@ pub enum Command {
 
         /// Server url(s).
         url: Vec<Url>,
+    },
+    /// Print the file transfers queue.
+    Transfers {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
+    },
+    /// Show inflight file transfers.
+    Inflight {
+        /// Account name or address.
+        #[clap(short, long)]
+        account: Option<AccountRef>,
     },
 }
 
@@ -110,6 +122,42 @@ pub async fn run(cmd: Command) -> Result<()> {
                     Err(e) => {
                         println!("error: {}", e);
                     }
+                }
+            }
+        }
+        Command::Transfers { account } => {
+            let user = resolve_user(account.as_ref(), false).await?;
+            let owner = user.read().await;
+            let transfers = owner.transfers().await?;
+            let transfers = transfers.read().await;
+            let queue = transfers.queue();
+            if queue.is_empty() {
+                println!("No queued file transfers");
+            } else {
+                for (file, ops) in queue {
+                    println!("{}", file);
+                }
+            }
+        }
+        Command::Inflight { account } => {
+            let user = resolve_user(account.as_ref(), false).await?;
+            let owner = user.read().await;
+            let transfers = owner.inflight_transfers().await?;
+            let inflight = transfers.inflight();
+            let inflight = inflight.read().await;
+            let progress = inflight.values().cloned().collect::<Vec<_>>();
+
+            if progress.is_empty() {
+                println!("No inflight transfers");
+            } else {
+                for transfer in progress {
+                    let transfer = transfer.read().await;
+                    println!(
+                        "{} {}/{}",
+                        transfer.file.file_name(),
+                        transfer.bytes_transferred,
+                        transfer.bytes_total
+                    );
                 }
             }
         }

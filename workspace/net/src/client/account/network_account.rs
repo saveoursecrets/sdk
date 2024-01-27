@@ -14,7 +14,7 @@ use sos_sdk::{
     sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
-        files::FileTransfers,
+        files::{FileTransfers, InflightTransfers},
         search::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
@@ -249,6 +249,13 @@ impl NetworkAccount {
     pub async fn servers(&self) -> Vec<Origin> {
         let remotes = self.remotes.read().await;
         remotes.keys().cloned().collect()
+    }
+
+    /// Inflight file transfers.
+    pub async fn inflight_transfers(&self) -> Result<Arc<InflightTransfers>> {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        Ok(reader.inflight_transfers())
     }
 
     /// Save remote definitions to disc.

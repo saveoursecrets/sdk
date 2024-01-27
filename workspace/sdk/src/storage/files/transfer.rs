@@ -59,6 +59,7 @@ impl InflightTransfers {
 }
 
 /// In flight transfer operation.
+#[derive(Debug)]
 pub struct InflightOperation {
     /// External file information.
     pub file: ExternalFile,
