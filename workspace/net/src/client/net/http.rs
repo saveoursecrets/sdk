@@ -183,9 +183,15 @@ impl HttpClient {
 #[async_trait]
 impl SyncClient for HttpClient {
     type Error = Error;
-
+    
+    /*
     fn url(&self) -> &Url {
         self.origin.url()
+    }
+    */
+
+    fn origin(&self) -> &Origin {
+        &self.origin
     }
 
     async fn create_account(&self, account: &ChangeSet) -> Result<()> {

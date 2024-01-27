@@ -590,7 +590,7 @@ impl FileTransfers {
             writer.insert(request_id, Arc::clone(&inflight_request));
         }
 
-        tracing::debug!(op = ?op, url = %client.url());
+        tracing::debug!(op = ?op, url = %client.origin().url());
         //println!("{:#?}", op);
 
         let success = match &op {

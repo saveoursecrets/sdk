@@ -88,7 +88,7 @@ impl DeviceEnrollment {
             }
             Err(e) => {
                 tracing::error!(error = ?e);
-                Err(Error::EnrollFetch(client.url().to_string()))
+                Err(Error::EnrollFetch(client.origin().url().to_string()))
             }
         }
     }

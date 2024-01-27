@@ -511,8 +511,8 @@ pub trait SyncClient {
     /// Errors produced by the client.
     type Error: std::fmt::Debug;
 
-    /// URL of the remote server.
-    fn url(&self) -> &Url;
+    /// Origin of the remote server.
+    fn origin(&self) -> &Origin;
 
     /// Create a new account.
     async fn create_account(
