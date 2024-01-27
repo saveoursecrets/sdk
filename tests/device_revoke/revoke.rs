@@ -75,7 +75,7 @@ async fn device_revoke() -> Result<()> {
     // Attempting to sync after the device was revoked
     // yields a forbidden response
     let sync_error = enrolled_account.sync().await;
-    if let Some(SyncError::Multiple(mut errors)) = sync_error {
+    if let Some(SyncError { mut errors }) = sync_error {
         let (_, err) = errors.remove(0);
         assert!(matches!(
             err,

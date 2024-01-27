@@ -43,7 +43,7 @@ pub enum Error {
     #[error("origin '{0}' not found")]
     OriginNotFound(Origin),
 
-    /// Error generated attempting to patch devices but the account does 
+    /// Error generated attempting to patch devices but the account does
     /// not exist on the remote.
     #[error("cannot patch devices, account does not exist on remote")]
     NoAccountPatchDevices,
@@ -151,6 +151,7 @@ pub enum Error {
     Migrate(#[from] sos_sdk::migrate::Error),
 }
 
+/*
 impl From<SyncError> for Error {
     fn from(value: SyncError) -> Self {
         match value {
@@ -159,3 +160,4 @@ impl From<SyncError> for Error {
         }
     }
 }
+*/

@@ -183,7 +183,7 @@ impl HttpClient {
 #[async_trait]
 impl SyncClient for HttpClient {
     type Error = Error;
-    
+
     /*
     fn url(&self) -> &Url {
         self.origin.url()

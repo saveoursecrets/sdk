@@ -52,7 +52,7 @@ async fn access_control_allow() -> Result<()> {
 
     assert!(allowed.owner.sync().await.is_none());
     let sync_error = denied.sync().await;
-    if let Some(SyncError::Multiple(mut errors)) = sync_error {
+    if let Some(SyncError { mut errors }) = sync_error {
         let (_, err) = errors.remove(0);
         assert!(matches!(
             err,

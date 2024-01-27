@@ -177,14 +177,12 @@ impl RemoteSync for RemoteBridge {
         if errors.is_empty() {
             None
         } else {
-            let errors = errors
-                .into_iter()
-                .map(|e| {
-                    let origin: Origin = self.origin.clone().into();
-                    (origin, e)
-                })
-                .collect::<Vec<_>>();
-            Some(SyncError::Multiple(errors))
+            Some(SyncError {
+                errors: errors
+                    .into_iter()
+                    .map(|e| (self.origin.clone(), e))
+                    .collect(),
+            })
         }
     }
 
@@ -200,14 +198,12 @@ impl RemoteSync for RemoteBridge {
         if errors.is_empty() {
             None
         } else {
-            let errors = errors
-                .into_iter()
-                .map(|e| {
-                    let origin: Origin = self.origin.clone().into();
-                    (origin, e)
-                })
-                .collect::<Vec<_>>();
-            Some(SyncError::Multiple(errors))
+            Some(SyncError {
+                errors: errors
+                    .into_iter()
+                    .map(|e| (self.origin.clone(), e))
+                    .collect(),
+            })
         }
     }
 }
