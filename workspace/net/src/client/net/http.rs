@@ -24,9 +24,11 @@ use super::websocket::WebSocketChangeListener;
 use crate::sdk::sync::DeviceDiff;
 
 #[cfg(feature = "files")]
-use crate::sdk::storage::files::{ExternalFile, FileSet, FileTransfersSet, ProgressChannel};
+use crate::sdk::storage::files::{
+    ExternalFile, FileSet, FileTransfersSet, ProgressChannel,
+};
 
-use std::{path::PathBuf, sync::Arc, collections::HashMap};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use url::Url;
 
 use crate::client::{Error, Result};

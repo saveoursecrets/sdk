@@ -59,83 +59,80 @@ pub async fn run(cmd: Command) -> Result<()> {
             } else {
                 let request_ids =
                     inflight.keys().copied().collect::<Vec<_>>();
-                
+
                 let progress = transfers.progress();
                 let progress = progress.read().await;
-                
+
                 let mut channels = Vec::new();
                 for id in request_ids {
-                    if let (Some(op), Some(tx)) = (inflight.get(&id), progress.get(&id)) {
+                    if let (Some(op), Some(tx)) =
+                        (inflight.get(&id), progress.get(&id))
+                    {
                         channels.push((op.clone(), tx.subscribe()));
                     }
                 }
 
                 drop(inflight);
                 drop(progress);
-
-                let manager = Arc::new(
-                    Mutex::new(
-                        RowManager::from_window_size()));
+                
+                let manager =
+                    Arc::new(Mutex::new(RowManager::new(5)));
+                let mut threads = Vec::new();
 
                 for (inflight_op, mut rx) in channels {
-                    //println!("op: {:#?}", inflight_op);
-                    //
                     let mgr = Arc::clone(&manager);
-                    
-                    std::thread::spawn(move || {
+                    threads.push(std::thread::spawn(move || {
                         tokio::runtime::Builder::new_current_thread()
-                        .enable_all()
-                        .build()
-                        .unwrap()
-                        .block_on(
-                            async move {
-                                let mut index: Option<usize> = None;
+                            .enable_all()
+                            .build()
+                            .unwrap()
+                            .block_on(async move {
+                                let mut pb = tqdm!(
+                                    unit_scale = true,
+                                    unit_divisor = 1024,
+                                    unit = "B"
+                                );
+                                let name = inflight_op.file
+                                    .file_name().to_string();
+                                pb.set_description(format!("{}", &name[0..8]));
+                                
+                                let index = {
+                                    let mut writer = mgr.lock().await;
+                                    writer.push(pb)?
+                                };
+
+                                let mut pb = {
+                                    let mut writer = mgr.lock().await;
+                                    writer.get_mut(index).unwrap().clone()
+                                };
+
                                 while let Ok((transferred, total)) =
                                     rx.recv().await
                                 {
                                     if let Some(total) = total {
-                                        let mut pb = if let Some(idx) = index {
-                                            let mut writer = mgr.lock().await;
-                                            writer.get_mut(idx).unwrap().clone()
-                                        } else {
-                                            let pb = tqdm!(
-                                                total = total as usize,
-                                                unit_scale = true,
-                                                unit_divisor = 1024,
-                                                unit = "B"
-                                            );
-                                            let mut writer = mgr.lock().await;
-                                            let idx = writer.push(pb)?;
-                                            index = Some(idx);
-                                            writer.get_mut(idx).unwrap().clone()
-                                        };
-
+                                        pb.total = total as usize;
                                         pb.update_to(transferred as usize)?;
                                         if total == transferred {
                                             pb.clear()?;
                                             break;
                                         }
-
-                                        /*
-                                        if !total_set {
-                                            pb.total = total as usize;
-                                            println!("total: {}", total);
-                                            total_set = true;
-                                        }
-                                        */
                                     } else {
                                         break;
                                     }
-
                                 }
-                                Ok::<(), crate::Error>(())
-                            }
 
-                        ).unwrap();
-                    });
+                                Ok::<(), crate::Error>(())
+                            })
+                            .unwrap();
+                    }));
+                }
+
+                for thread in threads {
+                    let _ = thread.join();
                 }
             }
         }
     }
     Ok(())
 }
+

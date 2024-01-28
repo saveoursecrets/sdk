@@ -21,6 +21,10 @@ pub enum Command {
         #[clap(short, long)]
         account: Option<AccountRef>,
 
+        /// Sync the file transfers queue.
+        #[clap(short, long)]
+        files: bool,
+
         /// Server url(s).
         url: Vec<Url>,
     },
@@ -38,7 +42,7 @@ pub enum Command {
 /// Handle sync commands.
 pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
-        Command::All { account, url } => {
+        Command::All { account, url, files } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let servers = owner.servers().await;
@@ -46,11 +50,12 @@ pub async fn run(cmd: Command) -> Result<()> {
                 return Err(Error::NoServers);
             }
 
-            if url.is_empty() {
+            let options = if url.is_empty() {
                 let sync_error = owner.sync().await;
                 if sync_error.is_some() {
                     return Err(Error::SyncFail);
                 }
+                Default::default()
             } else {
                 let origins: Vec<Origin> = url
                     .into_iter()
@@ -67,7 +72,16 @@ pub async fn run(cmd: Command) -> Result<()> {
                 if sync_error.is_some() {
                     return Err(Error::SyncFail);
                 }
+                options
+            };
+
+            if files {
+                let sync_error = owner.sync_file_transfers(&options).await;
+                if sync_error.is_some() {
+                    return Err(Error::SyncFail);
+                }
             }
+
             println!("Synced ✓");
         }
         Command::Status { account, url } => {

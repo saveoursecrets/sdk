@@ -65,7 +65,9 @@ impl InflightTransfers {
     }
 
     /// Progress channels.
-    pub fn progress(&self) -> Arc<RwLock<HashMap<u64, Arc<ProgressChannel>>>> {
+    pub fn progress(
+        &self,
+    ) -> Arc<RwLock<HashMap<u64, Arc<ProgressChannel>>>> {
         Arc::clone(&self.progress)
     }
 
@@ -631,7 +633,7 @@ impl FileTransfers {
         E: std::fmt::Debug + Send + Sync + 'static,
         C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
     {
-        let (tx, _) = broadcast::channel(16);
+        let (tx, _) = broadcast::channel(512);
         let tx = Arc::new(tx);
         let request_id = inflight_transfers.request_id().await;
         {
