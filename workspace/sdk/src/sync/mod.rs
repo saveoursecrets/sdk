@@ -564,7 +564,7 @@ pub trait SyncClient {
         &self,
         file_info: &crate::storage::files::ExternalFile,
         path: &PathBuf,
-        inflight_transfer: crate::storage::files::InflightTransfer,
+        progress: Arc<crate::storage::files::ProgressChannel>,
     ) -> std::result::Result<http::StatusCode, Self::Error>;
 
     /// Receive a file.
@@ -573,7 +573,7 @@ pub trait SyncClient {
         &self,
         file_info: &crate::storage::files::ExternalFile,
         path: &PathBuf,
-        inflight_transfer: crate::storage::files::InflightTransfer,
+        progress: Arc<crate::storage::files::ProgressChannel>,
     ) -> std::result::Result<http::StatusCode, Self::Error>;
 
     /// Delete a file on the remote server.

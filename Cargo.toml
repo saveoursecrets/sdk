@@ -81,6 +81,7 @@ tempfile = "3.5"
 shell-words = "1"
 terminal-banner = "0.2"
 unicode-width = "0.1"
+kdam = "0.5"
 
 [dependencies.sos-net]
 version = "0.8.4" 

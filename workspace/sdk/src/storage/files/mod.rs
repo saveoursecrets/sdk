@@ -19,7 +19,7 @@ pub use external_files_sync::FileStorageSync;
 pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
 #[cfg(feature = "sync")]
 pub use transfer::{
-    FileTransfers, InflightTransfer, InflightTransfers, TransferOperation,
+    FileTransfers, InflightTransfers, ProgressChannel, TransferOperation,
     Transfers,
 };
 

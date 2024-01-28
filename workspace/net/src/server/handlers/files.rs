@@ -376,15 +376,15 @@ mod handlers {
     use axum::{body::Body, http::StatusCode, response::Response};
     use futures::TryStreamExt;
     use http::header::{self, HeaderMap, HeaderValue};
-    use std::{collections::HashSet, sync::Arc, path::PathBuf};
+    use std::{collections::HashSet, path::PathBuf, sync::Arc};
     use tokio::{
         fs::File,
         io::{AsyncWriteExt, BufWriter},
     };
     use tokio_util::io::ReaderStream;
-    
-    // Receive guard deletes files that did not complete 
-    // uploading or whose digest does not match the expected 
+
+    // Receive guard deletes files that did not complete
+    // uploading or whose digest does not match the expected
     // checksum
     struct ReceiveGuard {
         file_name: ExternalFileName,

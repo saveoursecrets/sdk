@@ -4,11 +4,11 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, check, device, events, folder, secret,
+        account, audit, check, device, events, file, folder, secret,
         security_report::{self, SecurityReportFormat},
         server, shell, sync, AccountCommand, AuditCommand, CheckCommand,
-        DeviceCommand, EventsCommand, FolderCommand, SecretCommand,
-        ServerCommand, SyncCommand,
+        DeviceCommand, EventsCommand, FileCommand, FolderCommand,
+        SecretCommand, ServerCommand, SyncCommand,
     },
     Result,
 };
@@ -77,6 +77,11 @@ pub enum Command {
     Sync {
         #[clap(subcommand)]
         cmd: SyncCommand,
+    },
+    /// Inspect external files and file transfers.
+    File {
+        #[clap(subcommand)]
+        cmd: FileCommand,
     },
     /// Generate a security report.
     ///
@@ -152,6 +157,7 @@ pub async fn run() -> Result<()> {
         Command::Secret { cmd } => secret::run(cmd).await?,
         Command::Server { cmd } => server::run(cmd).await?,
         Command::Sync { cmd } => sync::run(cmd).await?,
+        Command::File { cmd } => file::run(cmd).await?,
         Command::SecurityReport {
             account,
             force,

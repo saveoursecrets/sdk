@@ -24,20 +24,23 @@ use std::{
     },
     time::Duration,
 };
-use tokio::sync::{mpsc::UnboundedReceiver, oneshot, Mutex, RwLock};
+use tokio::sync::{
+    broadcast, mpsc::UnboundedReceiver, oneshot, Mutex, RwLock,
+};
 use tracing::{span, Level};
 
 type TransferQueue = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 
-/// Inflight file transfer operation.
-pub type InflightTransfer = Arc<RwLock<InflightOperation>>;
+type InflightTransfersQueue = Arc<RwLock<HashMap<u64, InflightOperation>>>;
 
-type InflightTransfersQueue = Arc<RwLock<HashMap<u64, InflightTransfer>>>;
+/// Channel sender for upload and download progress notifications.
+pub type ProgressChannel = broadcast::Sender<(u64, Option<u64>)>;
 
 /// Collection of pending transfers.
 pub struct InflightTransfers {
     inflight: InflightTransfersQueue,
     request_id: Arc<Mutex<AtomicU64>>,
+    progress: Arc<RwLock<HashMap<u64, Arc<ProgressChannel>>>>,
 }
 
 impl InflightTransfers {
@@ -46,6 +49,7 @@ impl InflightTransfers {
         Self {
             inflight: Arc::new(RwLock::new(Default::default())),
             request_id: Arc::new(Mutex::new(AtomicU64::new(0))),
+            progress: Arc::new(RwLock::new(Default::default())),
         }
     }
 
@@ -59,19 +63,26 @@ impl InflightTransfers {
     pub fn inflight(&self) -> InflightTransfersQueue {
         Arc::clone(&self.inflight)
     }
+
+    /// Progress channels.
+    pub fn progress(&self) -> Arc<RwLock<HashMap<u64, Arc<ProgressChannel>>>> {
+        Arc::clone(&self.progress)
+    }
+
+    /// Determine if the inflight transfers is empty.
+    pub async fn is_empty(&self) -> bool {
+        let queue = self.inflight.read().await;
+        queue.is_empty()
+    }
 }
 
 /// In flight transfer operation.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InflightOperation {
     /// External file information.
     pub file: ExternalFile,
     /// Transfer operation.
     pub operation: TransferOperation,
-    /// Total size (upload and download only).
-    pub bytes_total: u64,
-    /// Total bytes transferred (upload and download only).
-    pub bytes_transferred: u64,
 }
 
 /// Operations for file transfers.
@@ -173,7 +184,7 @@ impl Transfers {
         } else {
             Default::default()
         };
-        
+
         Ok(Self {
             path: Mutex::new(path),
             queue,
@@ -620,17 +631,22 @@ impl FileTransfers {
         E: std::fmt::Debug + Send + Sync + 'static,
         C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
     {
+        let (tx, _) = broadcast::channel(16);
+        let tx = Arc::new(tx);
         let request_id = inflight_transfers.request_id().await;
-        let inflight_request = Arc::new(RwLock::new(InflightOperation {
+        {
+            let progress = inflight_transfers.progress();
+            let mut progress = progress.write().await;
+            progress.insert(request_id, Arc::clone(&tx));
+        }
+        let inflight_request = InflightOperation {
             file,
             operation: op,
-            bytes_total: 0,
-            bytes_transferred: 0,
-        }));
+        };
 
         {
             let mut writer = inflight_transfers.inflight.write().await;
-            writer.insert(request_id, Arc::clone(&inflight_request));
+            writer.insert(request_id, inflight_request);
         }
 
         tracing::debug!(op = ?op, url = %client.origin().url());
@@ -644,8 +660,7 @@ impl FileTransfers {
                     file.file_name().to_string(),
                 );
 
-                match client.upload_file(&file, &path, inflight_request).await
-                {
+                match client.upload_file(&file, &path, tx).await {
                     Ok(status) => Self::is_success(&op, status),
                     Err(e) => {
                         //eprintln!("UPLOAD FAIL {:#?}", e);
@@ -674,10 +689,7 @@ impl FileTransfers {
                     file.secret_id(),
                     file.file_name().to_string(),
                 );
-                match client
-                    .download_file(&file, &path, inflight_request)
-                    .await
-                {
+                match client.download_file(&file, &path, tx).await {
                     Ok(status) => Self::is_success(&op, status),
                     Err(e) => {
                         tracing::warn!(error = ?e);
@@ -708,6 +720,10 @@ impl FileTransfers {
         {
             let mut writer = inflight_transfers.inflight.write().await;
             writer.remove(&request_id);
+
+            let progress = inflight_transfers.progress();
+            let mut progress = progress.write().await;
+            progress.remove(&request_id);
         }
 
         Ok((file, op, success))

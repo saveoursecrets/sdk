@@ -2331,6 +2331,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kdam"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2f08e037030a8ae7807e4edc2a12fad4a0cce624d227f422e3879fea8c89908"
+dependencies = [
+ "terminal_size 0.3.0",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "keccak"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3909,6 +3919,7 @@ dependencies = [
  "futures",
  "http 1.0.0",
  "human_bytes",
+ "kdam",
  "log",
  "maplit2",
  "once_cell",
