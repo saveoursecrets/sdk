@@ -415,6 +415,7 @@ impl Decodable for FileSet {
         for _ in 0..num_files {
             let mut file: ExternalFile = Default::default();
             file.decode(&mut *reader).await?;
+            self.0.insert(file);
         }
         Ok(())
     }

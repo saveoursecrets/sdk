@@ -1,7 +1,10 @@
 //! Manage pending file transfer operations.
 use crate::{
     events::FileEvent,
-    storage::files::{list_external_files, ExternalFile, FileMutationEvent, FileTransfersSet},
+    storage::files::{
+        list_external_files, ExternalFile, FileMutationEvent,
+        FileTransfersSet,
+    },
     sync::SyncClient,
     vfs, Paths, Result,
 };
@@ -221,8 +224,41 @@ impl Transfers {
     }
 
     /// Merge file transfers into this transfers queue.
-    pub fn merge_file_transfers(&mut self, file_transfers: FileTransfersSet) {
-        todo!("merge_file_transfers");
+    pub async fn merge_file_transfers(
+        &mut self,
+        file_transfers: FileTransfersSet,
+    ) -> Result<()> {
+        for file in file_transfers.uploads.0 {
+            let create_entry = {
+                if self.queue.get(&file).is_none() {
+                    Some(TransferOperation::Upload)
+                } else {
+                    None
+                }
+            };
+            if let Some(op) = create_entry {
+                let mut set = IndexSet::new();
+                set.insert(op);
+                self.queue.insert(file, set);
+            }
+        }
+
+        for file in file_transfers.downloads.0 {
+            let create_entry = {
+                if self.queue.get(&file).is_none() {
+                    Some(TransferOperation::Download)
+                } else {
+                    None
+                }
+            };
+            if let Some(op) = create_entry {
+                let mut set = IndexSet::new();
+                set.insert(op);
+                self.queue.insert(file, set);
+            }
+        }
+
+        self.save().await
     }
 
     /// Clear in-memory queued transfers.
@@ -349,6 +385,7 @@ impl FileTransfers {
                             tracing::debug!("shutdown");
 
                             // Wait for any pending writes to disc
+                            // for a graceful shutdown
                             let transfers = queue.read().await;
                             let _ = transfers.path.lock().await;
 

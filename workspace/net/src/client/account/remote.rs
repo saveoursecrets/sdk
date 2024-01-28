@@ -4,9 +4,9 @@ use crate::client::{
 };
 use async_trait::async_trait;
 use sos_sdk::{
-    account::{LocalAccount, Account},
+    account::{Account, LocalAccount},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::files::{FileSet, list_external_files},
+    storage::files::{list_external_files, FileSet},
     sync::{
         self, Merge, Origin, SyncClient, SyncPacket, SyncStatus, SyncStorage,
     },
@@ -59,10 +59,12 @@ impl RemoteBridge {
 impl RemoteBridge {
     /// Create an account on the remote.
     async fn create_remote_account(&self) -> Result<()> {
-        let account = self.account.lock().await;
-        let public_account = account.change_set().await?;
-        self.client.create_account(&public_account).await?;
-        // FIXME: import files here!
+        {
+            let account = self.account.lock().await;
+            let public_account = account.change_set().await?;
+            self.client.create_account(&public_account).await?;
+        }
+        self.execute_sync_file_transfers().await?;
         Ok(())
     }
 
@@ -131,12 +133,12 @@ impl RemoteBridge {
         let external_files = list_external_files(&*paths).await?;
         let file_set = FileSet(external_files);
         let file_transfers = self.client.compare_files(&file_set).await?;
-            
+
         {
             let account = self.account.lock().await;
             let transfers = account.transfers().await?;
             let mut transfers = transfers.write().await;
-            transfers.merge_file_transfers(file_transfers);
+            transfers.merge_file_transfers(file_transfers).await?;
         }
 
         Ok(())
@@ -169,11 +171,9 @@ impl RemoteSync for RemoteBridge {
 
         match self.execute_sync().await {
             Ok(_) => None,
-            Err(e) => {
-                Some(SyncError {
-                    errors: vec![(self.origin.clone(), e)],
-                })
-            }
+            Err(e) => Some(SyncError {
+                errors: vec![(self.origin.clone(), e)],
+            }),
         }
     }
 
@@ -197,22 +197,18 @@ impl RemoteSync for RemoteBridge {
 
         match self.execute_sync_file_transfers().await {
             Ok(_) => None,
-            Err(e) => {
-                Some(SyncError {
-                    errors: vec![(self.origin.clone(), e)],
-                })
-            }
+            Err(e) => Some(SyncError {
+                errors: vec![(self.origin.clone(), e)],
+            }),
         }
     }
 
     async fn patch_devices(&self) -> Option<SyncError> {
         match self.execute_sync_devices().await {
             Ok(_) => None,
-            Err(e) => {
-                Some(SyncError {
-                    errors: vec![(self.origin.clone(), e)],
-                })
-            }
+            Err(e) => Some(SyncError {
+                errors: vec![(self.origin.clone(), e)],
+            }),
         }
     }
 }

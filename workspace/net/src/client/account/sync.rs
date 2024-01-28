@@ -83,7 +83,8 @@ impl RemoteSync for NetworkAccount {
                 || options.origins.contains(origin);
 
             if sync_remote {
-                if let Some(mut e) = remote.sync_file_transfers(options).await {
+                if let Some(mut e) = remote.sync_file_transfers(options).await
+                {
                     maybe_error.errors.append(&mut e.errors);
                 }
             }

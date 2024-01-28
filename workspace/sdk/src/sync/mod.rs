@@ -90,9 +90,7 @@ impl<T> SyncError<T> {
 
 impl<T> Default for SyncError<T> {
     fn default() -> Self {
-        Self {
-            errors: Vec::new(),
-        }
+        Self { errors: Vec::new() }
     }
 }
 

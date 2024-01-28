@@ -362,7 +362,6 @@ impl SyncClient for HttpClient {
 
         let metadata = vfs::metadata(path).await?;
         let file_size = metadata.len();
-
         let file = vfs::File::open(path).await?;
 
         {
@@ -558,6 +557,7 @@ impl SyncClient for HttpClient {
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
 
         let body = encode(local_files).await?;
+
         let response = self
             .client
             .post(url)

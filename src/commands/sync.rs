@@ -1,5 +1,6 @@
 use crate::{helpers::account::resolve_user, Error, Result};
 use clap::Subcommand;
+use human_bytes::human_bytes;
 use sos_net::{
     client::{NetworkAccount, RemoteSync, SyncOptions},
     sdk::{
@@ -155,8 +156,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                     println!(
                         "{} {}/{}",
                         transfer.file.file_name(),
-                        transfer.bytes_transferred,
-                        transfer.bytes_total
+                        human_bytes(transfer.bytes_transferred as f64),
+                        human_bytes(transfer.bytes_total as f64),
                     );
                 }
             }
