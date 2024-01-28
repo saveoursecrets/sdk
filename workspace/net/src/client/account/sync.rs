@@ -54,7 +54,7 @@ impl RemoteSync for NetworkAccount {
         options: &SyncOptions,
     ) -> Option<SyncError> {
         let _ = self.sync_lock.lock().await;
-        let mut errors = Vec::new();
+        let mut maybe_error: SyncError = Default::default();
         let remotes = self.remotes.read().await;
 
         for (origin, remote) in &*remotes {
@@ -62,47 +62,47 @@ impl RemoteSync for NetworkAccount {
                 || options.origins.contains(origin);
 
             if sync_remote {
-                if let Some(e) = remote.sync_with_options(options).await {
-                    match e {
-                        SyncError::One(e) => errors.push((origin.clone(), e)),
-                        SyncError::Multiple(mut errs) => {
-                            errors.append(&mut errs)
-                        }
-                    }
+                if let Some(mut e) = remote.sync_with_options(options).await {
+                    maybe_error.errors.append(&mut e.errors);
                 }
             }
         }
-        if errors.is_empty() {
-            None
-        } else {
-            for error in &errors {
-                tracing::error!(error = ?error);
+        maybe_error.into_option()
+    }
+
+    async fn sync_file_transfers(
+        &self,
+        options: &SyncOptions,
+    ) -> Option<SyncError> {
+        let _ = self.sync_lock.lock().await;
+        let mut maybe_error: SyncError = Default::default();
+        let remotes = self.remotes.read().await;
+
+        for (origin, remote) in &*remotes {
+            let sync_remote = options.origins.is_empty()
+                || options.origins.contains(origin);
+
+            if sync_remote {
+                if let Some(mut e) = remote.sync_file_transfers(options).await
+                {
+                    maybe_error.errors.append(&mut e.errors);
+                }
             }
-            Some(SyncError::Multiple(errors))
         }
+        maybe_error.into_option()
     }
 
     async fn patch_devices(&self) -> Option<SyncError> {
         let _ = self.sync_lock.lock().await;
-        let mut errors = Vec::new();
+        let mut maybe_error: SyncError = Default::default();
         let remotes = self.remotes.read().await;
 
-        for (origin, remote) in &*remotes {
-            if let Some(e) = remote.patch_devices().await {
-                match e {
-                    SyncError::One(e) => errors.push((origin.clone(), e)),
-                    SyncError::Multiple(mut errs) => errors.append(&mut errs),
-                }
+        for remote in remotes.values() {
+            if let Some(mut e) = remote.patch_devices().await {
+                maybe_error.errors.append(&mut e.errors);
             }
         }
-        if errors.is_empty() {
-            None
-        } else {
-            for error in &errors {
-                tracing::error!(error = ?error);
-            }
-            Some(SyncError::Multiple(errors))
-        }
+        maybe_error.into_option()
     }
 }
 

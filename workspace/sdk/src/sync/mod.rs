@@ -70,14 +70,28 @@ impl From<Url> for Origin {
     }
 }
 
-/// Enumeration of error types that can be returned
-/// from a sync operation.
+/// Error type that can be returned from a sync operation.
 #[derive(Debug)]
-pub enum SyncError<T> {
-    /// Single remote error.
-    One(T),
-    /// Collection of errors by remote origin.
-    Multiple(Vec<(Origin, T)>),
+pub struct SyncError<T> {
+    /// Errors generated during a sync operation.
+    pub errors: Vec<(Origin, T)>,
+}
+
+impl<T> SyncError<T> {
+    /// Convert to an option.
+    pub fn into_option(self) -> Option<Self> {
+        if self.errors.is_empty() {
+            None
+        } else {
+            Some(self)
+        }
+    }
+}
+
+impl<T> Default for SyncError<T> {
+    fn default() -> Self {
+        Self { errors: Vec::new() }
+    }
 }
 
 /// Options for folder merge.
@@ -511,8 +525,8 @@ pub trait SyncClient {
     /// Errors produced by the client.
     type Error: std::fmt::Debug;
 
-    /// URL of the remote server.
-    fn url(&self) -> &Url;
+    /// Origin of the remote server.
+    fn origin(&self) -> &Origin;
 
     /// Create a new account.
     async fn create_account(
@@ -550,6 +564,7 @@ pub trait SyncClient {
         &self,
         file_info: &crate::storage::files::ExternalFile,
         path: &PathBuf,
+        progress: Arc<crate::storage::files::ProgressChannel>,
     ) -> std::result::Result<http::StatusCode, Self::Error>;
 
     /// Receive a file.
@@ -558,6 +573,7 @@ pub trait SyncClient {
         &self,
         file_info: &crate::storage::files::ExternalFile,
         path: &PathBuf,
+        progress: Arc<crate::storage::files::ProgressChannel>,
     ) -> std::result::Result<http::StatusCode, Self::Error>;
 
     /// Delete a file on the remote server.
@@ -574,6 +590,23 @@ pub trait SyncClient {
         from: &crate::storage::files::ExternalFile,
         to: &crate::storage::files::ExternalFile,
     ) -> std::result::Result<http::StatusCode, Self::Error>;
+
+    /// Compare local files with a remote server.
+    ///
+    /// Used to build a transfer queue that will eventually ensure
+    /// external files are in sync.
+    ///
+    /// Comparing sets of files is expensive as both local and remote
+    /// need to read the external files state from disc so only use this
+    /// when necessary.
+    #[cfg(feature = "files")]
+    async fn compare_files(
+        &self,
+        local_files: &crate::storage::files::FileSet,
+    ) -> std::result::Result<
+        crate::storage::files::FileTransfersSet,
+        Self::Error,
+    >;
 }
 
 /// Storage implementations that can synchronize.

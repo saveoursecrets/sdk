@@ -1,6 +1,6 @@
 //! HTTP client implementation.
 use async_trait::async_trait;
-use futures::Future;
+use futures::{Future, StreamExt};
 use reqwest::header::AUTHORIZATION;
 use sos_sdk::{
     constants::MIME_TYPE_SOS,
@@ -24,9 +24,11 @@ use super::websocket::WebSocketChangeListener;
 use crate::sdk::sync::DeviceDiff;
 
 #[cfg(feature = "files")]
-use crate::sdk::storage::files::ExternalFile;
+use crate::sdk::storage::files::{
+    ExternalFile, FileSet, FileTransfersSet, ProgressChannel,
+};
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use url::Url;
 
 use crate::client::{Error, Result};
@@ -182,8 +184,14 @@ impl HttpClient {
 impl SyncClient for HttpClient {
     type Error = Error;
 
+    /*
     fn url(&self) -> &Url {
         self.origin.url()
+    }
+    */
+
+    fn origin(&self) -> &Origin {
+        &self.origin
     }
 
     async fn create_account(&self, account: &ChangeSet) -> Result<()> {
@@ -326,6 +334,7 @@ impl SyncClient for HttpClient {
         &self,
         file_info: &ExternalFile,
         path: &PathBuf,
+        progress: Arc<ProgressChannel>,
     ) -> std::result::Result<http::StatusCode, Self::Error> {
         use crate::sdk::vfs;
         use reqwest::{
@@ -353,9 +362,21 @@ impl SyncClient for HttpClient {
 
         let metadata = vfs::metadata(path).await?;
         let file_size = metadata.len();
-
         let file = vfs::File::open(path).await?;
-        let stream = ReaderStream::new(file);
+
+        let mut bytes_sent = 0;
+        let _ = progress.send((bytes_sent, Some(file_size)));
+
+        let mut reader_stream = ReaderStream::new(file);
+        let progress_stream = async_stream::stream! {
+            while let Some(chunk) = reader_stream.next().await {
+                if let Ok(bytes) = &chunk {
+                    bytes_sent += bytes.len() as u64;
+                    let _ = progress.send((bytes_sent, Some(file_size)));
+                }
+                yield chunk;
+            }
+        };
 
         let response = self
             .client
@@ -363,7 +384,7 @@ impl SyncClient for HttpClient {
             .header(AUTHORIZATION, auth)
             .header(CONTENT_LENGTH, file_size)
             .header(CONTENT_TYPE, "application/octet-stream")
-            .body(Body::wrap_stream(stream))
+            .body(Body::wrap_stream(progress_stream))
             .send()
             .await?;
         let status = convert_status_code(response.status());
@@ -379,6 +400,7 @@ impl SyncClient for HttpClient {
         &self,
         file_info: &ExternalFile,
         path: &PathBuf,
+        progress: Arc<ProgressChannel>,
     ) -> std::result::Result<http::StatusCode, Self::Error> {
         use crate::sdk::vfs;
 
@@ -405,11 +427,19 @@ impl SyncClient for HttpClient {
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
+
+        let file_size = response.content_length();
+        let mut bytes_received = 0;
+        let _ = progress.send((bytes_received, file_size));
+
         let mut hasher = Sha256::new();
         let mut file = vfs::File::create(path).await?;
         while let Some(chunk) = response.chunk().await? {
             file.write_all(&chunk).await?;
             hasher.update(&chunk);
+
+            bytes_received += chunk.len() as u64;
+            let _ = progress.send((bytes_received, file_size));
         }
         file.flush().await?;
         let digest = hasher.finalize();
@@ -501,5 +531,41 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status);
         self.error_json(response).await?;
         Ok(status)
+    }
+
+    async fn compare_files(
+        &self,
+        local_files: &FileSet,
+    ) -> std::result::Result<FileTransfersSet, Self::Error> {
+        let span = span!(Level::DEBUG, "compare_files");
+        let _enter = span.enter();
+
+        let url_path = format!("api/v1/sync/files");
+        let url = self.build_url(&url_path)?;
+        let sign_url = url.path();
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+
+        let body = encode(local_files).await?;
+
+        let response = self
+            .client
+            .post(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        let status = convert_status_code(response.status());
+        tracing::debug!(status = %status);
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(decode(&buffer).await?)
     }
 }

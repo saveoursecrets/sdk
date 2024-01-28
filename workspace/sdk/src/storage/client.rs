@@ -40,7 +40,7 @@ use crate::{
 use crate::events::{FileEvent, FileEventLog};
 
 #[cfg(all(feature = "files", feature = "sync"))]
-use crate::storage::files::Transfers;
+use crate::storage::files::{InflightTransfers, Transfers};
 
 #[cfg(feature = "search")]
 use crate::storage::search::{AccountSearch, DocumentCount};
@@ -90,6 +90,9 @@ pub struct ClientStorage {
 
     #[cfg(all(feature = "files", feature = "sync"))]
     pub(crate) transfers: Arc<RwLock<Transfers>>,
+
+    #[cfg(all(feature = "files", feature = "sync"))]
+    pub(crate) inflight_transfers: Arc<InflightTransfers>,
 
     /// Password for file encryption.
     #[cfg(feature = "files")]
@@ -151,6 +154,9 @@ impl ClientStorage {
         #[cfg(all(feature = "files", feature = "sync"))]
         let transfers = Transfers::new(&*paths).await?;
 
+        #[cfg(all(feature = "files", feature = "sync"))]
+        let inflight_transfers = InflightTransfers::new();
+
         Ok(Self {
             address,
             summaries: Vec::new(),
@@ -169,6 +175,8 @@ impl ClientStorage {
             file_log: Arc::new(RwLock::new(file_log)),
             #[cfg(all(feature = "files", feature = "sync"))]
             transfers: Arc::new(RwLock::new(transfers)),
+            #[cfg(all(feature = "files", feature = "sync"))]
+            inflight_transfers: Arc::new(inflight_transfers),
             #[cfg(feature = "files")]
             file_password: None,
         })
@@ -248,10 +256,16 @@ impl ClientStorage {
         Ok(event_log)
     }
 
-    /// File transfers collection.
+    /// File transfers queue.
     #[cfg(all(feature = "files", feature = "sync"))]
     pub fn transfers(&self) -> Arc<RwLock<Transfers>> {
         Arc::clone(&self.transfers)
+    }
+
+    /// Inflight file transfers.
+    #[cfg(all(feature = "files", feature = "sync"))]
+    pub fn inflight_transfers(&self) -> Arc<InflightTransfers> {
+        Arc::clone(&self.inflight_transfers)
     }
 
     /// Search index reference.

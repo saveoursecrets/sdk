@@ -1,7 +1,10 @@
 //! Manage pending file transfer operations.
 use crate::{
     events::FileEvent,
-    storage::files::{list_external_files, ExternalFile, FileMutationEvent},
+    storage::files::{
+        list_external_files, ExternalFile, FileMutationEvent,
+        FileTransfersSet,
+    },
     sync::SyncClient,
     vfs, Paths, Result,
 };
@@ -11,13 +14,78 @@ use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::{
-    collections::HashMap, future::Future, path::PathBuf, pin::Pin, sync::Arc,
+    collections::HashMap,
+    future::Future,
+    path::PathBuf,
+    pin::Pin,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
     time::Duration,
 };
-use tokio::sync::{mpsc::UnboundedReceiver, oneshot, Mutex, RwLock};
+use tokio::sync::{
+    broadcast, mpsc::UnboundedReceiver, oneshot, Mutex, RwLock,
+};
 use tracing::{span, Level};
 
 type TransferQueue = HashMap<ExternalFile, IndexSet<TransferOperation>>;
+
+type InflightTransfersQueue = Arc<RwLock<HashMap<u64, InflightOperation>>>;
+
+/// Channel sender for upload and download progress notifications.
+pub type ProgressChannel = broadcast::Sender<(u64, Option<u64>)>;
+
+/// Collection of pending transfers.
+pub struct InflightTransfers {
+    inflight: InflightTransfersQueue,
+    request_id: Arc<Mutex<AtomicU64>>,
+    progress: Arc<RwLock<HashMap<u64, Arc<ProgressChannel>>>>,
+}
+
+impl InflightTransfers {
+    /// Create new pending transfers.
+    pub fn new() -> Self {
+        Self {
+            inflight: Arc::new(RwLock::new(Default::default())),
+            request_id: Arc::new(Mutex::new(AtomicU64::new(0))),
+            progress: Arc::new(RwLock::new(Default::default())),
+        }
+    }
+
+    /// Next request id.
+    pub async fn request_id(&self) -> u64 {
+        let id = self.request_id.lock().await;
+        id.fetch_add(1, Ordering::SeqCst)
+    }
+
+    /// In flight transfers queue.
+    pub fn inflight(&self) -> InflightTransfersQueue {
+        Arc::clone(&self.inflight)
+    }
+
+    /// Progress channels.
+    pub fn progress(
+        &self,
+    ) -> Arc<RwLock<HashMap<u64, Arc<ProgressChannel>>>> {
+        Arc::clone(&self.progress)
+    }
+
+    /// Determine if the inflight transfers is empty.
+    pub async fn is_empty(&self) -> bool {
+        let queue = self.inflight.read().await;
+        queue.is_empty()
+    }
+}
+
+/// In flight transfer operation.
+#[derive(Debug, Clone)]
+pub struct InflightOperation {
+    /// External file information.
+    pub file: ExternalFile,
+    /// Transfer operation.
+    pub operation: TransferOperation,
+}
 
 /// Operations for file transfers.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -118,6 +186,7 @@ impl Transfers {
         } else {
             Default::default()
         };
+
         Ok(Self {
             path: Mutex::new(path),
             queue,
@@ -165,6 +234,44 @@ impl Transfers {
                 self.queue.remove(file);
             }
         }
+        self.save().await
+    }
+
+    /// Merge file transfers into this transfers queue.
+    pub async fn merge_file_transfers(
+        &mut self,
+        file_transfers: FileTransfersSet,
+    ) -> Result<()> {
+        for file in file_transfers.uploads.0 {
+            let create_entry = {
+                if self.queue.get(&file).is_none() {
+                    Some(TransferOperation::Upload)
+                } else {
+                    None
+                }
+            };
+            if let Some(op) = create_entry {
+                let mut set = IndexSet::new();
+                set.insert(op);
+                self.queue.insert(file, set);
+            }
+        }
+
+        for file in file_transfers.downloads.0 {
+            let create_entry = {
+                if self.queue.get(&file).is_none() {
+                    Some(TransferOperation::Download)
+                } else {
+                    None
+                }
+            };
+            if let Some(op) = create_entry {
+                let mut set = IndexSet::new();
+                set.insert(op);
+                self.queue.insert(file, set);
+            }
+        }
+
         self.save().await
     }
 
@@ -273,6 +380,7 @@ impl FileTransfers {
     pub fn start<E, C>(
         paths: Arc<Paths>,
         queue: Arc<RwLock<Transfers>>,
+        inflight_transfers: Arc<InflightTransfers>,
         clients: Vec<C>,
         mut shutdown: UnboundedReceiver<()>,
         shutdown_ack: oneshot::Sender<()>,
@@ -291,6 +399,7 @@ impl FileTransfers {
                             tracing::debug!("shutdown");
 
                             // Wait for any pending writes to disc
+                            // for a graceful shutdown
                             let transfers = queue.read().await;
                             let _ = transfers.path.lock().await;
 
@@ -323,6 +432,7 @@ impl FileTransfers {
                             if let Err(e) = Self::try_process_transfers(
                                 Arc::clone(&paths),
                                 Arc::clone(&queue),
+                                Arc::clone(&inflight_transfers),
                                 clients.as_slice(),
                                 pending_transfers,
                             ).await {
@@ -348,6 +458,7 @@ impl FileTransfers {
     async fn try_process_transfers<E, C>(
         paths: Arc<Paths>,
         queue: Arc<RwLock<Transfers>>,
+        inflight_transfers: Arc<InflightTransfers>,
         clients: &[C],
         pending_transfers: TransferQueue,
     ) -> std::result::Result<(), E>
@@ -361,6 +472,7 @@ impl FileTransfers {
                 ops,
                 Arc::clone(&paths),
                 Arc::clone(&queue),
+                Arc::clone(&inflight_transfers),
                 clients,
             )
             .await?;
@@ -374,6 +486,7 @@ impl FileTransfers {
         operations: IndexSet<TransferOperation>,
         paths: Arc<Paths>,
         queue: Arc<RwLock<Transfers>>,
+        inflight_transfers: Arc<InflightTransfers>,
         clients: &[C],
     ) -> std::result::Result<(), E>
     where
@@ -397,6 +510,7 @@ impl FileTransfers {
                         client.clone(),
                         file,
                         op,
+                        Arc::clone(&inflight_transfers),
                     ));
                 } else {
                     uploads.push(Self::run_client_operation(
@@ -404,6 +518,7 @@ impl FileTransfers {
                         client.clone(),
                         file,
                         op,
+                        Arc::clone(&inflight_transfers),
                     ));
                 }
             }
@@ -512,12 +627,31 @@ impl FileTransfers {
         client: C,
         file: ExternalFile,
         op: TransferOperation,
+        inflight_transfers: Arc<InflightTransfers>,
     ) -> std::result::Result<(ExternalFile, TransferOperation, bool), E>
     where
         E: std::fmt::Debug + Send + Sync + 'static,
         C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
     {
-        tracing::debug!(op = ?op, url = %client.url());
+        let (tx, _) = broadcast::channel(512);
+        let tx = Arc::new(tx);
+        let request_id = inflight_transfers.request_id().await;
+        {
+            let progress = inflight_transfers.progress();
+            let mut progress = progress.write().await;
+            progress.insert(request_id, Arc::clone(&tx));
+        }
+        let inflight_request = InflightOperation {
+            file,
+            operation: op,
+        };
+
+        {
+            let mut writer = inflight_transfers.inflight.write().await;
+            writer.insert(request_id, inflight_request);
+        }
+
+        tracing::debug!(op = ?op, url = %client.origin().url());
         //println!("{:#?}", op);
 
         let success = match &op {
@@ -528,7 +662,7 @@ impl FileTransfers {
                     file.file_name().to_string(),
                 );
 
-                match client.upload_file(&file, &path).await {
+                match client.upload_file(&file, &path, tx).await {
                     Ok(status) => Self::is_success(&op, status),
                     Err(e) => {
                         //eprintln!("UPLOAD FAIL {:#?}", e);
@@ -557,7 +691,7 @@ impl FileTransfers {
                     file.secret_id(),
                     file.file_name().to_string(),
                 );
-                match client.download_file(&file, &path).await {
+                match client.download_file(&file, &path, tx).await {
                     Ok(status) => Self::is_success(&op, status),
                     Err(e) => {
                         tracing::warn!(error = ?e);
@@ -584,6 +718,16 @@ impl FileTransfers {
                 }
             }
         };
+
+        {
+            let mut writer = inflight_transfers.inflight.write().await;
+            writer.remove(&request_id);
+
+            let progress = inflight_transfers.progress();
+            let mut progress = progress.write().await;
+            progress.remove(&request_id);
+        }
+
         Ok((file, op, success))
     }
 

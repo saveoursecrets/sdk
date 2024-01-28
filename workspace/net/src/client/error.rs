@@ -1,5 +1,4 @@
 //! Error type for the client module.
-use crate::client::SyncError;
 use http::StatusCode;
 use serde_json::Value;
 #[cfg(feature = "client")]
@@ -22,10 +21,6 @@ pub enum Error {
     #[error("file {0} already exists")]
     FileExists(PathBuf),
 
-    /// Error generated when a single sync error is expected.
-    #[error("single sync error expected")]
-    SyncErrorOne,
-
     /// Error generated when an unexpected response code is received.
     #[error("unexpected response status code {0}")]
     ResponseCode(StatusCode),
@@ -46,6 +41,11 @@ pub enum Error {
     /// Error generated when a remote origin could not be found.
     #[error("origin '{0}' not found")]
     OriginNotFound(Origin),
+
+    /// Error generated attempting to patch devices but the account does
+    /// not exist on the remote.
+    #[error("cannot patch devices, account does not exist on remote")]
+    NoAccountPatchDevices,
 
     /// Error generated when a websocket message is not binary.
     #[error("not binary message type on websocket")]
@@ -148,13 +148,4 @@ pub enum Error {
     #[error(transparent)]
     #[cfg(feature = "migrate")]
     Migrate(#[from] sos_sdk::migrate::Error),
-}
-
-impl From<SyncError> for Error {
-    fn from(value: SyncError) -> Self {
-        match value {
-            SyncError::One(e) => e,
-            _ => unreachable!(),
-        }
-    }
 }

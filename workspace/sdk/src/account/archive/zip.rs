@@ -220,7 +220,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> Reader<R> {
     async fn by_name(&mut self, name: &str) -> Result<Option<Vec<u8>>> {
         for index in 0..self.archive.file().entries().len() {
             let entry = self.archive.file().entries().get(index).unwrap();
-            let file_name = entry.entry().filename();
+            let file_name = entry.filename();
             let file_name = file_name.as_str()?;
             if file_name == name {
                 let mut reader =
@@ -264,10 +264,10 @@ impl<R: AsyncRead + AsyncSeek + Unpin> Reader<R> {
     ) -> Result<()> {
         for index in 0..self.archive.file().entries().len() {
             let entry = self.archive.file().entries().get(index).unwrap();
-            let is_dir = entry.entry().dir()?;
+            let is_dir = entry.dir()?;
 
             if !is_dir {
-                let file_name = entry.entry().filename();
+                let file_name = entry.filename();
 
                 let path = sanitize_file_path(file_name.as_str()?);
                 let mut it = path.iter();

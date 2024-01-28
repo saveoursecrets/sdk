@@ -1,5 +1,5 @@
 use axum::{
-    body::Body,
+    body::{to_bytes, Body},
     extract::{Extension, OriginalUri, Path, Query, Request},
     http::StatusCode,
     middleware::Next,
@@ -13,6 +13,7 @@ use axum_extra::{
 
 //use axum_macros::debug_handler;
 
+use super::BODY_LIMIT;
 use crate::{
     sdk::{
         storage::files::{ExternalFile, ExternalFileName},
@@ -298,33 +299,110 @@ pub(crate) async fn move_file(
     }
 }
 
+/// Compare file sets between the local state on disc
+/// and the state of files on this server.
+#[utoipa::path(
+    post,
+    path = "/sync/files",
+    security(
+        ("bearer_token" = [])
+    ),
+    responses(
+        (
+            status = StatusCode::UNAUTHORIZED,
+            description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "File transfers set was created.",
+        ),
+    ),
+)]
+pub(crate) async fn compare_files(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    Query(query): Query<ConnectionQuery>,
+    OriginalUri(uri): OriginalUri,
+    body: Body,
+) -> impl IntoResponse {
+    let uri = uri.path().to_string();
+    match to_bytes(body, BODY_LIMIT).await {
+        Ok(bytes) => match authenticate_endpoint(
+            bearer,
+            uri.as_bytes(),
+            query,
+            Arc::clone(&state),
+            Arc::clone(&backend),
+            true,
+        )
+        .await
+        {
+            Ok(token) => {
+                match handlers::compare_files(state, backend, token, &bytes)
+                    .await
+                {
+                    Ok(result) => result.into_response(),
+                    Err(error) => error.into_response(),
+                }
+            }
+            Err(error) => error.into_response(),
+        },
+        Err(_) => StatusCode::BAD_REQUEST.into_response(),
+    }
+}
+
 mod handlers {
-
-    use axum::{body::Body, http::StatusCode, response::Response};
-
-    use futures::TryStreamExt;
-    use sos_sdk::sha2::{Digest, Sha256};
-
-    //use axum_macros::debug_handler;
-
+    use super::MoveFileQuery;
     use crate::{
         sdk::{
-            storage::files::ExternalFileName,
+            constants::MIME_TYPE_SOS,
+            decode, encode,
+            sha2::{Digest, Sha256},
+            storage::files::{
+                list_external_files, ExternalFileName, FileSet,
+                FileTransfersSet,
+            },
             vault::{secret::SecretId, VaultId},
         },
         server::{
             handlers::Caller, Error, Result, ServerBackend, ServerState,
         },
     };
-    use http::header;
-    use std::sync::Arc;
+    use axum::{body::Body, http::StatusCode, response::Response};
+    use futures::TryStreamExt;
+    use http::header::{self, HeaderMap, HeaderValue};
+    use std::{collections::HashSet, path::PathBuf, sync::Arc};
     use tokio::{
         fs::File,
         io::{AsyncWriteExt, BufWriter},
     };
     use tokio_util::io::ReaderStream;
 
-    use super::MoveFileQuery;
+    // Receive guard deletes files that did not complete
+    // uploading or whose digest does not match the expected
+    // checksum
+    struct ReceiveGuard {
+        file_name: ExternalFileName,
+        file_path: PathBuf,
+        digest: Option<Vec<u8>>,
+    }
+
+    impl Drop for ReceiveGuard {
+        fn drop(&mut self) {
+            if let Some(digest) = &self.digest {
+                if digest.as_slice() != self.file_name.as_ref() {
+                    let _ = std::fs::remove_file(&self.file_path);
+                }
+            } else {
+                let _ = std::fs::remove_file(&self.file_path);
+            }
+        }
+    }
 
     pub(super) async fn receive_file(
         _state: ServerState,
@@ -362,14 +440,20 @@ mod handlers {
             return Err(Error::Status(StatusCode::NOT_MODIFIED));
         }
 
+        let mut guard = ReceiveGuard {
+            file_name,
+            file_path: file_path.clone(),
+            digest: None,
+        };
+
         if !tokio::fs::try_exists(&parent_path).await? {
             tokio::fs::create_dir_all(&parent_path).await?;
         }
 
-        let mut hasher = Sha256::new();
         let file = File::create(&file_path).await?;
         let mut buf_writer = BufWriter::new(file);
         let mut stream = body.into_data_stream();
+        let mut hasher = Sha256::new();
         while let Some(chunk) = stream.try_next().await? {
             buf_writer.write(&chunk).await?;
             hasher.update(&chunk);
@@ -377,9 +461,9 @@ mod handlers {
 
         buf_writer.flush().await?;
         let digest = hasher.finalize();
+        guard.digest = Some(digest.to_vec());
 
         if digest.as_slice() != file_name.as_ref() {
-            tokio::fs::remove_file(&file_path).await?;
             return Err(Error::FileChecksumMismatch(
                 file_name.to_string(),
                 hex::encode(digest.as_slice()),
@@ -517,6 +601,48 @@ mod handlers {
         tokio::fs::remove_file(&source_path).await?;
 
         Ok(())
+    }
+
+    pub(super) async fn compare_files(
+        _state: ServerState,
+        backend: ServerBackend,
+        caller: Caller,
+        bytes: &[u8],
+    ) -> Result<(HeaderMap, Vec<u8>)> {
+        let paths = {
+            let backend = backend.read().await;
+            let accounts = backend.accounts();
+            let accounts = accounts.read().await;
+            let account = accounts
+                .get(caller.address())
+                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+            let account = account.read().await;
+            account.storage.paths()
+        };
+
+        let local_files: FileSet = decode(bytes).await?;
+        let local_set = local_files.0;
+        let remote_set = list_external_files(&*paths).await?;
+        let uploads = local_set
+            .difference(&remote_set)
+            .cloned()
+            .collect::<HashSet<_>>();
+        let downloads = remote_set
+            .difference(&local_set)
+            .cloned()
+            .collect::<HashSet<_>>();
+        let transfers = FileTransfersSet {
+            uploads: FileSet(uploads),
+            downloads: FileSet(downloads),
+        };
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_SOS),
+        );
+
+        Ok((headers, encode(&transfers).await?))
     }
 }
 

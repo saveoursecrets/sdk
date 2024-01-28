@@ -46,7 +46,7 @@ async fn network_sync_multiple_remotes_fallback() -> Result<()> {
     // Explicit sync afterwards, triggers the code path
     // where we try to connect to a remote which is down
     let sync_error = device.owner.sync().await;
-    assert!(matches!(sync_error, Some(SyncError::Multiple(_))));
+    assert!(matches!(sync_error, Some(SyncError { .. })));
 
     // Bring the server back online
     let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;

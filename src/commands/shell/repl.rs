@@ -8,8 +8,8 @@ use sos_net::sdk::{
 
 use crate::{
     commands::{
-        AccountCommand, CheckCommand, FolderCommand, SecretCommand,
-        ServerCommand, SyncCommand,
+        AccountCommand, CheckCommand, FileCommand, FolderCommand,
+        SecretCommand, ServerCommand, SyncCommand,
     },
     helpers::account::{cd_folder, switch, Owner},
 };
@@ -53,6 +53,11 @@ enum ShellCommand {
     Sync {
         #[clap(subcommand)]
         cmd: SyncCommand,
+    },
+    /// Inspect external files and file transfers.
+    File {
+        #[clap(subcommand)]
+        cmd: FileCommand,
     },
     /*
     /// Change encryption password for the selected vault.
@@ -186,6 +191,7 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
             crate::commands::server::run(cmd).await
         }
         ShellCommand::Sync { cmd } => crate::commands::sync::run(cmd).await,
+        ShellCommand::File { cmd } => crate::commands::file::run(cmd).await,
         ShellCommand::Cd { folder } => cd_folder(user, folder.as_ref()).await,
 
         /*

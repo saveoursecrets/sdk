@@ -81,6 +81,7 @@ tempfile = "3.5"
 shell-words = "1"
 terminal-banner = "0.2"
 unicode-width = "0.1"
+kdam = "0.5"
 
 [dependencies.sos-net]
 version = "0.8.4" 
@@ -92,8 +93,8 @@ clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
 axum-server = { version = "0.6", features = ["tls-rustls"] }
 tokio = { version = "1", features = ["full"] }
 arboard = "3"
-rustyline = "11"
-rustyline-derive = "0.8"
+rustyline = "13"
+rustyline-derive = "0.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { version = "1", features = ["rt", "time", "sync"] }

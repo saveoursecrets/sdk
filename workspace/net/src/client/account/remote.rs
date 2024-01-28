@@ -4,8 +4,9 @@ use crate::client::{
 };
 use async_trait::async_trait;
 use sos_sdk::{
-    account::LocalAccount,
+    account::{Account, LocalAccount},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
+    storage::files::{list_external_files, FileSet},
     sync::{
         self, Merge, Origin, SyncClient, SyncPacket, SyncStatus, SyncStorage,
     },
@@ -58,12 +59,12 @@ impl RemoteBridge {
 impl RemoteBridge {
     /// Create an account on the remote.
     async fn create_remote_account(&self) -> Result<()> {
-        let account = self.account.lock().await;
-        let public_account = account.change_set().await?;
-        self.client.create_account(&public_account).await?;
-
-        // FIXME: import files here!
-
+        {
+            let account = self.account.lock().await;
+            let public_account = account.change_set().await?;
+            self.client.create_account(&public_account).await?;
+        }
+        self.execute_sync_file_transfers().await?;
         Ok(())
     }
 
@@ -90,25 +91,13 @@ impl RemoteBridge {
         Ok(())
     }
 
-    async fn execute_sync(&self) -> Vec<Error> {
-        let mut errors = Vec::new();
-        match self.client.sync_status().await {
-            Ok(sync_status) => {
-                if let Some(sync_status) = sync_status {
-                    if let Err(e) = self.sync_account(sync_status).await {
-                        errors.push(e);
-                    }
-                } else {
-                    if let Err(e) = self.create_remote_account().await {
-                        errors.push(e);
-                    }
-                }
-            }
-            Err(e) => {
-                errors.push(e);
-            }
+    async fn execute_sync(&self) -> Result<()> {
+        let sync_status = self.client.sync_status().await?;
+        if let Some(sync_status) = sync_status {
+            self.sync_account(sync_status).await
+        } else {
+            self.create_remote_account().await
         }
-        errors
     }
 
     async fn send_devices_patch(
@@ -116,7 +105,6 @@ impl RemoteBridge {
         remote_status: SyncStatus,
     ) -> Result<()> {
         let account = self.account.lock().await;
-
         let (needs_sync, _local_status, local_changes) =
             sync::diff(&*account, remote_status).await?;
 
@@ -124,29 +112,36 @@ impl RemoteBridge {
         if let (true, Some(device)) = (needs_sync, local_changes.device) {
             self.client.patch_devices(&device).await?;
         }
-
         Ok(())
     }
 
-    async fn execute_sync_devices(&self) -> Vec<Error> {
-        let mut errors = Vec::new();
-        match self.client.sync_status().await {
-            Ok(sync_status) => {
-                if let Some(sync_status) = sync_status {
-                    if let Err(e) = self.send_devices_patch(sync_status).await
-                    {
-                        errors.push(e);
-                    }
-                } else {
-                    todo!("add not found error...");
-                    //errors.push(Error::Not);
-                }
-            }
-            Err(e) => {
-                errors.push(e);
-            }
+    async fn execute_sync_devices(&self) -> Result<()> {
+        let sync_status = self.client.sync_status().await?;
+        if let Some(sync_status) = sync_status {
+            self.send_devices_patch(sync_status).await
+        } else {
+            Err(Error::NoAccountPatchDevices)
         }
-        errors
+    }
+
+    async fn execute_sync_file_transfers(&self) -> Result<()> {
+        let paths = {
+            let account = self.account.lock().await;
+            account.paths()
+        };
+
+        let external_files = list_external_files(&*paths).await?;
+        let file_set = FileSet(external_files);
+        let file_transfers = self.client.compare_files(&file_set).await?;
+
+        {
+            let account = self.account.lock().await;
+            let transfers = account.transfers().await?;
+            let mut transfers = transfers.write().await;
+            transfers.merge_file_transfers(file_transfers).await?;
+        }
+
+        Ok(())
     }
 }
 
@@ -174,34 +169,46 @@ impl RemoteSync for RemoteBridge {
 
         tracing::debug!(origin = %self.origin.url());
 
-        let errors = self.execute_sync().await;
-        if errors.is_empty() {
-            None
-        } else {
-            let errors = errors
-                .into_iter()
-                .map(|e| {
-                    let origin: Origin = self.origin.clone().into();
-                    (origin, e)
-                })
-                .collect::<Vec<_>>();
-            Some(SyncError::Multiple(errors))
+        match self.execute_sync().await {
+            Ok(_) => None,
+            Err(e) => Some(SyncError {
+                errors: vec![(self.origin.clone(), e)],
+            }),
+        }
+    }
+
+    async fn sync_file_transfers(
+        &self,
+        options: &SyncOptions,
+    ) -> Option<SyncError> {
+        let should_sync = options.origins.is_empty()
+            || options
+                .origins
+                .iter()
+                .find(|&o| o == &self.origin)
+                .is_some();
+
+        if !should_sync {
+            tracing::warn!(origin = %self.origin, "skip sync");
+            return None;
+        }
+
+        tracing::debug!(origin = %self.origin.url());
+
+        match self.execute_sync_file_transfers().await {
+            Ok(_) => None,
+            Err(e) => Some(SyncError {
+                errors: vec![(self.origin.clone(), e)],
+            }),
         }
     }
 
     async fn patch_devices(&self) -> Option<SyncError> {
-        let errors = self.execute_sync_devices().await;
-        if errors.is_empty() {
-            None
-        } else {
-            let errors = errors
-                .into_iter()
-                .map(|e| {
-                    let origin: Origin = self.origin.clone().into();
-                    (origin, e)
-                })
-                .collect::<Vec<_>>();
-            Some(SyncError::Multiple(errors))
+        match self.execute_sync_devices().await {
+            Ok(_) => None,
+            Err(e) => Some(SyncError {
+                errors: vec![(self.origin.clone(), e)],
+            }),
         }
     }
 }

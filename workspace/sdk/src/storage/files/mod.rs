@@ -18,7 +18,24 @@ pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;
 pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
 #[cfg(feature = "sync")]
-pub use transfer::{FileTransfers, TransferOperation, Transfers};
+pub use transfer::{
+    FileTransfers, InflightTransfers, ProgressChannel, TransferOperation,
+    Transfers,
+};
+
+/// Set of files built from the state on disc.
+#[derive(Debug, Default)]
+pub struct FileSet(pub HashSet<ExternalFile>);
+
+/// Sets of files that should be uploaded and
+/// downloaded from a remote server.
+#[derive(Debug, Default)]
+pub struct FileTransfersSet {
+    /// Files that exist on local but not on remote.
+    pub uploads: FileSet,
+    /// Files that exist on remote but not on local.
+    pub downloads: FileSet,
+}
 
 /// Meta data about an encrypted file.
 #[derive(Debug, Clone)]
@@ -31,7 +48,9 @@ pub struct EncryptedFile {
 
 /// External file name is an SHA2-256 checksum of
 /// the encrypted file contents.
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Default, Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize,
+)]
 pub struct ExternalFileName(#[serde(with = "hex::serde")] [u8; 32]);
 
 impl From<ExternalFileName> for [u8; 32] {
@@ -68,7 +87,9 @@ impl FromStr for ExternalFileName {
 }
 
 /// Pointer to an external file.
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Default, Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize,
+)]
 pub struct ExternalFile(VaultId, SecretId, ExternalFileName);
 
 impl From<ExternalFile> for FileEvent {
@@ -130,12 +151,14 @@ impl FromStr for ExternalFile {
     }
 }
 
-/// List all the external files in an account.
+/// List all the external files in an account by reading the
+/// state from disc.
 ///
 /// If a directory name cannot be parsed to a folder or secret
 /// identifier or the file name cannot be converted to `[u8; 32]`
 /// the directory or file will be ignored.
-pub(crate) async fn list_external_files(
+#[doc(hidden)]
+pub async fn list_external_files(
     paths: &Paths,
 ) -> Result<HashSet<ExternalFile>> {
     let mut files = HashSet::new();
