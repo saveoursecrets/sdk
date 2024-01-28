@@ -11,7 +11,7 @@ use sos_sdk::{
 };
 
 use serde_json::Value;
-use tokio::{io::AsyncWriteExt, sync::RwLock};
+use tokio::io::AsyncWriteExt;
 use tracing::{span, Level};
 
 #[cfg(feature = "listen")]
@@ -28,7 +28,7 @@ use crate::sdk::storage::files::{
     ExternalFile, FileSet, FileTransfersSet, ProgressChannel,
 };
 
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 use url::Url;
 
 use crate::client::{Error, Result};

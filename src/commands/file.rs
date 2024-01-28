@@ -1,18 +1,14 @@
-use crate::{helpers::account::resolve_user, Error, Result};
+use crate::{helpers::account::resolve_user, Result};
 use clap::Subcommand;
-use human_bytes::human_bytes;
 use kdam::{tqdm, BarExt, RowManager};
 use sos_net::{
-    client::{NetworkAccount, RemoteSync, SyncOptions},
     sdk::{
         account::Account,
         identity::AccountRef,
-        sync::{Origin, SyncStatus, SyncStorage},
-        url::Url,
     },
 };
 use std::sync::Arc;
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::Mutex;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

@@ -1,6 +1,5 @@
 use crate::{helpers::account::resolve_user, Error, Result};
 use clap::Subcommand;
-use human_bytes::human_bytes;
 use sos_net::{
     client::{NetworkAccount, RemoteSync, SyncOptions},
     sdk::{
