@@ -564,7 +564,7 @@ async fn parse<R: AsyncRead + AsyncSeek + Unpin>(
 
     for index in 0..zip.file().entries().len() {
         let entry = zip.file().entries().get(index).unwrap();
-        let file_name = entry.entry().filename();
+        let file_name = entry.filename();
         let file_name = file_name.as_str()?;
 
         match file_name {
