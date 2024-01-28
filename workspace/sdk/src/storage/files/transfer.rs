@@ -173,6 +173,7 @@ impl Transfers {
         } else {
             Default::default()
         };
+        
         Ok(Self {
             path: Mutex::new(path),
             queue,

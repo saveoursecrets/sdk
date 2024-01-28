@@ -376,12 +376,33 @@ mod handlers {
     use axum::{body::Body, http::StatusCode, response::Response};
     use futures::TryStreamExt;
     use http::header::{self, HeaderMap, HeaderValue};
-    use std::{collections::HashSet, sync::Arc};
+    use std::{collections::HashSet, sync::Arc, path::PathBuf};
     use tokio::{
         fs::File,
         io::{AsyncWriteExt, BufWriter},
     };
     use tokio_util::io::ReaderStream;
+    
+    // Receive guard deletes files that did not complete 
+    // uploading or whose digest does not match the expected 
+    // checksum
+    struct ReceiveGuard {
+        file_name: ExternalFileName,
+        file_path: PathBuf,
+        digest: Option<Vec<u8>>,
+    }
+
+    impl Drop for ReceiveGuard {
+        fn drop(&mut self) {
+            if let Some(digest) = &self.digest {
+                if digest.as_slice() != self.file_name.as_ref() {
+                    let _ = std::fs::remove_file(&self.file_path);
+                }
+            } else {
+                let _ = std::fs::remove_file(&self.file_path);
+            }
+        }
+    }
 
     pub(super) async fn receive_file(
         _state: ServerState,
@@ -419,14 +440,20 @@ mod handlers {
             return Err(Error::Status(StatusCode::NOT_MODIFIED));
         }
 
+        let mut guard = ReceiveGuard {
+            file_name,
+            file_path: file_path.clone(),
+            digest: None,
+        };
+
         if !tokio::fs::try_exists(&parent_path).await? {
             tokio::fs::create_dir_all(&parent_path).await?;
         }
 
-        let mut hasher = Sha256::new();
         let file = File::create(&file_path).await?;
         let mut buf_writer = BufWriter::new(file);
         let mut stream = body.into_data_stream();
+        let mut hasher = Sha256::new();
         while let Some(chunk) = stream.try_next().await? {
             buf_writer.write(&chunk).await?;
             hasher.update(&chunk);
@@ -434,9 +461,9 @@ mod handlers {
 
         buf_writer.flush().await?;
         let digest = hasher.finalize();
+        guard.digest = Some(digest.to_vec());
 
         if digest.as_slice() != file_name.as_ref() {
-            tokio::fs::remove_file(&file_path).await?;
             return Err(Error::FileChecksumMismatch(
                 file_name.to_string(),
                 hex::encode(digest.as_slice()),
