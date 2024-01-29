@@ -21,23 +21,9 @@ pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
 pub use integrity::{integrity_report, FailureReason, IntegrityReportEvent};
 #[cfg(feature = "sync")]
 pub use transfer::{
-    FileTransfers, InflightTransfers, ProgressChannel, TransferOperation,
-    Transfers,
+    FileSet, FileTransfers, FileTransfersSet, InflightTransfers,
+    ProgressChannel, TransferOperation, Transfers,
 };
-
-/// Set of files built from the state on disc.
-#[derive(Debug, Default)]
-pub struct FileSet(pub HashSet<ExternalFile>);
-
-/// Sets of files that should be uploaded and
-/// downloaded from a remote server.
-#[derive(Debug, Default)]
-pub struct FileTransfersSet {
-    /// Files that exist on local but not on remote.
-    pub uploads: FileSet,
-    /// Files that exist on remote but not on local.
-    pub downloads: FileSet,
-}
 
 /// Meta data about an encrypted file.
 #[derive(Debug, Clone)]
