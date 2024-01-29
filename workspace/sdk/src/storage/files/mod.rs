@@ -11,12 +11,14 @@ use std::{collections::HashSet, fmt, path::Path, str::FromStr};
 mod external_files;
 mod external_files_sync;
 mod file_manager;
+mod integrity;
 #[cfg(feature = "sync")]
 mod transfer;
 
 pub use external_files::FileStorage;
 pub use external_files_sync::FileStorageSync;
 pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
+pub use integrity::{integrity_report, FailureReason, IntegrityReportEvent};
 #[cfg(feature = "sync")]
 pub use transfer::{
     FileTransfers, InflightTransfers, ProgressChannel, TransferOperation,

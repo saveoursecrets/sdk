@@ -76,12 +76,14 @@ futures.workspace = true
 parking_lot.workspace = true
 once_cell.workspace = true
 toml.workspace = true
+indexmap.workspace = true
 human_bytes = "0.3"
 tempfile = "3.5"
 shell-words = "1"
 terminal-banner = "0.2"
 unicode-width = "0.1"
 kdam = "0.5"
+num_cpus = "1"
 
 [dependencies.sos-net]
 version = "0.8.4" 
