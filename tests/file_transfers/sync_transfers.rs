@@ -12,10 +12,10 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 /// Tests creating external files then adding a remote
 /// server, syncing and uploading the files.
 ///
-/// This differs from the late upload test in that we 
-/// first wipe out any pending transfers and use 
-/// the transfers computed when `sync_file_transfers()` 
-/// is called internally when the remote bridge creates 
+/// This differs from the late upload test in that we
+/// first wipe out any pending transfers and use
+/// the transfers computed when `sync_file_transfers()`
+/// is called internally when the remote bridge creates
 /// an account for the first time.
 #[tokio::test]
 async fn file_transfers_sync_file_transfers() -> Result<()> {
@@ -41,11 +41,19 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
     ));
 
     // Add an attachment to the secret
-    let (_, _, file_name) =
-        create_attachment(&mut device.owner, &secret_id, &default_folder, None)
-            .await?;
-    files.push(ExternalFile::new(*default_folder.id(), secret_id, file_name));
-    
+    let (_, _, file_name) = create_attachment(
+        &mut device.owner,
+        &secret_id,
+        &default_folder,
+        None,
+    )
+    .await?;
+    files.push(ExternalFile::new(
+        *default_folder.id(),
+        secret_id,
+        file_name,
+    ));
+
     // Wipe out any existing file transfers queue
     // so we can mock this scenario
     {
@@ -62,7 +70,7 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
     device.owner.add_server(server.origin.clone()).await?;
 
     // Initial sync will update the file transfers queue
-    // as `sync_file_transfers()` is called when creating 
+    // as `sync_file_transfers()` is called when creating
     // an account for the first time on a remote server.
     assert!(device.owner.sync().await.is_none());
 
@@ -75,7 +83,7 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
             assert!(transfers.queue().get(file).is_some());
         }
     }
-    
+
     // Wait until the transfers are completed
     wait_for_transfers(&device.owner).await?;
 

@@ -110,8 +110,34 @@ pub async fn run(cmd: Command) -> Result<()> {
             if queue.is_empty() {
                 println!("No queued file transfers");
             } else {
+                // Group by folder
+                let mut grouped = HashMap::new();
                 for (file, ops) in queue {
-                    println!("{}", file);
+                    if let Some(summary) =
+                        owner.find(|s| s.id() == file.vault_id()).await
+                    {
+                        let secrets =
+                            grouped.entry(summary).or_insert(HashMap::new());
+                        let files =
+                            secrets.entry(file.secret_id()).or_insert(vec![]);
+                        files.push((file.file_name(), ops));
+                    } else {
+                        tracing::warn!(
+                            id = %file.vault_id(),
+                            "folder missing",
+                        );
+                    }
+                }
+
+                for (folder, secrets) in grouped {
+                    println!("[{}]", folder.name());
+                    for (secret_id, files) in secrets {
+                        println!("> {}", secret_id);
+                        for (name, ops) in files {
+                            println!("  {}", name);
+                            println!("  {}", serde_json::to_string(&ops)?);
+                        }
+                    }
                 }
             }
         }
