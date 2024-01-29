@@ -177,6 +177,9 @@ pub enum Error {
 
     #[error(transparent)]
     Csv(#[from] csv_async::Error),
+
+    #[error(transparent)]
+    Ctrlc(#[from] ctrlc::Error),
 }
 
 impl Error {

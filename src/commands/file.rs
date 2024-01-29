@@ -1,17 +1,13 @@
 use crate::{
-    helpers::{account::resolve_user, readline::clear_screen},
+    helpers::{account::resolve_user, readline::clear_screen, PROGRESS_MONITOR},
     Result,
 };
 use clap::Subcommand;
 use kdam::{tqdm, BarExt, RowManager};
-use sos_net::sdk::{
-    account::Account,
-    identity::AccountRef,
-    storage::files::{integrity_report, FailureReason, IntegrityReportEvent},
-    sync::SyncStorage,
-};
+use futures::{select, FutureExt};
+use sos_net::sdk::prelude::*;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, broadcast};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -110,8 +106,34 @@ pub async fn run(cmd: Command) -> Result<()> {
             if queue.is_empty() {
                 println!("No queued file transfers");
             } else {
+                // Group by folder
+                let mut grouped = HashMap::new();
                 for (file, ops) in queue {
-                    println!("{}", file);
+                    if let Some(summary) =
+                        owner.find(|s| s.id() == file.vault_id()).await
+                    {
+                        let secrets =
+                            grouped.entry(summary).or_insert(HashMap::new());
+                        let files =
+                            secrets.entry(file.secret_id()).or_insert(vec![]);
+                        files.push((file.file_name(), ops));
+                    } else {
+                        tracing::warn!(
+                            id = %file.vault_id(),
+                            "folder missing",
+                        );
+                    }
+                }
+
+                for (folder, secrets) in grouped {
+                    println!("[{}]", folder.name());
+                    for (secret_id, files) in secrets {
+                        println!("> {}", secret_id);
+                        for (name, ops) in files {
+                            println!("  {}", name);
+                            println!("  {}", serde_json::to_string(&ops)?);
+                        }
+                    }
                 }
             }
         }
@@ -143,43 +165,88 @@ pub async fn run(cmd: Command) -> Result<()> {
                 drop(inflight);
                 drop(progress);
 
-                let manager = Arc::new(Mutex::new(RowManager::new(5)));
+                let manager = Arc::new(Mutex::new(RowManager::from_window_size()));
                 let mut threads = Vec::new();
+                
+                // Shutdown channel for ctrlc handling
+                let (shutdown_tx, _) = broadcast::channel::<()>(1);
+                
+                // Update the global so ctrlc handler will 
+                // send an event on the shutdown channel
+                {
+                    let mut mon = PROGRESS_MONITOR.lock();
+                    *mon = Some(shutdown_tx.clone());
+                }
 
-                for (inflight_op, mut rx) in channels {
+                for (inflight_op, rx) in channels {
                     let mgr = Arc::clone(&manager);
-                    threads.push(std::thread::spawn(move || {
-                        tokio::runtime::Builder::new_current_thread()
-                            .enable_all()
-                            .build()
-                            .unwrap()
-                            .block_on(async move {
-                                let mut pb = tqdm!(
-                                    unit_scale = true,
-                                    unit_divisor = 1024,
-                                    unit = "B"
-                                );
-                                let name =
-                                    inflight_op.file.file_name().to_string();
-                                pb.set_description(format!(
-                                    "{}",
-                                    &name[0..8]
-                                ));
+                    let shutdown = shutdown_tx.subscribe();
+                    threads.push(
+                        spawn_file_progress(inflight_op, mgr, shutdown, rx));
+                }
 
-                                let index = {
-                                    let mut writer = mgr.lock().await;
-                                    writer.push(pb)?
-                                };
+                for thread in threads {
+                    let _ = thread.join();
+                }
+                
+                // Clear the shutdown channel as we are done
+                {
+                    let mut mon = PROGRESS_MONITOR.lock();
+                    *mon = None;
+                }
+            }
+        }
+    }
+    Ok(())
+}
 
-                                let mut pb = {
-                                    let mut writer = mgr.lock().await;
-                                    writer.get_mut(index).unwrap().clone()
-                                };
+fn spawn_file_progress(
+    inflight_op: InflightOperation,
+    mgr: Arc<Mutex<RowManager>>,
+    mut shutdown: broadcast::Receiver<()>,
+    mut rx: broadcast::Receiver<(u64, Option<u64>)>,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async move {
+                let mut pb = tqdm!(
+                    unit_scale = true,
+                    unit_divisor = 1024,
+                    unit = "B"
+                );
+                let name =
+                    inflight_op.file.file_name().to_string();
+                pb.set_description(format!(
+                    "{}",
+                    &name[0..8]
+                ));
 
-                                while let Ok((transferred, total)) =
-                                    rx.recv().await
-                                {
+                let index = {
+                    let mut writer = mgr.lock().await;
+                    writer.push(pb)?
+                };
+                
+                /*
+                let mut pb = {
+                    let mut writer = mgr.lock().await;
+                    writer.get_mut(index).unwrap().clone()
+                };
+                */
+
+                loop {
+                    select! {
+                        _ = shutdown.recv().fuse() => {
+                            break;
+                        }
+                        event = rx.recv().fuse() => {
+                            match event {
+                                Ok((transferred, total)) => {
                                     if let Some(total) = total {
+                                        let mut writer = mgr.lock().await;
+                                        let pb = writer.get_mut(index).unwrap();
                                         pb.total = total as usize;
                                         pb.update_to(transferred as usize)?;
                                         if total == transferred {
@@ -190,18 +257,14 @@ pub async fn run(cmd: Command) -> Result<()> {
                                         break;
                                     }
                                 }
-
-                                Ok::<(), crate::Error>(())
-                            })
-                            .unwrap();
-                    }));
+                                _ => break,
+                            }
+                        } 
+                    }
                 }
-
-                for thread in threads {
-                    let _ = thread.join();
-                }
-            }
-        }
-    }
-    Ok(())
+                
+                Ok::<(), crate::Error>(())
+            })
+            .unwrap();
+    })
 }

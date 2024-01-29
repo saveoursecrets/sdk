@@ -477,18 +477,21 @@ impl FileTransfers {
         E: std::fmt::Debug + Send + Sync + 'static,
         C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
     {
-        for (file, ops) in pending_transfers {
-            Self::process_operations(
-                file,
-                ops,
-                Arc::clone(&paths),
-                Arc::clone(&queue),
-                Arc::clone(&inflight_transfers),
-                clients,
-            )
-            .await?;
+        let list = pending_transfers.into_iter().collect::<Vec<_>>();
+        for files in list.chunks(16) {
+            let mut futures = Vec::new();
+            for (file, ops) in files {
+                futures.push(Self::process_operations(
+                    *file,
+                    ops.clone(),
+                    Arc::clone(&paths),
+                    Arc::clone(&queue),
+                    Arc::clone(&inflight_transfers),
+                    clients.to_vec(),
+                ));
+            }
+            futures::future::try_join_all(futures).await?;
         }
-
         Ok(())
     }
 
@@ -498,7 +501,7 @@ impl FileTransfers {
         paths: Arc<Paths>,
         queue: Arc<RwLock<Transfers>>,
         inflight_transfers: Arc<InflightTransfers>,
-        clients: &[C],
+        clients: Vec<C>,
     ) -> std::result::Result<(), E>
     where
         E: std::fmt::Debug + Send + Sync + 'static,
@@ -514,7 +517,7 @@ impl FileTransfers {
             let mut uploads = Vec::new();
             let mut downloads = Vec::new();
 
-            for client in clients {
+            for client in &clients {
                 if let TransferOperation::Download = &op {
                     downloads.push(Self::run_client_operation(
                         Arc::clone(&paths),

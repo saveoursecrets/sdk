@@ -22,7 +22,7 @@ pub use integrity::{integrity_report, FailureReason, IntegrityReportEvent};
 #[cfg(feature = "sync")]
 pub use transfer::{
     FileSet, FileTransfers, FileTransfersSet, InflightTransfers,
-    ProgressChannel, TransferOperation, Transfers,
+    ProgressChannel, TransferOperation, Transfers, InflightOperation,
 };
 
 /// Meta data about an encrypted file.

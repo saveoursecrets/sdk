@@ -4,6 +4,7 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::borrow::Cow;
 use terminal_banner::{Banner, Padding};
+use tokio::sync::broadcast::Sender;
 
 pub(crate) mod account;
 pub(crate) mod editor;
@@ -11,6 +12,13 @@ pub(crate) mod readline;
 pub(crate) mod secret;
 
 pub use account::USER;
+
+/// Is a progress monitor running?
+///
+/// Used for ctrlc handling to quit the progress monitor 
+/// before quitting the shell.
+pub(crate) static PROGRESS_MONITOR: Lazy<Mutex<Option<Sender<()>>>> = 
+    Lazy::new(|| Mutex::new(None));
 
 /// Global clipboard singleton.
 pub(crate) static CLIPBOARD: Lazy<Mutex<Option<Clipboard>>> =

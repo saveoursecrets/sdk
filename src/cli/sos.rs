@@ -3,6 +3,7 @@ use sos_net::sdk::{identity::AccountRef, vault::FolderRef, Paths};
 use std::path::PathBuf;
 
 use crate::{
+    helpers::{USER, PROGRESS_MONITOR},
     commands::{
         account, audit, check, device, events, file, folder, secret,
         security_report::{self, SecurityReportFormat},
@@ -138,6 +139,21 @@ pub enum Command {
 }
 
 pub async fn run() -> Result<()> {
+
+    ctrlc::set_handler(move || {
+        let is_shell = USER.get().is_some();
+        if is_shell {
+            let tx = PROGRESS_MONITOR.lock();
+            if let Some(tx) = &*tx {
+                let _ = tx.send(());
+            } else {
+                std::process::exit(1);
+            }
+        } else {
+            std::process::exit(1);
+        }
+    })?;
+
     let mut args = Sos::parse();
 
     if let Some(storage) = &args.storage {

@@ -5,6 +5,7 @@ use sos::{Result, TARGET, USER};
 #[tokio::main]
 async fn main() -> Result<()> {
     use sos_net::sdk::account::Account;
+    use kdam::term;
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
@@ -25,6 +26,7 @@ async fn main() -> Result<()> {
             }
         }
 
+        let _ = term::show_cursor();
         std::process::exit(1);
     }
 

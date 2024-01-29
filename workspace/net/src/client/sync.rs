@@ -18,9 +18,9 @@ pub trait RemoteSync {
     /// Perform a full sync of the account using
     /// the default options.
     ///
-    /// If the account does not exist on the remote 
-    /// server the account will be created and 
-    /// [RemoteSync::sync_file_transfers] will be called 
+    /// If the account does not exist on the remote
+    /// server the account will be created and
+    /// [RemoteSync::sync_file_transfers] will be called
     /// to ensure the transfers queue is synced.
     async fn sync(&self) -> Option<SyncError>;
 
@@ -35,8 +35,8 @@ pub trait RemoteSync {
 
     /// Sync file transfers.
     ///
-    /// Updates the file transfers queue with any pending 
-    /// uploads or downloads by comparing the local file 
+    /// Updates the file transfers queue with any pending
+    /// uploads or downloads by comparing the local file
     /// state with the file state on remote server(s).
     async fn sync_file_transfers(
         &self,
