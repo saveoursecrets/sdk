@@ -98,7 +98,7 @@ impl FolderReducer {
                             self.secrets.insert(id, entry);
                         }
                         WriteEvent::DeleteSecret(id) => {
-                            self.secrets.remove(&id);
+                            self.secrets.shift_remove(&id);
                         }
                         _ => {}
                     }
@@ -275,13 +275,13 @@ mod files {
                     }
                     FileEvent::MoveFile { name, from, dest } => {
                         let file = ExternalFile::new(from.0, from.1, name);
-                        files.remove(&file);
+                        files.shift_remove(&file);
                         files.insert(ExternalFile::new(dest.0, dest.1, name));
                     }
                     FileEvent::DeleteFile(vault_id, secret_id, file_name) => {
                         let file =
                             ExternalFile::new(vault_id, secret_id, file_name);
-                        files.remove(&file);
+                        files.shift_remove(&file);
                     }
                     _ => {}
                 }

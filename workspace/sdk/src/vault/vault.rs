@@ -1081,7 +1081,7 @@ impl VaultAccess for Vault {
     }
 
     async fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent>> {
-        let entry = self.contents.data.remove(id);
+        let entry = self.contents.data.shift_remove(id);
         if entry.is_some() {
             Ok(Some(WriteEvent::DeleteSecret(*id)))
         } else {

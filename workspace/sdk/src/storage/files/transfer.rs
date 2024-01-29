@@ -229,7 +229,7 @@ impl Transfers {
         op: &TransferOperation,
     ) -> Result<()> {
         if let Some(entries) = self.queue.get_mut(file) {
-            entries.remove(op);
+            entries.shift_remove(op);
             if entries.is_empty() {
                 self.queue.remove(file);
             }
