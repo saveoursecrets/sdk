@@ -31,8 +31,8 @@ pub struct RemoteBridge {
 }
 
 impl RemoteBridge {
-    /// Create a new remote bridge that wraps the given
-    /// local provider.
+    /// Create a new remote bridge that updates the given
+    /// local account.
     pub fn new(
         account: Arc<Mutex<LocalAccount>>,
         origin: Origin,
