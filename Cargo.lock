@@ -3931,6 +3931,7 @@ dependencies = [
  "kdam",
  "log",
  "maplit2",
+ "num_cpus",
  "once_cell",
  "parking_lot",
  "pretty_assertions",

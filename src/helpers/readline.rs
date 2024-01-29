@@ -29,9 +29,20 @@ impl Highlighter for MaskingHighlighter {
         }
     }
 
-    fn highlight_char(&self, _line: &str, _pos: usize, _forced: bool) -> bool {
+    fn highlight_char(
+        &self,
+        _line: &str,
+        _pos: usize,
+        _forced: bool,
+    ) -> bool {
         self.masking
     }
+}
+
+pub fn clear_screen() -> Result<()> {
+    let mut rl = basic_editor()?;
+    rl.clear_screen()?;
+    Ok(())
 }
 
 /// Read a passphrase from stdin prompt.

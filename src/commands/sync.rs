@@ -41,7 +41,11 @@ pub enum Command {
 /// Handle sync commands.
 pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
-        Command::All { account, url, files } => {
+        Command::All {
+            account,
+            url,
+            files,
+        } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let servers = owner.servers().await;
