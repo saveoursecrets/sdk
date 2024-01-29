@@ -3,7 +3,6 @@ use crate::{
     events::FileEvent,
     storage::files::{
         list_external_files, ExternalFile, FileMutationEvent,
-        FileTransfersSet,
     },
     sync::SyncClient,
     vfs, Paths, Result,
@@ -14,7 +13,7 @@ use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     future::Future,
     path::PathBuf,
     pin::Pin,
@@ -35,6 +34,20 @@ type InflightTransfersQueue = Arc<RwLock<HashMap<u64, InflightOperation>>>;
 
 /// Channel sender for upload and download progress notifications.
 pub type ProgressChannel = broadcast::Sender<(u64, Option<u64>)>;
+
+/// Set of files built from the state on disc.
+#[derive(Debug, Default)]
+pub struct FileSet(pub HashSet<ExternalFile>);
+
+/// Sets of files that should be uploaded and
+/// downloaded from a remote server.
+#[derive(Debug, Default)]
+pub struct FileTransfersSet {
+    /// Files that exist on local but not on remote.
+    pub uploads: FileSet,
+    /// Files that exist on remote but not on local.
+    pub downloads: FileSet,
+}
 
 /// Collection of pending transfers.
 pub struct InflightTransfers {
