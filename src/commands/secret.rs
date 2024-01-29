@@ -1,21 +1,3 @@
-use clap::Subcommand;
-
-use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
-
-use futures::future::LocalBoxFuture;
-use terminal_banner::{Banner, Padding};
-
-use sos_net::sdk::{
-    account::Account,
-    identity::AccountRef,
-    storage::search::{ArchiveFilter, Document, DocumentView},
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
-        FolderRef, Summary,
-    },
-    vfs,
-};
-
 use crate::{
     helpers::{
         account::{resolve_folder, resolve_user, verify, Owner, USER},
@@ -30,6 +12,17 @@ use crate::{
     },
     Error, Result,
 };
+use clap::Subcommand;
+use crossterm::{
+    execute,
+    terminal::{Clear, ClearType},
+};
+use futures::{future::LocalBoxFuture, select, FutureExt};
+use kdam::{term, tqdm, BarExt, Column, RichProgress, Spinner};
+use sos_net::sdk::prelude::*;
+use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
+use terminal_banner::{Banner, Padding};
+use tokio::sync::{mpsc, oneshot};
 
 use human_bytes::human_bytes;
 
@@ -735,11 +728,15 @@ pub async fn run(cmd: Command) -> Result<()> {
                 //AddCommand::Page { name, tags, .. } => add_page(name, tags)?,
             };
 
+            let (options, shutdown_tx, closed_rx) = access_options();
             if let Some((meta, secret)) = result {
-                owner
-                    .create_secret(meta, secret, Default::default())
-                    .await?;
+                owner.create_secret(meta, secret, options).await?;
+                let _ = shutdown_tx.send(()).await;
+                let _ = closed_rx.await;
                 println!("Secret created ✓");
+            } else {
+                let _ = shutdown_tx.send(()).await;
+                let _ = closed_rx.await;
             }
         }
         Command::Get {
@@ -937,15 +934,18 @@ pub async fn run(cmd: Command) -> Result<()> {
                     };
 
                 if let Cow::Owned(edited_secret) = result {
+                    let (options, shutdown_tx, closed_rx) = access_options();
                     owner
                         .update_secret(
                             &resolved.secret_id,
                             data.into(),
                             Some(edited_secret),
-                            Default::default(),
+                            options,
                             None,
                         )
                         .await?;
+                    let _ = shutdown_tx.send(()).await;
+                    let _ = closed_rx.await;
                     println!("Secret updated ✓");
                 // If the edited result was borrowed
                 // it indicates that no changes were made
@@ -1426,15 +1426,18 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
 
         if let Some(new_secret) = new_secret {
             let mut owner = resolved.user.write().await;
+            let (options, shutdown_tx, closed_rx) = access_options();
             owner
                 .update_secret(
                     &resolved.secret_id,
                     resolved.meta,
                     Some(new_secret),
-                    Default::default(),
+                    options,
                     None,
                 )
                 .await?;
+            let _ = shutdown_tx.send(()).await;
+            let _ = closed_rx.await;
             println!("Secret updated ✓");
         }
     }
@@ -1456,5 +1459,87 @@ fn print_documents(docs: &[&Document], verbose: bool) -> Result<()> {
             println!("{}", label);
         }
     }
+    Ok(())
+}
+
+fn access_options() -> (AccessOptions, mpsc::Sender<()>, oneshot::Receiver<()>)
+{
+    let (progress_tx, progress_rx) = mpsc::channel(32);
+    let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>(1);
+    let (closed_tx, closed_rx) = oneshot::channel::<()>();
+    let options = AccessOptions {
+        folder: None,
+        file_progress: Some(progress_tx),
+    };
+
+    tokio::task::spawn(show_secret_progress(
+        progress_rx,
+        shutdown_rx,
+        closed_tx,
+    ));
+
+    (options, shutdown_tx, closed_rx)
+}
+
+async fn show_secret_progress(
+    mut rx: mpsc::Receiver<FileProgress>,
+    mut shutdown: mpsc::Receiver<()>,
+    closed: oneshot::Sender<()>,
+) -> Result<()> {
+    term::hide_cursor()?;
+
+    let mut progress = RichProgress::new(
+        tqdm!(),
+        vec![
+            Column::Spinner(Spinner::new(
+                &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
+                80.0,
+                1.0,
+            )),
+            Column::Text("...".to_owned()),
+        ],
+    );
+
+    let mut interval_stream =
+        tokio::time::interval(tokio::time::Duration::from_millis(30));
+
+    loop {
+        select! {
+            _ = shutdown.recv().fuse() => {
+                break;
+            }
+            event = rx.recv().fuse() => {
+                if let Some(event) = event {
+                    match event {
+                        FileProgress::Write { name } => {
+                            progress.replace(1, Column::Text(
+                                format!("Encrypt {}", name)));
+                        }
+                        FileProgress::Move { name } => {
+                            progress.replace(1, Column::Text(
+                                format!("Move {}", name)));
+                        }
+                        FileProgress::Delete { name } => {
+                            progress.replace(1, Column::Text(
+                                format!("Delete {}", name)));
+                        }
+                    }
+                    progress.refresh()?;
+                }
+            }
+            _ = interval_stream.tick().fuse() => {
+                progress.refresh()?;
+            }
+        };
+    }
+
+    progress.pb.clear()?;
+    execute!(
+        std::io::stderr(),
+        Clear(ClearType::CurrentLine),
+        crossterm::cursor::MoveToColumn(0)
+    )?;
+    term::show_cursor()?;
+    let _ = closed.send(());
     Ok(())
 }

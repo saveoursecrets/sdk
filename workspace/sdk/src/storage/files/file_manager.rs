@@ -483,6 +483,8 @@ impl ClientStorage {
 
         let files =
             sources.unwrap_or_else(|| get_file_sources(&secret_data.secret));
+        
+
         if !files.is_empty() {
             for source in files {
                 tracing::debug!(source = ?source.path);

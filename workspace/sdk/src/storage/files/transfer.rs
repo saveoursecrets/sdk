@@ -1,9 +1,7 @@
 //! Manage pending file transfer operations.
 use crate::{
     events::FileEvent,
-    storage::files::{
-        list_external_files, ExternalFile, FileMutationEvent,
-    },
+    storage::files::{list_external_files, ExternalFile, FileMutationEvent},
     sync::SyncClient,
     vfs, Paths, Result,
 };

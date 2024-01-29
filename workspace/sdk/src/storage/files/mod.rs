@@ -21,8 +21,8 @@ pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
 pub use integrity::{integrity_report, FailureReason, IntegrityReportEvent};
 #[cfg(feature = "sync")]
 pub use transfer::{
-    FileTransfers, InflightTransfers, ProgressChannel, TransferOperation,
-    Transfers, FileSet, FileTransfersSet,
+    FileSet, FileTransfers, FileTransfersSet, InflightTransfers,
+    ProgressChannel, TransferOperation, Transfers,
 };
 
 /// Meta data about an encrypted file.
