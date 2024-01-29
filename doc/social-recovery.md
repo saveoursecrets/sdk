@@ -4,13 +4,13 @@ This document describes the design of the Save-Our-Secrets social recovery schem
 
 ## Summary
 
-A _social recovery mechanism_ allows the owner of a Save-Our-Secrets account to create and distribute shares, a threshold number of which can be used to download the encrypted SoS account after a countdown, if the owner is not present. Once downloaded, those same shares can then be used to reconstitute an encryption key using [Shamir's Secret Sharing][sss] which decrypts a subset of vaults within the account.
+A _social recovery mechanism_ allows the owner of a Save-Our-Secrets account to create and distribute shares, a threshold number of which can be used to download the encrypted SoS account after a countdown, whether or not the owner is present. Once downloaded, those same shares can then be used to reconstitute an encryption key using [Shamir's Secret Sharing][sss] which decrypts a subset of vaults within the account.
 
 This generalized approach to recovery supports 1-of-1 recovery tokens, or 1-of-n recovery groups, with or without the explicit consent of the account owner.
 
 ## Requirements
 
-The primary focus of the social recovery scheme is as a digital inheritance mechanism, for passwords, secrets, and cryptocurrency. It can also be used as a _forgotten password_ mechanism. This implies several important requirements.
+The primary focus of the social recovery scheme is as a digital inheritance mechanism, for passwords, secrets, and cryptocurrency. It can also be used as a robust, decentralized _forgotten password_ mechanism. This implies several important requirements.
 
 - The account owner can choose which vaults are recoverable.
 - The account owner has a special share which might help to decrypt extra vaults.
@@ -20,7 +20,7 @@ The primary focus of the social recovery scheme is as a digital inheritance mech
 - Recovery shares must be distributed in forms which anyone can easily hold and keep safe, requiring no technical expertise.
   - (optional) If some shareholders are Save-Our-Secrets users, then shares can be distributed digitally over an end-to-end-encrypted transport channel.
 - An account owner can configure multiple recovery groups with different shareholders, any of which can recover the account.
-  - (optional) A group-threshold can be configured, so than some minimum number of groups must cooperate to recover the account.
+  - (optional) A group-threshold can be configured, so that some minimum number of groups must cooperate to recover the account.
 - Recovery shares must not need to be constantly updated (unless the account owner desires it).
 - Recovery shares should be revokable at any time by the account owner.
 - The account owner should be able to issue new recovery shares at any time.
@@ -48,6 +48,12 @@ There are also requirements concerning the recovery process itself.
 - Let $Q$ be some other point on the same curve, with a provably unknown discrete log relative to $G$.
 - Let $\sum\_{i=1}^n x_i$ denote summation notation, i.e. $x_0 + x_1 + ... + x_n$.
 
+## Bird's Eye View
+
+The account owner will create a decryption key of their own with special powers, and will distribute shares of another decryption key to the recovery group. Each key is endowed with the power to decrypt a certain set of SoS vaults belonging to the owner. If both keys are combined, even more vaults may be decrypted.
+
+Access to the encrypted vaults is controlled by the SoS backend server. If the account owner's key signs off on the recovery attempt, then recovery is instant, but otherwise there is a time-delay safety enforced by the server, giving the account owner time to react and abort a dishonest recovery attempt.
+
 ## Stages
 
 The protocol proceeds in stages:
@@ -61,21 +67,28 @@ The protocol proceeds in stages:
 
 ## Stage 1: Setup
 
-The account owner at this stage has access to their full SoS account and client. She decides to set up a social recovery group on her SoS account.
+The account owner at this stage has access to their full SoS account and client. She decides to set up social recovery on her SoS account.
 
 Let `account_id` denote a server-side identifier for the account to be recovered.
 
 The account owner generates the **owner share secret** $w$, which is randomly sampled from $\mathbb{Z}\_q$. The owner share pubkey is computed as $W = wG$. This will be used to identify the owner's recovery share to the server. The owner share can be reused across multiple recovery groups.
 
-The account owner chooses several other public parameters to be shared with the server later:
+The owner can choose a set of `owner_vaults`. This is the set of vaults which the account owner would like to be recoverable independently using only the account owner's own share. Unless the account owner desires the _whole account_ to be recoverable with just the owner secret share $w$, the `owner_vaults` set should _not_ include the identity vault.
+
+The account owner generates the `owner_recovery_header`, which is simply an envelope containing all the decryption passphrases for `owner_vaults`, encrypted under the owner share pubkey $W$. The `owner_recovery_header` should include a `cipher` field to indicate what protocol was used to encrypt the passphrases.
+
+The `owner_vaults`, the `owner_recovery_header`, and owner public key share $W$ are uploaded to the SoS backend server immediately. This only needs to be done once per account.
+
+### Group Parameters
+
+To create a recovery group, the account owner chooses several public parameters to be shared with the server:
 
 | Parameter | Type | Description | Example |
 |:---------:|:----:|:-----------:|:-------:|
 | `init_window` | Duration | A time window within which shareholders must cooperate to initiate the recovery countdown. | 24h |
 | `countdown_duration` | Duration | How long the countdown lasts. The longer this is, the more time an account owner will have to abort the recovery process, but the longer the recovery group must wait to finish recovery. | 2 weeks |
-| `owner_vaults` | Set | The set of vaults which the account owner would like to be recoverable independently using only the account owner's own share. Unless the account owner desires the _whole account_ to be recoverable, this set should not include the identity vault. | |
-| `group_vaults` | Set | The set of vaults which the account owner would like to be recoverable by this group in their absence. Unless the account owner desires the _whole account_ to be recoverable, this set should not include the identity vault. | |
-| `joint_vaults` | Set | The set of vaults which the account owner would like to be recoverable by this group if the account owner himself also cooperates. Unless the account owner desires the _whole account_ to be recoverable, this set should not include the identity vault. | |
+| `group_vaults` | Set | The set of vaults which the account owner would like to be recoverable by this group independently. Unless the account owner desires the _whole account_ to be recoverable, this set should not include the identity vault. | |
+| `joint_vaults` | Set | The set of vaults which the account owner would like to be recoverable by this group if the account owner herself also cooperates. Unless the account owner desires the _whole account_ to be recoverable, this set should not include the identity vault. | |
 | $g$ | uint4 | The index of the group. If this is the first recovery group to be registered on the user's account, this will be zero. Otherwise it should be incremented upwards as more groups are added. This index does not need to be unique, but it would improve user experience if it were. | 0 |
 | $t$ | uint8 | The group recovery threshold. If $t$ or more shareholders cooperate, they can recover and decrypt the SoS account. | 3 |
 
@@ -83,56 +96,65 @@ The account owner chooses several other public parameters to be shared with the 
 
 The account owner selects a set of `shareholders`. These are trusted individuals who will keep their respective recovery shares safe, and who promise to use the shares to recover the SoS account only if the true account owner asks them to, or dies.
 
-Let $n$ be the number of `shareholders`, which can be at most 256.
+Let $n$ be the number of `shareholders`, which can be at most 255.
 
-Shareholder contact information is collected from the account owner on the SoS client. Email addresses, telephone numbers, SoS account identifiers, or optionally other contact methods in the future, e.g. Telegram/WhatsApp, can be collected. All this info is encapsulated in the `shareholders` array.
+Shareholder contact information is collected from the account owner on the SoS client. Email addresses, telephone numbers, SoS account identifiers, or optionally other contact methods in the future, e.g. Telegram/WhatsApp, can be submitted by the account owner. All this info is encapsulated in the `shareholders` array.
+
+### Creating Shares
+
+We will now construct a set of $n$ shares using [Shamir's Secret Sharing][sss], to be issued to the `shareholders`.
+
+> [!TIP]
+> We deviate slightly from standard Shamir Secret Sharing protocols here, so that the owner share is fixed but group member shares are random.
+
+The account owner will have a special share in the group which is pre-determined by $w$. We use the hash of $w$ and the group index $g$, mapped onto $\mathbb{Z}\_q$ as a share.
+
+Let $s_0$ represent the owner's share for the recovery group $g$. We define $s_0$ as:
+
+$$ s_0 := H'(w, g) $$
+
+<sub>Optionally this hash could commit to other fixed data, such as a user-specified identifier string for the group. This would make $s_0$ more unique.</sub>
+
+_Why can't we simply use_ $w$ _directly as a share itself?_ Doing so would expose it to a colluding recovery group. $w$ must be kept secret by the account owner for the social recovery protocol to remain secure against colluding recovery groups.
+
+Next, we generate $t-1$ random coefficients $\\{a_1, a_2, ... a_{t-1}\\}$, sampled from $\mathbb{Z}\_q$. These form the SSS polynomial $f(x)$.
+
+$$ f(x) = s_0 + \sum_{i=1}^{t-1} a_i x^i $$
+$$ f(x) = s_0 + a_1 x + a_2 x^2 + ... + a_{t-1} x^{t-1} $$
+
+We can now compute the remaining $n$ shares for the `shareholders`, by simply evaluating $f(x)$ at various input values from $1$ to $255$ as needed. This gives us the shares $\\{ (0, s_0),\ (1, s_1),\ (2, s_2),\ ... (n, s_n) \\}$.
+
+This approach ensures that the owner share key $w$ cannot be learned by the recovery group, but the account owner can still use their share secret $w$ to compute a share and contribute to the recovery of $k$.
+
+<sub>If you're familiar with traditional SSS, you may be wondering why we're treating the owner's share $s_0$ as the constant term of $f(x)$, which is usually reserved for the secret to be shared. Unlike traditional SSS, where the secret is fixed and the shares can be random, we have one share which is fixed, but we're OK with creating a fresh random secret at polynomial-generation time.</sub>
 
 ### Vault Encryption
 
-The account owner chooses a `cipher` for encrypting the vault pack, and randomly generates the **group key** $k$ by sampling from $\mathbb{Z}\_q$. The group key $k$ will be controlled jointly by the recovery group _and_ the account owner, with threshold $t$. It encrypts a header which, once decrypted, can be used to decrypt selected vaults.
+Using the SSS polynomial, she computes the **group key** $k$ at a special reserved fixed input, well outside the range of possible share indexes.
 
-Using the sets of vaults he selected, the account owner constructs the `recovery_pack_header`. This header is essentially a mapping of vault identifiers to encrypted vault passphrases.
+$$ k := f(H'(\text{"group key"})) $$
 
-- The passphrase for each vault in `owner_vaults` is encrypted using the chosen `cipher`, under the owner share key $w$. <!-- TODO only upload this once -->
-- The passphrase for each vault in `group_vaults` is encrypted using the chosen `cipher`, under the group key $k$.
-- The passphrase for each vault in `joint_vaults` is encrypted using the chosen `cipher`, under the aggregated group-and-owner key $k + w$.
+> [!NOTE]
+> $H'(\text{"group key"})$ is `0xfefecb3f8b7c6bb7e0d219fcbcff603789650fb5833e6d5afe1c9975b32708a7`
+
+The group key $k$ is just as random as any share. It will be controlled jointly by the recovery group _and_ the account owner, with threshold $t$. It encrypts a header which, once decrypted, can be used to decrypt selected vaults.
+
+The account owner chooses a `cipher` for encrypting the recovery pack header.
+
+Using the sets of vaults she selected, the account owner constructs the `group_recovery_pack_header` and the `joint_recovery_pack_header`. These headers are essentially a mapping of vault identifiers to encrypted vault passphrases.
+
+- `group_recovery_pack_header` contains the passphrases for every vault in `group_vaults`, encrypted under the group key $k$.
+- `joint_recovery_pack_header` contains the passphrases for every vault in `joint_vaults`, encrypted under the aggregated group-and-owner key $k + w$.
 
 If the integers in $\mathbb{Z}\_q$ are not suitable encryption keys for the chosen `cipher`, they can be hashed into one using a key-derivation function such as HKDF.
 
-The `recovery_pack_header` should include the `cipher` and optionally the KDF algorithm if needed.
+The recovery pack headers should each include the `cipher` and optionally the KDF algorithm if needed.
 
-### Sharing
+### Allowing Verification
 
-The account owner must break the group key $k$ into shares on the client side using [Shamir's Secret Sharing][sss] so that it can be distributed to the shareholders.
+The sharing polynomial's coefficients $\\{a_1, a_2, ... a_{t-1}\\}$ are distributed randomly among $\mathbb{Z}\_q$. Each coefficient can be thought of as a private key.
 
-However, we cannot use traditional SSS without excluding the account owner from the recovery group. We want the account owner's share to behave like one of the group's shares, in that it should count toward the threshold $t$ needed to recover the group key $k$. However, we also can't use the owner share secret $w$ as a share of $k$, because then it could be discovered by $t$ or more members of the recovery group.
-
-We instead use _the hash of $w$ and the group index $g$, mapped onto $\mathbb{Z}\_q$_ as a share.
-
-Let $s_1$ represent the owner's share of the group key $k$. We define $s_1$ as:
-
-$$ s_1 := H'(w, g) $$
-
-Then we generate $t-2$ additional shares $\\{s_2, s_3, ..., s_{t-1}\\}$, randomly sampled from $\mathbb{Z}\_q$.
-
-We then interpolate the Shamir Secret Sharing polynomial $f(x)$ as the degree $t-1$ polynomial which passes through the set of $t$ points:
-
-$$ \\{ (0, k),\ (1, s_1),\ (2, s_2),\ (3, s_3),\ ... (t-1, s_{t-1}) \\} $$
-
-This polynomial has degree at most $t-1$, since it passes through a chosen set of $t$ points. Once interpolated, we can compute its coefficients and represent it in standard form.
-
-$$ f(x) = k + \sum_{i=1}^{t-1} a_i x^i $$
-$$ f(x) = k + a_1 x + a_2 x^2 + ... + a_{t-1} x^{t-1} $$
-
-The coefficients $\\{a_1, a_2, ... a_{t-1}\\}$ are distributed randomly among $\mathbb{Z}\_q$. Each coefficient can be thought of as a private key, mapping one-way to a multiple of the elliptic curve base point $G$ (a public key). The polynomial $f(x)$ and its coefficients will be kept secret by the account owner.
-
-<sub>Note this approach differs from the traditional approach of Shamir Secret Sharing polynomial generation. Normally, one would first fix the _coefficients_ of $f(x)$ and then evaluate it to get all the shares at once. Instead, we sampled _a few_ of the evaluations, reconstructed the coefficients of $f(x)$ by interpolation, and then evaluated it a few more times to get the remaining shares. This allows us to fix $s_1$ as one of the shares in-advance.</sub>
-
-This approach ensures that the owner share key $w$ cannot be learned by the recovery group, but the account owner can still use their share secret $w$ to compute and contribute to the recovery of $k$.
-
-The SoS client computes the remaining shares $\\{s_t, s_{t+1}, ... s_n\\}$ by evaluating $f(x)$ at various values of $x$, called _share indexes._ Each share $s_i$ has a corresponding index $i$, such that $f(i) = s_i$.
-
-The account owner constructs two other polynomials related to $f(x)$:
+The secret sharing polynomial $f(x)$ and its coefficients will be kept secret by the account owner, but the account owner can construct two _public_ polynomials related to $f(x)$:
 
 1. The _share verification polynomial:_
 
@@ -167,14 +189,14 @@ The account owner uploads the following data to the SoS server to complete setup
 | `init_window` | The recovery initiation time window. |
 | `countdown_duration` | The time buffer after recovery initiation, after which the recovery pack will be distributed. |
 | $g$ | The index of the recovery group, identifying it among other groups for the same account. |
-| `recovery_pack_header` | Contains a mapping of vaults to encrypted passphrases, a `cipher`, and optionally a KDF algorithm for deriving the encryption key from $k$. |
+| `group_recovery_pack_header` and `joint_recovery_pack_header` | Contains mappings of vault names to encrypted passphrases, a `cipher`, and optionally a KDF algorithm for deriving the encryption key from $k$ (or $k+w$). |
 | $F(x)$ | The group key public verification polynomial. Specifically, the coefficient points are uploaded. |
 | $\hat{S}$ | $t-1$ shares of the contact-sharing polynomial $Z(x)$. |
 | `shareholders_enc` | The shareholder contact info, encrypted under $c = H(Z(0))$. |
 
 The server stores this data sorted in a binary tree, keyed by the `account_id`, so that it can be easily fetched later at recovery time.
 
-The server should reply with an error if the $g$ is already taken, or if the vaults in the `recovery_pack_header` do not exist.
+The server should reply with an error if the group index $g$ is already taken, or if the vaults in either of the recovery pack headers do not exist.
 
 ### Distribution
 
@@ -199,6 +221,8 @@ Combined, a single share requires a total of **308 bits** of information. This i
 
 The raw binary representation of a share (minus the `checksum`) could also be formatted as a QR code and printed out.
 
+The account owner may manually shoulder the responsibility of safely distributing these shares to the `shareholders`, or they may use SaveOurSecrets to distribute the shares to other SOS users automatically.
+
 ### Backup & Sync
 
 The account owner's SoS client should save the following data points inside a vault:
@@ -212,11 +236,11 @@ The account owner's SoS client should save the following data points inside a va
 | $\hat{S}$ | $t-1$ shares of the contact-sharing polynomial $Z(x)$. |
 | `shareholders` | The plaintext shareholder contact info. |
 
-At regular intervals, the account owner's SoS client will synchronize their encrypted vaults with the SoS backend server. These vaults are encrypted under the same passphrases originally used to produce the `recovery_pack_header`. If one of these vault passphrases is changed, then the `recovery_pack_header` stored on the server must be updated by an active push from the client.
+At regular intervals, the account owner's SoS client will synchronize their encrypted vaults with the SoS backend server. These vaults are encrypted under the same passphrases originally used to produce the recovery pack headers. If one of these vault passphrases is changed, then the recovery pack headers stored on the server must be updated by an active push from the client. The shares given to the `shareholders` _do not_ need to be updated.
 
 The client may also push a new `shareholders_enc` blob to the SoS backend server at any time the account owner wishes to update the contact details of their `shareholders`.
 
-If the account owner wishes to revoke a recovery group, she simply tells the server to delete the recovery group info, including the crucial `recovery_pack_header`, without which the vaults cannot be decrypted, even if the group key $k$ is known. This also allows the owner an avenue to rotate shares, by recreating the group immediately afterward.
+If the account owner wishes to revoke a recovery group, she simply tells the server to delete the recovery group info, including the crucial recovery pack headers, without which the vaults cannot be decrypted, even if the group key $k$ is known. This also allows the owner an avenue to rotate shares, by recreating the group immediately afterward.
 
 If the account owner wishes to issue a new share of $k$ without invalidating the old ones, she computes $s_i = f(i)$ at the new share index $i$, and distributes $s_i$ to the new shareholder.
 
@@ -230,13 +254,15 @@ There are three different scenarios for recovery:
 
 The set of vaults which can be recovered will depend on which of these recovery scenarios is occurring.
 
-If only the account owner wants to participate in recovery, then no threshold is required - only the account owner's share. Otherwise, to initiate the countdown, a `recovery_group` at least a threshold $t$ of `shareholders` must cooperate, possibly including the account owner herself.
+If only the account owner wants to participate in recovery, then no threshold is required - only the account owner's share $w$. They simply use $w$ to sign a challenge issued by the server, and the server replies with the encrypted `owner_vaults` and corresponding `owner_recovery_header`. Skip straight to Stage 5 (Decryption).
+
+Otherwise, to initiate the countdown, a `recovery_group` consisting of at least a threshold $t$ of `shareholders` must cooperate, possibly including the account owner herself.
 
 We assume each shareholder is in contact through some outside medium. The account owner has either requested assistance from them, or the account owner has died and their account needs to be recovered.
 
 ### Identifying the Group
 
-First things first: The SoS backend server must be able to identify which account the group wants to recover, and also which specific recovery group for that account is trying to do so, and which of the three scenarios is unfolding.
+First things first: The SoS backend server must be able to identify which account the group wants to recover, and if applicable, which specific recovery group for that account is trying to do so, and which of the three scenarios is unfolding.
 
 Recall that each share embeds `account_id_prefix` and $g$. A shareholder will upload both to the server at recovery initiation time. The server will look up all accounts starting with `account_id_prefix`, which will probably be only the one - maybe 2 or 3 if we're very unlucky. The server then checks if either account has a recovery group with the given $g$.
 
@@ -280,9 +306,7 @@ To initiate recovery, the first recovery shareholder must enter their share into
 | $S_i' = s_i Q$ | Shareholder contact info share. |
 | `destination` | A contact method describing where to send the recovery pack. Determines the ultimate beneficiary of the recovery process. |
 | `dest_sig` | A signature made by $s_i$ on `destination`. |
-| `owner_sig` | A signature made by $w$ on `destination`. Required if $i = 1$ (the owner share). |
-
-<!-- TODO independent recovery request parameters -->
+| `owner_sig` | A signature made by $w$ on `destination` and $F(x)$. Required if $i = 0$ (the owner share). |
 
 ### Verification
 
@@ -290,13 +314,14 @@ The SoS backend server can use `account_id_prefix` and $g$ to look up a set of r
 
 For each possible recovery group, the server computes $S_i = F(i)$, and checks if `dest_sig` is a valid signature on `destination` under the key $S_i$.
 
-If $i = 1$, the share should belong to the account owner, so `owner_sig` is checked. It must be a valid signature on `destination` under the owner share pubkey $W$.
+If $i = 0$, the share should belong to the account owner, so `owner_sig` is checked against the owner share pubkey $W$, and should be a valid signature on `destination` and $F(x)$. The signature commits to $F(x)$ to ensure it cannot be replayed with a different recovery group.
 
 The server also attempts to decrypt `shareholders_enc` by using $S_i'$ to interpolate $Z(x)$.
 
 If any of the above steps fail, the server must fail the recovery attempt and optionally report it to the account owner.
 
-Note that if `dest_sig` is valid, but decryption of `shareholders_enc` fails, then the server **must not proceed,** because the shareholder might be attempting to perform the account takeover independently and stealthily without cooperation of other shareholders.
+> [!WARNING]
+> If `dest_sig` is valid, but decryption of `shareholders_enc` fails, then the server **must not proceed,** because a shareholder might be attempting to perform an account takeover independently and stealthily without cooperation of other shareholders.
 
 ### Confirmations
 
@@ -311,7 +336,7 @@ If the shareholder agrees with the recovery attempt, they can submit their share
 | $i$ | The share index. |
 | `destination` | A contact method describing where to send the recovery pack. Determines the ultimate beneficiary of the recovery process. |
 | `dest_sig` | A signature made by $s_i$ on `destination`. |
-| `owner_sig` | A signature made by $w$ on `destination`. Required if $i = 1$ (the owner share). |
+| `owner_sig` | A signature made by $w$ on `destination` and $F(x)$. Required if $i = 0$ (the owner share). |
 
 The SoS backend server verifies this confirmation attempt in exactly the same way as the initial recovery submission.
 
@@ -322,6 +347,8 @@ If `init_window` elapses without sufficient confirmations, the server abandons t
 ### Aborting
 
 Once the initial upload is submitted, the server also sends a notification to the account owner, which allows them to abort the recovery attempt unilaterally. This is a safety measure which ensures a colluding group of shareholders cannot steal the account from the rightful owner.
+
+If the abort signal is received, the backend server will disregard further recovery requests from the group for some time, e.g. 2 weeks, to give the account owner time to investigate and reconfigure their recovery group.
 
 ## Stage 3: Countdown
 
@@ -337,16 +364,16 @@ If `countdown_duration` elapses without an abort issued - or is skipped by the a
 
 | Data point | Description |
 |:----------:|:-----------:|
-| `recovery_pack_header` | Contains a mapping of vaults to encrypted passphrases, a `cipher`, and optionally a KDF algorithm for deriving the encryption key from $k$. |
+| `recovery_pack_header` | Contains a mapping of vaults to encrypted passphrases, a `cipher`, and optionally a KDF algorithm for deriving the encryption key from $k$ (or $k+w$ if the account owner is participating). |
 | `vaults` | The set of encrypted vaults whose passwords are encrypted in the header. This does not include event logs, only the most up-to-date snapshot of each encrypted vault. |
 
 Upon receipt, the `destination` agent cannot immediately decrypt the `vaults` unless they have the appropriate shares. `destination` is probably a trusted executor or the account owner herself, depending on the situation.
 
 ## Stage 5: Decryption
 
-To decrypt the recovery pack, shares must be brought together on the same trusted machine. Note that these do not necessarily have to be the same set of shares as the `recovery_group`. However, if the account owner participated in recovery initiation, then `vaults` may include some vaults which only the account owner's share can decrypt.
+To decrypt the recovery pack, shares must be brought together on the same trusted machine. Note that these do not necessarily have to be the same set of shares as the `recovery_group`. However, if the account owner participated in recovery initiation, then the account owner's secret share $w$ must be used in the decryption process.
 
-The group uses their shares to interpolate the original secret sharing polynomial $f(x)$, and then compute the group key $k = f(0)$. If the account owner's share is present, it is decoded into the owner secret $w$, which may be used towards recovering $k$.
+The group uses their shares to interpolate the original secret sharing polynomial $f(x)$, and then compute the group key $k = f(H'(\text{"group key"}))$. If the account owner's share is present, it is decoded into the owner secret $w$, which may be used towards recovering $k$.
 
 Depending on the recovery scenario, the final decryption key is either:
 
