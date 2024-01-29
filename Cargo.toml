@@ -76,7 +76,6 @@ futures.workspace = true
 parking_lot.workspace = true
 once_cell.workspace = true
 toml.workspace = true
-indexmap.workspace = true
 human_bytes = "0.3"
 tempfile = "3.5"
 shell-words = "1"
