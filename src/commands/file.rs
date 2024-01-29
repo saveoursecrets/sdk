@@ -5,12 +5,7 @@ use crate::{
 use clap::Subcommand;
 use kdam::{tqdm, BarExt, RowManager};
 use futures::{select, FutureExt};
-use sos_net::sdk::{
-    account::Account,
-    identity::AccountRef,
-    storage::files::{integrity_report, FailureReason, IntegrityReportEvent},
-    sync::SyncStorage,
-};
+use sos_net::sdk::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Mutex, broadcast};
 
@@ -155,6 +150,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let request_ids =
                     inflight.keys().copied().collect::<Vec<_>>();
 
+                println!("request ids {}", request_ids.len());
+
                 let progress = transfers.progress();
                 let progress = progress.read().await;
 
@@ -170,77 +167,90 @@ pub async fn run(cmd: Command) -> Result<()> {
                 drop(inflight);
                 drop(progress);
 
-                let manager = Arc::new(Mutex::new(RowManager::new(5)));
+                let manager = Arc::new(Mutex::new(RowManager::from_window_size()));
                 let mut threads = Vec::new();
-
+                
+                // Shutdown channel for ctrlc handling
                 let (shutdown_tx, _) = broadcast::channel::<()>(1);
                 
+                // Update the global so ctrlc handler will 
+                // send an event on the shutdown channel
                 {
                     let mut mon = PROGRESS_MONITOR.lock();
                     *mon = Some(shutdown_tx.clone());
                 }
 
-                for (inflight_op, mut rx) in channels {
+                println!("channels len {}", channels.len());
+
+                for (inflight_op, rx) in channels {
                     let mgr = Arc::clone(&manager);
-                    let mut shutdown = shutdown_tx.subscribe();
-                    threads.push(std::thread::spawn(move || {
-                        tokio::runtime::Builder::new_current_thread()
-                            .enable_all()
-                            .build()
-                            .unwrap()
-                            .block_on(async move {
-                                let mut pb = tqdm!(
-                                    unit_scale = true,
-                                    unit_divisor = 1024,
-                                    unit = "B"
-                                );
-                                let name =
-                                    inflight_op.file.file_name().to_string();
-                                pb.set_description(format!(
-                                    "{}",
-                                    &name[0..8]
-                                ));
+                    let shutdown = shutdown_tx.subscribe();
+                    threads.push(
+                        spawn_file_progress(inflight_op, mgr, shutdown, rx));
+                }
 
-                                let index = {
-                                    let mut writer = mgr.lock().await;
-                                    writer.push(pb)?
-                                };
+                for thread in threads {
+                    let _ = thread.join();
+                }
+                
+                // Clear the shutdown channel as we are done
+                {
+                    let mut mon = PROGRESS_MONITOR.lock();
+                    *mon = None;
+                }
+            }
+        }
+    }
+    Ok(())
+}
 
-                                let mut pb = {
-                                    let mut writer = mgr.lock().await;
-                                    writer.get_mut(index).unwrap().clone()
-                                };
+fn spawn_file_progress(
+    inflight_op: InflightOperation,
+    mgr: Arc<Mutex<RowManager>>,
+    mut shutdown: broadcast::Receiver<()>,
+    mut rx: broadcast::Receiver<(u64, Option<u64>)>,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async move {
+                let mut pb = tqdm!(
+                    unit_scale = true,
+                    unit_divisor = 1024,
+                    unit = "B"
+                );
+                let name =
+                    inflight_op.file.file_name().to_string();
+                pb.set_description(format!(
+                    "{}",
+                    &name[0..8]
+                ));
 
-                                loop {
-                                    select! {
-                                        _ = shutdown.recv().fuse() => {
-                                            break;
-                                        }
-                                        event = rx.recv().fuse() => {
-                                            match event {
-                                                Ok((transferred, total)) => {
-                                                    if let Some(total) = total {
-                                                        pb.total = total as usize;
-                                                        pb.update_to(transferred as usize)?;
-                                                        if total == transferred {
-                                                            pb.clear()?;
-                                                            break;
-                                                        }
-                                                    } else {
-                                                        break;
-                                                    }
-                                                }
-                                                _ => break,
-                                            }
-                                        } 
-                                    }
-                                }
-                                
-                                /*
-                                while let Ok((transferred, total)) =
-                                    rx.recv().await
-                                {
+                let index = {
+                    let mut writer = mgr.lock().await;
+                    writer.push(pb)?
+                };
+                
+                /*
+                let mut pb = {
+                    let mut writer = mgr.lock().await;
+                    writer.get_mut(index).unwrap().clone()
+                };
+                */
+
+                loop {
+                    select! {
+                        _ = shutdown.recv().fuse() => {
+                            break;
+                        }
+                        event = rx.recv().fuse() => {
+                            match event {
+                                Ok((transferred, total)) => {
                                     if let Some(total) = total {
+                                        let mut writer = mgr.lock().await;
+                                        let pb = writer.get_mut(index).unwrap();
                                         pb.total = total as usize;
                                         pb.update_to(transferred as usize)?;
                                         if total == transferred {
@@ -251,24 +261,14 @@ pub async fn run(cmd: Command) -> Result<()> {
                                         break;
                                     }
                                 }
-                                */
-
-                                Ok::<(), crate::Error>(())
-                            })
-                            .unwrap();
-                    }));
-                }
-
-                for thread in threads {
-                    let _ = thread.join();
+                                _ => break,
+                            }
+                        } 
+                    }
                 }
                 
-                {
-                    let mut mon = PROGRESS_MONITOR.lock();
-                    *mon = None;
-                }
-            }
-        }
-    }
-    Ok(())
+                Ok::<(), crate::Error>(())
+            })
+            .unwrap();
+    })
 }
