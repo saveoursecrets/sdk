@@ -150,8 +150,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let request_ids =
                     inflight.keys().copied().collect::<Vec<_>>();
 
-                println!("request ids {}", request_ids.len());
-
                 let progress = transfers.progress();
                 let progress = progress.read().await;
 
@@ -179,8 +177,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let mut mon = PROGRESS_MONITOR.lock();
                     *mon = Some(shutdown_tx.clone());
                 }
-
-                println!("channels len {}", channels.len());
 
                 for (inflight_op, rx) in channels {
                     let mgr = Arc::clone(&manager);
