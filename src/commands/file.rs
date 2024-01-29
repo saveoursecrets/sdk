@@ -1,9 +1,10 @@
 use crate::{
-    helpers::{account::resolve_user, readline::clear_screen},
+    helpers::{account::resolve_user, readline::clear_screen, PROGRESS_MONITOR},
     Result,
 };
 use clap::Subcommand;
 use kdam::{tqdm, BarExt, RowManager};
+use futures::{select, FutureExt};
 use sos_net::sdk::{
     account::Account,
     identity::AccountRef,
@@ -11,7 +12,7 @@ use sos_net::sdk::{
     sync::SyncStorage,
 };
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, broadcast};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -172,8 +173,16 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let manager = Arc::new(Mutex::new(RowManager::new(5)));
                 let mut threads = Vec::new();
 
+                let (shutdown_tx, _) = broadcast::channel::<()>(1);
+                
+                {
+                    let mut mon = PROGRESS_MONITOR.lock();
+                    *mon = Some(shutdown_tx.clone());
+                }
+
                 for (inflight_op, mut rx) in channels {
                     let mgr = Arc::clone(&manager);
+                    let mut shutdown = shutdown_tx.subscribe();
                     threads.push(std::thread::spawn(move || {
                         tokio::runtime::Builder::new_current_thread()
                             .enable_all()
@@ -202,6 +211,32 @@ pub async fn run(cmd: Command) -> Result<()> {
                                     writer.get_mut(index).unwrap().clone()
                                 };
 
+                                loop {
+                                    select! {
+                                        _ = shutdown.recv().fuse() => {
+                                            break;
+                                        }
+                                        event = rx.recv().fuse() => {
+                                            match event {
+                                                Ok((transferred, total)) => {
+                                                    if let Some(total) = total {
+                                                        pb.total = total as usize;
+                                                        pb.update_to(transferred as usize)?;
+                                                        if total == transferred {
+                                                            pb.clear()?;
+                                                            break;
+                                                        }
+                                                    } else {
+                                                        break;
+                                                    }
+                                                }
+                                                _ => break,
+                                            }
+                                        } 
+                                    }
+                                }
+                                
+                                /*
                                 while let Ok((transferred, total)) =
                                     rx.recv().await
                                 {
@@ -216,6 +251,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                                         break;
                                     }
                                 }
+                                */
 
                                 Ok::<(), crate::Error>(())
                             })
@@ -225,6 +261,11 @@ pub async fn run(cmd: Command) -> Result<()> {
 
                 for thread in threads {
                     let _ = thread.join();
+                }
+                
+                {
+                    let mut mon = PROGRESS_MONITOR.lock();
+                    *mon = None;
                 }
             }
         }
