@@ -313,7 +313,9 @@ pub async fn new_account(
         .text("NEW ACCOUNT".into())
         .text(format!("{}", account_name).into())
         .text(
-            "Creating a new account will perform the following actions:".into())
+            "Creating a new account will perform the following actions:"
+                .into(),
+        )
         .text(message.into())
         .render();
     println!("{}", banner);

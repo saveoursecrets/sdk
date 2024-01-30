@@ -24,9 +24,8 @@ use crate::{
         EventLogRecord, FileIdentity, FileItem, FormatStream,
         FormatStreamIterator,
     },
-    UtcDateTime,
     vfs::{self, File, OpenOptions},
-    Error, Result,
+    Error, Result, UtcDateTime,
 };
 
 use crate::events::AccountEvent;
