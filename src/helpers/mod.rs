@@ -2,7 +2,6 @@ use crate::Result;
 use arboard::Clipboard;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
-use std::borrow::Cow;
 use terminal_banner::{Banner, Padding};
 use tokio::sync::broadcast::Sender;
 
@@ -15,9 +14,9 @@ pub use account::USER;
 
 /// Is a progress monitor running?
 ///
-/// Used for ctrlc handling to quit the progress monitor 
+/// Used for ctrlc handling to quit the progress monitor
 /// before quitting the shell.
-pub(crate) static PROGRESS_MONITOR: Lazy<Mutex<Option<Sender<()>>>> = 
+pub(crate) static PROGRESS_MONITOR: Lazy<Mutex<Option<Sender<()>>>> =
     Lazy::new(|| Mutex::new(None));
 
 /// Global clipboard singleton.
@@ -37,8 +36,8 @@ pub(crate) fn set_clipboard_text(text: &str) -> Result<bool> {
 pub(crate) fn display_passphrase(heading: &str, passphrase: &str) {
     let banner = Banner::new()
         .padding(Padding::one())
-        .text(Cow::from(heading))
-        .text(Cow::from(passphrase))
+        .text(heading.into())
+        .text(passphrase.into())
         .render();
     println!("{}", banner);
 }

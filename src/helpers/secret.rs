@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     collections::{HashMap, HashSet},
     path::PathBuf,
 };
@@ -71,12 +70,12 @@ pub fn print_secret(
 
     let banner = Banner::new()
         .padding(Padding::one())
-        .text(Cow::Owned(heading))
-        .text(Cow::Borrowed(secret_meta.label()));
+        .text(heading.into())
+        .text(secret_meta.label().into());
 
     let mut banner = match secret_data {
         Secret::Note { text, .. } => {
-            banner.text(Cow::Borrowed(text.expose_secret()))
+            banner.text(text.expose_secret().into())
         }
         Secret::Account {
             account,
@@ -90,7 +89,7 @@ pub fn print_secret(
             }
             account
                 .push_str(&format!("Password: {}", password.expose_secret()));
-            banner.text(Cow::Owned(account))
+            banner.text(account.into())
         }
         Secret::List { items, .. } => {
             let mut credentials = String::new();
@@ -104,7 +103,7 @@ pub fn print_secret(
                     credentials.push('\n');
                 }
             }
-            banner.text(Cow::Owned(credentials))
+            banner.text(credentials.into())
         }
         Secret::File { content, .. } => {
             let mut file = format!(
@@ -113,29 +112,29 @@ pub fn print_secret(
                 human_bytes(content.size() as f64)
             );
             file.push_str(content.mime());
-            banner.text(Cow::Owned(file))
+            banner.text(file.into())
         }
         Secret::Pem { certificates, .. } => {
-            banner.text(Cow::Owned(serde_json::to_string(certificates)?))
+            banner.text(serde_json::to_string(certificates)?.into())
         }
         Secret::Page {
             title, document, ..
         } => banner
-            .text(Cow::Borrowed(title))
-            .text(Cow::Borrowed(document.expose_secret())),
+            .text(title.into())
+            .text(document.expose_secret().into()),
         Secret::Password { password, .. } => {
-            banner.text(Cow::Borrowed(password.expose_secret()))
+            banner.text(password.expose_secret().into())
         }
         Secret::Link { url, .. } => {
-            banner.text(Cow::Borrowed(url.expose_secret()))
+            banner.text(url.expose_secret().into())
         }
         Secret::Signer { .. } | Secret::Age { .. } => {
-            banner.text(Cow::Borrowed("[REDACTED PRIVATE SIGNING KEY]"))
+            banner.text("[REDACTED PRIVATE SIGNING KEY]".into())
         }
         Secret::Contact { vcard, .. } => {
             let vcard = vcard.to_string();
             let vcard = vcard.trim().replace('\r', "");
-            banner.text(Cow::Owned(vcard))
+            banner.text(vcard.into())
         }
         Secret::Totp { totp, .. } => {
             let mut details =
@@ -144,7 +143,7 @@ pub fn print_secret(
                 details.push_str(&format!("Issuer:  {}\n", issuer));
             }
             details.push_str(&format!("Digits: {}", totp.digits));
-            banner.text(Cow::Owned(details))
+            banner.text(details.into())
         }
         Secret::Card {
             number,
@@ -170,7 +169,7 @@ pub fn print_secret(
                 value
                     .push_str(&format!("Expiry: {}", expiry.to_date_time()?));
             }
-            banner.text(Cow::Owned(value))
+            banner.text(value.into())
         }
         Secret::Bank {
             number,
@@ -196,7 +195,7 @@ pub fn print_secret(
             if let Some(bic) = bic {
                 value.push_str(&format!("BIC:  {}\n", bic.expose_secret()));
             }
-            banner.text(Cow::Owned(value))
+            banner.text(value.into())
         }
         Secret::Identity {
             id_kind, number, ..
@@ -204,13 +203,13 @@ pub fn print_secret(
             let mut value = String::new();
             value.push_str(&format!("Kind: {}\n", id_kind));
             value.push_str(&format!("Number: {}\n", number.expose_secret()));
-            banner.text(Cow::Owned(value))
+            banner.text(value.into())
         }
     };
 
     if let Some(comment) = secret_data.user_data().comment() {
         banner = banner.divider();
-        banner = banner.text(Cow::Borrowed(comment.trim()));
+        banner = banner.text(comment.trim().into());
     }
 
     let result = banner.render();
@@ -246,11 +245,10 @@ pub fn normalize_tags(mut tags: Option<String>) -> Option<HashSet<String>> {
 fn multiline_banner(kind: &str, label: &str) {
     let banner = Banner::new()
         .padding(Padding::one())
-        .text(Cow::Owned(format!("[{}] {}", kind, label)))
-        .text(Cow::Borrowed(
+        .text(format!("[{}] {}", kind, label).into())
+        .text(
             r#"To abort enter Ctrl+C
-To save enter Ctrl+D on a newline"#,
-        ))
+To save enter Ctrl+D on a newline"#.into())
         .render();
     println!("{}", banner);
 }

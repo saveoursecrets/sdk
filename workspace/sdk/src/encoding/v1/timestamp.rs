@@ -1,4 +1,4 @@
-use crate::{encoding::encoding_error, Timestamp};
+use crate::{encoding::encoding_error, UtcDateTime};
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
@@ -8,7 +8,7 @@ use std::io::Result;
 use time::{Duration, OffsetDateTime};
 
 #[async_trait]
-impl Encodable for Timestamp {
+impl Encodable for UtcDateTime {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -22,7 +22,7 @@ impl Encodable for Timestamp {
 }
 
 #[async_trait]
-impl Decodable for Timestamp {
+impl Decodable for UtcDateTime {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,

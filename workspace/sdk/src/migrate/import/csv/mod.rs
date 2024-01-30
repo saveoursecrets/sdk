@@ -22,7 +22,7 @@ use crate::{
         },
         Gatekeeper, Vault,
     },
-    Timestamp,
+    UtcDateTime,
 };
 
 use crate::migrate::Convert;
@@ -220,9 +220,9 @@ pub struct GenericIdRecord {
     /// The issue place for the entry.
     pub issue_place: Option<String>,
     /// The issue date for the entry.
-    pub issue_date: Option<Timestamp>,
+    pub issue_date: Option<UtcDateTime>,
     /// The expiration date for the entry.
-    pub expiration_date: Option<Timestamp>,
+    pub expiration_date: Option<UtcDateTime>,
     /// Collection of tags.
     pub tags: Option<HashSet<String>>,
     /// Optional note.
@@ -240,7 +240,7 @@ pub enum GenericPaymentRecord {
         /// The CVV code.
         code: String,
         /// An expiration date.
-        expiration: Option<Timestamp>,
+        expiration: Option<UtcDateTime>,
         /// The country for the entry.
         country: String,
         /// A note for the entry.

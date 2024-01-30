@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     events::{Event, EventKind, LogEvent, ReadEvent, WriteEvent},
     signer::ecdsa::Address,
-    timestamp::Timestamp,
+    UtcDateTime,
     vault::{secret::SecretId, VaultId},
 };
 
@@ -62,7 +62,7 @@ pub trait AuditProvider {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AuditEvent {
     /// The time the event was created.
-    pub(crate) time: Timestamp,
+    pub(crate) time: UtcDateTime,
     /// The event being logged.
     pub(crate) event_kind: EventKind,
     /// The address of the client performing the event.
@@ -93,7 +93,7 @@ impl AuditEvent {
     }
 
     /// Get the timestamp for this audit event.
-    pub fn time(&self) -> &Timestamp {
+    pub fn time(&self) -> &UtcDateTime {
         &self.time
     }
 

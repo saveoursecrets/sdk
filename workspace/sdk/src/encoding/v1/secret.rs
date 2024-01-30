@@ -15,7 +15,7 @@ use crate::{
         AgeVersion, FileContent, IdentityKind, Secret, SecretFlags,
         SecretMeta, SecretRow, SecretSigner, SecretType, UserData,
     },
-    Timestamp,
+    UtcDateTime,
 };
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
@@ -74,10 +74,10 @@ impl Decodable for SecretMeta {
         self.flags = SecretFlags::from_bits(reader.read_u32().await?)
             .ok_or(crate::Error::InvalidSecretFlags)
             .map_err(encoding_error)?;
-        let mut date_created: Timestamp = Default::default();
+        let mut date_created: UtcDateTime = Default::default();
         date_created.decode(&mut *reader).await?;
         self.date_created = date_created;
-        let mut last_updated: Timestamp = Default::default();
+        let mut last_updated: UtcDateTime = Default::default();
         last_updated.decode(&mut *reader).await?;
         self.last_updated = last_updated;
         self.label = reader.read_string().await?;
@@ -666,7 +666,7 @@ impl Decodable for Secret {
 
                 let has_issue_date = reader.read_bool().await?;
                 let issue_date = if has_issue_date {
-                    let mut timestamp: Timestamp = Default::default();
+                    let mut timestamp: UtcDateTime = Default::default();
                     timestamp.decode(&mut *reader).await?;
                     Some(timestamp)
                 } else {
@@ -675,7 +675,7 @@ impl Decodable for Secret {
 
                 let has_expiry_date = reader.read_bool().await?;
                 let expiry_date = if has_expiry_date {
-                    let mut timestamp: Timestamp = Default::default();
+                    let mut timestamp: UtcDateTime = Default::default();
                     timestamp.decode(&mut *reader).await?;
                     Some(timestamp)
                 } else {
@@ -724,7 +724,7 @@ impl Decodable for Secret {
                 let number = SecretString::new(reader.read_string().await?);
                 let has_expiry = reader.read_bool().await?;
                 let expiry = if has_expiry {
-                    let mut expiry: Timestamp = Default::default();
+                    let mut expiry: UtcDateTime = Default::default();
                     expiry.decode(reader).await?;
                     Some(expiry)
                 } else {

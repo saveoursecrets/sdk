@@ -1,7 +1,8 @@
-//! Date and time that can be encoded to and from binary (12 bytes).
+//! UTC date and time that can be encoded to and from binary.
 //!
 //! Encoded as an i64 of the seconds since the UNIX epoch and
-//! a u32 nanosecond offset from the second.
+//! a u32 nanosecond offset from the second so the total size 
+//! when encoded is 12 bytes.
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -22,17 +23,17 @@ use crate::Result;
 #[derive(
     Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq,
 )]
-pub struct Timestamp(
+pub struct UtcDateTime(
     #[serde(with = "time::serde::rfc3339")] pub(crate) OffsetDateTime,
 );
 
-impl Default for Timestamp {
+impl Default for UtcDateTime {
     fn default() -> Self {
         Self(OffsetDateTime::now_utc())
     }
 }
 
-impl Timestamp {
+impl UtcDateTime {
     /// Create from a calendar date.
     pub fn from_calendar_date(
         year: i32,
@@ -79,7 +80,7 @@ impl Timestamp {
 
     /// Convert this timestamp to a RFC2822 formatted string.
     pub fn to_rfc2822(&self) -> Result<String> {
-        Timestamp::rfc2822(&self.0)
+        UtcDateTime::rfc2822(&self.0)
     }
 
     /// Convert an offset date time to a RFC2822 formatted string.
@@ -89,7 +90,7 @@ impl Timestamp {
 
     /// Convert this timestamp to a RFC3339 formatted string.
     pub fn to_rfc3339(&self) -> Result<String> {
-        Timestamp::rfc3339(&self.0)
+        UtcDateTime::rfc3339(&self.0)
     }
 
     /// Convert an offset date time to a RFC3339 formatted string.
@@ -108,13 +109,13 @@ impl Timestamp {
     }
 }
 
-impl fmt::Display for Timestamp {
+impl fmt::Display for UtcDateTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match UtcOffset::current_local_offset() {
             Ok(local_offset) => {
                 let datetime = self.0;
                 datetime.to_offset(local_offset);
-                match Timestamp::rfc2822(&datetime) {
+                match UtcDateTime::rfc2822(&datetime) {
                     Ok(value) => {
                         write!(f, "{}", value)
                     }
@@ -135,19 +136,19 @@ impl fmt::Display for Timestamp {
     }
 }
 
-impl From<OffsetDateTime> for Timestamp {
+impl From<OffsetDateTime> for UtcDateTime {
     fn from(value: OffsetDateTime) -> Self {
         Self(value)
     }
 }
 
-impl From<Timestamp> for OffsetDateTime {
-    fn from(value: Timestamp) -> Self {
+impl From<UtcDateTime> for OffsetDateTime {
+    fn from(value: UtcDateTime) -> Self {
         value.0
     }
 }
 
-impl TryFrom<FileTime> for Timestamp {
+impl TryFrom<FileTime> for UtcDateTime {
     type Error = crate::Error;
 
     fn try_from(value: FileTime) -> std::result::Result<Self, Self::Error> {
@@ -159,15 +160,15 @@ impl TryFrom<FileTime> for Timestamp {
 
 #[cfg(test)]
 mod test {
-    use super::Timestamp;
+    use super::UtcDateTime;
     use crate::{decode, encode};
     use anyhow::Result;
 
     #[tokio::test]
     async fn timestamp_encode() -> Result<()> {
-        let timestamp: Timestamp = Default::default();
+        let timestamp: UtcDateTime = Default::default();
         let buffer = encode(&timestamp).await?;
-        let decoded: Timestamp = decode(&buffer).await?;
+        let decoded: UtcDateTime = decode(&buffer).await?;
         assert_eq!(timestamp, decoded);
         Ok(())
     }

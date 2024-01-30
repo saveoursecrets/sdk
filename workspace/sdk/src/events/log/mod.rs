@@ -1,7 +1,7 @@
 //! Event log types and traits.
 use crate::{
     commit::CommitHash, decode, formats::EventLogRecord,
-    timestamp::Timestamp, Result,
+    UtcDateTime, Result,
 };
 use binary_stream::futures::Decodable;
 
@@ -17,7 +17,7 @@ pub use reducer::DeviceReducer;
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
 
-#[cfg(all(feature = "files", feature = "sync"))]
+#[cfg(feature = "files")]
 pub use reducer::FileReducer;
 
 pub use file::{
@@ -29,7 +29,7 @@ pub use reducer::FolderReducer;
 /// Record for a row in the event log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct EventRecord(
-    pub(crate) Timestamp,
+    pub(crate) UtcDateTime,
     pub(crate) CommitHash,
     pub(crate) CommitHash,
     pub(crate) Vec<u8>,
@@ -37,7 +37,7 @@ pub struct EventRecord(
 
 impl EventRecord {
     /// Date and time the record was created.
-    pub fn time(&self) -> &Timestamp {
+    pub fn time(&self) -> &UtcDateTime {
         &self.0
     }
 

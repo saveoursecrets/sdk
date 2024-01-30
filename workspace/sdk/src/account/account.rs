@@ -26,7 +26,7 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
         Gatekeeper, Header, Summary, Vault, VaultId,
     },
-    vfs, Error, Paths, Result, Timestamp,
+    vfs, Error, Paths, Result, UtcDateTime,
 };
 
 #[cfg(feature = "audit")]
@@ -2304,7 +2304,7 @@ impl Account for LocalAccount {
                 .find_folder_password(default_summary.id())
                 .await?;
 
-            let timestamp: Timestamp = Default::default();
+            let timestamp: UtcDateTime = Default::default();
             let label = format!(
                 "Exported folder {}.vault ({})",
                 summary.id(),

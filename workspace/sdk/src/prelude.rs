@@ -33,7 +33,7 @@ pub use crate::vault::secret::*;
 pub use crate::vault::*;
 pub use crate::vfs;
 pub use crate::{
-    decode, encode, passwd::diceware::generate_passphrase, Paths, Timestamp,
+    decode, encode, passwd::diceware::generate_passphrase, Paths, UtcDateTime,
 };
 
 #[cfg(feature = "recovery")]

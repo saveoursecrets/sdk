@@ -4,8 +4,8 @@ use sos::{Result, TARGET, USER};
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> Result<()> {
-    use sos_net::sdk::account::Account;
     use kdam::term;
+    use sos_net::sdk::account::Account;
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(

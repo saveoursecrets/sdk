@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.8.5"
+version = "0.9.0"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -18,6 +18,7 @@ full = [
   "hashcheck",
   "listen",
   "migrate",
+  "preferences",
   "search",
   "server",
   "security-report",
@@ -35,7 +36,6 @@ server = [
   "dep:axum-server",
   "dep:tower",
   "dep:tower-http",
-  "dep:async-stream",
   "dep:tokio-stream",
   "dep:utoipa",
   "dep:utoipa-rapidoc",
@@ -49,6 +49,7 @@ migrate = ["sos-sdk/migrate"]
 keychain-access = ["sos-sdk/keychain-access"]
 device = ["sos-sdk/device"]
 recovery = ["sos-sdk/recovery"]
+preferences = ["sos-sdk/preferences"]
 search = ["sos-sdk/search"]
 security-report = ["sos-sdk/security-report"]
 mem-fs = ["sos-sdk/mem-fs"]
@@ -76,6 +77,7 @@ futures.workspace = true
 bs58.workspace = true
 urlencoding.workspace = true
 parking_lot.workspace = true
+async-stream = "0.3"
 
 # server
 toml = { workspace = true, optional = true }
@@ -85,14 +87,13 @@ axum-macros = { version = "0.4", optional = true }
 axum-server = { version = "0.6", features = ["tls-rustls"], optional = true }
 tower = { version = "0.4", optional = true }
 tower-http = { version = "0.5", features = ["cors", "trace"], optional = true }
-async-stream = { version = "0.3", optional = true }
 tokio-stream = { version = "0.1", optional = true }
 tokio-tungstenite = { version = "0.21", features = ["rustls-tls-native-roots"] , optional = true}
 utoipa = { version = "4", features = ["uuid"], optional = true }
 utoipa-rapidoc = { version = "3", features = ["axum"], optional = true }
 
 [dependencies.sos-sdk]
-version = "0.8.4"
+version = "0.9.0"
 features = ["sync"]
 path = "../sdk"
 

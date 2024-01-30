@@ -31,7 +31,7 @@ use crate::{
     formats::FileIdentity,
     vault::secret::SecretId,
     vfs::File,
-    Error, Result, Timestamp,
+    Error, Result, UtcDateTime,
 };
 
 /// Identifier for vaults.
@@ -141,7 +141,7 @@ impl VaultFlags {
 #[serde(rename_all = "camelCase")]
 pub struct VaultMeta {
     /// Date created timestamp.
-    pub(crate) date_created: Timestamp,
+    pub(crate) date_created: UtcDateTime,
     /// Private human-friendly description of the vault.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub(crate) description: String,
@@ -159,7 +159,7 @@ impl VaultMeta {
     }
 
     /// Date this vault was initialized.
-    pub fn date_created(&self) -> &Timestamp {
+    pub fn date_created(&self) -> &UtcDateTime {
         &self.date_created
     }
 }

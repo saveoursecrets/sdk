@@ -128,9 +128,6 @@ mod folders {
     /// Name of the file for file events.
     pub const FILE_EVENTS: &str = "files";
 
-    /// Name of the file for account preferences.
-    pub const PREFERENCES_FILE: &str = "preferences";
-
     /// Name of the file for remote origins.
     pub const REMOTES_FILE: &str = "servers";
 
@@ -140,6 +137,10 @@ mod folders {
 
     /// File that tracks external file transfers.
     pub const TRANSFERS_FILE: &str = "transfers";
+
+    /// File thats stores account-level preferences.
+    #[cfg(feature = "preferences")]
+    pub const PREFERENCES_FILE: &str = "preferences";
 }
 
 /// File names.

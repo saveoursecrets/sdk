@@ -24,7 +24,7 @@ use crate::{
         EventLogRecord, FileIdentity, FileItem, FormatStream,
         FormatStreamIterator,
     },
-    timestamp::Timestamp,
+    UtcDateTime,
     vfs::{self, File, OpenOptions},
     Error, Result,
 };
@@ -373,7 +373,7 @@ where
         event: &E,
         last_commit: Option<CommitHash>,
     ) -> Result<(CommitHash, EventRecord)> {
-        let time: Timestamp = Default::default();
+        let time: UtcDateTime = Default::default();
         let bytes = encode(event).await?;
         let commit = CommitHash(CommitTree::hash(&bytes));
 

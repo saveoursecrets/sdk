@@ -52,7 +52,12 @@ pub async fn integrity_report(
 
     // Canonical list of external files.
     let reducer = FileReducer::new(event_log);
+
+    #[cfg(feature = "sync")]
     let external_files = reducer.reduce(None).await?;
+    #[cfg(not(feature = "sync"))]
+    let external_files = reducer.reduce().await?;
+
     let _ = tx
         .send(Ok(IntegrityReportEvent::Begin(external_files.len())))
         .await;

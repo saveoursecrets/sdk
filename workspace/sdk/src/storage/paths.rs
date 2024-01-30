@@ -14,8 +14,8 @@ use crate::{
     constants::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICE_EVENTS,
         DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR,
-        JSON_EXT, LOCAL_DIR, LOGS_DIR, PREFERENCES_FILE, REMOTES_FILE,
-        REMOTE_DIR, TRANSFERS_FILE, VAULTS_DIR, VAULT_EXT,
+        JSON_EXT, LOCAL_DIR, LOGS_DIR, REMOTES_FILE, REMOTE_DIR,
+        TRANSFERS_FILE, VAULTS_DIR, VAULT_EXT,
     },
     vault::{secret::SecretId, VaultId},
     vfs,
@@ -385,14 +385,16 @@ impl Paths {
         vault_path
     }
 
-    /// Path to the user's preferences.
+    /// Path to the file used to store account-level preferences.
     ///
     /// # Panics
     ///
     /// If this set of paths are global (no user identifier).
+    #[cfg(feature = "preferences")]
     pub fn preferences(&self) -> PathBuf {
+        use crate::constants::PREFERENCES_FILE;
         if self.is_global() {
-            panic!("preferences are not accessible for global paths");
+            panic!("file transfers are not accessible for global paths");
         }
         let mut vault_path = self.user_dir.join(PREFERENCES_FILE);
         vault_path.set_extension(JSON_EXT);

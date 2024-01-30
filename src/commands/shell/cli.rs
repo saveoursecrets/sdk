@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 use terminal_banner::{Banner, Padding};
 
@@ -29,8 +29,8 @@ fn welcome() -> Result<()> {
 Type "quit" or "q" to exit"#;
     let banner = Banner::new()
         .padding(Padding::one())
-        .text(Cow::from(WELCOME))
-        .text(Cow::from(help_info))
+        .text(WELCOME.into())
+        .text(help_info.into())
         .render();
     println!("{}", banner);
     Ok(())

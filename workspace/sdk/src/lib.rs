@@ -39,6 +39,7 @@
 //! * `archive` Create and restore from account backup archives.
 //! * `contacts` Manage account contacts.
 //! * `migrate` Import and export unencrypted secrets.
+//! * `preferences` Account-level preferences.
 //! * `security-report` Generate a security report.
 //!
 
@@ -61,6 +62,7 @@ pub mod audit;
 pub mod commit;
 pub mod constants;
 pub mod crypto;
+mod date_time;
 #[cfg(feature = "device")]
 pub mod device;
 pub mod encoding;
@@ -82,16 +84,15 @@ pub mod signer;
 pub mod storage;
 #[cfg(feature = "sync")]
 pub mod sync;
-mod timestamp;
 pub mod vault;
 
 #[cfg(all(not(doc), any(test, feature = "test-utils")))]
 pub mod test_utils;
 
+pub use date_time::UtcDateTime;
 pub use encoding::{decode, encode};
 pub use error::Error;
 pub use storage::paths::Paths;
-pub use timestamp::Timestamp;
 
 // Re-exports
 pub use age;

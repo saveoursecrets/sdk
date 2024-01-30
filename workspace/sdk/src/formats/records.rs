@@ -1,7 +1,7 @@
 //! File format iterators.
 use std::ops::Range;
 
-use crate::Timestamp;
+use crate::UtcDateTime;
 use binary_stream::futures::Decodable;
 
 /// Trait for types yielded by the file iterator.
@@ -97,7 +97,7 @@ pub struct EventLogRecord {
     /// The byte range for the value.
     value: Range<u64>,
     /// The time the row was created.
-    pub(crate) time: Timestamp,
+    pub(crate) time: UtcDateTime,
     /// The commit hash for the previous row.
     pub(crate) last_commit: [u8; 32],
     /// The commit hash for the value.
@@ -116,7 +116,7 @@ impl EventLogRecord {
     }
 
     /// Time the row was appended.
-    pub fn time(&self) -> &Timestamp {
+    pub fn time(&self) -> &UtcDateTime {
         &self.time
     }
 }
