@@ -255,43 +255,39 @@ mod files {
             Self { log }
         }
 
+        fn add_file_event(
+            &self,
+            event: FileEvent,
+            files: &mut IndexSet<ExternalFile>,
+        ) {
+            match event {
+                FileEvent::CreateFile(vault_id, secret_id, file_name) => {
+                    files.insert(ExternalFile::new(
+                        vault_id, secret_id, file_name,
+                    ));
+                }
+                FileEvent::MoveFile { name, from, dest } => {
+                    let file = ExternalFile::new(from.0, from.1, name);
+                    files.shift_remove(&file);
+                    files.insert(ExternalFile::new(dest.0, dest.1, name));
+                }
+                FileEvent::DeleteFile(vault_id, secret_id, file_name) => {
+                    let file =
+                        ExternalFile::new(vault_id, secret_id, file_name);
+                    files.shift_remove(&file);
+                }
+                _ => {}
+            }
+        }
+
         /// Reduce file events to a canonical collection
         /// of external files.
-        ///
-        /// # Panics
-        ///
-        /// If the `from` argument is given without the `sync` 
-        /// feature enabled as we need to produce a diff which 
-        /// requires types from the `sync` module.
+        #[cfg(feature = "sync")]
         pub async fn reduce(
             self,
             from: Option<&CommitHash>,
         ) -> Result<IndexSet<ExternalFile>> {
             let mut files: IndexSet<ExternalFile> = IndexSet::new();
-
-            fn add_file_event(
-                event: FileEvent,
-                files: &mut IndexSet<ExternalFile>,
-            ) {
-                match event {
-                    FileEvent::CreateFile(vault_id, secret_id, file_name) => {
-                        files.insert(ExternalFile::new(
-                            vault_id, secret_id, file_name,
-                        ));
-                    }
-                    FileEvent::MoveFile { name, from, dest } => {
-                        let file = ExternalFile::new(from.0, from.1, name);
-                        files.shift_remove(&file);
-                        files.insert(ExternalFile::new(dest.0, dest.1, name));
-                    }
-                    FileEvent::DeleteFile(vault_id, secret_id, file_name) => {
-                        let file =
-                            ExternalFile::new(vault_id, secret_id, file_name);
-                        files.shift_remove(&file);
-                    }
-                    _ => {}
-                }
-            }
 
             // Reduce from the target commit.
             //
@@ -305,7 +301,7 @@ mod files {
                     let patch = self.log.diff(Some(from)).await?;
                     let events: Vec<FileEvent> = patch.into();
                     for event in events {
-                        add_file_event(event, &mut files);
+                        self.add_file_event(event, &mut files);
                     }
                 }
 
@@ -317,8 +313,27 @@ mod files {
 
                 while let Some(event) = stream.next().await {
                     let (_, event) = event?;
-                    add_file_event(event, &mut files);
+                    self.add_file_event(event, &mut files);
                 }
+            }
+
+            Ok(files)
+        }
+
+        /// Reduce file events to a canonical collection
+        /// of external files.
+        #[cfg(not(feature = "sync"))]
+        pub async fn reduce(
+            self,
+        ) -> Result<IndexSet<ExternalFile>> {
+            let mut files: IndexSet<ExternalFile> = IndexSet::new();
+
+            let stream = self.log.stream(false).await;
+            pin_mut!(stream);
+
+            while let Some(event) = stream.next().await {
+                let (_, event) = event?;
+                self.add_file_event(event, &mut files);
             }
 
             Ok(files)
