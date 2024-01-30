@@ -1,7 +1,7 @@
 //! UTC date and time that can be encoded to and from binary.
 //!
 //! Encoded as an i64 of the seconds since the UNIX epoch and
-//! a u32 nanosecond offset from the second so the total size 
+//! a u32 nanosecond offset from the second so the total size
 //! when encoded is 12 bytes.
 
 use serde::{Deserialize, Serialize};

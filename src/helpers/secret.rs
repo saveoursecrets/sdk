@@ -74,9 +74,7 @@ pub fn print_secret(
         .text(secret_meta.label().into());
 
     let mut banner = match secret_data {
-        Secret::Note { text, .. } => {
-            banner.text(text.expose_secret().into())
-        }
+        Secret::Note { text, .. } => banner.text(text.expose_secret().into()),
         Secret::Account {
             account,
             url,
@@ -125,9 +123,7 @@ pub fn print_secret(
         Secret::Password { password, .. } => {
             banner.text(password.expose_secret().into())
         }
-        Secret::Link { url, .. } => {
-            banner.text(url.expose_secret().into())
-        }
+        Secret::Link { url, .. } => banner.text(url.expose_secret().into()),
         Secret::Signer { .. } | Secret::Age { .. } => {
             banner.text("[REDACTED PRIVATE SIGNING KEY]".into())
         }
@@ -248,7 +244,9 @@ fn multiline_banner(kind: &str, label: &str) {
         .text(format!("[{}] {}", kind, label).into())
         .text(
             r#"To abort enter Ctrl+C
-To save enter Ctrl+D on a newline"#.into())
+To save enter Ctrl+D on a newline"#
+                .into(),
+        )
         .render();
     println!("{}", banner);
 }

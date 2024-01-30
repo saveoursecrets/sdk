@@ -323,9 +323,7 @@ mod files {
         /// Reduce file events to a canonical collection
         /// of external files.
         #[cfg(not(feature = "sync"))]
-        pub async fn reduce(
-            self,
-        ) -> Result<IndexSet<ExternalFile>> {
+        pub async fn reduce(self) -> Result<IndexSet<ExternalFile>> {
             let mut files: IndexSet<ExternalFile> = IndexSet::new();
 
             let stream = self.log.stream(false).await;

@@ -25,11 +25,18 @@ impl CachedPreferences {
     ///
     /// If a preferences file exists for an account it is loaded
     /// into memory otherwise empty preferences are used.
-    pub async fn initialize(accounts: &[PublicIdentity]) -> Result<()> {
+    pub async fn initialize(
+        accounts: &[PublicIdentity],
+        data_dir: Option<PathBuf>,
+    ) -> Result<()> {
+        let data_dir = if let Some(data_dir) = data_dir {
+            data_dir
+        } else {
+            Paths::data_dir()?
+        };
         let mut cache = CACHE.lock().await;
         for account in accounts {
-            let paths =
-                Paths::new(Paths::data_dir()?, account.address().to_string());
+            let paths = Paths::new(&data_dir, account.address().to_string());
             let file = paths.preferences();
             let prefs = if file.exists() {
                 let mut prefs = Preferences::new(&paths);
@@ -44,7 +51,7 @@ impl CachedPreferences {
     }
 
     /// Load the preferences for an account.
-    pub async fn load_preferences(address: &Address) -> Preferences {
+    pub async fn load(address: &Address) -> Preferences {
         let cache = CACHE.lock().await;
         if let Some(prefs) = cache.get(address) {
             prefs.clone()
@@ -54,7 +61,7 @@ impl CachedPreferences {
     }
 
     /// Get a preference for an account.
-    pub async fn get_preference(
+    pub async fn get(
         address: &Address,
         key: impl AsRef<str>,
     ) -> Result<Option<Preference>> {
@@ -71,7 +78,7 @@ impl CachedPreferences {
     }
 
     /// Set a preference for an account.
-    pub async fn set_preference(
+    pub async fn set(
         address: &Address,
         key: String,
         value: Preference,
@@ -83,18 +90,17 @@ impl CachedPreferences {
     }
 
     /// Remove a preference for an account.
-    pub async fn remove_preference(
+    pub async fn remove(
         address: &Address,
         key: impl AsRef<str>,
-    ) -> Result<()> {
+    ) -> Result<Option<Preference>> {
         let mut cache = CACHE.lock().await;
         let prefs = cache.entry(*address).or_default();
-        prefs.remove(key).await?;
-        Ok(())
+        prefs.remove(key).await
     }
 
     /// Clear all preferences for an account.
-    pub async fn clear_preferences(address: &Address) -> Result<()> {
+    pub async fn clear(address: &Address) -> Result<()> {
         let mut cache = CACHE.lock().await;
         if let Some(mut prefs) = cache.remove(address) {
             prefs.clear().await?;
@@ -104,7 +110,7 @@ impl CachedPreferences {
 }
 
 /// Preference value.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Preference {
     /// Boolean value.
@@ -117,6 +123,36 @@ pub enum Preference {
     String(String),
     /// List of strings.
     StringList(Vec<String>),
+}
+
+impl From<bool> for Preference {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
+impl From<f64> for Preference {
+    fn from(value: f64) -> Self {
+        Self::Double(value)
+    }
+}
+
+impl From<i64> for Preference {
+    fn from(value: i64) -> Self {
+        Self::Int(value)
+    }
+}
+
+impl From<String> for Preference {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Vec<String>> for Preference {
+    fn from(value: Vec<String>) -> Self {
+        Self::StringList(value)
+    }
 }
 
 /// Preferences for an account.
@@ -179,9 +215,13 @@ impl Preferences {
     /// Remove a preference.
     ///
     /// Changes are written to disc.
-    pub async fn remove(&mut self, key: impl AsRef<str>) -> Result<()> {
-        self.values.remove(key.as_ref());
-        self.save().await
+    pub async fn remove(
+        &mut self,
+        key: impl AsRef<str>,
+    ) -> Result<Option<Preference>> {
+        let pref = self.values.remove(key.as_ref());
+        self.save().await?;
+        Ok(pref)
     }
 
     /// Clear all preferences.
