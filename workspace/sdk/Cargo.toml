@@ -25,10 +25,11 @@ mem-fs = ["sos-vfs/mem-fs"]
 migrate = ["dep:async_zip", "dep:csv-async"]
 keychain-access = ["dep:security-framework", "dep:plist", "dep:logos"]
 recovery = ["dep:vsss-rs"]
-test-utils = ["dep:anyhow"]
+preferences = []
 search = ["dep:probly-search"]
 security-report = []
 sync = []
+test-utils = ["dep:anyhow"]
 
 [dependencies]
 binary-stream.workspace = true

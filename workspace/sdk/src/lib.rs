@@ -39,6 +39,7 @@
 //! * `archive` Create and restore from account backup archives.
 //! * `contacts` Manage account contacts.
 //! * `migrate` Import and export unencrypted secrets.
+//! * `preferences` Account-level preferences.
 //! * `security-report` Generate a security report.
 //!
 
