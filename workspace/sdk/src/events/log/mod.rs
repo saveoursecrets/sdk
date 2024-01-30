@@ -17,7 +17,7 @@ pub use reducer::DeviceReducer;
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
 
-#[cfg(all(feature = "files", feature = "sync"))]
+#[cfg(feature = "files")]
 pub use reducer::FileReducer;
 
 pub use file::{

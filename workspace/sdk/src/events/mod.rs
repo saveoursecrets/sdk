@@ -31,7 +31,7 @@ pub use self::log::{DeviceEventLog, DeviceReducer};
 #[cfg(feature = "files")]
 pub use self::log::FileEventLog;
 
-#[cfg(all(feature = "files", feature = "sync"))]
+#[cfg(feature = "files")]
 pub use self::log::FileReducer;
 
 pub use account::AccountEvent;

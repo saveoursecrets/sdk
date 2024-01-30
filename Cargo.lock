@@ -4119,7 +4119,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.8.4"
+version = "0.9.0"
 dependencies = [
  "aes-gcm",
  "age",

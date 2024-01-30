@@ -233,7 +233,7 @@ mod device {
 #[cfg(feature = "device")]
 pub use device::DeviceReducer;
 
-#[cfg(all(feature = "files", feature = "sync"))]
+#[cfg(feature = "files")]
 mod files {
     use crate::{
         commit::CommitHash,
@@ -257,6 +257,12 @@ mod files {
 
         /// Reduce file events to a canonical collection
         /// of external files.
+        ///
+        /// # Panics
+        ///
+        /// If the `from` argument is given without the `sync` 
+        /// feature enabled as we need to produce a diff which 
+        /// requires types from the `sync` module.
         pub async fn reduce(
             self,
             from: Option<&CommitHash>,
@@ -294,11 +300,17 @@ mod files {
             // log which will be faster than scanning when there
             // are lots of file events.
             if let Some(from) = from {
-                let patch = self.log.diff(Some(from)).await?;
-                let events: Vec<FileEvent> = patch.into();
-                for event in events {
-                    add_file_event(event, &mut files);
+                #[cfg(feature = "sync")]
+                {
+                    let patch = self.log.diff(Some(from)).await?;
+                    let events: Vec<FileEvent> = patch.into();
+                    for event in events {
+                        add_file_event(event, &mut files);
+                    }
                 }
+
+                #[cfg(not(feature = "sync"))]
+                panic!("file reducer with diff requires the sync feature");
             } else {
                 let stream = self.log.stream(false).await;
                 pin_mut!(stream);
@@ -314,7 +326,7 @@ mod files {
     }
 }
 
-#[cfg(all(feature = "files", feature = "sync"))]
+#[cfg(feature = "files")]
 pub use files::FileReducer;
 
 /*
