@@ -1,7 +1,7 @@
 use crate::{
     audit::{AuditData, AuditEvent, AuditLogFile, AuditLogFlags},
     encoding::{decode_uuid, encoding_error},
-    Timestamp,
+    UtcDateTime,
 };
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
@@ -45,7 +45,7 @@ impl Decodable for AuditEvent {
         // Context bit flags
         let bits = reader.read_u16().await?;
         // Time - the when
-        let mut timestamp: Timestamp = Default::default();
+        let mut timestamp: UtcDateTime = Default::default();
         timestamp.decode(&mut *reader).await?;
         self.time = timestamp;
         // EventKind - the what

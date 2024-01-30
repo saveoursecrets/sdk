@@ -8,7 +8,7 @@ use crate::{
         secret::SecretId, Auth, Contents, Header, SharedAccess, Summary,
         Vault, VaultCommit, VaultEntry, VaultFlags, VaultMeta,
     },
-    Timestamp,
+    UtcDateTime,
 };
 
 use async_trait::async_trait;
@@ -36,7 +36,7 @@ impl Decodable for VaultMeta {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        let mut date_created: Timestamp = Default::default();
+        let mut date_created: UtcDateTime = Default::default();
         date_created.decode(&mut *reader).await?;
         self.description = reader.read_string().await?;
         Ok(())

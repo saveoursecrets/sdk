@@ -28,7 +28,7 @@ use crate::{
         ecdsa::{self, BoxedEcdsaSigner},
         ed25519::{self, BoxedEd25519Signer},
     },
-    Error, Result, Timestamp,
+    Error, Result, UtcDateTime,
 };
 
 use std::path::PathBuf;
@@ -329,10 +329,10 @@ pub struct SecretMeta {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) owner_id: Option<String>,
     /// Date created timestamp.
-    pub(crate) date_created: Timestamp,
+    pub(crate) date_created: UtcDateTime,
     /// Last updated timestamp.
     #[serde(skip_deserializing)]
-    pub(crate) last_updated: Timestamp,
+    pub(crate) last_updated: UtcDateTime,
 }
 
 impl fmt::Display for SecretMeta {
@@ -412,7 +412,7 @@ impl SecretMeta {
     }
 
     /// The created date and time.
-    pub fn date_created(&self) -> &Timestamp {
+    pub fn date_created(&self) -> &UtcDateTime {
         &self.date_created
     }
 
@@ -422,7 +422,7 @@ impl SecretMeta {
     }
 
     /// The last updated date and time.
-    pub fn last_updated(&self) -> &Timestamp {
+    pub fn last_updated(&self) -> &UtcDateTime {
         &self.last_updated
     }
 
@@ -1137,7 +1137,7 @@ pub enum Secret {
         #[serde(serialize_with = "serialize_secret_string")]
         number: SecretString,
         /// The expiry data for the card.
-        expiry: Option<Timestamp>,
+        expiry: Option<UtcDateTime>,
         /// Card verification value.
         #[serde(serialize_with = "serialize_secret_string")]
         cvv: SecretString,
@@ -1230,10 +1230,10 @@ pub enum Secret {
         issue_place: Option<String>,
         /// Issue date.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        issue_date: Option<Timestamp>,
+        issue_date: Option<UtcDateTime>,
         /// Expiration date.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        expiry_date: Option<Timestamp>,
+        expiry_date: Option<UtcDateTime>,
         /// Custom user data.
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,

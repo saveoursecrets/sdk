@@ -89,7 +89,7 @@ pub mod vault;
 #[cfg(all(not(doc), any(test, feature = "test-utils")))]
 pub mod test_utils;
 
-pub use date_time::Timestamp;
+pub use date_time::UtcDateTime;
 pub use encoding::{decode, encode};
 pub use error::Error;
 pub use storage::paths::Paths;

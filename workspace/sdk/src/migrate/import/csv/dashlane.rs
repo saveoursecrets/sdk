@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use crate::{
     crypto::AccessKey,
     vault::{secret::IdentityKind, Vault},
-    Timestamp,
+    UtcDateTime,
 };
 use serde::Deserialize;
 use std::{
@@ -157,7 +157,7 @@ impl From<DashlaneIdRecord> for GenericIdRecord {
         };
 
         let issue_date = if !value.issue_date.is_empty() {
-            match Timestamp::parse_simple_date(&value.issue_date) {
+            match UtcDateTime::parse_simple_date(&value.issue_date) {
                 Ok(date) => Some(date),
                 Err(_) => None,
             }
@@ -166,7 +166,7 @@ impl From<DashlaneIdRecord> for GenericIdRecord {
         };
 
         let expiration_date = if !value.expiration_date.is_empty() {
-            match Timestamp::parse_simple_date(&value.expiration_date) {
+            match UtcDateTime::parse_simple_date(&value.expiration_date) {
                 Ok(date) => Some(date),
                 Err(_) => None,
             }
@@ -234,7 +234,7 @@ impl From<DashlanePaymentRecord> for GenericPaymentRecord {
             value.expiration_year.parse::<i32>(),
         ) {
             if let Ok(month) = Month::try_from(month) {
-                Timestamp::from_calendar_date(year, month, 1).ok()
+                UtcDateTime::from_calendar_date(year, month, 1).ok()
             } else {
                 None
             }
@@ -440,7 +440,7 @@ impl From<DashlaneContactRecord> for GenericContactRecord {
 
         let date_of_birth: Option<Date> = if !value.date_of_birth.is_empty() {
             if let Ok(date_time) =
-                Timestamp::parse_simple_date(&value.date_of_birth)
+                UtcDateTime::parse_simple_date(&value.date_of_birth)
             {
                 Some(date_time.into_date())
             } else {

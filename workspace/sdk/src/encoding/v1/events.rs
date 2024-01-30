@@ -5,7 +5,7 @@ use crate::{
     events::{EventKind, EventRecord, LogEvent, WriteEvent},
     formats::{EventLogRecord, FileRecord, VaultRecord},
     vault::VaultCommit,
-    Timestamp,
+    UtcDateTime,
 };
 
 use crate::events::AccountEvent;
@@ -100,7 +100,7 @@ impl Decodable for EventRecord {
         let _ = reader.read_u32().await?;
 
         // Decodable the time component
-        let mut time: Timestamp = Default::default();
+        let mut time: UtcDateTime = Default::default();
         time.decode(&mut *reader).await?;
 
         // Read the hash bytes

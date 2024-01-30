@@ -16,7 +16,7 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         FolderRef, Header, Summary, Vault, VaultBuilder, VaultId,
     },
-    vfs, Error, Paths, Result, Timestamp,
+    vfs, Error, Paths, Result, UtcDateTime,
 };
 
 use secrecy::SecretString;
@@ -1085,7 +1085,7 @@ impl ClientStorage {
     pub async fn history(
         &self,
         summary: &Summary,
-    ) -> Result<Vec<(CommitHash, Timestamp, WriteEvent)>> {
+    ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
         let folder = self
             .cache()
             .get(summary.id())
