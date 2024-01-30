@@ -1,13 +1,15 @@
 use crate::{
-    helpers::{account::resolve_user, readline::clear_screen, PROGRESS_MONITOR},
+    helpers::{
+        account::resolve_user, readline::clear_screen, PROGRESS_MONITOR,
+    },
     Result,
 };
 use clap::Subcommand;
-use kdam::{tqdm, BarExt, RowManager};
 use futures::{select, FutureExt};
+use kdam::{tqdm, BarExt, RowManager};
 use sos_net::sdk::prelude::*;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{Mutex, broadcast};
+use tokio::sync::{broadcast, Mutex};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -165,13 +167,14 @@ pub async fn run(cmd: Command) -> Result<()> {
                 drop(inflight);
                 drop(progress);
 
-                let manager = Arc::new(Mutex::new(RowManager::from_window_size()));
+                let manager =
+                    Arc::new(Mutex::new(RowManager::from_window_size()));
                 let mut threads = Vec::new();
-                
+
                 // Shutdown channel for ctrlc handling
                 let (shutdown_tx, _) = broadcast::channel::<()>(1);
-                
-                // Update the global so ctrlc handler will 
+
+                // Update the global so ctrlc handler will
                 // send an event on the shutdown channel
                 {
                     let mut mon = PROGRESS_MONITOR.lock();
@@ -181,14 +184,18 @@ pub async fn run(cmd: Command) -> Result<()> {
                 for (inflight_op, rx) in channels {
                     let mgr = Arc::clone(&manager);
                     let shutdown = shutdown_tx.subscribe();
-                    threads.push(
-                        spawn_file_progress(inflight_op, mgr, shutdown, rx));
+                    threads.push(spawn_file_progress(
+                        inflight_op,
+                        mgr,
+                        shutdown,
+                        rx,
+                    ));
                 }
 
                 for thread in threads {
                     let _ = thread.join();
                 }
-                
+
                 // Clear the shutdown channel as we are done
                 {
                     let mut mon = PROGRESS_MONITOR.lock();
@@ -228,13 +235,6 @@ fn spawn_file_progress(
                     let mut writer = mgr.lock().await;
                     writer.push(pb)?
                 };
-                
-                /*
-                let mut pb = {
-                    let mut writer = mgr.lock().await;
-                    writer.get_mut(index).unwrap().clone()
-                };
-                */
 
                 loop {
                     select! {
@@ -259,10 +259,10 @@ fn spawn_file_progress(
                                 }
                                 _ => break,
                             }
-                        } 
+                        }
                     }
                 }
-                
+
                 Ok::<(), crate::Error>(())
             })
             .unwrap();

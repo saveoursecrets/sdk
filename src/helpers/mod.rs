@@ -15,9 +15,9 @@ pub use account::USER;
 
 /// Is a progress monitor running?
 ///
-/// Used for ctrlc handling to quit the progress monitor 
+/// Used for ctrlc handling to quit the progress monitor
 /// before quitting the shell.
-pub(crate) static PROGRESS_MONITOR: Lazy<Mutex<Option<Sender<()>>>> = 
+pub(crate) static PROGRESS_MONITOR: Lazy<Mutex<Option<Sender<()>>>> =
     Lazy::new(|| Mutex::new(None));
 
 /// Global clipboard singleton.

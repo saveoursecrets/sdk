@@ -19,4 +19,3 @@ pub use builder::{AccountBuilder, PrivateNewAccount};
 
 #[cfg(feature = "contacts")]
 pub use account::ContactImportProgress;
-
