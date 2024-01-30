@@ -807,7 +807,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 } else {
                     let banner = Banner::new()
                         .padding(Padding::one())
-                        .text(Cow::Owned(meta.to_string()));
+                        .text(meta.to_string().into());
                     let result = banner.render();
                     println!("{}", result);
                 }

@@ -249,15 +249,11 @@ pub async fn new_account(
 
     let banner = Banner::new()
         .padding(Padding::one())
-        .text(Cow::Borrowed(
-            "WELCOME",
-        ))
-        .text(Cow::Borrowed(
-            "Your new account requires a primary password; you must memorize this password or you will lose access to your secrets.",
-        ))
-        .text(Cow::Borrowed(
-            "You may generate a strong diceware password or choose your own password; if you choose a password it must be excellent strength.",
-        ))
+        .text("WELCOME".into())
+        .text(
+            "Your new account requires a primary password; you must memorize this password or you will lose access to your secrets.".into())
+        .text(
+            "You may generate a strong diceware password or choose your own password; if you choose a password it must be excellent strength.".into())
         .render();
     println!("{}", banner);
 
@@ -314,12 +310,11 @@ pub async fn new_account(
 
     let banner = Banner::new()
         .padding(Padding::one())
-        .text(Cow::Borrowed("NEW ACCOUNT"))
-        .text(Cow::Owned(format!("{}", account_name)))
-        .text(Cow::Borrowed(
-            "Creating a new account will perform the following actions:",
-        ))
-        .text(Cow::Owned(message))
+        .text("NEW ACCOUNT".into())
+        .text(format!("{}", account_name).into())
+        .text(
+            "Creating a new account will perform the following actions:".into())
+        .text(message.into())
         .render();
     println!("{}", banner);
 
@@ -360,8 +355,8 @@ pub async fn new_account(
 
         let banner = Banner::new()
             .padding(Padding::one())
-            .text(Cow::Borrowed("Account created ✓"))
-            .text(Cow::Owned(message))
+            .text("Account created ✓".into())
+            .text(message.into())
             .render();
         println!("{}", banner);
     }
