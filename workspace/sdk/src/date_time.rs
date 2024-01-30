@@ -1,4 +1,4 @@
-//! Date and time that can be encoded to and from binary (12 bytes).
+//! UTC date and time that can be encoded to and from binary (12 bytes).
 //!
 //! Encoded as an i64 of the seconds since the UNIX epoch and
 //! a u32 nanosecond offset from the second.

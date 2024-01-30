@@ -1,7 +1,7 @@
 //! Event log types and traits.
 use crate::{
     commit::CommitHash, decode, formats::EventLogRecord,
-    timestamp::Timestamp, Result,
+    Timestamp, Result,
 };
 use binary_stream::futures::Decodable;
 

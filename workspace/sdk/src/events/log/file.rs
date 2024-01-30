@@ -24,7 +24,7 @@ use crate::{
         EventLogRecord, FileIdentity, FileItem, FormatStream,
         FormatStreamIterator,
     },
-    timestamp::Timestamp,
+    Timestamp,
     vfs::{self, File, OpenOptions},
     Error, Result,
 };

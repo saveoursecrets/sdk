@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     events::{Event, EventKind, LogEvent, ReadEvent, WriteEvent},
     signer::ecdsa::Address,
-    timestamp::Timestamp,
+    Timestamp,
     vault::{secret::SecretId, VaultId},
 };
 
