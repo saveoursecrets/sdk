@@ -39,7 +39,8 @@ pub type VaultId = Uuid;
 
 bitflags! {
     /// Bit flags for a vault.
-    #[derive(Default, Serialize, Deserialize)]
+    #[derive(Default, Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
+    #[serde(transparent)]
     pub struct VaultFlags: u64 {
         /// Indicates this vault should be treated as
         /// the default folder.

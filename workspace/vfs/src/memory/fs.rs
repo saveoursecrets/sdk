@@ -28,7 +28,7 @@ use super::meta_data::FileTime;
 
 bitflags! {
     /// Bit flags for a file descriptor.
-    #[derive(Default)]
+    #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
     pub(crate) struct FileFlags: u8 {
         /// Descriptor is a directory.
         const DIR               =        0b00000001;

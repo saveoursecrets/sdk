@@ -57,6 +57,7 @@ futures.workspace = true
 parking_lot.workspace = true
 bs58.workspace = true
 indexmap.workspace = true
+bitflags.workspace = true
 async_zip = { version = "0.0.16", default-features = false, features = ["deflate", "tokio"], optional = true }
 csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
 sos-vfs = { version = "0.2.2" }
@@ -68,7 +69,6 @@ web3-address = { version = "0.6", features = ["ethereum"] }
 argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
 app_dirs2 = "2"
-bitflags = "1"
 pem = { version = "3", features = ["serde"] }
 tempfile = "3.5"
 zxcvbn = "2"

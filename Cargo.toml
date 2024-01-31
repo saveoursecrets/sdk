@@ -58,6 +58,7 @@ urlencoding = "2"
 parking_lot = "0.12"
 indexmap = { version = "2.2", features = ["serde"] }
 toml = "0.8"
+bitflags = { version = "2", features = ["serde"] }
 
 [workspace.dependencies.binary-stream]
 version = "8.3.0"

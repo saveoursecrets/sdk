@@ -9,7 +9,7 @@ use bitflags::bitflags;
 
 bitflags! {
     /// Bit flags for the open options.
-    #[derive(Default)]
+    #[derive(Default, Debug, Copy, Clone)]
     pub struct OpenFlags: u8 {
         const READ              =        0b00000001;
         const WRITE             =        0b00000010;
