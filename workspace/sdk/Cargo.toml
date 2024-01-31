@@ -68,7 +68,7 @@ web3-address = { version = "0.6", features = ["ethereum"] }
 argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
 app_dirs2 = "2"
-bitflags = "1"
+bitflags = "2"
 pem = { version = "3", features = ["serde"] }
 tempfile = "3.5"
 zxcvbn = "2"
