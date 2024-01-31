@@ -35,7 +35,8 @@ use std::path::PathBuf;
 
 bitflags! {
     /// Bit flags for a secret.
-    #[derive(Default, Serialize, Deserialize)]
+    #[derive(Default, Serialize, Deserialize, Debug, Clone)]
+    #[serde(transparent)]
     pub struct SecretFlags: u32 {
         /// Clients should verify the account passphrase
         /// before revealing this secret.
