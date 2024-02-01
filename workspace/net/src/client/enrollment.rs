@@ -156,6 +156,11 @@ impl DeviceEnrollment {
             device_signing_key: DeviceSigner::new_random(),
         })
     }
+    
+    /// Address of the account.
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
 
     /// Prepare to enroll this device to an account using the
     /// given client to fetch the account data.
