@@ -10,11 +10,13 @@ use crate::{
             AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
             FolderReducer, WriteEvent,
         },
+        hex,
+        identity::PublicIdentity,
         signer::ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
         sync::{AccountPatch, FolderPatch, Origin, SyncClient},
+        url::Url,
         vault::VaultId,
         vfs, Paths,
-        url::Url, hex,
     },
 };
 use std::{
@@ -32,7 +34,7 @@ use crate::sdk::{
 
 /// URL for sharing a server and signing key.
 ///
-/// This URL contains sensitive private key material and should 
+/// This URL contains sensitive private key material and should
 /// only be used by an account owner to enroll new devices.
 ///
 /// The account owner must never give this URL to anybody else.
@@ -51,7 +53,7 @@ impl DeviceShareUrl {
             signing_key,
         }
     }
-    
+
     /// Server URL.
     pub fn server(&self) -> &Url {
         &self.server
@@ -98,7 +100,7 @@ impl FromStr for DeviceShareUrl {
                 None
             }
         });
-        
+
         let server = server.ok_or(Error::InvalidShareUrl)?;
         let server: Url = server.as_ref().parse()?;
 
@@ -131,6 +133,11 @@ pub struct DeviceEnrollment {
     data_dir: Option<PathBuf>,
     /// Remote server origin.
     origin: Origin,
+    /// Public identity.
+    ///
+    /// This is available once the account data
+    /// has been successfully fetched.
+    public_identity: Option<PublicIdentity>,
     /// Device signing key.
     pub(crate) device_signing_key: DeviceSigner,
 }
@@ -154,17 +161,20 @@ impl DeviceEnrollment {
             data_dir,
             origin,
             device_signing_key: DeviceSigner::new_random(),
+            public_identity: None,
         })
     }
-    
-    /// Address of the account.
-    pub fn address(&self) -> &Address {
-        &self.address
+
+    /// Public identity of the account.
+    ///
+    /// Only available after a successful call to [DeviceEnrollment::enroll].
+    pub fn public_identity(&self) -> Option<&PublicIdentity> {
+        self.public_identity.as_ref()
     }
 
     /// Prepare to enroll this device to an account using the
     /// given client to fetch the account data.
-    pub async fn enroll(&self, client: impl SyncClient) -> Result<()> {
+    pub async fn enroll(&mut self, client: impl SyncClient) -> Result<()> {
         let identity_vault = self.paths.identity_vault();
         if vfs::try_exists(&identity_vault).await? {
             return Err(Error::EnrollAccountExists(
@@ -298,10 +308,13 @@ impl DeviceEnrollment {
         Ok(())
     }
 
-    async fn create_identity(&self, patch: FolderPatch) -> Result<()> {
+    async fn create_identity(&mut self, patch: FolderPatch) -> Result<()> {
         let events = self.paths.identity_events();
         let vault = self.paths.identity_vault();
-        self.create_folder(events, vault, patch).await
+        self.create_folder(events, &vault, patch).await?;
+        self.public_identity =
+            PublicIdentity::read_public_identity(vault).await?;
+        Ok(())
     }
 
     async fn create_folder(
@@ -331,9 +344,12 @@ impl DeviceEnrollment {
 
 #[cfg(test)]
 mod test {
-    use anyhow::Result;
     use super::DeviceShareUrl;
-    use crate::sdk::{url::Url, signer::{ecdsa::SingleParty, Signer}};
+    use crate::sdk::{
+        signer::{ecdsa::SingleParty, Signer},
+        url::Url,
+    };
+    use anyhow::Result;
 
     #[test]
     fn device_share_url() -> Result<()> {

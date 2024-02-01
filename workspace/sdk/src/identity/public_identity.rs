@@ -7,7 +7,11 @@ use crate::{
     vfs, Error, Paths, Result,
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt, path::PathBuf, str::FromStr};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 /// Public account identity information.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,21 +60,36 @@ impl PublicIdentity {
 
         let mut dir = vfs::read_dir(paths.identity_dir()).await?;
         while let Some(entry) = dir.next_entry().await? {
-            if let (Some(extension), Some(file_stem)) =
-                (entry.path().extension(), entry.path().file_stem())
+            if let Some(ident) =
+                Self::read_public_identity(entry.path()).await?
             {
-                if extension == VAULT_EXT {
-                    let summary =
-                        Header::read_summary_file(entry.path()).await?;
-                    keys.push(PublicIdentity {
-                        address: file_stem.to_string_lossy().parse()?,
-                        label: summary.name().to_owned(),
-                    });
-                }
+                keys.push(ident);
             }
         }
         keys.sort_by(|a, b| a.label().cmp(b.label()));
         Ok(keys)
+    }
+
+    /// Read the public identity from an identity vault file.
+    pub async fn read_public_identity(
+        path: impl AsRef<Path>,
+    ) -> Result<Option<PublicIdentity>> {
+        if let (Some(extension), Some(file_stem)) =
+            (path.as_ref().extension(), path.as_ref().file_stem())
+        {
+            if extension == VAULT_EXT {
+                let summary =
+                    Header::read_summary_file(path.as_ref()).await?;
+                return Ok(Some(PublicIdentity {
+                    address: file_stem.to_string_lossy().parse()?,
+                    label: summary.name().to_owned(),
+                }));
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
     }
 
     /// Find and load a vault.

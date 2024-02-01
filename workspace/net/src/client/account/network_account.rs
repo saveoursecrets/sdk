@@ -110,7 +110,7 @@ impl NetworkAccount {
         use crate::sdk::signer::ed25519::BoxedEd25519Signer;
 
         let address = account_signing_key.address()?;
-        let enrollment = DeviceEnrollment::new(
+        let mut enrollment = DeviceEnrollment::new(
             &address,
             data_dir.clone(),
             origin.clone(),
