@@ -74,6 +74,10 @@ pub enum Error {
     #[error("failed to sync after revoking device")]
     RevokeDeviceSync,
 
+    /// Error generated trying to parse a device enrollment sharing URL.
+    #[error("invalid share url for device enrollment")]
+    InvalidShareUrl,
+
     /// Error generated when a downloaded file checksum does not
     /// match the expected checksum.
     #[error("file download checksum mismatch; expected '{0}' but got '{1}'")]
