@@ -45,11 +45,21 @@ pub struct DeviceShareUrl {
 
 impl DeviceShareUrl {
     /// Create a URL for sharing a server and signing key.
-    fn new(server: Url, signing_key: BoxedEcdsaSigner) -> Self {
+    pub fn new(server: Url, signing_key: BoxedEcdsaSigner) -> Self {
         Self {
             server,
             signing_key,
         }
+    }
+    
+    /// Server URL.
+    pub fn server(&self) -> &Url {
+        &self.server
+    }
+
+    /// Account signing key.
+    pub fn signing_key(&self) -> &BoxedEcdsaSigner {
+        &self.signing_key
     }
 }
 
