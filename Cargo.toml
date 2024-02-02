@@ -15,6 +15,7 @@ categories = [
 ]
 
 [workspace]
+resolver = "2"
 members = [
   "workspace/artifact",
   "workspace/net",
