@@ -7,7 +7,11 @@ use crate::{
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::BTreeMap, fmt};
+use std::{
+    collections::BTreeMap,
+    fmt,
+    hash::{Hash, Hasher},
+};
 use time::OffsetDateTime;
 
 /// Device meta data.
@@ -235,6 +239,12 @@ pub struct TrustedDevice {
 impl PartialEq for TrustedDevice {
     fn eq(&self, other: &Self) -> bool {
         self.public_key == other.public_key
+    }
+}
+
+impl Hash for TrustedDevice {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.public_key.as_ref().hash(state);
     }
 }
 

@@ -184,12 +184,12 @@ impl FolderReducer {
 #[cfg(feature = "device")]
 mod device {
     use crate::{
-        device::{DevicePublicKey, TrustedDevice},
+        device::TrustedDevice,
         events::{DeviceEvent, DeviceEventLog, EventLogExt},
         Result,
     };
     use futures::{pin_mut, stream::StreamExt};
-    use std::collections::HashMap;
+    use indexmap::IndexSet;
 
     /// Reduce device events to a collection of devices.
     pub struct DeviceReducer<'a> {
@@ -204,10 +204,8 @@ mod device {
 
         /// Reduce device events to a canonical collection
         /// of trusted devices.
-        pub async fn reduce(
-            self,
-        ) -> Result<HashMap<DevicePublicKey, TrustedDevice>> {
-            let mut devices = HashMap::new();
+        pub async fn reduce(self) -> Result<IndexSet<TrustedDevice>> {
+            let mut devices = IndexSet::new();
 
             let stream = self.log.stream(false).await;
             pin_mut!(stream);
@@ -217,10 +215,16 @@ mod device {
 
                 match event {
                     DeviceEvent::Trust(device) => {
-                        devices.insert(*device.public_key(), device);
+                        devices.insert(device);
                     }
                     DeviceEvent::Revoke(public_key) => {
-                        devices.remove(&public_key);
+                        let device = devices
+                            .iter()
+                            .find(|d| d.public_key() == &public_key)
+                            .cloned();
+                        if let Some(device) = device {
+                            devices.shift_remove(&device);
+                        }
                     }
                     _ => {}
                 }

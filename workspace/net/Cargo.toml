@@ -77,6 +77,7 @@ futures.workspace = true
 bs58.workspace = true
 urlencoding.workspace = true
 parking_lot.workspace = true
+indexmap.workspace = true
 async-stream = "0.3"
 
 # server

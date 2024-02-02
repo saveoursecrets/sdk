@@ -38,6 +38,9 @@ use crate::account::archive::{Inventory, RestoreOptions};
 #[cfg(feature = "device")]
 use crate::device::{DevicePublicKey, DeviceSigner, TrustedDevice};
 
+#[cfg(feature = "device")]
+use indexmap::IndexSet;
+
 #[cfg(feature = "search")]
 use crate::storage::search::*;
 
@@ -269,10 +272,7 @@ pub trait Account {
     #[cfg(feature = "device")]
     async fn trusted_devices(
         &self,
-    ) -> std::result::Result<
-        HashMap<DevicePublicKey, TrustedDevice>,
-        Self::Error,
-    >;
+    ) -> std::result::Result<IndexSet<TrustedDevice>, Self::Error>;
 
     /// Public identity information.
     async fn public_identity(
@@ -1369,9 +1369,7 @@ impl Account for LocalAccount {
     }
 
     #[cfg(feature = "device")]
-    async fn trusted_devices(
-        &self,
-    ) -> Result<HashMap<DevicePublicKey, TrustedDevice>> {
+    async fn trusted_devices(&self) -> Result<IndexSet<TrustedDevice>> {
         let storage = self.storage().await?;
         let reader = storage.read().await;
         Ok(reader.devices().clone())

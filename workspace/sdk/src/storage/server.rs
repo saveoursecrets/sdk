@@ -29,6 +29,9 @@ use crate::{
 #[cfg(feature = "device")]
 use std::collections::HashSet;
 
+#[cfg(feature = "device")]
+use indexmap::IndexSet;
+
 #[cfg(feature = "files")]
 use crate::events::{FileEvent, FileEventLog};
 
@@ -55,7 +58,7 @@ pub struct ServerStorage {
 
     /// Reduced collection of devices.
     #[cfg(feature = "device")]
-    pub(super) devices: HashMap<DevicePublicKey, TrustedDevice>,
+    pub(super) devices: IndexSet<TrustedDevice>,
 
     /// File event log.
     #[cfg(feature = "files")]
@@ -138,8 +141,7 @@ impl ServerStorage {
     #[cfg(feature = "device")]
     async fn initialize_device_log(
         paths: &Paths,
-    ) -> Result<(DeviceEventLog, HashMap<DevicePublicKey, TrustedDevice>)>
-    {
+    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
         let span = span!(Level::DEBUG, "init_device_log");
         let _enter = span.enter();
 
@@ -383,7 +385,7 @@ impl ServerStorage {
 impl ServerStorage {
     /// List the public keys of trusted devices.
     pub fn list_device_keys(&self) -> HashSet<&DevicePublicKey> {
-        self.devices.keys().collect()
+        self.devices.iter().map(|d| d.public_key()).collect()
     }
 
     /// Patch the devices event log.

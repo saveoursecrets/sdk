@@ -19,6 +19,7 @@ use crate::{
     vfs, Error, Paths, Result, UtcDateTime,
 };
 
+use indexmap::IndexSet;
 use secrecy::SecretString;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
@@ -82,7 +83,7 @@ pub struct ClientStorage {
 
     /// Reduced collection of devices.
     #[cfg(feature = "device")]
-    pub(crate) devices: HashMap<DevicePublicKey, TrustedDevice>,
+    pub(crate) devices: IndexSet<TrustedDevice>,
 
     /// File event log.
     #[cfg(feature = "files")]
@@ -191,8 +192,7 @@ impl ClientStorage {
     async fn initialize_device_log(
         paths: &Paths,
         device: TrustedDevice,
-    ) -> Result<(DeviceEventLog, HashMap<DevicePublicKey, TrustedDevice>)>
-    {
+    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
         let span = span!(Level::DEBUG, "init_device_log");
         let _enter = span.enter();
 
@@ -221,7 +221,7 @@ impl ClientStorage {
 
     /// Collection of trusted devices.
     #[cfg(feature = "device")]
-    pub fn devices(&self) -> &HashMap<DevicePublicKey, TrustedDevice> {
+    pub fn devices(&self) -> &IndexSet<TrustedDevice> {
         &self.devices
     }
 
@@ -1362,7 +1362,7 @@ impl ClientStorage {
 impl ClientStorage {
     /// List trusted devices.
     pub fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {
-        self.devices.values().collect()
+        self.devices.iter().collect()
     }
 
     /// Revoke trust in a device.
@@ -1370,7 +1370,9 @@ impl ClientStorage {
         &mut self,
         public_key: &DevicePublicKey,
     ) -> Result<()> {
-        if self.devices.get(public_key).is_some() {
+        let device =
+            self.devices.iter().find(|d| d.public_key() == public_key);
+        if device.is_some() {
             let event = DeviceEvent::Revoke(*public_key);
 
             let mut writer = self.device_log.write().await;
