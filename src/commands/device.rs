@@ -59,7 +59,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let devices = owner.trusted_devices().await?;
 
-            for (_, device) in devices {
+            for device in devices {
                 println!("{}", device.public_id()?);
                 if verbose {
                     println!(

@@ -29,7 +29,7 @@ use sos_sdk::{
     vfs, Paths,
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -47,6 +47,9 @@ use crate::sdk::account::archive::{Inventory, RestoreOptions};
 
 #[cfg(feature = "device")]
 use crate::sdk::device::{DevicePublicKey, DeviceSigner, TrustedDevice};
+
+#[cfg(feature = "device")]
+use indexmap::IndexSet;
 
 #[cfg(feature = "listen")]
 use crate::client::WebSocketHandle;
@@ -456,9 +459,7 @@ impl Account for NetworkAccount {
     }
 
     #[cfg(feature = "device")]
-    async fn trusted_devices(
-        &self,
-    ) -> Result<HashMap<DevicePublicKey, TrustedDevice>> {
+    async fn trusted_devices(&self) -> Result<IndexSet<TrustedDevice>> {
         let account = self.account.lock().await;
         Ok(account.trusted_devices().await?)
     }
