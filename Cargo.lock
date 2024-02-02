@@ -1820,7 +1820,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http 0.2.11",
- "indexmap 2.2.1",
+ "indexmap 2.2.2",
  "slab",
  "tokio",
  "tokio-util",
@@ -1839,7 +1839,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http 1.0.0",
- "indexmap 2.2.1",
+ "indexmap 2.2.2",
  "slab",
  "tokio",
  "tokio-util",
@@ -2268,9 +2268,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.2.1"
+version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "433de089bd45971eecf4668ee0ee8f4cec17db4f8bd8f7bc3197a6ce37aa7d9b"
+checksum = "824b2ae422412366ba479e8111fd301f7b5faece8149317bb81925979a53f520"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.3",
@@ -2979,7 +2979,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5699cc8a63d1aa2b1ee8e12b9ad70ac790d65788cd36101fa37f87ea46c4cef"
 dependencies = [
  "base64 0.21.7",
- "indexmap 2.2.1",
+ "indexmap 2.2.2",
  "line-wrap",
  "quick-xml",
  "serde",
@@ -3847,7 +3847,7 @@ dependencies = [
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.2.1",
+ "indexmap 2.2.2",
  "serde",
  "serde_json",
  "serde_with_macros",
@@ -4092,7 +4092,7 @@ dependencies = [
  "futures",
  "hex",
  "http 1.0.0",
- "indexmap 2.2.1",
+ "indexmap 2.2.2",
  "once_cell",
  "parking_lot",
  "rand 0.8.5",
@@ -4149,7 +4149,7 @@ dependencies = [
  "getrandom 0.2.12",
  "hex",
  "http 1.0.0",
- "indexmap 2.2.1",
+ "indexmap 2.2.2",
  "k256",
  "logos",
  "mime_guess",
@@ -4661,7 +4661,7 @@ version = "0.20.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70f427fce4d84c72b5b732388bf4a9f4531b53f74e2887e3ecb2481f68f66d81"
 dependencies = [
- "indexmap 2.2.1",
+ "indexmap 2.2.2",
  "toml_datetime",
  "winnow",
 ]
@@ -4672,7 +4672,7 @@ version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d34d383cd00a163b4a5b85053df514d45bc330f6de7737edfe0a93311d1eaa03"
 dependencies = [
- "indexmap 2.2.1",
+ "indexmap 2.2.2",
  "serde",
  "serde_spanned",
  "toml_datetime",
@@ -5015,7 +5015,7 @@ version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "272ebdfbc99111033031d2f10e018836056e4d2c8e2acda76450ec7974269fa7"
 dependencies = [
- "indexmap 2.2.1",
+ "indexmap 2.2.2",
  "serde",
  "serde_json",
  "utoipa-gen",
