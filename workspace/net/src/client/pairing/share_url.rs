@@ -88,15 +88,13 @@ impl FromStr for ServerPairUrl {
 #[cfg(test)]
 mod test {
     use super::ServerPairUrl;
-    use crate::sdk::{
-        url::Url,
-    };
+    use crate::sdk::url::Url;
     use anyhow::Result;
 
     #[test]
     fn server_pair_url() -> Result<()> {
         let mock_url = Url::parse("http://192.168.1.8:5053/foo?bar=baz+qux")?;
-        let mock_key = vec![1,2,3,4];
+        let mock_key = vec![1, 2, 3, 4];
         let share = ServerPairUrl::new(mock_url.clone(), mock_key.clone());
         let share_url: Url = share.into();
         let share_url = share_url.to_string();

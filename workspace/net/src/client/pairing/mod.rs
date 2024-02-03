@@ -5,7 +5,7 @@ mod websocket;
 
 pub use error::Error;
 pub use share_url::ServerPairUrl;
-pub use websocket::{WebSocketPairOffer, WebSocketPairAccept};
+pub use websocket::{WebSocketPairAccept, WebSocketPairOffer};
 
 const PATTERN: &str = "Noise_XX_25519_ChaChaPoly_BLAKE2s";
 
