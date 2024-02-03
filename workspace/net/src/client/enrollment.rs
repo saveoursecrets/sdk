@@ -38,6 +38,7 @@ use crate::sdk::{
 /// only be used by an account owner to enroll new devices.
 ///
 /// The account owner must never give this URL to anybody else.
+#[deprecated]
 pub struct DeviceShareUrl {
     /// Server used to transfer the account data.
     server: Url,

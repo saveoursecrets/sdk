@@ -18,6 +18,7 @@ full = [
   "hashcheck",
   "listen",
   "migrate",
+  "pairing",
   "preferences",
   "search",
   "server",
@@ -49,6 +50,7 @@ migrate = ["sos-sdk/migrate"]
 keychain-access = ["sos-sdk/keychain-access"]
 device = ["sos-sdk/device"]
 recovery = ["sos-sdk/recovery"]
+pairing = ["dep:snow"]
 preferences = ["sos-sdk/preferences"]
 search = ["sos-sdk/search"]
 security-report = ["sos-sdk/security-report"]
@@ -92,6 +94,9 @@ tokio-stream = { version = "0.1", optional = true }
 tokio-tungstenite = { version = "0.21", features = ["rustls-tls-native-roots"] , optional = true}
 utoipa = { version = "4", features = ["uuid"], optional = true }
 utoipa-rapidoc = { version = "3", features = ["axum"], optional = true }
+
+# pairing
+snow = { version = "0.9", optional = true }
 
 [dependencies.sos-sdk]
 version = "0.9.0"

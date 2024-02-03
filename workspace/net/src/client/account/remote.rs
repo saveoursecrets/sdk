@@ -108,7 +108,7 @@ impl RemoteBridge {
             let account = self.account.lock().await;
             sync::diff(&*account, remote_status).await?
         };
-        
+
         // If we need a sync but no local device changes
         // try to pull from remote
         if let (true, None) = (needs_sync, &local_changes.device) {
