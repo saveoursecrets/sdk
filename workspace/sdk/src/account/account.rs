@@ -81,7 +81,7 @@ use tokio::{
 };
 
 /// Result information for a created or updated secret.
-pub struct SecretChange<T> {
+pub struct SecretChange<T: std::error::Error> {
     /// Secret identifier.
     pub id: SecretId,
     /// Event to be logged.
@@ -99,7 +99,7 @@ pub struct SecretChange<T> {
 }
 
 /// Result information for a bulk insert.
-pub struct SecretInsert<T> {
+pub struct SecretInsert<T: std::error::Error> {
     /// Created secrets.
     pub results: Vec<SecretChange<T>>,
     /// Error generated during a sync.
@@ -110,7 +110,7 @@ pub struct SecretInsert<T> {
 }
 
 /// Result information for a secret move event.
-pub struct SecretMove<T> {
+pub struct SecretMove<T: std::error::Error> {
     /// Secret identifier.
     pub id: SecretId,
     /// Event to be logged.
@@ -123,7 +123,7 @@ pub struct SecretMove<T> {
 }
 
 /// Result information for a deleted secret.
-pub struct SecretDelete<T> {
+pub struct SecretDelete<T: std::error::Error> {
     /// Event to be logged.
     pub event: Event,
     /// Commit state of the folder event log before
@@ -139,7 +139,7 @@ pub struct SecretDelete<T> {
 }
 
 /// Result information for folder creation.
-pub struct FolderCreate<T> {
+pub struct FolderCreate<T: std::error::Error> {
     /// Created folder.
     pub folder: Summary,
     /// Event to be logged.
@@ -154,7 +154,7 @@ pub struct FolderCreate<T> {
 }
 
 /// Result information for changes to a folder's attributes.
-pub struct FolderChange<T> {
+pub struct FolderChange<T: std::error::Error> {
     /// Event to be logged.
     pub event: Event,
     /// Commit state before the change.
@@ -167,7 +167,7 @@ pub struct FolderChange<T> {
 }
 
 /// Result information for folder deletion.
-pub struct FolderDelete<T> {
+pub struct FolderDelete<T: std::error::Error> {
     /// Events to be logged.
     pub events: Vec<Event>,
     /// Commit state of the folder.

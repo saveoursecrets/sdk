@@ -2,7 +2,7 @@
 use http::StatusCode;
 use serde_json::Value;
 #[cfg(feature = "client")]
-use sos_sdk::sync::Origin;
+use sos_sdk::sync::{Origin, SyncError};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -71,8 +71,8 @@ pub enum Error {
     RevokeDeviceSelf,
 
     /// Error generated when failing to sync after revoking a device.
-    #[error("failed to sync after revoking device")]
-    RevokeDeviceSync,
+    #[error("failed to sync after revoking device, {0}")]
+    RevokeDeviceSync(SyncError<Error>),
 
     /// Error generated trying to parse a device enrollment sharing URL.
     #[error("invalid share url for device enrollment")]

@@ -154,7 +154,7 @@ impl NetworkAccount {
         // Send the device event logs to the remote servers
         if let Some(e) = self.patch_devices().await {
             tracing::error!(error = ?e);
-            return Err(Error::RevokeDeviceSync);
+            return Err(Error::RevokeDeviceSync(e));
         }
 
         Ok(())
