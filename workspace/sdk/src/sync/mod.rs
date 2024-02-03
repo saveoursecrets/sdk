@@ -72,12 +72,21 @@ impl From<Url> for Origin {
 
 /// Error type that can be returned from a sync operation.
 #[derive(Debug)]
-pub struct SyncError<T> {
+pub struct SyncError<T: std::error::Error> {
     /// Errors generated during a sync operation.
     pub errors: Vec<(Origin, T)>,
 }
 
-impl<T> SyncError<T> {
+impl<T: std::error::Error> fmt::Display for SyncError<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (_, e) in self.errors.iter() {
+            write!(f, "{}", e)?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: std::error::Error> SyncError<T> {
     /// Convert to an option.
     pub fn into_option(self) -> Option<Self> {
         if self.errors.is_empty() {
@@ -88,7 +97,7 @@ impl<T> SyncError<T> {
     }
 }
 
-impl<T> Default for SyncError<T> {
+impl<T: std::error::Error> Default for SyncError<T> {
     fn default() -> Self {
         Self { errors: Vec::new() }
     }

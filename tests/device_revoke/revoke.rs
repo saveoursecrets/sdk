@@ -71,6 +71,19 @@ async fn device_revoke() -> Result<()> {
         .owner
         .revoke_device(&device_public_key)
         .await?;
+    
+    let revoke_error = enrolled_account.revoke_device(
+        &current_device_public_key).await;
+    
+    if let Err(ClientError::RevokeDeviceSync(mut e)) = revoke_error {
+        let (_, err) = e.errors.remove(0);
+        assert!(matches!(
+            err,
+            ClientError::ResponseJson(StatusCode::FORBIDDEN, _)
+        ));
+    } else {
+        panic!("expecting revoke device sync error");
+    }
 
     // Attempting to sync after the device was revoked
     // yields a forbidden response

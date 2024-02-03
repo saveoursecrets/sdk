@@ -104,9 +104,16 @@ impl RemoteBridge {
         &self,
         remote_status: SyncStatus,
     ) -> Result<()> {
-        let account = self.account.lock().await;
-        let (needs_sync, _local_status, local_changes) =
-            sync::diff(&*account, remote_status).await?;
+        let (needs_sync, _local_status, local_changes) = {
+            let account = self.account.lock().await;
+            sync::diff(&*account, remote_status).await?
+        };
+        
+        // If we need a sync but no local device changes
+        // try to pull from remote
+        if let (true, None) = (needs_sync, &local_changes.device) {
+            self.execute_sync().await?;
+        }
 
         #[cfg(feature = "device")]
         if let (true, Some(device)) = (needs_sync, local_changes.device) {

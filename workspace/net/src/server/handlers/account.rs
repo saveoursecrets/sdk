@@ -389,9 +389,30 @@ mod handlers {
         caller: Caller,
         bytes: &[u8],
     ) -> Result<()> {
-        use crate::sdk::sync::DeviceDiff;
+        use crate::sdk::{events::DeviceEvent, sync::DeviceDiff};
         let diff: DeviceDiff = decode(bytes).await?;
+
+        // Revoking device access must come from a bearer
+        // with a valid device signature
+        let has_revoke_event = diff
+            .patch
+            .iter()
+            .find(|e| matches!(e, DeviceEvent::Revoke(_)))
+            .is_some();
+
+        if has_revoke_event && caller.token.device_signature.is_none() {
+            return Err(Error::Forbidden);
+        }
+
         let reader = backend.read().await;
+        if let (true, Some(device_signature)) =
+            (has_revoke_event, &caller.token.device_signature)
+        {
+            reader
+                .verify_device(caller.address(), device_signature, bytes)
+                .await?;
+        }
+
         reader.patch_devices(caller.address(), &diff).await?;
         Ok(())
     }
