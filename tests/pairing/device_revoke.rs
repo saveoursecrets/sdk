@@ -1,5 +1,4 @@
 use anyhow::Result;
-
 use crate::test_utils::{
     assert_local_remote_events_eq, run_pairing_protocol, simulate_device,
     spawn, teardown,
@@ -10,10 +9,10 @@ use sos_net::{
     sdk::prelude::*,
 };
 
-/// Tests enrolling a new device and revoking trust in the device.
+/// Tests pairing a new device and revoking trust in the device.
 #[tokio::test]
-async fn device_revoke() -> Result<()> {
-    const TEST_ID: &str = "device_revoke";
+async fn pairing_device_revoke() -> Result<()> {
+    const TEST_ID: &str = "pairing_device_revoke";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
