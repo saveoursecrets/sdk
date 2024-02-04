@@ -147,8 +147,9 @@ impl DeviceEnrollment {
     /// Create a new device enrollment.
     pub fn new(
         address: &Address,
-        data_dir: Option<PathBuf>,
         origin: Origin,
+        device_signer: DeviceSigner,
+        data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let paths = if let Some(data_dir) = &data_dir {
             Paths::new(data_dir.clone(), address.to_string())
@@ -161,7 +162,7 @@ impl DeviceEnrollment {
             paths,
             data_dir,
             origin,
-            device_signing_key: DeviceSigner::new_random(),
+            device_signing_key: device_signer,
             public_identity: None,
         })
     }
@@ -221,13 +222,6 @@ impl DeviceEnrollment {
 
         // Sign in to the new account
         account.sign_in(key).await?;
-
-        // Sync the updated device log first so we can
-        // do a full sync using the newly trusted device
-        if let Some(e) = account.patch_devices().await {
-            tracing::error!(error = ?e);
-            return Err(Error::EnrollSync(self.origin.url().to_string()));
-        }
 
         // Sync to save the amended identity folder on the remote
         if let Some(e) = account.sync().await {

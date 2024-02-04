@@ -315,6 +315,7 @@ impl SyncClient for HttpClient {
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
+
         let device_signature =
             encode_device_signature(self.device_signer.sign(&body).await?)
                 .await?;

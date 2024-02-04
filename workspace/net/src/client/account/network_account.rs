@@ -107,6 +107,7 @@ impl NetworkAccount {
     pub async fn enroll_device(
         origin: Origin,
         account_signing_key: BoxedEcdsaSigner,
+        device_signer: DeviceSigner,
         data_dir: Option<PathBuf>,
     ) -> Result<crate::client::enrollment::DeviceEnrollment> {
         use crate::client::{enrollment::DeviceEnrollment, HttpClient};
@@ -115,8 +116,9 @@ impl NetworkAccount {
         let address = account_signing_key.address()?;
         let mut enrollment = DeviceEnrollment::new(
             &address,
-            data_dir.clone(),
             origin.clone(),
+            device_signer,
+            data_dir.clone(),
         )?;
         let device_signing_key = enrollment.device_signing_key.clone();
         let device: BoxedEd25519Signer = device_signing_key.into();
@@ -128,7 +130,6 @@ impl NetworkAccount {
         )?;
 
         enrollment.enroll(remote).await?;
-
         Ok(enrollment)
     }
 

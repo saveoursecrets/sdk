@@ -1,17 +1,19 @@
 //! Protocol for pairing devices.
 use super::{Error, PairingMessage, Result, ServerPairUrl, PATTERN};
 use crate::{
-    client::NetworkAccount,
+    client::{
+        enrollment::DeviceEnrollment, sync::RemoteSync, NetworkAccount,
+        WebSocketRequest,
+    },
     relay::{RelayHeader, RelayPacket, RelayPayload},
-};
-use crate::{
-    client::{sync::RemoteSync, WebSocketRequest},
     sdk::{
         account::Account,
         decode,
-        device::TrustedDevice,
+        device::{DeviceSigner, TrustedDevice},
         encode,
         events::{DeviceEvent, DeviceEventLog, EventLogExt},
+        signer::{ecdsa::SingleParty, Signer},
+        sync::Origin,
         url::Url,
     },
 };
@@ -21,6 +23,7 @@ use futures::{
 };
 use serde::{Deserialize, Serialize};
 use snow::{Builder, HandshakeState, Keypair, TransportState};
+use std::{path::PathBuf, sync::Arc};
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{
     connect_async,
@@ -149,13 +152,21 @@ impl<'a> WebSocketPairOffer<'a> {
         &self.share_url
     }
 
-    /// Determine if the protocol is completed.
-    pub fn is_finished(&self) -> bool {
-        matches!(&self.state, PairProtocolState::Done)
+    /// Start the event loop.
+    pub async fn run(&mut self, stream: WsStream) -> Result<()> {
+        let (offer_tx, mut offer_rx) = mpsc::channel::<RelayPacket>(32);
+        tokio::task::spawn(listen(stream, offer_tx));
+        while let Some(event) = offer_rx.recv().await {
+            self.incoming(event).await?;
+            if matches!(&self.state, PairProtocolState::Done) {
+                break;
+            }
+        }
+        Ok(())
     }
 
     /// Process incoming packet.
-    pub async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
+    async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
         if packet.header.to_public_key != self.keypair.public {
             return Err(Error::NotForMe);
         }
@@ -234,16 +245,17 @@ impl<'a> WebSocketPairOffer<'a> {
 
     async fn register_device(&mut self, device: TrustedDevice) -> Result<()> {
         // Trust the other device in our local event log
-        let file = self.account.paths().device_events();
-        let mut event_log = DeviceEventLog::new_device(file).await?;
-        let mut events: Vec<DeviceEvent> = vec![DeviceEvent::Trust(device)];
-        event_log.apply(events.iter().collect()).await?;
+        let events: Vec<DeviceEvent> = vec![DeviceEvent::Trust(device)];
+        {
+            let storage = self.account.storage().await?;
+            let mut writer = storage.write().await;
+            writer.patch_devices_unchecked(events).await?;
+        }
 
         // Send the patch to remote servers
         if let Some(sync_error) = self.account.patch_devices().await {
             return Err(Error::DevicePatchSync);
         }
-
         Ok(())
     }
 
@@ -299,6 +311,12 @@ pub struct WebSocketPairAccept<'a> {
     tx: WsSink,
     /// Current state of the protocol.
     state: PairProtocolState,
+    /// Data directory for the device enrollment.
+    data_dir: Option<PathBuf>,
+    /// Device signing key.
+    device_signer: DeviceSigner,
+    /// Device enrollment.
+    enrollment: Option<DeviceEnrollment>,
 }
 
 impl<'a> WebSocketPairAccept<'a> {
@@ -306,6 +324,8 @@ impl<'a> WebSocketPairAccept<'a> {
     pub async fn new(
         share_url: ServerPairUrl,
         device: &'a TrustedDevice,
+        device_signer: DeviceSigner,
+        data_dir: Option<PathBuf>,
     ) -> Result<(Self, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
@@ -329,18 +349,40 @@ impl<'a> WebSocketPairAccept<'a> {
                 tunnel: Some(Tunnel::Handshake(initiator)),
                 tx,
                 state: PairProtocolState::Pending,
+                data_dir,
+                device_signer,
+                enrollment: None,
             },
             rx,
         ))
     }
-    
-    /// Determine if the protocol is completed.
-    pub fn is_finished(&self) -> bool {
-        matches!(&self.state, PairProtocolState::Done)
+
+    /// Start the event loop.
+    pub async fn run(&mut self, stream: WsStream) -> Result<()> {
+        // Start pairing
+        self.pair().await?;
+
+        // Run the event loop
+        let (offer_tx, mut offer_rx) = mpsc::channel::<RelayPacket>(32);
+        tokio::task::spawn(listen(stream, offer_tx));
+        while let Some(event) = offer_rx.recv().await {
+            self.incoming(event).await?;
+            if matches!(&self.state, PairProtocolState::Done) {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    /// Take the final device enrollment.
+    ///
+    /// Errors if the protocol has not reached completion.
+    pub fn take_enrollment(self) -> Result<DeviceEnrollment> {
+        self.enrollment.ok_or(Error::NoEnrollment)
     }
 
     /// Start the pairing protocol.
-    pub async fn pair(&mut self) -> Result<()> {
+    async fn pair(&mut self) -> Result<()> {
         if let Some(Tunnel::Handshake(state)) = &mut self.tunnel {
             let mut buf = [0u8; 1024];
             let len = state.write_message(&[], &mut buf)?;
@@ -358,7 +400,7 @@ impl<'a> WebSocketPairAccept<'a> {
     }
 
     /// Process incoming packet.
-    pub async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
+    async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
         if packet.header.to_public_key != self.keypair.public {
             return Err(Error::NotForMe);
         }
@@ -403,10 +445,22 @@ impl<'a> WebSocketPairAccept<'a> {
 
         Ok(())
     }
-    
+
     /// Enroll this device.
-    async fn enroll(&self, signing_key: [u8; 32]) -> Result<()> {
-        println!("message {:#?}", signing_key);
+    async fn enroll(&mut self, signing_key: [u8; 32]) -> Result<()> {
+        let signer: SingleParty = signing_key.try_into()?;
+        let address = signer.address()?;
+        let server = self.share_url.server().clone();
+        let origin: Origin = server.into();
+        let data_dir = self.data_dir.clone();
+        let enrollment = NetworkAccount::enroll_device(
+            origin,
+            Box::new(signer),
+            self.device_signer.clone(),
+            data_dir,
+        )
+        .await?;
+        self.enrollment = Some(enrollment);
         Ok(())
     }
 

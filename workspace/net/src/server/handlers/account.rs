@@ -168,7 +168,7 @@ pub(crate) async fn patch_devices(
             query,
             Arc::clone(&state),
             Arc::clone(&backend),
-            false,
+            true,
         )
         .await
         {
@@ -392,6 +392,7 @@ mod handlers {
         use crate::sdk::{events::DeviceEvent, sync::DeviceDiff};
         let diff: DeviceDiff = decode(bytes).await?;
 
+        /*
         // Revoking device access must come from a bearer
         // with a valid device signature
         let has_revoke_event = diff
@@ -412,7 +413,9 @@ mod handlers {
                 .verify_device(caller.address(), device_signature, bytes)
                 .await?;
         }
+        */
 
+        let reader = backend.read().await;
         reader.patch_devices(caller.address(), &diff).await?;
         Ok(())
     }

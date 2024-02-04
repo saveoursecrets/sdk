@@ -53,6 +53,7 @@ async fn device_revoke() -> Result<()> {
     let enrollment = NetworkAccount::enroll_device(
         origin.clone(),
         signing_key,
+        DeviceSigner::new_random(),
         Some(data_dir),
     )
     .await?;
