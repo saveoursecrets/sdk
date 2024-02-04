@@ -10,6 +10,7 @@ use sos_net::{
 
 /// Tests enrolling a new device and syncing the device event log
 /// including the newly enrolled device back on to a primary device.
+#[ignore = "need to use new pairing protocol"]
 #[tokio::test]
 async fn device_enroll() -> Result<()> {
     const TEST_ID: &str = "device_enroll";

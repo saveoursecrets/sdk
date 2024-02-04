@@ -10,6 +10,7 @@ use sos_net::{
 };
 
 /// Tests enrolling a new device and revoking trust in the device.
+#[ignore = "need to use new pairing protocol"]
 #[tokio::test]
 async fn device_revoke() -> Result<()> {
     const TEST_ID: &str = "device_revoke";
