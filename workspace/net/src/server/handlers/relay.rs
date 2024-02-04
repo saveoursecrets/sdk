@@ -1,3 +1,4 @@
+//! Relay forwards packets between peers over a websocket connection.
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -29,9 +30,9 @@ use super::{authenticate_endpoint, ConnectionQuery};
 use crate::relay::RelayHeader;
 use crate::server::{Result, ServerBackend, ServerState};
 
-/// Query string for the pairing service.
+/// Query string for the relay service.
 #[derive(Deserialize)]
-pub struct PairingQuery {
+pub struct RelayQuery {
     /// Connection public key.
     #[serde(with = "hex::serde")]
     pub public_key: Vec<u8>,
@@ -40,16 +41,16 @@ pub struct PairingQuery {
 /// Connected clients.
 pub type RelayConnections = HashMap<Vec<u8>, mpsc::Sender<Vec<u8>>>;
 
-/// State for the pairing relay service.
-pub type PairingState = Arc<RwLock<RelayConnections>>;
+/// State for the relay service.
+pub type RelayState = Arc<RwLock<RelayConnections>>;
 
 /// Upgrade to a websocket connection.
 pub async fn upgrade(
-    Extension(state): Extension<PairingState>,
-    Query(query): Query<PairingQuery>,
+    Extension(state): Extension<RelayState>,
+    Query(query): Query<RelayQuery>,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
-    let span = span!(Level::DEBUG, "ws_pairing");
+    let span = span!(Level::DEBUG, "ws_relay");
     let _enter = span.enter();
 
     tracing::debug!("upgrade request");
@@ -75,8 +76,8 @@ pub async fn upgrade(
     }))
 }
 
-async fn disconnect(state: PairingState, public_key: &[u8]) {
-    let span = span!(Level::DEBUG, "ws_pairing");
+async fn disconnect(state: RelayState, public_key: &[u8]) {
+    let span = span!(Level::DEBUG, "ws_relay");
     let _enter = span.enter();
     tracing::debug!("websocket disconnect");
     let mut writer = state.write().await;
@@ -85,7 +86,7 @@ async fn disconnect(state: PairingState, public_key: &[u8]) {
 
 async fn handle_socket(
     socket: WebSocket,
-    state: PairingState,
+    state: RelayState,
     public_key: Vec<u8>,
     relay_tx: mpsc::Sender<Vec<u8>>,
     relay_rx: mpsc::Receiver<Vec<u8>>,
@@ -104,7 +105,7 @@ async fn handle_socket(
 }
 
 async fn read(
-    state: PairingState,
+    state: RelayState,
     public_key: Vec<u8>,
     mut receiver: SplitStream<WebSocket>,
     close_tx: mpsc::Sender<Message>,
@@ -141,7 +142,7 @@ async fn read(
 }
 
 async fn write(
-    state: PairingState,
+    state: RelayState,
     public_key: Vec<u8>,
     mut sender: SplitSink<WebSocket, Message>,
     mut relay_rx: mpsc::Receiver<Vec<u8>>,

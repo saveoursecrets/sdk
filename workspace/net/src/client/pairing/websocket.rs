@@ -31,7 +31,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
-const PAIR_PATH: &str = "api/v1/pair";
+const PAIR_PATH: &str = "api/v1/relay";
 const TAGLEN: usize = 16;
 
 /// State of the encrypted tunnel.
