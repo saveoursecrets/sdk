@@ -5,8 +5,15 @@ use crate::{
     relay::{RelayHeader, RelayPacket, RelayPayload},
 };
 use crate::{
-    client::WebSocketRequest,
-    sdk::{decode, device::TrustedDevice, encode, url::Url},
+    client::{sync::RemoteSync, WebSocketRequest},
+    sdk::{
+        account::Account,
+        decode,
+        device::TrustedDevice,
+        encode,
+        events::{DeviceEvent, DeviceEventLog, EventLogExt},
+        url::Url,
+    },
 };
 use futures::{
     stream::{SplitSink, SplitStream},
@@ -41,20 +48,19 @@ pub type Offer<'a> = WebSocketPairOffer<'a>;
 /// Accept a pairing offer.
 pub type Accept<'a> = WebSocketPairAccept<'a>;
 
-/// State machine variants for the offer side.
-enum OfferState {
+/// State machine variants for the protocol.
+enum PairProtocolState {
     /// Waiting to start the protocol.
     Pending,
     /// Noise handshake completed.
     Handshake,
+    /// Protocol completed.
+    Done,
 }
 
-/// State machine variants for the accept side.
-enum AcceptState {
-    /// Waiting to start the protocol.
-    Pending,
-    /// Noise handshake completed.
-    Handshake,
+enum IncomingAction {
+    Reply(PairProtocolState, RelayPacket),
+    HandleMessage(PairingMessage),
 }
 
 /// Listen for incoming messages on the stream.
@@ -100,7 +106,7 @@ pub struct WebSocketPairOffer<'a> {
     /// Websocket sink.
     tx: WsSink,
     /// Current state of the protocol.
-    state: OfferState,
+    state: PairProtocolState,
 }
 
 impl<'a> WebSocketPairOffer<'a> {
@@ -132,7 +138,7 @@ impl<'a> WebSocketPairOffer<'a> {
                 share_url,
                 tunnel: Some(Tunnel::Handshake(responder)),
                 tx,
-                state: OfferState::Pending,
+                state: PairProtocolState::Pending,
             },
             rx,
         ))
@@ -143,35 +149,99 @@ impl<'a> WebSocketPairOffer<'a> {
         &self.share_url
     }
 
+    /// Determine if the protocol is completed.
+    pub fn is_finished(&self) -> bool {
+        matches!(&self.state, PairProtocolState::Done)
+    }
+
     /// Process incoming packet.
     pub async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
         if packet.header.to_public_key != self.keypair.public {
             return Err(Error::NotForMe);
         }
 
-        let result = match (&self.state, &packet.payload) {
-            (OfferState::Pending, RelayPayload::Handshake(_, _)) => {
+        let action = match (&self.state, &packet.payload) {
+            (PairProtocolState::Pending, RelayPayload::Handshake(_, _)) => {
                 let reply = self.handshake(&packet).await?;
-                Some((OfferState::Handshake, reply))
+                IncomingAction::Reply(PairProtocolState::Handshake, reply)
             }
-            (OfferState::Handshake, RelayPayload::Transport(len, buf)) => {
-                if let Some(Tunnel::Transport(transport)) = self.tunnel.as_mut() {
+            (
+                PairProtocolState::Handshake,
+                RelayPayload::Transport(len, buf),
+            ) => {
+                if let Some(Tunnel::Transport(transport)) =
+                    self.tunnel.as_mut()
+                {
                     let message = decrypt(transport, *len, buf.as_slice())?;
-                    println!("incoming {:#?}", message);
-                    todo!();
+                    IncomingAction::HandleMessage(message)
                 } else {
                     unreachable!();
                 }
-
             }
             _ => todo!("handle other states"),
         };
 
-        if let Some((next_state, reply)) = result {
-            self.state = next_state;
+        match action {
+            IncomingAction::Reply(next_state, reply) => {
+                self.state = next_state;
 
-            let buffer = encode(&reply).await?;
-            self.tx.send(Message::Binary(buffer)).await?;
+                let buffer = encode(&reply).await?;
+                self.tx.send(Message::Binary(buffer)).await?;
+            }
+            IncomingAction::HandleMessage(message) => {
+                if let PairingMessage::Request(device) = message {
+                    self.register_device(device).await?;
+
+                    let account_signer =
+                        self.account.account_signer().await?;
+                    let account_signing_key = account_signer.to_bytes();
+                    let account_signing_key: [u8; 32] =
+                        account_signing_key.as_slice().try_into()?;
+                    let private_message =
+                        PairingMessage::Confirm(account_signing_key);
+
+                    let (len, buf) =
+                        if let Some(Tunnel::Transport(transport)) =
+                            self.tunnel.as_mut()
+                        {
+                            encrypt(transport, &private_message)?
+                        } else {
+                            unreachable!();
+                        };
+
+                    let reply = RelayPacket {
+                        header: RelayHeader {
+                            to_public_key: packet
+                                .header
+                                .from_public_key
+                                .to_vec(),
+                            from_public_key: self.keypair.public.to_vec(),
+                        },
+                        payload: RelayPayload::Transport(len, buf),
+                    };
+
+                    self.state = PairProtocolState::Done;
+                    let buffer = encode(&reply).await?;
+                    self.tx.send(Message::Binary(buffer)).await?;
+                } else {
+                    todo!("handle wrong pairing message type");
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn register_device(&mut self, device: TrustedDevice) -> Result<()> {
+        // Trust the other device in our local event log
+        let file = self.account.paths().device_events();
+        let mut event_log = DeviceEventLog::new_device(file).await?;
+        let mut events: Vec<DeviceEvent> = vec![DeviceEvent::Trust(device)];
+        event_log.apply(events.iter().collect()).await?;
+
+        // Send the patch to remote servers
+        if let Some(sync_error) = self.account.patch_devices().await {
+            return Err(Error::DevicePatchSync);
         }
 
         Ok(())
@@ -228,12 +298,15 @@ pub struct WebSocketPairAccept<'a> {
     /// Sink side of the socket.
     tx: WsSink,
     /// Current state of the protocol.
-    state: AcceptState,
+    state: PairProtocolState,
 }
 
 impl<'a> WebSocketPairAccept<'a> {
     /// Create a new pairing connection.
-    pub async fn new(share_url: ServerPairUrl, device: &'a TrustedDevice) -> Result<(Self, WsStream)> {
+    pub async fn new(
+        share_url: ServerPairUrl,
+        device: &'a TrustedDevice,
+    ) -> Result<(Self, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
         let initiator = builder
@@ -255,34 +328,15 @@ impl<'a> WebSocketPairAccept<'a> {
                 share_url,
                 tunnel: Some(Tunnel::Handshake(initiator)),
                 tx,
-                state: AcceptState::Pending,
+                state: PairProtocolState::Pending,
             },
             rx,
         ))
     }
-
-    /// Process incoming packet.
-    pub async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
-        if packet.header.to_public_key != self.keypair.public {
-            return Err(Error::NotForMe);
-        }
-
-        let result = match (&self.state, &packet.payload) {
-            (AcceptState::Pending, RelayPayload::Handshake(_, _)) => {
-                let reply = self.into_transport(&packet).await?;
-                Some((AcceptState::Handshake, reply))
-            }
-            _ => todo!("handle other states"),
-        };
-
-        if let Some((next_state, reply)) = result {
-            self.state = next_state;
-
-            let buffer = encode(&reply).await?;
-            self.tx.send(Message::Binary(buffer)).await?;
-        }
-
-        Ok(())
+    
+    /// Determine if the protocol is completed.
+    pub fn is_finished(&self) -> bool {
+        matches!(&self.state, PairProtocolState::Done)
     }
 
     /// Start the pairing protocol.
@@ -300,6 +354,59 @@ impl<'a> WebSocketPairAccept<'a> {
             let buffer = encode(&message).await?;
             self.tx.send(Message::Binary(buffer)).await?;
         }
+        Ok(())
+    }
+
+    /// Process incoming packet.
+    pub async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
+        if packet.header.to_public_key != self.keypair.public {
+            return Err(Error::NotForMe);
+        }
+
+        let action = match (&self.state, &packet.payload) {
+            (PairProtocolState::Pending, RelayPayload::Handshake(_, _)) => {
+                let reply = self.into_transport(&packet).await?;
+                IncomingAction::Reply(PairProtocolState::Handshake, reply)
+            }
+            (
+                PairProtocolState::Handshake,
+                RelayPayload::Transport(len, buf),
+            ) => {
+                if let Some(Tunnel::Transport(transport)) =
+                    self.tunnel.as_mut()
+                {
+                    let message = decrypt(transport, *len, buf.as_slice())?;
+                    IncomingAction::HandleMessage(message)
+                } else {
+                    unreachable!();
+                }
+            }
+            _ => todo!("accept incoming handle other states"),
+        };
+
+        match action {
+            IncomingAction::Reply(next_state, reply) => {
+                self.state = next_state;
+
+                let buffer = encode(&reply).await?;
+                self.tx.send(Message::Binary(buffer)).await?;
+            }
+            IncomingAction::HandleMessage(message) => {
+                if let PairingMessage::Confirm(signing_key) = message {
+                    self.enroll(signing_key).await?;
+                    self.state = PairProtocolState::Done;
+                } else {
+                    todo!("handle wrong pairing message type");
+                }
+            }
+        }
+
+        Ok(())
+    }
+    
+    /// Enroll this device.
+    async fn enroll(&self, signing_key: [u8; 32]) -> Result<()> {
+        println!("message {:#?}", signing_key);
         Ok(())
     }
 
@@ -328,7 +435,8 @@ impl<'a> WebSocketPairAccept<'a> {
             }
 
             if let Some(Tunnel::Transport(transport)) = self.tunnel.as_mut() {
-                let private_message = PairingMessage::Request(self.device.clone());
+                let private_message =
+                    PairingMessage::Request(self.device.clone());
                 let (len, buf) = encrypt(transport, &private_message)?;
                 let reply = RelayPacket {
                     header: RelayHeader {
@@ -342,7 +450,6 @@ impl<'a> WebSocketPairAccept<'a> {
             } else {
                 unreachable!();
             }
-            
         } else {
             todo!("handle bad state/packet");
         }
@@ -352,25 +459,22 @@ impl<'a> WebSocketPairAccept<'a> {
 // Encrypt a message.
 fn encrypt(
     transport: &mut TransportState,
-    message: &PairingMessage) -> Result<(usize, Vec<u8>)> {
+    message: &PairingMessage,
+) -> Result<(usize, Vec<u8>)> {
     let message = serde_json::to_vec(message)?;
     let mut contents = vec![0; message.len() + TAGLEN];
-    let length =
-        transport.write_message(&message, &mut contents)?;
+    let length = transport.write_message(&message, &mut contents)?;
     Ok((length, contents))
 }
 
-// Decrypt a packet.
+// Decrypt a message.
 fn decrypt(
     transport: &mut TransportState,
     length: usize,
     message: &[u8],
 ) -> Result<PairingMessage> {
     let mut contents = vec![0; length];
-    transport.read_message(
-        &message[..length],
-        &mut contents,
-    )?;
+    transport.read_message(&message[..length], &mut contents)?;
     let new_length = contents.len() - TAGLEN;
     contents.truncate(new_length);
     Ok(serde_json::from_slice(&contents)?)

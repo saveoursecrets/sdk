@@ -285,10 +285,11 @@ impl DeviceEnrollment {
         let file = self.paths.device_events();
 
         let mut event_log = DeviceEventLog::new_device(file).await?;
-        event_log.clear().await?;
+        //event_log.clear().await?;
 
         let mut events: Vec<DeviceEvent> = patch.into();
 
+        /*
         // Include this device in the list of trusted devices
         // stored locally.
         //
@@ -303,6 +304,7 @@ impl DeviceEnrollment {
         );
         let event = DeviceEvent::Trust(device);
         events.push(event);
+        */
 
         event_log.apply(events.iter().collect()).await?;
 

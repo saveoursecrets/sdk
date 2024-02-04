@@ -2,8 +2,8 @@ use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use rand::{rngs::OsRng, Rng};
 use futures::{select, FutureExt};
+use rand::{rngs::OsRng, Rng};
 use sos_net::{
     client::{
         pairing::{listen, Accept, Offer},
@@ -34,12 +34,13 @@ async fn pairing_protocol() -> Result<()> {
 
     // URL shared via QR code or other means.
     let share_url = offer.share_url().clone();
-    
+
     let mut rng = OsRng {};
     let mock_key: [u8; 32] = rng.gen();
     let mock_device = TrustedDevice::new(mock_key.into(), None, None);
 
-    let (mut accept, accept_stream) = Accept::new(share_url, &mock_device).await?;
+    let (mut accept, accept_stream) =
+        Accept::new(share_url, &mock_device).await?;
 
     let (offer_tx, mut offer_rx) = mpsc::channel::<RelayPacket>(32);
     tokio::task::spawn(listen(offer_stream, offer_tx));
@@ -62,6 +63,13 @@ async fn pairing_protocol() -> Result<()> {
                     accept.incoming(packet).await?;
                 }
             }
+            /*
+            _ = futures::future::ready(()).fuse() => {
+                if offer.is_finished() && accept.is_finished() {
+                    break;
+                }
+            }
+            */
         }
     }
 
