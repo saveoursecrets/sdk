@@ -207,7 +207,9 @@ impl<'a> OfferPairing<'a> {
                     unreachable!();
                 }
             }
-            _ => todo!("handle other states"),
+            _ => {
+                return Err(Error::BadState);
+            },
         };
 
         match action {
@@ -253,7 +255,7 @@ impl<'a> OfferPairing<'a> {
                     let buffer = encode(&reply).await?;
                     self.tx.send(Message::Binary(buffer)).await?;
                 } else {
-                    todo!("handle wrong pairing message type");
+                    return Err(Error::BadState);
                 }
             }
         }
@@ -310,7 +312,7 @@ impl<'a> OfferPairing<'a> {
             }
             Ok(packet)
         } else {
-            todo!("handle bad tunnel state or packet");
+            return Err(Error::BadState);
         }
     }
 }
@@ -462,7 +464,9 @@ impl<'a> AcceptPairing<'a> {
                     unreachable!();
                 }
             }
-            _ => todo!("accept incoming handle other states"),
+            _ => {
+                return Err(Error::BadState);
+            },
         };
 
         match action {
@@ -477,7 +481,7 @@ impl<'a> AcceptPairing<'a> {
                     self.enroll(signing_key).await?;
                     self.state = PairProtocolState::Done;
                 } else {
-                    todo!("handle wrong pairing message type");
+                    return Err(Error::BadState);
                 }
             }
         }
@@ -544,7 +548,7 @@ impl<'a> AcceptPairing<'a> {
                 unreachable!();
             }
         } else {
-            todo!("handle bad state/packet");
+            return Err(Error::BadState);
         }
     }
 }

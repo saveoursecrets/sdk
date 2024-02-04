@@ -225,6 +225,7 @@ impl DeviceEnrollment {
 
         // Sync to save the amended identity folder on the remote
         if let Some(e) = account.sync().await {
+            println!("{:#?}", e);
             tracing::error!(error = ?e);
             return Err(Error::EnrollSync(self.origin.url().to_string()));
         }

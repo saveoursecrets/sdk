@@ -75,6 +75,7 @@ pub enum Error {
     RevokeDeviceSync(SyncError<Error>),
 
     /// Error generated trying to parse a device enrollment sharing URL.
+    #[deprecated]
     #[error("invalid share url for device enrollment")]
     InvalidShareUrl,
 

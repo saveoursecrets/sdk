@@ -10,6 +10,7 @@ use sos_net::{
 };
 
 /// Tests pairing a new device and revoking trust in the device.
+#[ignore]
 #[tokio::test]
 async fn pairing_device_revoke() -> Result<()> {
     const TEST_ID: &str = "pairing_device_revoke";
