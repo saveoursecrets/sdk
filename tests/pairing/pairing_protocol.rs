@@ -33,7 +33,7 @@ async fn pairing_protocol() -> Result<()> {
 
     // Run the pairing protocol to completion.
     let mut enrolled_account =
-        run_pairing_protocol(&mut primary_device).await?;
+        run_pairing_protocol(&mut primary_device, TEST_ID).await?;
 
     // Sync on the original device to fetch the updated device logs
     assert!(primary_device.owner.sync().await.is_none());

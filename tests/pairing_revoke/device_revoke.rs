@@ -10,7 +10,6 @@ use sos_net::{
 };
 
 /// Tests pairing a new device and revoking trust in the device.
-#[ignore]
 #[tokio::test]
 async fn pairing_device_revoke() -> Result<()> {
     const TEST_ID: &str = "pairing_device_revoke";
@@ -31,7 +30,7 @@ async fn pairing_device_revoke() -> Result<()> {
     let folders = primary_device.folders.clone();
 
     let mut enrolled_account =
-        run_pairing_protocol(&mut primary_device).await?;
+        run_pairing_protocol(&mut primary_device, TEST_ID).await?;
 
     // Cannot revoke the current device
     let current_device_public_key = primary_device

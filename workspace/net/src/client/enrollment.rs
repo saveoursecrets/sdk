@@ -223,6 +223,8 @@ impl DeviceEnrollment {
         // Sign in to the new account
         account.sign_in(key).await?;
 
+
+
         // Sync to save the amended identity folder on the remote
         if let Some(e) = account.sync().await {
             println!("{:#?}", e);

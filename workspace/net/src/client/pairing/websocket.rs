@@ -35,7 +35,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
-const PAIR_PATH: &str = "api/v1/relay";
+const RELAY_PATH: &str = "api/v1/relay";
 const TAGLEN: usize = 16;
 
 /// State of the encrypted tunnel.
@@ -123,7 +123,7 @@ impl<'a> OfferPairing<'a> {
         let responder = builder
             .local_private_key(&keypair.private)
             .build_responder()?;
-        let mut request = WebSocketRequest::new(&url, PAIR_PATH)?;
+        let mut request = WebSocketRequest::new(&url, RELAY_PATH)?;
         request
             .uri
             .query_pairs_mut()
@@ -354,7 +354,7 @@ impl<'a> AcceptPairing<'a> {
             .remote_public_key(share_url.public_key())
             .build_initiator()?;
         let mut request =
-            WebSocketRequest::new(share_url.server(), PAIR_PATH)?;
+            WebSocketRequest::new(share_url.server(), RELAY_PATH)?;
         request
             .uri
             .query_pairs_mut()

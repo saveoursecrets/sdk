@@ -14,6 +14,7 @@ use tokio::sync::mpsc;
 /// Run the pairing protocol to completion.
 pub async fn run_pairing_protocol(
     primary_device: &mut SimulatedDevice,
+    test_id: &str,
 ) -> Result<NetworkAccount> {
     let origin = primary_device.origin.clone();
     let password = primary_device.password.clone();
@@ -29,6 +30,7 @@ pub async fn run_pairing_protocol(
     std::fs::create_dir(&data_dir)?;
 
     let mock_device_signer = DeviceSigner::new_random();
+    
     let enrollment = {
         // Create the offer of device pairing
         let (mut offer, offer_stream) =
