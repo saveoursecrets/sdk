@@ -7,6 +7,8 @@ mod error;
 #[cfg(feature = "hashcheck")]
 pub mod hashcheck;
 mod net;
+#[cfg(all(feature = "device", feature = "pairing"))]
+pub mod pairing;
 mod sync;
 
 pub use account::*;
@@ -14,8 +16,6 @@ pub use error::Error;
 pub use net::HttpClient;
 #[cfg(feature = "listen")]
 pub use net::{changes, connect, ListenOptions, WebSocketHandle};
-#[cfg(all(feature = "device", feature = "pairing"))]
-pub mod pairing;
 pub use sync::{RemoteSync, SyncError, SyncOptions};
 
 /// Result type for the client module.

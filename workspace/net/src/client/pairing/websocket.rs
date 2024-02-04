@@ -1,9 +1,12 @@
 //! Protocol for pairing devices.
-use super::{Result, ServerPairUrl, PATTERN, packet::{PairingPacket, PairingPayload, PairingMessage, PairingHeader}};
+use super::{
+    packet::{PairingHeader, PairingMessage, PairingPacket, PairingPayload},
+    Result, ServerPairUrl, PATTERN,
+};
 use crate::client::NetworkAccount;
 use crate::{
     client::WebSocketRequest,
-    sdk::{device::TrustedDevice, url::Url, encode},
+    sdk::{decode, device::TrustedDevice, encode, url::Url},
 };
 use futures::{
     stream::{SplitSink, SplitStream},
@@ -59,7 +62,6 @@ impl<'a> WebSocketPairOffer<'a> {
         let share_url =
             ServerPairUrl::new(url.clone(), keypair.public.clone());
         let responder = builder.build_responder()?;
-
         let request = WebSocketRequest::new(&url, PAIR_PATH)?;
         let (socket, _) = connect_async(request).await?;
         let (tx, rx) = socket.split();
@@ -83,7 +85,15 @@ impl<'a> WebSocketPairOffer<'a> {
             match message {
                 Ok(message) => {
                     if let Message::Binary(msg) = message {
-
+                        match decode::<PairingPacket>(&msg).await {
+                            Ok(result) => {
+                                todo!("dispatch packet event");
+                            }
+                            Err(e) => {
+                                tracing::error!(error = ?e);
+                                break;
+                            }
+                        }
                     }
                 }
                 Err(e) => {
@@ -91,6 +101,44 @@ impl<'a> WebSocketPairOffer<'a> {
                     break;
                 }
             }
+        }
+    }
+
+    /// Respond to the initiator noise protocol handshake.
+    pub async fn handshake(
+        &mut self,
+        packet: &PairingPacket,
+    ) -> Result<PairingPacket> {
+        let packet = if let (
+            Some(Tunnel::Handshake(state)),
+            PairingPayload::Handshake(len, init_msg),
+        ) = (&mut self.tunnel, &packet.payload)
+        {
+            let mut buf = [0; 1024];
+            let mut reply = [0; 1024];
+            state.read_message(&init_msg[..*len], &mut buf)?;
+            let len = state.write_message(&[], &mut reply)?;
+            Some(PairingPacket {
+                header: PairingHeader {
+                    to_public_key: packet.header.from_public_key.clone(),
+                    from_public_key: self.keypair.public.clone(),
+                },
+                payload: PairingPayload::Handshake(len, reply.to_vec()),
+            })
+        } else {
+            None
+        };
+
+        if let Some(packet) = packet {
+            let tunnel = self.tunnel.take().unwrap();
+            if let Tunnel::Handshake(state) = tunnel {
+                self.tunnel =
+                    Some(Tunnel::Transport(state.into_transport_mode()?));
+            }
+
+            Ok(packet)
+        } else {
+            todo!("handle bad tunnel state or packet");
         }
     }
 }
@@ -131,11 +179,17 @@ impl WebSocketPairAccept {
     pub async fn listen(mut rx: WsStream) {
         while let Some(message) = rx.next().await {
             match message {
-                Ok(message) => {
-                    if let Message::Binary(msg) = message {
-
+                Ok(message) => if let Message::Binary(msg) = message {
+                    match decode::<PairingPacket>(&msg).await {
+                        Ok(result) => {
+                            todo!("dispatch packet event");
+                        }
+                        Err(e) => {
+                            tracing::error!(error = ?e);
+                            break;
+                        }
                     }
-                }
+                },
                 Err(e) => {
                     tracing::error!(error = ?e);
                     break;
@@ -150,7 +204,7 @@ impl WebSocketPairAccept {
         Ok(())
     }
 
-    /// Noise protocol handshake.
+    /// Start initiator noise protocol handshake.
     async fn handshake(&mut self) -> Result<()> {
         if let Some(Tunnel::Handshake(state)) = &mut self.tunnel {
             let mut buf = [0u8; 1024];
@@ -163,9 +217,32 @@ impl WebSocketPairAccept {
                 payload: PairingPayload::Handshake(len, buf.to_vec()),
             };
             let buffer = encode(&message).await?;
-            //let buffer = serde_json::to_vec(&message)?;
             self.tx.send(Message::Binary(buffer)).await?;
         }
         Ok(())
+    }
+    
+    /// Complete the noise protocol handshake.
+    fn into_transport(&mut self, packet: &PairingPacket) -> Result<()> {
+        let done = if let (
+            Some(Tunnel::Handshake(state)),
+            PairingPayload::Handshake(len, reply_msg),
+        ) = (&mut self.tunnel, &packet.payload)
+        {
+            let mut buf = [0; 1024];
+            state.read_message(&reply_msg[..*len], &mut buf)?;
+            true
+        } else { false };
+
+        if done {
+            let tunnel = self.tunnel.take().unwrap();
+            if let Tunnel::Handshake(state) = tunnel {
+                self.tunnel =
+                    Some(Tunnel::Transport(state.into_transport_mode()?));
+            }
+            Ok(())
+        } else {
+            todo!("handle bad state/packet");
+        }
     }
 }

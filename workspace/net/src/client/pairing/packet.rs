@@ -1,16 +1,15 @@
 //! Pairing packet encoding.
-use crate::{
-    sdk::{device::TrustedDevice},
-};
-use serde::{Deserialize, Serialize};
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use std::io::{Error, ErrorKind, Result, SeekFrom};
+use crate::sdk::device::TrustedDevice;
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use serde::{Deserialize, Serialize};
+use std::io::{Error, ErrorKind, Result, SeekFrom};
 
 /// Message sent between devices being paired.
+#[derive(Default)]
 pub(super) struct PairingPacket {
     /// Packet header data.
     pub header: PairingHeader,
@@ -19,6 +18,7 @@ pub(super) struct PairingPacket {
 }
 
 /// Header of a pairing packet.
+#[derive(Default)]
 pub(super) struct PairingHeader {
     /// Public key of the recipient.
     pub to_public_key: Vec<u8>,
@@ -27,7 +27,10 @@ pub(super) struct PairingHeader {
 }
 
 /// Packet for pairing communication.
+#[derive(Default)]
 pub(super) enum PairingPayload {
+    #[default]
+    Noop,
     /// Handshake packet.
     Handshake(usize, Vec<u8>),
     /// Encrypted transport packet.
@@ -44,7 +47,7 @@ pub(super) enum PairingMessage {
     /// Confirmation from the offering side to the
     /// accepting side is the account signing key.
     Confirm([u8; 32]),
-    /// Offer side generated an error whilst 
+    /// Offer side generated an error whilst
     /// adding the device to the list of trusted devices.
     Error(String),
 }
@@ -57,6 +60,7 @@ impl Encodable for PairingPacket {
     ) -> Result<()> {
         self.header.encode(&mut *writer).await?;
         match &self.payload {
+            PairingPayload::Noop => panic!("attempt to encode a noop"),
             PairingPayload::Handshake(len, buf) => {
                 writer.write_u8(1).await?;
                 writer.write_u16(*len as u16).await?;
