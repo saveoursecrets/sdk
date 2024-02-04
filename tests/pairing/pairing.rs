@@ -1,8 +1,7 @@
-use crate::test_utils::{simulate_device, spawn, teardown};
+use crate::test_utils::{simulate_device, spawn, teardown, run_pairing_protocol, mock, assert_local_remote_events_eq};
 use anyhow::Result;
-use futures::{stream::FuturesUnordered, Future, StreamExt};
 use sos_net::{
-    client::pairing::{self, Accept, Offer},
+    client::RemoteSync,
     sdk::prelude::*,
 };
 use std::pin::Pin;
@@ -21,66 +20,56 @@ async fn pairing_protocol() -> Result<()> {
     let mut primary_device =
         simulate_device(TEST_ID, 2, Some(&server)).await?;
     let origin = primary_device.origin.clone();
-    let password = primary_device.password.clone();
-    let key: AccessKey = password.into();
+    let folders = primary_device.folders.clone();
 
-    // Get the data dir for the second client
-    let data_dir = primary_device.dirs.clients.get(1).cloned().unwrap();
-
-    // Need to clear the data directory for the second client
-    // as simulate_device() copies all the account data and
-    // the identity folder must not exist to enroll a new device
-    std::fs::remove_dir_all(&data_dir)?;
-    std::fs::create_dir(&data_dir)?;
-
-    let mock_device_signer = DeviceSigner::new_random();
-    let enrollment = {
-        // Create the offer of device pairing
-        let (mut offer, offer_stream) =
-            Offer::new(&mut primary_device.owner, origin.url().clone())
-                .await?;
-
-        // URL shared via QR code or other means.
-        let share_url = offer.share_url().clone();
-
-        // Generate a mock device
-        let mock_device = TrustedDevice::new(
-            mock_device_signer.public_key().clone(),
-            None,
-            None,
-        );
-
-        // Create the device that will accept the pairing
-        let (mut accept, accept_stream) = Accept::new(
-            share_url,
-            &mock_device,
-            mock_device_signer.clone(),
-            Some(data_dir),
-        )
+    // Create a secret in the primary owner which won't exist
+    // in the second device
+    let (meta, secret) = mock::note(TEST_ID, TEST_ID);
+    let result = primary_device
+        .owner
+        .create_secret(meta, secret, Default::default())
         .await?;
+    assert!(result.sync_error.is_none());
+    
+    // Run the pairing protocol to completion.
+    let mut enrolled_account = run_pairing_protocol(&mut primary_device).await?;
 
-        let (_otx, offer_shutdown_rx) = mpsc::channel::<()>(1);
-        let (_atx, accept_shutdown_rx) = mpsc::channel::<()>(1);
+    // Sync on the original device to fetch the updated device logs
+    assert!(primary_device.owner.sync().await.is_none());
 
-        // Run both sides of the protocol to completion
-        let mut tasks = FuturesUnordered::<
-            Pin<Box<dyn Future<Output = pairing::Result<()>>>>,
-        >::new();
+    // Read the secret on the newly enrolled account
+    let (secret_data, _) =
+        enrolled_account.read_secret(&result.id, None).await?;
+    assert_eq!(TEST_ID, secret_data.meta().label());
 
-        tasks.push(Box::pin(offer.run(offer_stream, offer_shutdown_rx)));
-        tasks.push(Box::pin(accept.run(accept_stream, accept_shutdown_rx)));
+    // Primary device has two trusted devices
+    let devices = primary_device.owner.trusted_devices().await?;
+    assert_eq!(2, devices.len());
 
-        while let Some(result) = tasks.next().await {
-            result?;
-        }
+    // Enrolled device has two trusted devices
+    let devices = enrolled_account.trusted_devices().await?;
+    assert_eq!(2, devices.len());
 
-        drop(tasks);
+    // Check primary device is in sync with remote
+    let mut bridge =
+        primary_device.owner.remove_server(&origin).await?.unwrap();
+    assert_local_remote_events_eq(
+        folders.clone(),
+        &mut primary_device.owner,
+        &mut bridge,
+    )
+    .await?;
 
-        accept.take_enrollment()?
-    };
-
-    let mut enrolled_account = enrollment.finish(&key).await?;
-
+    // Check the enrolled device is in sync with remote
+    let mut bridge = enrolled_account.remove_server(&origin).await?.unwrap();
+    assert_local_remote_events_eq(
+        folders,
+        &mut enrolled_account,
+        &mut bridge,
+    )
+    .await?;
+    
+    // Sign out all devices
     primary_device.owner.sign_out().await?;
     enrolled_account.sign_out().await?;
 

@@ -21,7 +21,9 @@ use sos_net::{
 
 pub mod mock;
 mod network;
+mod pairing;
 pub use network::*;
+pub use pairing::*;
 
 const ADDR: &str = "127.0.0.1:0";
 

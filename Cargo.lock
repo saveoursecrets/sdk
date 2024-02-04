@@ -4243,6 +4243,7 @@ dependencies = [
  "anyhow",
  "axum-server",
  "copy_dir",
+ "futures",
  "pretty_assertions",
  "secrecy",
  "serde_json",
