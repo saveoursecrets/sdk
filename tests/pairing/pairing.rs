@@ -1,9 +1,9 @@
-use crate::test_utils::{simulate_device, spawn, teardown, run_pairing_protocol, mock, assert_local_remote_events_eq};
-use anyhow::Result;
-use sos_net::{
-    client::RemoteSync,
-    sdk::prelude::*,
+use crate::test_utils::{
+    assert_local_remote_events_eq, mock, run_pairing_protocol,
+    simulate_device, spawn, teardown,
 };
+use anyhow::Result;
+use sos_net::{client::RemoteSync, sdk::prelude::*};
 use std::pin::Pin;
 use tokio::sync::mpsc;
 
@@ -30,9 +30,10 @@ async fn pairing_protocol() -> Result<()> {
         .create_secret(meta, secret, Default::default())
         .await?;
     assert!(result.sync_error.is_none());
-    
+
     // Run the pairing protocol to completion.
-    let mut enrolled_account = run_pairing_protocol(&mut primary_device).await?;
+    let mut enrolled_account =
+        run_pairing_protocol(&mut primary_device).await?;
 
     // Sync on the original device to fetch the updated device logs
     assert!(primary_device.owner.sync().await.is_none());
@@ -68,7 +69,7 @@ async fn pairing_protocol() -> Result<()> {
         &mut bridge,
     )
     .await?;
-    
+
     // Sign out all devices
     primary_device.owner.sign_out().await?;
     enrolled_account.sign_out().await?;

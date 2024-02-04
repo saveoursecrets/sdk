@@ -25,10 +25,7 @@ use futures::{
 use serde::{Deserialize, Serialize};
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
-use tokio::{
-    net::TcpStream,
-    sync::mpsc,
-};
+use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{

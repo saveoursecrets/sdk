@@ -1,15 +1,20 @@
+use crate::SimulatedDevice;
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
 use sos_net::{
-    client::{pairing::{self, Accept, Offer}, NetworkAccount},
+    client::{
+        pairing::{self, Accept, Offer},
+        NetworkAccount,
+    },
     sdk::prelude::*,
 };
 use std::pin::Pin;
 use tokio::sync::mpsc;
-use crate::SimulatedDevice;
 
 /// Run the pairing protocol to completion.
-pub async fn run_pairing_protocol(primary_device: &mut SimulatedDevice) -> Result<NetworkAccount> {
+pub async fn run_pairing_protocol(
+    primary_device: &mut SimulatedDevice,
+) -> Result<NetworkAccount> {
     let origin = primary_device.origin.clone();
     let password = primary_device.password.clone();
     let key: AccessKey = password.into();

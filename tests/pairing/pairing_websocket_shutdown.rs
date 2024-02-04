@@ -47,9 +47,7 @@ async fn pairing_websocket_shutdown() -> Result<()> {
             Pin<Box<dyn Future<Output = pairing::Result<()>>>>,
         >::new();
 
-        tasks.push(Box::pin(
-            offer.run(offer_stream, offer_shutdown_rx),
-        ));
+        tasks.push(Box::pin(offer.run(offer_stream, offer_shutdown_rx)));
         tasks.push(Box::pin(async move {
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
             offer_shutdown_tx.send(()).await.unwrap();
