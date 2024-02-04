@@ -1,8 +1,8 @@
 //! Protocol for pairing devices.
-use super::{Result, ServerPairUrl, PATTERN};
+use super::{Result, ServerPairUrl, PATTERN, PairingMessage};
 use crate::{
     client::NetworkAccount,
-    pairing::{PairingHeader, PairingMessage, PairingPacket, PairingPayload},
+    relay::{RelayHeader, RelayPacket, RelayPayload},
 };
 use crate::{
     client::WebSocketRequest,
@@ -97,7 +97,7 @@ impl<'a> WebSocketPairOffer<'a> {
             match message {
                 Ok(message) => {
                     if let Message::Binary(msg) = message {
-                        match decode::<PairingPacket>(&msg).await {
+                        match decode::<RelayPacket>(&msg).await {
                             Ok(result) => {
                                 todo!("dispatch packet event");
                             }
@@ -119,23 +119,23 @@ impl<'a> WebSocketPairOffer<'a> {
     /// Respond to the initiator noise protocol handshake.
     pub async fn handshake(
         &mut self,
-        packet: &PairingPacket,
-    ) -> Result<PairingPacket> {
+        packet: &RelayPacket,
+    ) -> Result<RelayPacket> {
         let packet = if let (
             Some(Tunnel::Handshake(state)),
-            PairingPayload::Handshake(len, init_msg),
+            RelayPayload::Handshake(len, init_msg),
         ) = (&mut self.tunnel, &packet.payload)
         {
             let mut buf = [0; 1024];
             let mut reply = [0; 1024];
             state.read_message(&init_msg[..*len], &mut buf)?;
             let len = state.write_message(&[], &mut reply)?;
-            Some(PairingPacket {
-                header: PairingHeader {
+            Some(RelayPacket {
+                header: RelayHeader {
                     to_public_key: packet.header.from_public_key.clone(),
                     from_public_key: self.keypair.public.clone(),
                 },
-                payload: PairingPayload::Handshake(len, reply.to_vec()),
+                payload: RelayPayload::Handshake(len, reply.to_vec()),
             })
         } else {
             None
@@ -201,7 +201,7 @@ impl WebSocketPairAccept {
             match message {
                 Ok(message) => {
                     if let Message::Binary(msg) = message {
-                        match decode::<PairingPacket>(&msg).await {
+                        match decode::<RelayPacket>(&msg).await {
                             Ok(result) => {
                                 todo!("dispatch packet event");
                             }
@@ -231,12 +231,12 @@ impl WebSocketPairAccept {
         if let Some(Tunnel::Handshake(state)) = &mut self.tunnel {
             let mut buf = [0u8; 1024];
             let len = state.write_message(&[], &mut buf)?;
-            let message = PairingPacket {
-                header: PairingHeader {
+            let message = RelayPacket {
+                header: RelayHeader {
                     to_public_key: self.share_url.public_key().to_vec(),
                     from_public_key: self.keypair.public.to_vec(),
                 },
-                payload: PairingPayload::Handshake(len, buf.to_vec()),
+                payload: RelayPayload::Handshake(len, buf.to_vec()),
             };
             let buffer = encode(&message).await?;
             self.tx.send(Message::Binary(buffer)).await?;
@@ -245,10 +245,10 @@ impl WebSocketPairAccept {
     }
 
     /// Complete the noise protocol handshake.
-    fn into_transport(&mut self, packet: &PairingPacket) -> Result<()> {
+    fn into_transport(&mut self, packet: &RelayPacket) -> Result<()> {
         let done = if let (
             Some(Tunnel::Handshake(state)),
-            PairingPayload::Handshake(len, reply_msg),
+            RelayPayload::Handshake(len, reply_msg),
         ) = (&mut self.tunnel, &packet.payload)
         {
             let mut buf = [0; 1024];

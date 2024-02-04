@@ -1,25 +1,23 @@
 //! Pairing packet encoding.
-use crate::sdk::device::TrustedDevice;
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use serde::{Deserialize, Serialize};
 use std::io::{Error, ErrorKind, Result, SeekFrom};
 
 /// Message sent between devices being paired.
 #[derive(Default)]
-pub(super) struct PairingPacket {
+pub(super) struct RelayPacket {
     /// Packet header data.
-    pub header: PairingHeader,
+    pub header: RelayHeader,
     /// Payload for the recipient.
-    pub payload: PairingPayload,
+    pub payload: RelayPayload,
 }
 
 /// Header of a pairing packet.
 #[derive(Default)]
-pub(super) struct PairingHeader {
+pub(super) struct RelayHeader {
     /// Public key of the recipient.
     pub to_public_key: Vec<u8>,
     /// Public key of the sender.
@@ -28,7 +26,7 @@ pub(super) struct PairingHeader {
 
 /// Packet for pairing communication.
 #[derive(Default)]
-pub(super) enum PairingPayload {
+pub(super) enum RelayPayload {
     #[default]
     Noop,
     /// Handshake packet.
@@ -37,36 +35,21 @@ pub(super) enum PairingPayload {
     Transport(usize, Vec<u8>),
 }
 
-/// Pairing message.
-#[derive(Serialize, Deserialize)]
-pub(super) enum PairingMessage {
-    /// Request sent from the accept side to the
-    /// offering side once the noise protocol handshake
-    /// has completed.
-    Request(TrustedDevice),
-    /// Confirmation from the offering side to the
-    /// accepting side is the account signing key.
-    Confirm([u8; 32]),
-    /// Offer side generated an error whilst
-    /// adding the device to the list of trusted devices.
-    Error(String),
-}
-
 #[async_trait]
-impl Encodable for PairingPacket {
+impl Encodable for RelayPacket {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         self.header.encode(&mut *writer).await?;
         match &self.payload {
-            PairingPayload::Noop => panic!("attempt to encode a noop"),
-            PairingPayload::Handshake(len, buf) => {
+            RelayPayload::Noop => panic!("attempt to encode a noop"),
+            RelayPayload::Handshake(len, buf) => {
                 writer.write_u8(1).await?;
                 writer.write_u16(*len as u16).await?;
                 writer.write_bytes(buf).await?;
             }
-            PairingPayload::Transport(len, buf) => {
+            RelayPayload::Transport(len, buf) => {
                 writer.write_u8(2).await?;
                 writer.write_u16(*len as u16).await?;
                 writer.write_bytes(buf).await?;
@@ -77,7 +60,7 @@ impl Encodable for PairingPacket {
 }
 
 #[async_trait]
-impl Decodable for PairingPacket {
+impl Decodable for RelayPacket {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,
@@ -88,12 +71,12 @@ impl Decodable for PairingPacket {
             1 => {
                 let len = reader.read_u16().await?;
                 let buf = reader.read_bytes(len as usize).await?;
-                self.payload = PairingPayload::Handshake(len as usize, buf);
+                self.payload = RelayPayload::Handshake(len as usize, buf);
             }
             2 => {
                 let len = reader.read_u16().await?;
                 let buf = reader.read_bytes(len as usize).await?;
-                self.payload = PairingPayload::Transport(len as usize, buf);
+                self.payload = RelayPayload::Transport(len as usize, buf);
             }
             _ => {
                 return Err(Error::new(
@@ -107,7 +90,7 @@ impl Decodable for PairingPacket {
 }
 
 #[async_trait]
-impl Encodable for PairingHeader {
+impl Encodable for RelayHeader {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -121,7 +104,7 @@ impl Encodable for PairingHeader {
 }
 
 #[async_trait]
-impl Decodable for PairingHeader {
+impl Decodable for RelayHeader {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,

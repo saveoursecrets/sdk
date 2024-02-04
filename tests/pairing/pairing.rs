@@ -8,7 +8,7 @@ use sos_net::{
     sdk::prelude::*,
 };
 
-/// Tests the protoco for pairing devices.
+/// Tests the protocol for pairing devices.
 #[tokio::test]
 async fn pairing_protocol() -> Result<()> {
     const TEST_ID: &str = "pairing_protocol";
