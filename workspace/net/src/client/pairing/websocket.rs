@@ -18,16 +18,23 @@ use crate::{
     },
 };
 use futures::{
+    select,
     stream::{SplitSink, SplitStream},
-    SinkExt, StreamExt,
+    FutureExt, SinkExt, StreamExt,
 };
 use serde::{Deserialize, Serialize};
 use snow::{Builder, HandshakeState, Keypair, TransportState};
-use std::{path::PathBuf, sync::Arc};
-use tokio::{net::TcpStream, sync::mpsc};
+use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use tokio::{
+    net::TcpStream,
+    sync::mpsc,
+};
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{self, protocol::Message},
+    tungstenite::{
+        self,
+        protocol::{frame::coding::CloseCode, CloseFrame, Message},
+    },
     MaybeTlsStream, WebSocketStream,
 };
 
@@ -153,15 +160,35 @@ impl<'a> WebSocketPairOffer<'a> {
     }
 
     /// Start the event loop.
-    pub async fn run(&mut self, stream: WsStream) -> Result<()> {
+    pub async fn run(
+        &mut self,
+        stream: WsStream,
+        mut shutdown_rx: mpsc::Receiver<()>,
+    ) -> Result<()> {
         let (offer_tx, mut offer_rx) = mpsc::channel::<RelayPacket>(32);
         tokio::task::spawn(listen(stream, offer_tx));
-        while let Some(event) = offer_rx.recv().await {
-            self.incoming(event).await?;
-            if matches!(&self.state, PairProtocolState::Done) {
-                break;
+        loop {
+            select! {
+                event = offer_rx.recv().fuse() => {
+                    if let Some(event) = event {
+                        self.incoming(event).await?;
+                        if matches!(&self.state, PairProtocolState::Done) {
+                            break;
+                        }
+                    }
+                }
+                event = shutdown_rx.recv().fuse() => {
+                    if event.is_some() {
+                        let _ = self.tx.send(Message::Close(Some(CloseFrame {
+                            code: CloseCode::Normal,
+                            reason: Cow::Borrowed("closed"),
+                        }))).await;
+                        break;
+                    }
+                }
             }
         }
+
         Ok(())
     }
 
@@ -358,19 +385,40 @@ impl<'a> WebSocketPairAccept<'a> {
     }
 
     /// Start the event loop.
-    pub async fn run(&mut self, stream: WsStream) -> Result<()> {
+    pub async fn run(
+        &mut self,
+        stream: WsStream,
+        mut shutdown_rx: mpsc::Receiver<()>,
+    ) -> Result<()> {
         // Start pairing
         self.pair().await?;
 
         // Run the event loop
         let (offer_tx, mut offer_rx) = mpsc::channel::<RelayPacket>(32);
         tokio::task::spawn(listen(stream, offer_tx));
-        while let Some(event) = offer_rx.recv().await {
-            self.incoming(event).await?;
-            if matches!(&self.state, PairProtocolState::Done) {
-                break;
+
+        loop {
+            select! {
+                event = offer_rx.recv().fuse() => {
+                    if let Some(event) = event {
+                        self.incoming(event).await?;
+                        if matches!(&self.state, PairProtocolState::Done) {
+                            break;
+                        }
+                    }
+                }
+                event = shutdown_rx.recv().fuse() => {
+                    if event.is_some() {
+                        let _ = self.tx.send(Message::Close(Some(CloseFrame {
+                            code: CloseCode::Normal,
+                            reason: Cow::Borrowed("closed"),
+                        }))).await;
+                        break;
+                    }
+                }
             }
         }
+
         Ok(())
     }
 
