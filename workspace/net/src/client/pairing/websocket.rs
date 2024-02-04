@@ -1,9 +1,9 @@
 //! Protocol for pairing devices.
-use super::{Result, ServerPairUrl, PATTERN};
+use super::{Result, ServerPairUrl, PATTERN, packet::{PairingPacket, PairingPayload, PairingMessage, PairingHeader}};
 use crate::client::NetworkAccount;
 use crate::{
     client::WebSocketRequest,
-    sdk::{device::TrustedDevice, url::Url},
+    sdk::{device::TrustedDevice, url::Url, encode},
 };
 use futures::{
     stream::{SplitSink, SplitStream},
@@ -28,37 +28,6 @@ enum Tunnel {
     Transport(TransportState),
 }
 
-/// Message sent between devices being paired.
-#[derive(Serialize, Deserialize)]
-struct PairingPacket {
-    /// Public key of the recipient.
-    pub public_key: Vec<u8>,
-    /// Packet for the recipient.
-    pub payload: PairingPayload,
-}
-
-/// Packet for pairing communication.
-#[derive(Serialize, Deserialize)]
-enum PairingPayload {
-    /// Handshake packet.
-    Handshake(usize, Vec<u8>),
-    /// Encrypted transport packet.
-    Transport(usize, Vec<u8>),
-}
-
-/// Pairing message.
-#[derive(Serialize, Deserialize)]
-enum PairingMessage {
-    /// Request sent from the accept side to the
-    /// offering side once the noise protocol handshake
-    /// has completed.
-    Request(TrustedDevice),
-    /// Confirmation from the offering side to the
-    /// accepting side is the account signing key.
-    Confirm([u8; 32]),
-    // TODO: error with reason
-}
-
 type WsSink = SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>;
 type WsStream = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
@@ -74,7 +43,7 @@ pub struct WebSocketPairOffer<'a> {
     /// Pairing URL to share with the other device.
     share_url: ServerPairUrl,
     /// Noise protocol state.
-    tunnel: Tunnel,
+    tunnel: Option<Tunnel>,
     /// Sink side of the socket.
     tx: WsSink,
 }
@@ -101,7 +70,7 @@ impl<'a> WebSocketPairOffer<'a> {
                 account,
                 url,
                 share_url,
-                tunnel: Tunnel::Handshake(responder),
+                tunnel: Some(Tunnel::Handshake(responder)),
                 tx,
             },
             rx,
@@ -133,7 +102,7 @@ pub struct WebSocketPairAccept {
     /// URL shared by the offering device.
     share_url: ServerPairUrl,
     /// Noise protocol state.
-    tunnel: Tunnel,
+    tunnel: Option<Tunnel>,
     /// Sink side of the socket.
     tx: WsSink,
 }
@@ -151,7 +120,7 @@ impl WebSocketPairAccept {
             Self {
                 keypair,
                 share_url,
-                tunnel: Tunnel::Handshake(initiator),
+                tunnel: Some(Tunnel::Handshake(initiator)),
                 tx,
             },
             rx,
@@ -183,14 +152,18 @@ impl WebSocketPairAccept {
 
     /// Noise protocol handshake.
     async fn handshake(&mut self) -> Result<()> {
-        if let Tunnel::Handshake(state) = &mut self.tunnel {
+        if let Some(Tunnel::Handshake(state)) = &mut self.tunnel {
             let mut buf = [0u8; 1024];
             let len = state.write_message(&[], &mut buf)?;
             let message = PairingPacket {
-                public_key: self.share_url.public_key().to_vec(),
+                header: PairingHeader {
+                    to_public_key: self.share_url.public_key().to_vec(),
+                    from_public_key: self.keypair.public.to_vec(),
+                },
                 payload: PairingPayload::Handshake(len, buf.to_vec()),
             };
-            let buffer = serde_json::to_vec(&message)?;
+            let buffer = encode(&message).await?;
+            //let buffer = serde_json::to_vec(&message)?;
             self.tx.send(Message::Binary(buffer)).await?;
         }
         Ok(())

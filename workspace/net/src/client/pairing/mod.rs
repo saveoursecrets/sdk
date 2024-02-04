@@ -1,5 +1,6 @@
 //! Protocol for pairing devices.
 mod error;
+mod packet;
 mod share_url;
 mod websocket;
 
