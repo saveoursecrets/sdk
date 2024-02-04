@@ -3,6 +3,7 @@ use sos_sdk::{hex, url::Url};
 use std::str::FromStr;
 
 /// URL shared to offer device pairing via a server.
+#[derive(Debug, Clone)]
 pub struct ServerPairUrl {
     /// Server used to transfer the account data.
     server: Url,

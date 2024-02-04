@@ -4055,6 +4055,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "pretty_assertions",
+ "rand 0.8.5",
  "rexpect",
  "rustyline",
  "rustyline-derive",

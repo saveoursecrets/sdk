@@ -114,8 +114,7 @@ async fn read(
             Ok(msg) => match msg {
                 Message::Text(_) => {}
                 Message::Binary(buffer) => {
-                    if let Ok(header) = decode::<RelayHeader>(&buffer).await
-                    {
+                    if let Ok(header) = decode::<RelayHeader>(&buffer).await {
                         let reader = state.read().await;
                         if let Some(tx) = reader.get(&header.to_public_key) {
                             if let Err(e) = tx.send(buffer).await {

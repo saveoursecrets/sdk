@@ -1,6 +1,6 @@
 //! Protocol for pairing devices.
-use serde::{Serialize, Deserialize};
 use crate::sdk::device::TrustedDevice;
+use serde::{Deserialize, Serialize};
 
 mod error;
 mod share_url;
@@ -8,15 +8,17 @@ mod websocket;
 
 pub use error::Error;
 pub use share_url::ServerPairUrl;
-pub use websocket::{Accept, Offer, WebSocketPairAccept, WebSocketPairOffer};
+pub use websocket::{
+    listen, Accept, Offer, WebSocketPairAccept, WebSocketPairOffer,
+};
 
-const PATTERN: &str = "Noise_XX_25519_ChaChaPoly_BLAKE2s";
+const PATTERN: &str = "Noise_NN_25519_ChaChaPoly_BLAKE2s";
 
 /// Result type for the pairing module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 /// Pairing message.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(super) enum PairingMessage {
     /// Request sent from the accept side to the
     /// offering side once the noise protocol handshake
@@ -29,4 +31,3 @@ pub(super) enum PairingMessage {
     /// adding the device to the list of trusted devices.
     Error(String),
 }
-

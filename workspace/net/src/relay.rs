@@ -8,7 +8,7 @@ use std::io::{Error, ErrorKind, Result, SeekFrom};
 
 /// Message sent between devices being paired.
 #[derive(Default)]
-pub(super) struct RelayPacket {
+pub struct RelayPacket {
     /// Packet header data.
     pub header: RelayHeader,
     /// Payload for the recipient.
@@ -17,7 +17,7 @@ pub(super) struct RelayPacket {
 
 /// Header of a pairing packet.
 #[derive(Default)]
-pub(super) struct RelayHeader {
+pub struct RelayHeader {
     /// Public key of the recipient.
     pub to_public_key: Vec<u8>,
     /// Public key of the sender.
@@ -26,8 +26,9 @@ pub(super) struct RelayHeader {
 
 /// Packet for pairing communication.
 #[derive(Default)]
-pub(super) enum RelayPayload {
+pub enum RelayPayload {
     #[default]
+    #[doc(hidden)]
     Noop,
     /// Handshake packet.
     Handshake(usize, Vec<u8>),

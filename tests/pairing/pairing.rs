@@ -1,12 +1,18 @@
-use anyhow::Result;
-
 use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
+use anyhow::Result;
+use rand::{rngs::OsRng, Rng};
+use futures::{select, FutureExt};
 use sos_net::{
-    client::{pairing::Offer, NetworkAccount, RemoteSync},
+    client::{
+        pairing::{listen, Accept, Offer},
+        NetworkAccount, RemoteSync,
+    },
+    relay::RelayPacket,
     sdk::prelude::*,
 };
+use tokio::sync::mpsc;
 
 /// Tests the protocol for pairing devices.
 #[tokio::test]
@@ -20,10 +26,44 @@ async fn pairing_protocol() -> Result<()> {
     // Prepare mock devices
     let mut primary_device =
         simulate_device(TEST_ID, 2, Some(&server)).await?;
+
     let origin = primary_device.origin.clone();
 
-    let offer =
+    let (mut offer, offer_stream) =
         Offer::new(&mut primary_device.owner, origin.url().clone()).await?;
+
+    // URL shared via QR code or other means.
+    let share_url = offer.share_url().clone();
+    
+    let mut rng = OsRng {};
+    let mock_key: [u8; 32] = rng.gen();
+    let mock_device = TrustedDevice::new(mock_key.into(), None, None);
+
+    let (mut accept, accept_stream) = Accept::new(share_url, &mock_device).await?;
+
+    let (offer_tx, mut offer_rx) = mpsc::channel::<RelayPacket>(32);
+    tokio::task::spawn(listen(offer_stream, offer_tx));
+
+    let (accept_tx, mut accept_rx) = mpsc::channel::<RelayPacket>(32);
+    tokio::task::spawn(listen(accept_stream, accept_tx));
+
+    // Start the pairing
+    accept.pair().await?;
+
+    loop {
+        select! {
+            event = offer_rx.recv().fuse() => {
+                if let Some(packet) = event {
+                    offer.incoming(packet).await?;
+                }
+            }
+            event = accept_rx.recv().fuse() => {
+                if let Some(packet) = event {
+                    accept.incoming(packet).await?;
+                }
+            }
+        }
+    }
 
     /*
     // Create a secret in the primary owner which won't exist
