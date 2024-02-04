@@ -1,4 +1,4 @@
-//! Pairing packet encoding.
+//! Relay packet encoding.
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,

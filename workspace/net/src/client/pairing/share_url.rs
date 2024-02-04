@@ -2,7 +2,7 @@ use super::{Error, Result};
 use sos_sdk::{hex, url::Url};
 use std::str::FromStr;
 
-/// URL shared to offer device pairing via a server.
+/// URL shared to offer device pairing via an untrusted relay server.
 #[derive(Debug, Clone)]
 pub struct ServerPairUrl {
     /// Server used to transfer the account data.

@@ -49,12 +49,6 @@ enum Tunnel {
 type WsSink = SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>;
 type WsStream = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
-/// Offer to pair.
-pub type Offer<'a> = WebSocketPairOffer<'a>;
-
-/// Accept a pairing offer.
-pub type Accept<'a> = WebSocketPairAccept<'a>;
-
 /// State machine variants for the protocol.
 enum PairProtocolState {
     /// Waiting to start the protocol.
@@ -71,7 +65,7 @@ enum IncomingAction {
 }
 
 /// Listen for incoming messages on the stream.
-pub async fn listen(mut rx: WsStream, tx: mpsc::Sender<RelayPacket>) {
+async fn listen(mut rx: WsStream, tx: mpsc::Sender<RelayPacket>) {
     while let Some(message) = rx.next().await {
         match message {
             Ok(message) => {
@@ -99,7 +93,7 @@ pub async fn listen(mut rx: WsStream, tx: mpsc::Sender<RelayPacket>) {
 
 /// Offer is the device that is authenticated and can
 /// authorize the new device.
-pub struct WebSocketPairOffer<'a> {
+pub struct OfferPairing<'a> {
     /// Noise session keypair.
     keypair: Keypair,
     /// Network account.
@@ -116,7 +110,7 @@ pub struct WebSocketPairOffer<'a> {
     state: PairProtocolState,
 }
 
-impl<'a> WebSocketPairOffer<'a> {
+impl<'a> OfferPairing<'a> {
     /// Create a new pairing offer.
     pub async fn new(
         account: &'a mut NetworkAccount,
@@ -322,7 +316,7 @@ impl<'a> WebSocketPairOffer<'a> {
 }
 
 /// Accept is the device being paired.
-pub struct WebSocketPairAccept<'a> {
+pub struct AcceptPairing<'a> {
     /// Noise session keypair.
     keypair: Keypair,
     /// Current device information.
@@ -343,7 +337,7 @@ pub struct WebSocketPairAccept<'a> {
     enrollment: Option<DeviceEnrollment>,
 }
 
-impl<'a> WebSocketPairAccept<'a> {
+impl<'a> AcceptPairing<'a> {
     /// Create a new pairing connection.
     pub async fn new(
         share_url: ServerPairUrl,

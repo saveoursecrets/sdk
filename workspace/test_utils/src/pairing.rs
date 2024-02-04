@@ -3,7 +3,7 @@ use anyhow::Result;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
 use sos_net::{
     client::{
-        pairing::{self, Accept, Offer},
+        pairing::{self, AcceptPairing, OfferPairing},
         NetworkAccount,
     },
     sdk::prelude::*,
@@ -32,7 +32,7 @@ pub async fn run_pairing_protocol(
     let enrollment = {
         // Create the offer of device pairing
         let (mut offer, offer_stream) =
-            Offer::new(&mut primary_device.owner, origin.url().clone())
+            OfferPairing::new(&mut primary_device.owner, origin.url().clone())
                 .await?;
 
         // URL shared via QR code or other means.
@@ -46,7 +46,7 @@ pub async fn run_pairing_protocol(
         );
 
         // Create the device that will accept the pairing
-        let (mut accept, accept_stream) = Accept::new(
+        let (mut accept, accept_stream) = AcceptPairing::new(
             share_url,
             &mock_device,
             mock_device_signer.clone(),

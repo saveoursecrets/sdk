@@ -8,9 +8,7 @@ mod websocket;
 
 pub use error::Error;
 pub use share_url::ServerPairUrl;
-pub use websocket::{
-    listen, Accept, Offer, WebSocketPairAccept, WebSocketPairOffer,
-};
+pub use websocket::{AcceptPairing, OfferPairing};
 
 const PATTERN: &str = "Noise_NN_25519_ChaChaPoly_BLAKE2s";
 
