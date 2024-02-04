@@ -1,9 +1,9 @@
 //! Protocol for pairing devices.
-use super::{
-    packet::{PairingHeader, PairingMessage, PairingPacket, PairingPayload},
-    Result, ServerPairUrl, PATTERN,
+use super::{Result, ServerPairUrl, PATTERN};
+use crate::{
+    client::NetworkAccount,
+    pairing::{PairingHeader, PairingMessage, PairingPacket, PairingPayload},
 };
-use crate::client::NetworkAccount;
 use crate::{
     client::WebSocketRequest,
     sdk::{decode, device::TrustedDevice, encode, url::Url},
@@ -34,6 +34,11 @@ enum Tunnel {
 type WsSink = SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>;
 type WsStream = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
+/// Offer.
+pub type Offer<'a> = WebSocketPairOffer<'a>;
+/// Accept.
+pub type Accept = WebSocketPairAccept;
+
 /// Offer is the device that is authenticated and can
 /// authorize the new device.
 pub struct WebSocketPairOffer<'a> {
@@ -61,8 +66,15 @@ impl<'a> WebSocketPairOffer<'a> {
         let keypair = builder.generate_keypair()?;
         let share_url =
             ServerPairUrl::new(url.clone(), keypair.public.clone());
-        let responder = builder.build_responder()?;
-        let request = WebSocketRequest::new(&url, PAIR_PATH)?;
+        let responder = builder
+            .local_private_key(&keypair.private)
+            .build_responder()?;
+        let mut request = WebSocketRequest::new(&url, PAIR_PATH)?;
+        request
+            .uri
+            .query_pairs_mut()
+            .append_pair("public_key", &hex::encode(&keypair.public));
+
         let (socket, _) = connect_async(request).await?;
         let (tx, rx) = socket.split();
 
@@ -160,8 +172,16 @@ impl WebSocketPairAccept {
     pub async fn new(share_url: ServerPairUrl) -> Result<(Self, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        let initiator = builder.build_initiator()?;
-        let request = WebSocketRequest::new(share_url.server(), PAIR_PATH)?;
+        let initiator = builder
+            .local_private_key(&keypair.private)
+            .remote_public_key(share_url.public_key())
+            .build_initiator()?;
+        let mut request =
+            WebSocketRequest::new(share_url.server(), PAIR_PATH)?;
+        request
+            .uri
+            .query_pairs_mut()
+            .append_pair("public_key", &hex::encode(&keypair.public));
         let (socket, _) = connect_async(request).await?;
         let (tx, rx) = socket.split();
         Ok((
@@ -179,17 +199,19 @@ impl WebSocketPairAccept {
     pub async fn listen(mut rx: WsStream) {
         while let Some(message) = rx.next().await {
             match message {
-                Ok(message) => if let Message::Binary(msg) = message {
-                    match decode::<PairingPacket>(&msg).await {
-                        Ok(result) => {
-                            todo!("dispatch packet event");
-                        }
-                        Err(e) => {
-                            tracing::error!(error = ?e);
-                            break;
+                Ok(message) => {
+                    if let Message::Binary(msg) = message {
+                        match decode::<PairingPacket>(&msg).await {
+                            Ok(result) => {
+                                todo!("dispatch packet event");
+                            }
+                            Err(e) => {
+                                tracing::error!(error = ?e);
+                                break;
+                            }
                         }
                     }
-                },
+                }
                 Err(e) => {
                     tracing::error!(error = ?e);
                     break;
@@ -221,7 +243,7 @@ impl WebSocketPairAccept {
         }
         Ok(())
     }
-    
+
     /// Complete the noise protocol handshake.
     fn into_transport(&mut self, packet: &PairingPacket) -> Result<()> {
         let done = if let (
@@ -232,7 +254,9 @@ impl WebSocketPairAccept {
             let mut buf = [0; 1024];
             state.read_message(&reply_msg[..*len], &mut buf)?;
             true
-        } else { false };
+        } else {
+            false
+        };
 
         if done {
             let tunnel = self.tunnel.take().unwrap();

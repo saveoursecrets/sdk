@@ -1,12 +1,11 @@
 //! Protocol for pairing devices.
 mod error;
-mod packet;
 mod share_url;
 mod websocket;
 
 pub use error::Error;
 pub use share_url::ServerPairUrl;
-pub use websocket::{WebSocketPairAccept, WebSocketPairOffer};
+pub use websocket::{Accept, Offer, WebSocketPairAccept, WebSocketPairOffer};
 
 const PATTERN: &str = "Noise_XX_25519_ChaChaPoly_BLAKE2s";
 

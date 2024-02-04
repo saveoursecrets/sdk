@@ -32,6 +32,9 @@ use tower_http::{cors::CorsLayer, trace::TraceLayer};
 #[cfg(feature = "listen")]
 use super::handlers::websocket::{upgrade, WebSocketConnection};
 
+#[cfg(feature = "pairing")]
+use super::handlers::pairing::{upgrade as pairing_upgrade, PairingState};
+
 /// Server state.
 pub struct State {
     /// The server configuration.
@@ -219,15 +222,28 @@ impl Server {
                     .route("/sync/changes", get(upgrade));
             }
 
+            #[cfg(feature = "pairing")]
+            {
+                router = router.route("/pair", get(pairing_upgrade));
+            }
+
             router
         };
+
+        #[cfg(feature = "pairing")]
+        let pairing: PairingState = Arc::new(RwLock::new(HashMap::new()));
 
         let file_operations: ServerTransfer =
             Arc::new(RwLock::new(HashSet::new()));
 
-        let v1 = v1
-            .layer(cors)
-            .layer(TraceLayer::new_for_http())
+        let mut v1 = v1.layer(cors).layer(TraceLayer::new_for_http());
+
+        #[cfg(feature = "pairing")]
+        {
+            v1 = v1.layer(Extension(pairing));
+        }
+
+        v1 = v1
             .layer(Extension(backend))
             .layer(Extension(file_operations))
             .layer(Extension(state));

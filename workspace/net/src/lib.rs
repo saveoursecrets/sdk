@@ -12,6 +12,8 @@
 #[cfg(feature = "client")]
 pub mod client;
 mod error;
+#[cfg(feature = "pairing")]
+pub mod pairing;
 #[cfg(feature = "server")]
 pub mod server;
 
