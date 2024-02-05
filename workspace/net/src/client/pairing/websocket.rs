@@ -1,8 +1,8 @@
 //! Protocol for pairing devices.
-use super::{Error, PairingMessage, Result, ServerPairUrl, PATTERN};
+use super::{Error, PairingMessage, Result, ServerPairUrl, PATTERN, DeviceEnrollment};
 use crate::{
     client::{
-        enrollment::DeviceEnrollment, sync::RemoteSync, NetworkAccount,
+        sync::RemoteSync, NetworkAccount,
         WebSocketRequest,
     },
     relay::{RelayHeader, RelayPacket, RelayPayload},

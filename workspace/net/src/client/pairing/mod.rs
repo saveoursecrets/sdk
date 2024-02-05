@@ -2,13 +2,18 @@
 use crate::sdk::device::TrustedDevice;
 use serde::{Deserialize, Serialize};
 
+mod enrollment;
 mod error;
 mod share_url;
 mod websocket;
 
+pub use enrollment::DeviceEnrollment;
 pub use error::Error;
 pub use share_url::ServerPairUrl;
 pub use websocket::{AcceptPairing, OfferPairing};
+
+#[deprecated]
+pub use enrollment::DeviceShareUrl;
 
 const PATTERN: &str = "Noise_NN_25519_ChaChaPoly_BLAKE2s";
 

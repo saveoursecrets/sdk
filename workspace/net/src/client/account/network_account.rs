@@ -103,14 +103,14 @@ pub struct NetworkAccount {
 
 impl NetworkAccount {
     /// Enroll a new device.
-    #[cfg(feature = "device")]
+    #[cfg(all(feature = "device", feature = "pairing"))]
     pub async fn enroll_device(
         origin: Origin,
         account_signing_key: BoxedEcdsaSigner,
         device_signer: DeviceSigner,
         data_dir: Option<PathBuf>,
-    ) -> Result<crate::client::enrollment::DeviceEnrollment> {
-        use crate::client::{enrollment::DeviceEnrollment, HttpClient};
+    ) -> Result<crate::client::pairing::DeviceEnrollment> {
+        use crate::client::{pairing::DeviceEnrollment, HttpClient};
         use crate::sdk::signer::ed25519::BoxedEd25519Signer;
 
         let address = account_signing_key.address()?;

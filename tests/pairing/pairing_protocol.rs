@@ -4,8 +4,6 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_net::{client::RemoteSync, sdk::prelude::*};
-use std::pin::Pin;
-use tokio::sync::mpsc;
 
 /// Tests the protocol for pairing devices.
 #[tokio::test]

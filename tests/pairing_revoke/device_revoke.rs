@@ -5,7 +5,7 @@ use crate::test_utils::{
 };
 use http::StatusCode;
 use sos_net::{
-    client::{Error as ClientError, NetworkAccount, RemoteSync, SyncError},
+    client::{Error as ClientError, RemoteSync, SyncError},
     sdk::prelude::*,
 };
 
@@ -21,12 +21,7 @@ async fn pairing_device_revoke() -> Result<()> {
     // Prepare mock devices
     let mut primary_device =
         simulate_device(TEST_ID, 2, Some(&server)).await?;
-
-    let password = primary_device.password.clone();
-    let key: AccessKey = password.into();
     let origin = primary_device.origin.clone();
-    let signing_key = primary_device.owner.account_signer().await?;
-    let data_dir = primary_device.dirs.clients.get(1).cloned().unwrap();
     let folders = primary_device.folders.clone();
 
     let mut enrolled_account =

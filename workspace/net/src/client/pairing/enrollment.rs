@@ -341,26 +341,3 @@ impl DeviceEnrollment {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod test {
-    use super::DeviceShareUrl;
-    use crate::sdk::{
-        signer::{ecdsa::SingleParty, Signer},
-        url::Url,
-    };
-    use anyhow::Result;
-
-    #[test]
-    fn device_share_url() -> Result<()> {
-        let mock_url = Url::parse("http://192.168.1.8:5053/foo?bar=baz+qux")?;
-        let mock_key = Box::new(SingleParty::new_random());
-        let share = DeviceShareUrl::new(mock_url.clone(), mock_key.clone());
-        let share_url: Url = share.into();
-        let share_url = share_url.to_string();
-        let parsed_share: DeviceShareUrl = share_url.parse()?;
-        assert_eq!(mock_url, parsed_share.server);
-        assert_eq!(mock_key.to_bytes(), parsed_share.signing_key.to_bytes());
-        Ok(())
-    }
-}

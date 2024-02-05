@@ -27,8 +27,7 @@ use tokio::sync::{
 use tracing::{span, Level};
 
 use super::{authenticate_endpoint, ConnectionQuery};
-use crate::relay::RelayHeader;
-use crate::server::{Result, ServerBackend, ServerState};
+use crate::{server::Result, relay::RelayHeader};
 
 /// Query string for the relay service.
 #[derive(Deserialize)]

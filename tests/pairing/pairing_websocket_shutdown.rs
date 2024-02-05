@@ -2,7 +2,7 @@ use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
 use sos_net::{
-    client::pairing::{self, AcceptPairing, OfferPairing},
+    client::pairing::{self, OfferPairing},
     sdk::prelude::*,
 };
 use std::pin::Pin;
@@ -23,22 +23,11 @@ async fn pairing_websocket_shutdown() -> Result<()> {
         simulate_device(TEST_ID, 2, Some(&server)).await?;
     let origin = primary_device.origin.clone();
 
-    let mock_device_signer = DeviceSigner::new_random();
-    let enrollment = {
+    {
         // Create the offer of device pairing
         let (mut offer, offer_stream) =
             OfferPairing::new(&mut primary_device.owner, origin.url().clone())
                 .await?;
-
-        // URL shared via QR code or other means.
-        let share_url = offer.share_url().clone();
-
-        // Generate a mock device
-        let mock_device = TrustedDevice::new(
-            mock_device_signer.public_key().clone(),
-            None,
-            None,
-        );
 
         let (offer_shutdown_tx, offer_shutdown_rx) = mpsc::channel::<()>(1);
 
@@ -57,9 +46,7 @@ async fn pairing_websocket_shutdown() -> Result<()> {
         while let Some(result) = tasks.next().await {
             result?;
         }
-
-        drop(tasks);
-    };
+    }
 
     primary_device.owner.sign_out().await?;
 

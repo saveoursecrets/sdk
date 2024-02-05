@@ -1,8 +1,6 @@
 //! Client user account and types for bridging with remote origins.
 
 mod account;
-#[cfg(feature = "device")]
-pub mod enrollment;
 mod error;
 #[cfg(feature = "hashcheck")]
 pub mod hashcheck;
