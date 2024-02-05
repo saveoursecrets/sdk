@@ -17,8 +17,6 @@ use tokio_tungstenite::{
     connect_async,
     tungstenite::{
         self,
-        client::IntoClientRequest,
-        handshake::client::generate_key,
         protocol::{frame::coding::CloseCode, CloseFrame, Message},
     },
     MaybeTlsStream, WebSocketStream,
@@ -30,7 +28,6 @@ use tokio::{
     sync::{Mutex, Notify},
     time::sleep,
 };
-use url::Url;
 
 use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
@@ -38,7 +35,7 @@ use sos_sdk::{
 };
 
 use crate::{
-    client::{Error, Result},
+    client::{Error, Result, WebSocketRequest},
     ChangeNotification,
 };
 
@@ -94,6 +91,7 @@ impl ListenOptions {
     }
 }
 
+/*
 /// Get the URI for a websocket connection.
 fn websocket_uri(endpoint: Url, connection_id: &str) -> String {
     format!(
@@ -102,7 +100,9 @@ fn websocket_uri(endpoint: Url, connection_id: &str) -> String {
         urlencoding::encode(connection_id),
     )
 }
+*/
 
+/*
 /// Gets the endpoint URL for a websocket connection.
 ///
 /// The `remote` must be an HTTP/S URL; it's scheme will
@@ -125,16 +125,17 @@ fn changes_endpoint_url(remote: &Url) -> Result<Url> {
         .expect("failed to set websocket scheme");
     Ok(endpoint)
 }
+*/
 
 /// Get the URI for a websocket changes connection.
-async fn changes_uri(
-    remote: &Url,
+async fn request_bearer(
+    request: &mut WebSocketRequest,
     signer: &BoxedEcdsaSigner,
     device: &BoxedEd25519Signer,
     connection_id: &str,
-) -> Result<(String, String)> {
-    let endpoint = changes_endpoint_url(remote)?;
-    let sign_url = endpoint.path();
+) -> Result<String> {
+    //let endpoint = changes_endpoint_url(remote)?;
+    let sign_url = request.uri.path();
 
     let account_signature =
         encode_account_signature(signer.sign(sign_url.as_bytes()).await?)
@@ -143,13 +144,19 @@ async fn changes_uri(
         encode_device_signature(device.sign(sign_url.as_bytes()).await?)
             .await?;
     let auth = bearer_prefix(&account_signature, Some(&device_signature));
-    let uri = websocket_uri(endpoint, connection_id);
-    Ok((uri, auth))
+
+    request
+        .uri
+        .query_pairs_mut()
+        .append_pair("connection_id", connection_id);
+
+    Ok(auth)
 }
 
 /// Type of stream created for websocket connections.
 pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
+/*
 struct WebSocketRequest {
     uri: String,
     host: String,
@@ -175,6 +182,7 @@ impl IntoClientRequest for WebSocketRequest {
         Ok(request)
     }
 }
+*/
 
 /// Create the websocket connection and listen for events.
 pub async fn connect(
@@ -183,20 +191,30 @@ pub async fn connect(
     device: BoxedEd25519Signer,
     connection_id: String,
 ) -> Result<WsStream> {
+    /*
     let url_origin = origin.url().origin();
     let endpoint = origin.url().clone();
     let host = endpoint.host_str().unwrap().to_string();
-    let (uri, bearer) =
-        changes_uri(&endpoint, &signer, &device, &connection_id).await?;
+    */
 
-    tracing::debug!(uri = %uri);
+    let mut request =
+        WebSocketRequest::new(origin.url(), "api/v1/sync/changes")?;
 
+    let bearer =
+        request_bearer(&mut request, &signer, &device, &connection_id)
+            .await?;
+    request.set_bearer(bearer);
+
+    tracing::debug!(uri = %request.uri);
+
+    /*
     let request = WebSocketRequest {
         host,
         uri,
         bearer,
         origin: url_origin,
     };
+    */
     let (ws_stream, _) = connect_async(request).await?;
     Ok(ws_stream)
 }

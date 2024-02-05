@@ -97,6 +97,35 @@ deny = [
 ]
 ```
 
+## Device Pairing
+
+Adding a new device to an existing account consists of a device that is already authenticated to the account which we call the **offering device** and another device which is not authenticated called the **accepting device**.
+
+Pairing the devices is performed using an untrusted relay server. Communication between the devices exposes sensitive information (the account signing key) which must not be exposed to the server so device pairing uses the [noise protocol](https://noiseprotocol.org/) to ensure the communication between the devices is private. The protocol includes a pre-shared symmetric key in the **sharing URL** so that the server cannot forge client connections.
+
+The **sharing URL** needs to be transferred between the offering device and the accepting device; this can be done by scanning a QR code or typing in the URL. The **sharing URL** uses the `data:` scheme to differentiate from the HTTP/S schemes.
+
+### Pairing Protocol
+
+1) Offering device generates a noise protocol session keypair and encodes the relay server URL and noise protocol public key in a **pairing URL** that can be shared with the accepting device.
+2) Once the **pairing URL** has been received by the accepting device it begins the noise protocol handshake.
+3) After completing the noise protocol handshake the accepting device encrypts and sends a **trusted device** to the offering side. The **trusted device** contains meta data about the device and the public key of the device's signing key.
+4) When the offering device receives the **trusted device** it updates the server(s) to trust the new device and sends the encrypted account signing key in reply.
+5) The pairing protocol is complete when the accepting device receives the account signing key.
+
+### Device Enrollment
+
+Once the pairing protocol is finished the accepting device can perform device enrollment as it has both the account signing key and a device signing key whose public key has been added as a trusted device to the server(s).
+
+1) Fetch account event logs and write the account to disc.
+2) Finish device enrollment by authenticating to the account using the primary password.
+
+## Device Revocation
+
+If a device is lost or stolen the device can be revoked which will remove the device from the list of trusted devices preventing it from syncing with servers.
+
+Whilst server endpoints will return a **forbidden** response for untrusted device signatures; if the lost or stolen device was unlocked and the account was authenticated the owner must consider all of their secrets compromised.
+
 ## Event Logs
 
 Several events logs are stored on both the client and server so that complete deterministic, incremental synchronization is possible for an account.

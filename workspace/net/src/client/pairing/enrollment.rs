@@ -38,6 +38,7 @@ use crate::sdk::{
 /// only be used by an account owner to enroll new devices.
 ///
 /// The account owner must never give this URL to anybody else.
+#[deprecated]
 pub struct DeviceShareUrl {
     /// Server used to transfer the account data.
     server: Url,
@@ -146,8 +147,9 @@ impl DeviceEnrollment {
     /// Create a new device enrollment.
     pub fn new(
         address: &Address,
-        data_dir: Option<PathBuf>,
         origin: Origin,
+        device_signer: DeviceSigner,
+        data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let paths = if let Some(data_dir) = &data_dir {
             Paths::new(data_dir.clone(), address.to_string())
@@ -160,7 +162,7 @@ impl DeviceEnrollment {
             paths,
             data_dir,
             origin,
-            device_signing_key: DeviceSigner::new_random(),
+            device_signing_key: device_signer,
             public_identity: None,
         })
     }
@@ -221,15 +223,9 @@ impl DeviceEnrollment {
         // Sign in to the new account
         account.sign_in(key).await?;
 
-        // Sync the updated device log first so we can
-        // do a full sync using the newly trusted device
-        if let Some(e) = account.patch_devices().await {
-            tracing::error!(error = ?e);
-            return Err(Error::EnrollSync(self.origin.url().to_string()));
-        }
-
         // Sync to save the amended identity folder on the remote
         if let Some(e) = account.sync().await {
+            println!("{:#?}", e);
             tracing::error!(error = ?e);
             return Err(Error::EnrollSync(self.origin.url().to_string()));
         }
@@ -284,10 +280,11 @@ impl DeviceEnrollment {
         let file = self.paths.device_events();
 
         let mut event_log = DeviceEventLog::new_device(file).await?;
-        event_log.clear().await?;
+        //event_log.clear().await?;
 
         let mut events: Vec<DeviceEvent> = patch.into();
 
+        /*
         // Include this device in the list of trusted devices
         // stored locally.
         //
@@ -302,6 +299,7 @@ impl DeviceEnrollment {
         );
         let event = DeviceEvent::Trust(device);
         events.push(event);
+        */
 
         event_log.apply(events.iter().collect()).await?;
 
@@ -338,29 +336,6 @@ impl DeviceEnrollment {
         let buffer = encode(&vault).await?;
         vfs::write(vault_path.as_ref(), buffer).await?;
 
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::DeviceShareUrl;
-    use crate::sdk::{
-        signer::{ecdsa::SingleParty, Signer},
-        url::Url,
-    };
-    use anyhow::Result;
-
-    #[test]
-    fn device_share_url() -> Result<()> {
-        let mock_url = Url::parse("http://192.168.1.8:5053/foo?bar=baz+qux")?;
-        let mock_key = Box::new(SingleParty::new_random());
-        let share = DeviceShareUrl::new(mock_url.clone(), mock_key.clone());
-        let share_url: Url = share.into();
-        let share_url = share_url.to_string();
-        let parsed_share: DeviceShareUrl = share_url.parse()?;
-        assert_eq!(mock_url, parsed_share.server);
-        assert_eq!(mock_key.to_bytes(), parsed_share.signing_key.to_bytes());
         Ok(())
     }
 }

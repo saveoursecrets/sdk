@@ -1365,6 +1365,22 @@ impl ClientStorage {
         self.devices.iter().collect()
     }
 
+    /// Patch the devices event log.
+    pub async fn patch_devices_unchecked(
+        &mut self,
+        events: Vec<DeviceEvent>,
+    ) -> Result<()> {
+        let mut event_log = self.device_log.write().await;
+        event_log.apply(events.iter().collect()).await?;
+
+        // Update in-memory cache of trusted devices
+        let reducer = DeviceReducer::new(&event_log);
+        let devices = reducer.reduce().await?;
+        self.devices = devices;
+
+        Ok(())
+    }
+
     /// Revoke trust in a device.
     pub async fn revoke_device(
         &mut self,

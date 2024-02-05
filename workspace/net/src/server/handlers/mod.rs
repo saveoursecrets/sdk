@@ -21,6 +21,9 @@ pub mod files;
 #[cfg(feature = "listen")]
 pub(crate) mod websocket;
 
+#[cfg(feature = "pairing")]
+pub(crate) mod relay;
+
 // 32MB limit for the body size
 const BODY_LIMIT: usize = 33554432;
 

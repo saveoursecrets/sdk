@@ -1,18 +1,18 @@
-use anyhow::Result;
-
 use crate::test_utils::{
-    assert_local_remote_events_eq, simulate_device, spawn, teardown,
+    assert_local_remote_events_eq, run_pairing_protocol, simulate_device,
+    spawn, teardown,
 };
+use anyhow::Result;
 use http::StatusCode;
 use sos_net::{
-    client::{Error as ClientError, NetworkAccount, RemoteSync, SyncError},
+    client::{Error as ClientError, RemoteSync, SyncError},
     sdk::prelude::*,
 };
 
-/// Tests enrolling a new device and revoking trust in the device.
+/// Tests pairing a new device and revoking trust in the device.
 #[tokio::test]
-async fn device_revoke() -> Result<()> {
-    const TEST_ID: &str = "device_revoke";
+async fn pairing_device_revoke() -> Result<()> {
+    const TEST_ID: &str = "pairing_device_revoke";
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
@@ -21,19 +21,11 @@ async fn device_revoke() -> Result<()> {
     // Prepare mock devices
     let mut primary_device =
         simulate_device(TEST_ID, 2, Some(&server)).await?;
-
-    let password = primary_device.password.clone();
-    let key: AccessKey = password.into();
     let origin = primary_device.origin.clone();
-    let signing_key = primary_device.owner.account_signer().await?;
-    let data_dir = primary_device.dirs.clients.get(1).cloned().unwrap();
     let folders = primary_device.folders.clone();
 
-    // Need to clear the data directory for the second client
-    // as simulate_device() copies all the account data and
-    // the identity folder must not exist to enroll a new device
-    std::fs::remove_dir_all(&data_dir)?;
-    std::fs::create_dir(&data_dir)?;
+    let mut enrolled_account =
+        run_pairing_protocol(&mut primary_device, TEST_ID).await?;
 
     // Cannot revoke the current device
     let current_device_public_key = primary_device
@@ -48,19 +40,6 @@ async fn device_revoke() -> Result<()> {
         .await;
     assert!(matches!(result, Err(ClientError::RevokeDeviceSelf)));
 
-    // Start enrollment by fetching the account data
-    // from the remote server
-    let enrollment = NetworkAccount::enroll_device(
-        origin.clone(),
-        signing_key,
-        Some(data_dir),
-    )
-    .await?;
-
-    // Complete device enrollment by authenticating
-    // to the new account
-    let mut enrolled_account = enrollment.finish(&key).await?;
-
     // Sync on the original device to fetch the updated device logs
     assert!(primary_device.owner.sync().await.is_none());
 
@@ -71,10 +50,11 @@ async fn device_revoke() -> Result<()> {
         .owner
         .revoke_device(&device_public_key)
         .await?;
-    
-    let revoke_error = enrolled_account.revoke_device(
-        &current_device_public_key).await;
-    
+
+    let revoke_error = enrolled_account
+        .revoke_device(&current_device_public_key)
+        .await;
+
     if let Err(ClientError::RevokeDeviceSync(mut e)) = revoke_error {
         let (_, err) = e.errors.remove(0);
         assert!(matches!(

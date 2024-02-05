@@ -229,7 +229,11 @@ impl SyncClient for HttpClient {
             self.account_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
-        let auth = bearer_prefix(&account_signature, None);
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
         let response = self
             .client
             .get(url)
@@ -315,6 +319,7 @@ impl SyncClient for HttpClient {
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
+
         let device_signature =
             encode_device_signature(self.device_signer.sign(&body).await?)
                 .await?;
