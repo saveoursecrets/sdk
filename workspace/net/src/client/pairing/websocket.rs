@@ -171,7 +171,7 @@ impl<'a> OfferPairing<'a> {
                 event = offer_rx.recv().fuse() => {
                     if let Some(event) = event {
                         self.incoming(event).await?;
-                        if matches!(&self.state, PairProtocolState::Done) {
+                        if self.is_finished() {
                             break;
                         }
                     }
@@ -189,6 +189,11 @@ impl<'a> OfferPairing<'a> {
         }
 
         Ok(())
+    }
+    
+    /// Determine if the protocol has completed.
+    pub fn is_finished(&self) -> bool {
+        matches!(&self.state, PairProtocolState::Done)
     }
 
     /// Process incoming packet.
@@ -448,7 +453,7 @@ impl<'a> AcceptPairing<'a> {
                 event = offer_rx.recv().fuse() => {
                     if let Some(event) = event {
                         self.incoming(event).await?;
-                        if matches!(&self.state, PairProtocolState::Done) {
+                        if self.is_finished() {
                             break;
                         }
                     }
@@ -466,6 +471,11 @@ impl<'a> AcceptPairing<'a> {
         }
 
         Ok(())
+    }
+
+    /// Determine if the protocol has completed.
+    pub fn is_finished(&self) -> bool {
+        matches!(&self.state, PairProtocolState::Done)
     }
 
     /// Take the final device enrollment.

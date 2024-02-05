@@ -12,9 +12,6 @@ pub use error::Error;
 pub use share_url::ServerPairUrl;
 pub use websocket::{AcceptPairing, OfferPairing};
 
-#[deprecated]
-pub use enrollment::DeviceShareUrl;
-
 /// Result type for the pairing module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 
