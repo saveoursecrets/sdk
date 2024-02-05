@@ -101,8 +101,6 @@ pub struct OfferPairing<'a> {
     keypair: Keypair,
     /// Network account.
     account: &'a mut NetworkAccount,
-    /// Server URL.
-    url: Url,
     /// Pairing URL to share with the other device.
     share_url: ServerPairUrl,
     /// Noise protocol state.
@@ -122,11 +120,6 @@ impl<'a> OfferPairing<'a> {
         let pre_shared_key: [u8; 32] = csprng().gen();
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        let share_url = ServerPairUrl::new(
-            url.clone(),
-            keypair.public.clone(),
-            pre_shared_key,
-        );
         let responder = builder
             .local_private_key(&keypair.private)
             .psk(3, &pre_shared_key)
@@ -137,13 +130,18 @@ impl<'a> OfferPairing<'a> {
             .query_pairs_mut()
             .append_pair("public_key", &hex::encode(&keypair.public));
 
+        let share_url = ServerPairUrl::new(
+            url,
+            keypair.public.clone(),
+            pre_shared_key,
+        );
+
         let (socket, _) = connect_async(request).await?;
         let (tx, rx) = socket.split();
         Ok((
             Self {
                 keypair,
                 account,
-                url,
                 share_url,
                 tunnel: Some(Tunnel::Handshake(responder)),
                 tx,
