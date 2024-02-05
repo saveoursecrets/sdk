@@ -101,13 +101,13 @@ deny = [
 
 Adding a new device to an existing account consists of a device that is already authenticated to the account which we call the **offering device** and another device which is not authenticated called the **accepting device**.
 
-Pairing the devices is performed using an untrusted relay server. Communication between the devices exposes sensitive information (the account signing key) which must not be exposed to the server so device pairing uses the [noise protocol](https://noiseprotocol.org/) to ensure the communication between the devices is private. The protocol includes a pre-shared symmetric key in the **sharing URL** so that the server cannot forge client connections.
+Pairing the devices is performed using an untrusted relay server. Communication between the devices exposes sensitive information (the account signing key) which must not be exposed to the server so device pairing uses the [noise protocol](https://noiseprotocol.org/) to ensure the communication between the devices is private. The protocol includes a pre-shared symmetric key in the **pairing URL** so that the server cannot forge client connections.
 
-The **sharing URL** needs to be transferred between the offering device and the accepting device; this can be done by scanning a QR code or typing in the URL. The **sharing URL** uses the `data:` scheme to differentiate from the HTTP/S schemes.
+The **pairing URL** needs to be transferred between the offering device and the accepting device; this can be done by scanning a QR code or typing in the URL. The **pairing URL** uses the `data:` scheme to differentiate from the HTTP/S schemes.
 
 ### Pairing Protocol
 
-1) Offering device generates a noise protocol session keypair and encodes the relay server URL and noise protocol public key in a **pairing URL** that can be shared with the accepting device.
+1) Offering device generates a noise protocol session keypair and encodes the relay server URL, pre-symmetric shared key and noise protocol public key in a **pairing URL** that must be sent to the accepting device.
 2) Once the **pairing URL** has been received by the accepting device it begins the noise protocol handshake.
 3) After completing the noise protocol handshake the accepting device encrypts and sends a **trusted device** to the offering side. The **trusted device** contains meta data about the device and the public key of the device's signing key.
 4) When the offering device receives the **trusted device** it updates the server(s) to trust the new device and sends the encrypted account signing key in reply.
