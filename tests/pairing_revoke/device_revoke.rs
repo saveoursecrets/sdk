@@ -1,8 +1,8 @@
-use anyhow::Result;
 use crate::test_utils::{
     assert_local_remote_events_eq, run_pairing_protocol, simulate_device,
     spawn, teardown,
 };
+use anyhow::Result;
 use http::StatusCode;
 use sos_net::{
     client::{Error as ClientError, RemoteSync, SyncError},

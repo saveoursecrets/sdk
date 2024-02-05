@@ -274,7 +274,6 @@ pub(crate) async fn sync_account(
     Query(query): Query<ConnectionQuery>,
     body: Body,
 ) -> impl IntoResponse {
-    
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
             bearer,

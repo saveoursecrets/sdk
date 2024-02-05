@@ -25,9 +25,11 @@ async fn pairing_websocket_shutdown() -> Result<()> {
 
     {
         // Create the offer of device pairing
-        let (mut offer, offer_stream) =
-            OfferPairing::new(&mut primary_device.owner, origin.url().clone())
-                .await?;
+        let (mut offer, offer_stream) = OfferPairing::new(
+            &mut primary_device.owner,
+            origin.url().clone(),
+        )
+        .await?;
 
         let (offer_shutdown_tx, offer_shutdown_rx) = mpsc::channel::<()>(1);
 

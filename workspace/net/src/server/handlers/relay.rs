@@ -27,7 +27,7 @@ use tokio::sync::{
 use tracing::{span, Level};
 
 use super::{authenticate_endpoint, ConnectionQuery};
-use crate::{server::Result, relay::RelayHeader};
+use crate::{relay::RelayHeader, server::Result};
 
 /// Query string for the relay service.
 #[derive(Deserialize)]
@@ -94,7 +94,6 @@ async fn handle_socket(
 ) {
     let (writer, reader) = socket.split();
     tokio::spawn(write(
-        Arc::clone(&state),
         public_key.clone(),
         writer,
         relay_rx,
@@ -141,7 +140,6 @@ async fn read(
 }
 
 async fn write(
-    state: RelayState,
     public_key: Vec<u8>,
     mut sender: SplitSink<WebSocket, Message>,
     mut relay_rx: mpsc::Receiver<Vec<u8>>,

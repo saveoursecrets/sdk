@@ -30,12 +30,14 @@ pub async fn run_pairing_protocol(
     std::fs::create_dir(&data_dir)?;
 
     let mock_device_signer = DeviceSigner::new_random();
-    
+
     let enrollment = {
         // Create the offer of device pairing
-        let (mut offer, offer_stream) =
-            OfferPairing::new(&mut primary_device.owner, origin.url().clone())
-                .await?;
+        let (mut offer, offer_stream) = OfferPairing::new(
+            &mut primary_device.owner,
+            origin.url().clone(),
+        )
+        .await?;
 
         // URL shared via QR code or other means.
         let share_url = offer.share_url().clone();

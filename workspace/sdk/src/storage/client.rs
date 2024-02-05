@@ -35,7 +35,6 @@ use crate::audit::AuditEvent;
 use crate::{
     device::{DevicePublicKey, TrustedDevice},
     events::{DeviceEvent, DeviceEventLog, DeviceReducer},
-    sync::DeviceDiff,
 };
 
 #[cfg(feature = "files")]

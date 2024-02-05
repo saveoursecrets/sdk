@@ -22,7 +22,7 @@ pub enum Error {
     #[error("enrollment is not available")]
     NoEnrollment,
 
-    /// Error generated when the protocol is in the wrong state 
+    /// Error generated when the protocol is in the wrong state
     /// or a packet payload is not of the expected type.
     #[error("pairing protocol bad state or invalid packet payload")]
     BadState,

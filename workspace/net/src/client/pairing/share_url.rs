@@ -9,6 +9,8 @@ pub struct ServerPairUrl {
     server: Url,
     /// Public key of the noise protocol.
     public_key: Vec<u8>,
+    /// Symmetric pre-shared key.
+    pre_shared_key: [u8; 32],
 }
 
 impl ServerPairUrl {
@@ -16,8 +18,16 @@ impl ServerPairUrl {
     ///
     /// The public key is the noise protocol public key
     /// of the authenticated offering device.
-    pub fn new(server: Url, public_key: Vec<u8>) -> Self {
-        Self { server, public_key }
+    pub fn new(
+        server: Url,
+        public_key: Vec<u8>,
+        pre_shared_key: [u8; 32],
+    ) -> Self {
+        Self {
+            server,
+            public_key,
+            pre_shared_key,
+        }
     }
 
     /// Server URL.
@@ -29,15 +39,22 @@ impl ServerPairUrl {
     pub fn public_key(&self) -> &[u8] {
         &self.public_key
     }
+
+    /// Synmmetric pre-shared key.
+    pub fn pre_shared_key(&self) -> [u8; 32] {
+        self.pre_shared_key
+    }
 }
 
 impl From<ServerPairUrl> for Url {
     fn from(value: ServerPairUrl) -> Self {
         let mut url = Url::parse("data:text/plain,sos-pair").unwrap();
         let key = hex::encode(&value.public_key);
+        let psk = hex::encode(&value.pre_shared_key);
         url.query_pairs_mut()
             .append_pair("url", &value.server.to_string())
-            .append_pair("key", &key);
+            .append_pair("key", &key)
+            .append_pair("psk", &psk);
         url
     }
 }
@@ -79,9 +96,21 @@ impl FromStr for ServerPairUrl {
         let key = key.ok_or(Error::InvalidShareUrl)?;
         let key = hex::decode(key.as_ref())?;
 
+        let psk = pairs.find_map(|q| {
+            if q.0.as_ref() == "psk" {
+                Some(q.1)
+            } else {
+                None
+            }
+        });
+        let psk = psk.ok_or(Error::InvalidShareUrl)?;
+        let psk = hex::decode(psk.as_ref())?;
+        let psk: [u8; 32] = psk.as_slice().try_into()?;
+
         Ok(Self {
             server,
             public_key: key,
+            pre_shared_key: psk,
         })
     }
 }
@@ -89,19 +118,23 @@ impl FromStr for ServerPairUrl {
 #[cfg(test)]
 mod test {
     use super::ServerPairUrl;
-    use crate::sdk::url::Url;
+    use crate::sdk::{crypto::csprng, url::Url};
     use anyhow::Result;
+    use rand::Rng;
 
     #[test]
     fn server_pair_url() -> Result<()> {
+        let mock_psk: [u8; 32] = csprng().gen();
         let mock_url = Url::parse("http://192.168.1.8:5053/foo?bar=baz+qux")?;
         let mock_key = vec![1, 2, 3, 4];
-        let share = ServerPairUrl::new(mock_url.clone(), mock_key.clone());
+        let share =
+            ServerPairUrl::new(mock_url.clone(), mock_key.clone(), mock_psk);
         let share_url: Url = share.into();
         let share_url = share_url.to_string();
         let parsed_share: ServerPairUrl = share_url.parse()?;
         assert_eq!(mock_url, parsed_share.server);
         assert_eq!(&mock_key, parsed_share.public_key());
+        assert_eq!(mock_psk, parsed_share.pre_shared_key());
         Ok(())
     }
 }

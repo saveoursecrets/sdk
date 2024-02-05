@@ -1,13 +1,13 @@
 //! Protocol for pairing devices.
-use super::{Error, PairingMessage, Result, ServerPairUrl, PATTERN, DeviceEnrollment};
+use super::{
+    DeviceEnrollment, Error, PairingMessage, Result, ServerPairUrl, PATTERN,
+};
 use crate::{
-    client::{
-        sync::RemoteSync, NetworkAccount,
-        WebSocketRequest,
-    },
+    client::{sync::RemoteSync, NetworkAccount, WebSocketRequest},
     relay::{RelayHeader, RelayPacket, RelayPayload},
     sdk::{
         account::Account,
+        crypto::csprng,
         decode,
         device::{DeviceSigner, TrustedDevice},
         encode,
@@ -22,6 +22,7 @@ use futures::{
     stream::{SplitSink, SplitStream},
     FutureExt, SinkExt, StreamExt,
 };
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
@@ -116,10 +117,14 @@ impl<'a> OfferPairing<'a> {
         account: &'a mut NetworkAccount,
         url: Url,
     ) -> Result<(Self, WsStream)> {
+        let pre_shared_key: [u8; 32] = csprng().gen();
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        let share_url =
-            ServerPairUrl::new(url.clone(), keypair.public.clone());
+        let share_url = ServerPairUrl::new(
+            url.clone(),
+            keypair.public.clone(),
+            pre_shared_key,
+        );
         let responder = builder
             .local_private_key(&keypair.private)
             .build_responder()?;
@@ -209,7 +214,7 @@ impl<'a> OfferPairing<'a> {
             }
             _ => {
                 return Err(Error::BadState);
-            },
+            }
         };
 
         match action {
@@ -291,7 +296,9 @@ impl<'a> OfferPairing<'a> {
         {
             let mut buf = [0; 1024];
             let mut reply = [0; 1024];
+            // <- e
             state.read_message(&init_msg[..*len], &mut buf)?;
+            // -> e, ee, s, es
             let len = state.write_message(&[], &mut reply)?;
             Some(RelayPacket {
                 header: RelayHeader {
@@ -417,8 +424,8 @@ impl<'a> AcceptPairing<'a> {
 
     /// Take the final device enrollment.
     ///
-    /// The [DeviceEnrollment::enroll] method has already been 
-    /// called so all that remains is to authenticate the new 
+    /// The [DeviceEnrollment::enroll] method has already been
+    /// called so all that remains is to authenticate the new
     /// device by calling [DeviceEnrollment::finish].
     ///
     /// Errors if the protocol has not reached completion.
@@ -430,6 +437,7 @@ impl<'a> AcceptPairing<'a> {
     async fn pair(&mut self) -> Result<()> {
         if let Some(Tunnel::Handshake(state)) = &mut self.tunnel {
             let mut buf = [0u8; 1024];
+            // -> e
             let len = state.write_message(&[], &mut buf)?;
             let message = RelayPacket {
                 header: RelayHeader {
@@ -470,7 +478,7 @@ impl<'a> AcceptPairing<'a> {
             }
             _ => {
                 return Err(Error::BadState);
-            },
+            }
         };
 
         match action {
@@ -496,7 +504,6 @@ impl<'a> AcceptPairing<'a> {
     /// Enroll this device.
     async fn enroll(&mut self, signing_key: [u8; 32]) -> Result<()> {
         let signer: SingleParty = signing_key.try_into()?;
-        let address = signer.address()?;
         let server = self.share_url.server().clone();
         let origin: Origin = server.into();
         let data_dir = self.data_dir.clone();
