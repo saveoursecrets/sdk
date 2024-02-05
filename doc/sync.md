@@ -101,7 +101,9 @@ deny = [
 
 Adding a new device to an existing account consists of a device that is already authenticated to the account which we call the **offering device** and another device which is not authenticated called the **accepting device**.
 
-Pairing the devices is performed using an untrusted relay server. Communication between the devices exposes sensitive information (the account signing key) which must not be available to the server so device pairing uses the [noise protocol](https://noiseprotocol.org/) to ensure the communication between the devices is private.
+Pairing the devices is performed using an untrusted relay server. Communication between the devices exposes sensitive information (the account signing key) which must not be available to the server so device pairing uses the [noise protocol](https://noiseprotocol.org/) to ensure the communication between the devices is private. The protocol includes a pre-shared symmetric key in the **sharing URL** so that the server cannot forge client connections.
+
+The **sharing URL** needs to be transferred between the offering device and the accepting device; this can be done by scanning a QR code or typing in the URL. The **sharing URL** uses the `data:` scheme to differentiate from the HTTP/S schemes.
 
 ### Pairing Protocol
 

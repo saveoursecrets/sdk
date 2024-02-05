@@ -15,14 +15,14 @@ pub use websocket::{AcceptPairing, OfferPairing};
 #[deprecated]
 pub use enrollment::DeviceShareUrl;
 
-const PATTERN: &str = "Noise_NN_25519_ChaChaPoly_BLAKE2s";
-
 /// Result type for the pairing module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 /// Pairing message.
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) enum PairingMessage {
+    /// Indicates the noise protocol handshake is completed.
+    Ready,
     /// Request sent from the accept side to the
     /// offering side once the noise protocol handshake
     /// has completed.

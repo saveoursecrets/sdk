@@ -93,12 +93,7 @@ async fn handle_socket(
     close_rx: mpsc::Receiver<Message>,
 ) {
     let (writer, reader) = socket.split();
-    tokio::spawn(write(
-        public_key.clone(),
-        writer,
-        relay_rx,
-        close_rx,
-    ));
+    tokio::spawn(write(public_key.clone(), writer, relay_rx, close_rx));
     tokio::spawn(read(Arc::clone(&state), public_key, reader, close_tx));
 }
 
