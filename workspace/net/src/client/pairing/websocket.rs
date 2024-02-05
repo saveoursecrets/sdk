@@ -65,7 +65,11 @@ enum IncomingAction {
 }
 
 /// Listen for incoming messages on the stream.
-async fn listen(mut rx: WsStream, tx: mpsc::Sender<RelayPacket>) {
+async fn listen(
+    mut rx: WsStream,
+    tx: mpsc::Sender<RelayPacket>,
+    close_tx: mpsc::Sender<()>,
+) {
     while let Some(message) = rx.next().await {
         match message {
             Ok(message) => {
@@ -78,6 +82,7 @@ async fn listen(mut rx: WsStream, tx: mpsc::Sender<RelayPacket>) {
                         }
                         Err(e) => {
                             tracing::error!(error = ?e);
+                            let _ = close_tx.send(()).await;
                             break;
                         }
                     }
@@ -85,6 +90,7 @@ async fn listen(mut rx: WsStream, tx: mpsc::Sender<RelayPacket>) {
             }
             Err(e) => {
                 tracing::error!(error = ?e);
+                let _ = close_tx.send(()).await;
                 break;
             }
         }
@@ -157,7 +163,8 @@ impl<'a> OfferPairing<'a> {
         mut shutdown_rx: mpsc::Receiver<()>,
     ) -> Result<()> {
         let (offer_tx, mut offer_rx) = mpsc::channel::<RelayPacket>(32);
-        tokio::task::spawn(listen(stream, offer_tx));
+        let (close_tx, mut close_rx) = mpsc::channel::<()>(1);
+        tokio::task::spawn(listen(stream, offer_tx, close_tx));
         loop {
             select! {
                 event = offer_rx.recv().fuse() => {
@@ -166,6 +173,11 @@ impl<'a> OfferPairing<'a> {
                         if self.is_finished() {
                             break;
                         }
+                    }
+                }
+                event = close_rx.recv().fuse() => {
+                    if event.is_some() {
+                        break;
                     }
                 }
                 event = shutdown_rx.recv().fuse() => {
@@ -437,7 +449,8 @@ impl<'a> AcceptPairing<'a> {
 
         // Run the event loop
         let (offer_tx, mut offer_rx) = mpsc::channel::<RelayPacket>(32);
-        tokio::task::spawn(listen(stream, offer_tx));
+        let (close_tx, mut close_rx) = mpsc::channel::<()>(1);
+        tokio::task::spawn(listen(stream, offer_tx, close_tx));
 
         loop {
             select! {
@@ -447,6 +460,11 @@ impl<'a> AcceptPairing<'a> {
                         if self.is_finished() {
                             break;
                         }
+                    }
+                }
+                event = close_rx.recv().fuse() => {
+                    if event.is_some() {
+                        break;
                     }
                 }
                 event = shutdown_rx.recv().fuse() => {
