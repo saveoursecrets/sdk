@@ -120,6 +120,12 @@ Once the pairing protocol is finished the accepting device can perform device en
 1) Fetch account event logs and write the account to disc.
 2) Finish device enrollment by authenticating to the account using the primary password.
 
+## Device Revocation
+
+If a device is lost or stolen the device can be revoked which will remove the device from the list of trusted devices preventing it from syncing with servers.
+
+Whilst server endpoints will return a **forbidden** response for untrusted device signatures; if the lost or stolen device was unlocked and the account was authenticated the owner must consider all of their secrets compromised.
+
 ## Event Logs
 
 Several events logs are stored on both the client and server so that complete deterministic, incremental synchronization is possible for an account.
