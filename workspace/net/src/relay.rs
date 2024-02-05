@@ -4,7 +4,7 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use std::io::{Error, ErrorKind, Result, SeekFrom};
+use std::io::{Error, ErrorKind, Result};
 
 /// Message sent between devices being paired.
 #[derive(Default)]

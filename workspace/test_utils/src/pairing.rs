@@ -14,7 +14,7 @@ use tokio::sync::mpsc;
 /// Run the pairing protocol to completion.
 pub async fn run_pairing_protocol(
     primary_device: &mut SimulatedDevice,
-    test_id: &str,
+    _test_id: &str,
 ) -> Result<NetworkAccount> {
     let origin = primary_device.origin.clone();
     let password = primary_device.password.clone();

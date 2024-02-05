@@ -389,7 +389,7 @@ mod handlers {
         caller: Caller,
         bytes: &[u8],
     ) -> Result<()> {
-        use crate::sdk::{events::DeviceEvent, sync::DeviceDiff};
+        use crate::sdk::sync::DeviceDiff;
         let diff: DeviceDiff = decode(bytes).await?;
         let reader = backend.read().await;
         reader.patch_devices(caller.address(), &diff).await?;

@@ -9,8 +9,8 @@ use crate::{
         decode,
         device::{DeviceSigner, TrustedDevice},
         encode,
-        events::{DeviceEvent, DeviceEventLog, EventLogExt},
-        signer::{ecdsa::SingleParty, Signer},
+        events::DeviceEvent,
+        signer::ecdsa::SingleParty,
         sync::Origin,
         url::Url,
     },
@@ -22,12 +22,11 @@ use futures::{
 };
 use rand::Rng;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
-        self,
         protocol::{frame::coding::CloseCode, CloseFrame, Message},
     },
     MaybeTlsStream, WebSocketStream,
@@ -294,7 +293,7 @@ impl<'a> OfferPairing<'a> {
 
         // Send the patch to remote servers
         if let Some(sync_error) = self.account.patch_devices().await {
-            return Err(Error::DevicePatchSync);
+            return Err(Error::DevicePatchSync(sync_error));
         }
         Ok(())
     }
@@ -340,7 +339,6 @@ impl<'a> OfferPairing<'a> {
         ) = (&mut self.tunnel, &packet.payload)
         {
             let mut buf = [0; 1024];
-            let mut reply = [0; 1024];
             // <- s, se
             tracing::debug!("<- s, se");
             state.read_message(&init_msg[..*len], &mut buf)?;

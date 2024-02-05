@@ -10,11 +10,9 @@ use crate::{
             AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
             FolderReducer, WriteEvent,
         },
-        hex,
         identity::PublicIdentity,
-        signer::ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
+        signer::ecdsa::Address,
         sync::{AccountPatch, FolderPatch, Origin, SyncClient},
-        url::Url,
         vault::VaultId,
         vfs, Paths,
     },
@@ -22,12 +20,10 @@ use crate::{
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
-    str::FromStr,
 };
 
 #[cfg(feature = "device")]
 use crate::sdk::{
-    device::TrustedDevice,
     events::{DeviceEvent, DeviceEventLog},
     sync::DevicePatch,
 };
@@ -186,29 +182,10 @@ impl DeviceEnrollment {
     #[cfg(feature = "device")]
     async fn create_device(&self, patch: DevicePatch) -> Result<()> {
         let file = self.paths.device_events();
-
         let mut event_log = DeviceEventLog::new_device(file).await?;
-        //event_log.clear().await?;
+        event_log.clear().await?;
 
-        let mut events: Vec<DeviceEvent> = patch.into();
-
-        /*
-        // Include this device in the list of trusted devices
-        // stored locally.
-        //
-        // This update must be propagated to the server on the
-        // next successful sync which should happen once the
-        // user logs in to the account to complete the device
-        // enrollment.
-        let device = TrustedDevice::new(
-            self.device_signing_key.public_key(),
-            None,
-            None,
-        );
-        let event = DeviceEvent::Trust(device);
-        events.push(event);
-        */
-
+        let events: Vec<DeviceEvent> = patch.into();
         event_log.apply(events.iter().collect()).await?;
 
         Ok(())

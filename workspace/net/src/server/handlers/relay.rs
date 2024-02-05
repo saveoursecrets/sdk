@@ -2,31 +2,23 @@
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Extension, OriginalUri, Query,
+        Extension, Query,
     },
     http::StatusCode,
     response::Response,
-};
-use axum_extra::{
-    headers::{authorization::Bearer, Authorization},
-    typed_header::TypedHeader,
 };
 use futures::{
     select,
     stream::{SplitSink, SplitStream},
     FutureExt, SinkExt, StreamExt,
 };
-
 use serde::Deserialize;
-use sos_sdk::{decode, signer::ecdsa::Address};
+use sos_sdk::decode;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{
-    broadcast::{self, Receiver, Sender},
     mpsc, RwLock,
 };
 use tracing::{span, Level};
-
-use super::{authenticate_endpoint, ConnectionQuery};
 use crate::{relay::RelayHeader, server::Result};
 
 /// Query string for the relay service.
@@ -67,7 +59,6 @@ pub async fn upgrade(
             socket,
             state,
             query.public_key,
-            relay_tx,
             relay_rx,
             close_tx,
             close_rx,
@@ -87,13 +78,12 @@ async fn handle_socket(
     socket: WebSocket,
     state: RelayState,
     public_key: Vec<u8>,
-    relay_tx: mpsc::Sender<Vec<u8>>,
     relay_rx: mpsc::Receiver<Vec<u8>>,
     close_tx: mpsc::Sender<Message>,
     close_rx: mpsc::Receiver<Message>,
 ) {
     let (writer, reader) = socket.split();
-    tokio::spawn(write(public_key.clone(), writer, relay_rx, close_rx));
+    tokio::spawn(write(writer, relay_rx, close_rx));
     tokio::spawn(read(Arc::clone(&state), public_key, reader, close_tx));
 }
 
@@ -135,7 +125,6 @@ async fn read(
 }
 
 async fn write(
-    public_key: Vec<u8>,
     mut sender: SplitSink<WebSocket, Message>,
     mut relay_rx: mpsc::Receiver<Vec<u8>>,
     mut close_rx: mpsc::Receiver<Message>,
