@@ -1,4 +1,5 @@
 //! Relay forwards packets between peers over a websocket connection.
+use crate::{relay::RelayHeader, server::Result};
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -15,11 +16,8 @@ use futures::{
 use serde::Deserialize;
 use sos_sdk::decode;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{
-    mpsc, RwLock,
-};
+use tokio::sync::{mpsc, RwLock};
 use tracing::{span, Level};
-use crate::{relay::RelayHeader, server::Result};
 
 /// Query string for the relay service.
 #[derive(Deserialize)]

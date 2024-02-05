@@ -26,9 +26,7 @@ use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{
-        protocol::{frame::coding::CloseCode, CloseFrame, Message},
-    },
+    tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message},
     MaybeTlsStream, WebSocketStream,
 };
 use tracing::{span, Level};
@@ -129,11 +127,8 @@ impl<'a> OfferPairing<'a> {
             .query_pairs_mut()
             .append_pair("public_key", &hex::encode(&keypair.public));
 
-        let share_url = ServerPairUrl::new(
-            url,
-            keypair.public.clone(),
-            pre_shared_key,
-        );
+        let share_url =
+            ServerPairUrl::new(url, keypair.public.clone(), pre_shared_key);
 
         let (socket, _) = connect_async(request).await?;
         let (tx, rx) = socket.split();
@@ -187,7 +182,7 @@ impl<'a> OfferPairing<'a> {
 
         Ok(())
     }
-    
+
     /// Determine if the protocol has completed.
     pub fn is_finished(&self) -> bool {
         matches!(&self.state, PairProtocolState::Done)

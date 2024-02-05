@@ -104,7 +104,7 @@ pub struct NetworkAccount {
 impl NetworkAccount {
     /// Enroll a new device.
     #[cfg(all(feature = "device", feature = "pairing"))]
-    pub async fn enroll_device(
+    pub(crate) async fn enroll_device(
         origin: Origin,
         account_signing_key: BoxedEcdsaSigner,
         device_signer: DeviceSigner,
