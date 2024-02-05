@@ -111,6 +111,13 @@ Pairing the devices is performed using an untrusted relay server. Communication 
 4) When the offering device receives the **trusted device** it updates the server(s) to trust the new device and sends the encrypted account signing key in reply.
 5) The pairing protocol is complete when the accepting device receives the account signing key.
 
+### Device Enrollment
+
+Once the pairing protocol is finished the accepting device can perform device enrollment as it has both the account signing key and a device signing key whose public key has been added as a trusted device to the server(s).
+
+1) Fetch account event logs and write the account to disc.
+2) Finish device enrollment by authenticating to the account using the primary password.
+
 ## Event Logs
 
 Several events logs are stored on both the client and server so that complete deterministic, incremental synchronization is possible for an account.
