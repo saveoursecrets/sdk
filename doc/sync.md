@@ -107,7 +107,7 @@ The **pairing URL** needs to be transferred between the offering device and the 
 
 ### Pairing Protocol
 
-1) Offering device generates a noise protocol session keypair and encodes the relay server URL, pre-symmetric shared key and noise protocol public key in a **pairing URL** that must be sent to the accepting device.
+1) Offering device generates a noise protocol session keypair and encodes the relay server URL, symmetric pre-shared key and noise protocol public key in a **pairing URL** that must be sent to the accepting device.
 2) Once the **pairing URL** has been received by the accepting device it begins the noise protocol handshake.
 3) After completing the noise protocol handshake the accepting device encrypts and sends a **trusted device** to the offering side. The **trusted device** contains meta data about the device and the public key of the device's signing key.
 4) When the offering device receives the **trusted device** it updates the server(s) to trust the new device and sends the encrypted account signing key in reply.
