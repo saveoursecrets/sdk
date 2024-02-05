@@ -543,53 +543,6 @@ impl<'a> AcceptPairing<'a> {
         }
     }
 
-    /*
-    /// Complete the noise protocol handshake.
-    async fn into_transport(
-        &mut self,
-        packet: &RelayPacket,
-    ) -> Result<RelayPacket> {
-        let done = if let (
-            Some(Tunnel::Handshake(state)),
-            RelayPayload::Handshake(len, reply_msg),
-        ) = (&mut self.tunnel, &packet.payload)
-        {
-            let mut buf = [0; 1024];
-            state.read_message(&reply_msg[..*len], &mut buf)?;
-            true
-        } else {
-            false
-        };
-
-        if done {
-            let tunnel = self.tunnel.take().unwrap();
-            if let Tunnel::Handshake(state) = tunnel {
-                self.tunnel =
-                    Some(Tunnel::Transport(state.into_transport_mode()?));
-            }
-
-            if let Some(Tunnel::Transport(transport)) = self.tunnel.as_mut() {
-                let private_message =
-                    PairingMessage::Request(self.device.clone());
-                let (len, buf) = encrypt(transport, &private_message)?;
-                let reply = RelayPacket {
-                    header: RelayHeader {
-                        to_public_key: packet.header.from_public_key.to_vec(),
-                        from_public_key: self.keypair.public.to_vec(),
-                    },
-                    payload: RelayPayload::Transport(len, buf),
-                };
-
-                Ok(reply)
-            } else {
-                unreachable!();
-            }
-        } else {
-            return Err(Error::BadState);
-        }
-    }
-    */
-
     /// Process incoming packet.
     async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
         if packet.header.to_public_key != self.keypair.public {
