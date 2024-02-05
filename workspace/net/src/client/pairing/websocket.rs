@@ -417,6 +417,10 @@ impl<'a> AcceptPairing<'a> {
 
     /// Take the final device enrollment.
     ///
+    /// The [DeviceEnrollment::enroll] method has already been 
+    /// called so all that remains is to authenticate the new 
+    /// device by calling [DeviceEnrollment::finish].
+    ///
     /// Errors if the protocol has not reached completion.
     pub fn take_enrollment(self) -> Result<DeviceEnrollment> {
         self.enrollment.ok_or(Error::NoEnrollment)
