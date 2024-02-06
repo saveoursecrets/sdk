@@ -36,6 +36,30 @@ pub enum RelayPayload {
     Transport(usize, Vec<u8>),
 }
 
+/// Length-prefixed message body.
+#[derive(Default)]
+pub struct RelayBody {
+    /// Length of the body buffer.
+    length: u16,
+    /// Buffer of the message content.
+    buffer: Vec<u8>,
+}
+
+impl From<Vec<u8>> for RelayBody {
+    fn from(buffer: Vec<u8>) -> Self {
+        Self {
+            length: buffer.len() as u16,
+            buffer,
+        }
+    }
+}
+
+impl AsRef<[u8]> for RelayBody {
+    fn as_ref(&self) -> &[u8] {
+        &self.buffer
+    }
+}
+
 #[async_trait]
 impl Encodable for RelayPacket {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
@@ -114,6 +138,30 @@ impl Decodable for RelayHeader {
         self.to_public_key = reader.read_bytes(len as usize).await?;
         let len = reader.read_u16().await?;
         self.from_public_key = reader.read_bytes(len as usize).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Encodable for RelayBody {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        writer.write_u16(self.buffer.len() as u16).await?;
+        writer.write_bytes(&self.buffer).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for RelayBody {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        self.length = reader.read_u16().await?;
+        self.buffer = reader.read_bytes(self.length as usize).await?;
         Ok(())
     }
 }
