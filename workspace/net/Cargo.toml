@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -99,7 +99,7 @@ utoipa-rapidoc = { version = "3", features = ["axum"], optional = true }
 snow = { version = "0.9", optional = true }
 
 [dependencies.sos-sdk]
-version = "0.9.0"
+version = "0.10.0"
 features = ["sync"]
 path = "../sdk"
 
