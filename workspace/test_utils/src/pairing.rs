@@ -31,7 +31,7 @@ pub async fn run_pairing_protocol(
 
     let mock_device_signer = DeviceSigner::new_random();
 
-    let enrollment = {
+    let mut enrollment = {
         // Create the offer of device pairing
         let (mut offer, offer_stream) = OfferPairing::new(
             &mut primary_device.owner,
@@ -77,6 +77,8 @@ pub async fn run_pairing_protocol(
 
         accept.take_enrollment()?
     };
+
+    enrollment.fetch_account().await?;
 
     Ok(enrollment.finish(&key).await?)
 }

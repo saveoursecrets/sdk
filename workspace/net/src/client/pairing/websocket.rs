@@ -110,7 +110,7 @@ pub struct OfferPairing<'a> {
     share_url: ServerPairUrl,
     /// Noise protocol state.
     tunnel: Option<Tunnel>,
-    /// Websocket sink.
+    /// Sink side of the websocket.
     tx: WsSink,
     /// Current state of the protocol.
     state: PairProtocolState,
@@ -388,7 +388,7 @@ pub struct AcceptPairing<'a> {
     share_url: ServerPairUrl,
     /// Noise protocol state.
     tunnel: Option<Tunnel>,
-    /// Sink side of the socket.
+    /// Sink side of the websocket.
     tx: WsSink,
     /// Current state of the protocol.
     state: PairProtocolState,
@@ -642,15 +642,16 @@ impl<'a> AcceptPairing<'a> {
         Ok(())
     }
 
-    /// Enroll this device.
+    /// Enroll this device by fetching the account 
+    /// data from the server.
     async fn enroll(&mut self, signing_key: [u8; 32]) -> Result<()> {
         let signer: SingleParty = signing_key.try_into()?;
         let server = self.share_url.server().clone();
         let origin: Origin = server.into();
         let data_dir = self.data_dir.clone();
-        let enrollment = NetworkAccount::enroll_device(
-            origin,
+        let enrollment = DeviceEnrollment::new(
             Box::new(signer),
+            origin,
             self.device_signer.clone(),
             data_dir,
         )
