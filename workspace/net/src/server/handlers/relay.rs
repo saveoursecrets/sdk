@@ -1,5 +1,5 @@
 //! Relay forwards packets between peers over a websocket connection.
-use crate::{relay::RelayHeader, server::Result};
+use crate::relay::RelayHeader;
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -9,14 +9,13 @@ use axum::{
     response::Response,
 };
 use futures::{
-    select,
-    stream::{SplitSink, SplitStream},
-    FutureExt, SinkExt, StreamExt,
+    stream::SplitSink,
+    SinkExt, StreamExt,
 };
 use serde::Deserialize;
 use sos_sdk::decode;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 use tracing::{span, Level};
 
 /// Query string for the relay service.
@@ -41,7 +40,7 @@ pub async fn upgrade(
 ) -> std::result::Result<Response, StatusCode> {
     let span = span!(Level::DEBUG, "ws_relay");
     let _enter = span.enter();
-    tracing::debug!("upgrade request");
+    tracing::debug!("websocket upgrade");
     Ok(ws.on_upgrade(move |socket| {
         handle_socket(socket, state, query.public_key)
     }))
@@ -79,11 +78,11 @@ async fn handle_socket(
                 }
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
-                Message::Close(frame) => {
+                Message::Close(_) => {
                     disconnect(Arc::clone(&state), &public_key).await;
                 }
             },
-            Err(e) => {
+            Err(_) => {
                 disconnect(Arc::clone(&state), &public_key).await;
             }
         }
