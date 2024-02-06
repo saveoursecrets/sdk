@@ -2,6 +2,13 @@ use super::{Error, Result};
 use sos_sdk::{hex, url::Url};
 use std::str::FromStr;
 
+/// Server URL.
+const URL: &str = "url";
+/// Noise public key.
+const KEY: &str = "key";
+/// Symmetric pre-shared key.
+const PSK: &str = "psk";
+
 /// URL shared to offer device pairing via an untrusted relay server.
 #[derive(Debug, Clone)]
 pub struct ServerPairUrl {
@@ -52,9 +59,9 @@ impl From<ServerPairUrl> for Url {
         let key = hex::encode(&value.public_key);
         let psk = hex::encode(&value.pre_shared_key);
         url.query_pairs_mut()
-            .append_pair("url", &value.server.to_string())
-            .append_pair("key", &key)
-            .append_pair("psk", &psk);
+            .append_pair(URL, &value.server.to_string())
+            .append_pair(KEY, &key)
+            .append_pair(PSK, &psk);
         url
     }
 }
@@ -76,7 +83,7 @@ impl FromStr for ServerPairUrl {
         let mut pairs = url.query_pairs();
 
         let server = pairs.find_map(|q| {
-            if q.0.as_ref() == "url" {
+            if q.0.as_ref() == URL {
                 Some(q.1)
             } else {
                 None
@@ -87,7 +94,7 @@ impl FromStr for ServerPairUrl {
         let server: Url = server.as_ref().parse()?;
 
         let key = pairs.find_map(|q| {
-            if q.0.as_ref() == "key" {
+            if q.0.as_ref() == KEY {
                 Some(q.1)
             } else {
                 None
@@ -97,7 +104,7 @@ impl FromStr for ServerPairUrl {
         let key = hex::decode(key.as_ref())?;
 
         let psk = pairs.find_map(|q| {
-            if q.0.as_ref() == "psk" {
+            if q.0.as_ref() == PSK {
                 Some(q.1)
             } else {
                 None
