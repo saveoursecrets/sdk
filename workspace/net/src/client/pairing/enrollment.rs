@@ -1,6 +1,6 @@
 //! Enroll a device to an account on a remote server.
 use crate::{
-    client::{sync::RemoteSync, Error, NetworkAccount, Result, HttpClient},
+    client::{sync::RemoteSync, NetworkAccount, HttpClient, pairing::{Error, Result}},
     sdk::{
         account::Account,
         crypto::AccessKey,
@@ -28,7 +28,11 @@ use crate::sdk::{
     sync::DevicePatch,
 };
 
-/// Enroll a device to a remote server account.
+/// Enroll a device.
+///
+/// Once pairing is completed call [DeviceEnrollment::fetch_account] 
+/// to retrieve the account data and then [DeviceEnrollment::finish] 
+/// to authenticate the account.
 pub struct DeviceEnrollment {
     /// Account address.
     address: Address,
@@ -104,24 +108,19 @@ impl DeviceEnrollment {
         Paths::scaffold(self.data_dir.clone()).await?;
         self.paths.ensure().await?;
 
-        match self.client.fetch_account().await {
-            Ok(change_set) => {
-                self.create_folders(change_set.folders).await?;
-                self.create_account(change_set.account).await?;
-                #[cfg(feature = "device")]
-                self.create_device(change_set.device).await?;
-                self.create_identity(change_set.identity).await?;
-                Ok(())
-            }
-            Err(e) => {
-                tracing::error!(error = ?e);
-                Err(Error::EnrollFetch(self.origin.url().to_string()))
-            }
-        }
+        let change_set = self.client.fetch_account().await?;
+        self.create_folders(change_set.folders).await?;
+        self.create_account(change_set.account).await?;
+        #[cfg(feature = "device")]
+        self.create_device(change_set.device).await?;
+        self.create_identity(change_set.identity).await?;
+        Ok(())
     }
 
     /// Finish device enrollment by authenticating the new account.
     pub async fn finish(&self, key: &AccessKey) -> Result<NetworkAccount> {
+        self.public_identity.as_ref().ok_or_else(|| Error::AccountNotFetched)?;
+
         let mut account = NetworkAccount::new_unauthenticated(
             self.address.clone(),
             self.data_dir.clone(),
@@ -142,9 +141,8 @@ impl DeviceEnrollment {
 
         // Sync to save the amended identity folder on the remote
         if let Some(e) = account.sync().await {
-            println!("{:#?}", e);
             tracing::error!(error = ?e);
-            return Err(Error::EnrollSync(self.origin.url().to_string()));
+            return Err(Error::EnrollSync(e));
         }
 
         Ok(account)
@@ -165,7 +163,6 @@ impl DeviceEnrollment {
 
         let data = serde_json::to_vec_pretty(&origins)?;
         vfs::write(remotes_file, data).await?;
-
         Ok(())
     }
 

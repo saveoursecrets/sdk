@@ -522,7 +522,8 @@ impl<'a> AcceptPairing<'a> {
         }
         Ok(())
     }
-
+    
+    /// Handle the psk handshake and transition into transport mode.
     async fn psk_handshake(
         &mut self,
         packet: &RelayPacket,
@@ -631,7 +632,7 @@ impl<'a> AcceptPairing<'a> {
                         unreachable!();
                     }
                 } else if let PairingMessage::Confirm(signing_key) = message {
-                    self.enroll(signing_key).await?;
+                    self.create_enrollment(signing_key).await?;
                     self.state = PairProtocolState::Done;
                 } else {
                     return Err(Error::BadState);
@@ -642,9 +643,13 @@ impl<'a> AcceptPairing<'a> {
         Ok(())
     }
 
-    /// Enroll this device by fetching the account 
-    /// data from the server.
-    async fn enroll(&mut self, signing_key: [u8; 32]) -> Result<()> {
+    /// Create the device enrollment once pairing is complete.
+    ///
+    /// Callers can now access the device enrollment using 
+    /// [AcceptPairing::take_enrollment] and then call
+    /// [DeviceEnrollment::fetch_account] to retrieve the 
+    /// account data.
+    async fn create_enrollment(&mut self, signing_key: [u8; 32]) -> Result<()> {
         let signer: SingleParty = signing_key.try_into()?;
         let server = self.share_url.server().clone();
         let origin: Origin = server.into();
