@@ -23,7 +23,7 @@ pub enum Error {
     #[error("enrollment is not available")]
     NoEnrollment,
 
-    /// Error generated trying to finish device enrollment 
+    /// Error generated trying to finish device enrollment
     /// before fetching the account data.
     #[error("account must be fetched before authenticating a new device")]
     AccountNotFetched,

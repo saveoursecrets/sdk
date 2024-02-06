@@ -28,7 +28,7 @@ pub struct RelayQuery {
 }
 
 /// Connected clients.
-pub type RelayConnections = HashMap<Vec<u8>, mpsc::Sender<Vec<u8>>>;
+pub type RelayConnections = HashMap<Vec<u8>, SplitSink<WebSocket, Message>>;
 
 /// State for the relay service.
 pub type RelayState = Arc<RwLock<RelayConnections>>;
@@ -41,65 +41,37 @@ pub async fn upgrade(
 ) -> std::result::Result<Response, StatusCode> {
     let span = span!(Level::DEBUG, "ws_relay");
     let _enter = span.enter();
-
     tracing::debug!("upgrade request");
-
-    let (close_tx, close_rx) = mpsc::channel::<Message>(8);
-    let (relay_tx, relay_rx) = mpsc::channel::<Vec<u8>>(64);
-
-    {
-        let mut writer = state.write().await;
-        writer.insert(query.public_key.clone(), relay_tx.clone());
-    }
-
     Ok(ws.on_upgrade(move |socket| {
-        handle_socket(
-            socket,
-            state,
-            query.public_key,
-            relay_rx,
-            close_tx,
-            close_rx,
-        )
+        handle_socket(socket, state, query.public_key)
     }))
-}
-
-async fn disconnect(state: RelayState, public_key: &[u8]) {
-    let span = span!(Level::DEBUG, "ws_relay");
-    let _enter = span.enter();
-    tracing::debug!("websocket disconnect");
-    let mut writer = state.write().await;
-    writer.remove(public_key);
 }
 
 async fn handle_socket(
     socket: WebSocket,
     state: RelayState,
     public_key: Vec<u8>,
-    relay_rx: mpsc::Receiver<Vec<u8>>,
-    close_tx: mpsc::Sender<Message>,
-    close_rx: mpsc::Receiver<Message>,
 ) {
-    let (writer, reader) = socket.split();
-    tokio::spawn(write(writer, relay_rx, close_rx));
-    tokio::spawn(read(Arc::clone(&state), public_key, reader, close_tx));
-}
+    let (writer, mut reader) = socket.split();
 
-async fn read(
-    state: RelayState,
-    public_key: Vec<u8>,
-    mut receiver: SplitStream<WebSocket>,
-    close_tx: mpsc::Sender<Message>,
-) -> Result<()> {
-    while let Some(msg) = receiver.next().await {
+    {
+        let mut state = state.write().await;
+        state.insert(public_key.clone(), writer);
+    }
+
+    while let Some(msg) = reader.next().await {
         match msg {
             Ok(msg) => match msg {
                 Message::Text(_) => {}
                 Message::Binary(buffer) => {
                     if let Ok(header) = decode::<RelayHeader>(&buffer).await {
-                        let reader = state.read().await;
-                        if let Some(tx) = reader.get(&header.to_public_key) {
-                            if let Err(e) = tx.send(buffer).await {
+                        let mut writer = state.write().await;
+                        if let Some(tx) =
+                            writer.get_mut(&header.to_public_key)
+                        {
+                            if let Err(e) =
+                                tx.send(Message::Binary(buffer)).await
+                            {
                                 tracing::warn!(error = ?e);
                             }
                         }
@@ -108,43 +80,20 @@ async fn read(
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
                 Message::Close(frame) => {
-                    let _ = close_tx.send(Message::Close(frame)).await;
-                    disconnect(state, &public_key).await;
-                    return Ok(());
+                    disconnect(Arc::clone(&state), &public_key).await;
                 }
             },
             Err(e) => {
-                disconnect(state, &public_key).await;
-                return Err(e.into());
+                disconnect(Arc::clone(&state), &public_key).await;
             }
         }
     }
-    Ok(())
 }
 
-async fn write(
-    mut sender: SplitSink<WebSocket, Message>,
-    mut relay_rx: mpsc::Receiver<Vec<u8>>,
-    mut close_rx: mpsc::Receiver<Message>,
-) -> Result<()> {
-    loop {
-        select! {
-            event = close_rx.recv().fuse() => {
-                match event {
-                    Some(msg) => {
-                        let _ = sender.send(msg).await;
-                        return Ok(())
-                    }
-                    _ => {}
-                }
-            }
-            event = relay_rx.recv().fuse() => {
-                if let Some(buf) = event {
-                    if let Err(e) = sender.send(Message::Binary(buf)).await {
-                        tracing::warn!(error = ?e);
-                    }
-                }
-            },
-        }
-    }
+async fn disconnect(state: RelayState, public_key: &[u8]) {
+    let span = span!(Level::DEBUG, "ws_relay");
+    let _enter = span.enter();
+    tracing::debug!("websocket disconnect");
+    let mut writer = state.write().await;
+    writer.remove(public_key);
 }

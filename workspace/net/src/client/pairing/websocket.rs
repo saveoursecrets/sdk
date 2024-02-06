@@ -2,7 +2,7 @@
 use super::{DeviceEnrollment, Error, PairingMessage, Result, ServerPairUrl};
 use crate::{
     client::{sync::RemoteSync, NetworkAccount, WebSocketRequest},
-    relay::{RelayHeader, RelayPacket, RelayPayload, RelayBody},
+    relay::{RelayBody, RelayHeader, RelayPacket, RelayPayload},
     sdk::{
         account::Account,
         crypto::csprng,
@@ -21,6 +21,7 @@ use futures::{
     FutureExt, SinkExt, StreamExt,
 };
 use rand::Rng;
+use serde::{de::DeserializeOwned, Serialize};
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};
@@ -30,7 +31,6 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 use tracing::{span, Level};
-use serde::{Serialize, de::DeserializeOwned};
 
 const PATTERN: &str = "Noise_XXpsk3_25519_ChaChaPoly_BLAKE2s";
 const RELAY_PATH: &str = "api/v1/relay";
@@ -228,7 +228,8 @@ impl<'a> OfferPairing<'a> {
                     self.tunnel.as_mut()
                 {
                     IncomingAction::HandleMessage(
-                        decrypt(transport, *len, buf.as_slice()).await?)
+                        decrypt(transport, *len, buf.as_slice()).await?,
+                    )
                 } else {
                     unreachable!();
                 }
@@ -258,14 +259,13 @@ impl<'a> OfferPairing<'a> {
                     let private_message =
                         PairingMessage::Confirm(account_signing_key);
 
-                    let payload =
-                        if let Some(Tunnel::Transport(transport)) =
-                            self.tunnel.as_mut()
-                        {
-                            encrypt(transport, &private_message).await?
-                        } else {
-                            unreachable!();
-                        };
+                    let payload = if let Some(Tunnel::Transport(transport)) =
+                        self.tunnel.as_mut()
+                    {
+                        encrypt(transport, &private_message).await?
+                    } else {
+                        unreachable!();
+                    };
 
                     let reply = RelayPacket {
                         header: RelayHeader {
@@ -522,7 +522,7 @@ impl<'a> AcceptPairing<'a> {
         }
         Ok(())
     }
-    
+
     /// Handle the psk handshake and transition into transport mode.
     async fn psk_handshake(
         &mut self,
@@ -586,7 +586,8 @@ impl<'a> AcceptPairing<'a> {
                     self.tunnel.as_mut()
                 {
                     IncomingAction::HandleMessage(
-                        decrypt(transport, *len, buf.as_slice()).await?)
+                        decrypt(transport, *len, buf.as_slice()).await?,
+                    )
                 } else {
                     unreachable!();
                 }
@@ -645,11 +646,14 @@ impl<'a> AcceptPairing<'a> {
 
     /// Create the device enrollment once pairing is complete.
     ///
-    /// Callers can now access the device enrollment using 
+    /// Callers can now access the device enrollment using
     /// [AcceptPairing::take_enrollment] and then call
-    /// [DeviceEnrollment::fetch_account] to retrieve the 
+    /// [DeviceEnrollment::fetch_account] to retrieve the
     /// account data.
-    async fn create_enrollment(&mut self, signing_key: [u8; 32]) -> Result<()> {
+    async fn create_enrollment(
+        &mut self,
+        signing_key: [u8; 32],
+    ) -> Result<()> {
         let signer: SingleParty = signing_key.try_into()?;
         let server = self.share_url.server().clone();
         let origin: Origin = server.into();

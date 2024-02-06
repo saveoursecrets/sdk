@@ -40,7 +40,7 @@ async fn network_sync_listen_multiple() -> Result<()> {
         .create_secret(meta, secret, Default::default())
         .await?;
     assert!(result.sync_error.is_none());
-    
+
     /*
     // First client is now ahead
     assert_eq!(2, num_events(&mut device1.owner, &default_folder_id).await);
