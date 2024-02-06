@@ -15,7 +15,7 @@ use futures::{
 use serde::Deserialize;
 use sos_sdk::decode;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
 use tracing::{span, Level};
 
 /// Query string for the relay service.
@@ -30,7 +30,7 @@ pub struct RelayQuery {
 pub type RelayConnections = HashMap<Vec<u8>, SplitSink<WebSocket, Message>>;
 
 /// State for the relay service.
-pub type RelayState = Arc<RwLock<RelayConnections>>;
+pub type RelayState = Arc<Mutex<RelayConnections>>;
 
 /// Upgrade to a websocket connection.
 pub async fn upgrade(
@@ -54,7 +54,7 @@ async fn handle_socket(
     let (writer, mut reader) = socket.split();
 
     {
-        let mut state = state.write().await;
+        let mut state = state.lock().await;
         state.insert(public_key.clone(), writer);
     }
 
@@ -64,7 +64,7 @@ async fn handle_socket(
                 Message::Text(_) => {}
                 Message::Binary(buffer) => {
                     if let Ok(header) = decode::<RelayHeader>(&buffer).await {
-                        let mut writer = state.write().await;
+                        let mut writer = state.lock().await;
                         if let Some(tx) =
                             writer.get_mut(&header.to_public_key)
                         {
@@ -93,6 +93,6 @@ async fn disconnect(state: RelayState, public_key: &[u8]) {
     let span = span!(Level::DEBUG, "ws_relay");
     let _enter = span.enter();
     tracing::debug!("websocket disconnect");
-    let mut writer = state.write().await;
+    let mut writer = state.lock().await;
     writer.remove(public_key);
 }

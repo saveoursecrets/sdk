@@ -26,7 +26,7 @@ use std::{
     net::SocketAddr,
     sync::Arc,
 };
-use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio::sync::{Mutex, RwLock, RwLockReadGuard};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
 #[cfg(feature = "listen")]
@@ -231,7 +231,7 @@ impl Server {
         };
 
         #[cfg(feature = "pairing")]
-        let relay: RelayState = Arc::new(RwLock::new(HashMap::new()));
+        let relay: RelayState = Arc::new(Mutex::new(HashMap::new()));
 
         let file_operations: ServerTransfer =
             Arc::new(RwLock::new(HashSet::new()));
