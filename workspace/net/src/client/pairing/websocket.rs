@@ -2,7 +2,7 @@
 use super::{DeviceEnrollment, Error, PairingMessage, Result, ServerPairUrl};
 use crate::{
     client::{sync::RemoteSync, NetworkAccount, WebSocketRequest},
-    relay::{RelayHeader, RelayPacket, RelayPayload},
+    relay::{RelayHeader, RelayPacket, RelayPayload, RelayBody},
     sdk::{
         account::Account,
         crypto::csprng,
@@ -30,9 +30,11 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 use tracing::{span, Level};
+use serde::{Serialize, de::DeserializeOwned};
 
 const PATTERN: &str = "Noise_XXpsk3_25519_ChaChaPoly_BLAKE2s";
 const RELAY_PATH: &str = "api/v1/relay";
+// 16-byte authentication tag appended to the ciphertext
 const TAGLEN: usize = 16;
 
 /// State of the encrypted tunnel.
@@ -108,7 +110,7 @@ pub struct OfferPairing<'a> {
     share_url: ServerPairUrl,
     /// Noise protocol state.
     tunnel: Option<Tunnel>,
-    /// Websocket sink.
+    /// Sink side of the websocket.
     tx: WsSink,
     /// Current state of the protocol.
     state: PairProtocolState,
@@ -225,8 +227,8 @@ impl<'a> OfferPairing<'a> {
                 if let Some(Tunnel::Transport(transport)) =
                     self.tunnel.as_mut()
                 {
-                    let message = decrypt(transport, *len, buf.as_slice())?;
-                    IncomingAction::HandleMessage(message)
+                    IncomingAction::HandleMessage(
+                        decrypt(transport, *len, buf.as_slice()).await?)
                 } else {
                     unreachable!();
                 }
@@ -256,11 +258,11 @@ impl<'a> OfferPairing<'a> {
                     let private_message =
                         PairingMessage::Confirm(account_signing_key);
 
-                    let (len, buf) =
+                    let payload =
                         if let Some(Tunnel::Transport(transport)) =
                             self.tunnel.as_mut()
                         {
-                            encrypt(transport, &private_message)?
+                            encrypt(transport, &private_message).await?
                         } else {
                             unreachable!();
                         };
@@ -273,7 +275,7 @@ impl<'a> OfferPairing<'a> {
                                 .to_vec(),
                             from_public_key: self.keypair.public.to_vec(),
                         },
-                        payload: RelayPayload::Transport(len, buf),
+                        payload,
                     };
 
                     tracing::debug!("-> private-key");
@@ -356,11 +358,10 @@ impl<'a> OfferPairing<'a> {
                     Some(Tunnel::Transport(state.into_transport_mode()?));
             }
 
-            let private_message = PairingMessage::Ready;
-            let (len, buf) = if let Some(Tunnel::Transport(transport)) =
+            let payload = if let Some(Tunnel::Transport(transport)) =
                 self.tunnel.as_mut()
             {
-                encrypt(transport, &private_message)?
+                encrypt(transport, &PairingMessage::Ready).await?
             } else {
                 unreachable!();
             };
@@ -369,7 +370,7 @@ impl<'a> OfferPairing<'a> {
                     to_public_key: packet.header.from_public_key.clone(),
                     from_public_key: self.keypair.public.clone(),
                 },
-                payload: RelayPayload::Transport(len, buf),
+                payload,
             })
         } else {
             Err(Error::BadState)
@@ -387,7 +388,7 @@ pub struct AcceptPairing<'a> {
     share_url: ServerPairUrl,
     /// Noise protocol state.
     tunnel: Option<Tunnel>,
-    /// Sink side of the socket.
+    /// Sink side of the websocket.
     tx: WsSink,
     /// Current state of the protocol.
     state: PairProtocolState,
@@ -521,7 +522,8 @@ impl<'a> AcceptPairing<'a> {
         }
         Ok(())
     }
-
+    
+    /// Handle the psk handshake and transition into transport mode.
     async fn psk_handshake(
         &mut self,
         packet: &RelayPacket,
@@ -583,8 +585,8 @@ impl<'a> AcceptPairing<'a> {
                 if let Some(Tunnel::Transport(transport)) =
                     self.tunnel.as_mut()
                 {
-                    let message = decrypt(transport, *len, buf.as_slice())?;
-                    IncomingAction::HandleMessage(message)
+                    IncomingAction::HandleMessage(
+                        decrypt(transport, *len, buf.as_slice()).await?)
                 } else {
                     unreachable!();
                 }
@@ -611,8 +613,8 @@ impl<'a> AcceptPairing<'a> {
                     {
                         let private_message =
                             PairingMessage::Request(self.device.clone());
-                        let (len, buf) =
-                            encrypt(transport, &private_message)?;
+                        let payload =
+                            encrypt(transport, &private_message).await?;
                         let reply = RelayPacket {
                             header: RelayHeader {
                                 to_public_key: packet
@@ -621,7 +623,7 @@ impl<'a> AcceptPairing<'a> {
                                     .to_vec(),
                                 from_public_key: self.keypair.public.to_vec(),
                             },
-                            payload: RelayPayload::Transport(len, buf),
+                            payload,
                         };
                         tracing::debug!("-> device");
                         let buffer = encode(&reply).await?;
@@ -630,7 +632,7 @@ impl<'a> AcceptPairing<'a> {
                         unreachable!();
                     }
                 } else if let PairingMessage::Confirm(signing_key) = message {
-                    self.enroll(signing_key).await?;
+                    self.create_enrollment(signing_key).await?;
                     self.state = PairProtocolState::Done;
                 } else {
                     return Err(Error::BadState);
@@ -641,15 +643,20 @@ impl<'a> AcceptPairing<'a> {
         Ok(())
     }
 
-    /// Enroll this device.
-    async fn enroll(&mut self, signing_key: [u8; 32]) -> Result<()> {
+    /// Create the device enrollment once pairing is complete.
+    ///
+    /// Callers can now access the device enrollment using 
+    /// [AcceptPairing::take_enrollment] and then call
+    /// [DeviceEnrollment::fetch_account] to retrieve the 
+    /// account data.
+    async fn create_enrollment(&mut self, signing_key: [u8; 32]) -> Result<()> {
         let signer: SingleParty = signing_key.try_into()?;
         let server = self.share_url.server().clone();
         let origin: Origin = server.into();
         let data_dir = self.data_dir.clone();
-        let enrollment = NetworkAccount::enroll_device(
-            origin,
+        let enrollment = DeviceEnrollment::new(
             Box::new(signer),
+            origin,
             self.device_signer.clone(),
             data_dir,
         )
@@ -659,26 +666,28 @@ impl<'a> AcceptPairing<'a> {
     }
 }
 
-// Encrypt a message.
-fn encrypt(
+/// Serialize and encrypt a message.
+async fn encrypt<T: Serialize>(
     transport: &mut TransportState,
-    message: &PairingMessage,
-) -> Result<(usize, Vec<u8>)> {
+    message: &T,
+) -> crate::client::pairing::Result<RelayPayload> {
     let message = serde_json::to_vec(message)?;
-    let mut contents = vec![0; message.len() + TAGLEN];
-    let length = transport.write_message(&message, &mut contents)?;
-    Ok((length, contents))
+    let body: RelayBody = message.into();
+    let body = encode(&body).await?;
+    let mut contents = vec![0u8; body.len() + TAGLEN];
+    let length = transport.write_message(&body, &mut contents)?;
+    Ok(RelayPayload::Transport(length, contents))
 }
 
-// Decrypt a message.
-fn decrypt(
+/// Decrypt a message and deserialize the content.
+async fn decrypt<T: DeserializeOwned>(
     transport: &mut TransportState,
     length: usize,
     message: &[u8],
-) -> Result<PairingMessage> {
+) -> crate::client::pairing::Result<T> {
     let mut contents = vec![0; length];
     transport.read_message(&message[..length], &mut contents)?;
-    let new_length = contents.len() - TAGLEN;
-    contents.truncate(new_length);
-    Ok(serde_json::from_slice(&contents)?)
+    let body: RelayBody = decode(&contents).await?;
+    let message = serde_json::from_slice(body.as_ref())?;
+    Ok(message)
 }

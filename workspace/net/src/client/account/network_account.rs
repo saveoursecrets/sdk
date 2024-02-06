@@ -102,37 +102,6 @@ pub struct NetworkAccount {
 }
 
 impl NetworkAccount {
-    /// Enroll a new device.
-    #[cfg(all(feature = "device", feature = "pairing"))]
-    pub(crate) async fn enroll_device(
-        origin: Origin,
-        account_signing_key: BoxedEcdsaSigner,
-        device_signer: DeviceSigner,
-        data_dir: Option<PathBuf>,
-    ) -> Result<crate::client::pairing::DeviceEnrollment> {
-        use crate::client::{pairing::DeviceEnrollment, HttpClient};
-        use crate::sdk::signer::ed25519::BoxedEd25519Signer;
-
-        let address = account_signing_key.address()?;
-        let mut enrollment = DeviceEnrollment::new(
-            &address,
-            origin.clone(),
-            device_signer,
-            data_dir.clone(),
-        )?;
-        let device_signing_key = enrollment.device_signing_key.clone();
-        let device: BoxedEd25519Signer = device_signing_key.into();
-        let remote = HttpClient::new(
-            origin,
-            account_signing_key,
-            device,
-            String::new(),
-        )?;
-
-        enrollment.enroll(remote).await?;
-        Ok(enrollment)
-    }
-
     /// Revoke a device.
     #[cfg(feature = "device")]
     pub async fn revoke_device(

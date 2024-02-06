@@ -1,4 +1,5 @@
 //! File system backed by in-memory buffers.
+#![allow(unused_imports)]
 
 mod dir_builder;
 mod file;

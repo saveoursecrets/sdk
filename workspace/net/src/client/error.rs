@@ -51,21 +51,6 @@ pub enum Error {
     #[error("not binary message type on websocket")]
     NotBinaryWebsocketMessageType,
 
-    /// Error generated when failing to fetch account from a remote
-    /// during device enrollment.
-    #[error("could not fetch account from remote '{0}'")]
-    EnrollFetch(String),
-
-    /// Error generated attempting to enroll a new device and
-    /// the account already exists on the device.
-    #[error("cannot enroll, account '{0}' already exists on this device")]
-    EnrollAccountExists(String),
-
-    /// Error generated when failing to sync after completing
-    /// device enrollment.
-    #[error("could not sync to '{0}' after device enrollment")]
-    EnrollSync(String),
-
     /// Error generated attempting to revoke the current device.
     #[error("cannot revoke access to this device")]
     RevokeDeviceSelf,
