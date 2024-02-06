@@ -1,6 +1,10 @@
 //! Enroll a device to an account on a remote server.
 use crate::{
-    client::{sync::RemoteSync, NetworkAccount, HttpClient, pairing::{Error, Result}},
+    client::{
+        pairing::{Error, Result},
+        sync::RemoteSync,
+        HttpClient, NetworkAccount,
+    },
     sdk::{
         account::Account,
         crypto::AccessKey,
@@ -11,7 +15,10 @@ use crate::{
             FolderReducer, WriteEvent,
         },
         identity::PublicIdentity,
-        signer::{ecdsa::{Address, BoxedEcdsaSigner}, ed25519::BoxedEd25519Signer},
+        signer::{
+            ecdsa::{Address, BoxedEcdsaSigner},
+            ed25519::BoxedEd25519Signer,
+        },
         sync::{AccountPatch, FolderPatch, Origin, SyncClient},
         vault::VaultId,
         vfs, Paths,
@@ -30,8 +37,8 @@ use crate::sdk::{
 
 /// Enroll a device.
 ///
-/// Once pairing is completed call [DeviceEnrollment::fetch_account] 
-/// to retrieve the account data and then [DeviceEnrollment::finish] 
+/// Once pairing is completed call [DeviceEnrollment::fetch_account]
+/// to retrieve the account data and then [DeviceEnrollment::finish]
 /// to authenticate the account.
 pub struct DeviceEnrollment {
     /// Account address.
@@ -89,6 +96,11 @@ impl DeviceEnrollment {
         })
     }
 
+    /// Account address.
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+
     /// Public identity of the account.
     ///
     /// Only available after a successful call to [DeviceEnrollment::enroll].
@@ -119,7 +131,9 @@ impl DeviceEnrollment {
 
     /// Finish device enrollment by authenticating the new account.
     pub async fn finish(&self, key: &AccessKey) -> Result<NetworkAccount> {
-        self.public_identity.as_ref().ok_or_else(|| Error::AccountNotFetched)?;
+        self.public_identity
+            .as_ref()
+            .ok_or_else(|| Error::AccountNotFetched)?;
 
         let mut account = NetworkAccount::new_unauthenticated(
             self.address.clone(),

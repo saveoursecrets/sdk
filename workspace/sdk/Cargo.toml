@@ -75,7 +75,7 @@ zxcvbn = "2"
 totp-rs = { version = "5.3", features = ["qr", "serde_support", "zeroize"] }
 vcard4 = { version = "0.4.4", features = ["serde"] }
 async-once-cell = "0.5"
-age = { version = "0.9", features = ["async"] }
+age = { version = "0.10", features = ["async"] }
 ed25519-dalek = { version = "2.0.0-pre.0", features = ["rand_core"] }
 urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
@@ -87,7 +87,6 @@ futures-util = "0.3"
 vsss-rs = {version = "3", optional = true }
 whoami = { version = "1.4", optional = true }
 async-stream = "0.3"
-
 
 [dependencies.probly-search]
 version = "2.0.0-alpha-2"

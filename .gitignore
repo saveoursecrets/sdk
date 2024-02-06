@@ -9,6 +9,7 @@ target
 *.sig
 *.bundle
 /*.csv
+/*.svg
 .homebrew
 tests/server_public_key.txt
 geiger-report.txt
