@@ -119,7 +119,9 @@ impl DeviceEnrollment {
 
     /// Finish device enrollment by authenticating the new account.
     pub async fn finish(&self, key: &AccessKey) -> Result<NetworkAccount> {
-        self.public_identity.as_ref().ok_or_else(|| Error::AccountNotFetched)?;
+        if self.public_identity.is_none() {
+            return Err(Error::AccountNotFetched);
+        }
 
         let mut account = NetworkAccount::new_unauthenticated(
             self.address.clone(),
