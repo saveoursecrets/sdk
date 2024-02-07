@@ -8,10 +8,7 @@ use axum::{
     http::StatusCode,
     response::Response,
 };
-use futures::{
-    stream::SplitSink,
-    SinkExt, StreamExt,
-};
+use futures::{stream::SplitSink, SinkExt, StreamExt};
 use serde::Deserialize;
 use sos_sdk::decode;
 use std::{collections::HashMap, sync::Arc};

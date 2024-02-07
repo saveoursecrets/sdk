@@ -110,6 +110,10 @@ args = ["test", "file_transfers_"]
 command = "cargo"
 args = ["test", "access_control_"]
 
+[tasks.test-preferences]
+command = "cargo"
+args = ["test", "preferences_"]
+
 [tasks.test-integration]
 command = "cargo"
 args = ["test", "integration_"]
@@ -130,6 +134,7 @@ dependencies = [
   "test-access-control",
   "test-file-transfers",
   "test-integration",
+  "test-preferences",
   "test-cli",
 ]
 
@@ -149,6 +154,7 @@ dependencies = [
   "test-access-control",
   "test-file-transfers",
   "test-integration",
+  "test-preferences",
 ]
 
 [tasks.dev]
