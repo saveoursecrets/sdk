@@ -420,8 +420,6 @@ where
     ///
     /// Locks the identity vault and device vault.
     pub async fn sign_out(&mut self) -> Result<()> {
-        tracing::debug!("identity vault sign out");
-
         // Lock the identity vault
         self.folder.lock();
         self.index = Default::default();

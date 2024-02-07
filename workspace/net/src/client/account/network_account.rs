@@ -531,13 +531,16 @@ impl Account for NetworkAccount {
     }
 
     async fn sign_out(&mut self) -> Result<()> {
-        let span = span!(Level::DEBUG, "sign_out");
+        let span = span!(Level::DEBUG, "net_sign_out");
         let _enter = span.enter();
 
-        tracing::debug!(address = %self.address());
         #[cfg(feature = "listen")]
-        self.shutdown_listeners().await;
+        {
+            tracing::debug!("shutdown listeners");
+            self.shutdown_listeners().await;
+        }
 
+        tracing::debug!("stop file transfers");
         self.stop_file_transfers().await;
         {
             let transfers = self.transfers().await?;

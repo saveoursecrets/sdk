@@ -4,8 +4,6 @@
 //! of named keys to typed data similar to
 //! the shared preferences provided by an operating
 //! system library.
-//!
-//!
 use crate::{
     identity::PublicIdentity, signer::ecdsa::Address, vfs, Paths, Result,
 };
