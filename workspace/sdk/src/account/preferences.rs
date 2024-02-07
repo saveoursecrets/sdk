@@ -5,14 +5,15 @@
 //! the shared preferences provided by an operating
 //! system library.
 use crate::{
-    identity::PublicIdentity, signer::ecdsa::Address, vfs, Paths, Result,
+    identity::PublicIdentity, signer::ecdsa::Address, vfs, Error, Paths,
+    Result,
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 
-static CACHE: Lazy<Mutex<HashMap<Address, Preferences>>> =
+static CACHE: Lazy<Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// In-memory cache of preferences stored by account address.
@@ -43,67 +44,20 @@ impl CachedPreferences {
             } else {
                 Preferences::new(&paths)
             };
-            cache.insert(account.address().clone(), prefs);
+            cache.insert(
+                account.address().clone(),
+                Arc::new(Mutex::new(prefs)),
+            );
         }
         Ok(())
     }
 
-    /// Load the preferences for an account.
-    pub async fn load(address: &Address) -> Preferences {
+    /// Preferences for an account.
+    pub async fn account_preferences(
+        address: &Address,
+    ) -> Option<Arc<Mutex<Preferences>>> {
         let cache = CACHE.lock().await;
-        if let Some(prefs) = cache.get(address) {
-            prefs.clone()
-        } else {
-            Default::default()
-        }
-    }
-
-    /// Get a preference for an account.
-    pub async fn get(
-        address: &Address,
-        key: impl AsRef<str>,
-    ) -> Result<Option<Preference>> {
-        let cache = CACHE.lock().await;
-        if let Some(prefs) = cache.get(address) {
-            if let Some(value) = prefs.get(&key) {
-                Ok(Some(value.clone()))
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Set a preference for an account.
-    pub async fn set(
-        address: &Address,
-        key: String,
-        value: Preference,
-    ) -> Result<()> {
-        let mut cache = CACHE.lock().await;
-        let prefs = cache.entry(*address).or_default();
-        prefs.insert(key, value).await?;
-        Ok(())
-    }
-
-    /// Remove a preference for an account.
-    pub async fn remove(
-        address: &Address,
-        key: impl AsRef<str>,
-    ) -> Result<Option<Preference>> {
-        let mut cache = CACHE.lock().await;
-        let prefs = cache.entry(*address).or_default();
-        prefs.remove(key).await
-    }
-
-    /// Clear all preferences for an account.
-    pub async fn clear(address: &Address) -> Result<()> {
-        let mut cache = CACHE.lock().await;
-        if let Some(mut prefs) = cache.remove(address) {
-            prefs.clear().await?;
-        }
-        Ok(())
+        cache.get(address).map(Arc::clone)
     }
 }
 
@@ -158,7 +112,7 @@ impl From<Vec<String>> for Preference {
 pub struct Preferences {
     /// Preference values.
     #[serde(flatten)]
-    pub values: HashMap<String, Preference>,
+    values: HashMap<String, Preference>,
     /// Path to the file on disc.
     #[serde(skip)]
     path: PathBuf,
@@ -191,8 +145,93 @@ impl Preferences {
         self.values.iter()
     }
 
-    /// Get a preference.
-    pub fn get(&self, key: impl AsRef<str>) -> Option<&Preference> {
+    /// Get an integer preference.
+    pub fn get_int(
+        &self,
+        key: impl AsRef<str>,
+    ) -> Result<Option<&Preference>> {
+        let result = self.values.get(key.as_ref());
+        if let Some(res) = result.as_ref() {
+            if matches!(res, Preference::Int(_)) {
+                Ok(result)
+            } else {
+                Err(Error::PreferenceTypeInt(key.as_ref().to_owned()))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get a double preference.
+    pub fn get_double(
+        &self,
+        key: impl AsRef<str>,
+    ) -> Result<Option<&Preference>> {
+        let result = self.values.get(key.as_ref());
+        if let Some(res) = result.as_ref() {
+            if matches!(res, Preference::Double(_)) {
+                Ok(result)
+            } else {
+                Err(Error::PreferenceTypeDouble(key.as_ref().to_owned()))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get a boolean preference.
+    pub fn get_bool(
+        &self,
+        key: impl AsRef<str>,
+    ) -> Result<Option<&Preference>> {
+        let result = self.values.get(key.as_ref());
+        if let Some(res) = result.as_ref() {
+            if matches!(res, Preference::Bool(_)) {
+                Ok(result)
+            } else {
+                Err(Error::PreferenceTypeBool(key.as_ref().to_owned()))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get a string preference.
+    pub fn get_string(
+        &self,
+        key: impl AsRef<str>,
+    ) -> Result<Option<&Preference>> {
+        let result = self.values.get(key.as_ref());
+        if let Some(res) = result.as_ref() {
+            if matches!(res, Preference::String(_)) {
+                Ok(result)
+            } else {
+                Err(Error::PreferenceTypeString(key.as_ref().to_owned()))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get a string list preference.
+    pub fn get_string_list(
+        &self,
+        key: impl AsRef<str>,
+    ) -> Result<Option<&Preference>> {
+        let result = self.values.get(key.as_ref());
+        if let Some(res) = result.as_ref() {
+            if matches!(res, Preference::StringList(_)) {
+                Ok(result)
+            } else {
+                Err(Error::PreferenceTypeStringList(key.as_ref().to_owned()))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get a preference without checking the type.
+    pub fn get_unchecked(&self, key: impl AsRef<str>) -> Option<&Preference> {
         self.values.get(key.as_ref())
     }
 

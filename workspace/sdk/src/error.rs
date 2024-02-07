@@ -433,6 +433,31 @@ pub enum Error {
     #[error("external file reference '{0}' could not be parsed")]
     InvalidExternalFile(String),
 
+    /// Error generated when a preference is not an integer.
+    #[cfg(feature = "preferences")]
+    #[error("expecting integer preference for '{0}'")]
+    PreferenceTypeInt(String),
+
+    /// Error generated when a preference is not a double.
+    #[cfg(feature = "preferences")]
+    #[error("expecting double preference for '{0}'")]
+    PreferenceTypeDouble(String),
+
+    /// Error generated when a preference is not a boolean.
+    #[cfg(feature = "preferences")]
+    #[error("expecting boolean preference for '{0}'")]
+    PreferenceTypeBool(String),
+
+    /// Error generated when a preference is not a string.
+    #[cfg(feature = "preferences")]
+    #[error("expecting string preference for '{0}'")]
+    PreferenceTypeString(String),
+
+    /// Error generated when a preference is not a string list.
+    #[cfg(feature = "preferences")]
+    #[error("expecting string list preference for '{0}'")]
+    PreferenceTypeStringList(String),
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
