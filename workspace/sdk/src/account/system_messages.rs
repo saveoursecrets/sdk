@@ -15,6 +15,7 @@ use crate::{vfs, Paths, Result, Error};
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, collections::HashMap, path::PathBuf};
 use time::OffsetDateTime;
+use tokio::sync::broadcast;
 
 /// Level for system messages.
 #[derive(
@@ -93,6 +94,11 @@ impl PartialOrd for SysMessage {
     }
 }
 
+fn stream_channel() -> broadcast::Sender<usize> {
+    let (stream, _) = broadcast::channel(8);
+    stream
+}
+
 /// Persistent system message notifications.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SystemMessages {
@@ -101,6 +107,8 @@ pub struct SystemMessages {
     /// Path to the file on disc.
     #[serde(skip)]
     path: PathBuf,
+    #[serde(skip, default = "stream_channel")]
+    stream: broadcast::Sender<usize>,
 }
 
 impl SystemMessages {
@@ -114,6 +122,7 @@ impl SystemMessages {
         Self {
             path: paths.system_messages(),
             messages: Default::default(),
+            stream: stream_channel(),
         }
     }
 
@@ -123,6 +132,11 @@ impl SystemMessages {
         let sys: SystemMessages = serde_json::from_slice(&content)?;
         self.messages = sys.messages;
         Ok(())
+    }
+    
+    /// Subscribe to the broadcast channel.
+    pub fn subscribe(&self) -> broadcast::Receiver<usize> {
+        self.stream.subscribe()
     }
 
     /// Number of system messages.
@@ -197,6 +211,7 @@ impl SystemMessages {
     async fn save(&self) -> Result<()> {
         let buf = serde_json::to_vec_pretty(self)?;
         vfs::write(&self.path, buf).await?;
+        let _ = self.stream.send(self.messages.len());
         Ok(())
     }
 }

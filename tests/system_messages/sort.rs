@@ -1,5 +1,7 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use sos_net::sdk::{
     prelude::*,
     signer::{ecdsa::SingleParty, Signer},
@@ -24,6 +26,19 @@ async fn system_messages_sort() -> Result<()> {
 
     let mut messages = SystemMessages::new(&paths);
     assert!(messages.get("unknown-key").is_none());
+    
+    // Check stream subscription
+    let mut rx = messages.subscribe();
+    let lengths = Arc::new(Mutex::new(vec![]));
+    let task_lengths = Arc::clone(&lengths);
+    tokio::task::spawn(
+        async move {
+            while let Ok(len) = rx.recv().await {
+                let mut writer = task_lengths.lock().await;
+                writer.push(len);
+            }
+        }
+    );
 
     messages
         .insert(
@@ -86,6 +101,16 @@ async fn system_messages_sort() -> Result<()> {
     // Clear all messages
     messages.clear().await?;
     assert!(messages.is_empty());
+
+    let expected = vec![1, 2, 3, 3, 2, 0];
+    // Wait for the last message to be delivered
+    loop {
+        let lengths = lengths.lock().await;
+        if lengths.len() == expected.len() {
+            assert_eq!(expected.as_slice(), lengths.as_slice());
+            break;
+        }
+    }
 
     teardown(TEST_ID).await;
 
