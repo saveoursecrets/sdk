@@ -175,6 +175,11 @@ impl SystemMessages {
             }
         })
     }
+    
+    /// Iterator of the system messages.
+    pub fn iter(&self) -> impl Iterator<Item = (&Urn, &SysMessage)> {
+        self.messages.iter()
+    }
 
     /// Create or overwrite a system message.
     ///

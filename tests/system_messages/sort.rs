@@ -94,7 +94,6 @@ async fn system_messages_sort() -> Result<()> {
     // Finally the sync error
     assert_eq!("Sync error", &list.get(2).unwrap().title);
 
-    /*
     // Remove a message
     messages.remove(&software_update).await?;
     
@@ -117,7 +116,6 @@ async fn system_messages_sort() -> Result<()> {
     }
 
     teardown(TEST_ID).await;
-    */
 
     Ok(())
 }
