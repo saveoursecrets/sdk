@@ -67,10 +67,8 @@ impl CachedPreferences {
 pub enum Preference {
     /// Boolean value.
     Bool(bool),
-    /// Float value.
-    Double(f64),
-    /// Integer value.
-    Int(i64),
+    /// Number value.
+    Number(f64),
     /// String value.
     String(String),
     /// List of strings.
@@ -85,13 +83,13 @@ impl From<bool> for Preference {
 
 impl From<f64> for Preference {
     fn from(value: f64) -> Self {
-        Self::Double(value)
+        Self::Number(value)
     }
 }
 
 impl From<i64> for Preference {
     fn from(value: i64) -> Self {
-        Self::Int(value)
+        Self::Number(value as f64)
     }
 }
 
@@ -155,34 +153,17 @@ impl Preferences {
         self.values.iter()
     }
 
-    /// Get an integer preference.
-    pub fn get_int(
+    /// Get a number preference.
+    pub fn get_number(
         &self,
         key: impl AsRef<str>,
     ) -> Result<Option<&Preference>> {
         let result = self.values.get(key.as_ref());
         if let Some(res) = result.as_ref() {
-            if matches!(res, Preference::Int(_)) {
+            if matches!(res, Preference::Number(_)) {
                 Ok(result)
             } else {
-                Err(Error::PreferenceTypeInt(key.as_ref().to_owned()))
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Get a double preference.
-    pub fn get_double(
-        &self,
-        key: impl AsRef<str>,
-    ) -> Result<Option<&Preference>> {
-        let result = self.values.get(key.as_ref());
-        if let Some(res) = result.as_ref() {
-            if matches!(res, Preference::Double(_)) {
-                Ok(result)
-            } else {
-                Err(Error::PreferenceTypeDouble(key.as_ref().to_owned()))
+                Err(Error::PreferenceTypeNumber(key.as_ref().to_owned()))
             }
         } else {
             Ok(None)

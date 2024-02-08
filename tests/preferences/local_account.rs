@@ -62,11 +62,11 @@ async fn preferences_local_account() -> Result<()> {
     let boolean = prefs.get_bool("mock.bool")?;
     assert!(matches!(boolean, Some(Preference::Bool(_))));
 
-    let int = prefs.get_int("mock.int")?;
-    assert!(matches!(int, Some(Preference::Int(_))));
+    let int = prefs.get_number("mock.int")?;
+    assert!(matches!(int, Some(Preference::Number(_))));
 
-    let double = prefs.get_double("mock.double")?;
-    assert!(matches!(double, Some(Preference::Double(_))));
+    let double = prefs.get_number("mock.double")?;
+    assert!(matches!(double, Some(Preference::Number(_))));
 
     let string = prefs.get_string("mock.string")?;
     assert!(matches!(string, Some(Preference::String(_))));

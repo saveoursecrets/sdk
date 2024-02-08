@@ -433,15 +433,10 @@ pub enum Error {
     #[error("external file reference '{0}' could not be parsed")]
     InvalidExternalFile(String),
 
-    /// Error generated when a preference is not an integer.
+    /// Error generated when a preference is not a number.
     #[cfg(feature = "preferences")]
     #[error("expecting integer preference for '{0}'")]
-    PreferenceTypeInt(String),
-
-    /// Error generated when a preference is not a double.
-    #[cfg(feature = "preferences")]
-    #[error("expecting double preference for '{0}'")]
-    PreferenceTypeDouble(String),
+    PreferenceTypeNumber(String),
 
     /// Error generated when a preference is not a boolean.
     #[cfg(feature = "preferences")]

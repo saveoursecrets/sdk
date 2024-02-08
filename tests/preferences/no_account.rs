@@ -39,22 +39,22 @@ async fn preferences_no_account() -> Result<()> {
 
     // Insertion and type-checking
     prefs
-        .insert("int-1".to_owned(), Preference::Int(-12))
+        .insert("int-1".to_owned(), Preference::Number(-12.0))
         .await?;
-    assert!(prefs.get_int("int-1")?.is_some());
+    assert!(prefs.get_number("int-1")?.is_some());
     assert!(prefs.get_bool("int-1").is_err());
 
     prefs
-        .insert("double-1".to_owned(), Preference::Double(3.14))
+        .insert("double-1".to_owned(), Preference::Number(3.14))
         .await?;
-    assert!(prefs.get_double("double-1")?.is_some());
-    assert!(prefs.get_int("double-1").is_err());
+    assert!(prefs.get_number("double-1")?.is_some());
+    assert!(prefs.get_bool("double-1").is_err());
 
     prefs
         .insert("bool-1".to_owned(), Preference::Bool(true))
         .await?;
     assert!(prefs.get_bool("bool-1")?.is_some());
-    assert!(prefs.get_double("bool-1").is_err());
+    assert!(prefs.get_number("bool-1").is_err());
 
     prefs
         .insert("string-1".to_owned(), Preference::String("foo".to_owned()))
@@ -73,7 +73,7 @@ async fn preferences_no_account() -> Result<()> {
 
     // Removal
     assert!(prefs.remove("int-1").await?.is_some());
-    assert!(prefs.get_int("int-1")?.is_none());
+    assert!(prefs.get_number("int-1")?.is_none());
 
     // Clear all preferences
     prefs.clear().await?;
