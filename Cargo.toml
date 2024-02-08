@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.10.0"
+version = "0.10.1"
 edition = "2021"
 rust-version = "1.75.0"
 description = "Distributed, encrypted database for private secrets."
@@ -89,7 +89,7 @@ crossterm = "0.27"
 ctrlc = "3"
 
 [dependencies.sos-net]
-version = "0.10.0" 
+version = "0.10.1" 
 features = ["full"]
 path = "workspace/net"
 
