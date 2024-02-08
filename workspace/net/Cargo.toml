@@ -24,6 +24,7 @@ full = [
   "server",
   "security-report",
   "keychain-access",
+  "system-messages",
 ]
 client = [
   "dep:reqwest",
@@ -54,6 +55,7 @@ pairing = ["dep:snow"]
 preferences = ["sos-sdk/preferences"]
 search = ["sos-sdk/search"]
 security-report = ["sos-sdk/security-report"]
+system-messages = ["sos-sdk/system-messages"]
 mem-fs = ["sos-sdk/mem-fs"]
 test-utils = ["sos-sdk/test-utils"]
 

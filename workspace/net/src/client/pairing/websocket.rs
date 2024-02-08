@@ -490,7 +490,7 @@ impl<'a> AcceptPairing<'a> {
 
     /// Take the final device enrollment.
     ///
-    /// The [DeviceEnrollment::enroll] method has already been
+    /// The [DeviceEnrollment::fetch_account] method has already been
     /// called so all that remains is to authenticate the new
     /// device by calling [DeviceEnrollment::finish].
     ///

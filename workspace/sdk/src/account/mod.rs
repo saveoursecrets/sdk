@@ -9,6 +9,8 @@ pub mod preferences;
 pub mod security_report;
 #[cfg(feature = "sync")]
 mod sync;
+#[cfg(feature = "system-messages")]
+pub mod system_messages;
 
 pub use account::{
     Account, AccountData, DetachedView, FolderChange, FolderCreate,

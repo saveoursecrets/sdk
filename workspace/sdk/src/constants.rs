@@ -141,6 +141,10 @@ mod folders {
     /// File thats stores account-level preferences.
     #[cfg(feature = "preferences")]
     pub const PREFERENCES_FILE: &str = "preferences";
+
+    /// File thats stores account-level system messages.
+    #[cfg(feature = "system-messages")]
+    pub const SYSTEM_MESSAGES_FILE: &str = "system-messages";
 }
 
 /// File names.
