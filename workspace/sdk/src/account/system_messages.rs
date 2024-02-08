@@ -6,19 +6,19 @@
 //!
 //! System messages use keys so that we don't write lots
 //! of failed synchronization messages, instead the last
-//! failure would overwrite the previous messages. To avoid 
+//! failure would overwrite the previous messages. To avoid
 //! this behavior use a unique key such as a UUID.
 //!
 //! Use [SystemMessages::subscribe] to listen for
-//! changes to the underlying collection. This allows 
-//! an interface to show the number of unread system 
+//! changes to the underlying collection. This allows
+//! an interface to show the number of unread system
 //! messages.
 use crate::{vfs, Error, Paths, Result};
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use std::{cmp::Ordering, collections::HashMap, path::PathBuf};
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
-use serde_with::{serde_as, DisplayFromStr};
 use urn::Urn;
 
 /// Type sent to broadcast channel subscribers.
@@ -178,7 +178,7 @@ impl SystemMessages {
             }
         })
     }
-    
+
     /// Iterator of the system messages.
     pub fn iter(&self) -> impl Iterator<Item = (&Urn, &SysMessage)> {
         self.messages.iter()
@@ -200,13 +200,12 @@ impl SystemMessages {
     ///
     /// Changes are written to disc.
     pub async fn mark_read(&mut self, key: &Urn) -> Result<()> {
-        let updated =
-            if let Some(message) = self.messages.get_mut(key) {
-                message.is_read = true;
-                true
-            } else {
-                false
-            };
+        let updated = if let Some(message) = self.messages.get_mut(key) {
+            message.is_read = true;
+            true
+        } else {
+            false
+        };
 
         if updated {
             self.save().await

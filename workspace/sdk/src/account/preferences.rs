@@ -16,38 +16,17 @@ use tokio::sync::Mutex;
 static CACHE: Lazy<Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-/// In-memory cache of preferences stored by account address.
+/// Cache of preferences stored by account address.
 pub struct CachedPreferences;
 
 impl CachedPreferences {
-    /// Initialize preferences for each referenced identity address.
-    ///
-    /// If a preferences file exists for an account it is loaded
-    /// into memory otherwise empty preferences are used.
+    /// Initialize preferences for each referenced identity.
     pub async fn initialize(
         accounts: &[PublicIdentity],
         data_dir: Option<PathBuf>,
     ) -> Result<()> {
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
-        } else {
-            Paths::data_dir()?
-        };
-        let mut cache = CACHE.lock().await;
         for account in accounts {
-            let paths = Paths::new(&data_dir, account.address().to_string());
-            let file = paths.preferences();
-            let prefs = if file.exists() {
-                let mut prefs = Preferences::new(&paths);
-                prefs.load().await?;
-                prefs
-            } else {
-                Preferences::new(&paths)
-            };
-            cache.insert(
-                account.address().clone(),
-                Arc::new(Mutex::new(prefs)),
-            );
+            Self::new_account(account.address(), data_dir.clone()).await?;
         }
         Ok(())
     }
@@ -58,6 +37,34 @@ impl CachedPreferences {
     ) -> Option<Arc<Mutex<Preferences>>> {
         let cache = CACHE.lock().await;
         cache.get(address).map(Arc::clone)
+    }
+
+    /// Add a new account to the cached preferences.
+    ///
+    /// If a preferences file exists for an account it is loaded
+    /// into memory otherwise empty preferences are used.
+    pub async fn new_account(
+        address: &Address,
+        data_dir: Option<PathBuf>,
+    ) -> Result<()> {
+        let data_dir = if let Some(data_dir) = data_dir {
+            data_dir
+        } else {
+            Paths::data_dir()?
+        };
+
+        let mut cache = CACHE.lock().await;
+        let paths = Paths::new(&data_dir, address.to_string());
+        let file = paths.preferences();
+        let prefs = if vfs::try_exists(&file).await? {
+            let mut prefs = Preferences::new(&paths);
+            prefs.load().await?;
+            prefs
+        } else {
+            Preferences::new(&paths)
+        };
+        cache.insert(address.clone(), Arc::new(Mutex::new(prefs)));
+        Ok(())
     }
 }
 

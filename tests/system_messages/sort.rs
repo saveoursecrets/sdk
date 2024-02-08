@@ -96,7 +96,7 @@ async fn system_messages_sort() -> Result<()> {
 
     // Remove a message
     messages.remove(&software_update).await?;
-    
+
     // Load from disc
     messages.load().await?;
     assert_eq!(2, messages.len());
