@@ -2445,7 +2445,31 @@ version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf8b031682c67a8e3d5446840f9573eb7fe26efe7ec8d195c9ac4c0647c502f1"
 dependencies = [
- "logos-derive",
+ "logos-derive 0.12.1",
+]
+
+[[package]]
+name = "logos"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "161971eb88a0da7ae0c333e1063467c5b5727e7fb6b710b8db4814eade3a42e8"
+dependencies = [
+ "logos-derive 0.14.0",
+]
+
+[[package]]
+name = "logos-codegen"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e31badd9de5131fdf4921f6473d457e3dd85b11b7f091ceb50e4df7c3eeb12a"
+dependencies = [
+ "beef",
+ "fnv",
+ "lazy_static",
+ "proc-macro2 1.0.78",
+ "quote 1.0.35",
+ "regex-syntax 0.8.2",
+ "syn 2.0.48",
 ]
 
 [[package]]
@@ -2460,6 +2484,15 @@ dependencies = [
  "quote 1.0.35",
  "regex-syntax 0.6.29",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "logos-derive"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c2a69b3eb68d5bd595107c9ee58d7e07fe2bb5e360cc85b0f084dedac80de0a"
+dependencies = [
+ "logos-codegen",
 ]
 
 [[package]]
@@ -4091,7 +4124,7 @@ dependencies = [
  "http 1.0.0",
  "indexmap 2.2.2",
  "k256",
- "logos",
+ "logos 0.14.0",
  "mime_guess",
  "once_cell",
  "parking_lot",
@@ -5014,7 +5047,7 @@ dependencies = [
  "aho-corasick 0.7.20",
  "base64",
  "language-tags",
- "logos",
+ "logos 0.12.1",
  "serde",
  "thiserror",
  "time",
