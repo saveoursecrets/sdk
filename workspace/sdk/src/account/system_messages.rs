@@ -7,20 +7,20 @@
 //!
 //! System messages use keys so that we don't write lots
 //! of failed synchronization messages, instead the last
-//! failure would overwrite the previous messages.
+//! failure would overwrite the previous messages. To avoid 
+//! this behavior use a unique key such as a UUID.
 //!
-//! To prevent overwriting previous messages use a unique
-//! key such as a UUID.
-//!
-//! The [SystemMessage] struct offers a stream that can
-//! be subscribed to when changes are made to the underlying
-//! collection. This allows an interface to show the number
-//! of current system messages.
+//! Use [SystemMessages::subscribe] to listen for
+//! changes to the underlying collection. This allows 
+//! an interface to show the number of unread system 
+//! messages.
 use crate::{vfs, Error, Paths, Result};
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, collections::HashMap, path::PathBuf};
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
+use serde_with::{serde_as, DisplayFromStr};
+use urn::Urn;
 
 /// Type sent to broadcast channel subscribers.
 ///
@@ -32,6 +32,7 @@ pub type SysMessageState = (usize, usize);
 #[derive(
     Debug, Default, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq,
 )]
+#[serde(rename_all = "lowercase")]
 pub enum SysMessageLevel {
     /// Informational message.
     #[default]
@@ -48,6 +49,7 @@ pub enum SysMessageLevel {
 /// lower priority messages. If priorities are
 /// equal sorting uses the created date and time.
 #[derive(Debug, Serialize, Deserialize, Ord, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SysMessage {
     /// Date and time the message was created.
     pub created: OffsetDateTime,
@@ -111,10 +113,12 @@ fn stream_channel() -> broadcast::Sender<SysMessageState> {
 }
 
 /// Persistent system message notifications.
+#[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SystemMessages {
+    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     #[serde(flatten)]
-    messages: HashMap<String, SysMessage>,
+    messages: HashMap<Urn, SysMessage>,
     /// Path to the file on disc.
     #[serde(skip)]
     path: PathBuf,
@@ -177,7 +181,7 @@ impl SystemMessages {
     /// Changes are written to disc.
     pub async fn insert(
         &mut self,
-        key: String,
+        key: Urn,
         message: SysMessage,
     ) -> Result<()> {
         self.messages.insert(key, message);
@@ -187,9 +191,9 @@ impl SystemMessages {
     /// Mark a message as read.
     ///
     /// Changes are written to disc.
-    pub async fn mark_read(&mut self, key: impl AsRef<str>) -> Result<()> {
+    pub async fn mark_read(&mut self, key: &Urn) -> Result<()> {
         let updated =
-            if let Some(message) = self.messages.get_mut(key.as_ref()) {
+            if let Some(message) = self.messages.get_mut(key) {
                 message.is_read = true;
                 true
             } else {
@@ -199,20 +203,20 @@ impl SystemMessages {
         if updated {
             self.save().await
         } else {
-            Err(Error::NoSysMessage(key.as_ref().to_owned()))
+            Err(Error::NoSysMessage(key.to_string()))
         }
     }
 
     /// Get a message.
-    pub fn get(&self, key: impl AsRef<str>) -> Option<&SysMessage> {
-        self.messages.get(key.as_ref())
+    pub fn get(&self, key: &Urn) -> Option<&SysMessage> {
+        self.messages.get(key)
     }
 
     /// Remove a system message.
     ///
     /// Changes are written to disc.
-    pub async fn remove(&mut self, key: impl AsRef<str>) -> Result<()> {
-        self.messages.remove(key.as_ref());
+    pub async fn remove(&mut self, key: &Urn) -> Result<()> {
+        self.messages.remove(key);
         self.save().await
     }
 
