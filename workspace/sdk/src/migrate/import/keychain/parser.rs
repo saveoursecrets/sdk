@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap, ops::Range};
 
 use logos::{Lexer, Logos};
 
-use super::{Error, Result, LexError};
+use super::{Error, LexError, Result};
 
 /// The value for the type of generic passwords
 /// that are of the note type.
@@ -26,8 +26,8 @@ pub fn unescape_octal(value: &str) -> Result<Cow<'_, str>> {
     let mut lex = OctalToken::lexer(value);
     let mut has_escape = false;
     let mut tokens = Vec::new();
-    while let Some(Ok(token)) = lex.next() {
-        if let OctalToken::OctalEscape = token {
+    while let Some(token) = lex.next() {
+        if let Ok(OctalToken::OctalEscape) = token {
             has_escape = true;
         }
         let span = lex.span();
@@ -39,7 +39,7 @@ pub fn unescape_octal(value: &str) -> Result<Cow<'_, str>> {
     } else {
         let mut s = String::new();
         for (token, span) in tokens {
-            if let OctalToken::OctalEscape = token {
+            if let Ok(OctalToken::OctalEscape) = token {
                 let octal = &value[span.start + 1..span.end];
                 let num = u32::from_str_radix(octal, 8)?;
                 s.push(char::from_u32(num).ok_or_else(|| {
@@ -101,8 +101,6 @@ enum Token {
     Type,
     #[regex(r"[ \t\r\n\f]+")]
     WhiteSpace,
-    #[regex(r".*")]
-    Other,
 }
 
 /// Parse the dump for a keychain.
@@ -132,29 +130,17 @@ impl<'s> KeychainParser<'s> {
         let mut in_attributes = false;
         let mut next_token = lex.next();
         while let Some(token) = next_token {
-
-            println!("{:#?}", token);
-
             let token = token?;
-
-            println!("AFTER EXTRACT ERROR");
-            
-            println!("{:#?}", token);
-
             match token {
                 Token::Keychain => {
                     in_attributes = false;
                     let advance_token = Self::consume_whitespace(&mut lex);
-                    
-                    println!("Trying to parse... {:#?}", advance_token);
 
                     let range = Self::parse_quoted_string(
                         &mut lex,
                         self.source,
                         advance_token,
                     )?;
-            
-                    println!("Range {:#?}", range);
 
                     let entry = KeychainEntry {
                         keychain: &self.source[range],
@@ -258,7 +244,9 @@ impl<'s> KeychainParser<'s> {
         Ok(KeychainList { entries })
     }
 
-    fn consume_whitespace(lex: &mut Lexer<Token>) -> Option<LexResult<Token>> {
+    fn consume_whitespace(
+        lex: &mut Lexer<Token>,
+    ) -> Option<LexResult<Token>> {
         lex.by_ref().find(|t| !matches!(t, Ok(Token::WhiteSpace)))
     }
 
@@ -271,17 +259,13 @@ impl<'s> KeychainParser<'s> {
         let mut begin: Range<usize> = lex.span();
 
         while let Some(token) = next_token {
-            println!("quoted {:#?}", token);
-            let token = token?;
-
-            println!("quoted {:#?}", token);
             match token {
-                Token::HexValue => {
+                Ok(Token::HexValue) => {
                     if !in_quote {
                         return Ok(lex.span());
                     }
                 }
-                Token::DoubleQuote => {
+                Ok(Token::DoubleQuote) => {
                     if !in_quote {
                         begin = lex.span();
                         in_quote = true;
@@ -298,7 +282,7 @@ impl<'s> KeychainParser<'s> {
                 }
                 _ => {}
             }
-            
+
             next_token = lex.next();
         }
         Err(Error::ParseNotQuoted(source[lex.span()].to_owned()))
@@ -389,8 +373,11 @@ impl<'s> KeychainParser<'s> {
                     return Ok(Value::Blob(hex));
                 }
                 Token::DoubleQuote => {
-                    let range =
-                        Self::parse_quoted_string(lex, source, Some(Ok(token)))?;
+                    let range = Self::parse_quoted_string(
+                        lex,
+                        source,
+                        Some(Ok(token)),
+                    )?;
                     let value = &source[range];
                     return Ok(Value::String(value));
                 }
@@ -804,13 +791,14 @@ impl<'s> Value<'s> {
 #[cfg(test)]
 mod test {
     use super::{unescape_octal, KeychainParser};
-    use crate::vfs;
     use anyhow::Result;
 
     #[tokio::test]
     async fn keychain_unescape_octal() -> Result<()> {
         let expected = include_str!("../../../../../../tests/fixtures/migrate/plist-data-unescaped.txt");
-        let contents = include_str!("../../../../../../tests/fixtures/migrate/plist-data-escaped.txt");
+        let contents = include_str!(
+            "../../../../../../tests/fixtures/migrate/plist-data-escaped.txt"
+        );
         let plist = unescape_octal(&contents)?;
         /*
         vfs::write(
@@ -822,8 +810,9 @@ mod test {
 
     #[tokio::test]
     async fn keychain_parse_basic() -> Result<()> {
-        let contents =
-            include_str!("../../../../../../tests/fixtures/migrate/sos-mock.txt");
+        let contents = include_str!(
+            "../../../../../../tests/fixtures/migrate/sos-mock.txt"
+        );
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 
