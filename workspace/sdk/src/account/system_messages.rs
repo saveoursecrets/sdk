@@ -11,11 +11,22 @@
 //!
 //! To prevent overwriting previous messages use a unique
 //! key such as a UUID.
-use crate::{vfs, Paths, Result, Error};
+//!
+//! The [SystemMessage] struct offers a stream that can
+//! be subscribed to when changes are made to the underlying
+//! collection. This allows an interface to show the number
+//! of current system messages.
+use crate::{vfs, Error, Paths, Result};
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, collections::HashMap, path::PathBuf};
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
+
+/// Type sent to broadcast channel subscribers.
+///
+/// The total number of system messages and the number
+/// of unread messages.
+pub type SysMessageState = (usize, usize);
 
 /// Level for system messages.
 #[derive(
@@ -33,8 +44,8 @@ pub enum SysMessageLevel {
 
 /// System message notification.
 ///
-/// Higher priority messages are sorted before 
-/// lower priority messages. If priorities are 
+/// Higher priority messages are sorted before
+/// lower priority messages. If priorities are
 /// equal sorting uses the created date and time.
 #[derive(Debug, Serialize, Deserialize, Ord, Eq, PartialEq)]
 pub struct SysMessage {
@@ -94,7 +105,7 @@ impl PartialOrd for SysMessage {
     }
 }
 
-fn stream_channel() -> broadcast::Sender<usize> {
+fn stream_channel() -> broadcast::Sender<SysMessageState> {
     let (stream, _) = broadcast::channel(8);
     stream
 }
@@ -107,8 +118,9 @@ pub struct SystemMessages {
     /// Path to the file on disc.
     #[serde(skip)]
     path: PathBuf,
+    /// Broadcast channel.
     #[serde(skip, default = "stream_channel")]
-    stream: broadcast::Sender<usize>,
+    channel: broadcast::Sender<SysMessageState>,
 }
 
 impl SystemMessages {
@@ -122,7 +134,7 @@ impl SystemMessages {
         Self {
             path: paths.system_messages(),
             messages: Default::default(),
-            stream: stream_channel(),
+            channel: stream_channel(),
         }
     }
 
@@ -133,10 +145,10 @@ impl SystemMessages {
         self.messages = sys.messages;
         Ok(())
     }
-    
+
     /// Subscribe to the broadcast channel.
-    pub fn subscribe(&self) -> broadcast::Receiver<usize> {
-        self.stream.subscribe()
+    pub fn subscribe(&self) -> broadcast::Receiver<SysMessageState> {
+        self.channel.subscribe()
     }
 
     /// Number of system messages.
@@ -147,6 +159,17 @@ impl SystemMessages {
     /// Whether the system messages collection is empty.
     pub fn is_empty(&self) -> bool {
         self.messages.is_empty()
+    }
+
+    /// Number of unread system messages.
+    pub fn unread_len(&self) -> usize {
+        self.messages.values().fold(0, |acc, item| {
+            if !item.is_read {
+                acc + 1
+            } else {
+                acc
+            }
+        })
     }
 
     /// Create or overwrite a system message.
@@ -165,12 +188,13 @@ impl SystemMessages {
     ///
     /// Changes are written to disc.
     pub async fn mark_read(&mut self, key: impl AsRef<str>) -> Result<()> {
-        let updated = if let Some(message) = self
-            .messages
-            .get_mut(key.as_ref()) {
-            message.is_read = true;
-            true
-        } else { false };
+        let updated =
+            if let Some(message) = self.messages.get_mut(key.as_ref()) {
+                message.is_read = true;
+                true
+            } else {
+                false
+            };
 
         if updated {
             self.save().await
@@ -178,7 +202,7 @@ impl SystemMessages {
             Err(Error::NoSysMessage(key.as_ref().to_owned()))
         }
     }
-    
+
     /// Get a message.
     pub fn get(&self, key: impl AsRef<str>) -> Option<&SysMessage> {
         self.messages.get(key.as_ref())
@@ -211,7 +235,7 @@ impl SystemMessages {
     async fn save(&self) -> Result<()> {
         let buf = serde_json::to_vec_pretty(self)?;
         vfs::write(&self.path, buf).await?;
-        let _ = self.stream.send(self.messages.len());
+        let _ = self.channel.send((self.messages.len(), self.unread_len()));
         Ok(())
     }
 }
