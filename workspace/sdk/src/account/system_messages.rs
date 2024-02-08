@@ -1,9 +1,8 @@
 //! System messages are persistent user notifications.
 //!
 //! They can be used to surface information such as
-//! a failed synchronization, due date for backup,
-//! automated security report or other information about
-//! an account.
+//! a failed synchronization, software update, due date for backup,
+//! automated security report or other information about an account.
 //!
 //! System messages use keys so that we don't write lots
 //! of failed synchronization messages, instead the last
@@ -46,7 +45,7 @@ pub enum SysMessageLevel {
 /// System message notification.
 ///
 /// Higher priority messages are sorted before
-/// lower priority messages. If priorities are
+/// lower priority messages, if priorities are
 /// equal sorting uses the created date and time.
 #[derive(Debug, Serialize, Deserialize, Ord, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
