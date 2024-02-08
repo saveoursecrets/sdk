@@ -3,7 +3,10 @@ use anyhow::Result;
 use sos_net::sdk::{
     prelude::*,
     signer::{ecdsa::SingleParty, Signer},
+    urn::Urn,
 };
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Tests sorting of system messages.
 #[tokio::test]
@@ -23,11 +26,26 @@ async fn system_messages_sort() -> Result<()> {
     paths.ensure().await?;
 
     let mut messages = SystemMessages::new(&paths);
-    assert!(messages.get("unknown-key").is_none());
+    assert!(messages.get(&"urn:sos:unknown-key".parse()?).is_none());
+
+    // Check stream subscription
+    let mut rx = messages.subscribe();
+    let lengths = Arc::new(Mutex::new(vec![]));
+    let task_lengths = Arc::clone(&lengths);
+    tokio::task::spawn(async move {
+        while let Ok(len) = rx.recv().await {
+            let mut writer = task_lengths.lock().await;
+            writer.push(len);
+        }
+    });
+
+    let sync_error: Urn = "urn:sos:sync:error".parse()?;
+    let software_update: Urn = "urn:sos:software:update".parse()?;
+    let backup_due: Urn = "urn:sos:backup:due".parse()?;
 
     messages
         .insert(
-            "sync_error".to_owned(),
+            sync_error.clone(),
             SysMessage::new_priority(
                 "Sync error".to_owned(),
                 "Failed to sync with http://192.168.1.1:5053".to_owned(),
@@ -39,7 +57,7 @@ async fn system_messages_sort() -> Result<()> {
 
     messages
         .insert(
-            "software_update".to_owned(),
+            software_update.clone(),
             SysMessage::new_priority(
                 "New version available".to_owned(),
                 "A new release of the app is available to download."
@@ -52,7 +70,7 @@ async fn system_messages_sort() -> Result<()> {
 
     messages
         .insert(
-            "backup_due".to_owned(),
+            backup_due.clone(),
             SysMessage::new(
                 "Backup due".to_owned(),
                 "No backup for a month, backup your account now.".to_owned(),
@@ -61,9 +79,9 @@ async fn system_messages_sort() -> Result<()> {
         .await?;
 
     // Mark a message as read
-    messages.mark_read("software_update").await?;
-    let software_update = messages.get("software_update").unwrap();
-    assert!(software_update.is_read);
+    messages.mark_read(&software_update).await?;
+    let software_update_msg = messages.get(&software_update).unwrap();
+    assert!(software_update_msg.is_read);
 
     assert_eq!(3, messages.len());
 
@@ -75,17 +93,27 @@ async fn system_messages_sort() -> Result<()> {
     assert_eq!("Backup due", &list.get(1).unwrap().title);
     // Finally the sync error
     assert_eq!("Sync error", &list.get(2).unwrap().title);
-    
-    // Remove a message
-    messages.remove("software_update").await?;
 
+    // Remove a message
+    messages.remove(&software_update).await?;
+    
     // Load from disc
     messages.load().await?;
     assert_eq!(2, messages.len());
-    
+
     // Clear all messages
     messages.clear().await?;
     assert!(messages.is_empty());
+
+    let expected = vec![(1, 1), (2, 2), (3, 3), (3, 2), (2, 2), (0, 0)];
+    // Wait for the last message to be delivered
+    loop {
+        let lengths = lengths.lock().await;
+        if lengths.len() == expected.len() {
+            assert_eq!(expected.as_slice(), lengths.as_slice());
+            break;
+        }
+    }
 
     teardown(TEST_ID).await;
 
