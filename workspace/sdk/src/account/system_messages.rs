@@ -31,11 +31,15 @@ pub enum SysMessageLevel {
 }
 
 /// System message notification.
+///
+/// Higher priority messages are sorted before 
+/// lower priority messages. If priorities are 
+/// equal sorting uses the created date and time.
 #[derive(Debug, Serialize, Deserialize, Ord, Eq, PartialEq)]
 pub struct SysMessage {
     /// Date and time the message was created.
     pub created: OffsetDateTime,
-    /// SysMessage priority impacts the ordering.
+    /// Message priority.
     pub priority: usize,
     /// Title for the message.
     pub title: String,
