@@ -394,9 +394,25 @@ impl Paths {
     pub fn preferences(&self) -> PathBuf {
         use crate::constants::PREFERENCES_FILE;
         if self.is_global() {
-            panic!("file transfers are not accessible for global paths");
+            panic!("preferences are not accessible for global paths");
         }
         let mut vault_path = self.user_dir.join(PREFERENCES_FILE);
+        vault_path.set_extension(JSON_EXT);
+        vault_path
+    }
+
+    /// Path to the file used to store account-level system messages.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    #[cfg(feature = "system-messages")]
+    pub fn system_messages(&self) -> PathBuf {
+        use crate::constants::SYSTEM_MESSAGES_FILE;
+        if self.is_global() {
+            panic!("system messages are not accessible for global paths");
+        }
+        let mut vault_path = self.user_dir.join(SYSTEM_MESSAGES_FILE);
         vault_path.set_extension(JSON_EXT);
         vault_path
     }

@@ -41,6 +41,7 @@
 //! * `migrate` Import and export unencrypted secrets.
 //! * `preferences` Account-level preferences.
 //! * `security-report` Generate a security report.
+//! * `system-messages` User messages persisted to disc.
 //!
 
 #[cfg(all(not(feature = "account"), feature = "archive"))]

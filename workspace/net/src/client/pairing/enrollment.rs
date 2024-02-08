@@ -103,7 +103,8 @@ impl DeviceEnrollment {
 
     /// Public identity of the account.
     ///
-    /// Only available after a successful call to [DeviceEnrollment::enroll].
+    /// Only available after a successful call to
+    /// [DeviceEnrollment::fetch_account].
     pub fn public_identity(&self) -> Option<&PublicIdentity> {
         self.public_identity.as_ref()
     }

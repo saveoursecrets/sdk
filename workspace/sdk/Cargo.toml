@@ -28,6 +28,7 @@ recovery = ["dep:vsss-rs"]
 preferences = []
 search = ["dep:probly-search"]
 security-report = []
+system-messages = []
 sync = []
 test-utils = ["dep:anyhow"]
 
