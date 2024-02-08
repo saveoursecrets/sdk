@@ -53,8 +53,14 @@ compile_error!("account feature must be enabled to use contacts");
 #[cfg(all(not(feature = "account"), feature = "migrate"))]
 compile_error!("account feature must be enabled to use migrate");
 
+#[cfg(all(not(feature = "account"), feature = "preferences"))]
+compile_error!("account feature must be enabled to use preferences");
+
 #[cfg(all(not(feature = "account"), feature = "security-report"))]
 compile_error!("account feature must be enabled to use security-report");
+
+#[cfg(all(not(feature = "account"), feature = "system-messages"))]
+compile_error!("account feature must be enabled to use system-messages");
 
 #[cfg(feature = "account")]
 pub mod account;
