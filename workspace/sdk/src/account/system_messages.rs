@@ -11,17 +11,31 @@
 //!
 //! To prevent overwriting previous messages use a unique
 //! key such as a UUID.
-use crate::{vfs, Paths, Result};
+use crate::{vfs, Paths, Result, Error};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf, cmp::Ordering};
+use std::{cmp::Ordering, collections::HashMap, path::PathBuf};
 use time::OffsetDateTime;
+
+/// Level for system messages.
+#[derive(
+    Debug, Default, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq,
+)]
+pub enum SysMessageLevel {
+    /// Informational message.
+    #[default]
+    Info,
+    /// Warning message.
+    Warn,
+    /// Error message.
+    Error,
+}
 
 /// System message notification.
 #[derive(Debug, Serialize, Deserialize, Ord, Eq, PartialEq)]
-pub struct Message {
+pub struct SysMessage {
     /// Date and time the message was created.
     pub created: OffsetDateTime,
-    /// Message priority impacts the ordering.
+    /// SysMessage priority impacts the ordering.
     pub priority: usize,
     /// Title for the message.
     pub title: String,
@@ -29,10 +43,49 @@ pub struct Message {
     pub content: String,
     /// Indicates if the message has been read.
     pub is_read: bool,
+    /// Level indicator.
+    pub level: SysMessageLevel,
 }
-impl PartialOrd for Message {
+
+impl SysMessage {
+    /// Create a new message.
+    pub fn new(title: String, content: String) -> Self {
+        Self {
+            created: OffsetDateTime::now_utc(),
+            priority: 0,
+            title,
+            content,
+            is_read: false,
+            level: Default::default(),
+        }
+    }
+
+    /// Create a new message with the given priority and level.
+    pub fn new_priority(
+        title: String,
+        content: String,
+        priority: usize,
+        level: SysMessageLevel,
+    ) -> Self {
+        Self {
+            created: OffsetDateTime::now_utc(),
+            priority,
+            title,
+            content,
+            is_read: false,
+            level,
+        }
+    }
+}
+
+impl PartialOrd for SysMessage {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.created.cmp(&other.created))
+        match other.priority.cmp(&self.priority) {
+            std::cmp::Ordering::Equal => {
+                Some(other.created.cmp(&self.created))
+            }
+            result => Some(result),
+        }
     }
 }
 
@@ -40,7 +93,7 @@ impl PartialOrd for Message {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SystemMessages {
     #[serde(flatten)]
-    messages: HashMap<String, Message>,
+    messages: HashMap<String, SysMessage>,
     /// Path to the file on disc.
     #[serde(skip)]
     path: PathBuf,
@@ -68,16 +121,49 @@ impl SystemMessages {
         Ok(())
     }
 
+    /// Number of system messages.
+    pub fn len(&self) -> usize {
+        self.messages.len()
+    }
+
+    /// Whether the system messages collection is empty.
+    pub fn is_empty(&self) -> bool {
+        self.messages.is_empty()
+    }
+
     /// Create or overwrite a system message.
     ///
     /// Changes are written to disc.
     pub async fn insert(
         &mut self,
         key: String,
-        message: Message,
+        message: SysMessage,
     ) -> Result<()> {
         self.messages.insert(key, message);
         self.save().await
+    }
+
+    /// Mark a message as read.
+    ///
+    /// Changes are written to disc.
+    pub async fn mark_read(&mut self, key: impl AsRef<str>) -> Result<()> {
+        let updated = if let Some(message) = self
+            .messages
+            .get_mut(key.as_ref()) {
+            message.is_read = true;
+            true
+        } else { false };
+
+        if updated {
+            self.save().await
+        } else {
+            Err(Error::NoSysMessage(key.as_ref().to_owned()))
+        }
+    }
+    
+    /// Get a message.
+    pub fn get(&self, key: impl AsRef<str>) -> Option<&SysMessage> {
+        self.messages.get(key.as_ref())
     }
 
     /// Remove a system message.
@@ -95,9 +181,9 @@ impl SystemMessages {
         self.messages = Default::default();
         self.save().await
     }
-    
+
     /// Sorted list of system messages.
-    pub fn sorted_list(&self) -> Vec<&Message> {
+    pub fn sorted_list(&self) -> Vec<&SysMessage> {
         let mut messages: Vec<_> = self.messages.values().collect();
         messages.sort();
         messages

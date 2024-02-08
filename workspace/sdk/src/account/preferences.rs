@@ -140,6 +140,16 @@ impl Preferences {
         Ok(())
     }
 
+    /// Number of preferences.
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    /// Whether the preferences collection is empty.
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
     /// Iterator of the preferences.
     pub fn iter(&self) -> impl Iterator<Item = (&String, &Preference)> {
         self.values.iter()

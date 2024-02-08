@@ -458,6 +458,11 @@ pub enum Error {
     #[error("expecting string list preference for '{0}'")]
     PreferenceTypeStringList(String),
 
+    /// Error generated when a system message is not found.
+    #[cfg(feature = "system-messages")]
+    #[error("no system message for key '{0}'")]
+    NoSysMessage(String),
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
