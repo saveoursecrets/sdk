@@ -86,13 +86,14 @@ async fn system_messages_sort() -> Result<()> {
     assert_eq!(3, messages.len());
 
     let list = messages.sorted_list();
+
     // First item is the highest priority
-    assert_eq!("New version available", &list.get(0).unwrap().title);
+    assert_eq!("New version available", &list.get(0).unwrap().1.title);
     // Next is the backup due sorted by created date
     // with the most recent being first
-    assert_eq!("Backup due", &list.get(1).unwrap().title);
+    assert_eq!("Backup due", &list.get(1).unwrap().1.title);
     // Finally the sync error
-    assert_eq!("Sync error", &list.get(2).unwrap().title);
+    assert_eq!("Sync error", &list.get(2).unwrap().1.title);
 
     // Remove a message
     messages.remove(&software_update).await?;
