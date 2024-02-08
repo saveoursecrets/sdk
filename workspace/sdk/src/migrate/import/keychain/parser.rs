@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap, ops::Range};
 
 use logos::{Lexer, Logos};
 
-use super::{Error, Result};
+use super::{Error, Result, LexError};
 
 /// The value for the type of generic passwords
 /// that are of the note type.
@@ -13,12 +13,12 @@ const NOTE_TYPE: &str = "note";
 /// value of a secure note.
 const NOTE_PLIST_KEY: &str = "NOTE";
 
+type LexResult<T> = std::result::Result<T, LexError>;
+
 #[derive(Logos, Debug, PartialEq)]
 enum OctalToken {
     #[regex("\\\\(\\d\\d\\d)")]
     OctalEscape,
-    #[error]
-    Error,
 }
 
 /// Replace escaped octal sequences such as `\012` in a string.
@@ -26,7 +26,7 @@ pub fn unescape_octal(value: &str) -> Result<Cow<'_, str>> {
     let mut lex = OctalToken::lexer(value);
     let mut has_escape = false;
     let mut tokens = Vec::new();
-    while let Some(token) = lex.next() {
+    while let Some(Ok(token)) = lex.next() {
         if let OctalToken::OctalEscape = token {
             has_escape = true;
         }
@@ -74,7 +74,8 @@ pub fn plist_secure_note(
     Ok(None)
 }
 
-#[derive(Logos, Debug, PartialEq)]
+#[derive(Logos, Debug, PartialEq, Copy, Clone)]
+#[logos(error = LexError)]
 enum Token {
     #[token("keychain:")]
     Keychain,
@@ -98,9 +99,10 @@ enum Token {
     Null,
     #[regex("<(blob|timedate|uint32|sint32)>")]
     Type,
-    #[error]
     #[regex(r"[ \t\r\n\f]+")]
     WhiteSpace,
+    #[regex(r".*")]
+    Other,
 }
 
 /// Parse the dump for a keychain.
@@ -130,15 +132,30 @@ impl<'s> KeychainParser<'s> {
         let mut in_attributes = false;
         let mut next_token = lex.next();
         while let Some(token) = next_token {
+
+            println!("{:#?}", token);
+
+            let token = token?;
+
+            println!("AFTER EXTRACT ERROR");
+            
+            println!("{:#?}", token);
+
             match token {
                 Token::Keychain => {
                     in_attributes = false;
                     let advance_token = Self::consume_whitespace(&mut lex);
+                    
+                    println!("Trying to parse... {:#?}", advance_token);
+
                     let range = Self::parse_quoted_string(
                         &mut lex,
                         self.source,
                         advance_token,
                     )?;
+            
+                    println!("Range {:#?}", range);
+
                     let entry = KeychainEntry {
                         keychain: &self.source[range],
                         version: None,
@@ -180,7 +197,7 @@ impl<'s> KeychainParser<'s> {
 
                     // It is allowed for data: to just be whitespace
                     // so we have to catch that here
-                    if let Some(Token::Keychain) = token {
+                    if let Some(Ok(Token::Keychain)) = token {
                         next_token = token;
                         continue;
                     }
@@ -196,7 +213,7 @@ impl<'s> KeychainParser<'s> {
                         let range = Self::parse_attribute_name(
                             &mut lex,
                             self.source,
-                            Some(token),
+                            Some(Ok(token)),
                         )?;
                         let name = &self.source[range];
                         let name: AttributeName = name.try_into()?;
@@ -214,7 +231,7 @@ impl<'s> KeychainParser<'s> {
 
                         // Consume the equals sign
                         let equals = lex.next();
-                        if !matches!(equals, Some(Token::Equality)) {
+                        if !matches!(equals, Some(Ok(Token::Equality))) {
                             return Err(Error::ParseExpectsEquals);
                         }
 
@@ -241,19 +258,23 @@ impl<'s> KeychainParser<'s> {
         Ok(KeychainList { entries })
     }
 
-    fn consume_whitespace(lex: &mut Lexer<Token>) -> Option<Token> {
-        lex.by_ref().find(|t| !matches!(t, Token::WhiteSpace))
+    fn consume_whitespace(lex: &mut Lexer<Token>) -> Option<LexResult<Token>> {
+        lex.by_ref().find(|t| !matches!(t, Ok(Token::WhiteSpace)))
     }
 
     fn parse_quoted_string(
         lex: &mut Lexer<Token>,
         source: &str,
-        mut next_token: Option<Token>,
+        mut next_token: Option<LexResult<Token>>,
     ) -> Result<Range<usize>> {
         let mut in_quote = false;
         let mut begin: Range<usize> = lex.span();
 
         while let Some(token) = next_token {
+            println!("quoted {:#?}", token);
+            let token = token?;
+
+            println!("quoted {:#?}", token);
             match token {
                 Token::HexValue => {
                     if !in_quote {
@@ -277,6 +298,7 @@ impl<'s> KeychainParser<'s> {
                 }
                 _ => {}
             }
+            
             next_token = lex.next();
         }
         Err(Error::ParseNotQuoted(source[lex.span()].to_owned()))
@@ -285,10 +307,10 @@ impl<'s> KeychainParser<'s> {
     fn parse_attribute_name(
         lex: &mut Lexer<Token>,
         source: &str,
-        mut next_token: Option<Token>,
+        mut next_token: Option<LexResult<Token>>,
     ) -> Result<Range<usize>> {
         while let Some(token) = next_token {
-            match token {
+            match token? {
                 Token::HexValue => {
                     return Ok(lex.span());
                 }
@@ -308,7 +330,7 @@ impl<'s> KeychainParser<'s> {
                         lex.bump(4);
                     }
                     let end_quote = lex.next();
-                    if !matches!(end_quote, Some(Token::DoubleQuote)) {
+                    if !matches!(end_quote, Some(Ok(Token::DoubleQuote))) {
                         return Err(Error::ParseAttributeNameQuote(
                             source[lex.span()].to_owned(),
                         ));
@@ -325,10 +347,10 @@ impl<'s> KeychainParser<'s> {
     fn parse_attribute_type(
         lex: &mut Lexer<Token>,
         source: &str,
-        mut next_token: Option<Token>,
+        mut next_token: Option<LexResult<Token>>,
     ) -> Result<Range<usize>> {
         while let Some(token) = next_token {
-            if let Token::Type = token {
+            if let Token::Type = token? {
                 return Ok(lex.span());
             }
             next_token = lex.next();
@@ -348,9 +370,10 @@ impl<'s> KeychainParser<'s> {
     fn parse_value<'a>(
         lex: &mut Lexer<Token>,
         source: &'a str,
-        token: Option<Token>,
+        token: Option<LexResult<Token>>,
     ) -> Result<Value<'a>> {
         if let Some(token) = token {
+            let token = token?;
             match token {
                 Token::Null => return Ok(Value::Null),
                 Token::HexValue => {
@@ -367,7 +390,7 @@ impl<'s> KeychainParser<'s> {
                 }
                 Token::DoubleQuote => {
                     let range =
-                        Self::parse_quoted_string(lex, source, Some(token))?;
+                        Self::parse_quoted_string(lex, source, Some(Ok(token)))?;
                     let value = &source[range];
                     return Ok(Value::String(value));
                 }
@@ -384,10 +407,10 @@ impl<'s> KeychainParser<'s> {
     fn parse_number(
         lex: &mut Lexer<Token>,
         source: &str,
-        mut next_token: Option<Token>,
+        mut next_token: Option<LexResult<Token>>,
     ) -> Result<Range<usize>> {
         while let Some(token) = next_token {
-            if let Token::Number = token {
+            if let Token::Number = token? {
                 return Ok(lex.span());
             }
             next_token = lex.next();
@@ -786,28 +809,21 @@ mod test {
 
     #[tokio::test]
     async fn keychain_unescape_octal() -> Result<()> {
-        let expected = vfs::read_to_string(
-            "../../tests/fixtures/migrate/plist-data-unescaped.txt",
-        )
-        .await?;
-        let contents = vfs::read_to_string(
-            "../../tests/fixtures/migrate/plist-data-escaped.txt",
-        )
-        .await?;
+        let expected = include_str!("../../../../../../tests/fixtures/migrate/plist-data-unescaped.txt");
+        let contents = include_str!("../../../../../../tests/fixtures/migrate/plist-data-escaped.txt");
         let plist = unescape_octal(&contents)?;
         /*
         vfs::write(
             "tests/fixtures/plist-data-unescaped.txt", plist.as_ref()).await?;
         */
-        assert_eq!(&expected, plist.as_ref());
+        assert_eq!(&expected, &plist);
         Ok(())
     }
 
     #[tokio::test]
     async fn keychain_parse_basic() -> Result<()> {
         let contents =
-            vfs::read_to_string("../../tests/fixtures/migrate/sos-mock.txt")
-                .await?;
+            include_str!("../../../../../../tests/fixtures/migrate/sos-mock.txt");
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 
@@ -822,10 +838,9 @@ mod test {
 
     #[tokio::test]
     async fn keychain_parse_certificate() -> Result<()> {
-        let contents = vfs::read_to_string(
-            "../../tests/fixtures/migrate/mock-certificate.txt",
-        )
-        .await?;
+        let contents = include_str!(
+            "../../../../../../tests/fixtures/migrate/mock-certificate.txt",
+        );
         let parser = KeychainParser::new(&contents);
         let _list = parser.parse()?;
         Ok(())
@@ -833,10 +848,9 @@ mod test {
 
     #[tokio::test]
     async fn keychain_parse_data() -> Result<()> {
-        let contents = vfs::read_to_string(
-            "../../tests/fixtures/migrate/sos-mock-data.txt",
-        )
-        .await?;
+        let contents = include_str!(
+            "../../../../../../tests/fixtures/migrate/sos-mock-data.txt",
+        );
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 

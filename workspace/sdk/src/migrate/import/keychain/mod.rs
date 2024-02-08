@@ -1,6 +1,6 @@
 //! Import from keychain access and passwords CSV.
 use async_trait::async_trait;
-pub use error::Error;
+pub use error::{Error, LexError};
 
 pub mod error;
 pub mod parser;
