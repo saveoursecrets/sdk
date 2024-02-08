@@ -131,10 +131,14 @@ impl Preferences {
     }
 
     /// Load the preferences stored on disc into memory.
+    ///
+    /// If the file does not exist this is a noop.
     pub async fn load(&mut self) -> Result<()> {
-        let content = vfs::read(&self.path).await?;
-        let prefs: Preferences = serde_json::from_slice(&content)?;
-        self.values = prefs.values;
+        if vfs::try_exists(&self.path).await? {
+            let content = vfs::read(&self.path).await?;
+            let prefs: Preferences = serde_json::from_slice(&content)?;
+            self.values = prefs.values;
+        }
         Ok(())
     }
 

@@ -142,10 +142,14 @@ impl SystemMessages {
     }
 
     /// Load the system messages stored on disc into memory.
+    ///
+    /// If the file does not exist this is a noop.
     pub async fn load(&mut self) -> Result<()> {
-        let content = vfs::read(&self.path).await?;
-        let sys: SystemMessages = serde_json::from_slice(&content)?;
-        self.messages = sys.messages;
+        if vfs::try_exists(&self.path).await? {
+            let content = vfs::read(&self.path).await?;
+            let sys: SystemMessages = serde_json::from_slice(&content)?;
+            self.messages = sys.messages;
+        }
         Ok(())
     }
 
