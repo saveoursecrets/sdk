@@ -73,7 +73,7 @@ app_dirs2 = "2"
 pem = { version = "3", features = ["serde"] }
 tempfile = "3.5"
 zxcvbn = "2"
-totp-rs = { version = "5.3", features = ["qr", "serde_support", "zeroize"] }
+totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
 vcard4 = { version = "0.5", features = ["serde"] }
 async-once-cell = "0.5"
 age = { version = "0.10", features = ["async"] }
