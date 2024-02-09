@@ -158,11 +158,11 @@ The secret sharing polynomial $f(x)$ and its coefficients will be kept secret by
 
 1. The _share verification polynomial:_
 
-$$ F(x) = f(x) \cdot G = k G + \sum_{i=1}^{t-1} a_i x^i G $$
+$$ F(x) = f(x) \cdot G = s_0 G + \sum_{i=1}^{t-1} a_i x^i G $$
 
 2. The _contact sharing polynomial:_
 
-$$ Z(x) = f(x) \cdot Q = k Q + \sum_{i=1}^{t-1} a_i x^i Q $$
+$$ Z(x) = f(x) \cdot Q = s_0 Q + \sum_{i=1}^{t-1} a_i x^i Q $$
 
 The function $f(x)$ outputs scalars (private keys) in $\mathbb{Z}\_q$. Contrastingly, $F(x)$ and $Z(x)$ output elliptic curve points, which are multiples of $G$ or $Q$ respectively.
 
