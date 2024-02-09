@@ -1,9 +1,8 @@
 //! Import from keychain access and passwords CSV.
 use async_trait::async_trait;
-pub use error::{Error, LexError};
+pub use error::Error;
 
 pub mod error;
-pub mod parser;
 
 /// Result type for keychain access integration.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -25,9 +24,8 @@ use crate::{
     },
 };
 
-use parser::{AttributeName, KeychainParser};
+use keychain_parser::{AttributeName, KeychainParser};
 use secrecy::{ExposeSecret, SecretString};
-
 use security_framework::{
     item::{ItemClass, ItemSearchOptions},
     os::macos::{item::ItemSearchOptionsExt, keychain::SecKeychain},

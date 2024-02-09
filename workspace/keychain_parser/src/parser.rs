@@ -1,9 +1,7 @@
 //! Parser for keychain access dumps.
-use std::{borrow::Cow, collections::HashMap, ops::Range};
-
+use super::{error::LexError, Error, Result};
 use logos::{Lexer, Logos};
-
-use super::{Error, LexError, Result};
+use std::{borrow::Cow, collections::HashMap, ops::Range};
 
 /// The value for the type of generic passwords
 /// that are of the note type.
@@ -793,11 +791,13 @@ mod test {
     use super::{unescape_octal, KeychainParser};
     use anyhow::Result;
 
-    #[tokio::test]
-    async fn keychain_unescape_octal() -> Result<()> {
-        let expected = include_str!("../../../../../../tests/fixtures/migrate/plist-data-unescaped.txt");
+    #[test]
+    fn keychain_unescape_octal() -> Result<()> {
+        let expected = include_str!(
+            "../../../tests/fixtures/migrate/plist-data-unescaped.txt"
+        );
         let contents = include_str!(
-            "../../../../../../tests/fixtures/migrate/plist-data-escaped.txt"
+            "../../../tests/fixtures/migrate/plist-data-escaped.txt"
         );
         let plist = unescape_octal(&contents)?;
         /*
@@ -808,11 +808,10 @@ mod test {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn keychain_parse_basic() -> Result<()> {
-        let contents = include_str!(
-            "../../../../../../tests/fixtures/migrate/sos-mock.txt"
-        );
+    #[test]
+    fn keychain_parse_basic() -> Result<()> {
+        let contents =
+            include_str!("../../../tests/fixtures/migrate/sos-mock.txt");
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 
@@ -825,20 +824,20 @@ mod test {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn keychain_parse_certificate() -> Result<()> {
+    #[test]
+    fn keychain_parse_certificate() -> Result<()> {
         let contents = include_str!(
-            "../../../../../../tests/fixtures/migrate/mock-certificate.txt",
+            "../../../tests/fixtures/migrate/mock-certificate.txt",
         );
         let parser = KeychainParser::new(&contents);
         let _list = parser.parse()?;
         Ok(())
     }
 
-    #[tokio::test]
-    async fn keychain_parse_data() -> Result<()> {
+    #[test]
+    fn keychain_parse_data() -> Result<()> {
         let contents = include_str!(
-            "../../../../../../tests/fixtures/migrate/sos-mock-data.txt",
+            "../../../tests/fixtures/migrate/sos-mock-data.txt",
         );
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;

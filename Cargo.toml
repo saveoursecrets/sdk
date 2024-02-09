@@ -18,6 +18,7 @@ categories = [
 resolver = "2"
 members = [
   "workspace/artifact",
+  "workspace/keychain_parser",
   "workspace/net",
   "workspace/sdk",
   "workspace/test_utils",
