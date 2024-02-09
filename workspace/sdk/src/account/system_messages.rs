@@ -56,6 +56,8 @@ pub struct SysMessage {
     pub priority: usize,
     /// Title for the message.
     pub title: String,
+    /// Sub title byline for the message.
+    pub sub_title: Option<String>,
     /// Content of the message.
     pub content: String,
     /// Indicates if the message has been read.
@@ -71,6 +73,7 @@ impl SysMessage {
             created: OffsetDateTime::now_utc(),
             priority: 0,
             title,
+            sub_title: None,
             content,
             is_read: false,
             level: Default::default(),
@@ -88,6 +91,7 @@ impl SysMessage {
             created: OffsetDateTime::now_utc(),
             priority,
             title,
+            sub_title: None,
             content,
             is_read: false,
             level,
