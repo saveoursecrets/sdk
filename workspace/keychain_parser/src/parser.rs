@@ -1,7 +1,7 @@
 //! Parser for keychain access dumps.
-use std::{borrow::Cow, collections::HashMap, ops::Range};
+use super::{error::LexError, Error, Result};
 use logos::{Lexer, Logos};
-use super::{Error, error::LexError, Result};
+use std::{borrow::Cow, collections::HashMap, ops::Range};
 
 /// The value for the type of generic passwords
 /// that are of the note type.
@@ -793,7 +793,9 @@ mod test {
 
     #[test]
     fn keychain_unescape_octal() -> Result<()> {
-        let expected = include_str!("../../../tests/fixtures/migrate/plist-data-unescaped.txt");
+        let expected = include_str!(
+            "../../../tests/fixtures/migrate/plist-data-unescaped.txt"
+        );
         let contents = include_str!(
             "../../../tests/fixtures/migrate/plist-data-escaped.txt"
         );
@@ -808,9 +810,8 @@ mod test {
 
     #[test]
     fn keychain_parse_basic() -> Result<()> {
-        let contents = include_str!(
-            "../../../tests/fixtures/migrate/sos-mock.txt"
-        );
+        let contents =
+            include_str!("../../../tests/fixtures/migrate/sos-mock.txt");
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 

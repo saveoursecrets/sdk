@@ -1,4 +1,7 @@
-//! Parses the output of the `dump-keychain` command of `security(1)` on MacOS.
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+//! Parses the output of the `dump-keychain` command
+//! of `security(1)` on MacOS.
 
 mod error;
 mod parser;
