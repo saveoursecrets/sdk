@@ -1,0 +1,16 @@
+[package]
+name = "keychain_parser"
+version = "0.1.0"
+edition = "2021"
+description = "Parse the output of security(1) dump-keychain."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[dependencies]
+thiserror = "1"
+logos = { version = "0.14", features = ["export_derive"] }
+plist = "1"
+
+[dev-dependencies]
+anyhow = "1"

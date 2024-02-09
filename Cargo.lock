@@ -2390,6 +2390,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "keychain_parser"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "logos",
+ "plist",
+ "thiserror",
+]
+
+[[package]]
 name = "language-tags"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
