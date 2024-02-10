@@ -21,11 +21,20 @@ use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use urn::Urn;
 
-/// Type sent to broadcast channel subscribers.
-///
-/// The total number of system messages and the number
-/// of unread messages.
-pub type SysMessageState = (usize, usize);
+/// System messages count.
+#[derive(Default, Clone)]
+pub struct SysMessageCount {
+    /// Total number of messages.
+    pub total: usize,
+    /// Number of unread messages.
+    pub unread: usize,
+    /// Number of unread info messages.
+    pub unread_info: usize,
+    /// Number of unread warn messages.
+    pub unread_warn: usize,
+    /// Number of unread error messages.
+    pub unread_error: usize,
+}
 
 /// Level for system messages.
 #[derive(
@@ -110,7 +119,7 @@ impl PartialOrd for SysMessage {
     }
 }
 
-fn stream_channel() -> broadcast::Sender<SysMessageState> {
+fn stream_channel() -> broadcast::Sender<SysMessageCount> {
     let (stream, _) = broadcast::channel(8);
     stream
 }
@@ -127,7 +136,7 @@ pub struct SystemMessages {
     path: PathBuf,
     /// Broadcast channel.
     #[serde(skip, default = "stream_channel")]
-    channel: broadcast::Sender<SysMessageState>,
+    channel: broadcast::Sender<SysMessageCount>,
 }
 
 impl SystemMessages {
@@ -158,7 +167,7 @@ impl SystemMessages {
     }
 
     /// Subscribe to the broadcast channel.
-    pub fn subscribe(&self) -> broadcast::Receiver<SysMessageState> {
+    pub fn subscribe(&self) -> broadcast::Receiver<SysMessageCount> {
         self.channel.subscribe()
     }
 
@@ -171,16 +180,26 @@ impl SystemMessages {
     pub fn is_empty(&self) -> bool {
         self.messages.is_empty()
     }
-
-    /// Number of unread system messages.
-    pub fn unread_len(&self) -> usize {
-        self.messages.values().fold(0, |acc, item| {
+    
+    /// Message counts.
+    pub fn counts(&self) -> SysMessageCount {
+        let mut counts: SysMessageCount = Default::default();
+        counts.total = self.messages.len();
+        for item in self.messages.values() {
             if !item.is_read {
-                acc + 1
-            } else {
-                acc
+                counts.unread += 1;
+                if matches!(item.level, SysMessageLevel::Info) {
+                    counts.unread_info += 1;
+                }
+                if matches!(item.level, SysMessageLevel::Warn) {
+                    counts.unread_warn += 1;
+                }
+                if matches!(item.level, SysMessageLevel::Error) {
+                    counts.unread_error += 1;
+                }
             }
-        })
+        }
+        counts
     }
 
     /// Iterator of the system messages.
@@ -250,7 +269,7 @@ impl SystemMessages {
     async fn save(&self) -> Result<()> {
         let buf = serde_json::to_vec_pretty(self)?;
         vfs::write(&self.path, buf).await?;
-        let _ = self.channel.send((self.messages.len(), self.unread_len()));
+        let _ = self.channel.send(self.counts());
         Ok(())
     }
 }
