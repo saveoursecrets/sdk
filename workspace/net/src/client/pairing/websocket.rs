@@ -121,7 +121,7 @@ impl<'a> OfferPairing<'a> {
     pub async fn new(
         account: &'a mut NetworkAccount,
         url: Url,
-    ) -> Result<(Self, WsStream)> {
+    ) -> Result<(OfferPairing<'a>, WsStream)> {
         let pre_shared_key: [u8; 32] = csprng().gen();
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
@@ -407,7 +407,7 @@ impl<'a> AcceptPairing<'a> {
         device: &'a TrustedDevice,
         device_signer: DeviceSigner,
         data_dir: Option<PathBuf>,
-    ) -> Result<(Self, WsStream)> {
+    ) -> Result<(AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
         let initiator = builder
