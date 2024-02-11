@@ -8,6 +8,7 @@ use crate::{
     sdk::{
         account::Account,
         crypto::AccessKey,
+        constants::JSON_EXT,
         device::DeviceSigner,
         encode,
         events::{
@@ -28,12 +29,28 @@ use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
 };
+use serde::{Serialize, Deserialize};
+
 
 #[cfg(feature = "device")]
 use crate::sdk::{
     events::{DeviceEvent, DeviceEventLog},
     sync::DevicePatch,
 };
+
+const ENROLLMENT_FILE: &str = "enrollment";
+
+/// Pending enrollment written to disc between 
+/// fetching an account and finishing enrollment.
+///
+/// Can be used to detect that an account was 
+/// created from an enrollment that was never completed 
+/// properly.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PendingEnrollment {
+    /// Server origin the account was fetched from.
+    pub origin: Origin,
+}
 
 /// Enroll a device.
 ///
@@ -127,6 +144,9 @@ impl DeviceEnrollment {
         #[cfg(feature = "device")]
         self.create_device(change_set.device).await?;
         self.create_identity(change_set.identity).await?;
+        
+        self.write_pending_enrollment().await?;
+
         Ok(())
     }
 
@@ -157,6 +177,8 @@ impl DeviceEnrollment {
         // Sign in to the new account
         account.sign_in(key).await?;
 
+        self.remove_pending_enrollment().await?;
+
         // Sync to save the amended identity folder on the remote
         if let Some(e) = account.sync().await {
             tracing::error!(error = ?e);
@@ -164,6 +186,23 @@ impl DeviceEnrollment {
         }
 
         Ok(account)
+    }
+
+    async fn write_pending_enrollment(&self) -> Result<()> {
+        let mut file = self.paths.user_dir().join(ENROLLMENT_FILE);
+        file.set_extension(JSON_EXT);
+        
+        let data = PendingEnrollment { origin: self.origin.clone() };
+        let contents = serde_json::to_vec_pretty(&data)?;
+        vfs::write(&file, &contents).await?;
+        Ok(())
+    }
+
+    async fn remove_pending_enrollment(&self) -> Result<()> {
+        let mut file = self.paths.user_dir().join(ENROLLMENT_FILE);
+        file.set_extension(JSON_EXT);
+        vfs::remove_file(&file).await?;
+        Ok(())
     }
 
     /// Add a remote origin to the enrolled account paths.
