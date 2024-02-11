@@ -385,6 +385,22 @@ impl Paths {
         vault_path
     }
 
+    /// Path to the file used to mark a pending enrollment.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    #[cfg(feature = "device")]
+    pub fn enrollment(&self) -> PathBuf {
+        use crate::constants::ENROLLMENT_FILE;
+        if self.is_global() {
+            panic!("enrollment is not accessible for global paths");
+        }
+        let mut vault_path = self.user_dir.join(ENROLLMENT_FILE);
+        vault_path.set_extension(JSON_EXT);
+        vault_path
+    }
+
     /// Path to the file used to store account-level preferences.
     ///
     /// # Panics

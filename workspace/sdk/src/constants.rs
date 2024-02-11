@@ -138,6 +138,10 @@ mod folders {
     /// File that tracks external file transfers.
     pub const TRANSFERS_FILE: &str = "transfers";
 
+    /// File that marks a pairing process as pending.
+    #[cfg(feature = "device")]
+    pub const ENROLLMENT_FILE: &str = "enrollment";
+
     /// File thats stores account-level preferences.
     #[cfg(feature = "preferences")]
     pub const PREFERENCES_FILE: &str = "preferences";

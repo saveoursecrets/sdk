@@ -15,7 +15,8 @@ use tokio::sync::mpsc;
 pub async fn run_pairing_protocol(
     primary_device: &mut SimulatedDevice,
     _test_id: &str,
-) -> Result<NetworkAccount> {
+    finish_enrollment: bool,
+) -> Result<Option<NetworkAccount>> {
     let origin = primary_device.origin.clone();
     let password = primary_device.password.clone();
     let key: AccessKey = password.into();
@@ -80,7 +81,11 @@ pub async fn run_pairing_protocol(
 
     enrollment.fetch_account().await?;
 
-    Ok(enrollment.finish(&key).await?)
+    if finish_enrollment {
+        Ok(Some(enrollment.finish(&key).await?))
+    } else {
+        Ok(None)
+    }
 }
 
 /// Run the inverted pairing protocol to completion.
