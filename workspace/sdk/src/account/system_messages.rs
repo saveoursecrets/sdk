@@ -180,7 +180,7 @@ impl SystemMessages {
     pub fn is_empty(&self) -> bool {
         self.messages.is_empty()
     }
-    
+
     /// Message counts.
     pub fn counts(&self) -> SysMessageCount {
         let mut counts: SysMessageCount = Default::default();

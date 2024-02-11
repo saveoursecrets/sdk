@@ -112,6 +112,8 @@ pub struct OfferPairing<'a> {
     tx: WsSink,
     /// Current state of the protocol.
     state: PairProtocolState,
+    /// Determine if the URL sharing is inverted.
+    is_inverted: bool,
 }
 
 impl<'a> OfferPairing<'a> {
@@ -124,17 +126,45 @@ impl<'a> OfferPairing<'a> {
         let keypair = builder.generate_keypair()?;
         let share_url =
             ServerPairUrl::new(url.clone(), keypair.public.clone());
+        Self::new_connection(account, share_url, keypair, false).await
+    }
 
-        let responder = builder
-            .local_private_key(&keypair.private)
-            .psk(3, &share_url.pre_shared_key())
-            .build_responder()?;
-        let mut request = WebSocketRequest::new(&url, RELAY_PATH)?;
+    /// Create a new pairing offer from a share URL generated
+    /// by the accepting device.
+    pub async fn new_inverted(
+        account: &'a mut NetworkAccount,
+        share_url: ServerPairUrl,
+    ) -> Result<(OfferPairing<'a>, WsStream)> {
+        let builder = Builder::new(PATTERN.parse()?);
+        let keypair = builder.generate_keypair()?;
+        Self::new_connection(account, share_url, keypair, true).await
+    }
+
+    async fn new_connection(
+        account: &'a mut NetworkAccount,
+        share_url: ServerPairUrl,
+        keypair: Keypair,
+        is_inverted: bool,
+    ) -> Result<(OfferPairing<'a>, WsStream)> {
+        let psk = share_url.pre_shared_key().to_vec();
+        let builder = if is_inverted {
+            Builder::new(PATTERN.parse()?)
+                .local_private_key(&keypair.private)
+                .remote_public_key(share_url.public_key())
+                .psk(3, &psk)
+        } else {
+            Builder::new(PATTERN.parse()?)
+                .local_private_key(&keypair.private)
+                .psk(3, &psk)
+        };
+
+        let responder = builder.build_responder()?;
+        let mut request =
+            WebSocketRequest::new(share_url.server(), RELAY_PATH)?;
         request
             .uri
             .query_pairs_mut()
             .append_pair("public_key", &hex::encode(&keypair.public));
-
 
         let (socket, _) = connect_async(request).await?;
         let (tx, rx) = socket.split();
@@ -146,6 +176,7 @@ impl<'a> OfferPairing<'a> {
                 tunnel: Some(Tunnel::Handshake(responder)),
                 tx,
                 state: PairProtocolState::Pending,
+                is_inverted,
             },
             rx,
         ))
@@ -396,6 +427,8 @@ pub struct AcceptPairing<'a> {
     device_signer: DeviceSigner,
     /// Device enrollment.
     enrollment: Option<DeviceEnrollment>,
+    /// Whether the pairing is inverted.
+    is_inverted: bool,
 }
 
 impl<'a> AcceptPairing<'a> {
@@ -408,11 +441,61 @@ impl<'a> AcceptPairing<'a> {
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        let initiator = builder
-            .local_private_key(&keypair.private)
-            .psk(3, &share_url.pre_shared_key())
-            .remote_public_key(share_url.public_key())
-            .build_initiator()?;
+        Self::new_connection(
+            share_url,
+            device,
+            device_signer,
+            data_dir,
+            keypair,
+            false,
+        )
+        .await
+    }
+
+    /// Create a new inverted pairing connection.
+    pub async fn new_inverted(
+        server: Url,
+        device: &'a TrustedDevice,
+        device_signer: DeviceSigner,
+        data_dir: Option<PathBuf>,
+    ) -> Result<(ServerPairUrl, AcceptPairing<'a>, WsStream)> {
+        let builder = Builder::new(PATTERN.parse()?);
+        let keypair = builder.generate_keypair()?;
+        let share_url = ServerPairUrl::new(server, keypair.public.clone());
+        let (pairing, stream) = Self::new_connection(
+            share_url.clone(),
+            device,
+            device_signer,
+            data_dir,
+            keypair,
+            true,
+        )
+        .await?;
+        Ok((share_url, pairing, stream))
+    }
+
+    async fn new_connection(
+        share_url: ServerPairUrl,
+        device: &'a TrustedDevice,
+        device_signer: DeviceSigner,
+        data_dir: Option<PathBuf>,
+        keypair: Keypair,
+        is_inverted: bool,
+    ) -> Result<(AcceptPairing<'a>, WsStream)> {
+        let psk = share_url.pre_shared_key().to_vec();
+        let builder = if is_inverted {
+            Builder::new(PATTERN.parse()?)
+                .local_private_key(&keypair.private)
+                .psk(3, &psk)
+        } else {
+            Builder::new(PATTERN.parse()?)
+                .local_private_key(&keypair.private)
+                .remote_public_key(share_url.public_key())
+                .psk(3, &psk)
+        };
+
+        let initiator = builder.build_initiator()?;
+
         let mut request =
             WebSocketRequest::new(share_url.server(), RELAY_PATH)?;
         request
@@ -432,6 +515,7 @@ impl<'a> AcceptPairing<'a> {
                 data_dir,
                 device_signer,
                 enrollment: None,
+                is_inverted,
             },
             rx,
         ))
@@ -487,10 +571,6 @@ impl<'a> AcceptPairing<'a> {
     }
 
     /// Take the final device enrollment.
-    ///
-    /// The [DeviceEnrollment::fetch_account] method has already been
-    /// called so all that remains is to authenticate the new
-    /// device by calling [DeviceEnrollment::finish].
     ///
     /// Errors if the protocol has not reached completion.
     pub fn take_enrollment(self) -> Result<DeviceEnrollment> {
