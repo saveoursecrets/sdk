@@ -59,6 +59,7 @@ enum PairProtocolState {
     Done,
 }
 
+#[derive(Debug)]
 enum IncomingAction {
     Reply(PairProtocolState, RelayPacket),
     HandleMessage(PairingMessage),
@@ -147,18 +148,19 @@ impl<'a> OfferPairing<'a> {
         is_inverted: bool,
     ) -> Result<(OfferPairing<'a>, WsStream)> {
         let psk = share_url.pre_shared_key().to_vec();
-        let builder = if is_inverted {
+        let tunnel = if is_inverted {
             Builder::new(PATTERN.parse()?)
                 .local_private_key(&keypair.private)
                 .remote_public_key(share_url.public_key())
                 .psk(3, &psk)
+                .build_initiator()?
         } else {
             Builder::new(PATTERN.parse()?)
                 .local_private_key(&keypair.private)
                 .psk(3, &psk)
+                .build_responder()?
         };
 
-        let responder = builder.build_responder()?;
         let mut request =
             WebSocketRequest::new(share_url.server(), RELAY_PATH)?;
         request
@@ -173,7 +175,7 @@ impl<'a> OfferPairing<'a> {
                 keypair,
                 account,
                 share_url,
-                tunnel: Some(Tunnel::Handshake(responder)),
+                tunnel: Some(Tunnel::Handshake(tunnel)),
                 tx,
                 state: PairProtocolState::Pending,
                 is_inverted,
@@ -193,6 +195,12 @@ impl<'a> OfferPairing<'a> {
         stream: WsStream,
         mut shutdown_rx: mpsc::Receiver<()>,
     ) -> Result<()> {
+        if self.is_inverted {
+            // Start pairing
+            self.noise_send_e().await?;
+            self.state = PairProtocolState::Handshake;
+        }
+
         let (offer_tx, mut offer_rx) = mpsc::channel::<RelayPacket>(32);
         let (close_tx, mut close_rx) = mpsc::channel::<()>(1);
         tokio::task::spawn(listen(stream, offer_tx, close_tx));
@@ -240,33 +248,60 @@ impl<'a> OfferPairing<'a> {
         let span = span!(Level::DEBUG, "pairing_offer");
         let _enter = span.enter();
 
-        let action = match (&self.state, &packet.payload) {
-            (PairProtocolState::Pending, RelayPayload::Handshake(_, _)) => {
-                let reply = self.noise_read_e(&packet).await?;
-                IncomingAction::Reply(PairProtocolState::Handshake, reply)
-            }
-            (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
-                let reply = self.noise_read_s(&packet).await?;
-                IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
-            }
-            (
-                PairProtocolState::PskHandshake,
-                RelayPayload::Transport(len, buf),
-            ) => {
-                if let Some(Tunnel::Transport(transport)) =
-                    self.tunnel.as_mut()
-                {
-                    IncomingAction::HandleMessage(
-                        decrypt(transport, *len, buf.as_slice()).await?,
-                    )
-                } else {
-                    unreachable!();
+        let action = if !self.is_inverted {
+            match (&self.state, &packet.payload) {
+                (PairProtocolState::Pending, RelayPayload::Handshake(_, _)) => {
+                    let reply = self.noise_read_e(&packet).await?;
+                    IncomingAction::Reply(PairProtocolState::Handshake, reply)
+                }
+                (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
+                    let reply = self.noise_read_s(&packet).await?;
+                    IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
+                }
+                (
+                    PairProtocolState::PskHandshake,
+                    RelayPayload::Transport(len, buf),
+                ) => {
+                    if let Some(Tunnel::Transport(transport)) =
+                        self.tunnel.as_mut()
+                    {
+                        IncomingAction::HandleMessage(
+                            decrypt(transport, *len, buf.as_slice()).await?,
+                        )
+                    } else {
+                        unreachable!();
+                    }
+                }
+                _ => {
+                    return Err(Error::BadState);
                 }
             }
-            _ => {
-                return Err(Error::BadState);
+
+        } else {
+            match (&self.state, &packet.payload) {
+                (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
+                    let reply = self.noise_send_s(&packet).await?;
+                    IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
+                }
+                (
+                    PairProtocolState::PskHandshake,
+                    RelayPayload::Transport(len, buf),
+                ) => {
+                    if let Some(Tunnel::Transport(transport)) =
+                        self.tunnel.as_mut()
+                    {
+                        IncomingAction::HandleMessage(
+                            decrypt(transport, *len, buf.as_slice()).await?,
+                        )
+                    } else {
+                        unreachable!();
+                    }
+                }
+                _ => todo!("handle inverted messages on offer"),
             }
         };
+
+        println!("ACTION: {:#?}", action);
 
         match action {
             IncomingAction::Reply(next_state, reply) => {
@@ -440,18 +475,18 @@ impl<'a> AcceptPairing<'a> {
         is_inverted: bool,
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
         let psk = share_url.pre_shared_key().to_vec();
-        let builder = if is_inverted {
+        let tunnel = if is_inverted {
             Builder::new(PATTERN.parse()?)
                 .local_private_key(&keypair.private)
                 .psk(3, &psk)
+                .build_responder()?
         } else {
             Builder::new(PATTERN.parse()?)
                 .local_private_key(&keypair.private)
                 .remote_public_key(share_url.public_key())
                 .psk(3, &psk)
+                .build_initiator()?
         };
-
-        let initiator = builder.build_initiator()?;
 
         let mut request =
             WebSocketRequest::new(share_url.server(), RELAY_PATH)?;
@@ -466,7 +501,7 @@ impl<'a> AcceptPairing<'a> {
                 keypair,
                 device,
                 share_url,
-                tunnel: Some(Tunnel::Handshake(initiator)),
+                tunnel: Some(Tunnel::Handshake(tunnel)),
                 tx,
                 state: PairProtocolState::Pending,
                 data_dir,
@@ -546,28 +581,45 @@ impl<'a> AcceptPairing<'a> {
         let span = span!(Level::DEBUG, "pairing_accept");
         let _enter = span.enter();
 
-        let action = match (&self.state, &packet.payload) {
-            (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
-                let reply = self.noise_send_s(&packet).await?;
-                IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
-            }
-            (
-                PairProtocolState::PskHandshake,
-                RelayPayload::Transport(len, buf),
-            ) => {
-                if let Some(Tunnel::Transport(transport)) =
-                    self.tunnel.as_mut()
-                {
-                    IncomingAction::HandleMessage(
-                        decrypt(transport, *len, buf.as_slice()).await?,
-                    )
-                } else {
-                    unreachable!();
+        let action = if !self.is_inverted {
+            match (&self.state, &packet.payload) {
+                (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
+                    let reply = self.noise_send_s(&packet).await?;
+                    IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
+                }
+                (
+                    PairProtocolState::PskHandshake,
+                    RelayPayload::Transport(len, buf),
+                ) => {
+                    if let Some(Tunnel::Transport(transport)) =
+                        self.tunnel.as_mut()
+                    {
+                        IncomingAction::HandleMessage(
+                            decrypt(transport, *len, buf.as_slice()).await?,
+                        )
+                    } else {
+                        unreachable!();
+                    }
+                }
+                _ => {
+                    return Err(Error::BadState);
                 }
             }
-            _ => {
-                return Err(Error::BadState);
+
+        } else {
+
+            match (&self.state, &packet.payload) {
+                (PairProtocolState::Pending, RelayPayload::Handshake(_, _)) => {
+                    let reply = self.noise_read_e(&packet).await?;
+                    IncomingAction::Reply(PairProtocolState::Handshake, reply)
+                }
+                (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
+                    let reply = self.noise_read_s(&packet).await?;
+                    IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
+                }
+                _ => todo!("handle inverted messages on accept"),
             }
+
         };
 
         match action {
