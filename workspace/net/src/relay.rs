@@ -7,7 +7,7 @@ use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result};
 
 /// Message sent between devices being paired.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct RelayPacket {
     /// Packet header data.
     pub header: RelayHeader,
@@ -16,7 +16,7 @@ pub struct RelayPacket {
 }
 
 /// Header of a pairing packet.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct RelayHeader {
     /// Public key of the recipient.
     pub to_public_key: Vec<u8>,
@@ -25,7 +25,7 @@ pub struct RelayHeader {
 }
 
 /// Packet for pairing communication.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum RelayPayload {
     #[default]
     #[doc(hidden)]
@@ -37,7 +37,7 @@ pub enum RelayPayload {
 }
 
 /// Length-prefixed message body.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct RelayBody {
     /// Length of the body buffer.
     length: u16,

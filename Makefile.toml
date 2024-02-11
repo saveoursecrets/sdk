@@ -118,10 +118,6 @@ args = ["test", "preferences_"]
 command = "cargo"
 args = ["test", "system_messages_"]
 
-[tasks.test-integration]
-command = "cargo"
-args = ["test", "integration_"]
-
 [tasks.test-cli]
 command = "cargo"
 args = ["test", "command_line"]
@@ -137,7 +133,6 @@ dependencies = [
   "test-pairing",
   "test-access-control",
   "test-file-transfers",
-  "test-integration",
   "test-preferences",
   "test-system-messages",
   "test-cli",
@@ -158,7 +153,6 @@ dependencies = [
   "test-pairing",
   "test-access-control",
   "test-file-transfers",
-  "test-integration",
   "test-preferences",
   "test-system-messages",
 ]

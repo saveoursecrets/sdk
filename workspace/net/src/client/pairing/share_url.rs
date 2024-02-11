@@ -1,10 +1,6 @@
 use super::{Error, Result};
-use sos_sdk::{
-    crypto::csprng,
-    hex,
-    url::Url,
-};
 use rand::Rng;
+use sos_sdk::{crypto::csprng, hex, url::Url};
 use std::str::FromStr;
 
 /// Server URL.
@@ -30,10 +26,7 @@ impl ServerPairUrl {
     ///
     /// The public key is the noise protocol public key
     /// of the device.
-    pub fn new(
-        server: Url,
-        public_key: Vec<u8>,
-    ) -> Self {
+    pub fn new(server: Url, public_key: Vec<u8>) -> Self {
         let pre_shared_key: [u8; 32] = csprng().gen();
         Self {
             server,
@@ -130,23 +123,19 @@ impl FromStr for ServerPairUrl {
 #[cfg(test)]
 mod test {
     use super::ServerPairUrl;
-    use crate::sdk::{crypto::csprng, url::Url};
+    use crate::sdk::url::Url;
     use anyhow::Result;
-    use rand::Rng;
 
     #[test]
     fn server_pair_url() -> Result<()> {
-        let mock_psk: [u8; 32] = csprng().gen();
         let mock_url = Url::parse("http://192.168.1.8:5053/foo?bar=baz+qux")?;
         let mock_key = vec![1, 2, 3, 4];
-        let share =
-            ServerPairUrl::new(mock_url.clone(), mock_key.clone(), mock_psk);
+        let share = ServerPairUrl::new(mock_url.clone(), mock_key.clone());
         let share_url: Url = share.into();
         let share_url = share_url.to_string();
         let parsed_share: ServerPairUrl = share_url.parse()?;
         assert_eq!(mock_url, parsed_share.server);
         assert_eq!(&mock_key, parsed_share.public_key());
-        assert_eq!(mock_psk, parsed_share.pre_shared_key());
         Ok(())
     }
 }

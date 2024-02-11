@@ -59,6 +59,7 @@ enum PairProtocolState {
     Done,
 }
 
+#[derive(Debug)]
 enum IncomingAction {
     Reply(PairProtocolState, RelayPacket),
     HandleMessage(PairingMessage),
@@ -112,6 +113,8 @@ pub struct OfferPairing<'a> {
     tx: WsSink,
     /// Current state of the protocol.
     state: PairProtocolState,
+    /// Determine if the URL sharing is inverted.
+    is_inverted: bool,
 }
 
 impl<'a> OfferPairing<'a> {
@@ -124,17 +127,46 @@ impl<'a> OfferPairing<'a> {
         let keypair = builder.generate_keypair()?;
         let share_url =
             ServerPairUrl::new(url.clone(), keypair.public.clone());
+        Self::new_connection(account, share_url, keypair, false).await
+    }
 
-        let responder = builder
-            .local_private_key(&keypair.private)
-            .psk(3, &share_url.pre_shared_key())
-            .build_responder()?;
-        let mut request = WebSocketRequest::new(&url, RELAY_PATH)?;
+    /// Create a new pairing offer from a share URL generated
+    /// by the accepting device.
+    pub async fn new_inverted(
+        account: &'a mut NetworkAccount,
+        share_url: ServerPairUrl,
+    ) -> Result<(OfferPairing<'a>, WsStream)> {
+        let builder = Builder::new(PATTERN.parse()?);
+        let keypair = builder.generate_keypair()?;
+        Self::new_connection(account, share_url, keypair, true).await
+    }
+
+    async fn new_connection(
+        account: &'a mut NetworkAccount,
+        share_url: ServerPairUrl,
+        keypair: Keypair,
+        is_inverted: bool,
+    ) -> Result<(OfferPairing<'a>, WsStream)> {
+        let psk = share_url.pre_shared_key().to_vec();
+        let tunnel = if is_inverted {
+            Builder::new(PATTERN.parse()?)
+                .local_private_key(&keypair.private)
+                .remote_public_key(share_url.public_key())
+                .psk(3, &psk)
+                .build_initiator()?
+        } else {
+            Builder::new(PATTERN.parse()?)
+                .local_private_key(&keypair.private)
+                .psk(3, &psk)
+                .build_responder()?
+        };
+
+        let mut request =
+            WebSocketRequest::new(share_url.server(), RELAY_PATH)?;
         request
             .uri
             .query_pairs_mut()
             .append_pair("public_key", &hex::encode(&keypair.public));
-
 
         let (socket, _) = connect_async(request).await?;
         let (tx, rx) = socket.split();
@@ -143,9 +175,10 @@ impl<'a> OfferPairing<'a> {
                 keypair,
                 account,
                 share_url,
-                tunnel: Some(Tunnel::Handshake(responder)),
+                tunnel: Some(Tunnel::Handshake(tunnel)),
                 tx,
                 state: PairProtocolState::Pending,
+                is_inverted,
             },
             rx,
         ))
@@ -162,6 +195,12 @@ impl<'a> OfferPairing<'a> {
         stream: WsStream,
         mut shutdown_rx: mpsc::Receiver<()>,
     ) -> Result<()> {
+        if self.is_inverted {
+            // Start pairing
+            self.noise_send_e().await?;
+            self.state = PairProtocolState::Handshake;
+        }
+
         let (offer_tx, mut offer_rx) = mpsc::channel::<RelayPacket>(32);
         let (close_tx, mut close_rx) = mpsc::channel::<()>(1);
         tokio::task::spawn(listen(stream, offer_tx, close_tx));
@@ -209,31 +248,72 @@ impl<'a> OfferPairing<'a> {
         let span = span!(Level::DEBUG, "pairing_offer");
         let _enter = span.enter();
 
-        let action = match (&self.state, &packet.payload) {
-            (PairProtocolState::Pending, RelayPayload::Handshake(_, _)) => {
-                let reply = self.noise_handshake(&packet).await?;
-                IncomingAction::Reply(PairProtocolState::Handshake, reply)
-            }
-            (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
-                let reply = self.psk_handshake(&packet).await?;
-                IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
-            }
-            (
-                PairProtocolState::PskHandshake,
-                RelayPayload::Transport(len, buf),
-            ) => {
-                if let Some(Tunnel::Transport(transport)) =
-                    self.tunnel.as_mut()
-                {
-                    IncomingAction::HandleMessage(
-                        decrypt(transport, *len, buf.as_slice()).await?,
+        let action = if !self.is_inverted {
+            match (&self.state, &packet.payload) {
+                (
+                    PairProtocolState::Pending,
+                    RelayPayload::Handshake(_, _),
+                ) => {
+                    let reply = self.noise_read_e(&packet).await?;
+                    IncomingAction::Reply(PairProtocolState::Handshake, reply)
+                }
+                (
+                    PairProtocolState::Handshake,
+                    RelayPayload::Handshake(_, _),
+                ) => {
+                    let reply = self.noise_read_s(&packet).await?;
+                    IncomingAction::Reply(
+                        PairProtocolState::PskHandshake,
+                        reply,
                     )
-                } else {
-                    unreachable!();
+                }
+                (
+                    PairProtocolState::PskHandshake,
+                    RelayPayload::Transport(len, buf),
+                ) => {
+                    if let Some(Tunnel::Transport(transport)) =
+                        self.tunnel.as_mut()
+                    {
+                        IncomingAction::HandleMessage(
+                            decrypt(transport, *len, buf.as_slice()).await?,
+                        )
+                    } else {
+                        unreachable!();
+                    }
+                }
+                _ => {
+                    return Err(Error::BadState);
                 }
             }
-            _ => {
-                return Err(Error::BadState);
+        } else {
+            match (&self.state, &packet.payload) {
+                (
+                    PairProtocolState::Handshake,
+                    RelayPayload::Handshake(_, _),
+                ) => {
+                    let reply = self.noise_send_s(&packet).await?;
+                    IncomingAction::Reply(
+                        PairProtocolState::PskHandshake,
+                        reply,
+                    )
+                }
+                (
+                    PairProtocolState::PskHandshake,
+                    RelayPayload::Transport(len, buf),
+                ) => {
+                    if let Some(Tunnel::Transport(transport)) =
+                        self.tunnel.as_mut()
+                    {
+                        IncomingAction::HandleMessage(
+                            decrypt(transport, *len, buf.as_slice()).await?,
+                        )
+                    } else {
+                        unreachable!();
+                    }
+                }
+                _ => {
+                    return Err(Error::BadState);
+                }
             }
         };
 
@@ -245,7 +325,31 @@ impl<'a> OfferPairing<'a> {
                 self.tx.send(Message::Binary(buffer)).await?;
             }
             IncomingAction::HandleMessage(message) => {
-                if let PairingMessage::Request(device) = message {
+                // In inverted mode we can get a ready event
+                // so we just reply with another ready event
+                // to trigger the usual exchange of information
+                if let PairingMessage::Ready = message {
+                    let payload = if let Some(Tunnel::Transport(transport)) =
+                        self.tunnel_mut()
+                    {
+                        encrypt(transport, &PairingMessage::Ready).await?
+                    } else {
+                        unreachable!();
+                    };
+                    let reply = RelayPacket {
+                        header: RelayHeader {
+                            to_public_key: packet
+                                .header
+                                .from_public_key
+                                .clone(),
+                            from_public_key: self.keypair().public.clone(),
+                        },
+                        payload,
+                    };
+
+                    let buffer = encode(&reply).await?;
+                    self.tx.send(Message::Binary(buffer)).await?;
+                } else if let PairingMessage::Request(device) = message {
                     tracing::debug!("<- device");
                     self.register_device(device).await?;
 
@@ -304,75 +408,32 @@ impl<'a> OfferPairing<'a> {
         }
         Ok(())
     }
+}
 
-    /// Respond to the initiator noise protocol handshake.
-    async fn noise_handshake(
-        &mut self,
-        packet: &RelayPacket,
-    ) -> Result<RelayPacket> {
-        if let (
-            Some(Tunnel::Handshake(state)),
-            RelayPayload::Handshake(len, init_msg),
-        ) = (&mut self.tunnel, &packet.payload)
-        {
-            let mut buf = [0; 1024];
-            let mut reply = [0; 1024];
-            // <- e
-            tracing::debug!("<- e");
-            state.read_message(&init_msg[..*len], &mut buf)?;
-            // -> e, ee, s, es
-            tracing::debug!("-> e, ee, s, es");
-            let len = state.write_message(&[], &mut reply)?;
-            Ok(RelayPacket {
-                header: RelayHeader {
-                    to_public_key: packet.header.from_public_key.clone(),
-                    from_public_key: self.keypair.public.clone(),
-                },
-                payload: RelayPayload::Handshake(len, reply.to_vec()),
-            })
-        } else {
-            Err(Error::BadState)
-        }
+impl<'a> NoiseTunnel for OfferPairing<'a> {
+    async fn send(&mut self, message: Message) -> Result<()> {
+        Ok(self.tx.send(message).await?)
     }
 
-    /// Handle the psk handshake and transition into transport mode.
-    async fn psk_handshake(
-        &mut self,
-        packet: &RelayPacket,
-    ) -> Result<RelayPacket> {
-        if let (
-            Some(Tunnel::Handshake(state)),
-            RelayPayload::Handshake(len, init_msg),
-        ) = (&mut self.tunnel, &packet.payload)
-        {
-            let mut buf = [0; 1024];
-            // <- s, se
-            tracing::debug!("<- s, se");
-            state.read_message(&init_msg[..*len], &mut buf)?;
+    fn pairing_public_key(&self) -> &[u8] {
+        self.share_url.public_key()
+    }
 
-            let tunnel = self.tunnel.take().unwrap();
-            if let Tunnel::Handshake(state) = tunnel {
-                self.tunnel =
-                    Some(Tunnel::Transport(state.into_transport_mode()?));
-            }
+    fn keypair(&self) -> &Keypair {
+        &self.keypair
+    }
 
-            let payload = if let Some(Tunnel::Transport(transport)) =
-                self.tunnel.as_mut()
-            {
-                encrypt(transport, &PairingMessage::Ready).await?
-            } else {
-                unreachable!();
-            };
-            Ok(RelayPacket {
-                header: RelayHeader {
-                    to_public_key: packet.header.from_public_key.clone(),
-                    from_public_key: self.keypair.public.clone(),
-                },
-                payload,
-            })
-        } else {
-            Err(Error::BadState)
+    fn tunnel_mut(&mut self) -> Option<&mut Tunnel> {
+        self.tunnel.as_mut()
+    }
+
+    fn into_transport_mode(&mut self) -> Result<()> {
+        let tunnel = self.tunnel.take().unwrap();
+        if let Tunnel::Handshake(state) = tunnel {
+            self.tunnel =
+                Some(Tunnel::Transport(state.into_transport_mode()?));
         }
+        Ok(())
     }
 }
 
@@ -396,6 +457,8 @@ pub struct AcceptPairing<'a> {
     device_signer: DeviceSigner,
     /// Device enrollment.
     enrollment: Option<DeviceEnrollment>,
+    /// Whether the pairing is inverted.
+    is_inverted: bool,
 }
 
 impl<'a> AcceptPairing<'a> {
@@ -408,11 +471,61 @@ impl<'a> AcceptPairing<'a> {
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        let initiator = builder
-            .local_private_key(&keypair.private)
-            .psk(3, &share_url.pre_shared_key())
-            .remote_public_key(share_url.public_key())
-            .build_initiator()?;
+        Self::new_connection(
+            share_url,
+            device,
+            device_signer,
+            data_dir,
+            keypair,
+            false,
+        )
+        .await
+    }
+
+    /// Create a new inverted pairing connection.
+    pub async fn new_inverted(
+        server: Url,
+        device: &'a TrustedDevice,
+        device_signer: DeviceSigner,
+        data_dir: Option<PathBuf>,
+    ) -> Result<(ServerPairUrl, AcceptPairing<'a>, WsStream)> {
+        let builder = Builder::new(PATTERN.parse()?);
+        let keypair = builder.generate_keypair()?;
+        let share_url = ServerPairUrl::new(server, keypair.public.clone());
+        let (pairing, stream) = Self::new_connection(
+            share_url.clone(),
+            device,
+            device_signer,
+            data_dir,
+            keypair,
+            true,
+        )
+        .await?;
+        Ok((share_url, pairing, stream))
+    }
+
+    async fn new_connection(
+        share_url: ServerPairUrl,
+        device: &'a TrustedDevice,
+        device_signer: DeviceSigner,
+        data_dir: Option<PathBuf>,
+        keypair: Keypair,
+        is_inverted: bool,
+    ) -> Result<(AcceptPairing<'a>, WsStream)> {
+        let psk = share_url.pre_shared_key().to_vec();
+        let tunnel = if is_inverted {
+            Builder::new(PATTERN.parse()?)
+                .local_private_key(&keypair.private)
+                .psk(3, &psk)
+                .build_responder()?
+        } else {
+            Builder::new(PATTERN.parse()?)
+                .local_private_key(&keypair.private)
+                .remote_public_key(share_url.public_key())
+                .psk(3, &psk)
+                .build_initiator()?
+        };
+
         let mut request =
             WebSocketRequest::new(share_url.server(), RELAY_PATH)?;
         request
@@ -426,12 +539,13 @@ impl<'a> AcceptPairing<'a> {
                 keypair,
                 device,
                 share_url,
-                tunnel: Some(Tunnel::Handshake(initiator)),
+                tunnel: Some(Tunnel::Handshake(tunnel)),
                 tx,
                 state: PairProtocolState::Pending,
                 data_dir,
                 device_signer,
                 enrollment: None,
+                is_inverted,
             },
             rx,
         ))
@@ -443,8 +557,11 @@ impl<'a> AcceptPairing<'a> {
         stream: WsStream,
         mut shutdown_rx: mpsc::Receiver<()>,
     ) -> Result<()> {
-        // Start pairing
-        self.noise_handshake().await?;
+        if !self.is_inverted {
+            // Start pairing
+            self.noise_send_e().await?;
+            self.state = PairProtocolState::Handshake;
+        }
 
         // Run the event loop
         let (offer_tx, mut offer_rx) = mpsc::channel::<RelayPacket>(32);
@@ -488,78 +605,9 @@ impl<'a> AcceptPairing<'a> {
 
     /// Take the final device enrollment.
     ///
-    /// The [DeviceEnrollment::fetch_account] method has already been
-    /// called so all that remains is to authenticate the new
-    /// device by calling [DeviceEnrollment::finish].
-    ///
     /// Errors if the protocol has not reached completion.
     pub fn take_enrollment(self) -> Result<DeviceEnrollment> {
         self.enrollment.ok_or(Error::NoEnrollment)
-    }
-
-    /// Start the initial noise handshake.
-    async fn noise_handshake(&mut self) -> Result<()> {
-        let span = span!(Level::DEBUG, "pairing_accept");
-        let _enter = span.enter();
-
-        if let Some(Tunnel::Handshake(state)) = &mut self.tunnel {
-            let mut buf = [0u8; 1024];
-            // -> e
-            tracing::debug!("-> e");
-            let len = state.write_message(&[], &mut buf)?;
-            let message = RelayPacket {
-                header: RelayHeader {
-                    to_public_key: self.share_url.public_key().to_vec(),
-                    from_public_key: self.keypair.public.to_vec(),
-                },
-                payload: RelayPayload::Handshake(len, buf.to_vec()),
-            };
-            let buffer = encode(&message).await?;
-            self.tx.send(Message::Binary(buffer)).await?;
-            self.state = PairProtocolState::Handshake;
-        }
-        Ok(())
-    }
-
-    /// Handle the psk handshake and transition into transport mode.
-    async fn psk_handshake(
-        &mut self,
-        packet: &RelayPacket,
-    ) -> Result<RelayPacket> {
-        let packet = if let (
-            Some(Tunnel::Handshake(state)),
-            RelayPayload::Handshake(len, init_msg),
-        ) = (&mut self.tunnel, &packet.payload)
-        {
-            let mut buf = [0; 1024];
-            let mut reply = [0; 1024];
-            // <- e, ee, s, es
-            tracing::debug!("<- e, ee, s, es");
-            state.read_message(&init_msg[..*len], &mut buf)?;
-            // -> s, se
-            tracing::debug!("-> s, se");
-            let len = state.write_message(&[], &mut reply)?;
-            Some(RelayPacket {
-                header: RelayHeader {
-                    to_public_key: packet.header.from_public_key.clone(),
-                    from_public_key: self.keypair.public.clone(),
-                },
-                payload: RelayPayload::Handshake(len, reply.to_vec()),
-            })
-        } else {
-            None
-        };
-
-        if let Some(packet) = packet {
-            let tunnel = self.tunnel.take().unwrap();
-            if let Tunnel::Handshake(state) = tunnel {
-                self.tunnel =
-                    Some(Tunnel::Transport(state.into_transport_mode()?));
-            }
-            Ok(packet)
-        } else {
-            return Err(Error::BadState);
-        }
     }
 
     /// Process incoming packet.
@@ -571,27 +619,72 @@ impl<'a> AcceptPairing<'a> {
         let span = span!(Level::DEBUG, "pairing_accept");
         let _enter = span.enter();
 
-        let action = match (&self.state, &packet.payload) {
-            (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
-                let reply = self.psk_handshake(&packet).await?;
-                IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
-            }
-            (
-                PairProtocolState::PskHandshake,
-                RelayPayload::Transport(len, buf),
-            ) => {
-                if let Some(Tunnel::Transport(transport)) =
-                    self.tunnel.as_mut()
-                {
-                    IncomingAction::HandleMessage(
-                        decrypt(transport, *len, buf.as_slice()).await?,
+        let action = if !self.is_inverted {
+            match (&self.state, &packet.payload) {
+                (
+                    PairProtocolState::Handshake,
+                    RelayPayload::Handshake(_, _),
+                ) => {
+                    let reply = self.noise_send_s(&packet).await?;
+                    IncomingAction::Reply(
+                        PairProtocolState::PskHandshake,
+                        reply,
                     )
-                } else {
-                    unreachable!();
+                }
+                (
+                    PairProtocolState::PskHandshake,
+                    RelayPayload::Transport(len, buf),
+                ) => {
+                    if let Some(Tunnel::Transport(transport)) =
+                        self.tunnel.as_mut()
+                    {
+                        IncomingAction::HandleMessage(
+                            decrypt(transport, *len, buf.as_slice()).await?,
+                        )
+                    } else {
+                        unreachable!();
+                    }
+                }
+                _ => {
+                    return Err(Error::BadState);
                 }
             }
-            _ => {
-                return Err(Error::BadState);
+        } else {
+            match (&self.state, &packet.payload) {
+                (
+                    PairProtocolState::Pending,
+                    RelayPayload::Handshake(_, _),
+                ) => {
+                    let reply = self.noise_read_e(&packet).await?;
+                    IncomingAction::Reply(PairProtocolState::Handshake, reply)
+                }
+                (
+                    PairProtocolState::Handshake,
+                    RelayPayload::Handshake(_, _),
+                ) => {
+                    let reply = self.noise_read_s(&packet).await?;
+                    IncomingAction::Reply(
+                        PairProtocolState::PskHandshake,
+                        reply,
+                    )
+                }
+                (
+                    PairProtocolState::PskHandshake,
+                    RelayPayload::Transport(len, buf),
+                ) => {
+                    if let Some(Tunnel::Transport(transport)) =
+                        self.tunnel.as_mut()
+                    {
+                        IncomingAction::HandleMessage(
+                            decrypt(transport, *len, buf.as_slice()).await?,
+                        )
+                    } else {
+                        unreachable!();
+                    }
+                }
+                _ => {
+                    return Err(Error::BadState);
+                }
             }
         };
 
@@ -692,4 +785,179 @@ async fn decrypt<T: DeserializeOwned>(
     let body: RelayBody = decode(&contents).await?;
     let message = serde_json::from_slice(body.as_ref())?;
     Ok(message)
+}
+
+impl<'a> NoiseTunnel for AcceptPairing<'a> {
+    async fn send(&mut self, message: Message) -> Result<()> {
+        Ok(self.tx.send(message).await?)
+    }
+
+    fn pairing_public_key(&self) -> &[u8] {
+        self.share_url.public_key()
+    }
+
+    fn keypair(&self) -> &Keypair {
+        &self.keypair
+    }
+
+    fn tunnel_mut(&mut self) -> Option<&mut Tunnel> {
+        self.tunnel.as_mut()
+    }
+
+    fn into_transport_mode(&mut self) -> Result<()> {
+        let tunnel = self.tunnel.take().unwrap();
+        if let Tunnel::Handshake(state) = tunnel {
+            self.tunnel =
+                Some(Tunnel::Transport(state.into_transport_mode()?));
+        }
+        Ok(())
+    }
+}
+
+trait NoiseTunnel {
+    /// Send a message.
+    async fn send(&mut self, message: Message) -> Result<()>;
+
+    /// Public key of the party that created the pairing URL.
+    fn pairing_public_key(&self) -> &[u8];
+
+    /// Noise keypair.
+    fn keypair(&self) -> &Keypair;
+
+    /// Noise tunnel state.
+    fn tunnel_mut(&mut self) -> Option<&mut Tunnel>;
+
+    /// Update the noise tunnel state.
+    fn into_transport_mode(&mut self) -> Result<()>;
+
+    /// Send the first packet of the initial noise handshake.
+    async fn noise_send_e(&mut self) -> Result<()> {
+        //let span = span!(Level::DEBUG, "pairing_accept");
+        //let _enter = span.enter();
+
+        let buffer = if let Some(Tunnel::Handshake(state)) = self.tunnel_mut()
+        {
+            let mut buf = [0u8; 1024];
+            // -> e
+            tracing::debug!("-> e");
+            let len = state.write_message(&[], &mut buf)?;
+            let message = RelayPacket {
+                header: RelayHeader {
+                    to_public_key: self.pairing_public_key().to_vec(),
+                    from_public_key: self.keypair().public.to_vec(),
+                },
+                payload: RelayPayload::Handshake(len, buf.to_vec()),
+            };
+            encode(&message).await?
+        } else {
+            unreachable!();
+        };
+        self.send(Message::Binary(buffer)).await?;
+        Ok(())
+    }
+
+    /// Respond to the first packet of the noise protocol handshake.
+    async fn noise_read_e(
+        &mut self,
+        packet: &RelayPacket,
+    ) -> Result<RelayPacket> {
+        if let (
+            Some(Tunnel::Handshake(state)),
+            RelayPayload::Handshake(len, init_msg),
+        ) = (self.tunnel_mut(), &packet.payload)
+        {
+            let mut buf = [0; 1024];
+            let mut reply = [0; 1024];
+            // <- e
+            tracing::debug!("<- e");
+            state.read_message(&init_msg[..*len], &mut buf)?;
+            // -> e, ee, s, es
+            tracing::debug!("-> e, ee, s, es");
+            let len = state.write_message(&[], &mut reply)?;
+            Ok(RelayPacket {
+                header: RelayHeader {
+                    to_public_key: packet.header.from_public_key.clone(),
+                    from_public_key: self.keypair().public.clone(),
+                },
+                payload: RelayPayload::Handshake(len, reply.to_vec()),
+            })
+        } else {
+            Err(Error::BadState)
+        }
+    }
+
+    /// Handle the second packet of the noise protocol handshake
+    /// and transition into transport mode.
+    async fn noise_send_s(
+        &mut self,
+        packet: &RelayPacket,
+    ) -> Result<RelayPacket> {
+        let packet = if let (
+            Some(Tunnel::Handshake(state)),
+            RelayPayload::Handshake(len, init_msg),
+        ) = (self.tunnel_mut(), &packet.payload)
+        {
+            let mut buf = [0; 1024];
+            let mut reply = [0; 1024];
+            // <- e, ee, s, es
+            tracing::debug!("<- e, ee, s, es");
+            state.read_message(&init_msg[..*len], &mut buf)?;
+            // -> s, se
+            tracing::debug!("-> s, se");
+            let len = state.write_message(&[], &mut reply)?;
+            Some(RelayPacket {
+                header: RelayHeader {
+                    to_public_key: packet.header.from_public_key.clone(),
+                    from_public_key: self.keypair().public.clone(),
+                },
+                payload: RelayPayload::Handshake(len, reply.to_vec()),
+            })
+        } else {
+            None
+        };
+
+        if let Some(packet) = packet {
+            self.into_transport_mode()?;
+            Ok(packet)
+        } else {
+            return Err(Error::BadState);
+        }
+    }
+
+    /// Handle the final packet of the noise protocol handshake
+    /// and transition into transport mode.
+    async fn noise_read_s(
+        &mut self,
+        packet: &RelayPacket,
+    ) -> Result<RelayPacket> {
+        if let (
+            Some(Tunnel::Handshake(state)),
+            RelayPayload::Handshake(len, init_msg),
+        ) = (self.tunnel_mut(), &packet.payload)
+        {
+            let mut buf = [0; 1024];
+            // <- s, se
+            tracing::debug!("<- s, se");
+            state.read_message(&init_msg[..*len], &mut buf)?;
+
+            self.into_transport_mode()?;
+
+            let payload = if let Some(Tunnel::Transport(transport)) =
+                self.tunnel_mut()
+            {
+                encrypt(transport, &PairingMessage::Ready).await?
+            } else {
+                unreachable!();
+            };
+            Ok(RelayPacket {
+                header: RelayHeader {
+                    to_public_key: packet.header.from_public_key.clone(),
+                    from_public_key: self.keypair().public.clone(),
+                },
+                payload,
+            })
+        } else {
+            Err(Error::BadState)
+        }
+    }
 }
