@@ -14,7 +14,7 @@ use crate::{
             AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
             FolderReducer, WriteEvent,
         },
-        identity::{PublicIdentity, DiscIdentityFolder},
+        identity::{DiscIdentityFolder, PublicIdentity},
         signer::{
             ecdsa::{Address, BoxedEcdsaSigner},
             ed25519::BoxedEd25519Signer,
@@ -145,12 +145,14 @@ impl DeviceEnrollment {
         // Add the remote origin so it is loaded as
         // a remote when the sign in is successful
         self.add_origin().await?;
-        
+
         // Create the vault for the device signing key
-        let mut folder = DiscIdentityFolder::login(
-            self.paths.identity_vault(), key).await?;
-        folder.create_device_vault(
-            &self.paths, self.device_signing_key.clone()).await?;
+        let mut folder =
+            DiscIdentityFolder::login(self.paths.identity_vault(), key)
+                .await?;
+        folder
+            .create_device_vault(&self.paths, self.device_signing_key.clone())
+            .await?;
 
         // Sign in to the new account
         account.sign_in(key).await?;

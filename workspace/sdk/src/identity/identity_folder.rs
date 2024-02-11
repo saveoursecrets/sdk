@@ -202,21 +202,22 @@ where
                 Err(Error::VaultEntryKind(device_key_urn.to_string()))
             }
         } else {
-            self.create_device_vault(paths, DeviceSigner::new_random()).await
+            self.create_device_vault(paths, DeviceSigner::new_random())
+                .await
         };
 
         self.devices = Some(device_manager?);
 
         Ok(())
     }
-    
+
     #[doc(hidden)]
     #[cfg(feature = "device")]
     pub async fn create_device_vault(
         &mut self,
         paths: &Paths,
-        signer: DeviceSigner) -> Result<DeviceManager> {
-
+        signer: DeviceSigner,
+    ) -> Result<DeviceManager> {
         use crate::constants::DEVICE_KEY_URN;
         let device_vault_path = paths.device_file().to_owned();
         let device_key_urn: Urn = DEVICE_KEY_URN.parse()?;
@@ -236,11 +237,8 @@ where
             .password(device_password.clone().into(), None)
             .await?;
 
-        self.save_folder_password(
-            vault.id(),
-            device_password.clone().into(),
-        )
-        .await?;
+        self.save_folder_password(vault.id(), device_password.clone().into())
+            .await?;
 
         let buffer = encode(&vault).await?;
         vfs::write(&device_vault_path, &buffer).await?;
@@ -250,11 +248,11 @@ where
         let mut device_keeper = Gatekeeper::new_mirror(vault, mirror);
         let key: AccessKey = device_password.into();
         device_keeper.unlock(&key).await?;
-        
+
         let secret = Secret::Signer {
-            private_key: SecretSigner::SinglePartyEd25519(
-                SecretVec::new(signer.signing_key().to_bytes()),
-            ),
+            private_key: SecretSigner::SinglePartyEd25519(SecretVec::new(
+                signer.signing_key().to_bytes(),
+            )),
             user_data: Default::default(),
         };
         let mut meta =
