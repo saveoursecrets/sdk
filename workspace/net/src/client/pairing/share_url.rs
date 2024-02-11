@@ -1,5 +1,10 @@
 use super::{Error, Result};
-use sos_sdk::{hex, url::Url};
+use sos_sdk::{
+    crypto::csprng,
+    hex,
+    url::Url,
+};
+use rand::Rng;
 use std::str::FromStr;
 
 /// Server URL.
@@ -24,12 +29,12 @@ impl ServerPairUrl {
     /// Create a URL for pairing two devices.
     ///
     /// The public key is the noise protocol public key
-    /// of the authenticated offering device.
+    /// of the device.
     pub fn new(
         server: Url,
         public_key: Vec<u8>,
-        pre_shared_key: [u8; 32],
     ) -> Self {
+        let pre_shared_key: [u8; 32] = csprng().gen();
         Self {
             server,
             public_key,

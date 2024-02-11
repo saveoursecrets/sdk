@@ -22,7 +22,7 @@ use tokio::sync::broadcast;
 use urn::Urn;
 
 /// System messages count.
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct SysMessageCount {
     /// Total number of messages.
     pub total: usize,

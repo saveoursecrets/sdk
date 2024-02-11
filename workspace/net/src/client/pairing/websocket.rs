@@ -5,7 +5,6 @@ use crate::{
     relay::{RelayBody, RelayHeader, RelayPacket, RelayPayload},
     sdk::{
         account::Account,
-        crypto::csprng,
         decode,
         device::{DeviceSigner, TrustedDevice},
         encode,
@@ -20,7 +19,6 @@ use futures::{
     stream::{SplitSink, SplitStream},
     FutureExt, SinkExt, StreamExt,
 };
-use rand::Rng;
 use serde::{de::DeserializeOwned, Serialize};
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use std::{borrow::Cow, path::PathBuf};
@@ -122,12 +120,14 @@ impl<'a> OfferPairing<'a> {
         account: &'a mut NetworkAccount,
         url: Url,
     ) -> Result<(OfferPairing<'a>, WsStream)> {
-        let pre_shared_key: [u8; 32] = csprng().gen();
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
+        let share_url =
+            ServerPairUrl::new(url.clone(), keypair.public.clone());
+
         let responder = builder
             .local_private_key(&keypair.private)
-            .psk(3, &pre_shared_key)
+            .psk(3, &share_url.pre_shared_key())
             .build_responder()?;
         let mut request = WebSocketRequest::new(&url, RELAY_PATH)?;
         request
@@ -135,8 +135,6 @@ impl<'a> OfferPairing<'a> {
             .query_pairs_mut()
             .append_pair("public_key", &hex::encode(&keypair.public));
 
-        let share_url =
-            ServerPairUrl::new(url, keypair.public.clone(), pre_shared_key);
 
         let (socket, _) = connect_async(request).await?;
         let (tx, rx) = socket.split();

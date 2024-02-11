@@ -98,9 +98,9 @@ args = ["test", "local_"]
 command = "cargo"
 args = ["test", "network_"]
 
-[tasks.test-device]
+[tasks.test-pairing]
 command = "cargo"
-args = ["test", "device_"]
+args = ["test", "pairing_"]
 
 [tasks.test-file-transfers]
 command = "cargo"
@@ -134,7 +134,7 @@ dependencies = [
   "test-diff-merge",
   "test-local-account",
   "test-network-account",
-  "test-device",
+  "test-pairing",
   "test-access-control",
   "test-file-transfers",
   "test-integration",
@@ -155,7 +155,7 @@ dependencies = [
   "test-diff-merge",
   "test-local-account",
   "test-network-account",
-  "test-device",
+  "test-pairing",
   "test-access-control",
   "test-file-transfers",
   "test-integration",

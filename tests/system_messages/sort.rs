@@ -106,7 +106,51 @@ async fn system_messages_sort() -> Result<()> {
     messages.clear().await?;
     assert!(messages.is_empty());
 
-    let expected = vec![(1, 1), (2, 2), (3, 3), (3, 2), (2, 2), (0, 0)];
+    let expected = [
+        SysMessageCount {
+            total: 1,
+            unread: 1,
+            unread_info: 1,
+            unread_warn: 0,
+            unread_error: 0,
+        },
+        SysMessageCount {
+            total: 2,
+            unread: 2,
+            unread_info: 2,
+            unread_warn: 0,
+            unread_error: 0,
+        },
+        SysMessageCount {
+            total: 3,
+            unread: 3,
+            unread_info: 3,
+            unread_warn: 0,
+            unread_error: 0,
+        },
+        SysMessageCount {
+            total: 3,
+            unread: 2,
+            unread_info: 2,
+            unread_warn: 0,
+            unread_error: 0,
+        },
+        SysMessageCount {
+            total: 2,
+            unread: 2,
+            unread_info: 2,
+            unread_warn: 0,
+            unread_error: 0,
+        },
+        SysMessageCount {
+            total: 0,
+            unread: 0,
+            unread_info: 0,
+            unread_warn: 0,
+            unread_error: 0,
+        },
+    ];
+
     // Wait for the last message to be delivered
     loop {
         let lengths = lengths.lock().await;
