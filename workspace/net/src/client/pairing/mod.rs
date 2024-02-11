@@ -7,7 +7,7 @@ mod error;
 mod share_url;
 mod websocket;
 
-pub use enrollment::DeviceEnrollment;
+pub use enrollment::{DeviceEnrollment, PendingEnrollment};
 pub use error::Error;
 pub use share_url::ServerPairUrl;
 pub use websocket::{AcceptPairing, OfferPairing};
