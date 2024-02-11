@@ -250,13 +250,22 @@ impl<'a> OfferPairing<'a> {
 
         let action = if !self.is_inverted {
             match (&self.state, &packet.payload) {
-                (PairProtocolState::Pending, RelayPayload::Handshake(_, _)) => {
+                (
+                    PairProtocolState::Pending,
+                    RelayPayload::Handshake(_, _),
+                ) => {
                     let reply = self.noise_read_e(&packet).await?;
                     IncomingAction::Reply(PairProtocolState::Handshake, reply)
                 }
-                (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
+                (
+                    PairProtocolState::Handshake,
+                    RelayPayload::Handshake(_, _),
+                ) => {
                     let reply = self.noise_read_s(&packet).await?;
-                    IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
+                    IncomingAction::Reply(
+                        PairProtocolState::PskHandshake,
+                        reply,
+                    )
                 }
                 (
                     PairProtocolState::PskHandshake,
@@ -276,12 +285,17 @@ impl<'a> OfferPairing<'a> {
                     return Err(Error::BadState);
                 }
             }
-
         } else {
             match (&self.state, &packet.payload) {
-                (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
+                (
+                    PairProtocolState::Handshake,
+                    RelayPayload::Handshake(_, _),
+                ) => {
                     let reply = self.noise_send_s(&packet).await?;
-                    IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
+                    IncomingAction::Reply(
+                        PairProtocolState::PskHandshake,
+                        reply,
+                    )
                 }
                 (
                     PairProtocolState::PskHandshake,
@@ -297,11 +311,11 @@ impl<'a> OfferPairing<'a> {
                         unreachable!();
                     }
                 }
-                _ => todo!("handle inverted messages on offer"),
+                _ => {
+                    return Err(Error::BadState);
+                }
             }
         };
-
-        println!("ACTION: {:#?}", action);
 
         match action {
             IncomingAction::Reply(next_state, reply) => {
@@ -311,7 +325,31 @@ impl<'a> OfferPairing<'a> {
                 self.tx.send(Message::Binary(buffer)).await?;
             }
             IncomingAction::HandleMessage(message) => {
-                if let PairingMessage::Request(device) = message {
+                // In inverted mode we can get a ready event
+                // so we just reply with another ready event
+                // to trigger the usual exchange of information
+                if let PairingMessage::Ready = message {
+                    let payload = if let Some(Tunnel::Transport(transport)) =
+                        self.tunnel_mut()
+                    {
+                        encrypt(transport, &PairingMessage::Ready).await?
+                    } else {
+                        unreachable!();
+                    };
+                    let reply = RelayPacket {
+                        header: RelayHeader {
+                            to_public_key: packet
+                                .header
+                                .from_public_key
+                                .clone(),
+                            from_public_key: self.keypair().public.clone(),
+                        },
+                        payload,
+                    };
+
+                    let buffer = encode(&reply).await?;
+                    self.tx.send(Message::Binary(buffer)).await?;
+                } else if let PairingMessage::Request(device) = message {
                     tracing::debug!("<- device");
                     self.register_device(device).await?;
 
@@ -583,9 +621,15 @@ impl<'a> AcceptPairing<'a> {
 
         let action = if !self.is_inverted {
             match (&self.state, &packet.payload) {
-                (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
+                (
+                    PairProtocolState::Handshake,
+                    RelayPayload::Handshake(_, _),
+                ) => {
                     let reply = self.noise_send_s(&packet).await?;
-                    IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
+                    IncomingAction::Reply(
+                        PairProtocolState::PskHandshake,
+                        reply,
+                    )
                 }
                 (
                     PairProtocolState::PskHandshake,
@@ -605,21 +649,43 @@ impl<'a> AcceptPairing<'a> {
                     return Err(Error::BadState);
                 }
             }
-
         } else {
-
             match (&self.state, &packet.payload) {
-                (PairProtocolState::Pending, RelayPayload::Handshake(_, _)) => {
+                (
+                    PairProtocolState::Pending,
+                    RelayPayload::Handshake(_, _),
+                ) => {
                     let reply = self.noise_read_e(&packet).await?;
                     IncomingAction::Reply(PairProtocolState::Handshake, reply)
                 }
-                (PairProtocolState::Handshake, RelayPayload::Handshake(_, _)) => {
+                (
+                    PairProtocolState::Handshake,
+                    RelayPayload::Handshake(_, _),
+                ) => {
                     let reply = self.noise_read_s(&packet).await?;
-                    IncomingAction::Reply(PairProtocolState::PskHandshake, reply)
+                    IncomingAction::Reply(
+                        PairProtocolState::PskHandshake,
+                        reply,
+                    )
                 }
-                _ => todo!("handle inverted messages on accept"),
+                (
+                    PairProtocolState::PskHandshake,
+                    RelayPayload::Transport(len, buf),
+                ) => {
+                    if let Some(Tunnel::Transport(transport)) =
+                        self.tunnel.as_mut()
+                    {
+                        IncomingAction::HandleMessage(
+                            decrypt(transport, *len, buf.as_slice()).await?,
+                        )
+                    } else {
+                        unreachable!();
+                    }
+                }
+                _ => {
+                    return Err(Error::BadState);
+                }
             }
-
         };
 
         match action {

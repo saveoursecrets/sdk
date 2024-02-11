@@ -6,7 +6,6 @@ use anyhow::Result;
 use sos_net::{client::RemoteSync, sdk::prelude::*};
 
 /// Tests the protocol for pairing devices using the inverted flow.
-#[ignore]
 #[tokio::test]
 async fn pairing_inverted() -> Result<()> {
     const TEST_ID: &str = "pairing_inverted";
@@ -34,7 +33,6 @@ async fn pairing_inverted() -> Result<()> {
     let mut enrolled_account =
         run_inverted_pairing_protocol(&mut primary_device, TEST_ID).await?;
 
-    /*
     // Sync on the original device to fetch the updated device logs
     assert!(primary_device.owner.sync().await.is_none());
 
@@ -73,7 +71,6 @@ async fn pairing_inverted() -> Result<()> {
     // Sign out all devices
     primary_device.owner.sign_out().await?;
     enrolled_account.sign_out().await?;
-    */
 
     teardown(TEST_ID).await;
 
