@@ -250,8 +250,10 @@ pub async fn new_account(
     let banner = Banner::new()
         .padding(Padding::one())
         .text("WELCOME".into())
+        .newline()
         .text(
             "Your new account requires a primary password; you must memorize this password or you will lose access to your secrets.".into())
+        .newline()
         .text(
             "You may generate a strong diceware password or choose your own password; if you choose a password it must be excellent strength.".into())
         .render();
@@ -311,11 +313,14 @@ pub async fn new_account(
     let banner = Banner::new()
         .padding(Padding::one())
         .text("NEW ACCOUNT".into())
+        .newline()
         .text(format!("{}", account_name).into())
+        .newline()
         .text(
             "Creating a new account will perform the following actions:"
                 .into(),
         )
+        .newline()
         .text(message.into())
         .render();
     println!("{}", banner);
