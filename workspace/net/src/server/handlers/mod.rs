@@ -97,8 +97,10 @@ async fn authenticate_endpoint(
     // Deny unauthorized account addresses
     {
         let reader = state.read().await;
-        if !reader.config.access.is_allowed_access(&token.address) {
-            return Err(Error::Forbidden);
+        if let Some(access) = &reader.config.access {
+            if !access.is_allowed_access(&token.address) {
+                return Err(Error::Forbidden);
+            }
         }
     }
 
