@@ -40,6 +40,7 @@ pub struct Sos {
     storage: Option<PathBuf>,
 
     /// Affirmative for all confirmation prompts.
+    #[cfg(any(test, debug_assertions))]
     #[clap(long, env = "SOS_YES")]
     yes: bool,
 
