@@ -36,12 +36,12 @@ pub struct Sos {
     password: Option<String>,
 
     /// Local storage directory.
-    #[clap(long, env = "SOS_DATA_DIR")]
+    #[clap(long, env = "SOS_DATA_DIR", hide_env_values = true)]
     storage: Option<PathBuf>,
 
     /// Affirmative for all confirmation prompts.
     #[cfg(any(test, debug_assertions))]
-    #[clap(long, env = "SOS_YES")]
+    #[clap(long, env = "SOS_YES", hide_env_values = true)]
     yes: bool,
 
     #[clap(subcommand)]
