@@ -62,10 +62,6 @@ pub enum Command {
     },
     /// Create secure backup as a zip archive.
     Backup {
-        /// Output zip archive.
-        #[clap(short, long)]
-        output: PathBuf,
-
         /// Force overwrite of existing file.
         #[clap(long)]
         force: bool,
@@ -73,11 +69,13 @@ pub enum Command {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
+
+        /// Output zip archive.
+        output: PathBuf,
     },
     /// Restore account from secure backup.
     Restore {
         /// Input zip archive.
-        #[clap(short, long)]
         input: PathBuf,
     },
     /// Rename an account.
