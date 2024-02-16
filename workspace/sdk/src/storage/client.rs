@@ -208,7 +208,7 @@ impl ClientStorage {
         // log is empty so that we are backwards compatible with
         // accounts that existed before device event logs.
         if needs_init {
-            tracing::info!("initialize root device {}", device.public_key());
+            tracing::debug!("initialize root device {}", device.public_key());
             let event = DeviceEvent::Trust(device);
             event_log.apply(vec![&event]).await?;
         }
