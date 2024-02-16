@@ -363,6 +363,7 @@ pub async fn new_account(
         let banner = Banner::new()
             .padding(Padding::one())
             .text("Account created ✓".into())
+            .newline()
             .text(message.into())
             .render();
         println!("{}", banner);
