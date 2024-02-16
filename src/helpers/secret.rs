@@ -242,6 +242,7 @@ fn multiline_banner(kind: &str, label: &str) {
     let banner = Banner::new()
         .padding(Padding::one())
         .text(format!("[{}] {}", kind, label).into())
+        .newline()
         .text(
             r#"To abort enter Ctrl+C
 To save enter Ctrl+D on a newline"#
