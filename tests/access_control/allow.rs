@@ -38,10 +38,10 @@ async fn access_control_allow() -> Result<()> {
 
     let mut addresses = HashSet::new();
     addresses.insert(allowed_address);
-    config.access = AccessControlConfig {
+    config.access = Some(AccessControlConfig {
         allow: Some(addresses),
         deny: None,
-    };
+    });
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn_with_config(TEST_ID, None, None, Some(config)).await?;

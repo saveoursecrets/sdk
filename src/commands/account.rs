@@ -23,9 +23,10 @@ use crate::{
             find_account, list_accounts, new_account, resolve_account,
             resolve_user, sign_in, verify, Owner, USER,
         },
+        messages::success,
         readline::read_flag,
     },
-    Error, Result, TARGET,
+    Error, Result,
 };
 
 #[derive(Subcommand, Debug)]
@@ -203,21 +204,16 @@ pub async fn run(cmd: Command) -> Result<()> {
             force,
         } => {
             account_backup(account, output, force).await?;
-            tracing::info!(target: TARGET, "backup archive created ✓");
+            success("Backup archive created");
         }
         Command::Restore { input } => {
             if let Some(account) = account_restore(input).await? {
-                tracing::info!(
-                    target: TARGET,
-                    "restored {} ({}) ✓",
-                    account.label(),
-                    account.address()
-                );
+                success(format!("restored {} ({})", account.label(), account.address()));
             }
         }
         Command::Rename { name, account } => {
             account_rename(account, name).await?;
-            tracing::info!(target: TARGET, "account renamed ✓");
+            success("Account renamed");
         }
         Command::Migrate { account, cmd } => {
             let user = resolve_user(account.as_ref(), false).await?;
@@ -226,7 +222,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let exported =
                         migrate_export(user, output, force).await?;
                     if exported {
-                        tracing::info!(target: TARGET, "account exported ✓");
+                        success("Account exported");
                     }
                 }
                 MigrateCommand::Import {
@@ -235,7 +231,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     name,
                 } => {
                     migrate_import(user, input, format, name).await?;
-                    tracing::info!(target: TARGET, "file imported ✓");
+                    success("File imported");
                 }
             }
         }
@@ -264,7 +260,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             match cmd {
                 ContactsCommand::Export { output, force } => {
                     contacts_export(Arc::clone(&user), output, force).await?;
-                    tracing::info!(target: TARGET, "contacts exported ✓");
+                    success("Contacts exported");
                     if let Some(folder) = original_folder {
                         let mut owner = user.write().await;
                         owner.open_folder(&folder).await?;
@@ -272,7 +268,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
                 ContactsCommand::Import { input } => {
                     contacts_import(Arc::clone(&user), input).await?;
-                    tracing::info!(target: TARGET, "contacts imported ✓");
+                    success("Contacts imported");
                     if let Some(folder) = original_folder {
                         let mut owner = user.write().await;
                         owner.open_folder(&folder).await?;
@@ -328,7 +324,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Delete { account } => {
             let deleted = account_delete(account).await?;
             if deleted {
-                tracing::info!(target: TARGET, "account deleted ✓");
+                success("account deleted");
                 if is_shell {
                     std::process::exit(0);
                 }

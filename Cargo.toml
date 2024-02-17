@@ -82,7 +82,7 @@ toml.workspace = true
 human_bytes = "0.4"
 tempfile = "3.5"
 shell-words = "1"
-terminal-banner = "0.4.1"
+terminal-banner = { version = "0.4.1", features = ["color"] }
 unicode-width = "0.1"
 kdam = { version = "0.5", features = ["rich", "spinner"] }
 num_cpus = "1"

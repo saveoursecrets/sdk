@@ -19,6 +19,7 @@ use tokio::sync::RwLock;
 
 use crate::helpers::{
     display_passphrase,
+    messages::success,
     readline::{choose, choose_password, read_flag, read_password, Choice},
 };
 
@@ -240,6 +241,7 @@ pub async fn new_account(
     account_name: String,
     folder_name: Option<String>,
 ) -> Result<()> {
+
     let account = AccountRef::Name(account_name.clone());
     let account = find_account(&account).await?;
 
@@ -362,11 +364,12 @@ pub async fn new_account(
 
         let banner = Banner::new()
             .padding(Padding::one())
-            .text("Account created ✓".into())
             .newline()
             .text(message.into())
             .render();
         println!("{}", banner);
+
+        success("Account created");
     }
 
     Ok(())

@@ -71,6 +71,7 @@ pub fn print_secret(
     let banner = Banner::new()
         .padding(Padding::one())
         .text(heading.into())
+        .newline()
         .text(secret_meta.label().into());
 
     let mut banner = match secret_data {

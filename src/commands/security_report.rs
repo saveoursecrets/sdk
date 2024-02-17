@@ -1,4 +1,4 @@
-use crate::{helpers::account::resolve_user, Error, Result};
+use crate::{helpers::{account::resolve_user, messages::success}, Error, Result};
 use sos_net::{
     client::hashcheck,
     sdk::{
@@ -98,7 +98,7 @@ pub async fn run(
         }
     }
 
-    tracing::info!(path = ?path, "wrote security report");
+    success("Created security report");
 
     Ok(())
 }

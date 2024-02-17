@@ -38,10 +38,10 @@ async fn access_control_deny() -> Result<()> {
 
     let mut addresses = HashSet::new();
     addresses.insert(denied_address);
-    config.access = AccessControlConfig {
+    config.access = Some(AccessControlConfig {
         allow: None,
         deny: Some(addresses),
-    };
+    });
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn_with_config(TEST_ID, None, None, Some(config)).await?;
