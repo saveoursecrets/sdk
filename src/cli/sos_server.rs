@@ -1,9 +1,9 @@
-use crate::Result;
-use clap::{Parser, Subcommand};
+use crate::{Result, CommandTree};
+use clap::{Parser, Subcommand, CommandFactory};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
+#[clap(name = "sos-server", author, version, about, long_about = None)]
 pub struct SosServer {
     #[clap(subcommand)]
     cmd: Command,
@@ -32,6 +32,14 @@ pub enum Command {
 }
 
 pub async fn run() -> Result<()> {
+    // Support JSON output of command tree
+    if std::env::var("SOS_CLI_JSON").ok().is_some() {
+        let cmd = SosServer::command();
+        let tree: CommandTree = (&cmd).into();
+        let output = serde_json::to_writer_pretty(std::io::stdout(), &tree)?;
+        std::process::exit(0);
+    }
+
     let args = SosServer::parse();
 
     match args.cmd {

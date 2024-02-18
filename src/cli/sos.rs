@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, CommandFactory};
 use sos_net::sdk::{identity::AccountRef, vault::FolderRef, Paths};
 use std::path::PathBuf;
 
@@ -11,6 +11,7 @@ use crate::{
         SecretCommand, ServerCommand, SyncCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
+    CommandTree,
     Result,
 };
 
@@ -140,6 +141,14 @@ pub enum Command {
 }
 
 pub async fn run() -> Result<()> {
+    // Support JSON output of command tree
+    if std::env::var("SOS_CLI_JSON").ok().is_some() {
+        let cmd = Sos::command();
+        let tree: CommandTree = (&cmd).into();
+        let output = serde_json::to_writer_pretty(std::io::stdout(), &tree)?;
+        std::process::exit(0);
+    }
+
     ctrlc::set_handler(move || {
         let is_shell = USER.get().is_some();
         if is_shell {

@@ -4021,6 +4021,7 @@ dependencies = [
  "rustyline",
  "rustyline-derive",
  "secrecy",
+ "serde",
  "serde_json",
  "shell-words",
  "sos-net",
