@@ -118,9 +118,41 @@ args = ["test", "preferences_"]
 command = "cargo"
 args = ["test", "system_messages_"]
 
-[tasks.test-cli]
+[tasks.install-local]
 command = "cargo"
-args = ["test", "command_line"]
+args = ["install", "--path", "."]
+
+[tasks.clean-cli]
+script = '''
+rm -rf target/accounts
+'''
+
+[tasks.test-cli]
+env = { "ACCOUNT_PASSWORD" = "demo-test-password-case", "SOS_DATA_DIR" = "target/accounts" }
+script = '''
+anticipate \
+  run \
+  --parallel \
+  --setup tests/command_line/scripts/setup/account.sh \
+  --logs target \
+  tests/command_line/scripts/specs/*.sh
+'''
+dependencies = ["clean-cli"]
+
+[tasks.demos]
+env = { "ACCOUNT_PASSWORD" = "demo-test-password-case", "SOS_DATA_DIR" = "target/accounts" }
+script = '''
+anticipate \
+  record \
+  --parallel \
+  --overwrite \
+  --print-comments \
+  --logs target \
+  demos \
+  tests/command_line/scripts/demos/*.sh
+'''
+dependencies = ["clean-cli"]
+#dependencies = ["install-local"]
 
 [tasks.integration]
 dependencies = [

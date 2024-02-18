@@ -1,0 +1,2 @@
+sos --version
+#$ readline
