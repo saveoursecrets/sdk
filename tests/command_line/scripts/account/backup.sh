@@ -1,2 +1,3 @@
-sos account backup target/demo-backup.zip
+sos account backup --force $ACCOUNT_BACKUP
+#$ regex (?i)archive created
 #$ wait
