@@ -22,10 +22,10 @@ pub struct ServerConfig {
     pub tls: Option<TlsConfig>,
 
     /// Access controls.
-    pub access: AccessControlConfig,
+    pub access: Option<AccessControlConfig>,
 
     /// Configuration for CORS.
-    pub cors: CorsConfig,
+    pub cors: Option<CorsConfig>,
 
     /// Path the file was loaded from used to determine
     /// relative paths.

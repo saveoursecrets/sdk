@@ -832,8 +832,8 @@ trait NoiseTunnel {
 
     /// Send the first packet of the initial noise handshake.
     async fn noise_send_e(&mut self) -> Result<()> {
-        //let span = span!(Level::DEBUG, "pairing_accept");
-        //let _enter = span.enter();
+        let span = span!(Level::DEBUG, "pairing");
+        let _enter = span.enter();
 
         let buffer = if let Some(Tunnel::Handshake(state)) = self.tunnel_mut()
         {

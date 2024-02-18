@@ -139,14 +139,16 @@ impl Server {
         tracing::info!(tls = %tls);
         {
             let reader = state.read().await;
-            if let Some(allow) = &reader.config.access.allow {
-                for address in allow {
-                    tracing::info!(allow = %address);
+            if let Some(access) = &reader.config.access {
+                if let Some(allow) = &access.allow {
+                    for address in allow {
+                        tracing::info!(allow = %address);
+                    }
                 }
-            }
-            if let Some(deny) = &reader.config.access.deny {
-                for address in deny {
-                    tracing::info!(deny = %address);
+                if let Some(deny) = &access.deny {
+                    for address in deny {
+                        tracing::info!(deny = %address);
+                    }
                 }
             }
         }
@@ -156,10 +158,12 @@ impl Server {
         reader: &RwLockReadGuard<'_, State>,
     ) -> Result<Vec<HeaderValue>> {
         let mut origins = Vec::new();
-        for url in reader.config.cors.origins.iter() {
-            origins.push(HeaderValue::from_str(
-                url.as_str().trim_end_matches('/'),
-            )?);
+        if let Some(cors) = &reader.config.cors {
+            for url in cors.origins.iter() {
+                origins.push(HeaderValue::from_str(
+                    url.as_str().trim_end_matches('/'),
+                )?);
+            }
         }
         Ok(origins)
     }
