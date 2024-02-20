@@ -12,7 +12,6 @@ anticipate \
   --parallel \
   --overwrite \
   --print-comments \
-  --logs target \
   --setup $scripts/accounts-basic.sh \
   demos \
   $scripts/version.sh \

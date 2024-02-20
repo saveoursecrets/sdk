@@ -9,7 +9,5 @@ export NO_COLOR=1
 
 anticipate \
   run \
-  --parallel \
   --setup tests/command_line/scripts/setup/account.sh \
-  --logs target \
   tests/command_line/scripts/specs/*.sh
