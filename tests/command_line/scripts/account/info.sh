@@ -1,3 +1,3 @@
-sos account info -a Demo
+sos account info -v
 #$ include ../includes/signin.sh
 #$ wait

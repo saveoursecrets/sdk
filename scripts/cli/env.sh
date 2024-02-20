@@ -7,6 +7,7 @@ export ACCOUNT_NAME="Demo"
 export ACCOUNT_PASSWORD="demo-test-password-case"
 export ACCOUNT_BACKUP="target/demo-backup.zip"
 export ACCOUNT_CONTACTS="tests/fixtures/contacts.vcf"
+export CONTACTS_EXPORT="target/demo-contacts.vcf"
 
 export FOLDER_NAME="mock-folder"
 export NEW_FOLDER_NAME="mock-folder-renamed"

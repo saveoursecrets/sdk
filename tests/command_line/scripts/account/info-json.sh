@@ -1,3 +1,3 @@
-sos account stats -a Demo --json
+sos account info --json
 #$ include ../includes/signin.sh
 #$ wait

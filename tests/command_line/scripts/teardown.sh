@@ -1,0 +1,1 @@
+#$ include account/delete.sh
