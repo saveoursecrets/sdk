@@ -81,13 +81,12 @@ pub enum Command {
     },
     /// Rename an account.
     Rename {
-        /// Name for the account.
-        #[clap(short, long)]
-        name: String,
-
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
+
+        /// New name for the account.
+        name: String,
     },
     /// Export and import unencrypted secrets.
     Migrate {

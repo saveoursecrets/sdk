@@ -2,9 +2,7 @@
 
 set -e
 
-export SOS_DATA_DIR="target/accounts"
-export ACCOUNT_PASSWORD="demo-test-password-case"
-export ACCOUNT_BACKUP="target/demo-backup.zip"
+source scripts/cli/env.sh
 
 scripts=tests/command_line/scripts/demos
 anticipate \

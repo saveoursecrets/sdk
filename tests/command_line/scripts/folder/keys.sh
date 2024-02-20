@@ -1,3 +1,3 @@
-sos account stats -a Demo --json
+sos folder keys -f $FOLDER_NAME
 #$ include ../includes/signin.sh
 #$ wait

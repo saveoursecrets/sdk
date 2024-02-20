@@ -40,6 +40,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
+        #[clap(short, long)]
         folder: Option<FolderRef>,
     },
 
@@ -65,6 +66,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
+        #[clap(short, long)]
         folder: Option<FolderRef>,
     },
     /// Print secret keys for a folder.
@@ -74,6 +76,7 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
+        #[clap(short, long)]
         folder: Option<FolderRef>,
     },
     /// Print commits for a folder.
@@ -83,21 +86,22 @@ pub enum Command {
         account: Option<AccountRef>,
 
         /// Folder name or id.
+        #[clap(short, long)]
         folder: Option<FolderRef>,
     },
     /// Rename a folder.
     #[clap(alias = "mv")]
     Rename {
-        /// Name for the folder.
-        #[clap(short, long)]
-        name: String,
-
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
 
         /// Folder name or id.
+        #[clap(short, long)]
         folder: Option<FolderRef>,
+
+        /// New name for the folder.
+        name: String,
     },
     /// Manage the history for a folder.
     History {
@@ -116,6 +120,7 @@ pub enum History {
         account: Option<AccountRef>,
 
         /// Folder name or id.
+        #[clap(short, long)]
         folder: Option<FolderRef>,
     },
     /// Verify the integrity of the folder history.
@@ -125,6 +130,7 @@ pub enum History {
         account: Option<AccountRef>,
 
         /// Folder name or id.
+        #[clap(short, long)]
         folder: Option<FolderRef>,
     },
     /// List history events.
@@ -139,6 +145,7 @@ pub enum History {
         account: Option<AccountRef>,
 
         /// Folder name or id.
+        #[clap(short, long)]
         folder: Option<FolderRef>,
     },
 }

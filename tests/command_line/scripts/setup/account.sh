@@ -1,4 +1,4 @@
-sos account new Demo
+sos account new $ACCOUNT_NAME
 #$ expect Choose a password
 2
 #$ regex (?i)password
