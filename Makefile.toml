@@ -132,6 +132,10 @@ rm -f target/*.{zip,vcf,heic,txt}
 script = { file = "./scripts/cli/specs.sh" }
 dependencies = ["clean-cli"]
 
+[tasks.test-shell]
+script = { file = "./scripts/cli/shell.sh" }
+dependencies = ["clean-cli"]
+
 [tasks.demos]
 script = { file = "./scripts/cli/demos.sh" }
 dependencies = ["clean-cli"]

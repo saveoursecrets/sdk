@@ -85,14 +85,18 @@ pub async fn run(
     let mut rl = readline::basic_editor()?;
     loop {
         let prompt_value = {
-            let owner = user.read().await;
-            let account_name = owner.account_label().await?;
-            let storage = owner.storage().await?;
-            let reader = storage.read().await;
-            if let Some(current) = reader.current_folder() {
-                format!("{}@{}> ", account_name, current.name())
+            if let Ok(prompt) = std::env::var("SOS_PROMPT") {
+                prompt
             } else {
-                format!("{}> ", account_name)
+                let owner = user.read().await;
+                let account_name = owner.account_label().await?;
+                let storage = owner.storage().await?;
+                let reader = storage.read().await;
+                if let Some(current) = reader.current_folder() {
+                    format!("{}@{}> ", account_name, current.name())
+                } else {
+                    format!("{}> ", account_name)
+                }
             }
         };
 

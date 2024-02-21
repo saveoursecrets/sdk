@@ -4,6 +4,7 @@ set -e
 
 export SOS_DATA_DIR="target/accounts"
 export ACCOUNT_NAME="Demo"
+export ACCOUNT_NAME_ALT="Demo Account"
 export ACCOUNT_PASSWORD="demo-test-password-case"
 export ACCOUNT_BACKUP="target/demo-backup.zip"
 export ACCOUNT_CONTACTS="tests/fixtures/contacts.vcf"
