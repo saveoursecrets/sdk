@@ -125,6 +125,7 @@ args = ["install", "--path", "."]
 [tasks.clean-cli]
 script = '''
 rm -rf target/accounts
+rm -f target/*.{zip,vcf,heic}
 '''
 
 [tasks.test-cli]

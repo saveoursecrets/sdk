@@ -1,3 +1,3 @@
-sos secret copy "$NOTE_NAME"
+sos secret info --json "$NOTE_NAME"
 #$ include ../includes/signin.sh
 #$ wait

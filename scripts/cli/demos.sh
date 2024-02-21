@@ -4,6 +4,8 @@ set -e
 
 source scripts/cli/env.sh
 
+rm target/*.{zip,vcf,heic}
+
 scripts=tests/command_line/scripts/demos
 anticipate \
   record \

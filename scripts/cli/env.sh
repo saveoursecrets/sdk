@@ -9,8 +9,15 @@ export ACCOUNT_BACKUP="target/demo-backup.zip"
 export ACCOUNT_CONTACTS="tests/fixtures/contacts.vcf"
 export CONTACTS_EXPORT="target/demo-contacts.vcf"
 
+export DEFAULT_FOLDER_NAME="Documents"
 export FOLDER_NAME="mock-folder"
 export NEW_FOLDER_NAME="mock-folder-renamed"
+
+export FILE_INPUT="tests/fixtures/sample.heic"
+export FILE_OUTPUT="target/sample-download.heic"
+
+export NOTE_NAME="mock note"
+export FILE_NAME="mock file";
 
 export MIGRATE_1PASSWORD="tests/fixtures/migrate/1password-export.csv"
 export MIGRATE_DASHLANE="tests/fixtures/migrate/dashlane-export.zip"

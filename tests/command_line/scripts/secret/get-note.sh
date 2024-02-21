@@ -1,3 +1,3 @@
-sos secret get "Example Note"
+sos secret get "$NOTE_NAME"
 #$ include ../includes/signin.sh
 #$ wait

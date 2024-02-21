@@ -5,8 +5,6 @@ set -e
 source scripts/cli/env.sh
 export NO_COLOR=1
 
-rm target/*.{zip,vcf}
-
 if [ -n "$DEBUG" ]; then
   export PATH="target/debug:$PATH"
 fi
