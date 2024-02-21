@@ -395,7 +395,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
     let inventory: Inventory =
         AccountBackup::restore_archive_inventory(reader).await?;
     let account_ref = AccountRef::Address(inventory.manifest.address);
-        
+
     let account = find_account(&account_ref).await?;
 
     let mut owner = if let Some(account) = account {

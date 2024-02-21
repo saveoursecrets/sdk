@@ -1,5 +1,5 @@
-use crate::{Result, CommandTree};
-use clap::{Parser, Subcommand, CommandFactory};
+use crate::{CommandTree, Result};
+use clap::{CommandFactory, Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]

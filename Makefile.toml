@@ -1,5 +1,5 @@
 extend= [
-  { path = "coverage_grcov.makefile.toml" }
+  { path = "coverage.toml" }
 ]
 
 [config]
@@ -140,40 +140,15 @@ dependencies = ["clean-cli"]
 script = { file = "./scripts/cli/demos.sh" }
 dependencies = ["clean-cli"]
 
-[tasks.integration]
-dependencies = [
-  "test-audit-trail",
-  "test-backup-archive",
-  "test-event-log",
-  "test-diff-merge",
-  "test-local-account",
-  "test-network-account",
-  "test-pairing",
-  "test-access-control",
-  "test-file-transfers",
-  "test-preferences",
-  "test-system-messages",
-  "test-cli",
-]
-
 [tasks.test]
-dependencies = ["unit", "integration"]
+command = "cargo"
+args = ["test", "--features", "enable-cli-tests"]
+dependencies = ["clean-cli"]
 
-[tasks.test-ci]
-dependencies = [
-  "unit",
-  "test-audit-trail",
-  "test-backup-archive",
-  "test-event-log",
-  "test-diff-merge",
-  "test-local-account",
-  "test-network-account",
-  "test-pairing",
-  "test-access-control",
-  "test-file-transfers",
-  "test-preferences",
-  "test-system-messages",
-]
+[tasks.test-lite]
+command = "cargo"
+args = ["test"]
+dependencies = ["clean-cli"]
 
 [tasks.dev]
 dependencies = ["check-wasm", "test", "format"]

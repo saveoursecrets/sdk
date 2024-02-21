@@ -20,7 +20,7 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub use helpers::USER;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Command tree used to print help output for the website.
 #[doc(hidden)]

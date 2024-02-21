@@ -2,6 +2,13 @@ sos shell
 #$ include ../includes/signin.sh
 #$ wait
 
+quit
+#$ wait
+
+sos shell
+#$ include ../includes/signin.sh
+#$ wait
+
 #############################################################
 # BASIC
 #############################################################

@@ -1,28 +1,37 @@
 # Test
 
-Generate a test keypair.
+Run all the tests.
 
 ```
-cargo make gen-test-key
+cargo make test
 ```
 
-Run the unit tests.
+The CLI test specs can take a long time with the debug build so if you want to skip them use:
 
 ```
-cargo make unit
+cargo make test-lite
 ```
 
-Run the integration tests.
+To just test the CLI run:
 
 ```
-cargo make integration
+cargo make test-cli
+```
+
+Or to just test the shell command:
+
+```
+cargo make test-shell
+```
+
+If you need to debug the CLI tests enable echo to see the I/O, for example:
+
+```
+ANTICIPATE_ECHO=true cargo make test-cli
+ANTICIPATE_ECHO=true cargo make test-shell
 ```
 
 ## Notes
-
-### Command Line Tests
-
-The command line tests wait for very specific output in order to complete, inadvertently having a rogue `println!` in the code will cause the command line tests to fail.
 
 ### MacOS ulimit
 

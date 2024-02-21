@@ -1,4 +1,7 @@
-use crate::{helpers::{account::resolve_user, messages::success}, Error, Result};
+use crate::{
+    helpers::{account::resolve_user, messages::success},
+    Error, Result,
+};
 use sos_net::{
     client::hashcheck,
     sdk::{

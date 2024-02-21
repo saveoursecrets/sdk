@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, CommandFactory};
+use clap::{CommandFactory, Parser, Subcommand};
 use sos_net::sdk::{identity::AccountRef, vault::FolderRef, Paths};
 use std::path::PathBuf;
 
@@ -11,8 +11,7 @@ use crate::{
         SecretCommand, ServerCommand, SyncCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
-    CommandTree,
-    Result,
+    CommandTree, Result,
 };
 
 #[derive(Parser, Debug)]
@@ -39,8 +38,8 @@ pub struct Sos {
     /// Local storage directory.
     #[clap(long, env = "SOS_DATA_DIR", hide_env_values = true)]
     storage: Option<PathBuf>,
-    
-    // FIXME: remove this once we finish migrating the 
+
+    // FIXME: remove this once we finish migrating the
     // FIXME: CLI test specs to scripts
     /// Affirmative for all confirmation prompts.
     #[cfg(any(test, debug_assertions))]

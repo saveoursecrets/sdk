@@ -27,6 +27,7 @@ members = [
 
 [features]
 default = []
+enable-cli-tests = []
 mem-fs = ["sos-net/mem-fs"]
 test-utils = ["sos-net/test-utils"]
 
@@ -115,6 +116,7 @@ copy_dir = "0.1"
 maplit2 = "1"
 sos_test_utils = { path = "workspace/test_utils" }
 pretty_assertions = "1.4"
+anticipate-core = { path = "../../anticipate/core" }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 rexpect = "0.5"
