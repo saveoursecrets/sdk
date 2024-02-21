@@ -1,7 +1,12 @@
 #$ include ../secret/add-note.sh
 #$ include ../secret/add-file.sh
+#$ include ../secret/add-login.sh
+#$ include ../secret/add-list.sh
 #$ include ../secret/list.sh
 #$ include ../secret/get-note.sh
+#$ include ../secret/get-file.sh
+#$ include ../secret/get-login.sh
+#$ include ../secret/get-list.sh
 #$ include ../secret/copy.sh
 #$ include ../secret/info.sh
 #$ include ../secret/info-json.sh

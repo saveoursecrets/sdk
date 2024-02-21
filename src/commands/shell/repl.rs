@@ -59,11 +59,6 @@ enum ShellCommand {
         #[clap(subcommand)]
         cmd: FileCommand,
     },
-    /*
-    /// Change encryption password for the selected vault.
-    #[clap(alias = "passwd")]
-    Password,
-    */
     /// Set a folder as the current working directory.
     Cd {
         /// Folder name or id.
@@ -74,11 +69,6 @@ enum ShellCommand {
     Switch {
         /// Account name or address.
         account: AccountRef,
-    },
-    /// Check file status and integrity.
-    Check {
-        #[clap(subcommand)]
-        cmd: CheckCommand,
     },
     /// Print the current identity.
     Whoami,
@@ -343,7 +333,6 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
 
             Ok(())
         }
-        ShellCommand::Check { cmd } => crate::commands::check::run(cmd).await,
         ShellCommand::Whoami => {
             let owner = user.read().await;
             println!("{} {}", owner.account_label().await?, owner.address());

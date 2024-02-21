@@ -21,7 +21,19 @@ export ATTACH_INPUT="tests/fixtures/test-file.txt"
 export ATTACH_OUTPUT="target/attachment-download.txt"
 
 export NOTE_NAME="mock note"
-export FILE_NAME="mock file";
+export FILE_NAME="mock file"
+export LOGIN_NAME="mock login"
+export LIST_NAME="mock list"
+
+export LOGIN_SERVICE_NAME="mock-service"
+export LOGIN_URL="https://example.com"
+export LOGIN_PASSWORD="mock-login-password"
+
+export LIST_NAME="mock-list";
+export LIST_KEY_1="SERVICE_1_API";
+export LIST_VALUE_1="mock-key-1";
+export LIST_KEY_2="SERVICE_2_API";
+export LIST_VALUE_2="mock-key-2";
 
 export FILE_ATTACHMENT="file-attachment";
 export NOTE_ATTACHMENT="note-attachment";
