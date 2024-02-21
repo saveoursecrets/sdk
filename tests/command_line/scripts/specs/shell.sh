@@ -64,7 +64,107 @@ account stats
 account stats --json
 #$ wait
 
+account rename -a $ACCOUNT_NAME NewDemo
+#$ wait
+
+account rename -a NewDemo $ACCOUNT_NAME
+#$ wait
+
+#############################################################
+# MIGRATE
+#############################################################
+
 account migrate export --force target/demo-export.zip
 #$ regex (?i)export unencrypted
 y
+#$ wait
+
+account migrate import --format onepassword.csv $MIGRATE_1PASSWORD
+#$ regex (?i)imported
+#$ wait
+
+account migrate import --format dashlane.zip $MIGRATE_DASHLANE
+#$ regex (?i)imported
+#$ wait
+
+account migrate import --format bitwarden.csv $MIGRATE_BITWARDEN
+#$ regex (?i)imported
+#$ wait
+
+account migrate import --format firefox.csv $MIGRATE_FIREFOX
+#$ regex (?i)imported
+#$ wait
+
+account migrate import --format macos.csv $MIGRATE_MACOS
+#$ regex (?i)imported
+#$ wait
+
+#############################################################
+# CONTACTS
+#############################################################
+
+account contacts export --force $CONTACTS_EXPORT
+#$ regex (?i)contacts exported
+#$ wait
+
+account contacts import $ACCOUNT_CONTACTS
+#$ regex (?i)contacts imported
+#$ wait
+
+#############################################################
+# FOLDER
+#############################################################
+
+folder new $FOLDER_NAME
+#$ regex (?i)created
+#$ wait
+
+folder ls -v
+#$ wait
+
+folder info -v
+#$ wait
+
+folder keys -f $FOLDER_NAME
+#$ wait
+
+folder commits -f $FOLDER_NAME
+#$ wait
+
+folder rename -f $FOLDER_NAME $NEW_FOLDER_NAME
+#$ wait
+
+folder rename -f $NEW_FOLDER_NAME $FOLDER_NAME
+#$ wait
+
+folder history compact -f $FOLDER_NAME
+#$ regex (?i)remove history
+y
+#$ wait
+
+folder history check -f $FOLDER_NAME
+#$ wait
+
+folder history list -f $FOLDER_NAME
+#$ wait
+
+folder remove -f $FOLDER_NAME
+#$ regex (?i)delete folder
+y
+#$ regex (?i)folder deleted
+#$ wait
+
+#############################################################
+# TEARDOWN
+#############################################################
+
+switch "$ACCOUNT_NAME_ALT"
+#$ include ../includes/signin.sh
+#$ wait
+
+account delete
+#$ include ../includes/signin.sh
+#$ regex (?i)delete account
+y
+#$ regex (?i)account deleted
 #$ wait
