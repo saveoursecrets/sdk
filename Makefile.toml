@@ -118,10 +118,6 @@ args = ["test", "preferences_"]
 command = "cargo"
 args = ["test", "system_messages_"]
 
-[tasks.install-local]
-command = "cargo"
-args = ["install", "--path", "."]
-
 [tasks.clean-cli]
 script = '''
 rm -rf target/accounts
