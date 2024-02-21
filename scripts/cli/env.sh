@@ -14,10 +14,19 @@ export FOLDER_NAME="mock-folder"
 export NEW_FOLDER_NAME="mock-folder-renamed"
 
 export FILE_INPUT="tests/fixtures/sample.heic"
-export FILE_OUTPUT="target/sample-download.heic"
+export FILE_OUTPUT="target/file-download.heic"
+
+export ATTACH_INPUT="tests/fixtures/test-file.txt"
+export ATTACH_OUTPUT="target/attachment-download.txt"
 
 export NOTE_NAME="mock note"
 export FILE_NAME="mock file";
+
+export FILE_ATTACHMENT="file-attachment";
+export NOTE_ATTACHMENT="note-attachment";
+export LINK_ATTACHMENT="link-attachment";
+export PASSWORD_ATTACHMENT="password-attachment";
+export LINK_VALUE="https://example.com";
 
 export MIGRATE_1PASSWORD="tests/fixtures/migrate/1password-export.csv"
 export MIGRATE_DASHLANE="tests/fixtures/migrate/dashlane-export.zip"

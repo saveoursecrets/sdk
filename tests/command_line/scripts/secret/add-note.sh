@@ -3,6 +3,7 @@ sos secret add note
 #$ expect Name:
 $NOTE_NAME
 #$ expect >>
-This is the text for the secret note.
+Text for the secret note.
+#$ expect >>
 #$ sendcontrol ^D
 #$ wait

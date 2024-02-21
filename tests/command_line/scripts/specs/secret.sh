@@ -1,5 +1,3 @@
-  # secret::attach(&exe, &address, &password, ACCOUNT_NAME, None).await?;
-
 #$ include ../secret/add-note.sh
 #$ include ../secret/add-file.sh
 #$ include ../secret/list.sh
@@ -9,6 +7,16 @@
 #$ include ../secret/info-json.sh
 
 #$ include ../secret/download.sh
+
+#$ include ../secret/attach/add-file.sh
+#$ include ../secret/attach/add-note.sh
+#$ include ../secret/attach/add-link.sh
+#$ include ../secret/attach/add-password.sh
+
+#$ include ../secret/attach/get.sh
+#$ include ../secret/attach/list.sh
+#$ include ../secret/attach/download.sh
+#$ include ../secret/attach/remove.sh
 
 # TODO: update secret
 
