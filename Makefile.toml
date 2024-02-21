@@ -210,7 +210,9 @@ command = "cargo"
 args = ["clean", "--target-dir", "target/cover"]
 
 [tasks.cover]
+env = { "COVER" = "1" }
 dependencies = [
+  "clean-cli",
   "clean-cover",
   "clean-coverage",
   "coverage",

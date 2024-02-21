@@ -2,7 +2,7 @@
 mod cli {
     use anticipate_core::{InterpreterOptions, ScriptFile};
     use anyhow::Result;
-    use std::{env::set_var, path::Path};
+    use std::{env::{set_var, var}, path::Path};
 
     #[test]
     fn command_line() -> Result<()> {
@@ -32,7 +32,7 @@ mod cli {
             .unwrap()
             .to_string_lossy()
             .into_owned();
-        let echo = std::env::var("ANTICIPATE_ECHO").is_ok();
+        let echo = var("ANTICIPATE_ECHO").is_ok();
         let script = ScriptFile::parse(input_file)?;
         let mut options = InterpreterOptions::new(5000, echo, false, false);
         options.id = Some(file_name.to_owned());
@@ -41,6 +41,14 @@ mod cli {
     }
 
     fn prepare_env() {
+        let path = var("PATH").ok().unwrap_or_default();
+        let prefix = if var("COVER").ok().is_some() {
+            "target/cover/debug"
+        } else {
+            "target/debug"
+        };
+        set_var("PATH", format!("{}:{}", prefix, path));
+
         set_var("NO_COLOR", "1");
         set_var("SOS_DATA_DIR", "target/accounts");
         set_var("SOS_PROMPT", "➜ ");

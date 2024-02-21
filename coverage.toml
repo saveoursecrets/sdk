@@ -51,7 +51,7 @@ args = ["build"]
 condition = { rust_version = { min = "1.60.0" } }
 private=true
 command = "cargo"
-args = ["test", "--all", "--", "--nocapture"]
+args = ["test", "--all", "--features", "enable-cli-tests", "--", "--nocapture"]
 
 [tasks.coverage_grcov_run_test_stable.env]
 "COVERAGE" = "1"
