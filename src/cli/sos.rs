@@ -39,13 +39,6 @@ pub struct Sos {
     #[clap(long, env = "SOS_DATA_DIR", hide_env_values = true)]
     storage: Option<PathBuf>,
 
-    // FIXME: remove this once we finish migrating the
-    // FIXME: CLI test specs to scripts
-    /// Affirmative for all confirmation prompts.
-    #[cfg(any(test, debug_assertions))]
-    #[clap(long, env = "SOS_YES", hide_env_values = true)]
-    yes: bool,
-
     #[clap(subcommand)]
     cmd: Command,
 }
