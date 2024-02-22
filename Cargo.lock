@@ -205,6 +205,8 @@ dependencies = [
 [[package]]
 name = "anticipate"
 version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd16260a72120e083c14984512d23866e033d882bb24833ed7a38b827a748c75"
 dependencies = [
  "conpty",
  "nix 0.26.4",
@@ -215,6 +217,8 @@ dependencies = [
 [[package]]
 name = "anticipate-runner"
 version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "776e2db405d4bbbeb68e510e70f073e9737b571798ef4fc73e4ca9353a5d25b1"
 dependencies = [
  "anticipate",
  "comma",
@@ -5162,9 +5166,9 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vsss-rs"
-version = "3.3.4"
+version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "196bbee60607a195bc850e94f0e040bd090e45794ad8df0e9c5a422b9975a00f"
+checksum = "14d9b5a415d1bbbf1a9c5982babc0d8054fa10effe9c5b7086cd2fdd36be79d9"
 dependencies = [
  "elliptic-curve",
  "rand",
