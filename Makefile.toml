@@ -1,5 +1,5 @@
 extend= [
-  { path = "coverage_grcov.makefile.toml" }
+  { path = "coverage.toml" }
 ]
 
 [config]
@@ -118,44 +118,33 @@ args = ["test", "preferences_"]
 command = "cargo"
 args = ["test", "system_messages_"]
 
-[tasks.test-cli]
-command = "cargo"
-args = ["test", "command_line"]
+[tasks.clean-cli]
+script = '''
+rm -rf target/accounts
+rm -f target/*.{zip,vcf,heic,txt}
+'''
 
-[tasks.integration]
-dependencies = [
-  "test-audit-trail",
-  "test-backup-archive",
-  "test-event-log",
-  "test-diff-merge",
-  "test-local-account",
-  "test-network-account",
-  "test-pairing",
-  "test-access-control",
-  "test-file-transfers",
-  "test-preferences",
-  "test-system-messages",
-  "test-cli",
-]
+[tasks.test-cli]
+script = { file = "./scripts/cli/specs.sh" }
+dependencies = ["clean-cli"]
+
+[tasks.test-shell]
+script = { file = "./scripts/cli/shell.sh" }
+dependencies = ["clean-cli"]
+
+[tasks.demos]
+script = { file = "./scripts/cli/demos.sh" }
+dependencies = ["clean-cli"]
 
 [tasks.test]
-dependencies = ["unit", "integration"]
+command = "cargo"
+args = ["test", "--all", "--features", "enable-cli-tests"]
+dependencies = ["clean-cli"]
 
-[tasks.test-ci]
-dependencies = [
-  "unit",
-  "test-audit-trail",
-  "test-backup-archive",
-  "test-event-log",
-  "test-diff-merge",
-  "test-local-account",
-  "test-network-account",
-  "test-pairing",
-  "test-access-control",
-  "test-file-transfers",
-  "test-preferences",
-  "test-system-messages",
-]
+[tasks.test-lite]
+command = "cargo"
+args = ["test", "--all"]
+dependencies = ["clean-cli"]
 
 [tasks.dev]
 dependencies = ["check-wasm", "test", "format"]
@@ -218,6 +207,7 @@ args = ["clean", "--target-dir", "target/cover"]
 
 [tasks.cover]
 dependencies = [
+  "clean-cli",
   "clean-cover",
   "clean-coverage",
   "coverage",

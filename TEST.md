@@ -1,28 +1,53 @@
 # Test
 
-Generate a test keypair.
+Run all the tests.
 
 ```
-cargo make gen-test-key
+cargo make test
 ```
 
-Run the unit tests.
+To skip integration tests and just run unit tests:
 
 ```
 cargo make unit
 ```
 
-Run the integration tests.
+To generate a code coverage report in `target/coverage` run:
 
 ```
-cargo make integration
+cargo make cover
 ```
+
+The CLI test specs can take a long time with the debug build so if you want to skip them use:
+
+```
+cargo make test-lite
+```
+
+## Test Scripts
+
+To run the CLI test specs using the first version of `sos` in `PATH`:
+
+```
+cargo make test-cli
+```
+
+Or to just test the shell command:
+
+```
+cargo make test-shell
+```
+
+If you need to debug the CLI tests enable echo to see the I/O, for example:
+
+```
+ANTICIPATE_ECHO=true cargo make test-cli
+ANTICIPATE_ECHO=true cargo make test-shell
+```
+
+Run `cargo install --path .` to install a release version and make these tests much faster.
 
 ## Notes
-
-### Command Line Tests
-
-The command line tests wait for very specific output in order to complete, inadvertently having a rogue `println!` in the code will cause the command line tests to fail.
 
 ### MacOS ulimit
 

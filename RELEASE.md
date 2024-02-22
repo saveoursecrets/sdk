@@ -3,7 +3,7 @@
 Check all the tests first.
 
 ```
-cargo make test-ci
+cargo make test
 ```
 
 Check the security audits.

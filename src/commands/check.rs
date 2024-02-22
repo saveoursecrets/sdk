@@ -31,13 +31,13 @@ pub enum Command {
         /// Vault file path.
         file: PathBuf,
     },
-    /// Verify log file checksums.
-    Log {
+    /// Verify event log checksums.
+    Events {
         /// Print more information.
         #[clap(short, long)]
         verbose: bool,
 
-        /// Log file path.
+        /// Event log file path.
         file: PathBuf,
     },
 }
@@ -49,8 +49,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         }
         Command::Header { file } => header(file).await?,
         Command::Keys { file } => keys(file).await?,
-        Command::Log { verbose, file } => {
-            verify_log(file, verbose).await?;
+        Command::Events { verbose, file } => {
+            verify_events(file, verbose).await?;
         }
     }
 
@@ -72,8 +72,8 @@ async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
     Ok(())
 }
 
-/// Verify the integrity of a log file.
-async fn verify_log(file: PathBuf, verbose: bool) -> Result<()> {
+/// Verify the integrity of an events log file.
+async fn verify_events(file: PathBuf, verbose: bool) -> Result<()> {
     if !vfs::metadata(&file).await?.is_file() {
         return Err(Error::NotFile(file));
     }

@@ -1,5 +1,5 @@
-use crate::{Result, CommandTree};
-use clap::{Parser, Subcommand, CommandFactory};
+use crate::{CommandTree, Result};
+use clap::{CommandFactory, Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -36,7 +36,7 @@ pub async fn run() -> Result<()> {
     if std::env::var("SOS_CLI_JSON").ok().is_some() {
         let cmd = SosServer::command();
         let tree: CommandTree = (&cmd).into();
-        let output = serde_json::to_writer_pretty(std::io::stdout(), &tree)?;
+        serde_json::to_writer_pretty(std::io::stdout(), &tree)?;
         std::process::exit(0);
     }
 

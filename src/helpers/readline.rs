@@ -146,10 +146,6 @@ pub fn read_option(prompt: Option<&str>) -> Result<Option<String>> {
 
 /// Read a flag value (y/n).
 pub fn read_flag(prompt: Option<&str>) -> Result<bool> {
-    if std::env::var("SOS_YES").is_ok() {
-        return Ok(true);
-    }
-
     let mut rl = basic_editor()?;
     let readline = rl.readline(prompt.unwrap_or(DEFAULT_PROMPT));
     match readline {

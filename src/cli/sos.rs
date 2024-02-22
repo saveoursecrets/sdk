@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, CommandFactory};
+use clap::{CommandFactory, Parser, Subcommand};
 use sos_net::sdk::{identity::AccountRef, vault::FolderRef, Paths};
 use std::path::PathBuf;
 
@@ -11,8 +11,7 @@ use crate::{
         SecretCommand, ServerCommand, SyncCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
-    CommandTree,
-    Result,
+    CommandTree, Result,
 };
 
 #[derive(Parser, Debug)]
@@ -39,11 +38,6 @@ pub struct Sos {
     /// Local storage directory.
     #[clap(long, env = "SOS_DATA_DIR", hide_env_values = true)]
     storage: Option<PathBuf>,
-
-    /// Affirmative for all confirmation prompts.
-    #[cfg(any(test, debug_assertions))]
-    #[clap(long, env = "SOS_YES", hide_env_values = true)]
-    yes: bool,
 
     #[clap(subcommand)]
     cmd: Command,
@@ -145,7 +139,7 @@ pub async fn run() -> Result<()> {
     if std::env::var("SOS_CLI_JSON").ok().is_some() {
         let cmd = Sos::command();
         let tree: CommandTree = (&cmd).into();
-        let output = serde_json::to_writer_pretty(std::io::stdout(), &tree)?;
+        serde_json::to_writer_pretty(std::io::stdout(), &tree)?;
         std::process::exit(0);
     }
 
