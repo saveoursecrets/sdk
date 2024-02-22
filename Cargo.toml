@@ -116,7 +116,7 @@ copy_dir = "0.1"
 maplit2 = "1"
 sos_test_utils = { path = "workspace/test_utils" }
 pretty_assertions = "1.4"
-anticipate-core = { path = "../../anticipate/core" }
+anticipate-runner = { version = "0.4", path = "../../anticipate/runner" }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3"

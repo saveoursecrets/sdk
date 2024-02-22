@@ -43,6 +43,7 @@ command = "cargo"
 args = ["build"]
 
 [tasks.coverage_grcov_build_stable.env]
+"COVER"="1"
 "CARGO_BUILD_TARGET_DIR"="${COVERAGE_TARGET_DIRECTORY}"
 "RUSTFLAGS"= "-Cinstrument-coverage -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off"
 "RUSTDOCFLAGS"="-Cpanic=abort"
@@ -54,7 +55,7 @@ command = "cargo"
 args = ["test", "--all", "--features", "enable-cli-tests", "--", "--nocapture"]
 
 [tasks.coverage_grcov_run_test_stable.env]
-"COVERAGE" = "1"
+"COVER" = "1"
 "CARGO_BUILD_TARGET_DIR"="${COVERAGE_TARGET_DIRECTORY}"
 "LLVM_PROFILE_FILE"="${COVERAGE_PROF_OUTPUT}/coverage-%p-%m.profraw"
 

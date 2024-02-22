@@ -1,6 +1,6 @@
 #[cfg(feature = "enable-cli-tests")]
 mod cli {
-    use anticipate_core::{InterpreterOptions, ScriptFile};
+    use anticipate_runner::{InterpreterOptions, ScriptFile};
     use anyhow::Result;
     use std::{env::{set_var, var}, path::Path};
 

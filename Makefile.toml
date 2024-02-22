@@ -138,12 +138,12 @@ dependencies = ["clean-cli"]
 
 [tasks.test]
 command = "cargo"
-args = ["test", "--features", "enable-cli-tests"]
+args = ["test", "--all", "--features", "enable-cli-tests"]
 dependencies = ["clean-cli"]
 
 [tasks.test-lite]
 command = "cargo"
-args = ["test"]
+args = ["test", "--all"]
 dependencies = ["clean-cli"]
 
 [tasks.dev]
@@ -206,7 +206,6 @@ command = "cargo"
 args = ["clean", "--target-dir", "target/cover"]
 
 [tasks.cover]
-env = { "COVER" = "1" }
 dependencies = [
   "clean-cli",
   "clean-cover",

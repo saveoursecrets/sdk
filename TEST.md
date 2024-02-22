@@ -6,6 +6,18 @@ Run all the tests.
 cargo make test
 ```
 
+To skip integration tests and just run unit tests:
+
+```
+cargo make unit
+```
+
+To generate a code coverage report in `target/coverage` run:
+
+```
+cargo make cover
+```
+
 The CLI test specs can take a long time with the debug build so if you want to skip them use:
 
 ```
