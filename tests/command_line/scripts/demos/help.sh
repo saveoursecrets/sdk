@@ -1,2 +1,2 @@
 sos --help
-#$ expect Print version
+#$ wait

@@ -121,7 +121,7 @@ args = ["test", "system_messages_"]
 [tasks.clean-cli]
 script = '''
 rm -rf target/accounts
-rm -f target/*.{zip,vcf,heic,txt}
+rm -f target/*.{zip,vcf,heic,txt,toml}
 '''
 
 [tasks.test-cli]

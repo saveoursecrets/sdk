@@ -1,10 +1,11 @@
 # create an account
 
-#$ include ../setup/account.sh
+#$ include ../setup.sh
 #$ include ../includes/screen.sh
 
 # list accounts
-#$ include ../account/list.sh
+sos account ls
+#$ wait
 
 # create a backup archive
 #$ include ../account/backup.sh
@@ -18,3 +19,5 @@
 
 # show account statistics
 #$ include ../account/stats.sh
+
+#$ include ../includes/end-demo.sh

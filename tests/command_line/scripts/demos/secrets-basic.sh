@@ -3,7 +3,9 @@
 #$ include ../includes/screen.sh
 
 # now we can list the secrets in the folder
-#$ include ../secret/list.sh
+sos secret ls
+#$ include ../includes/signin.sh
+#$ wait
 
 # and view the secret
 #$ include ../secret/get-note.sh
@@ -16,6 +18,10 @@
 #$ include ../includes/screen.sh
 
 # rename a secret
-#$ include ../secret/rename.sh
+sos secret rename --name "Demo Note" "$NOTE_NAME"
+#$ include ../includes/signin.sh
+#$ wait
 
 #$ include ../includes/screen.sh
+
+#$ include ../includes/end-demo.sh
