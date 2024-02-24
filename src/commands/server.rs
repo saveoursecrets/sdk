@@ -1,4 +1,4 @@
-use crate::{helpers::account::resolve_user, Error, Result};
+use crate::{helpers::{account::resolve_user, messages::{success, fail}}, Error, Result};
 use clap::Subcommand;
 use sos_net::{
     client::{RemoteSync, SyncOptions},
@@ -44,12 +44,20 @@ pub async fn run(cmd: Command) -> Result<()> {
             let options = SyncOptions {
                 origins: vec![origin.clone()],
             };
-            let sync_error = owner.sync_with_options(&options).await;
-            if sync_error.is_some() {
-                owner.remove_server(&origin).await?;
-                return Err(Error::InitialSync);
+
+            // When SOS_SKIP_INITIAL_SYNC is set we don't 
+            // do the sync when adding the server, primarily
+            // for demo purposes
+            let sync_error = if std::env::var("SOS_SKIP_INITIAL_SYNC").ok().is_none() {
+                owner.sync_with_options(&options).await
             } else {
-                println!("Added {} ✓", origin.url());
+                None
+            };
+            if let Some(err) = sync_error {
+                owner.remove_server(&origin).await?;
+                return Err(Error::InitialSync(err));
+            } else {
+                success(format!("Added {}", origin.url()));
             }
         }
         Command::List { account } => {
@@ -70,10 +78,11 @@ pub async fn run(cmd: Command) -> Result<()> {
             let mut owner = user.write().await;
             let origin: Origin = url.into();
             let remote = owner.remove_server(&origin).await?;
+            
             if remote.is_some() {
-                println!("Removed {} ✓", origin.url());
+                success(format!("Removed {}", origin.url()));
             } else {
-                println!("Server {} does not exist", origin.url());
+                fail(format!("server {} does not exist", origin.url()));
             }
         }
     }

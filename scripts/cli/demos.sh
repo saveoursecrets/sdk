@@ -4,15 +4,18 @@ set -e
 
 source scripts/cli/env.sh
 
+  #$scripts/version.sh \
+  #$scripts/help.sh \
+  #$scripts/server.sh \
+  #$scripts/servers-basic.sh \
+  #$scripts/secrets-basic.sh
+
 scripts=tests/command_line/scripts/demos
 anticipate \
   record \
   --parallel \
   --overwrite \
   --print-comments \
-  --setup $scripts/accounts-basic.sh \
+  --setup $scripts/setup/accounts-basic.sh \
   demos \
-  $scripts/version.sh \
-  $scripts/help.sh \
-  $scripts/server.sh \
-  $scripts/secrets-basic.sh
+  $scripts/servers-basic.sh

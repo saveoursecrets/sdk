@@ -1,6 +1,10 @@
-#!/bin/sh
+export SOS_PROMPT='➜ '
+export SOS_SKIP_INITIAL_SYNC=1
+export DEMO_SERVER="https://demo.saveoursecrets.com"
 
-set -e
+# suppress the bash is replaced by zsh on macos
+# SEE: https://support.apple.com/en-us/102360
+export BASH_SILENCE_DEPRECATION_WARNING=1
 
 export SOS_DATA_DIR="target/accounts"
 export ACCOUNT_NAME="Demo"

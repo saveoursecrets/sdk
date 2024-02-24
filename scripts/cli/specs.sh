@@ -4,7 +4,6 @@ set -e
 
 source scripts/cli/env.sh
 export NO_COLOR=1
-export SOS_PROMPT='➜ '
 
 if [ -n "$DEBUG" ]; then
   export PATH="target/debug:$PATH"

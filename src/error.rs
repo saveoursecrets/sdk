@@ -1,4 +1,4 @@
-use sos_net::sdk::{vault::secret::SecretRef, vcard4};
+use sos_net::{sdk::{vault::secret::SecretRef, vcard4, sync::SyncError}, client};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -22,8 +22,8 @@ pub enum Error {
     #[error(r#"attachment "{0}" not found"#)]
     FieldNotFound(SecretRef),
 
-    #[error(r#"initial sync has errors"#)]
-    InitialSync,
+    #[error(r#"initial sync has errors: {0}"#)]
+    InitialSync(SyncError<client::Error>),
 
     #[error(r#"sync failed"#)]
     SyncFail,
