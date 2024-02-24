@@ -19,5 +19,3 @@ sos account ls
 
 # show account statistics
 #$ include ../account/stats.sh
-
-#$ include ../includes/end-demo.sh

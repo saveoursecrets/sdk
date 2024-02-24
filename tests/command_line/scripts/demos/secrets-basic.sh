@@ -23,5 +23,3 @@ sos secret rename --name "Demo Note" "$NOTE_NAME"
 #$ wait
 
 #$ include ../includes/screen.sh
-
-#$ include ../includes/end-demo.sh
