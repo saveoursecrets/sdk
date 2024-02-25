@@ -6,7 +6,7 @@ sos shell
 #$ include ../shell/account.sh
 
 # import passwords from a Safari/MacOS CSV file
-account migrate import --format macos.csv $MIGRATE_MACOS
+account migrate import --name "MacOS Passwords" --format macos.csv $MIGRATE_MACOS
 #$ regex (?i)imported
 #$ wait
 

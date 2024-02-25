@@ -12,4 +12,4 @@ anticipate \
   --print-comments \
   --setup $scripts/setup/account-basic.sh \
   demos \
-  $scripts/shell-basic.sh
+  $scripts/*.sh
