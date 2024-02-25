@@ -2,6 +2,9 @@
 path = "./accounts"
 
 #[access]
+#allow = [
+  #"0x6f4e977644ca8f21d335ab13271616b615ea28cb"
+#]
 #deny = [
   #"0x6f4e977644ca8f21d335ab13271616b615ea28cb"
 #]

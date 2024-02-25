@@ -1,6 +1,7 @@
 export SOS_PROMPT='➜ '
 export SOS_OFFLINE=1
 export DEMO_SERVER="https://demo.saveoursecrets.com"
+export RUST_LOG="sos_net=error,sos_sdk=error"
 
 # suppress the bash is replaced by zsh on macos
 # SEE: https://support.apple.com/en-us/102360

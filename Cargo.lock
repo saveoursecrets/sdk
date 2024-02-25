@@ -4148,6 +4148,7 @@ dependencies = [
  "axum-server",
  "binary-stream",
  "bs58",
+ "colored",
  "file-guard",
  "futures",
  "hex",
