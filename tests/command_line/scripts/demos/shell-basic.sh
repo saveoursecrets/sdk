@@ -19,3 +19,7 @@ y
 #$ include ../shell/contacts.sh
 #$ include ../shell/folder.sh
 #$ include ../shell/secret.sh
+
+# exit the shell session
+quit
+#$ wait
