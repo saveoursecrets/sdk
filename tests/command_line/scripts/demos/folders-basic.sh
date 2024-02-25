@@ -8,8 +8,14 @@
 #$ include ../folder/info.sh
 
 # add a secret to the folder
-sos secret add file -f "$FOLDER_NAME" -n "$FILE_NAME" "$FILE_INPUT"
+sos secret add login -f "$FOLDER_NAME" --name "$LOGIN_NAME"
 #$ include ../includes/signin.sh
+#$ expect Username:
+$LOGIN_SERVICE_NAME
+#$ expect Website:
+$LOGIN_URL
+#$ expect Password:
+$LOGIN_PASSWORD
 #$ regex (?i)created
 #$ wait
 
