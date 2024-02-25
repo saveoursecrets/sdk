@@ -1,5 +1,5 @@
 export SOS_PROMPT='➜ '
-export SOS_SKIP_INITIAL_SYNC=1
+export SOS_OFFLINE=1
 export DEMO_SERVER="https://demo.saveoursecrets.com"
 
 # suppress the bash is replaced by zsh on macos

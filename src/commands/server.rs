@@ -45,14 +45,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                 origins: vec![origin.clone()],
             };
 
-            // When SOS_SKIP_INITIAL_SYNC is set we don't 
-            // do the sync when adding the server, primarily
-            // for demo purposes
-            let sync_error = if std::env::var("SOS_SKIP_INITIAL_SYNC").ok().is_none() {
-                owner.sync_with_options(&options).await
-            } else {
-                None
-            };
+            let sync_error = owner.sync_with_options(&options).await;
+
             if let Some(err) = sync_error {
                 owner.remove_server(&origin).await?;
                 return Err(Error::InitialSync(err));
