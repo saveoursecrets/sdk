@@ -213,7 +213,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let mut folders = owner.list_folders().await?;
-            folders.sort_by(|a, b| a.name().partial_cmp(b.name()).unwrap());
+            folders.sort_by(|a, b| b.name().partial_cmp(a.name()).unwrap());
             for summary in folders {
                 if verbose {
                     println!("{} {}", summary.id(), summary.name());
