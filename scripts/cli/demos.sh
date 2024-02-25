@@ -10,6 +10,6 @@ anticipate \
   --overwrite \
   --parallel \
   --print-comments \
-  --setup $scripts/setup/accounts-basic.sh \
+  --setup $scripts/setup/account-basic.sh \
   demos \
-  $scripts/*.sh
+  $scripts/shell-basic.sh
