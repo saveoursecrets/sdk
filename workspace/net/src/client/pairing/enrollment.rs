@@ -158,6 +158,7 @@ impl DeviceEnrollment {
         let mut account = NetworkAccount::new_unauthenticated(
             self.address.clone(),
             self.data_dir.clone(),
+            false,
         )
         .await?;
 

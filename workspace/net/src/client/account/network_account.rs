@@ -99,6 +99,9 @@ pub struct NetworkAccount {
 
     /// Shutdown handle for the file transfers background task.
     file_transfers: Option<(UnboundedSender<()>, oneshot::Receiver<()>)>,
+
+    /// Operate in offline mode.
+    offline: bool,
 }
 
 impl NetworkAccount {
@@ -326,9 +329,10 @@ impl Account for NetworkAccount {
     async fn new_unauthenticated(
         address: Address,
         data_dir: Option<PathBuf>,
+        offline: bool,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_unauthenticated(address, data_dir).await?;
+            LocalAccount::new_unauthenticated(address, data_dir, offline).await?;
         Ok(Self {
             address: Default::default(),
             paths: account.paths(),
@@ -339,6 +343,7 @@ impl Account for NetworkAccount {
             listeners: Mutex::new(Default::default()),
             connection_id: None,
             file_transfers: None,
+            offline,
         })
     }
 
@@ -346,11 +351,13 @@ impl Account for NetworkAccount {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
+        offline: bool,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
             data_dir,
+            offline,
             |builder| {
                 builder
                     .save_passphrase(false)
@@ -367,12 +374,14 @@ impl Account for NetworkAccount {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
+        offline: bool,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
         let account = LocalAccount::new_account_with_builder(
             account_name,
             passphrase.clone(),
             data_dir.clone(),
+            offline,
             builder,
         )
         .await?;
@@ -387,6 +396,7 @@ impl Account for NetworkAccount {
             listeners: Mutex::new(Default::default()),
             connection_id: None,
             file_transfers: None,
+            offline,
         };
 
         Ok(owner)

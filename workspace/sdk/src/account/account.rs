@@ -212,6 +212,7 @@ pub trait Account {
     async fn new_unauthenticated(
         address: Address,
         data_dir: Option<PathBuf>,
+        offline: bool,
     ) -> std::result::Result<Self::Account, Self::Error>;
 
     /// Create a new account with the given
@@ -224,6 +225,7 @@ pub trait Account {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
+        offline: bool,
     ) -> std::result::Result<Self::Account, Self::Error>;
 
     /// Create a new account with the given
@@ -233,6 +235,7 @@ pub trait Account {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
+        offline: bool,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> std::result::Result<Self::Account, Self::Error>;
 
@@ -1254,6 +1257,7 @@ impl Account for LocalAccount {
     async fn new_unauthenticated(
         address: Address,
         data_dir: Option<PathBuf>,
+        _offline: bool,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
@@ -1274,11 +1278,13 @@ impl Account for LocalAccount {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
+        offline: bool,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
             data_dir,
+            offline,
             |builder| builder.create_file_password(true),
         )
         .await
@@ -1288,6 +1294,7 @@ impl Account for LocalAccount {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
+        offline: bool,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
         let span = span!(Level::DEBUG, "new_account");
