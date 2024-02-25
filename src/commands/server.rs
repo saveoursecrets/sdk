@@ -1,4 +1,10 @@
-use crate::{helpers::{account::resolve_user, messages::{success, fail}}, Error, Result};
+use crate::{
+    helpers::{
+        account::resolve_user,
+        messages::{fail, success},
+    },
+    Error, Result,
+};
 use clap::Subcommand;
 use sos_net::{
     client::{RemoteSync, SyncOptions},
@@ -72,7 +78,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let mut owner = user.write().await;
             let origin: Origin = url.into();
             let remote = owner.remove_server(&origin).await?;
-            
+
             if remote.is_some() {
                 success(format!("Removed {}", origin.url()));
             } else {

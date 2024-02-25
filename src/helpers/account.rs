@@ -211,11 +211,14 @@ pub async fn sign_in(
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
-    
+
     let offline = std::env::var("SOS_OFFLINE").ok().is_some();
-    let mut owner =
-        NetworkAccount::new_unauthenticated(account.address().clone(), None, offline)
-            .await?;
+    let mut owner = NetworkAccount::new_unauthenticated(
+        account.address().clone(),
+        None,
+        offline,
+    )
+    .await?;
 
     let key: AccessKey = passphrase.clone().into();
     owner.sign_in(&key).await?;

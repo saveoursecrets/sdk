@@ -100,8 +100,8 @@ pub struct NetworkAccount {
     /// Shutdown handle for the file transfers background task.
     file_transfers: Option<(UnboundedSender<()>, oneshot::Receiver<()>)>,
 
-    /// Operate in offline mode.
-    offline: bool,
+    /// Disable networking.
+    pub(crate) offline: bool,
 }
 
 impl NetworkAccount {
@@ -244,10 +244,14 @@ impl NetworkAccount {
     }
 
     async fn before_change(&self) {
-        let remotes = self.remotes.read().await;
-        for remote in remotes.values() {
-            if let Some(e) = remote.sync().await {
-                tracing::error!(error = ?e, "failed to sync before change");
+        if self.offline {
+            tracing::warn!("offline mode active, ignoring before change");
+        } else {
+            let remotes = self.remotes.read().await;
+            for remote in remotes.values() {
+                if let Some(e) = remote.sync().await {
+                    tracing::error!(error = ?e, "failed to sync before change");
+                }
             }
         }
     }
@@ -256,6 +260,11 @@ impl NetworkAccount {
     async fn start_file_transfers(&mut self) -> Result<()> {
         if !self.is_authenticated().await {
             return Err(crate::sdk::Error::NotAuthenticated.into());
+        }
+
+        if self.offline {
+            tracing::warn!("offline mode active, ignoring file transfers");
+            return Ok(())
         }
 
         // Stop any existing transfers task
@@ -321,18 +330,20 @@ impl From<&NetworkAccount> for AccountRef {
     }
 }
 
-#[async_trait]
-impl Account for NetworkAccount {
-    type Account = NetworkAccount;
-    type Error = Error;
+impl NetworkAccount {
 
-    async fn new_unauthenticated(
+    /// Prepare an account for sign in.
+    ///
+    /// After preparing an account call `sign_in`
+    /// to authenticate a user.
+    pub async fn new_unauthenticated(
         address: Address,
         data_dir: Option<PathBuf>,
         offline: bool,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_unauthenticated(address, data_dir, offline).await?;
+            LocalAccount::new_unauthenticated(address, data_dir)
+                .await?;
         Ok(Self {
             address: Default::default(),
             paths: account.paths(),
@@ -347,7 +358,13 @@ impl Account for NetworkAccount {
         })
     }
 
-    async fn new_account(
+    /// Create a new account with the given
+    /// name, passphrase and provider.
+    ///
+    /// Uses standard flags for the account builder for
+    /// more control of the created account use
+    /// `new_account_with_builder()`.
+    pub async fn new_account(
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
@@ -370,7 +387,10 @@ impl Account for NetworkAccount {
         .await
     }
 
-    async fn new_account_with_builder(
+    /// Create a new account with the given
+    /// name, passphrase and provider and modify the
+    /// account builder.
+    pub async fn new_account_with_builder(
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
@@ -381,7 +401,6 @@ impl Account for NetworkAccount {
             account_name,
             passphrase.clone(),
             data_dir.clone(),
-            offline,
             builder,
         )
         .await?;
@@ -401,6 +420,13 @@ impl Account for NetworkAccount {
 
         Ok(owner)
     }
+
+}
+
+#[async_trait]
+impl Account for NetworkAccount {
+    type Account = NetworkAccount;
+    type Error = Error;
 
     fn address(&self) -> &Address {
         &self.address

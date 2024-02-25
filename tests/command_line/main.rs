@@ -2,7 +2,10 @@
 mod cli {
     use anticipate_runner::{InterpreterOptions, ScriptFile};
     use anyhow::Result;
-    use std::{env::{set_var, var}, path::Path};
+    use std::{
+        env::{set_var, var},
+        path::Path,
+    };
 
     #[test]
     fn command_line() -> Result<()> {

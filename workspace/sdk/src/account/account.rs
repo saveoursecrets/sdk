@@ -204,41 +204,7 @@ pub trait Account {
 
     /// Errors for this account.
     type Error: std::error::Error + std::fmt::Debug;
-
-    /// Prepare an account for sign in.
-    ///
-    /// After preparing an account call `sign_in`
-    /// to authenticate a user.
-    async fn new_unauthenticated(
-        address: Address,
-        data_dir: Option<PathBuf>,
-        offline: bool,
-    ) -> std::result::Result<Self::Account, Self::Error>;
-
-    /// Create a new account with the given
-    /// name, passphrase and provider.
-    ///
-    /// Uses standard flags for the account builder for
-    /// more control of the created account use
-    /// `new_account_with_builder()`.
-    async fn new_account(
-        account_name: String,
-        passphrase: SecretString,
-        data_dir: Option<PathBuf>,
-        offline: bool,
-    ) -> std::result::Result<Self::Account, Self::Error>;
-
-    /// Create a new account with the given
-    /// name, passphrase and provider and modify the
-    /// account builder.
-    async fn new_account_with_builder(
-        account_name: String,
-        passphrase: SecretString,
-        data_dir: Option<PathBuf>,
-        offline: bool,
-        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
-    ) -> std::result::Result<Self::Account, Self::Error>;
-
+    
     /// Account address.
     fn address(&self) -> &Address;
 
@@ -1249,15 +1215,15 @@ impl From<&LocalAccount> for AccountRef {
     }
 }
 
-#[async_trait]
-impl Account for LocalAccount {
-    type Account = LocalAccount;
-    type Error = Error;
+impl LocalAccount {
 
-    async fn new_unauthenticated(
+    /// Prepare an account for sign in.
+    ///
+    /// After preparing an account call `sign_in`
+    /// to authenticate a user.
+    pub async fn new_unauthenticated(
         address: Address,
         data_dir: Option<PathBuf>,
-        _offline: bool,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
@@ -1274,27 +1240,33 @@ impl Account for LocalAccount {
         })
     }
 
-    async fn new_account(
+    /// Create a new account with the given
+    /// name, passphrase and provider.
+    ///
+    /// Uses standard flags for the account builder for
+    /// more control of the created account use
+    /// `new_account_with_builder()`.
+    pub async fn new_account(
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        offline: bool,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
             data_dir,
-            offline,
             |builder| builder.create_file_password(true),
         )
         .await
     }
 
-    async fn new_account_with_builder(
+    /// Create a new account with the given
+    /// name, passphrase and provider and modify the
+    /// account builder.
+    pub async fn new_account_with_builder(
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        offline: bool,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
         let span = span!(Level::DEBUG, "new_account");
@@ -1337,6 +1309,13 @@ impl Account for LocalAccount {
 
         Ok(account)
     }
+
+}
+
+#[async_trait]
+impl Account for LocalAccount {
+    type Account = LocalAccount;
+    type Error = Error;
 
     fn address(&self) -> &Address {
         &self.address

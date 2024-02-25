@@ -25,7 +25,9 @@ async fn pairing_device_revoke() -> Result<()> {
     let folders = primary_device.folders.clone();
 
     let mut enrolled_account =
-        run_pairing_protocol(&mut primary_device, TEST_ID, true).await?.unwrap();
+        run_pairing_protocol(&mut primary_device, TEST_ID, true)
+            .await?
+            .unwrap();
 
     // Cannot revoke the current device
     let current_device_public_key = primary_device

@@ -5,7 +5,7 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_net::{client::RemoteSync, sdk::prelude::*};
 
-/// Tests that a pending enrollment that never finishes 
+/// Tests that a pending enrollment that never finishes
 /// has an enrollment.json file on disc.
 #[tokio::test]
 async fn pairing_pending_enrollment() -> Result<()> {
@@ -32,11 +32,11 @@ async fn pairing_pending_enrollment() -> Result<()> {
 
     // Run the pairing protocol to completion.
     run_pairing_protocol(&mut primary_device, TEST_ID, false).await?;
-    
+
     // Data directory of the connecting device
     let data_dir = primary_device.dirs.clients.get(1).cloned().unwrap();
-    let paths = Paths::new(
-        data_dir, primary_device.owner.address().to_string());
+    let paths =
+        Paths::new(data_dir, primary_device.owner.address().to_string());
     let enrollment_file = paths.enrollment();
     assert!(vfs::try_exists(enrollment_file).await?);
 

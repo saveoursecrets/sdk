@@ -8,8 +8,8 @@ use sos_net::sdk::{
 
 use crate::{
     commands::{
-        AccountCommand, FileCommand, FolderCommand,
-        SecretCommand, ServerCommand, SyncCommand,
+        AccountCommand, FileCommand, FolderCommand, SecretCommand,
+        ServerCommand, SyncCommand,
     },
     helpers::account::{cd_folder, switch, Owner},
 };

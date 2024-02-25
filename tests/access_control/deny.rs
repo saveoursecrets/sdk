@@ -28,6 +28,7 @@ async fn access_control_deny() -> Result<()> {
         TEST_ID.to_owned(),
         password.clone(),
         Some(data_dir.clone()),
+        false,
     )
     .await?;
     let denied_address = denied.address().clone();

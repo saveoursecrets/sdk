@@ -24,12 +24,11 @@ use crate::{
         vfs, Paths,
     },
 };
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
 };
-use serde::{Serialize, Deserialize};
-
 
 #[cfg(feature = "device")]
 use crate::sdk::{
@@ -37,10 +36,10 @@ use crate::sdk::{
     sync::DevicePatch,
 };
 
-/// Pending enrollment written to disc between 
+/// Pending enrollment written to disc between
 /// fetching an account and finishing enrollment.
 ///
-/// Can be used to detect that an account was 
+/// Can be used to detect that an account was
 /// created from an enrollment that was not finished.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PendingEnrollment {
@@ -140,9 +139,11 @@ impl DeviceEnrollment {
         #[cfg(feature = "device")]
         self.create_device(change_set.device).await?;
         self.create_identity(change_set.identity).await?;
-        
+
         // Write the pending enrollment
-        let data = PendingEnrollment { origin: self.origin.clone() };
+        let data = PendingEnrollment {
+            origin: self.origin.clone(),
+        };
         let contents = serde_json::to_vec_pretty(&data)?;
         vfs::write(self.paths.enrollment(), &contents).await?;
 
