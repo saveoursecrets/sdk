@@ -7,6 +7,12 @@
 # get information about a folder
 #$ include ../folder/info.sh
 
+# add a secret to the folder
+sos secret add file -f "$FOLDER_NAME" -n "$FILE_NAME" "$FILE_INPUT"
+#$ include ../includes/signin.sh
+#$ regex (?i)created
+#$ wait
+
 #$ include ../includes/screen.sh
 
 # print secret identifiers
