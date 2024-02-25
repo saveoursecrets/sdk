@@ -8,7 +8,7 @@ use sos_net::{
 };
 
 use crate::{
-    helpers::{account::resolve_user, readline::read_flag},
+    helpers::{account::resolve_user, readline::read_flag, messages::success},
     Error, Result,
 };
 
@@ -78,7 +78,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 if read_flag(Some(&prompt))? {
                     let mut owner = user.write().await;
                     owner.revoke_device(device.public_key()).await?;
-                    println!("Device revoked ✓");
+                    success("Device revoked");
                 }
             } else {
                 return Err(Error::DeviceNotFound(id));

@@ -1,12 +1,19 @@
 # create a new folder
-sos folder new "$FOLDER_NAME"
-#$ include ../includes/signin.sh
-#$ regex (?i)created
-#$ wait
+#$ include ../folder/new.sh
 
 # list folders
-sos folder ls -v
-#$ include ../includes/signin.sh
-#$ wait
+#$ include ../folder/list.sh
+
+# get information about a folder
+#$ include ../folder/info.sh
 
 #$ include ../includes/screen.sh
+
+# print secret identifiers
+#$ include ../folder/keys.sh
+
+# inspect folder commit hashes 
+#$ include ../folder/commits.sh
+
+# remove a folder
+#$ include ../folder/remove.sh

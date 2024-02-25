@@ -20,9 +20,12 @@ use sos_net::sdk::{
 };
 
 use crate::{
-    helpers::readline::{
-        read_flag, read_line, read_line_allow_empty, read_multiline,
-        read_option, read_password,
+    helpers::{
+        readline::{
+            read_flag, read_line, read_line_allow_empty, read_multiline,
+            read_option, read_password,
+        },
+        messages::success,
     },
     Error, Result, TARGET,
 };
@@ -512,7 +515,7 @@ pub(crate) async fn download_file_secret(
                 vfs::write(file, buffer.expose_secret()).await?;
             }
         }
-        println!("Download complete ✓");
+        success("Download complete");
         Ok(())
     } else {
         Err(Error::NotFileContent)

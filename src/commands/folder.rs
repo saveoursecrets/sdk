@@ -11,6 +11,7 @@ use sos_net::sdk::{
 
 use crate::{
     helpers::{
+        messages::success,
         account::{cd_folder, resolve_folder, resolve_user, USER},
         readline::read_flag,
     },
@@ -165,7 +166,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 
             let FolderCreate { folder, .. } =
                 writer.create_folder(name).await?;
-            println!("Folder created ✓");
+            success("Folder created");
             drop(writer);
             if cwd {
                 let target = Some(FolderRef::Id(*folder.id()));
@@ -198,7 +199,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             if read_flag(Some(&prompt))? {
                 let mut owner = user.write().await;
                 owner.delete_folder(&summary).await?;
-                println!("Folder deleted ✓");
+                success("Folder deleted");
                 drop(owner);
 
                 // Removing current folder so try to use
@@ -291,7 +292,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 
             let mut writer = user.write().await;
             writer.rename_folder(&summary, name.clone()).await?;
-            println!("{} -> {} ✓", summary.name(), name);
+            success(format!("{} -> {}", summary.name(), name));
         }
 
         Command::History { cmd } => {
@@ -350,7 +351,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         .current_folder()
                         .ok_or(Error::NoVaultSelected)?;
                     reader.verify(&summary).await?;
-                    println!("Verified ✓");
+                    success("Verified");
                 }
                 History::List { verbose, .. } => {
                     let owner = user.read().await;

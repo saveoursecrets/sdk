@@ -1,4 +1,4 @@
-use crate::{helpers::account::resolve_user, Error, Result};
+use crate::{helpers::{account::resolve_user, messages::success}, Error, Result};
 use clap::Subcommand;
 use sos_net::{
     client::{NetworkAccount, RemoteSync, SyncOptions},
@@ -85,7 +85,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
             }
 
-            println!("Synced ✓");
+            success("Synced");
         }
         Command::Status { account, url } => {
             let user = resolve_user(account.as_ref(), false).await?;
@@ -232,7 +232,7 @@ fn print_commit_state(
     let comparison = local_tree.compare(&remote.1)?;
 
     let detail = match &comparison {
-        Comparison::Equal => String::from("✓"),
+        Comparison::Equal => String::from("up to date"),
         Comparison::Contains(_, _) => {
             let amount = local.1.len() - remote.1.len();
             format!("{} commit(s) ahead", amount)
