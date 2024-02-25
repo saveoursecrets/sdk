@@ -16,7 +16,7 @@ export ACCOUNT_CONTACTS="tests/fixtures/contacts.vcf"
 export CONTACTS_EXPORT="target/demo-contacts.vcf"
 
 export DEFAULT_FOLDER_NAME="Documents"
-export FOLDER_NAME="mock-folder"
+export FOLDER_NAME="Demo Folder"
 export NEW_FOLDER_NAME="mock-folder-renamed"
 
 export FILE_INPUT="tests/fixtures/sample.heic"

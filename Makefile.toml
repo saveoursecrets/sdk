@@ -82,6 +82,11 @@ args = ["test", "audit"]
 command = "cargo"
 args = ["test", "backup_archive"]
 
+[tasks.test-command-line]
+command = "cargo"
+args = ["test", "command_line", "--features", "enable-cli-tests", "--", "--nocapture"]
+dependencies = ["clean-cli"]
+
 [tasks.test-event-log]
 command = "cargo"
 args = ["test", "event_log_"]

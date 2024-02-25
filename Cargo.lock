@@ -204,9 +204,9 @@ dependencies = [
 
 [[package]]
 name = "anticipate"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c38a20b3f8a0b15e2e156a418d681c8be1159f4dbeb607c80867a141fb91e4c"
+checksum = "527a4816019990ba61cc1b43f2208865a9e8a612bfaf50db1b6337b2e8307dc2"
 dependencies = [
  "conpty",
  "nix 0.26.4",
@@ -217,9 +217,9 @@ dependencies = [
 
 [[package]]
 name = "anticipate-runner"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bc16590de84ec4c3f1a4c21e59debd62b638bd0605f4d2bbfd3ebd0fcde1640"
+checksum = "092b50675bfca2765af4162662642f7e55dcab7865cb087a0b6a2c2cda97cce1"
 dependencies = [
  "anticipate",
  "comma",

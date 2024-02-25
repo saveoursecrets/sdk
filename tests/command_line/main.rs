@@ -37,7 +37,7 @@ mod cli {
             .into_owned();
         let echo = var("ANTICIPATE_ECHO").is_ok();
         let script = ScriptFile::parse(input_file)?;
-        let mut options = InterpreterOptions::new(5000, echo, false, false);
+        let mut options = InterpreterOptions::new(15000, echo, false, false);
         options.id = Some(file_name.to_owned());
         script.run(options)?;
         Ok(())
@@ -51,10 +51,14 @@ mod cli {
             "target/debug"
         };
         set_var("PATH", format!("{}:{}", prefix, path));
-
+    
+        set_var("BASH_SILENCE_DEPRECATION_WARNING", "1");
         set_var("NO_COLOR", "1");
+
         set_var("SOS_DATA_DIR", "target/accounts");
         set_var("SOS_PROMPT", "➜ ");
+        set_var("DEMO_SERVER", "https://demo.saveoursecrets.com");
+
         set_var("ACCOUNT_NAME", "Demo");
         set_var("ACCOUNT_NAME_ALT", "Demo Account");
         set_var("ACCOUNT_PASSWORD", "demo-test-password-case");

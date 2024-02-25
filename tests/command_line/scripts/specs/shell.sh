@@ -122,7 +122,7 @@ account contacts import $ACCOUNT_CONTACTS
 # FOLDER
 #############################################################
 
-folder new $FOLDER_NAME
+folder new "$FOLDER_NAME"
 #$ regex (?i)created
 #$ wait
 
@@ -132,30 +132,30 @@ folder ls -v
 folder info -v
 #$ wait
 
-folder keys -f $FOLDER_NAME
+folder keys -f "$FOLDER_NAME"
 #$ wait
 
-folder commits -f $FOLDER_NAME
+folder commits -f "$FOLDER_NAME"
 #$ wait
 
-folder rename -f $FOLDER_NAME $NEW_FOLDER_NAME
+folder rename -f "$FOLDER_NAME" "$NEW_FOLDER_NAME"
 #$ wait
 
-folder rename -f $NEW_FOLDER_NAME $FOLDER_NAME
+folder rename -f "$NEW_FOLDER_NAME" "$FOLDER_NAME"
 #$ wait
 
-folder history compact -f $FOLDER_NAME
+folder history compact -f "$FOLDER_NAME"
 #$ regex (?i)remove history
 y
 #$ wait
 
-folder history check -f $FOLDER_NAME
+folder history check -f "$FOLDER_NAME"
 #$ wait
 
-folder history list -f $FOLDER_NAME
+folder history list -f "$FOLDER_NAME"
 #$ wait
 
-folder remove -f $FOLDER_NAME
+folder remove -f "$FOLDER_NAME"
 #$ regex (?i)delete folder
 y
 #$ regex (?i)folder deleted
@@ -265,7 +265,7 @@ secret attach ls -v "$NOTE_NAME"
 secret attach rm "$NOTE_NAME" "$NOTE_ATTACHMENT"
 #$ wait
 
-folder new $FOLDER_NAME
+folder new "$FOLDER_NAME"
 #$ regex (?i)created
 #$ wait
 
@@ -277,7 +277,7 @@ secret move --target "$DEFAULT_FOLDER_NAME" -f "$FOLDER_NAME" "$NOTE_NAME"
 #$ regex (?i)moved
 #$ wait
 
-folder remove -f $FOLDER_NAME
+folder remove -f "$FOLDER_NAME"
 #$ regex (?i)delete folder
 y
 #$ regex (?i)folder deleted
