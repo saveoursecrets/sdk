@@ -5,6 +5,7 @@ use app_dirs2::{get_app_root, AppDataType, AppInfo};
 #[cfg(feature = "audit")]
 use async_once_cell::OnceCell;
 use once_cell::sync::Lazy;
+use serde::{Serialize, Deserialize};
 use std::{
     path::{Path, PathBuf},
     sync::RwLock,
@@ -50,7 +51,7 @@ static AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 /// Several functions require a user identifier and will panic if
 /// a user identifier has not been set, see the function documentation
 /// for details.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Paths {
     /// User identifier.
     user_id: String,

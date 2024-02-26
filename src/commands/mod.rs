@@ -1,8 +1,8 @@
 pub mod account;
 pub mod audit;
-//pub mod changes;
 pub mod check;
 pub mod device;
+pub mod environment;
 pub mod events;
 pub mod file;
 pub mod folder;
@@ -17,6 +17,7 @@ pub use account::Command as AccountCommand;
 pub use audit::Command as AuditCommand;
 pub use check::Command as CheckCommand;
 pub use device::Command as DeviceCommand;
+pub use environment::Command as EnvironmentCommand;
 pub use events::Command as EventsCommand;
 pub use file::Command as FileCommand;
 pub use folder::Command as FolderCommand;

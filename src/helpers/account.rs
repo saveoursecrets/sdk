@@ -9,6 +9,7 @@ use sos_net::{
         crypto::AccessKey,
         identity::{AccountRef, Identity, PublicIdentity},
         passwd::diceware::generate_passphrase,
+        signer::ecdsa::Address,
         secrecy::{ExposeSecret, SecretString},
         vault::{FolderRef, Summary},
         Paths,
@@ -110,6 +111,27 @@ pub async fn resolve_account(
         }
     }
     account.cloned()
+}
+
+pub async fn resolve_account_address(
+    account: Option<&AccountRef>,
+) -> Result<Address> {
+    let account = resolve_account(account)
+        .await
+        .ok_or_else(|| Error::NoAccountFound)?;
+
+    let accounts = Identity::list_accounts(None).await?;
+    for info in accounts {
+        match account {
+            AccountRef::Name(ref name) => if info.label() == name {
+                return Ok(info.address().clone())
+            },
+            AccountRef::Address(address) => if info.address() == &address {
+                return Ok(info.address().clone())
+            }
+        }
+    }
+    Err(Error::NoAccountFound)
 }
 
 pub async fn resolve_folder(

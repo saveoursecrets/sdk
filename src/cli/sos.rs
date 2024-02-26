@@ -5,11 +5,12 @@ use std::path::PathBuf;
 use crate::{
     commands::{
         account, audit, check, device, events, file, folder, preferences,
-        secret,
+        secret, environment,
         security_report::{self, SecurityReportFormat},
         server, shell, sync, AccountCommand, AuditCommand, CheckCommand,
         DeviceCommand, EventsCommand, FileCommand, FolderCommand,
         PreferenceCommand, SecretCommand, ServerCommand, SyncCommand,
+        EnvironmentCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
     CommandTree, Result,
@@ -140,6 +141,12 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: PreferenceCommand,
     },
+    /// Print environment and paths.
+    #[clap(alias = "env")]
+    Environment {
+        #[clap(subcommand)]
+        cmd: EnvironmentCommand,
+    },
 }
 
 pub async fn run() -> Result<()> {
@@ -202,6 +209,7 @@ pub async fn run() -> Result<()> {
             shell::run(account, folder).await?
         }
         Command::Preferences { cmd } => preferences::run(cmd).await?,
+        Command::Environment { cmd } => environment::run(cmd).await?,
     }
     Ok(())
 }

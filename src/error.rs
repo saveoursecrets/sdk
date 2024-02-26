@@ -186,6 +186,9 @@ pub enum Error {
 
     #[error(transparent)]
     Ctrlc(#[from] ctrlc::Error),
+
+    #[error(transparent)]
+    TomlSer(#[from] toml::ser::Error),
 }
 
 impl Error {

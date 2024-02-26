@@ -9,7 +9,7 @@ use sos_net::sdk::{
 use crate::{
     commands::{
         AccountCommand, FileCommand, FolderCommand, PreferenceCommand,
-        SecretCommand, ServerCommand, SyncCommand,
+        SecretCommand, ServerCommand, SyncCommand, EnvironmentCommand,
     },
     helpers::account::{cd_folder, switch, Owner},
 };
@@ -64,6 +64,12 @@ enum ShellCommand {
     Preferences {
         #[clap(subcommand)]
         cmd: PreferenceCommand,
+    },
+    /// Print environment and paths.
+    #[clap(alias = "env")]
+    Environment {
+        #[clap(subcommand)]
+        cmd: EnvironmentCommand,
     },
     /// Set a folder as the current working directory.
     Cd {
@@ -190,6 +196,9 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
         ShellCommand::File { cmd } => crate::commands::file::run(cmd).await,
         ShellCommand::Preferences { cmd } => {
             crate::commands::preferences::run(cmd).await
+        }
+        ShellCommand::Environment { cmd } => {
+            crate::commands::environment::run(cmd).await
         }
         ShellCommand::Cd { folder } => cd_folder(user, folder.as_ref()).await,
 
