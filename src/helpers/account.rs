@@ -2,7 +2,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use sos_net::{
-    client::NetworkAccount,
+    client::{NetworkAccount, is_offline},
     sdk::{
         account::Account,
         constants::DEFAULT_VAULT_NAME,
@@ -212,11 +212,10 @@ pub async fn sign_in(
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
 
-    let offline = std::env::var("SOS_OFFLINE").ok().is_some();
     let mut owner = NetworkAccount::new_unauthenticated(
         account.address().clone(),
         None,
-        offline,
+        is_offline(),
     )
     .await?;
 

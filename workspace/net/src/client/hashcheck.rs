@@ -1,5 +1,5 @@
 //! Check password hashes using the hashcheck service.
-use super::Result;
+use super::{Result, is_offline};
 
 /// Default endpoint for HIBP database checks.
 const ENDPOINT: &str = "https://hashcheck.saveoursecrets.com";
@@ -10,6 +10,11 @@ pub async fn single(
     password_hash: String,
     host: Option<String>,
 ) -> Result<bool> {
+    if is_offline() {
+        tracing::warn!("offline mode active, ignoring hashcheck");
+        return Ok(false);
+    }
+
     let host = host.unwrap_or_else(|| ENDPOINT.to_owned());
     tracing::info!(host = %host, "hashcheck");
     let url = format!("{}/{}", host, password_hash.to_uppercase());
@@ -28,6 +33,11 @@ pub async fn batch(
     hashes: &[String],
     host: Option<String>,
 ) -> Result<Vec<bool>> {
+    if is_offline() {
+        tracing::warn!("offline mode active, ignoring batch hashcheck");
+        return Ok(hashes.iter().map(|_| false).collect());
+    }
+
     let host = host.unwrap_or_else(|| ENDPOINT.to_owned());
     tracing::info!(host = %host, "hashcheck");
     let url = format!("{}/", host);

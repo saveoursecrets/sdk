@@ -101,7 +101,6 @@ pub async fn run(
         }
     }
 
-    success("Created security report");
-
+    success("Generated security report");
     Ok(())
 }

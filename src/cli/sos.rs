@@ -85,25 +85,26 @@ pub enum Command {
     /// Inspect all passwords in an account and report
     /// passwords with an entropy score less than 3 or
     /// passwords that are breached.
-    ///
-    /// Use the --include-all option to include passwords
-    /// that appear to be safe in the report.
     SecurityReport {
         /// Force overwrite if the file exists.
-        #[clap(short, long)]
+        #[clap(long)]
         force: bool,
 
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
 
-        /// Include all passwords.
+        /// Include all entries.
+        ///
+        /// Security reports by default only include 
+        /// entries that fail, use this option to include 
+        /// entries that passed the security threshold.
         #[clap(short, long)]
         include_all: bool,
 
         /// Output format: csv or json.
         #[clap(short, long, default_value = "csv")]
-        output_format: SecurityReportFormat,
+        format: SecurityReportFormat,
 
         /// Write report to this file.
         file: PathBuf,
@@ -180,14 +181,14 @@ pub async fn run() -> Result<()> {
         Command::SecurityReport {
             account,
             force,
-            output_format,
+            format,
             include_all,
             file,
         } => {
             security_report::run(
                 account,
                 force,
-                output_format,
+                format,
                 include_all,
                 file,
             )

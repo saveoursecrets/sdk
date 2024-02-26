@@ -2,6 +2,9 @@ sos shell
 #$ include ../includes/signin.sh
 #$ wait
 
+# type "help" to see the shell commands
+help
+
 #$ include ../shell/basic.sh
 #$ include ../shell/account.sh
 

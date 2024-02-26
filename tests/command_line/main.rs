@@ -17,7 +17,10 @@ mod cli {
             "tests/command_line/scripts/specs/check.sh",
             "tests/command_line/scripts/specs/folder.sh",
             "tests/command_line/scripts/specs/secret.sh",
+            "tests/command_line/scripts/specs/server.sh",
             "tests/command_line/scripts/specs/shell.sh",
+            "tests/command_line/scripts/specs/security-report.sh",
+            "tests/command_line/scripts/specs/audit.sh",
             "tests/command_line/scripts/teardown.sh",
         ];
 
@@ -57,6 +60,7 @@ mod cli {
 
         set_var("SOS_DATA_DIR", "target/accounts");
         set_var("SOS_PROMPT", "➜ ");
+        set_var("SOS_OFFLINE", "1");
         set_var("DEMO_SERVER", "https://demo.saveoursecrets.com");
 
         set_var("ACCOUNT_NAME", "Demo");
