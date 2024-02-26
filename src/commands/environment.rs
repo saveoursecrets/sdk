@@ -33,6 +33,12 @@ pub enum PathFilter {
     IdentityVault,
     /// Identity events.
     IdentityEvents,
+    /// Account events.
+    AccountEvents,
+    /// Device events.
+    DeviceEvents,
+    /// File events.
+    FileEvents,
 }
 
 impl PathFilter {
@@ -49,6 +55,9 @@ impl PathFilter {
             Self::Device => println!("{}", paths.device_file().display()),
             Self::IdentityVault => println!("{}", paths.identity_vault().display()),
             Self::IdentityEvents => println!("{}", paths.identity_events().display()),
+            Self::AccountEvents => println!("{}", paths.account_events().display()),
+            Self::DeviceEvents => println!("{}", paths.device_events().display()),
+            Self::FileEvents => println!("{}", paths.file_events().display()),
         }
     }
 }
@@ -67,6 +76,9 @@ impl fmt::Display for PathFilter {
             Self::Device => write!(f, "device"),
             Self::IdentityVault => write!(f, "identity-vault"),
             Self::IdentityEvents => write!(f, "identity-events"),
+            Self::AccountEvents => write!(f, "account-events"),
+            Self::DeviceEvents => write!(f, "device-events"),
+            Self::FileEvents => write!(f, "file-events"),
         }
     }
 }
@@ -87,6 +99,9 @@ impl FromStr for PathFilter {
             "device" => Self::Device,
             "identity-vault" => Self::IdentityVault,
             "identity-events" => Self::IdentityEvents,
+            "account-events" => Self::AccountEvents,
+            "device-events" => Self::DeviceEvents,
+            "file-events" => Self::FileEvents,
             _ => return Err(crate::Error::UnknownPathFilter(s.to_string())),
         })
     }
