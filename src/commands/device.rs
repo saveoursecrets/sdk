@@ -41,9 +41,7 @@ async fn resolve_device(
     id: &str,
 ) -> Result<Option<TrustedDevice>> {
     let owner = user.read().await;
-    let storage = owner.storage().await?;
-    let storage = storage.read().await;
-    let devices = storage.list_trusted_devices();
+    let devices = owner.trusted_devices().await?;
     for device in devices {
         if device.public_id()? == id {
             return Ok(Some(device.clone()));
@@ -58,14 +56,14 @@ pub async fn run(cmd: Command) -> Result<()> {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let devices = owner.trusted_devices().await?;
-
             for device in devices {
-                println!("{}", device.public_id()?);
                 if verbose {
                     println!(
                         "{}",
-                        serde_json::to_string_pretty(device.extra_info())?
+                        serde_json::to_string_pretty(&device)?
                     );
+                } else {
+                    println!("{}", device.public_id()?);
                 }
             }
         }

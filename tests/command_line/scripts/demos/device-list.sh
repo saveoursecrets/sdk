@@ -1,0 +1,1 @@
+#$ include ../device/list.sh
