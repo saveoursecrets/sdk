@@ -127,6 +127,9 @@ pub enum Error {
     #[error("unknown report format '{0}'")]
     UnknownReportFormat(String),
 
+    #[error("unknown path filter '{0}'")]
+    UnknownPathFilter(String),
+
     /// Error generated converting to fixed length slice.
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
