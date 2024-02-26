@@ -58,10 +58,10 @@ pub async fn run(cmd: Command) -> Result<()> {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let devices = owner.trusted_devices().await?;
-            for device in devices {
-                if verbose {
-                    println!("{}", serde_json::to_string_pretty(&device)?);
-                } else {
+            if verbose {
+                println!("{}", serde_json::to_string_pretty(&devices)?);
+            } else {
+                for device in devices {
                     println!("{}", device.public_id()?);
                 }
             }
