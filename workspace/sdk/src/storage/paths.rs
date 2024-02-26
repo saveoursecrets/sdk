@@ -5,7 +5,7 @@ use app_dirs2::{get_app_root, AppDataType, AppInfo};
 #[cfg(feature = "audit")]
 use async_once_cell::OnceCell;
 use once_cell::sync::Lazy;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
     sync::RwLock,

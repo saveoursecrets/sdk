@@ -4,13 +4,13 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, check, device, events, file, folder, preferences,
-        secret, environment,
+        account, audit, check, device, environment, events, file, folder,
+        preferences, secret,
         security_report::{self, SecurityReportFormat},
         server, shell, sync, AccountCommand, AuditCommand, CheckCommand,
-        DeviceCommand, EventsCommand, FileCommand, FolderCommand,
-        PreferenceCommand, SecretCommand, ServerCommand, SyncCommand,
-        EnvironmentCommand,
+        DeviceCommand, EnvironmentCommand, EventsCommand, FileCommand,
+        FolderCommand, PreferenceCommand, SecretCommand, ServerCommand,
+        SyncCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
     CommandTree, Result,

@@ -1,4 +1,5 @@
 //! Import secrets from other providers and software.
+use enum_iterator::Sequence;
 use crate::migrate::{Error, Result};
 use futures::StreamExt;
 use serde::de::DeserializeOwned;
@@ -29,7 +30,7 @@ pub(crate) async fn read_csv_records<
 }
 
 /// File formats supported for import.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Sequence)]
 pub enum ImportFormat {
     /// 1Password CSV file.
     OnePasswordCsv,

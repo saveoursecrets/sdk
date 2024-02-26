@@ -1,15 +1,11 @@
-use crate::{
-    helpers::{
-        account::resolve_account_address,
-    },
-    Result,
-};
+use crate::{helpers::account::resolve_account_address, Result};
 use clap::Subcommand;
-use std::{str::FromStr, fmt};
+use enum_iterator::{all, Sequence};
 use sos_net::sdk::prelude::*;
+use std::{fmt, str::FromStr};
 
 /// Filter used for printing paths.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Sequence)]
 pub enum PathFilter {
     /// Root data directory.
     Data,
@@ -53,10 +49,18 @@ impl PathFilter {
             Self::Files => println!("{}", paths.files_dir().display()),
             Self::Folders => println!("{}", paths.vaults_dir().display()),
             Self::Device => println!("{}", paths.device_file().display()),
-            Self::IdentityVault => println!("{}", paths.identity_vault().display()),
-            Self::IdentityEvents => println!("{}", paths.identity_events().display()),
-            Self::AccountEvents => println!("{}", paths.account_events().display()),
-            Self::DeviceEvents => println!("{}", paths.device_events().display()),
+            Self::IdentityVault => {
+                println!("{}", paths.identity_vault().display())
+            }
+            Self::IdentityEvents => {
+                println!("{}", paths.identity_events().display())
+            }
+            Self::AccountEvents => {
+                println!("{}", paths.account_events().display())
+            }
+            Self::DeviceEvents => {
+                println!("{}", paths.device_events().display())
+            }
             Self::FileEvents => println!("{}", paths.file_events().display()),
         }
     }
@@ -123,6 +127,8 @@ pub enum Command {
         #[clap(short, long)]
         filter: Vec<PathFilter>,
     },
+    /// Print available path filters.
+    PrintPathFilters,
 }
 
 /// Handle env commands.
@@ -139,8 +145,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
         }
         Command::Paths { account, filter } => {
-            let address = resolve_account_address(account.as_ref())
-                .await?;
+            let address = resolve_account_address(account.as_ref()).await?;
             let paths = Paths::new(Paths::data_dir()?, address.to_string());
             if filter.is_empty() {
                 let value = toml::to_string_pretty(&paths)?;
@@ -149,6 +154,11 @@ pub async fn run(cmd: Command) -> Result<()> {
                 for item in filter {
                     item.print(&paths);
                 }
+            }
+        }
+        Command::PrintPathFilters => {
+            for variant in all::<PathFilter>() {
+                println!("{}", variant);
             }
         }
     }

@@ -1,6 +1,6 @@
 use clap::Subcommand;
 use std::{path::PathBuf, sync::Arc};
-
+use enum_iterator::all;
 use sos_net::{
     client::NetworkAccount,
     sdk::{
@@ -161,6 +161,8 @@ pub enum MigrateCommand {
         /// Input file to import.
         input: PathBuf,
     },
+    /// Print available import formats.
+    PrintImportFormats,
 }
 
 #[derive(Subcommand, Debug)]
@@ -215,9 +217,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             success("Account renamed");
         }
         Command::Migrate { account, cmd } => {
-            let user = resolve_user(account.as_ref(), false).await?;
             match cmd {
                 MigrateCommand::Export { output, force } => {
+                    let user = resolve_user(account.as_ref(), false).await?;
                     let exported =
                         migrate_export(user, output, force).await?;
                     if exported {
@@ -229,8 +231,14 @@ pub async fn run(cmd: Command) -> Result<()> {
                     format,
                     name,
                 } => {
+                    let user = resolve_user(account.as_ref(), false).await?;
                     migrate_import(user, input, format, name).await?;
                     success("File imported");
+                }
+                MigrateCommand::PrintImportFormats => {
+                    for variant in all::<ImportFormat>() {
+                        println!("{}", variant);
+                    }
                 }
             }
         }
