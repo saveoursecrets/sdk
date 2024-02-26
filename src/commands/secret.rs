@@ -2,8 +2,8 @@ use crate::{
     helpers::{
         account::{resolve_folder, resolve_user, verify, Owner, USER},
         editor,
-        readline::{read_flag, read_line},
         messages::success,
+        readline::{read_flag, read_line},
         secret::{
             add_file, add_link, add_list, add_login, add_note, add_password,
             copy_secret_text, download_file_secret, normalize_tags,

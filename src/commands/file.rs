@@ -1,7 +1,7 @@
 use crate::{
     helpers::{
-        messages::success,
-        account::resolve_user, readline::clear_screen, PROGRESS_MONITOR,
+        account::resolve_user, messages::success, readline::clear_screen,
+        PROGRESS_MONITOR,
     },
     Result,
 };

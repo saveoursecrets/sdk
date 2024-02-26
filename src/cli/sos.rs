@@ -4,11 +4,12 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, check, device, events, file, folder, secret,
+        account, audit, check, device, events, file, folder, preferences,
+        secret,
         security_report::{self, SecurityReportFormat},
         server, shell, sync, AccountCommand, AuditCommand, CheckCommand,
         DeviceCommand, EventsCommand, FileCommand, FolderCommand,
-        SecretCommand, ServerCommand, SyncCommand,
+        PreferenceCommand, SecretCommand, ServerCommand, SyncCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
     CommandTree, Result,
@@ -96,8 +97,8 @@ pub enum Command {
 
         /// Include all entries.
         ///
-        /// Security reports by default only include 
-        /// entries that fail, use this option to include 
+        /// Security reports by default only include
+        /// entries that fail, use this option to include
         /// entries that passed the security threshold.
         #[clap(short, long)]
         include_all: bool,
@@ -132,6 +133,12 @@ pub enum Command {
 
         /// Account name or address.
         account: Option<AccountRef>,
+    },
+    /// View and edit account preferences.
+    #[clap(alias = "prefs")]
+    Preferences {
+        #[clap(subcommand)]
+        cmd: PreferenceCommand,
     },
 }
 
@@ -185,14 +192,8 @@ pub async fn run() -> Result<()> {
             include_all,
             file,
         } => {
-            security_report::run(
-                account,
-                force,
-                format,
-                include_all,
-                file,
-            )
-            .await?
+            security_report::run(account, force, format, include_all, file)
+                .await?
         }
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Check { cmd } => check::run(cmd).await?,
@@ -200,6 +201,7 @@ pub async fn run() -> Result<()> {
         Command::Shell { account, folder } => {
             shell::run(account, folder).await?
         }
+        Command::Preferences { cmd } => preferences::run(cmd).await?,
     }
     Ok(())
 }

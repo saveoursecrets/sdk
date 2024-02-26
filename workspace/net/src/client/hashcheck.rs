@@ -1,5 +1,5 @@
 //! Check password hashes using the hashcheck service.
-use super::{Result, is_offline};
+use super::{is_offline, Result};
 
 /// Default endpoint for HIBP database checks.
 const ENDPOINT: &str = "https://hashcheck.saveoursecrets.com";

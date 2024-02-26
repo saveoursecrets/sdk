@@ -8,7 +8,9 @@ use sos_net::{
 };
 
 use crate::{
-    helpers::{account::resolve_user, readline::read_flag, messages::success},
+    helpers::{
+        account::resolve_user, messages::success, readline::read_flag,
+    },
     Error, Result,
 };
 
@@ -58,10 +60,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let devices = owner.trusted_devices().await?;
             for device in devices {
                 if verbose {
-                    println!(
-                        "{}",
-                        serde_json::to_string_pretty(&device)?
-                    );
+                    println!("{}", serde_json::to_string_pretty(&device)?);
                 } else {
                     println!("{}", device.public_id()?);
                 }

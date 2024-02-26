@@ -8,7 +8,7 @@ use sos_net::sdk::{
     vfs,
 };
 
-use crate::{Error, Result, helpers::messages::success};
+use crate::{helpers::messages::success, Error, Result};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

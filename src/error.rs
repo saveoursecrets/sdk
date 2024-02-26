@@ -167,6 +167,9 @@ pub enum Error {
     ShellWords(#[from] shell_words::ParseError),
 
     #[error(transparent)]
+    Bool(#[from] std::str::ParseBoolError),
+
+    #[error(transparent)]
     Vcard(#[from] vcard4::Error),
 
     #[error(transparent)]

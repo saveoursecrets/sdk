@@ -21,11 +21,11 @@ use sos_net::sdk::{
 
 use crate::{
     helpers::{
+        messages::success,
         readline::{
             read_flag, read_line, read_line_allow_empty, read_multiline,
             read_option, read_password,
         },
-        messages::success,
     },
     Error, Result, TARGET,
 };

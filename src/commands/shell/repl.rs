@@ -8,8 +8,8 @@ use sos_net::sdk::{
 
 use crate::{
     commands::{
-        AccountCommand, FileCommand, FolderCommand, SecretCommand,
-        ServerCommand, SyncCommand,
+        AccountCommand, FileCommand, FolderCommand, PreferenceCommand,
+        SecretCommand, ServerCommand, SyncCommand,
     },
     helpers::account::{cd_folder, switch, Owner},
 };
@@ -58,6 +58,12 @@ enum ShellCommand {
     File {
         #[clap(subcommand)]
         cmd: FileCommand,
+    },
+    /// View and edit account preferences.
+    #[clap(alias = "prefs")]
+    Preferences {
+        #[clap(subcommand)]
+        cmd: PreferenceCommand,
     },
     /// Set a folder as the current working directory.
     Cd {
@@ -182,78 +188,12 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
         }
         ShellCommand::Sync { cmd } => crate::commands::sync::run(cmd).await,
         ShellCommand::File { cmd } => crate::commands::file::run(cmd).await,
+        ShellCommand::Preferences { cmd } => {
+            crate::commands::preferences::run(cmd).await
+        }
         ShellCommand::Cd { folder } => cd_folder(user, folder.as_ref()).await,
 
         /*
-        ShellCommand::Status { verbose } => {
-            let owner = user.read().await;
-            let keeper =
-                owner.storage.current().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary().clone();
-            drop(owner);
-
-            let mut owner = user.write().await;
-            let (status, pending_events) =
-                owner.storage.status(&summary).await?;
-            if verbose {
-                let pair = status.pair();
-                println!("local  = {}", pair.local.root_hex());
-                println!("remote = {}", pair.remote.root_hex());
-            }
-            if let Some(pending_events) = pending_events {
-                println!("{} event(s) have not been saved", pending_events);
-            }
-            println!("{}", status);
-            Ok(())
-        }
-        ShellCommand::Pull { force } => {
-            let mut owner = user.write().await;
-            let keeper =
-                owner.storage.current().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary().clone();
-            let result = owner.storage.pull(&summary, force).await?;
-            match result.status {
-                SyncKind::Equal => println!("Up to date"),
-                SyncKind::Safe => {
-                    if let Some(proof) = result.after {
-                        println!("Pull complete {}", proof.root_hex());
-                    }
-                }
-                SyncKind::Force => {
-                    if let Some(proof) = result.after {
-                        println!("Force pull complete {}", proof.root_hex());
-                    }
-                }
-                SyncKind::Unsafe => {
-                    println!("Cannot pull safely, use the --force option if you are sure.");
-                }
-            }
-            Ok(())
-        }
-        ShellCommand::Push { force } => {
-            let mut owner = user.write().await;
-            let keeper =
-                owner.storage.current().ok_or(Error::NoVaultSelected)?;
-            let summary = keeper.summary().clone();
-            let result = owner.storage.push(&summary, force).await?;
-            match result.status {
-                SyncKind::Equal => println!("Up to date"),
-                SyncKind::Safe => {
-                    if let Some(proof) = result.after {
-                        println!("Push complete {}", proof.root_hex());
-                    }
-                }
-                SyncKind::Force => {
-                    if let Some(proof) = result.after {
-                        println!("Force push complete {}", proof.root_hex());
-                    }
-                }
-                SyncKind::Unsafe => {
-                    println!("Cannot push safely, use the --force option if you are sure.");
-                }
-            }
-            Ok(())
-        }
         ShellCommand::Password => {
             let mut owner = user.write().await;
             let keeper =
@@ -370,10 +310,9 @@ where
 
 /// Execute a line of input in the context of the shell program.
 pub async fn exec(line: &str, user: Owner) -> Result<()> {
-    
     // ignore comments
     if line.trim().starts_with("#") {
-        return Ok(())
+        return Ok(());
     }
 
     if !line.trim().is_empty() {

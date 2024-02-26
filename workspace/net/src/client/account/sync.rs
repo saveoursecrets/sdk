@@ -85,7 +85,9 @@ impl RemoteSync for NetworkAccount {
         options: &SyncOptions,
     ) -> Option<SyncError> {
         if self.offline {
-            tracing::warn!("offline mode active, ignoring sync file transfers");
+            tracing::warn!(
+                "offline mode active, ignoring sync file transfers"
+            );
             return None;
         }
 

@@ -19,8 +19,8 @@ use axum::{
     routing::{get, patch, post, put},
     Router,
 };
-use colored::Colorize;
 use axum_server::{tls_rustls::RustlsConfig, Handle};
+use colored::Colorize;
 use sos_sdk::signer::ecdsa::Address;
 use std::{
     collections::{HashMap, HashSet},
@@ -146,12 +146,18 @@ impl Server {
             if let Some(access) = &reader.config.access {
                 if let Some(allow) = &access.allow {
                     for address in allow {
-                        println!("Allow          {}", address.to_string().green());
+                        println!(
+                            "Allow          {}",
+                            address.to_string().green()
+                        );
                     }
                 }
                 if let Some(deny) = &access.deny {
                     for address in deny {
-                        println!("Deny           {}", address.to_string().red());
+                        println!(
+                            "Deny           {}",
+                            address.to_string().red()
+                        );
                     }
                 }
             }

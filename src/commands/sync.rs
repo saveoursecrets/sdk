@@ -1,4 +1,7 @@
-use crate::{helpers::{account::resolve_user, messages::success}, Error, Result};
+use crate::{
+    helpers::{account::resolve_user, messages::success},
+    Error, Result,
+};
 use clap::Subcommand;
 use sos_net::{
     client::{NetworkAccount, RemoteSync, SyncOptions},

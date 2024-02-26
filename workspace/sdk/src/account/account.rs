@@ -204,7 +204,7 @@ pub trait Account {
 
     /// Errors for this account.
     type Error: std::error::Error + std::fmt::Debug;
-    
+
     /// Account address.
     fn address(&self) -> &Address;
 
@@ -1216,7 +1216,6 @@ impl From<&LocalAccount> for AccountRef {
 }
 
 impl LocalAccount {
-
     /// Prepare an account for sign in.
     ///
     /// After preparing an account call `sign_in`
@@ -1309,7 +1308,6 @@ impl LocalAccount {
 
         Ok(account)
     }
-
 }
 
 #[async_trait]

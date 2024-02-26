@@ -264,7 +264,7 @@ impl NetworkAccount {
 
         if self.offline {
             tracing::warn!("offline mode active, ignoring file transfers");
-            return Ok(())
+            return Ok(());
         }
 
         // Stop any existing transfers task
@@ -331,7 +331,6 @@ impl From<&NetworkAccount> for AccountRef {
 }
 
 impl NetworkAccount {
-
     /// Prepare an account for sign in.
     ///
     /// After preparing an account call `sign_in`
@@ -342,8 +341,7 @@ impl NetworkAccount {
         offline: bool,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_unauthenticated(address, data_dir)
-                .await?;
+            LocalAccount::new_unauthenticated(address, data_dir).await?;
         Ok(Self {
             address: Default::default(),
             paths: account.paths(),
@@ -420,7 +418,6 @@ impl NetworkAccount {
 
         Ok(owner)
     }
-
 }
 
 #[async_trait]

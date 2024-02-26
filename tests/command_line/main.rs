@@ -55,7 +55,7 @@ mod cli {
             "target/debug"
         };
         set_var("PATH", format!("{}:{}", prefix, path));
-    
+
         set_var("BASH_SILENCE_DEPRECATION_WARNING", "1");
         set_var("NO_COLOR", "1");
 
