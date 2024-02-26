@@ -59,6 +59,8 @@ ANTICIPATE_ECHO=true cargo make test-cli
 ANTICIPATE_ECHO=true cargo make test-shell
 ```
 
+Use the `SPEC` variable to run a specific test:
+
 ## Notes
 
 ### MacOS ulimit

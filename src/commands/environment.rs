@@ -139,7 +139,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             for var in vars {
                 print!("{}=", var);
                 match std::env::var(var) {
-                    Ok(val) => println!("{}", val),
+                    Ok(val) => println!(r#""{}""#, val),
                     Err(_) => println!("unset"),
                 }
             }

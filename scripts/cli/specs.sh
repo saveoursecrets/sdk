@@ -11,8 +11,12 @@ fi
 
 command -v sos
 
+scripts=tests/command_line/scripts
+SPECS=($scripts/specs/*.sh)
+SPEC=${SPEC:-${SPECS[@]}}
+
 anticipate \
   run \
-  --setup tests/command_line/scripts/setup.sh \
-  --teardown tests/command_line/scripts/teardown.sh \
-  tests/command_line/scripts/specs/*.sh
+  --setup $scripts/setup.sh \
+  --teardown $scripts/teardown.sh \
+  $SPEC

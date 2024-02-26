@@ -16,6 +16,7 @@ mod cli {
             "tests/command_line/scripts/specs/account.sh",
             "tests/command_line/scripts/specs/check.sh",
             "tests/command_line/scripts/specs/device.sh",
+            "tests/command_line/scripts/specs/environment.sh",
             "tests/command_line/scripts/specs/events.sh",
             "tests/command_line/scripts/specs/folder.sh",
             "tests/command_line/scripts/specs/secret.sh",
