@@ -21,6 +21,7 @@ mod cli {
             "tests/command_line/scripts/specs/server.sh",
             "tests/command_line/scripts/specs/shell.sh",
             "tests/command_line/scripts/specs/security-report.sh",
+            "tests/command_line/scripts/specs/preferences.sh",
             "tests/command_line/scripts/specs/audit.sh",
             "tests/command_line/scripts/teardown.sh",
         ];

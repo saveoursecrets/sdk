@@ -91,7 +91,7 @@ impl fmt::Display for Preference {
             Self::StringList(val) => {
                 write!(f, "[")?;
                 for (index, s) in val.iter().enumerate() {
-                    write!(f, r#""{}"""#, s)?;
+                    write!(f, r#""{}""#, s)?;
                     if index < val.len() - 1 {
                         write!(f, ", ")?;
                     }
