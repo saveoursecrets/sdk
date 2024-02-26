@@ -1,2 +1,2 @@
-sos check events $(find target/accounts/identity -name '*.events')
+sos check events $(sos env paths -f identity-events)
 #$ wait

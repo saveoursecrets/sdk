@@ -1,2 +1,2 @@
-sos check header $(find target/accounts/identity -name '*.vault')
+sos check header $(sos env paths -f identity-vault)
 #$ wait
