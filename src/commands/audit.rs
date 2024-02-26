@@ -21,7 +21,7 @@ pub enum Command {
         #[clap(short, long)]
         reverse: bool,
 
-        /// Limit events to displayed to this count
+        /// Limit events displayed to this amount
         #[clap(short, long)]
         count: Option<usize>,
 

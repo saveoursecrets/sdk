@@ -83,6 +83,7 @@ urlencoding.workspace = true
 parking_lot.workspace = true
 indexmap.workspace = true
 async-stream = "0.3"
+colored = "2"
 
 # server
 toml = { workspace = true, optional = true }

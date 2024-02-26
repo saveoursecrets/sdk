@@ -22,6 +22,11 @@ impl NetworkAccount {
         &self,
         options: &SyncOptions,
     ) -> HashMap<Origin, crate::client::Result<Option<SyncStatus>>> {
+        if self.offline {
+            tracing::warn!("offline mode active, ignoring server status");
+            return Default::default();
+        }
+
         let remotes = self.remotes.read().await;
         let mut server_status = HashMap::new();
         for (origin, remote) in &*remotes {
@@ -53,6 +58,11 @@ impl RemoteSync for NetworkAccount {
         &self,
         options: &SyncOptions,
     ) -> Option<SyncError> {
+        if self.offline {
+            tracing::warn!("offline mode active, ignoring sync");
+            return None;
+        }
+
         let _ = self.sync_lock.lock().await;
         let mut maybe_error: SyncError = Default::default();
         let remotes = self.remotes.read().await;
@@ -74,6 +84,13 @@ impl RemoteSync for NetworkAccount {
         &self,
         options: &SyncOptions,
     ) -> Option<SyncError> {
+        if self.offline {
+            tracing::warn!(
+                "offline mode active, ignoring sync file transfers"
+            );
+            return None;
+        }
+
         let _ = self.sync_lock.lock().await;
         let mut maybe_error: SyncError = Default::default();
         let remotes = self.remotes.read().await;
@@ -93,6 +110,11 @@ impl RemoteSync for NetworkAccount {
     }
 
     async fn patch_devices(&self) -> Option<SyncError> {
+        if self.offline {
+            tracing::warn!("offline mode active, ignoring patch devices");
+            return None;
+        }
+
         let _ = self.sync_lock.lock().await;
         let mut maybe_error: SyncError = Default::default();
         let remotes = self.remotes.read().await;

@@ -34,6 +34,11 @@ impl Default for UtcDateTime {
 }
 
 impl UtcDateTime {
+    /// Create a UTC date time for now.
+    pub fn now() -> Self {
+        Default::default()
+    }
+
     /// Create from a calendar date.
     pub fn from_calendar_date(
         year: i32,

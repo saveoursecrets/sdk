@@ -24,6 +24,7 @@ use crate::{
         vfs, Paths,
     },
 };
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -34,6 +35,17 @@ use crate::sdk::{
     events::{DeviceEvent, DeviceEventLog},
     sync::DevicePatch,
 };
+
+/// Pending enrollment written to disc between
+/// fetching an account and finishing enrollment.
+///
+/// Can be used to detect that an account was
+/// created from an enrollment that was not finished.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PendingEnrollment {
+    /// Server origin the account was fetched from.
+    pub origin: Origin,
+}
 
 /// Enroll a device.
 ///
@@ -127,6 +139,14 @@ impl DeviceEnrollment {
         #[cfg(feature = "device")]
         self.create_device(change_set.device).await?;
         self.create_identity(change_set.identity).await?;
+
+        // Write the pending enrollment
+        let data = PendingEnrollment {
+            origin: self.origin.clone(),
+        };
+        let contents = serde_json::to_vec_pretty(&data)?;
+        vfs::write(self.paths.enrollment(), &contents).await?;
+
         Ok(())
     }
 
@@ -139,6 +159,7 @@ impl DeviceEnrollment {
         let mut account = NetworkAccount::new_unauthenticated(
             self.address.clone(),
             self.data_dir.clone(),
+            false,
         )
         .await?;
 
@@ -156,6 +177,9 @@ impl DeviceEnrollment {
 
         // Sign in to the new account
         account.sign_in(key).await?;
+
+        // Clean up the pending enrollment
+        vfs::remove_file(self.paths.enrollment()).await?;
 
         // Sync to save the amended identity folder on the remote
         if let Some(e) = account.sync().await {

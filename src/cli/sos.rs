@@ -4,11 +4,13 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, check, device, events, file, folder, secret,
+        account, audit, check, device, environment, events, file, folder,
+        preferences, secret,
         security_report::{self, SecurityReportFormat},
         server, shell, sync, AccountCommand, AuditCommand, CheckCommand,
-        DeviceCommand, EventsCommand, FileCommand, FolderCommand,
-        SecretCommand, ServerCommand, SyncCommand,
+        DeviceCommand, EnvironmentCommand, EventsCommand, FileCommand,
+        FolderCommand, PreferenceCommand, SecretCommand, ServerCommand,
+        SyncCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
     CommandTree, Result,
@@ -85,25 +87,26 @@ pub enum Command {
     /// Inspect all passwords in an account and report
     /// passwords with an entropy score less than 3 or
     /// passwords that are breached.
-    ///
-    /// Use the --include-all option to include passwords
-    /// that appear to be safe in the report.
     SecurityReport {
         /// Force overwrite if the file exists.
-        #[clap(short, long)]
+        #[clap(long)]
         force: bool,
 
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
 
-        /// Include all passwords.
+        /// Include all entries.
+        ///
+        /// Security reports by default only include
+        /// entries that fail, use this option to include
+        /// entries that passed the security threshold.
         #[clap(short, long)]
         include_all: bool,
 
         /// Output format: csv or json.
         #[clap(short, long, default_value = "csv")]
-        output_format: SecurityReportFormat,
+        format: SecurityReportFormat,
 
         /// Write report to this file.
         file: PathBuf,
@@ -131,6 +134,18 @@ pub enum Command {
 
         /// Account name or address.
         account: Option<AccountRef>,
+    },
+    /// View and edit account preferences.
+    #[clap(alias = "prefs")]
+    Preferences {
+        #[clap(subcommand)]
+        cmd: PreferenceCommand,
+    },
+    /// Print environment and paths.
+    #[clap(alias = "env")]
+    Environment {
+        #[clap(subcommand)]
+        cmd: EnvironmentCommand,
     },
 }
 
@@ -180,18 +195,12 @@ pub async fn run() -> Result<()> {
         Command::SecurityReport {
             account,
             force,
-            output_format,
+            format,
             include_all,
             file,
         } => {
-            security_report::run(
-                account,
-                force,
-                output_format,
-                include_all,
-                file,
-            )
-            .await?
+            security_report::run(account, force, format, include_all, file)
+                .await?
         }
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Check { cmd } => check::run(cmd).await?,
@@ -199,6 +208,8 @@ pub async fn run() -> Result<()> {
         Command::Shell { account, folder } => {
             shell::run(account, folder).await?
         }
+        Command::Preferences { cmd } => preferences::run(cmd).await?,
+        Command::Environment { cmd } => environment::run(cmd).await?,
     }
     Ok(())
 }

@@ -1,4 +1,7 @@
-use sos_net::sdk::{vault::secret::SecretRef, vcard4};
+use sos_net::{
+    client,
+    sdk::{sync::SyncError, vault::secret::SecretRef, vcard4},
+};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -22,8 +25,8 @@ pub enum Error {
     #[error(r#"attachment "{0}" not found"#)]
     FieldNotFound(SecretRef),
 
-    #[error(r#"initial sync has errors"#)]
-    InitialSync,
+    #[error(r#"initial sync has errors: {0}"#)]
+    InitialSync(SyncError<client::Error>),
 
     #[error(r#"sync failed"#)]
     SyncFail,
@@ -124,6 +127,9 @@ pub enum Error {
     #[error("unknown report format '{0}'")]
     UnknownReportFormat(String),
 
+    #[error("unknown path filter '{0}'")]
+    UnknownPathFilter(String),
+
     /// Error generated converting to fixed length slice.
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
@@ -164,6 +170,9 @@ pub enum Error {
     ShellWords(#[from] shell_words::ParseError),
 
     #[error(transparent)]
+    Bool(#[from] std::str::ParseBoolError),
+
+    #[error(transparent)]
     Vcard(#[from] vcard4::Error),
 
     #[error(transparent)]
@@ -180,6 +189,9 @@ pub enum Error {
 
     #[error(transparent)]
     Ctrlc(#[from] ctrlc::Error),
+
+    #[error(transparent)]
+    TomlSer(#[from] toml::ser::Error),
 }
 
 impl Error {

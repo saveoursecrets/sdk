@@ -1,2 +1,3 @@
-sos check vault $(find target/accounts/identity -name '*.vault')
+# verify vault integrity
+sos check vault $(sos env paths -f identity-vault)
 #$ wait

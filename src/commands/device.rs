@@ -8,7 +8,9 @@ use sos_net::{
 };
 
 use crate::{
-    helpers::{account::resolve_user, readline::read_flag},
+    helpers::{
+        account::resolve_user, messages::success, readline::read_flag,
+    },
     Error, Result,
 };
 
@@ -41,9 +43,7 @@ async fn resolve_device(
     id: &str,
 ) -> Result<Option<TrustedDevice>> {
     let owner = user.read().await;
-    let storage = owner.storage().await?;
-    let storage = storage.read().await;
-    let devices = storage.list_trusted_devices();
+    let devices = owner.trusted_devices().await?;
     for device in devices {
         if device.public_id()? == id {
             return Ok(Some(device.clone()));
@@ -58,14 +58,11 @@ pub async fn run(cmd: Command) -> Result<()> {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let devices = owner.trusted_devices().await?;
-
-            for device in devices {
-                println!("{}", device.public_id()?);
-                if verbose {
-                    println!(
-                        "{}",
-                        serde_json::to_string_pretty(device.extra_info())?
-                    );
+            if verbose {
+                println!("{}", serde_json::to_string_pretty(&devices)?);
+            } else {
+                for device in devices {
+                    println!("{}", device.public_id()?);
                 }
             }
         }
@@ -78,7 +75,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 if read_flag(Some(&prompt))? {
                     let mut owner = user.write().await;
                     owner.revoke_device(device.public_key()).await?;
-                    println!("Device revoked ✓");
+                    success("Device revoked");
                 }
             } else {
                 return Err(Error::DeviceNotFound(id));

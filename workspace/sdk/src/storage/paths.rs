@@ -5,6 +5,7 @@ use app_dirs2::{get_app_root, AppDataType, AppInfo};
 #[cfg(feature = "audit")]
 use async_once_cell::OnceCell;
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
     sync::RwLock,
@@ -50,7 +51,7 @@ static AUDIT_LOG: OnceCell<Mutex<AuditLogFile>> = OnceCell::new();
 /// Several functions require a user identifier and will panic if
 /// a user identifier has not been set, see the function documentation
 /// for details.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Paths {
     /// User identifier.
     user_id: String,
@@ -381,6 +382,22 @@ impl Paths {
             panic!("file transfers are not accessible for global paths");
         }
         let mut vault_path = self.user_dir.join(TRANSFERS_FILE);
+        vault_path.set_extension(JSON_EXT);
+        vault_path
+    }
+
+    /// Path to the file used to mark a pending enrollment.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    #[cfg(feature = "device")]
+    pub fn enrollment(&self) -> PathBuf {
+        use crate::constants::ENROLLMENT_FILE;
+        if self.is_global() {
+            panic!("enrollment is not accessible for global paths");
+        }
+        let mut vault_path = self.user_dir.join(ENROLLMENT_FILE);
         vault_path.set_extension(JSON_EXT);
         vault_path
     }

@@ -178,12 +178,6 @@ pub struct DeviceMetaData {
 impl Default for DeviceMetaData {
     fn default() -> Self {
         let mut info = BTreeMap::new();
-        info.insert("realname".to_owned(), Value::String(whoami::realname()));
-        info.insert("username".to_owned(), Value::String(whoami::username()));
-        info.insert(
-            "device_name".to_owned(),
-            Value::String(whoami::devicename()),
-        );
         info.insert("hostname".to_owned(), Value::String(whoami::hostname()));
         info.insert(
             "platform".to_owned(),

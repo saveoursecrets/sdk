@@ -19,6 +19,12 @@ pub use sync::{RemoteSync, SyncError, SyncOptions};
 /// Result type for the client module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 
+/// Determine if the offline environment variable is set.
+pub fn is_offline() -> bool {
+    use crate::sdk::constants::SOS_OFFLINE;
+    std::env::var(SOS_OFFLINE).ok().is_some()
+}
+
 #[cfg(any(feature = "listen", feature = "pairing"))]
 mod websocket_request {
     use super::Result;

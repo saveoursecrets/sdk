@@ -1,6 +1,11 @@
-#!/bin/sh
+export SOS_PROMPT='➜ '
+export SOS_OFFLINE=1
+export DEMO_SERVER="https://demo.saveoursecrets.com"
+export RUST_LOG="sos_net=error,sos_sdk=error,sos=info"
 
-set -e
+# suppress the bash is replaced by zsh on macos
+# SEE: https://support.apple.com/en-us/102360
+export BASH_SILENCE_DEPRECATION_WARNING=1
 
 export SOS_DATA_DIR="target/accounts"
 export ACCOUNT_NAME="Demo"
@@ -11,7 +16,7 @@ export ACCOUNT_CONTACTS="tests/fixtures/contacts.vcf"
 export CONTACTS_EXPORT="target/demo-contacts.vcf"
 
 export DEFAULT_FOLDER_NAME="Documents"
-export FOLDER_NAME="mock-folder"
+export FOLDER_NAME="Demo Folder"
 export NEW_FOLDER_NAME="mock-folder-renamed"
 
 export FILE_INPUT="tests/fixtures/sample.heic"

@@ -1,4 +1,4 @@
-sos folder remove -f $FOLDER_NAME
+sos folder remove -f "$FOLDER_NAME"
 #$ include ../includes/signin.sh
 #$ regex (?i)delete folder
 y

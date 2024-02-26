@@ -10,7 +10,7 @@ use crate::{
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, fmt, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 
 static CACHE: Lazy<Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>> =
@@ -80,6 +80,26 @@ pub enum Preference {
     String(String),
     /// List of strings.
     StringList(Vec<String>),
+}
+
+impl fmt::Display for Preference {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Bool(val) => write!(f, "{}", val),
+            Self::Number(val) => write!(f, "{}", val),
+            Self::String(val) => write!(f, "{}", val),
+            Self::StringList(val) => {
+                write!(f, "[")?;
+                for (index, s) in val.iter().enumerate() {
+                    write!(f, r#""{}""#, s)?;
+                    if index < val.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "]")
+            }
+        }
+    }
 }
 
 impl From<bool> for Preference {

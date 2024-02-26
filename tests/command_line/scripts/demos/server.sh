@@ -11,6 +11,6 @@ cat target/config.toml
 
 # start the server
 sos-server start target/config.toml
-#$ regex tls
+#$ regex (?i)tls
 
 #$ sendcontrol ^C

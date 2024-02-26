@@ -20,9 +20,12 @@ use sos_net::sdk::{
 };
 
 use crate::{
-    helpers::readline::{
-        read_flag, read_line, read_line_allow_empty, read_multiline,
-        read_option, read_password,
+    helpers::{
+        messages::success,
+        readline::{
+            read_flag, read_line, read_line_allow_empty, read_multiline,
+            read_option, read_password,
+        },
     },
     Error, Result, TARGET,
 };
@@ -260,16 +263,7 @@ pub fn add_note(
     let name = read_name(name)?;
     multiline_banner("NOTE", &name);
 
-    let text = if option_env!("CI").is_some() {
-        std::env::var("SOS_NOTE").ok()
-    } else {
-        if let Some(note) = read_multiline(None)? {
-            Some(note)
-        } else {
-            None
-        }
-    };
-
+    let text = read_multiline(None)?;
     if let Some(note) = text {
         let text = note.trim_end_matches('\n').to_string();
         let secret: Secret = text.into();
@@ -288,24 +282,14 @@ pub fn add_link(
     tags: Option<String>,
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let name = read_name(name)?;
-
-    let link = if option_env!("CI").is_some() {
-        std::env::var("SOS_LINK").ok()
-    } else {
-        Some(read_line(Some("URL: "))?)
-    };
-
-    if let Some(link) = link {
-        let url: Url = link.parse().map_err(|_| Error::InvalidUrl)?;
-        let secret: Secret = url.into();
-        let mut secret_meta = SecretMeta::new(name, secret.kind());
-        if let Some(tags) = normalize_tags(tags) {
-            secret_meta.set_tags(tags);
-        }
-        Ok(Some((secret_meta, secret)))
-    } else {
-        Ok(None)
+    let link = read_line(Some("URL: "))?;
+    let url: Url = link.parse().map_err(|_| Error::InvalidUrl)?;
+    let secret: Secret = url.into();
+    let mut secret_meta = SecretMeta::new(name, secret.kind());
+    if let Some(tags) = normalize_tags(tags) {
+        secret_meta.set_tags(tags);
     }
+    Ok(Some((secret_meta, secret)))
 }
 
 pub fn add_password(
@@ -314,24 +298,13 @@ pub fn add_password(
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let name = read_name(name)?;
 
-    let password = if option_env!("CI").is_some() {
-        std::env::var("SOS_PASSWORD_VALUE")
-            .ok()
-            .map(SecretString::new)
-    } else {
-        Some(read_password(None)?)
-    };
-
-    if let Some(password) = password {
-        let secret: Secret = password.into();
-        let mut secret_meta = SecretMeta::new(name, secret.kind());
-        if let Some(tags) = normalize_tags(tags) {
-            secret_meta.set_tags(tags);
-        }
-        Ok(Some((secret_meta, secret)))
-    } else {
-        Ok(None)
+    let password = read_password(None)?;
+    let secret: Secret = password.into();
+    let mut secret_meta = SecretMeta::new(name, secret.kind());
+    if let Some(tags) = normalize_tags(tags) {
+        secret_meta.set_tags(tags);
     }
+    Ok(Some((secret_meta, secret)))
 }
 
 /*
@@ -371,30 +344,24 @@ pub fn add_list(
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let name = read_name(name)?;
 
-    let credentials = if option_env!("CI").is_some() {
-        let list = std::env::var("SOS_LIST").ok().unwrap_or_default();
-        Secret::decode_list(&list)?
-    } else {
-        let mut credentials: HashMap<String, SecretString> = HashMap::new();
-        loop {
-            let mut name = read_line(Some("Key: "))?;
-            while credentials.get(&name).is_some() {
-                tracing::error!(
-                    target: TARGET,
-                    "name '{}' already exists",
-                    &name
-                );
-                name = read_line(Some("Key: "))?;
-            }
-            let value = read_password(Some("Value: "))?;
-            credentials.insert(name, value);
-            let prompt = Some("Add more credentials (y/n)? ");
-            if !read_flag(prompt)? {
-                break;
-            }
+    let mut credentials: HashMap<String, SecretString> = HashMap::new();
+    loop {
+        let mut name = read_line(Some("Key: "))?;
+        while credentials.get(&name).is_some() {
+            tracing::error!(
+                target: TARGET,
+                "name '{}' already exists",
+                &name
+            );
+            name = read_line(Some("Key: "))?;
         }
-        credentials
-    };
+        let value = read_password(Some("Value: "))?;
+        credentials.insert(name, value);
+        let prompt = Some("Add more credentials (y/n)? ");
+        if !read_flag(prompt)? {
+            break;
+        }
+    }
 
     if !credentials.is_empty() {
         let secret: Secret = credentials.into();
@@ -414,20 +381,9 @@ pub fn add_login(
 ) -> Result<Option<(SecretMeta, Secret)>> {
     let name = read_name(name)?;
 
-    let (account, url, password) = if option_env!("CI").is_some() {
-        (
-            std::env::var("SOS_LOGIN_USERNAME").ok().unwrap_or_default(),
-            std::env::var("SOS_LOGIN_URL").ok(),
-            SecretString::new(
-                std::env::var("SOS_LOGIN_PASSWORD").ok().unwrap_or_default(),
-            ),
-        )
-    } else {
-        let account = read_line(Some("Username: "))?;
-        let url = read_option(Some("Website: "))?;
-        let password = read_password(Some("Password: "))?;
-        (account, url, password)
-    };
+    let account = read_line(Some("Username: "))?;
+    let url = read_option(Some("Website: "))?;
+    let password = read_password(Some("Password: "))?;
 
     let url: Option<Url> = if let Some(url) = url {
         Some(url.parse().map_err(|_| Error::InvalidUrl)?)
@@ -512,7 +468,7 @@ pub(crate) async fn download_file_secret(
                 vfs::write(file, buffer.expose_secret()).await?;
             }
         }
-        println!("Download complete ✓");
+        success("Download complete");
         Ok(())
     } else {
         Err(Error::NotFileContent)

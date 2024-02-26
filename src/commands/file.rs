@@ -1,6 +1,7 @@
 use crate::{
     helpers::{
-        account::resolve_user, readline::clear_screen, PROGRESS_MONITOR,
+        account::resolve_user, messages::success, readline::clear_screen,
+        PROGRESS_MONITOR,
     },
     Result,
 };
@@ -85,7 +86,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             clear_screen()?;
 
             if failures.is_empty() {
-                println!("Files ok ✓");
+                success("Files ok");
             } else {
                 for (_, failure) in failures {
                     match failure {

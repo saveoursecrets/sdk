@@ -24,7 +24,21 @@ The CLI test specs can take a long time with the debug build so if you want to s
 cargo make test-lite
 ```
 
+To run just the command line tests which would be included in test coverage:
+
+```
+cargo make test-command-line
+```
+
+These tests always use a debug version of the executable. Run with `ANTICIPATE_ECHO` to debug:
+
+```
+ANTICIPATE_ECHO=true cargo make test-command-line
+```
+
 ## Test Scripts
+
+The test scripts make it much faster to run tests by using a release version installed with `cargo install --path .`.
 
 To run the CLI test specs using the first version of `sos` in `PATH`:
 
@@ -45,7 +59,7 @@ ANTICIPATE_ECHO=true cargo make test-cli
 ANTICIPATE_ECHO=true cargo make test-shell
 ```
 
-Run `cargo install --path .` to install a release version and make these tests much faster.
+Use the `SPEC` variable to run a specific test:
 
 ## Notes
 

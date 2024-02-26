@@ -2,7 +2,10 @@
 mod cli {
     use anticipate_runner::{InterpreterOptions, ScriptFile};
     use anyhow::Result;
-    use std::{env::{set_var, var}, path::Path};
+    use std::{
+        env::{set_var, var},
+        path::Path,
+    };
 
     #[test]
     fn command_line() -> Result<()> {
@@ -12,9 +15,16 @@ mod cli {
             "tests/command_line/scripts/setup.sh",
             "tests/command_line/scripts/specs/account.sh",
             "tests/command_line/scripts/specs/check.sh",
+            "tests/command_line/scripts/specs/device.sh",
+            "tests/command_line/scripts/specs/environment.sh",
+            "tests/command_line/scripts/specs/events.sh",
             "tests/command_line/scripts/specs/folder.sh",
             "tests/command_line/scripts/specs/secret.sh",
+            "tests/command_line/scripts/specs/security-report.sh",
+            "tests/command_line/scripts/specs/server.sh",
             "tests/command_line/scripts/specs/shell.sh",
+            "tests/command_line/scripts/specs/preferences.sh",
+            "tests/command_line/scripts/specs/audit.sh",
             "tests/command_line/scripts/teardown.sh",
         ];
 
@@ -34,7 +44,7 @@ mod cli {
             .into_owned();
         let echo = var("ANTICIPATE_ECHO").is_ok();
         let script = ScriptFile::parse(input_file)?;
-        let mut options = InterpreterOptions::new(5000, echo, false, false);
+        let mut options = InterpreterOptions::new(15000, echo, false, false);
         options.id = Some(file_name.to_owned());
         script.run(options)?;
         Ok(())
@@ -49,9 +59,14 @@ mod cli {
         };
         set_var("PATH", format!("{}:{}", prefix, path));
 
+        set_var("BASH_SILENCE_DEPRECATION_WARNING", "1");
         set_var("NO_COLOR", "1");
+
         set_var("SOS_DATA_DIR", "target/accounts");
         set_var("SOS_PROMPT", "➜ ");
+        set_var("SOS_OFFLINE", "1");
+        set_var("DEMO_SERVER", "https://demo.saveoursecrets.com");
+
         set_var("ACCOUNT_NAME", "Demo");
         set_var("ACCOUNT_NAME_ALT", "Demo Account");
         set_var("ACCOUNT_PASSWORD", "demo-test-password-case");

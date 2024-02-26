@@ -2,6 +2,7 @@ use crate::{
     helpers::{
         account::{resolve_folder, resolve_user, verify, Owner, USER},
         editor,
+        messages::success,
         readline::{read_flag, read_line},
         secret::{
             add_file, add_link, add_list, add_login, add_note, add_password,
@@ -733,7 +734,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner.create_secret(meta, secret, options).await?;
                 let _ = shutdown_tx.send(()).await;
                 let _ = closed_rx.await;
-                println!("Secret created ✓");
+                success("Secret created");
             } else {
                 let _ = shutdown_tx.send(()).await;
                 let _ = closed_rx.await;
@@ -774,7 +775,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     owner.read_secret(&resolved.secret_id, None).await?;
                 let copied = copy_secret_text(data.secret())?;
                 if copied {
-                    println!("Copied to clipboard ✓");
+                    success("Copied to clipboard");
                 } else {
                     return Err(Error::ClipboardCopy);
                 }
@@ -946,7 +947,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         .await?;
                     let _ = shutdown_tx.send(()).await;
                     let _ = closed_rx.await;
-                    println!("Secret updated ✓");
+                    success("Secret updated");
                 // If the edited result was borrowed
                 // it indicates that no changes were made
                 } else {
@@ -980,7 +981,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     )
                     .await?;
                 let state = if value { "on" } else { "off" };
-                println!("Favorite {} ✓", state);
+                success(format!("Favorite {}", state));
             }
         }
         Command::Rename {
@@ -1008,7 +1009,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         None,
                     )
                     .await?;
-                println!("Secret renamed ✓");
+                success("Secret renamed");
             }
         }
         Command::Move {
@@ -1038,7 +1039,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         Default::default(),
                     )
                     .await?;
-                println!("Secret moved ✓");
+                success("Secret moved");
             }
         }
         Command::Remove {
@@ -1065,7 +1066,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                             Default::default(),
                         )
                         .await?;
-                    println!("Secret deleted ✓");
+                    success("Secret deleted");
                 }
             }
         }
@@ -1125,7 +1126,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                             None,
                         )
                         .await?;
-                    println!("Secret updated ✓");
+                    success("Secret updated");
                 }
             }
         }
@@ -1177,7 +1178,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         Default::default(),
                     )
                     .await?;
-                println!("Moved to archive ✓");
+                success("Moved to archive");
             }
         }
         Command::Unarchive { account, secret } => {
@@ -1215,7 +1216,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         Default::default(),
                     )
                     .await?;
-                println!("Restored from archive ✓");
+                success("Restored from archive");
                 if let Some(folder) = original_folder {
                     owner.open_folder(&folder).await?;
                 }
@@ -1438,7 +1439,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                 .await?;
             let _ = shutdown_tx.send(()).await;
             let _ = closed_rx.await;
-            println!("Secret updated ✓");
+            success("Secret updated");
         }
     }
 

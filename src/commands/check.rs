@@ -8,7 +8,7 @@ use sos_net::sdk::{
     vfs,
 };
 
-use crate::{Error, Result};
+use crate::{helpers::messages::success, Error, Result};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -68,7 +68,7 @@ async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
         }
     })
     .await?;
-    println!("Verified ✓");
+    success("Verified");
     Ok(())
 }
 
@@ -88,7 +88,7 @@ async fn verify_events(file: PathBuf, verbose: bool) -> Result<()> {
             println!("root: {}", root);
         }
     }
-    println!("Verified {} commit(s) ✓", tree.len());
+    success(format!("Verified {} commit(s)", tree.len()));
     Ok(())
 }
 

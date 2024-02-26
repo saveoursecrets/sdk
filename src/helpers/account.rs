@@ -2,7 +2,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use sos_net::{
-    client::NetworkAccount,
+    client::{is_offline, NetworkAccount},
     sdk::{
         account::Account,
         constants::DEFAULT_VAULT_NAME,
@@ -10,6 +10,7 @@ use sos_net::{
         identity::{AccountRef, Identity, PublicIdentity},
         passwd::diceware::generate_passphrase,
         secrecy::{ExposeSecret, SecretString},
+        signer::ecdsa::Address,
         vault::{FolderRef, Summary},
         Paths,
     },
@@ -112,6 +113,31 @@ pub async fn resolve_account(
     account.cloned()
 }
 
+pub async fn resolve_account_address(
+    account: Option<&AccountRef>,
+) -> Result<Address> {
+    let account = resolve_account(account)
+        .await
+        .ok_or_else(|| Error::NoAccountFound)?;
+
+    let accounts = Identity::list_accounts(None).await?;
+    for info in accounts {
+        match account {
+            AccountRef::Name(ref name) => {
+                if info.label() == name {
+                    return Ok(info.address().clone());
+                }
+            }
+            AccountRef::Address(address) => {
+                if info.address() == &address {
+                    return Ok(info.address().clone());
+                }
+            }
+        }
+    }
+    Err(Error::NoAccountFound)
+}
+
 pub async fn resolve_folder(
     user: &Owner,
     folder: Option<&FolderRef>,
@@ -212,9 +238,12 @@ pub async fn sign_in(
         .ok_or(Error::NoAccount(account.to_string()))?;
     let passphrase = read_password(Some("Password: "))?;
 
-    let mut owner =
-        NetworkAccount::new_unauthenticated(account.address().clone(), None)
-            .await?;
+    let mut owner = NetworkAccount::new_unauthenticated(
+        account.address().clone(),
+        None,
+        is_offline(),
+    )
+    .await?;
 
     let key: AccessKey = passphrase.clone().into();
     owner.sign_in(&key).await?;
@@ -338,6 +367,7 @@ pub async fn new_account(
             account_name.clone(),
             passphrase.clone(),
             None,
+            false,
             |builder| {
                 builder
                     .create_contacts(true)

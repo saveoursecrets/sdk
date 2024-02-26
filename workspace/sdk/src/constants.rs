@@ -138,6 +138,10 @@ mod folders {
     /// File that tracks external file transfers.
     pub const TRANSFERS_FILE: &str = "transfers";
 
+    /// File that marks a pairing process as pending.
+    #[cfg(feature = "device")]
+    pub const ENROLLMENT_FILE: &str = "enrollment";
+
     /// File thats stores account-level preferences.
     #[cfg(feature = "preferences")]
     pub const PREFERENCES_FILE: &str = "preferences";
@@ -153,7 +157,18 @@ mod files {
     pub const ARCHIVE_MANIFEST: &str = "sos-manifest.json";
 }
 
+/// Environment variables.
+mod env_vars {
+    /// Sets the storage directory.
+    pub const SOS_DATA_DIR: &str = "SOS_DATA_DIR";
+    /// Disable networking.
+    pub const SOS_OFFLINE: &str = "SOS_OFFLINE";
+    /// Shell session prompt.
+    pub const SOS_PROMPT: &str = "SOS_PROMPT";
+}
+
 pub use self::urn::*;
+pub use env_vars::*;
 pub use extensions::*;
 pub use files::*;
 pub use folders::*;

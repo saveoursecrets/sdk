@@ -12,6 +12,7 @@ use sos_net::sdk::{
 use crate::{
     helpers::{
         account::{cd_folder, resolve_folder, resolve_user, USER},
+        messages::success,
         readline::read_flag,
     },
     Error, Result,
@@ -165,7 +166,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 
             let FolderCreate { folder, .. } =
                 writer.create_folder(name).await?;
-            println!("Folder created ✓");
+            success("Folder created");
             drop(writer);
             if cwd {
                 let target = Some(FolderRef::Id(*folder.id()));
@@ -198,7 +199,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             if read_flag(Some(&prompt))? {
                 let mut owner = user.write().await;
                 owner.delete_folder(&summary).await?;
-                println!("Folder deleted ✓");
+                success("Folder deleted");
                 drop(owner);
 
                 // Removing current folder so try to use
@@ -211,9 +212,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::List { account, verbose } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
-            let storage = owner.storage().await?;
-            let reader = storage.read().await;
-            let folders = reader.list_folders();
+            let mut folders = owner.list_folders().await?;
+            folders.sort_by(|a, b| b.name().partial_cmp(a.name()).unwrap());
             for summary in folders {
                 if verbose {
                     println!("{} {}", summary.id(), summary.name());
@@ -291,7 +291,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 
             let mut writer = user.write().await;
             writer.rename_folder(&summary, name.clone()).await?;
-            println!("{} -> {} ✓", summary.name(), name);
+            success(format!("{} -> {}", summary.name(), name));
         }
 
         Command::History { cmd } => {
@@ -350,7 +350,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         .current_folder()
                         .ok_or(Error::NoVaultSelected)?;
                     reader.verify(&summary).await?;
-                    println!("Verified ✓");
+                    success("Verified");
                 }
                 History::List { verbose, .. } => {
                     let owner = user.read().await;

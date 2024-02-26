@@ -7,7 +7,7 @@ use super::{
     },
     Backend, Result, ServerConfig,
 };
-use crate::sdk::storage::files::ExternalFile;
+use crate::sdk::{storage::files::ExternalFile, UtcDateTime};
 use axum::{
     extract::Extension,
     http::{
@@ -20,6 +20,7 @@ use axum::{
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
+use colored::Colorize;
 use sos_sdk::signer::ecdsa::Address;
 use std::{
     collections::{HashMap, HashSet},
@@ -135,19 +136,28 @@ impl Server {
         addr: &SocketAddr,
         tls: bool,
     ) {
-        tracing::info!(addr = %addr);
-        tracing::info!(tls = %tls);
+        let now = UtcDateTime::now().to_rfc3339().unwrap();
+        println!("Started        {}", now.yellow());
+        println!("Listen         {}", addr.to_string().yellow());
+        println!("TLS enabled    {}", tls.to_string().yellow());
+
         {
             let reader = state.read().await;
             if let Some(access) = &reader.config.access {
                 if let Some(allow) = &access.allow {
                     for address in allow {
-                        tracing::info!(allow = %address);
+                        println!(
+                            "Allow          {}",
+                            address.to_string().green()
+                        );
                     }
                 }
                 if let Some(deny) = &access.deny {
                     for address in deny {
-                        tracing::info!(deny = %address);
+                        println!(
+                            "Deny           {}",
+                            address.to_string().red()
+                        );
                     }
                 }
             }
