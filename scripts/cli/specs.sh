@@ -15,4 +15,4 @@ anticipate \
   run \
   --setup tests/command_line/scripts/setup.sh \
   --teardown tests/command_line/scripts/teardown.sh \
-  tests/command_line/scripts/specs/events.sh
+  tests/command_line/scripts/specs/*.sh
