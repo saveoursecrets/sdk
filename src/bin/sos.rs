@@ -5,14 +5,10 @@ use sos::{Result, TARGET, USER};
 #[tokio::main]
 async fn main() -> Result<()> {
     use kdam::term;
-    use sos_net::sdk::account::Account;
-    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "sos=info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer().without_time())
-        .init();
+    use sos_net::sdk::{account::Account, logs::Logger};
+
+    let logger: Logger = Default::default();
+    logger.init_subscriber(None)?;
 
     if let Err(e) = sos::cli::sos::run().await {
         if !e.is_interrupted() {
