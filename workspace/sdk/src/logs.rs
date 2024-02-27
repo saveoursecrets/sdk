@@ -31,6 +31,12 @@ pub struct Logger {
     name: &'static str,
 }
 
+impl Default for Logger {
+    fn default() -> Self {
+        Self::new(None)
+    }
+}
+
 impl Logger {
     /// Create a new logger using default paths.
     ///
