@@ -26,6 +26,10 @@ pub struct LogFileStatus {
 }
 
 /// Application logger.
+///
+/// When `debug_assertions` are enabled tracing output is written
+/// to stdout and to disc; for release builds tracing is just written
+/// to disc.
 pub struct Logger {
     paths: Paths,
     name: &'static str,
@@ -56,6 +60,7 @@ impl Logger {
     }
 
     /// Initialize the tracing subscriber.
+    #[cfg(debug_assertions)]
     pub fn init_subscriber(
         &self,
         default_log_level: Option<String>,
@@ -68,10 +73,45 @@ impl Logger {
         let env_layer = tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or(default_log_level),
         );
+
+        let file_layer = tracing_subscriber::fmt::layer()
+            .with_file(false)
+            .with_line_number(false)
+            .with_ansi(false)
+            .json()
+            .with_writer(logfile);
+
         let fmt_layer = tracing_subscriber::fmt::layer()
             .with_file(false)
             .with_line_number(false)
             .with_target(false);
+
+        // NOTE: drop the error if already set so hot reload
+        // NOTE: does not panic in the GUI
+        let _ = tracing_subscriber::registry()
+            .with(env_layer)
+            .with(fmt_layer)
+            .with(file_layer)
+            .try_init();
+
+        Ok(())
+    }
+
+    /// Initialize the tracing subscriber.
+    #[cfg(not(debug_assertions))]
+    pub fn init_subscriber(
+        &self,
+        default_log_level: Option<String>,
+    ) -> Result<()> {
+        let logs_dir = self.paths.logs_dir();
+        let logfile =
+            RollingFileAppender::new(Rotation::DAILY, logs_dir, self.name);
+        let default_log_level =
+            default_log_level.unwrap_or_else(|| DEFAULT_LOG_LEVEL.to_owned());
+        let env_layer = tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or(default_log_level),
+        );
+
         let file_layer = tracing_subscriber::fmt::layer()
             .with_file(false)
             .with_line_number(false)
@@ -83,7 +123,6 @@ impl Logger {
         // NOTE: does not panic in the GUI
         let _ = tracing_subscriber::registry()
             .with(env_layer)
-            .with(fmt_layer)
             .with(file_layer)
             .try_init();
 
