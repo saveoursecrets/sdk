@@ -61,11 +61,12 @@ pub trait AuditProvider {
 /// * 16, 32 or 64 bytes for the context data (one, two or four UUIDs).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AuditEvent {
-    /// The time the event was created.
+    /// Time the event was created.
     pub(crate) time: UtcDateTime,
-    /// The event being logged.
+    /// Event being logged.
+    #[serde(rename = "type")]
     pub(crate) event_kind: EventKind,
-    /// The address of the client performing the event.
+    /// Address of the client performing the event.
     pub(crate) address: Address,
     /// Context data about the event.
     #[serde(skip_serializing_if = "Option::is_none")]

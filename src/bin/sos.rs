@@ -1,5 +1,5 @@
 #[cfg(not(target_arch = "wasm32"))]
-use sos::{Result, TARGET, USER};
+use sos::{fail, warn, Result, USER};
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
@@ -12,13 +12,13 @@ async fn main() -> Result<()> {
 
     if let Err(e) = sos::cli::sos::run().await {
         if !e.is_interrupted() {
-            tracing::error!(target: TARGET, "{}", e);
+            fail(e.to_string());
         }
 
         if let Some(user) = USER.get() {
             let mut owner = user.write().await;
             if let Err(e) = owner.sign_out().await {
-                tracing::warn!(error = ?e, "sign out");
+                warn(format!("sign out {e}"));
             }
         }
 

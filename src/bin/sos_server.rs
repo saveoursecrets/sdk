@@ -1,5 +1,5 @@
 #[cfg(not(target_arch = "wasm32"))]
-use sos::{Result, TARGET};
+use sos::{fail, Result};
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
@@ -13,7 +13,7 @@ async fn main() -> Result<()> {
         .init();
 
     if let Err(e) = sos::cli::sos_server::run().await {
-        tracing::error!(target: TARGET, "{}", e);
+        fail(e.to_string());
     }
 
     Ok(())

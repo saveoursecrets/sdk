@@ -20,7 +20,7 @@ use sos_net::sdk::{
 };
 use tempfile::Builder;
 
-use crate::{Error, Result, TARGET};
+use crate::{helpers::messages::fail, Error, Result};
 
 /// The result of editing a secret.
 ///
@@ -205,11 +205,7 @@ async fn edit_secret<'a>(
                 // Parse error, launch the editor again so the user
                 // gets the chance to correct the mistake.
                 Err(e) => {
-                    tracing::error!(
-                        target: TARGET,
-                        "secret data is not valid: {}",
-                        e
-                    );
+                    fail(format!("secret data is not valid: {}", e));
                     return edit_secret(secret, content, suffix).await;
                 }
             }

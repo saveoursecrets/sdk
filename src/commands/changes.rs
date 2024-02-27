@@ -10,7 +10,13 @@ use sos_net::{
     },
 };
 
-use crate::{helpers::account::sign_in, Result, TARGET};
+use crate::{
+    helpers::{
+        account::sign_in,
+        messages::{fail, info},
+    },
+    Result,
+};
 
 /// Creates a changes stream and calls handler for every change notification.
 async fn changes_stream(
@@ -30,10 +36,10 @@ async fn changes_stream(
     let mut stream = changes(stream, client);
     while let Some(notification) = stream.next().await {
         let notification = notification?.await?;
-        tracing::info!(
-            target: TARGET,
-            changes = ?notification.changes(),
-            vault_id = %notification.vault_id());
+        info(format!(
+            "{:#?} {}"
+            notification.changes(),
+            notification.vault_id()));
     }
 
     Ok(())
@@ -48,15 +54,10 @@ pub async fn run(
     let (owner, _) = sign_in(&account).await?;
     let signer = owner.user()?.identity()?.signer().clone();
     let device = owner.user()?.identity()?.device().clone();
-    if let Err(e) = changes_stream(
-        server,
-        server_public_key,
-        signer,
-        device.into(),
-    )
-    .await
+    if let Err(e) =
+        changes_stream(server, server_public_key, signer, device.into()).await
     {
-        tracing::error!(target: TARGET, "{}", e);
+        fail(e.to_string());
         std::process::exit(1);
     }
     Ok(())
