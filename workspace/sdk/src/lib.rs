@@ -78,6 +78,9 @@ pub mod events;
 pub mod formats;
 pub mod identity;
 
+#[cfg(feature = "logs")]
+pub mod logs;
+
 #[cfg(feature = "migrate")]
 pub mod migrate;
 
