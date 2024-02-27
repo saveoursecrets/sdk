@@ -10,6 +10,7 @@ target
 *.bundle
 /*.csv
 /*.svg
+*.rustfmt
 .homebrew
 tests/server_public_key.txt
 geiger-report.txt

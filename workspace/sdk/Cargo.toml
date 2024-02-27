@@ -12,7 +12,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["account", "archive", "audit", "files", "search"]
+default = ["account", "archive", "audit", "files", "logs", "search"]
 account = []
 archive = ["dep:async_zip"]
 audit = []
@@ -21,6 +21,7 @@ device = [
   "dep:whoami",
 ]
 files = []
+logs = ["rev_buf_reader", "tracing-appender", "tracing-subscriber"]
 mem-fs = ["sos-vfs/mem-fs"]
 migrate = ["dep:async_zip", "dep:csv-async"]
 keychain-access = ["dep:security-framework", "dep:keychain_parser"]
@@ -83,12 +84,15 @@ urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
 unicode-segmentation = "1.10"
 mime_guess = { version = "2" }
-anyhow = {version = "1", optional = true }
 sanitize-filename = "0.5"
 futures-util = "0.3"
+async-stream = "0.3"
+anyhow = {version = "1", optional = true }
 vsss-rs = {version = "3", optional = true }
 whoami = { version = "1.4", optional = true }
-async-stream = "0.3"
+tracing-appender = { version = "0.2", optional = true }
+tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"], optional = true }
+rev_buf_reader = { version = "0.3", optional = true }
 
 [dependencies.probly-search]
 version = "2.0.0"

@@ -1,6 +1,6 @@
 use clap::Subcommand;
 
-use crate::{Error, Result, TARGET};
+use crate::{helpers::messages::info, Error, Result};
 use sos_net::sdk::{
     audit::{AuditData, AuditEvent, AuditLogFile},
     formats::FormatStreamIterator,
@@ -157,25 +157,23 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
     } else if let Some(data) = event.data() {
         match data {
             AuditData::Vault(vault_id) => {
-                tracing::info!(
-                    target: TARGET,
-                    vault = ?vault_id,
-                    "{} {} by {}",
+                info(format!(
+                    "{} {} by {}, vault = {}",
                     event.time().to_rfc3339()?,
                     event.event_kind(),
                     event.address(),
-                );
+                    vault_id,
+                ));
             }
             AuditData::Secret(vault_id, secret_id) => {
-                tracing::info!(
-                    target: TARGET,
-                    vault = ?vault_id,
-                    secret = ?secret_id,
-                    "{} {} by {}",
+                info(format!(
+                    "{} {} by {}, vault = {}, secret = {}",
                     event.time().to_rfc3339()?,
                     event.event_kind(),
                     event.address(),
-                );
+                    vault_id,
+                    secret_id,
+                ));
             }
             AuditData::MoveSecret {
                 from_vault_id,
@@ -183,27 +181,25 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
                 to_vault_id,
                 to_secret_id,
             } => {
-                tracing::info!(
-                    target: TARGET,
-                    from_vault = ?from_vault_id,
-                    from_secret = ?from_secret_id,
-                    to_vault = ?to_vault_id,
-                    to_secret = ?to_secret_id,
-                    "{} {} by {}",
+                info(format!(
+                    "{} {} by {}, from = {}/{}, to = {}/{}",
                     event.time().to_rfc3339()?,
                     event.event_kind(),
                     event.address(),
-                );
+                    from_vault_id,
+                    from_secret_id,
+                    to_vault_id,
+                    to_secret_id,
+                ));
             }
         }
     } else {
-        tracing::info!(
-            target: TARGET,
+        info(format!(
             "{} {} by {}",
             event.time().to_rfc3339()?,
             event.event_kind(),
             event.address(),
-        );
+        ));
     }
     Ok(())
 }

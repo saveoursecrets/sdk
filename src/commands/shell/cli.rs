@@ -14,9 +14,10 @@ use tokio::sync::RwLock;
 use crate::{
     helpers::{
         account::{cd_folder, choose_account, sign_in, USER},
+        messages::fail,
         readline,
     },
-    Error, Result, TARGET,
+    Error, Result,
 };
 
 use super::repl::exec;
@@ -42,7 +43,7 @@ async fn auth(account: &AccountRef) -> Result<NetworkAccount> {
         match sign_in(account).await {
             Ok((owner, _)) => return Ok(owner),
             Err(e) => {
-                tracing::error!(target: TARGET, "{}", e);
+                fail(e.to_string());
                 if matches!(e, Error::NoAccount(_)) {
                     std::process::exit(1);
                 } else if e.is_interrupted() {
@@ -106,7 +107,7 @@ pub async fn run(
                 rl.add_history_entry(line.as_str())?;
                 let provider = Arc::clone(user);
                 if let Err(e) = exec(&line, provider).await {
-                    tracing::error!(target: TARGET, "{}", e);
+                    fail(e.to_string());
                 }
             }
             Err(e) => return Err(Error::Readline(e)),

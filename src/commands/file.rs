@@ -1,6 +1,8 @@
 use crate::{
     helpers::{
-        account::resolve_user, messages::success, readline::clear_screen,
+        account::resolve_user,
+        messages::{fail, success, warn},
+        readline::clear_screen,
         PROGRESS_MONITOR,
     },
     Result,
@@ -91,10 +93,10 @@ pub async fn run(cmd: Command) -> Result<()> {
                 for (_, failure) in failures {
                     match failure {
                         FailureReason::Missing(path) => {
-                            tracing::error!(path = ?path, "missing");
+                            fail(format!("missing {}", path.display()));
                         }
                         FailureReason::Corrupted { path, .. } => {
-                            tracing::error!(path = ?path, "corrupted");
+                            fail(format!("corrupted {}", path.display()));
                         }
                     }
                 }
@@ -121,10 +123,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                             secrets.entry(file.secret_id()).or_insert(vec![]);
                         files.push((file.file_name(), ops));
                     } else {
-                        tracing::warn!(
-                            id = %file.vault_id(),
-                            "folder missing",
-                        );
+                        warn(format!("folder missing {}", file.vault_id(),));
                     }
                 }
 

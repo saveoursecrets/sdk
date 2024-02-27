@@ -1,28 +1,24 @@
 #[cfg(not(target_arch = "wasm32"))]
-use sos::{Result, TARGET, USER};
+use sos::{fail, warn, Result, USER};
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> Result<()> {
     use kdam::term;
-    use sos_net::sdk::account::Account;
-    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "sos=info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer().without_time())
-        .init();
+    use sos_net::sdk::{account::Account, logs::Logger};
+
+    let logger: Logger = Default::default();
+    logger.init_subscriber(None)?;
 
     if let Err(e) = sos::cli::sos::run().await {
         if !e.is_interrupted() {
-            tracing::error!(target: TARGET, "{}", e);
+            fail(e.to_string());
         }
 
         if let Some(user) = USER.get() {
             let mut owner = user.write().await;
             if let Err(e) = owner.sign_out().await {
-                tracing::warn!(error = ?e, "sign out");
+                warn(format!("sign out {e}"));
             }
         }
 

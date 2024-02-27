@@ -10,7 +10,7 @@ use sos_net::sdk::{
     secrecy::{ExposeSecret, SecretString},
 };
 
-use crate::{Error, Result, TARGET};
+use crate::{helpers::messages::fail, Error, Result};
 
 const DEFAULT_PROMPT: &str = ">> ";
 
@@ -187,24 +187,15 @@ pub fn choose<'a, T>(
 
                 if result.is_some() || !required {
                     return Ok(result);
-                } else {
-                    tracing::error!(
-                        target: TARGET,
-                        "enter a number between 1-{}",
-                        options.len()
-                    );
                 }
+
+                fail(format!("enter a number between 1-{}", options.len()));
             }
             Err(_) => {
                 if !required {
                     return Ok(None);
-                } else {
-                    tracing::error!(
-                        target: TARGET,
-                        "enter a number between 1-{}",
-                        options.len()
-                    );
                 }
+                fail(format!("enter a number between 1-{}", options.len()));
             }
         }
     }
@@ -224,7 +215,7 @@ pub fn choose_password() -> Result<SecretString> {
 
         let entropy = measure_entropy(passwd1.expose_secret(), &[])?;
         if entropy.score() < 4 {
-            tracing::error!(target: TARGET, "{}", Error::PasswordStrength);
+            fail(format!("{}", Error::PasswordStrength));
             continue;
         }
         break;
@@ -237,7 +228,7 @@ pub fn choose_password() -> Result<SecretString> {
         }
 
         if passwd1.expose_secret() != passwd2.expose_secret() {
-            tracing::error!(target: TARGET, "{}", Error::PasswordMismatch);
+            fail(format!("{}", Error::PasswordMismatch));
             continue;
         }
         break;

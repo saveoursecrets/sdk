@@ -21,13 +21,13 @@ use sos_net::sdk::{
 
 use crate::{
     helpers::{
-        messages::success,
+        messages::{fail, success},
         readline::{
             read_flag, read_line, read_line_allow_empty, read_multiline,
             read_option, read_password,
         },
     },
-    Error, Result, TARGET,
+    Error, Result,
 };
 
 use super::{account::Owner, set_clipboard_text};
@@ -348,11 +348,7 @@ pub fn add_list(
     loop {
         let mut name = read_line(Some("Key: "))?;
         while credentials.get(&name).is_some() {
-            tracing::error!(
-                target: TARGET,
-                "name '{}' already exists",
-                &name
-            );
+            fail(format!("name '{}' already exists", &name));
             name = read_line(Some("Key: "))?;
         }
         let value = read_password(Some("Value: "))?;
