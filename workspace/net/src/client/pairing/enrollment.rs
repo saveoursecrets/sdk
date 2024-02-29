@@ -70,6 +70,8 @@ pub struct DeviceEnrollment {
     public_identity: Option<PublicIdentity>,
     /// Device signing key.
     device_signing_key: DeviceSigner,
+    /// Device vault.
+    device_vault: Vec<u8>,
 }
 
 impl DeviceEnrollment {
@@ -78,6 +80,7 @@ impl DeviceEnrollment {
         account_signing_key: BoxedEcdsaSigner,
         origin: Origin,
         device_signer: DeviceSigner,
+        device_vault: Vec<u8>,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let address = account_signing_key.address()?;
@@ -105,6 +108,7 @@ impl DeviceEnrollment {
             client,
             device_signing_key: device_signer,
             public_identity: None,
+            device_vault,
         })
     }
 

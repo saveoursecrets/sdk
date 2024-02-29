@@ -446,7 +446,9 @@ impl Account for NetworkAccount {
     }
 
     #[cfg(feature = "device")]
-    async fn new_device_vault(&mut self) -> Result<DeviceManager> {
+    async fn new_device_vault(
+        &mut self,
+    ) -> Result<(DeviceSigner, DeviceManager)> {
         let mut account = self.account.lock().await;
         Ok(account.new_device_vault().await?)
     }

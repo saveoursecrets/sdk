@@ -104,6 +104,20 @@ impl DeviceSigner {
     pub fn public_key(&self) -> DevicePublicKey {
         self.0.verifying_key().as_bytes().into()
     }
+
+    /// Bytes for this signing key.
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0.to_bytes().try_into().unwrap()
+    }
+}
+
+impl TryFrom<[u8; 32]> for DeviceSigner {
+    type Error = crate::Error;
+
+    fn try_from(value: [u8; 32]) -> Result<Self> {
+        let signer: SingleParty = value.try_into()?;
+        Ok(Self(Box::new(signer)))
+    }
 }
 
 impl From<DeviceSigner> for BoxedEd25519Signer {

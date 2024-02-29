@@ -1,5 +1,5 @@
 //! Protocol for pairing devices.
-use crate::sdk::device::TrustedDevice;
+use crate::sdk::device::{DeviceSigner, TrustedDevice};
 use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
 
@@ -37,6 +37,13 @@ pub(super) enum PairingMessage {
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct PairingConfirmation(
-    #[serde_as(as = "Base64")] [u8; 32],
-    #[serde_as(as = "Base64")] Vec<u8>,
+    /// Account signing key.
+    #[serde_as(as = "Base64")]
+    [u8; 32],
+    /// Device signing key.
+    #[serde_as(as = "Base64")]
+    [u8; 32],
+    /// Encoded device vault.
+    #[serde_as(as = "Base64")]
+    Vec<u8>,
 );

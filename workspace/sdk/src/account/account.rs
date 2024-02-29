@@ -227,7 +227,7 @@ pub trait Account {
     #[cfg(feature = "device")]
     async fn new_device_vault(
         &mut self,
-    ) -> std::result::Result<DeviceManager, Self::Error>;
+    ) -> std::result::Result<(DeviceSigner, DeviceManager), Self::Error>;
 
     /// Signing key for the device.
     #[cfg(feature = "device")]
@@ -1347,13 +1347,17 @@ impl Account for LocalAccount {
     }
 
     #[cfg(feature = "device")]
-    async fn new_device_vault(&mut self) -> Result<DeviceManager> {
+    async fn new_device_vault(
+        &mut self,
+    ) -> Result<(DeviceSigner, DeviceManager)> {
         let paths = Arc::clone(&self.paths);
         let signer = DeviceSigner::new_random();
-        self.user_mut()?
+        let manager = self
+            .user_mut()?
             .identity_mut()?
-            .create_device_vault(&*paths, signer, false)
-            .await
+            .create_device_vault(&*paths, signer.clone(), false)
+            .await?;
+        Ok((signer, manager))
     }
 
     #[cfg(feature = "device")]
