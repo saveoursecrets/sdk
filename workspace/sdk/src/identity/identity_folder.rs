@@ -202,7 +202,7 @@ where
                 Err(Error::VaultEntryKind(device_key_urn.to_string()))
             }
         } else {
-            self.create_device_vault(paths, DeviceSigner::new_random())
+            self.create_device_vault(paths, DeviceSigner::new_random(), true)
                 .await
         };
 
@@ -217,6 +217,7 @@ where
         &mut self,
         paths: &Paths,
         signer: DeviceSigner,
+        mirror: bool,
     ) -> Result<DeviceManager> {
         use crate::constants::DEVICE_KEY_URN;
         let device_vault_path = paths.device_file().to_owned();
@@ -243,10 +244,14 @@ where
         let buffer = encode(&vault).await?;
         vfs::write(&device_vault_path, &buffer).await?;
         let vault_file = VaultWriter::open(&device_vault_path).await?;
-        let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
 
-        let mut device_keeper = Gatekeeper::new_mirror(vault, mirror);
         let key: AccessKey = device_password.into();
+        let mut device_keeper = if mirror {
+            let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
+            Gatekeeper::new_mirror(vault, mirror)
+        } else {
+            Gatekeeper::new(vault)
+        };
         device_keeper.unlock(&key).await?;
 
         let secret = Secret::Signer {

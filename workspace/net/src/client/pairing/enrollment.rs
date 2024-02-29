@@ -172,7 +172,11 @@ impl DeviceEnrollment {
             DiscIdentityFolder::login(self.paths.identity_vault(), key)
                 .await?;
         folder
-            .create_device_vault(&self.paths, self.device_signing_key.clone())
+            .create_device_vault(
+                &self.paths,
+                self.device_signing_key.clone(),
+                true,
+            )
             .await?;
 
         // Sign in to the new account
