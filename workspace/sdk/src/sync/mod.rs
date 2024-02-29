@@ -13,7 +13,13 @@ use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt,
+    hash::{Hash, Hasher},
+    path::PathBuf,
+    sync::Arc,
+};
 use tokio::sync::RwLock;
 use url::Url;
 
@@ -33,7 +39,7 @@ use crate::events::{FileEvent, FileEventLog};
 pub use patch::FilePatch;
 
 /// Server origin information.
-#[derive(Debug, Clone, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct Origin {
     name: String,
     url: Url,
@@ -54,6 +60,12 @@ impl Origin {
 impl PartialEq for Origin {
     fn eq(&self, other: &Self) -> bool {
         self.url == other.url
+    }
+}
+
+impl Hash for Origin {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.url.hash(state);
     }
 }
 
@@ -431,23 +443,20 @@ impl SyncComparison {
             // Remote does not have any files yet so we need
             // to send the entire file event log
             (Some(files), None) => {
-                match files {
-                    Comparison::Unknown => {
-                        // Need to push changes to remote
-                        let log = storage.file_log().await?;
-                        let reader = log.read().await;
-                        if !reader.tree().is_empty() {
-                            let after = reader.tree().head()?;
-                            let files = FileDiff {
-                                last_commit: None,
-                                patch: reader.diff(None).await?,
-                                after,
-                                before: Default::default(),
-                            };
-                            diff.files = Some(files);
-                        }
+                if let Comparison::Unknown = files {
+                    // Need to push changes to remote
+                    let log = storage.file_log().await?;
+                    let reader = log.read().await;
+                    if !reader.tree().is_empty() {
+                        let after = reader.tree().head()?;
+                        let files = FileDiff {
+                            last_commit: None,
+                            patch: reader.diff(None).await?,
+                            after,
+                            before: Default::default(),
+                        };
+                        diff.files = Some(files);
                     }
-                    _ => {}
                 }
             }
             _ => {}

@@ -60,7 +60,7 @@ pub async fn mock_secret_file(
         content: FileContent::Embedded {
             name: name.to_string(),
             mime: mime.to_string(),
-            checksum: checksum.try_into()?,
+            checksum: checksum.into(),
             buffer: secrecy::Secret::new(buffer),
         },
         user_data: Default::default(),

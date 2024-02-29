@@ -307,7 +307,7 @@ impl Gatekeeper {
                     let salt = KeyDerivation::parse_salt(salt)?;
                     let deriver = self.vault.deriver();
                     let private_key = deriver.derive(
-                        &passphrase,
+                        passphrase,
                         &salt,
                         self.vault.seed(),
                     )?;
