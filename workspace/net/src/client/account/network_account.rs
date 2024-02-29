@@ -46,7 +46,9 @@ use tracing::{span, Level};
 use crate::sdk::account::archive::{Inventory, RestoreOptions};
 
 #[cfg(feature = "device")]
-use crate::sdk::device::{DevicePublicKey, DeviceSigner, TrustedDevice};
+use crate::sdk::device::{
+    DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
+};
 
 #[cfg(feature = "device")]
 use indexmap::IndexSet;
@@ -441,6 +443,12 @@ impl Account for NetworkAccount {
     async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
         let account = self.account.lock().await;
         Ok(account.account_signer().await?)
+    }
+
+    #[cfg(feature = "device")]
+    async fn new_device_vault(&mut self) -> Result<DeviceManager> {
+        let mut account = self.account.lock().await;
+        Ok(account.new_device_vault().await?)
     }
 
     #[cfg(feature = "device")]

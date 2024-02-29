@@ -1,7 +1,10 @@
 //! Protocol for pairing devices.
 use super::{DeviceEnrollment, Error, PairingMessage, Result, ServerPairUrl};
 use crate::{
-    client::{sync::RemoteSync, NetworkAccount, WebSocketRequest},
+    client::{
+        pairing::PairingConfirmation, sync::RemoteSync, NetworkAccount,
+        SyncOptions, WebSocketRequest,
+    },
     relay::{RelayBody, RelayHeader, RelayPacket, RelayPayload},
     sdk::{
         account::Account,
@@ -358,8 +361,26 @@ impl<'a> OfferPairing<'a> {
                     let account_signing_key = account_signer.to_bytes();
                     let account_signing_key: [u8; 32] =
                         account_signing_key.as_slice().try_into()?;
+                    let device_key_buffer = self
+                        .account
+                        .new_device_vault()
+                        .await?
+                        .into_vault_buffer()
+                        .await?;
+                    // Creating a new device vault saves the folder password
+                    // and therefore updates the identity folder so we need
+                    // to sync to ensure the other half of the pairing will
+                    // fetch data that includes the password for the device
+                    // vault we will send
+                    let origins =
+                        vec![self.share_url.server().clone().into()];
+                    let options = SyncOptions { origins };
+                    self.account.sync_with_options(&options).await;
                     let private_message =
-                        PairingMessage::Confirm(account_signing_key);
+                        PairingMessage::Confirm(PairingConfirmation(
+                            account_signing_key,
+                            device_key_buffer,
+                        ));
 
                     let payload = if let Some(Tunnel::Transport(transport)) =
                         self.tunnel.as_mut()
@@ -723,8 +744,9 @@ impl<'a> AcceptPairing<'a> {
                     } else {
                         unreachable!();
                     }
-                } else if let PairingMessage::Confirm(signing_key) = message {
-                    self.create_enrollment(signing_key).await?;
+                } else if let PairingMessage::Confirm(confirmation) = message
+                {
+                    self.create_enrollment(confirmation).await?;
                     self.state = PairProtocolState::Done;
                 } else {
                     return Err(Error::BadState);
@@ -743,8 +765,10 @@ impl<'a> AcceptPairing<'a> {
     /// account data.
     async fn create_enrollment(
         &mut self,
-        signing_key: [u8; 32],
+        confirmation: PairingConfirmation,
     ) -> Result<()> {
+        let PairingConfirmation(signing_key, device_key_buffer) =
+            confirmation;
         let signer: SingleParty = signing_key.try_into()?;
         let server = self.share_url.server().clone();
         let origin: Origin = server.into();

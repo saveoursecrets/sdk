@@ -1,6 +1,7 @@
 //! Protocol for pairing devices.
 use crate::sdk::device::TrustedDevice;
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 
 mod enrollment;
 mod error;
@@ -17,6 +18,7 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 
 /// Pairing message.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub(super) enum PairingMessage {
     /// Indicates the noise protocol handshake is completed.
     Ready,
@@ -26,8 +28,15 @@ pub(super) enum PairingMessage {
     Request(TrustedDevice),
     /// Confirmation from the offering side to the
     /// accepting side is the account signing key.
-    Confirm([u8; 32]),
+    Confirm(PairingConfirmation),
     /// Offer side generated an error whilst
     /// adding the device to the list of trusted devices.
     Error(String),
 }
+
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize)]
+pub(super) struct PairingConfirmation(
+    #[serde_as(as = "Base64")] [u8; 32],
+    #[serde_as(as = "Base64")] Vec<u8>,
+);

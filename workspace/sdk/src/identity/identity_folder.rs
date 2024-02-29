@@ -139,8 +139,7 @@ where
     }
 
     /// Ensure that the account has a vault for storing device specific
-    /// information such as the private key used to identify a machine
-    /// and the account's trusted devices.
+    /// information such as the private key used to identify a machine.
     #[cfg(feature = "device")]
     pub(super) async fn ensure_device_vault(
         &mut self,

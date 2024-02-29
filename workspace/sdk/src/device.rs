@@ -1,7 +1,8 @@
 //! Types for device support.
 use crate::{
+    encode,
     signer::ed25519::{BoxedEd25519Signer, SingleParty, VerifyingKey},
-    vault::Gatekeeper,
+    vault::{Gatekeeper, Vault},
     Error, Result,
 };
 use once_cell::sync::OnceCell;
@@ -140,6 +141,13 @@ impl DeviceManager {
     /// Signing key for this device.
     pub(crate) fn signer(&self) -> &DeviceSigner {
         &self.signer
+    }
+
+    /// Consume this device manager into a buffer of the vault.
+    pub async fn into_vault_buffer(self) -> Result<Vec<u8>> {
+        let vault: Vault = self.keeper.into();
+        let buffer = encode(&vault).await?;
+        Ok(buffer)
     }
 
     /// Basic device information.
