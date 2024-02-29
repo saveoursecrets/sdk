@@ -1,6 +1,6 @@
 //! Import secrets from other providers and software.
-use enum_iterator::Sequence;
 use crate::migrate::{Error, Result};
+use enum_iterator::Sequence;
 use futures::StreamExt;
 use serde::de::DeserializeOwned;
 use std::{fmt, path::PathBuf, str::FromStr};
