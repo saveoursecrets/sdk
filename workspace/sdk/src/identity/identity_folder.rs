@@ -145,10 +145,8 @@ where
         &mut self,
         paths: &Paths,
     ) -> Result<()> {
-        let device_vault_path = paths.device_file().to_owned();
-
-        let device_vault = if vfs::try_exists(&device_vault_path).await? {
-            let buffer = vfs::read(&device_vault_path).await?;
+        let device_vault = if vfs::try_exists(paths.device_file()).await? {
+            let buffer = vfs::read(paths.device_file()).await?;
             let vault: Vault = decode(&buffer).await?;
             Some(vault)
         } else {
@@ -179,8 +177,13 @@ where
         paths: &Paths,
         vault: Vault,
     ) -> Result<DeviceManager> {
+        let span = span!(Level::DEBUG, "read_device_vault");
+        let _enter = span.enter();
+
         let device_key_urn = self.device_urn()?;
         let device_vault_path = paths.device_file().to_owned();
+
+        tracing::debug!(urn = %device_key_urn);
 
         let summary = vault.summary().clone();
         let device_password = self.find_folder_password(summary.id()).await?;
@@ -193,19 +196,17 @@ where
         device_keeper.unlock(&key).await?;
 
         let mut device_signer_secret: Option<Secret> = None;
-        {
-            for id in device_keeper.vault().keys() {
-                if let Some((meta, secret, _)) =
-                    device_keeper.read_secret(id).await?
-                {
-                    if let Some(urn) = meta.urn() {
-                        if urn == &device_key_urn {
-                            device_signer_secret = Some(secret);
-                        }
-                        // Add to the URN lookup index
-                        self.index
-                            .insert((*device_keeper.id(), urn.clone()), *id);
+        for id in device_keeper.vault().keys() {
+            if let Some((meta, secret, _)) =
+                device_keeper.read_secret(id).await?
+            {
+                if let Some(urn) = meta.urn() {
+                    if urn == &device_key_urn {
+                        device_signer_secret = Some(secret);
                     }
+                    // Add to the URN lookup index
+                    self.index
+                        .insert((*device_keeper.id(), urn.clone()), *id);
                 }
             }
         }
@@ -231,6 +232,9 @@ where
         signer: DeviceSigner,
         mirror: bool,
     ) -> Result<DeviceManager> {
+        let span = span!(Level::DEBUG, "create_device_vault");
+        let _enter = span.enter();
+
         let device_vault_path = paths.device_file().to_owned();
         // Prepare the password for the device vault
         let device_password = self.generate_folder_password()?;
@@ -249,15 +253,16 @@ where
 
         let device_key_urn = self.device_urn()?;
 
+        tracing::debug!(urn = %device_key_urn, mirror = %mirror);
+
         self.save_folder_password(vault.id(), device_password.clone().into())
             .await?;
 
-        let buffer = encode(&vault).await?;
-        vfs::write(&device_vault_path, &buffer).await?;
-        let vault_file = VaultWriter::open(&device_vault_path).await?;
-
         let key: AccessKey = device_password.into();
         let mut device_keeper = if mirror {
+            let buffer = encode(&vault).await?;
+            vfs::write(&device_vault_path, &buffer).await?;
+            let vault_file = VaultWriter::open(&device_vault_path).await?;
             let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
             Gatekeeper::new_mirror(vault, mirror)
         } else {
