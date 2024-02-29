@@ -1541,8 +1541,8 @@ impl Secret {
                 number, routing, ..
             } => Some(format!(
                 "{}\n{}",
-                number.expose_secret().to_string(),
-                routing.expose_secret().to_string()
+                number.expose_secret(),
+                routing.expose_secret()
             )),
             Secret::Contact { vcard, .. } => Some(vcard.to_string()),
             Secret::Totp { totp, .. } => Some(totp.get_url()),

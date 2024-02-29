@@ -271,10 +271,9 @@ impl Gatekeeper {
                 .await?;
         }
 
-        Ok(self
-            .vault
+        self.vault
             .update(id, commit, VaultEntry(meta_aead, secret_aead))
-            .await?)
+            .await
     }
 
     /// Delete a secret and it's meta data.
@@ -288,7 +287,7 @@ impl Gatekeeper {
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.delete(id).await?;
         }
-        Ok(self.vault.delete(id).await?)
+        self.vault.delete(id).await
     }
 
     /// Verify an encryption passphrase.
