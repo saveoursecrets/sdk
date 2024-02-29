@@ -67,7 +67,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                             unit = "B"
                         );
                         let name = file.file_name().to_string();
-                        pb.set_description(format!("{}", &name[0..8]));
+                        pb.set_description((name[0..8]).to_string());
 
                         let idx = manager.push(pb)?;
                         progress.insert(file, idx);
@@ -226,10 +226,9 @@ fn spawn_file_progress(
                 );
                 let name =
                     inflight_op.file.file_name().to_string();
-                pb.set_description(format!(
-                    "{}",
-                    &name[0..8]
-                ));
+                pb.set_description((
+                    name[0..8]
+                ).to_string());
 
                 let index = {
                     let mut writer = mgr.lock().await;

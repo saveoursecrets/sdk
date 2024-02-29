@@ -66,7 +66,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let origins: Vec<Origin> = url
                     .into_iter()
                     .map(|u| u.into())
-                    .filter(|o| servers.contains(&o))
+                    .filter(|o| servers.contains(o))
                     .collect();
 
                 if origins.is_empty() {
@@ -104,7 +104,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let origins: Vec<Origin> = url
                     .into_iter()
                     .map(|u| u.into())
-                    .filter(|o| servers.contains(&o))
+                    .filter(|o| servers.contains(o))
                     .collect();
 
                 if origins.is_empty() {
@@ -122,7 +122,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 match maybe_status {
                     Ok(status) => {
                         if let Some(status) = status {
-                            print_status(&*owner, &local_status, &status)
+                            print_status(&owner, &local_status, &status)
                                 .await?;
                         } else {
                             println!("account does not exist, sync required");

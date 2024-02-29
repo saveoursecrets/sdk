@@ -1106,15 +1106,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 
                 if update {
                     // Treat the empty string as None
-                    let value = if let Some(value) = value {
-                        if value.is_empty() {
-                            None
-                        } else {
-                            Some(value)
-                        }
-                    } else {
-                        None
-                    };
+                    let value = value.filter(|value| !value.is_empty());
                     data.secret_mut().user_data_mut().set_comment(value);
                     let mut owner = resolved.user.write().await;
                     owner
@@ -1197,10 +1189,10 @@ pub async fn run(cmd: Command) -> Result<()> {
                 FolderPredicate::Func(Box::new(|user| {
                     Box::pin(async {
                         let owner = user.write().await;
-                        Ok(owner
+                        owner
                             .archive_folder()
                             .await
-                            .ok_or_else(|| Error::NoArchiveFolder)?)
+                            .ok_or_else(|| Error::NoArchiveFolder)
                     })
                 })),
                 &secret,

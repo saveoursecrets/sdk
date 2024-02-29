@@ -320,7 +320,7 @@ where
 /// Execute a line of input in the context of the shell program.
 pub async fn exec(line: &str, user: Owner) -> Result<()> {
     // ignore comments
-    if line.trim().starts_with("#") {
+    if line.trim().starts_with('#') {
         return Ok(());
     }
 
