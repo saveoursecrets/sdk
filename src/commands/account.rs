@@ -382,7 +382,7 @@ async fn account_backup(
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
     let address = account.address();
-    let paths = Paths::new(Paths::data_dir()?, &address.to_string());
+    let paths = Paths::new(Paths::data_dir()?, address.to_string());
 
     AccountBackup::export_archive_file(&output, address, &paths).await?;
     Ok(())
@@ -475,7 +475,7 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
 
         // Verify the password for shell users
         // before deletion
-        verify(Arc::clone(&user)).await?;
+        verify(Arc::clone(user)).await?;
 
         let owner = user.read().await;
         (&*owner).into()

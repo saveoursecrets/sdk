@@ -27,6 +27,9 @@ use tokio::sync::{mpsc, oneshot};
 
 use human_bytes::human_bytes;
 
+type PredicateFunc =
+    Box<dyn Fn(&mut Owner) -> LocalBoxFuture<Result<Summary>>>;
+
 #[derive(Subcommand, Debug)]
 pub enum Command {
     /// Add a secret.
@@ -589,7 +592,7 @@ enum FolderPredicate<'a> {
     ///
     /// Particularly useful for commands such as `unarchive` which
     /// must always use the special archive folder.
-    Func(Box<dyn Fn(&mut Owner) -> LocalBoxFuture<Result<Summary>>>),
+    Func(PredicateFunc),
 }
 
 async fn resolve_verify<'a>(

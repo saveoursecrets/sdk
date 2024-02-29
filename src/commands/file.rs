@@ -46,7 +46,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let files = owner.file_log().await?;
             let files = files.read().await;
             let mut rx =
-                integrity_report(paths, &*files, num_cpus::get()).await?;
+                integrity_report(paths, &files, num_cpus::get()).await?;
 
             let mut progress = HashMap::new();
             let mut failures = HashMap::new();
