@@ -5,7 +5,6 @@ mod v1;
 pub use v1::VERSION as VERSION1;
 
 /// Current encoding version.
-#[allow(dead_code)]
 pub use v1::VERSION;
 
 use crate::Result;
