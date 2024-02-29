@@ -9,9 +9,7 @@ use crate::{
     sdk::{
         account::Account,
         decode,
-        device::{
-            DeviceMetaData, DevicePublicKey, DeviceSigner, TrustedDevice,
-        },
+        device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
         encode,
         events::DeviceEvent,
         signer::ecdsa::SingleParty,
