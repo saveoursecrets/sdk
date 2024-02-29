@@ -455,7 +455,7 @@ mod handlers {
         let mut stream = body.into_data_stream();
         let mut hasher = Sha256::new();
         while let Some(chunk) = stream.try_next().await? {
-            buf_writer.write(&chunk).await?;
+            buf_writer.write_all(&chunk).await?;
             hasher.update(&chunk);
         }
 

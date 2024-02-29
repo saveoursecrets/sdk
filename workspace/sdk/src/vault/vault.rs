@@ -664,7 +664,8 @@ impl Vault {
             let owner_public = owner.to_public();
             if recipients
                 .iter()
-                .any(|r| r.to_string() == owner_public.to_string())
+                .find(|r| r.to_string() == owner_public.to_string())
+                .is_none()
             {
                 recipients.push(owner_public);
             }
