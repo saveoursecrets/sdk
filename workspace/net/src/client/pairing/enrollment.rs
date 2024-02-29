@@ -55,8 +55,6 @@ pub struct DeviceEnrollment {
     /// This is available once the account data
     /// has been successfully fetched.
     public_identity: Option<PublicIdentity>,
-    /// Device signing key.
-    device_signing_key: DeviceSigner,
     /// Device vault.
     device_vault: Vec<u8>,
 }
@@ -93,7 +91,6 @@ impl DeviceEnrollment {
             data_dir,
             origin,
             client,
-            device_signing_key: device_signer,
             public_identity: None,
             device_vault,
         })
