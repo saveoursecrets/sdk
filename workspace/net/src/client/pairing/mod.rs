@@ -1,5 +1,5 @@
 //! Protocol for pairing devices.
-use crate::sdk::device::{DeviceSigner, TrustedDevice};
+use crate::sdk::device::{DeviceMetaData, DeviceSigner};
 use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
 
@@ -25,7 +25,7 @@ pub(super) enum PairingMessage {
     /// Request sent from the accept side to the
     /// offering side once the noise protocol handshake
     /// has completed.
-    Request(TrustedDevice),
+    Request(DeviceMetaData),
     /// Confirmation from the offering side to the
     /// accepting side is the account signing key.
     Confirm(PairingConfirmation),

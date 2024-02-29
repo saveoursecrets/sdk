@@ -9,7 +9,9 @@ use crate::{
     sdk::{
         account::Account,
         decode,
-        device::{DeviceSigner, TrustedDevice},
+        device::{
+            DeviceMetaData, DevicePublicKey, DeviceSigner, TrustedDevice,
+        },
         encode,
         events::DeviceEvent,
         signer::ecdsa::SingleParty,
@@ -354,7 +356,6 @@ impl<'a> OfferPairing<'a> {
                     self.tx.send(Message::Binary(buffer)).await?;
                 } else if let PairingMessage::Request(device) = message {
                     tracing::debug!("<- device");
-                    self.register_device(device).await?;
 
                     let account_signer =
                         self.account.account_signer().await?;
@@ -374,6 +375,10 @@ impl<'a> OfferPairing<'a> {
                         vec![self.share_url.server().clone().into()];
                     let options = SyncOptions { origins };
                     self.account.sync_with_options(&options).await;
+
+                    self.register_device(device_signer.public_key(), device)
+                        .await?;
+
                     let private_message =
                         PairingMessage::Confirm(PairingConfirmation(
                             account_signing_key,
@@ -413,9 +418,16 @@ impl<'a> OfferPairing<'a> {
         Ok(())
     }
 
-    async fn register_device(&mut self, device: TrustedDevice) -> Result<()> {
+    async fn register_device(
+        &mut self,
+        public_key: DevicePublicKey,
+        device: DeviceMetaData,
+    ) -> Result<()> {
+        let trusted_device =
+            TrustedDevice::new(public_key, Some(device), None);
         // Trust the other device in our local event log
-        let events: Vec<DeviceEvent> = vec![DeviceEvent::Trust(device)];
+        let events: Vec<DeviceEvent> =
+            vec![DeviceEvent::Trust(trusted_device)];
         {
             let storage = self.account.storage().await?;
             let mut writer = storage.write().await;
@@ -426,6 +438,7 @@ impl<'a> OfferPairing<'a> {
         if let Some(sync_error) = self.account.patch_devices().await {
             return Err(Error::DevicePatchSync(sync_error));
         }
+
         Ok(())
     }
 }
@@ -462,7 +475,7 @@ pub struct AcceptPairing<'a> {
     /// Noise session keypair.
     keypair: Keypair,
     /// Current device information.
-    device: &'a TrustedDevice,
+    device: &'a DeviceMetaData,
     /// URL shared by the offering device.
     share_url: ServerPairUrl,
     /// Noise protocol state.
@@ -483,7 +496,7 @@ impl<'a> AcceptPairing<'a> {
     /// Create a new pairing connection.
     pub async fn new(
         share_url: ServerPairUrl,
-        device: &'a TrustedDevice,
+        device: &'a DeviceMetaData,
         data_dir: Option<PathBuf>,
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
@@ -495,7 +508,7 @@ impl<'a> AcceptPairing<'a> {
     /// Create a new inverted pairing connection.
     pub async fn new_inverted(
         server: Url,
-        device: &'a TrustedDevice,
+        device: &'a DeviceMetaData,
         data_dir: Option<PathBuf>,
     ) -> Result<(ServerPairUrl, AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
@@ -514,7 +527,7 @@ impl<'a> AcceptPairing<'a> {
 
     async fn new_connection(
         share_url: ServerPairUrl,
-        device: &'a TrustedDevice,
+        device: &'a DeviceMetaData,
         data_dir: Option<PathBuf>,
         keypair: Keypair,
         is_inverted: bool,
