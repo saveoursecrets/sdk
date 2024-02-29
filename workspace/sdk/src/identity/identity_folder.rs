@@ -168,10 +168,9 @@ where
     }
 
     #[cfg(feature = "device")]
-    fn device_urn(&self, vault_id: &VaultId) -> Result<Urn> {
+    fn device_urn(&self) -> Result<Urn> {
         use crate::constants::DEVICE_KEY_URN;
-        let urn = format!("{}:{}", DEVICE_KEY_URN, vault_id);
-        Ok(urn.parse()?)
+        Ok(DEVICE_KEY_URN.parse()?)
     }
 
     #[cfg(feature = "device")]
@@ -180,7 +179,7 @@ where
         paths: &Paths,
         vault: Vault,
     ) -> Result<DeviceManager> {
-        let device_key_urn = self.device_urn(vault.id())?;
+        let device_key_urn = self.device_urn()?;
         let device_vault_path = paths.device_file().to_owned();
 
         let summary = vault.summary().clone();
@@ -248,7 +247,7 @@ where
             .password(device_password.clone().into(), None)
             .await?;
 
-        let device_key_urn = self.device_urn(vault.id())?;
+        let device_key_urn = self.device_urn()?;
 
         self.save_folder_password(vault.id(), device_password.clone().into())
             .await?;
@@ -368,7 +367,9 @@ where
                     |s: &str| Error::InvalidX25519Identity(s.to_owned()),
                 )?)
             }
-            _ => return Err(Error::VaultEntryKind(urn.to_string())),
+            _ => {
+                return Err(Error::VaultEntryKind(urn.to_string()));
+            }
         };
         Ok(key)
     }
