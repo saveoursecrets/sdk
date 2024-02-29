@@ -1,12 +1,15 @@
 //! Protocol for pairing devices.
 use super::{DeviceEnrollment, Error, PairingMessage, Result, ServerPairUrl};
 use crate::{
-    client::{sync::RemoteSync, NetworkAccount, WebSocketRequest},
+    client::{
+        pairing::PairingConfirmation, sync::RemoteSync, NetworkAccount,
+        SyncOptions, WebSocketRequest,
+    },
     relay::{RelayBody, RelayHeader, RelayPacket, RelayPayload},
     sdk::{
         account::Account,
         decode,
-        device::{DeviceSigner, TrustedDevice},
+        device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
         encode,
         events::DeviceEvent,
         signer::ecdsa::SingleParty,
@@ -351,15 +354,26 @@ impl<'a> OfferPairing<'a> {
                     self.tx.send(Message::Binary(buffer)).await?;
                 } else if let PairingMessage::Request(device) = message {
                     tracing::debug!("<- device");
-                    self.register_device(device).await?;
 
                     let account_signer =
                         self.account.account_signer().await?;
                     let account_signing_key = account_signer.to_bytes();
                     let account_signing_key: [u8; 32] =
                         account_signing_key.as_slice().try_into()?;
+                    let (device_signer, manager) =
+                        self.account.new_device_vault().await?;
+                    let device_key_buffer =
+                        manager.into_vault_buffer().await?;
+
+                    self.register_device(device_signer.public_key(), device)
+                        .await?;
+
                     let private_message =
-                        PairingMessage::Confirm(account_signing_key);
+                        PairingMessage::Confirm(PairingConfirmation(
+                            account_signing_key,
+                            device_signer.to_bytes(),
+                            device_key_buffer,
+                        ));
 
                     let payload = if let Some(Tunnel::Transport(transport)) =
                         self.tunnel.as_mut()
@@ -393,9 +407,16 @@ impl<'a> OfferPairing<'a> {
         Ok(())
     }
 
-    async fn register_device(&mut self, device: TrustedDevice) -> Result<()> {
+    async fn register_device(
+        &mut self,
+        public_key: DevicePublicKey,
+        device: DeviceMetaData,
+    ) -> Result<()> {
+        let trusted_device =
+            TrustedDevice::new(public_key, Some(device), None);
         // Trust the other device in our local event log
-        let events: Vec<DeviceEvent> = vec![DeviceEvent::Trust(device)];
+        let events: Vec<DeviceEvent> =
+            vec![DeviceEvent::Trust(trusted_device)];
         {
             let storage = self.account.storage().await?;
             let mut writer = storage.write().await;
@@ -406,6 +427,20 @@ impl<'a> OfferPairing<'a> {
         if let Some(sync_error) = self.account.patch_devices().await {
             return Err(Error::DevicePatchSync(sync_error));
         }
+
+        // Creating a new device vault saves the folder password
+        // and therefore updates the identity folder so we need
+        // to sync to ensure the other half of the pairing will
+        // fetch data that includes the password for the device
+        // vault we will send
+        let origins = vec![self.share_url.server().clone().into()];
+        let options = SyncOptions { origins };
+        if let Some(sync_error) =
+            self.account.sync_with_options(&options).await
+        {
+            return Err(Error::EnrollSync(sync_error));
+        }
+
         Ok(())
     }
 }
@@ -442,7 +477,7 @@ pub struct AcceptPairing<'a> {
     /// Noise session keypair.
     keypair: Keypair,
     /// Current device information.
-    device: &'a TrustedDevice,
+    device: &'a DeviceMetaData,
     /// URL shared by the offering device.
     share_url: ServerPairUrl,
     /// Noise protocol state.
@@ -453,8 +488,6 @@ pub struct AcceptPairing<'a> {
     state: PairProtocolState,
     /// Data directory for the device enrollment.
     data_dir: Option<PathBuf>,
-    /// Device signing key.
-    device_signer: DeviceSigner,
     /// Device enrollment.
     enrollment: Option<DeviceEnrollment>,
     /// Whether the pairing is inverted.
@@ -465,28 +498,19 @@ impl<'a> AcceptPairing<'a> {
     /// Create a new pairing connection.
     pub async fn new(
         share_url: ServerPairUrl,
-        device: &'a TrustedDevice,
-        device_signer: DeviceSigner,
+        device: &'a DeviceMetaData,
         data_dir: Option<PathBuf>,
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        Self::new_connection(
-            share_url,
-            device,
-            device_signer,
-            data_dir,
-            keypair,
-            false,
-        )
-        .await
+        Self::new_connection(share_url, device, data_dir, keypair, false)
+            .await
     }
 
     /// Create a new inverted pairing connection.
     pub async fn new_inverted(
         server: Url,
-        device: &'a TrustedDevice,
-        device_signer: DeviceSigner,
+        device: &'a DeviceMetaData,
         data_dir: Option<PathBuf>,
     ) -> Result<(ServerPairUrl, AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
@@ -495,7 +519,6 @@ impl<'a> AcceptPairing<'a> {
         let (pairing, stream) = Self::new_connection(
             share_url.clone(),
             device,
-            device_signer,
             data_dir,
             keypair,
             true,
@@ -506,8 +529,7 @@ impl<'a> AcceptPairing<'a> {
 
     async fn new_connection(
         share_url: ServerPairUrl,
-        device: &'a TrustedDevice,
-        device_signer: DeviceSigner,
+        device: &'a DeviceMetaData,
         data_dir: Option<PathBuf>,
         keypair: Keypair,
         is_inverted: bool,
@@ -543,7 +565,6 @@ impl<'a> AcceptPairing<'a> {
                 tx,
                 state: PairProtocolState::Pending,
                 data_dir,
-                device_signer,
                 enrollment: None,
                 is_inverted,
             },
@@ -723,8 +744,9 @@ impl<'a> AcceptPairing<'a> {
                     } else {
                         unreachable!();
                     }
-                } else if let PairingMessage::Confirm(signing_key) = message {
-                    self.create_enrollment(signing_key).await?;
+                } else if let PairingMessage::Confirm(confirmation) = message
+                {
+                    self.create_enrollment(confirmation).await?;
                     self.state = PairProtocolState::Done;
                 } else {
                     return Err(Error::BadState);
@@ -743,8 +765,13 @@ impl<'a> AcceptPairing<'a> {
     /// account data.
     async fn create_enrollment(
         &mut self,
-        signing_key: [u8; 32],
+        confirmation: PairingConfirmation,
     ) -> Result<()> {
+        let PairingConfirmation(
+            signing_key,
+            device_signing_key_buf,
+            device_vault_buffer,
+        ) = confirmation;
         let signer: SingleParty = signing_key.try_into()?;
         let server = self.share_url.server().clone();
         let origin: Origin = server.into();
@@ -752,7 +779,8 @@ impl<'a> AcceptPairing<'a> {
         let enrollment = DeviceEnrollment::new(
             Box::new(signer),
             origin,
-            self.device_signer.clone(),
+            device_signing_key_buf.try_into()?,
+            device_vault_buffer,
             data_dir,
         )
         .await?;

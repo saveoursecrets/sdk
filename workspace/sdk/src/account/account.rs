@@ -36,7 +36,9 @@ use crate::audit::{AuditData, AuditEvent};
 use crate::account::archive::{Inventory, RestoreOptions};
 
 #[cfg(feature = "device")]
-use crate::device::{DevicePublicKey, DeviceSigner, TrustedDevice};
+use crate::device::{
+    DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
+};
 
 #[cfg(feature = "device")]
 use indexmap::IndexSet;
@@ -218,6 +220,14 @@ pub trait Account {
     async fn account_signer(
         &self,
     ) -> std::result::Result<BoxedEcdsaSigner, Self::Error>;
+
+    /// Create a new in-memory device vault.
+    ///
+    /// The password for the vault is saved to the identity folder.
+    #[cfg(feature = "device")]
+    async fn new_device_vault(
+        &mut self,
+    ) -> std::result::Result<(DeviceSigner, DeviceManager), Self::Error>;
 
     /// Signing key for the device.
     #[cfg(feature = "device")]
@@ -1334,6 +1344,20 @@ impl Account for LocalAccount {
     #[cfg(feature = "device")]
     async fn device_signer(&self) -> Result<DeviceSigner> {
         Ok(self.user()?.identity()?.device().clone())
+    }
+
+    #[cfg(feature = "device")]
+    async fn new_device_vault(
+        &mut self,
+    ) -> Result<(DeviceSigner, DeviceManager)> {
+        let paths = Arc::clone(&self.paths);
+        let signer = DeviceSigner::new_random();
+        let manager = self
+            .user_mut()?
+            .identity_mut()?
+            .create_device_vault(&*paths, signer.clone(), false)
+            .await?;
+        Ok((signer, manager))
     }
 
     #[cfg(feature = "device")]

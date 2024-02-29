@@ -30,8 +30,6 @@ pub async fn run_pairing_protocol(
     std::fs::remove_dir_all(&data_dir)?;
     std::fs::create_dir(&data_dir)?;
 
-    let mock_device_signer = DeviceSigner::new_random();
-
     let mut enrollment = {
         // Create the offer of device pairing
         let (mut offer, offer_stream) = OfferPairing::new(
@@ -44,20 +42,12 @@ pub async fn run_pairing_protocol(
         let share_url = offer.share_url().clone();
 
         // Generate a mock device
-        let mock_device = TrustedDevice::new(
-            mock_device_signer.public_key().clone(),
-            None,
-            None,
-        );
+        let device_meta: DeviceMetaData = Default::default();
 
         // Create the device that will accept the pairing
-        let (mut accept, accept_stream) = AcceptPairing::new(
-            share_url,
-            &mock_device,
-            mock_device_signer.clone(),
-            Some(data_dir),
-        )
-        .await?;
+        let (mut accept, accept_stream) =
+            AcceptPairing::new(share_url, &device_meta, Some(data_dir))
+                .await?;
 
         let (_otx, offer_shutdown_rx) = mpsc::channel::<()>(1);
         let (_atx, accept_shutdown_rx) = mpsc::channel::<()>(1);
@@ -106,14 +96,7 @@ pub async fn run_inverted_pairing_protocol(
     std::fs::remove_dir_all(&data_dir)?;
     std::fs::create_dir(&data_dir)?;
 
-    let mock_device_signer = DeviceSigner::new_random();
-
-    // Generate a mock device
-    let mock_device = TrustedDevice::new(
-        mock_device_signer.public_key().clone(),
-        None,
-        None,
-    );
+    let device_meta: DeviceMetaData = Default::default();
 
     let mut enrollment = {
         // Accepting side creates the pairing URL passing
@@ -121,8 +104,7 @@ pub async fn run_inverted_pairing_protocol(
         let (share_url, mut accept, accept_stream) =
             AcceptPairing::new_inverted(
                 origin.url().clone(),
-                &mock_device,
-                mock_device_signer.clone(),
+                &device_meta,
                 Some(data_dir),
             )
             .await?;

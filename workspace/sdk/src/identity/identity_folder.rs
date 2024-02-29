@@ -139,14 +139,12 @@ where
     }
 
     /// Ensure that the account has a vault for storing device specific
-    /// information such as the private key used to identify a machine
-    /// and the account's trusted devices.
+    /// information such as the private key used to identify a machine.
     #[cfg(feature = "device")]
     pub(super) async fn ensure_device_vault(
         &mut self,
         paths: &Paths,
     ) -> Result<()> {
-        use crate::constants::DEVICE_KEY_URN;
         let device_vault_path = paths.device_file().to_owned();
 
         let device_vault = if vfs::try_exists(&device_vault_path).await? {
@@ -157,52 +155,10 @@ where
             None
         };
 
-        let device_key_urn: Urn = DEVICE_KEY_URN.parse()?;
         let device_manager = if let Some(vault) = device_vault {
-            let summary = vault.summary().clone();
-            let device_password =
-                self.find_folder_password(summary.id()).await?;
-
-            let vault_file = VaultWriter::open(&device_vault_path).await?;
-            let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
-
-            let mut device_keeper = Gatekeeper::new_mirror(vault, mirror);
-            let key: AccessKey = device_password.into();
-            device_keeper.unlock(&key).await?;
-
-            let mut device_signer_secret: Option<Secret> = None;
-            {
-                for id in device_keeper.vault().keys() {
-                    if let Some((meta, secret, _)) =
-                        device_keeper.read_secret(id).await?
-                    {
-                        if let Some(urn) = meta.urn() {
-                            if urn == &device_key_urn {
-                                device_signer_secret = Some(secret);
-                            }
-                            // Add to the URN lookup index
-                            self.index.insert(
-                                (*device_keeper.id(), urn.clone()),
-                                *id,
-                            );
-                        }
-                    }
-                }
-            }
-
-            if let Some(Secret::Signer {
-                private_key: SecretSigner::SinglePartyEd25519(data),
-                ..
-            }) = device_signer_secret
-            {
-                let key: ed25519::SingleParty =
-                    data.expose_secret().as_slice().try_into()?;
-                Ok(DeviceManager::new(key.into(), device_keeper))
-            } else {
-                Err(Error::VaultEntryKind(device_key_urn.to_string()))
-            }
+            self.read_device_vault(paths, vault).await
         } else {
-            self.create_device_vault(paths, DeviceSigner::new_random())
+            self.create_device_vault(paths, DeviceSigner::new_random(), true)
                 .await
         };
 
@@ -211,18 +167,73 @@ where
         Ok(())
     }
 
+    #[cfg(feature = "device")]
+    fn device_urn(&self, vault_id: &VaultId) -> Result<Urn> {
+        use crate::constants::DEVICE_KEY_URN;
+        let urn = format!("{}:{}", DEVICE_KEY_URN, vault_id);
+        Ok(urn.parse()?)
+    }
+
+    #[cfg(feature = "device")]
+    async fn read_device_vault(
+        &mut self,
+        paths: &Paths,
+        vault: Vault,
+    ) -> Result<DeviceManager> {
+        let device_key_urn = self.device_urn(vault.id())?;
+        let device_vault_path = paths.device_file().to_owned();
+
+        let summary = vault.summary().clone();
+        let device_password = self.find_folder_password(summary.id()).await?;
+
+        let vault_file = VaultWriter::open(&device_vault_path).await?;
+        let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
+
+        let mut device_keeper = Gatekeeper::new_mirror(vault, mirror);
+        let key: AccessKey = device_password.into();
+        device_keeper.unlock(&key).await?;
+
+        let mut device_signer_secret: Option<Secret> = None;
+        {
+            for id in device_keeper.vault().keys() {
+                if let Some((meta, secret, _)) =
+                    device_keeper.read_secret(id).await?
+                {
+                    if let Some(urn) = meta.urn() {
+                        if urn == &device_key_urn {
+                            device_signer_secret = Some(secret);
+                        }
+                        // Add to the URN lookup index
+                        self.index
+                            .insert((*device_keeper.id(), urn.clone()), *id);
+                    }
+                }
+            }
+        }
+
+        if let Some(Secret::Signer {
+            private_key: SecretSigner::SinglePartyEd25519(data),
+            ..
+        }) = device_signer_secret
+        {
+            let key: ed25519::SingleParty =
+                data.expose_secret().as_slice().try_into()?;
+            Ok(DeviceManager::new(key.into(), device_keeper))
+        } else {
+            Err(Error::VaultEntryKind(device_key_urn.to_string()))
+        }
+    }
+
     #[doc(hidden)]
     #[cfg(feature = "device")]
     pub async fn create_device_vault(
         &mut self,
         paths: &Paths,
         signer: DeviceSigner,
+        mirror: bool,
     ) -> Result<DeviceManager> {
-        use crate::constants::DEVICE_KEY_URN;
         let device_vault_path = paths.device_file().to_owned();
-        let device_key_urn: Urn = DEVICE_KEY_URN.parse()?;
-
-        // Prepare the passphrase for the device vault
+        // Prepare the password for the device vault
         let device_password = self.generate_folder_password()?;
 
         // Prepare the device vault
@@ -237,16 +248,22 @@ where
             .password(device_password.clone().into(), None)
             .await?;
 
+        let device_key_urn = self.device_urn(vault.id())?;
+
         self.save_folder_password(vault.id(), device_password.clone().into())
             .await?;
 
         let buffer = encode(&vault).await?;
         vfs::write(&device_vault_path, &buffer).await?;
         let vault_file = VaultWriter::open(&device_vault_path).await?;
-        let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
 
-        let mut device_keeper = Gatekeeper::new_mirror(vault, mirror);
         let key: AccessKey = device_password.into();
+        let mut device_keeper = if mirror {
+            let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
+            Gatekeeper::new_mirror(vault, mirror)
+        } else {
+            Gatekeeper::new(vault)
+        };
         device_keeper.unlock(&key).await?;
 
         let secret = Secret::Signer {
