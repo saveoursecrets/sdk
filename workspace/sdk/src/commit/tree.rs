@@ -40,7 +40,7 @@ impl CommitTree {
 
     /// Insert a commit hash into the tree,
     pub fn insert(&mut self, hash: <Sha256 as Hasher>::Hash) -> &mut Self {
-        self.maybe_last_commit = Some(hash.clone());
+        self.maybe_last_commit = Some(hash);
         self.tree.insert(hash);
         self
     }

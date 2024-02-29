@@ -276,8 +276,10 @@ pub struct ExtraFields {
 
 impl From<&Secret> for ExtraFields {
     fn from(value: &Secret) -> Self {
-        let mut extra: ExtraFields = Default::default();
-        extra.comment = value.user_data().comment().map(|c| c.to_owned());
+        let mut extra = ExtraFields {
+            comment: value.user_data().comment().map(|c| c.to_owned()),
+            ..Default::default()
+        };
         if let Secret::Contact { vcard, .. } = value {
             extra.contact_type = vcard
                 .kind

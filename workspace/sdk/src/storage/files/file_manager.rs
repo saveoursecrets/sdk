@@ -141,13 +141,13 @@ impl ClientStorage {
             self.file_password.as_ref().ok_or(Error::NoFilePassword)?;
 
         // Encrypt and write to disc
-        Ok(FileStorageSync::encrypt_file_storage(
+        FileStorageSync::encrypt_file_storage(
             file_password.clone(),
             source,
             &self.paths,
             vault_id,
             secret_id,
-        )?)
+        )
     }
 
     /// Decrypt a file in the storage location and return the buffer.
@@ -160,14 +160,14 @@ impl ClientStorage {
         let file_password =
             self.file_password.as_ref().ok_or(Error::NoFilePassword)?;
 
-        Ok(FileStorage::decrypt_file_storage(
+        FileStorage::decrypt_file_storage(
             file_password,
             &self.paths,
             vault_id,
             secret_id,
             file_name,
         )
-        .await?)
+        .await
     }
 
     /// Decrypt a file and return the buffer.
@@ -188,7 +188,7 @@ impl ClientStorage {
     ) -> Result<Vec<FileEvent>> {
         let mut events = Vec::new();
         let mut folder_files =
-            list_folder_files(&*self.paths, summary.id()).await?;
+            list_folder_files(&self.paths, summary.id()).await?;
         for (secret_id, mut external_files) in folder_files.drain(..) {
             for file_name in external_files.drain() {
                 events.push(FileEvent::DeleteFile(
@@ -329,10 +329,7 @@ impl ClientStorage {
             events
                 .push(self.delete_file(summary.id(), id, &file_name).await?);
         }
-        Ok(events
-            .into_iter()
-            .map(|e| FileMutationEvent::Delete(e))
-            .collect())
+        Ok(events.into_iter().map(FileMutationEvent::Delete).collect())
     }
 
     /// Delete a file from the storage location.
@@ -366,6 +363,7 @@ impl ClientStorage {
     }
 
     /// Move a collection of external storage files.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn move_files(
         &self,
         secret_data: &SecretRow,

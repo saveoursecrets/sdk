@@ -1094,12 +1094,12 @@ impl LocalAccount {
 
         let audit_event = AuditEvent::new(
             EventKind::MoveSecret,
-            self.address().clone(),
+            *self.address(),
             Some(AuditData::MoveSecret {
                 from_vault_id: *from.id(),
                 to_vault_id: *to.id(),
                 from_secret_id: *secret_id,
-                to_secret_id: new_id.clone(),
+                to_secret_id: new_id,
             }),
         );
         self.paths.append_audit_events(vec![audit_event]).await?;
@@ -1221,7 +1221,7 @@ impl LocalAccount {
 
 impl From<&LocalAccount> for AccountRef {
     fn from(value: &LocalAccount) -> Self {
-        Self::Address(value.address().clone())
+        Self::Address(*value.address())
     }
 }
 
@@ -1290,11 +1290,11 @@ impl LocalAccount {
 
         tracing::debug!(address = %new_account.address, "created account");
 
-        let address = new_account.address.clone();
+        let address = new_account.address;
         let identity_log = new_account.user.identity()?.event_log();
 
         let mut storage = ClientStorage::new(
-            address.clone(),
+            address,
             data_dir.clone(),
             identity_log,
             #[cfg(feature = "device")]
@@ -1490,7 +1490,7 @@ impl Account for LocalAccount {
         storage.set_file_password(Some(file_password));
 
         Self::initialize_account_log(
-            &*self.paths,
+            &self.paths,
             Arc::clone(&storage.account_log),
         )
         .await?;
@@ -1656,7 +1656,7 @@ impl Account for LocalAccount {
         let (old_size, new_size) = {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
-            writer.compact(&summary, &key).await?
+            writer.compact(summary, &key).await?
         };
 
         Ok((old_size, new_size))
@@ -1708,19 +1708,17 @@ impl Account for LocalAccount {
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
 
-        let passphrase =
-            self.user()?.find_folder_password(summary.id()).await?;
+        let key = self.user()?.find_folder_password(summary.id()).await?;
 
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         let vault = FolderReducer::new_until_commit(commit)
-            .reduce(&*log_file)
+            .reduce(&log_file)
             .await?
             .build(true)
             .await?;
 
         let mut keeper = Gatekeeper::new(vault);
-        let key: AccessKey = passphrase.into();
         keeper.unlock(&key).await?;
 
         {
@@ -2339,7 +2337,7 @@ impl Account for LocalAccount {
 
         let audit_event = AuditEvent::new(
             EventKind::ExportVault,
-            self.address().clone(),
+            *self.address(),
             Some(AuditData::Vault(*summary.id())),
         );
         self.paths.append_audit_events(vec![audit_event]).await?;
@@ -2746,7 +2744,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ExportBackupArchive,
-                self.address().clone(),
+                *self.address(),
                 None,
             );
             self.paths.append_audit_events(vec![audit_event]).await?;
@@ -2789,7 +2787,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ImportBackupArchive,
-                account.address().clone(),
+                *account.address(),
                 None,
             );
 
@@ -2851,7 +2849,7 @@ impl Account for LocalAccount {
 
         let audit_event = AuditEvent::new(
             EventKind::ImportBackupArchive,
-            self.address().clone(),
+            *self.address(),
             None,
         );
         self.paths.append_audit_events(vec![audit_event]).await?;

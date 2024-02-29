@@ -166,12 +166,12 @@ where
     ) -> Result<WriteEvent> {
         let mut meta = self.keeper.vault_meta().await?;
         meta.set_description(description.as_ref().to_owned());
-        Ok(self.set_meta(&meta).await?)
+        self.set_meta(&meta).await
     }
 
     /// Set the folder meta data.
     pub async fn set_meta(&mut self, meta: &VaultMeta) -> Result<WriteEvent> {
-        let event = self.keeper.set_vault_meta(&meta).await?;
+        let event = self.keeper.set_vault_meta(meta).await?;
         let mut events = self.events.write().await;
         events.apply(vec![&event]).await?;
         Ok(event)
@@ -180,7 +180,7 @@ where
     /// Folder commit state.
     pub async fn commit_state(&self) -> Result<CommitState> {
         let event_log = self.events.read().await;
-        Ok(event_log.tree().commit_state()?)
+        event_log.tree().commit_state()
     }
 
     /// Apply events to the event log.

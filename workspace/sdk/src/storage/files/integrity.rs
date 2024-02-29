@@ -82,7 +82,7 @@ async fn run_integrity_report(
 
     for chunk in list.chunks(chunk_size) {
         let files: Vec<_> = chunk
-            .into_iter()
+            .iter()
             .map(|file| {
                 let path = paths.file_location(
                     file.vault_id(),
@@ -163,7 +163,7 @@ async fn compare_file(
         let slice: [u8; 32] = digest.as_slice().try_into()?;
         Ok(Some(FailureReason::Corrupted {
             path,
-            expected: external_file.file_name().clone(),
+            expected: *external_file.file_name(),
             actual: slice.into(),
         }))
     } else {

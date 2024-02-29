@@ -52,7 +52,7 @@ impl From<PrivateNewAccount> for AccountPack {
             folders.push(contacts);
         }
         Self {
-            address: value.address.clone(),
+            address: value.address,
             identity_vault: value.identity_vault,
             folders,
         }
@@ -152,7 +152,7 @@ impl AccountBuilder {
         )
         .await?;
 
-        let address = identity_folder.address().clone();
+        let address = *identity_folder.address();
 
         let mut folder_keys = HashMap::new();
 

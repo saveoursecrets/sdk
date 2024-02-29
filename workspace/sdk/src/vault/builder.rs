@@ -24,6 +24,12 @@ pub struct VaultBuilder {
     kdf: KeyDerivation,
 }
 
+impl Default for VaultBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VaultBuilder {
     /// Create a new vault builder.
     pub fn new() -> Self {

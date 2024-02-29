@@ -106,7 +106,7 @@ impl ServerStorage {
             Self::initialize_device_log(&*paths).await?;
 
         #[cfg(feature = "files")]
-        let file_log = Self::initialize_file_log(&*paths).await?;
+        let file_log = Self::initialize_file_log(&paths).await?;
 
         Ok(Self {
             address,
@@ -377,7 +377,7 @@ impl ServerStorage {
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
         let event_log = event_log.read().await;
-        Ok(event_log.tree().commit_state()?)
+        event_log.tree().commit_state()
     }
 }
 

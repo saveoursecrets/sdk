@@ -1,5 +1,6 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::module_inception)]
+#![allow(clippy::new_without_default)]
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]

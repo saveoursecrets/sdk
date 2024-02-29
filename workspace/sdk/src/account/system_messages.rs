@@ -56,7 +56,7 @@ pub enum SysMessageLevel {
 /// Higher priority messages are sorted before
 /// lower priority messages, if priorities are
 /// equal sorting uses the created date and time.
-#[derive(Debug, Serialize, Deserialize, Ord, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SysMessage {
     /// Date and time the message was created.
@@ -74,7 +74,6 @@ pub struct SysMessage {
     /// Level indicator.
     pub level: SysMessageLevel,
 }
-
 impl SysMessage {
     /// Create a new message.
     pub fn new(title: String, content: String) -> Self {
@@ -110,11 +109,15 @@ impl SysMessage {
 
 impl PartialOrd for SysMessage {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SysMessage {
+    fn cmp(&self, other: &Self) -> Ordering {
         match other.priority.cmp(&self.priority) {
-            std::cmp::Ordering::Equal => {
-                Some(other.created.cmp(&self.created))
-            }
-            result => Some(result),
+            std::cmp::Ordering::Equal => other.created.cmp(&self.created),
+            result => result,
         }
     }
 }

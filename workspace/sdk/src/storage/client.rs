@@ -147,10 +147,10 @@ impl ClientStorage {
 
         #[cfg(feature = "device")]
         let (device_log, devices) =
-            Self::initialize_device_log(&*paths, device).await?;
+            Self::initialize_device_log(&paths, device).await?;
 
         #[cfg(feature = "files")]
-        let file_log = Self::initialize_file_log(&*paths).await?;
+        let file_log = Self::initialize_file_log(&paths).await?;
 
         #[cfg(all(feature = "files", feature = "sync"))]
         let transfers = Transfers::new(&*paths).await?;
@@ -398,7 +398,7 @@ impl ClientStorage {
     ) -> Result<Vec<Event>> {
         let mut events = Vec::new();
 
-        let create_account = Event::CreateAccount(account.address.clone());
+        let create_account = Event::CreateAccount(account.address);
 
         #[cfg(feature = "audit")]
         {
@@ -451,7 +451,7 @@ impl ClientStorage {
             let key = folder_keys
                 .find(vault.id())
                 .ok_or(Error::NoFolderKey(*vault.id()))?;
-            self.refresh_vault(vault.summary(), &key).await?;
+            self.refresh_vault(vault.summary(), key).await?;
         }
 
         Ok(())
@@ -521,7 +521,7 @@ impl ClientStorage {
     /// Read a vault from the file on disc.
     pub(crate) async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
         let buffer = self.read_vault_file(id).await?;
-        Ok(decode(&buffer).await?)
+        decode(&buffer).await
     }
 
     /// Read the buffer for a vault from disc.
@@ -595,7 +595,7 @@ impl ClientStorage {
 
     /// Remove the local cache for a vault.
     fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
-        let current_id = self.current_folder().map(|c| c.id().clone());
+        let current_id = self.current_folder().map(|c| *c.id());
 
         // If the deleted vault is the currently selected
         // vault we must close it
@@ -884,11 +884,11 @@ impl ClientStorage {
             .ok_or(Error::CacheNotAvailable(*summary.id()))?;
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
-        Ok(FolderReducer::new()
-            .reduce(&*log_file)
+        FolderReducer::new()
+            .reduce(&log_file)
             .await?
             .build(true)
-            .await?)
+            .await
     }
 
     /// Load folders from the local disc.
@@ -932,7 +932,7 @@ impl ClientStorage {
 
         #[cfg(feature = "files")]
         {
-            let mut file_events = self.delete_folder_files(&summary).await?;
+            let mut file_events = self.delete_folder_files(summary).await?;
             let mut writer = self.file_log.write().await;
             writer.apply(file_events.iter().collect()).await?;
             for event in file_events.drain(..) {

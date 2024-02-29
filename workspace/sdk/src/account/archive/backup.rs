@@ -215,10 +215,10 @@ impl AccountBackup {
         }
 
         let files = paths.files_dir();
-        for entry in WalkDir::new(&files) {
+        for entry in WalkDir::new(files) {
             let entry = entry?;
             if vfs::metadata(entry.path()).await?.is_file() {
-                let relative = entry.path().strip_prefix(&files)?;
+                let relative = entry.path().strip_prefix(files)?;
 
                 let mut it = relative.iter();
                 if let (Some(vault_id), Some(secret_id), Some(file_name)) =
@@ -322,11 +322,11 @@ impl AccountBackup {
         }
 
         let files = paths.files_dir();
-        for entry in WalkDir::new(&files) {
+        for entry in WalkDir::new(files) {
             let entry = entry?;
             if vfs::metadata(entry.path()).await?.is_file() {
                 let relative = PathBuf::from("files")
-                    .join(entry.path().strip_prefix(&files)?);
+                    .join(entry.path().strip_prefix(files)?);
                 let relative = relative.to_string_lossy().into_owned();
                 let buffer = vfs::read(entry.path()).await?;
                 writer = writer.add_file(&relative, &buffer).await?;

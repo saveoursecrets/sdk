@@ -134,7 +134,7 @@ impl Gatekeeper {
             .decrypt(private_key, meta_aead)
             .await
             .map_err(|_| Error::PassphraseVerification)?;
-        Ok(decode(&meta_blob).await?)
+        decode(&meta_blob).await
     }
 
     /// Set the meta data for the vault.

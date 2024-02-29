@@ -275,7 +275,7 @@ where
     /// Read encoding version from the backing storage.
     #[doc(hidden)]
     async fn read_file_version(&self) -> Result<u16> {
-        if let Some(_) = self.version() {
+        if self.version().is_some() {
             let rw = self.file();
             let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.0);
             file.seek(SeekFrom::Start(self.identity().len() as u64))
@@ -484,7 +484,7 @@ where
             .compat_write();
 
         file.seek(SeekFrom::Start(0)).await?;
-        file.write_all(&self.identity).await?;
+        file.write_all(self.identity).await?;
         if let Some(version) = self.version() {
             file.write_all(&version.to_le_bytes()).await?;
         }

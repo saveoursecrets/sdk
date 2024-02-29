@@ -664,7 +664,7 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
             return Err(Error::NotIdentityFolder);
         }
 
-        folder.unlock(&key).await?;
+        folder.unlock(key).await?;
 
         let (index, private_identity) =
             Self::login_private_identity(folder.keeper()).await?;
@@ -699,7 +699,7 @@ impl IdentityFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
             return Err(Error::NotIdentityFolder);
         }
 
-        folder.unlock(&key).await?;
+        folder.unlock(key).await?;
 
         let (index, private_identity) =
             Self::login_private_identity(folder.keeper()).await?;

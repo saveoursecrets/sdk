@@ -518,8 +518,7 @@ impl Paths {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn default_storage_dir() -> Result<PathBuf> {
-    Ok(get_app_root(AppDataType::UserData, &APP_INFO)
-        .map_err(|_| Error::NoCache)?)
+    get_app_root(AppDataType::UserData, &APP_INFO).map_err(|_| Error::NoCache)
 }
 
 #[cfg(target_arch = "wasm32")]
