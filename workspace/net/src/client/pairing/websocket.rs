@@ -366,15 +366,6 @@ impl<'a> OfferPairing<'a> {
                         self.account.new_device_vault().await?;
                     let device_key_buffer =
                         manager.into_vault_buffer().await?;
-                    // Creating a new device vault saves the folder password
-                    // and therefore updates the identity folder so we need
-                    // to sync to ensure the other half of the pairing will
-                    // fetch data that includes the password for the device
-                    // vault we will send
-                    let origins =
-                        vec![self.share_url.server().clone().into()];
-                    let options = SyncOptions { origins };
-                    self.account.sync_with_options(&options).await;
 
                     self.register_device(device_signer.public_key(), device)
                         .await?;
@@ -437,6 +428,19 @@ impl<'a> OfferPairing<'a> {
         // Send the patch to remote servers
         if let Some(sync_error) = self.account.patch_devices().await {
             return Err(Error::DevicePatchSync(sync_error));
+        }
+
+        // Creating a new device vault saves the folder password
+        // and therefore updates the identity folder so we need
+        // to sync to ensure the other half of the pairing will
+        // fetch data that includes the password for the device
+        // vault we will send
+        let origins = vec![self.share_url.server().clone().into()];
+        let options = SyncOptions { origins };
+        if let Some(sync_error) =
+            self.account.sync_with_options(&options).await
+        {
+            return Err(Error::EnrollSync(sync_error));
         }
 
         Ok(())

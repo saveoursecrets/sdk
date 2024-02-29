@@ -144,14 +144,12 @@ impl DeviceEnrollment {
         self.create_device(change_set.device).await?;
         self.create_identity(change_set.identity).await?;
 
-        /*
-        // Write the pending enrollment
-        let data = PendingEnrollment {
-            origin: self.origin.clone(),
-        };
-        let contents = serde_json::to_vec_pretty(&data)?;
-        vfs::write(self.paths.enrollment(), &contents).await?;
-        */
+        // Write the vault containing the device signing key
+        vfs::write(self.paths.device_file(), &self.device_vault).await?;
+
+        // Add the remote origin so it is loaded as
+        // a remote on the next sign in
+        self.add_origin().await?;
 
         Ok(())
     }
@@ -169,35 +167,8 @@ impl DeviceEnrollment {
         )
         .await?;
 
-        // Add the remote origin so it is loaded as
-        // a remote when the sign in is successful
-        self.add_origin().await?;
-
-        // Create the vault for the device signing key
-        let mut folder =
-            DiscIdentityFolder::login(self.paths.identity_vault(), key)
-                .await?;
-        folder
-            .create_device_vault(
-                &self.paths,
-                self.device_signing_key.clone(),
-                true,
-            )
-            .await?;
-
         // Sign in to the new account
         account.sign_in(key).await?;
-
-        /*
-        // Clean up the pending enrollment
-        vfs::remove_file(self.paths.enrollment()).await?;
-        */
-
-        // Sync to save the amended identity folder on the remote
-        if let Some(e) = account.sync().await {
-            tracing::error!(error = ?e);
-            return Err(Error::EnrollSync(e));
-        }
 
         Ok(account)
     }
