@@ -2,7 +2,6 @@
 use crate::{
     client::{
         pairing::{Error, Result},
-        sync::RemoteSync,
         HttpClient, NetworkAccount,
     },
     sdk::{
@@ -14,7 +13,7 @@ use crate::{
             AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
             FolderReducer, WriteEvent,
         },
-        identity::{DiscIdentityFolder, PublicIdentity},
+        identity::PublicIdentity,
         signer::{
             ecdsa::{Address, BoxedEcdsaSigner},
             ed25519::BoxedEd25519Signer,
@@ -24,7 +23,6 @@ use crate::{
         vfs, Paths,
     },
 };
-use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -35,17 +33,6 @@ use crate::sdk::{
     events::{DeviceEvent, DeviceEventLog},
     sync::DevicePatch,
 };
-
-/// Pending enrollment written to disc between
-/// fetching an account and finishing enrollment.
-///
-/// Can be used to detect that an account was
-/// created from an enrollment that was not finished.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PendingEnrollment {
-    /// Server origin the account was fetched from.
-    pub origin: Origin,
-}
 
 /// Enroll a device.
 ///

@@ -1,5 +1,5 @@
 //! Protocol for pairing devices.
-use crate::sdk::device::{DeviceMetaData, DeviceSigner};
+use crate::sdk::device::DeviceMetaData;
 use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
 
@@ -8,7 +8,7 @@ mod error;
 mod share_url;
 mod websocket;
 
-pub use enrollment::{DeviceEnrollment, PendingEnrollment};
+pub use enrollment::DeviceEnrollment;
 pub use error::Error;
 pub use share_url::ServerPairUrl;
 pub use websocket::{AcceptPairing, OfferPairing};
