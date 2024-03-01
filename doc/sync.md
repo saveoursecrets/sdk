@@ -36,7 +36,7 @@ If an implementation wants to add an additional token (eg: JWT, PASETO etc) for 
 
 ## Reference Implementation
 
-The [sos-net](/workspace/net) crate provides a client and server reference implementation; pre-built binaries can be [downloaded from our website](https://saveoursecrets.com/command-line-tools/).
+The [sos-net](/crates/net) crate provides a client and server reference implementation; pre-built binaries can be [downloaded from our website](https://saveoursecrets.com/command-line-tools/).
 
 To start a server first initialize a configuration file:
 

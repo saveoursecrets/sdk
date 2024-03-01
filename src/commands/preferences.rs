@@ -102,7 +102,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let paths = owner.paths();
-            let mut prefs = Preferences::new(&*paths);
+            let mut prefs = Preferences::new(&paths);
             prefs.load().await?;
             if prefs.is_empty() {
                 println!("No preferences yet");
@@ -116,7 +116,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let paths = owner.paths();
-            let mut prefs = Preferences::new(&*paths);
+            let mut prefs = Preferences::new(&paths);
             prefs.load().await?;
             if let Some(pref) = prefs.get_unchecked(&key) {
                 println!("{}={}", key, pref);
@@ -128,7 +128,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let paths = owner.paths();
-            let mut prefs = Preferences::new(&*paths);
+            let mut prefs = Preferences::new(&paths);
             prefs.load().await?;
             let pref = prefs.remove(&key).await?;
             if pref.is_some() {
@@ -170,7 +170,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let paths = owner.paths();
-            let mut prefs = Preferences::new(&*paths);
+            let mut prefs = Preferences::new(&paths);
             prefs.clear().await?;
             success("Cleared all preferences");
         }
@@ -186,7 +186,7 @@ async fn set_pref(
     let user = resolve_user(account.as_ref(), false).await?;
     let owner = user.read().await;
     let paths = owner.paths();
-    let mut prefs = Preferences::new(&*paths);
+    let mut prefs = Preferences::new(&paths);
     prefs.load().await?;
     prefs.insert(key.clone(), pref).await?;
     success(format!("Set {}", key));

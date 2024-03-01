@@ -125,12 +125,12 @@ pub async fn resolve_account_address(
         match account {
             AccountRef::Name(ref name) => {
                 if info.label() == name {
-                    return Ok(info.address().clone());
+                    return Ok(*info.address());
                 }
             }
             AccountRef::Address(address) => {
                 if info.address() == &address {
-                    return Ok(info.address().clone());
+                    return Ok(*info.address());
                 }
             }
         }
@@ -239,7 +239,7 @@ pub async fn sign_in(
     let passphrase = read_password(Some("Password: "))?;
 
     let mut owner = NetworkAccount::new_unauthenticated(
-        account.address().clone(),
+        *account.address(),
         None,
         is_offline(),
     )
@@ -344,7 +344,7 @@ pub async fn new_account(
         .padding(Padding::one())
         .text("NEW ACCOUNT".into())
         .newline()
-        .text(format!("{}", account_name).into())
+        .text(account_name.clone().into())
         .newline()
         .text(
             "Creating a new account will perform the following actions:"
