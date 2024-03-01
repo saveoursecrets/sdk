@@ -1,16 +1,9 @@
 use super::Error;
 use async_trait::async_trait;
-use sos_sdk::sync::Origin;
+use sos_sdk::sync::{Origin, SyncOptions};
 
 /// Error type that can be returned from a sync operation.
 pub type SyncError = sos_sdk::sync::SyncError<Error>;
-
-/// Options for sync operation.
-#[derive(Default, Debug)]
-pub struct SyncOptions {
-    /// Only sync these origins.
-    pub origins: Vec<Origin>,
-}
 
 /// Trait for types that can sync accounts with a remote.
 #[async_trait]

@@ -4,13 +4,13 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_net::{
-    client::{NetworkAccount, RemoteSync, SyncOptions},
+    client::{NetworkAccount, RemoteSync},
     sdk::{
         account::Account,
         commit::{CommitState, CommitTree, Comparison},
         events::EventLogExt,
         identity::AccountRef,
-        sync::{Origin, SyncStatus, SyncStorage},
+        sync::{Origin, SyncOptions, SyncStatus, SyncStorage},
         url::Url,
     },
 };

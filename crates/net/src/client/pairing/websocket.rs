@@ -3,7 +3,7 @@ use super::{DeviceEnrollment, Error, PairingMessage, Result, ServerPairUrl};
 use crate::{
     client::{
         pairing::PairingConfirmation, sync::RemoteSync, NetworkAccount,
-        SyncOptions, WebSocketRequest,
+        WebSocketRequest,
     },
     relay::{RelayBody, RelayHeader, RelayPacket, RelayPayload},
     sdk::{
@@ -13,7 +13,7 @@ use crate::{
         encode,
         events::DeviceEvent,
         signer::ecdsa::SingleParty,
-        sync::Origin,
+        sync::{Origin, SyncOptions},
         url::Url,
     },
 };
