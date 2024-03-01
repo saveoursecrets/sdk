@@ -225,7 +225,7 @@ impl Transfers {
         ops: TransferQueue,
     ) -> Result<()> {
         for (file, mut operations) in ops {
-            let entries = self.queue.entry(file).or_insert(IndexSet::new());
+            let entries = self.queue.entry(file).or_default();
             for op in operations.drain(..) {
                 entries.insert(op);
             }
@@ -319,7 +319,7 @@ impl Transfers {
                 // Single upload event without a local file to
                 // upload can be removed
                 if let (true, Some(&TransferOperation::Upload)) =
-                    (ops.len() == 1, ops.get(0))
+                    (ops.len() == 1, ops.first())
                 {
                     if !vfs::try_exists(&path).await? {
                         deletions.push(*file);
@@ -353,7 +353,7 @@ impl Transfers {
                     true,
                     Some(&TransferOperation::Upload),
                     Some(&TransferOperation::Delete),
-                ) = (ops.len() == 2, ops.get(0), ops.get(1))
+                ) = (ops.len() == 2, ops.first(), ops.get(1))
                 {
                     if !vfs::try_exists(&path).await? {
                         let mut set = IndexSet::new();
@@ -395,8 +395,7 @@ impl FileTransfers {
         clients: Vec<C>,
         mut shutdown: UnboundedReceiver<()>,
         shutdown_ack: oneshot::Sender<()>,
-    ) -> ()
-    where
+    ) where
         E: std::fmt::Debug + Send + Sync + 'static,
         C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
     {

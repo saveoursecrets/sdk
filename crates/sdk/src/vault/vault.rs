@@ -662,10 +662,9 @@ impl Vault {
             // Ensure the owner public key is always in the list
             // of recipients
             let owner_public = owner.to_public();
-            if recipients
+            if !recipients
                 .iter()
-                .find(|r| r.to_string() == owner_public.to_string())
-                .is_none()
+                .any(|r| r.to_string() == owner_public.to_string())
             {
                 recipients.push(owner_public);
             }

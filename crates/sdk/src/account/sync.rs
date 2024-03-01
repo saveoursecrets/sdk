@@ -91,8 +91,7 @@ impl Merge for LocalAccount {
                             // we only update the in-memory version here
                             // and let the folder merge make the other
                             // necessary changes
-                            storage
-                                .set_folder_name(summary, name.to_owned())?;
+                            storage.set_folder_name(summary, name)?;
                         }
                     }
                     AccountEvent::DeleteFolder(id) => {
@@ -170,13 +169,13 @@ impl Merge for LocalAccount {
             && event_log.tree().is_empty()
         {
             event_log.apply((&diff.patch).into()).await?;
-            let reducer = FileReducer::new(&*event_log);
+            let reducer = FileReducer::new(&event_log);
             let external_files = reducer.reduce(None).await?;
             (None, external_files)
         } else {
             let checked_patch =
                 event_log.patch_checked(&diff.before, &diff.patch).await?;
-            let reducer = FileReducer::new(&*event_log);
+            let reducer = FileReducer::new(&event_log);
             let external_files =
                 reducer.reduce(diff.last_commit.as_ref()).await?;
             (Some(checked_patch), external_files)

@@ -153,7 +153,7 @@ impl ClientStorage {
         let file_log = Self::initialize_file_log(&paths).await?;
 
         #[cfg(all(feature = "files", feature = "sync"))]
-        let transfers = Transfers::new(&*paths).await?;
+        let transfers = Transfers::new(&paths).await?;
 
         #[cfg(all(feature = "files", feature = "sync"))]
         let inflight_transfers = InflightTransfers::new();

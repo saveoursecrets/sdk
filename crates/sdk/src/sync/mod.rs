@@ -17,7 +17,7 @@ use std::{
     collections::HashMap,
     fmt,
     hash::{Hash, Hasher},
-    path::PathBuf,
+    path::Path,
     sync::Arc,
 };
 use tokio::sync::RwLock;
@@ -276,12 +276,10 @@ impl SyncComparison {
                 } else {
                     Some(reader.tree().compare(&files.1)?)
                 }
+            } else if reader.tree().is_empty() {
+                None
             } else {
-                if reader.tree().is_empty() {
-                    None
-                } else {
-                    Some(Comparison::Unknown)
-                }
+                Some(Comparison::Unknown)
             }
         };
 
@@ -442,21 +440,19 @@ impl SyncComparison {
             }
             // Remote does not have any files yet so we need
             // to send the entire file event log
-            (Some(files), None) => {
-                if let Comparison::Unknown = files {
-                    // Need to push changes to remote
-                    let log = storage.file_log().await?;
-                    let reader = log.read().await;
-                    if !reader.tree().is_empty() {
-                        let after = reader.tree().head()?;
-                        let files = FileDiff {
-                            last_commit: None,
-                            patch: reader.diff(None).await?,
-                            after,
-                            before: Default::default(),
-                        };
-                        diff.files = Some(files);
-                    }
+            (Some(Comparison::Unknown), None) => {
+                // Need to push changes to remote
+                let log = storage.file_log().await?;
+                let reader = log.read().await;
+                if !reader.tree().is_empty() {
+                    let after = reader.tree().head()?;
+                    let files = FileDiff {
+                        last_commit: None,
+                        patch: reader.diff(None).await?,
+                        after,
+                        before: Default::default(),
+                    };
+                    diff.files = Some(files);
                 }
             }
             _ => {}
@@ -581,7 +577,7 @@ pub trait SyncClient {
     async fn upload_file(
         &self,
         file_info: &crate::storage::files::ExternalFile,
-        path: &PathBuf,
+        path: &Path,
         progress: Arc<crate::storage::files::ProgressChannel>,
     ) -> std::result::Result<http::StatusCode, Self::Error>;
 
@@ -590,7 +586,7 @@ pub trait SyncClient {
     async fn download_file(
         &self,
         file_info: &crate::storage::files::ExternalFile,
-        path: &PathBuf,
+        path: &Path,
         progress: Arc<crate::storage::files::ProgressChannel>,
     ) -> std::result::Result<http::StatusCode, Self::Error>;
 

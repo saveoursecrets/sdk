@@ -11,7 +11,6 @@ use sos_sdk::{
 };
 
 use serde_json::Value;
-use tokio::io::AsyncWriteExt;
 use tracing::{span, Level};
 
 #[cfg(feature = "listen")]
@@ -28,7 +27,7 @@ use crate::sdk::storage::files::{
     ExternalFile, FileSet, FileTransfersSet, ProgressChannel,
 };
 
-use std::{path::PathBuf, sync::Arc};
+use std::{path::Path, sync::Arc};
 use url::Url;
 
 use crate::client::{Error, Result};
@@ -341,7 +340,7 @@ impl SyncClient for HttpClient {
     async fn upload_file(
         &self,
         file_info: &ExternalFile,
-        path: &PathBuf,
+        path: &Path,
         progress: Arc<ProgressChannel>,
     ) -> std::result::Result<http::StatusCode, Self::Error> {
         use crate::sdk::vfs;
@@ -407,10 +406,11 @@ impl SyncClient for HttpClient {
     async fn download_file(
         &self,
         file_info: &ExternalFile,
-        path: &PathBuf,
+        path: &Path,
         progress: Arc<ProgressChannel>,
     ) -> std::result::Result<http::StatusCode, Self::Error> {
         use crate::sdk::vfs;
+        use tokio::io::AsyncWriteExt;
 
         let span = span!(Level::DEBUG, "download_file");
         let _enter = span.enter();

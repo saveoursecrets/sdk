@@ -300,7 +300,7 @@ where
         commit_proof: &CommitProof,
         patch: &Patch<E>,
     ) -> Result<CheckedPatch> {
-        let comparison = self.tree().compare(&commit_proof)?;
+        let comparison = self.tree().compare(commit_proof)?;
         match comparison {
             Comparison::Equal => {
                 let commits = self.patch_unchecked(patch).await?;
