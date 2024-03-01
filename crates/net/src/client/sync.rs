@@ -1,6 +1,6 @@
 use super::Error;
 use async_trait::async_trait;
-use sos_sdk::sync::{Origin, SyncOptions};
+use sos_sdk::sync::SyncOptions;
 
 /// Error type that can be returned from a sync operation.
 pub type SyncError = sos_sdk::sync::SyncError<Error>;

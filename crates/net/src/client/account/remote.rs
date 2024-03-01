@@ -211,7 +211,7 @@ impl RemoteSync for RemoteBridge {
 
     async fn patch_devices(
         &self,
-        options: &SyncOptions,
+        _options: &SyncOptions,
     ) -> Option<SyncError> {
         match self.execute_sync_devices().await {
             Ok(_) => None,
