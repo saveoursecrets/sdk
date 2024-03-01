@@ -1,9 +1,9 @@
 //! Adds sync capability to network account.
-use crate::client::{NetworkAccount, RemoteSync, SyncError, SyncOptions};
+use crate::client::{NetworkAccount, RemoteSync, SyncError};
 use async_trait::async_trait;
 use sos_sdk::{
     events::{AccountEventLog, FolderEventLog},
-    sync::{Origin, SyncClient, SyncStatus, SyncStorage},
+    sync::{Origin, SyncClient, SyncOptions, SyncStatus, SyncStorage},
     vault::VaultId,
     Result,
 };
@@ -109,7 +109,10 @@ impl RemoteSync for NetworkAccount {
         maybe_error.into_option()
     }
 
-    async fn patch_devices(&self) -> Option<SyncError> {
+    async fn patch_devices(
+        &self,
+        options: &SyncOptions,
+    ) -> Option<SyncError> {
         if self.offline {
             tracing::warn!("offline mode active, ignoring patch devices");
             return None;
@@ -119,9 +122,16 @@ impl RemoteSync for NetworkAccount {
         let mut maybe_error: SyncError = Default::default();
         let remotes = self.remotes.read().await;
 
-        for remote in remotes.values() {
-            if let Some(mut e) = remote.patch_devices().await {
-                maybe_error.errors.append(&mut e.errors);
+        for (origin, remote) in &*remotes {
+            let sync_remote = options.origins.is_empty()
+                || options.origins.contains(origin);
+
+            if sync_remote {
+                if let Some(mut e) =
+                    remote.patch_devices(&Default::default()).await
+                {
+                    maybe_error.errors.append(&mut e.errors);
+                }
             }
         }
         maybe_error.into_option()

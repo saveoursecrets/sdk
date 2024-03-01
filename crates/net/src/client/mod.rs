@@ -14,7 +14,7 @@ pub use error::Error;
 pub use net::HttpClient;
 #[cfg(feature = "listen")]
 pub use net::{changes, connect, ListenOptions, WebSocketHandle};
-pub use sync::{RemoteSync, SyncError, SyncOptions};
+pub use sync::{RemoteSync, SyncError};
 
 /// Result type for the client module.
 pub type Result<T> = std::result::Result<T, error::Error>;

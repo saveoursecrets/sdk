@@ -1,14 +1,13 @@
 //! Bridge between local storage and a remote server.
-use crate::client::{
-    net::HttpClient, Error, RemoteSync, Result, SyncError, SyncOptions,
-};
+use crate::client::{net::HttpClient, Error, RemoteSync, Result, SyncError};
 use async_trait::async_trait;
 use sos_sdk::{
     account::{Account, LocalAccount},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::files::{list_external_files, FileSet},
     sync::{
-        self, Merge, Origin, SyncClient, SyncPacket, SyncStatus, SyncStorage,
+        self, Merge, Origin, SyncClient, SyncOptions, SyncPacket, SyncStatus,
+        SyncStorage,
     },
 };
 use std::{collections::HashMap, sync::Arc};
@@ -210,7 +209,10 @@ impl RemoteSync for RemoteBridge {
         }
     }
 
-    async fn patch_devices(&self) -> Option<SyncError> {
+    async fn patch_devices(
+        &self,
+        options: &SyncOptions,
+    ) -> Option<SyncError> {
         match self.execute_sync_devices().await {
             Ok(_) => None,
             Err(e) => Some(SyncError {

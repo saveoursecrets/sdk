@@ -3,7 +3,7 @@ use super::{DeviceEnrollment, Error, PairingMessage, Result, ServerPairUrl};
 use crate::{
     client::{
         pairing::PairingConfirmation, sync::RemoteSync, NetworkAccount,
-        SyncOptions, WebSocketRequest,
+        WebSocketRequest,
     },
     relay::{RelayBody, RelayHeader, RelayPacket, RelayPayload},
     sdk::{
@@ -13,7 +13,7 @@ use crate::{
         encode,
         events::DeviceEvent,
         signer::ecdsa::SingleParty,
-        sync::Origin,
+        sync::{Origin, SyncOptions},
         url::Url,
     },
 };
@@ -423,8 +423,17 @@ impl<'a> OfferPairing<'a> {
             writer.patch_devices_unchecked(events).await?;
         }
 
-        // Send the patch to remote servers
-        if let Some(sync_error) = self.account.patch_devices().await {
+        // Send the patch to the remote server.
+        //
+        // We only send to the target server otherwise
+        // another server that is down can prevent pairing
+        // from completing.
+        //
+        // Other servers will need to eventually get the updated
+        // devices the next time they are synced.
+        let origins = vec![self.share_url.server().clone().into()];
+        let options = SyncOptions { origins };
+        if let Some(sync_error) = self.account.patch_devices(&options).await {
             return Err(Error::DevicePatchSync(sync_error));
         }
 
@@ -433,8 +442,6 @@ impl<'a> OfferPairing<'a> {
         // to sync to ensure the other half of the pairing will
         // fetch data that includes the password for the device
         // vault we will send
-        let origins = vec![self.share_url.server().clone().into()];
-        let options = SyncOptions { origins };
         if let Some(sync_error) =
             self.account.sync_with_options(&options).await
         {

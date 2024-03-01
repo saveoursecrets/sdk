@@ -82,6 +82,13 @@ impl From<Url> for Origin {
     }
 }
 
+/// Options for sync operation.
+#[derive(Default, Debug)]
+pub struct SyncOptions {
+    /// Only sync these origins.
+    pub origins: Vec<Origin>,
+}
+
 /// Error type that can be returned from a sync operation.
 #[derive(Debug)]
 pub struct SyncError<T: std::error::Error> {
