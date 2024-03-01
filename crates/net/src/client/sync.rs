@@ -37,5 +37,6 @@ pub trait RemoteSync {
     ) -> Option<SyncError>;
 
     /// Patch the device log on the remote.
-    async fn patch_devices(&self) -> Option<SyncError>;
+    async fn patch_devices(&self, options: &SyncOptions)
+        -> Option<SyncError>;
 }

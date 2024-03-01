@@ -209,7 +209,10 @@ impl RemoteSync for RemoteBridge {
         }
     }
 
-    async fn patch_devices(&self) -> Option<SyncError> {
+    async fn patch_devices(
+        &self,
+        options: &SyncOptions,
+    ) -> Option<SyncError> {
         match self.execute_sync_devices().await {
             Ok(_) => None,
             Err(e) => Some(SyncError {
