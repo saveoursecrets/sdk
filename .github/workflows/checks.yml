@@ -50,13 +50,6 @@ jobs:
           security list-keychains -s $HOME/Library/Keychains/sos-mock.keychain-db
           security list-keychains
 
-
-      - name: Check code
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all --locked --target ${{ matrix.binary_target }} --all-features
-
       - name: Install cargo-make
         run: |
           cargo install cargo-make
