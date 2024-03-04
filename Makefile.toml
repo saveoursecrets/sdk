@@ -124,6 +124,7 @@ command = "cargo"
 args = ["test", "system_messages_"]
 
 [tasks.clean-cli]
+script_runner = "@shell"
 script = '''
 rm -rf target/accounts
 rm -f target/*.{zip,vcf,heic,txt,toml,csv,json}
