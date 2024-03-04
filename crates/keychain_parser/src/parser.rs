@@ -786,7 +786,7 @@ impl<'s> Value<'s> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos"))]
 mod test {
     use super::{unescape_octal, KeychainParser};
     use anyhow::Result;
