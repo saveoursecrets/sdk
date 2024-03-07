@@ -99,7 +99,7 @@ features = ["full"]
 path = "crates/net"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
+clap = { version = "4.5.2", features = ["derive", "wrap_help", "env"] }
 axum-server = { version = "0.6", features = ["tls-rustls"] }
 tokio = { version = "1", features = ["full"] }
 arboard = "3"
