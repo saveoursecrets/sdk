@@ -27,7 +27,7 @@ use crate::sdk::storage::files::{
     ExternalFile, FileSet, FileTransfersSet, ProgressChannel,
 };
 
-use std::{path::Path, sync::Arc};
+use std::{path::Path, sync::Arc, time::Duration};
 use url::Url;
 
 use crate::client::{Error, Result};
@@ -65,7 +65,9 @@ impl HttpClient {
         device_signer: BoxedEd25519Signer,
         connection_id: String,
     ) -> Result<Self> {
-        let client = reqwest::Client::new();
+        let client = reqwest::ClientBuilder::new()
+            .connect_timeout(Duration::from_millis(3000))
+            .build()?;
         Ok(Self {
             origin,
             account_signer,
