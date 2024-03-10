@@ -99,6 +99,3 @@ jobs:
           index-html s3 \
             --bucket $BUCKET \
             --page-title Releases && \
-          aws cloudfront create-invalidation \
-            --distribution-id $RELEASES_CLOUDFRONT_ID \
-            --paths '/*'
