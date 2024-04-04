@@ -39,14 +39,6 @@ use super::{
     bearer_prefix, encode_account_signature, encode_device_signature,
 };
 
-// Hack for incompatible http types as reqwest is currently
-// using an old version of HTTP.
-//
-// Once reqwest ships with http@1 we can remove this hack.
-fn convert_status_code(value: reqwest::StatusCode) -> http::StatusCode {
-    http::StatusCode::from_u16(value.as_u16()).unwrap()
-}
-
 /// Client that can synchronize with a server over HTTP(S).
 #[derive(Clone)]
 pub struct HttpClient {
@@ -134,7 +126,7 @@ impl HttpClient {
     ) -> Result<reqwest::Response> {
         use reqwest::header::{self, HeaderValue};
         let sos_type = HeaderValue::from_static(MIME_TYPE_SOS);
-        let status = convert_status_code(response.status());
+        let status = response.status();
         let content_type = response.headers().get(&header::CONTENT_TYPE);
         match (status, content_type) {
             // OK with the correct MIME type can be handled
@@ -161,7 +153,7 @@ impl HttpClient {
     ) -> Result<reqwest::Response> {
         use reqwest::header::{self, HeaderValue};
 
-        let status = convert_status_code(response.status());
+        let status = response.status();
         let json_type = HeaderValue::from_static("application/json");
         let content_type = response.headers().get(&header::CONTENT_TYPE);
         if !status.is_success() {
@@ -212,7 +204,7 @@ impl SyncClient for HttpClient {
             .body(body)
             .send()
             .await?;
-        let status = convert_status_code(response.status());
+        let status = response.status();
         tracing::debug!(status = %status);
         self.error_json(response).await?;
         Ok(())
@@ -241,7 +233,7 @@ impl SyncClient for HttpClient {
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
-        let status = convert_status_code(response.status());
+        let status = response.status();
         tracing::debug!(status = %status);
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
@@ -269,7 +261,7 @@ impl SyncClient for HttpClient {
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
-        let status = convert_status_code(response.status());
+        let status = response.status();
         tracing::debug!(status = %status);
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
@@ -300,7 +292,7 @@ impl SyncClient for HttpClient {
             .body(body)
             .send()
             .await?;
-        let status = convert_status_code(response.status());
+        let status = response.status();
         tracing::debug!(status = %status);
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
@@ -332,7 +324,7 @@ impl SyncClient for HttpClient {
             .body(body)
             .send()
             .await?;
-        let status = convert_status_code(response.status());
+        let status = response.status();
         tracing::debug!(status = %status);
         self.error_json(response).await?;
         Ok(())
@@ -396,7 +388,7 @@ impl SyncClient for HttpClient {
             .body(Body::wrap_stream(progress_stream))
             .send()
             .await?;
-        let status = convert_status_code(response.status());
+        let status = response.status();
         tracing::debug!(status = %status);
         if !status.is_success() && status != http::StatusCode::NOT_MODIFIED {
             self.error_json(response).await?;
@@ -461,7 +453,7 @@ impl SyncClient for HttpClient {
                 hex::encode(digest.as_slice()),
             ));
         }
-        let status = convert_status_code(response.status());
+        let status = response.status();
         tracing::debug!(status = %status);
         self.error_json(response).await?;
         Ok(status)
@@ -495,7 +487,7 @@ impl SyncClient for HttpClient {
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
-        let status = convert_status_code(response.status());
+        let status = response.status();
         tracing::debug!(status = %status);
         if !status.is_success() && status != http::StatusCode::NOT_FOUND {
             self.error_json(response).await?;
@@ -537,7 +529,7 @@ impl SyncClient for HttpClient {
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
-        let status = convert_status_code(response.status());
+        let status = response.status();
         tracing::debug!(status = %status);
         self.error_json(response).await?;
         Ok(status)
@@ -572,7 +564,7 @@ impl SyncClient for HttpClient {
             .body(body)
             .send()
             .await?;
-        let status = convert_status_code(response.status());
+        let status = response.status();
         tracing::debug!(status = %status);
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
