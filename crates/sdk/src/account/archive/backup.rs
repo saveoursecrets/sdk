@@ -6,7 +6,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncRead, AsyncSeek};
+use tokio::io::{AsyncBufRead, AsyncSeek, BufReader};
 use web3_address::ethereum::Address;
 
 use uuid::Uuid;
@@ -350,7 +350,7 @@ impl AccountBackup {
 
     /// Read the inventory from an archive.
     pub async fn restore_archive_inventory<
-        R: AsyncRead + AsyncSeek + Unpin,
+        R: AsyncBufRead + AsyncSeek + Unpin,
     >(
         archive: R,
     ) -> Result<Inventory> {
@@ -367,13 +367,16 @@ impl AccountBackup {
         data_dir: Option<PathBuf>,
     ) -> Result<(RestoreTargets, PublicIdentity)> {
         let file = vfs::File::open(path).await?;
-        Self::import_archive_reader(file, options, data_dir).await
+        Self::import_archive_reader(BufReader::new(file), options, data_dir)
+            .await
     }
 
     /// Import from an archive.
     ///
     /// The owner must not be signed in and the account must not exist.
-    pub async fn import_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
+    pub async fn import_archive_reader<
+        R: AsyncBufRead + AsyncSeek + Unpin,
+    >(
         buffer: R,
         options: RestoreOptions,
         mut data_dir: Option<PathBuf>,
@@ -467,7 +470,9 @@ impl AccountBackup {
     ///
     /// The account owner must be signed in and supply the password
     /// for the archive identity vault.
-    pub async fn restore_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
+    pub async fn restore_archive_reader<
+        R: AsyncBufRead + AsyncSeek + Unpin,
+    >(
         reader: R,
         options: RestoreOptions,
         passphrase: SecretString,
@@ -529,7 +534,7 @@ impl AccountBackup {
 
     /// Helper to extract from an archive and verify the archive
     /// contents against the restore options.
-    async fn extract_verify_archive<R: AsyncRead + AsyncSeek + Unpin>(
+    async fn extract_verify_archive<R: AsyncBufRead + AsyncSeek + Unpin>(
         archive: R,
         options: &RestoreOptions,
         password: Option<SecretString>,

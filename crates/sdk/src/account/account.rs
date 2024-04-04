@@ -78,7 +78,7 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use tokio::{
-    io::{AsyncRead, AsyncSeek},
+    io::{AsyncRead, AsyncSeek, BufReader},
     sync::RwLock,
 };
 
@@ -1211,9 +1211,12 @@ impl LocalAccount {
 
         options.files_dir = Some(files_dir);
 
-        let (_, account) =
-            AccountBackup::import_archive_reader(buffer, options, data_dir)
-                .await?;
+        let (_, account) = AccountBackup::import_archive_reader(
+            BufReader::new(buffer),
+            options,
+            data_dir,
+        )
+        .await?;
 
         Ok(account)
     }
@@ -2762,7 +2765,8 @@ impl Account for LocalAccount {
         use super::archive::AccountBackup;
 
         let mut inventory =
-            AccountBackup::restore_archive_inventory(buffer).await?;
+            AccountBackup::restore_archive_inventory(BufReader::new(buffer))
+                .await?;
         let accounts = Identity::list_accounts(None).await?;
         let exists_local = accounts
             .iter()
@@ -2827,7 +2831,10 @@ impl Account for LocalAccount {
 
         let reader = vfs::File::open(path).await?;
         let (targets, account) = AccountBackup::restore_archive_reader(
-            reader, options, password, data_dir,
+            BufReader::new(reader),
+            options,
+            password,
+            data_dir,
         )
         .await?;
 

@@ -18,7 +18,7 @@ use url::Url;
 use vcard4::{property::DeliveryAddress, uriparse::URI as Uri, VcardBuilder};
 
 use async_zip::tokio::read::seek::ZipFileReader;
-use tokio::io::{AsyncRead, AsyncSeek};
+use tokio::io::{AsyncBufRead, AsyncSeek, BufReader};
 
 use super::{
     GenericContactRecord, GenericCsvConvert, GenericCsvEntry,
@@ -543,10 +543,10 @@ impl From<DashlaneContactRecord> for GenericContactRecord {
 pub async fn parse_path<P: AsRef<Path>>(
     path: P,
 ) -> Result<Vec<DashlaneRecord>> {
-    parse(vfs::File::open(path.as_ref()).await?).await
+    parse(BufReader::new(vfs::File::open(path.as_ref()).await?)).await
 }
 
-async fn read_entry<R: AsyncRead + AsyncSeek + Unpin>(
+async fn read_entry<R: AsyncBufRead + AsyncSeek + Unpin>(
     zip: &mut ZipFileReader<R>,
     index: usize,
 ) -> Result<Vec<u8>> {
@@ -556,7 +556,7 @@ async fn read_entry<R: AsyncRead + AsyncSeek + Unpin>(
     Ok(buffer)
 }
 
-async fn parse<R: AsyncRead + AsyncSeek + Unpin>(
+async fn parse<R: AsyncBufRead + AsyncSeek + Unpin>(
     rdr: R,
 ) -> Result<Vec<DashlaneRecord>> {
     let mut records = Vec::new();

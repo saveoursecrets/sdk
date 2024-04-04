@@ -10,7 +10,7 @@ use async_zip::{
     Compression, ZipEntryBuilder,
 };
 
-use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use tokio::io::{AsyncBufRead, AsyncSeek, AsyncWrite};
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 use web3_address::ethereum::Address;
@@ -159,12 +159,12 @@ pub struct Inventory {
 }
 
 /// Read from an archive.
-pub struct Reader<R: AsyncRead + AsyncSeek + Unpin> {
+pub struct Reader<R: AsyncBufRead + AsyncSeek + Unpin> {
     archive: ZipFileReader<R>,
     manifest: Option<Manifest>,
 }
 
-impl<R: AsyncRead + AsyncSeek + Unpin> Reader<R> {
+impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
     /// Create a new reader.
     pub async fn new(inner: R) -> Result<Self> {
         Ok(Self {

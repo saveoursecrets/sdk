@@ -61,7 +61,7 @@ bs58.workspace = true
 indexmap.workspace = true
 bitflags.workspace = true
 enum-iterator.workspace = true
-async_zip = { version = "0.0.16", default-features = false, features = ["deflate", "tokio"], optional = true }
+async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"], optional = true }
 csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
 sos-vfs = { version = "0.2.2" }
 aes-gcm = { version = "0.10.1", features = ["std"] }

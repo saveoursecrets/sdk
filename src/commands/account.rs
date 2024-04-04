@@ -16,6 +16,7 @@ use sos_net::{
     },
 };
 use std::{path::PathBuf, sync::Arc};
+use tokio::io::BufReader;
 
 use crate::{
     helpers::{
@@ -398,7 +399,8 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
 
     let reader = vfs::File::open(&input).await?;
     let inventory: Inventory =
-        AccountBackup::restore_archive_inventory(reader).await?;
+        AccountBackup::restore_archive_inventory(BufReader::new(reader))
+            .await?;
     let account_ref = AccountRef::Address(inventory.manifest.address);
 
     let account = find_account(&account_ref).await?;
