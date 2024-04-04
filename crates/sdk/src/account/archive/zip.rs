@@ -4,10 +4,11 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
+use time::OffsetDateTime;
 
 use async_zip::{
     tokio::{read::seek::ZipFileReader, write::ZipFileWriter},
-    Compression, ZipEntryBuilder,
+    Compression, ZipDateTimeBuilder, ZipEntryBuilder,
 };
 
 use tokio::io::{AsyncBufRead, AsyncSeek, AsyncWrite};
@@ -59,24 +60,21 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
         path: &str,
         buffer: &[u8],
     ) -> Result<()> {
-        // FIXME: restore data/time
-
-        /*
         let now = OffsetDateTime::now_utc();
         let (hours, minutes, seconds) = now.time().as_hms();
-        let dt = zip::DateTime::from_date_and_time(
-            now.year().try_into()?,
-            now.month().into(),
-            now.day(),
-            hours,
-            minutes,
-            seconds,
-        )
-        .map_err(|_| Error::ZipDateTime)?;
-        */
+        let month: u8 = now.month().into();
 
-        //let options = options.last_modified_time(dt);
-        let entry = ZipEntryBuilder::new(path.into(), Compression::Deflate);
+        let dt = ZipDateTimeBuilder::new()
+            .year(now.year().into())
+            .month(month.into())
+            .day(now.day().into())
+            .hour(hours.into())
+            .minute(minutes.into())
+            .second(seconds.into())
+            .build();
+
+        let entry = ZipEntryBuilder::new(path.into(), Compression::Deflate)
+            .last_modification_date(dt);
         self.writer.write_entry_whole(entry, buffer).await?;
         Ok(())
     }
