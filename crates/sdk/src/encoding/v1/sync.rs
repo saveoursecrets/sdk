@@ -75,7 +75,7 @@ impl Encodable for ChangeSet {
         // Folder patches
         writer.write_u16(self.folders.len() as u16).await?;
         for (id, folder) in &self.folders {
-            writer.write_bytes(id.as_ref()).await?;
+            writer.write_bytes::<&[u8]>(id.as_ref()).await?;
             let buffer = encode(folder).await.map_err(encoding_error)?;
             let length = buffer.len();
             writer.write_u32(length as u32).await?;
@@ -199,7 +199,7 @@ impl Encodable for SyncDiff {
 
         writer.write_u16(self.folders.len() as u16).await?;
         for (id, diff) in &self.folders {
-            writer.write_bytes(id.as_ref()).await?;
+            writer.write_bytes::<&[u8]>(id.as_ref()).await?;
             diff.encode(&mut *writer).await?;
         }
         Ok(())
