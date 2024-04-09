@@ -116,7 +116,7 @@ impl Cipher {
 
 impl Default for Cipher {
     fn default() -> Self {
-        Self::XChaCha20Poly1305
+        Self::AesGcm256
     }
 }
 
