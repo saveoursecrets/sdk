@@ -300,6 +300,11 @@ pub trait Account {
         &self,
     ) -> std::result::Result<Vec<u8>, Self::Error>;
 
+    /// Summary of the identity folder for the account.
+    async fn identity_folder_summary(
+        &self,
+    ) -> std::result::Result<Summary, Self::Error>;
+
     /// Access an account by signing in.
     ///
     /// If a default folder exists for the account it
@@ -1453,6 +1458,11 @@ impl Account for LocalAccount {
         let reader = storage.read().await;
         let identity_path = reader.paths().identity_vault();
         Ok(vfs::read(identity_path).await?)
+    }
+
+    async fn identity_folder_summary(&self) -> Result<Summary> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        Ok(self.user()?.identity()?.vault().summary().clone())
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {

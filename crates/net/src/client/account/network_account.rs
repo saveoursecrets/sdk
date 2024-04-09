@@ -534,6 +534,11 @@ impl Account for NetworkAccount {
         Ok(account.identity_vault_buffer().await?)
     }
 
+    async fn identity_folder_summary(&self) -> Result<Summary> {
+        let account = self.account.lock().await;
+        Ok(account.identity_folder_summary().await?)
+    }
+
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let folders = {
             let mut account = self.account.lock().await;

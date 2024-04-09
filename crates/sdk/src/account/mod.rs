@@ -3,6 +3,7 @@ mod account;
 #[cfg(feature = "archive")]
 pub mod archive;
 mod builder;
+pub mod convert;
 #[cfg(feature = "preferences")]
 pub mod preferences;
 #[cfg(feature = "security-report")]
