@@ -3,7 +3,7 @@ mod account;
 #[cfg(feature = "archive")]
 pub mod archive;
 mod builder;
-pub mod convert;
+mod convert;
 #[cfg(feature = "preferences")]
 pub mod preferences;
 #[cfg(feature = "security-report")]
@@ -19,6 +19,7 @@ pub use account::{
     SecretMove,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};
+pub use convert::CipherConversion;
 
 #[cfg(feature = "contacts")]
 pub use account::ContactImportProgress;

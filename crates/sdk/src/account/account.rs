@@ -7,9 +7,12 @@ use std::{
 };
 
 use crate::{
-    account::AccountBuilder,
+    account::{
+        convert::{CipherConversion, ConvertCipher},
+        AccountBuilder,
+    },
     commit::{CommitHash, CommitState},
-    crypto::AccessKey,
+    crypto::{AccessKey, Cipher},
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
@@ -304,6 +307,12 @@ pub trait Account {
     async fn identity_folder_summary(
         &self,
     ) -> std::result::Result<Summary, Self::Error>;
+
+    /// Change the cipher for an account.
+    async fn change_cipher(
+        &self,
+        cipher: &Cipher,
+    ) -> std::result::Result<CipherConversion, Self::Error>;
 
     /// Access an account by signing in.
     ///
@@ -1463,6 +1472,15 @@ impl Account for LocalAccount {
     async fn identity_folder_summary(&self) -> Result<Summary> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         Ok(self.user()?.identity()?.vault().summary().clone())
+    }
+
+    async fn change_cipher(
+        &self,
+        cipher: &Cipher,
+    ) -> Result<CipherConversion> {
+        let conversion = ConvertCipher::build(self, &cipher).await?;
+
+        Ok(conversion)
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {

@@ -3,12 +3,12 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        Account, AccountBuilder, AccountData, DetachedView, FolderChange,
-        FolderCreate, FolderDelete, LocalAccount, SecretChange, SecretDelete,
-        SecretInsert, SecretMove,
+        Account, AccountBuilder, AccountData, CipherConversion, DetachedView,
+        FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
+        SecretDelete, SecretInsert, SecretMove,
     },
     commit::{CommitHash, CommitState},
-    crypto::AccessKey,
+    crypto::{AccessKey, Cipher},
     events::ReadEvent,
     identity::{AccountRef, PublicIdentity},
     sha2::{Digest, Sha256},
@@ -537,6 +537,14 @@ impl Account for NetworkAccount {
     async fn identity_folder_summary(&self) -> Result<Summary> {
         let account = self.account.lock().await;
         Ok(account.identity_folder_summary().await?)
+    }
+
+    async fn change_cipher(
+        &self,
+        cipher: &Cipher,
+    ) -> Result<CipherConversion> {
+        let account = self.account.lock().await;
+        Ok(account.change_cipher(cipher).await?)
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {

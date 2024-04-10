@@ -20,12 +20,19 @@ pub struct CipherConversion {
     pub folders: Vec<FolderConversion>,
 }
 
+impl CipherConversion {
+    /// Determine if this cipher conversion is empty.
+    pub fn is_empty(&self) -> bool {
+        self.identity.is_none() && self.folders.is_empty()
+    }
+}
+
 /// Convert the cipher in use by an account.
 pub struct ConvertCipher;
 
 impl ConvertCipher {
     /// Build list of files to convert.
-    pub async fn build<'a, A>(
+    pub(super) async fn build<'a, A>(
         account: &'a A,
         cipher: &Cipher,
     ) -> std::result::Result<CipherConversion, A::Error>

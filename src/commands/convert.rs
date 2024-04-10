@@ -1,16 +1,10 @@
 use clap::Subcommand;
-use serde::{Deserialize, Serialize};
-use sos_net::sdk::{
-    account::{convert::ConvertCipher, Account},
-    crypto::Cipher,
-    identity::AccountRef,
-};
-use std::path::PathBuf;
+use sos_net::sdk::{account::Account, crypto::Cipher, identity::AccountRef};
 use terminal_banner::{Banner, Padding};
 
 use crate::{
     helpers::{account::resolve_user, messages::info, readline::read_flag},
-    Error, Result,
+    Result,
 };
 
 #[derive(Subcommand, Debug)]
@@ -52,12 +46,8 @@ pub async fn run(cmd: Command) -> Result<()> {
             let prompt =
                 format!(r#"Convert to cipher "{}" (y/n)? "#, &cipher);
             if read_flag(Some(&prompt))? {
-                let conversion =
-                    ConvertCipher::build(&*owner, &cipher).await?;
-
-                if conversion.identity.is_none()
-                    && conversion.folders.is_empty()
-                {
+                let conversion = owner.change_cipher(&cipher).await?;
+                if conversion.is_empty() {
                     info(format!(
                         "no files to convert, all folders use {}",
                         cipher
