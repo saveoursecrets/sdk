@@ -50,6 +50,7 @@ async fn network_sync_change_cipher() -> Result<()> {
     assert_eq!(original_folders.len(), folders.len());
     for folder in &folders {
         assert_eq!(&target_cipher, folder.cipher());
+        assert_eq!(&target_kdf, folder.kdf());
     }
 
     // Check we can read in the secret data after conversion
@@ -57,6 +58,15 @@ async fn network_sync_change_cipher() -> Result<()> {
         device1.owner.read_secret(&id, Some(default_folder)).await?;
     assert_eq!(&meta, secret_data.meta());
     assert_eq!(&secret, secret_data.secret());
+
+    // Check the in-memory identity summary is correct cipher/kdf
+    let identity_summary = device1.owner.identity_folder_summary().await?;
+    assert_eq!(&target_cipher, identity_summary.cipher());
+    assert_eq!(&target_kdf, identity_summary.kdf());
+
+    // Check we can sign out and sign in again
+    device1.owner.sign_out().await?;
+    device1.owner.sign_in(&key).await?;
 
     /*
     // Get the remote out of the owner so we can

@@ -1486,10 +1486,38 @@ impl Account for LocalAccount {
         kdf: Option<KeyDerivation>,
     ) -> Result<CipherConversion> {
         let conversion = ConvertCipher::build(self, &cipher, kdf).await?;
+
+        // Short circuit if there is nothing to do
+        if conversion.is_empty() {
+            return Ok(conversion);
+        }
+
         if let Some(identity_vault) =
             ConvertCipher::convert(self, &conversion, account_key).await?
         {
-            // TODO: update identity vault and events on disc
+            let identity_vault_path = {
+                // Update the identity vault
+                let buffer = encode(&identity_vault).await?;
+                let identity_vault_path = self.paths().identity_vault();
+                vfs::write(&identity_vault_path, &buffer).await?;
+
+                // Update the events for the identity vault
+                let user = self.user()?;
+                let identity = user.identity()?;
+                let event_log = identity.event_log();
+                let mut event_log = event_log.write().await;
+                event_log.clear().await?;
+                event_log
+                    .apply(vec![&WriteEvent::CreateVault(buffer)])
+                    .await?;
+
+                identity_vault_path
+            };
+
+            // Login again so in-memory data is up to date
+            self.user_mut()?
+                .login(&identity_vault_path, account_key)
+                .await?;
         }
         Ok(conversion)
     }
