@@ -38,7 +38,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .text(
                   "* Event history is compacted".into())
                 .text(
-                  "* Sync account with devices".into());
+                  "* Sync will overwrite data on servers".into());
 
             let result = banner.render();
             println!("{}", result);
