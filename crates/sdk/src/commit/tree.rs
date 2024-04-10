@@ -478,7 +478,9 @@ mod test {
     use crate::{
         events::WriteEvent,
         test_utils::*,
-        vault::{Vault, VaultAccess, VaultBuilder, VaultEntry},
+        vault::{
+            BuilderCredentials, Vault, VaultAccess, VaultBuilder, VaultEntry,
+        },
     };
     use anyhow::Result;
 
@@ -496,8 +498,9 @@ mod test {
 
     async fn mock_commit_tree() -> Result<CommitTree> {
         let (encryption_key, _, passphrase) = mock_encryption_key()?;
-        let mut vault =
-            VaultBuilder::new().password(passphrase, None).await?;
+        let mut vault = VaultBuilder::new()
+            .build(BuilderCredentials::Password(passphrase, None))
+            .await?;
 
         let secrets = [
             ("Note one", "First note"),

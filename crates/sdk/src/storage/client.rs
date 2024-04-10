@@ -14,7 +14,8 @@ use crate::{
     storage::{AccessOptions, AccountPack, DiscFolder},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        FolderRef, Header, Summary, Vault, VaultBuilder, VaultId,
+        BuilderCredentials, FolderRef, Header, Summary, Vault, VaultBuilder,
+        VaultId,
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
@@ -644,10 +645,21 @@ impl ClientStorage {
 
         let vault = match &key {
             AccessKey::Password(password) => {
-                builder.password(password.clone(), None).await?
+                builder
+                    .build(BuilderCredentials::Password(
+                        password.clone(),
+                        None,
+                    ))
+                    .await?
             }
             AccessKey::Identity(id) => {
-                builder.shared(id, vec![], true).await?
+                builder
+                    .build(BuilderCredentials::Shared {
+                        owner: id,
+                        recipients: vec![],
+                        read_only: true,
+                    })
+                    .await?
             }
         };
 

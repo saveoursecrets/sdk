@@ -3,7 +3,11 @@ use sos_net::sdk::{account::Account, crypto::Cipher, identity::AccountRef};
 use terminal_banner::{Banner, Padding};
 
 use crate::{
-    helpers::{account::resolve_user, messages::info, readline::read_flag},
+    helpers::{
+        account::resolve_user,
+        messages::{info, success},
+        readline::read_flag,
+    },
     Result,
 };
 
@@ -24,7 +28,7 @@ pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::Cipher { account, cipher } => {
             let user = resolve_user(account.as_ref(), false).await?;
-            let owner = user.read().await;
+            let mut owner = user.write().await;
 
             let banner = Banner::new()
                 .padding(Padding::one())
@@ -43,6 +47,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             let result = banner.render();
             println!("{}", result);
 
+            // TODO: get the access key?
+
+            /*
             let prompt =
                 format!(r#"Convert to cipher "{}" (y/n)? "#, &cipher);
             if read_flag(Some(&prompt))? {
@@ -53,10 +60,10 @@ pub async fn run(cmd: Command) -> Result<()> {
                         cipher
                     ));
                 } else {
-                    let preview = toml::to_string_pretty(&conversion)?;
-                    println!("{}", preview);
+                    success("cipher conversion completed");
                 }
             }
+            */
         }
     }
     Ok(())

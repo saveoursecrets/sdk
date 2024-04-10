@@ -8,7 +8,7 @@ use sos_sdk::{
         SecretDelete, SecretInsert, SecretMove,
     },
     commit::{CommitHash, CommitState},
-    crypto::{AccessKey, Cipher},
+    crypto::{AccessKey, Cipher, KeyDerivation},
     events::ReadEvent,
     identity::{AccountRef, PublicIdentity},
     sha2::{Digest, Sha256},
@@ -540,11 +540,13 @@ impl Account for NetworkAccount {
     }
 
     async fn change_cipher(
-        &self,
+        &mut self,
+        account_key: &AccessKey,
         cipher: &Cipher,
+        kdf: Option<KeyDerivation>,
     ) -> Result<CipherConversion> {
-        let account = self.account.lock().await;
-        Ok(account.change_cipher(cipher).await?)
+        let mut account = self.account.lock().await;
+        Ok(account.change_cipher(account_key, cipher, kdf).await?)
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {

@@ -12,7 +12,7 @@ use crate::{
         AccountBuilder,
     },
     commit::{CommitHash, CommitState},
-    crypto::{AccessKey, Cipher},
+    crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
@@ -72,7 +72,7 @@ use crate::{
         },
         Convert,
     },
-    vault::VaultBuilder,
+    vault::{BuilderCredentials, VaultBuilder},
 };
 
 use tracing::{span, Level};
@@ -310,8 +310,10 @@ pub trait Account {
 
     /// Change the cipher for an account.
     async fn change_cipher(
-        &self,
+        &mut self,
+        account_key: &AccessKey,
         cipher: &Cipher,
+        kdf: Option<KeyDerivation>,
     ) -> std::result::Result<CipherConversion, Self::Error>;
 
     /// Access an account by signing in.
@@ -1189,7 +1191,10 @@ impl LocalAccount {
         let vault = VaultBuilder::new()
             .id(vault_id)
             .public_name(name)
-            .password(vault_passphrase.clone(), None)
+            .build(BuilderCredentials::Password(
+                vault_passphrase.clone(),
+                None,
+            ))
             .await?;
 
         // Parse the CSV records into the vault
@@ -1475,11 +1480,17 @@ impl Account for LocalAccount {
     }
 
     async fn change_cipher(
-        &self,
+        &mut self,
+        account_key: &AccessKey,
         cipher: &Cipher,
+        kdf: Option<KeyDerivation>,
     ) -> Result<CipherConversion> {
-        let conversion = ConvertCipher::build(self, &cipher).await?;
-
+        let conversion = ConvertCipher::build(self, &cipher, kdf).await?;
+        if let Some(identity_vault) =
+            ConvertCipher::convert(self, &conversion, account_key).await?
+        {
+            // TODO: update identity vault and events on disc
+        }
         Ok(conversion)
     }
 

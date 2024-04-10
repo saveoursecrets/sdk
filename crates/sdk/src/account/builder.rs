@@ -10,7 +10,7 @@ use crate::{
     storage::AccountPack,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
-        Gatekeeper, Vault, VaultBuilder, VaultFlags,
+        BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
     },
     Paths, Result,
 };
@@ -178,8 +178,12 @@ impl AccountBuilder {
         if let Some(name) = default_folder_name.take() {
             builder = builder.public_name(name);
         }
-        let mut default_folder =
-            builder.password(vault_passphrase.clone(), None).await?;
+        let mut default_folder = builder
+            .build(BuilderCredentials::Password(
+                vault_passphrase.clone(),
+                None,
+            ))
+            .await?;
 
         folder_keys.insert(
             default_folder.summary().clone(),
@@ -226,7 +230,7 @@ impl AccountBuilder {
             let vault = VaultBuilder::new()
                 .public_name(DEFAULT_ARCHIVE_VAULT_NAME.to_string())
                 .flags(VaultFlags::ARCHIVE)
-                .password(password.clone(), None)
+                .build(BuilderCredentials::Password(password.clone(), None))
                 .await?;
 
             folder_keys
@@ -244,7 +248,7 @@ impl AccountBuilder {
             let vault = VaultBuilder::new()
                 .public_name(DEFAULT_AUTHENTICATOR_VAULT_NAME.to_string())
                 .flags(VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC_SELF)
-                .password(password.clone(), None)
+                .build(BuilderCredentials::Password(password.clone(), None))
                 .await?;
 
             folder_keys
@@ -262,7 +266,7 @@ impl AccountBuilder {
             let vault = VaultBuilder::new()
                 .public_name(DEFAULT_CONTACTS_VAULT_NAME.to_string())
                 .flags(VaultFlags::CONTACT)
-                .password(password.clone(), None)
+                .build(BuilderCredentials::Password(password.clone(), None))
                 .await?;
 
             folder_keys

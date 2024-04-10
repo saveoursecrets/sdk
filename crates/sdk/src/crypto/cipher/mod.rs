@@ -19,7 +19,7 @@ pub const AES_GCM_256: u8 = 2;
 pub const X25519: u8 = 3;
 
 /// Supported cipher algorithms.
-#[derive(Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize)]
 pub enum Cipher {
     /// Cipher for XChaCha20Poly1305 encryption.
     XChaCha20Poly1305,

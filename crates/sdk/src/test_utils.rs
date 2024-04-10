@@ -7,7 +7,7 @@ use crate::{
     passwd::diceware::generate_passphrase,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta},
-        Vault, VaultAccess, VaultBuilder, VaultEntry,
+        BuilderCredentials, Vault, VaultAccess, VaultBuilder, VaultEntry,
     },
 };
 use sha2::{Digest, Sha256};
@@ -122,7 +122,9 @@ pub async fn mock_vault_note_update(
 pub async fn mock_vault_file() -> Result<(NamedTempFile, Vault, Vec<u8>)> {
     let mut temp = NamedTempFile::new()?;
     let (passphrase, _) = generate_passphrase()?;
-    let vault = VaultBuilder::new().password(passphrase, None).await?;
+    let vault = VaultBuilder::new()
+        .build(BuilderCredentials::Password(passphrase, None))
+        .await?;
 
     let buffer = encode(&vault).await?;
     temp.write_all(&buffer)?;

@@ -112,7 +112,7 @@ mod test {
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         storage::search::SearchIndex,
-        vault::{Gatekeeper, VaultBuilder},
+        vault::{BuilderCredentials, Gatekeeper, VaultBuilder},
     };
     use url::Url;
 
@@ -148,7 +148,7 @@ mod test {
     async fn macos_passwords_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let vault = VaultBuilder::new()
-            .password(passphrase.clone(), None)
+            .build(BuilderCredentials::Password(passphrase.clone(), None))
             .await?;
 
         let key: AccessKey = passphrase.into();
@@ -186,7 +186,7 @@ mod test {
     async fn macos_passwords_notes_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let vault = VaultBuilder::new()
-            .password(passphrase.clone(), None)
+            .build(BuilderCredentials::Password(passphrase.clone(), None))
             .await?;
 
         let key: AccessKey = passphrase.into();

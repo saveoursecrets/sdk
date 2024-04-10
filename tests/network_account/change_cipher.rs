@@ -17,10 +17,9 @@ async fn network_sync_change_cipher() -> Result<()> {
 
     // Prepare mock devices
     let mut device1 = simulate_device(TEST_ID, 2, Some(&server)).await?;
-    // let default_folder_id = device1.default_folder_id.clone();
-    // let origin = device1.origin.clone();
-    // let folders = device1.folders.clone();
-    //
+    let key: AccessKey = device1.password.clone().into();
+    let default_folder = device1.default_folder.clone();
+    let original_folders = device1.folders.clone();
     let identity_summary = device1.owner.identity_folder_summary().await?;
     let cipher = identity_summary.cipher();
     assert_eq!(cipher, &Cipher::default());
@@ -30,18 +29,34 @@ async fn network_sync_change_cipher() -> Result<()> {
     // Create a secret in the primary owner which won't exist
     // in the second device
     let (meta, secret) = mock::note(TEST_ID, TEST_ID);
-    device1
+    let SecretChange { id, .. } = device1
         .owner
-        .create_secret(meta, secret, Default::default())
+        .create_secret(meta.clone(), secret.clone(), Default::default())
         .await?;
 
     assert!(device2.owner.sync().await.is_none());
 
+    let target_cipher = Cipher::XChaCha20Poly1305;
+    let target_kdf = KeyDerivation::BalloonHash;
     let conversion = device1
         .owner
-        .change_cipher(&Cipher::XChaCha20Poly1305)
+        .change_cipher(&key, &target_cipher, Some(target_kdf))
         .await?;
     assert!(!conversion.is_empty());
+
+    // Check in-memory folders report correct target cipher
+    let folders = device1.owner.list_folders().await?;
+    assert!(folders.len() > 0);
+    assert_eq!(original_folders.len(), folders.len());
+    for folder in &folders {
+        assert_eq!(&target_cipher, folder.cipher());
+    }
+
+    // Check we can read in the secret data after conversion
+    let (secret_data, _) =
+        device1.owner.read_secret(&id, Some(default_folder)).await?;
+    assert_eq!(&meta, secret_data.meta());
+    assert_eq!(&secret, secret_data.secret());
 
     /*
     // Get the remote out of the owner so we can

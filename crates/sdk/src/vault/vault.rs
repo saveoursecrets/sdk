@@ -1098,7 +1098,9 @@ mod tests {
         decode, encode,
         passwd::diceware::generate_passphrase,
         test_utils::*,
-        vault::{secret::SecretRow, Gatekeeper, VaultBuilder},
+        vault::{
+            secret::SecretRow, BuilderCredentials, Gatekeeper, VaultBuilder,
+        },
         Error,
     };
 
@@ -1108,7 +1110,9 @@ mod tests {
     #[tokio::test]
     async fn vault_encode_decode_empty() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
-        let vault = VaultBuilder::new().password(passphrase, None).await?;
+        let vault = VaultBuilder::new()
+            .build(BuilderCredentials::Password(passphrase, None))
+            .await?;
 
         let buffer = encode(&vault).await?;
         let decoded = decode(&buffer).await?;
@@ -1119,8 +1123,9 @@ mod tests {
     #[tokio::test]
     async fn vault_encode_decode_secret_note() -> Result<()> {
         let (encryption_key, _, passphrase) = mock_encryption_key()?;
-        let mut vault =
-            VaultBuilder::new().password(passphrase, None).await?;
+        let mut vault = VaultBuilder::new()
+            .build(BuilderCredentials::Password(passphrase, None))
+            .await?;
 
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
@@ -1171,7 +1176,11 @@ mod tests {
         recipients.push(other_1.to_public());
 
         let vault = VaultBuilder::new()
-            .shared(&owner, recipients, false)
+            .build(BuilderCredentials::Shared {
+                owner: &owner,
+                recipients,
+                read_only: false,
+            })
             .await?;
 
         // Owner adds a secret
@@ -1239,8 +1248,13 @@ mod tests {
         let mut recipients = Vec::new();
         recipients.push(other_1.to_public());
 
-        let vault =
-            VaultBuilder::new().shared(&owner, recipients, true).await?;
+        let vault = VaultBuilder::new()
+            .build(BuilderCredentials::Shared {
+                owner: &owner,
+                recipients,
+                read_only: true,
+            })
+            .await?;
 
         // Owner adds a secret
         let mut keeper = Gatekeeper::new(vault);

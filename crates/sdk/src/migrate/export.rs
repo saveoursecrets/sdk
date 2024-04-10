@@ -185,7 +185,7 @@ mod test {
         test_utils::*,
         vault::{
             secret::{SecretId, SecretRow},
-            Gatekeeper, VaultBuilder, VaultFlags,
+            BuilderCredentials, Gatekeeper, VaultBuilder, VaultFlags,
         },
     };
 
@@ -196,7 +196,7 @@ mod test {
 
         let vault = VaultBuilder::new()
             .flags(VaultFlags::DEFAULT)
-            .password(passphrase.clone(), None)
+            .build(BuilderCredentials::Password(passphrase.clone(), None))
             .await?;
 
         let key: AccessKey = passphrase.into();
