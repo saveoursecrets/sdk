@@ -157,46 +157,17 @@ impl Backend {
         owner: &Address,
         account_data: ChangeSet,
     ) -> Result<()> {
-        todo!();
-
-        /*
-        {
-            let accounts = self.accounts.read().await;
-            let account = accounts.get(owner);
-
-            if account.is_some() {
-                return Err(Error::AccountExists(*owner));
-            }
-        }
-
-        let span = span!(Level::DEBUG, "create_account");
+        let span = span!(Level::DEBUG, "update_account");
         let _enter = span.enter();
         tracing::debug!(address = %owner);
 
-        let paths =
-            Paths::new_server(self.directory.clone(), owner.to_string());
-        paths.ensure().await?;
-
-        let identity_log =
-            ServerStorage::initialize_account(&paths, &account_data.identity)
-                .await?;
-
-        let mut storage = ServerStorage::new(
-            owner.clone(),
-            Some(self.directory.clone()),
-            Arc::new(RwLock::new(identity_log)),
-        )
-        .await?;
-        storage.import_account(&account_data).await?;
-
-        let account = AccountStorage { storage };
         let mut accounts = self.accounts.write().await;
-        accounts
-            .entry(owner.clone())
-            .or_insert(Arc::new(RwLock::new(account)));
+        let account =
+            accounts.get_mut(owner).ok_or(Error::NoAccount(*owner))?;
 
+        let mut account = account.write().await;
+        account.storage.update_account(account_data).await?;
         Ok(())
-        */
     }
 
     /// Fetch an existing account.

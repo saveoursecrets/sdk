@@ -106,6 +106,58 @@ impl ServerStorage {
 
         Ok(())
     }
+
+    /// Update an account from a change set of event logs.
+    ///
+    /// Overwrites all existing account data with the event logs
+    /// in the change set.
+    ///
+    /// Intended to be used to perform a destructive overwrite
+    /// when changing the encryption cipher or other events
+    /// which rewrite the account data.
+    pub async fn update_account(
+        &mut self,
+        account_data: ChangeSet,
+    ) -> Result<()> {
+        todo!();
+
+        /*
+        {
+            let mut writer = self.account_log.write().await;
+            writer.patch_unchecked(&account_data.account).await?;
+        }
+
+        #[cfg(feature = "device")]
+        {
+            let mut writer = self.device_log.write().await;
+            writer.patch_unchecked(&account_data.device).await?;
+            let reducer = DeviceReducer::new(&*writer);
+            self.devices = reducer.reduce().await?;
+        }
+
+        for (id, folder) in &account_data.folders {
+            let vault_path = self.paths.vault_path(id);
+            let events_path = self.paths.event_log_path(id);
+
+            let mut event_log = FolderEventLog::new(events_path).await?;
+            event_log.patch_unchecked(folder).await?;
+
+            let vault = FolderReducer::new()
+                .reduce(&event_log)
+                .await?
+                .build(false)
+                .await?;
+
+            let buffer = encode(&vault).await?;
+            vfs::write(vault_path, buffer).await?;
+
+            self.cache_mut()
+                .insert(*id, Arc::new(RwLock::new(event_log)));
+        }
+
+        Ok(())
+        */
+    }
 }
 
 #[async_trait]
