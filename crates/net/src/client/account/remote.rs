@@ -7,7 +7,7 @@ use sos_sdk::{
     storage::files::{list_external_files, FileSet},
     sync::{
         self, Merge, Origin, SyncClient, SyncOptions, SyncPacket, SyncStatus,
-        SyncStorage,
+        SyncStorage, UpdateSet,
     },
 };
 use std::{collections::HashMap, sync::Arc};
@@ -214,6 +214,19 @@ impl RemoteSync for RemoteBridge {
         _options: &SyncOptions,
     ) -> Option<SyncError> {
         match self.execute_sync_devices().await {
+            Ok(_) => None,
+            Err(e) => Some(SyncError {
+                errors: vec![(self.origin.clone(), e)],
+            }),
+        }
+    }
+
+    async fn force_update(
+        &self,
+        account_data: &UpdateSet,
+        _options: &SyncOptions,
+    ) -> Option<SyncError> {
+        match self.client.update_account(account_data).await {
             Ok(_) => None,
             Err(e) => Some(SyncError {
                 errors: vec![(self.origin.clone(), e)],

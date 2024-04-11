@@ -1,6 +1,6 @@
 use super::Error;
 use async_trait::async_trait;
-use sos_sdk::sync::SyncOptions;
+use sos_sdk::sync::{SyncOptions, UpdateSet};
 
 /// Error type that can be returned from a sync operation.
 pub type SyncError = sos_sdk::sync::SyncError<Error>;
@@ -39,4 +39,16 @@ pub trait RemoteSync {
     /// Patch the device log on the remote.
     async fn patch_devices(&self, options: &SyncOptions)
         -> Option<SyncError>;
+
+    /// Force update an account on remote servers.
+    ///
+    /// Should be called after making destructive
+    /// changes to an account's folders. For example, if
+    /// the encryption cipher has been changed, a folder
+    /// password was changed or folder(s) were compacted.
+    async fn force_update(
+        &self,
+        account_data: &UpdateSet,
+        options: &SyncOptions,
+    ) -> Option<SyncError>;
 }
