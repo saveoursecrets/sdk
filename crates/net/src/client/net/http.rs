@@ -199,7 +199,7 @@ impl SyncClient for HttpClient {
         let auth = bearer_prefix(&account_signature, None);
         let response = self
             .client
-            .post(url)
+            .put(url)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -287,7 +287,7 @@ impl SyncClient for HttpClient {
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
         let response = self
             .client
-            .put(url)
+            .patch(url)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
