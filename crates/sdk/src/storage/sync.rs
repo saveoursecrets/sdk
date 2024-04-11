@@ -119,18 +119,23 @@ impl ServerStorage {
         &mut self,
         account_data: ChangeSet,
     ) -> Result<()> {
-        todo!();
+        {
+            let mut writer = self.identity_log.write().await;
+            writer.clear().await?;
+            writer.apply(account_data.identity.iter().collect()).await?;
+        }
 
-        /*
         {
             let mut writer = self.account_log.write().await;
-            writer.patch_unchecked(&account_data.account).await?;
+            writer.clear().await?;
+            writer.apply(account_data.account.iter().collect()).await?;
         }
 
         #[cfg(feature = "device")]
         {
             let mut writer = self.device_log.write().await;
-            writer.patch_unchecked(&account_data.device).await?;
+            writer.clear().await?;
+            writer.apply(account_data.device.iter().collect()).await?;
             let reducer = DeviceReducer::new(&*writer);
             self.devices = reducer.reduce().await?;
         }
@@ -140,7 +145,8 @@ impl ServerStorage {
             let events_path = self.paths.event_log_path(id);
 
             let mut event_log = FolderEventLog::new(events_path).await?;
-            event_log.patch_unchecked(folder).await?;
+            event_log.clear().await?;
+            event_log.apply(folder.iter().collect()).await?;
 
             let vault = FolderReducer::new()
                 .reduce(&event_log)
@@ -156,7 +162,6 @@ impl ServerStorage {
         }
 
         Ok(())
-        */
     }
 }
 
