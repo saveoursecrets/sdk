@@ -372,7 +372,9 @@ mod handlers {
         StatusCode,
     };
     use sos_sdk::{
-        constants::MIME_TYPE_SOS, decode, encode, sync::ChangeSet,
+        constants::MIME_TYPE_SOS,
+        decode, encode,
+        sync::{ChangeSet, UpdateSet},
     };
     use std::sync::Arc;
     use tracing::{span, Level};
@@ -412,7 +414,7 @@ mod handlers {
             }
         }
 
-        let account: ChangeSet = decode(bytes).await?;
+        let account: UpdateSet = decode(bytes).await?;
         let mut writer = backend.write().await;
         writer.update_account(caller.address(), account).await?;
         Ok(())

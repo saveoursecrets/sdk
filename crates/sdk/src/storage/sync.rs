@@ -8,7 +8,7 @@ use crate::{
     storage::ServerStorage,
     sync::{
         AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch, Merge,
-        SyncStatus, SyncStorage,
+        SyncStatus, SyncStorage, UpdateSet,
     },
     vault::VaultId,
     vfs, Error, Paths, Result,
@@ -84,6 +84,12 @@ impl ServerStorage {
             self.devices = reducer.reduce().await?;
         }
 
+        #[cfg(feature = "files")]
+        {
+            let mut writer = self.file_log.write().await;
+            writer.patch_unchecked(&account_data.files).await?;
+        }
+
         for (id, folder) in &account_data.folders {
             let vault_path = self.paths.vault_path(id);
             let events_path = self.paths.event_log_path(id);
@@ -107,7 +113,8 @@ impl ServerStorage {
         Ok(())
     }
 
-    /// Update an account from a change set of event logs.
+    /// Update an account from a change set of event logs and
+    /// event diffs.
     ///
     /// Overwrites all existing account data with the event logs
     /// in the change set.
@@ -117,29 +124,66 @@ impl ServerStorage {
     /// which rewrite the account data.
     pub async fn update_account(
         &mut self,
-        account_data: ChangeSet,
+        mut account_data: UpdateSet,
     ) -> Result<()> {
-        {
-            let mut writer = self.identity_log.write().await;
-            writer.clear().await?;
-            writer.apply(account_data.identity.iter().collect()).await?;
-        }
-
+        // Patch the account event log
         {
             let mut writer = self.account_log.write().await;
-            writer.clear().await?;
-            writer.apply(account_data.account.iter().collect()).await?;
+            writer
+                .patch_checked(
+                    &account_data.account.before,
+                    &account_data.account.patch,
+                )
+                .await?;
         }
 
+        // Patch the device event log
         #[cfg(feature = "device")]
         {
             let mut writer = self.device_log.write().await;
-            writer.clear().await?;
-            writer.apply(account_data.device.iter().collect()).await?;
-            let reducer = DeviceReducer::new(&*writer);
-            self.devices = reducer.reduce().await?;
+            writer
+                .patch_checked(
+                    &account_data.device.before,
+                    &account_data.device.patch,
+                )
+                .await?;
+
+            if !account_data.device.patch.is_empty() {
+                let reducer = DeviceReducer::new(&*writer);
+                self.devices = reducer.reduce().await?;
+            }
         }
 
+        // Patch the file event log
+        #[cfg(feature = "files")]
+        {
+            let mut writer = self.file_log.write().await;
+            writer
+                .patch_checked(
+                    &account_data.files.before,
+                    &account_data.files.patch,
+                )
+                .await?;
+        }
+
+        // Force overwrite all identity data
+        if let Some(identity) = account_data.identity.take() {
+            let mut writer = self.identity_log.write().await;
+            writer.clear().await?;
+            writer.apply(identity.iter().collect()).await?;
+
+            // Rebuild the head-only identity vault
+            let vault = FolderReducer::new()
+                .reduce(&writer)
+                .await?
+                .build(false)
+                .await?;
+
+            let buffer = encode(&vault).await?;
+            vfs::write(self.paths.identity_vault(), buffer).await?;
+        }
+
+        // Force overwrite account folders
         for (id, folder) in &account_data.folders {
             let vault_path = self.paths.vault_path(id);
             let events_path = self.paths.event_log_path(id);

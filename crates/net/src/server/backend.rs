@@ -5,7 +5,7 @@ use crate::sdk::{
         ed25519::{self, Verifier, VerifyingKey},
     },
     storage::{DiscFolder, ServerStorage},
-    sync::{ChangeSet, SyncStorage},
+    sync::{ChangeSet, SyncStorage, UpdateSet},
     vfs, Paths,
 };
 use std::{
@@ -155,7 +155,7 @@ impl Backend {
     pub async fn update_account(
         &mut self,
         owner: &Address,
-        account_data: ChangeSet,
+        account_data: UpdateSet,
     ) -> Result<()> {
         let span = span!(Level::DEBUG, "update_account");
         let _enter = span.enter();
