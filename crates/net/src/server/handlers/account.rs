@@ -99,8 +99,8 @@ pub(crate) async fn create_account(
             description = "Account address is not allowed on this server.",
         ),
         (
-            status = StatusCode::CONFLICT,
-            description = "Account already exists.",
+            status = StatusCode::NOT_FOUND,
+            description = "Account does not exist.",
         ),
         (
             status = StatusCode::OK,
@@ -367,7 +367,10 @@ mod handlers {
         sdk::sync::{self, Merge, SyncPacket, SyncStorage},
         server::{Error, Result, ServerBackend, ServerState},
     };
-    use http::header::{self, HeaderMap, HeaderValue};
+    use http::{
+        header::{self, HeaderMap, HeaderValue},
+        StatusCode,
+    };
     use sos_sdk::{
         constants::MIME_TYPE_SOS, decode, encode, sync::ChangeSet,
     };
@@ -404,8 +407,8 @@ mod handlers {
     ) -> Result<()> {
         {
             let reader = backend.read().await;
-            if reader.account_exists(caller.address()).await? {
-                return Err(Error::Conflict);
+            if !reader.account_exists(caller.address()).await? {
+                return Err(Error::Status(StatusCode::NOT_FOUND));
             }
         }
 
