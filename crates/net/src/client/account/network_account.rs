@@ -9,7 +9,7 @@ use sos_sdk::{
     },
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
-    events::ReadEvent,
+    events::{EventLogExt, ReadEvent},
     identity::{AccountRef, PublicIdentity},
     sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
@@ -21,7 +21,7 @@ use sos_sdk::{
         },
         AccessOptions, ClientStorage,
     },
-    sync::Origin,
+    sync::{Origin, SyncOptions, SyncStorage, UpdateSet},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Summary, VaultId,
@@ -29,7 +29,7 @@ use sos_sdk::{
     vfs, Paths,
 };
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -545,8 +545,49 @@ impl Account for NetworkAccount {
         cipher: &Cipher,
         kdf: Option<KeyDerivation>,
     ) -> Result<CipherConversion> {
-        let mut account = self.account.lock().await;
-        Ok(account.change_cipher(account_key, cipher, kdf).await?)
+        let conversion = {
+            let mut account = self.account.lock().await;
+            // Update the local account data.
+            account.change_cipher(account_key, cipher, kdf).await?
+        };
+
+        let identity = if conversion.identity.is_some() {
+            let log = self.identity_log().await?;
+            let reader = log.read().await;
+            Some(reader.diff(None).await?)
+        } else {
+            None
+        };
+
+        // Prepare event logs for the folders that
+        // were converted
+        let mut folders = HashMap::new();
+        let identifiers = conversion
+            .folders
+            .iter()
+            .map(|s| *s.id())
+            .collect::<Vec<_>>();
+
+        for id in &identifiers {
+            let event_log = self.folder_log(id).await?;
+            let log_file = event_log.read().await;
+            folders.insert(*id, log_file.diff(None).await?);
+        }
+
+        // Force update the folders on remote servers
+        let sync_options: SyncOptions = Default::default();
+        let updates = UpdateSet { identity, folders };
+
+        let sync_error = self.force_update(&updates, &sync_options).await;
+        if let Some(sync_error) = sync_error {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        // In case we have pending updates to the account, device
+        // or file event logs
+        self.sync_with_options(&sync_options).await;
+
+        Ok(conversion)
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {

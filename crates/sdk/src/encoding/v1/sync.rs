@@ -124,11 +124,6 @@ impl Encodable for UpdateSet {
         if let Some(identity) = &self.identity {
             identity.encode(&mut *writer).await?;
         }
-        self.account.encode(&mut *writer).await?;
-        #[cfg(feature = "device")]
-        self.device.encode(&mut *writer).await?;
-        #[cfg(feature = "files")]
-        self.files.encode(&mut *writer).await?;
 
         // Folder patches
         writer.write_u16(self.folders.len() as u16).await?;
@@ -156,12 +151,6 @@ impl Decodable for UpdateSet {
             identity.decode(&mut *reader).await?;
             self.identity = Some(identity);
         }
-        self.account.decode(&mut *reader).await?;
-        #[cfg(feature = "device")]
-        self.device.decode(&mut *reader).await?;
-        #[cfg(feature = "files")]
-        self.files.decode(&mut *reader).await?;
-
         // Folder patches
         let num_folders = reader.read_u16().await?;
         for _ in 0..(num_folders as usize) {

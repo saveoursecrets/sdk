@@ -540,7 +540,7 @@ pub struct ChangeSet {
     pub folders: HashMap<VaultId, FolderPatch>,
 }
 
-/// Set of updates for an account.
+/// Set of updates to the folders in an account.
 ///
 /// Used to destructively update folders in an account;
 /// the account, device and file event logs are applied
@@ -552,14 +552,6 @@ pub struct ChangeSet {
 pub struct UpdateSet {
     /// Identity vault event logs.
     pub identity: Option<FolderPatch>,
-    /// Account event logs.
-    pub account: AccountDiff,
-    /// Device event logs.
-    #[cfg(feature = "device")]
-    pub device: DeviceDiff,
-    /// File event logs.
-    #[cfg(feature = "files")]
-    pub files: FileDiff,
     /// Folders to be imported into the new account.
     pub folders: HashMap<VaultId, FolderPatch>,
 }

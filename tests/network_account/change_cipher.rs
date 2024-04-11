@@ -17,6 +17,7 @@ async fn network_sync_change_cipher() -> Result<()> {
 
     // Prepare mock devices
     let mut device1 = simulate_device(TEST_ID, 2, Some(&server)).await?;
+    let origin = device1.origin.clone();
     let key: AccessKey = device1.password.clone().into();
     let default_folder = device1.default_folder.clone();
     let original_folders = device1.folders.clone();
@@ -68,9 +69,7 @@ async fn network_sync_change_cipher() -> Result<()> {
     device1.owner.sign_out().await?;
     device1.owner.sign_in(&key).await?;
 
-    /*
-    // Get the remote out of the owner so we can
-    // assert on equality between local and remote
+    // Primary device should now be in sync with remote
     let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_events_eq(
         folders.clone(),
@@ -79,6 +78,9 @@ async fn network_sync_change_cipher() -> Result<()> {
     )
     .await?;
 
+    // TODO: sync on other device after force update
+
+    /*
     let mut bridge = device2.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_events_eq(
         folders.clone(),

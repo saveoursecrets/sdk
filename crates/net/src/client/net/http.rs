@@ -212,14 +212,12 @@ impl SyncClient for HttpClient {
 
         let body = encode(account).await?;
         let url = self.build_url("api/v1/sync/account")?;
-        let sign_url = url.path();
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
-        let device_signature = encode_device_signature(
-            self.device_signer.sign(sign_url.as_bytes()).await?,
-        )
-        .await?;
+        let device_signature =
+            encode_device_signature(self.device_signer.sign(&body).await?)
+                .await?;
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
         let response = self
             .client

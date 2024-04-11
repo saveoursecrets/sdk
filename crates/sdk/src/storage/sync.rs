@@ -126,46 +126,6 @@ impl ServerStorage {
         &mut self,
         mut account_data: UpdateSet,
     ) -> Result<()> {
-        // Patch the account event log
-        {
-            let mut writer = self.account_log.write().await;
-            writer
-                .patch_checked(
-                    &account_data.account.before,
-                    &account_data.account.patch,
-                )
-                .await?;
-        }
-
-        // Patch the device event log
-        #[cfg(feature = "device")]
-        {
-            let mut writer = self.device_log.write().await;
-            writer
-                .patch_checked(
-                    &account_data.device.before,
-                    &account_data.device.patch,
-                )
-                .await?;
-
-            if !account_data.device.patch.is_empty() {
-                let reducer = DeviceReducer::new(&*writer);
-                self.devices = reducer.reduce().await?;
-            }
-        }
-
-        // Patch the file event log
-        #[cfg(feature = "files")]
-        {
-            let mut writer = self.file_log.write().await;
-            writer
-                .patch_checked(
-                    &account_data.files.before,
-                    &account_data.files.patch,
-                )
-                .await?;
-        }
-
         // Force overwrite all identity data
         if let Some(identity) = account_data.identity.take() {
             let mut writer = self.identity_log.write().await;

@@ -59,6 +59,10 @@ pub enum Error {
     #[error("failed to sync after revoking device, {0}")]
     RevokeDeviceSync(SyncError<Error>),
 
+    /// Error generated force update of an account failed.
+    #[error("failed to force update, {0}")]
+    ForceUpdate(SyncError<Error>),
+
     /// Error generated trying to parse a device enrollment sharing URL.
     #[deprecated]
     #[error("invalid share url for device enrollment")]
