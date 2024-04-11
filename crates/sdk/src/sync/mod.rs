@@ -579,6 +579,12 @@ pub trait SyncClient {
         account: &ChangeSet,
     ) -> std::result::Result<(), Self::Error>;
 
+    /// Update an account.
+    async fn update_account(
+        &self,
+        account: &UpdateSet,
+    ) -> std::result::Result<(), Self::Error>;
+
     /// Fetch an account from a remote server.
     async fn fetch_account(
         &self,

@@ -7,7 +7,9 @@ use sos_sdk::{
     decode, encode,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, Origin, SyncClient, SyncPacket, SyncStatus},
+    sync::{
+        ChangeSet, Origin, SyncClient, SyncPacket, SyncStatus, UpdateSet,
+    },
 };
 
 use serde_json::Value;
@@ -177,12 +179,6 @@ impl HttpClient {
 impl SyncClient for HttpClient {
     type Error = Error;
 
-    /*
-    fn url(&self) -> &Url {
-        self.origin.url()
-    }
-    */
-
     fn origin(&self) -> &Origin {
         &self.origin
     }
@@ -200,6 +196,34 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .put(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        let status = response.status();
+        tracing::debug!(status = %status);
+        self.error_json(response).await?;
+        Ok(())
+    }
+
+    async fn update_account(&self, account: &UpdateSet) -> Result<()> {
+        let span = span!(Level::DEBUG, "update_account");
+        let _enter = span.enter();
+
+        let body = encode(account).await?;
+        let url = self.build_url("api/v1/sync/account")?;
+        let sign_url = url.path();
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let response = self
+            .client
+            .post(url)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
