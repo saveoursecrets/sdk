@@ -1,5 +1,6 @@
 //! Synchronization helpers.
 use crate::{
+    commit::{CommitState, Comparison},
     encode,
     events::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
@@ -182,6 +183,14 @@ impl Merge for ServerStorage {
         Ok(diff.patch.len())
     }
 
+    async fn compare_identity(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let reader = self.identity_log.read().await;
+        reader.tree().compare(&state.1)
+    }
+
     async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
         tracing::debug!(
             before = ?diff.before,
@@ -232,6 +241,14 @@ impl Merge for ServerStorage {
         Ok(diff.patch.len())
     }
 
+    async fn compare_account(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let reader = self.account_log.read().await;
+        reader.tree().compare(&state.1)
+    }
+
     #[cfg(feature = "device")]
     async fn merge_device(&mut self, diff: &DeviceDiff) -> Result<usize> {
         tracing::debug!(
@@ -255,6 +272,15 @@ impl Merge for ServerStorage {
         }
 
         Ok(diff.patch.len())
+    }
+
+    #[cfg(feature = "device")]
+    async fn compare_device(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let reader = self.device_log.read().await;
+        reader.tree().compare(&state.1)
     }
 
     #[cfg(feature = "files")]
@@ -292,31 +318,46 @@ impl Merge for ServerStorage {
         Ok(num_changes)
     }
 
-    async fn merge_folders(
+    #[cfg(feature = "files")]
+    async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
+        let reader = self.file_log.read().await;
+        reader.tree().compare(&state.1)
+    }
+
+    async fn merge_folder(
         &mut self,
-        folders: &IndexMap<VaultId, MaybeDiff<FolderDiff>>,
+        folder_id: &VaultId,
+        diff: &FolderDiff,
     ) -> Result<usize> {
-        let mut num_changes = 0;
-        for (id, diff) in folders {
-            if let MaybeDiff::Diff(diff) = diff {
-                tracing::debug!(
-                    folder_id = %id,
-                    before = ?diff.before,
-                    num_events = diff.patch.len(),
-                    "folder",
-                );
+        tracing::debug!(
+            folder_id = %folder_id,
+            before = ?diff.before,
+            num_events = diff.patch.len(),
+            "folder",
+        );
 
-                let log = self
-                    .cache
-                    .get_mut(id)
-                    .ok_or_else(|| Error::CacheNotAvailable(*id))?;
-                let mut log = log.write().await;
+        let log = self
+            .cache
+            .get_mut(folder_id)
+            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+        let mut log = log.write().await;
 
-                log.patch_checked(&diff.before, &diff.patch).await?;
-                num_changes += diff.patch.len();
-            }
-        }
-        Ok(num_changes)
+        log.patch_checked(&diff.before, &diff.patch).await?;
+
+        Ok(diff.patch.len())
+    }
+
+    async fn compare_folder(
+        &self,
+        folder_id: &VaultId,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let log = self
+            .cache
+            .get(folder_id)
+            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+        let log = log.read().await;
+        Ok(log.tree().compare(&state.1)?)
     }
 }
 

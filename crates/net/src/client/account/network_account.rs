@@ -126,6 +126,8 @@ impl NetworkAccount {
             storage.revoke_device(device_key).await?;
         }
 
+        println!("Sending patch devices request...");
+
         // Send the device event logs to the remote servers
         if let Some(e) = self.patch_devices(&Default::default()).await {
             tracing::error!(error = ?e);

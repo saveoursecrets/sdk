@@ -1,5 +1,5 @@
 use crate::{
-    commit::CommitState,
+    commit::{CommitState, Comparison},
     decode, encode,
     encoding::{decode_uuid, encoding_error},
     prelude::{FileIdentity, PATCH_IDENTITY},
@@ -12,8 +12,8 @@ use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result};
 
 use crate::sync::{
-    ChangeSet, Diff, FolderDiff, FolderPatch, MaybeDiff, Patch, SyncDiff,
-    SyncPacket, SyncStatus, UpdateSet,
+    ChangeSet, Diff, FolderDiff, FolderPatch, MaybeDiff, Patch, SyncCompare,
+    SyncDiff, SyncPacket, SyncStatus, UpdateSet,
 };
 
 #[cfg(feature = "files")]
@@ -174,6 +174,7 @@ impl Encodable for SyncPacket {
     ) -> Result<()> {
         self.status.encode(&mut *writer).await?;
         self.diff.encode(&mut *writer).await?;
+        self.compare.encode(&mut *writer).await?;
         Ok(())
     }
 }
@@ -186,6 +187,60 @@ impl Decodable for SyncPacket {
     ) -> Result<()> {
         self.status.decode(&mut *reader).await?;
         self.diff.decode(&mut *reader).await?;
+        self.compare.decode(&mut *reader).await?;
+        Ok(())
+    }
+}
+
+/*
+/// Identity vault comparison.
+/// Comparisons for the account folders.
+pub folders: IndexMap<VaultId, Comparison>,
+*/
+
+#[async_trait]
+impl Encodable for SyncCompare {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        self.identity.encode(&mut *writer).await?;
+        self.account.encode(&mut *writer).await?;
+        #[cfg(feature = "device")]
+        self.device.encode(&mut *writer).await?;
+        #[cfg(feature = "files")]
+        self.files.encode(&mut *writer).await?;
+
+        writer.write_u16(self.folders.len() as u16).await?;
+        for (id, comparison) in &self.folders {
+            writer.write_bytes(id.as_bytes()).await?;
+            comparison.encode(&mut *writer).await?;
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for SyncCompare {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        self.identity.decode(&mut *reader).await?;
+        self.account.decode(&mut *reader).await?;
+        #[cfg(feature = "device")]
+        self.device.decode(&mut *reader).await?;
+        #[cfg(feature = "files")]
+        self.files.decode(&mut *reader).await?;
+
+        let num_folders = reader.read_u16().await?;
+        for _ in 0..num_folders {
+            let id = decode_uuid(&mut *reader).await?;
+            let mut comparison: Comparison = Default::default();
+            comparison.decode(&mut *reader).await?;
+            self.folders.insert(id, comparison);
+        }
+
         Ok(())
     }
 }

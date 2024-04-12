@@ -180,13 +180,15 @@ pub type FileDiff = Diff<FileEvent>;
 /// Diff between folder events logs.
 pub type FolderDiff = Diff<WriteEvent>;
 
-/// Combined sync status and diff.
+/// Combined sync status, diff and comparisons.
 #[derive(Debug, Default)]
 pub struct SyncPacket {
     /// Sync status.
     pub status: SyncStatus,
     /// Sync diff.
     pub diff: SyncDiff,
+    /// Sync comparisons.
+    pub compare: Option<SyncCompare>,
 }
 
 /// Provides a status overview of an account.
@@ -206,6 +208,32 @@ pub struct SyncStatus {
     pub files: Option<CommitState>,
     /// Commit proofs for the account folders.
     pub folders: IndexMap<VaultId, CommitState>,
+}
+
+/// Collection of comparisons for an account.
+///
+/// When a local account does not contain the proof for
+/// a remote event log if will interrogate the server to
+/// compare it's proof with the remote tree.
+///
+/// The server will reply with comparison(s) so that the local
+/// account can determine if the trees have completely diverged
+/// or whether it can attempt to automatically merge
+/// partially diverged trees.
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+pub struct SyncCompare {
+    /// Identity vault comparison.
+    pub identity: Option<Comparison>,
+    /// Account log comparison.
+    pub account: Option<Comparison>,
+    /// Device log comparison.
+    #[cfg(feature = "device")]
+    pub device: Option<Comparison>,
+    /// Files log comparison.
+    #[cfg(feature = "files")]
+    pub files: Option<Comparison>,
+    /// Comparisons for the account folders.
+    pub folders: IndexMap<VaultId, Comparison>,
 }
 
 /// Diff of events or conflict information.
@@ -449,9 +477,12 @@ impl SyncComparison {
                     "device events divergence"
                 );
 
+                // NOTE: this will break the device revoke test spec!
+                /*
                 diff.device = Some(MaybeDiff::Compare(Some(
                     self.local_status.device.clone(),
                 )));
+                */
             }
         }
 
@@ -801,53 +832,139 @@ pub trait Merge {
     /// Merge changes to the identity folder.
     async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize>;
 
+    /// Compare the identity folder.
+    async fn compare_identity(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison>;
+
     /// Merge changes to the account event log.
     async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize>;
+
+    /// Compare the account events.
+    async fn compare_account(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison>;
 
     /// Merge changes to the devices event log.
     #[cfg(feature = "device")]
     async fn merge_device(&mut self, diff: &DeviceDiff) -> Result<usize>;
 
+    /// Compare the device events.
+    #[cfg(feature = "device")]
+    async fn compare_device(&self, state: &CommitState)
+        -> Result<Comparison>;
+
     /// Merge changes to the files event log.
     #[cfg(feature = "files")]
     async fn merge_files(&mut self, diff: &FileDiff) -> Result<usize>;
 
-    /// Merge changes to folders.
-    async fn merge_folders(
+    /// Compare the file events.
+    #[cfg(feature = "files")]
+    async fn compare_files(&self, state: &CommitState) -> Result<Comparison>;
+
+    /// Merge changes to a folder.
+    async fn merge_folder(
         &mut self,
-        folders: &IndexMap<VaultId, MaybeDiff<FolderDiff>>,
+        folder_id: &VaultId,
+        diff: &FolderDiff,
     ) -> Result<usize>;
 
+    /// Compare folder events.
+    async fn compare_folder(
+        &self,
+        folder_id: &VaultId,
+        state: &CommitState,
+    ) -> Result<Comparison>;
+
     /// Merge a diff into this storage.
-    async fn merge(&mut self, diff: &SyncDiff) -> Result<usize> {
+    async fn merge(
+        &mut self,
+        diff: &SyncDiff,
+    ) -> Result<(usize, SyncCompare)> {
         //let span = span!(Level::DEBUG, "merge");
         //let _enter = span.enter();
 
         let mut num_changes = 0;
+        let mut compare = SyncCompare::default();
 
-        if let Some(MaybeDiff::Diff(diff)) = &diff.identity {
-            num_changes += self.merge_identity(diff).await?;
+        match &diff.identity {
+            Some(MaybeDiff::Noop) => unreachable!(),
+            Some(MaybeDiff::Diff(diff)) => {
+                num_changes += self.merge_identity(diff).await?;
+            }
+            Some(MaybeDiff::Compare(state)) => {
+                if let Some(state) = state {
+                    compare.identity =
+                        Some(self.compare_identity(state).await?);
+                }
+            }
+            None => {}
         }
 
-        if let Some(MaybeDiff::Diff(diff)) = &diff.account {
-            num_changes += self.merge_account(diff).await?;
+        match &diff.account {
+            Some(MaybeDiff::Noop) => unreachable!(),
+            Some(MaybeDiff::Diff(diff)) => {
+                num_changes += self.merge_account(diff).await?;
+            }
+            Some(MaybeDiff::Compare(state)) => {
+                if let Some(state) = state {
+                    compare.account =
+                        Some(self.compare_account(state).await?);
+                }
+            }
+            None => {}
         }
 
         #[cfg(feature = "device")]
-        if let Some(MaybeDiff::Diff(diff)) = &diff.device {
-            num_changes += self.merge_device(diff).await?;
+        match &diff.device {
+            Some(MaybeDiff::Noop) => unreachable!(),
+            Some(MaybeDiff::Diff(diff)) => {
+                num_changes += self.merge_device(diff).await?;
+            }
+            Some(MaybeDiff::Compare(state)) => {
+                if let Some(state) = state {
+                    compare.device = Some(self.compare_device(state).await?);
+                }
+            }
+            None => {}
         }
 
         #[cfg(feature = "files")]
-        if let Some(MaybeDiff::Diff(diff)) = &diff.files {
-            num_changes += self.merge_files(diff).await?;
+        match &diff.files {
+            Some(MaybeDiff::Noop) => unreachable!(),
+            Some(MaybeDiff::Diff(diff)) => {
+                num_changes += self.merge_files(diff).await?;
+            }
+            Some(MaybeDiff::Compare(state)) => {
+                if let Some(state) = state {
+                    compare.files = Some(self.compare_files(state).await?);
+                }
+            }
+            None => {}
         }
 
-        num_changes += self.merge_folders(&diff.folders).await?;
+        for (id, maybe_diff) in &diff.folders {
+            match maybe_diff {
+                MaybeDiff::Noop => unreachable!(),
+                MaybeDiff::Diff(diff) => {
+                    num_changes += self.merge_folder(id, diff).await?;
+                }
+                MaybeDiff::Compare(state) => {
+                    if let Some(state) = state {
+                        compare.folders.insert(
+                            *id,
+                            self.compare_folder(id, state).await?,
+                        );
+                    }
+                }
+            }
+        }
 
         tracing::debug!(num_changes = %num_changes, "merge complete");
 
-        Ok(num_changes)
+        Ok((num_changes, compare))
     }
 }
 

@@ -81,6 +81,7 @@ impl RemoteBridge {
             let packet = SyncPacket {
                 status: local_status,
                 diff: local_changes,
+                compare: None,
             };
             let remote_changes = self.client.sync(&packet).await?;
             //println!("{:#?}", remote_changes);

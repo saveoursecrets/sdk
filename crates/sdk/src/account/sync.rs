@@ -1,5 +1,6 @@
 use crate::{
     account::{Account, LocalAccount},
+    commit::{CommitState, Comparison},
     events::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog, LogEvent,
     },
@@ -34,6 +35,15 @@ impl Merge for LocalAccount {
         );
         self.user_mut()?.identity_mut()?.merge(diff).await?;
         Ok(diff.patch.len())
+    }
+
+    async fn compare_identity(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let log = self.identity_log().await?;
+        let event_log = log.read().await;
+        event_log.tree().compare(&state.1)
     }
 
     async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
@@ -109,6 +119,15 @@ impl Merge for LocalAccount {
         Ok(diff.patch.len())
     }
 
+    async fn compare_account(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let log = self.account_log().await?;
+        let event_log = log.read().await;
+        event_log.tree().compare(&state.1)
+    }
+
     #[cfg(feature = "device")]
     async fn merge_device(&mut self, diff: &DeviceDiff) -> Result<usize> {
         tracing::debug!(
@@ -142,6 +161,16 @@ impl Merge for LocalAccount {
         }
 
         Ok(diff.patch.len())
+    }
+
+    #[cfg(feature = "device")]
+    async fn compare_device(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let log = self.device_log().await?;
+        let event_log = log.read().await;
+        event_log.tree().compare(&state.1)
     }
 
     #[cfg(feature = "files")]
@@ -220,9 +249,17 @@ impl Merge for LocalAccount {
         Ok(num_changes)
     }
 
-    async fn merge_folders(
+    #[cfg(feature = "files")]
+    async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
+        let log = self.file_log().await?;
+        let event_log = log.read().await;
+        event_log.tree().compare(&state.1)
+    }
+
+    async fn merge_folder(
         &mut self,
-        folders: &IndexMap<VaultId, MaybeDiff<FolderDiff>>,
+        folder_id: &VaultId,
+        diff: &FolderDiff,
     ) -> Result<usize> {
         let mut num_changes = 0;
 
@@ -235,36 +272,49 @@ impl Merge for LocalAccount {
             index.search()
         };
 
-        for (id, diff) in folders {
-            if let MaybeDiff::Diff(diff) = diff {
-                tracing::debug!(
-                    folder_id = %id,
-                    before = ?diff.before,
-                    num_events = diff.patch.len(),
-                    "folder",
-                );
+        tracing::debug!(
+            folder_id = %folder_id,
+            before = ?diff.before,
+            num_events = diff.patch.len(),
+            "folder",
+        );
 
-                if let Some(folder) = storage.cache_mut().get_mut(id) {
-                    #[cfg(feature = "search")]
-                    {
-                        let mut search = search.write().await;
-                        folder
-                            .merge(
-                                diff,
-                                FolderMergeOptions::Search(*id, &mut search),
-                            )
-                            .await?;
-                    }
-
-                    #[cfg(not(feature = "search"))]
-                    folder.merge(diff, Default::default()).await?;
-
-                    num_changes += diff.patch.len();
-                }
+        if let Some(folder) = storage.cache_mut().get_mut(folder_id) {
+            #[cfg(feature = "search")]
+            {
+                let mut search = search.write().await;
+                folder
+                    .merge(
+                        diff,
+                        FolderMergeOptions::Search(*folder_id, &mut search),
+                    )
+                    .await?;
             }
+
+            #[cfg(not(feature = "search"))]
+            folder.merge(diff, Default::default()).await?;
+
+            num_changes = diff.patch.len();
         }
 
         Ok(num_changes)
+    }
+
+    async fn compare_folder(
+        &self,
+        folder_id: &VaultId,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+
+        let folder = storage
+            .cache()
+            .get(folder_id)
+            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+        let event_log = folder.event_log();
+        let reader = event_log.read().await;
+        Ok(reader.tree().compare(&state.1)?)
     }
 }
 

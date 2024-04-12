@@ -502,7 +502,7 @@ mod handlers {
         let (remote_status, diff) = (packet.status, packet.diff);
 
         // Apply the diff to the storage
-        let num_changes = {
+        let (num_changes, compare) = {
             let span = span!(Level::DEBUG, "merge_server");
             let _enter = span.enter();
             let mut writer = account.write().await;
@@ -528,6 +528,7 @@ mod handlers {
         let packet = SyncPacket {
             status: local_status,
             diff,
+            compare: Some(compare),
         };
 
         let mut headers = HeaderMap::new();
