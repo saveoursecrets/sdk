@@ -214,8 +214,12 @@ pub enum MaybeDiff<T> {
     #[doc(hidden)]
     #[default]
     Noop,
-    /// Diff of events.
+    /// Diff of local changes to send to the remote.
     Diff(T),
+    /// Local needs to compare it's state with remote.
+    // The additional `Option` wrapper is required because
+    // the files event log may not exist.
+    Compare(Option<CommitState>),
 }
 
 /// Diff between all events logs on local and remote.
@@ -333,6 +337,10 @@ impl SyncComparison {
     }
 
     /// Build a diff from this comparison.
+    ///
+    /// The diff includes changes on local that are not yet
+    /// present on the remote or information that will allow
+    /// a comparison on the remote.
     pub async fn diff(&self, storage: &impl SyncStorage) -> Result<SyncDiff> {
         let mut diff: SyncDiff = Default::default();
 
@@ -365,6 +373,10 @@ impl SyncComparison {
                     remote = ?self.remote_status.identity,
                     "identity folder divergence"
                 );
+
+                diff.identity = Some(MaybeDiff::Compare(Some(
+                    self.local_status.identity.clone(),
+                )));
             }
         }
 
@@ -398,6 +410,10 @@ impl SyncComparison {
                     remote = ?self.remote_status.account,
                     "account events divergence"
                 );
+
+                diff.account = Some(MaybeDiff::Compare(Some(
+                    self.local_status.account.clone(),
+                )));
             }
         }
 
@@ -432,6 +448,10 @@ impl SyncComparison {
                     remote = ?self.remote_status.device,
                     "device events divergence"
                 );
+
+                diff.device = Some(MaybeDiff::Compare(Some(
+                    self.local_status.device.clone(),
+                )));
             }
         }
 
@@ -468,6 +488,10 @@ impl SyncComparison {
                             remote = ?remote_files,
                             "file events divergence"
                         );
+
+                        diff.files = Some(MaybeDiff::Compare(
+                            self.local_status.files.clone(),
+                        ));
                     }
                 }
             }
@@ -523,6 +547,13 @@ impl SyncComparison {
                         local = ?self.local_status.folders.get(id),
                         remote = ?commit_state,
                         "folder events divergence"
+                    );
+
+                    diff.folders.insert(
+                        *id,
+                        MaybeDiff::Compare(
+                            self.local_status.folders.get(id).cloned(),
+                        ),
                     );
                 }
             }

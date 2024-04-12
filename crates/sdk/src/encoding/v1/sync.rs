@@ -297,6 +297,10 @@ where
                 writer.write_u8(1).await?;
                 diff.encode(&mut *writer).await?;
             }
+            MaybeDiff::Compare(state) => {
+                writer.write_u8(2).await?;
+                state.encode(&mut *writer).await?;
+            }
         }
         Ok(())
     }
@@ -317,6 +321,11 @@ where
                 let mut diff = T::default();
                 diff.decode(&mut *reader).await?;
                 *self = MaybeDiff::Diff(diff);
+            }
+            2 => {
+                let mut state = Option::<CommitState>::default();
+                state.decode(&mut *reader).await?;
+                *self = MaybeDiff::Compare(state);
             }
             _ => {
                 return Err(Error::new(
