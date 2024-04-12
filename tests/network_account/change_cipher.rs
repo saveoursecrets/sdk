@@ -10,7 +10,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 #[tokio::test]
 async fn network_sync_change_cipher() -> Result<()> {
     const TEST_ID: &str = "sync_change_cipher";
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -78,7 +78,11 @@ async fn network_sync_change_cipher() -> Result<()> {
     )
     .await?;
 
-    // TODO: sync on other device after force update
+    println!("sync_force_update...");
+
+    // Try to sync on other device after force update
+    let sync_error = device2.owner.sync().await;
+    println!("{:#?}", sync_error);
 
     /*
     let mut bridge = device2.owner.remove_server(&origin).await?.unwrap();

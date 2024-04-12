@@ -7,8 +7,8 @@ use crate::{
     },
     storage::ServerStorage,
     sync::{
-        AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch, Merge,
-        SyncStatus, SyncStorage, UpdateSet,
+        AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch,
+        MaybeDiff, Merge, SyncStatus, SyncStorage, UpdateSet,
     },
     vault::VaultId,
     vfs, Error, Paths, Result,
@@ -294,25 +294,27 @@ impl Merge for ServerStorage {
 
     async fn merge_folders(
         &mut self,
-        folders: &IndexMap<VaultId, FolderDiff>,
+        folders: &IndexMap<VaultId, MaybeDiff<FolderDiff>>,
     ) -> Result<usize> {
         let mut num_changes = 0;
         for (id, diff) in folders {
-            tracing::debug!(
-                folder_id = %id,
-                before = ?diff.before,
-                num_events = diff.patch.len(),
-                "folder",
-            );
+            if let MaybeDiff::Diff(diff) = diff {
+                tracing::debug!(
+                    folder_id = %id,
+                    before = ?diff.before,
+                    num_events = diff.patch.len(),
+                    "folder",
+                );
 
-            let log = self
-                .cache
-                .get_mut(id)
-                .ok_or_else(|| Error::CacheNotAvailable(*id))?;
-            let mut log = log.write().await;
+                let log = self
+                    .cache
+                    .get_mut(id)
+                    .ok_or_else(|| Error::CacheNotAvailable(*id))?;
+                let mut log = log.write().await;
 
-            log.patch_checked(&diff.before, &diff.patch).await?;
-            num_changes += diff.patch.len();
+                log.patch_checked(&diff.before, &diff.patch).await?;
+                num_changes += diff.patch.len();
+            }
         }
         Ok(num_changes)
     }

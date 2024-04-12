@@ -9,11 +9,11 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use std::io::Result;
+use std::io::{Error, ErrorKind, Result};
 
 use crate::sync::{
-    ChangeSet, Diff, FolderDiff, FolderPatch, Patch, SyncDiff, SyncPacket,
-    SyncStatus, UpdateSet,
+    ChangeSet, Diff, FolderDiff, FolderPatch, MaybeDiff, Patch, SyncDiff,
+    SyncPacket, SyncStatus, UpdateSet,
 };
 
 #[cfg(feature = "files")]
@@ -274,9 +274,56 @@ impl Decodable for SyncDiff {
         let num_folders = reader.read_u16().await?;
         for _ in 0..num_folders {
             let id = decode_uuid(&mut *reader).await?;
-            let mut folder: FolderDiff = Default::default();
+            let mut folder: MaybeDiff<FolderDiff> = Default::default();
             folder.decode(&mut *reader).await?;
             self.folders.insert(id, folder);
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<T> Encodable for MaybeDiff<T>
+where
+    T: Default + Encodable + Decodable + Send + Sync,
+{
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        match self {
+            MaybeDiff::Noop => panic!("attempt to encode a noop"),
+            MaybeDiff::Diff(diff) => {
+                writer.write_u8(1).await?;
+                diff.encode(&mut *writer).await?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<T> Decodable for MaybeDiff<T>
+where
+    T: Default + Encodable + Decodable + Send + Sync,
+{
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let kind = reader.read_u8().await?;
+        match kind {
+            1 => {
+                let mut diff = T::default();
+                diff.decode(&mut *reader).await?;
+                *self = MaybeDiff::Diff(diff);
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown diff variant kind {}", kind),
+                ));
+            }
         }
         Ok(())
     }

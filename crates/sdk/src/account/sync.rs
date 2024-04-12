@@ -4,8 +4,8 @@ use crate::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog, LogEvent,
     },
     sync::{
-        AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, Merge,
-        SyncStatus, SyncStorage,
+        AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, MaybeDiff,
+        Merge, SyncStatus, SyncStorage,
     },
     vault::VaultId,
     Error, Result,
@@ -222,7 +222,7 @@ impl Merge for LocalAccount {
 
     async fn merge_folders(
         &mut self,
-        folders: &IndexMap<VaultId, FolderDiff>,
+        folders: &IndexMap<VaultId, MaybeDiff<FolderDiff>>,
     ) -> Result<usize> {
         let mut num_changes = 0;
 
@@ -236,29 +236,31 @@ impl Merge for LocalAccount {
         };
 
         for (id, diff) in folders {
-            tracing::debug!(
-                folder_id = %id,
-                before = ?diff.before,
-                num_events = diff.patch.len(),
-                "folder",
-            );
+            if let MaybeDiff::Diff(diff) = diff {
+                tracing::debug!(
+                    folder_id = %id,
+                    before = ?diff.before,
+                    num_events = diff.patch.len(),
+                    "folder",
+                );
 
-            if let Some(folder) = storage.cache_mut().get_mut(id) {
-                #[cfg(feature = "search")]
-                {
-                    let mut search = search.write().await;
-                    folder
-                        .merge(
-                            diff,
-                            FolderMergeOptions::Search(*id, &mut search),
-                        )
-                        .await?;
+                if let Some(folder) = storage.cache_mut().get_mut(id) {
+                    #[cfg(feature = "search")]
+                    {
+                        let mut search = search.write().await;
+                        folder
+                            .merge(
+                                diff,
+                                FolderMergeOptions::Search(*id, &mut search),
+                            )
+                            .await?;
+                    }
+
+                    #[cfg(not(feature = "search"))]
+                    folder.merge(diff, Default::default()).await?;
+
+                    num_changes += diff.patch.len();
                 }
-
-                #[cfg(not(feature = "search"))]
-                folder.merge(diff, Default::default()).await?;
-
-                num_changes += diff.patch.len();
             }
         }
 

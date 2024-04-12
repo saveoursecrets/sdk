@@ -6,8 +6,8 @@ use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::files::{list_external_files, FileSet},
     sync::{
-        self, Merge, Origin, SyncClient, SyncOptions, SyncPacket, SyncStatus,
-        SyncStorage, UpdateSet,
+        self, MaybeDiff, Merge, Origin, SyncClient, SyncOptions, SyncPacket,
+        SyncStatus, SyncStorage, UpdateSet,
     },
 };
 use std::{collections::HashMap, sync::Arc};
@@ -115,7 +115,9 @@ impl RemoteBridge {
         }
 
         #[cfg(feature = "device")]
-        if let (true, Some(device)) = (needs_sync, local_changes.device) {
+        if let (true, Some(MaybeDiff::Diff(device))) =
+            (needs_sync, local_changes.device)
+        {
             self.client.patch_devices(&device).await?;
         }
         Ok(())

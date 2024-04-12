@@ -208,21 +208,31 @@ pub struct SyncStatus {
     pub folders: IndexMap<VaultId, CommitState>,
 }
 
+/// Diff of events or conflict information.
+#[derive(Default, Debug)]
+pub enum MaybeDiff<T> {
+    #[doc(hidden)]
+    #[default]
+    Noop,
+    /// Diff of events.
+    Diff(T),
+}
+
 /// Diff between all events logs on local and remote.
 #[derive(Default, Debug)]
 pub struct SyncDiff {
     /// Diff of the identity vault event logs.
-    pub identity: Option<FolderDiff>,
+    pub identity: Option<MaybeDiff<FolderDiff>>,
     /// Diff of the account event log.
-    pub account: Option<AccountDiff>,
+    pub account: Option<MaybeDiff<AccountDiff>>,
     /// Diff of the device event log.
     #[cfg(feature = "device")]
-    pub device: Option<DeviceDiff>,
+    pub device: Option<MaybeDiff<DeviceDiff>>,
     /// Diff of the files event log.
     #[cfg(feature = "files")]
-    pub files: Option<FileDiff>,
+    pub files: Option<MaybeDiff<FileDiff>>,
     /// Diff for folders in the account.
-    pub folders: IndexMap<VaultId, FolderDiff>,
+    pub folders: IndexMap<VaultId, MaybeDiff<FolderDiff>>,
 }
 
 /// Comparison between local and remote status.
@@ -346,11 +356,15 @@ impl SyncComparison {
                         after,
                         before: self.remote_status.identity.1.clone(),
                     };
-                    diff.identity = Some(identity);
+                    diff.identity = Some(MaybeDiff::Diff(identity));
                 }
             }
             Comparison::Unknown => {
-                println!("todo! : handle identity with diverged trees");
+                tracing::info!(
+                    local = ?self.local_status.identity,
+                    remote = ?self.remote_status.identity,
+                    "identity folder divergence"
+                );
             }
         }
 
@@ -375,11 +389,15 @@ impl SyncComparison {
                         after,
                         before: self.remote_status.account.1.clone(),
                     };
-                    diff.account = Some(account);
+                    diff.account = Some(MaybeDiff::Diff(account));
                 }
             }
             Comparison::Unknown => {
-                println!("todo! : handle account with diverged trees");
+                tracing::info!(
+                    local = ?self.local_status.account,
+                    remote = ?self.remote_status.account,
+                    "account events divergence"
+                );
             }
         }
 
@@ -405,11 +423,15 @@ impl SyncComparison {
                         after,
                         before: self.remote_status.device.1.clone(),
                     };
-                    diff.device = Some(device);
+                    diff.device = Some(MaybeDiff::Diff(device));
                 }
             }
             Comparison::Unknown => {
-                println!("todo! : handle device with diverged trees");
+                tracing::info!(
+                    local = ?self.local_status.device,
+                    remote = ?self.remote_status.device,
+                    "device events divergence"
+                );
             }
         }
 
@@ -437,11 +459,15 @@ impl SyncComparison {
                                 after,
                                 before: remote_files.1.clone(),
                             };
-                            diff.files = Some(files);
+                            diff.files = Some(MaybeDiff::Diff(files));
                         }
                     }
                     Comparison::Unknown => {
-                        println!("todo! : handle files with diverged trees");
+                        tracing::info!(
+                            local = ?files,
+                            remote = ?remote_files,
+                            "file events divergence"
+                        );
                     }
                 }
             }
@@ -459,7 +485,7 @@ impl SyncComparison {
                         after,
                         before: Default::default(),
                     };
-                    diff.files = Some(files);
+                    diff.files = Some(MaybeDiff::Diff(files));
                 }
             }
             _ => {}
@@ -488,11 +514,16 @@ impl SyncComparison {
                     };
 
                     if !folder.patch.is_empty() {
-                        diff.folders.insert(*id, folder);
+                        diff.folders.insert(*id, MaybeDiff::Diff(folder));
                     }
                 }
                 Comparison::Unknown => {
-                    println!("todo! : handle folder with diverged trees");
+                    tracing::info!(
+                        id = %id,
+                        local = ?self.local_status.folders.get(id),
+                        remote = ?commit_state,
+                        "folder events divergence"
+                    );
                 }
             }
         }
@@ -514,7 +545,7 @@ impl SyncComparison {
                 };
 
                 if !folder.patch.is_empty() {
-                    diff.folders.insert(*id, folder);
+                    diff.folders.insert(*id, MaybeDiff::Diff(folder));
                 }
             }
         }
@@ -753,7 +784,7 @@ pub trait Merge {
     /// Merge changes to folders.
     async fn merge_folders(
         &mut self,
-        folders: &IndexMap<VaultId, FolderDiff>,
+        folders: &IndexMap<VaultId, MaybeDiff<FolderDiff>>,
     ) -> Result<usize>;
 
     /// Merge a diff into this storage.
@@ -763,21 +794,21 @@ pub trait Merge {
 
         let mut num_changes = 0;
 
-        if let Some(diff) = &diff.identity {
+        if let Some(MaybeDiff::Diff(diff)) = &diff.identity {
             num_changes += self.merge_identity(diff).await?;
         }
 
-        if let Some(diff) = &diff.account {
+        if let Some(MaybeDiff::Diff(diff)) = &diff.account {
             num_changes += self.merge_account(diff).await?;
         }
 
         #[cfg(feature = "device")]
-        if let Some(diff) = &diff.device {
+        if let Some(MaybeDiff::Diff(diff)) = &diff.device {
             num_changes += self.merge_device(diff).await?;
         }
 
         #[cfg(feature = "files")]
-        if let Some(diff) = &diff.files {
+        if let Some(MaybeDiff::Diff(diff)) = &diff.files {
             num_changes += self.merge_files(diff).await?;
         }
 
