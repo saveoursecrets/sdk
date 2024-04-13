@@ -7,14 +7,11 @@ use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::files::{list_external_files, FileSet},
     sync::{
-        self, MaybeDiff, Merge, Origin, SyncClient, SyncCompare, SyncOptions,
-        SyncPacket, SyncStatus, SyncStorage, UpdateSet,
+        self, MaybeDiff, Merge, Origin, SyncClient, SyncOptions, SyncPacket,
+        SyncStatus, SyncStorage, UpdateSet,
     },
 };
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{span, Level};
 

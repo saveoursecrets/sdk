@@ -1,14 +1,15 @@
 use crate::{
     account::{Account, LocalAccount},
     commit::{CommitState, Comparison},
+    decode,
     events::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog, LogEvent,
     },
     sync::{
-        AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, MaybeDiff,
-        Merge, SyncStatus, SyncStorage,
+        AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, Merge,
+        SyncStatus, SyncStorage,
     },
-    vault::VaultId,
+    vault::{Vault, VaultId},
     Error, Result,
 };
 use async_trait::async_trait;
@@ -66,6 +67,11 @@ impl Merge for LocalAccount {
                 match &event {
                     AccountEvent::Noop => {
                         tracing::warn!("merge got noop event (client)");
+                    }
+                    AccountEvent::UpdateIdentity(buf) => {
+                        println!("IMPORTING THE IDENTITY VAULT FROM EVENT");
+                        let vault: Vault = decode(buf).await?;
+                        self.import_identity_vault(vault).await?;
                     }
                     AccountEvent::CreateFolder(id, buf)
                     | AccountEvent::UpdateFolder(id, buf)

@@ -8,8 +8,8 @@ use crate::{
     },
     storage::ServerStorage,
     sync::{
-        AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch,
-        MaybeDiff, Merge, SyncStatus, SyncStorage, UpdateSet,
+        AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch, Merge,
+        SyncStatus, SyncStorage, UpdateSet,
     },
     vault::VaultId,
     vfs, Error, Paths, Result,
@@ -207,9 +207,12 @@ impl Merge for ServerStorage {
             for event in diff.patch.iter() {
                 tracing::debug!(event_kind = %event.event_kind());
 
-                match &event {
+                match event {
                     AccountEvent::Noop => {
                         tracing::warn!("merge got noop event (server)");
+                    }
+                    AccountEvent::UpdateIdentity(_) => {
+                        unimplemented!();
                     }
                     AccountEvent::CreateFolder(id, buf)
                     | AccountEvent::UpdateFolder(id, buf)

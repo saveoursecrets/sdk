@@ -67,6 +67,8 @@ const CHANGE_PASSWORD: u16 = 28;
 const TRUST_DEVICE: u16 = 29;
 /// Type identifier for revoking a device.
 const REVOKE_DEVICE: u16 = 30;
+/// Type identifier for updating an identity folder.
+const UPDATE_IDENTITY: u16 = 31;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -134,6 +136,8 @@ pub enum EventKind {
     TrustDevice,
     /// Event for revoking a device.
     RevokeDevice,
+    /// Event for when an identity folder is updated.
+    UpdateIdentity,
 }
 
 impl Default for EventKind {
@@ -216,6 +220,7 @@ impl From<&EventKind> for u16 {
             EventKind::ChangePassword => CHANGE_PASSWORD,
             EventKind::TrustDevice => TRUST_DEVICE,
             EventKind::RevokeDevice => REVOKE_DEVICE,
+            EventKind::UpdateIdentity => UPDATE_IDENTITY,
         }
     }
 }
@@ -261,6 +266,7 @@ impl fmt::Display for EventKind {
                 EventKind::ChangePassword => "CHANGE_PASSWORD",
                 EventKind::TrustDevice => "TRUST_DEVICE",
                 EventKind::RevokeDevice => "REVOKE_DEVICE",
+                EventKind::UpdateIdentity => "UPDATE_IDENTITY",
             }
         })
     }

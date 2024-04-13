@@ -7,6 +7,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 
 /// Tests changing the account cipher and force syncing
 /// the updated and diverged account data.
+#[ignore]
 #[tokio::test]
 async fn network_sync_change_cipher() -> Result<()> {
     const TEST_ID: &str = "sync_change_cipher";

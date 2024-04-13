@@ -9,7 +9,7 @@ use sos_sdk::{
     },
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
-    events::{EventLogExt, ReadEvent},
+    events::{AccountEvent, EventLogExt, ReadEvent},
     identity::{AccountRef, PublicIdentity},
     sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
@@ -1103,10 +1103,9 @@ impl Account for NetworkAccount {
     async fn import_identity_vault(
         &mut self,
         vault: Vault,
-        account_key: &AccessKey,
-    ) -> Result<()> {
+    ) -> Result<AccountEvent> {
         let mut account = self.account.lock().await;
-        Ok(account.import_identity_vault(vault, account_key).await?)
+        Ok(account.import_identity_vault(vault).await?)
     }
 
     async fn import_folder_buffer(

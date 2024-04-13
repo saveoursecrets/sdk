@@ -25,6 +25,7 @@ use crate::{
         search::{DocumentCount, SearchIndex},
         AccessOptions, ClientStorage,
     },
+    sync::SyncStorage,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
         Gatekeeper, Header, Summary, Vault, VaultId,
@@ -650,8 +651,7 @@ pub trait Account {
     async fn import_identity_vault(
         &mut self,
         vault: Vault,
-        account_key: &AccessKey,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> std::result::Result<AccountEvent, Self::Error>;
 
     /// Export a folder as a vault file.
     async fn export_folder(
@@ -1504,6 +1504,12 @@ impl Account for LocalAccount {
 
         ConvertCipher::convert(self, &conversion, account_key).await?;
 
+        // Login again so in-memory data is up to date
+        let identity_vault_path = self.paths().identity_vault();
+        self.user_mut()?
+            .login(&identity_vault_path, &account_key)
+            .await?;
+
         Ok(conversion)
     }
 
@@ -2329,38 +2335,33 @@ impl Account for LocalAccount {
     async fn import_identity_vault(
         &mut self,
         vault: Vault,
-        account_key: &AccessKey,
-    ) -> Result<()> {
+    ) -> Result<AccountEvent> {
         let span = span!(Level::DEBUG, "import_identity_vault");
         let _enter = span.enter();
 
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
-        let identity_vault_path = {
-            // Update the identity vault
-            let buffer = encode(&vault).await?;
-            let identity_vault_path = self.paths().identity_vault();
-            vfs::write(&identity_vault_path, &buffer).await?;
+        // Update the identity vault
+        let buffer = encode(&vault).await?;
+        let identity_vault_path = self.paths().identity_vault();
+        vfs::write(&identity_vault_path, &buffer).await?;
 
-            // Update the events for the identity vault
-            let user = self.user()?;
-            let identity = user.identity()?;
-            let event_log = identity.event_log();
-            let mut event_log = event_log.write().await;
-            event_log.clear().await?;
+        // Update the events for the identity vault
+        let user = self.user()?;
+        let identity = user.identity()?;
+        let event_log = identity.event_log();
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
 
-            let (_, events) = FolderReducer::split(vault).await?;
-            event_log.apply(events.iter().collect()).await?;
+        let (_, events) = FolderReducer::split(vault).await?;
+        event_log.apply(events.iter().collect()).await?;
 
-            identity_vault_path
-        };
+        let event = AccountEvent::UpdateIdentity(buffer);
+        let event_log = self.account_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.apply(vec![&event]).await?;
 
-        // Login again so in-memory data is up to date
-        self.user_mut()?
-            .login(&identity_vault_path, &account_key)
-            .await?;
-
-        Ok(())
+        Ok(event)
     }
 
     async fn export_folder(
