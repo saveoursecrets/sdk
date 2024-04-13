@@ -57,7 +57,7 @@ async fn pairing_device_revoke() -> Result<()> {
         .revoke_device(&current_device_public_key)
         .await;
 
-    println!("{:#?}", revoke_error);
+    // println!("{:#?}", revoke_error);
 
     if let Err(ClientError::RevokeDeviceSync(mut e)) = revoke_error {
         let (_, err) = e.errors.remove(0);

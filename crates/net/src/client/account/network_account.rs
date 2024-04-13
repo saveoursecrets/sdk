@@ -24,7 +24,7 @@ use sos_sdk::{
     sync::{Origin, SyncOptions, SyncStorage, UpdateSet},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        Summary, VaultId,
+        Summary, Vault, VaultId,
     },
     vfs, Paths,
 };
@@ -1098,6 +1098,15 @@ impl Account for NetworkAccount {
     ) -> Result<FolderCreate<Self::Error>> {
         let buffer = vfs::read(path.as_ref()).await?;
         self.import_folder_buffer(&buffer, key, overwrite).await
+    }
+
+    async fn import_identity_vault(
+        &mut self,
+        vault: Vault,
+        account_key: &AccessKey,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.import_identity_vault(vault, account_key).await?)
     }
 
     async fn import_folder_buffer(

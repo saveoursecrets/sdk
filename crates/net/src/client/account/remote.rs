@@ -88,7 +88,6 @@ impl RemoteBridge {
                 compare: None,
             };
             let remote_changes = self.client.sync(&packet).await?;
-            //println!("{:#?}", remote_changes);
             account.merge(&remote_changes.diff).await?;
 
             self.compare(&mut *account, remote_changes).await?;
@@ -106,12 +105,7 @@ impl RemoteBridge {
         remote_changes: SyncPacket,
     ) -> Result<()> {
         if let Some(remote_compare) = &remote_changes.compare {
-            /*
-            let local_status = account.sync_status().await?;
-
-            println!("local_status: {:#?}", local_status.folders);
-            println!("remote_status: {:#?}", remote_changes.status.folders);
-            */
+            // println!("{:#?}", remote_changes);
 
             let local_compare =
                 account.compare(&remote_changes.status).await?;
@@ -130,31 +124,12 @@ impl RemoteBridge {
                 _ => {}
             }
 
-            let ids = local_compare
-                .folders
-                .keys()
-                .chain(remote_compare.folders.keys())
-                .collect::<HashSet<_>>();
-
-            for id in ids {
-                println!("Compare folder with {}", id);
-                if let (Some(local), Some(remote)) = (
-                    local_compare.folders.get(id),
-                    remote_compare.folders.get(id),
-                ) {
-                    println!("local {:#?}", local);
-                    println!("remote {:#?}", remote);
-                    match (local, remote) {
-                        (Comparison::Unknown, Comparison::Unknown) => {
-                            println!(
-                                "todo!: handle completely diverged folder {}",
-                                id
-                            );
-                        }
-                        _ => {}
-                    }
-                }
-            }
+            // NOTE: we don't need to handle folders here as
+            // NOTE: destructive changes should call
+            // NOTE: import_folder_buffer() which generates
+            // NOTE: an AccountEvent::UpdateVault event which
+            // NOTE: will be handled and automatically rewrite
+            // NOTE: the content of the folder
         }
 
         Ok(())

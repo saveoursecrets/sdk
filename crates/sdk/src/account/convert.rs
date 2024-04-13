@@ -74,7 +74,7 @@ impl ConvertCipher {
         account: &'a mut A,
         conversion: &CipherConversion,
         account_key: &AccessKey,
-    ) -> std::result::Result<Option<Vault>, A::Error>
+    ) -> std::result::Result<(), A::Error>
     where
         A: Account,
         A::Error: From<std::io::Error>,
@@ -96,23 +96,21 @@ impl ConvertCipher {
             account.import_folder_buffer(buffer, key, true).await?;
         }
 
-        let identity_vault = if let Some(identity) = &conversion.identity {
-            Some(
-                Self::convert_folder_cipher(
-                    account,
-                    &conversion.cipher,
-                    &conversion.kdf,
-                    identity,
-                    account_key,
-                    false,
-                )
-                .await?,
+        if let Some(identity) = &conversion.identity {
+            let vault = Self::convert_folder_cipher(
+                account,
+                &conversion.cipher,
+                &conversion.kdf,
+                identity,
+                account_key,
+                false,
             )
-        } else {
-            None
+            .await?;
+
+            account.import_identity_vault(vault, account_key).await?;
         };
 
-        Ok(identity_vault)
+        Ok(())
     }
 
     async fn convert_folder_cipher<'a, A>(

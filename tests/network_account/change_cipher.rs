@@ -35,6 +35,7 @@ async fn network_sync_change_cipher() -> Result<()> {
         .create_secret(meta.clone(), secret.clone(), Default::default())
         .await?;
 
+    // Sync on the second device to fetch initial account state
     assert!(device2.owner.sync().await.is_none());
 
     let target_cipher = Cipher::XChaCha20Poly1305;
@@ -55,8 +56,10 @@ async fn network_sync_change_cipher() -> Result<()> {
     }
 
     // Check we can read in the secret data after conversion
-    let (secret_data, _) =
-        device1.owner.read_secret(&id, Some(default_folder)).await?;
+    let (secret_data, _) = device1
+        .owner
+        .read_secret(&id, Some(default_folder.clone()))
+        .await?;
     assert_eq!(&meta, secret_data.meta());
     assert_eq!(&secret, secret_data.secret());
 
@@ -78,11 +81,20 @@ async fn network_sync_change_cipher() -> Result<()> {
     )
     .await?;
 
-    println!("sync_force_update...");
+    println!("sync_force_update: {}", default_folder.id());
+
+    let device1_commit = device1.owner.root_commit(&default_folder).await?;
+    let device2_commit = device2.owner.root_commit(&default_folder).await?;
+    assert_ne!(device1_commit, device2_commit);
 
     // Try to sync on other device after force update
-    let sync_error = device2.owner.sync().await;
-    println!("{:#?}", sync_error);
+    // which should perform a force pull to update the
+    // account data
+    assert!(device2.owner.sync().await.is_none());
+
+    let device1_commit = device1.owner.root_commit(&default_folder).await?;
+    let device2_commit = device2.owner.root_commit(&default_folder).await?;
+    assert_eq!(device1_commit, device2_commit);
 
     /*
     let mut bridge = device2.owner.remove_server(&origin).await?.unwrap();
