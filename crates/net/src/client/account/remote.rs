@@ -3,14 +3,18 @@ use crate::client::{net::HttpClient, Error, RemoteSync, Result, SyncError};
 use async_trait::async_trait;
 use sos_sdk::{
     account::{Account, LocalAccount},
+    commit::Comparison,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::files::{list_external_files, FileSet},
     sync::{
-        self, MaybeDiff, Merge, Origin, SyncClient, SyncOptions, SyncPacket,
-        SyncStatus, SyncStorage, UpdateSet,
+        self, MaybeDiff, Merge, Origin, SyncClient, SyncCompare, SyncOptions,
+        SyncPacket, SyncStatus, SyncStorage, UpdateSet,
     },
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use tokio::sync::Mutex;
 use tracing::{span, Level};
 
@@ -86,6 +90,71 @@ impl RemoteBridge {
             let remote_changes = self.client.sync(&packet).await?;
             //println!("{:#?}", remote_changes);
             account.merge(&remote_changes.diff).await?;
+
+            self.compare(&mut *account, remote_changes).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Compare the remote comparison with the local
+    /// comparison and determine if a force pull or automerge
+    /// is required.
+    async fn compare(
+        &self,
+        account: &mut LocalAccount,
+        remote_changes: SyncPacket,
+    ) -> Result<()> {
+        if let Some(remote_compare) = &remote_changes.compare {
+            /*
+            let local_status = account.sync_status().await?;
+
+            println!("local_status: {:#?}", local_status.folders);
+            println!("remote_status: {:#?}", remote_changes.status.folders);
+            */
+
+            let local_compare =
+                account.compare(&remote_changes.status).await?;
+
+            // NOTE: we don't currently handle account, device and
+            // NOTE: files here as they are currently append-only.
+            // NOTE: if later we support compacting these event logs
+            // NOTE: we need to handle force pull here.
+
+            match (&local_compare.identity, &remote_compare.identity) {
+                (Some(Comparison::Unknown), Some(Comparison::Unknown)) => {
+                    println!(
+                        "todo!: handle completely diverged identity folder"
+                    );
+                }
+                _ => {}
+            }
+
+            let ids = local_compare
+                .folders
+                .keys()
+                .chain(remote_compare.folders.keys())
+                .collect::<HashSet<_>>();
+
+            for id in ids {
+                println!("Compare folder with {}", id);
+                if let (Some(local), Some(remote)) = (
+                    local_compare.folders.get(id),
+                    remote_compare.folders.get(id),
+                ) {
+                    println!("local {:#?}", local);
+                    println!("remote {:#?}", remote);
+                    match (local, remote) {
+                        (Comparison::Unknown, Comparison::Unknown) => {
+                            println!(
+                                "todo!: handle completely diverged folder {}",
+                                id
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
 
         Ok(())

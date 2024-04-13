@@ -878,6 +878,39 @@ pub trait Merge {
         state: &CommitState,
     ) -> Result<Comparison>;
 
+    /// Compare the local state to a remote status.
+    async fn compare(
+        &mut self,
+        remote_status: &SyncStatus,
+    ) -> Result<SyncCompare> {
+        let mut compare = SyncCompare::default();
+
+        compare.identity =
+            Some(self.compare_identity(&remote_status.identity).await?);
+
+        compare.account =
+            Some(self.compare_account(&remote_status.account).await?);
+
+        #[cfg(feature = "device")]
+        {
+            compare.device =
+                Some(self.compare_device(&remote_status.device).await?);
+        }
+
+        #[cfg(feature = "files")]
+        if let Some(files) = &remote_status.files {
+            compare.files = Some(self.compare_files(files).await?);
+        }
+
+        for (id, folder_status) in &remote_status.folders {
+            compare
+                .folders
+                .insert(*id, self.compare_folder(id, folder_status).await?);
+        }
+
+        Ok(compare)
+    }
+
     /// Merge a diff into this storage.
     async fn merge(
         &mut self,
