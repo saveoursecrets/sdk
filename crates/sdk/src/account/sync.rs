@@ -69,7 +69,6 @@ impl Merge for LocalAccount {
                         tracing::warn!("merge got noop event (client)");
                     }
                     AccountEvent::UpdateIdentity(buf) => {
-                        println!("IMPORTING THE IDENTITY VAULT FROM EVENT");
                         let vault: Vault = decode(buf).await?;
                         self.import_identity_vault(vault).await?;
                     }

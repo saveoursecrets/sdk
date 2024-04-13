@@ -587,7 +587,10 @@ impl Account for NetworkAccount {
 
         // In case we have pending updates to the account, device
         // or file event logs
-        self.sync_with_options(&sync_options).await;
+        if let Some(sync_error) = self.sync_with_options(&sync_options).await
+        {
+            return Err(Error::ForceUpdate(sync_error));
+        }
 
         Ok(conversion)
     }
@@ -1100,12 +1103,12 @@ impl Account for NetworkAccount {
         self.import_folder_buffer(&buffer, key, overwrite).await
     }
 
-    async fn import_identity_vault(
+    async fn import_identity_folder(
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
         let mut account = self.account.lock().await;
-        Ok(account.import_identity_vault(vault).await?)
+        Ok(account.import_identity_folder(vault).await?)
     }
 
     async fn import_folder_buffer(

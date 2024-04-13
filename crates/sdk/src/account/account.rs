@@ -648,7 +648,7 @@ pub trait Account {
     ///
     /// This is used for destructive operations that rewrite the identity
     /// folder such as changing the cipher or account password.
-    async fn import_identity_vault(
+    async fn import_identity_folder(
         &mut self,
         vault: Vault,
     ) -> std::result::Result<AccountEvent, Self::Error>;
@@ -982,6 +982,42 @@ impl LocalAccount {
             (folder, commit_state)
         };
         Ok((folder, commit_state))
+    }
+
+    /// Import an identity vault and generate the event but
+    /// do not write the event to the account event log.
+    ///
+    /// This is used when merging account event logs to ensure
+    /// the `AccountEvent::UpdateIdentity` event is not duplicated.
+    ///
+    /// Typically the handlers that update storage but don't append log
+    /// events are declared in the storage implementation but the
+    /// identity log is managed by the account so this must exist here.
+    pub(super) async fn import_identity_vault(
+        &mut self,
+        vault: Vault,
+    ) -> Result<AccountEvent> {
+        let span = span!(Level::DEBUG, "import_identity_vault");
+        let _enter = span.enter();
+
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
+        // Update the identity vault
+        let buffer = encode(&vault).await?;
+        let identity_vault_path = self.paths().identity_vault();
+        vfs::write(&identity_vault_path, &buffer).await?;
+
+        // Update the events for the identity vault
+        let user = self.user()?;
+        let identity = user.identity()?;
+        let event_log = identity.event_log();
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
+
+        let (_, events) = FolderReducer::split(vault).await?;
+        event_log.apply(events.iter().collect()).await?;
+
+        Ok(AccountEvent::UpdateIdentity(buffer))
     }
 
     async fn add_secret(
@@ -2332,35 +2368,14 @@ impl Account for LocalAccount {
         })
     }
 
-    async fn import_identity_vault(
+    async fn import_identity_folder(
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
-        let span = span!(Level::DEBUG, "import_identity_vault");
-        let _enter = span.enter();
-
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-
-        // Update the identity vault
-        let buffer = encode(&vault).await?;
-        let identity_vault_path = self.paths().identity_vault();
-        vfs::write(&identity_vault_path, &buffer).await?;
-
-        // Update the events for the identity vault
-        let user = self.user()?;
-        let identity = user.identity()?;
-        let event_log = identity.event_log();
-        let mut event_log = event_log.write().await;
-        event_log.clear().await?;
-
-        let (_, events) = FolderReducer::split(vault).await?;
-        event_log.apply(events.iter().collect()).await?;
-
-        let event = AccountEvent::UpdateIdentity(buffer);
+        let event = self.import_identity_vault(vault).await?;
         let event_log = self.account_log().await?;
         let mut event_log = event_log.write().await;
         event_log.apply(vec![&event]).await?;
-
         Ok(event)
     }
 

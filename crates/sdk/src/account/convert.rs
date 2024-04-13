@@ -107,7 +107,7 @@ impl ConvertCipher {
             )
             .await?;
 
-            account.import_identity_vault(vault).await?;
+            account.import_identity_folder(vault).await?;
         };
 
         Ok(())

@@ -181,6 +181,7 @@ impl TryFrom<u16> for EventKind {
             CHANGE_PASSWORD => EventKind::ChangePassword,
             TRUST_DEVICE => EventKind::TrustDevice,
             REVOKE_DEVICE => EventKind::RevokeDevice,
+            UPDATE_IDENTITY => EventKind::UpdateIdentity,
             _ => return Err(Error::UnknownEventKind(value)),
         })
     }

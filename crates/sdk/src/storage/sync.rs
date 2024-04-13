@@ -212,7 +212,9 @@ impl Merge for ServerStorage {
                         tracing::warn!("merge got noop event (server)");
                     }
                     AccountEvent::UpdateIdentity(_) => {
-                        unimplemented!();
+                        // This event is handled on the server
+                        // by a call to update_account() so there
+                        // is no need to handle this here
                     }
                     AccountEvent::CreateFolder(id, buf)
                     | AccountEvent::UpdateFolder(id, buf)

@@ -7,7 +7,6 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 
 /// Tests changing the account cipher and force syncing
 /// the updated and diverged account data.
-#[ignore]
 #[tokio::test]
 async fn network_sync_change_cipher() -> Result<()> {
     const TEST_ID: &str = "sync_change_cipher";
@@ -82,8 +81,6 @@ async fn network_sync_change_cipher() -> Result<()> {
     )
     .await?;
 
-    println!("sync_force_update: {}", default_folder.id());
-
     let device1_commit = device1.owner.root_commit(&default_folder).await?;
     let device2_commit = device2.owner.root_commit(&default_folder).await?;
     assert_ne!(device1_commit, device2_commit);
@@ -97,7 +94,6 @@ async fn network_sync_change_cipher() -> Result<()> {
     let device2_commit = device2.owner.root_commit(&default_folder).await?;
     assert_eq!(device1_commit, device2_commit);
 
-    /*
     let mut bridge = device2.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_events_eq(
         folders.clone(),
@@ -105,7 +101,6 @@ async fn network_sync_change_cipher() -> Result<()> {
         &mut bridge,
     )
     .await?;
-    */
 
     device1.owner.sign_out().await?;
     device2.owner.sign_out().await?;
