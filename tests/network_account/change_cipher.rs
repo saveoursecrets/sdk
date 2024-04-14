@@ -9,7 +9,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 #[tokio::test]
 async fn network_sync_change_cipher() -> Result<()> {
     const TEST_ID: &str = "sync_change_cipher";
-    // crate::test_utils::init_tracing();
+    crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -93,6 +93,27 @@ async fn network_sync_change_cipher() -> Result<()> {
     let device2_commit = device2.owner.root_commit(&default_folder).await?;
     assert_eq!(device1_commit, device2_commit);
 
+    // Check we can sign out and sign in again
+    device2.owner.sign_out().await?;
+    device2.owner.sign_in(&key).await?;
+
+    // Create a secret on the synced device
+    let (meta, secret) = mock::note(TEST_ID, TEST_ID);
+    let SecretChange { id, .. } = device2
+        .owner
+        .create_secret(meta.clone(), secret.clone(), Default::default())
+        .await?;
+
+    // Sync on the original device and check it can read the secret
+    assert!(device1.owner.sync().await.is_none());
+    let (secret_data, _) = device1
+        .owner
+        .read_secret(&id, Some(default_folder.clone()))
+        .await?;
+    assert_eq!(&meta, secret_data.meta());
+    assert_eq!(&secret, secret_data.secret());
+
+    // Ensure the second device is up to date with the remote
     let mut bridge = device2.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_events_eq(
         folders.clone(),
