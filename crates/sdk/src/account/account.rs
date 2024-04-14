@@ -1577,9 +1577,9 @@ impl Account for LocalAccount {
             .build(BuilderCredentials::Password(password.clone(), seed))
             .await?;
 
-        let access_key: AccessKey = password.into();
+        let account_key: AccessKey = password.into();
         let mut output = Gatekeeper::new(vault);
-        output.unlock(&access_key).await?;
+        output.unlock(&account_key).await?;
 
         for key in input.vault().keys() {
             let (meta, secret, _) =
@@ -1589,6 +1589,13 @@ impl Account for LocalAccount {
         }
 
         self.import_identity_folder(output.into()).await?;
+
+        // Login again so in-memory data is up to date
+        let identity_vault_path = self.paths().identity_vault();
+        self.user_mut()?
+            .login(&identity_vault_path, &account_key)
+            .await?;
+
         Ok(())
     }
 
