@@ -104,6 +104,11 @@ where
         self.folder.keeper().vault()
     }
 
+    /// Get the gatekeeper.
+    pub fn keeper(&self) -> &Gatekeeper {
+        self.folder.keeper()
+    }
+
     /// Get the event log.
     pub fn event_log(&self) -> Arc<RwLock<T>> {
         self.folder.event_log()

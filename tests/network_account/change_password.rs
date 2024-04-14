@@ -4,11 +4,11 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_net::{client::RemoteSync, sdk::prelude::*};
 
-/// Tests changing the account cipher and force syncing
+/// Tests changing the account password and force syncing
 /// the updated and diverged account data.
 #[tokio::test]
-async fn network_sync_change_cipher() -> Result<()> {
-    const TEST_ID: &str = "sync_change_cipher";
+async fn network_sync_change_password() -> Result<()> {
+    const TEST_ID: &str = "sync_change_password";
     // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
@@ -17,12 +17,8 @@ async fn network_sync_change_cipher() -> Result<()> {
     // Prepare mock devices
     let mut device1 = simulate_device(TEST_ID, 2, Some(&server)).await?;
     let origin = device1.origin.clone();
-    let key: AccessKey = device1.password.clone().into();
     let default_folder = device1.default_folder.clone();
-    let original_folders = device1.folders.clone();
-    let identity_summary = device1.owner.identity_folder_summary().await?;
-    let cipher = identity_summary.cipher();
-    assert_eq!(cipher, &Cipher::default());
+    let folders = device1.folders.clone();
 
     let mut device2 = device1.connect(1, None).await?;
 
@@ -37,22 +33,9 @@ async fn network_sync_change_cipher() -> Result<()> {
     // Sync on the second device to fetch initial account state
     assert!(device2.owner.sync().await.is_none());
 
-    let target_cipher = Cipher::XChaCha20Poly1305;
-    let target_kdf = KeyDerivation::BalloonHash;
-    let conversion = device1
-        .owner
-        .change_cipher(&key, &target_cipher, Some(target_kdf))
-        .await?;
-    assert!(!conversion.is_empty());
-
-    // Check in-memory folders report correct target cipher
-    let folders = device1.owner.list_folders().await?;
-    assert!(folders.len() > 0);
-    assert_eq!(original_folders.len(), folders.len());
-    for folder in &folders {
-        assert_eq!(&target_cipher, folder.cipher());
-        assert_eq!(&target_kdf, folder.kdf());
-    }
+    let (new_password, _) = generate_passphrase()?;
+    device1.owner.change_password(new_password.clone()).await?;
+    let key: AccessKey = new_password.into();
 
     // Check we can read in the secret data after conversion
     let (secret_data, _) = device1
@@ -62,29 +45,18 @@ async fn network_sync_change_cipher() -> Result<()> {
     assert_eq!(&meta, secret_data.meta());
     assert_eq!(&secret, secret_data.secret());
 
-    // Check the in-memory identity summary is correct cipher/kdf
-    let identity_summary = device1.owner.identity_folder_summary().await?;
-    assert_eq!(&target_cipher, identity_summary.cipher());
-    assert_eq!(&target_kdf, identity_summary.kdf());
-
     // Check we can sign out and sign in again
     device1.owner.sign_out().await?;
     device1.owner.sign_in(&key).await?;
-
-    let device1_commit = device1.owner.root_commit(&default_folder).await?;
-    let device2_commit = device2.owner.root_commit(&default_folder).await?;
-    assert_ne!(device1_commit, device2_commit);
 
     // Try to sync on other device after force update
     // which should perform a force pull to update the
     // account data
     assert!(device2.owner.sync().await.is_none());
 
-    let device1_commit = device1.owner.root_commit(&default_folder).await?;
-    let device2_commit = device2.owner.root_commit(&default_folder).await?;
-    assert_eq!(device1_commit, device2_commit);
-
     // Check we can sign out and sign in again
+    // on the device that just synced using the
+    // new access key
     device2.owner.sign_out().await?;
     device2.owner.sign_in(&key).await?;
 
