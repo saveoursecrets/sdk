@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 /// Create an account.
 #[utoipa::path(
-    post,
+    put,
     path = "/sync/account",
     security(
         ("bearer_token" = [])
@@ -66,6 +66,68 @@ pub(crate) async fn create_account(
         {
             Ok(caller) => {
                 match handlers::create_account(state, backend, caller, &bytes)
+                    .await
+                {
+                    Ok(result) => result.into_response(),
+                    Err(error) => error.into_response(),
+                }
+            }
+            Err(error) => error.into_response(),
+        },
+        Err(_) => StatusCode::BAD_REQUEST.into_response(),
+    }
+}
+
+/// Update an account.
+#[utoipa::path(
+    post,
+    path = "/sync/account",
+    security(
+        ("bearer_token" = [])
+    ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = ChangeSet,
+    ),
+    responses(
+        (
+            status = StatusCode::UNAUTHORIZED,
+            description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::NOT_FOUND,
+            description = "Account does not exist.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "Account was created.",
+        ),
+    ),
+)]
+pub(crate) async fn update_account(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    Query(query): Query<ConnectionQuery>,
+    body: Body,
+) -> impl IntoResponse {
+    match to_bytes(body, BODY_LIMIT).await {
+        Ok(bytes) => match authenticate_endpoint(
+            bearer,
+            &bytes,
+            query,
+            Arc::clone(&state),
+            Arc::clone(&backend),
+            true,
+        )
+        .await
+        {
+            Ok(caller) => {
+                match handlers::update_account(state, backend, caller, &bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -133,7 +195,7 @@ pub(crate) async fn fetch_account(
 /// Patch device event log.
 #[utoipa::path(
     patch,
-    path = "/sync/account",
+    path = "/sync/account/devices",
     security(
         ("bearer_token" = [])
     ),
@@ -241,7 +303,7 @@ pub(crate) async fn sync_status(
 
 /// Sync account event logs.
 #[utoipa::path(
-    put,
+    patch,
     path = "/sync/account",
     security(
         ("bearer_token" = [])
@@ -305,9 +367,14 @@ mod handlers {
         sdk::sync::{self, Merge, SyncPacket, SyncStorage},
         server::{Error, Result, ServerBackend, ServerState},
     };
-    use http::header::{self, HeaderMap, HeaderValue};
+    use http::{
+        header::{self, HeaderMap, HeaderValue},
+        StatusCode,
+    };
     use sos_sdk::{
-        constants::MIME_TYPE_SOS, decode, encode, sync::ChangeSet,
+        constants::MIME_TYPE_SOS,
+        decode, encode,
+        sync::{ChangeSet, UpdateSet},
     };
     use std::sync::Arc;
     use tracing::{span, Level};
@@ -331,6 +398,25 @@ mod handlers {
         let account: ChangeSet = decode(bytes).await?;
         let mut writer = backend.write().await;
         writer.create_account(caller.address(), account).await?;
+        Ok(())
+    }
+
+    pub(super) async fn update_account(
+        _state: ServerState,
+        backend: ServerBackend,
+        caller: Caller,
+        bytes: &[u8],
+    ) -> Result<()> {
+        {
+            let reader = backend.read().await;
+            if !reader.account_exists(caller.address()).await? {
+                return Err(Error::Status(StatusCode::NOT_FOUND));
+            }
+        }
+
+        let account: UpdateSet = decode(bytes).await?;
+        let mut writer = backend.write().await;
+        writer.update_account(caller.address(), account).await?;
         Ok(())
     }
 
@@ -416,7 +502,7 @@ mod handlers {
         let (remote_status, diff) = (packet.status, packet.diff);
 
         // Apply the diff to the storage
-        let num_changes = {
+        let (num_changes, compare) = {
             let span = span!(Level::DEBUG, "merge_server");
             let _enter = span.enter();
             let mut writer = account.write().await;
@@ -442,6 +528,7 @@ mod handlers {
         let packet = SyncPacket {
             status: local_status,
             diff,
+            compare: Some(compare),
         };
 
         let mut headers = HeaderMap::new();

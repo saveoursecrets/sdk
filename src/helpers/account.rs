@@ -67,14 +67,15 @@ pub async fn resolve_user(
     account: Option<&AccountRef>,
     build_search_index: bool,
 ) -> Result<Owner> {
-    let account = resolve_account(account)
-        .await
-        .ok_or_else(|| Error::NoAccountFound)?;
-
     if let Some(owner) = USER.get() {
         return Ok(Arc::clone(owner));
     }
 
+    // let account = resolve_account(account)
+    //     .await
+    //     .ok_or_else(|| Error::NoAccountFound)?;
+
+    /*
     let (mut owner, _) = sign_in(&account).await?;
 
     // For non-shell we need to initialize the search index
@@ -86,6 +87,36 @@ pub async fn resolve_user(
     }
 
     Ok(Arc::new(RwLock::new(owner)))
+    */
+
+    let (user, _) =
+        resolve_user_with_password(account, build_search_index).await?;
+    Ok(user)
+}
+
+/// Attempt to resolve a user with the password.
+///
+/// Some operations such as changing the account cipher
+/// require the account password.
+pub async fn resolve_user_with_password(
+    account: Option<&AccountRef>,
+    build_search_index: bool,
+) -> Result<(Owner, SecretString)> {
+    let account = resolve_account(account)
+        .await
+        .ok_or_else(|| Error::NoAccountFound)?;
+
+    let (mut owner, password) = sign_in(&account).await?;
+
+    // For non-shell we need to initialize the search index
+    if USER.get().is_none() {
+        if build_search_index {
+            owner.initialize_search_index().await?;
+        }
+        owner.list_folders().await?;
+    }
+
+    Ok((Arc::new(RwLock::new(owner)), password))
 }
 
 /// Take the optional account reference and resolve it.

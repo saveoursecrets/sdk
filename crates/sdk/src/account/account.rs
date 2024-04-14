@@ -7,9 +7,9 @@ use std::{
 };
 
 use crate::{
-    account::AccountBuilder,
+    account::{convert::CipherComparison, AccountBuilder},
     commit::{CommitHash, CommitState},
-    crypto::AccessKey,
+    crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
@@ -22,6 +22,7 @@ use crate::{
         search::{DocumentCount, SearchIndex},
         AccessOptions, ClientStorage,
     },
+    sync::SyncStorage,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
         Gatekeeper, Header, Summary, Vault, VaultId,
@@ -69,7 +70,7 @@ use crate::{
         },
         Convert,
     },
-    vault::VaultBuilder,
+    vault::{BuilderCredentials, VaultBuilder},
 };
 
 use tracing::{span, Level};
@@ -299,6 +300,19 @@ pub trait Account {
     async fn identity_vault_buffer(
         &self,
     ) -> std::result::Result<Vec<u8>, Self::Error>;
+
+    /// Summary of the identity folder for the account.
+    async fn identity_folder_summary(
+        &self,
+    ) -> std::result::Result<Summary, Self::Error>;
+
+    /// Change the cipher for an account.
+    async fn change_cipher(
+        &mut self,
+        account_key: &AccessKey,
+        cipher: &Cipher,
+        kdf: Option<KeyDerivation>,
+    ) -> std::result::Result<CipherComparison, Self::Error>;
 
     /// Access an account by signing in.
     ///
@@ -626,6 +640,15 @@ pub trait Account {
         key: AccessKey,
         overwrite: bool,
     ) -> std::result::Result<FolderCreate<Self::Error>, Self::Error>;
+
+    /// Import and overwrite the identity folder from a vault.
+    ///
+    /// This is used for destructive operations that rewrite the identity
+    /// folder such as changing the cipher or account password.
+    async fn import_identity_folder(
+        &mut self,
+        vault: Vault,
+    ) -> std::result::Result<AccountEvent, Self::Error>;
 
     /// Export a folder as a vault file.
     async fn export_folder(
@@ -958,6 +981,42 @@ impl LocalAccount {
         Ok((folder, commit_state))
     }
 
+    /// Import an identity vault and generate the event but
+    /// do not write the event to the account event log.
+    ///
+    /// This is used when merging account event logs to ensure
+    /// the `AccountEvent::UpdateIdentity` event is not duplicated.
+    ///
+    /// Typically the handlers that update storage but don't append log
+    /// events are declared in the storage implementation but the
+    /// identity log is managed by the account so this must exist here.
+    pub(super) async fn import_identity_vault(
+        &mut self,
+        vault: Vault,
+    ) -> Result<AccountEvent> {
+        let span = span!(Level::DEBUG, "import_identity_vault");
+        let _enter = span.enter();
+
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
+        // Update the identity vault
+        let buffer = encode(&vault).await?;
+        let identity_vault_path = self.paths().identity_vault();
+        vfs::write(&identity_vault_path, &buffer).await?;
+
+        // Update the events for the identity vault
+        let user = self.user()?;
+        let identity = user.identity()?;
+        let event_log = identity.event_log();
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
+
+        let (_, events) = FolderReducer::split(vault).await?;
+        event_log.apply(events.iter().collect()).await?;
+
+        Ok(AccountEvent::UpdateIdentity(buffer))
+    }
+
     async fn add_secret(
         &mut self,
         meta: SecretMeta,
@@ -1175,7 +1234,10 @@ impl LocalAccount {
         let vault = VaultBuilder::new()
             .id(vault_id)
             .public_name(name)
-            .password(vault_passphrase.clone(), None)
+            .build(BuilderCredentials::Password(
+                vault_passphrase.clone(),
+                None,
+            ))
             .await?;
 
         // Parse the CSV records into the vault
@@ -1453,6 +1515,35 @@ impl Account for LocalAccount {
         let reader = storage.read().await;
         let identity_path = reader.paths().identity_vault();
         Ok(vfs::read(identity_path).await?)
+    }
+
+    async fn identity_folder_summary(&self) -> Result<Summary> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        Ok(self.user()?.identity()?.vault().summary().clone())
+    }
+
+    async fn change_cipher(
+        &mut self,
+        account_key: &AccessKey,
+        cipher: &Cipher,
+        kdf: Option<KeyDerivation>,
+    ) -> Result<CipherComparison> {
+        let conversion = self.compare_cipher(&cipher, kdf).await?;
+
+        // Short circuit if there is nothing to do
+        if conversion.is_empty() {
+            return Ok(conversion);
+        }
+
+        self.convert_cipher(&conversion, account_key).await?;
+
+        // Login again so in-memory data is up to date
+        let identity_vault_path = self.paths().identity_vault();
+        self.user_mut()?
+            .login(&identity_vault_path, &account_key)
+            .await?;
+
+        Ok(conversion)
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
@@ -2272,6 +2363,17 @@ impl Account for LocalAccount {
             sync_error: None,
             marker: std::marker::PhantomData,
         })
+    }
+
+    async fn import_identity_folder(
+        &mut self,
+        vault: Vault,
+    ) -> Result<AccountEvent> {
+        let event = self.import_identity_vault(vault).await?;
+        let event_log = self.account_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.apply(vec![&event]).await?;
+        Ok(event)
     }
 
     async fn export_folder(

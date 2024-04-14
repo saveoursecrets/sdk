@@ -1,5 +1,5 @@
 use crate::{
-    commit::CommitState,
+    commit::{CommitState, Comparison},
     decode, encode,
     encoding::{decode_uuid, encoding_error},
     prelude::{FileIdentity, PATCH_IDENTITY},
@@ -9,11 +9,11 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use std::io::Result;
+use std::io::{Error, ErrorKind, Result};
 
 use crate::sync::{
-    ChangeSet, Diff, FolderDiff, FolderPatch, Patch, SyncDiff, SyncPacket,
-    SyncStatus,
+    ChangeSet, Diff, FolderDiff, FolderPatch, MaybeDiff, Patch, SyncCompare,
+    SyncDiff, SyncPacket, SyncStatus, UpdateSet,
 };
 
 #[cfg(feature = "files")]
@@ -115,6 +115,58 @@ impl Decodable for ChangeSet {
 }
 
 #[async_trait]
+impl Encodable for UpdateSet {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        writer.write_bool(self.identity.is_some()).await?;
+        if let Some(identity) = &self.identity {
+            identity.encode(&mut *writer).await?;
+        }
+
+        // Folder patches
+        writer.write_u16(self.folders.len() as u16).await?;
+        for (id, folder) in &self.folders {
+            writer.write_bytes::<&[u8]>(id.as_ref()).await?;
+            let buffer = encode(folder).await.map_err(encoding_error)?;
+            let length = buffer.len();
+            writer.write_u32(length as u32).await?;
+            writer.write_bytes(&buffer).await?;
+        }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for UpdateSet {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let has_identity = reader.read_bool().await?;
+        if has_identity {
+            let mut identity: FolderPatch = Default::default();
+            identity.decode(&mut *reader).await?;
+            self.identity = Some(identity);
+        }
+        // Folder patches
+        let num_folders = reader.read_u16().await?;
+        for _ in 0..(num_folders as usize) {
+            let id = decode_uuid(&mut *reader).await?;
+            let length = reader.read_u32().await?;
+            let buffer = reader.read_bytes(length as usize).await?;
+            let folder: FolderPatch =
+                decode(&buffer).await.map_err(encoding_error)?;
+            self.folders.insert(id, folder);
+        }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
 impl Encodable for SyncPacket {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
@@ -122,6 +174,7 @@ impl Encodable for SyncPacket {
     ) -> Result<()> {
         self.status.encode(&mut *writer).await?;
         self.diff.encode(&mut *writer).await?;
+        self.compare.encode(&mut *writer).await?;
         Ok(())
     }
 }
@@ -134,6 +187,60 @@ impl Decodable for SyncPacket {
     ) -> Result<()> {
         self.status.decode(&mut *reader).await?;
         self.diff.decode(&mut *reader).await?;
+        self.compare.decode(&mut *reader).await?;
+        Ok(())
+    }
+}
+
+/*
+/// Identity vault comparison.
+/// Comparisons for the account folders.
+pub folders: IndexMap<VaultId, Comparison>,
+*/
+
+#[async_trait]
+impl Encodable for SyncCompare {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        self.identity.encode(&mut *writer).await?;
+        self.account.encode(&mut *writer).await?;
+        #[cfg(feature = "device")]
+        self.device.encode(&mut *writer).await?;
+        #[cfg(feature = "files")]
+        self.files.encode(&mut *writer).await?;
+
+        writer.write_u16(self.folders.len() as u16).await?;
+        for (id, comparison) in &self.folders {
+            writer.write_bytes(id.as_bytes()).await?;
+            comparison.encode(&mut *writer).await?;
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for SyncCompare {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        self.identity.decode(&mut *reader).await?;
+        self.account.decode(&mut *reader).await?;
+        #[cfg(feature = "device")]
+        self.device.decode(&mut *reader).await?;
+        #[cfg(feature = "files")]
+        self.files.decode(&mut *reader).await?;
+
+        let num_folders = reader.read_u16().await?;
+        for _ in 0..num_folders {
+            let id = decode_uuid(&mut *reader).await?;
+            let mut comparison: Comparison = Default::default();
+            comparison.decode(&mut *reader).await?;
+            self.folders.insert(id, comparison);
+        }
+
         Ok(())
     }
 }
@@ -222,9 +329,65 @@ impl Decodable for SyncDiff {
         let num_folders = reader.read_u16().await?;
         for _ in 0..num_folders {
             let id = decode_uuid(&mut *reader).await?;
-            let mut folder: FolderDiff = Default::default();
+            let mut folder: MaybeDiff<FolderDiff> = Default::default();
             folder.decode(&mut *reader).await?;
             self.folders.insert(id, folder);
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<T> Encodable for MaybeDiff<T>
+where
+    T: Default + Encodable + Decodable + Send + Sync,
+{
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        match self {
+            MaybeDiff::Noop => panic!("attempt to encode a noop"),
+            MaybeDiff::Diff(diff) => {
+                writer.write_u8(1).await?;
+                diff.encode(&mut *writer).await?;
+            }
+            MaybeDiff::Compare(state) => {
+                writer.write_u8(2).await?;
+                state.encode(&mut *writer).await?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<T> Decodable for MaybeDiff<T>
+where
+    T: Default + Encodable + Decodable + Send + Sync,
+{
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let kind = reader.read_u8().await?;
+        match kind {
+            1 => {
+                let mut diff = T::default();
+                diff.decode(&mut *reader).await?;
+                *self = MaybeDiff::Diff(diff);
+            }
+            2 => {
+                let mut state = Option::<CommitState>::default();
+                state.decode(&mut *reader).await?;
+                *self = MaybeDiff::Compare(state);
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown diff variant kind {}", kind),
+                ));
+            }
         }
         Ok(())
     }

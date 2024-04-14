@@ -356,7 +356,7 @@ mod tests {
         constants::DEFAULT_VAULT_NAME,
         vault::{
             secret::{Secret, SecretRow},
-            VaultBuilder,
+            BuilderCredentials, VaultBuilder,
         },
     };
     use anyhow::Result;
@@ -371,7 +371,7 @@ mod tests {
         let vault = VaultBuilder::new()
             .public_name(name)
             .description(description.clone())
-            .password(passphrase.clone(), None)
+            .build(BuilderCredentials::Password(passphrase.clone(), None))
             .await?;
 
         let mut keeper = Gatekeeper::new(vault);
@@ -420,7 +420,7 @@ mod tests {
         let vault = VaultBuilder::new()
             .public_name(name)
             .description(description.clone())
-            .password(passphrase.clone(), None)
+            .build(BuilderCredentials::Password(passphrase.clone(), None))
             .await?;
 
         let mut keeper = Gatekeeper::new(vault);

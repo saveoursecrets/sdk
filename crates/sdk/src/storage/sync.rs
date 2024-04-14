@@ -1,5 +1,6 @@
 //! Synchronization helpers.
 use crate::{
+    commit::{CommitState, Comparison},
     encode,
     events::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
@@ -8,7 +9,7 @@ use crate::{
     storage::ServerStorage,
     sync::{
         AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch, Merge,
-        SyncStatus, SyncStorage,
+        SyncStatus, SyncStorage, UpdateSet,
     },
     vault::VaultId,
     vfs, Error, Paths, Result,
@@ -84,12 +85,73 @@ impl ServerStorage {
             self.devices = reducer.reduce().await?;
         }
 
+        #[cfg(feature = "files")]
+        {
+            let mut writer = self.file_log.write().await;
+            writer.patch_unchecked(&account_data.files).await?;
+        }
+
         for (id, folder) in &account_data.folders {
             let vault_path = self.paths.vault_path(id);
             let events_path = self.paths.event_log_path(id);
 
             let mut event_log = FolderEventLog::new(events_path).await?;
             event_log.patch_unchecked(folder).await?;
+
+            let vault = FolderReducer::new()
+                .reduce(&event_log)
+                .await?
+                .build(false)
+                .await?;
+
+            let buffer = encode(&vault).await?;
+            vfs::write(vault_path, buffer).await?;
+
+            self.cache_mut()
+                .insert(*id, Arc::new(RwLock::new(event_log)));
+        }
+
+        Ok(())
+    }
+
+    /// Update an account from a change set of event logs and
+    /// event diffs.
+    ///
+    /// Overwrites all existing account data with the event logs
+    /// in the change set.
+    ///
+    /// Intended to be used to perform a destructive overwrite
+    /// when changing the encryption cipher or other events
+    /// which rewrite the account data.
+    pub async fn update_account(
+        &mut self,
+        mut account_data: UpdateSet,
+    ) -> Result<()> {
+        // Force overwrite all identity data
+        if let Some(identity) = account_data.identity.take() {
+            let mut writer = self.identity_log.write().await;
+            writer.clear().await?;
+            writer.apply(identity.iter().collect()).await?;
+
+            // Rebuild the head-only identity vault
+            let vault = FolderReducer::new()
+                .reduce(&writer)
+                .await?
+                .build(false)
+                .await?;
+
+            let buffer = encode(&vault).await?;
+            vfs::write(self.paths.identity_vault(), buffer).await?;
+        }
+
+        // Force overwrite account folders
+        for (id, folder) in &account_data.folders {
+            let vault_path = self.paths.vault_path(id);
+            let events_path = self.paths.event_log_path(id);
+
+            let mut event_log = FolderEventLog::new(events_path).await?;
+            event_log.clear().await?;
+            event_log.apply(folder.iter().collect()).await?;
 
             let vault = FolderReducer::new()
                 .reduce(&event_log)
@@ -121,6 +183,14 @@ impl Merge for ServerStorage {
         Ok(diff.patch.len())
     }
 
+    async fn compare_identity(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let reader = self.identity_log.read().await;
+        reader.tree().compare(&state.1)
+    }
+
     async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
         tracing::debug!(
             before = ?diff.before,
@@ -137,9 +207,14 @@ impl Merge for ServerStorage {
             for event in diff.patch.iter() {
                 tracing::debug!(event_kind = %event.event_kind());
 
-                match &event {
+                match event {
                     AccountEvent::Noop => {
                         tracing::warn!("merge got noop event (server)");
+                    }
+                    AccountEvent::UpdateIdentity(_) => {
+                        // This event is handled on the server
+                        // by a call to update_account() so there
+                        // is no need to handle this here
                     }
                     AccountEvent::CreateFolder(id, buf)
                     | AccountEvent::UpdateFolder(id, buf)
@@ -171,6 +246,14 @@ impl Merge for ServerStorage {
         Ok(diff.patch.len())
     }
 
+    async fn compare_account(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let reader = self.account_log.read().await;
+        reader.tree().compare(&state.1)
+    }
+
     #[cfg(feature = "device")]
     async fn merge_device(&mut self, diff: &DeviceDiff) -> Result<usize> {
         tracing::debug!(
@@ -194,6 +277,15 @@ impl Merge for ServerStorage {
         }
 
         Ok(diff.patch.len())
+    }
+
+    #[cfg(feature = "device")]
+    async fn compare_device(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let reader = self.device_log.read().await;
+        reader.tree().compare(&state.1)
     }
 
     #[cfg(feature = "files")]
@@ -231,29 +323,46 @@ impl Merge for ServerStorage {
         Ok(num_changes)
     }
 
-    async fn merge_folders(
+    #[cfg(feature = "files")]
+    async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
+        let reader = self.file_log.read().await;
+        reader.tree().compare(&state.1)
+    }
+
+    async fn merge_folder(
         &mut self,
-        folders: &IndexMap<VaultId, FolderDiff>,
+        folder_id: &VaultId,
+        diff: &FolderDiff,
     ) -> Result<usize> {
-        let mut num_changes = 0;
-        for (id, diff) in folders {
-            tracing::debug!(
-                folder_id = %id,
-                before = ?diff.before,
-                num_events = diff.patch.len(),
-                "folder",
-            );
+        tracing::debug!(
+            folder_id = %folder_id,
+            before = ?diff.before,
+            num_events = diff.patch.len(),
+            "folder",
+        );
 
-            let log = self
-                .cache
-                .get_mut(id)
-                .ok_or_else(|| Error::CacheNotAvailable(*id))?;
-            let mut log = log.write().await;
+        let log = self
+            .cache
+            .get_mut(folder_id)
+            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+        let mut log = log.write().await;
 
-            log.patch_checked(&diff.before, &diff.patch).await?;
-            num_changes += diff.patch.len();
-        }
-        Ok(num_changes)
+        log.patch_checked(&diff.before, &diff.patch).await?;
+
+        Ok(diff.patch.len())
+    }
+
+    async fn compare_folder(
+        &self,
+        folder_id: &VaultId,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let log = self
+            .cache
+            .get(folder_id)
+            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+        let log = log.read().await;
+        Ok(log.tree().compare(&state.1)?)
     }
 }
 

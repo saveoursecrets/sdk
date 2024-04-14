@@ -4,13 +4,13 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, check, device, environment, events, file, folder,
-        preferences, secret,
+        account, audit, check, convert, device, environment, events, file,
+        folder, preferences, secret,
         security_report::{self, SecurityReportFormat},
         server, shell, sync, AccountCommand, AuditCommand, CheckCommand,
-        DeviceCommand, EnvironmentCommand, EventsCommand, FileCommand,
-        FolderCommand, PreferenceCommand, SecretCommand, ServerCommand,
-        SyncCommand,
+        ConvertCommand, DeviceCommand, EnvironmentCommand, EventsCommand,
+        FileCommand, FolderCommand, PreferenceCommand, SecretCommand,
+        ServerCommand, SyncCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
     CommandTree, Result,
@@ -122,6 +122,7 @@ pub enum Command {
         cmd: CheckCommand,
     },
     /// Inspect event records.
+    #[clap(alias = "event")]
     Events {
         #[clap(subcommand)]
         cmd: EventsCommand,
@@ -146,6 +147,11 @@ pub enum Command {
     Environment {
         #[clap(subcommand)]
         cmd: EnvironmentCommand,
+    },
+    /// Convert files on disc.
+    Convert {
+        #[clap(subcommand)]
+        cmd: ConvertCommand,
     },
 }
 
@@ -204,6 +210,7 @@ pub async fn run() -> Result<()> {
         }
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Check { cmd } => check::run(cmd).await?,
+        Command::Convert { cmd } => convert::run(cmd).await?,
         Command::Events { cmd } => events::run(cmd).await?,
         Command::Shell { account, folder } => {
             shell::run(account, folder).await?

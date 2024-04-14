@@ -204,8 +204,9 @@ impl Server {
                 .route("/docs/openapi.json", get(openapi))
                 .route(
                     "/sync/account",
-                    post(account::create_account)
-                        .put(account::sync_account)
+                    put(account::create_account)
+                        .post(account::update_account)
+                        .patch(account::sync_account)
                         .get(account::fetch_account),
                 )
                 .route("/sync/account/status", get(account::sync_status))

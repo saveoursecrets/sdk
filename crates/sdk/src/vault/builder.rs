@@ -8,6 +8,21 @@ use crate::{
 use age::x25519::{Identity, Recipient};
 use secrecy::SecretString;
 
+/// Credentials for a new vault.
+pub enum BuilderCredentials<'a> {
+    /// Password credentials for the vault.
+    Password(SecretString, Option<Seed>),
+    /// Shared asymmetric credentials for the vault.
+    Shared {
+        /// Owner identity of the vault.
+        owner: &'a Identity,
+        /// Recipients allowed to decrypt vault secrets.
+        recipients: Vec<Recipient>,
+        /// Whether the vault should be marked as read-only for recipients.
+        read_only: bool,
+    },
+}
+
 /// Builder for a vault.
 pub struct VaultBuilder {
     /// Vault identifier.
@@ -80,8 +95,11 @@ impl VaultBuilder {
         self
     }
 
-    /// Prepare a vault.
-    fn prepare(self) -> (Vault, VaultMeta) {
+    /// Build the vault.
+    pub async fn build<'a>(
+        self,
+        credentials: BuilderCredentials<'a>,
+    ) -> Result<Vault> {
         let mut vault: Vault = Default::default();
         vault.header.summary.id = self.id;
         vault.header.summary.name = self.public_name;
@@ -90,19 +108,42 @@ impl VaultBuilder {
         vault.header.summary.kdf = self.kdf;
         let meta = VaultMeta {
             date_created: Default::default(),
-            description: self.description.unwrap_or_default(),
+            description: self.description.clone().unwrap_or_default(),
         };
-        (vault, meta)
+
+        let private_key = match credentials {
+            BuilderCredentials::Password(password, seed) => {
+                vault.symmetric(password, seed).await?
+            }
+            BuilderCredentials::Shared {
+                owner,
+                recipients,
+                read_only,
+            } => vault.asymmetric(owner, recipients, read_only).await?,
+        };
+        encrypt_meta(&mut vault, &private_key, meta).await?;
+        Ok(vault)
     }
 
+    /*
     /// Build a password protected vault.
     pub async fn password(
         self,
         password: SecretString,
         seed: Option<Seed>,
     ) -> Result<Vault> {
-        let (mut vault, meta) = self.prepare();
+        let (builder, mut vault, meta) = self.prepare();
         let private_key = vault.symmetric(password.clone(), seed).await?;
+        builder.private_key(vault, meta, private_key).await
+    }
+
+    /// Build a using the given private key.
+    pub async fn private_key(
+        self,
+        mut vault: Vault,
+        meta: VaultMeta,
+        private_key: PrivateKey,
+    ) -> Result<Vault> {
         encrypt_meta(&mut vault, &private_key, meta).await?;
         Ok(vault)
     }
@@ -114,12 +155,12 @@ impl VaultBuilder {
         recipients: Vec<Recipient>,
         read_only: bool,
     ) -> Result<Vault> {
-        let (mut vault, meta) = self.prepare();
+        let (builder, mut vault, meta) = self.prepare();
         let private_key =
             vault.asymmetric(owner, recipients, read_only).await?;
-        encrypt_meta(&mut vault, &private_key, meta).await?;
-        Ok(vault)
+        builder.private_key(vault, meta, private_key).await
     }
+    */
 }
 
 /// Encrypt the meta data and assign to the vault.

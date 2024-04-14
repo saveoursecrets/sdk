@@ -6,7 +6,7 @@ mod gatekeeper;
 pub mod secret;
 mod vault;
 
-pub use builder::VaultBuilder;
+pub use builder::{BuilderCredentials, VaultBuilder};
 pub use file_writer::VaultWriter;
 pub use gatekeeper::Gatekeeper;
 pub use vault::{

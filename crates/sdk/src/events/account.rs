@@ -10,6 +10,18 @@ pub enum AccountEvent {
     #[doc(hidden)]
     Noop,
 
+    /// Identity folder was updated.
+    ///
+    /// This event happens when a the identity folder
+    /// cipher changed, the account password changed
+    /// or if the identity folder was compacted.
+    ///
+    /// This event is destructive as it re-writes
+    /// the folder event log.
+    ///
+    /// Buffer is a vault.
+    UpdateIdentity(Vec<u8>),
+
     /// Create folder.
     ///
     /// Buffer is a head-only vault.
@@ -53,6 +65,7 @@ impl AccountEvent {
     /// Folder identifier for the event.
     pub fn folder_id(&self) -> Option<VaultId> {
         match self {
+            AccountEvent::UpdateIdentity(_) => None,
             AccountEvent::CreateFolder(vault_id, _)
             | AccountEvent::UpdateFolder(vault_id, _)
             | AccountEvent::CompactFolder(vault_id, _)
@@ -70,6 +83,7 @@ impl LogEvent for AccountEvent {
     fn event_kind(&self) -> EventKind {
         match self {
             Self::Noop => EventKind::Noop,
+            Self::UpdateIdentity(_) => EventKind::UpdateIdentity,
             Self::CreateFolder(_, _) => EventKind::CreateVault,
             Self::RenameFolder(_, _) => EventKind::SetVaultName,
             Self::CompactFolder(_, _) => EventKind::CompactVault,

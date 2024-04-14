@@ -174,7 +174,7 @@ mod test {
         test_utils::*,
         vault::{
             secret::{SecretId, SecretRow},
-            Gatekeeper, VaultBuilder,
+            BuilderCredentials, Gatekeeper, VaultBuilder,
         },
     };
     use anyhow::Result;
@@ -183,7 +183,7 @@ mod test {
     async fn change_password() -> Result<()> {
         let (_, _, current_key) = mock_encryption_key()?;
         let mock_vault = VaultBuilder::new()
-            .password(current_key.clone(), None)
+            .build(BuilderCredentials::Password(current_key.clone(), None))
             .await?;
 
         let mut keeper = Gatekeeper::new(mock_vault);

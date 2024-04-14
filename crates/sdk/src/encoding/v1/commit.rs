@@ -1,5 +1,5 @@
 use crate::{
-    commit::{CommitHash, CommitProof, CommitState},
+    commit::{CommitHash, CommitProof, CommitState, Comparison},
     encoding::encoding_error,
 };
 use async_trait::async_trait;
@@ -8,7 +8,7 @@ use binary_stream::futures::{
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use rs_merkle::{algorithms::Sha256, MerkleProof};
-use std::io::Result;
+use std::io::{Error, ErrorKind, Result};
 
 #[async_trait]
 impl Encodable for CommitHash {
@@ -106,6 +106,83 @@ impl Decodable for CommitProof {
         // TODO: validate range start is <= range end
 
         self.indices = start as usize..end as usize;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Encodable for Comparison {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        match self {
+            Self::Equal => {
+                writer.write_u8(1).await?;
+            }
+            Self::Contains(indices, leaves) => {
+                writer.write_u8(2).await?;
+
+                writer.write_u32(indices.len() as u32).await?;
+                for i in indices {
+                    writer.write_u64(*i as u64).await?;
+                }
+
+                writer.write_u32(leaves.len() as u32).await?;
+                for leaf in leaves {
+                    writer.write_bytes(leaf).await?;
+                }
+            }
+            Self::Unknown => {
+                writer.write_u8(3).await?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for Comparison {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let kind = reader.read_u8().await?;
+        match kind {
+            1 => {
+                *self = Self::Equal;
+            }
+            2 => {
+                let indices_len = reader.read_u32().await? as usize;
+                let mut indices = Vec::with_capacity(indices_len);
+                for _ in 0..indices_len {
+                    indices.push(reader.read_u64().await? as usize);
+                }
+
+                let leaves_len = reader.read_u32().await? as usize;
+                let mut leaves = Vec::with_capacity(leaves_len);
+                for _ in 0..leaves_len {
+                    let leaf: [u8; 32] = reader
+                        .read_bytes(32)
+                        .await?
+                        .as_slice()
+                        .try_into()
+                        .map_err(encoding_error)?;
+                    leaves.push(leaf);
+                }
+
+                *self = Self::Contains(indices, leaves);
+            }
+            3 => {
+                *self = Self::Unknown;
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown comparison variant kind {}", kind),
+                ));
+            }
+        }
         Ok(())
     }
 }

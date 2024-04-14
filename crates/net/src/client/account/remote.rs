@@ -3,11 +3,12 @@ use crate::client::{net::HttpClient, Error, RemoteSync, Result, SyncError};
 use async_trait::async_trait;
 use sos_sdk::{
     account::{Account, LocalAccount},
+    commit::Comparison,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::files::{list_external_files, FileSet},
     sync::{
-        self, Merge, Origin, SyncClient, SyncOptions, SyncPacket, SyncStatus,
-        SyncStorage,
+        self, MaybeDiff, Merge, Origin, SyncClient, SyncOptions, SyncPacket,
+        SyncStatus, SyncStorage, UpdateSet,
     },
 };
 use std::{collections::HashMap, sync::Arc};
@@ -81,10 +82,51 @@ impl RemoteBridge {
             let packet = SyncPacket {
                 status: local_status,
                 diff: local_changes,
+                compare: None,
             };
             let remote_changes = self.client.sync(&packet).await?;
-            //println!("{:#?}", remote_changes);
             account.merge(&remote_changes.diff).await?;
+
+            self.compare(&mut *account, remote_changes).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Compare the remote comparison with the local
+    /// comparison and determine if a force pull or automerge
+    /// is required.
+    async fn compare(
+        &self,
+        account: &mut LocalAccount,
+        remote_changes: SyncPacket,
+    ) -> Result<()> {
+        if let Some(remote_compare) = &remote_changes.compare {
+            // println!("{:#?}", remote_changes);
+
+            let local_compare =
+                account.compare(&remote_changes.status).await?;
+
+            // NOTE: we don't currently handle account, device and
+            // NOTE: files here as they are currently append-only.
+            // NOTE: if later we support compacting these event logs
+            // NOTE: we need to handle force pull here.
+
+            match (&local_compare.identity, &remote_compare.identity) {
+                (Some(Comparison::Unknown), Some(Comparison::Unknown)) => {
+                    println!(
+                        "todo!: handle completely diverged identity folder"
+                    );
+                }
+                _ => {}
+            }
+
+            // NOTE: we don't need to handle folders here as
+            // NOTE: destructive changes should call
+            // NOTE: import_folder_buffer() which generates
+            // NOTE: an AccountEvent::UpdateVault event which
+            // NOTE: will be handled and automatically rewrite
+            // NOTE: the content of the folder
         }
 
         Ok(())
@@ -115,7 +157,9 @@ impl RemoteBridge {
         }
 
         #[cfg(feature = "device")]
-        if let (true, Some(device)) = (needs_sync, local_changes.device) {
+        if let (true, Some(MaybeDiff::Diff(device))) =
+            (needs_sync, local_changes.device)
+        {
             self.client.patch_devices(&device).await?;
         }
         Ok(())
@@ -214,6 +258,19 @@ impl RemoteSync for RemoteBridge {
         _options: &SyncOptions,
     ) -> Option<SyncError> {
         match self.execute_sync_devices().await {
+            Ok(_) => None,
+            Err(e) => Some(SyncError {
+                errors: vec![(self.origin.clone(), e)],
+            }),
+        }
+    }
+
+    async fn force_update(
+        &self,
+        account_data: &UpdateSet,
+        _options: &SyncOptions,
+    ) -> Option<SyncError> {
+        match self.client.update_account(account_data).await {
             Ok(_) => None,
             Err(e) => Some(SyncError {
                 errors: vec![(self.origin.clone(), e)],

@@ -28,7 +28,8 @@ use crate::{
         secret::{
             Secret, SecretId, SecretMeta, SecretRow, SecretSigner, UserData,
         },
-        Gatekeeper, Vault, VaultBuilder, VaultFlags, VaultId, VaultWriter,
+        BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
+        VaultId, VaultWriter,
     },
     vfs, Error, Paths, Result,
 };
@@ -248,7 +249,10 @@ where
                     | VaultFlags::NO_SYNC_SELF
                     | VaultFlags::NO_SYNC_OTHER,
             )
-            .password(device_password.clone().into(), None)
+            .build(BuilderCredentials::Password(
+                device_password.clone().into(),
+                None,
+            ))
             .await?;
 
         let device_key_urn = self.device_urn()?;
@@ -581,7 +585,10 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
         let vault = VaultBuilder::new()
             .public_name(name)
             .flags(VaultFlags::IDENTITY)
-            .password(password.clone(), Some(KeyDerivation::generate_seed()))
+            .build(BuilderCredentials::Password(
+                password.clone(),
+                Some(KeyDerivation::generate_seed()),
+            ))
             .await?;
 
         let buffer = encode(&vault).await?;

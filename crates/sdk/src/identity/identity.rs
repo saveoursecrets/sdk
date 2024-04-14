@@ -268,7 +268,7 @@ mod tests {
         passwd::diceware::generate_passphrase,
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},
-            Gatekeeper, Vault, VaultBuilder, VaultFlags,
+            BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
         },
         Error,
     };
@@ -276,8 +276,9 @@ mod tests {
     #[tokio::test]
     async fn identity_not_identity_vault() -> Result<()> {
         let (password, _) = generate_passphrase()?;
-        let vault =
-            VaultBuilder::new().password(password.clone(), None).await?;
+        let vault = VaultBuilder::new()
+            .build(BuilderCredentials::Password(password.clone(), None))
+            .await?;
         let buffer = encode(&vault).await?;
 
         let key: AccessKey = password.into();
@@ -296,7 +297,7 @@ mod tests {
 
         let vault = VaultBuilder::new()
             .flags(VaultFlags::IDENTITY)
-            .password(password.clone(), None)
+            .build(BuilderCredentials::Password(password.clone(), None))
             .await?;
 
         let buffer = encode(&vault).await?;
@@ -317,7 +318,7 @@ mod tests {
 
         let vault = VaultBuilder::new()
             .flags(VaultFlags::IDENTITY)
-            .password(password.clone(), None)
+            .build(BuilderCredentials::Password(password.clone(), None))
             .await?;
 
         let mut keeper = Gatekeeper::new(vault);

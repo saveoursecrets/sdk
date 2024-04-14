@@ -5,7 +5,7 @@ use crate::sdk::{
         ed25519::{self, Verifier, VerifyingKey},
     },
     storage::{DiscFolder, ServerStorage},
-    sync::{ChangeSet, SyncStorage},
+    sync::{ChangeSet, SyncStorage, UpdateSet},
     vfs, Paths,
 };
 use std::{
@@ -148,6 +148,25 @@ impl Backend {
             .entry(owner.clone())
             .or_insert(Arc::new(RwLock::new(account)));
 
+        Ok(())
+    }
+
+    /// Update an account.
+    pub async fn update_account(
+        &mut self,
+        owner: &Address,
+        account_data: UpdateSet,
+    ) -> Result<()> {
+        let span = span!(Level::DEBUG, "update_account");
+        let _enter = span.enter();
+        tracing::debug!(address = %owner);
+
+        let mut accounts = self.accounts.write().await;
+        let account =
+            accounts.get_mut(owner).ok_or(Error::NoAccount(*owner))?;
+
+        let mut account = account.write().await;
+        account.storage.update_account(account_data).await?;
         Ok(())
     }
 

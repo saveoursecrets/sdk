@@ -48,13 +48,14 @@ impl fmt::Display for CommitHash {
 /// Either the trees are equal, the other tree
 /// is a subset of this tree or the trees completely
 /// diverge.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub enum Comparison {
     /// Trees are equal as their root commits match.
     Equal,
     /// Tree contains the other proof.
     Contains(Vec<usize>, Vec<[u8; 32]>),
     /// Unable to find a match against the proof.
+    #[default]
     Unknown,
 }
 

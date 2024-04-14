@@ -1,6 +1,7 @@
 pub mod account;
 pub mod audit;
 pub mod check;
+pub mod convert;
 pub mod device;
 pub mod environment;
 pub mod events;
@@ -16,6 +17,7 @@ pub mod sync;
 pub use account::Command as AccountCommand;
 pub use audit::Command as AuditCommand;
 pub use check::Command as CheckCommand;
+pub use convert::Command as ConvertCommand;
 pub use device::Command as DeviceCommand;
 pub use environment::Command as EnvironmentCommand;
 pub use events::Command as EventsCommand;

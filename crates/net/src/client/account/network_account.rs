@@ -3,13 +3,13 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        Account, AccountBuilder, AccountData, DetachedView, FolderChange,
-        FolderCreate, FolderDelete, LocalAccount, SecretChange, SecretDelete,
-        SecretInsert, SecretMove,
+        Account, AccountBuilder, AccountData, CipherComparison, DetachedView,
+        FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
+        SecretDelete, SecretInsert, SecretMove,
     },
     commit::{CommitHash, CommitState},
-    crypto::AccessKey,
-    events::ReadEvent,
+    crypto::{AccessKey, Cipher, KeyDerivation},
+    events::{AccountEvent, EventLogExt, ReadEvent},
     identity::{AccountRef, PublicIdentity},
     sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
@@ -21,15 +21,15 @@ use sos_sdk::{
         },
         AccessOptions, ClientStorage,
     },
-    sync::Origin,
+    sync::{Origin, SyncOptions, SyncStorage, UpdateSet},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        Summary, VaultId,
+        Summary, Vault, VaultId,
     },
     vfs, Paths,
 };
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -125,6 +125,8 @@ impl NetworkAccount {
             let mut storage = storage.write().await;
             storage.revoke_device(device_key).await?;
         }
+
+        println!("Sending patch devices request...");
 
         // Send the device event logs to the remote servers
         if let Some(e) = self.patch_devices(&Default::default()).await {
@@ -532,6 +534,65 @@ impl Account for NetworkAccount {
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
         let account = self.account.lock().await;
         Ok(account.identity_vault_buffer().await?)
+    }
+
+    async fn identity_folder_summary(&self) -> Result<Summary> {
+        let account = self.account.lock().await;
+        Ok(account.identity_folder_summary().await?)
+    }
+
+    async fn change_cipher(
+        &mut self,
+        account_key: &AccessKey,
+        cipher: &Cipher,
+        kdf: Option<KeyDerivation>,
+    ) -> Result<CipherComparison> {
+        let conversion = {
+            let mut account = self.account.lock().await;
+            // Update the local account data.
+            account.change_cipher(account_key, cipher, kdf).await?
+        };
+
+        let identity = if conversion.identity.is_some() {
+            let log = self.identity_log().await?;
+            let reader = log.read().await;
+            Some(reader.diff(None).await?)
+        } else {
+            None
+        };
+
+        // Prepare event logs for the folders that
+        // were converted
+        let mut folders = HashMap::new();
+        let identifiers = conversion
+            .folders
+            .iter()
+            .map(|s| *s.id())
+            .collect::<Vec<_>>();
+
+        for id in &identifiers {
+            let event_log = self.folder_log(id).await?;
+            let log_file = event_log.read().await;
+            folders.insert(*id, log_file.diff(None).await?);
+        }
+
+        // Force update the folders on remote servers
+        let sync_options: SyncOptions = Default::default();
+        let updates = UpdateSet { identity, folders };
+
+        let sync_error = self.force_update(&updates, &sync_options).await;
+        if let Some(sync_error) = sync_error {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        // In case we have pending updates to the account, device
+        // or file event logs
+        if let Some(sync_error) = self.sync_with_options(&sync_options).await
+        {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        Ok(conversion)
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
@@ -1040,6 +1101,14 @@ impl Account for NetworkAccount {
     ) -> Result<FolderCreate<Self::Error>> {
         let buffer = vfs::read(path.as_ref()).await?;
         self.import_folder_buffer(&buffer, key, overwrite).await
+    }
+
+    async fn import_identity_folder(
+        &mut self,
+        vault: Vault,
+    ) -> Result<AccountEvent> {
+        let mut account = self.account.lock().await;
+        Ok(account.import_identity_folder(vault).await?)
     }
 
     async fn import_folder_buffer(
