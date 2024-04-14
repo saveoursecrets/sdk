@@ -1,6 +1,5 @@
 use crate::test_utils::{
-    assert_local_remote_events_eq, mock, num_events, simulate_device, spawn,
-    teardown,
+    assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
 use sos_net::{client::RemoteSync, sdk::prelude::*};

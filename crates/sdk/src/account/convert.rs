@@ -1,19 +1,23 @@
 //! Convert account data.
 use crate::{
-    account::Account,
+    account::{Account, LocalAccount},
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
     vault::{
         secret::SecretRow, BuilderCredentials, Gatekeeper, Summary, Vault,
         VaultBuilder,
     },
-    vfs,
+    vfs, Result,
 };
 use serde::{Deserialize, Serialize};
 
-/// Conversion paths for an account.
+/// Comparison between an existing cipher and a
+/// target cipher.
+///
+/// Used to determine which folders to modify when
+/// changing the cipher for an account.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CipherConversion {
+pub struct CipherComparison {
     /// Cipher to convert to.
     pub cipher: Cipher,
     /// Key derivation function.
@@ -24,29 +28,23 @@ pub struct CipherConversion {
     pub folders: Vec<Summary>,
 }
 
-impl CipherConversion {
+impl CipherComparison {
     /// Determine if this cipher conversion is empty.
     pub fn is_empty(&self) -> bool {
         self.identity.is_none() && self.folders.is_empty()
     }
 }
 
-/// Convert the cipher in use by an account.
-pub struct ConvertCipher;
-
-impl ConvertCipher {
+impl LocalAccount {
     /// Build list of files to convert.
-    pub(super) async fn build<'a, A>(
-        account: &'a A,
+    pub(super) async fn compare_cipher(
+        &self,
         cipher: &Cipher,
         kdf: Option<KeyDerivation>,
-    ) -> std::result::Result<CipherConversion, A::Error>
-    where
-        A: Account,
-    {
+    ) -> Result<CipherComparison> {
         let kdf = kdf.unwrap_or_default();
-        let identity = account.identity_folder_summary().await?;
-        let folders = account
+        let identity = self.identity_folder_summary().await?;
+        let folders = self
             .list_folders()
             .await?
             .into_iter()
@@ -61,7 +59,7 @@ impl ConvertCipher {
                 None
             };
 
-        Ok(CipherConversion {
+        Ok(CipherComparison {
             cipher: *cipher,
             kdf,
             identity,
@@ -70,62 +68,52 @@ impl ConvertCipher {
     }
 
     /// Build list of files to convert.
-    pub(super) async fn convert<'a, A>(
-        account: &'a mut A,
-        conversion: &CipherConversion,
+    pub(super) async fn convert_cipher(
+        &mut self,
+        conversion: &CipherComparison,
         account_key: &AccessKey,
-    ) -> std::result::Result<(), A::Error>
-    where
-        A: Account,
-        A::Error: From<std::io::Error>,
-        A::Error: From<crate::error::Error>,
-    {
+    ) -> Result<()> {
         for folder in &conversion.folders {
-            let key = account.find_folder_password(folder.id()).await?;
-            let vault = Self::convert_folder_cipher(
-                account,
-                &conversion.cipher,
-                &conversion.kdf,
-                folder,
-                &key,
-                true,
-            )
-            .await?;
+            let key = self.find_folder_password(folder.id()).await?;
+            let vault = self
+                .convert_folder_cipher(
+                    &conversion.cipher,
+                    &conversion.kdf,
+                    folder,
+                    &key,
+                    true,
+                )
+                .await?;
 
             let buffer = encode(&vault).await?;
-            account.import_folder_buffer(buffer, key, true).await?;
+            self.import_folder_buffer(buffer, key, true).await?;
         }
 
         if let Some(identity) = &conversion.identity {
-            let vault = Self::convert_folder_cipher(
-                account,
-                &conversion.cipher,
-                &conversion.kdf,
-                identity,
-                account_key,
-                false,
-            )
-            .await?;
+            let vault = self
+                .convert_folder_cipher(
+                    &conversion.cipher,
+                    &conversion.kdf,
+                    identity,
+                    account_key,
+                    false,
+                )
+                .await?;
 
-            account.import_identity_folder(vault).await?;
+            self.import_identity_folder(vault).await?;
         };
 
         Ok(())
     }
 
-    async fn convert_folder_cipher<'a, A>(
-        account: &'a mut A,
+    async fn convert_folder_cipher(
+        &mut self,
         cipher: &Cipher,
         kdf: &KeyDerivation,
         folder: &Summary,
         key: &AccessKey,
         is_folder: bool,
-    ) -> std::result::Result<Vault, A::Error>
-    where
-        A: Account,
-        A::Error: From<std::io::Error>,
-        A::Error: From<crate::error::Error>,
-    {
+    ) -> Result<Vault> {
         let id = folder.id();
         tracing::debug!(
             from = %folder.cipher(),
@@ -134,7 +122,7 @@ impl ConvertCipher {
             id = %id,
             "convert cipher");
 
-        let paths = account.paths();
+        let paths = self.paths();
         let vault_path = if is_folder {
             paths.vault_path(id)
         } else {

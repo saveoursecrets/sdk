@@ -19,7 +19,7 @@ pub use account::{
     SecretMove,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};
-pub use convert::CipherConversion;
+pub use convert::CipherComparison;
 
 #[cfg(feature = "contacts")]
 pub use account::ContactImportProgress;

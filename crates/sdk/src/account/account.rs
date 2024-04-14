@@ -7,10 +7,7 @@ use std::{
 };
 
 use crate::{
-    account::{
-        convert::{CipherConversion, ConvertCipher},
-        AccountBuilder,
-    },
+    account::{convert::CipherComparison, AccountBuilder},
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
@@ -315,7 +312,7 @@ pub trait Account {
         account_key: &AccessKey,
         cipher: &Cipher,
         kdf: Option<KeyDerivation>,
-    ) -> std::result::Result<CipherConversion, Self::Error>;
+    ) -> std::result::Result<CipherComparison, Self::Error>;
 
     /// Access an account by signing in.
     ///
@@ -1530,15 +1527,15 @@ impl Account for LocalAccount {
         account_key: &AccessKey,
         cipher: &Cipher,
         kdf: Option<KeyDerivation>,
-    ) -> Result<CipherConversion> {
-        let conversion = ConvertCipher::build(self, &cipher, kdf).await?;
+    ) -> Result<CipherComparison> {
+        let conversion = self.compare_cipher(&cipher, kdf).await?;
 
         // Short circuit if there is nothing to do
         if conversion.is_empty() {
             return Ok(conversion);
         }
 
-        ConvertCipher::convert(self, &conversion, account_key).await?;
+        self.convert_cipher(&conversion, account_key).await?;
 
         // Login again so in-memory data is up to date
         let identity_vault_path = self.paths().identity_vault();

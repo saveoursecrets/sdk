@@ -122,6 +122,7 @@ pub enum Command {
         cmd: CheckCommand,
     },
     /// Inspect event records.
+    #[clap(alias = "event")]
     Events {
         #[clap(subcommand)]
         cmd: EventsCommand,

@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        Account, AccountBuilder, AccountData, CipherConversion, DetachedView,
+        Account, AccountBuilder, AccountData, CipherComparison, DetachedView,
         FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
         SecretDelete, SecretInsert, SecretMove,
     },
@@ -546,7 +546,7 @@ impl Account for NetworkAccount {
         account_key: &AccessKey,
         cipher: &Cipher,
         kdf: Option<KeyDerivation>,
-    ) -> Result<CipherConversion> {
+    ) -> Result<CipherComparison> {
         let conversion = {
             let mut account = self.account.lock().await;
             // Update the local account data.
