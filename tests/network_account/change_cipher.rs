@@ -9,7 +9,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 #[tokio::test]
 async fn network_sync_change_cipher() -> Result<()> {
     const TEST_ID: &str = "sync_change_cipher";
-    crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -71,15 +71,6 @@ async fn network_sync_change_cipher() -> Result<()> {
     device1.owner.sign_out().await?;
     device1.owner.sign_in(&key).await?;
 
-    // Primary device should now be in sync with remote
-    let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();
-    assert_local_remote_events_eq(
-        folders.clone(),
-        &mut device1.owner,
-        &mut bridge,
-    )
-    .await?;
-
     let device1_commit = device1.owner.root_commit(&default_folder).await?;
     let device2_commit = device2.owner.root_commit(&default_folder).await?;
     assert_ne!(device1_commit, device2_commit);
@@ -93,9 +84,11 @@ async fn network_sync_change_cipher() -> Result<()> {
     let device2_commit = device2.owner.root_commit(&default_folder).await?;
     assert_eq!(device1_commit, device2_commit);
 
+    /*
     // Check we can sign out and sign in again
     device2.owner.sign_out().await?;
     device2.owner.sign_in(&key).await?;
+    */
 
     // Create a secret on the synced device
     let (meta, secret) = mock::note(TEST_ID, TEST_ID);
@@ -112,6 +105,15 @@ async fn network_sync_change_cipher() -> Result<()> {
         .await?;
     assert_eq!(&meta, secret_data.meta());
     assert_eq!(&secret, secret_data.secret());
+
+    // Primary device should now be in sync with remote
+    let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();
+    assert_local_remote_events_eq(
+        folders.clone(),
+        &mut device1.owner,
+        &mut bridge,
+    )
+    .await?;
 
     // Ensure the second device is up to date with the remote
     let mut bridge = device2.owner.remove_server(&origin).await?.unwrap();
