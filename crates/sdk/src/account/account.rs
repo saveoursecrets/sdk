@@ -314,6 +314,12 @@ pub trait Account {
         kdf: Option<KeyDerivation>,
     ) -> std::result::Result<CipherComparison, Self::Error>;
 
+    /// Change the password for an account.
+    async fn change_password(
+        &mut self,
+        password: SecretString,
+    ) -> std::result::Result<(), Self::Error>;
+
     /// Access an account by signing in.
     ///
     /// If a default folder exists for the account it
@@ -1528,6 +1534,8 @@ impl Account for LocalAccount {
         cipher: &Cipher,
         kdf: Option<KeyDerivation>,
     ) -> Result<CipherComparison> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
         let conversion = self.compare_cipher(&cipher, kdf).await?;
 
         // Short circuit if there is nothing to do
@@ -1544,6 +1552,44 @@ impl Account for LocalAccount {
             .await?;
 
         Ok(conversion)
+    }
+
+    async fn change_password(
+        &mut self,
+        password: SecretString,
+    ) -> Result<()> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
+        let user = self.user()?;
+        let identity = user.identity()?;
+        let input = identity.keeper();
+        let seed = input.vault().seed().cloned();
+        let meta = input.vault_meta().await?;
+
+        let summary = self.identity_folder_summary().await?;
+        let vault = VaultBuilder::new()
+            .id(*summary.id())
+            .public_name(summary.name().to_owned())
+            .description(meta.description)
+            .flags(summary.flags().clone())
+            .kdf(summary.kdf().clone())
+            .cipher(*summary.cipher())
+            .build(BuilderCredentials::Password(password.clone(), seed))
+            .await?;
+
+        let access_key: AccessKey = password.into();
+        let mut output = Gatekeeper::new(vault);
+        output.unlock(&access_key).await?;
+
+        for key in input.vault().keys() {
+            let (meta, secret, _) =
+                identity.keeper().read_secret(key).await?.unwrap();
+            let secret_data = SecretRow::new(*key, meta, secret);
+            output.create_secret(&secret_data).await?;
+        }
+
+        self.import_identity_folder(output.into()).await?;
+        Ok(())
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {

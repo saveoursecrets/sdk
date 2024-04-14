@@ -595,6 +595,41 @@ impl Account for NetworkAccount {
         Ok(conversion)
     }
 
+    async fn change_password(
+        &mut self,
+        password: SecretString,
+    ) -> Result<()> {
+        {
+            let mut account = self.account.lock().await;
+            account.change_password(password).await?
+        }
+
+        let log = self.identity_log().await?;
+        let reader = log.read().await;
+        let identity = Some(reader.diff(None).await?);
+
+        // Force update the folders on remote servers
+        let sync_options: SyncOptions = Default::default();
+        let updates = UpdateSet {
+            identity,
+            folders: Default::default(),
+        };
+
+        let sync_error = self.force_update(&updates, &sync_options).await;
+        if let Some(sync_error) = sync_error {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        // In case we have pending updates to the account, device
+        // or file event logs
+        if let Some(sync_error) = self.sync_with_options(&sync_options).await
+        {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        Ok(())
+    }
+
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let folders = {
             let mut account = self.account.lock().await;
