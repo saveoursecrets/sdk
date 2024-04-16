@@ -35,5 +35,7 @@ mod websocket_shutdown_signout;
 mod change_cipher;
 mod change_password;
 
+mod compact_account;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use sos_test_utils as test_utils;

@@ -759,12 +759,16 @@ impl Account for NetworkAccount {
     async fn compact_account(
         &mut self,
     ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
-        let mut account = self.account.lock().await;
-        let result = account.compact_account().await?;
+        let result = {
+          let mut account = self.account.lock().await;
+          account.compact_account().await?
+        };
 
-        let log = self.identity_log().await?;
-        let reader = log.read().await;
-        let identity = Some(reader.diff(None).await?);
+        let identity = {
+          let log = self.identity_log().await?;
+          let reader = log.read().await;
+          Some(reader.diff(None).await?)
+        };
 
         // Prepare event logs for the folders that
         // were converted
