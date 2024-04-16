@@ -4,11 +4,11 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_net::{client::RemoteSync, sdk::prelude::*};
 
-/// Tests changing the account password and force syncing
-/// the updated and diverged account data.
+/// Tests changing a folder password and force syncing
+/// the updated folder events log.
 #[tokio::test]
-async fn network_sync_change_account_password() -> Result<()> {
-    const TEST_ID: &str = "sync_change_account_password";
+async fn network_sync_change_folder_password() -> Result<()> {
+    const TEST_ID: &str = "sync_change_folder_password";
     // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
@@ -16,6 +16,8 @@ async fn network_sync_change_account_password() -> Result<()> {
 
     // Prepare mock devices
     let mut device1 = simulate_device(TEST_ID, 2, Some(&server)).await?;
+    let password = device1.password.clone();
+    let account_key: AccessKey = password.into();
     let origin = device1.origin.clone();
     let default_folder = device1.default_folder.clone();
     let folders = device1.folders.clone();
@@ -34,8 +36,11 @@ async fn network_sync_change_account_password() -> Result<()> {
     assert!(device2.owner.sync().await.is_none());
 
     let (new_password, _) = generate_passphrase()?;
-    device1.owner.change_password(new_password.clone()).await?;
     let key: AccessKey = new_password.into();
+    device1
+        .owner
+        .change_folder_password(&default_folder, key.clone())
+        .await?;
 
     // Check we can read in the secret data after conversion
     let (secret_data, _) = device1
@@ -47,7 +52,7 @@ async fn network_sync_change_account_password() -> Result<()> {
 
     // Check we can sign out and sign in again
     device1.owner.sign_out().await?;
-    device1.owner.sign_in(&key).await?;
+    device1.owner.sign_in(&account_key).await?;
 
     // Try to sync on other device after force update
     // which should perform a force pull to update the
@@ -58,7 +63,7 @@ async fn network_sync_change_account_password() -> Result<()> {
     // on the device that just synced using the
     // new access key
     device2.owner.sign_out().await?;
-    device2.owner.sign_in(&key).await?;
+    device2.owner.sign_in(&account_key).await?;
 
     // Create a secret on the synced device
     let (meta, secret) = mock::note(TEST_ID, TEST_ID);

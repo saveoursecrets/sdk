@@ -852,6 +852,12 @@ impl Account for NetworkAccount {
           account.change_folder_password(folder, new_key).await?;
         }
 
+        let identity = {
+          let log = self.identity_log().await?;
+          let reader = log.read().await;
+          Some(reader.diff(None).await?)
+        };
+
         // Prepare event logs for the folders that
         // were converted
         let mut folders = HashMap::new();
@@ -863,7 +869,7 @@ impl Account for NetworkAccount {
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
-        let updates = UpdateSet { identity: None, folders };
+        let updates = UpdateSet { identity, folders };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
         if let Some(sync_error) = sync_error {

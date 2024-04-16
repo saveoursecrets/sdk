@@ -34,6 +34,7 @@ mod websocket_shutdown_signout;
 
 mod change_account_password;
 mod change_cipher;
+mod change_folder_password;
 
 mod compact_account;
 mod compact_folder;
