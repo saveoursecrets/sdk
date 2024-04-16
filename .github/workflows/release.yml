@@ -12,20 +12,20 @@ env:
   RELEASES_CLOUDFRONT_ID: ${{ vars.RELEASES_CLOUDFRONT_ID }}
 
 jobs:
-  # checks:
-  #   uses: ./.github/workflows/checks.yml
-  #
-  # publish:
-  #   uses: ./.github/workflows/publish.yml
-  #   needs:
-  #     - checks
-  #   secrets: inherit
-  #
-  # homebrew:
-  #   uses: ./.github/workflows/homebrew.yml
-  #   needs:
-  #     - publish
-  #   secrets: inherit
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  publish:
+    uses: ./.github/workflows/publish.yml
+    needs:
+      - checks
+    secrets: inherit
+
+  homebrew:
+    uses: ./.github/workflows/homebrew.yml
+    needs:
+      - publish
+    secrets: inherit
 
   release-artifacts:
     #if: ${{ false }}
