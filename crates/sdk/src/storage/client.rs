@@ -853,11 +853,11 @@ impl ClientStorage {
     }
 
     /// Compact an event log file.
-    pub async fn compact(
+    pub async fn compact_folder(
         &mut self,
         summary: &Summary,
         key: &AccessKey,
-    ) -> Result<(u64, u64)> {
+    ) -> Result<(AccountEvent, u64, u64)> {
         let (old_size, new_size) = {
             let folder = self
                 .cache
@@ -885,7 +885,7 @@ impl ClientStorage {
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
 
-        Ok((old_size, new_size))
+        Ok((account_event, old_size, new_size))
     }
 
     /// Load a vault by reducing it from the event log stored on disc.

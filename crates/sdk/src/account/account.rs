@@ -315,7 +315,7 @@ pub trait Account {
     ) -> std::result::Result<CipherComparison, Self::Error>;
 
     /// Change the password for an account.
-    async fn change_password(
+    async fn change_account_password(
         &mut self,
         password: SecretString,
     ) -> std::result::Result<(), Self::Error>;
@@ -430,11 +430,19 @@ pub trait Account {
         summary: &Summary,
     ) -> std::result::Result<CommitState, Self::Error>;
 
+    /// Compact the identity folder and all user folders.
+    async fn compact_account(
+        &mut self,
+    ) -> std::result::Result<
+        HashMap<Summary, (AccountEvent, u64, u64)>,
+        Self::Error,
+    >;
+
     /// Compact the event log file for a folder.
-    async fn compact(
+    async fn compact_folder(
         &mut self,
         summary: &Summary,
-    ) -> std::result::Result<(u64, u64), Self::Error>;
+    ) -> std::result::Result<(AccountEvent, u64, u64), Self::Error>;
 
     /// Change the password for a folder.
     ///
@@ -1554,7 +1562,7 @@ impl Account for LocalAccount {
         Ok(conversion)
     }
 
-    async fn change_password(
+    async fn change_account_password(
         &mut self,
         password: SecretString,
     ) -> Result<()> {
@@ -1797,16 +1805,64 @@ impl Account for LocalAccount {
         Ok(reader.commit_state(summary).await?)
     }
 
-    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let key = self.user()?.find_folder_password(summary.id()).await?;
+    async fn compact_account(
+        &mut self,
+    ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
+        let mut output = HashMap::new();
+        let folders = self.list_folders().await?;
 
-        let (old_size, new_size) = {
-            let storage = self.storage().await?;
-            let mut writer = storage.write().await;
-            writer.compact(summary, &key).await?
+        for folder in folders {
+            let result = self.compact_folder(&folder).await?;
+            output.insert(folder, result);
+        }
+
+        let identity = self.identity_folder_summary().await?;
+        let (vault, old_size, new_size) = {
+            let event_log = self.identity_log().await?;
+            let mut log_file = event_log.write().await;
+
+            let (compact_event_log, old_size, new_size) =
+                log_file.compact().await?;
+
+            let vault = FolderReducer::new()
+                .reduce(&compact_event_log)
+                .await?
+                .build(true)
+                .await?;
+
+            // Need to recreate the event log file and load the updated
+            // commit tree
+            *log_file = compact_event_log;
+
+            (vault, old_size, new_size)
         };
 
-        Ok((old_size, new_size))
+        let event = {
+            let event = AccountEvent::UpdateIdentity(encode(&vault).await?);
+            let log = self.account_log().await?;
+            let mut log = log.write().await;
+            log.apply(vec![&event]).await?;
+            event
+        };
+
+        output.insert(identity, (event, old_size, new_size));
+
+        Ok(output)
+    }
+
+    async fn compact_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<(AccountEvent, u64, u64)> {
+        let key = self.user()?.find_folder_password(summary.id()).await?;
+
+        let (event, old_size, new_size) = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer.compact_folder(summary, &key).await?
+        };
+
+        Ok((event, old_size, new_size))
     }
 
     async fn change_folder_password(

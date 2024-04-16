@@ -119,7 +119,7 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "m
 tokio = { version = "1", features = ["rt", "time", "sync"] }
 
 [target.'cfg(target_os="macos")'.dependencies]
-reqwest = { version = "0.12.2", default-features = true, features = ["json", "rustls-tls", "stream"], optional = true }
+reqwest = { version = "0.12.3", default-features = true, features = ["json", "rustls-tls", "stream"], optional = true }
 
 # NOTE: Must disable default-features so that openssl
 # NOTE: is not compiled when cross-compiling in CI.
@@ -132,7 +132,7 @@ reqwest = { version = "0.12.2", default-features = true, features = ["json", "ru
 # NOTE: being compiled on macos when `default-features` is 
 # NOTE: disabled.
 [target.'cfg(not(target_os="macos"))'.dependencies]
-reqwest = { version = "0.12.2", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
+reqwest = { version = "0.12.3", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
 
 [dev-dependencies]
 anyhow = "1"

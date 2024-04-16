@@ -336,8 +336,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                     );
                     if read_flag(prompt)? {
                         let mut owner = user.write().await;
-                        let (old_size, new_size) =
-                            owner.compact(&summary).await?;
+                        let (_, old_size, new_size) =
+                            owner.compact_folder(&summary).await?;
                         println!("Old: {}", human_bytes(old_size as f64));
                         println!("New: {}", human_bytes(new_size as f64));
                     }

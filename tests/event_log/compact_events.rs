@@ -52,7 +52,7 @@ async fn event_log_compact() -> Result<()> {
 
     let old_root = account.root_commit(&default_folder).await?;
 
-    account.compact(&default_folder).await?;
+    account.compact_folder(&default_folder).await?;
 
     // Now it's just the create vault and a single create
     // secret event

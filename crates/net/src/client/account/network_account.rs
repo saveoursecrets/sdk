@@ -595,13 +595,13 @@ impl Account for NetworkAccount {
         Ok(conversion)
     }
 
-    async fn change_password(
+    async fn change_account_password(
         &mut self,
         password: SecretString,
     ) -> Result<()> {
         {
             let mut account = self.account.lock().await;
-            account.change_password(password).await?
+            account.change_account_password(password).await?
         }
 
         let log = self.identity_log().await?;
@@ -756,9 +756,90 @@ impl Account for NetworkAccount {
         Ok(account.commit_state(summary).await?)
     }
 
-    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
-        let mut account = self.account.lock().await;
-        Ok(account.compact(summary).await?)
+    async fn compact_account(
+        &mut self,
+    ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
+        let result = {
+          let mut account = self.account.lock().await;
+          account.compact_account().await?
+        };
+
+        let identity = {
+          let log = self.identity_log().await?;
+          let reader = log.read().await;
+          Some(reader.diff(None).await?)
+        };
+
+        // Prepare event logs for the folders that
+        // were converted
+        let mut folders = HashMap::new();
+        let identifiers = self
+            .list_folders()
+            .await?
+            .into_iter()
+            .map(|s| *s.id())
+            .collect::<Vec<_>>();
+
+        for id in &identifiers {
+            let event_log = self.folder_log(id).await?;
+            let log_file = event_log.read().await;
+            folders.insert(*id, log_file.diff(None).await?);
+        }
+
+        // Force update the folders on remote servers
+        let sync_options: SyncOptions = Default::default();
+        let updates = UpdateSet { identity, folders };
+
+        let sync_error = self.force_update(&updates, &sync_options).await;
+        if let Some(sync_error) = sync_error {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        // In case we have pending updates to the account, device
+        // or file event logs
+        if let Some(sync_error) = self.sync_with_options(&sync_options).await
+        {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        Ok(result)
+    }
+
+    async fn compact_folder(
+        &mut self,
+        folder: &Summary,
+    ) -> Result<(AccountEvent, u64, u64)> {
+        let result = {
+          let mut account = self.account.lock().await;
+          account.compact_folder(folder).await?
+        };
+
+        // Prepare event logs for the folders that
+        // were converted
+        let mut folders = HashMap::new();
+        {
+            let event_log = self.folder_log(folder.id()).await?;
+            let log_file = event_log.read().await;
+            folders.insert(*folder.id(), log_file.diff(None).await?);
+        }
+
+        // Force update the folders on remote servers
+        let sync_options: SyncOptions = Default::default();
+        let updates = UpdateSet { identity: None, folders };
+
+        let sync_error = self.force_update(&updates, &sync_options).await;
+        if let Some(sync_error) = sync_error {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        // In case we have pending updates to the account, device
+        // or file event logs
+        if let Some(sync_error) = self.sync_with_options(&sync_options).await
+        {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        Ok(result)
     }
 
     async fn change_folder_password(
@@ -766,8 +847,43 @@ impl Account for NetworkAccount {
         folder: &Summary,
         new_key: AccessKey,
     ) -> Result<()> {
-        let mut account = self.account.lock().await;
-        Ok(account.change_folder_password(folder, new_key).await?)
+        {
+          let mut account = self.account.lock().await;
+          account.change_folder_password(folder, new_key).await?;
+        }
+
+        let identity = {
+          let log = self.identity_log().await?;
+          let reader = log.read().await;
+          Some(reader.diff(None).await?)
+        };
+
+        // Prepare event logs for the folders that
+        // were converted
+        let mut folders = HashMap::new();
+        {
+            let event_log = self.folder_log(folder.id()).await?;
+            let log_file = event_log.read().await;
+            folders.insert(*folder.id(), log_file.diff(None).await?);
+        }
+
+        // Force update the folders on remote servers
+        let sync_options: SyncOptions = Default::default();
+        let updates = UpdateSet { identity, folders };
+
+        let sync_error = self.force_update(&updates, &sync_options).await;
+        if let Some(sync_error) = sync_error {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        // In case we have pending updates to the account, device
+        // or file event logs
+        if let Some(sync_error) = self.sync_with_options(&sync_options).await
+        {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        Ok(())
     }
 
     async fn detached_view(

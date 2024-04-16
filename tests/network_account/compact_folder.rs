@@ -4,11 +4,11 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_net::{client::RemoteSync, sdk::prelude::*};
 
-/// Tests changing the account password and force syncing
-/// the updated and diverged account data.
+/// Tests compacting a single folders and
+/// syncing the changes to another device.
 #[tokio::test]
-async fn network_sync_change_password() -> Result<()> {
-    const TEST_ID: &str = "sync_change_password";
+async fn network_sync_compact_folder() -> Result<()> {
+    const TEST_ID: &str = "sync_compact_folder";
     // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
@@ -16,15 +16,23 @@ async fn network_sync_change_password() -> Result<()> {
 
     // Prepare mock devices
     let mut device1 = simulate_device(TEST_ID, 2, Some(&server)).await?;
+    let password = device1.password.clone();
+    let key: AccessKey = password.into();
     let origin = device1.origin.clone();
     let default_folder = device1.default_folder.clone();
     let folders = device1.folders.clone();
 
     let mut device2 = device1.connect(1, None).await?;
 
-    // Create a secret in the primary owner which won't exist
-    // in the second device
+    // Create some events
     let (meta, secret) = mock::note(TEST_ID, TEST_ID);
+    let SecretChange { id, .. } = device1
+        .owner
+        .create_secret(meta.clone(), secret.clone(), Default::default())
+        .await?;
+
+    device1.owner.delete_secret(&id, Default::default()).await?;
+
     let SecretChange { id, .. } = device1
         .owner
         .create_secret(meta.clone(), secret.clone(), Default::default())
@@ -33,11 +41,10 @@ async fn network_sync_change_password() -> Result<()> {
     // Sync on the second device to fetch initial account state
     assert!(device2.owner.sync().await.is_none());
 
-    let (new_password, _) = generate_passphrase()?;
-    device1.owner.change_password(new_password.clone()).await?;
-    let key: AccessKey = new_password.into();
+    // Compact the folder
+    device1.owner.compact_folder(&default_folder).await?;
 
-    // Check we can read in the secret data after conversion
+    // Check we can read in the secret data on initial device
     let (secret_data, _) = device1
         .owner
         .read_secret(&id, Some(default_folder.clone()))
@@ -45,18 +52,33 @@ async fn network_sync_change_password() -> Result<()> {
     assert_eq!(&meta, secret_data.meta());
     assert_eq!(&secret, secret_data.secret());
 
-    // Check we can sign out and sign in again
-    device1.owner.sign_out().await?;
-    device1.owner.sign_in(&key).await?;
-
     // Try to sync on other device after force update
     // which should perform a force pull to update the
     // account data
     assert!(device2.owner.sync().await.is_none());
 
-    // Check we can sign out and sign in again
-    // on the device that just synced using the
-    // new access key
+    // Check we can read in the secret data on synced device
+    let (secret_data, _) = device2
+        .owner
+        .read_secret(&id, Some(default_folder.clone()))
+        .await?;
+    assert_eq!(&meta, secret_data.meta());
+    assert_eq!(&secret, secret_data.secret());
+
+    // Check we can create more secrets on both devices
+    device1
+        .owner
+        .create_secret(meta.clone(), secret.clone(), Default::default())
+        .await?;
+    device2
+        .owner
+        .create_secret(meta.clone(), secret.clone(), Default::default())
+        .await?;
+
+    // Check we can sign out and sign in again on both devices
+    device1.owner.sign_out().await?;
+    device1.owner.sign_in(&key).await?;
+
     device2.owner.sign_out().await?;
     device2.owner.sign_in(&key).await?;
 
