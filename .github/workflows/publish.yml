@@ -106,7 +106,7 @@ jobs:
           ./scripts/ci/prepare-executables.sh $(./scripts/ci/find-executables.sh "$BUILD_DIR")
 
       - name: Archive release
-        uses: thedoctor0/zip-release@0.7.1
+        uses: thedoctor0/zip-release@0.7.6
         with:
           type: 'zip'
           filename: ${{ env.ZIP_FILE }}
