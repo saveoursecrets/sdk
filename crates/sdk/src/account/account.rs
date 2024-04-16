@@ -431,7 +431,7 @@ pub trait Account {
     ) -> std::result::Result<CommitState, Self::Error>;
 
     /// Compact the event log file for a folder.
-    async fn compact(
+    async fn compact_folder(
         &mut self,
         summary: &Summary,
     ) -> std::result::Result<(u64, u64), Self::Error>;
@@ -1797,7 +1797,10 @@ impl Account for LocalAccount {
         Ok(reader.commit_state(summary).await?)
     }
 
-    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+    async fn compact_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<(u64, u64)> {
         let key = self.user()?.find_folder_password(summary.id()).await?;
 
         let (old_size, new_size) = {

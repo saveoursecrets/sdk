@@ -756,9 +756,12 @@ impl Account for NetworkAccount {
         Ok(account.commit_state(summary).await?)
     }
 
-    async fn compact(&mut self, summary: &Summary) -> Result<(u64, u64)> {
+    async fn compact_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<(u64, u64)> {
         let mut account = self.account.lock().await;
-        Ok(account.compact(summary).await?)
+        Ok(account.compact_folder(summary).await?)
     }
 
     async fn change_folder_password(
