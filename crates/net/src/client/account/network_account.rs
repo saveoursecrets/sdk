@@ -756,10 +756,55 @@ impl Account for NetworkAccount {
         Ok(account.commit_state(summary).await?)
     }
 
+    async fn compact_account(
+        &mut self,
+    ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
+        let mut account = self.account.lock().await;
+        let result = account.compact_account().await?;
+
+        let log = self.identity_log().await?;
+        let reader = log.read().await;
+        let identity = Some(reader.diff(None).await?);
+
+        // Prepare event logs for the folders that
+        // were converted
+        let mut folders = HashMap::new();
+        let identifiers = self
+            .list_folders()
+            .await?
+            .into_iter()
+            .map(|s| *s.id())
+            .collect::<Vec<_>>();
+
+        for id in &identifiers {
+            let event_log = self.folder_log(id).await?;
+            let log_file = event_log.read().await;
+            folders.insert(*id, log_file.diff(None).await?);
+        }
+
+        // Force update the folders on remote servers
+        let sync_options: SyncOptions = Default::default();
+        let updates = UpdateSet { identity, folders };
+
+        let sync_error = self.force_update(&updates, &sync_options).await;
+        if let Some(sync_error) = sync_error {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        // In case we have pending updates to the account, device
+        // or file event logs
+        if let Some(sync_error) = self.sync_with_options(&sync_options).await
+        {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        Ok(result)
+    }
+
     async fn compact_folder(
         &mut self,
         summary: &Summary,
-    ) -> Result<(u64, u64)> {
+    ) -> Result<(AccountEvent, u64, u64)> {
         let mut account = self.account.lock().await;
         Ok(account.compact_folder(summary).await?)
     }
