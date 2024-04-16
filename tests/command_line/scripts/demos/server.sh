@@ -3,14 +3,14 @@ mkdir -p target/server/accounts
 #$ readline
 
 # initialize a config file for the server
-sos-server init target/config.toml --path server/accounts
+sos-server init target/demo/config.toml --path ../server/accounts
 #$ readline
 
-cat target/config.toml
-#$ expect path = "server/accounts"
+cat target/demo/config.toml
+#$ expect path = "../server/accounts"
 
 # start the server
-sos-server start target/config.toml
+sos-server start target/demo/config.toml
 #$ regex (?i)tls
 
 #$ sendcontrol ^C

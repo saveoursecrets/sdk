@@ -14,7 +14,7 @@ account migrate import --name "MacOS Passwords" --format macos.csv $MIGRATE_MACO
 #$ wait
 
 # export unencrypted secrets to migrate to another app
-account migrate export --force target/demo-export.zip
+account migrate export --force target/demo/export.zip
 #$ regex (?i)export unencrypted
 y
 #$ wait
