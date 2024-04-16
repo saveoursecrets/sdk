@@ -34,7 +34,10 @@ async fn network_sync_change_account_password() -> Result<()> {
     assert!(device2.owner.sync().await.is_none());
 
     let (new_password, _) = generate_passphrase()?;
-    device1.owner.change_password(new_password.clone()).await?;
+    device1
+        .owner
+        .change_account_password(new_password.clone())
+        .await?;
     let key: AccessKey = new_password.into();
 
     // Check we can read in the secret data after conversion

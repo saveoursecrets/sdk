@@ -315,7 +315,7 @@ pub trait Account {
     ) -> std::result::Result<CipherComparison, Self::Error>;
 
     /// Change the password for an account.
-    async fn change_password(
+    async fn change_account_password(
         &mut self,
         password: SecretString,
     ) -> std::result::Result<(), Self::Error>;
@@ -1562,7 +1562,7 @@ impl Account for LocalAccount {
         Ok(conversion)
     }
 
-    async fn change_password(
+    async fn change_account_password(
         &mut self,
         password: SecretString,
     ) -> Result<()> {

@@ -595,13 +595,13 @@ impl Account for NetworkAccount {
         Ok(conversion)
     }
 
-    async fn change_password(
+    async fn change_account_password(
         &mut self,
         password: SecretString,
     ) -> Result<()> {
         {
             let mut account = self.account.lock().await;
-            account.change_password(password).await?
+            account.change_account_password(password).await?
         }
 
         let log = self.identity_log().await?;
