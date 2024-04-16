@@ -1,4 +1,4 @@
-account migrate export --force target/demo-export.zip
+account migrate export --force target/demo/export.zip
 #$ regex (?i)export unencrypted
 y
 #$ wait
@@ -22,4 +22,3 @@ account migrate import --format firefox.csv $MIGRATE_FIREFOX
 account migrate import --format macos.csv $MIGRATE_MACOS
 #$ regex (?i)imported
 #$ wait
-

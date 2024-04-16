@@ -127,7 +127,11 @@ args = ["test", "system_messages_"]
 script_runner = "@shell"
 script = '''
 rm -rf target/accounts
-rm -f target/*.{zip,vcf,heic,txt,toml,csv,json}
+rm -rf target/demo
+# rm -f target/*.{zip,vcf,heic,txt,toml,csv,json}
+
+mkdir -p target/accounts
+mkdir -p target/demo
 '''
 
 [tasks.test-cli]
