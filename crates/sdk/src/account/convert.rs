@@ -99,8 +99,11 @@ impl LocalAccount {
                     false,
                 )
                 .await?;
-
-            self.import_identity_folder(vault).await?;
+            
+            #[cfg(feature = "sync")]
+            {
+                self.import_identity_folder(vault).await?;
+            }
         };
 
         Ok(())
