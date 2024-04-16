@@ -807,20 +807,20 @@ impl Account for NetworkAccount {
 
     async fn compact_folder(
         &mut self,
-        summary: &Summary,
+        folder: &Summary,
     ) -> Result<(AccountEvent, u64, u64)> {
         let result = {
           let mut account = self.account.lock().await;
-          account.compact_folder(summary).await?
+          account.compact_folder(folder).await?
         };
 
         // Prepare event logs for the folders that
         // were converted
         let mut folders = HashMap::new();
         {
-            let event_log = self.folder_log(summary.id()).await?;
+            let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
-            folders.insert(*summary.id(), log_file.diff(None).await?);
+            folders.insert(*folder.id(), log_file.diff(None).await?);
         }
 
         // Force update the folders on remote servers
@@ -847,10 +847,37 @@ impl Account for NetworkAccount {
         folder: &Summary,
         new_key: AccessKey,
     ) -> Result<()> {
-        let mut account = self.account.lock().await;
-        Ok(account.change_folder_password(folder, new_key).await?)
+        {
+          let mut account = self.account.lock().await;
+          account.change_folder_password(folder, new_key).await?;
+        }
 
-        // TODO: force update the folder on remote
+        // Prepare event logs for the folders that
+        // were converted
+        let mut folders = HashMap::new();
+        {
+            let event_log = self.folder_log(folder.id()).await?;
+            let log_file = event_log.read().await;
+            folders.insert(*folder.id(), log_file.diff(None).await?);
+        }
+
+        // Force update the folders on remote servers
+        let sync_options: SyncOptions = Default::default();
+        let updates = UpdateSet { identity: None, folders };
+
+        let sync_error = self.force_update(&updates, &sync_options).await;
+        if let Some(sync_error) = sync_error {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        // In case we have pending updates to the account, device
+        // or file event logs
+        if let Some(sync_error) = self.sync_with_options(&sync_options).await
+        {
+            return Err(Error::ForceUpdate(sync_error));
+        }
+
+        Ok(())
     }
 
     async fn detached_view(
