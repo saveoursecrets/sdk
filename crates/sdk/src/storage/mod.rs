@@ -1,11 +1,13 @@
 //! Folder storage backed by the file system.
 use crate::{
+    events::{AccountEventLog, FolderEventLog},
     signer::ecdsa::Address,
-    vault::{Summary, Vault},
+    vault::{Summary, Vault, VaultId},
     Result,
 };
-use std::path::Path;
-use tokio::sync::mpsc;
+use async_trait::async_trait;
+use std::{path::Path, sync::Arc};
+use tokio::sync::{mpsc, RwLock};
 
 mod client;
 #[cfg(feature = "files")]
@@ -21,6 +23,12 @@ pub(crate) mod sync;
 pub use client::ClientStorage;
 pub use folder::{DiscFolder, Folder, MemoryFolder};
 pub use server::ServerStorage;
+
+#[cfg(feature = "device")]
+use crate::events::DeviceEventLog;
+
+#[cfg(feature = "files")]
+use crate::events::FileEventLog;
 
 /// Collection of vaults for an account.
 #[derive(Default)]
@@ -92,4 +100,31 @@ pub fn guess_mime(path: impl AsRef<Path>) -> Result<String> {
         .first_or(mime_guess::mime::APPLICATION_OCTET_STREAM)
         .to_string();
     Ok(mime)
+}
+
+/// References to the storage event logs.
+#[async_trait]
+pub trait StorageEventLogs {
+    /// Clone of the identity log.
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>>;
+
+    /// Clone of the account log.
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>>;
+
+    /// Clone of the device log.
+    #[cfg(feature = "device")]
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>>;
+
+    /// Clone of the file log.
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>>;
+
+    /// Folder identifiers managed by this storage.
+    async fn folder_identifiers(&self) -> Result<Vec<VaultId>>;
+
+    /// Folder event log.
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>>;
 }

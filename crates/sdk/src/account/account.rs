@@ -13,14 +13,13 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
-        FolderReducer, ReadEvent, WriteEvent,
+        FolderEventLog, FolderReducer, ReadEvent, WriteEvent,
     },
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
-    storage::AccountPack,
     storage::{
         search::{DocumentCount, SearchIndex},
-        AccessOptions, ClientStorage,
+        AccessOptions, AccountPack, ClientStorage, StorageEventLogs,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
@@ -37,18 +36,22 @@ use crate::audit::{AuditData, AuditEvent};
 use crate::account::archive::{Inventory, RestoreOptions};
 
 #[cfg(feature = "device")]
-use crate::device::{
-    DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
+use crate::{
+    device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
+    events::DeviceEventLog,
 };
 
 #[cfg(feature = "device")]
 use indexmap::IndexSet;
 
+#[cfg(feature = "files")]
+use crate::events::FileEventLog;
+
 #[cfg(feature = "search")]
 use crate::storage::search::*;
 
 #[cfg(feature = "sync")]
-use crate::sync::{SyncError, SyncStorage};
+use crate::sync::SyncError;
 
 #[cfg(all(feature = "files", feature = "sync"))]
 use crate::storage::files::Transfers;
@@ -3070,5 +3073,54 @@ impl Account for LocalAccount {
         self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(account)
+    }
+}
+
+#[async_trait]
+impl StorageEventLogs for LocalAccount {
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        Ok(Arc::clone(&storage.identity_log))
+    }
+
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        Ok(Arc::clone(&storage.account_log))
+    }
+
+    #[cfg(feature = "device")]
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        Ok(Arc::clone(&storage.device_log))
+    }
+
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        Ok(Arc::clone(&storage.file_log))
+    }
+
+    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        let summaries = storage.list_folders().to_vec();
+        Ok(summaries.iter().map(|s| *s.id()).collect())
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        let folder = storage
+            .cache()
+            .get(id)
+            .ok_or(Error::CacheNotAvailable(*id))?;
+        Ok(folder.event_log())
     }
 }

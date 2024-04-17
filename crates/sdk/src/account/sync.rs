@@ -2,9 +2,8 @@ use crate::{
     account::{Account, LocalAccount},
     commit::{CommitState, Comparison},
     decode,
-    events::{
-        AccountEvent, AccountEventLog, EventLogExt, FolderEventLog, LogEvent,
-    },
+    events::{AccountEvent, EventLogExt, LogEvent},
+    storage::StorageEventLogs,
     sync::{
         AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, Merge,
         SyncStatus, SyncStorage,
@@ -14,17 +13,12 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[cfg(feature = "device")]
-use crate::{
-    events::{DeviceEventLog, DeviceReducer},
-    sync::DeviceDiff,
-};
+use crate::{events::DeviceReducer, sync::DeviceDiff};
 
 #[cfg(feature = "files")]
-use crate::{events::FileEventLog, sync::FileDiff};
+use crate::sync::FileDiff;
 
 #[async_trait]
 impl Merge for LocalAccount {
@@ -375,51 +369,5 @@ impl SyncStorage for LocalAccount {
             files,
             folders,
         })
-    }
-
-    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage().await?;
-        let storage = storage.read().await;
-        Ok(Arc::clone(&storage.identity_log))
-    }
-
-    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
-        let storage = self.storage().await?;
-        let storage = storage.read().await;
-        Ok(Arc::clone(&storage.account_log))
-    }
-
-    #[cfg(feature = "device")]
-    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
-        let storage = self.storage().await?;
-        let storage = storage.read().await;
-        Ok(Arc::clone(&storage.device_log))
-    }
-
-    #[cfg(feature = "files")]
-    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
-        let storage = self.storage().await?;
-        let storage = storage.read().await;
-        Ok(Arc::clone(&storage.file_log))
-    }
-
-    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
-        let storage = self.storage().await?;
-        let storage = storage.read().await;
-        let summaries = storage.list_folders().to_vec();
-        Ok(summaries.iter().map(|s| *s.id()).collect())
-    }
-
-    async fn folder_log(
-        &self,
-        id: &VaultId,
-    ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage().await?;
-        let storage = storage.read().await;
-        let folder = storage
-            .cache()
-            .get(id)
-            .ok_or(Error::CacheNotAvailable(*id))?;
-        Ok(folder.event_log())
     }
 }

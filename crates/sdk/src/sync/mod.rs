@@ -2,10 +2,8 @@
 
 use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
-    events::{
-        AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
-        WriteEvent,
-    },
+    events::{AccountEvent, EventLogExt, WriteEvent},
+    storage::StorageEventLogs,
     vault::VaultId,
     Error, Result,
 };
@@ -20,20 +18,19 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use tokio::sync::RwLock;
 use url::Url;
 
 mod patch;
 pub use patch::{AccountPatch, FolderPatch, Patch};
 
 #[cfg(feature = "device")]
-use crate::events::{DeviceEvent, DeviceEventLog};
+use crate::events::DeviceEvent;
 
 #[cfg(feature = "device")]
 pub use patch::DevicePatch;
 
 #[cfg(feature = "files")]
-use crate::events::{FileEvent, FileEventLog};
+use crate::events::FileEvent;
 
 #[cfg(feature = "files")]
 pub use patch::FilePatch;
@@ -747,32 +744,9 @@ pub trait SyncClient {
 
 /// Storage implementations that can synchronize.
 #[async_trait]
-pub trait SyncStorage {
+pub trait SyncStorage: StorageEventLogs {
     /// Get the sync status.
     async fn sync_status(&self) -> Result<SyncStatus>;
-
-    /// Clone of the identity log.
-    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>>;
-
-    /// Clone of the account log.
-    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>>;
-
-    /// Clone of the device log.
-    #[cfg(feature = "device")]
-    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>>;
-
-    /// Clone of the file log.
-    #[cfg(feature = "files")]
-    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>>;
-
-    /// Folder identifiers managed by this storage.
-    async fn folder_identifiers(&self) -> Result<Vec<VaultId>>;
-
-    /// Folder event log.
-    async fn folder_log(
-        &self,
-        id: &VaultId,
-    ) -> Result<Arc<RwLock<FolderEventLog>>>;
 
     /// Change set of all event logs.
     ///
