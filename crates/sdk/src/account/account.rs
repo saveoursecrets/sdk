@@ -24,8 +24,8 @@ use crate::{
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
-        Gatekeeper, Header, Summary, Vault, VaultId,
-        BuilderCredentials, VaultBuilder,
+        BuilderCredentials, Gatekeeper, Header, Summary, Vault, VaultBuilder,
+        VaultId,
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
@@ -57,19 +57,17 @@ use crate::storage::files::Transfers;
 use crate::{account::security_report::*, zxcvbn::Entropy};
 
 #[cfg(feature = "migrate")]
-use crate::{
-    migrate::{
-        export::PublicExport,
-        import::{
-            csv::{
-                bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
-                dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
-                macos::MacPasswordCsv, one_password::OnePasswordCsv,
-            },
-            ImportFormat, ImportTarget,
+use crate::migrate::{
+    export::PublicExport,
+    import::{
+        csv::{
+            bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
+            dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
+            macos::MacPasswordCsv, one_password::OnePasswordCsv,
         },
-        Convert,
+        ImportFormat, ImportTarget,
     },
+    Convert,
 };
 
 use tracing::{span, Level};
@@ -430,7 +428,6 @@ pub trait Account {
     ) -> std::result::Result<CommitState, Self::Error>;
 
     /// Compact the identity folder and all user folders.
-    #[cfg(feature = "sync")]
     async fn compact_account(
         &mut self,
     ) -> std::result::Result<
@@ -659,7 +656,6 @@ pub trait Account {
     ///
     /// This is used for destructive operations that rewrite the identity
     /// folder such as changing the cipher or account password.
-    #[cfg(feature = "sync")]
     async fn import_identity_folder(
         &mut self,
         vault: Vault,
@@ -1596,11 +1592,8 @@ impl Account for LocalAccount {
             let secret_data = SecretRow::new(*key, meta, secret);
             output.create_secret(&secret_data).await?;
         }
-        
-        #[cfg(feature = "sync")]
-        {
-          self.import_identity_folder(output.into()).await?;
-        }
+
+        self.import_identity_folder(output.into()).await?;
 
         // Login again so in-memory data is up to date
         let identity_vault_path = self.paths().identity_vault();
@@ -1808,8 +1801,7 @@ impl Account for LocalAccount {
         let reader = storage.read().await;
         Ok(reader.commit_state(summary).await?)
     }
-    
-    #[cfg(feature = "sync")]
+
     async fn compact_account(
         &mut self,
     ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
@@ -2478,8 +2470,7 @@ impl Account for LocalAccount {
             marker: std::marker::PhantomData,
         })
     }
-    
-    #[cfg(feature = "sync")]
+
     async fn import_identity_folder(
         &mut self,
         vault: Vault,
