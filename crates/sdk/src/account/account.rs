@@ -13,19 +13,18 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
-        FolderReducer, ReadEvent, WriteEvent,
+        FolderEventLog, FolderReducer, ReadEvent, WriteEvent,
     },
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
-    storage::AccountPack,
     storage::{
         search::{DocumentCount, SearchIndex},
-        AccessOptions, ClientStorage,
+        AccessOptions, AccountPack, ClientStorage, StorageEventLogs,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
-        Gatekeeper, Header, Summary, Vault, VaultId,
-        BuilderCredentials, VaultBuilder,
+        BuilderCredentials, Gatekeeper, Header, Summary, Vault, VaultBuilder,
+        VaultId,
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
@@ -37,18 +36,22 @@ use crate::audit::{AuditData, AuditEvent};
 use crate::account::archive::{Inventory, RestoreOptions};
 
 #[cfg(feature = "device")]
-use crate::device::{
-    DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
+use crate::{
+    device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
+    events::DeviceEventLog,
 };
 
 #[cfg(feature = "device")]
 use indexmap::IndexSet;
 
+#[cfg(feature = "files")]
+use crate::events::FileEventLog;
+
 #[cfg(feature = "search")]
 use crate::storage::search::*;
 
 #[cfg(feature = "sync")]
-use crate::sync::{SyncError, SyncStorage};
+use crate::sync::SyncError;
 
 #[cfg(all(feature = "files", feature = "sync"))]
 use crate::storage::files::Transfers;
@@ -57,19 +60,17 @@ use crate::storage::files::Transfers;
 use crate::{account::security_report::*, zxcvbn::Entropy};
 
 #[cfg(feature = "migrate")]
-use crate::{
-    migrate::{
-        export::PublicExport,
-        import::{
-            csv::{
-                bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
-                dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
-                macos::MacPasswordCsv, one_password::OnePasswordCsv,
-            },
-            ImportFormat, ImportTarget,
+use crate::migrate::{
+    export::PublicExport,
+    import::{
+        csv::{
+            bitwarden::BitwardenCsv, chrome::ChromePasswordCsv,
+            dashlane::DashlaneCsvZip, firefox::FirefoxPasswordCsv,
+            macos::MacPasswordCsv, one_password::OnePasswordCsv,
         },
-        Convert,
+        ImportFormat, ImportTarget,
     },
+    Convert,
 };
 
 use tracing::{span, Level};
@@ -430,7 +431,6 @@ pub trait Account {
     ) -> std::result::Result<CommitState, Self::Error>;
 
     /// Compact the identity folder and all user folders.
-    #[cfg(feature = "sync")]
     async fn compact_account(
         &mut self,
     ) -> std::result::Result<
@@ -659,7 +659,6 @@ pub trait Account {
     ///
     /// This is used for destructive operations that rewrite the identity
     /// folder such as changing the cipher or account password.
-    #[cfg(feature = "sync")]
     async fn import_identity_folder(
         &mut self,
         vault: Vault,
@@ -1596,11 +1595,8 @@ impl Account for LocalAccount {
             let secret_data = SecretRow::new(*key, meta, secret);
             output.create_secret(&secret_data).await?;
         }
-        
-        #[cfg(feature = "sync")]
-        {
-          self.import_identity_folder(output.into()).await?;
-        }
+
+        self.import_identity_folder(output.into()).await?;
 
         // Login again so in-memory data is up to date
         let identity_vault_path = self.paths().identity_vault();
@@ -1808,8 +1804,7 @@ impl Account for LocalAccount {
         let reader = storage.read().await;
         Ok(reader.commit_state(summary).await?)
     }
-    
-    #[cfg(feature = "sync")]
+
     async fn compact_account(
         &mut self,
     ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
@@ -2478,8 +2473,7 @@ impl Account for LocalAccount {
             marker: std::marker::PhantomData,
         })
     }
-    
-    #[cfg(feature = "sync")]
+
     async fn import_identity_folder(
         &mut self,
         vault: Vault,
@@ -3079,5 +3073,54 @@ impl Account for LocalAccount {
         self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(account)
+    }
+}
+
+#[async_trait]
+impl StorageEventLogs for LocalAccount {
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        Ok(Arc::clone(&storage.identity_log))
+    }
+
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        Ok(Arc::clone(&storage.account_log))
+    }
+
+    #[cfg(feature = "device")]
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        Ok(Arc::clone(&storage.device_log))
+    }
+
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        Ok(Arc::clone(&storage.file_log))
+    }
+
+    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        let summaries = storage.list_folders().to_vec();
+        Ok(summaries.iter().map(|s| *s.id()).collect())
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        let folder = storage
+            .cache()
+            .get(id)
+            .ok_or(Error::CacheNotAvailable(*id))?;
+        Ok(folder.event_log())
     }
 }

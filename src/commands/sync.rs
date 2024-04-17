@@ -10,6 +10,7 @@ use sos_net::{
         commit::{CommitState, CommitTree, Comparison},
         events::EventLogExt,
         identity::AccountRef,
+        storage::StorageEventLogs,
         sync::{Origin, SyncOptions, SyncStatus, SyncStorage},
         url::Url,
     },

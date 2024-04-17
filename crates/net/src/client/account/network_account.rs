@@ -19,9 +19,9 @@ use sos_sdk::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
         },
-        AccessOptions, ClientStorage,
+        AccessOptions, ClientStorage, StorageEventLogs,
     },
-    sync::{Origin, SyncOptions, SyncStorage, UpdateSet},
+    sync::{Origin, SyncOptions, UpdateSet},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Summary, Vault, VaultId,
@@ -760,14 +760,14 @@ impl Account for NetworkAccount {
         &mut self,
     ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
         let result = {
-          let mut account = self.account.lock().await;
-          account.compact_account().await?
+            let mut account = self.account.lock().await;
+            account.compact_account().await?
         };
 
         let identity = {
-          let log = self.identity_log().await?;
-          let reader = log.read().await;
-          Some(reader.diff(None).await?)
+            let log = self.identity_log().await?;
+            let reader = log.read().await;
+            Some(reader.diff(None).await?)
         };
 
         // Prepare event logs for the folders that
@@ -810,8 +810,8 @@ impl Account for NetworkAccount {
         folder: &Summary,
     ) -> Result<(AccountEvent, u64, u64)> {
         let result = {
-          let mut account = self.account.lock().await;
-          account.compact_folder(folder).await?
+            let mut account = self.account.lock().await;
+            account.compact_folder(folder).await?
         };
 
         // Prepare event logs for the folders that
@@ -825,7 +825,10 @@ impl Account for NetworkAccount {
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
-        let updates = UpdateSet { identity: None, folders };
+        let updates = UpdateSet {
+            identity: None,
+            folders,
+        };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
         if let Some(sync_error) = sync_error {
@@ -848,14 +851,14 @@ impl Account for NetworkAccount {
         new_key: AccessKey,
     ) -> Result<()> {
         {
-          let mut account = self.account.lock().await;
-          account.change_folder_password(folder, new_key).await?;
+            let mut account = self.account.lock().await;
+            account.change_folder_password(folder, new_key).await?;
         }
 
         let identity = {
-          let log = self.identity_log().await?;
-          let reader = log.read().await;
-          Some(reader.diff(None).await?)
+            let log = self.identity_log().await?;
+            let reader = log.read().await;
+            Some(reader.diff(None).await?)
         };
 
         // Prepare event logs for the folders that

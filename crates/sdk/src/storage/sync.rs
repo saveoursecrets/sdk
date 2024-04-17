@@ -6,7 +6,7 @@ use crate::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
         FolderReducer, LogEvent, WriteEvent,
     },
-    storage::ServerStorage,
+    storage::{ServerStorage, StorageEventLogs},
     sync::{
         AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch, Merge,
         SyncStatus, SyncStorage, UpdateSet,
@@ -367,6 +367,40 @@ impl Merge for ServerStorage {
 }
 
 #[async_trait]
+impl StorageEventLogs for ServerStorage {
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(Arc::clone(&self.identity_log))
+    }
+
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+        Ok(Arc::clone(&self.account_log))
+    }
+
+    #[cfg(feature = "device")]
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        Ok(Arc::clone(&self.device_log))
+    }
+
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        Ok(Arc::clone(&self.file_log))
+    }
+
+    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
+        Ok(self.cache.keys().copied().collect())
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(Arc::clone(
+            self.cache.get(id).ok_or(Error::CacheNotAvailable(*id))?,
+        ))
+    }
+}
+
+#[async_trait]
 impl SyncStorage for ServerStorage {
     async fn sync_status(&self) -> Result<SyncStatus> {
         let identity = {
@@ -410,36 +444,5 @@ impl SyncStorage for ServerStorage {
             files,
             folders,
         })
-    }
-
-    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        Ok(Arc::clone(&self.identity_log))
-    }
-
-    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
-        Ok(Arc::clone(&self.account_log))
-    }
-
-    #[cfg(feature = "device")]
-    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
-        Ok(Arc::clone(&self.device_log))
-    }
-
-    #[cfg(feature = "files")]
-    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
-        Ok(Arc::clone(&self.file_log))
-    }
-
-    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
-        Ok(self.cache.keys().copied().collect())
-    }
-
-    async fn folder_log(
-        &self,
-        id: &VaultId,
-    ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        Ok(Arc::clone(
-            self.cache.get(id).ok_or(Error::CacheNotAvailable(*id))?,
-        ))
     }
 }

@@ -3,6 +3,7 @@ use crate::client::{NetworkAccount, RemoteSync, SyncError};
 use async_trait::async_trait;
 use sos_sdk::{
     events::{AccountEventLog, FolderEventLog},
+    storage::StorageEventLogs,
     sync::{
         Origin, SyncClient, SyncOptions, SyncStatus, SyncStorage, UpdateSet,
     },
@@ -170,12 +171,7 @@ impl RemoteSync for NetworkAccount {
 }
 
 #[async_trait]
-impl SyncStorage for NetworkAccount {
-    async fn sync_status(&self) -> Result<SyncStatus> {
-        let account = self.account.lock().await;
-        account.sync_status().await
-    }
-
+impl StorageEventLogs for NetworkAccount {
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
         account.identity_log().await
@@ -209,5 +205,13 @@ impl SyncStorage for NetworkAccount {
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
         account.folder_log(id).await
+    }
+}
+
+#[async_trait]
+impl SyncStorage for NetworkAccount {
+    async fn sync_status(&self) -> Result<SyncStatus> {
+        let account = self.account.lock().await;
+        account.sync_status().await
     }
 }
