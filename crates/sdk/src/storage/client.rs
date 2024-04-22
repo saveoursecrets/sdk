@@ -1232,7 +1232,9 @@ impl ClientStorage {
             secret_data
         };
 
-        let event = self.write_secret(secret_id, secret_data.clone()).await?;
+        let event = self
+            .write_secret(secret_id, secret_data.clone(), true)
+            .await?;
 
         // Must update the files before moving so checksums are correct
         #[cfg(feature = "files")]
@@ -1263,6 +1265,7 @@ impl ClientStorage {
         &mut self,
         id: &SecretId,
         mut secret_data: SecretRow,
+        is_update: bool,
     ) -> Result<WriteEvent> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
@@ -1272,11 +1275,14 @@ impl ClientStorage {
         let index_doc = if let Some(index) = &self.index {
             let search = index.search();
             let mut index = search.write().await;
-            // Must remove from the index before we
-            // prepare a new document otherwise the
-            // document would be stale as `prepare()`
-            // and `commit()` are for new documents
-            index.remove(summary.id(), id);
+
+            if is_update {
+                // Must remove from the index before we
+                // prepare a new document otherwise the
+                // document would be stale as `prepare()`
+                // and `commit()` are for new documents
+                index.remove(summary.id(), id);
+            }
 
             Some(index.prepare(
                 summary.id(),

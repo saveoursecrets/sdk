@@ -597,7 +597,7 @@ impl ClientStorage {
                 SecretRow::new(id, secret_data.meta, new_secret);
 
             // Update with new checksum(s)
-            self.write_secret(&id, secret_data).await?;
+            self.write_secret(&id, secret_data, false).await?;
         }
 
         let events = results
