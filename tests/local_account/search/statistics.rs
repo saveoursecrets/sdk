@@ -1,5 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
+use maplit2::hashset;
 use sos_net::sdk::prelude::*;
 
 /// Tests the statistics maintained whilst modifting the search index.
@@ -93,7 +94,7 @@ async fn local_search_statistics() -> Result<()> {
     assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(1, *count.kinds().get(&SecretType::File.into()).unwrap());
 
-    // Create a secret login and move to the archive
+    // Create a secret login and archive/unarchive
     let (meta, secret) =
         mock::login("login", TEST_ID, generate_passphrase()?.0);
     let SecretChange { id, .. } = account
@@ -102,20 +103,27 @@ async fn local_search_statistics() -> Result<()> {
     let count = account.document_count().await?;
     assert_eq!(2, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(1, *count.kinds().get(&SecretType::Account.into()).unwrap());
-
     let SecretMove { id, .. } = account
         .archive(&default_folder, &id, Default::default())
         .await?;
     let count = account.document_count().await?;
     assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(1, *count.vaults().get(archive_folder.id()).unwrap());
-
     account.unarchive(&id, &meta, Default::default()).await?;
     let count = account.document_count().await?;
     assert_eq!(2, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(0, *count.vaults().get(archive_folder.id()).unwrap());
 
-    println!("{:#?}", count);
+    // Secret with tags
+    let (mut meta, secret) = mock::note("tag", "secret");
+    let tag_name = "mock_tag";
+    meta.set_tags(hashset![tag_name.to_owned()]);
+    let SecretChange { id, .. } = account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+
+    let count = account.document_count().await?;
+    assert_eq!(1, *count.tags().get(tag_name).unwrap());
 
     teardown(TEST_ID).await;
 
