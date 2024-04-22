@@ -14,19 +14,22 @@ async fn local_search_statistics() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let mut account = LocalAccount::new_account(
+    let mut account = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),
+        |builder| builder.create_archive(true).create_file_password(true),
     )
     .await?;
 
     let key: AccessKey = password.into();
     account.sign_in(&key).await?;
+    account.initialize_search_index().await?;
 
     let default_folder = account.default_folder().await.unwrap();
+    let archive_folder = account.archive_folder().await.unwrap();
 
-    // Create a secret
+    // Create a secret note
     let (meta, secret) = mock::note("note", TEST_ID);
     let SecretChange { id, .. } = account
         .create_secret(meta, secret, Default::default())
@@ -89,6 +92,28 @@ async fn local_search_statistics() -> Result<()> {
     let count = account.document_count().await?;
     assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(1, *count.kinds().get(&SecretType::File.into()).unwrap());
+
+    // Create a secret login and move to the archive
+    let (meta, secret) =
+        mock::login("login", TEST_ID, generate_passphrase()?.0);
+    let SecretChange { id, .. } = account
+        .create_secret(meta.clone(), secret, Default::default())
+        .await?;
+    let count = account.document_count().await?;
+    assert_eq!(2, *count.vaults().get(default_folder.id()).unwrap());
+    assert_eq!(1, *count.kinds().get(&SecretType::Account.into()).unwrap());
+
+    let SecretMove { id, .. } = account
+        .archive(&default_folder, &id, Default::default())
+        .await?;
+    let count = account.document_count().await?;
+    assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());
+    assert_eq!(1, *count.vaults().get(archive_folder.id()).unwrap());
+
+    account.unarchive(&id, &meta, Default::default()).await?;
+    let count = account.document_count().await?;
+    assert_eq!(2, *count.vaults().get(default_folder.id()).unwrap());
+    assert_eq!(0, *count.vaults().get(archive_folder.id()).unwrap());
 
     println!("{:#?}", count);
 

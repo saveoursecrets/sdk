@@ -170,6 +170,7 @@ impl DocumentCount {
                 }
             })
             .or_insert(0);
+
         if let Some((kind, tags, favorite)) = options.take() {
             if !self.is_archived(&vault_id) {
                 self.kinds
