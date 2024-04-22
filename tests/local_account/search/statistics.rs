@@ -37,9 +37,30 @@ async fn local_search_statistics() -> Result<()> {
     assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(1, *count.kinds().get(&SecretType::Note.into()).unwrap());
 
+    // Mark a secret as favorite
+    let (mut data, _) = account.read_secret(&id, None).await?;
+    data.meta_mut().set_favorite(true);
+    account
+        .update_secret(&id, data.into(), None, Default::default(), None)
+        .await?;
+    let count = account.document_count().await?;
+    assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());
+    assert_eq!(1, *count.kinds().get(&SecretType::Note.into()).unwrap());
+    assert_eq!(1, count.favorites());
+
+    // Unmark a secret as favorite
+    let (mut data, _) = account.read_secret(&id, None).await?;
+    data.meta_mut().set_favorite(false);
+    account
+        .update_secret(&id, data.into(), None, Default::default(), None)
+        .await?;
+    let count = account.document_count().await?;
+    assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());
+    assert_eq!(1, *count.kinds().get(&SecretType::Note.into()).unwrap());
+    assert_eq!(0, count.favorites());
+
     // Deleting decrements the count
     account.delete_secret(&id, Default::default()).await?;
-
     let count = account.document_count().await?;
     assert_eq!(0, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(0, *count.kinds().get(&SecretType::Note.into()).unwrap());
@@ -63,8 +84,8 @@ async fn local_search_statistics() -> Result<()> {
     assert_eq!(2, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(2, *count.kinds().get(&SecretType::File.into()).unwrap());
 
+    // Deleting decrements the count
     account.delete_secret(&id, Default::default()).await?;
-
     let count = account.document_count().await?;
     assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(1, *count.kinds().get(&SecretType::File.into()).unwrap());
