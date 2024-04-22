@@ -47,7 +47,7 @@ async fn local_search_statistics() -> Result<()> {
     // Create multiple file secrets
     // SEE: https://github.com/saveoursecrets/sdk/issues/400
     let (meta, secret, _) = mock::file_text_secret()?;
-    let SecretChange { id, .. } = account
+    account
         .create_secret(meta.clone(), secret.clone(), Default::default())
         .await?;
 
@@ -62,27 +62,14 @@ async fn local_search_statistics() -> Result<()> {
     let count = account.document_count().await?;
     assert_eq!(2, *count.vaults().get(default_folder.id()).unwrap());
     assert_eq!(2, *count.kinds().get(&SecretType::File.into()).unwrap());
+
+    account.delete_secret(&id, Default::default()).await?;
+
+    let count = account.document_count().await?;
+    assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());
+    assert_eq!(1, *count.kinds().get(&SecretType::File.into()).unwrap());
+
     println!("{:#?}", count);
-
-    /*
-    // Can find the new secret
-    let documents = account.query_map("note", Default::default()).await?;
-    assert_eq!(1, documents.len());
-
-    // Update with a new label
-    let (meta, secret) = mock::note("updated", TEST_ID);
-    account
-        .update_secret(&id, meta, Some(secret), Default::default(), None)
-        .await?;
-
-    // Check we can't find with the old label
-    let documents = account.query_map("note", Default::default()).await?;
-    assert_eq!(0, documents.len());
-
-    // Can find the updated secret
-    let documents = account.query_map("upda", Default::default()).await?;
-    assert_eq!(1, documents.len());
-    */
 
     teardown(TEST_ID).await;
 
