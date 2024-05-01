@@ -70,6 +70,9 @@ pub struct AccountBuilder {
     create_contacts: bool,
     create_file_password: bool,
     default_folder_name: Option<String>,
+    archive_folder_name: Option<String>,
+    authenticator_folder_name: Option<String>,
+    contacts_folder_name: Option<String>,
 }
 
 impl AccountBuilder {
@@ -89,6 +92,9 @@ impl AccountBuilder {
             create_contacts: false,
             create_file_password: false,
             default_folder_name: None,
+            archive_folder_name: None,
+            authenticator_folder_name: None,
+            contacts_folder_name: None,
         }
     }
 
@@ -128,6 +134,27 @@ impl AccountBuilder {
         self
     }
 
+    /// Set the name of the archive folder.
+    pub fn archive_folder_name(mut self, value: Option<String>) -> Self {
+        self.archive_folder_name = value;
+        self
+    }
+
+    /// Set the name of the authenticator folder.
+    pub fn authenticator_folder_name(
+        mut self,
+        value: Option<String>,
+    ) -> Self {
+        self.authenticator_folder_name = value;
+        self
+    }
+
+    /// Set the name of the contacts folder.
+    pub fn contacts_folder_name(mut self, value: Option<String>) -> Self {
+        self.contacts_folder_name = value;
+        self
+    }
+
     /// Create a new identity vault and account folders.
     async fn build(self) -> Result<PrivateNewAccount> {
         let AccountBuilder {
@@ -140,6 +167,9 @@ impl AccountBuilder {
             create_contacts,
             create_file_password,
             mut default_folder_name,
+            archive_folder_name,
+            authenticator_folder_name,
+            contacts_folder_name,
         } = self;
 
         Paths::scaffold(data_dir.clone()).await?;
@@ -228,7 +258,9 @@ impl AccountBuilder {
         let archive = if create_archive {
             let password = user.generate_folder_password()?;
             let vault = VaultBuilder::new()
-                .public_name(DEFAULT_ARCHIVE_VAULT_NAME.to_string())
+                .public_name(archive_folder_name.unwrap_or_else(|| {
+                    DEFAULT_ARCHIVE_VAULT_NAME.to_string()
+                }))
                 .flags(VaultFlags::ARCHIVE)
                 .build(BuilderCredentials::Password(password.clone(), None))
                 .await?;
@@ -246,7 +278,9 @@ impl AccountBuilder {
         let authenticator = if create_authenticator {
             let password = user.generate_folder_password()?;
             let vault = VaultBuilder::new()
-                .public_name(DEFAULT_AUTHENTICATOR_VAULT_NAME.to_string())
+                .public_name(authenticator_folder_name.unwrap_or_else(|| {
+                    DEFAULT_AUTHENTICATOR_VAULT_NAME.to_string()
+                }))
                 .flags(VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC_SELF)
                 .build(BuilderCredentials::Password(password.clone(), None))
                 .await?;
@@ -264,7 +298,9 @@ impl AccountBuilder {
         let contacts = if create_contacts {
             let password = user.generate_folder_password()?;
             let vault = VaultBuilder::new()
-                .public_name(DEFAULT_CONTACTS_VAULT_NAME.to_string())
+                .public_name(contacts_folder_name.unwrap_or_else(|| {
+                    DEFAULT_CONTACTS_VAULT_NAME.to_string()
+                }))
                 .flags(VaultFlags::CONTACT)
                 .build(BuilderCredentials::Password(password.clone(), None))
                 .await?;
