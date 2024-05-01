@@ -7,7 +7,6 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufRead, AsyncSeek, BufReader};
-use web3_address::ethereum::Address;
 
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -20,6 +19,7 @@ use crate::{
     events::{EventLogExt, FolderEventLog, WriteEvent},
     identity::{Identity, MemoryIdentityFolder, PublicIdentity},
     sha2::{Digest, Sha256},
+    signer::ecdsa::Address,
     vault::{
         secret::SecretId, Summary, Vault, VaultAccess, VaultId, VaultWriter,
     },

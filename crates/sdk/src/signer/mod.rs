@@ -3,6 +3,9 @@ use async_trait::async_trait;
 
 use crate::Result;
 
+mod address;
+mod signature;
+
 /// Boxed signer.
 type BoxedSigner<O, V, A> = Box<
     dyn Signer<Output = O, Verifying = V, Address = A>
@@ -60,9 +63,9 @@ pub mod ecdsa {
     use sha2::Sha256;
     use sha3::{Digest, Keccak256};
 
+    pub use super::address::Address;
+    pub use super::signature::Signature;
     pub use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
-    pub use web3_address::ethereum::Address;
-    pub use web3_signature::Signature;
 
     use super::{BoxedSigner, Signer};
     use crate::Result;

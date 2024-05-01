@@ -61,14 +61,14 @@ bs58.workspace = true
 indexmap.workspace = true
 bitflags.workspace = true
 enum-iterator.workspace = true
+subtle = { version = "2.5" }
+ethereum-types = "0.14"
 async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"], optional = true }
 csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
 sos-vfs = { version = "0.2.2" }
 aes-gcm = { version = "0.10.1", features = ["std"] }
 chacha20poly1305 = { version = "0.10.1", features = ["std"] }
 filetime = "0.2"
-web3-signature = { version = "0.4", features = ["single-party"] }
-web3-address = { version = "0.6", features = ["ethereum"] }
 argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
 app_dirs2 = "2"

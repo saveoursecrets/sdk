@@ -25,6 +25,8 @@ impl CachedPreferences {
         accounts: &[PublicIdentity],
         data_dir: Option<PathBuf>,
     ) -> Result<()> {
+        // Zero address can be used for cross-account global preferences
+        Self::new_account(&Address::zero(), data_dir.clone()).await?;
         for account in accounts {
             Self::new_account(account.address(), data_dir.clone()).await?;
         }
