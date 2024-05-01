@@ -21,13 +21,6 @@ use subtle::Choice;
 #[serde(try_from = "String", into = "String")]
 pub struct Address([u8; 20]);
 
-impl Address {
-    /// Zero address.
-    pub fn zero() -> Self {
-        Self([0; 20])
-    }
-}
-
 impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x{}", hex::encode(self.0))
