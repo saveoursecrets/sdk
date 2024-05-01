@@ -14,10 +14,9 @@ use async_zip::{
 use tokio::io::{AsyncBufRead, AsyncSeek, AsyncWrite};
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
-use web3_address::ethereum::Address;
-
 use crate::{
     constants::{ARCHIVE_MANIFEST, FILES_DIR, VAULT_EXT},
+    signer::ecdsa::Address,
     vault::{Header as VaultHeader, Summary, VaultId},
     vfs::{self, File},
     Error, Result,
