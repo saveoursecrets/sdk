@@ -9,7 +9,6 @@ use ethereum_types::U256;
 use k256::{ecdsa::RecoveryId, FieldBytes};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use thiserror::Error;
 
 /// An ECDSA signature with a recovery identifier.
 ///
