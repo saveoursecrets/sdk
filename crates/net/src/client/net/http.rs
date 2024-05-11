@@ -60,7 +60,8 @@ impl HttpClient {
         connection_id: String,
     ) -> Result<Self> {
         let client = reqwest::ClientBuilder::new()
-            .connect_timeout(Duration::from_millis(3000))
+            .read_timeout(Duration::from_millis(15000))
+            .connect_timeout(Duration::from_millis(5000))
             .build()?;
         Ok(Self {
             origin,
