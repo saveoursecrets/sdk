@@ -1552,11 +1552,10 @@ checksum = "38793c55593b33412e3ae40c2c9781ffaa6f438f6f8c10f24e71846fbd7ae01e"
 
 [[package]]
 name = "file-guard"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e004c9a5e0dfb52dc6ec8b71fdd28c084b535d4c3c9ea21a1c324f1011f97b0"
+checksum = "21ef72acf95ec3d7dbf61275be556299490a245f017cf084bd23b4f68cf9407c"
 dependencies = [
- "cfg-if 1.0.0",
  "libc",
  "winapi",
 ]
