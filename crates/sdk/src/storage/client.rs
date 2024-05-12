@@ -2,7 +2,7 @@
 use crate::{
     commit::{CommitHash, CommitState},
     constants::VAULT_EXT,
-    crypto::AccessKey,
+    crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventLogExt, FolderEventLog,
@@ -630,6 +630,8 @@ impl ClientStorage {
         &mut self,
         name: Option<String>,
         key: Option<AccessKey>,
+        cipher: Option<Cipher>,
+        kdf: Option<KeyDerivation>,
     ) -> Result<(Vec<u8>, AccessKey, Summary)> {
         let key = if let Some(key) = key {
             key
@@ -638,7 +640,9 @@ impl ClientStorage {
             AccessKey::Password(passphrase)
         };
 
-        let mut builder = VaultBuilder::new();
+        let mut builder = VaultBuilder::new()
+            .cipher(cipher.unwrap_or_default())
+            .kdf(kdf.unwrap_or_default());
         if let Some(name) = name {
             builder = builder.public_name(name);
         }
@@ -754,9 +758,11 @@ impl ClientStorage {
         &mut self,
         name: String,
         key: Option<AccessKey>,
+        cipher: Option<Cipher>,
+        kdf: Option<KeyDerivation>,
     ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
         let (buf, key, summary) =
-            self.prepare_folder(Some(name), key).await?;
+            self.prepare_folder(Some(name), key, cipher, kdf).await?;
 
         let account_event =
             AccountEvent::CreateFolder(*summary.id(), buf.clone());

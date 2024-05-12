@@ -2277,10 +2277,21 @@ impl Account for LocalAccount {
         let passphrase = self.user()?.generate_folder_password()?;
         let key: AccessKey = passphrase.into();
 
+        let identity_folder = self.identity_folder_summary().await?;
+        let cipher = identity_folder.cipher.clone();
+        let kdf = identity_folder.kdf.clone();
+
         let (buffer, _, summary, account_event) = {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
-            writer.create_folder(name, Some(key.clone())).await?
+            writer
+                .create_folder(
+                    name,
+                    Some(key.clone()),
+                    Some(cipher),
+                    Some(kdf),
+                )
+                .await?
         };
 
         // Must save the password before getting the secure access key
