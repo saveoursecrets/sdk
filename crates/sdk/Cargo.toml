@@ -125,7 +125,7 @@ rustc_version = "0.4.0"
 [dev-dependencies]
 anyhow = "1"
 tokio = { version = "1", features = ["full"] }
-serial_test = "2"
+serial_test = "3"
 
 [package.metadata.docs.rs]
 all-features = true
