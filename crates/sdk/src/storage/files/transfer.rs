@@ -450,12 +450,16 @@ impl FileTransfers {
                             }
                         }
 
+                        // TODO: fix file transfer retries
+
+                        /*
                         // Pause so we don't overwhelm when re-trying
                         #[cfg(not(debug_assertions))]
                         tokio::time::sleep(Duration::from_secs(30)).await;
 
                         #[cfg(debug_assertions)]
                         tokio::time::sleep(Duration::from_secs(5)).await;
+                        */
                     }
                 }
             }
