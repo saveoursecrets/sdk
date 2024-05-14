@@ -455,7 +455,7 @@ impl FileTransfers {
                         tokio::time::sleep(Duration::from_secs(30)).await;
 
                         #[cfg(debug_assertions)]
-                        tokio::time::sleep(Duration::from_millis(50)).await;
+                        tokio::time::sleep(Duration::from_secs(5)).await;
                     }
                 }
             }
