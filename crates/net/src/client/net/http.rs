@@ -367,8 +367,6 @@ impl SyncClient for HttpClient {
         };
         use tokio_util::io::ReaderStream;
 
-        let span = span!(Level::DEBUG, "upload_file");
-        let _enter = span.enter();
         tracing::debug!(file = %file_info);
 
         let url_path = format!("api/v1/sync/file/{}", file_info);
