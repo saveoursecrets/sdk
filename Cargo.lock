@@ -2440,9 +2440,9 @@ dependencies = [
 
 [[package]]
 name = "kdam"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2f08e037030a8ae7807e4edc2a12fad4a0cce624d227f422e3879fea8c89908"
+checksum = "526586ea01a9a132b5f8d3a60f6d6b41b411550236f5ee057795f20b37316957"
 dependencies = [
  "kdam_derive",
  "terminal_size 0.3.0",
