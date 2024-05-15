@@ -112,7 +112,7 @@ features = ["async"]
 #path = "../../../../binary-stream"
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
-file-guard = "0.1"
+file-guard = "0.2"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
