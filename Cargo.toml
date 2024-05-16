@@ -103,7 +103,7 @@ clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
 axum-server = { version = "0.6", features = ["tls-rustls"] }
 tokio = { version = "1", features = ["full"] }
 arboard = "3"
-rustyline = "13"
+rustyline = "14"
 rustyline-derive = "0.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
