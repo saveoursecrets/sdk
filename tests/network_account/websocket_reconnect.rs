@@ -41,7 +41,7 @@ async fn network_websocket_reconnect() -> Result<()> {
     });
 
     // Wait a little to give the websocket time to connect
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
     let num_conns = HttpClient::num_connections(server.origin.url()).await?;
     assert_eq!(1, num_conns);
