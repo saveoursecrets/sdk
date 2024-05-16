@@ -96,7 +96,7 @@ tower-http = { version = "0.5", features = ["cors", "trace"], optional = true }
 tokio-stream = { version = "0.1", optional = true }
 tokio-tungstenite = { version = "0.21", features = ["rustls-tls-native-roots"] , optional = true}
 utoipa = { version = "4", features = ["uuid"], optional = true }
-utoipa-rapidoc = { version = "3", features = ["axum"], optional = true }
+utoipa-rapidoc = { version = "4", features = ["axum"], optional = true }
 
 # pairing
 snow = { version = "0.9", optional = true }
