@@ -88,6 +88,7 @@ allow = [
     "BSD-2-Clause",
     "BSD-3-Clause",
     "0BSD",
+    "Unicode-3.0",
     # OpenSSL is Apache License v2.0 (ASL v2)
     # https://www.openssl.org/blog/blog/2017/03/22/license/
     # ring crate is ISC & MIT
