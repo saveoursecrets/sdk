@@ -283,13 +283,15 @@ impl RemoteSync for RemoteBridge {
 mod listen {
     use crate::{
         client::{
-            sync::RemoteSync, ListenOptions, RemoteBridge, Result,
+            sync::RemoteSync, Error, ListenOptions, RemoteBridge, Result,
             WebSocketHandle,
         },
+        sdk::sync::SyncError,
         ChangeNotification,
     };
 
     use std::sync::Arc;
+    use tokio::sync::mpsc;
 
     // Listen to change notifications and attempt to sync.
     #[cfg(not(target_arch = "wasm32"))]
@@ -297,14 +299,15 @@ mod listen {
         async fn on_change_notification(
             bridge: Arc<RemoteBridge>,
             _change: ChangeNotification,
-        ) -> Result<()> {
-            if let Some(e) = bridge.sync().await {
+        ) -> Result<Option<SyncError<Error>>> {
+            let result = bridge.sync().await;
+            if let Some(e) = &result {
                 tracing::error!(
                     error = ?e,
                     "listen change sync failed",
                 );
             }
-            Ok(())
+            Ok(result)
         }
 
         /// Spawn a task that listens for changes
@@ -319,17 +322,23 @@ mod listen {
         pub(crate) fn listen(
             bridge: Arc<RemoteBridge>,
             options: ListenOptions,
+            listener: Option<mpsc::Sender<Option<SyncError<Error>>>>,
         ) -> WebSocketHandle {
             let remote_bridge = Arc::clone(&bridge);
             let handle = bridge.client.listen(options, move |notification| {
                 let bridge = Arc::clone(&remote_bridge);
+                let handler = listener.clone();
                 async move {
                     tracing::debug!(notification = ?notification);
-                    if let Err(e) =
-                        Self::on_change_notification(bridge, notification)
-                            .await
+                    match Self::on_change_notification(bridge, notification)
+                        .await
                     {
-                        tracing::error!(error = ?e);
+                        Ok(sync_error) => {
+                            if let Some(handler) = handler {
+                                let _ = handler.send(sync_error).await;
+                            }
+                        }
+                        Err(e) => tracing::error!(error = ?e),
                     }
                 }
             });

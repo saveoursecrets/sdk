@@ -96,7 +96,7 @@ impl SimulatedDevice {
     pub async fn listen(&self) -> Result<WebSocketHandle> {
         Ok(self
             .owner
-            .listen(&self.origin, ListenOptions::new(self.id.clone())?)
+            .listen(&self.origin, ListenOptions::new(self.id.clone())?, None)
             .await?)
     }
 }

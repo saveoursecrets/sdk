@@ -43,6 +43,11 @@ pub struct Origin {
 }
 
 impl Origin {
+    /// Create a new origin.
+    pub fn new(name: String, url: Url) -> Self {
+        Self { name, url }
+    }
+
     /// Name of the origin server.
     pub fn name(&self) -> &str {
         &self.name

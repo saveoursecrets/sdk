@@ -5,9 +5,10 @@ use crate::{
         Error, ListenOptions, NetworkAccount, RemoteBridge, Result,
         WebSocketHandle,
     },
-    sdk::sync::Origin,
+    sdk::sync::{Origin, SyncError},
 };
 use std::sync::Arc;
+use tokio::sync::mpsc;
 
 impl NetworkAccount {
     /// Listen for changes on a remote server.
@@ -15,11 +16,12 @@ impl NetworkAccount {
         &self,
         origin: &Origin,
         options: ListenOptions,
+        listener: Option<mpsc::Sender<Option<SyncError<Error>>>>,
     ) -> Result<WebSocketHandle> {
         let remotes = self.remotes.read().await;
         if let Some(remote) = remotes.get(origin) {
             let remote = Arc::new(remote.clone());
-            let handle = RemoteBridge::listen(remote, options);
+            let handle = RemoteBridge::listen(remote, options, listener);
 
             // Store the listeners so we can
             // close the connections on sign out
