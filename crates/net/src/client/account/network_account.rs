@@ -699,12 +699,19 @@ impl Account for NetworkAccount {
     }
 
     async fn delete_account(&mut self) -> Result<()> {
-        let mut account = self.account.lock().await;
-        // Delete the account and sign out
-        account.delete_account().await?;
         // Shutdown any change listeners
         #[cfg(feature = "listen")]
         self.shutdown_listeners().await;
+
+        // Stop any pending file transfers
+        self.stop_file_transfers().await;
+
+        {
+            let mut account = self.account.lock().await;
+            // Delete the account and sign out
+            account.delete_account().await?;
+        }
+
         Ok(())
     }
 
