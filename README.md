@@ -4,7 +4,7 @@
 
 This repository contains the software development kit (SDK) and several command line interface (CLI) tools.
 
-To see the code in action [download the app](https://saveoursecrets.com/?section=downloads).
+To see the code in action [download the app](https://saveoursecrets.com/#downloads).
 
 See the [overview](/doc/overview.md) for concepts and terminology, the [API documentation for the SDK](https://docs.rs/sos-sdk/latest/sos_sdk/) or the [API documentation for the networking library](https://docs.rs/sos-net/latest/sos_net/).
 

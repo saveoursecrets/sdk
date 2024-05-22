@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.11.3"
+version = "0.11.4"
 edition = "2021"
 rust-version = "1.75.0"
 description = "Distributed, encrypted database for private secrets."
@@ -94,7 +94,7 @@ crossterm = "0.27"
 ctrlc = "3"
 
 [dependencies.sos-net]
-version = "0.11.3" 
+version = "0.11.4" 
 features = ["full"]
 path = "crates/net"
 
@@ -103,7 +103,7 @@ clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
 axum-server = { version = "0.6", features = ["tls-rustls"] }
 tokio = { version = "1", features = ["full"] }
 arboard = "3"
-rustyline = "13"
+rustyline = "14"
 rustyline-derive = "0.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
