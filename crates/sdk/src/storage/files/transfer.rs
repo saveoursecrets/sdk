@@ -5,7 +5,7 @@ use crate::{
     sync::SyncClient,
     vfs, Paths, Result,
 };
-use futures::{select, FutureExt};
+use futures::FutureExt;
 use http::StatusCode;
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
@@ -401,7 +401,8 @@ impl FileTransfers {
     {
         tokio::task::spawn(async move {
             loop {
-                select! {
+                tokio::select! {
+                    biased;
                     signal = shutdown.recv().fuse() => {
                         if signal.is_some() {
                             let span = span!(Level::DEBUG, "file_transfers");
@@ -427,40 +428,25 @@ impl FileTransfers {
                             writer.queue.clone()
                         };
 
-                        // Try again later
-                        if pending_transfers.is_empty() {
-                            #[cfg(not(debug_assertions))]
-                            tokio::time::sleep(Duration::from_secs(30)).await;
-                            continue;
-                        }
+                        if !pending_transfers.is_empty() {
+                            {
+                                let span = span!(Level::DEBUG, "file_transfers");
+                                let _enter = span.enter();
 
-                        {
-                            let span = span!(Level::DEBUG, "file_transfers");
-                            let _enter = span.enter();
-
-                            // Try to process pending transfers
-                            if let Err(e) = Self::try_process_transfers(
-                                Arc::clone(&paths),
-                                Arc::clone(&queue),
-                                Arc::clone(&inflight_transfers),
-                                clients.as_slice(),
-                                pending_transfers,
-                            ).await {
-                                tracing::warn!(error = ?e);
+                                // Try to process pending transfers
+                                if let Err(e) = Self::try_process_transfers(
+                                    Arc::clone(&paths),
+                                    Arc::clone(&queue),
+                                    Arc::clone(&inflight_transfers),
+                                    clients.as_slice(),
+                                    pending_transfers,
+                                ).await {
+                                    tracing::warn!(error = ?e);
+                                }
                             }
                         }
-
-                        // TODO: fix file transfer retries
-
-                        /*
-                        // Pause so we don't overwhelm when re-trying
-                        #[cfg(not(debug_assertions))]
-                        tokio::time::sleep(Duration::from_secs(30)).await;
-
-                        #[cfg(debug_assertions)]
-                        tokio::time::sleep(Duration::from_secs(5)).await;
-                        */
                     }
+                    _ = tokio::time::sleep(Duration::from_secs(15)) => {}
                 }
             }
 
