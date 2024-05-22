@@ -266,6 +266,10 @@ pub enum Error {
     #[error("commit tree does not have a root")]
     NoRootCommit,
 
+    /// Error generated when a commit tree is expected to have a last commit.
+    #[error("commit tree does not have a last commit")]
+    NoLastCommit,
+
     /// Error generated when a target commit hash could not be found.
     #[error("commit '{0}' could not be found")]
     CommitNotFound(CommitHash),
