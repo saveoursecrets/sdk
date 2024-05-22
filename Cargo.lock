@@ -4170,7 +4170,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.11.4"
+version = "0.11.5"
 dependencies = [
  "anticipate-runner",
  "anyhow",
@@ -4231,7 +4231,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.11.4"
+version = "0.11.5"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -4280,7 +4280,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.11.3"
+version = "0.11.5"
 dependencies = [
  "aes-gcm",
  "age",
