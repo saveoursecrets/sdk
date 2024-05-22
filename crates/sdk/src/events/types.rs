@@ -69,6 +69,8 @@ const TRUST_DEVICE: u16 = 29;
 const REVOKE_DEVICE: u16 = 30;
 /// Type identifier for updating an identity folder.
 const UPDATE_IDENTITY: u16 = 31;
+/// Type identifier for renaming an account.
+const RENAME_ACCOUNT: u16 = 32;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -138,6 +140,8 @@ pub enum EventKind {
     RevokeDevice,
     /// Event for when an identity folder is updated.
     UpdateIdentity,
+    /// Event for when an account is renamed.
+    RenameAccount,
 }
 
 impl Default for EventKind {
@@ -182,6 +186,7 @@ impl TryFrom<u16> for EventKind {
             TRUST_DEVICE => EventKind::TrustDevice,
             REVOKE_DEVICE => EventKind::RevokeDevice,
             UPDATE_IDENTITY => EventKind::UpdateIdentity,
+            RENAME_ACCOUNT => EventKind::RenameAccount,
             _ => return Err(Error::UnknownEventKind(value)),
         })
     }
@@ -222,6 +227,7 @@ impl From<&EventKind> for u16 {
             EventKind::TrustDevice => TRUST_DEVICE,
             EventKind::RevokeDevice => REVOKE_DEVICE,
             EventKind::UpdateIdentity => UPDATE_IDENTITY,
+            EventKind::RenameAccount => RENAME_ACCOUNT,
         }
     }
 }
@@ -268,6 +274,7 @@ impl fmt::Display for EventKind {
                 EventKind::TrustDevice => "TRUST_DEVICE",
                 EventKind::RevokeDevice => "REVOKE_DEVICE",
                 EventKind::UpdateIdentity => "UPDATE_IDENTITY",
+                EventKind::RenameAccount => "RENAME_ACCOUNT",
             }
         })
     }

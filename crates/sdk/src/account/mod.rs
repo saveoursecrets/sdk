@@ -14,9 +14,9 @@ mod sync;
 pub mod system_messages;
 
 pub use account::{
-    Account, AccountData, DetachedView, FolderChange, FolderCreate,
-    FolderDelete, LocalAccount, SecretChange, SecretDelete, SecretInsert,
-    SecretMove,
+    Account, AccountChange, AccountData, DetachedView, FolderChange,
+    FolderCreate, FolderDelete, LocalAccount, SecretChange, SecretDelete,
+    SecretInsert, SecretMove,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};
 pub use convert::CipherComparison;

@@ -11,7 +11,7 @@ use crate::{
         AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch, Merge,
         SyncStatus, SyncStorage, UpdateSet,
     },
-    vault::VaultId,
+    vault::{VaultAccess, VaultId, VaultWriter},
     vfs, Error, Paths, Result,
 };
 use async_trait::async_trait;
@@ -210,6 +210,12 @@ impl Merge for ServerStorage {
                 match event {
                     AccountEvent::Noop => {
                         tracing::warn!("merge got noop event (server)");
+                    }
+                    AccountEvent::RenameAccount(name) => {
+                        let path = self.paths.identity_vault();
+                        let vault_file = VaultWriter::open(&path).await?;
+                        let mut file = VaultWriter::new(&path, vault_file)?;
+                        file.set_vault_name(name.to_owned()).await?;
                     }
                     AccountEvent::UpdateIdentity(_) => {
                         // This event is handled on the server
