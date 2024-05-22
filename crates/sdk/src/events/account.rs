@@ -10,6 +10,9 @@ pub enum AccountEvent {
     #[doc(hidden)]
     Noop,
 
+    /// Account was renamed.
+    RenameAccount(String),
+
     /// Identity folder was updated.
     ///
     /// This event happens when a the identity folder
@@ -65,6 +68,7 @@ impl AccountEvent {
     /// Folder identifier for the event.
     pub fn folder_id(&self) -> Option<VaultId> {
         match self {
+            AccountEvent::RenameAccount(_) => None,
             AccountEvent::UpdateIdentity(_) => None,
             AccountEvent::CreateFolder(vault_id, _)
             | AccountEvent::UpdateFolder(vault_id, _)
@@ -83,6 +87,7 @@ impl LogEvent for AccountEvent {
     fn event_kind(&self) -> EventKind {
         match self {
             Self::Noop => EventKind::Noop,
+            Self::RenameAccount(_) => EventKind::RenameAccount,
             Self::UpdateIdentity(_) => EventKind::UpdateIdentity,
             Self::CreateFolder(_, _) => EventKind::CreateVault,
             Self::RenameFolder(_, _) => EventKind::SetVaultName,

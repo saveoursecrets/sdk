@@ -26,6 +26,7 @@ mod multiple_remotes;
 mod multiple_remotes_fallback;
 
 mod offline_manual;
+mod rename_account;
 mod server_definitions;
 
 mod websocket_reconnect;

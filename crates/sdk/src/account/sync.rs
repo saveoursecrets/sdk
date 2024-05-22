@@ -62,6 +62,11 @@ impl Merge for LocalAccount {
                     AccountEvent::Noop => {
                         tracing::warn!("merge got noop event (client)");
                     }
+                    AccountEvent::RenameAccount(name) => {
+                        self.user_mut()?
+                            .rename_account(name.to_owned())
+                            .await?;
+                    }
                     AccountEvent::UpdateIdentity(buf) => {
                         let vault: Vault = decode(buf).await?;
                         self.import_identity_vault(vault).await?;

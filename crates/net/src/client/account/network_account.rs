@@ -3,9 +3,10 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_sdk::{
     account::{
-        Account, AccountBuilder, AccountData, CipherComparison, DetachedView,
-        FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
-        SecretDelete, SecretInsert, SecretMove,
+        Account, AccountBuilder, AccountChange, AccountData,
+        CipherComparison, DetachedView, FolderChange, FolderCreate,
+        FolderDelete, LocalAccount, SecretChange, SecretDelete, SecretInsert,
+        SecretMove,
     },
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
@@ -693,18 +694,40 @@ impl Account for NetworkAccount {
         Ok(account.sign_out().await?)
     }
 
-    async fn rename_account(&mut self, account_name: String) -> Result<()> {
-        let mut account = self.account.lock().await;
-        Ok(account.rename_account(account_name).await?)
+    async fn rename_account(
+        &mut self,
+        account_name: String,
+    ) -> Result<AccountChange<Error>> {
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            let result = account.rename_account(account_name).await?;
+            result
+        };
+
+        let result = AccountChange {
+            event: result.event,
+            sync_error: self.sync().await,
+            marker: std::marker::PhantomData,
+        };
+
+        Ok(result)
     }
 
     async fn delete_account(&mut self) -> Result<()> {
-        let mut account = self.account.lock().await;
-        // Delete the account and sign out
-        account.delete_account().await?;
         // Shutdown any change listeners
         #[cfg(feature = "listen")]
         self.shutdown_listeners().await;
+
+        // Stop any pending file transfers
+        self.stop_file_transfers().await;
+
+        {
+            let mut account = self.account.lock().await;
+            // Delete the account and sign out
+            account.delete_account().await?;
+        }
+
         Ok(())
     }
 

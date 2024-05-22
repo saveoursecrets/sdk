@@ -83,6 +83,17 @@ use tokio::{
     sync::RwLock,
 };
 
+/// Result information for a change to an account.
+pub struct AccountChange<T: std::error::Error> {
+    /// Event to be logged.
+    pub event: Event,
+    /// Error generated during a sync.
+    #[cfg(feature = "sync")]
+    pub sync_error: Option<SyncError<T>>,
+    #[doc(hidden)]
+    pub marker: std::marker::PhantomData<T>,
+}
+
 /// Result information for a created or updated secret.
 pub struct SecretChange<T: std::error::Error> {
     /// Secret identifier.
@@ -372,7 +383,7 @@ pub trait Account {
     async fn rename_account(
         &mut self,
         account_name: String,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> std::result::Result<AccountChange<Self::Error>, Self::Error>;
 
     /// Delete the account for this user and sign out.
     async fn delete_account(
@@ -1712,8 +1723,30 @@ impl Account for LocalAccount {
         Ok(())
     }
 
-    async fn rename_account(&mut self, account_name: String) -> Result<()> {
-        Ok(self.user_mut()?.rename_account(account_name).await?)
+    async fn rename_account(
+        &mut self,
+        account_name: String,
+    ) -> Result<AccountChange<Error>> {
+        // Rename the local identity folder
+        self.user_mut()?
+            .rename_account(account_name.clone())
+            .await?;
+
+        // Generate and append the rename event
+        let event = {
+            let event = AccountEvent::RenameAccount(account_name);
+            let log = self.account_log().await?;
+            let mut log = log.write().await;
+            log.apply(vec![&event]).await?;
+            event
+        };
+
+        Ok(AccountChange {
+            event: Event::Account(event),
+            #[cfg(feature = "sync")]
+            sync_error: None,
+            marker: std::marker::PhantomData,
+        })
     }
 
     async fn delete_account(&mut self) -> Result<()> {

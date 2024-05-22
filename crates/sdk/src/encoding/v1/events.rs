@@ -292,6 +292,9 @@ impl Encodable for AccountEvent {
 
         match self {
             AccountEvent::Noop => panic!("attempt to encode a noop"),
+            AccountEvent::RenameAccount(name) => {
+                writer.write_string(name).await?;
+            }
             AccountEvent::UpdateIdentity(buffer) => {
                 writer.write_u32(buffer.len() as u32).await?;
                 writer.write_bytes(buffer).await?;
@@ -326,6 +329,10 @@ impl Decodable for AccountEvent {
         op.decode(&mut *reader).await?;
         match op {
             EventKind::Noop => panic!("attempt to decode a noop"),
+            EventKind::RenameAccount => {
+                *self =
+                    AccountEvent::RenameAccount(reader.read_string().await?);
+            }
             EventKind::UpdateIdentity => {
                 let len = reader.read_u32().await?;
                 let buffer = reader.read_bytes(len as usize).await?;
