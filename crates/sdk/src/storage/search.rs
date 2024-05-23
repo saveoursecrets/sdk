@@ -33,7 +33,7 @@ fn ngram_slice(s: &str, n: usize) -> HashSet<&str> {
                 }
             }
             if end_offset > offset {
-                let val = &s[*offset..=*end_offset];
+                let val = &s[*offset..*end_offset];
                 items.insert(val);
             }
         }
@@ -955,6 +955,18 @@ mod test {
     use crate::vault::secret::{SecretMeta, SecretType};
     use secrecy::SecretString;
     use uuid::Uuid;
+
+    #[test]
+    fn ngram_slice_with_multi_byte() {
+        let specs = &["бывшая", "Марина Маркеш"];
+        for s in specs {
+            ngram_slice(s, 2);
+            ngram_slice(s, 3);
+            ngram_slice(s, 4);
+            ngram_slice(s, 5);
+            // println!("{}", s);
+        }
+    }
 
     #[test]
     fn search_index() {

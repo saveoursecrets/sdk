@@ -118,7 +118,7 @@ async fn local_search_statistics() -> Result<()> {
     let (mut meta, secret) = mock::note("tag", "secret");
     let tag_name = "mock_tag";
     meta.set_tags(hashset![tag_name.to_owned()]);
-    let SecretChange { id, .. } = account
+    account
         .create_secret(meta, secret, Default::default())
         .await?;
 
