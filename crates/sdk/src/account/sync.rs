@@ -34,8 +34,8 @@ impl Merge for LocalAccount {
         );
         self.user_mut()?.identity_mut()?.merge(diff).await?;
 
-        outcome.identity_changes = diff.patch.len();
-        outcome.num_changes += diff.patch.len();
+        outcome.identity = diff.patch.len();
+        outcome.changes += diff.patch.len();
 
         Ok(())
     }
@@ -132,8 +132,8 @@ impl Merge for LocalAccount {
             }
         }
 
-        outcome.account_changes = diff.patch.len();
-        outcome.num_changes += diff.patch.len();
+        outcome.account = diff.patch.len();
+        outcome.changes += diff.patch.len();
 
         Ok(())
     }
@@ -183,8 +183,8 @@ impl Merge for LocalAccount {
             println!("todo! device patch could not be merged");
         }
 
-        outcome.device_changes = diff.patch.len();
-        outcome.num_changes += diff.patch.len();
+        outcome.device = diff.patch.len();
+        outcome.changes += diff.patch.len();
 
         Ok(())
     }
@@ -276,8 +276,8 @@ impl Merge for LocalAccount {
             num_events
         };
 
-        outcome.file_changes = num_changes;
-        outcome.num_changes += num_changes;
+        outcome.file = num_changes;
+        outcome.changes += num_changes;
 
         Ok(())
     }
@@ -331,8 +331,10 @@ impl Merge for LocalAccount {
             num_changes = diff.patch.len();
         }
 
-        outcome.folders.insert(*folder_id, num_changes);
-        outcome.num_changes += num_changes;
+        if num_changes > 0 {
+            outcome.folders.insert(*folder_id, num_changes);
+            outcome.changes += num_changes;
+        }
 
         Ok(())
     }

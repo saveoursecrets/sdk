@@ -805,21 +805,30 @@ pub trait SyncStorage: StorageEventLogs {
     }
 }
 
+fn is_zero(value: &usize) -> bool {
+    value == &usize::MIN
+}
+
 /// Outcome of a merge operation.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct MergeOutcome {
     /// Total number of changes made during the merge.
-    pub num_changes: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub changes: usize,
     /// Number of changes to the identity folder.
-    pub identity_changes: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub identity: usize,
     /// Number of changes to the account event log.
-    pub account_changes: usize,
-    #[cfg(feature = "device")]
+    #[serde(skip_serializing_if = "is_zero")]
+    pub account: usize,
     /// Number of changes to the device event log.
-    pub device_changes: usize,
-    #[cfg(feature = "files")]
+    #[cfg(feature = "device")]
+    #[serde(skip_serializing_if = "is_zero")]
+    pub device: usize,
     /// Number of changes to the files event log.
-    pub file_changes: usize,
+    #[cfg(feature = "files")]
+    #[serde(skip_serializing_if = "is_zero")]
+    pub file: usize,
     /// Number of changes to the folder event logs.
     pub folders: HashMap<VaultId, usize>,
 }
@@ -1011,7 +1020,7 @@ pub trait Merge {
             }
         }
 
-        tracing::debug!(num_changes = %outcome.num_changes, "merge complete");
+        tracing::debug!(num_changes = %outcome.changes, "merge complete");
 
         Ok((outcome, compare))
     }

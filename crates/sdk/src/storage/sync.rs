@@ -185,8 +185,8 @@ impl Merge for ServerStorage {
         );
         writer.patch_checked(&diff.before, &diff.patch).await?;
 
-        outcome.identity_changes = diff.patch.len();
-        outcome.num_changes += diff.patch.len();
+        outcome.identity = diff.patch.len();
+        outcome.changes += diff.patch.len();
 
         Ok(())
     }
@@ -261,8 +261,8 @@ impl Merge for ServerStorage {
             println!("todo! account patch could not be merged");
         }
 
-        outcome.account_changes = diff.patch.len();
-        outcome.num_changes += diff.patch.len();
+        outcome.account = diff.patch.len();
+        outcome.changes += diff.patch.len();
 
         Ok(())
     }
@@ -301,8 +301,8 @@ impl Merge for ServerStorage {
             println!("todo! device patch could not be merged");
         }
 
-        outcome.device_changes = diff.patch.len();
-        outcome.num_changes += diff.patch.len();
+        outcome.device = diff.patch.len();
+        outcome.changes += diff.patch.len();
 
         Ok(())
     }
@@ -352,8 +352,8 @@ impl Merge for ServerStorage {
             num_events
         };
 
-        outcome.file_changes = num_changes;
-        outcome.num_changes += num_changes;
+        outcome.file = num_changes;
+        outcome.changes += num_changes;
 
         Ok(())
     }
@@ -385,8 +385,10 @@ impl Merge for ServerStorage {
 
         log.patch_checked(&diff.before, &diff.patch).await?;
 
-        outcome.folders.insert(*folder_id, diff.patch.len());
-        outcome.num_changes += diff.patch.len();
+        if diff.patch.len() > 0 {
+            outcome.folders.insert(*folder_id, diff.patch.len());
+            outcome.changes += diff.patch.len();
+        }
 
         Ok(())
     }

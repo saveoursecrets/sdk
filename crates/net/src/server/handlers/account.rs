@@ -519,7 +519,7 @@ mod handlers {
         };
 
         #[cfg(feature = "listen")]
-        if outcome.num_changes > 0 {
+        if outcome.changes > 0 {
             let notification = ChangeNotification::new(
                 caller.address(),
                 caller.connection_id().to_string(),
