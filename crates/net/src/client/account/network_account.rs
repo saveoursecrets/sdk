@@ -216,12 +216,17 @@ impl NetworkAccount {
     async fn remote_bridge(&self, origin: &Origin) -> Result<RemoteBridge> {
         let signer = self.account_signer().await?;
         let device = self.device_signer().await?;
+        let conn_id = if let Some(conn_id) = &self.connection_id {
+            conn_id.to_string()
+        } else {
+            self.client_connection_id().await?
+        };
         let provider = RemoteBridge::new(
             Arc::clone(&self.account),
             origin.clone(),
             signer,
             device.into(),
-            self.client_connection_id().await?,
+            conn_id,
         )?;
         Ok(provider)
     }
@@ -639,6 +644,12 @@ impl Account for NetworkAccount {
             self.address = account.address().clone();
             folders
         };
+
+        // Without an explicit connectio id use the inferred
+        // connection identifier
+        if self.connection_id.is_none() {
+            self.connection_id = self.client_connection_id().await.ok();
+        }
 
         // Load origins from disc and create remote definitions
         let remotes_file = self.paths().remote_origins();
