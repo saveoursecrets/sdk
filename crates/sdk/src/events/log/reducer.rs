@@ -170,6 +170,14 @@ impl FolderReducer {
             }
 
             if include_secrets {
+                // If we are including secrets, it's possible
+                // that the create vault event has some secrets
+                // in it so we truncate to remove any duplication
+                //
+                // FIXME: find out why sometimes when pairing the
+                // FIXME: the CreateVault event is including secrets
+                vault.truncate();
+
                 for (id, entry) in self.secrets {
                     vault.insert_entry(id, entry);
                 }

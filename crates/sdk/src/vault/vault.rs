@@ -878,6 +878,10 @@ impl Vault {
         self.len() == 0
     }
 
+    pub(crate) fn truncate(&mut self) {
+        self.contents.data = Default::default();
+    }
+
     /// Iterator for the secret keys and commit hashes.
     pub fn commits(&self) -> impl Iterator<Item = (&Uuid, &CommitHash)> {
         self.contents
