@@ -1,4 +1,6 @@
 //! Enroll a device to an account on a remote server.
+use sos_sdk::vault::VaultAccess;
+
 use crate::{
     client::{
         pairing::{Error, Result},
@@ -19,7 +21,7 @@ use crate::{
             ed25519::BoxedEd25519Signer,
         },
         sync::{AccountPatch, FolderPatch, Origin, SyncClient},
-        vault::VaultId,
+        vault::{VaultId, VaultWriter},
         vfs, Paths,
     },
 };
@@ -57,6 +59,8 @@ pub struct DeviceEnrollment {
     public_identity: Option<PublicIdentity>,
     /// Device vault.
     device_vault: Vec<u8>,
+    /// Account name extracted from the account event logs.
+    account_name: Option<String>,
 }
 
 impl DeviceEnrollment {
@@ -93,6 +97,7 @@ impl DeviceEnrollment {
             client,
             public_identity: None,
             device_vault,
+            account_name: None,
         })
     }
 
@@ -127,6 +132,15 @@ impl DeviceEnrollment {
         #[cfg(feature = "device")]
         self.create_device(change_set.device).await?;
         self.create_identity(change_set.identity).await?;
+
+        // Got an account name change event so update the name
+        // of the identity vault
+        if let Some(account_name) = self.account_name.take() {
+            let path = self.paths.identity_vault();
+            let vault_file = VaultWriter::open(&path).await?;
+            let mut file = VaultWriter::new(&path, vault_file)?;
+            file.set_vault_name(account_name).await?;
+        }
 
         // Write the vault containing the device signing key
         vfs::write(self.paths.device_file(), &self.device_vault).await?;
@@ -187,14 +201,18 @@ impl DeviceEnrollment {
         Ok(())
     }
 
-    async fn create_account(&self, patch: AccountPatch) -> Result<()> {
+    async fn create_account(&mut self, patch: AccountPatch) -> Result<()> {
         let file = self.paths.account_events();
         let mut event_log = AccountEventLog::new_account(file).await?;
         event_log.clear().await?;
 
         let events: Vec<AccountEvent> = patch.into();
+        for event in &events {
+            if let AccountEvent::RenameAccount(account_name) = event {
+                self.account_name = Some(account_name.to_string());
+            }
+        }
         event_log.apply(events.iter().collect()).await?;
-
         Ok(())
     }
 
