@@ -9,7 +9,7 @@ use crate::{
     storage::{ServerStorage, StorageEventLogs},
     sync::{
         AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch, Merge,
-        SyncStatus, SyncStorage, UpdateSet,
+        MergeOutcome, SyncStatus, SyncStorage, UpdateSet,
     },
     vault::{VaultAccess, VaultId, VaultWriter},
     vfs, Error, Paths, Result,
@@ -172,7 +172,11 @@ impl ServerStorage {
 
 #[async_trait]
 impl Merge for ServerStorage {
-    async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize> {
+    async fn merge_identity(
+        &mut self,
+        diff: &FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         let mut writer = self.identity_log.write().await;
         tracing::debug!(
             before = ?diff.before,
@@ -180,7 +184,11 @@ impl Merge for ServerStorage {
             "identity",
         );
         writer.patch_checked(&diff.before, &diff.patch).await?;
-        Ok(diff.patch.len())
+
+        outcome.identity_changes = diff.patch.len();
+        outcome.num_changes += diff.patch.len();
+
+        Ok(())
     }
 
     async fn compare_identity(
@@ -191,7 +199,11 @@ impl Merge for ServerStorage {
         reader.tree().compare(&state.1)
     }
 
-    async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
+    async fn merge_account(
+        &mut self,
+        diff: &AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -249,7 +261,10 @@ impl Merge for ServerStorage {
             println!("todo! account patch could not be merged");
         }
 
-        Ok(diff.patch.len())
+        outcome.account_changes = diff.patch.len();
+        outcome.num_changes += diff.patch.len();
+
+        Ok(())
     }
 
     async fn compare_account(
@@ -261,7 +276,11 @@ impl Merge for ServerStorage {
     }
 
     #[cfg(feature = "device")]
-    async fn merge_device(&mut self, diff: &DeviceDiff) -> Result<usize> {
+    async fn merge_device(
+        &mut self,
+        diff: &DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -282,7 +301,10 @@ impl Merge for ServerStorage {
             println!("todo! device patch could not be merged");
         }
 
-        Ok(diff.patch.len())
+        outcome.device_changes = diff.patch.len();
+        outcome.num_changes += diff.patch.len();
+
+        Ok(())
     }
 
     #[cfg(feature = "device")]
@@ -295,7 +317,11 @@ impl Merge for ServerStorage {
     }
 
     #[cfg(feature = "files")]
-    async fn merge_files(&mut self, diff: &FileDiff) -> Result<usize> {
+    async fn merge_files(
+        &mut self,
+        diff: &FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -326,7 +352,10 @@ impl Merge for ServerStorage {
             num_events
         };
 
-        Ok(num_changes)
+        outcome.file_changes = num_changes;
+        outcome.num_changes += num_changes;
+
+        Ok(())
     }
 
     #[cfg(feature = "files")]
@@ -339,7 +368,8 @@ impl Merge for ServerStorage {
         &mut self,
         folder_id: &VaultId,
         diff: &FolderDiff,
-    ) -> Result<usize> {
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             folder_id = %folder_id,
             before = ?diff.before,
@@ -355,7 +385,10 @@ impl Merge for ServerStorage {
 
         log.patch_checked(&diff.before, &diff.patch).await?;
 
-        Ok(diff.patch.len())
+        outcome.folders.insert(*folder_id, diff.patch.len());
+        outcome.num_changes += diff.patch.len();
+
+        Ok(())
     }
 
     async fn compare_folder(

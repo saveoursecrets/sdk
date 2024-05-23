@@ -502,7 +502,7 @@ mod handlers {
         let (remote_status, diff) = (packet.status, packet.diff);
 
         // Apply the diff to the storage
-        let (num_changes, compare) = {
+        let (outcome, compare) = {
             let span = span!(Level::DEBUG, "merge_server");
             let _enter = span.enter();
             let mut writer = account.write().await;
@@ -519,7 +519,7 @@ mod handlers {
         };
 
         #[cfg(feature = "listen")]
-        if num_changes > 0 {
+        if outcome.num_changes > 0 {
             let notification = ChangeNotification::new(
                 caller.address(),
                 caller.connection_id().to_string(),

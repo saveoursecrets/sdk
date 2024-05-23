@@ -6,7 +6,7 @@ use crate::{
     storage::StorageEventLogs,
     sync::{
         AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, Merge,
-        SyncStatus, SyncStorage,
+        MergeOutcome, SyncStatus, SyncStorage,
     },
     vault::{Vault, VaultId},
     Error, Result,
@@ -22,14 +22,22 @@ use crate::sync::FileDiff;
 
 #[async_trait]
 impl Merge for LocalAccount {
-    async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize> {
+    async fn merge_identity(
+        &mut self,
+        diff: &FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
             "identity",
         );
         self.user_mut()?.identity_mut()?.merge(diff).await?;
-        Ok(diff.patch.len())
+
+        outcome.identity_changes = diff.patch.len();
+        outcome.num_changes += diff.patch.len();
+
+        Ok(())
     }
 
     async fn compare_identity(
@@ -41,7 +49,11 @@ impl Merge for LocalAccount {
         event_log.tree().compare(&state.1)
     }
 
-    async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
+    async fn merge_account(
+        &mut self,
+        diff: &AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -120,7 +132,10 @@ impl Merge for LocalAccount {
             }
         }
 
-        Ok(diff.patch.len())
+        outcome.account_changes = diff.patch.len();
+        outcome.num_changes += diff.patch.len();
+
+        Ok(())
     }
 
     async fn compare_account(
@@ -133,7 +148,11 @@ impl Merge for LocalAccount {
     }
 
     #[cfg(feature = "device")]
-    async fn merge_device(&mut self, diff: &DeviceDiff) -> Result<usize> {
+    async fn merge_device(
+        &mut self,
+        diff: &DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -164,7 +183,10 @@ impl Merge for LocalAccount {
             println!("todo! device patch could not be merged");
         }
 
-        Ok(diff.patch.len())
+        outcome.device_changes = diff.patch.len();
+        outcome.num_changes += diff.patch.len();
+
+        Ok(())
     }
 
     #[cfg(feature = "device")]
@@ -178,7 +200,11 @@ impl Merge for LocalAccount {
     }
 
     #[cfg(feature = "files")]
-    async fn merge_files(&mut self, diff: &FileDiff) -> Result<usize> {
+    async fn merge_files(
+        &mut self,
+        diff: &FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         use crate::{
             events::FileReducer, storage::files::TransferOperation, vfs,
         };
@@ -250,7 +276,10 @@ impl Merge for LocalAccount {
             num_events
         };
 
-        Ok(num_changes)
+        outcome.file_changes = num_changes;
+        outcome.num_changes += num_changes;
+
+        Ok(())
     }
 
     #[cfg(feature = "files")]
@@ -264,7 +293,8 @@ impl Merge for LocalAccount {
         &mut self,
         folder_id: &VaultId,
         diff: &FolderDiff,
-    ) -> Result<usize> {
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         let mut num_changes = 0;
 
         let storage = self.storage().await?;
@@ -301,7 +331,10 @@ impl Merge for LocalAccount {
             num_changes = diff.patch.len();
         }
 
-        Ok(num_changes)
+        outcome.folders.insert(*folder_id, num_changes);
+        outcome.num_changes += num_changes;
+
+        Ok(())
     }
 
     async fn compare_folder(

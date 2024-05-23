@@ -805,11 +805,34 @@ pub trait SyncStorage: StorageEventLogs {
     }
 }
 
+/// Outcome of a merge operation.
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct MergeOutcome {
+    /// Total number of changes made during the merge.
+    pub num_changes: usize,
+    /// Number of changes to the identity folder.
+    pub identity_changes: usize,
+    /// Number of changes to the account event log.
+    pub account_changes: usize,
+    #[cfg(feature = "device")]
+    /// Number of changes to the device event log.
+    pub device_changes: usize,
+    #[cfg(feature = "files")]
+    /// Number of changes to the files event log.
+    pub file_changes: usize,
+    /// Number of changes to the folder event logs.
+    pub folders: HashMap<VaultId, usize>,
+}
+
 /// Types that can merge diffs.
 #[async_trait]
 pub trait Merge {
     /// Merge changes to the identity folder.
-    async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize>;
+    async fn merge_identity(
+        &mut self,
+        diff: &FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
 
     /// Compare the identity folder.
     async fn compare_identity(
@@ -818,7 +841,11 @@ pub trait Merge {
     ) -> Result<Comparison>;
 
     /// Merge changes to the account event log.
-    async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize>;
+    async fn merge_account(
+        &mut self,
+        diff: &AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
 
     /// Compare the account events.
     async fn compare_account(
@@ -828,7 +855,11 @@ pub trait Merge {
 
     /// Merge changes to the devices event log.
     #[cfg(feature = "device")]
-    async fn merge_device(&mut self, diff: &DeviceDiff) -> Result<usize>;
+    async fn merge_device(
+        &mut self,
+        diff: &DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
 
     /// Compare the device events.
     #[cfg(feature = "device")]
@@ -837,7 +868,11 @@ pub trait Merge {
 
     /// Merge changes to the files event log.
     #[cfg(feature = "files")]
-    async fn merge_files(&mut self, diff: &FileDiff) -> Result<usize>;
+    async fn merge_files(
+        &mut self,
+        diff: &FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
 
     /// Compare the file events.
     #[cfg(feature = "files")]
@@ -848,7 +883,8 @@ pub trait Merge {
         &mut self,
         folder_id: &VaultId,
         diff: &FolderDiff,
-    ) -> Result<usize>;
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
 
     /// Compare folder events.
     async fn compare_folder(
@@ -894,17 +930,18 @@ pub trait Merge {
     async fn merge(
         &mut self,
         diff: &SyncDiff,
-    ) -> Result<(usize, SyncCompare)> {
+    ) -> Result<(MergeOutcome, SyncCompare)> {
         //let span = span!(Level::DEBUG, "merge");
         //let _enter = span.enter();
 
-        let mut num_changes = 0;
+        // let mut num_changes = 0;
+        let mut outcome = MergeOutcome::default();
         let mut compare = SyncCompare::default();
 
         match &diff.identity {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                num_changes += self.merge_identity(diff).await?;
+                self.merge_identity(diff, &mut outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
@@ -918,7 +955,7 @@ pub trait Merge {
         match &diff.account {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                num_changes += self.merge_account(diff).await?;
+                self.merge_account(diff, &mut outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
@@ -933,7 +970,7 @@ pub trait Merge {
         match &diff.device {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                num_changes += self.merge_device(diff).await?;
+                self.merge_device(diff, &mut outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
@@ -947,7 +984,7 @@ pub trait Merge {
         match &diff.files {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                num_changes += self.merge_files(diff).await?;
+                self.merge_files(diff, &mut outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
@@ -961,7 +998,7 @@ pub trait Merge {
             match maybe_diff {
                 MaybeDiff::Noop => unreachable!(),
                 MaybeDiff::Diff(diff) => {
-                    num_changes += self.merge_folder(id, diff).await?;
+                    self.merge_folder(id, diff, &mut outcome).await?;
                 }
                 MaybeDiff::Compare(state) => {
                     if let Some(state) = state {
@@ -974,9 +1011,9 @@ pub trait Merge {
             }
         }
 
-        tracing::debug!(num_changes = %num_changes, "merge complete");
+        tracing::debug!(num_changes = %outcome.num_changes, "merge complete");
 
-        Ok((num_changes, compare))
+        Ok((outcome, compare))
     }
 }
 
