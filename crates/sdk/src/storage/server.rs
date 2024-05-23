@@ -142,9 +142,6 @@ impl ServerStorage {
     async fn initialize_device_log(
         paths: &Paths,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
-        let span = span!(Level::DEBUG, "init_device_log");
-        let _enter = span.enter();
-
         let log_file = paths.device_events();
         let mut event_log = DeviceEventLog::new_device(log_file).await?;
         event_log.load_tree().await?;
@@ -157,14 +154,11 @@ impl ServerStorage {
 
     #[cfg(feature = "files")]
     async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
-        let span = span!(Level::DEBUG, "init_file_log");
-        let _enter = span.enter();
-
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
         let mut event_log = FileEventLog::new_file(log_file).await?;
 
-        tracing::debug!(needs_init = %needs_init);
+        tracing::debug!(needs_init = %needs_init, "file_log");
 
         if needs_init {
             let files = super::files::list_external_files(paths).await?;

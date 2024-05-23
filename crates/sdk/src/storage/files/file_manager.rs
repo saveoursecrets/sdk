@@ -468,10 +468,7 @@ impl ClientStorage {
         sources: Option<Vec<FileSource>>,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
     ) -> Result<Vec<FileMutationEvent>> {
-        let span = span!(Level::DEBUG, "write_update_checksum");
-        let _enter = span.enter();
-
-        tracing::debug!(folder = ?summary.id());
+        tracing::debug!(folder = ?summary.id(), "write_update_checksum");
 
         let mut results = Vec::new();
 

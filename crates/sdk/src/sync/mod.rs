@@ -941,10 +941,6 @@ pub trait Merge {
         &mut self,
         diff: &SyncDiff,
     ) -> Result<(MergeOutcome, SyncCompare)> {
-        //let span = span!(Level::DEBUG, "merge");
-        //let _enter = span.enter();
-
-        // let mut num_changes = 0;
         let mut outcome = MergeOutcome::default();
         let mut compare = SyncCompare::default();
 

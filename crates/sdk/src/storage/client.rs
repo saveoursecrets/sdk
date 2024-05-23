@@ -194,22 +194,20 @@ impl ClientStorage {
         paths: &Paths,
         device: TrustedDevice,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
-        let span = span!(Level::DEBUG, "init_device_log");
-        let _enter = span.enter();
-
         let log_file = paths.device_events();
 
         let mut event_log = DeviceEventLog::new_device(log_file).await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
-        tracing::debug!(needs_init = %needs_init);
+        tracing::debug!(needs_init = %needs_init, "device_log");
 
         // Trust this device on initialization if the event
         // log is empty so that we are backwards compatible with
         // accounts that existed before device event logs.
         if needs_init {
-            tracing::debug!("initialize root device {}", device.public_key());
+            tracing::debug!(
+              public_key = %device.public_key(), "initialize_root_device");
             let event = DeviceEvent::Trust(device);
             event_log.apply(vec![&event]).await?;
         }
@@ -234,15 +232,12 @@ impl ClientStorage {
 
     #[cfg(feature = "files")]
     async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
-        let span = span!(Level::DEBUG, "init_file_log");
-        let _enter = span.enter();
-
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
         let mut event_log = FileEventLog::new_file(log_file).await?;
         event_log.load_tree().await?;
 
-        tracing::debug!(needs_init = %needs_init);
+        tracing::debug!(needs_init = %needs_init, "file_log");
 
         if needs_init {
             let files = super::files::list_external_files(paths).await?;

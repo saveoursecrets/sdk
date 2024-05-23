@@ -329,9 +329,7 @@ impl Gatekeeper {
     /// associated with the vault, securely zeroing the
     /// underlying memory.
     pub fn lock(&mut self) {
-        let span = span!(Level::DEBUG, "lock");
-        let _enter = span.enter();
-        tracing::debug!(folder = %self.id(), "drop private key");
+        tracing::debug!(folder = %self.id(), "drop_private_key");
         self.private_key = None;
     }
 }

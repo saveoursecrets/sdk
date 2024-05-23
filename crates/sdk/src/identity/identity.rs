@@ -220,9 +220,6 @@ impl Identity {
         address: &Address,
         key: &AccessKey,
     ) -> Result<()> {
-        let span = span!(Level::DEBUG, "login");
-        let _enter = span.enter();
-
         let accounts = Self::list_accounts(Some(&self.paths)).await?;
         let account = accounts
             .into_iter()

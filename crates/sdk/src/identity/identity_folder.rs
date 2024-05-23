@@ -183,13 +183,10 @@ where
         paths: &Paths,
         vault: Vault,
     ) -> Result<DeviceManager> {
-        let span = span!(Level::DEBUG, "read_device_vault");
-        let _enter = span.enter();
-
         let device_key_urn = self.device_urn()?;
         let device_vault_path = paths.device_file().to_owned();
 
-        tracing::debug!(urn = %device_key_urn);
+        tracing::debug!(urn = %device_key_urn, "read_device_vault");
 
         let summary = vault.summary().clone();
         let device_password = self.find_folder_password(summary.id()).await?;
@@ -238,9 +235,6 @@ where
         signer: DeviceSigner,
         mirror: bool,
     ) -> Result<DeviceManager> {
-        let span = span!(Level::DEBUG, "create_device_vault");
-        let _enter = span.enter();
-
         let device_vault_path = paths.device_file().to_owned();
         // Prepare the password for the device vault
         let device_password = self.generate_folder_password()?;
@@ -262,7 +256,7 @@ where
 
         let device_key_urn = self.device_urn()?;
 
-        tracing::debug!(urn = %device_key_urn, mirror = %mirror);
+        tracing::debug!(urn = %device_key_urn, mirror = %mirror, "create_device_vault");
 
         self.save_folder_password(vault.id(), device_password.clone().into())
             .await?;
@@ -313,11 +307,8 @@ where
         vault_id: &VaultId,
         key: AccessKey,
     ) -> Result<()> {
-        let span = span!(Level::DEBUG, "save_folder_password");
-        let _enter = span.enter();
-
         let urn = Vault::vault_urn(vault_id)?;
-        tracing::debug!(folder = %vault_id, urn = %urn);
+        tracing::debug!(folder = %vault_id, urn = %urn, "save_folder_password");
 
         let secret = match key {
             AccessKey::Password(vault_passphrase) => Secret::Password {
@@ -354,12 +345,9 @@ where
         &self,
         vault_id: &VaultId,
     ) -> Result<AccessKey> {
-        let span = span!(Level::DEBUG, "find_folder_password");
-        let _enter = span.enter();
-
         let urn = Vault::vault_urn(vault_id)?;
 
-        tracing::debug!(folder = %vault_id, urn = %urn);
+        tracing::debug!(folder = %vault_id, urn = %urn, "find_folder_password");
 
         let id = self
             .index
