@@ -10,6 +10,7 @@ use crate::{
     vfs, Error, Result,
 };
 use binary_stream::futures::BinaryReader;
+use core::slice::SlicePattern;
 use std::io::SeekFrom;
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
@@ -63,9 +64,10 @@ where
             let buffer = read_iterator_item!(&record, &mut reader);
             let checksum = CommitTree::hash(&buffer);
             if checksum != commit {
-                return Err(Error::HashMismatch {
+                return Err(Error::VaultHashMismatch {
                     commit: hex::encode(commit),
                     value: hex::encode(checksum),
+                    id: uuid::Uuid::from_slice(record.id().as_slice())?,
                 });
             }
         }

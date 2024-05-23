@@ -244,6 +244,17 @@ pub enum Error {
     InvalidPublicKeyLength(u8, usize),
 
     /// Error generated when event log row data does not match the commit hash.
+    #[error("row '{id}' checksums do not match, expected {commit} but got {value}")]
+    VaultHashMismatch {
+        /// Expected commit hash.
+        commit: String,
+        /// Commit hash of the value.
+        value: String,
+        /// Record identifier.
+        id: Uuid,
+    },
+
+    /// Error generated when event log row data does not match the commit hash.
     #[error("row checksums do not match, expected {commit} but got {value}")]
     HashMismatch {
         /// Expected commit hash.
