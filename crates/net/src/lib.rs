@@ -27,25 +27,32 @@ pub use reqwest;
 pub use sos_sdk as sdk;
 
 #[cfg(feature = "listen")]
-use sos_sdk::signer::ecdsa::Address;
+use sos_sdk::{signer::ecdsa::Address, sync::MergeOutcome};
 
 /// Notification sent by the server when changes were made.
 #[cfg(feature = "listen")]
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ChangeNotification {
     /// Account owner address.
     address: Address,
     /// Connection identifier that made the change.
     connection_id: String,
+    /// Merge outcome.
+    outcome: MergeOutcome,
 }
 
 #[cfg(feature = "listen")]
 impl ChangeNotification {
     /// Create a new change notification.
-    pub fn new(address: &Address, connection_id: String) -> Self {
+    pub fn new(
+        address: &Address,
+        connection_id: String,
+        outcome: MergeOutcome,
+    ) -> Self {
         Self {
             address: *address,
             connection_id,
+            outcome,
         }
     }
 

@@ -825,7 +825,7 @@ pub struct MergeOutcome {
     #[cfg(feature = "device")]
     #[serde(skip_serializing_if = "is_zero")]
     pub device: usize,
-    /// Number of changes to the files event log.
+    /// Number of changes to the file event log.
     #[cfg(feature = "files")]
     #[serde(skip_serializing_if = "is_zero")]
     pub file: usize,

@@ -523,6 +523,7 @@ mod handlers {
             let notification = ChangeNotification::new(
                 caller.address(),
                 caller.connection_id().to_string(),
+                outcome,
             );
             let mut writer = state.write().await;
             send_notification(&mut *writer, &caller, notification);
