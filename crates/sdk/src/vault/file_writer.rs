@@ -398,7 +398,7 @@ mod tests {
     #[tokio::test]
     async fn vault_encode_decode_row() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (_temp, vault, _) = mock_vault_file().await?;
+        let (_temp, vault) = mock_vault_file().await?;
 
         let secret_label = "Test note";
         let secret_note = "Super secret note for you to read.";
@@ -432,7 +432,7 @@ mod tests {
     #[tokio::test]
     async fn vault_file_access() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (temp, vault, _) = mock_vault_file().await?;
+        let (temp, vault) = mock_vault_file().await?;
 
         let vault_file = VaultWriter::open(temp.path()).await?;
         let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;
@@ -518,7 +518,7 @@ mod tests {
     #[tokio::test]
     async fn vault_file_del_splice() -> Result<()> {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (temp, vault, _) = mock_vault_file().await?;
+        let (temp, vault) = mock_vault_file().await?;
 
         let vault_file = VaultWriter::open(temp.path()).await?;
         let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;

@@ -431,7 +431,7 @@ where
 mod test {
     use crate::{
         decode, encode,
-        events::{AccountEvent, WriteEvent},
+        events::AccountEvent,
         sync::{AccountPatch, ChangeSet, FolderPatch},
         vault::Vault,
     };
@@ -455,8 +455,8 @@ mod test {
     #[tokio::test]
     async fn encode_decode_change_set() -> Result<()> {
         let vault: Vault = Default::default();
-        let buf = encode(&vault).await?;
-        let identity: FolderPatch = vec![WriteEvent::CreateVault(buf)].into();
+        let event = vault.into_event().await?;
+        let identity: FolderPatch = vec![event].into();
 
         let folder_vault: Vault = Default::default();
         let folder_id = *folder_vault.id();
@@ -466,8 +466,8 @@ mod test {
                 .into();
 
         let mut folders = HashMap::new();
-        let buf = encode(&folder_vault).await?;
-        let folder: FolderPatch = vec![WriteEvent::CreateVault(buf)].into();
+        let event = folder_vault.into_event().await?;
+        let folder: FolderPatch = vec![event].into();
         folders.insert(folder_id, folder);
 
         #[cfg(feature = "device")]

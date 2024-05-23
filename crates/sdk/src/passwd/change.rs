@@ -2,7 +2,6 @@
 
 use crate::{
     crypto::{AccessKey, KeyDerivation, PrivateKey, Seed},
-    encode,
     events::WriteEvent,
     vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
     Error, Result,
@@ -127,8 +126,7 @@ impl<'a> ChangePassword<'a> {
 
         let mut event_log_events = Vec::new();
 
-        let buffer = encode(&new_vault).await?;
-        let create_vault = WriteEvent::CreateVault(buffer);
+        let create_vault = new_vault.into_event().await?;
         event_log_events.push(create_vault);
 
         // Iterate the current vault and decrypt the secrets

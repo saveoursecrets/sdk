@@ -433,14 +433,11 @@ impl ClientStorage {
             .collect::<Vec<_>>();
         self.load_caches(&summaries).await?;
 
-        for (buffer, vault) in vaults {
+        for (_, vault) in vaults {
             // Prepare a fresh log of event log events
-            let mut event_log_events = Vec::new();
-            let create_vault = WriteEvent::CreateVault(buffer.clone());
-            event_log_events.push(create_vault);
+            let (vault, events) = FolderReducer::split(vault.clone()).await?;
 
-            self.update_vault(vault.summary(), vault, event_log_events)
-                .await?;
+            self.update_vault(vault.summary(), &vault, events).await?;
 
             // Refresh the in-memory and disc-based mirror
             let key = folder_keys
@@ -815,6 +812,8 @@ impl ClientStorage {
             }
         }
 
+        let event = vault.into_event().await?;
+
         // Initialize the local cache for event log
         self.create_cache_entry(&summary, Some(vault)).await?;
 
@@ -823,11 +822,7 @@ impl ClientStorage {
             self.unlock_folder(summary.id(), key).await?;
         }
 
-        Ok((
-            exists,
-            WriteEvent::CreateVault(buffer.as_ref().to_owned()),
-            summary,
-        ))
+        Ok((exists, event, summary))
     }
 
     /// Update an existing vault by replacing it with a new vault.

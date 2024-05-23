@@ -16,7 +16,7 @@ use crate::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
     decode,
-    events::{EventLogExt, FolderEventLog, WriteEvent},
+    events::{EventLogExt, FolderEventLog, FolderReducer},
     identity::{Identity, MemoryIdentityFolder, PublicIdentity},
     sha2::{Digest, Sha256},
     signer::ecdsa::Address,
@@ -443,7 +443,7 @@ impl AccountBackup {
         let vaults_dir = paths.vaults_dir();
         vfs::create_dir_all(&vaults_dir).await?;
 
-        // Write out each vault and the event log log
+        // Write out each vault and the event log
         for (buffer, vault) in &restore_targets.vaults {
             let mut vault_path = vaults_dir.join(vault.id().to_string());
             let mut event_log_path = vault_path.clone();
@@ -453,12 +453,11 @@ impl AccountBackup {
             // Write out the vault buffer
             vfs::write(&vault_path, buffer).await?;
 
+            let (_, events) = FolderReducer::split(vault.clone()).await?;
+
             // Write out the event log file
-            let mut event_log_events = Vec::new();
-            let create_vault = WriteEvent::CreateVault(buffer.clone());
-            event_log_events.push(create_vault);
             let mut event_log = FolderEventLog::new(event_log_path).await?;
-            event_log.apply(event_log_events.iter().collect()).await?;
+            event_log.apply(events.iter().collect()).await?;
         }
 
         let account = PublicIdentity::new(label, restore_targets.address);
@@ -518,6 +517,10 @@ impl AccountBackup {
 
         let restored_user =
             MemoryIdentityFolder::login(&identity.1, &key).await?;
+
+        // Prepare the vaults directory
+        let vaults_dir = paths.vaults_dir();
+        vfs::create_dir_all(&vaults_dir).await?;
 
         // Use the delegated passwords for the folders
         // that were restored
