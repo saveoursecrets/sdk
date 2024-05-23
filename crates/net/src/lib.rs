@@ -53,4 +53,9 @@ impl ChangeNotification {
     pub fn address(&self) -> &Address {
         &self.address
     }
+
+    /// Connection identifier.
+    pub fn connection_id(&self) -> &str {
+        &self.connection_id
+    }
 }
