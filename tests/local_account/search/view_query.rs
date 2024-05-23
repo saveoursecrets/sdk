@@ -29,7 +29,7 @@ async fn local_search_view_query() -> Result<()> {
     let archive_folder = account.archive_folder().await.unwrap();
 
     let default_folder_docs = vec![
-        mock::login("бывшая", TEST_ID, generate_passphrase()?.0),
+        mock::login("login", TEST_ID, generate_passphrase()?.0),
         mock::note("note", "secret"),
         mock::card("card", TEST_ID, "123"),
         mock::bank("bank", TEST_ID, "12-34-56"),
