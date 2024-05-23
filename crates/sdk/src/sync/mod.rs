@@ -811,6 +811,7 @@ fn is_zero(value: &usize) -> bool {
 
 /// Outcome of a merge operation.
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct MergeOutcome {
     /// Total number of changes made during the merge.
     #[serde(skip_serializing_if = "is_zero")]

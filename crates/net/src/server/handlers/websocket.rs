@@ -220,7 +220,6 @@ async fn write(
                                 && !connection_id.is_empty()
                                 && &msg.connection_id != &connection_id;
 
-
                         // Only broadcast change notifications to listeners
                         // other than the caller
                         if other_connection {
