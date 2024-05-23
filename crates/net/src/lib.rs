@@ -65,4 +65,9 @@ impl ChangeNotification {
     pub fn connection_id(&self) -> &str {
         &self.connection_id
     }
+
+    /// Merge outcome.
+    pub fn outcome(&self) -> &MergeOutcome {
+        &self.outcome
+    }
 }
