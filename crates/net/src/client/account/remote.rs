@@ -298,7 +298,6 @@ mod listen {
     impl RemoteBridge {
         async fn on_change_notification(
             bridge: Arc<RemoteBridge>,
-            _change: ChangeNotification,
         ) -> Result<Option<SyncError<Error>>> {
             let result = bridge.sync().await;
             if let Some(e) = &result {
@@ -322,7 +321,9 @@ mod listen {
         pub(crate) fn listen(
             bridge: Arc<RemoteBridge>,
             options: ListenOptions,
-            listener: Option<mpsc::Sender<Option<SyncError<Error>>>>,
+            listener: Option<
+                mpsc::Sender<(ChangeNotification, Option<SyncError<Error>>)>,
+            >,
         ) -> WebSocketHandle {
             let remote_bridge = Arc::clone(&bridge);
             let handle = bridge.client.listen(options, move |notification| {
@@ -330,12 +331,12 @@ mod listen {
                 let handler = listener.clone();
                 async move {
                     tracing::debug!(notification = ?notification);
-                    match Self::on_change_notification(bridge, notification)
-                        .await
-                    {
+                    match Self::on_change_notification(bridge).await {
                         Ok(sync_error) => {
                             if let Some(handler) = handler {
-                                let _ = handler.send(sync_error).await;
+                                let _ = handler
+                                    .send((notification, sync_error))
+                                    .await;
                             }
                         }
                         Err(e) => tracing::error!(error = ?e),

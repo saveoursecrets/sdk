@@ -6,6 +6,7 @@ use crate::{
         WebSocketHandle,
     },
     sdk::sync::{Origin, SyncError},
+    ChangeNotification,
 };
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -16,7 +17,9 @@ impl NetworkAccount {
         &self,
         origin: &Origin,
         options: ListenOptions,
-        listener: Option<mpsc::Sender<Option<SyncError<Error>>>>,
+        listener: Option<
+            mpsc::Sender<(ChangeNotification, Option<SyncError<Error>>)>,
+        >,
     ) -> Result<WebSocketHandle> {
         let remotes = self.remotes.read().await;
         if let Some(remote) = remotes.get(origin) {

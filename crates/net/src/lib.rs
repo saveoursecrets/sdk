@@ -35,13 +35,18 @@ use sos_sdk::signer::ecdsa::Address;
 pub struct ChangeNotification {
     /// Account owner address.
     address: Address,
+    /// Connection identifier that made the change.
+    connection_id: String,
 }
 
 #[cfg(feature = "listen")]
 impl ChangeNotification {
     /// Create a new change notification.
-    pub fn new(address: &Address) -> Self {
-        Self { address: *address }
+    pub fn new(address: &Address, connection_id: String) -> Self {
+        Self {
+            address: *address,
+            connection_id,
+        }
     }
 
     /// Address of the account owner.
