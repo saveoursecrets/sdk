@@ -21,7 +21,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use tokio::sync::mpsc;
-use tracing::{span, Level};
 
 #[cfg(feature = "sync")]
 use crate::storage::files::TransferOperation;

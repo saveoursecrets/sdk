@@ -10,7 +10,6 @@ use crate::{
     },
     vfs, Error, Result,
 };
-use tracing::{span, Level};
 
 /// Access to an in-memory vault optionally mirroring changes to disc.
 ///

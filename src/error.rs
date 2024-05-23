@@ -82,10 +82,10 @@ pub enum Error {
     #[error("could not determine cache directory")]
     NoCache,
 
-    #[error("path {0} is not a directory")]
+    #[error("path '{0}' is not a directory")]
     NotDirectory(PathBuf),
 
-    #[error("path {0} is not a file")]
+    #[error("path '{0}' is not a file")]
     NotFile(PathBuf),
 
     #[error("account {0} does not exist")]
@@ -94,7 +94,7 @@ pub enum Error {
     #[error("could not determine path for local cache directory")]
     NoCacheDir,
 
-    #[error("file {0} already exists")]
+    #[error("file '{0}' already exists")]
     FileExists(PathBuf),
 
     #[error("path {0} does not have a file name")]

@@ -14,7 +14,6 @@ use crate::{
 
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
-use tracing::{span, Level};
 
 #[cfg(feature = "audit")]
 use crate::audit::AuditEvent;

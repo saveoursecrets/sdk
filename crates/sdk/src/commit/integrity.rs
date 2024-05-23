@@ -10,7 +10,6 @@ use crate::{
     vfs, Error, Result,
 };
 use binary_stream::futures::BinaryReader;
-use core::slice::SlicePattern;
 use std::io::SeekFrom;
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 

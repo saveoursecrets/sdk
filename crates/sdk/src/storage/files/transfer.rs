@@ -24,7 +24,6 @@ use std::{
 use tokio::sync::{
     broadcast, mpsc::UnboundedReceiver, oneshot, Mutex, RwLock,
 };
-use tracing::{span, Level};
 
 type TransferQueue = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 

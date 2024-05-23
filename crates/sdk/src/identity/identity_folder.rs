@@ -41,7 +41,6 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::RwLock;
-use tracing::{span, Level};
 use urn::Urn;
 
 #[cfg(feature = "device")]

@@ -73,7 +73,10 @@ async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
 }
 
 /// Verify the integrity of an events log file.
-async fn verify_events(file: PathBuf, verbose: bool) -> Result<()> {
+pub(crate) async fn verify_events(
+    file: PathBuf,
+    verbose: bool,
+) -> Result<()> {
     if !vfs::metadata(&file).await?.is_file() {
         return Err(Error::NotFile(file));
     }

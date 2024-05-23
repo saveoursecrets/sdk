@@ -20,7 +20,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tracing::{span, Level};
 use urn::Urn;
 
 #[cfg(feature = "device")]

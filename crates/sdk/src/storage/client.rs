@@ -24,7 +24,6 @@ use indexmap::IndexSet;
 use secrecy::SecretString;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
-use tracing::{span, Level};
 
 #[cfg(feature = "archive")]
 use crate::account::archive::RestoreTargets;

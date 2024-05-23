@@ -73,8 +73,6 @@ use crate::migrate::{
     Convert,
 };
 
-use tracing::{span, Level};
-
 use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
