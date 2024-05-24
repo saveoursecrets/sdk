@@ -5836,7 +5836,7 @@ dependencies = [
 [[package]]
 name = "zxcvbn"
 version = "3.0.0"
-source = "git+https://github.com/tmpfs/zxcvbn-rs?rev=e90c1b7094e7e8848cd0a7f53154fb0812606d24#e90c1b7094e7e8848cd0a7f53154fb0812606d24"
+source = "git+https://github.com/tmpfs/zxcvbn-rs?rev=71d46b4d7ec05f97207c2e976efe19c9f9b1e62b#71d46b4d7ec05f97207c2e976efe19c9f9b1e62b"
 dependencies = [
  "derive_builder 0.20.0",
  "fancy-regex",
