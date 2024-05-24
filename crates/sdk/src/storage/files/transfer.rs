@@ -650,8 +650,7 @@ impl FileTransfers {
             writer.insert(request_id, inflight_request);
         }
 
-        tracing::debug!(op = ?op, url = %client.origin().url());
-        //println!("{:#?}", op);
+        // tracing::debug!(op = ?op, url = %client.origin().url());
 
         let success = match &op {
             TransferOperation::Upload => {
