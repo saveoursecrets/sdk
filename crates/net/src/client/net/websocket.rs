@@ -21,6 +21,7 @@ use tokio_tungstenite::{
     },
     MaybeTlsStream, WebSocketStream,
 };
+use tracing::instrument;
 
 use async_recursion::async_recursion;
 use tokio::{
@@ -156,34 +157,6 @@ async fn request_bearer(
 /// Type of stream created for websocket connections.
 pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
-/*
-struct WebSocketRequest {
-    uri: String,
-    host: String,
-    bearer: String,
-    origin: url::Origin,
-}
-
-impl IntoClientRequest for WebSocketRequest {
-    fn into_client_request(
-        self,
-    ) -> std::result::Result<http::Request<()>, tungstenite::Error> {
-        let origin = self.origin.unicode_serialization();
-        let request = http::Request::builder()
-            .uri(self.uri)
-            .header("authorization", self.bearer)
-            .header("sec-websocket-key", generate_key())
-            .header("sec-websocket-version", "13")
-            .header("host", self.host)
-            .header("origin", origin)
-            .header("connection", "keep-alive, Upgrade")
-            .header("upgrade", "websocket")
-            .body(())?;
-        Ok(request)
-    }
-}
-*/
-
 /// Create the websocket connection and listen for events.
 pub async fn connect(
     origin: Origin,
@@ -191,12 +164,6 @@ pub async fn connect(
     device: BoxedEd25519Signer,
     connection_id: String,
 ) -> Result<WsStream> {
-    /*
-    let url_origin = origin.url().origin();
-    let endpoint = origin.url().clone();
-    let host = endpoint.host_str().unwrap().to_string();
-    */
-
     let mut request =
         WebSocketRequest::new(origin.url(), "api/v1/sync/changes")?;
 
@@ -205,16 +172,8 @@ pub async fn connect(
             .await?;
     request.set_bearer(bearer);
 
-    tracing::debug!(uri = %request.uri);
+    tracing::debug!(uri = %request.uri, "ws_client::connect");
 
-    /*
-    let request = WebSocketRequest {
-        host,
-        uri,
-        bearer,
-        origin: url_origin,
-    };
-    */
     let (ws_stream, _) = connect_async(request).await?;
     Ok(ws_stream)
 }
@@ -326,7 +285,7 @@ impl WebSocketChangeListener {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        tracing::debug!("connected");
+        tracing::debug!("ws_client::connected");
 
         let shutdown = Arc::clone(&self.notify);
         loop {
@@ -401,20 +360,21 @@ impl WebSocketChangeListener {
         if retries > self.options.maximum_retries {
             tracing::debug!(
                 maximum_retries = %self.options.maximum_retries,
-                "retry attempts exhausted");
+                "wsclient::retry_attempts_exhausted");
             return Ok(());
         }
 
-        tracing::debug!(attempt = %retries, "retry");
+        tracing::debug!(attempt = %retries, "ws_client::retry");
 
         if let Some(factor) = 2u64.checked_pow(retries as u32) {
             let delay = self.options.reconnect_interval * factor;
-            tracing::debug!(delay = %delay);
+            tracing::debug!(delay = %delay, "ws_client::retry");
             sleep(Duration::from_millis(delay)).await;
             self.connect(handler).await?;
             Ok(())
         } else {
-            panic!("websocket connect retry attempts overflowed");
+            tracing::error!("ws_client:retry_attempts_overflowed");
+            Ok(())
         }
     }
 }
