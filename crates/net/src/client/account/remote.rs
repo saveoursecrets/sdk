@@ -70,7 +70,7 @@ impl RemoteBridge {
     async fn sync_account(&self, remote_status: SyncStatus) -> Result<()> {
         let mut account = self.account.lock().await;
 
-        tracing::debug!(remote_status = ?remote_status, "merge_client");
+        tracing::debug!("merge_client");
 
         let (needs_sync, local_status, local_changes) =
             sync::diff(&*account, remote_status).await?;
