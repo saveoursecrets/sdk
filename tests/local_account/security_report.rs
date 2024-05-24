@@ -1,7 +1,7 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use secrecy::SecretString;
-use sos_net::sdk::prelude::*;
+use sos_net::sdk::{prelude::*, zxcvbn::Score};
 
 #[tokio::test]
 async fn local_security_report() -> Result<()> {
@@ -59,9 +59,9 @@ async fn local_security_report() -> Result<()> {
         })
         .unwrap();
 
-    assert!(weak_record.entropy.as_ref().unwrap().score() < 3);
-    assert!(strong_record.entropy.as_ref().unwrap().score() >= 3);
-    assert!(field_record.entropy.as_ref().unwrap().score() >= 3);
+    assert!(weak_record.entropy.as_ref().unwrap().score() < Score::Three);
+    assert!(strong_record.entropy.as_ref().unwrap().score() >= Score::Three);
+    assert!(field_record.entropy.as_ref().unwrap().score() >= Score::Three);
 
     // Delete the account
     account.delete_account().await?;

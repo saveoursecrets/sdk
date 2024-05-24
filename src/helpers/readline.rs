@@ -8,6 +8,7 @@ use rustyline_derive::{Completer, Helper, Hinter, Validator};
 use sos_net::sdk::{
     passwd::generator::measure_entropy,
     secrecy::{ExposeSecret, SecretString},
+    zxcvbn::Score,
 };
 
 use crate::{helpers::messages::fail, Error, Result};
@@ -213,8 +214,8 @@ pub fn choose_password() -> Result<SecretString> {
             continue;
         }
 
-        let entropy = measure_entropy(passwd1.expose_secret(), &[])?;
-        if entropy.score() < 4 {
+        let entropy = measure_entropy(passwd1.expose_secret(), &[]);
+        if entropy.score() < Score::Four {
             fail(format!("{}", Error::PasswordStrength));
             continue;
         }

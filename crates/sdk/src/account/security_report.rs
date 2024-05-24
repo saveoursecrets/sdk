@@ -4,7 +4,7 @@ use crate::{
         secret::{Secret, SecretId, SecretType},
         Gatekeeper, Summary, VaultId,
     },
-    zxcvbn::Entropy,
+    zxcvbn::{Entropy, Score},
     Result,
 };
 use serde::{Deserialize, Serialize};
@@ -57,7 +57,7 @@ pub struct SecurityReportRow<T> {
     /// Custom field identifier.
     pub field_id: Option<SecretId>,
     /// The entropy score.
-    pub score: u8,
+    pub score: Score,
     /// The estimated number of guesses needed to crack the password.
     pub guesses: u64,
     /// The order of magnitude of guesses.
@@ -75,7 +75,7 @@ impl SecurityReportRow<bool> {
     /// hash has not been detected as appearing in a database
     /// of breached passwords.
     pub fn is_secure(&self) -> bool {
-        self.score >= 3 && !self.database_check
+        self.score >= Score::Three && !self.database_check
     }
 
     /// Determine if this row is deemed to be insecure.
@@ -100,8 +100,11 @@ impl<T> From<SecurityReport<T>> for Vec<SecurityReportRow<T>> {
             .into_iter()
             .zip(value.database_checks.into_iter())
         {
-            let score =
-                record.entropy.as_ref().map(|e| e.score()).unwrap_or(0);
+            let score = record
+                .entropy
+                .as_ref()
+                .map(|e| e.score())
+                .unwrap_or(Score::Zero);
             let guesses =
                 record.entropy.as_ref().map(|e| e.guesses()).unwrap_or(0);
             let guesses_log10 = record

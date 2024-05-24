@@ -68,11 +68,8 @@ const DIGITS: &str = "0123456789";
 const PUNCTUATION: &str = "!\"#$%&'()*+,-./:;<=>?@`~\\]^_{}";
 
 /// Measure the entropy in a password.
-pub fn measure_entropy(
-    password: &str,
-    user_inputs: &[&str],
-) -> Result<Entropy> {
-    Ok(zxcvbn(password, user_inputs)?)
+pub fn measure_entropy(password: &str, user_inputs: &[&str]) -> Entropy {
+    zxcvbn(password, user_inputs)
 }
 
 /// Generated password result.
@@ -192,7 +189,7 @@ impl PasswordGen {
             }
             SecretString::new(password)
         };
-        let entropy = zxcvbn(password.expose_secret(), &[])?;
+        let entropy = zxcvbn(password.expose_secret(), &[]);
         let result = PasswordResult { password, entropy };
         Ok(result)
     }

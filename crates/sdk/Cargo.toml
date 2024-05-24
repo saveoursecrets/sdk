@@ -74,7 +74,7 @@ balloon-hash = { version = "0.4", features = ["std"]}
 app_dirs2 = "2"
 pem = { version = "3", features = ["serde"] }
 tempfile = "3.5"
-zxcvbn = "2"
+zxcvbn = { version = "3", git = "https://github.com/tmpfs/zxcvbn-rs", rev = "e90c1b7094e7e8848cd0a7f53154fb0812606d24", features = ["ser"]}
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
 vcard4 = { version = "0.5", features = ["serde"] }
 async-once-cell = "0.5"
