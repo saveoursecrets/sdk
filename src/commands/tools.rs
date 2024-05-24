@@ -11,7 +11,7 @@ use clap::Subcommand;
 use sos_net::sdk::{
     constants::EVENT_LOG_EXT,
     encode,
-    events::{EventLogExt, FolderEventLog, FolderReducer},
+    events::{FolderEventLog, FolderReducer},
     identity::AccountRef,
     vault::VaultId,
     vfs, Paths,

@@ -41,7 +41,6 @@ use tokio::{
         oneshot, Mutex, RwLock,
     },
 };
-use tracing::{span, Level};
 
 #[cfg(feature = "archive")]
 use crate::sdk::account::archive::{Inventory, RestoreOptions};
@@ -682,16 +681,13 @@ impl Account for NetworkAccount {
     }
 
     async fn sign_out(&mut self) -> Result<()> {
-        let span = span!(Level::DEBUG, "net_sign_out");
-        let _enter = span.enter();
-
         #[cfg(feature = "listen")]
         {
-            tracing::debug!("shutdown listeners");
+            tracing::debug!("net_sign_out::shutdown_listeners");
             self.shutdown_listeners().await;
         }
 
-        tracing::debug!("stop file transfers");
+        tracing::debug!("net_sign_out::stop_file_transfers");
         self.stop_file_transfers().await;
         {
             let transfers = self.transfers().await?;

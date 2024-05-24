@@ -377,7 +377,6 @@ mod handlers {
         sync::{ChangeSet, UpdateSet},
     };
     use std::sync::Arc;
-    use tracing::{span, Level};
 
     #[cfg(feature = "listen")]
     use crate::{server::handlers::send_notification, ChangeNotification};
@@ -503,8 +502,7 @@ mod handlers {
 
         // Apply the diff to the storage
         let (outcome, compare) = {
-            let span = span!(Level::DEBUG, "merge_server");
-            let _enter = span.enter();
+            tracing::debug!("merge_server");
             let mut writer = account.write().await;
             writer.storage.merge(&diff).await?
         };

@@ -619,7 +619,7 @@ impl SyncComparison {
 }
 
 /// Collection of patches for an account.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ChangeSet {
     /// Identity vault event logs.
     pub identity: FolderPatch,

@@ -13,7 +13,6 @@ use sos_sdk::{
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
-use tracing::{span, Level};
 
 /// Collection of remote targets for synchronization.
 pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
@@ -71,14 +70,14 @@ impl RemoteBridge {
     async fn sync_account(&self, remote_status: SyncStatus) -> Result<()> {
         let mut account = self.account.lock().await;
 
+        tracing::debug!(remote_status = ?remote_status, "merge_client");
+
         let (needs_sync, local_status, local_changes) =
             sync::diff(&*account, remote_status).await?;
 
-        tracing::debug!(needs_sync = %needs_sync);
+        tracing::debug!(needs_sync = %needs_sync, "merge_client");
 
         if needs_sync {
-            let span = span!(Level::DEBUG, "merge_client");
-            let _enter = span.enter();
             let packet = SyncPacket {
                 status: local_status,
                 diff: local_changes,

@@ -14,7 +14,6 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::RwLock;
-use tracing::{span, Level};
 
 #[cfg(feature = "device")]
 use crate::sdk::sync::DeviceDiff;
@@ -57,9 +56,8 @@ impl Backend {
             return Err(Error::NotDirectory(self.directory.clone()));
         }
 
-        let span = span!(Level::DEBUG, "server init");
-        let _enter = span.enter();
-        tracing::debug!(directory = %self.directory.display());
+        tracing::debug!(
+            directory = %self.directory.display(), "backend::read_dir");
 
         Paths::scaffold(Some(self.directory.clone())).await?;
         let paths = Paths::new_global_server(self.directory.clone());
@@ -76,7 +74,10 @@ impl Backend {
                     if let Ok(owner) =
                         name.to_string_lossy().parse::<Address>()
                     {
-                        tracing::debug!(account = %owner);
+                        tracing::debug!(
+                            account = %owner,
+                            "backend::read_dir",
+                        );
 
                         let user_paths = Paths::new_server(
                             self.directory.clone(),
@@ -122,9 +123,7 @@ impl Backend {
             }
         }
 
-        let span = span!(Level::DEBUG, "create_account");
-        let _enter = span.enter();
-        tracing::debug!(address = %owner);
+        tracing::debug!(address = %owner, "backend::create_account");
 
         let paths =
             Paths::new_server(self.directory.clone(), owner.to_string());
@@ -157,9 +156,7 @@ impl Backend {
         owner: &Address,
         account_data: UpdateSet,
     ) -> Result<()> {
-        let span = span!(Level::DEBUG, "update_account");
-        let _enter = span.enter();
-        tracing::debug!(address = %owner);
+        tracing::debug!(address = %owner, "backend::update_account");
 
         let mut accounts = self.accounts.write().await;
         let account =
@@ -172,9 +169,7 @@ impl Backend {
 
     /// Fetch an existing account.
     pub async fn fetch_account(&self, owner: &Address) -> Result<ChangeSet> {
-        let span = span!(Level::DEBUG, "fetch_account");
-        let _enter = span.enter();
-        tracing::debug!(address = %owner);
+        tracing::debug!(address = %owner, "backend::fetch_account");
 
         let accounts = self.accounts.read().await;
         let account = accounts.get(owner).ok_or(Error::NoAccount(*owner))?;
@@ -192,9 +187,7 @@ impl Backend {
         owner: &Address,
         diff: &DeviceDiff,
     ) -> Result<()> {
-        let span = span!(Level::DEBUG, "patch_devices");
-        let _enter = span.enter();
-        tracing::debug!(address = %owner);
+        tracing::debug!(address = %owner, "backend::patch_devices");
 
         let accounts = self.accounts.read().await;
         let account = accounts.get(owner).ok_or(Error::NoAccount(*owner))?;
