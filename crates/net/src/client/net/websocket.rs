@@ -21,7 +21,6 @@ use tokio_tungstenite::{
     },
     MaybeTlsStream, WebSocketStream,
 };
-use tracing::instrument;
 
 use async_recursion::async_recursion;
 use tokio::{
