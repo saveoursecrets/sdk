@@ -638,12 +638,11 @@ pub struct ChangeSet {
 /// Set of updates to the folders in an account.
 ///
 /// Used to destructively update folders in an account;
-/// the account, device and file event logs are applied
-/// as diffs but the identity and folders are entire event
+/// the account, the identity and folders are entire event
 /// logs so that the account state can be overwritten in the
 /// case of events such as changing encryption cipher, changing
 /// folder password or compacing the events in a folder.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct UpdateSet {
     /// Identity vault event logs.
     pub identity: Option<FolderPatch>,

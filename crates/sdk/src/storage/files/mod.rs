@@ -37,9 +37,17 @@ pub struct EncryptedFile {
 /// External file name is an SHA2-256 checksum of
 /// the encrypted file contents.
 #[derive(
-    Default, Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize,
+    Default, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct ExternalFileName(#[serde(with = "hex::serde")] [u8; 32]);
+
+impl fmt::Debug for ExternalFileName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ExternalFileName")
+            .field(&hex::encode(self.0))
+            .finish()
+    }
+}
 
 impl From<ExternalFileName> for [u8; 32] {
     fn from(value: ExternalFileName) -> Self {

@@ -11,6 +11,7 @@ use sos_sdk::{
         ChangeSet, Origin, SyncClient, SyncPacket, SyncStatus, UpdateSet,
     },
 };
+use tracing::instrument;
 
 use serde_json::Value;
 
@@ -28,7 +29,7 @@ use crate::sdk::storage::files::{
     ExternalFile, FileSet, FileTransfersSet, ProgressChannel,
 };
 
-use std::{path::Path, sync::Arc, time::Duration};
+use std::{fmt, path::Path, sync::Arc, time::Duration};
 use url::Url;
 
 use crate::client::{Error, Result};
@@ -48,6 +49,15 @@ pub struct HttpClient {
     device_signer: BoxedEd25519Signer,
     client: reqwest::Client,
     connection_id: String,
+}
+
+impl fmt::Debug for HttpClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HttpClient")
+            .field("url", self.origin.url())
+            .field("connection_id", &self.connection_id)
+            .finish()
+    }
 }
 
 impl HttpClient {
@@ -183,6 +193,7 @@ impl SyncClient for HttpClient {
         &self.origin
     }
 
+    #[instrument(skip(self, account))]
     async fn create_account(&self, account: &ChangeSet) -> Result<()> {
         let body = encode(account).await?;
         let url = self.build_url("api/v1/sync/account")?;
@@ -206,6 +217,7 @@ impl SyncClient for HttpClient {
         Ok(())
     }
 
+    #[instrument(skip(self, account))]
     async fn update_account(&self, account: &UpdateSet) -> Result<()> {
         let body = encode(account).await?;
         let url = self.build_url("api/v1/sync/account")?;
@@ -232,6 +244,7 @@ impl SyncClient for HttpClient {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     async fn fetch_account(
         &self,
     ) -> std::result::Result<ChangeSet, Self::Error> {
@@ -262,6 +275,7 @@ impl SyncClient for HttpClient {
         Ok(decode(&buffer).await?)
     }
 
+    #[instrument(skip(self))]
     async fn sync_status(&self) -> Result<Option<SyncStatus>> {
         let url = self.build_url("api/v1/sync/account/status")?;
 
@@ -291,6 +305,7 @@ impl SyncClient for HttpClient {
         Ok(sync_status)
     }
 
+    #[instrument(skip(self, packet))]
     async fn sync(
         &self,
         packet: &SyncPacket,
@@ -322,6 +337,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg(feature = "device")]
+    #[instrument(skip(self, diff))]
     async fn patch_devices(
         &self,
         diff: &DeviceDiff,
@@ -353,6 +369,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg(feature = "files")]
+    #[instrument(skip(self, path, progress))]
     async fn upload_file(
         &self,
         file_info: &ExternalFile,
@@ -418,6 +435,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg(feature = "files")]
+    #[instrument(skip(self, path, progress))]
     async fn download_file(
         &self,
         file_info: &ExternalFile,
@@ -480,6 +498,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg(feature = "files")]
+    #[instrument(skip(self))]
     async fn delete_file(
         &self,
         file_info: &ExternalFile,
@@ -515,6 +534,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg(feature = "files")]
+    #[instrument(skip(self))]
     async fn move_file(
         &self,
         from: &ExternalFile,
@@ -554,6 +574,7 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
+    #[instrument(skip(self, local_files))]
     async fn compare_files(
         &self,
         local_files: &FileSet,
