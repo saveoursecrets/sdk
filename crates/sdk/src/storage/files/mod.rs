@@ -201,7 +201,7 @@ pub(crate) async fn list_folder_files(
                         .parse::<SecretId>()
                     {
                         let external_files = list_secret_files(path).await?;
-                        tracing::debug!(files_len = external_files.len());
+                        // tracing::debug!(files_len = external_files.len());
                         files.push((secret_id, external_files));
                     }
                 }

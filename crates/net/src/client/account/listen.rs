@@ -23,8 +23,13 @@ impl NetworkAccount {
     ) -> Result<WebSocketHandle> {
         let remotes = self.remotes.read().await;
         if let Some(remote) = remotes.get(origin) {
-            let remote = Arc::new(remote.clone());
+            let mut listeners = self.listeners.lock().await;
+            if let Some(handle) = listeners.get(origin) {
+                handle.close();
+                listeners.remove(origin);
+            }
 
+            let remote = Arc::new(remote.clone());
             let (tx, mut rx) = mpsc::channel::<ChangeNotification>(32);
 
             let sync_lock = Arc::clone(&self.sync_lock);
@@ -62,8 +67,7 @@ impl NetworkAccount {
 
             // Store the listeners so we can
             // close the connections on sign out
-            let mut listeners = self.listeners.lock().await;
-            listeners.push(handle.clone());
+            listeners.insert(origin.clone(), handle.clone());
 
             Ok(handle)
         } else {

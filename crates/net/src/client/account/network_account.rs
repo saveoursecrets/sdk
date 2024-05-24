@@ -90,7 +90,7 @@ pub struct NetworkAccount {
 
     /// Websocket change listeners.
     #[cfg(feature = "listen")]
-    pub(super) listeners: Mutex<Vec<WebSocketHandle>>,
+    pub(super) listeners: Mutex<HashMap<Origin, WebSocketHandle>>,
 
     /// Identifier for this client connection.
     ///
@@ -326,7 +326,7 @@ impl NetworkAccount {
     #[cfg(feature = "listen")]
     async fn shutdown_listeners(&self) {
         let mut listeners = self.listeners.lock().await;
-        for handle in listeners.drain(..) {
+        for (_, handle) in listeners.drain() {
             tracing::debug!("close websocket");
             handle.close();
         }
