@@ -1,6 +1,6 @@
 //! Storage backed by the filesystem.
 use crate::{
-    commit::CommitState,
+    commit::{CommitHash, CommitState},
     constants::EVENT_LOG_EXT,
     crypto::AccessKey,
     decode,
@@ -13,7 +13,7 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Vault, VaultId, VaultMeta, VaultWriter,
     },
-    vfs, Paths, Result,
+    vfs, Error, Paths, Result,
 };
 
 use std::{path::Path, sync::Arc};
@@ -181,6 +181,12 @@ where
     pub async fn commit_state(&self) -> Result<CommitState> {
         let event_log = self.events.read().await;
         event_log.tree().commit_state()
+    }
+
+    /// Folder root commit hash.
+    pub async fn root_hash(&self) -> Result<CommitHash> {
+        let event_log = self.events.read().await;
+        event_log.tree().root().ok_or(Error::NoRootCommit)
     }
 
     /// Apply events to the event log.

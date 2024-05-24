@@ -27,7 +27,9 @@ pub use reqwest;
 pub use sos_sdk as sdk;
 
 #[cfg(feature = "listen")]
-use sos_sdk::{signer::ecdsa::Address, sync::MergeOutcome};
+use sos_sdk::{
+    commit::CommitHash, signer::ecdsa::Address, sync::MergeOutcome,
+};
 
 /// Notification sent by the server when changes were made.
 #[cfg(feature = "listen")]
@@ -37,6 +39,8 @@ pub struct ChangeNotification {
     address: Address,
     /// Connection identifier that made the change.
     connection_id: String,
+    /// Root commit for the entire account.
+    root: CommitHash,
     /// Merge outcome.
     outcome: MergeOutcome,
 }
@@ -47,11 +51,13 @@ impl ChangeNotification {
     pub fn new(
         address: &Address,
         connection_id: String,
+        root: CommitHash,
         outcome: MergeOutcome,
     ) -> Self {
         Self {
             address: *address,
             connection_id,
+            root,
             outcome,
         }
     }

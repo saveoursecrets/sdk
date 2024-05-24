@@ -198,6 +198,8 @@ pub struct SyncPacket {
 /// Intended to be used during a synchronization protocol.
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct SyncStatus {
+    /// Computed root of all event log roots.
+    pub root: CommitHash,
     /// Identity vault commit state.
     pub identity: CommitState,
     /// Account log commit state.
@@ -638,7 +640,7 @@ pub struct ChangeSet {
 /// Set of updates to the folders in an account.
 ///
 /// Used to destructively update folders in an account;
-/// the account, the identity and folders are entire event
+/// the identity and folders are entire event
 /// logs so that the account state can be overwritten in the
 /// case of events such as changing encryption cipher, changing
 /// folder password or compacing the events in a folder.

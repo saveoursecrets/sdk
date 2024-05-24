@@ -251,6 +251,7 @@ impl Encodable for SyncStatus {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
+        self.root.encode(&mut *writer).await?;
         self.identity.encode(&mut *writer).await?;
         self.account.encode(&mut *writer).await?;
         #[cfg(feature = "device")]
@@ -273,6 +274,7 @@ impl Decodable for SyncStatus {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
+        self.root.decode(&mut *reader).await?;
         self.identity.decode(&mut *reader).await?;
         self.account.decode(&mut *reader).await?;
         #[cfg(feature = "device")]

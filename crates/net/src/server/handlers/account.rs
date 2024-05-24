@@ -521,6 +521,7 @@ mod handlers {
             let notification = ChangeNotification::new(
                 caller.address(),
                 caller.connection_id().to_string(),
+                local_status.root,
                 outcome,
             );
             let mut writer = state.write().await;
