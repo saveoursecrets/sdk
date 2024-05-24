@@ -1,7 +1,7 @@
 use crate::{
     commit::CommitHash,
     crypto::AeadPack,
-    decode, encode,
+    decode,
     events::{EventLogExt, FolderEventLog, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
     Error, Result,
@@ -392,7 +392,7 @@ mod test {
         commit::CommitHash,
         crypto::PrivateKey,
         decode,
-        events::{FolderEventLog, WriteEvent},
+        events::FolderEventLog,
         test_utils::*,
         vault::{
             secret::{Secret, SecretId, SecretMeta},

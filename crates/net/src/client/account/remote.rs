@@ -282,33 +282,14 @@ impl RemoteSync for RemoteBridge {
 #[cfg(feature = "listen")]
 mod listen {
     use crate::{
-        client::{
-            sync::RemoteSync, Error, ListenOptions, RemoteBridge, Result,
-            WebSocketHandle,
-        },
-        sdk::sync::SyncError,
+        client::{ListenOptions, RemoteBridge, WebSocketHandle},
         ChangeNotification,
     };
-
-    use std::sync::Arc;
     use tokio::sync::mpsc;
 
     // Listen to change notifications and attempt to sync.
     #[cfg(not(target_arch = "wasm32"))]
     impl RemoteBridge {
-        async fn on_change_notification(
-            bridge: Arc<RemoteBridge>,
-        ) -> Result<Option<SyncError<Error>>> {
-            let result = bridge.sync().await;
-            if let Some(e) = &result {
-                tracing::error!(
-                    error = ?e,
-                    "listen change sync failed",
-                );
-            }
-            Ok(result)
-        }
-
         /// Spawn a task that listens for changes
         /// from the remote server and applies any changes
         /// from the remote to the local account.
@@ -319,28 +300,15 @@ mod listen {
         /// will collide on the server as they are identified by
         /// public key.
         pub(crate) fn listen(
-            bridge: Arc<RemoteBridge>,
+            &self,
             options: ListenOptions,
-            listener: Option<
-                mpsc::Sender<(ChangeNotification, Option<SyncError<Error>>)>,
-            >,
+            channel: mpsc::Sender<ChangeNotification>,
         ) -> WebSocketHandle {
-            let remote_bridge = Arc::clone(&bridge);
-            let handle = bridge.client.listen(options, move |notification| {
-                let bridge = Arc::clone(&remote_bridge);
-                let handler = listener.clone();
+            let handle = self.client.listen(options, move |notification| {
+                let tx = channel.clone();
                 async move {
                     tracing::debug!(notification = ?notification);
-                    match Self::on_change_notification(bridge).await {
-                        Ok(sync_error) => {
-                            if let Some(handler) = handler {
-                                let _ = handler
-                                    .send((notification, sync_error))
-                                    .await;
-                            }
-                        }
-                        Err(e) => tracing::error!(error = ?e),
-                    }
+                    let _ = tx.send(notification).await;
                 }
             });
 

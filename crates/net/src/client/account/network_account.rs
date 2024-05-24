@@ -87,7 +87,7 @@ pub struct NetworkAccount {
 
     /// Lock to prevent write to local storage
     /// whilst a sync operation is in progress.
-    pub(super) sync_lock: Mutex<()>,
+    pub(super) sync_lock: Arc<Mutex<()>>,
 
     /// Websocket change listeners.
     #[cfg(feature = "listen")]
@@ -357,7 +357,7 @@ impl NetworkAccount {
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
-            sync_lock: Mutex::new(()),
+            sync_lock: Arc::new(Mutex::new(())),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
             connection_id: None,
@@ -418,7 +418,7 @@ impl NetworkAccount {
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
-            sync_lock: Mutex::new(()),
+            sync_lock: Arc::new(Mutex::new(())),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
             connection_id: None,
