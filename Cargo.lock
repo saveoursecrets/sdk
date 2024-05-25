@@ -5835,8 +5835,9 @@ dependencies = [
 
 [[package]]
 name = "zxcvbn"
-version = "3.0.0"
-source = "git+https://github.com/tmpfs/zxcvbn-rs?rev=71d46b4d7ec05f97207c2e976efe19c9f9b1e62b#71d46b4d7ec05f97207c2e976efe19c9f9b1e62b"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "579b1d84df61d9d04cd250035843fee2f86a4b4bb176f102fec20779fd0bd38b"
 dependencies = [
  "derive_builder 0.20.0",
  "fancy-regex",
