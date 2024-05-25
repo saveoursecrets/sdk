@@ -360,11 +360,7 @@ impl<'a> OfferPairing<'a> {
                         self.account.new_device_vault().await?;
                     let device_key_buffer =
                         manager.into_vault_buffer().await?;
-                    let servers = self
-                        .account
-                        .load_servers()
-                        .await?
-                        .unwrap_or_default();
+                    let servers = self.account.servers().await;
 
                     self.register_device(device_signer.public_key(), device)
                         .await?;

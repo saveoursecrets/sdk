@@ -239,7 +239,7 @@ impl NetworkAccount {
     }
 
     /// Load origin servers from disc.
-    pub async fn load_servers(&self) -> Result<Option<HashSet<Origin>>> {
+    async fn load_servers(&self) -> Result<Option<HashSet<Origin>>> {
         let remotes_file = self.paths().remote_origins();
         if vfs::try_exists(&remotes_file).await? {
             let contents = vfs::read(&remotes_file).await?;
