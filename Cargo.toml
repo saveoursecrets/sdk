@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.11.6"
+version = "0.11.7"
 edition = "2021"
 rust-version = "1.75.0"
 description = "Distributed, encrypted database for private secrets."
@@ -63,6 +63,7 @@ indexmap = { version = "2.2", features = ["serde"] }
 toml = "0.8"
 bitflags = { version = "2", features = ["serde"] }
 enum-iterator = "2"
+file-guard = "0.2"
 
 [workspace.dependencies.binary-stream]
 version = "8.3.0"
@@ -94,7 +95,7 @@ crossterm = "0.27"
 ctrlc = "3"
 
 [dependencies.sos-net]
-version = "0.11.6" 
+version = "0.11.7" 
 features = ["full"]
 path = "crates/net"
 

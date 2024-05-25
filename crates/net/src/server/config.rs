@@ -161,6 +161,7 @@ impl ServerConfig {
         } else {
             path.to_owned()
         };
+        let path = path.canonicalize()?;
 
         let mut backend = Backend::new(path);
         backend.read_dir().await?;

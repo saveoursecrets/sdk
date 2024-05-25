@@ -45,6 +45,11 @@ impl Backend {
         }
     }
 
+    /// Directory where accounts are stored.
+    pub fn directory(&self) -> &PathBuf {
+        &self.directory
+    }
+
     /// Get the accounts.
     pub fn accounts(&self) -> Accounts {
         Arc::clone(&self.accounts)

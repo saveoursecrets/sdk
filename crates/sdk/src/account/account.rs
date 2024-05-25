@@ -18,6 +18,7 @@ use crate::{
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
+        paths::FileLock,
         search::{DocumentCount, SearchIndex},
         AccessOptions, AccountPack, ClientStorage, StorageEventLogs,
     },
@@ -78,8 +79,26 @@ use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use tokio::{
     io::{AsyncRead, AsyncSeek, BufReader},
-    sync::RwLock,
+    sync::{mpsc, RwLock},
 };
+
+/// Determine how to handle a locked account.
+#[derive(Default, Clone)]
+pub enum AccountLocked {
+    /// Error on sign in when the account
+    /// is already locked.
+    #[default]
+    Error,
+    /// Send a notification over a channel.
+    Notify(mpsc::Sender<()>),
+}
+
+/// Options for sign in.
+#[derive(Default, Clone)]
+pub struct SigninOptions {
+    /// How to handle a locked account.
+    pub locked: AccountLocked,
+}
 
 /// Result information for a change to an account.
 pub struct AccountChange<T: std::error::Error> {
@@ -331,11 +350,19 @@ pub trait Account {
 
     /// Access an account by signing in.
     ///
-    /// If a default folder exists for the account it
-    /// is opened.
+    /// If a default folder exists for the account it is opened.
     async fn sign_in(
         &mut self,
         key: &AccessKey,
+    ) -> std::result::Result<Vec<Summary>, Self::Error>;
+
+    /// Access an account by signing in with the given options.
+    ///
+    /// If a default folder exists for the account it is opened.
+    async fn sign_in_with_options(
+        &mut self,
+        key: &AccessKey,
+        options: SigninOptions,
     ) -> std::result::Result<Vec<Summary>, Self::Error>;
 
     /// Verify an access key for this account.
@@ -854,9 +881,103 @@ pub struct LocalAccount {
 
     /// Storage paths.
     paths: Arc<Paths>,
+
+    /// Lock for the account.
+    ///
+    /// Prevents multiple client implementations trying to
+    /// access the same account simultaneously which could
+    /// lead to data corruption.
+    account_lock: Option<FileLock>,
 }
 
 impl LocalAccount {
+    /// Private login implementation so we can support the backwards
+    /// compatible sign_in() and also the newer sign_in_with_options().
+    async fn login(
+        &mut self,
+        key: &AccessKey,
+        options: SigninOptions,
+    ) -> Result<Vec<Summary>> {
+        let address = &self.address;
+        let data_dir = self.paths().documents_dir().clone();
+
+        tracing::debug!(address = %address, "sign_in");
+
+        // Ensure all paths before sign_in
+        let paths = Paths::new(&data_dir, address.to_string());
+        paths.ensure().await?;
+
+        tracing::debug!(data_dir = ?paths.documents_dir(), "sign_in");
+
+        let mut user = Identity::new(paths.clone());
+        user.sign_in(self.address(), key).await?;
+        tracing::debug!("sign_in success");
+
+        // Signing key for the storage provider
+        let signer = user.identity()?.signer().clone();
+
+        let identity_log = user.identity().as_ref().unwrap().event_log();
+
+        let mut storage = ClientStorage::new(
+            signer.address()?,
+            Some(data_dir),
+            identity_log,
+            #[cfg(feature = "device")]
+            user.identity()?.devices()?.current_device(None),
+        )
+        .await?;
+        self.paths = storage.paths();
+
+        self.account_lock = Some(
+            self.paths
+                .acquire_account_lock(|| async {
+                    let locked = options.locked.clone();
+                    match locked {
+                        AccountLocked::Error => {
+                            return Err(Error::AccountLocked);
+                        }
+                        AccountLocked::Notify(tx) => {
+                            tx.send(()).await?;
+                            Ok(())
+                        }
+                    }
+                })
+                .await?,
+        );
+
+        let file_password = user.find_file_encryption_password().await?;
+        storage.set_file_password(Some(file_password));
+
+        Self::initialize_account_log(
+            &self.paths,
+            Arc::clone(&storage.account_log),
+        )
+        .await?;
+
+        self.authenticated = Some(Authenticated {
+            user,
+            storage: Arc::new(RwLock::new(storage)),
+        });
+
+        // Load vaults into memory and initialize folder
+        // event log commit trees
+        let folders = self.load_folders().await?;
+
+        // Unlock all the storage vaults
+        {
+            let folder_keys = self.folder_keys().await?;
+            let storage = self.storage().await?;
+            let mut storage = storage.write().await;
+            storage.unlock(&folder_keys).await?;
+        }
+
+        if let Some(default_folder) = self.default_folder().await {
+            self.open_folder(&default_folder).await?;
+        }
+
+        Ok(folders)
+    }
+
     /// Authenticated user information.
     pub(super) fn user(&self) -> Result<&Identity> {
         self.authenticated
@@ -1328,6 +1449,7 @@ impl LocalAccount {
             address,
             paths: Arc::new(paths),
             authenticated: None,
+            account_lock: None,
         })
     }
 
@@ -1396,6 +1518,7 @@ impl LocalAccount {
             address,
             paths: storage.paths(),
             authenticated: None,
+            account_lock: None,
         };
 
         Ok(account)
@@ -1611,67 +1734,15 @@ impl Account for LocalAccount {
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        let address = &self.address;
-        let data_dir = self.paths().documents_dir().clone();
+        self.login(key, Default::default()).await
+    }
 
-        tracing::debug!(address = %address, "sign_in");
-
-        // Ensure all paths before sign_in
-        let paths = Paths::new(&data_dir, address.to_string());
-        paths.ensure().await?;
-
-        tracing::debug!(data_dir = ?paths.documents_dir(), "sign_in");
-
-        let mut user = Identity::new(paths.clone());
-        user.sign_in(self.address(), key).await?;
-        tracing::debug!("sign_in success");
-
-        // Signing key for the storage provider
-        let signer = user.identity()?.signer().clone();
-
-        let identity_log = user.identity().as_ref().unwrap().event_log();
-
-        let mut storage = ClientStorage::new(
-            signer.address()?,
-            Some(data_dir),
-            identity_log,
-            #[cfg(feature = "device")]
-            user.identity()?.devices()?.current_device(None),
-        )
-        .await?;
-        self.paths = storage.paths();
-
-        let file_password = user.find_file_encryption_password().await?;
-        storage.set_file_password(Some(file_password));
-
-        Self::initialize_account_log(
-            &self.paths,
-            Arc::clone(&storage.account_log),
-        )
-        .await?;
-
-        self.authenticated = Some(Authenticated {
-            user,
-            storage: Arc::new(RwLock::new(storage)),
-        });
-
-        // Load vaults into memory and initialize folder
-        // event log commit trees
-        let folders = self.load_folders().await?;
-
-        // Unlock all the storage vaults
-        {
-            let folder_keys = self.folder_keys().await?;
-            let storage = self.storage().await?;
-            let mut storage = storage.write().await;
-            storage.unlock(&folder_keys).await?;
-        }
-
-        if let Some(default_folder) = self.default_folder().await {
-            self.open_folder(&default_folder).await?;
-        }
-
-        Ok(folders)
+    async fn sign_in_with_options(
+        &mut self,
+        key: &AccessKey,
+        options: SigninOptions,
+    ) -> Result<Vec<Summary>> {
+        self.login(key, options).await
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {
@@ -1688,6 +1759,8 @@ impl Account for LocalAccount {
 
     async fn sign_out(&mut self) -> Result<()> {
         tracing::debug!(address = %self.address(), "sign_out");
+
+        self.account_lock.take();
 
         tracing::debug!("lock storage vaults");
         // Lock all the storage vaults

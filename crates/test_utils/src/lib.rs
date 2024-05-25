@@ -96,7 +96,7 @@ impl MockServer {
             sockets: Default::default(),
         }));
 
-        let server = Server::new();
+        let server = Server::new(backend.directory()).await?;
         server
             .start(
                 self.addr.clone(),

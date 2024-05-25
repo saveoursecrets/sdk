@@ -145,6 +145,9 @@ mod folders {
     /// File thats stores account-level system messages.
     #[cfg(feature = "system-messages")]
     pub const SYSTEM_MESSAGES_FILE: &str = "system-messages";
+
+    /// Lock file for an account.
+    pub const LOCK_FILE: &str = "account.lock";
 }
 
 /// File names.

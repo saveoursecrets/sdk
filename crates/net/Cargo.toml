@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.11.6"
+version = "0.11.7"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -102,7 +102,7 @@ utoipa-rapidoc = { version = "3", features = ["axum"], optional = true }
 snow = { version = "0.9", optional = true }
 
 [dependencies.sos-sdk]
-version = "0.11.6"
+version = "0.11.7"
 features = ["sync"]
 path = "../sdk"
 
@@ -112,7 +112,6 @@ features = ["async"]
 #path = "../../../../binary-stream"
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
-file-guard = "0.2"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
 
 [target.'cfg(target_arch="wasm32")'.dependencies]

@@ -4130,7 +4130,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.11.6"
+version = "0.11.7"
 dependencies = [
  "anticipate-runner",
  "anyhow",
@@ -4191,7 +4191,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.11.6"
+version = "0.11.7"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -4204,7 +4204,6 @@ dependencies = [
  "binary-stream",
  "bs58",
  "colored",
- "file-guard",
  "futures",
  "hex",
  "http",
@@ -4240,7 +4239,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.11.6"
+version = "0.11.7"
 dependencies = [
  "aes-gcm",
  "age",
@@ -4262,6 +4261,7 @@ dependencies = [
  "ed25519-dalek",
  "enum-iterator",
  "ethereum-types",
+ "file-guard",
  "filetime",
  "futures",
  "futures-util",

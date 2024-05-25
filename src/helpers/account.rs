@@ -4,7 +4,7 @@ use std::{borrow::Cow, sync::Arc};
 use sos_net::{
     client::{is_offline, NetworkAccount},
     sdk::{
-        account::Account,
+        account::{Account, AccountLocked, SigninOptions},
         constants::DEFAULT_VAULT_NAME,
         crypto::AccessKey,
         identity::{AccountRef, Identity, PublicIdentity},
@@ -16,7 +16,7 @@ use sos_net::{
     },
 };
 use terminal_banner::{Banner, Padding};
-use tokio::sync::RwLock;
+use tokio::sync::{mpsc, RwLock};
 
 use crate::helpers::{
     display_passphrase,
@@ -276,8 +276,29 @@ pub async fn sign_in(
     )
     .await?;
 
+    let (tx, mut rx) = mpsc::channel::<()>(8);
+    tokio::task::spawn(async move {
+        while let Some(_) = rx.recv().await {
+            let banner = Banner::new()
+                .padding(Padding::one())
+                .text("Account locked".into())
+                .newline()
+                .text(
+                    "This account is locked because another program is already signed in; this may be another terminal or application window.".into())
+                .newline()
+                .text(
+                    "To continue sign out of the account in the other window.".into())
+                .render();
+            println!("{}", banner);
+        }
+    });
+
+    let options = SigninOptions {
+        locked: AccountLocked::Notify(tx),
+    };
+
     let key: AccessKey = passphrase.clone().into();
-    owner.sign_in(&key).await?;
+    owner.sign_in_with_options(&key, options).await?;
 
     Ok((owner, passphrase))
 }
@@ -391,7 +412,10 @@ pub async fn new_account(
     ))?;
     if confirmed {
         if is_generated {
-            display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
+            display_passphrase(
+                "PRIMARY PASSWORD",
+                passphrase.expose_secret(),
+            );
         }
 
         let mut owner = NetworkAccount::new_account_with_builder(

@@ -48,8 +48,6 @@ pub struct DeviceEnrollment {
     paths: Paths,
     /// Data directory.
     data_dir: Option<PathBuf>,
-    /// Remote server origin.
-    origin: Origin,
     /// Client used to fetch the account data.
     client: HttpClient,
     /// Public identity.
@@ -86,7 +84,7 @@ impl DeviceEnrollment {
         let device: BoxedEd25519Signer = device_signing_key.into();
 
         let client = HttpClient::new(
-            origin.clone(),
+            origin,
             account_signing_key,
             device,
             String::new(),
@@ -96,7 +94,6 @@ impl DeviceEnrollment {
             address: address.to_owned(),
             paths,
             data_dir,
-            origin,
             client,
             public_identity: None,
             device_vault,
