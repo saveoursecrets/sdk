@@ -550,6 +550,7 @@ fn default_storage_dir() -> Result<PathBuf> {
 /// Used to prevent multiple applications from accessing
 /// the same account simultaneously which could lead to
 /// data corruption.
+#[doc(hidden)]
 pub struct FileLock {
     #[allow(dead_code)]
     guard: FileGuard<Arc<File>>,
