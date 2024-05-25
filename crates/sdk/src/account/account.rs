@@ -73,8 +73,6 @@ use crate::migrate::{
     Convert,
 };
 
-use tracing::{span, Level};
-
 use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
@@ -879,13 +877,10 @@ impl LocalAccount {
         paths: &Paths,
         account_log: Arc<RwLock<AccountEventLog>>,
     ) -> Result<()> {
-        let span = span!(Level::DEBUG, "init_account_log");
-        let _enter = span.enter();
-
         let mut event_log = account_log.write().await;
         let needs_init = event_log.tree().root().is_none();
 
-        tracing::debug!(needs_init = %needs_init);
+        tracing::debug!(needs_init = %needs_init, "account_log");
 
         // If the account event log does not already exist
         // we initialize it from the current state on disc
@@ -1019,9 +1014,6 @@ impl LocalAccount {
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
-        let span = span!(Level::DEBUG, "import_identity_vault");
-        let _enter = span.enter();
-
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
         // Update the identity vault
@@ -1368,8 +1360,7 @@ impl LocalAccount {
         data_dir: Option<PathBuf>,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
-        let span = span!(Level::DEBUG, "new_account");
-        let _enter = span.enter();
+        tracing::debug!(account_name = %account_name, "new_account");
 
         let account_builder = builder(AccountBuilder::new(
             account_name,
@@ -1378,7 +1369,8 @@ impl LocalAccount {
         ));
         let new_account = account_builder.finish().await?;
 
-        tracing::debug!(address = %new_account.address, "created account");
+        tracing::debug!(
+          address = %new_account.address, "created_account");
 
         let address = new_account.address;
         let identity_log = new_account.user.identity()?.event_log();
@@ -1619,23 +1611,20 @@ impl Account for LocalAccount {
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        let span = span!(Level::DEBUG, "sign_in");
-        let _enter = span.enter();
-
         let address = &self.address;
         let data_dir = self.paths().documents_dir().clone();
 
-        tracing::debug!(address = %address);
+        tracing::debug!(address = %address, "sign_in");
 
         // Ensure all paths before sign_in
         let paths = Paths::new(&data_dir, address.to_string());
         paths.ensure().await?;
 
-        tracing::debug!(data_dir = ?paths.documents_dir());
+        tracing::debug!(data_dir = ?paths.documents_dir(), "sign_in");
 
         let mut user = Identity::new(paths.clone());
         user.sign_in(self.address(), key).await?;
-        tracing::debug!("sign in success");
+        tracing::debug!("sign_in success");
 
         // Signing key for the storage provider
         let signer = user.identity()?.signer().clone();
@@ -1698,10 +1687,7 @@ impl Account for LocalAccount {
     }
 
     async fn sign_out(&mut self) -> Result<()> {
-        let span = span!(Level::DEBUG, "sign_out");
-        let _enter = span.enter();
-
-        tracing::debug!(address = %self.address());
+        tracing::debug!(address = %self.address(), "sign_out");
 
         tracing::debug!("lock storage vaults");
         // Lock all the storage vaults
@@ -1750,10 +1736,11 @@ impl Account for LocalAccount {
     }
 
     async fn delete_account(&mut self) -> Result<()> {
-        let span = span!(Level::DEBUG, "delete_account");
-        let _enter = span.enter();
-
         let paths = self.paths().clone();
+        tracing::info!(
+          address = %self.address,
+          directory = %paths.documents_dir().display(),
+          "delete_account");
         let event = self.user_mut()?.delete_account(&paths).await?;
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
@@ -2397,9 +2384,6 @@ impl Account for LocalAccount {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<FolderCreate<Self::Error>> {
-        let span = span!(Level::DEBUG, "import_folder");
-        let _enter = span.enter();
-
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
         let mut vault: Vault = decode(buffer.as_ref()).await?;
@@ -2407,7 +2391,10 @@ impl Account for LocalAccount {
         // Need to verify permission to access the data
         vault.verify(&key).await?;
 
-        tracing::debug!(id = %vault.id(), name = %vault.name());
+        tracing::debug!(
+          id = %vault.id(),
+          name = %vault.name(),
+          "import_folder");
 
         // Check for existing identifier
         //let vaults = Self::list_local_folders(&self.paths, false).await?;

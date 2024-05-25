@@ -35,6 +35,7 @@ async fn network_websocket_reconnect() -> Result<()> {
                 &origin,
                 ListenOptions::new_config("device_1".to_string(), 500, 4)
                     .unwrap(),
+                None,
             )
             .await
             .unwrap();

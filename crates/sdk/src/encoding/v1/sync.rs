@@ -251,6 +251,7 @@ impl Encodable for SyncStatus {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
+        self.root.encode(&mut *writer).await?;
         self.identity.encode(&mut *writer).await?;
         self.account.encode(&mut *writer).await?;
         #[cfg(feature = "device")]
@@ -273,6 +274,7 @@ impl Decodable for SyncStatus {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
+        self.root.decode(&mut *reader).await?;
         self.identity.decode(&mut *reader).await?;
         self.account.decode(&mut *reader).await?;
         #[cfg(feature = "device")]
@@ -431,7 +433,7 @@ where
 mod test {
     use crate::{
         decode, encode,
-        events::{AccountEvent, WriteEvent},
+        events::AccountEvent,
         sync::{AccountPatch, ChangeSet, FolderPatch},
         vault::Vault,
     };
@@ -455,8 +457,8 @@ mod test {
     #[tokio::test]
     async fn encode_decode_change_set() -> Result<()> {
         let vault: Vault = Default::default();
-        let buf = encode(&vault).await?;
-        let identity: FolderPatch = vec![WriteEvent::CreateVault(buf)].into();
+        let event = vault.into_event().await?;
+        let identity: FolderPatch = vec![event].into();
 
         let folder_vault: Vault = Default::default();
         let folder_id = *folder_vault.id();
@@ -466,8 +468,8 @@ mod test {
                 .into();
 
         let mut folders = HashMap::new();
-        let buf = encode(&folder_vault).await?;
-        let folder: FolderPatch = vec![WriteEvent::CreateVault(buf)].into();
+        let event = folder_vault.into_event().await?;
+        let folder: FolderPatch = vec![event].into();
         folders.insert(folder_id, folder);
 
         #[cfg(feature = "device")]

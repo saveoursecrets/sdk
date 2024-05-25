@@ -41,7 +41,6 @@ use tokio::{
         oneshot, Mutex, RwLock,
     },
 };
-use tracing::{span, Level};
 
 #[cfg(feature = "archive")]
 use crate::sdk::account::archive::{Inventory, RestoreOptions};
@@ -87,11 +86,11 @@ pub struct NetworkAccount {
 
     /// Lock to prevent write to local storage
     /// whilst a sync operation is in progress.
-    pub(super) sync_lock: Mutex<()>,
+    pub(super) sync_lock: Arc<Mutex<()>>,
 
     /// Websocket change listeners.
     #[cfg(feature = "listen")]
-    pub(super) listeners: Mutex<Vec<WebSocketHandle>>,
+    pub(super) listeners: Mutex<HashMap<Origin, WebSocketHandle>>,
 
     /// Identifier for this client connection.
     ///
@@ -216,12 +215,17 @@ impl NetworkAccount {
     async fn remote_bridge(&self, origin: &Origin) -> Result<RemoteBridge> {
         let signer = self.account_signer().await?;
         let device = self.device_signer().await?;
+        let conn_id = if let Some(conn_id) = &self.connection_id {
+            conn_id.to_string()
+        } else {
+            self.client_connection_id().await?
+        };
         let provider = RemoteBridge::new(
             Arc::clone(&self.account),
             origin.clone(),
             signer,
             device.into(),
-            self.client_connection_id().await?,
+            conn_id,
         )?;
         Ok(provider)
     }
@@ -322,7 +326,7 @@ impl NetworkAccount {
     #[cfg(feature = "listen")]
     async fn shutdown_listeners(&self) {
         let mut listeners = self.listeners.lock().await;
-        for handle in listeners.drain(..) {
+        for (_, handle) in listeners.drain() {
             tracing::debug!("close websocket");
             handle.close();
         }
@@ -352,7 +356,7 @@ impl NetworkAccount {
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
-            sync_lock: Mutex::new(()),
+            sync_lock: Arc::new(Mutex::new(())),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
             connection_id: None,
@@ -413,7 +417,7 @@ impl NetworkAccount {
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
-            sync_lock: Mutex::new(()),
+            sync_lock: Arc::new(Mutex::new(())),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
             connection_id: None,
@@ -640,6 +644,12 @@ impl Account for NetworkAccount {
             folders
         };
 
+        // Without an explicit connectio id use the inferred
+        // connection identifier
+        if self.connection_id.is_none() {
+            self.connection_id = self.client_connection_id().await.ok();
+        }
+
         // Load origins from disc and create remote definitions
         let remotes_file = self.paths().remote_origins();
         if vfs::try_exists(&remotes_file).await? {
@@ -671,16 +681,13 @@ impl Account for NetworkAccount {
     }
 
     async fn sign_out(&mut self) -> Result<()> {
-        let span = span!(Level::DEBUG, "net_sign_out");
-        let _enter = span.enter();
-
         #[cfg(feature = "listen")]
         {
-            tracing::debug!("shutdown listeners");
+            tracing::debug!("net_sign_out::shutdown_listeners");
             self.shutdown_listeners().await;
         }
 
-        tracing::debug!("stop file transfers");
+        tracing::debug!("net_sign_out::stop_file_transfers");
         self.stop_file_transfers().await;
         {
             let transfers = self.transfers().await?;

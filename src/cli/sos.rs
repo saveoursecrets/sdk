@@ -7,10 +7,10 @@ use crate::{
         account, audit, check, convert, device, environment, events, file,
         folder, preferences, secret,
         security_report::{self, SecurityReportFormat},
-        server, shell, sync, AccountCommand, AuditCommand, CheckCommand,
-        ConvertCommand, DeviceCommand, EnvironmentCommand, EventsCommand,
-        FileCommand, FolderCommand, PreferenceCommand, SecretCommand,
-        ServerCommand, SyncCommand,
+        server, shell, sync, tools, AccountCommand, AuditCommand,
+        CheckCommand, ConvertCommand, DeviceCommand, EnvironmentCommand,
+        EventsCommand, FileCommand, FolderCommand, PreferenceCommand,
+        SecretCommand, ServerCommand, SyncCommand, ToolsCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
     CommandTree, Result,
@@ -153,6 +153,12 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: ConvertCommand,
     },
+    /// Utility tools.
+    #[clap(alias = "tool")]
+    Tools {
+        #[clap(subcommand)]
+        cmd: ToolsCommand,
+    },
 }
 
 pub async fn run() -> Result<()> {
@@ -217,6 +223,7 @@ pub async fn run() -> Result<()> {
         }
         Command::Preferences { cmd } => preferences::run(cmd).await?,
         Command::Environment { cmd } => environment::run(cmd).await?,
+        Command::Tools { cmd } => tools::run(cmd).await?,
     }
     Ok(())
 }

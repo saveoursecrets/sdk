@@ -1455,6 +1455,7 @@ impl Secret {
     pub fn check_password(
         secret: &Secret,
     ) -> Result<Option<(Option<Entropy>, Vec<u8>)>> {
+        // TODO: remove Result type from function return value
         use sha1::{Digest, Sha1};
         match secret {
             Secret::Account {
@@ -1467,10 +1468,8 @@ impl Secret {
                 if password.expose_secret().is_empty() {
                     Ok(Some((None, hash.to_vec())))
                 } else {
-                    let entropy = measure_entropy(
-                        password.expose_secret(),
-                        &[account],
-                    )?;
+                    let entropy =
+                        measure_entropy(password.expose_secret(), &[account]);
                     Ok(Some((Some(entropy), hash.to_vec())))
                 }
             }
@@ -1491,7 +1490,7 @@ impl Secret {
                     let entropy = measure_entropy(
                         password.expose_secret(),
                         inputs.as_slice(),
-                    )?;
+                    );
 
                     Ok(Some((Some(entropy), hash.to_vec())))
                 }

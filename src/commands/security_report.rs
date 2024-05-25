@@ -10,6 +10,7 @@ use sos_net::{
             Account,
         },
         identity::AccountRef,
+        zxcvbn::Score,
     },
 };
 use std::{fmt, path::PathBuf, str::FromStr};
@@ -82,7 +83,7 @@ pub async fn run(
         rows
     } else {
         rows.into_iter()
-            .filter(|row| row.score < 3 || row.database_check)
+            .filter(|row| row.score < Score::Three || row.database_check)
             .collect()
     };
 

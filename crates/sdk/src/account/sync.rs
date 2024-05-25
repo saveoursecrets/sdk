@@ -1,12 +1,12 @@
 use crate::{
     account::{Account, LocalAccount},
-    commit::{CommitState, Comparison},
+    commit::{CommitState, CommitTree, Comparison},
     decode,
     events::{AccountEvent, EventLogExt, LogEvent},
     storage::StorageEventLogs,
     sync::{
         AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, Merge,
-        SyncStatus, SyncStorage,
+        MergeOutcome, SyncStatus, SyncStorage,
     },
     vault::{Vault, VaultId},
     Error, Result,
@@ -22,14 +22,22 @@ use crate::sync::FileDiff;
 
 #[async_trait]
 impl Merge for LocalAccount {
-    async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize> {
+    async fn merge_identity(
+        &mut self,
+        diff: &FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
             "identity",
         );
         self.user_mut()?.identity_mut()?.merge(diff).await?;
-        Ok(diff.patch.len())
+
+        outcome.identity = diff.patch.len();
+        outcome.changes += diff.patch.len();
+
+        Ok(())
     }
 
     async fn compare_identity(
@@ -41,7 +49,11 @@ impl Merge for LocalAccount {
         event_log.tree().compare(&state.1)
     }
 
-    async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
+    async fn merge_account(
+        &mut self,
+        diff: &AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -120,7 +132,10 @@ impl Merge for LocalAccount {
             }
         }
 
-        Ok(diff.patch.len())
+        outcome.account = diff.patch.len();
+        outcome.changes += diff.patch.len();
+
+        Ok(())
     }
 
     async fn compare_account(
@@ -133,7 +148,11 @@ impl Merge for LocalAccount {
     }
 
     #[cfg(feature = "device")]
-    async fn merge_device(&mut self, diff: &DeviceDiff) -> Result<usize> {
+    async fn merge_device(
+        &mut self,
+        diff: &DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -164,7 +183,10 @@ impl Merge for LocalAccount {
             println!("todo! device patch could not be merged");
         }
 
-        Ok(diff.patch.len())
+        outcome.device = diff.patch.len();
+        outcome.changes += diff.patch.len();
+
+        Ok(())
     }
 
     #[cfg(feature = "device")]
@@ -178,7 +200,11 @@ impl Merge for LocalAccount {
     }
 
     #[cfg(feature = "files")]
-    async fn merge_files(&mut self, diff: &FileDiff) -> Result<usize> {
+    async fn merge_files(
+        &mut self,
+        diff: &FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         use crate::{
             events::FileReducer, storage::files::TransferOperation, vfs,
         };
@@ -250,7 +276,10 @@ impl Merge for LocalAccount {
             num_events
         };
 
-        Ok(num_changes)
+        outcome.file = num_changes;
+        outcome.changes += num_changes;
+
+        Ok(())
     }
 
     #[cfg(feature = "files")]
@@ -264,7 +293,8 @@ impl Merge for LocalAccount {
         &mut self,
         folder_id: &VaultId,
         diff: &FolderDiff,
-    ) -> Result<usize> {
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         let mut num_changes = 0;
 
         let storage = self.storage().await?;
@@ -301,7 +331,12 @@ impl Merge for LocalAccount {
             num_changes = diff.patch.len();
         }
 
-        Ok(num_changes)
+        if num_changes > 0 {
+            outcome.folders.insert(*folder_id, num_changes);
+            outcome.changes += num_changes;
+        }
+
+        Ok(())
     }
 
     async fn compare_folder(
@@ -325,6 +360,12 @@ impl Merge for LocalAccount {
 #[async_trait]
 impl SyncStorage for LocalAccount {
     async fn sync_status(&self) -> Result<SyncStatus> {
+        // NOTE: the order for computing the cumulative
+        // NOTE: root hash must be identical to the logic
+        // NOTE: in the server implementation and the folders
+        // NOTE: collection must be sorted so that the folders
+        // NOTE: root hash is deterministic
+
         let storage = self.storage().await?;
         let storage = storage.read().await;
         let summaries = storage.list_folders().to_vec();
@@ -356,6 +397,7 @@ impl SyncStorage for LocalAccount {
         };
 
         let mut folders = IndexMap::new();
+        let mut folder_roots: Vec<(&VaultId, [u8; 32])> = Vec::new();
         for summary in &summaries {
             let folder = storage
                 .cache()
@@ -363,9 +405,34 @@ impl SyncStorage for LocalAccount {
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
             let commit_state = folder.commit_state().await?;
+            folder_roots.push((summary.id(), commit_state.1.root().into()));
             folders.insert(*summary.id(), commit_state);
         }
+
+        // Compute a root hash of all the trees for an account
+        let mut root_tree = CommitTree::new();
+        let mut root_commits = vec![
+            identity.1.root().into(),
+            account.1.root().into(),
+            #[cfg(feature = "device")]
+            device.1.root().into(),
+        ];
+        #[cfg(feature = "files")]
+        if let Some(files) = &files {
+            root_commits.push(files.1.root().into());
+        }
+
+        folder_roots.sort_by(|a, b| a.0.cmp(b.0));
+        let mut folder_roots =
+            folder_roots.into_iter().map(|f| f.1).collect::<Vec<_>>();
+        root_commits.append(&mut folder_roots);
+        root_tree.append(&mut root_commits);
+        root_tree.commit();
+
+        let root = root_tree.root().ok_or(Error::NoRootCommit)?;
+
         Ok(SyncStatus {
+            root,
             identity,
             account,
             #[cfg(feature = "device")]

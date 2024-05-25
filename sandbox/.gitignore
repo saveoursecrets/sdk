@@ -1,4 +1,6 @@
 *
 !.gitignore
 !config.toml
+!config-backup.toml
 !accounts
+!accounts-backup

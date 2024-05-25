@@ -377,7 +377,6 @@ mod handlers {
         sync::{ChangeSet, UpdateSet},
     };
     use std::sync::Arc;
-    use tracing::{span, Level};
 
     #[cfg(feature = "listen")]
     use crate::{server::handlers::send_notification, ChangeNotification};
@@ -502,9 +501,8 @@ mod handlers {
         let (remote_status, diff) = (packet.status, packet.diff);
 
         // Apply the diff to the storage
-        let (num_changes, compare) = {
-            let span = span!(Level::DEBUG, "merge_server");
-            let _enter = span.enter();
+        let (outcome, compare) = {
+            tracing::debug!("merge_server");
             let mut writer = account.write().await;
             writer.storage.merge(&diff).await?
         };
@@ -519,8 +517,13 @@ mod handlers {
         };
 
         #[cfg(feature = "listen")]
-        if num_changes > 0 {
-            let notification = ChangeNotification::new(caller.address());
+        if outcome.changes > 0 {
+            let notification = ChangeNotification::new(
+                caller.address(),
+                caller.connection_id().to_string(),
+                local_status.root,
+                outcome,
+            );
             let mut writer = state.write().await;
             send_notification(&mut *writer, &caller, notification);
         }

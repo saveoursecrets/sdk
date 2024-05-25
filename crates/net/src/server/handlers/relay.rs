@@ -13,7 +13,6 @@ use serde::Deserialize;
 use sos_sdk::decode;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
-use tracing::{span, Level};
 
 /// Query string for the relay service.
 #[derive(Deserialize)]
@@ -35,9 +34,7 @@ pub async fn upgrade(
     Query(query): Query<RelayQuery>,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
-    let span = span!(Level::DEBUG, "ws_relay");
-    let _enter = span.enter();
-    tracing::debug!("websocket upgrade");
+    tracing::debug!("ws_relay::upgrade_request");
     Ok(ws.on_upgrade(move |socket| {
         handle_socket(socket, state, query.public_key)
     }))
@@ -76,10 +73,12 @@ async fn handle_socket(
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
                 Message::Close(_) => {
+                    tracing::trace!("ws_relay::disconnect::close_message");
                     disconnect(Arc::clone(&state), &public_key).await;
                 }
             },
             Err(_) => {
+                tracing::trace!("ws_relay::disconnect::read_error");
                 disconnect(Arc::clone(&state), &public_key).await;
             }
         }
@@ -87,9 +86,7 @@ async fn handle_socket(
 }
 
 async fn disconnect(state: RelayState, public_key: &[u8]) {
-    let span = span!(Level::DEBUG, "ws_relay");
-    let _enter = span.enter();
-    tracing::debug!("websocket disconnect");
+    tracing::debug!("ws_relay::disconnect");
     let mut writer = state.lock().await;
     writer.remove(public_key);
 }

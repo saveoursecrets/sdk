@@ -20,7 +20,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tracing::{span, Level};
 use urn::Urn;
 
 #[cfg(feature = "device")]
@@ -220,9 +219,6 @@ impl Identity {
         address: &Address,
         key: &AccessKey,
     ) -> Result<()> {
-        let span = span!(Level::DEBUG, "login");
-        let _enter = span.enter();
-
         let accounts = Self::list_accounts(Some(&self.paths)).await?;
         let account = accounts
             .into_iter()

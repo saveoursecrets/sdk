@@ -13,6 +13,7 @@ pub mod security_report;
 pub mod server;
 pub mod shell;
 pub mod sync;
+pub mod tools;
 
 pub use account::Command as AccountCommand;
 pub use audit::Command as AuditCommand;
@@ -27,3 +28,4 @@ pub use preferences::Command as PreferenceCommand;
 pub use secret::Command as SecretCommand;
 pub use server::Command as ServerCommand;
 pub use sync::Command as SyncCommand;
+pub use tools::Command as ToolsCommand;

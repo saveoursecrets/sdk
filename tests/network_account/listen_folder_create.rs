@@ -68,8 +68,8 @@ async fn network_sync_listen_folder_create() -> Result<()> {
     // with the new change
     sync_pause(None).await;
 
-    // Both client now have two events (create vault
-    // and create secret)
+    // Both clients now have two events
+    // (create vault and create secret)
     assert_eq!(2, num_events(&mut device1.owner, new_folder.id()).await);
     assert_eq!(2, num_events(&mut device2.owner, new_folder.id()).await);
 

@@ -199,13 +199,13 @@ async fn local_search_view_query() -> Result<()> {
     assert_eq!(1, documents.len());
 
     // Gets the "age" and "page" secrets
-    let documents = account.query_map("age", Default::default()).await?;
+    let documents = account.query_map("ag", Default::default()).await?;
     assert_eq!(2, documents.len());
 
     // Just the "page" secret as we filter by type
     let documents = account
         .query_map(
-            "age",
+            "ag",
             QueryFilter {
                 types: vec![SecretType::Page],
                 ..Default::default()

@@ -44,35 +44,6 @@ pub enum WriteEvent {
     DeleteSecret(SecretId),
 }
 
-/*
-impl Ord for WriteEvent {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match (self, &other) {
-            // NOTE: This sorting is important when we send a vault
-            // NOTE: to the server and it is split into a header-only
-            // NOTE: vault and event log event records the sort order must
-            // NOTE: match the client order otherwise the root hashes
-            // NOTE: will be different.
-            //
-            // NOTE: We only care about the `CreateSecret` variant as
-            // NOTE: we know in this scenario that it is the only variant
-            // NOTE: in addition to the `CreateVault` start record.
-            (
-                WriteEvent::CreateSecret(a, _),
-                WriteEvent::CreateSecret(b, _),
-            ) => a.cmp(b),
-            _ => Ordering::Greater,
-        }
-    }
-}
-
-impl PartialOrd for WriteEvent {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-*/
-
 impl LogEvent for WriteEvent {
     fn event_kind(&self) -> EventKind {
         match self {

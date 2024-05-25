@@ -22,7 +22,6 @@ use tokio::sync::{
     broadcast::{self, Receiver, Sender},
     mpsc,
 };
-use tracing::{span, Level};
 
 use super::{authenticate_endpoint, ConnectionQuery};
 use crate::server::{Result, ServerBackend, ServerState};
@@ -61,10 +60,7 @@ pub async fn upgrade(
     OriginalUri(uri): OriginalUri,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
-    let span = span!(Level::DEBUG, "ws_server");
-    let _enter = span.enter();
-
-    tracing::debug!("upgrade request");
+    tracing::debug!("ws_server::upgrade_request");
 
     let uri = uri.path().to_string();
     let caller = authenticate_endpoint(
@@ -122,13 +118,9 @@ pub async fn upgrade(
 }
 
 async fn disconnect(state: ServerState, address: Address) {
-    let span = span!(Level::DEBUG, "ws_server");
-    let _enter = span.enter();
-
     let mut writer = state.write().await;
 
-    tracing::debug!("server websocket disconnect");
-
+    tracing::debug!(address = %address, "ws_server::disconnect");
     let clients = if let Some(conn) = writer.sockets.get_mut(&address) {
         conn.clients -= 1;
         Some(conn.clients)
@@ -138,6 +130,10 @@ async fn disconnect(state: ServerState, address: Address) {
 
     if let Some(clients) = clients {
         if clients == 0 {
+            tracing::debug!(
+                address = %address,
+                "ws_server::disconnect::remove_socket",
+            );
             writer.sockets.remove(&address);
         }
     }
@@ -179,11 +175,19 @@ async fn read(
                 Message::Pong(_) => {}
                 Message::Close(frame) => {
                     let _ = close_tx.send(Message::Close(frame)).await;
+                    tracing::trace!(
+                        address = %address,
+                        "ws_server::disconnect::close_message",
+                    );
                     disconnect(state, address).await;
                     return Ok(());
                 }
             },
             Err(e) => {
+                tracing::trace!(
+                    address = %address,
+                    "ws_server::disconnect::read_error",
+                );
                 disconnect(state, address).await;
                 return Err(e.into());
             }
@@ -220,11 +224,14 @@ async fn write(
                                 && !connection_id.is_empty()
                                 && &msg.connection_id != &connection_id;
 
-
                         // Only broadcast change notifications to listeners
                         // other than the caller
                         if other_connection {
                             if sender.send(Message::Binary(msg.buffer)).await.is_err() {
+                                tracing::trace!(
+                                    address = %address,
+                                    "ws_server::disconnect::send_error",
+                                );
                                 disconnect(
                                     state,
                                     address,

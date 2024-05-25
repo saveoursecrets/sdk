@@ -11,7 +11,7 @@ use sos_net::sdk::prelude::*;
 #[tokio::test]
 async fn network_sync_listen_secret_create() -> Result<()> {
     const TEST_ID: &str = "sync_listen_secret_create";
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

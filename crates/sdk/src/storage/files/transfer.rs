@@ -24,7 +24,6 @@ use std::{
 use tokio::sync::{
     broadcast, mpsc::UnboundedReceiver, oneshot, Mutex, RwLock,
 };
-use tracing::{span, Level};
 
 type TransferQueue = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 
@@ -405,14 +404,14 @@ impl FileTransfers {
                     biased;
                     signal = shutdown.recv().fuse() => {
                         if signal.is_some() {
-                            let span = span!(Level::DEBUG, "file_transfers");
-                            let _enter = span.enter();
-                            tracing::debug!("shutdown");
+                            tracing::debug!("file_transfers_shutting_down");
 
                             // Wait for any pending writes to disc
                             // for a graceful shutdown
                             let transfers = queue.read().await;
                             let _ = transfers.path.lock().await;
+
+                            tracing::debug!("file_transfers_shut_down");
 
                             break;
                         }
@@ -430,9 +429,6 @@ impl FileTransfers {
 
                         if !pending_transfers.is_empty() {
                             {
-                                let span = span!(Level::DEBUG, "file_transfers");
-                                let _enter = span.enter();
-
                                 // Try to process pending transfers
                                 if let Err(e) = Self::try_process_transfers(
                                     Arc::clone(&paths),
@@ -654,8 +650,7 @@ impl FileTransfers {
             writer.insert(request_id, inflight_request);
         }
 
-        tracing::debug!(op = ?op, url = %client.origin().url());
-        //println!("{:#?}", op);
+        // tracing::debug!(op = ?op, url = %client.origin().url());
 
         let success = match &op {
             TransferOperation::Upload => {

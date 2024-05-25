@@ -1,7 +1,7 @@
 use crate::{
     commit::CommitHash,
     crypto::AeadPack,
-    decode, encode,
+    decode,
     events::{EventLogExt, FolderEventLog, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
     Error, Result,
@@ -48,8 +48,7 @@ impl FolderReducer {
         let header = vault.header().clone();
         let head: Vault = header.into();
 
-        let buffer = encode(&head).await?;
-        events.push(WriteEvent::CreateVault(buffer));
+        events.push(head.into_event().await?);
         for (id, entry) in vault {
             events.push(WriteEvent::CreateSecret(id, entry));
         }
@@ -146,8 +145,7 @@ impl FolderReducer {
                 vault.header_mut().set_meta(Some(meta));
             }
 
-            let buffer = encode(&vault).await?;
-            events.push(WriteEvent::CreateVault(buffer));
+            events.push(vault.into_event().await?);
             for (id, entry) in self.secrets {
                 events.push(WriteEvent::CreateSecret(id, entry));
             }
@@ -170,6 +168,12 @@ impl FolderReducer {
             }
 
             if include_secrets {
+                if !vault.is_empty() {
+                    tracing::warn!(
+                        "reducing into a vault with existing entries"
+                    );
+                }
+
                 for (id, entry) in self.secrets {
                     vault.insert_entry(id, entry);
                 }
@@ -388,7 +392,7 @@ mod test {
         commit::CommitHash,
         crypto::PrivateKey,
         decode,
-        events::{FolderEventLog, WriteEvent},
+        events::FolderEventLog,
         test_utils::*,
         vault::{
             secret::{Secret, SecretId, SecretMeta},
@@ -407,7 +411,7 @@ mod test {
         SecretId,
     )> {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (_, mut vault, buffer) = mock_vault_file().await?;
+        let (_, mut vault) = mock_vault_file().await?;
 
         let temp = NamedTempFile::new()?;
         let mut event_log = FolderEventLog::new(temp.path()).await?;
@@ -415,7 +419,7 @@ mod test {
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = WriteEvent::CreateVault(buffer);
+        let event = vault.into_event().await?;
         commits.append(&mut event_log.apply(vec![&event]).await?);
 
         // Create a secret

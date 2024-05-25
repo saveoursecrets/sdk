@@ -58,7 +58,9 @@ impl CommitTree {
     /// Commit changes to the tree to compute the root.
     pub fn commit(&mut self) {
         self.tree.commit();
-        self.last_commit = self.maybe_last_commit.take();
+        if self.maybe_last_commit.is_some() {
+            self.last_commit = self.maybe_last_commit.take();
+        }
     }
 
     /// Revert changes to the tree.
@@ -198,7 +200,7 @@ impl CommitTree {
     ///
     /// The tree must already have some commits.
     pub fn commit_state(&self) -> Result<CommitState> {
-        let last_commit = self.last_commit().ok_or(Error::NoRootCommit)?;
+        let last_commit = self.last_commit().ok_or(Error::NoLastCommit)?;
         Ok(CommitState(last_commit, self.head()?))
     }
 

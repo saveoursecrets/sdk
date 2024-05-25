@@ -13,7 +13,6 @@ use sos_sdk::{
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
-use tracing::{span, Level};
 
 /// Collection of remote targets for synchronization.
 pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
@@ -71,14 +70,14 @@ impl RemoteBridge {
     async fn sync_account(&self, remote_status: SyncStatus) -> Result<()> {
         let mut account = self.account.lock().await;
 
+        tracing::debug!("merge_client");
+
         let (needs_sync, local_status, local_changes) =
             sync::diff(&*account, remote_status).await?;
 
-        tracing::debug!(needs_sync = %needs_sync);
+        tracing::debug!(needs_sync = %needs_sync, "merge_client");
 
         if needs_sync {
-            let span = span!(Level::DEBUG, "merge_client");
-            let _enter = span.enter();
             let packet = SyncPacket {
                 status: local_status,
                 diff: local_changes,
@@ -282,31 +281,14 @@ impl RemoteSync for RemoteBridge {
 #[cfg(feature = "listen")]
 mod listen {
     use crate::{
-        client::{
-            sync::RemoteSync, ListenOptions, RemoteBridge, Result,
-            WebSocketHandle,
-        },
+        client::{ListenOptions, RemoteBridge, WebSocketHandle},
         ChangeNotification,
     };
-
-    use std::sync::Arc;
+    use tokio::sync::mpsc;
 
     // Listen to change notifications and attempt to sync.
     #[cfg(not(target_arch = "wasm32"))]
     impl RemoteBridge {
-        async fn on_change_notification(
-            bridge: Arc<RemoteBridge>,
-            _change: ChangeNotification,
-        ) -> Result<()> {
-            if let Some(e) = bridge.sync().await {
-                tracing::error!(
-                    error = ?e,
-                    "listen change sync failed",
-                );
-            }
-            Ok(())
-        }
-
         /// Spawn a task that listens for changes
         /// from the remote server and applies any changes
         /// from the remote to the local account.
@@ -317,20 +299,15 @@ mod listen {
         /// will collide on the server as they are identified by
         /// public key.
         pub(crate) fn listen(
-            bridge: Arc<RemoteBridge>,
+            &self,
             options: ListenOptions,
+            channel: mpsc::Sender<ChangeNotification>,
         ) -> WebSocketHandle {
-            let remote_bridge = Arc::clone(&bridge);
-            let handle = bridge.client.listen(options, move |notification| {
-                let bridge = Arc::clone(&remote_bridge);
+            let handle = self.client.listen(options, move |notification| {
+                let tx = channel.clone();
                 async move {
                     tracing::debug!(notification = ?notification);
-                    if let Err(e) =
-                        Self::on_change_notification(bridge, notification)
-                            .await
-                    {
-                        tracing::error!(error = ?e);
-                    }
+                    let _ = tx.send(notification).await;
                 }
             });
 

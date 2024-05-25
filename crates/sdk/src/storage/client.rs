@@ -24,7 +24,6 @@ use indexmap::IndexSet;
 use secrecy::SecretString;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
-use tracing::{span, Level};
 
 #[cfg(feature = "archive")]
 use crate::account::archive::RestoreTargets;
@@ -194,22 +193,20 @@ impl ClientStorage {
         paths: &Paths,
         device: TrustedDevice,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
-        let span = span!(Level::DEBUG, "init_device_log");
-        let _enter = span.enter();
-
         let log_file = paths.device_events();
 
         let mut event_log = DeviceEventLog::new_device(log_file).await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
-        tracing::debug!(needs_init = %needs_init);
+        tracing::debug!(needs_init = %needs_init, "device_log");
 
         // Trust this device on initialization if the event
         // log is empty so that we are backwards compatible with
         // accounts that existed before device event logs.
         if needs_init {
-            tracing::debug!("initialize root device {}", device.public_key());
+            tracing::debug!(
+              public_key = %device.public_key(), "initialize_root_device");
             let event = DeviceEvent::Trust(device);
             event_log.apply(vec![&event]).await?;
         }
@@ -234,15 +231,12 @@ impl ClientStorage {
 
     #[cfg(feature = "files")]
     async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
-        let span = span!(Level::DEBUG, "init_file_log");
-        let _enter = span.enter();
-
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
         let mut event_log = FileEventLog::new_file(log_file).await?;
         event_log.load_tree().await?;
 
-        tracing::debug!(needs_init = %needs_init);
+        tracing::debug!(needs_init = %needs_init, "file_log");
 
         if needs_init {
             let files = super::files::list_external_files(paths).await?;
@@ -439,14 +433,11 @@ impl ClientStorage {
             .collect::<Vec<_>>();
         self.load_caches(&summaries).await?;
 
-        for (buffer, vault) in vaults {
+        for (_, vault) in vaults {
             // Prepare a fresh log of event log events
-            let mut event_log_events = Vec::new();
-            let create_vault = WriteEvent::CreateVault(buffer.clone());
-            event_log_events.push(create_vault);
+            let (vault, events) = FolderReducer::split(vault.clone()).await?;
 
-            self.update_vault(vault.summary(), vault, event_log_events)
-                .await?;
+            self.update_vault(vault.summary(), &vault, events).await?;
 
             // Refresh the in-memory and disc-based mirror
             let key = folder_keys
@@ -821,6 +812,8 @@ impl ClientStorage {
             }
         }
 
+        let event = vault.into_event().await?;
+
         // Initialize the local cache for event log
         self.create_cache_entry(&summary, Some(vault)).await?;
 
@@ -829,11 +822,7 @@ impl ClientStorage {
             self.unlock_folder(summary.id(), key).await?;
         }
 
-        Ok((
-            exists,
-            WriteEvent::CreateVault(buffer.as_ref().to_owned()),
-            summary,
-        ))
+        Ok((exists, event, summary))
     }
 
     /// Update an existing vault by replacing it with a new vault.

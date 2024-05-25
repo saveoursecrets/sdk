@@ -1,6 +1,6 @@
 //! Synchronization helpers.
 use crate::{
-    commit::{CommitState, Comparison},
+    commit::{CommitState, CommitTree, Comparison},
     encode,
     events::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
@@ -9,7 +9,7 @@ use crate::{
     storage::{ServerStorage, StorageEventLogs},
     sync::{
         AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch, Merge,
-        SyncStatus, SyncStorage, UpdateSet,
+        MergeOutcome, SyncStatus, SyncStorage, UpdateSet,
     },
     vault::{VaultAccess, VaultId, VaultWriter},
     vfs, Error, Paths, Result,
@@ -172,7 +172,11 @@ impl ServerStorage {
 
 #[async_trait]
 impl Merge for ServerStorage {
-    async fn merge_identity(&mut self, diff: &FolderDiff) -> Result<usize> {
+    async fn merge_identity(
+        &mut self,
+        diff: &FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         let mut writer = self.identity_log.write().await;
         tracing::debug!(
             before = ?diff.before,
@@ -180,7 +184,11 @@ impl Merge for ServerStorage {
             "identity",
         );
         writer.patch_checked(&diff.before, &diff.patch).await?;
-        Ok(diff.patch.len())
+
+        outcome.identity = diff.patch.len();
+        outcome.changes += diff.patch.len();
+
+        Ok(())
     }
 
     async fn compare_identity(
@@ -191,7 +199,11 @@ impl Merge for ServerStorage {
         reader.tree().compare(&state.1)
     }
 
-    async fn merge_account(&mut self, diff: &AccountDiff) -> Result<usize> {
+    async fn merge_account(
+        &mut self,
+        diff: &AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -249,7 +261,10 @@ impl Merge for ServerStorage {
             println!("todo! account patch could not be merged");
         }
 
-        Ok(diff.patch.len())
+        outcome.account = diff.patch.len();
+        outcome.changes += diff.patch.len();
+
+        Ok(())
     }
 
     async fn compare_account(
@@ -261,7 +276,11 @@ impl Merge for ServerStorage {
     }
 
     #[cfg(feature = "device")]
-    async fn merge_device(&mut self, diff: &DeviceDiff) -> Result<usize> {
+    async fn merge_device(
+        &mut self,
+        diff: &DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -282,7 +301,10 @@ impl Merge for ServerStorage {
             println!("todo! device patch could not be merged");
         }
 
-        Ok(diff.patch.len())
+        outcome.device = diff.patch.len();
+        outcome.changes += diff.patch.len();
+
+        Ok(())
     }
 
     #[cfg(feature = "device")]
@@ -295,7 +317,11 @@ impl Merge for ServerStorage {
     }
 
     #[cfg(feature = "files")]
-    async fn merge_files(&mut self, diff: &FileDiff) -> Result<usize> {
+    async fn merge_files(
+        &mut self,
+        diff: &FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -326,7 +352,10 @@ impl Merge for ServerStorage {
             num_events
         };
 
-        Ok(num_changes)
+        outcome.file = num_changes;
+        outcome.changes += num_changes;
+
+        Ok(())
     }
 
     #[cfg(feature = "files")]
@@ -339,7 +368,8 @@ impl Merge for ServerStorage {
         &mut self,
         folder_id: &VaultId,
         diff: &FolderDiff,
-    ) -> Result<usize> {
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
         tracing::debug!(
             folder_id = %folder_id,
             before = ?diff.before,
@@ -355,7 +385,12 @@ impl Merge for ServerStorage {
 
         log.patch_checked(&diff.before, &diff.patch).await?;
 
-        Ok(diff.patch.len())
+        if diff.patch.len() > 0 {
+            outcome.folders.insert(*folder_id, diff.patch.len());
+            outcome.changes += diff.patch.len();
+        }
+
+        Ok(())
     }
 
     async fn compare_folder(
@@ -409,6 +444,12 @@ impl StorageEventLogs for ServerStorage {
 #[async_trait]
 impl SyncStorage for ServerStorage {
     async fn sync_status(&self) -> Result<SyncStatus> {
+        // NOTE: the order for computing the cumulative
+        // NOTE: root hash must be identical to the logic
+        // NOTE: in the client implementation and the folders
+        // NOTE: collection must be sorted so that the folders
+        // NOTE: root hash is deterministic
+
         let identity = {
             let reader = self.identity_log.read().await;
             reader.tree().commit_state()?
@@ -436,12 +477,40 @@ impl SyncStorage for ServerStorage {
         };
 
         let mut folders = IndexMap::new();
+        let mut folder_roots: Vec<(&VaultId, [u8; 32])> =
+            Vec::with_capacity(self.cache.len());
         for (id, event_log) in &self.cache {
             let event_log = event_log.read().await;
             let commit_state = event_log.tree().commit_state()?;
+            folder_roots.push((id, commit_state.1.root().into()));
             folders.insert(*id, commit_state);
         }
+
+        // Compute a root hash of all the trees for an account
+        let mut root_tree = CommitTree::new();
+        let mut root_commits = vec![
+            identity.1.root().into(),
+            account.1.root().into(),
+            #[cfg(feature = "device")]
+            device.1.root().into(),
+        ];
+        #[cfg(feature = "files")]
+        if let Some(files) = &files {
+            root_commits.push(files.1.root().into());
+        }
+
+        folder_roots.sort_by(|a, b| a.0.cmp(b.0));
+        let mut folder_roots =
+            folder_roots.into_iter().map(|f| f.1).collect::<Vec<_>>();
+
+        root_commits.append(&mut folder_roots);
+        root_tree.append(&mut root_commits);
+        root_tree.commit();
+
+        let root = root_tree.root().ok_or(Error::NoRootCommit)?;
+
         Ok(SyncStatus {
+            root,
             identity,
             account,
             #[cfg(feature = "device")]

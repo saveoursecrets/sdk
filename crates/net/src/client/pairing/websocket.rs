@@ -31,7 +31,6 @@ use tokio_tungstenite::{
     tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message},
     MaybeTlsStream, WebSocketStream,
 };
-use tracing::{span, Level};
 
 const PATTERN: &str = "Noise_XXpsk3_25519_ChaChaPoly_BLAKE2s";
 const RELAY_PATH: &str = "api/v1/relay";
@@ -247,9 +246,6 @@ impl<'a> OfferPairing<'a> {
         if packet.header.to_public_key != self.keypair.public {
             return Err(Error::NotForMe);
         }
-
-        let span = span!(Level::DEBUG, "pairing_offer");
-        let _enter = span.enter();
 
         let action = if !self.is_inverted {
             match (&self.state, &packet.payload) {
@@ -644,9 +640,6 @@ impl<'a> AcceptPairing<'a> {
             return Err(Error::NotForMe);
         }
 
-        let span = span!(Level::DEBUG, "pairing_accept");
-        let _enter = span.enter();
-
         let action = if !self.is_inverted {
             match (&self.state, &packet.payload) {
                 (
@@ -867,9 +860,6 @@ trait NoiseTunnel {
 
     /// Send the first packet of the initial noise handshake.
     async fn noise_send_e(&mut self) -> Result<()> {
-        let span = span!(Level::DEBUG, "pairing");
-        let _enter = span.enter();
-
         let buffer = if let Some(Tunnel::Handshake(state)) = self.tunnel_mut()
         {
             let mut buf = [0u8; 1024];

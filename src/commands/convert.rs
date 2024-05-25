@@ -64,8 +64,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                 format!(r#"Convert to cipher "{}" (y/n)? "#, &cipher);
             if read_flag(Some(&prompt))? {
                 let access_key: AccessKey = password.into();
-                let conversion =
-                    owner.change_cipher(&access_key, &cipher, kdf.clone()).await?;
+                let conversion = owner
+                    .change_cipher(&access_key, &cipher, kdf.clone())
+                    .await?;
                 if conversion.is_empty() {
                     info(format!(
                         "no files to convert, all folders use {} and {}",

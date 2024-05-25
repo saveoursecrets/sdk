@@ -777,14 +777,14 @@ mod test {
     async fn mock_event_log_file(
     ) -> Result<(NamedTempFile, FolderEventLog, Vec<CommitHash>)> {
         let (encryption_key, _, _) = mock_encryption_key()?;
-        let (_, mut vault, buffer) = mock_vault_file().await?;
+        let (_, mut vault) = mock_vault_file().await?;
 
         let (temp, mut event_log) = mock_folder_event_log().await?;
 
         let mut commits = Vec::new();
 
         // Create the vault
-        let event = WriteEvent::CreateVault(buffer);
+        let event = vault.into_event().await?;
         commits.append(&mut event_log.apply(vec![&event]).await?);
 
         // Create a secret
@@ -845,11 +845,11 @@ mod test {
     #[tokio::test]
     async fn event_log_last_commit() -> Result<()> {
         let (temp, mut event_log) = mock_folder_event_log().await?;
-        let (_, _vault, buffer) = mock_vault_file().await?;
+        let (_, vault) = mock_vault_file().await?;
 
         assert!(event_log.tree().last_commit().is_none());
 
-        let event = WriteEvent::CreateVault(buffer);
+        let event = vault.into_event().await?;
         event_log.apply(vec![&event]).await?;
 
         assert!(event_log.tree().last_commit().is_some());

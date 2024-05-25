@@ -878,6 +878,20 @@ impl Vault {
         self.len() == 0
     }
 
+    /// Convert this vault into a create vault event.
+    ///
+    /// Ensures the vault is head-only before encoding into the event.
+    pub async fn into_event(&self) -> Result<WriteEvent> {
+        let buffer = if self.is_empty() {
+            encode(self).await?
+        } else {
+            let header = self.header.clone();
+            let vault: Vault = header.into();
+            encode(&vault).await?
+        };
+        Ok(WriteEvent::CreateVault(buffer))
+    }
+
     /// Iterator for the secret keys and commit hashes.
     pub fn commits(&self) -> impl Iterator<Item = (&Uuid, &CommitHash)> {
         self.contents

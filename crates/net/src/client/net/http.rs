@@ -11,9 +11,9 @@ use sos_sdk::{
         ChangeSet, Origin, SyncClient, SyncPacket, SyncStatus, UpdateSet,
     },
 };
+use tracing::instrument;
 
 use serde_json::Value;
-use tracing::{span, Level};
 
 #[cfg(feature = "listen")]
 use crate::ChangeNotification;
@@ -29,7 +29,7 @@ use crate::sdk::storage::files::{
     ExternalFile, FileSet, FileTransfersSet, ProgressChannel,
 };
 
-use std::{path::Path, sync::Arc, time::Duration};
+use std::{fmt, path::Path, sync::Arc, time::Duration};
 use url::Url;
 
 use crate::client::{Error, Result};
@@ -49,6 +49,15 @@ pub struct HttpClient {
     device_signer: BoxedEd25519Signer,
     client: reqwest::Client,
     connection_id: String,
+}
+
+impl fmt::Debug for HttpClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HttpClient")
+            .field("url", self.origin.url())
+            .field("connection_id", &self.connection_id)
+            .finish()
+    }
 }
 
 impl HttpClient {
@@ -184,12 +193,13 @@ impl SyncClient for HttpClient {
         &self.origin
     }
 
+    #[instrument(skip(self, account))]
     async fn create_account(&self, account: &ChangeSet) -> Result<()> {
-        let span = span!(Level::DEBUG, "create_account");
-        let _enter = span.enter();
-
         let body = encode(account).await?;
         let url = self.build_url("api/v1/sync/account")?;
+
+        tracing::debug!(url = %url, "http::create_account");
+
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
@@ -202,17 +212,18 @@ impl SyncClient for HttpClient {
             .send()
             .await?;
         let status = response.status();
-        tracing::debug!(status = %status);
+        tracing::debug!(status = %status, "http::create_account");
         self.error_json(response).await?;
         Ok(())
     }
 
+    #[instrument(skip(self, account))]
     async fn update_account(&self, account: &UpdateSet) -> Result<()> {
-        let span = span!(Level::DEBUG, "update_account");
-        let _enter = span.enter();
-
         let body = encode(account).await?;
         let url = self.build_url("api/v1/sync/account")?;
+
+        tracing::debug!(url = %url, "http::update_account");
+
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
@@ -228,18 +239,19 @@ impl SyncClient for HttpClient {
             .send()
             .await?;
         let status = response.status();
-        tracing::debug!(status = %status);
+        tracing::debug!(status = %status, "http::update_account");
         self.error_json(response).await?;
         Ok(())
     }
 
+    #[instrument(skip(self))]
     async fn fetch_account(
         &self,
     ) -> std::result::Result<ChangeSet, Self::Error> {
-        let span = span!(Level::DEBUG, "fetch_account");
-        let _enter = span.enter();
-
         let url = self.build_url("api/v1/sync/account")?;
+
+        tracing::debug!(url = %url, "http::fetch_account");
+
         let sign_url = url.path();
         let account_signature = encode_account_signature(
             self.account_signer.sign(sign_url.as_bytes()).await?,
@@ -257,17 +269,18 @@ impl SyncClient for HttpClient {
             .send()
             .await?;
         let status = response.status();
-        tracing::debug!(status = %status);
+        tracing::debug!(status = %status, "http::fetch_account");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(decode(&buffer).await?)
     }
 
+    #[instrument(skip(self))]
     async fn sync_status(&self) -> Result<Option<SyncStatus>> {
-        let span = span!(Level::DEBUG, "sync_status");
-        let _enter = span.enter();
-
         let url = self.build_url("api/v1/sync/account/status")?;
+
+        tracing::debug!(url = %url, "http::sync_status");
+
         let sign_url = url.path();
         let account_signature = encode_account_signature(
             self.account_signer.sign(sign_url.as_bytes()).await?,
@@ -285,22 +298,23 @@ impl SyncClient for HttpClient {
             .send()
             .await?;
         let status = response.status();
-        tracing::debug!(status = %status);
+        tracing::debug!(status = %status, "http::sync_status");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         let sync_status: Option<SyncStatus> = decode(&buffer).await?;
         Ok(sync_status)
     }
 
+    #[instrument(skip(self, packet))]
     async fn sync(
         &self,
         packet: &SyncPacket,
     ) -> std::result::Result<SyncPacket, Self::Error> {
-        let span = span!(Level::DEBUG, "sync_account");
-        let _enter = span.enter();
-
         let body = encode(packet).await?;
         let url = self.build_url("api/v1/sync/account")?;
+
+        tracing::debug!(url = %url, "http::sync");
+
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
@@ -316,22 +330,23 @@ impl SyncClient for HttpClient {
             .send()
             .await?;
         let status = response.status();
-        tracing::debug!(status = %status);
+        tracing::debug!(status = %status, "http::sync");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(decode(&buffer).await?)
     }
 
     #[cfg(feature = "device")]
+    #[instrument(skip(self, diff))]
     async fn patch_devices(
         &self,
         diff: &DeviceDiff,
     ) -> std::result::Result<(), Self::Error> {
-        let span = span!(Level::DEBUG, "patch_devices");
-        let _enter = span.enter();
-
         let body = encode(diff).await?;
         let url = self.build_url("api/v1/sync/account/devices")?;
+
+        tracing::debug!(url = %url, "http::patch_devices");
+
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
@@ -348,12 +363,13 @@ impl SyncClient for HttpClient {
             .send()
             .await?;
         let status = response.status();
-        tracing::debug!(status = %status);
+        tracing::debug!(status = %status, "http::patch_devices");
         self.error_json(response).await?;
         Ok(())
     }
 
     #[cfg(feature = "files")]
+    #[instrument(skip(self, path, progress))]
     async fn upload_file(
         &self,
         file_info: &ExternalFile,
@@ -367,10 +383,11 @@ impl SyncClient for HttpClient {
         };
         use tokio_util::io::ReaderStream;
 
-        tracing::debug!(file = %file_info);
-
         let url_path = format!("api/v1/sync/file/{}", file_info);
         let url = self.build_url(&url_path)?;
+
+        tracing::debug!(url = %url, "http::upload_file");
+
         let sign_url = url.path();
         let account_signature = encode_account_signature(
             self.account_signer.sign(sign_url.as_bytes()).await?,
@@ -410,7 +427,7 @@ impl SyncClient for HttpClient {
             .send()
             .await?;
         let status = response.status();
-        tracing::debug!(status = %status);
+        tracing::debug!(status = %status, "http::upload_file");
         if !status.is_success() && status != http::StatusCode::NOT_MODIFIED {
             self.error_json(response).await?;
         }
@@ -418,6 +435,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg(feature = "files")]
+    #[instrument(skip(self, path, progress))]
     async fn download_file(
         &self,
         file_info: &ExternalFile,
@@ -427,12 +445,11 @@ impl SyncClient for HttpClient {
         use crate::sdk::vfs;
         use tokio::io::AsyncWriteExt;
 
-        let span = span!(Level::DEBUG, "download_file");
-        let _enter = span.enter();
-        tracing::debug!(file = %file_info);
-
         let url_path = format!("api/v1/sync/file/{}", file_info);
         let url = self.build_url(&url_path)?;
+
+        tracing::debug!(url = %url, "http::download_file");
+
         let sign_url = url.path();
         let account_signature = encode_account_signature(
             self.account_signer.sign(sign_url.as_bytes()).await?,
@@ -475,22 +492,22 @@ impl SyncClient for HttpClient {
             ));
         }
         let status = response.status();
-        tracing::debug!(status = %status);
+        tracing::debug!(status = %status, "http::download_file");
         self.error_json(response).await?;
         Ok(status)
     }
 
     #[cfg(feature = "files")]
+    #[instrument(skip(self))]
     async fn delete_file(
         &self,
         file_info: &ExternalFile,
     ) -> std::result::Result<http::StatusCode, Self::Error> {
-        let span = span!(Level::DEBUG, "delete_file");
-        let _enter = span.enter();
-        tracing::debug!(file = %file_info);
-
         let url_path = format!("api/v1/sync/file/{}", file_info);
         let url = self.build_url(&url_path)?;
+
+        tracing::debug!(url = %url, "http::delete_file");
+
         let sign_url = url.path();
         let account_signature = encode_account_signature(
             self.account_signer.sign(sign_url.as_bytes()).await?,
@@ -509,7 +526,7 @@ impl SyncClient for HttpClient {
             .send()
             .await?;
         let status = response.status();
-        tracing::debug!(status = %status);
+        tracing::debug!(status = %status, "http::delete_file");
         if !status.is_success() && status != http::StatusCode::NOT_FOUND {
             self.error_json(response).await?;
         }
@@ -517,21 +534,22 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg(feature = "files")]
+    #[instrument(skip(self))]
     async fn move_file(
         &self,
         from: &ExternalFile,
         to: &ExternalFile,
     ) -> std::result::Result<http::StatusCode, Self::Error> {
-        let span = span!(Level::DEBUG, "move_file");
-        let _enter = span.enter();
-        tracing::debug!(from = %from, to = %to);
-
         let url_path = format!("api/v1/sync/file/{}", from);
         let mut url = self.build_url(&url_path)?;
+
         url.query_pairs_mut()
             .append_pair("vault_id", &to.vault_id().to_string())
             .append_pair("secret_id", &to.secret_id().to_string())
             .append_pair("name", &to.file_name().to_string());
+
+        tracing::debug!(from = %from, to = %to, url = %url, "http::move_file");
+
         let sign_url = url.path();
         let account_signature = encode_account_signature(
             self.account_signer.sign(sign_url.as_bytes()).await?,
@@ -551,20 +569,21 @@ impl SyncClient for HttpClient {
             .send()
             .await?;
         let status = response.status();
-        tracing::debug!(status = %status);
+        tracing::debug!(status = %status, "http::move_file");
         self.error_json(response).await?;
         Ok(status)
     }
 
+    #[instrument(skip(self, local_files))]
     async fn compare_files(
         &self,
         local_files: &FileSet,
     ) -> std::result::Result<FileTransfersSet, Self::Error> {
-        let span = span!(Level::DEBUG, "compare_files");
-        let _enter = span.enter();
-
         let url_path = format!("api/v1/sync/files");
         let url = self.build_url(&url_path)?;
+
+        tracing::debug!(url = %url, "http::compare_files");
+
         let sign_url = url.path();
         let account_signature = encode_account_signature(
             self.account_signer.sign(sign_url.as_bytes()).await?,
@@ -586,7 +605,7 @@ impl SyncClient for HttpClient {
             .send()
             .await?;
         let status = response.status();
-        tracing::debug!(status = %status);
+        tracing::debug!(status = %status, "http::compare_files");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(decode(&buffer).await?)
