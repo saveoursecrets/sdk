@@ -85,6 +85,9 @@ use tokio::{
 /// Options for sign in notifications.
 #[derive(Default)]
 pub struct SigninOptions {
+    /// Instead of notifying generate an error when
+    /// the account is already locked.
+    pub error_on_locked: bool,
     /// Notifications channel for signin.
     pub notifications: Option<mpsc::Sender<SigninMessage>>,
 }
@@ -924,10 +927,19 @@ impl LocalAccount {
         .await?;
         self.paths = storage.paths();
 
+        // NOTE: unable to pass the notifications in to the async closure
+        // NOTE: without first extracting from the Option :(
         if let Some(notify) = &options.notifications {
             self.account_lock = Some(
                 self.paths
                     .acquire_account_lock(|| async move {
+                        if options.error_on_locked {
+                            let err = std::io::Error::new(
+                                std::io::ErrorKind::WouldBlock,
+                                "account locked",
+                            );
+                            return Err(err.into());
+                        }
                         notify.send(SigninMessage::Locked).await?;
                         Ok(())
                     })
@@ -937,6 +949,13 @@ impl LocalAccount {
             self.account_lock = Some(
                 self.paths
                     .acquire_account_lock(|| async move {
+                        if options.error_on_locked {
+                            let err = std::io::Error::new(
+                                std::io::ErrorKind::WouldBlock,
+                                "account locked",
+                            );
+                            return Err(err.into());
+                        }
                         println!("Blocking waiting for account lock...");
                         Ok(())
                     })
