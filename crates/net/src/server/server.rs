@@ -21,10 +21,11 @@ use axum::{
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use colored::Colorize;
-use sos_sdk::signer::ecdsa::Address;
+use sos_sdk::{signer::ecdsa::Address, storage::FileLock};
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
+    path::Path,
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock, RwLockReadGuard};
@@ -58,13 +59,29 @@ pub type TransferOperations = HashSet<ExternalFile>;
 pub type ServerTransfer = Arc<RwLock<TransferOperations>>;
 
 /// Web server implementation.
-#[derive(Default)]
-pub struct Server;
+pub struct Server {
+    #[allow(dead_code)]
+    guard: FileLock,
+}
 
 impl Server {
     /// Create a new server.
-    pub fn new() -> Self {
-        Default::default()
+    ///
+    /// Path should be the directory where the backend
+    /// will store account files; if a server is already
+    /// running and has a lock on the directory this will
+    /// block until the lock is released.
+    pub async fn new(path: impl AsRef<Path>) -> Result<Self> {
+        let lock_path = path.as_ref().join("server.lock");
+        let guard = FileLock::acquire(lock_path, || async {
+            println!(
+                "Blocking waiting for lock on {} ...",
+                path.as_ref().display()
+            );
+            Ok(())
+        })
+        .await?;
+        Ok(Self { guard })
     }
 
     /// Start the server.

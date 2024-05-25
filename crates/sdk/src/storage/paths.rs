@@ -559,7 +559,7 @@ pub struct FileLock {
 
 impl FileLock {
     /// Try to acquire a file lock for a path.
-    async fn acquire<F>(
+    pub async fn acquire<F>(
         path: impl AsRef<Path>,
         on_message: impl Fn() -> F,
     ) -> Result<Self>

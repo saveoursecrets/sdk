@@ -95,7 +95,7 @@ mod service {
         let handle = Handle::new();
 
         let addr = SocketAddr::from_str(&bind)?;
-        let server = Server::new();
+        let server = Server::new(backend.directory()).await?;
         server
             .start(addr, state, Arc::new(RwLock::new(backend)), handle)
             .await?;
