@@ -231,9 +231,23 @@ impl NetworkAccount {
     }
 
     /// List the origin servers.
-    pub async fn servers(&self) -> Vec<Origin> {
+    ///
+    /// Derived from the currently configuted in-memory remotes.
+    pub async fn servers(&self) -> HashSet<Origin> {
         let remotes = self.remotes.read().await;
         remotes.keys().cloned().collect()
+    }
+
+    /// Load origin servers from disc.
+    async fn load_servers(&self) -> Result<Option<HashSet<Origin>>> {
+        let remotes_file = self.paths().remote_origins();
+        if vfs::try_exists(&remotes_file).await? {
+            let contents = vfs::read(&remotes_file).await?;
+            let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
+            Ok(Some(origins))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Inflight file transfers.
@@ -644,17 +658,14 @@ impl Account for NetworkAccount {
             folders
         };
 
-        // Without an explicit connectio id use the inferred
+        // Without an explicit connection id use the inferred
         // connection identifier
         if self.connection_id.is_none() {
             self.connection_id = self.client_connection_id().await.ok();
         }
 
         // Load origins from disc and create remote definitions
-        let remotes_file = self.paths().remote_origins();
-        if vfs::try_exists(&remotes_file).await? {
-            let contents = vfs::read(&remotes_file).await?;
-            let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
+        if let Some(origins) = self.load_servers().await? {
             let mut remotes: Remotes = Default::default();
 
             for origin in origins {
@@ -663,7 +674,6 @@ impl Account for NetworkAccount {
             }
 
             self.remotes = Arc::new(RwLock::new(remotes));
-
             self.start_file_transfers().await?;
         }
 

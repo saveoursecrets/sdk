@@ -2066,9 +2066,9 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca38ef113da30126bbff9cd1705f9273e15d45498615d138b0c20279ac7a76aa"
+checksum = "3d8d52be92d09acc2e01dddb7fde3ad983fc6489c7db4837e605bc3fca4cb63e"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -2971,9 +2971,9 @@ checksum = "bb813b8af86854136c6922af0598d719255ecb2179515e6e7730d468f05c9cae"
 
 [[package]]
 name = "parking_lot"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e4af0ca4f6caed20e900d564c242b8e5d4903fdacf31d3daf527b66fe6f42fb"
+checksum = "f1bf18183cf54e8d6059647fc3063646a1801cf30896933ec2311622cc4b9a27"
 dependencies = [
  "lock_api",
  "parking_lot_core",
@@ -4130,7 +4130,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.11.5"
+version = "0.11.6"
 dependencies = [
  "anticipate-runner",
  "anyhow",
@@ -4191,7 +4191,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.11.5"
+version = "0.11.6"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -4240,7 +4240,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.11.5"
+version = "0.11.6"
 dependencies = [
  "aes-gcm",
  "age",
@@ -5835,8 +5835,9 @@ dependencies = [
 
 [[package]]
 name = "zxcvbn"
-version = "3.0.0"
-source = "git+https://github.com/tmpfs/zxcvbn-rs?rev=71d46b4d7ec05f97207c2e976efe19c9f9b1e62b#71d46b4d7ec05f97207c2e976efe19c9f9b1e62b"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "579b1d84df61d9d04cd250035843fee2f86a4b4bb176f102fec20779fd0bd38b"
 dependencies = [
  "derive_builder 0.20.0",
  "fancy-regex",

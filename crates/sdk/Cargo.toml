@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.11.5"
+version = "0.11.6"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -74,7 +74,7 @@ balloon-hash = { version = "0.4", features = ["std"]}
 app_dirs2 = "2"
 pem = { version = "3", features = ["serde"] }
 tempfile = "3.5"
-zxcvbn = { version = "3", git = "https://github.com/tmpfs/zxcvbn-rs", rev = "71d46b4d7ec05f97207c2e976efe19c9f9b1e62b", features = ["ser"]}
+zxcvbn = { version = "3.0.1", features = ["ser"] }
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
 vcard4 = { version = "0.5", features = ["serde"] }
 async-once-cell = "0.5"
