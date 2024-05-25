@@ -16,7 +16,7 @@ pub mod system_messages;
 pub use account::{
     Account, AccountChange, AccountData, DetachedView, FolderChange,
     FolderCreate, FolderDelete, LocalAccount, SecretChange, SecretDelete,
-    SecretInsert, SecretMove,
+    SecretInsert, SecretMove, SigninMessage, SigninOptions,
 };
 pub use builder::{AccountBuilder, PrivateNewAccount};
 pub use convert::CipherComparison;

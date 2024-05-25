@@ -6,7 +6,7 @@ use sos_sdk::{
         Account, AccountBuilder, AccountChange, AccountData,
         CipherComparison, DetachedView, FolderChange, FolderCreate,
         FolderDelete, LocalAccount, SecretChange, SecretDelete, SecretInsert,
-        SecretMove,
+        SecretMove, SigninOptions,
     },
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
@@ -107,6 +107,41 @@ pub struct NetworkAccount {
 }
 
 impl NetworkAccount {
+    async fn login(
+        &mut self,
+        key: &AccessKey,
+        options: SigninOptions,
+    ) -> Result<Vec<Summary>> {
+        let folders = {
+            let mut account = self.account.lock().await;
+            let folders = account.sign_in_with_options(key, options).await?;
+            self.paths = account.paths();
+            self.address = account.address().clone();
+            folders
+        };
+
+        // Without an explicit connection id use the inferred
+        // connection identifier
+        if self.connection_id.is_none() {
+            self.connection_id = self.client_connection_id().await.ok();
+        }
+
+        // Load origins from disc and create remote definitions
+        if let Some(origins) = self.load_servers().await? {
+            let mut remotes: Remotes = Default::default();
+
+            for origin in origins {
+                let remote = self.remote_bridge(&origin).await?;
+                remotes.insert(origin, remote);
+            }
+
+            self.remotes = Arc::new(RwLock::new(remotes));
+            self.start_file_transfers().await?;
+        }
+
+        Ok(folders)
+    }
+
     /// Revoke a device.
     #[cfg(feature = "device")]
     pub async fn revoke_device(
@@ -650,34 +685,15 @@ impl Account for NetworkAccount {
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        let folders = {
-            let mut account = self.account.lock().await;
-            let folders = account.sign_in(key).await?;
-            self.paths = account.paths();
-            self.address = account.address().clone();
-            folders
-        };
+        self.login(key, Default::default()).await
+    }
 
-        // Without an explicit connection id use the inferred
-        // connection identifier
-        if self.connection_id.is_none() {
-            self.connection_id = self.client_connection_id().await.ok();
-        }
-
-        // Load origins from disc and create remote definitions
-        if let Some(origins) = self.load_servers().await? {
-            let mut remotes: Remotes = Default::default();
-
-            for origin in origins {
-                let remote = self.remote_bridge(&origin).await?;
-                remotes.insert(origin, remote);
-            }
-
-            self.remotes = Arc::new(RwLock::new(remotes));
-            self.start_file_transfers().await?;
-        }
-
-        Ok(folders)
+    async fn sign_in_with_options(
+        &mut self,
+        key: &AccessKey,
+        options: SigninOptions,
+    ) -> Result<Vec<Summary>> {
+        self.login(key, options).await
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {

@@ -9,6 +9,7 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{File, OpenOptions},
+    future::Future,
     io::ErrorKind,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
@@ -519,15 +520,18 @@ impl Paths {
     }
 
     /// Attempt to acquire an account lock.
-    pub(crate) fn acquire_account_lock(
+    pub(crate) async fn acquire_account_lock<F>(
         &self,
-        on_message: impl Fn(),
-    ) -> Result<FileLock> {
+        on_message: impl Fn() -> F,
+    ) -> Result<FileLock>
+    where
+        F: Future<Output = Result<()>>,
+    {
         if self.is_global() {
             panic!("account lock is not accessible for global paths");
         }
         let lock_path = self.user_dir.join(LOCK_FILE);
-        FileLock::acquire(&lock_path, on_message)
+        FileLock::acquire(&lock_path, on_message).await
     }
 }
 
@@ -554,10 +558,13 @@ pub struct FileLock {
 
 impl FileLock {
     /// Try to acquire a file lock for a path.
-    fn acquire(
+    async fn acquire<F>(
         path: impl AsRef<Path>,
-        on_message: impl Fn(),
-    ) -> Result<Self> {
+        on_message: impl Fn() -> F,
+    ) -> Result<Self>
+    where
+        F: Future<Output = Result<()>>,
+    {
         let file = Arc::new(
             OpenOptions::new()
                 .read(true)
@@ -578,7 +585,7 @@ impl FileLock {
                 Err(e) => match e.kind() {
                     ErrorKind::WouldBlock => {
                         if !message_printed {
-                            on_message();
+                            on_message().await?;
                             message_printed = true;
                         }
                         std::thread::sleep(std::time::Duration::from_millis(
