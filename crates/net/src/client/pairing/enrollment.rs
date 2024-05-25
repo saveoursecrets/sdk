@@ -61,6 +61,8 @@ pub struct DeviceEnrollment {
     device_vault: Vec<u8>,
     /// Account name extracted from the account event logs.
     account_name: Option<String>,
+    /// Collection of server origins.
+    servers: HashSet<Origin>,
 }
 
 impl DeviceEnrollment {
@@ -70,6 +72,7 @@ impl DeviceEnrollment {
         origin: Origin,
         device_signer: DeviceSigner,
         device_vault: Vec<u8>,
+        servers: HashSet<Origin>,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let address = account_signing_key.address()?;
@@ -98,6 +101,7 @@ impl DeviceEnrollment {
             public_identity: None,
             device_vault,
             account_name: None,
+            servers,
         })
     }
 
@@ -145,9 +149,10 @@ impl DeviceEnrollment {
         // Write the vault containing the device signing key
         vfs::write(self.paths.device_file(), &self.device_vault).await?;
 
-        // Add the remote origin so it is loaded as
-        // a remote on the next sign in
-        self.add_origin().await?;
+        // Add origin servers early so that they will be registered
+        // as remotes when the enrollment is finished and the account
+        // is authenticated
+        self.add_origin_servers().await?;
 
         Ok(())
     }
@@ -171,20 +176,10 @@ impl DeviceEnrollment {
         Ok(account)
     }
 
-    /// Add a remote origin to the enrolled account paths.
-    async fn add_origin(&self) -> Result<()> {
+    /// Add the server origins to the enrolled account paths.
+    async fn add_origin_servers(&self) -> Result<()> {
         let remotes_file = self.paths.remote_origins();
-        let mut origins = if vfs::try_exists(&remotes_file).await? {
-            let contents = vfs::read(&remotes_file).await?;
-            let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
-            origins
-        } else {
-            HashSet::new()
-        };
-
-        origins.insert(self.origin.clone());
-
-        let data = serde_json::to_vec_pretty(&origins)?;
+        let data = serde_json::to_vec_pretty(&self.servers)?;
         vfs::write(remotes_file, data).await?;
         Ok(())
     }

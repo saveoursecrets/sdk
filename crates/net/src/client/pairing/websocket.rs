@@ -360,6 +360,11 @@ impl<'a> OfferPairing<'a> {
                         self.account.new_device_vault().await?;
                     let device_key_buffer =
                         manager.into_vault_buffer().await?;
+                    let servers = self
+                        .account
+                        .load_servers()
+                        .await?
+                        .unwrap_or_default();
 
                     self.register_device(device_signer.public_key(), device)
                         .await?;
@@ -369,6 +374,7 @@ impl<'a> OfferPairing<'a> {
                             account_signing_key,
                             device_signer.to_bytes(),
                             device_key_buffer,
+                            servers,
                         ));
 
                     let payload = if let Some(Tunnel::Transport(transport)) =
@@ -771,6 +777,7 @@ impl<'a> AcceptPairing<'a> {
             signing_key,
             device_signing_key_buf,
             device_vault_buffer,
+            servers,
         ) = confirmation;
         let signer: SingleParty = signing_key.try_into()?;
         let server = self.share_url.server().clone();
@@ -781,6 +788,7 @@ impl<'a> AcceptPairing<'a> {
             origin,
             device_signing_key_buf.try_into()?,
             device_vault_buffer,
+            servers,
             data_dir,
         )
         .await?;

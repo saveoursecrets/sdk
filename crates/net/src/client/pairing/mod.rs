@@ -1,7 +1,8 @@
 //! Protocol for pairing devices.
-use crate::sdk::device::DeviceMetaData;
+use crate::sdk::{device::DeviceMetaData, sync::Origin};
 use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
+use std::collections::HashSet;
 
 mod enrollment;
 mod error;
@@ -46,4 +47,6 @@ pub(super) struct PairingConfirmation(
     /// Encoded device vault.
     #[serde_as(as = "Base64")]
     Vec<u8>,
+    /// List of origin servers.
+    HashSet<Origin>,
 );
