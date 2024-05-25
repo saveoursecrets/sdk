@@ -360,50 +360,44 @@ impl Merge for LocalAccount {
 #[async_trait]
 impl SyncStorage for LocalAccount {
     async fn sync_status(&self) -> Result<SyncStatus> {
+        // NOTE: the order for computing the cumulative
+        // NOTE: root hash must be identical to the logic
+        // NOTE: in the server implementation and the folders
+        // NOTE: collection must be sorted so that the folders
+        // NOTE: root hash is deterministic
+
         let storage = self.storage().await?;
         let storage = storage.read().await;
         let summaries = storage.list_folders().to_vec();
 
-        let (identity, identity_root) = {
+        let identity = {
             let reader = storage.identity_log.read().await;
-            (
-                reader.tree().commit_state()?,
-                reader.tree().root().ok_or(Error::NoRootCommit)?,
-            )
+            reader.tree().commit_state()?
         };
 
-        let (account, account_root) = {
+        let account = {
             let reader = storage.account_log.read().await;
-            (
-                reader.tree().commit_state()?,
-                reader.tree().root().ok_or(Error::NoRootCommit)?,
-            )
+            reader.tree().commit_state()?
         };
 
         #[cfg(feature = "device")]
-        let (device, device_root) = {
+        let device = {
             let reader = storage.device_log.read().await;
-            (
-                reader.tree().commit_state()?,
-                reader.tree().root().ok_or(Error::NoRootCommit)?,
-            )
+            reader.tree().commit_state()?
         };
 
         #[cfg(feature = "files")]
-        let (files, mut files_root) = {
+        let files = {
             let reader = storage.file_log.read().await;
             if reader.tree().is_empty() {
-                (None, None)
+                None
             } else {
-                (
-                    Some(reader.tree().commit_state()?),
-                    Some(reader.tree().root().ok_or(Error::NoRootCommit)?),
-                )
+                Some(reader.tree().commit_state()?)
             }
         };
 
         let mut folders = IndexMap::new();
-        let mut folder_roots: Vec<[u8; 32]> = Vec::new();
+        let mut folder_roots: Vec<(&VaultId, [u8; 32])> = Vec::new();
         for summary in &summaries {
             let folder = storage
                 .cache()
@@ -411,22 +405,26 @@ impl SyncStorage for LocalAccount {
                 .ok_or(Error::CacheNotAvailable(*summary.id()))?;
 
             let commit_state = folder.commit_state().await?;
-            folder_roots.push(folder.root_hash().await?.into());
+            folder_roots.push((summary.id(), commit_state.1.root().into()));
             folders.insert(*summary.id(), commit_state);
         }
 
         // Compute a root hash of all the trees for an account
         let mut root_tree = CommitTree::new();
         let mut root_commits = vec![
-            identity_root.into(),
-            account_root.into(),
+            identity.1.root().into(),
+            account.1.root().into(),
             #[cfg(feature = "device")]
-            device_root.into(),
+            device.1.root().into(),
         ];
         #[cfg(feature = "files")]
-        if let Some(files_root) = files_root.take() {
-            root_commits.push(files_root.into());
+        if let Some(files) = &files {
+            root_commits.push(files.1.root().into());
         }
+
+        folder_roots.sort_by(|a, b| a.0.cmp(b.0));
+        let mut folder_roots =
+            folder_roots.into_iter().map(|f| f.1).collect::<Vec<_>>();
         root_commits.append(&mut folder_roots);
         root_tree.append(&mut root_commits);
         root_tree.commit();

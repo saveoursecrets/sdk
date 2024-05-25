@@ -8,6 +8,7 @@ use crate::{
     sdk::sync::{Origin, SyncError},
     ChangeNotification,
 };
+use sos_sdk::sync::SyncStorage;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -32,6 +33,7 @@ impl NetworkAccount {
             let remote = Arc::new(remote.clone());
             let (tx, mut rx) = mpsc::channel::<ChangeNotification>(32);
 
+            let local_account = Arc::clone(&self.account);
             let sync_lock = Arc::clone(&self.sync_lock);
             let sync_remote = Arc::clone(&remote);
 
@@ -40,27 +42,52 @@ impl NetworkAccount {
                     // If the change notification has changes
                     // then we attempt to sync with the remote
                     if message.outcome().changes > 0 {
-                        // Ensure we acquire the sync lock
-                        // to prevent other changes to the storage
-                        let _ = sync_lock.lock().await;
+                        // When multiple servers are configured and we
+                        // are listening for notifications to multiple
+                        // servers then this will fire for each server
+                        // however it's likely the same change set is
+                        // being applied to all servers. By comparing
+                        // the cumulative root hashes against our local
+                        // status we can drop change notifications that
+                        // would not make any changes which will reduce
+                        // network traffic and prevent multiple re-renders
+                        // in the UI.
+                        let differs = {
+                            let account = local_account.lock().await;
+                            let local_status = account.sync_status().await?;
+                            local_status.root != message.root
+                        };
 
-                        // Sync with the remote that notified us
-                        let sync_error = sync_remote.sync().await;
-                        if let Some(e) = &sync_error {
-                            tracing::error!(
-                                error = ?e,
-                                "listen_sync",
+                        if differs {
+                            // Ensure we acquire the sync lock
+                            // to prevent other changes to the storage
+                            let _ = sync_lock.lock().await;
+
+                            // Sync with the remote that notified us
+                            let sync_error = sync_remote.sync().await;
+                            if let Some(e) = &sync_error {
+                                tracing::error!(
+                                    error = ?e,
+                                    "listen_sync",
+                                );
+                            }
+
+                            // If we have a listener notify them with the
+                            // change notification and a possible sync error
+                            let tx = listener.clone();
+                            if let Some(tx) = tx {
+                                let _ = tx.send((message, sync_error)).await;
+                            }
+                        } else {
+                            tracing::debug!(
+                              root = %message.root,
+                              "drop_change_notification",
                             );
-                        }
-
-                        // If we have a listener notify them with the
-                        // change notification and a possible sync error
-                        let tx = listener.clone();
-                        if let Some(tx) = tx {
-                            let _ = tx.send((message, sync_error)).await;
                         }
                     }
                 }
+
+                Ok::<(), Error>(())
             });
 
             let handle = remote.listen(options, tx);
