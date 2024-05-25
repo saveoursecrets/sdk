@@ -934,11 +934,7 @@ impl LocalAccount {
                 self.paths
                     .acquire_account_lock(|| async move {
                         if options.error_on_locked {
-                            let err = std::io::Error::new(
-                                std::io::ErrorKind::WouldBlock,
-                                "account locked",
-                            );
-                            return Err(err.into());
+                            return Err(Error::AccountLocked);
                         }
                         notify.send(SigninMessage::Locked).await?;
                         Ok(())
@@ -950,11 +946,7 @@ impl LocalAccount {
                 self.paths
                     .acquire_account_lock(|| async move {
                         if options.error_on_locked {
-                            let err = std::io::Error::new(
-                                std::io::ErrorKind::WouldBlock,
-                                "account locked",
-                            );
-                            return Err(err.into());
+                            return Err(Error::AccountLocked);
                         }
                         println!("Blocking waiting for account lock...");
                         Ok(())

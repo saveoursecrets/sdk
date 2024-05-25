@@ -486,6 +486,10 @@ pub enum Error {
     #[error("recovery identifier is expected")]
     RecoveryId,
 
+    /// Account is already locked.
+    #[error("account locked")]
+    AccountLocked,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

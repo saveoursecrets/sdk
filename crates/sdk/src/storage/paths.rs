@@ -574,6 +574,7 @@ impl FileLock {
         );
 
         let mut message_printed = false;
+
         loop {
             match try_lock(file.clone(), Lock::Exclusive, 0, 1) {
                 Ok(guard) => {
@@ -589,7 +590,7 @@ impl FileLock {
                             message_printed = true;
                         }
                         std::thread::sleep(std::time::Duration::from_millis(
-                            25,
+                            50,
                         ));
                         continue;
                     }
