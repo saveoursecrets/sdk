@@ -601,9 +601,3 @@ impl FileLock {
         }
     }
 }
-
-impl Drop for FileLock {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
-    }
-}
