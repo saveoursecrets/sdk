@@ -412,7 +412,10 @@ pub async fn new_account(
     ))?;
     if confirmed {
         if is_generated {
-            display_passphrase("MASTER PASSWORD", passphrase.expose_secret());
+            display_passphrase(
+                "PRIMARY PASSWORD",
+                passphrase.expose_secret(),
+            );
         }
 
         let mut owner = NetworkAccount::new_account_with_builder(
@@ -430,6 +433,9 @@ pub async fn new_account(
         )
         .await?;
         let address = owner.address().to_string();
+
+        let key: AccessKey = passphrase.into();
+        owner.sign_in(&key).await?;
 
         let data_dir = Paths::data_dir()?;
         let message = format!(
