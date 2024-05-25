@@ -63,6 +63,7 @@ indexmap = { version = "2.2", features = ["serde"] }
 toml = "0.8"
 bitflags = { version = "2", features = ["serde"] }
 enum-iterator = "2"
+file-guard = "0.2"
 
 [workspace.dependencies.binary-stream]
 version = "8.3.0"

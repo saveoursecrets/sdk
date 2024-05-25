@@ -18,6 +18,7 @@ use crate::{
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
+        paths::FileLock,
         search::{DocumentCount, SearchIndex},
         AccessOptions, AccountPack, ClientStorage, StorageEventLogs,
     },
@@ -854,6 +855,13 @@ pub struct LocalAccount {
 
     /// Storage paths.
     paths: Arc<Paths>,
+
+    /// Lock for the account.
+    ///
+    /// Prevents multiple client implementations trying to
+    /// access the same account simultaneously which could
+    /// lead to data corruption.
+    account_lock: Option<FileLock>,
 }
 
 impl LocalAccount {
@@ -1328,6 +1336,7 @@ impl LocalAccount {
             address,
             paths: Arc::new(paths),
             authenticated: None,
+            account_lock: None,
         })
     }
 
@@ -1396,6 +1405,7 @@ impl LocalAccount {
             address,
             paths: storage.paths(),
             authenticated: None,
+            account_lock: None,
         };
 
         Ok(account)
@@ -1640,6 +1650,9 @@ impl Account for LocalAccount {
         )
         .await?;
         self.paths = storage.paths();
+        self.account_lock = Some(self.paths.acquire_account_lock(|| {
+            println!("Blocking waiting for account lock...");
+        })?);
 
         let file_password = user.find_file_encryption_password().await?;
         storage.set_file_password(Some(file_password));
@@ -1688,6 +1701,8 @@ impl Account for LocalAccount {
 
     async fn sign_out(&mut self) -> Result<()> {
         tracing::debug!(address = %self.address(), "sign_out");
+
+        self.account_lock.take();
 
         tracing::debug!("lock storage vaults");
         // Lock all the storage vaults

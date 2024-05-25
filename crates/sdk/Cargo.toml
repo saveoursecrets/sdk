@@ -61,6 +61,7 @@ bs58.workspace = true
 indexmap.workspace = true
 bitflags.workspace = true
 enum-iterator.workspace = true
+file-guard.workspace = true
 subtle = { version = "2.5" }
 ethereum-types = "0.14"
 async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"], optional = true }
