@@ -82,21 +82,22 @@ use tokio::{
     sync::{mpsc, RwLock},
 };
 
-/// Options for sign in notifications.
-#[derive(Default)]
-pub struct SigninOptions {
-    /// Instead of notifying generate an error when
-    /// the account is already locked.
-    pub error_on_locked: bool,
-    /// Notifications channel for signin.
-    pub notifications: Option<mpsc::Sender<SigninMessage>>,
+/// Determine how to handle a locked account.
+#[derive(Default, Clone)]
+pub enum AccountLocked {
+    /// Error on sign in when the account
+    /// is already locked.
+    #[default]
+    Error,
+    /// Send a notification over a channel.
+    Notify(mpsc::Sender<()>),
 }
 
-/// Message emitted during a sign in.
-pub enum SigninMessage {
-    /// Account is already locked and sign in is blocked
-    /// until the user releases the lock by signing out.
-    Locked,
+/// Options for sign in.
+#[derive(Default, Clone)]
+pub struct SigninOptions {
+    /// How to handle a locked account.
+    pub locked: AccountLocked,
 }
 
 /// Result information for a change to an account.
@@ -927,33 +928,22 @@ impl LocalAccount {
         .await?;
         self.paths = storage.paths();
 
-        // NOTE: unable to pass the notifications in to the async closure
-        // NOTE: without first extracting from the Option :(
-        if let Some(notify) = &options.notifications {
-            self.account_lock = Some(
-                self.paths
-                    .acquire_account_lock(|| async move {
-                        if options.error_on_locked {
+        self.account_lock = Some(
+            self.paths
+                .acquire_account_lock(|| async {
+                    let locked = options.locked.clone();
+                    match locked {
+                        AccountLocked::Error => {
                             return Err(Error::AccountLocked);
                         }
-                        notify.send(SigninMessage::Locked).await?;
-                        Ok(())
-                    })
-                    .await?,
-            );
-        } else {
-            self.account_lock = Some(
-                self.paths
-                    .acquire_account_lock(|| async move {
-                        if options.error_on_locked {
-                            return Err(Error::AccountLocked);
+                        AccountLocked::Notify(tx) => {
+                            tx.send(()).await?;
+                            Ok(())
                         }
-                        println!("Blocking waiting for account lock...");
-                        Ok(())
-                    })
-                    .await?,
-            );
-        }
+                    }
+                })
+                .await?,
+        );
 
         let file_password = user.find_file_encryption_password().await?;
         storage.set_file_password(Some(file_password));
