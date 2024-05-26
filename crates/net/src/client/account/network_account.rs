@@ -15,10 +15,7 @@ use sos_sdk::{
     sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
-        files::{
-            ExternalFile, FileMutationEvent, FileTransfers,
-            InflightTransfers, TransferOperation, Transfers,
-        },
+        files::{ExternalFile, FileMutationEvent, TransferOperation},
         search::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
@@ -72,6 +69,11 @@ use crate::sdk::migrate::import::ImportTarget;
 
 use super::remote::Remotes;
 use crate::client::{Error, RemoteBridge, RemoteSync, Result};
+
+#[cfg(feature = "files")]
+use crate::client::account::file_transfers::{
+    FileTransfers, InflightTransfers, Transfers,
+};
 
 /// Account with networking capability.
 pub struct NetworkAccount {
