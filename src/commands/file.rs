@@ -167,14 +167,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                             req.progress.as_ref().unwrap().subscribe(),
                         ));
                     }
-
-                    /*
-                    if let (Some(op), Some(tx)) =
-                        (inflight.get(&id), progress.get(&id))
-                    {
-                        channels.push((op.clone(), tx.subscribe()));
-                    }
-                    */
                 }
 
                 drop(inflight);
