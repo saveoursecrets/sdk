@@ -94,6 +94,7 @@ pub trait SyncClient {
         file_info: &storage::files::ExternalFile,
         path: &Path,
         progress: Arc<crate::client::ProgressChannel>,
+        cancel: tokio::sync::mpsc::Receiver<()>,
     ) -> Result<http::StatusCode>;
 
     /// Receive a file.
@@ -103,6 +104,7 @@ pub trait SyncClient {
         file_info: &storage::files::ExternalFile,
         path: &Path,
         progress: Arc<crate::client::ProgressChannel>,
+        cancel: tokio::sync::mpsc::Receiver<()>,
     ) -> Result<http::StatusCode>;
 
     /// Delete a file on the remote server.

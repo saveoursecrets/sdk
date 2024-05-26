@@ -73,6 +73,10 @@ pub enum Error {
     #[error("file download checksum mismatch; expected '{0}' but got '{1}'")]
     FileChecksumMismatch(String, String),
 
+    /// Error generated when a file transfer is canceled.
+    #[error("file transfer canceled")]
+    TransferCanceled,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

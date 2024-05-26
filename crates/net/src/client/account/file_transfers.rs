@@ -28,7 +28,9 @@ use std::{
     time::Duration,
 };
 use tokio::sync::{
-    broadcast, mpsc::UnboundedReceiver, oneshot, Mutex, RwLock,
+    broadcast,
+    mpsc::{self, UnboundedReceiver},
+    oneshot, Mutex, RwLock,
 };
 
 /// Channel sender for upload and download progress notifications.
@@ -48,6 +50,7 @@ pub struct InflightTransfers {
     inflight: InflightTransfersQueue,
     request_id: Arc<Mutex<AtomicU64>>,
     progress: Arc<RwLock<HashMap<u64, Arc<ProgressChannel>>>>,
+    cancel: Arc<RwLock<HashMap<u64, mpsc::Sender<()>>>>,
 }
 
 impl InflightTransfers {
@@ -57,6 +60,7 @@ impl InflightTransfers {
             inflight: Arc::new(RwLock::new(Default::default())),
             request_id: Arc::new(Mutex::new(AtomicU64::new(0))),
             progress: Arc::new(RwLock::new(Default::default())),
+            cancel: Arc::new(RwLock::new(Default::default())),
         }
     }
 
@@ -648,13 +652,19 @@ impl FileTransfers {
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
-        let (tx, _) = broadcast::channel(32);
-        let tx = Arc::new(tx);
+        let (cancel_tx, cancel_rx) = mpsc::channel::<()>(1);
+
+        let (progress_tx, _) = broadcast::channel(32);
+        let progress_tx = Arc::new(progress_tx);
         let request_id = inflight_transfers.request_id().await;
+        {
+            let mut cancel = inflight_transfers.cancel.write().await;
+            cancel.insert(request_id, cancel_tx);
+        }
         {
             let progress = inflight_transfers.progress();
             let mut progress = progress.write().await;
-            progress.insert(request_id, Arc::clone(&tx));
+            progress.insert(request_id, Arc::clone(&progress_tx));
         }
         let inflight_request = InflightOperation {
             file,
@@ -676,7 +686,10 @@ impl FileTransfers {
                     file.file_name().to_string(),
                 );
 
-                match client.upload_file(&file, &path, tx).await {
+                match client
+                    .upload_file(&file, &path, progress_tx, cancel_rx)
+                    .await
+                {
                     Ok(status) => Self::is_success(&op, status),
                     Err(e) => Self::is_error(e),
                 }
@@ -697,7 +710,10 @@ impl FileTransfers {
                     file.secret_id(),
                     file.file_name().to_string(),
                 );
-                match client.download_file(&file, &path, tx).await {
+                match client
+                    .download_file(&file, &path, progress_tx, cancel_rx)
+                    .await
+                {
                     Ok(status) => Self::is_success(&op, status),
                     Err(e) => Self::is_error(e),
                 }

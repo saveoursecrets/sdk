@@ -363,6 +363,7 @@ impl SyncClient for HttpClient {
         file_info: &ExternalFile,
         path: &Path,
         progress: Arc<ProgressChannel>,
+        mut cancel: tokio::sync::mpsc::Receiver<()>,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use reqwest::{
@@ -396,12 +397,20 @@ impl SyncClient for HttpClient {
 
         let mut reader_stream = ReaderStream::new(file);
         let progress_stream = async_stream::stream! {
-            while let Some(chunk) = reader_stream.next().await {
-                if let Ok(bytes) = &chunk {
-                    bytes_sent += bytes.len() as u64;
-                    let _ = progress.send((bytes_sent, Some(file_size)));
+            loop {
+              tokio::select! {
+                biased;
+                _ = cancel.recv() => {
+                  yield Err(Error::TransferCanceled);
                 }
-                yield chunk;
+                Some(chunk) = reader_stream.next() => {
+                  if let Ok(bytes) = &chunk {
+                      bytes_sent += bytes.len() as u64;
+                      let _ = progress.send((bytes_sent, Some(file_size)));
+                  }
+                  yield chunk.map_err(Error::from);
+                }
+              }
             }
         };
 
@@ -429,6 +438,7 @@ impl SyncClient for HttpClient {
         file_info: &ExternalFile,
         path: &Path,
         progress: Arc<ProgressChannel>,
+        mut cancel: tokio::sync::mpsc::Receiver<()>,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use tokio::io::AsyncWriteExt;
@@ -462,13 +472,27 @@ impl SyncClient for HttpClient {
 
         let mut hasher = Sha256::new();
         let mut file = vfs::File::create(path).await?;
-        while let Some(chunk) = response.chunk().await? {
-            file.write_all(&chunk).await?;
-            hasher.update(&chunk);
 
-            bytes_received += chunk.len() as u64;
-            let _ = progress.send((bytes_received, file_size));
+        loop {
+            tokio::select! {
+                _ = cancel.recv() => {
+                  vfs::remove_file(path).await?;
+                  return Err(Error::TransferCanceled);
+                }
+                chunk = response.chunk() => {
+                  if let Some(chunk) = chunk? {
+                    file.write_all(&chunk).await?;
+                    hasher.update(&chunk);
+
+                    bytes_received += chunk.len() as u64;
+                    let _ = progress.send((bytes_received, file_size));
+                  } else {
+                    break;
+                  }
+                }
+            }
         }
+
         file.flush().await?;
         let digest = hasher.finalize();
 
