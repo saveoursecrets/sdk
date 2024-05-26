@@ -383,21 +383,40 @@ impl Transfers {
 /// Reads operations from the queue, executes them on
 /// the list of clients and removes from the queue only
 /// when each operation has been completed on every client.
-pub struct FileTransfers;
+pub struct FileTransfers {
+    paths: Arc<Paths>,
+    shutdown: UnboundedReceiver<()>,
+    shutdown_ack: oneshot::Sender<()>,
+}
 
 impl FileTransfers {
-    /// Spawn a task to transfer file operations.
-    pub fn start<E, C>(
+    /// Create new file transfers manager.
+    pub fn new(
         paths: Arc<Paths>,
+        shutdown: UnboundedReceiver<()>,
+        shutdown_ack: oneshot::Sender<()>,
+    ) -> Self {
+        Self {
+            paths,
+            shutdown,
+            shutdown_ack,
+        }
+    }
+
+    /// Spawn a task to transfer file operations.
+    pub fn run<E, C>(
+        self,
         queue: Arc<RwLock<Transfers>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: Vec<C>,
-        mut shutdown: UnboundedReceiver<()>,
-        shutdown_ack: oneshot::Sender<()>,
     ) where
         E: std::fmt::Debug + Send + Sync + 'static,
         C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
     {
+        let paths = self.paths;
+        let mut shutdown = self.shutdown;
+        let shutdown_ack = self.shutdown_ack;
+
         tokio::task::spawn(async move {
             loop {
                 tokio::select! {
@@ -663,7 +682,6 @@ impl FileTransfers {
                 match client.upload_file(&file, &path, tx).await {
                     Ok(status) => Self::is_success(&op, status),
                     Err(e) => {
-                        //eprintln!("UPLOAD FAIL {:#?}", e);
                         tracing::warn!(error = ?e);
                         false
                     }

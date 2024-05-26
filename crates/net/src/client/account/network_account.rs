@@ -348,18 +348,14 @@ impl NetworkAccount {
         };
 
         let (shutdown_send, shutdown_recv) = mpsc::unbounded_channel::<()>();
-        let (ack_send, ack_recv) = oneshot::channel::<()>();
+        let (shutdown_ack_send, shutdown_ack_recv) = oneshot::channel::<()>();
 
-        FileTransfers::start(
-            paths,
-            transfers,
-            inflight_transfers,
-            clients,
-            shutdown_recv,
-            ack_send,
-        );
+        let file_transfers =
+            FileTransfers::new(paths, shutdown_recv, shutdown_ack_send);
+        file_transfers.run(transfers, inflight_transfers, clients);
 
-        self.file_transfers = Some((shutdown_send, ack_recv));
+        self.file_transfers = Some((shutdown_send, shutdown_ack_recv));
+
         Ok(())
     }
 

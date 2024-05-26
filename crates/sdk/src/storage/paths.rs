@@ -554,7 +554,6 @@ fn default_storage_dir() -> Result<PathBuf> {
 pub struct FileLock {
     #[allow(dead_code)]
     guard: FileGuard<Arc<File>>,
-    path: PathBuf,
 }
 
 impl FileLock {
@@ -579,10 +578,7 @@ impl FileLock {
         loop {
             match try_lock(file.clone(), Lock::Exclusive, 0, 1) {
                 Ok(guard) => {
-                    return Ok(Self {
-                        guard,
-                        path: path.as_ref().to_path_buf(),
-                    });
+                    return Ok(Self { guard });
                 }
                 Err(e) => match e.kind() {
                     ErrorKind::WouldBlock => {
