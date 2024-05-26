@@ -169,6 +169,9 @@ pub struct SecretDelete<T: std::error::Error> {
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
+    /// File mutation events.
+    #[cfg(feature = "files")]
+    pub file_events: Vec<FileMutationEvent>,
     #[doc(hidden)]
     pub marker: std::marker::PhantomData<T>,
 }
@@ -2328,6 +2331,8 @@ impl Account for LocalAccount {
             folder,
             #[cfg(feature = "sync")]
             sync_error: None,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         })
     }

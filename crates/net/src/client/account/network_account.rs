@@ -522,6 +522,8 @@ impl NetworkAccount {
         events: &[FileMutationEvent],
     ) -> Result<()> {
         if let Some(transfers) = &self.transfers {
+            println!("QUEUING MUTATION EVENTS: {}", events.len());
+
             let mut ops = HashMap::new();
             for event in events {
                 let (file, op): (ExternalFile, TransferOperation) =
@@ -529,6 +531,8 @@ impl NetworkAccount {
                 let entries = ops.entry(file).or_insert(IndexSet::new());
                 entries.insert(op);
             }
+
+            println!("{:#?}", ops);
 
             let mut writer = transfers.write().await;
             writer.queue_transfers(ops).await?;
@@ -1272,8 +1276,13 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
