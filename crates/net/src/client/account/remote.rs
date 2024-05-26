@@ -223,8 +223,6 @@ impl RemoteBridge {
         let file_transfers = self.client.compare_files(&file_set).await?;
 
         {
-            // let account = self.account.lock().await;
-            // let transfers = account.transfers().await?;
             let mut transfers = self.transfers.write().await;
             transfers.merge_file_transfers(file_transfers).await?;
         }

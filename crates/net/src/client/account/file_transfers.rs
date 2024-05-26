@@ -338,6 +338,23 @@ enum TransferResult {
     Fatal,
 }
 
+/// Settings for file transfer operations.
+pub struct FileTransferSettings {
+    /// Number of concurrent transfers.
+    pub concurrent_transfers: usize,
+    /// Delay in seconds between processing the transfers queue.
+    pub delay_seconds: u64,
+}
+
+impl Default for FileTransferSettings {
+    fn default() -> Self {
+        Self {
+            concurrent_transfers: 8,
+            delay_seconds: 15,
+        }
+    }
+}
+
 /// Transfers files to multiple clients.
 ///
 /// Reads operations from the queue, executes them on
@@ -345,6 +362,7 @@ enum TransferResult {
 /// when each operation has been completed on every client.
 pub struct FileTransfers {
     paths: Arc<Paths>,
+    settings: FileTransferSettings,
     shutdown: UnboundedReceiver<()>,
     shutdown_ack: oneshot::Sender<()>,
 }
@@ -353,11 +371,13 @@ impl FileTransfers {
     /// Create new file transfers manager.
     pub fn new(
         paths: Arc<Paths>,
+        settings: FileTransferSettings,
         shutdown: UnboundedReceiver<()>,
         shutdown_ack: oneshot::Sender<()>,
     ) -> Self {
         Self {
             paths,
+            settings,
             shutdown,
             shutdown_ack,
         }
@@ -373,6 +393,7 @@ impl FileTransfers {
         C: SyncClient + Clone + Send + Sync + 'static,
     {
         let paths = self.paths;
+        let settings = self.settings;
         let mut shutdown = self.shutdown;
         let shutdown_ack = self.shutdown_ack;
 
@@ -390,6 +411,7 @@ impl FileTransfers {
                             let _ = transfers.path.lock().await;
 
                             tracing::debug!("file_transfers_shut_down");
+                            let _ = shutdown_ack.send(());
 
                             break;
                         }
@@ -410,6 +432,7 @@ impl FileTransfers {
                                 // Try to process pending transfers
                                 if let Err(e) = Self::try_process_transfers(
                                     Arc::clone(&paths),
+                                    &settings,
                                     Arc::clone(&queue),
                                     Arc::clone(&inflight_transfers),
                                     clients.as_slice(),
@@ -420,17 +443,17 @@ impl FileTransfers {
                             }
                         }
                     }
-                    _ = tokio::time::sleep(Duration::from_secs(15)) => {}
+                    _ = tokio::time::sleep(
+                      Duration::from_secs(settings.delay_seconds)) => {}
                 }
             }
-
-            let _ = shutdown_ack.send(());
         });
     }
 
     /// Try to process the pending transfers list.
     async fn try_process_transfers<C>(
         paths: Arc<Paths>,
+        settings: &FileTransferSettings,
         queue: Arc<RwLock<TransfersQueue>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: &[C],
@@ -440,7 +463,7 @@ impl FileTransfers {
         C: SyncClient + Clone + Send + Sync + 'static,
     {
         let list = pending_transfers.into_iter().collect::<Vec<_>>();
-        for files in list.chunks(16) {
+        for files in list.chunks(settings.concurrent_transfers) {
             let mut futures = Vec::new();
             for (file, ops) in files {
                 futures.push(Self::process_operations(
@@ -590,7 +613,7 @@ impl FileTransfers {
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
-        let (tx, _) = broadcast::channel(512);
+        let (tx, _) = broadcast::channel(32);
         let tx = Arc::new(tx);
         let request_id = inflight_transfers.request_id().await;
         {

@@ -364,8 +364,12 @@ impl NetworkAccount {
         let (shutdown_send, shutdown_recv) = mpsc::unbounded_channel::<()>();
         let (shutdown_ack_send, shutdown_ack_recv) = oneshot::channel::<()>();
 
-        let file_transfers =
-            FileTransfers::new(paths, shutdown_recv, shutdown_ack_send);
+        let file_transfers = FileTransfers::new(
+            paths,
+            Default::default(),
+            shutdown_recv,
+            shutdown_ack_send,
+        );
         file_transfers.run(transfers, inflight_transfers, clients);
 
         self.file_transfers = Some((shutdown_send, shutdown_ack_recv));

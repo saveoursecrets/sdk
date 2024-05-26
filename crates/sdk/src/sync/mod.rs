@@ -15,8 +15,6 @@ use std::{
     collections::HashMap,
     fmt,
     hash::{Hash, Hasher},
-    path::Path,
-    sync::Arc,
 };
 use url::Url;
 
