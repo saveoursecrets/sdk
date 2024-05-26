@@ -1,6 +1,6 @@
 //! Manage pending file transfer operations.
 use crate::{
-    client::SyncClient,
+    client::{Error, SyncClient},
     sdk::{
         storage::files::{
             list_external_files, ExternalFile, FileTransfersSet,
@@ -18,6 +18,7 @@ use serde_with::{serde_as, DisplayFromStr};
 use std::{
     collections::HashMap,
     future::Future,
+    io::ErrorKind,
     path::PathBuf,
     pin::Pin,
     sync::{
@@ -327,6 +328,16 @@ impl TransfersQueue {
     }
 }
 
+/// Result of a file transfer operation.
+enum TransferResult {
+    /// Transfer completed across all clients.
+    Done,
+    /// Operation failed but can be retried.
+    Retry,
+    /// Fatal error prevents the operation from being retried.
+    Fatal,
+}
+
 /// Transfers files to multiple clients.
 ///
 /// Reads operations from the queue, executes them on
@@ -509,7 +520,11 @@ impl FileTransfers {
         queue: Arc<RwLock<TransfersQueue>>,
         uploads: Vec<
             impl Future<
-                    Output = Result<(ExternalFile, TransferOperation, bool)>,
+                    Output = Result<(
+                        ExternalFile,
+                        TransferOperation,
+                        TransferResult,
+                    )>,
                 > + Send
                 + 'static,
         >,
@@ -519,23 +534,22 @@ impl FileTransfers {
 
         // Collate results that completed for all clients
         let mut collated = HashMap::new();
-        for (file, op, done) in results {
-            let entry = collated.entry((file, op)).or_insert(done);
-            *entry = *entry && done;
+        for (file, op, result) in results {
+            let entry = collated.entry((file, op)).or_insert(vec![]);
+            entry.push(result);
+            // *entry = *entry && done;
         }
 
         // Mark transfers that were successful for all clients
         // as completed, removing them from the queue
-        for ((file, op), done) in collated {
-            if done {
+        for ((file, op), results) in collated {
+            if results.into_iter().all(|result| {
+                matches!(result, TransferResult::Done | TransferResult::Fatal)
+            }) {
                 let mut writer = queue.write().await;
-                if let Err(e) = writer.transfer_completed(&file, &op).await {
-                    tracing::error!(error = ?e);
-                    panic!("failed to remove pending transfer");
-                }
+                writer.transfer_completed(&file, &op).await?;
             }
         }
-
         Ok(())
     }
 
@@ -543,19 +557,20 @@ impl FileTransfers {
         queue: Arc<RwLock<TransfersQueue>>,
         downloads: Vec<
             impl Future<
-                    Output = Result<(ExternalFile, TransferOperation, bool)>,
+                    Output = Result<(
+                        ExternalFile,
+                        TransferOperation,
+                        TransferResult,
+                    )>,
                 > + Send
                 + 'static,
         >,
     ) -> Result<()> {
         for fut in downloads {
-            let (file, op, done) = fut.await?;
-            if done {
+            let (file, op, result) = fut.await?;
+            if let TransferResult::Done | TransferResult::Fatal = result {
                 let mut writer = queue.write().await;
-                if let Err(e) = writer.transfer_completed(&file, &op).await {
-                    tracing::error!(error = ?e);
-                    panic!("failed to remove pending transfer");
-                }
+                writer.transfer_completed(&file, &op).await?;
                 return Ok(());
             }
         }
@@ -572,7 +587,7 @@ impl FileTransfers {
         file: ExternalFile,
         op: TransferOperation,
         inflight_transfers: Arc<InflightTransfers>,
-    ) -> Result<(ExternalFile, TransferOperation, bool)>
+    ) -> Result<(ExternalFile, TransferOperation, TransferResult)>
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
@@ -596,7 +611,7 @@ impl FileTransfers {
 
         // tracing::debug!(op = ?op, url = %client.origin().url());
 
-        let success = match &op {
+        let result = match &op {
             TransferOperation::Upload => {
                 let path = paths.file_location(
                     file.vault_id(),
@@ -606,10 +621,7 @@ impl FileTransfers {
 
                 match client.upload_file(&file, &path, tx).await {
                     Ok(status) => Self::is_success(&op, status),
-                    Err(e) => {
-                        tracing::warn!(error = ?e);
-                        false
-                    }
+                    Err(e) => Self::is_error(&op, e),
                 }
             }
             TransferOperation::Download => {
@@ -630,28 +642,19 @@ impl FileTransfers {
                 );
                 match client.download_file(&file, &path, tx).await {
                     Ok(status) => Self::is_success(&op, status),
-                    Err(e) => {
-                        tracing::warn!(error = ?e);
-                        false
-                    }
+                    Err(e) => Self::is_error(&op, e),
                 }
             }
             TransferOperation::Delete => {
                 match client.delete_file(&file).await {
                     Ok(status) => Self::is_success(&op, status),
-                    Err(e) => {
-                        tracing::warn!(error = ?e);
-                        false
-                    }
+                    Err(e) => Self::is_error(&op, e),
                 }
             }
             TransferOperation::Move(dest) => {
                 match client.move_file(&file, dest).await {
                     Ok(status) => Self::is_success(&op, status),
-                    Err(e) => {
-                        tracing::warn!(error = ?e);
-                        false
-                    }
+                    Err(e) => Self::is_error(&op, e),
                 }
             }
         };
@@ -665,11 +668,14 @@ impl FileTransfers {
             progress.remove(&request_id);
         }
 
-        Ok((file, op, success))
+        Ok((file, op, result))
     }
 
-    fn is_success(op: &TransferOperation, status: StatusCode) -> bool {
-        match op {
+    fn is_success(
+        op: &TransferOperation,
+        status: StatusCode,
+    ) -> TransferResult {
+        let ok = match op {
             TransferOperation::Upload => {
                 status == StatusCode::OK || status == StatusCode::NOT_MODIFIED
             }
@@ -678,6 +684,22 @@ impl FileTransfers {
                 status == StatusCode::OK || status == StatusCode::NOT_FOUND
             }
             TransferOperation::Move(_) => status == StatusCode::OK,
+        };
+        if ok {
+            TransferResult::Done
+        } else {
+            TransferResult::Retry
+        }
+    }
+
+    fn is_error(op: &TransferOperation, error: Error) -> TransferResult {
+        tracing::warn!(error = ?error, "transfer_error");
+        match error {
+            Error::Io(io) => match io.kind() {
+                ErrorKind::NotFound => TransferResult::Fatal,
+                _ => TransferResult::Retry,
+            },
+            _ => TransferResult::Retry,
         }
     }
 }
