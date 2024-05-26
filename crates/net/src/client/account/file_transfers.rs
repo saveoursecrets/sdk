@@ -429,6 +429,11 @@ impl FileTransfers {
                             writer.queue.clone()
                         };
 
+                        tracing::debug!(
+                          num_pending = pending_transfers.len(),
+                          "pending_transfers",
+                        );
+
                         if !pending_transfers.is_empty() {
                             {
                                 // Try to process pending transfers
