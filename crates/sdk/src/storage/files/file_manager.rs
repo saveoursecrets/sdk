@@ -127,7 +127,6 @@ impl ClientStorage {
             writer.queue_transfers(ops).await?;
         }
         */
-        todo!("restore adding ops to queue");
 
         Ok(())
     }

@@ -15,7 +15,10 @@ use sos_sdk::{
     sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
-        files::{FileTransfers, InflightTransfers, Transfers},
+        files::{
+            ExternalFile, FileMutationEvent, FileTransfers,
+            InflightTransfers, TransferOperation, Transfers,
+        },
         search::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
@@ -511,6 +514,26 @@ impl NetworkAccount {
                 .as_ref()
                 .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?,
         ))
+    }
+
+    /// Convert file mutation events into file transfer queue entries.
+    async fn queue_file_mutation_events(
+        &self,
+        events: &[FileMutationEvent],
+    ) -> Result<()> {
+        if let Some(transfers) = &self.transfers {
+            let mut ops = HashMap::new();
+            for event in events {
+                let (file, op): (ExternalFile, TransferOperation) =
+                    event.into();
+                let entries = ops.entry(file).or_insert(IndexSet::new());
+                entries.insert(op);
+            }
+
+            let mut writer = transfers.write().await;
+            writer.queue_transfers(ops).await?;
+        }
+        Ok(())
     }
 }
 
@@ -1099,8 +1122,13 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
@@ -1117,22 +1145,33 @@ impl Account for NetworkAccount {
             account.insert_secrets(secrets).await?
         };
 
+        #[cfg(feature = "files")]
+        let mut file_events = Vec::new();
+
         let result = SecretInsert {
             results: result
                 .results
                 .into_iter()
-                .map(|result| SecretChange {
-                    id: result.id,
-                    event: result.event,
-                    commit_state: result.commit_state,
-                    folder: result.folder,
-                    sync_error: None,
-                    marker: std::marker::PhantomData,
+                .map(|mut result| {
+                    file_events.append(&mut result.file_events);
+                    SecretChange {
+                        id: result.id,
+                        event: result.event,
+                        commit_state: result.commit_state,
+                        folder: result.folder,
+                        sync_error: None,
+                        #[cfg(feature = "files")]
+                        file_events: result.file_events,
+                        marker: std::marker::PhantomData,
+                    }
                 })
                 .collect(),
             sync_error: self.sync().await,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&file_events).await?;
 
         Ok(result)
     }
@@ -1164,8 +1203,13 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
@@ -1188,8 +1232,13 @@ impl Account for NetworkAccount {
             id: result.id,
             event: result.event,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
@@ -1245,8 +1294,13 @@ impl Account for NetworkAccount {
             id: result.id,
             event: result.event,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
@@ -1268,8 +1322,13 @@ impl Account for NetworkAccount {
             id: result.id,
             event: result.event,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok((result, to))
     }
@@ -1299,8 +1358,13 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
