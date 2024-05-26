@@ -112,6 +112,7 @@ impl ClientStorage {
         let mut writer = self.file_log.write().await;
         writer.apply(file_events).await?;
 
+        /*
         #[cfg(feature = "sync")]
         {
             let mut ops = HashMap::new();
@@ -125,6 +126,8 @@ impl ClientStorage {
             let mut writer = self.transfers.write().await;
             writer.queue_transfers(ops).await?;
         }
+        */
+        todo!("restore adding ops to queue");
 
         Ok(())
     }

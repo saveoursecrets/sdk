@@ -15,7 +15,7 @@ use sos_sdk::{
     sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
-        files::{FileTransfers, InflightTransfers},
+        files::{FileTransfers, InflightTransfers, Transfers},
         search::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
@@ -99,7 +99,14 @@ pub struct NetworkAccount {
     /// made by this client.
     connection_id: Option<String>,
 
+    #[cfg(feature = "files")]
+    transfers: Option<Arc<RwLock<Transfers>>>,
+
+    #[cfg(feature = "files")]
+    inflight_transfers: Option<Arc<InflightTransfers>>,
+
     /// Shutdown handle for the file transfers background task.
+    #[cfg(feature = "files")]
     file_transfers: Option<(UnboundedSender<()>, oneshot::Receiver<()>)>,
 
     /// Disable networking.
@@ -119,6 +126,15 @@ impl NetworkAccount {
             self.address = account.address().clone();
             folders
         };
+
+        #[cfg(feature = "files")]
+        {
+            let transfers = Transfers::new(&*self.paths).await?;
+            let inflight_transfers = InflightTransfers::new();
+
+            self.transfers = Some(Arc::new(RwLock::new(transfers)));
+            self.inflight_transfers = Some(Arc::new(inflight_transfers));
+        }
 
         // Without an explicit connection id use the inferred
         // connection identifier
@@ -261,6 +277,8 @@ impl NetworkAccount {
             signer,
             device.into(),
             conn_id,
+            #[cfg(feature = "files")]
+            Arc::clone(self.transfers.as_ref().unwrap()),
         )?;
         Ok(provider)
     }
@@ -283,13 +301,6 @@ impl NetworkAccount {
         } else {
             Ok(None)
         }
-    }
-
-    /// Inflight file transfers.
-    pub async fn inflight_transfers(&self) -> Result<Arc<InflightTransfers>> {
-        let storage = self.storage().await?;
-        let reader = storage.read().await;
-        Ok(reader.inflight_transfers())
     }
 
     /// Save remote definitions to disc.
@@ -338,12 +349,10 @@ impl NetworkAccount {
         };
 
         let (paths, transfers, inflight_transfers) = {
-            let storage = self.storage().await?;
-            let reader = storage.read().await;
             (
-                reader.paths(),
-                reader.transfers(),
-                reader.inflight_transfers(),
+                self.paths(),
+                self.transfers().await?,
+                self.inflight_transfers().await?,
             )
         };
 
@@ -396,6 +405,7 @@ impl NetworkAccount {
     ) -> Result<Self> {
         let account =
             LocalAccount::new_unauthenticated(address, data_dir).await?;
+
         Ok(Self {
             address: Default::default(),
             paths: account.paths(),
@@ -405,6 +415,11 @@ impl NetworkAccount {
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
             connection_id: None,
+            #[cfg(feature = "files")]
+            transfers: None,
+            #[cfg(feature = "files")]
+            inflight_transfers: None,
+            #[cfg(feature = "files")]
             file_transfers: None,
             offline,
         })
@@ -466,11 +481,36 @@ impl NetworkAccount {
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
             connection_id: None,
+            #[cfg(feature = "files")]
+            transfers: None,
+            #[cfg(feature = "files")]
+            inflight_transfers: None,
+            #[cfg(feature = "files")]
             file_transfers: None,
             offline,
         };
 
         Ok(owner)
+    }
+
+    /// File transfers queue.
+    #[cfg(feature = "files")]
+    pub async fn transfers(&self) -> crate::Result<Arc<RwLock<Transfers>>> {
+        Ok(Arc::clone(
+            self.transfers
+                .as_ref()
+                .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?,
+        ))
+    }
+
+    /// Inflight file transfers.
+    #[cfg(feature = "files")]
+    pub async fn inflight_transfers(&self) -> Result<Arc<InflightTransfers>> {
+        Ok(Arc::clone(
+            self.inflight_transfers
+                .as_ref()
+                .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?,
+        ))
     }
 }
 
@@ -709,12 +749,18 @@ impl Account for NetworkAccount {
             self.shutdown_listeners().await;
         }
 
-        tracing::debug!("net_sign_out::stop_file_transfers");
-        self.stop_file_transfers().await;
+        #[cfg(feature = "files")]
         {
-            let transfers = self.transfers().await?;
-            let mut transfers = transfers.write().await;
-            transfers.clear();
+            tracing::debug!("net_sign_out::stop_file_transfers");
+            self.stop_file_transfers().await;
+            if let Some(transfers) = &mut self.transfers {
+                // let transfers = self.transfers().await?;
+                let mut transfers = transfers.write().await;
+                transfers.clear();
+            }
+
+            self.transfers = None;
+            self.inflight_transfers = None;
         }
 
         self.remotes = Default::default();
@@ -950,6 +996,7 @@ impl Account for NetworkAccount {
         Ok(account.detached_view(summary, commit).await?)
     }
 
+    /*
     #[cfg(feature = "files")]
     async fn transfers(
         &self,
@@ -957,6 +1004,7 @@ impl Account for NetworkAccount {
         let account = self.account.lock().await;
         Ok(account.transfers().await?)
     }
+    */
 
     #[cfg(feature = "search")]
     async fn initialize_search_index(

@@ -3,13 +3,13 @@
 use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     events::{AccountEvent, EventLogExt, WriteEvent},
-    storage::StorageEventLogs,
+    storage::{files::ExternalFile, StorageEventLogs},
     vault::VaultId,
     Error, Result,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -833,6 +833,14 @@ pub struct MergeOutcome {
     pub file: usize,
     /// Number of changes to the folder event logs.
     pub folders: HashMap<VaultId, usize>,
+
+    /// Collection of external files detected when merging
+    /// file events logs.
+    ///
+    /// Used after mege to update the file transfer queue.
+    #[cfg(feature = "files")]
+    #[serde(skip)]
+    pub external_files: IndexSet<ExternalFile>,
 }
 
 /// Types that can merge diffs.
