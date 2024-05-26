@@ -537,7 +537,6 @@ impl FileTransfers {
         for (file, op, result) in results {
             let entry = collated.entry((file, op)).or_insert(vec![]);
             entry.push(result);
-            // *entry = *entry && done;
         }
 
         // Mark transfers that were successful for all clients
@@ -621,7 +620,7 @@ impl FileTransfers {
 
                 match client.upload_file(&file, &path, tx).await {
                     Ok(status) => Self::is_success(&op, status),
-                    Err(e) => Self::is_error(&op, e),
+                    Err(e) => Self::is_error(e),
                 }
             }
             TransferOperation::Download => {
@@ -642,19 +641,19 @@ impl FileTransfers {
                 );
                 match client.download_file(&file, &path, tx).await {
                     Ok(status) => Self::is_success(&op, status),
-                    Err(e) => Self::is_error(&op, e),
+                    Err(e) => Self::is_error(e),
                 }
             }
             TransferOperation::Delete => {
                 match client.delete_file(&file).await {
                     Ok(status) => Self::is_success(&op, status),
-                    Err(e) => Self::is_error(&op, e),
+                    Err(e) => Self::is_error(e),
                 }
             }
             TransferOperation::Move(dest) => {
                 match client.move_file(&file, dest).await {
                     Ok(status) => Self::is_success(&op, status),
-                    Err(e) => Self::is_error(&op, e),
+                    Err(e) => Self::is_error(e),
                 }
             }
         };
@@ -692,7 +691,7 @@ impl FileTransfers {
         }
     }
 
-    fn is_error(op: &TransferOperation, error: Error) -> TransferResult {
+    fn is_error(error: Error) -> TransferResult {
         tracing::warn!(error = ?error, "transfer_error");
         match error {
             Error::Io(io) => match io.kind() {
