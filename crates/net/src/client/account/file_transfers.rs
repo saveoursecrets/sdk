@@ -343,6 +343,11 @@ pub struct FileTransferSettings {
     /// Number of concurrent transfers.
     pub concurrent_transfers: usize,
     /// Delay in seconds between processing the transfers queue.
+    ///
+    /// This value is ignored when `debug_assertions` are enabled
+    /// so that the tests complete as fast as possible.
+    ///
+    /// When `debug_assertions` are enabled the delay is one second.
     pub delay_seconds: u64,
 }
 
@@ -471,6 +476,10 @@ impl FileTransfers {
             }
         }
 
+        #[cfg(debug_assertions)]
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        #[cfg(not(debug_assertions))]
         tokio::time::sleep(Duration::from_secs(settings.delay_seconds)).await;
 
         Ok(())
