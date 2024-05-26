@@ -1259,7 +1259,7 @@ impl LocalAccount {
         let move_secret_data = secret_data.clone();
 
         #[cfg(feature = "files")]
-        let mut all_file_events = Vec::new();
+        let mut file_events = Vec::new();
 
         self.open_vault(to, false).await?;
         let (new_id, create_event, _) = self
@@ -1268,7 +1268,7 @@ impl LocalAccount {
                 secret_data.secret,
                 Default::default(),
                 false,
-                &mut all_file_events,
+                &mut file_events,
             )
             .await?;
         self.open_vault(from, false).await?;
@@ -1286,7 +1286,7 @@ impl LocalAccount {
         {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
-            let mut file_events = writer
+            let mut move_file_events = writer
                 .move_files(
                     &move_secret_data,
                     from.id(),
@@ -1297,8 +1297,8 @@ impl LocalAccount {
                     &mut options.file_progress,
                 )
                 .await?;
-            all_file_events.append(&mut file_events);
-            // writer.append_file_mutation_events(&events).await?;
+            writer.append_file_mutation_events(&move_file_events).await?;
+            file_events.append(&mut move_file_events);
         }
 
         let (_, create_event) = create_event.try_into()?;
@@ -1324,7 +1324,7 @@ impl LocalAccount {
             #[cfg(feature = "sync")]
             sync_error: None,
             #[cfg(feature = "files")]
-            file_events: all_file_events,
+            file_events,
             marker: std::marker::PhantomData,
         })
     }

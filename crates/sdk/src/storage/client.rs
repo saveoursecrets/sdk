@@ -1177,6 +1177,10 @@ impl ClientStorage {
         }
         */
 
+        #[cfg(feature = "files")]
+        self.append_file_mutation_events(&result.file_events)
+            .await?;
+
         #[cfg(feature = "search")]
         if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
             let search = index.search();
@@ -1263,6 +1267,10 @@ impl ClientStorage {
             self.append_file_mutation_events(&events).await?;
         }
         */
+
+        #[cfg(feature = "files")]
+        self.append_file_mutation_events(&result.file_events)
+            .await?;
 
         Ok(result)
     }
@@ -1371,6 +1379,10 @@ impl ClientStorage {
             self.append_file_mutation_events(&events).await?;
         }
         */
+
+        #[cfg(feature = "files")]
+        self.append_file_mutation_events(&result.file_events)
+            .await?;
 
         Ok(result)
     }
