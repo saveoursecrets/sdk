@@ -20,9 +20,7 @@ pub use external_files_sync::FileStorageSync;
 pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
 pub use integrity::{integrity_report, FailureReason, IntegrityReportEvent};
 #[cfg(feature = "sync")]
-pub use transfer::{
-    FileSet, FileTransfersSet, ProgressChannel, TransferOperation,
-};
+pub use transfer::{FileSet, FileTransfersSet, TransferOperation};
 
 /// Meta data about an encrypted file.
 #[derive(Debug, Clone)]

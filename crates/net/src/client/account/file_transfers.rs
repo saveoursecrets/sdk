@@ -4,7 +4,7 @@ use crate::{
     sdk::{
         storage::files::{
             list_external_files, ExternalFile, FileTransfersSet,
-            ProgressChannel, TransferOperation,
+            TransferOperation,
         },
         vfs, Paths, Result,
     },
@@ -29,6 +29,9 @@ use std::{
 use tokio::sync::{
     broadcast, mpsc::UnboundedReceiver, oneshot, Mutex, RwLock,
 };
+
+/// Channel sender for upload and download progress notifications.
+pub type ProgressChannel = broadcast::Sender<(u64, Option<u64>)>;
 
 type TransferQueue = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 

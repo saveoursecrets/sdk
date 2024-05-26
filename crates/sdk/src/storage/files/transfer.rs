@@ -6,10 +6,6 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use std::collections::HashSet;
-use tokio::sync::broadcast;
-
-/// Channel sender for upload and download progress notifications.
-pub type ProgressChannel = broadcast::Sender<(u64, Option<u64>)>;
 
 /// Set of files built from the state on disc.
 #[derive(Debug, Default)]
