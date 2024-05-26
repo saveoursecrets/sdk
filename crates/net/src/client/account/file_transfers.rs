@@ -405,10 +405,12 @@ impl FileTransfers {
                         if signal.is_some() {
                             tracing::debug!("file_transfers_shutting_down");
 
+                            /*
                             // Wait for any pending writes to disc
                             // for a graceful shutdown
                             let transfers = queue.read().await;
                             let _ = transfers.path.lock().await;
+                            */
 
                             tracing::debug!("file_transfers_shut_down");
                             let _ = shutdown_ack.send(());
