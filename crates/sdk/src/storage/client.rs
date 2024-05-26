@@ -1163,20 +1163,6 @@ impl ClientStorage {
                 .await?,
         };
 
-        /*
-        #[cfg(feature = "files")]
-        {
-            let events = self
-                .create_files(
-                    &summary,
-                    secret_data,
-                    &mut options.file_progress,
-                )
-                .await?;
-            self.append_file_mutation_events(&events).await?;
-        }
-        */
-
         #[cfg(feature = "files")]
         self.append_file_mutation_events(&result.file_events)
             .await?;
@@ -1249,24 +1235,6 @@ impl ClientStorage {
                 .await?
             },
         };
-
-        /*
-        // Must update the files before moving so checksums are correct
-        #[cfg(feature = "files")]
-        {
-            let folder = self.current_folder().ok_or(Error::NoOpenVault)?;
-            let events = self
-                .update_files(
-                    &folder,
-                    &folder,
-                    &old_secret_data,
-                    secret_data,
-                    &mut options.file_progress,
-                )
-                .await?;
-            self.append_file_mutation_events(&events).await?;
-        }
-        */
 
         #[cfg(feature = "files")]
         self.append_file_mutation_events(&result.file_events)
@@ -1363,22 +1331,6 @@ impl ClientStorage {
                 .await?
             },
         };
-
-        /*
-        #[cfg(feature = "files")]
-        {
-            let folder = self.current_folder().ok_or(Error::NoOpenVault)?;
-            let events = self
-                .delete_files(
-                    &folder,
-                    &secret_data,
-                    None,
-                    &mut options.file_progress,
-                )
-                .await?;
-            self.append_file_mutation_events(&events).await?;
-        }
-        */
 
         #[cfg(feature = "files")]
         self.append_file_mutation_events(&result.file_events)

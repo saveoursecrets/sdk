@@ -509,14 +509,6 @@ pub trait Account {
         commit: CommitHash,
     ) -> std::result::Result<DetachedView, Self::Error>;
 
-    /*
-    /// Transfers queue.
-    #[cfg(all(feature = "files", feature = "sync"))]
-    async fn transfers(
-        &self,
-    ) -> std::result::Result<Arc<RwLock<Transfers>>, Self::Error>;
-    */
-
     /// Initialize the search index.
     ///
     /// This should be called after a user has signed in to
@@ -2046,15 +2038,6 @@ impl Account for LocalAccount {
             index: search_index,
         })
     }
-
-    /*
-    #[cfg(all(feature = "files", feature = "sync"))]
-    async fn transfers(&self) -> Result<Arc<RwLock<Transfers>>> {
-        let storage = self.storage().await?;
-        let storage = storage.read().await;
-        Ok(storage.transfers())
-    }
-    */
 
     #[cfg(feature = "search")]
     async fn initialize_search_index(

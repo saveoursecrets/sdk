@@ -522,8 +522,6 @@ impl NetworkAccount {
         events: &[FileMutationEvent],
     ) -> Result<()> {
         if let Some(transfers) = &self.transfers {
-            println!("QUEUING MUTATION EVENTS: {}", events.len());
-
             let mut ops = HashMap::new();
             for event in events {
                 let (file, op): (ExternalFile, TransferOperation) =
@@ -531,8 +529,6 @@ impl NetworkAccount {
                 let entries = ops.entry(file).or_insert(IndexSet::new());
                 entries.insert(op);
             }
-
-            println!("{:#?}", ops);
 
             let mut writer = transfers.write().await;
             writer.queue_transfers(ops).await?;

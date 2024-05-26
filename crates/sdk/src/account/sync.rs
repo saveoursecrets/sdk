@@ -205,11 +205,7 @@ impl Merge for LocalAccount {
         diff: &FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        use crate::{
-            events::FileReducer, storage::files::TransferOperation, vfs,
-        };
-        use indexmap::IndexSet;
-        use std::collections::HashMap;
+        use crate::events::FileReducer;
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -224,7 +220,7 @@ impl Merge for LocalAccount {
 
         // File events may not have a root commit
         let is_init_diff = diff.last_commit.is_none();
-        let (checked_patch, mut external_files) = if is_init_diff
+        let (checked_patch, external_files) = if is_init_diff
             && event_log.tree().is_empty()
         {
             event_log.apply((&diff.patch).into()).await?;

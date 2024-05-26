@@ -6,7 +6,7 @@ use crate::{
     events::{EventLogExt, FileEvent},
     storage::{
         basename,
-        files::{EncryptedFile, ExternalFile, FileStorage, FileStorageSync},
+        files::{EncryptedFile, FileStorage, FileStorageSync},
         ClientStorage,
     },
     vault::{
@@ -15,15 +15,11 @@ use crate::{
     },
     vfs, Error, Result,
 };
-use indexmap::IndexSet;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
 use tokio::sync::mpsc;
-
-#[cfg(feature = "sync")]
-use crate::storage::files::TransferOperation;
 
 /// File progress operations.
 #[derive(Debug)]
@@ -111,22 +107,6 @@ impl ClientStorage {
 
         let mut writer = self.file_log.write().await;
         writer.apply(file_events).await?;
-
-        /*
-        #[cfg(feature = "sync")]
-        {
-            let mut ops = HashMap::new();
-            for event in events {
-                let (file, op): (ExternalFile, TransferOperation) =
-                    event.into();
-                let entries = ops.entry(file).or_insert(IndexSet::new());
-                entries.insert(op);
-            }
-
-            let mut writer = self.transfers.write().await;
-            writer.queue_transfers(ops).await?;
-        }
-        */
 
         Ok(())
     }
