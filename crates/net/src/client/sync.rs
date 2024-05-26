@@ -1,4 +1,5 @@
 use super::Error;
+use crate::client::Result;
 use async_trait::async_trait;
 use sos_sdk::{
     storage,
@@ -63,47 +64,28 @@ pub trait RemoteSync {
 /// Client that can synchronize with a remote server.
 #[async_trait]
 pub trait SyncClient {
-    /// Errors produced by the client.
-    type Error: std::fmt::Debug;
-
     /// Origin of the remote server.
     fn origin(&self) -> &Origin;
 
     /// Create a new account.
-    async fn create_account(
-        &self,
-        account: &ChangeSet,
-    ) -> std::result::Result<(), Self::Error>;
+    async fn create_account(&self, account: &ChangeSet) -> Result<()>;
 
     /// Update an account.
-    async fn update_account(
-        &self,
-        account: &UpdateSet,
-    ) -> std::result::Result<(), Self::Error>;
+    async fn update_account(&self, account: &UpdateSet) -> Result<()>;
 
     /// Fetch an account from a remote server.
-    async fn fetch_account(
-        &self,
-    ) -> std::result::Result<ChangeSet, Self::Error>;
+    async fn fetch_account(&self) -> Result<ChangeSet>;
 
     /// Sync status on remote, the result is `None` when the
     /// account does not exist.
-    async fn sync_status(
-        &self,
-    ) -> std::result::Result<Option<SyncStatus>, Self::Error>;
+    async fn sync_status(&self) -> Result<Option<SyncStatus>>;
 
     /// Sync with a remote.
-    async fn sync(
-        &self,
-        packet: &SyncPacket,
-    ) -> std::result::Result<SyncPacket, Self::Error>;
+    async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket>;
 
     /// Patch the device event log.
     #[cfg(feature = "device")]
-    async fn patch_devices(
-        &self,
-        diff: &DeviceDiff,
-    ) -> std::result::Result<(), Self::Error>;
+    async fn patch_devices(&self, diff: &DeviceDiff) -> Result<()>;
 
     /// Send a file.
     #[cfg(feature = "files")]
@@ -112,7 +94,7 @@ pub trait SyncClient {
         file_info: &storage::files::ExternalFile,
         path: &Path,
         progress: Arc<crate::client::ProgressChannel>,
-    ) -> std::result::Result<http::StatusCode, Self::Error>;
+    ) -> Result<http::StatusCode>;
 
     /// Receive a file.
     #[cfg(feature = "files")]
@@ -121,14 +103,14 @@ pub trait SyncClient {
         file_info: &storage::files::ExternalFile,
         path: &Path,
         progress: Arc<crate::client::ProgressChannel>,
-    ) -> std::result::Result<http::StatusCode, Self::Error>;
+    ) -> Result<http::StatusCode>;
 
     /// Delete a file on the remote server.
     #[cfg(feature = "files")]
     async fn delete_file(
         &self,
         file_info: &storage::files::ExternalFile,
-    ) -> std::result::Result<http::StatusCode, Self::Error>;
+    ) -> Result<http::StatusCode>;
 
     /// Move a file on the remote server.
     #[cfg(feature = "files")]
@@ -136,7 +118,7 @@ pub trait SyncClient {
         &self,
         from: &storage::files::ExternalFile,
         to: &storage::files::ExternalFile,
-    ) -> std::result::Result<http::StatusCode, Self::Error>;
+    ) -> Result<http::StatusCode>;
 
     /// Compare local files with a remote server.
     ///
@@ -150,5 +132,5 @@ pub trait SyncClient {
     async fn compare_files(
         &self,
         local_files: &storage::files::FileSet,
-    ) -> std::result::Result<storage::files::FileTransfersSet, Self::Error>;
+    ) -> Result<storage::files::FileTransfersSet>;
 }

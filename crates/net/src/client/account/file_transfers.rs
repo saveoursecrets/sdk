@@ -353,14 +353,13 @@ impl FileTransfers {
     }
 
     /// Spawn a task to transfer file operations.
-    pub fn run<E, C>(
+    pub fn run<C>(
         self,
         queue: Arc<RwLock<Transfers>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: Vec<C>,
     ) where
-        E: std::fmt::Debug + Send + Sync + 'static,
-        C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
+        C: SyncClient + Clone + Send + Sync + 'static,
     {
         let paths = self.paths;
         let mut shutdown = self.shutdown;
@@ -419,16 +418,15 @@ impl FileTransfers {
     }
 
     /// Try to process the pending transfers list.
-    async fn try_process_transfers<E, C>(
+    async fn try_process_transfers<C>(
         paths: Arc<Paths>,
         queue: Arc<RwLock<Transfers>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: &[C],
         pending_transfers: TransferQueue,
-    ) -> std::result::Result<(), E>
+    ) -> Result<()>
     where
-        E: std::fmt::Debug + Send + Sync + 'static,
-        C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
+        C: SyncClient + Clone + Send + Sync + 'static,
     {
         let list = pending_transfers.into_iter().collect::<Vec<_>>();
         for files in list.chunks(16) {
@@ -448,17 +446,16 @@ impl FileTransfers {
         Ok(())
     }
 
-    async fn process_operations<E, C>(
+    async fn process_operations<C>(
         file: ExternalFile,
         operations: IndexSet<TransferOperation>,
         paths: Arc<Paths>,
         queue: Arc<RwLock<Transfers>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: Vec<C>,
-    ) -> std::result::Result<(), E>
+    ) -> Result<()>
     where
-        E: std::fmt::Debug + Send + Sync + 'static,
-        C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
+        C: SyncClient + Clone + Send + Sync + 'static,
     {
         for op in operations {
             // Split uploads and downloads as they require different
@@ -492,18 +489,10 @@ impl FileTransfers {
 
             // Process uploads and downloads concurrently
             let up: Pin<
-                Box<
-                    dyn Future<Output = std::result::Result<(), E>>
-                        + Send
-                        + 'static,
-                >,
+                Box<dyn Future<Output = Result<()>> + Send + 'static>,
             > = Box::pin(Self::process_uploads(Arc::clone(&queue), uploads));
             let down: Pin<
-                Box<
-                    dyn Future<Output = std::result::Result<(), E>>
-                        + Send
-                        + 'static,
-                >,
+                Box<dyn Future<Output = Result<()>> + Send + 'static>,
             > = Box::pin(Self::process_downloads(
                 Arc::clone(&queue),
                 downloads,
@@ -516,21 +505,15 @@ impl FileTransfers {
         Ok(())
     }
 
-    async fn process_uploads<E>(
+    async fn process_uploads(
         queue: Arc<RwLock<Transfers>>,
         uploads: Vec<
             impl Future<
-                    Output = std::result::Result<
-                        (ExternalFile, TransferOperation, bool),
-                        E,
-                    >,
+                    Output = Result<(ExternalFile, TransferOperation, bool)>,
                 > + Send
                 + 'static,
         >,
-    ) -> std::result::Result<(), E>
-    where
-        E: std::fmt::Debug + Send + Sync + 'static,
-    {
+    ) -> Result<()> {
         // Execute the client requests
         let results = futures::future::try_join_all(uploads).await?;
 
@@ -556,21 +539,15 @@ impl FileTransfers {
         Ok(())
     }
 
-    async fn process_downloads<E>(
+    async fn process_downloads(
         queue: Arc<RwLock<Transfers>>,
         downloads: Vec<
             impl Future<
-                    Output = std::result::Result<
-                        (ExternalFile, TransferOperation, bool),
-                        E,
-                    >,
+                    Output = Result<(ExternalFile, TransferOperation, bool)>,
                 > + Send
                 + 'static,
         >,
-    ) -> std::result::Result<(), E>
-    where
-        E: std::fmt::Debug + Send + Sync + 'static,
-    {
+    ) -> Result<()> {
         for fut in downloads {
             let (file, op, done) = fut.await?;
             if done {
@@ -589,16 +566,15 @@ impl FileTransfers {
         Ok(())
     }
 
-    async fn run_client_operation<E, C>(
+    async fn run_client_operation<C>(
         paths: Arc<Paths>,
         client: C,
         file: ExternalFile,
         op: TransferOperation,
         inflight_transfers: Arc<InflightTransfers>,
-    ) -> std::result::Result<(ExternalFile, TransferOperation, bool), E>
+    ) -> Result<(ExternalFile, TransferOperation, bool)>
     where
-        E: std::fmt::Debug + Send + Sync + 'static,
-        C: SyncClient<Error = E> + Clone + Send + Sync + 'static,
+        C: SyncClient + Clone + Send + Sync + 'static,
     {
         let (tx, _) = broadcast::channel(512);
         let tx = Arc::new(tx);
