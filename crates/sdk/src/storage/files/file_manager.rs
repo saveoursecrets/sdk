@@ -6,7 +6,7 @@ use crate::{
     events::{EventLogExt, FileEvent},
     storage::{
         basename,
-        files::{EncryptedFile, FileStorage, FileStorageSync},
+        files::{EncryptedFile, FileStorage},
         ClientStorage,
     },
     vault::{
@@ -122,13 +122,14 @@ impl ClientStorage {
             self.file_password.as_ref().ok_or(Error::NoFilePassword)?;
 
         // Encrypt and write to disc
-        FileStorageSync::encrypt_file_storage(
+        FileStorage::encrypt_file_storage(
             file_password.clone(),
             source,
             &self.paths,
             vault_id,
             secret_id,
         )
+        .await
     }
 
     /// Decrypt a file in the storage location and return the buffer.

@@ -418,43 +418,62 @@ impl FileTransfers {
                             break;
                         }
                     }
-                    _ = futures::future::ready(()).fuse() => {
-                        let pending_transfers = {
-                            let mut writer = queue.write().await;
-                            if let Err(e) = writer.normalize(
-                                Arc::clone(&paths),
-                            ).await {
-                                tracing::error!(error = ?e);
-                            }
-                            writer.queue.clone()
-                        };
-
-                        tracing::debug!(
-                          num_pending = pending_transfers.len(),
-                          "pending_transfers",
-                        );
-
-                        if !pending_transfers.is_empty() {
-                            {
-                                // Try to process pending transfers
-                                if let Err(e) = Self::try_process_transfers(
-                                    Arc::clone(&paths),
-                                    &settings,
-                                    Arc::clone(&queue),
-                                    Arc::clone(&inflight_transfers),
-                                    clients.as_slice(),
-                                    pending_transfers,
-                                ).await {
-                                    tracing::warn!(error = ?e);
-                                }
-                            }
-                        }
-                    }
-                    _ = tokio::time::sleep(
-                      Duration::from_secs(settings.delay_seconds)) => {}
+                    _ = Self::maybe_process_transfers(
+                      Arc::clone(&paths),
+                      &settings, Arc::clone(&queue),
+                      Arc::clone(&inflight_transfers),
+                      clients.as_slice(),
+                    ).fuse() => {}
                 }
             }
         });
+    }
+
+    /// Try to process the pending transfers list.
+    async fn maybe_process_transfers<C>(
+        paths: Arc<Paths>,
+        settings: &FileTransferSettings,
+        queue: Arc<RwLock<TransfersQueue>>,
+        inflight_transfers: Arc<InflightTransfers>,
+        clients: &[C],
+    ) -> Result<()>
+    where
+        C: SyncClient + Clone + Send + Sync + 'static,
+    {
+        let pending_transfers = {
+            let mut writer = queue.write().await;
+            if let Err(e) = writer.normalize(Arc::clone(&paths)).await {
+                tracing::error!(error = ?e);
+            }
+            writer.queue.clone()
+        };
+
+        tracing::debug!(
+            num_pending = pending_transfers.len(),
+            "pending_transfers",
+        );
+
+        if !pending_transfers.is_empty() {
+            {
+                // Try to process pending transfers
+                if let Err(e) = Self::try_process_transfers(
+                    Arc::clone(&paths),
+                    &settings,
+                    Arc::clone(&queue),
+                    Arc::clone(&inflight_transfers),
+                    clients,
+                    pending_transfers,
+                )
+                .await
+                {
+                    tracing::warn!(error = ?e);
+                }
+            }
+        }
+
+        tokio::time::sleep(Duration::from_secs(settings.delay_seconds)).await;
+
+        Ok(())
     }
 
     /// Try to process the pending transfers list.
