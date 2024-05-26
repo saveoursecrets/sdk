@@ -2255,7 +2255,7 @@ impl Account for LocalAccount {
         let event = Event::Write(*folder.id(), result.event);
 
         #[cfg(feature = "files")]
-        let mut file_events = Vec::new();
+        let mut file_events = result.file_events;
 
         let id = if let Some(to) = destination.as_ref() {
             let SecretMove {
